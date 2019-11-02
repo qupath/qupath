@@ -1,5 +1,6 @@
 package qupath.lib.analysis.images;
 
+
 /**
  * Create {@link SimpleImage SimpleImage} instances for basic pixel processing.
  * 
@@ -7,6 +8,23 @@ package qupath.lib.analysis.images;
  *
  */
 public class SimpleImages {
+	
+	/**
+	 * Get the pixel values for the image.
+	 * @param image
+	 * @param direct if true, return the direct pixel buffer if possible. The caller should <i>not</i> modify this.
+	 * @return
+	 */
+	public static float[] getPixels(SimpleImage image, boolean direct) {
+		if (image instanceof SimpleModifiableImage)
+			return ((SimpleModifiableImage)image).getArray(direct);
+		int n = image.getWidth() * image.getHeight();
+		int w = image.getWidth();
+		float[] pixels = new float[n];
+		for (int i = 0; i < n; i++)
+			pixels[i] = image.getValue(i % w, i / w);
+		return pixels;
+	}
 	
 	/**
 	 * Create a {@link SimpleImage} backed by an existing float array of pixels.
@@ -76,6 +94,13 @@ public class SimpleImages {
 		@Override
 		public int getHeight() {
 			return height;
+		}
+		
+		@Override
+		public float[] getArray(boolean direct) {
+			if (direct)
+				return data;
+			return data.clone();
 		}
 
 	}

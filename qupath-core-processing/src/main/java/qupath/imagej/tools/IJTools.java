@@ -57,6 +57,7 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorToolsAwt;
@@ -451,80 +452,104 @@ public class IJTools {
 	 * @return
 	 */
 	public static ImagePlus convertToUncalibratedImagePlus(String title, BufferedImage img) {
-			ImagePlus imp = null;
-			SampleModel sampleModel = img.getSampleModel();
-			int dataType = sampleModel.getDataType();
-			int w = img.getWidth();
-			int h = img.getHeight();
-			if ((dataType == DataBuffer.TYPE_BYTE && (sampleModel.getNumBands() != 1 || img.getType() == BufferedImage.TYPE_BYTE_INDEXED)) ||
-					dataType == DataBuffer.TYPE_USHORT || dataType == DataBuffer.TYPE_SHORT || dataType == DataBuffer.TYPE_FLOAT || dataType == DataBuffer.TYPE_DOUBLE) {
-				// Handle non-8-bit images
-				ImageStack stack = new ImageStack(w, h);
-				for (int b = 0; b < sampleModel.getNumBands(); b++) {
-					// Read data as float (no matter what it is)
-					FloatProcessor fp = new FloatProcessor(w, h);
-					float[] pixels = (float[])fp.getPixels();
-					img.getRaster().getSamples(0, 0, w, h, b, pixels);
-	//				sampleModel.getSamples(0, 0, w, h, b, pixels, img.getRaster().getDataBuffer());
-					// Convert to 8 or 16-bit, if appropriate
-					if (dataType == DataBuffer.TYPE_BYTE) {
-						ByteProcessor bp = new ByteProcessor(w, h);
-						bp.setPixels(0, fp);
-						stack.addSlice(bp);
-					} else if (dataType == DataBuffer.TYPE_USHORT) {
-						ShortProcessor sp = new ShortProcessor(w, h);
-						sp.setPixels(0, fp);
-						stack.addSlice(sp);
-					} else
-						stack.addSlice(fp);
-				}
-				imp = new ImagePlus(title, stack);
-			} else {
-				// Create whatever image ImageJ will give us (worked for color or 8-bit gray)
-				imp = new ImagePlus(title, img);
+		ImagePlus imp = null;
+		ImageStack stack = new ImageStack(img.getWidth(), img.getHeight());
+		int nBands = img.getSampleModel().getNumBands();
+		// Let ImageJ handle indexed & 8-bit color images
+		if ((img.getType() == BufferedImage.TYPE_BYTE_INDEXED && nBands == 1) || BufferedImageTools.is8bitColorType(img.getType()))
+			imp = new ImagePlus(title, img);
+		else {
+			for (int b = 0; b < nBands; b++) {
+				stack.addSlice(convertToImageProcessor(img, b));
 			}
-			return imp;
+			imp = new ImagePlus(title, stack);
 		}
+		return imp;
+	}
+	
+	/**
+	 * Create an ImageStack containing the specified ImageProcessors.
+	 * @param ips the ImageProcessors. Each must be the same width, height and type. If empty, an empty stack is returned.
+	 * @return
+	 */
+	public static ImageStack createImageStack(ImageProcessor...ips) {
+		if (ips.length == 0)
+			return new ImageStack();
+		ImageStack stack = new ImageStack(ips[0].getWidth(), ips[0].getHeight());
+		for (var temp : ips) {
+			stack.addSlice(temp);
+		}
+		return stack;
+	}
+	
+	
+	/**
+	 * Extract pixels as an an ImageProcessor from a single band of a BufferedImage.
+	 * @param img
+	 * @param band
+	 * @return
+	 */
+	public static ImageProcessor convertToImageProcessor(BufferedImage img, int band) {
+		int w = img.getWidth();
+		int h = img.getHeight();
+		int dataType = img.getSampleModel().getDataType();
+		// Read data as float (no matter what it is - it's the most accuracy ImageJ can provide)
+		FloatProcessor fp = new FloatProcessor(w, h);
+		float[] pixels = (float[])fp.getPixels();
+		img.getRaster().getSamples(0, 0, w, h, band, pixels);
+		// Convert to 8 or 16-bit, if appropriate
+		if (dataType == DataBuffer.TYPE_BYTE) {
+			ByteProcessor bp = new ByteProcessor(w, h);
+			bp.setPixels(0, fp);
+			return bp;
+		} else if (dataType == DataBuffer.TYPE_USHORT) {
+			ShortProcessor sp = new ShortProcessor(w, h);
+			sp.setPixels(0, fp);
+			return sp;
+		} else
+			return fp;
+	}
+	
 
 	/**
-		 * Convert a {@code BufferedImage} into a {@code PathImage<ImagePlus>}.
-		 * <p>
-		 * An {@code ImageServer} and a {@code RegionRequest} are required to appropriate calibration.
-		 * 
-		 * @param title a name to use as the {@code ImagePlus} title.
-		 * @param server the {@code ImageServer} from which the image was requested
-		 * @param img the image to convert - if {@code null} this will be requested from {@code server}.
-		 * @param request the region to request, or that was requested to provide {@code img}
-		 * @return
-		 * @throws IOException 
-		 */
-		public static PathImage<ImagePlus> convertToImagePlus(String title, ImageServer<BufferedImage> server, BufferedImage img, RegionRequest request) throws IOException {
-			if (img == null)
-				img = server.readBufferedImage(request);
-			ImagePlus imp = convertToUncalibratedImagePlus(title, img);
-			// Set dimensions - because RegionRequest is only 2D, every 'slice' is a channel
-			imp.setDimensions(imp.getNSlices(), 1, 1);
-			// Set colors
-			SampleModel sampleModel = img.getSampleModel();
-			if (!server.isRGB() && sampleModel.getNumBands() > 1) {
-				CompositeImage impComp = new CompositeImage(imp, CompositeImage.COMPOSITE);
-				for (int b = 0; b < sampleModel.getNumBands(); b++) {
-					impComp.setChannelLut(
-							LUT.createLutFromColor(
-									new Color(server.getChannel(b).getColor())), b+1);
-					impComp.getStack().setSliceLabel(server.getChannel(b).getName(), b+1);
-				}
-				impComp.updateAllChannelsAndDraw();
-				impComp.resetDisplayRanges();
-				imp = impComp;
+	 * Convert a {@code BufferedImage} into a {@code PathImage<ImagePlus>}.
+	 * <p>
+	 * An {@code ImageServer} and a {@code RegionRequest} are required to appropriate calibration.
+	 * 
+	 * @param title a name to use as the {@code ImagePlus} title.
+	 * @param server the {@code ImageServer} from which the image was requested
+	 * @param img the image to convert - if {@code null} this will be requested from {@code server}.
+	 * @param request the region to request, or that was requested to provide {@code img}
+	 * @return
+	 * @throws IOException 
+	 */
+	public static PathImage<ImagePlus> convertToImagePlus(String title, ImageServer<BufferedImage> server, BufferedImage img, RegionRequest request) throws IOException {
+		if (img == null)
+			img = server.readBufferedImage(request);
+		ImagePlus imp = convertToUncalibratedImagePlus(title, img);
+		// Set dimensions - because RegionRequest is only 2D, every 'slice' is a channel
+		imp.setDimensions(imp.getNSlices(), 1, 1);
+		// Set colors
+		SampleModel sampleModel = img.getSampleModel();
+		if (!server.isRGB() && sampleModel.getNumBands() > 1) {
+			CompositeImage impComp = new CompositeImage(imp, CompositeImage.COMPOSITE);
+			for (int b = 0; b < sampleModel.getNumBands(); b++) {
+				impComp.setChannelLut(
+						LUT.createLutFromColor(
+								new Color(server.getChannel(b).getColor())), b+1);
+				impComp.getStack().setSliceLabel(server.getChannel(b).getName(), b+1);
 			}
-	//		else if (img.getType() == BufferedImage.TYPE_BYTE_INDEXED) {
-	//			imp.getProcessor().setColorModel(img.getColorModel());
-	//		}
-			// Set calibration
-			calibrateImagePlus(imp, request, server);
-			return createPathImage(server, imp, request);
+			impComp.updateAllChannelsAndDraw();
+			impComp.resetDisplayRanges();
+			imp = impComp;
 		}
+//		else if (img.getType() == BufferedImage.TYPE_BYTE_INDEXED) {
+//			imp.getProcessor().setColorModel(img.getColorModel());
+//		}
+		// Set calibration
+		calibrateImagePlus(imp, request, server);
+		return createPathImage(server, imp, request);
+	}
 
 	/**
 	 * Read a region from an {@code ImageServer<BufferedImage} as a {@code PathImage<ImagePlus>}.
@@ -664,7 +689,7 @@ public class IJTools {
 			if (pathROI instanceof PointsROI)
 				return ROIConverterIJ.convertToPointROI((PointsROI)pathROI, xOrigin, yOrigin, downsampleFactor);
 			// If we have any other kind of shape, create a general shape roi
-			if (pathROI instanceof AreaROI) { // TODO: Deal with non-AWT area ROIs!
+			if (pathROI != null && pathROI.isArea()) { // TODO: Deal with non-AWT area ROIs!
 				Shape shape = RoiTools.getArea(pathROI);
 	//			"scaleX", "shearY", "shearX", "scaleY", "translateX", "translateY"
 				shape = new AffineTransform(1.0/downsampleFactor, 0, 0, 1.0/downsampleFactor, xOrigin, yOrigin).createTransformedShape(shape);

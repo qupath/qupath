@@ -36,8 +36,8 @@ import javax.swing.SwingUtilities;
 import qupath.imagej.gui.IJExtension;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.SnapshotType;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.GuiTools.SnapshotType;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ServerTools;
 
@@ -67,7 +67,7 @@ public class ScreenshotCommand implements PathCommand {
 		if (viewer == null)
 			return;
 		
-		BufferedImage img = DisplayHelpers.makeSnapshot(qupath, SnapshotType.CURRENT_VIEWER);
+		BufferedImage img = GuiTools.makeSnapshot(qupath, GuiTools.SnapshotType.VIEWER);
 //		Graphics2D g2d;
 //		Border border = viewer.getBorder();
 //		if (border == null) {

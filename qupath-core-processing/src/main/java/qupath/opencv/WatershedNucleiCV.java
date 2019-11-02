@@ -59,8 +59,8 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.plugins.AbstractTileableDetectionPlugin;
 import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -69,6 +69,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.tools.OpenCVTools;
 import qupath.opencv.tools.ProcessingCV;
@@ -268,8 +269,8 @@ public class WatershedNucleiCV extends AbstractTileableDetectionPlugin<BufferedI
 							PathObject pathObject = PathObjects.createDetectionObject(pathPolygon, null, measurementList);
 
 							measurementList.addMeasurement("Area", pathPolygon.getArea());
-							measurementList.addMeasurement("Perimeter", pathPolygon.getPerimeter());
-							measurementList.addMeasurement("Circularity", pathPolygon.getCircularity());
+							measurementList.addMeasurement("Perimeter", pathPolygon.getLength());
+							measurementList.addMeasurement("Circularity", RoiTools.getCircularity(pathPolygon));
 							measurementList.addMeasurement("Solidity", pathPolygon.getSolidity());
 
 							// I am making an assumption regarding square pixels here...

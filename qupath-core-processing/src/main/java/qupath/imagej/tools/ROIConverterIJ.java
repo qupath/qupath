@@ -41,7 +41,6 @@ import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 import ij.gui.Line;
 import ij.gui.OvalRoi;
@@ -126,17 +125,17 @@ class ROIConverterIJ {
 	}
 
 	static PointRoi convertToPointROI(PointsROI pathPoints, double xOrigin, double yOrigin, double downsampleFactor) {
-		float[][] points = getTransformedPoints(pathPoints.getPointList(), xOrigin, yOrigin, downsampleFactor);
+		float[][] points = getTransformedPoints(pathPoints.getAllPoints(), xOrigin, yOrigin, downsampleFactor);
 		return setIJRoiProperties(new PointRoi(points[0], points[1]), pathPoints);
 	}
 
 	static PolygonRoi convertToPolygonROI(PolygonROI pathPolygon, double xOrigin, double yOrigin, double downsampleFactor) {
-		float[][] points = getTransformedPoints(pathPolygon.getPolygonPoints(), xOrigin, yOrigin, downsampleFactor);
+		float[][] points = getTransformedPoints(pathPolygon.getAllPoints(), xOrigin, yOrigin, downsampleFactor);
 		return setIJRoiProperties(new PolygonRoi(points[0], points[1], Roi.POLYGON), pathPolygon);
 	}
 	
 	static PolygonRoi convertToPolygonROI(PolylineROI pathPolygon, double xOrigin, double yOrigin, double downsampleFactor) {
-		float[][] points = getTransformedPoints(pathPolygon.getPolygonPoints(), xOrigin, yOrigin, downsampleFactor);
+		float[][] points = getTransformedPoints(pathPolygon.getAllPoints(), xOrigin, yOrigin, downsampleFactor);
 		return setIJRoiProperties(new PolygonRoi(points[0], points[1], Roi.POLYLINE), pathPolygon);
 	}
 	
@@ -181,7 +180,7 @@ class ROIConverterIJ {
 		transform.translate(roi.getXBase(), roi.getYBase());
 		transform.translate(-xOrigin, -yOrigin);
 //		return setPathROIProperties(PathROIHelpers.getShapeROI(new Area(transform.createTransformedShape(shape)), 0, 0, 0), roi);
-		return ROIs.createAreaROI(transform.createTransformedShape(shape), ImagePlane.getPlaneWithChannel(c, z, t));
+		return ROIs.createAreaROI(new Area(transform.createTransformedShape(shape)), ImagePlane.getPlaneWithChannel(c, z, t));
 	}
 	
 	
@@ -220,13 +219,13 @@ class ROIConverterIJ {
 		return ROIs.createLineROI(x1, y1, x2, y2, ImagePlane.getPlaneWithChannel(c, z, t));		
 	}
 	
-	private static PathPoints convertToPointROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
+	private static ROI convertToPointROI(PolygonRoi roi, Calibration cal, double downsampleFactor, final int c, final int z, final int t) {
 		double x = cal == null ? 0 : cal.xOrigin;
 		double y = cal == null ? 0 : cal.yOrigin;
 		return convertToPointROI(roi, x, y, downsampleFactor, c, z, t);
 	}
 
-	static PathPoints convertToPointROI(PolygonRoi roi, double xOrigin, double yOrigin, double downsampleFactor, final int c, final int z, final int t) {
+	static ROI convertToPointROI(PolygonRoi roi, double xOrigin, double yOrigin, double downsampleFactor, final int c, final int z, final int t) {
 		List<Point2> points = convertToPointsList(roi.getFloatPolygon(), xOrigin, yOrigin, downsampleFactor);
 		if (points == null)
 			return null;

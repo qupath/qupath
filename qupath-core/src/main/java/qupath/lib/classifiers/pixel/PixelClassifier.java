@@ -3,8 +3,6 @@ package qupath.lib.classifiers.pixel;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 
-import com.google.gson.annotations.JsonAdapter;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.RegionRequest;
 
@@ -16,8 +14,15 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 public interface PixelClassifier {
+	
+	/**
+	 * Query whether the classifier supports a particular image.
+	 * It may not if the number of channels (for example) is incompatible.
+	 * @param imageData
+	 * @return
+	 */
+	public boolean supportsImage(ImageData<BufferedImage> imageData);
 
     /**
      * Apply pixel classifier to a specified region of an image.

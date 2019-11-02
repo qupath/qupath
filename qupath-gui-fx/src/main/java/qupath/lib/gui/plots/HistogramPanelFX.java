@@ -54,7 +54,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Path;
 import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.gui.helpers.ColorToolsFX;
+import qupath.lib.gui.tools.ColorToolsFX;
 
 /**
  * Component to control the display of histograms using JavaFX charts.

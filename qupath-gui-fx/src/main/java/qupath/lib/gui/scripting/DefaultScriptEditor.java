@@ -33,13 +33,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -65,6 +68,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
@@ -101,24 +105,30 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
 
 
@@ -171,6 +181,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 	}
+	
+	
 
 //	private static final List<String> SUPPORTED_LANGUAGES = Collections.unmodifiableList(
 //			Arrays.asList("JavaScript", "Jython", "Groovy", "Ruby"));
@@ -221,7 +233,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BooleanProperty autoRefreshFiles = PathPrefs.createPersistentPreference("scriptingAutoRefreshFiles", true);
 	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
-	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", false);
+	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", true);
 	
 	// Regex pattern used to identify whether a script should be run in the JavaFX Platform thread
 	// If so, this line should be included at the top of the script
@@ -230,13 +242,36 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private static ScriptEngineManager manager = createManager();
 	
 	private ListView<ScriptTab> listScripts = new ListView<>();
+	
+	/**
+	 * Create a map of classes that have changed, and therefore old scripts may use out-of-date import statements.
+	 * This allows us to be a bit more helpful in handling the error message.
+	 */
+	private static Map<String, Class<?>> CONFUSED_CLASSES;
+	
+	static {	
+		CONFUSED_CLASSES = new HashMap<>();
+		for (Class<?> cls : QP.getCoreClasses()) {
+			CONFUSED_CLASSES.put(cls.getSimpleName(), cls);
+		}
+		CONFUSED_CLASSES.put("PathRoiToolsAwt", RoiTools.class);
+		CONFUSED_CLASSES.put("PathDetectionObject", PathObjects.class);
+		CONFUSED_CLASSES.put("PathAnnotationObject", PathObjects.class);
+		CONFUSED_CLASSES.put("PathCellObject", PathObjects.class);
+		CONFUSED_CLASSES.put("RoiConverterIJ", IJTools.class);
+		CONFUSED_CLASSES.put("QP", QP.class);
+		CONFUSED_CLASSES.put("QPEx", QPEx.class);
+		CONFUSED_CLASSES.put("ShapeSimplifierAwt", ShapeSimplifier.class);
+		CONFUSED_CLASSES.put("ImagePlusServerBuilder", IJTools.class);
+		CONFUSED_CLASSES.put("DisplayHelpers", Dialogs.class);
+		CONFUSED_CLASSES = Collections.unmodifiableMap(CONFUSED_CLASSES);
+	}
 
 
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
 //		createDialog();
 	}
-	
 	
 	
 	public boolean supportsFile(final File file) {
@@ -529,7 +564,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default bindings")),
+				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script start time")),
 				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
@@ -677,7 +712,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (result != null)
 				logger.info("Result: {}", result);
 		} finally {
-			LoggingAppender.getInstance().removeTextComponent(console);			
+			Platform.runLater(() -> LoggingAppender.getInstance().removeTextComponent(console));	
 		}
 	}
 
@@ -695,6 +730,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptEngine engine = manager.getEngineByName(language.toString());
 		return executeScript(engine, script, imageData, importDefaultMethods, context);
 	}
+	
 	
 	/**
 	 * Execute a script using the specific ScriptEngine.
@@ -733,28 +769,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 				script2 = String.format(
 						"import qupath\n" +
 						"from %s import *\n" +
-//						"setBatchImageData(imageData)\n" +
 						"%s\n",
-//						"setBatchImageData(None)\n",
 						scriptClass, script);
 				extraLines = 2;
 			}
 			if (engine.getFactory().getNames().contains("groovy")) {
-				script2 = String.format(
-						"import static %s.*;\n" + 
-//						"setBatchImageData(imageData)\n" +
-						"%s\n",// +
-//						"setBatchImageData(null)\n",
-						scriptClass, script);
-				extraLines = 1;
+				script2 = QPEx.getDefaultImports(true) + System.lineSeparator() + script;
+//				script2 = String.format(
+//						"import static %s.*;\n" + 
+//						"%s\n",
+//						scriptClass, script);
+				extraLines = 1; // coreImports.size() + 1;
 			}
 			if (engine.getFactory().getNames().contains("javascript")) {
 				script2 = String.format(
 						"var QP = Java.type(\"%s\");\n"
 						+ "with (Object.bindProperties({}, QP)) {\n"
-//						+ "setBatchImageData(imageData)\n"
 						+ "%s\n"
-//						+ "setBatchImageData(null)\n"
 						+ "}\n",
 						scriptClass, script);
 				extraLines = 2;
@@ -783,17 +814,64 @@ public class DefaultScriptEditor implements ScriptEditor {
 				}
 				
 				Writer errorWriter = context.getErrorWriter();
+				
+				StringBuilder sb = new StringBuilder();
+				String message = cause.getLocalizedMessage();
+				if (line < 0) {
+					var lineMatcher = Pattern.compile("@ line ([\\d]+)").matcher(message);
+					if (lineMatcher.find())
+						line = Integer.parseInt(lineMatcher.group(1));
+				}
+				
+				// Check if the error was to do with an import statement
+				if (message != null && !message.isBlank()) {
+					var matcher = Pattern.compile("unable to resolve class ([A-Za-z_.-]+)").matcher(message);
+					if (matcher.find()) {
+						String missingClass = matcher.group(1).strip();
+						sb.append("It looks like you have tried to import a class '" + missingClass + "' that doesn't exist!\n");
+						int ind = missingClass.lastIndexOf(".");
+						if (ind >= 0)
+							missingClass = missingClass.substring(ind+1);
+						Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
+						if (suggestedClass != null) {
+							sb.append("You should probably remove the broken import statement in your script (around line " + line + ").\n");
+							sb.append("Then you may want to check 'Run -> Include default imports' is selected, or alternatively add ");
+							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+						}
+					}
+	
+					// Check if the error was to do with a missing property... which can again be thanks to an import statement
+					var matcherProperty = Pattern.compile("No such property: ([A-Za-z_.-]+)").matcher(message);
+					if (matcherProperty.find()) {
+						String missingClass = matcherProperty.group(1).strip();
+						sb.append("I cannot find '" + missingClass + "'!\n");
+						int ind = missingClass.lastIndexOf(".");
+						if (ind >= 0)
+							missingClass = missingClass.substring(ind+1);
+						Class<?> suggestedClass = CONFUSED_CLASSES.get(missingClass);
+						if (suggestedClass != null) {
+							if (!suggestedClass.getSimpleName().equals(missingClass)) {
+								sb.append("You can try replacing ").append(missingClass).append(" with ").append(suggestedClass.getSimpleName()).append("\n");
+							}
+							sb.append("You might want to check 'Run -> Include default imports' is selected, or alternatively add ");
+							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
+						}
+					}
+				}
+				if (sb.length() > 0)
+					errorWriter.append(sb.toString());
+				
 				if (line >= 0) {
 					line = line - extraLines;
 					if (cause instanceof InterruptedException)
-						errorWriter.append("Script interrupted at line " + line + ": " + cause.getLocalizedMessage() + "\n");
+						errorWriter.append("Script interrupted at line " + line + ": " + message + "\n");
 					else
-						errorWriter.append("Error at line " + line + ": " + cause.getLocalizedMessage() + "\n");
+						errorWriter.append("Error at line " + line + ": " + message + "\n");
 				} else {
 					if (cause instanceof InterruptedException)
-						errorWriter.append("Script interrupted: " + cause.getLocalizedMessage() + "\n");
+						errorWriter.append("Script interrupted: " + message + "\n");
 					else
-						errorWriter.append("Error: " + cause.getLocalizedMessage() + "\n");
+						errorWriter.append("Error: " + message + "\n");
 				}
 				logger.error("Script error", cause);
 			} catch (IOException e1) {
@@ -863,7 +941,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Check if we need to save
 		if (tab.isModified() && tab.hasScript()) {
 			// TODO: Consider that this previously had a different parent for the dialog... and probably should
-			DialogButton option = DisplayHelpers.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
+			DialogButton option = Dialogs.showYesNoCancelDialog("Close " + tab.getName(), String.format("Save %s before closing?", tab.getName()));
 			if (option == DialogButton.CANCEL)
 				return false;
 			if (option == DialogButton.YES) {
@@ -1063,16 +1141,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	void handleRunProject(final boolean doSave) {
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
-			DisplayHelpers.showErrorMessage("Script editor", "No project open");
+			Dialogs.showErrorMessage("Script editor", "No project open");
 			return;
 		}
 		ScriptTab tab = getCurrentScriptTab();
 		if (tab == null || tab.getEditorComponent().getText().trim().length() == 0) {
-			DisplayHelpers.showErrorMessage("Script editor", "No script selected");
+			Dialogs.showErrorMessage("Script editor", "No script selected");
 			return;
 		}
 		if (tab.getLanguage() == null) {
-			DisplayHelpers.showErrorMessage("Script editor", "No language set");
+			Dialogs.showErrorMessage("Script editor", "No language set");
 			return;			
 		}
 		
@@ -1123,27 +1201,73 @@ public class DefaultScriptEditor implements ScriptEditor {
 		cbWithData.selectedProperty().addListener((v, o, n) -> updateImageList(listSelectionView, project, tfFilter.getText(), cbWithData.selectedProperty().get()));
 		
 		GridPane paneFooter = new GridPane();
+
 		paneFooter.setMaxWidth(Double.MAX_VALUE);
 		cbWithData.setMaxWidth(Double.MAX_VALUE);
 		paneFooter.add(tfFilter, 0, 0);
 		paneFooter.add(cbWithData, 0, 1);
-		// TODO: Apparent bug in checkbox display; full text not shown?
-		// https://bugs.openjdk.java.net/browse/JDK-8199592
-		GridPane.setHgrow(tfFilter, Priority.ALWAYS);
-		GridPane.setHgrow(cbWithData, Priority.ALWAYS);
-		GridPane.setFillWidth(tfFilter, Boolean.TRUE);
-		GridPane.setFillWidth(cbWithData, Boolean.TRUE);
+				
+		PaneTools.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
+		PaneTools.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
+		cbWithData.setMinWidth(CheckBox.USE_PREF_SIZE);
 		paneFooter.setVgap(5);
 		listSelectionView.setSourceFooter(paneFooter);
 		
-		// Create label to show number selected
+		// Create label to show number selected, with a possible warning if we have a current image open
+		List<ProjectImageEntry<BufferedImage>> currentImages = new ArrayList<>();
+		Label labelSameImageWarning = new Label(
+				"A selected image is open in the viewer!\n"
+				+ "Use 'File>Reload data' to see changes.");
+		
 		Label labelSelected = new Label();
 		labelSelected.setTextAlignment(TextAlignment.CENTER);
 		labelSelected.setAlignment(Pos.CENTER);
 		labelSelected.setMaxWidth(Double.MAX_VALUE);
-		listSelectionView.getTargetItems().addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> labelSelected.setText(listSelectionView.getTargetItems().size() + " selected"));
-		listSelectionView.setTargetFooter(labelSelected);
+		GridPane.setHgrow(labelSelected, Priority.ALWAYS);
+		GridPane.setFillWidth(labelSelected, Boolean.TRUE);
+		Platform.runLater(() -> {
+			getTargetItems(listSelectionView).addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
+				labelSelected.setText(e.getList().size() + " selected");
+				if (labelSameImageWarning != null && currentImages != null) {
+					boolean visible = false;
+					var targets = e.getList();
+					for (var current : currentImages) {
+						if (targets.contains(current)) {
+							visible = true;
+							break;
+						}
+					}
+					labelSameImageWarning.setVisible(visible);
+				}
+			});
+		});
 		
+		var paneSelected = new GridPane();
+		PaneTools.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
+
+		// Get the current images that are open
+		currentImages.addAll(qupath.getViewers().stream()
+				.map(v -> {
+					var imageData = v.getImageData();
+					return imageData == null ? null : qupath.getProject().getEntry(imageData);
+				})
+				.filter(d -> d != null)
+				.collect(Collectors.toList()));
+		// Create a warning label to display if we need to
+		if (doSave && !currentImages.isEmpty()) {
+			labelSameImageWarning.setTextFill(Color.RED);
+			labelSameImageWarning.setMaxWidth(Double.MAX_VALUE);
+			labelSameImageWarning.setMinHeight(Label.USE_PREF_SIZE);
+			labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
+			labelSameImageWarning.setAlignment(Pos.CENTER);
+			labelSameImageWarning.setVisible(false);
+			PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
+			PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
+			PaneTools.addGridRow(paneSelected, 1, 0,
+					"'Run For Project' will save the data file for any image that is open - you will need to reopen the image to see the changes",
+					labelSameImageWarning);
+		}
+		listSelectionView.setTargetFooter(paneSelected);
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());
@@ -1160,17 +1284,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		previousImages.clear();
 //		previousImages.addAll(listSelectionView.getTargetItems());
 
-		// TODO: Remove this when controlsfx bug fixed
-		var skin = listSelectionView.getSkin();
-		try {
-			logger.warn("Attempting to access target list by reflection (required for controls-fx 11.0.0-RC2)");
-			var method = skin.getClass().getMethod("getTargetListView");
-			var view = (ListView<?>)method.invoke(skin);
-			previousImages.addAll((List<ProjectImageEntry<BufferedImage>>)view.getItems());
-		} catch (Exception e) {
-			logger.warn("Unable to access target list by reflection, sorry");
-			previousImages.addAll(listSelectionView.getTargetItems());
-		}
+		previousImages.addAll(getTargetItems(listSelectionView));
 
 		if (previousImages.isEmpty())
 			return;
@@ -1187,7 +1301,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		progress.getDialogPane().setGraphic(null);
 		progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 		progress.getDialogPane().lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION, e -> {
-			if (DisplayHelpers.showYesNoDialog("Cancel batch script", "Are you sure you want to stop the running script after the current image?")) {
+			if (Dialogs.showYesNoDialog("Cancel batch script", "Are you sure you want to stop the running script after the current image?")) {
 				worker.quietCancel();
 				progress.setHeaderText("Cancelling...");
 //				worker.cancel(false);
@@ -1207,16 +1321,52 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
+	/**
+	 * We should just be able to call {@link ListSelectionView#getTargetItems()}, but in ControlsFX 11 there 
+	 * is a bug that prevents this being correctly bound.
+	 * @param <T>
+	 * @param listSelectionView
+	 * @return
+	 */
+	private static <T> ObservableList<T> getTargetItems(ListSelectionView<T> listSelectionView) {
+		var skin = listSelectionView.getSkin();
+		try {
+			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
+			var method = skin.getClass().getMethod("getTargetListView");
+			var view = (ListView<?>)method.invoke(skin);
+			return (ObservableList<T>)view.getItems();
+		} catch (Exception e) {
+			logger.warn("Unable to access target list by reflection, sorry", e);
+			return listSelectionView.getTargetItems();
+		}
+	}
+	
+	private static <T> ObservableList<T> getSourceItems(ListSelectionView<T> listSelectionView) {
+		var skin = listSelectionView.getSkin();
+		try {
+			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
+			var method = skin.getClass().getMethod("getSourceListView");
+			var view = (ListView<?>)method.invoke(skin);
+			return (ObservableList<T>)view.getItems();
+		} catch (Exception e) {
+			logger.warn("Unable to access target list by reflection, sorry", e);
+			return listSelectionView.getSourceItems();
+		}
+	}
+	
+	
 	
 	private void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, final Project<BufferedImage> project, final String filterText, final boolean withDataOnly) {
 		String text = filterText.trim().toLowerCase();
 		
 		// Get an update source items list
 		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(project.getImageList());
-		sourceItems.removeAll(listSelectionView.getTargetItems());
+		var targetItems = getTargetItems(listSelectionView);
+		sourceItems.removeAll(targetItems);
 		// Remove those without a data file, if necessary
 		if (withDataOnly) {
 			sourceItems.removeIf(p -> !p.hasImageData());
+			targetItems.removeIf(p -> !p.hasImageData());
 		}
 		// Apply filter text
 		if (text.length() > 0 && !sourceItems.isEmpty()) {
@@ -1226,9 +1376,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 					iter.remove();
 			}
 		}
-		if (listSelectionView.getSourceItems().equals(sourceItems))
+		if (getSourceItems(listSelectionView).equals(sourceItems))
 			return;
-		listSelectionView.getSourceItems().setAll(sourceItems);
+		getSourceItems(listSelectionView).setAll(sourceItems);
 	}
 	
 	
@@ -1832,10 +1982,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 
 	@Override
-	public void showNewScript() {
+	public void showEditor() {
 		if (dialog == null || !dialog.isShowing())
 			createDialog();
-		showScript(null, null);
+		// Create a new script if we need one
+		if (listScripts.getItems().isEmpty())
+			showScript(null, null);
 		if (!dialog.isShowing())
 			dialog.show();
 	}

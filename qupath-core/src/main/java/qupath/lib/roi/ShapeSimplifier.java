@@ -32,7 +32,7 @@ import java.util.PriorityQueue;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.PathShape;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Helper methods for simplifying shapes, such removing polygon points while retaining the a similar overall 
@@ -147,7 +147,7 @@ public class ShapeSimplifier {
 	 * @return
 	 */
 	public static PolygonROI simplifyPolygon(PolygonROI polygon, final double altitudeThreshold) {
-		List<Point2> points = polygon.getPolygonPoints();
+		List<Point2> points = polygon.getAllPoints();
 		simplifyPolygonPoints(points, altitudeThreshold);
 		// Construct a new polygon
 		return ROIs.createPolygonROI(points, ImagePlane.getPlaneWithChannel(polygon));
@@ -250,12 +250,12 @@ public class ShapeSimplifier {
 	 * @param altitudeThreshold
 	 * @return
 	 */
-	public static PathShape simplifyShape(PathShape shapeROI, double altitudeThreshold) {
+	public static ROI simplifyShape(ROI shapeROI, double altitudeThreshold) {
 		Shape shape = RoiTools.getShape(shapeROI);
 		Path2D path = shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape);
 		path = simplifyPath(path, altitudeThreshold);
 		// Construct a new polygon
-		return new AWTAreaROI(path, shapeROI.getImagePlane());
+		return RoiTools.getShapeROI(path, shapeROI.getImagePlane(), 0.5);
 	}
 	
 	

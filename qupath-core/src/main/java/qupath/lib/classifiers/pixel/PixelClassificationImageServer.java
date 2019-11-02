@@ -10,13 +10,12 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.annotations.JsonAdapter;
-
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
@@ -34,15 +33,47 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationImageServer.class);
 	
+	private static final String KEY_PIXEL_LAYER = "PIXEL_LAYER";
+	
 	private static int DEFAULT_TILE_SIZE = 512;
 	
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
 	
-	@JsonAdapter(PixelClassifiers.PixelClassifierTypeAdapterFactory.class)
 	private PixelClassifier classifier;
 	
 	private ImageServerMetadata originalMetadata;
+	
+	/**
+	 * Set an ImageServer as a property in the ImageData.
+	 * <p>
+	 * Note that this method is subject to change (in location and behavior).
+	 * 
+	 * @param imageData
+	 * @param layerServer server to return the pixel layer data; if null, the property will be removed
+	 */
+	public static void setPixelLayer(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> layerServer) {
+		if (layerServer == null)
+			imageData.removeProperty(KEY_PIXEL_LAYER);
+		else
+			imageData.setProperty(KEY_PIXEL_LAYER, layerServer);			
+	}
+	
+	/**
+	 * Request the pixel layer from an ImageData.
+	 * <p>
+	 * Note that this method is subject to change (in location and behavior).
+	 * 
+	 * @param imageData
+	 * @return
+	 */
+	public static ImageServer<BufferedImage> getPixelLayer(ImageData<?> imageData) {
+		var layer = imageData.getProperty(KEY_PIXEL_LAYER);
+		if (layer instanceof ImageServer)
+			return (ImageServer<BufferedImage>)layer;
+		return null;
+	}
+	
 
 	/**
 	 * Constructor.
@@ -70,10 +101,14 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (tileHeight <= 0)
 			tileHeight = DEFAULT_TILE_SIZE;
 		
-		double inputPixelSize = classifierMetadata.getInputPixelSize();
-		double downsample = inputPixelSize / server.getPixelCalibration().getAveragedPixelSizeMicrons();
-		if (!Double.isFinite(downsample))
-			downsample = inputPixelSize;
+		var inputResolution = classifierMetadata.getInputResolution();
+		var cal = server.getPixelCalibration();
+		if (!(cal.getPixelWidthUnit().equals(inputResolution.getPixelWidthUnit()) && cal.getPixelHeightUnit().equals(inputResolution.getPixelHeightUnit()))) {
+			logger.warn("Image pixel units do not match the classifier pixel units! This may give unexpected results.");
+			logger.warn("Server calibration: {}", cal);
+			logger.warn("Classifier calibration: {}", inputResolution);
+		}
+		double downsample = inputResolution.getAveragedPixelSize().doubleValue() / cal.getAveragedPixelSize().doubleValue();
 		
 		int width = server.getWidth();
 		int height = server.getHeight();
@@ -82,7 +117,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 						.addLevelByDownsample(downsample)
 						.build();
 		
-		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
+//		int pad = classifierMetadata.strictInputSize() ? classifierMetadata.getInputPadding() : 0;
+		int pad = classifierMetadata.getInputPadding();
 		
 		var builder = new ImageServerMetadata.Builder(server.getMetadata())
 				.width(width)
@@ -90,10 +126,17 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 				.channelType(classifierMetadata.getOutputType())
 				.preferredTileSize(tileWidth-pad*2, tileHeight-pad*2)
 				.levels(levels)
-				.channels(classifierMetadata.getChannels())
 				.pixelType(pixelType)
+				.classificationLabels(classifierMetadata.getClassificationLabels())
 				.rgb(false);
-				
+		
+		if (classifierMetadata.getOutputType() != ChannelType.CLASSIFICATION)
+			builder.channels(classifierMetadata.getOutputChannels());
+		
+//		if (classifierMetadata.getOutputType() == ChannelType.PROBABILITY)
+//			.channels(classifierMetadata.getOutputChannels())
+
+		
 		originalMetadata = builder.build();
 		
 	}
@@ -160,10 +203,11 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			// If we're generating lower-resolution tiles, we need to request the higher-resolution data accordingly
 			var request2 = RegionRequest.createInstance(getPath(), fullResDownsample, tileRequest.getRegionRequest());
 			img = readBufferedImage(request2);
-			img = BufferedImageTools.resize(img, tileRequest.getImageWidth(), tileRequest.getTileHeight());
+			img = BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
 		} else {
 			// Classify at this resolution if need be
 			img = classifier.applyClassification(imageData, tileRequest.getRegionRequest());
+			img = BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
 		}
 		return img;
 	}

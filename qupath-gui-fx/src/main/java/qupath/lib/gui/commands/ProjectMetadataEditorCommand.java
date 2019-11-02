@@ -58,7 +58,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -139,7 +139,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 				if (positions.size() == 1) {
 					setTextForSelectedCells(positions, null);
 				} else {
-					if (DisplayHelpers.showConfirmDialog("Project metadata", "Clear metadata for " + positions.size() + " selected cells?")) {
+					if (Dialogs.showConfirmDialog("Project metadata", "Clear metadata for " + positions.size() + " selected cells?")) {
 						setTextForSelectedCells(positions, null);
 					}
 				}
@@ -170,7 +170,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 		MenuItem miSet = new MenuItem("Set cell contents");
 		miSet.disableProperty().bind(selectedCells);
 		miSet.setOnAction(e -> {
-			String input = DisplayHelpers.showInputDialog("Set metadata cells", "Metadata text", "");
+			String input = Dialogs.showInputDialog("Set metadata cells", "Metadata text", "");
 			if (input == null)
 				return;
 			setTextForSelectedCells(table.getSelectionModel().getSelectedCells(), input);
@@ -237,7 +237,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 		boolean isContinuous = (rows[rows.length-1] - rows[0] + 1) * (cols[cols.length-1] - cols[0] + 1) == positions.size();
 		if (!isContinuous) {
 			if (warnIfDiscontinuous)
-				DisplayHelpers.showWarningNotification("Copy table selection", "Cannot copy discontinous selection, sorry");
+				Dialogs.showWarningNotification("Copy table selection", "Cannot copy discontinous selection, sorry");
 			return;
 		}
 		
@@ -309,7 +309,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 		}
 		
 		if (s.contains("\n") || s.contains("\t")) {
-			DisplayHelpers.showWarningNotification("Paste contents", "Cannot paste clipboard contents - only simple, single-cell text supported");
+			Dialogs.showWarningNotification("Paste contents", "Cannot paste clipboard contents - only simple, single-cell text supported");
 			return;
 		}
 		
@@ -333,7 +333,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 				wrapper.putMetadataValue(key, text);
 		}
 		if (containsImageNameColumns) {
-			DisplayHelpers.showWarningNotification("Project metadata table", "The image name cannot be changed");
+			Dialogs.showWarningNotification("Project metadata table", "The image name cannot be changed");
 		}
 	}
 	

@@ -25,6 +25,7 @@ package qupath.lib.plugins;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,6 +33,7 @@ import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
@@ -103,9 +105,6 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 	 */
 	@Override
 	protected void addRunnableTasks(ImageData<T> imageData, PathObject parentObject, List<Runnable> tasks) {
-//		if (detector == null || detector.pathROI != parentObject.getROI())
-//			detector = new CellDetector();
-		
 		if (imageData == null)
 			return;
 		
@@ -116,10 +115,10 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		double downsampleFactor = ServerTools.getDownsampleFactor(imageData.getServer(), getPreferredPixelSizeMicrons(imageData, params));
 		int preferred = (int)(PREFERRED_TILE_SIZE * downsampleFactor);
 		int max = (int)(MAX_TILE_SIZE * downsampleFactor);
-		ImmutableDimension sizePreferred = new ImmutableDimension(preferred, preferred);
-		ImmutableDimension sizeMax = new ImmutableDimension(max, max);
+		ImmutableDimension sizePreferred = ImmutableDimension.getInstance(preferred, preferred);
+		ImmutableDimension sizeMax = ImmutableDimension.getInstance(max, max);
 		
-		parentObject.clearPathObjects();
+//		parentObject.clearPathObjects();
 		
 		// Extract (or create) suitable ROI
 		ROI parentROI = parentObject.getROI();
@@ -133,16 +132,18 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 		if (pathROIs.isEmpty())
 			return;
 		
-		// Exactly one task to complete
-		if (pathROIs.size() == 1 && pathROIs.iterator().next() == parentObject.getROI()) {
-			tasks.add(DetectionPluginTools.createRunnableTask(createDetector(imageData, params), getParameterList(imageData), imageData, parentObject));
-			return;
-		}
+//		// Exactly one task to complete
+//		if (pathROIs.size() == 1 && pathROIs.iterator().next() == parentObject.getROI()) {
+//			tasks.add(DetectionPluginTools.createRunnableTask(createDetector(imageData, params), getParameterList(imageData), imageData, parentObject));
+//			return;
+//		}
+		
+		ParallelDetectionTileManager manager = new ParallelDetectionTileManager(parentObject); 
 		
 		List<ParallelTileObject> tileList = new ArrayList<>();
 		AtomicInteger countdown = new AtomicInteger(pathROIs.size());
 		for (ROI pathROI : pathROIs) {
-			ParallelTileObject tile = new ParallelTileObject(pathROI, imageData.getHierarchy(), countdown);
+			ParallelTileObject tile = new ParallelTileObject(manager, pathROI, imageData.getHierarchy(), countdown);
 			parentObject.addPathObject(tile);
 			for (ParallelTileObject tileTemp : tileList) {
 				if (tileTemp.suggestNeighbor(tile))
@@ -151,7 +152,59 @@ public abstract class AbstractTileableDetectionPlugin<T> extends AbstractDetecti
 			tileList.add(tile);
 			tasks.add(DetectionPluginTools.createRunnableTask(createDetector(imageData, params), params, imageData, tile));
 		}
+		manager.setTiles(tileList);
+		
 		imageData.getHierarchy().fireHierarchyChangedEvent(this);
+	}
+	
+	
+	static class ParallelDetectionTileManager {
+		
+		private PathObject parent;
+		private List<PathObject> originalChildObjects;
+		
+		private boolean wasCancelled = false;
+		
+		private AtomicInteger countdown;
+		private List<ParallelTileObject> tiles = new ArrayList<>();
+		
+		ParallelDetectionTileManager(PathObject parent) {
+			this.parent = parent;
+			this.originalChildObjects = new ArrayList<>(parent.getChildObjects());
+		}
+		
+		public void setTiles(Collection<ParallelTileObject> tiles) {
+			this.tiles = new ArrayList<>(tiles);
+			countdown = new AtomicInteger(tiles.size());
+			this.parent.clearPathObjects();
+			this.parent.addPathObjects(tiles);
+		}
+		
+		public void tileComplete(PathObject tile, boolean wasCancelled) {
+			if (wasCancelled)
+				this.wasCancelled = true;
+			int remaining = countdown.decrementAndGet();
+			if (remaining == 0)
+				postprocess();
+		}
+		
+		private void postprocess() {
+			parent.clearPathObjects();
+			if (wasCancelled) {
+				// If anything was cancelled, then replace the original objects
+				parent.addPathObjects(originalChildObjects);
+			} else {
+				// Add the objects from all the children
+				for (var tile : tiles) {
+					tile.resolveOverlaps();
+					parent.addPathObjects(tile.getChildObjects());
+				}
+				if (parent.hasChildren())
+					parent.setLocked(true);
+			}
+//			hierarchy.fireObjectsChangedEvent(this, Collections.singletonList(parent));
+		}
+		
 	}
 	
 	

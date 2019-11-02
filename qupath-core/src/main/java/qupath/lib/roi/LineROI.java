@@ -33,9 +33,7 @@ import java.util.List;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.interfaces.TranslatableROI;
 
 /**
  * ROI representing a straight line, defined by its end points.
@@ -43,7 +41,7 @@ import qupath.lib.roi.interfaces.TranslatableROI;
  * @author Pete Bankhead
  *
  */
-public class LineROI extends AbstractPathROI implements PathLine, TranslatableROI, Serializable {
+public class LineROI extends AbstractPathROI implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 	
@@ -95,8 +93,18 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 	 * @see qupath.lib.rois.LineROI#duplicate()
 	 */
 	@Override
+	@Deprecated
 	public ROI duplicate() {
 		return new LineROI(x, y, x2, y2, getImagePlane());
+	}
+	
+	/**
+	 * Returns 2 (since the line is defined by its end points).
+	 * @return
+	 */
+	@Override
+	public int getNumPoints() {
+		return 2;
 	}
 	
 	/**
@@ -158,7 +166,7 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 	}
 
 	@Override
-	public TranslatableROI translate(double dx, double dy) {
+	public ROI translate(double dx, double dy) {
 		if (dx == 0 && dy == 0)
 			return this;
 		// Shift the bounds
@@ -198,7 +206,7 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 	}
 	
 	@Override
-	public List<Point2> getPolygonPoints() {
+	public List<Point2> getAllPoints() {
 		return Arrays.asList(new Point2(x, y),
 				new Point2(x2, y2));
 	}
@@ -220,7 +228,10 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 		return RoiType.LINE;
 	}
 	
-	
+	@Override
+	public ROI getConvexHull() {
+		return this;
+	}
 	
 	private Object writeReplace() {
 		return new SerializationProxy(this);
@@ -258,6 +269,33 @@ public class LineROI extends AbstractPathROI implements PathLine, TranslatableRO
 			return roi;
 		}
 		
+	}
+
+
+	@Override
+	public double getArea() {
+		return 0;
+	}
+	
+	@Override
+	public double getScaledArea(double pixelWidth, double pixelHeight) {
+		return 0;
+	}
+	
+	@Override
+	public boolean contains(double x, double y) {
+		return false;
+	}
+
+	@Override
+	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
+		return new LineROI(
+				RoiTools.scaleOrdinate(x, scaleX, originX),
+				RoiTools.scaleOrdinate(y, scaleY, originY),
+				RoiTools.scaleOrdinate(x2, scaleX, originX),
+				RoiTools.scaleOrdinate(y2, scaleY, originY),
+				getImagePlane()
+				);
 	}
 	
 }

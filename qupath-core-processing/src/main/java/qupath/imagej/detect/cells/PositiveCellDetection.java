@@ -94,7 +94,7 @@ public class PositiveCellDetection extends WatershedCellDetection {
 						t1 = 10;
 					else
 						t1 = 100;
-					tMax = Math.min(10000, Math.pow(2, type.bitsPerPixel()) - 1);
+					tMax = Math.min(10000, Math.pow(2, type.getBitsPerPixel()) - 1);
 				}
 			}
 			params.addChoiceParameter("thresholdCompartment", "Score compartment", choices.get(0), choices, "Select the intensity measurement to threshold");

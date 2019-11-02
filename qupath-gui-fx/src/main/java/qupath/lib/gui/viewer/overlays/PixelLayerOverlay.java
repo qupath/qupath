@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
 
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
@@ -23,7 +24,7 @@ public class PixelLayerOverlay extends AbstractOverlay {
 		
 		var imageData = viewer.getImageData();
 		var options = viewer.getOverlayOptions();
-		var pixelLayer = imageData == null ? null : imageData.getProperty("PIXEL_LAYER");
+		var pixelLayer = imageData == null ? null : PixelClassificationImageServer.getPixelLayer(imageData);
 		
 		if (imageData == null || !options.getShowPixelClassification() || !(pixelLayer instanceof ImageServer<?>))
 			return;

@@ -419,6 +419,8 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    	else
 	    		changes = changes || !oldValue.equals(value);
 //	    	System.err.println(changes + " setting " + key + " to " + value);
+	    	if (oldValue != value)
+	    		pcs.firePropertyChange(key, oldValue, value);
 	    	return oldValue;
     }
 
@@ -428,11 +430,13 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      * @return
      */
     public Object removeProperty(String key) {
-	    	if (propertiesMap.containsKey(key)) {
-	    		changes = true;
-	    		return propertiesMap.remove(key);
-	    	}
-	    	return null;
+    	if (propertiesMap.containsKey(key)) {
+        	Object oldValue = propertiesMap.remove(key);
+    		changes = true;
+    		pcs.firePropertyChange(key, oldValue, null);
+    		return oldValue;
+    	}
+    	return null;
     }
 
     /**

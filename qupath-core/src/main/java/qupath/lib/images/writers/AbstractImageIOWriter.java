@@ -42,6 +42,11 @@ import qupath.lib.regions.RegionRequest;
 abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 
 	@Override
+	public Class<BufferedImage> getImageClass() {
+		return BufferedImage.class;
+	}
+	
+	@Override
 	public boolean supportsT() {
 		return false;
 	}
@@ -67,17 +72,22 @@ abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 	}
 
 	@Override
-	public BufferedImage writeImage(ImageServer<BufferedImage> server, RegionRequest request, String pathOutput) throws IOException {
+	public void writeImage(ImageServer<BufferedImage> server, RegionRequest request, String pathOutput) throws IOException {
 		BufferedImage img = server.readBufferedImage(request);
 		writeImage(img, pathOutput);
-		return img;
 	}
 
 	@Override
 	public void writeImage(BufferedImage img, String pathOutput) throws IOException {
 		File file = new File(pathOutput);
-		if (!ImageIO.write(img, getExtension(), file))
-			throw new IOException("Unable to write using ImageIO with extension " + getExtension());
+		String ext = getDefaultExtension();
+		if (!ImageIO.write(img, ext, file))
+			throw new IOException("Unable to write using ImageIO with extension " + ext);
+	}
+	
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
+		writeImage(server, RegionRequest.createInstance(server), pathOutput);
 	}
 
 	@Override

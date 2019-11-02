@@ -64,8 +64,8 @@ import javafx.scene.transform.Affine;
 import javafx.scene.transform.TransformChangedEvent;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaintingToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -116,7 +116,10 @@ public class ImageAlignmentPane {
 	private BooleanBinding noOverlay = selectedOverlay.isNull();
 
 
-
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance
+	 */
 	public ImageAlignmentPane(final QuPathGUI qupath) {
 		
 		this.qupath = qupath;
@@ -217,7 +220,7 @@ public class ImageAlignmentPane {
 			try {
 				autoAlign(requestedPixelSizeMicrons);
 			} catch (IOException e2) {
-				DisplayHelpers.showErrorMessage("Alignment error", "Error requesting image region: " + e2.getLocalizedMessage());
+				Dialogs.showErrorMessage("Alignment error", "Error requesting image region: " + e2.getLocalizedMessage());
 				logger.error("Error in auto alignment", e2);
 			}
 		});
@@ -429,15 +432,15 @@ public class ImageAlignmentPane {
 		ImageData<BufferedImage> imageDataBase = viewer.getImageData();
 		ImageData<BufferedImage> imageDataSelected = selectedImageData.get();
 		if (imageDataBase == null) {
-			DisplayHelpers.showErrorMessage("Auto-alignment", "No image is open in the required viewer!");
+			Dialogs.showNoImageError("Auto-alignment");
 			return;
 		}
 		if (imageDataSelected == null) {
-			DisplayHelpers.showErrorMessage("Auto-alignment", "Please ensure an image overlay is selected!");
+			Dialogs.showErrorMessage("Auto-alignment", "Please ensure an image overlay is selected!");
 			return;
 		}
 		if (imageDataBase == imageDataSelected) {
-			DisplayHelpers.showErrorMessage("Auto-alignment", "Please select an image overlay, not the 'base' image from the viewer!");
+			Dialogs.showErrorMessage("Auto-alignment", "Please select an image overlay, not the 'base' image from the viewer!");
 			return;
 		}
 		ImageServerOverlay overlay = mapOverlays.get(imageDataSelected);
@@ -485,7 +488,7 @@ public class ImageAlignmentPane {
 			double result = opencv_video.findTransformECC(matBase, matOverlay, matTransform, opencv_video.MOTION_EUCLIDEAN, termCrit, null);
 			logger.info("Transformation result: {}", result);
 		} catch (Exception e) {
-			DisplayHelpers.showErrorNotification("Estimate transform", "Unable to estimated transform - result did not converge");
+			Dialogs.showErrorNotification("Estimate transform", "Unable to estimated transform - result did not converge");
 			logger.error("Unable to estimate transform", e);
 			return;
 		}
@@ -515,7 +518,7 @@ public class ImageAlignmentPane {
 	void requestShift(double dx, double dy) {
 		ImageServerOverlay overlay = mapOverlays.get(selectedImageData.get());
 		if (overlay == null) {
-			DisplayHelpers.showErrorNotification("Shift overlay", "No overlay selected!");
+			Dialogs.showErrorNotification("Shift overlay", "No overlay selected!");
 			return;
 		}
 		double downsample = Math.max(1.0, viewer.getDownsampleFactor());
@@ -525,7 +528,7 @@ public class ImageAlignmentPane {
 	void requestRotation(double theta) {
 		ImageServerOverlay overlay = mapOverlays.get(selectedImageData.get());
 		if (overlay == null) {
-			DisplayHelpers.showErrorNotification("Rotate overlay", "No overlay selected!");
+			Dialogs.showErrorNotification("Rotate overlay", "No overlay selected!");
 			return;
 		}
 		overlay.getAffine().appendRotation(theta, viewer.getCenterPixelX(), viewer.getCenterPixelY());
@@ -624,7 +627,7 @@ public class ImageAlignmentPane {
 			
 			BufferedImage img = viewer.getImageRegionStore().getThumbnail(item.getServer(), 0, 0, true);
 			Image image = SwingFXUtils.toFXImage(img, null);
-			PaintingToolsFX.paintImage(viewCanvas, image);
+			GuiTools.paintImage(viewCanvas, image);
 			if (getGraphic() == null)
 				setGraphic(label);
 				

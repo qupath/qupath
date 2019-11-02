@@ -33,7 +33,7 @@ import java.util.Map.Entry;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -68,7 +68,7 @@ public class DetectionsToPointsCommand implements PathCommand {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		Collection<PathObject> pathObjects = hierarchy.getDetectionObjects();
 		if (pathObjects.isEmpty()) {
-			DisplayHelpers.showErrorMessage("Detections to points", "No detections found!");
+			Dialogs.showErrorMessage("Detections to points", "No detections found!");
 			return;
 		}
 		
@@ -81,7 +81,7 @@ public class DetectionsToPointsCommand implements PathCommand {
 		
 		// If there is more than one object, seek assurance this is really wanted
 		if (pathObjects.size() > 1) {
-			if (!DisplayHelpers.showYesNoDialog("Detections to points", String.format("Convert %d detections to points?\nThis cannot be undone.", pathObjects.size())))
+			if (!Dialogs.showYesNoDialog("Detections to points", String.format("Convert %d detections to points?\nThis cannot be undone.", pathObjects.size())))
 				return;
 		}
 		

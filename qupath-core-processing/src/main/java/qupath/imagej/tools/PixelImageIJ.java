@@ -23,6 +23,7 @@
 
 package qupath.imagej.tools;
 
+import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import qupath.lib.analysis.images.SimpleModifiableImage;
 
@@ -62,6 +63,22 @@ public class PixelImageIJ implements SimpleModifiableImage {
 	@Override
 	public int getHeight() {
 		return ip.getHeight();
+	}
+
+	@Override
+	public float[] getArray(boolean direct) {
+		if (ip instanceof FloatProcessor) {
+			float[] pixels = (float[])ip.getPixels();
+			if (direct)
+				return pixels;
+			return pixels.clone();
+		}
+		int n = ip.getWidth() * ip.getHeight();
+		float[] pixels = new float[n];
+		for (int i = 0; i < n; i++) {
+			pixels[i] = ip.getf(i);
+		}
+		return pixels;
 	}
 
 }

@@ -26,12 +26,14 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '12.0.2'
+def jfxVersion = '13.0.1'
 
 /*
  * OpenCV version
+ * Note, if this is a SNAPSHOT version then it must already be installed locally (with Maven)
  */
 def opencvVersion = '4.1.0-1.5.1'
+// def opencvVersion = '4.1.1-1.5.2-SNAPSHOT'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -44,6 +46,10 @@ def useGPU = false
  */
 def doModular = false
 
+/**
+ * Helps to output build time for reference later
+ */
+def buildTime = new Date().format("yyyy-MM-dd, HH:mm")
 
 /*
  * Good to know what JDK is (sometimes accidentally) being used
@@ -82,6 +88,15 @@ if (OperatingSystem.current().isMacOsX()) {
 } else {
   println 'Unknown operating system!'
 }
+
+
+/* 
+ * Note on OpenCV, OpenBLAS & Mac.
+ * This appears to segfault sometimes, in which case the following command line parameters may help:
+ *   -Dorg.bytedeco.openblas.load=blas -Djava.library.path=.:/usr/lib/ 
+ * See https://github.com/bytedeco/javacpp-presets/tree/master/openblas for further information.
+ */
+
 
 /*
  * jarjar makes it possible to remove the troublesome MacAdapter in ij.jar, 
@@ -132,8 +147,8 @@ subprojects {
     // However, the use of simple-json is troublesome since it brings in an old version of junit
 //   jts "org.locationtech.jts.io:jts-io-common:1.16.1"
 
-    groovy "org.codehaus.groovy:groovy:2.5.7"
-    groovy "org.codehaus.groovy:groovy-jsr223:2.5.7"
+    groovy "org.codehaus.groovy:groovy:2.5.8"
+    groovy "org.codehaus.groovy:groovy-jsr223:2.5.8"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
       javafx "org.openjfx:${fx}:${jfxVersion}"
@@ -142,17 +157,17 @@ subprojects {
 
 //	picocli 'info.picocli:picocli:3.9.6'
 
-    richtextfx 'org.fxmisc.richtext:richtextfx:0.10.1'
+    richtextfx 'org.fxmisc.richtext:richtextfx:0.10.2'
 
     commonsmath 'org.apache.commons:commons-math3:3.6.1'
 
-    gson 'com.google.code.gson:gson:2.8.5'
+    gson 'com.google.code.gson:gson:2.8.6'
 
     controlsfx 'org.controlsfx:controlsfx:11.0.0'
 
 //	bioformats 'ome:bioformats_package:6.0.1'
-	bioformats 'ome:formats-gpl:6.2.0'
-	bioformatsTest 'ome:bio-formats_plugins:6.2.0' // Only required for testing
+	bioformats 'ome:formats-gpl:6.3.0'
+	bioformatsTest 'ome:bio-formats_plugins:6.3.0' // Only required for testing
 
     jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
 
@@ -164,12 +179,13 @@ subprojects {
       else
 	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
+    // opencv 'org.bytedeco:mkl-dnn:0.20-1.5.1' // Explore if can help avoid segfaults on Mac at least
 
     jpen 'net.sourceforge.jpen:jpen:2-150301'
     if (nativesClassifier != null)
       jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
 
-    imagej 'net.imagej:ij:1.52p'
+    imagej 'net.imagej:ij:1.52q'
 //    imagej jarjar.repackage {
 //    	from 'net.imagej:ij:1.52o'
 //    	classDelete 'MacAdapter'
@@ -181,7 +197,7 @@ subprojects {
 
 //    nativeloader 'org.scijava:native-lib-loader:2.3.4'
 
-    guava 'com.google.guava:guava:28.0-jre'
+    guava 'com.google.guava:guava:28.1-jre'
   }
 }
 
@@ -216,9 +232,18 @@ subprojects {
         }
 
         jar {
+        	// Important to set version so this can be queried within QuPath
             inputs.property("moduleName", moduleName)
             manifest {
-                attributes('Automatic-Module-Name': moduleName)
+			    def manifestAttributes = [
+			       "Implementation-Vendor": qupathVendor,
+			       "Implementation-Version": qupathVersion,
+			       'Automatic-Module-Name': moduleName,
+			       "QuPath-build-time": buildTime
+			    ]
+			    if (latestGitCommit != null)
+			       manifestAttributes["QuPath-latest-commit"] = latestGitCommit
+                attributes(manifestAttributes)
             }
         }
 
@@ -460,7 +485,7 @@ jar {
        "Implementation-Version": qupathVersion,
        "Main-Class": "qupath.QuPath",
        "Class-Path": configurations.compile.collect { it.getName() }.join(' '),
-       "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+       "QuPath-build-time": buildTime
     ]
     if (latestGitCommit != null)
        manifestAttributes["QuPath-latest-commit"] = latestGitCommit
@@ -553,7 +578,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     def params = [packager]
 
     params << '--input' << new File(rootProject.buildDir, rootProject.libsDirName).getAbsolutePath()
-    params << '--output' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
+    params << '--dest' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
 
     params << '--main-jar' << jar.archiveName
     
@@ -564,23 +589,28 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	params << '--java-options' << '-XX:MaxRAMPercentage=50'
 
 	if (OperatingSystem.current().isMacOsX()) {
-		params << '--mac-bundle-name' << 'QuPath'
+		params << '--mac-package-name' << 'QuPath'
+		params << '--mac-package-identifier' << 'QuPath'
 		if (packageType == 'installer') {
 			params << '--package-type' << 'dmg'
+		} else {
+			params << '--package-type' << 'app-image'
 		}
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
 			params << '--package-type' << 'msi'
+			params << '--win-menu'
 			params << '--win-menu-group' << 'QuPath'
 			params << '--win-dir-chooser'
-//			params << '--win-shortcut'
+			params << '--win-shortcut'
 			params << '--win-per-user-install'
 			int lastDash = appVersion.lastIndexOf('-')
 			if (lastDash > 0) {
 				appVersion = appVersion.substring(0, lastDash)
 				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility" 
 			}
-		}
+		} else
+			params << '--package-type' << 'app-image'
 		// Create a separate launcher with a console - this can help with debugging
 		def fileTemp = File.createTempFile('qupath-building', '.properties')
 		def consoleLauncherName = "QuPath-${qupathVersion} (debug)"
@@ -588,7 +618,8 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		fileTemp.text = 'win-console=true'
 //		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'
 		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
-	}
+	} else
+		params << '--package-type' << 'app-image'
 
     // Store the app version (typically a simplified version of the full format)
     params << '--app-version' << appVersion

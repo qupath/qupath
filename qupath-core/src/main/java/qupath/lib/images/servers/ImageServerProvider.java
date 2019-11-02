@@ -99,8 +99,10 @@ public class ImageServerProvider {
 	 */
 	public static List<ImageServerBuilder<?>> getInstalledImageServerBuilders() {
 		List<ImageServerBuilder<?>> builders = new ArrayList<>();
-		for (ImageServerBuilder<?> b : serviceLoader) {
-			builders.add(b);
+		synchronized (serviceLoader) {
+			for (ImageServerBuilder<?> b : serviceLoader) {
+				builders.add(b);
+			}
 		}
 		return builders;
 	}
@@ -112,9 +114,11 @@ public class ImageServerProvider {
 	@SuppressWarnings("unchecked")
 	public static <T> List<ImageServerBuilder<T>> getInstalledImageServerBuilders(Class<T> imageClass) {
 		List<ImageServerBuilder<T>> builders = new ArrayList<>();
-		for (ImageServerBuilder<?> b : serviceLoader) {
-			if (imageClass.equals(b.getImageType()))
-				builders.add((ImageServerBuilder<T>)b);
+		synchronized(serviceLoader) {
+			for (ImageServerBuilder<?> b : serviceLoader) {
+				if (imageClass.equals(b.getImageType()))
+					builders.add((ImageServerBuilder<T>)b);
+			}
 		}
 		return builders;
 	}
@@ -160,15 +164,17 @@ public class ImageServerProvider {
 		
 		// Check which providers we can use
 		List<UriImageSupport<T>> supports = new ArrayList<>();
-		for (ImageServerBuilder<?> provider : serviceLoader) {
-			try {
-				if (!cls.isAssignableFrom(provider.getImageType()))
-					continue;
-				UriImageSupport<T> support = (UriImageSupport<T>)provider.checkImageSupport(uri, args);
-				if (support != null && support.getSupportLevel() > 0f)
-					supports.add(support);
-			} catch (Exception e) {
-				logger.error("Error testing provider " + provider, e);
+		synchronized(serviceLoader) {
+			for (ImageServerBuilder<?> provider : serviceLoader) {
+				try {
+					if (!cls.isAssignableFrom(provider.getImageType()))
+						continue;
+					UriImageSupport<T> support = (UriImageSupport<T>)provider.checkImageSupport(uri, args);
+					if (support != null && support.getSupportLevel() > 0f)
+						supports.add(support);
+				} catch (Exception e) {
+					logger.error("Error testing provider " + provider, e);
+				}
 			}
 		}
 		
@@ -213,20 +219,51 @@ public class ImageServerProvider {
 		
 		List<UriImageSupport<T>> supports = getServerBuilders(cls, path, args);
 
+		Exception firstException = null;
 		if (!supports.isEmpty()) {
 			for (UriImageSupport<T> support :supports) {
 				try {
-					if (!support.getBuilders().isEmpty())
-						return support.getBuilders().get(0).build();
+					if (!support.getBuilders().isEmpty()) {
+						var server = support.getBuilders().get(0).build();
+						return checkServerSize(server);
+					}
 				} catch (Exception e) {
-					logger.error("Unable to build server", e);
+					if (firstException == null)
+						firstException = e;
+					logger.warn("Unable to build server: {}", e.getLocalizedMessage());
+					logger.debug(e.getLocalizedMessage(), e);
 				}
 			}
 		}
-
-		logger.error("Unable to build whole slide server - check your classpath for a suitable library (e.g. OpenSlide, BioFormats)\n\t");
-		logger.error(System.getProperty("java.class.path"));
-		throw new IOException("Unable to build a whole slide server for " + path);
+		
+		if (supports.isEmpty()) {
+			logger.error("Unable to build whole slide server - check your classpath for a suitable library (e.g. OpenSlide, BioFormats)\n\t");
+			logger.error(System.getProperty("java.class.path"));
+		}
+		String message = firstException.getLocalizedMessage();
+		if (!message.isBlank())
+			message = " (" + message + ")";
+		throw new IOException("Unable to build a whole slide server for " + path + message, firstException);
+	}
+	
+	/**
+	 * Check server is either pyramidal or of a manageable size.
+	 * @param <T>
+	 * @param serverNew
+	 * @return
+	 * @throws IOException
+	 */
+	static <T> ImageServer<T> checkServerSize(ImageServer<T> serverNew) throws IOException {
+		if (serverNew.nResolutions() > 1)
+			return serverNew;
+		long nPixels = (long)serverNew.getWidth() * (long)serverNew.getHeight();
+		long nBytes = nPixels * serverNew.nChannels() * serverNew.getMetadata().getPixelType().getBytesPerPixel();
+		if (nPixels >= Integer.MAX_VALUE || nBytes > Runtime.getRuntime().maxMemory()*0.8)
+			throw new IOException(
+					String.format("Image is too large and not a pyramid (%d x %d, %d channel%s)!",
+							serverNew.getWidth(), serverNew.getHeight(), serverNew.nChannels(), serverNew.nChannels() > 1 ? "s" : "")
+					);
+		return serverNew;
 	}
 	
 	

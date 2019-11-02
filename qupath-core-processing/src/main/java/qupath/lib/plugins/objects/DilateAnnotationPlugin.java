@@ -49,9 +49,9 @@ import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * Plugin to create new annotations by expanding the size of existing annotations.
@@ -229,7 +229,7 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 			}
 		}
 
-		ROI roi2 = ConverterJTS.convertGeometryToROI(geometry2, ImagePlane.getPlane(roi));
+		ROI roi2 = GeometryTools.geometryToROI(geometry2, ImagePlane.getPlane(roi));
 		
 		if (roi2.isEmpty()) {
 			logger.debug("Updated ROI is empty after {} px expansion", radiusPixels);

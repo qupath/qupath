@@ -138,9 +138,7 @@ import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.helpers.ChartToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
@@ -156,6 +154,8 @@ import qupath.lib.gui.tma.entries.TMAImageCache;
 import qupath.lib.gui.tma.entries.TMAObjectEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
+import qupath.lib.gui.tools.ChartTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
@@ -322,14 +322,14 @@ public class TMASummaryViewer {
 		miImportClipboard.setOnAction(e -> {
 			String text = Clipboard.getSystemClipboard().getString();
 			if (text == null) {
-				DisplayHelpers.showErrorMessage("Import scores", "Clipboard is empty!");
+				Dialogs.showErrorMessage("Import scores", "Clipboard is empty!");
 				return;
 			}
 			int n = importScores(text);
 			if (n > 0) {
 				setTMAEntries(new ArrayList<>(entriesBase));
 			}
-			DisplayHelpers.showMessageDialog("Import scores", "Number of scores imported: " + n);
+			Dialogs.showMessageDialog("Import scores", "Number of scores imported: " + n);
 		});
 		
 		Menu menuEdit = new Menu("Edit");
@@ -952,7 +952,7 @@ public class TMASummaryViewer {
 		
 		BorderPane paneColumns = new BorderPane(tableColumns);
 		paneColumns.setBottom(
-				PanelToolsFX.createColumnGridControls(
+				PaneTools.createColumnGridControls(
 						ActionUtils.createButton(actionShowSelected),
 						ActionUtils.createButton(actionHideSelected)
 						)
@@ -1026,7 +1026,7 @@ public class TMASummaryViewer {
 			if (predicateNew.isValid()) {
 				predicateMeasurements.set(predicateNew);
 			} else {
-				DisplayHelpers.showErrorMessage("Invalid predicate", "Current predicate '" + tfCommand.getText() + "' is invalid!");
+				Dialogs.showErrorMessage("Invalid predicate", "Current predicate '" + tfCommand.getText() + "' is invalid!");
 			}
 			e.consume();
 		});
@@ -1110,7 +1110,7 @@ public class TMASummaryViewer {
 	private void setTMAEntriesFromOpenImage() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath == null || qupath.getImageData() == null || qupath.getImageData().getHierarchy().getTMAGrid() == null) {
-			DisplayHelpers.showErrorMessage("Show TMA summary", "No TMA data available!");
+			Dialogs.showErrorMessage("Show TMA summary", "No TMA data available!");
 			return;
 		}
 		ImageData<BufferedImage> imageData = qupath.getImageData();
@@ -1122,7 +1122,7 @@ public class TMASummaryViewer {
 	private void setTMAEntriesFromOpenProject() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath == null || qupath.getProject() == null || qupath.getProject().getImageList().isEmpty()) {
-			DisplayHelpers.showErrorMessage("Show TMA summary", "No project available!");
+			Dialogs.showErrorMessage("Show TMA summary", "No project available!");
 			return;
 		}
 		Project<BufferedImage> project = qupath.getProject();
@@ -1760,7 +1760,7 @@ public class TMASummaryViewer {
 
 
 	private void promptForComment() {
-		String input = DisplayHelpers.showInputDialog( 
+		String input = Dialogs.showInputDialog( 
 				"Add comment",
 				"Type comment for " + entrySelected.getName() + "(" + entrySelected.getImageName() + ")", entrySelected.getComment());
 		if (input == null)
@@ -1824,8 +1824,8 @@ public class TMASummaryViewer {
 			
 			
 			// Make it possible to navigate around the chart
-			ChartToolsFX.makeChartInteractive(chart, xAxis, yAxis);
-			ChartToolsFX.addChartExportMenu(chart, null);
+			ChartTools.makeChartInteractive(chart, xAxis, yAxis);
+			ChartTools.addChartExportMenu(chart, null);
 		}
 		
 		
@@ -1973,7 +1973,7 @@ public class TMASummaryViewer {
 		Map<String, List<String>> data = TMAScoreImporter.readCSV(text);
 		List<String> idColumn = data.remove(TMACoreObject.KEY_UNIQUE_ID);
 		if (idColumn == null) {
-			DisplayHelpers.showErrorMessage("Import TMA data", "No '" + TMACoreObject.KEY_UNIQUE_ID + "' column found!");
+			Dialogs.showErrorMessage("Import TMA data", "No '" + TMACoreObject.KEY_UNIQUE_ID + "' column found!");
 			return 0;
 		}
 		// Nothing left to import...
@@ -2017,7 +2017,7 @@ public class TMASummaryViewer {
 		
 		Optional<TMAEntry> objectEntry = entriesBase.stream().filter(t -> t instanceof TMAObjectEntry).findAny();
 		if (objectEntry.isPresent()) {
-			DisplayHelpers.showInfoNotification("TMA data update", "TMA cores updated!");
+			Dialogs.showInfoNotification("TMA data update", "TMA cores updated!");
 		}
 		
 		return counter;

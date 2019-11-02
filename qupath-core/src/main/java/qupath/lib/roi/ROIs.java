@@ -25,15 +25,13 @@
 package qupath.lib.roi;
 
 import java.awt.Shape;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathLine;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -66,7 +64,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathArea createRectangleROI(double x, double y, double width, double height, ImagePlane plane) {
+	public static ROI createRectangleROI(double x, double y, double width, double height, ImagePlane plane) {
 		return new RectangleROI(x, y, width, height, plane);
 	}
 	
@@ -75,7 +73,7 @@ public class ROIs {
 	 * @param region
 	 * @return
 	 */
-	public static PathArea createRectangleROI(ImageRegion region) {
+	public static ROI createRectangleROI(ImageRegion region) {
 		return new RectangleROI(region.getX(), region.getY(), region.getWidth(), region.getHeight(), region.getPlane());
 	}
 
@@ -89,7 +87,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathArea createEllipseROI(double x, double y, double width, double height, ImagePlane plane) {
+	public static ROI createEllipseROI(double x, double y, double width, double height, ImagePlane plane) {
 		return new EllipseROI(x, y, width, height, plane);
 	}
 
@@ -103,7 +101,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathLine createLineROI(double x, double y, double x2, double y2, ImagePlane plane) {
+	public static ROI createLineROI(double x, double y, double x2, double y2, ImagePlane plane) {
 		return new LineROI(x, y, x2, y2, plane);
 	}
 
@@ -115,7 +113,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathLine createLineROI(double x, double y, ImagePlane plane) {
+	public static ROI createLineROI(double x, double y, ImagePlane plane) {
 		return createLineROI(x, y, x, y, plane);
 	}
 	
@@ -125,7 +123,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathPoints createPointsROI(ImagePlane plane) {
+	public static ROI createPointsROI(ImagePlane plane) {
 		return createPointsROI(Double.NaN, Double.NaN, plane);
 	}
 
@@ -136,7 +134,7 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathPoints createPointsROI(double x, double y, ImagePlane plane) {
+	public static ROI createPointsROI(double x, double y, ImagePlane plane) {
 		return new PointsROI(x, y, plane);
 	}
 	
@@ -146,7 +144,23 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathPoints createPointsROI(List<? extends Point2> points, ImagePlane plane) {
+	public static ROI createPointsROI(List<? extends Point2> points, ImagePlane plane) {
+		return new PointsROI(points, plane);
+	}
+	
+	/**
+	 * Create a points ROI from an array of x and y coordinates.
+	 * @param x
+	 * @param y
+	 * @param plane
+	 * @return
+	 */
+	public static ROI createPointsROI(double[] x, double y[], ImagePlane plane) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Point arrays have different lengths!");
+		var points = new ArrayList<Point2>();
+		for (int i = 0; i < x.length; i++)
+			points.add(new Point2(x[i], y[i]));
 		return new PointsROI(points, plane);
 	}
 
@@ -159,6 +173,23 @@ public class ROIs {
 	public static PolygonROI createPolygonROI(List<Point2> points, ImagePlane plane) {
 		return new PolygonROI(points, plane);
 	}
+	
+	/**
+	 * Create a polygon ROI from an array of x and y coordinates.
+	 * @param x
+	 * @param y
+	 * @param plane
+	 * @return
+	 */
+	public static ROI createPolygonROI(double[] x, double y[], ImagePlane plane) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Arrays have different lengths!");
+		var points = new ArrayList<Point2>();
+		for (int i = 0; i < x.length; i++)
+			points.add(new Point2(x[i], y[i]));
+		return new PolygonROI(points, plane);
+	}
+
 	
 	/**
 	 * Create an empty, closed polygon ROI consisting of a single point.
@@ -194,6 +225,22 @@ public class ROIs {
 	}
 	
 	/**
+	 * Create a polygon ROI from an array of x and y coordinates.
+	 * @param x
+	 * @param y
+	 * @param plane
+	 * @return
+	 */
+	public static ROI createPolylineROI(double[] x, double y[], ImagePlane plane) {
+		if (x.length != y.length)
+			throw new IllegalArgumentException("Arrays have different lengths!");
+		var points = new ArrayList<Point2>();
+		for (int i = 0; i < x.length; i++)
+			points.add(new Point2(x[i], y[i]));
+		return new PolylineROI(points, plane);
+	}
+	
+	/**
 	 * Create an area ROI representing a 2D shape.
 	 * <p>
 	 * The resulting ROI may consist of multiple disconnected regions, possibly containing holes.
@@ -202,8 +249,9 @@ public class ROIs {
 	 * @param plane
 	 * @return
 	 */
-	public static PathArea createAreaROI(Shape shape, ImagePlane plane) {
-		return new AWTAreaROI(shape, plane);
+	public static ROI createAreaROI(Shape shape, ImagePlane plane) {
+		return new GeometryROI(GeometryTools.shapeToGeometry(shape), plane);
+//		return new AWTAreaROI(shape, plane);
 	}
 
 }

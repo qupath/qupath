@@ -24,6 +24,7 @@
 package qupath.lib.roi;
 
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
@@ -48,21 +49,6 @@ class ClosedShapeStatistics implements Serializable {
 	private float centroidYCached = Float.NaN;
 	private double minX = Double.NaN, maxX = Double.NaN, minY = Double.NaN, maxY = Double.NaN;
 	private int nVertices = 0;
-	
-//	public ClosedShapeStatistics(final List<Point2> points) {
-//		this(points, 1, 1);
-//	}
-//	
-//	public ClosedShapeStatistics(final List<Point2> points, final double pixelWidth, final double pixelHeight) {
-//		if (points.isEmpty())
-//			return;
-//		Path2D path = new Path2D.Float();
-//		path.moveTo(points.get(0).getX(), points.get(0).getY());
-//		for (Point2 p : points)
-//			path.lineTo(p.getX(), p.getY());
-//		path.closePath();
-//		calculateShapeMeasurements(path, pixelWidth, pixelHeight);
-//	}
 	
 	/**
 	 * Calculate shape statistics for default pixel width &amp; height of 1.
@@ -142,18 +128,21 @@ class ClosedShapeStatistics implements Serializable {
 		double areaTempSigned = 0;
 		double areaCached = 0;
 		
+		double flatness = 0.01;
+		
 		// Get a path iterator, with flattening involved
 		PathIterator iter;
 		
 		if (shape instanceof Area)
-			iter = ((Area)shape).getPathIterator(null, 0.5);
+			iter = ((Area)shape).getPathIterator(null, flatness);
 		else {
 			// Try to get path iterator from an area - but if this is empty, it suggests we just have a line, in which case we should use the default iterator (whatever that is)
 			Area area = new Area(shape);
 			if (area.isEmpty())
-				iter = shape.getPathIterator(null, 0.5);
-			else
-				iter = area.getPathIterator(null, 0.5);
+				iter = shape.getPathIterator(null, flatness);
+			else {
+				iter = area.getPathIterator(null, flatness);
+			}
 		}
 		double[] seg = new double[6];
 		double startX = Double.NaN, startY = Double.NaN;
@@ -221,6 +210,13 @@ class ClosedShapeStatistics implements Serializable {
 		
 		// I'm not entirely sure I have correctly deciphered Java's shapes... so do some basic sanity checking
 		Rectangle2D bounds = shape.getBounds2D();
+		if (pixelWidth != 1 || pixelHeight != 1) {
+			bounds.setFrame(
+					bounds.getX() * pixelWidth,
+					bounds.getY() * pixelHeight,
+					bounds.getWidth() * pixelWidth,
+					bounds.getHeight() * pixelHeight);
+		}
 		assert this.areaCached <= bounds.getWidth() * bounds.getHeight();
 		assert bounds.contains(centroidXCached, centroidYCached);
 	}

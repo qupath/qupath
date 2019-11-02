@@ -53,10 +53,10 @@ import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.TMAScoreImporter;
 import qupath.lib.objects.TMACoreObject;
@@ -96,7 +96,7 @@ public class TMAScoreImportCommand implements PathCommand {
 					if (success) {
 						grid.synchronizeTMAGridToInfo();
 						imageData.getHierarchy().fireObjectsChangedEvent(this, imageData.getHierarchy().getTMAGrid().getTMACoreList());
-						DisplayHelpers.showInfoNotification("TMA grid import", "TMA grid imported (" + grid.getGridWidth() + "x" + grid.getGridHeight() + ")");
+						Dialogs.showInfoNotification("TMA grid import", "TMA grid imported (" + grid.getGridWidth() + "x" + grid.getGridHeight() + ")");
 						return true;
 					}
 				} catch (Exception e) {
@@ -112,7 +112,7 @@ public class TMAScoreImportCommand implements PathCommand {
 		ImageData<?> imageData = qupath.getImageData();
 		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy == null || hierarchy.getTMAGrid() == null) {
-			DisplayHelpers.showErrorMessage(name, "No TMA grid has been set for the selected image!");
+			Dialogs.showErrorMessage(name, "No TMA grid has been set for the selected image!");
 			return;
 		}
 		
@@ -168,7 +168,7 @@ public class TMAScoreImportCommand implements PathCommand {
 				table.refresh();
 		});
 		
-		GridPane buttonPane = PanelToolsFX.createColumnGridControls(
+		GridPane buttonPane = PaneTools.createColumnGridControls(
 				btnImportData,
 				btnPasteData,
 				btnLoadGrid,
@@ -176,7 +176,7 @@ public class TMAScoreImportCommand implements PathCommand {
 				);
 		pane.setBottom(buttonPane);
 		
-		if (DisplayHelpers.showConfirmDialog(name, pane)) {
+		if (Dialogs.showConfirmDialog(name, pane)) {
 			infoGrid.synchronizeTMAGridToInfo();
 			hierarchy.fireObjectsChangedEvent(this, new ArrayList<>(grid.getTMACoreList()));
 			return;
@@ -188,14 +188,14 @@ public class TMAScoreImportCommand implements PathCommand {
 	private static boolean handleImportDataFromClipboard(final TMAGrid infoGrid) {
 		logger.trace("Importing TMA data from clipboard...");
 		if (!Clipboard.getSystemClipboard().hasString()) {
-			DisplayHelpers.showErrorMessage(name, "No text on clipboard!");
+			Dialogs.showErrorMessage(name, "No text on clipboard!");
 			return false;
 		}
 		int nScores = TMAScoreImporter.importFromCSV(Clipboard.getSystemClipboard().getString(), createPseudoHierarchy(infoGrid));
 		if (nScores == 1)
-			DisplayHelpers.showMessageDialog(name, "Updated 1 core");
+			Dialogs.showMessageDialog(name, "Updated 1 core");
 		else 
-			DisplayHelpers.showMessageDialog(name, "Updated " + nScores + " cores");
+			Dialogs.showMessageDialog(name, "Updated " + nScores + " cores");
 		return nScores > 0;
 	}
 	
@@ -208,13 +208,13 @@ public class TMAScoreImportCommand implements PathCommand {
 		try {
 			int nScores = TMAScoreImporter.importFromCSV(file, createPseudoHierarchy(infoGrid));
 			if (nScores == 1)
-				DisplayHelpers.showMessageDialog(name, "Updated 1 core");
+				Dialogs.showMessageDialog(name, "Updated 1 core");
 			else 
-				DisplayHelpers.showMessageDialog(name, "Updated " + nScores + " cores");
+				Dialogs.showMessageDialog(name, "Updated " + nScores + " cores");
 //			logger.info(String.format("Scores read for %d core(s)", nScores));
 			return nScores > 0;
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage(name, e.getLocalizedMessage());
+			Dialogs.showErrorMessage(name, e.getLocalizedMessage());
 			return false;
 		}
 	}
@@ -244,7 +244,7 @@ public class TMAScoreImportCommand implements PathCommand {
 	private static boolean handlePasteGrid(final TMAGrid infoGrid) {
 		logger.trace("Importing TMA grid from clipboard...");
 		if (!Clipboard.getSystemClipboard().hasString()) {
-			DisplayHelpers.showErrorMessage(name, "No text on clipboard!");
+			Dialogs.showErrorMessage(name, "No text on clipboard!");
 			return false;
 		}
 		return handleImportGrid(infoGrid, Clipboard.getSystemClipboard().getString());
@@ -269,7 +269,7 @@ public class TMAScoreImportCommand implements PathCommand {
 			scanner.close();
 			return handleImportGrid(infoGrid, text);
 		} catch (FileNotFoundException e) {
-			DisplayHelpers.showErrorMessage(name, "File " + file.getName() + " could not be read");
+			Dialogs.showErrorMessage(name, "File " + file.getName() + " could not be read");
 			return false;
 		}
 	}
@@ -299,7 +299,7 @@ public class TMAScoreImportCommand implements PathCommand {
 			rows.add(cols);
 		}
 		if (nCols < 0) {
-			DisplayHelpers.showErrorMessage(name, "Could not identify tab or comma delimited columns");
+			Dialogs.showErrorMessage(name, "Could not identify tab or comma delimited columns");
 			return false;
 		}
 		
@@ -307,7 +307,7 @@ public class TMAScoreImportCommand implements PathCommand {
 		int nRows = rows.size();
 		if ((nRows != infoGrid.getGridHeight() || nCols != infoGrid.getGridWidth()) &&
 				(nRows != infoGrid.getGridHeight()+1 || nCols != infoGrid.getGridWidth()+1)) {
-			DisplayHelpers.showErrorMessage(name, String.format("Grid sizes inconsistent: TMA grid is %d x %d, but text grid is %d x %d", infoGrid.getGridHeight(), infoGrid.getGridWidth(), nRows, nCols));
+			Dialogs.showErrorMessage(name, String.format("Grid sizes inconsistent: TMA grid is %d x %d, but text grid is %d x %d", infoGrid.getGridHeight(), infoGrid.getGridWidth(), nRows, nCols));
 			return false;
 		}
 		boolean hasHeaders = nRows == infoGrid.getGridHeight()+1;

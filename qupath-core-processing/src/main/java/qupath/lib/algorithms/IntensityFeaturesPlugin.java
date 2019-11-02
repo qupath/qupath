@@ -371,7 +371,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			tileWidth = (int)Math.round(params.getDoubleParameterValue("tileSizePixels"));
 			tileHeight = tileWidth;
 		}
-		return new ImmutableDimension(tileWidth, tileHeight);
+		return ImmutableDimension.getInstance(tileWidth, tileHeight);
 	}
 	
 	static String getDiameterString(final ImageServer<BufferedImage> server, final ParameterList params) {
@@ -531,7 +531,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		String prefix = getDiameterString(server, params);
 
 		// Create tiled ROIs, if required
-		ImmutableDimension sizePreferred = new ImmutableDimension((int)(2000*downsample), (int)(2000*downsample));
+		ImmutableDimension sizePreferred = ImmutableDimension.getInstance((int)(2000*downsample), (int)(2000*downsample));
 //		ImmutableDimension sizePreferred = new ImmutableDimension((int)(200*downsample), (int)(200*downsample));
 		Collection<? extends ROI> rois = RoiTools.computeTiledROIs(roi, sizePreferred, sizePreferred, false, 0);
 		if (rois.size() > 1)
@@ -595,7 +595,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			float[] pixels = null;
 			for (FeatureColorTransform transform : transforms) {
 				// Check if the color transform is requested
-				if (Boolean.TRUE.equals(params.getBooleanParameterValue(transform.getKey()))) {
+				if (params.containsKey(transform.getKey()) && Boolean.TRUE.equals(params.getBooleanParameterValue(transform.getKey()))) {
 					
 					// Transform the pixels
 					pixels = transform.getTransformedPixels(img, rgbBuffer, stains, pixels);
@@ -873,7 +873,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 		@Override
 		public void addParameters(ImageData<?> imageData, ParameterList params) {
-			this.originalBitsPerPixel = imageData.getServer().getPixelType().bitsPerPixel();
+			this.originalBitsPerPixel = imageData.getServer().getPixelType().getBitsPerPixel();
 			if (originalBitsPerPixel > 16)
 				return;
 			params.addBooleanParameter("doMedian", "Median", false, "Calculate approximate median of pixel values (based on a generated histogram)");
@@ -1053,8 +1053,12 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			if (transform == FeatureColorTransformEnum.HUE)
 				return;
 			
-			double haralickMin = params.getDoubleParameterValue("haralickMin");
-			double haralickMax = params.getDoubleParameterValue("haralickMax");
+			double haralickMin = Double.NaN;
+			double haralickMax = Double.NaN;
+			if (params.containsKey("haralickMin"))
+				haralickMin = params.getDoubleParameterValue("haralickMin");
+			if (params.containsKey("haralickMax"))
+				haralickMax = params.getDoubleParameterValue("haralickMax");
 			double[] minMax = transform.getHaralickMinMax();
 			if (Double.isFinite(haralickMin) && Double.isFinite(haralickMax) && haralickMax > haralickMin) {
 				logger.trace("Using Haralick min/max {}, {}", haralickMin, haralickMax);
@@ -1153,7 +1157,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 
 		@Override
 		public void addParameters(ImageData<?> imageData, ParameterList params) {
-			this.originalBitsPerPixel = imageData.getServer().getPixelType().bitsPerPixel();
+			this.originalBitsPerPixel = imageData.getServer().getPixelType().getBitsPerPixel();
 			if (originalBitsPerPixel > 16)
 				return;
 			params.addTitleParameter("Cumulative histogram");

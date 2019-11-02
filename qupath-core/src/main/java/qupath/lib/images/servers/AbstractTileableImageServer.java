@@ -9,14 +9,17 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -36,7 +39,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	private ColorModel colorModel;
 	private Map<String, BufferedImage> emptyTileMap = new HashMap<>();
 	
-	private transient Map<RegionRequest, BufferedImage> emptyTiles = new HashMap<>();
+	private transient Set<TileRequest> emptyTiles = new HashSet<>();
 	
 	private final static Long ZERO = Long.valueOf(0L);
 		
@@ -45,9 +48,10 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	}
 	
 	protected BufferedImage getEmptyTile(int width, int height) throws IOException {
-		return getEmptyTile(width, height,
-				width == getMetadata().getPreferredTileWidth() &&
-				height == getMetadata().getPreferredTileHeight());
+		return getEmptyTile(width, height, true);
+//		return getEmptyTile(width, height,
+//				width == getMetadata().getPreferredTileWidth() &&
+//				height == getMetadata().getPreferredTileHeight());
 	}
 	
 	/**
@@ -82,11 +86,9 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			if (isRGB())
 				colorModel = ColorModel.getRGBdefault();
 			else
-				colorModel = ColorModelFactory.createProbabilityColorModel(
-						getPixelType().bitsPerPixel(),
-						nChannels(),
-						false,
-						getMetadata().getChannels().stream().mapToInt(c -> c.getColor()).toArray());
+				colorModel = ColorModelFactory.createColorModel(
+						getPixelType(),
+						getMetadata().getChannels());
 		}
 		return colorModel;
 	}
@@ -140,13 +142,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {
 		// Try to get tile from one of the caches
 		var request = tileRequest.getRegionRequest();
-		BufferedImage imgCached = emptyTiles.get(request);
-		if (imgCached != null)
-			return imgCached;
+		if (emptyTiles.contains(tileRequest))
+			return getEmptyTile(tileRequest.getTileWidth(), tileRequest.getTileHeight());
 		
 		var cache = getCache();
 		if (cache != null) {
-			imgCached = cache.get(request);
+			var imgCached = cache.get(request);
 			if (imgCached != null) { 
 				logger.trace("Returning cached tile: {}", request);
 				return imgCached;
@@ -154,12 +155,12 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 		logger.trace("Reading tile: {}", request);
 		
-		imgCached = readTile(tileRequest);
+		var imgCached = readTile(tileRequest);
 		
 		// Put the tile in the appropriate cache
 		if (imgCached != null) {
 			if (isEmptyTile(imgCached)) {
-				emptyTiles.put(request, imgCached);
+				emptyTiles.add(tileRequest);
 			} else if (cache != null) {
 				cache.put(request, imgCached);
 			}
@@ -309,6 +310,8 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			
 			if (xEnd > getWidth() || yEnd > getHeight())
 				logger.warn("Region request is too large for {}x{} image: {}", getWidth(), getHeight(), request);
+			else if (xEnd - xStart <= 0 || yEnd - yStart <= 0)
+				return null;
 						
 			// Do cropping, if we need to
 			if (xStart > 0 || yStart > 0 || xEnd != raster.getWidth() || yEnd != raster.getHeight()) {
@@ -335,8 +338,9 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			BufferedImage imgResult = new BufferedImage(colorModel, raster, alphaPremultiplied, null);
 			int currentWidth = imgResult.getWidth();
 			int currentHeight = imgResult.getHeight();
-			if (currentWidth != width || currentHeight != height)
-				imgResult = BufferedImageTools.resize(imgResult, width, height);
+			if (currentWidth != width || currentHeight != height) {
+				imgResult = BufferedImageTools.resize(imgResult, width, height, allowSmoothInterpolation());
+			}
 			
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
@@ -344,6 +348,15 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 	}
 	
+	
+	/**
+	 * Returns true if this server is permitted to use smooth interpolation when resizing.
+	 * The default implementation returns true if the channel type is not {@link ChannelType#CLASSIFICATION}.
+	 * @return
+	 */
+	protected boolean allowSmoothInterpolation() {
+		return getMetadata().getChannelType() != ChannelType.CLASSIFICATION;
+	}
 	
 	
 }

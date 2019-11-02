@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
@@ -70,7 +70,7 @@ public class TMAAddNote implements PathCommand {
 			currentText = "";
 		
 		String prompt = core.getName() == null || core.getName().trim().isEmpty() ? "Core" : core.getName();
-		String inputText = DisplayHelpers.showInputDialog("Add TMA note", prompt, currentText);
+		String inputText = Dialogs.showInputDialog("Add TMA note", prompt, currentText);
 		if (inputText != null) {
 			core.putMetadataValue(name, inputText);
 			imageData.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(core));			

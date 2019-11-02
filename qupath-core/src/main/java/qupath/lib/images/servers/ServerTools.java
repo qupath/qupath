@@ -54,6 +54,22 @@ public class ServerTools {
 		return path2.substring(ind);
 	}
 	
+	/**
+	 * Get the index of the first channel of a server with a specified channel name.
+	 * @param server
+	 * @param channelName
+	 * @return index (0-based) of the first channel with a name matching channelName, or -1 if no channel is found
+	 */
+	public static int getChannelIndex(ImageServer<?> server, String channelName) {
+		int i = 0;
+		for (var channel : server.getMetadata().getChannels()) {
+			if (channelName.equals(channel.getName()))
+				return i;
+			i++;
+		}
+		return -1;
+	}
+	
 	
 	/**
 	 * Get the preferred resolution level to request regions from an ImageServer at a specified downsample level.

@@ -31,9 +31,9 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.ViewerManager;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.io.PathAwtIO;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -65,7 +65,7 @@ public class TMAExporterCommand implements PathCommand {
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy == null || hierarchy.isEmpty() || hierarchy.getTMAGrid() == null || hierarchy.getTMAGrid().nCores() == 0) {
-			DisplayHelpers.showErrorMessage("TMA export error", "No TMA data available!");
+			Dialogs.showErrorMessage("TMA export error", "No TMA data available!");
 			return;
 		}
 
@@ -75,10 +75,12 @@ public class TMAExporterCommand implements PathCommand {
 			dirBase = new File(imageData.getLastSavedPath()).getParentFile();
 		if (dirBase != null && !dirBase.isDirectory())
 			dirBase = null;
-		File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, dirBase, defaultName, "TMA data", "qptma");
+		File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, dirBase, defaultName, "TMA data", ".qptma");
 		if (file != null) {
+			if (!file.getName().endsWith(".qptma"))
+				file = new File(file.getParentFile(), file.getName() + ".qptma");
 			double downsample = PathPrefs.getTMAExportDownsample();
-			PathAwtIO.writeTMAData(file, imageData, viewer.getOverlayOptions(), downsample);
+			TMADataIO.writeTMAData(file, imageData, viewer.getOverlayOptions(), downsample);
 			WorkflowStep step = new DefaultScriptableWorkflowStep("Export TMA data", "exportTMAData(\"" + GeneralTools.escapeFilePath(file.getParentFile().getAbsolutePath()) + "\", " + downsample + ")");
 			imageData.getHistoryWorkflow().addStep(step);
 //			PathAwtIO.writeTMAData(file, imageData, viewer.getOverlayOptions(), Double.NaN);

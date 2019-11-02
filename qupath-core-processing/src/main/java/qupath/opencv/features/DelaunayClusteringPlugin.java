@@ -42,9 +42,9 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectConnectionGroup;
 import qupath.lib.objects.PathObjectConnections;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
@@ -227,17 +227,22 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 		
 
 		@Override
-		public void taskComplete() {
+		public void taskComplete(boolean wasCancelled) {
+			if (wasCancelled)
+				return;
+			
 			if (result != null && imageData != null) {
-				Object o = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
-				PathObjectConnections connections = null;
-				if (o instanceof PathObjectConnections)
-					connections = (PathObjectConnections)o;
-				else {
-					connections = new PathObjectConnections();
-					imageData.setProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS, connections);
+				synchronized(imageData) {
+					Object o = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+					PathObjectConnections connections = null;
+					if (o instanceof PathObjectConnections)
+						connections = (PathObjectConnections)o;
+					else {
+						connections = new PathObjectConnections();
+						imageData.setProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS, connections);
+					}
+					connections.addGroup(result);
 				}
-				connections.addGroup(result);
 			}
 		}
 

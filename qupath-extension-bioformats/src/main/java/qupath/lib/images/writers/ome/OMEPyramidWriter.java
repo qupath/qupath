@@ -9,12 +9,13 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -26,6 +27,7 @@ import loci.formats.FormatException;
 import loci.formats.MetadataTools;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.IPyramidStore;
+import loci.formats.out.OMETiffWriter;
 import loci.formats.out.PyramidOMETiffWriter;
 import loci.formats.tiff.IFD;
 import ome.units.UNITS;
@@ -34,12 +36,14 @@ import ome.xml.model.enums.DimensionOrder;
 import ome.xml.model.enums.PixelType;
 import ome.xml.model.primitives.Color;
 import ome.xml.model.primitives.PositiveInteger;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
@@ -64,6 +68,124 @@ public class OMEPyramidWriter {
 	private static Logger logger = LoggerFactory.getLogger(OMEPyramidWriter.class);
 	
 	/**
+	 * Preferred compression type when using Bio-Formats.
+	 */
+	public static enum CompressionType {
+		/**
+		 * No compression (faster to write, no loss of information, but large file sizes).
+		 */
+		UNCOMPRESSED,
+		/**
+		 * Default (QuPath will select compression option based on image size and type, may be lossless or lossy).
+		 */
+		DEFAULT,
+		/**
+		 * JPEG compression (only for single channel or RGB 8-bit images).
+		 */
+		JPEG,
+		/**
+		 * Lossless JPEG-2000 compression.
+		 */
+		J2K,
+		/**
+		 * Lossy JPEG-2000 compression.
+		 */
+		J2K_LOSSY,
+		/**
+		 * LZW compression.
+		 */
+		LZW,
+		/**
+		 * ZLIB compression.
+		 */
+		ZLIB;
+		
+		/**
+		 * Get the String representation understood by OMETiffWriter.
+		 * @return
+		 */
+		public String getOMEString(ImageServer<?> server) {
+			switch(this) {
+			case J2K:
+				return OMETiffWriter.COMPRESSION_J2K;
+			case J2K_LOSSY:
+				return OMETiffWriter.COMPRESSION_J2K_LOSSY;
+			case JPEG:
+				return OMETiffWriter.COMPRESSION_JPEG;
+			case UNCOMPRESSED:
+				return OMETiffWriter.COMPRESSION_UNCOMPRESSED;
+			case LZW:
+				return OMETiffWriter.COMPRESSION_LZW;
+			case ZLIB:
+				return OMETiffWriter.COMPRESSION_ZLIB;
+			case DEFAULT:
+			default:
+				if (server.isRGB() && server.nResolutions() > 1)
+					return OMETiffWriter.COMPRESSION_JPEG;
+				if (server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8)
+					// LZW is apparently bad for 16-bit (can increase file sizes?)
+					return OMETiffWriter.COMPRESSION_LZW;
+				else
+					return OMETiffWriter.COMPRESSION_ZLIB;
+			}
+		}
+		
+		/**
+		 * Returns true if the compression type supports a specific image server, or false 
+		 * if it is incompatible. This may be due to bit-depth, number of channels etc.
+		 * @param server
+		 * @return
+		 */
+		public boolean supportsImage(ImageServer<?> server) {
+			switch(this) {
+			case JPEG:
+				return server.isRGB() || 
+						(server.nChannels() == 1 && server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8);
+			case J2K:
+			case J2K_LOSSY:
+				// It seems OME-TIFF can only write 8-bit or 16-bit J2K?
+				return server.getPixelType().getBytesPerPixel() <= 2;
+			case LZW:
+			case DEFAULT:
+			case UNCOMPRESSED:
+			case ZLIB:
+				return true;
+			default:
+				return false;
+			}
+		}
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case DEFAULT:
+				return "Default (lossless or lossy)";
+			case J2K:
+				return "JPEG-2000 (lossless)";
+			case J2K_LOSSY:
+				return "JPEG-2000 (lossy)";
+			case JPEG:
+				return "JPEG (lossy)";
+			case UNCOMPRESSED:
+				return "Uncompressed";
+			case LZW:
+				return "LZW (lossless)";
+			case ZLIB:
+				return "ZLIB (lossless)";
+			default:
+				throw new IllegalArgumentException("Unknown compression type " + this);
+			}
+		}
+		
+	}
+	
+	
+	private static int DEFAULT_TILE_SIZE = 512;
+	private static int MIN_SIZE_FOR_TILING = DEFAULT_TILE_SIZE * 8;
+	private static int MIN_SIZE_FOR_PYRAMID = MIN_SIZE_FOR_TILING * 2;
+	
+		
+	/**
 	 * Enum representing different ways in which channels may be written to a file.
 	 */
 	public static enum ChannelExportType {
@@ -82,193 +204,283 @@ public class OMEPyramidWriter {
 		/**
 		 * Channels are stored as separate images (this is not yet supported!).
 		 */
-		IMAGES}
+		IMAGES
+	}
 	
-	private ImageServer<BufferedImage> server;
-
-	private int x, y, width, height;
-	private double[] downsamples;
-	private int tileWidth, tileHeight;
-
-	private int zStart = 0;
-	private int zEnd = 0;
-	private int tStart = 0;
-	private int tEnd = 0;
-	private int[] channels;
 	
-	private ByteOrder endian = ByteOrder.BIG_ENDIAN;
-	
-	private boolean parallelExport = false;
 	private boolean keepExisting = false;
 	
-	private Boolean bigTiff;
-	private ChannelExportType channelExportType = ChannelExportType.DEFAULT;
-
-	private String compression = PyramidOMETiffWriter.COMPRESSION_UNCOMPRESSED;
+	private List<OMEPyramidSeries> series = new ArrayList<>();
 	
+	private OMEPyramidWriter(Collection<OMEPyramidSeries> series) {
+		this.series.addAll(series);
+	}
 	
 	/**
-	 * Write an OME-TIFF image with the settings defined using the Builder.
-	 * 
+	 * Write an image consisting of one or more series to the specified path.
 	 * @param path
 	 * @throws FormatException
 	 * @throws IOException
-	 * 
-	 * @see Builder
+	 * @see #createWriter(Collection)
+	 * @see #createWriter(OMEPyramidSeries...)
 	 */
-	public void writePyramid(final String path) throws FormatException, IOException {
-
+	public void writeImage(final String path) throws FormatException, IOException {
 		IMetadata meta = MetadataTools.createOMEXMLMetadata();
 		
-		int series = 0;
-
-		meta.setImageID("Image:"+series, series);
-		meta.setPixelsID("Pixels:"+series, series);
-		
-		meta.setPixelsBigEndian(ByteOrder.BIG_ENDIAN.equals(endian), series);
-		
-		meta.setPixelsDimensionOrder(DimensionOrder.XYCZT, series);
-		switch (server.getPixelType()) {
-		case UINT8:
-			meta.setPixelsType(PixelType.UINT8, series);
-			break;
-		case UINT16:
-			meta.setPixelsType(PixelType.UINT16, series);
-			break;
-		case FLOAT32:
-			meta.setPixelsType(PixelType.FLOAT, series);
-			break;
-		case FLOAT64:
-			meta.setPixelsType(PixelType.DOUBLE, series);
-			break;
-		default:
-			throw new IOException("Cannot convert pixel type value of " + server.getPixelType() + " into a valid OME PixelType");
+		File file = new File(path);
+		if (file.exists() && !keepExisting) {
+			logger.warn("Deleting existing file {}", path);
+			if (!file.delete())
+				throw new IOException("Unable to delete " + file.getAbsolutePath());
 		}
-		meta.setPixelsSizeX(new PositiveInteger((int)(width / downsamples[0])), series);
-		meta.setPixelsSizeY(new PositiveInteger((int)(height / downsamples[0])), series);
-
-		// Currently, only support single plane
-		int sizeZ = zEnd - zStart;
-		int sizeT = tEnd - tStart;
-		if (sizeZ <= 0)
-			throw new IllegalArgumentException("Need to specify positive z-slice range (non-inclusive): requested start " + zStart + " and end " + zEnd);
-		if (sizeT <= 0)
-			throw new IllegalArgumentException("Need to specify positive time point range (non-inclusive): requested start " + tStart + " and end " + tEnd);
-		meta.setPixelsSizeZ(new PositiveInteger(sizeZ), series);
-		meta.setPixelsSizeT(new PositiveInteger(sizeT), series);
-		
-		int nSamples = 1;
-		int nChannels = this.channels.length;
-		boolean isRGB = server.isRGB() && Arrays.equals(channels, new int[] {0, 1, 2});
-		boolean isInterleaved = false;
-		if (channelExportType == ChannelExportType.DEFAULT) {
-			if (isRGB)
-				channelExportType = ChannelExportType.INTERLEAVED;
-			else
-				channelExportType = ChannelExportType.PLANAR;				
-		}
-
-		switch (channelExportType) {
-		case IMAGES:
-			if (nChannels > 1) {
-				logger.warn("Exporting channels to individual images not yet supported! Will use the default...");
-			}
-		case PLANAR:
-			break;
-		case INTERLEAVED:
-		case DEFAULT:
-		default:
-			isInterleaved = nChannels > 1;
-			nSamples = nChannels;
-			break;
-		}
-		
-		if (channels.length <= 0)
-			throw new IllegalArgumentException("No channels specified for export!");
-
-		//		nChannels = 2;
-
-		// Set channel colors
-		meta.setPixelsSizeC(new PositiveInteger(nChannels), series);
-		if (isRGB) {
-			meta.setChannelID("Channel:0", series, 0);			
-			meta.setPixelsInterleaved(isInterleaved, series);
-			meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, 0);	
-		} else {
-			meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, 0);
-			meta.setPixelsInterleaved(isInterleaved, series);
-			for (int c = 0; c < nChannels; c++) {
-				meta.setChannelID("Channel:0:" + c, series, c);			
-//				meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, c);
-//				Integer color = server.getChannels().get(c).getColor();
-				ImageChannel channel = server.getChannel(c);
-				Integer color = channel.getColor();
-				meta.setChannelColor(new Color(
-						ColorTools.red(color),
-						ColorTools.green(color),
-						ColorTools.blue(color),
-						0
-						), series, c);
-				meta.setChannelName(channel.getName(), series, c);
-			}			
-		}
-
-		// Set physical units, if we have them
-		PixelCalibration cal = server.getPixelCalibration();
-		if (cal.hasPixelSizeMicrons()) {
-			meta.setPixelsPhysicalSizeX(new Length(cal.getPixelWidthMicrons() * downsamples[0], UNITS.MICROMETER), series);
-			meta.setPixelsPhysicalSizeY(new Length(cal.getPixelHeightMicrons() * downsamples[0], UNITS.MICROMETER), series);
-		}
-		if (!Double.isNaN(cal.getZSpacingMicrons()))
-			meta.setPixelsPhysicalSizeZ(new Length(cal.getZSpacingMicrons(), UNITS.MICROMETER), series);
-
-		// TODO: Consider setting the magnification
-
-		// Set resolutions
-		for (int level = 0; level < downsamples.length; level++) {
-			double d = downsamples[level];
-			int w = (int)(width / d);
-			int h = (int)(height / d);
-			((IPyramidStore)meta).setResolutionSizeX(new PositiveInteger(w), series, level);
-			((IPyramidStore)meta).setResolutionSizeY(new PositiveInteger(h), series, level);
-		}
-
+				
 		try (PyramidOMETiffWriter writer = new PyramidOMETiffWriter()) {
+			boolean doBigTiff = false;
+			long nPixelBytes = 0L;
+			for (int s = 0; s < series.size(); s++) {
+				var temp = series.get(s);
+				doBigTiff = Boolean.TRUE.equals(temp.bigTiff) | doBigTiff;
+				nPixelBytes += ((long)temp.width * temp.height * temp.channels.length * temp.server.getPixelType().getBytesPerPixel() *
+						(temp.tEnd - temp.tStart) * (temp.zEnd - temp.zStart));
+				temp.initializeMatadata(meta, s);
+			}
 			
-			logger.info("Writing {} to {} with compression {}", ServerTools.getDisplayableImageName(server), path, compression);
-			
-			int nPlanes = (nChannels / nSamples) * sizeZ * sizeT;
-			long nPixels = (long)width * (long)height * nSamples * nPlanes;
-
-			writer.setCompression(compression);
 			writer.setWriteSequentially(true); // Setting this to false can be problematic!
+			// Switch automatically to bigtiff is we have a large image or it has already been requested
+			if (doBigTiff || nPixelBytes >= Integer.MAX_VALUE)
+				writer.setBigTiff(doBigTiff);
+			
 			writer.setMetadataRetrieve(meta);
-			
-			// Switch automatically to bigtiff is we have a large image & it isn't otherwise specified what to do
-			if (bigTiff == null) {
-				logger.debug("Setting 'Big TIFF' to true...");
-				bigTiff = nPixels * (server.getPixelType().getBytesPerPixel()) > Integer.MAX_VALUE/2;
-			}
-			if (Boolean.TRUE.equals(bigTiff)) {
-				writer.setBigTiff(true);				
-			}
-			
-			int tileWidth = writer.setTileSizeX(this.tileWidth);
-			int tileHeight = writer.setTileSizeY(this.tileHeight);
-
-			File file = new File(path);
-			if (file.exists() && !keepExisting) {
-				logger.warn("Deleting existing file {}", path);
-				file.delete();
-			}
-			
-			writer.setInterleaved(isInterleaved);
-
 			writer.setId(path);
+			for (int s = 0; s < series.size(); s++) {
+				var temp = series.get(s);
+				logger.info("Writing {} to {} (series {}/{})", ServerTools.getDisplayableImageName(temp.server), path, s+1, series.size());
+				temp.writePyramid(writer, meta, s);
+			}
+		}
+		
+	}
+	
+	
+	static class OMEPyramidSeries {
+		
+		private OMEPyramidSeries() {}
+		
+		private ImageServer<BufferedImage> server;
+		
+		private String name; // Series name
+	
+		private double[] downsamples;
+		private int tileWidth, tileHeight;
+	
+		private int x, y, width, height;
+		private int zStart = 0;
+		private int zEnd = 0;
+		private int tStart = 0;
+		private int tEnd = 0;
+		private int[] channels;
+		
+		private ByteOrder endian = ByteOrder.BIG_ENDIAN;
+		
+		private boolean parallelExport = false;
+		
+		private Boolean bigTiff;
+		private ChannelExportType channelExportType = ChannelExportType.DEFAULT;
+	
+		private CompressionType compression = CompressionType.DEFAULT;
+		
+		public void initializeMatadata(IMetadata meta, int series) throws IOException {
+			
+			meta.setImageID("Image:"+series, series);
+			meta.setPixelsID("Pixels:"+series, series);
+			if (name != null)
+				meta.setImageName(name, series);
+			
+			meta.setPixelsBigEndian(ByteOrder.BIG_ENDIAN.equals(endian), series);
+			
+			meta.setPixelsDimensionOrder(DimensionOrder.XYCZT, series);
+			switch (server.getPixelType()) {
+			case INT8:
+				meta.setPixelsType(PixelType.INT8, series);
+				break;
+			case UINT8:
+				meta.setPixelsType(PixelType.UINT8, series);
+				break;
+			case INT16:
+				meta.setPixelsType(PixelType.INT16, series);
+				break;
+			case UINT16:
+				meta.setPixelsType(PixelType.UINT16, series);
+				break;
+			case INT32:
+				meta.setPixelsType(PixelType.INT32, series);
+				break;
+			case UINT32:
+				meta.setPixelsType(PixelType.UINT32, series);
+				break;
+			case FLOAT32:
+				meta.setPixelsType(PixelType.FLOAT, series);
+				break;
+			case FLOAT64:
+				meta.setPixelsType(PixelType.DOUBLE, series);
+				break;
+			default:
+				throw new IOException("Cannot convert pixel type value of " + server.getPixelType() + " into a valid OME PixelType");
+			}
+			meta.setPixelsSizeX(new PositiveInteger((int)(width / downsamples[0])), series);
+			meta.setPixelsSizeY(new PositiveInteger((int)(height / downsamples[0])), series);
+	
+			// Currently, only support single plane
+			int sizeZ = zEnd - zStart;
+			int sizeT = tEnd - tStart;
+			if (sizeZ <= 0)
+				throw new IllegalArgumentException("Need to specify positive z-slice range (non-inclusive): requested start " + zStart + " and end " + zEnd);
+			if (sizeT <= 0)
+				throw new IllegalArgumentException("Need to specify positive time point range (non-inclusive): requested start " + tStart + " and end " + tEnd);
+			meta.setPixelsSizeZ(new PositiveInteger(sizeZ), series);
+			meta.setPixelsSizeT(new PositiveInteger(sizeT), series);
+			
+			int nSamples = 1;
+			int nChannels = this.channels.length;
+			boolean isRGB = server.isRGB() && Arrays.equals(channels, new int[] {0, 1, 2});
+			boolean isInterleaved = false;
+			if (channelExportType == ChannelExportType.DEFAULT) {
+				if (isRGB)
+					channelExportType = ChannelExportType.INTERLEAVED;
+				else
+					channelExportType = ChannelExportType.PLANAR;				
+			}
+	
+			switch (channelExportType) {
+			case IMAGES:
+				if (nChannels > 1) {
+					logger.warn("Exporting channels to individual images not yet supported! Will use the default...");
+				}
+			case PLANAR:
+				break;
+			case INTERLEAVED:
+			case DEFAULT:
+			default:
+				isInterleaved = nChannels > 1;
+				nSamples = nChannels;
+				break;
+			}
+			
+			if (channels.length <= 0)
+				throw new IllegalArgumentException("No channels specified for export!");
+	
+			//		nChannels = 2;
+	
+			// Set channel colors
+			meta.setPixelsSizeC(new PositiveInteger(nChannels), series);
+			if (isRGB) {
+				meta.setChannelID("Channel:0", series, 0);			
+				meta.setPixelsInterleaved(isInterleaved, series);
+				meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, 0);	
+			} else {
+				meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, 0);
+				meta.setPixelsInterleaved(isInterleaved, series);
+				for (int c = 0; c < nChannels; c++) {
+					meta.setChannelID("Channel:0:" + c, series, c);			
+	//				meta.setChannelSamplesPerPixel(new PositiveInteger(nSamples), series, c);
+	//				Integer color = server.getChannels().get(c).getColor();
+					ImageChannel channel = server.getChannel(c);
+					Integer color = channel.getColor();
+					meta.setChannelColor(new Color(
+							ColorTools.red(color),
+							ColorTools.green(color),
+							ColorTools.blue(color),
+							0
+							), series, c);
+					meta.setChannelName(channel.getName(), series, c);
+				}			
+			}
+	
+			// Set physical units, if we have them
+			PixelCalibration cal = server.getPixelCalibration();
+			if (cal.hasPixelSizeMicrons()) {
+				meta.setPixelsPhysicalSizeX(new Length(cal.getPixelWidthMicrons() * downsamples[0], UNITS.MICROMETER), series);
+				meta.setPixelsPhysicalSizeY(new Length(cal.getPixelHeightMicrons() * downsamples[0], UNITS.MICROMETER), series);
+			}
+			if (!Double.isNaN(cal.getZSpacingMicrons()))
+				meta.setPixelsPhysicalSizeZ(new Length(cal.getZSpacingMicrons(), UNITS.MICROMETER), series);
+	
+			// TODO: Consider setting the magnification
+	
+			// Set resolutions
+			for (int level = 0; level < downsamples.length; level++) {
+				double d = downsamples[level];
+				int w = (int)(width / d);
+				int h = (int)(height / d);
+				((IPyramidStore)meta).setResolutionSizeX(new PositiveInteger(w), series, level);
+				((IPyramidStore)meta).setResolutionSizeY(new PositiveInteger(h), series, level);
+			}
+	
+		}
+		
+		/**
+		 * Write an OME-TIFF pyramidal image to the given file.
+		 * 
+		 * @param path file path for outpu
+		 * @throws FormatException
+		 * @throws IOException
+		 */
+		public void writePyramid(final String path) throws FormatException, IOException {
+			var writer = new OMEPyramidWriter();
+			writer.series.add(this);
+			writer.writeImage(path);
+		}
+		
+		/**
+		 * Append an image as a specific series.
+		 * 
+		 * @param writer the current writter; it should already be innitialized, with metadata and ID set
+		 * @param meta the metadata, which should already have been initialized and set in the writer before writing any pixels
+		 * @param series number of series to be written (starting with 0; assumes previous series already written)
+		 * @throws FormatException
+		 * @throws IOException
+		 * 
+		 * @see Builder
+		 * @see #initializeMatadata(IMetadata, int)
+		 */
+		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
+	
+			boolean isRGB = server.isRGB() && Arrays.equals(channels, new int[] {0, 1, 2});
+			int nChannels = meta.getPixelsSizeC(series).getValue();
+			int nSamples = meta.getChannelSamplesPerPixel(series, 0).getValue();
+			int sizeZ = meta.getPixelsSizeZ(series).getValue();
+			int sizeT = meta.getPixelsSizeT(series).getValue();
+			int width = meta.getPixelsSizeX(series).getValue();
+			int height = meta.getPixelsSizeY(series).getValue();
+			int nPlanes = (nChannels / nSamples) * sizeZ * sizeT;
+			
+			if (compression.supportsImage(server))
+				writer.setCompression(compression.getOMEString(server));
+			else {
+				String compressionString = CompressionType.DEFAULT.getOMEString(server);
+				logger.warn("Requested compression {} incompatible with current image, will use {} instead",
+						compression.getOMEString(server),
+						compressionString);
+				writer.setCompression(compressionString);
+			}
+			writer.setInterleaved(meta.getPixelsInterleaved(series));
+						
+			int tileWidth = this.tileWidth;
+			int tileHeight = this.tileHeight;
+			boolean isTiled = tileWidth > 0 && tileHeight > 0;
+			if (isTiled) {
+				tileWidth = writer.setTileSizeX(tileWidth);
+				tileHeight = writer.setTileSizeY(tileHeight);				
+			}
+			
+			// If the image represents classifications, set the color model accordingly
+			if (server.getMetadata().getChannelType() == ChannelType.CLASSIFICATION)
+				writer.setColorModel(ColorModelFactory.getIndexedClassificationColorModel(server.getMetadata().getClassificationLabels()));
+	
 			writer.setSeries(series);
 			
 			Map<Integer, IFD> map = new HashMap<>();
-
+	
 			writer.setSeries(series);
 			for (int level = 0; level < downsamples.length; level++) {
 				
@@ -278,18 +490,20 @@ public class OMEPyramidWriter {
 				map.clear();
 				for (int i = 0; i < nPlanes; i++) {
 					IFD ifd = new IFD();
-					ifd.put(IFD.TILE_WIDTH, tileWidth);
-					ifd.put(IFD.TILE_LENGTH, tileHeight);
+					if (isTiled) {
+						ifd.put(IFD.TILE_WIDTH, tileWidth);
+						ifd.put(IFD.TILE_LENGTH, tileHeight);
+					}
 					if (nSamples > 1 && !isRGB)
 						ifd.put(IFD.EXTRA_SAMPLES, new short[nSamples-1]);
 					map.put(Integer.valueOf(i), ifd);
 				}
-
+	
 				double d = downsamples[level];
 								
-				int w = (int)(this.width / d);
-				int h = (int)(this.height / d);
-
+				int w = (int)(width * downsamples[0] / d);
+				int h = (int)(height * downsamples[0] / d);
+	
 				int tInc = tEnd >= tStart ? 1 : -1;
 				int zInc = zEnd >= zStart ? 1 : -1;
 				int effectiveSizeC = nChannels / nSamples;
@@ -305,6 +519,7 @@ public class OMEPyramidWriter {
 						 *  It appears we can use parallelization for tile writing (thanks to synchronization in the writer),
 						 *  provided we write the (0,0) tile first.
 						 */
+						long planeStartTime = System.currentTimeMillis();
 						
 						// Create a list of all required requests, extracting the first
 						List<ImageRegion> regions = new ArrayList<>();
@@ -315,15 +530,17 @@ public class OMEPyramidWriter {
 								regions.add(ImageRegion.createInstance(xx, yy, ww, hh, z, t));
 							}
 						}
-						ImageRegion firstRegion = regions.remove(0);
 						
 						int total = regions.size() * (tEnd - tStart) * (zEnd - zStart);
 						if (z == zStart && t == tStart)
 							logger.info("Writing resolution {} of {} (downsample={}, {} tiles)", level+1, downsamples.length, d, total);
+
+						ImageRegion firstRegion = regions.remove(0);
 						
 						// Show progress at key moments
 						int inc = total > 1000 ? 20 : 10;
-						Set<Integer> keyCounts = IntStream.range(1, inc).mapToObj(i -> (int)Math.round((double)total / inc * i)).collect(Collectors.toSet());
+						Set<Integer> keyCounts = IntStream.range(1, inc).mapToObj(i -> (int)Math.round((double)total / inc * i)).collect(Collectors.toCollection(() -> new HashSet<>()));
+						keyCounts.add(total-1);
 						
 						// Loop through effective channels (which is 1 if we are writing interleaved)
 						for (int ci = 0; ci < effectiveSizeC; ci++) {
@@ -337,23 +554,42 @@ public class OMEPyramidWriter {
 							// We *must* write the first region first
 							writeRegion(writer, plane, ifd, firstRegion, d, isRGB, localChannels);
 							if (!regions.isEmpty()) {
-								var stream = parallelExport ? regions.parallelStream() : regions.stream();
-								stream.forEach(region -> {
-									try {
-										writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
-									} catch (Exception e) {
-										logger.error(String.format(
-												"Error writing %s (downsample=%.2f)",
-												region.toString(), d),
-												e);
-									} finally {
-										int localCount = count.incrementAndGet();
-										if (keyCounts.size() > 1 && keyCounts.contains(localCount)) {
-											double percentage = localCount*100.0/total;
-											logger.info("Written {}% tiles", Math.round(percentage));
+								var tasks = regions.stream().map(region -> new Runnable() {
+									@Override
+									public void run() {
+										try {
+											writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
+										} catch (Exception e) {
+											logger.error(String.format(
+													"Error writing %s (downsample=%.2f)",
+													region.toString(), d),
+													e);
+										} finally {
+											int localCount = count.incrementAndGet();
+											if (total > 20 && keyCounts.size() > 1 && keyCounts.contains(localCount)) {
+												double percentage = localCount*100.0/total;
+												logger.info("Written {}% tiles", Math.round(percentage));
+											}
 										}
 									}
-								});
+								}).collect(Collectors.toList());
+								
+								if (parallelExport) {
+									var pool = Executors.newWorkStealingPool(4);
+									for (var task : tasks) {
+										pool.submit(task);
+									}
+									pool.shutdown();
+									try {
+										pool.awaitTermination(regions.size(), TimeUnit.MINUTES);
+										logger.info("Plane written in {} ms", System.currentTimeMillis() - planeStartTime);
+									} catch (InterruptedException e) {
+										throw new IOException("Timeout writing regions", e);
+									}
+								} else {
+									for (var task : tasks)
+										task.run();
+								}
 							}
 						}
 						zi++;
@@ -365,157 +601,164 @@ public class OMEPyramidWriter {
 			logger.trace("Plane count: {}", writer.getPlaneCount());
 			logger.trace("Resolution count: {}", writer.getResolutionCount());
 		}
-	}
-
 	
-	/**
-	 * Convert a region in the export coordinate space for a specific plane 
-	 * into a RegionRequest for the original ImageServer.
-	 * 
-	 * @param region
-	 * @return
-	 */
-	RegionRequest downsampledRegionToRequest(ImageRegion region, double downsample) {
-		return RegionRequest.createInstance(
-				server.getPath(), downsample, 
-				(int)(region.getX() * downsample) + x, 
-				(int)(region.getY() * downsample) + y, 
-				(int)(region.getWidth() * downsample), 
-				(int)(region.getHeight() * downsample),
-				region.getZ(),
-				region.getT());
-	}
-	
-	
-	private void writeRegion(PyramidOMETiffWriter writer, int plane, IFD ifd, ImageRegion region, double downsample, boolean isRGB, int[] channels) throws FormatException, IOException {
-		RegionRequest request = downsampledRegionToRequest(region, downsample);
-		BufferedImage img = server.readBufferedImage(request);
 		
-		int bytesPerPixel = server.getPixelType().getBytesPerPixel();
-		int nChannels = channels.length;
-		if (img == null) {
-			byte[] zeros = new byte[region.getWidth() * region.getHeight() * bytesPerPixel * nChannels];
-			writer.saveBytes(plane, zeros, ifd, region.getX(), region.getY(), region.getWidth(), region.getHeight());
-			return;
+		/**
+		 * Convert a region in the export coordinate space for a specific plane 
+		 * into a RegionRequest for the original ImageServer.
+		 * 
+		 * @param region
+		 * @return
+		 */
+		RegionRequest downsampledRegionToRequest(ImageRegion region, double downsample) {
+			return RegionRequest.createInstance(
+					server.getPath(), downsample, 
+					(int)(region.getX() * downsample) + x, 
+					(int)(region.getY() * downsample) + y, 
+					(int)(region.getWidth() * downsample), 
+					(int)(region.getHeight() * downsample),
+					region.getZ(),
+					region.getT());
 		}
 		
-		int ww = img.getWidth();
-		int hh = img.getHeight();
-		ByteBuffer buf = ByteBuffer.allocate(ww * hh * bytesPerPixel * nChannels)
-				.order(endian);
 		
-		if (isRGB) {
-			Object pixelBuffer = getPixelBuffer(ww*hh);
-			if (!(pixelBuffer instanceof int[]))
-				pixelBuffer = null;
-			int[] rgba = img.getRGB(0, 0, ww, hh, (int[])pixelBuffer, 0, ww);
-			for (int val : rgba) {
-				buf.put((byte)ColorTools.red(val));
-				buf.put((byte)ColorTools.green(val));
-				buf.put((byte)ColorTools.blue(val));
+		private void writeRegion(PyramidOMETiffWriter writer, int plane, IFD ifd, ImageRegion region, double downsample, boolean isRGB, int[] channels) throws FormatException, IOException {
+			RegionRequest request = downsampledRegionToRequest(region, downsample);
+			BufferedImage img = server.readBufferedImage(request);
+			
+			int bytesPerPixel = server.getPixelType().getBytesPerPixel();
+			int nChannels = channels.length;
+			if (img == null) {
+				byte[] zeros = new byte[region.getWidth() * region.getHeight() * bytesPerPixel * nChannels];
+				writer.saveBytes(plane, zeros, ifd, region.getX(), region.getY(), region.getWidth(), region.getHeight());
+				return;
 			}
-			writer.saveBytes(plane, buf.array(), ifd, region.getX(), region.getY(), ww, hh);
-		} else {
-			for (int ci = 0; ci < channels.length; ci++) {
-				int c = channels[ci];
-				int ind = ci * bytesPerPixel;
-				channelToBuffer(img.getRaster(), c, buf, ind, channels.length * bytesPerPixel);
+			
+			int ww = img.getWidth();
+			int hh = img.getHeight();
+			ByteBuffer buf = ByteBuffer.allocate(ww * hh * bytesPerPixel * nChannels)
+					.order(endian);
+			
+			if (isRGB) {
+				Object pixelBuffer = getPixelBuffer(ww*hh);
+				if (!(pixelBuffer instanceof int[]))
+					pixelBuffer = null;
+				int[] rgba = img.getRGB(0, 0, ww, hh, (int[])pixelBuffer, 0, ww);
+				for (int val : rgba) {
+					buf.put((byte)ColorTools.red(val));
+					buf.put((byte)ColorTools.green(val));
+					buf.put((byte)ColorTools.blue(val));
+				}
+				writer.saveBytes(plane, buf.array(), ifd, region.getX(), region.getY(), ww, hh);
+			} else {
+				for (int ci = 0; ci < channels.length; ci++) {
+					int c = channels[ci];
+					int ind = ci * bytesPerPixel;
+					channelToBuffer(img.getRaster(), c, buf, ind, channels.length * bytesPerPixel);
+				}
+				writer.saveBytes(plane, buf.array(), ifd, region.getX(), region.getY(), ww, hh);
 			}
-			writer.saveBytes(plane, buf.array(), ifd, region.getX(), region.getY(), ww, hh);
 		}
-	}
-	
-	/**
-	 * Extract pixels to a ByteBuffer.
-	 * 
-	 * @param raster the WritableRaster containing the pixel data
-	 * @param c channel (band) number
-	 * @param buf the buffer to which the pixels should be extracted
-	 * @param startInd the starting index in the buffer, where the first pixel should be written
-	 * @param inc the increment (in bytes) between each pixel that is written
-	 */
-	boolean channelToBuffer(WritableRaster raster, int c, ByteBuffer buf, int startInd, int inc) {
-		int ind = startInd;
-		int ww = raster.getWidth();
-		int hh = raster.getHeight();
-		int n = ww*hh;
-		Object pixelBuffer = getPixelBuffer(n);
-		switch (server.getPixelType()) {
-		case UINT8:
-		case UINT16:
-		case INT16:
-		case INT32:
-		case UINT32:
-			int[] pixelsInt = pixelBuffer instanceof int[] ? (int[])pixelBuffer : null;
-			if (pixelsInt == null || pixelsInt.length < n)
-				pixelsInt = new int[n];
-			pixelsInt = raster.getSamples(0, 0, ww, hh, c, pixelsInt);
-			if (server.getPixelType().bitsPerPixel() == 8) {
+		
+		/**
+		 * Extract pixels to a ByteBuffer.
+		 * 
+		 * @param raster the WritableRaster containing the pixel data
+		 * @param c channel (band) number
+		 * @param buf the buffer to which the pixels should be extracted
+		 * @param startInd the starting index in the buffer, where the first pixel should be written
+		 * @param inc the increment (in bytes) between each pixel that is written
+		 */
+		boolean channelToBuffer(WritableRaster raster, int c, ByteBuffer buf, int startInd, int inc) {
+			int ind = startInd;
+			int ww = raster.getWidth();
+			int hh = raster.getHeight();
+			int n = ww*hh;
+			Object pixelBuffer = getPixelBuffer(n);
+			switch (server.getPixelType()) {
+			case INT8:
+			case UINT8:
+			case INT16:
+			case UINT16:
+			case INT32:
+			case UINT32:
+				int[] pixelsInt = pixelBuffer instanceof int[] ? (int[])pixelBuffer : null;
+				if (pixelsInt == null || pixelsInt.length < n)
+					pixelsInt = new int[n];
+				pixelsInt = raster.getSamples(0, 0, ww, hh, c, pixelsInt);
+				if (server.getPixelType().getBitsPerPixel() == 8) {
+					for (int i = 0; i < n; i++) {
+						buf.put(ind, (byte)pixelsInt[i]);
+						ind += inc;
+					}
+				} else if (server.getPixelType().getBitsPerPixel() == 16) {
+					for (int i = 0; i < n; i++) {
+						buf.putShort(ind, (short)pixelsInt[i]);
+						ind += inc;
+					}
+				} else if (server.getPixelType().getBitsPerPixel() == 32) {
+					for (int i = 0; i < n; i++) {
+						buf.putInt(ind, (int)pixelsInt[i]);
+						ind += inc;
+					}
+				}
+				return true;
+			case FLOAT32:
+				float[] pixelsFloat = pixelBuffer instanceof float[] ? (float[])pixelBuffer : null;
+				if (pixelsFloat == null || pixelsFloat.length < n)
+					pixelsFloat = new float[n];
+				pixelsFloat = raster.getSamples(0, 0, ww, hh, c, pixelsFloat);
 				for (int i = 0; i < n; i++) {
-					buf.put(ind, (byte)pixelsInt[i]);
+					buf.putFloat(ind, pixelsFloat[i]);
 					ind += inc;
 				}
-			} else if (server.getPixelType().bitsPerPixel() == 16) {
+				return true;
+			case FLOAT64:
+				double[] pixelsDouble = pixelBuffer instanceof double[] ? (double[])pixelBuffer : null;
+				if (pixelsDouble == null || pixelsDouble.length < n)
+					pixelsDouble = new double[n];
+				pixelsDouble = raster.getSamples(0, 0, ww, hh, c, pixelsDouble);
 				for (int i = 0; i < n; i++) {
-					buf.putShort(ind, (short)pixelsInt[i]);
+					buf.putDouble(ind, pixelsDouble[i]);
 					ind += inc;
 				}
-			} else if (server.getPixelType().bitsPerPixel() == 32) {
-				for (int i = 0; i < n; i++) {
-					buf.putInt(ind, (int)pixelsInt[i]);
-					ind += inc;
-				}
+				return true;
+			default:
+				logger.warn("Cannot convert to buffer - unknown pixel type {}", server.getPixelType());
+				return false;
 			}
-			return true;
-		case FLOAT32:
-			float[] pixelsFloat = pixelBuffer instanceof float[] ? (float[])pixelBuffer : null;
-			if (pixelsFloat == null || pixelsFloat.length < n)
-				pixelsFloat = new float[n];
-			pixelsFloat = raster.getSamples(0, 0, ww, hh, c, pixelsFloat);
-			for (int i = 0; i < n; i++) {
-				buf.putFloat(ind, pixelsFloat[i]);
-				ind += inc;
-			}
-			return true;
-		case FLOAT64:
-			double[] pixelsDouble = pixelBuffer instanceof double[] ? (double[])pixelBuffer : null;
-			if (pixelsDouble == null || pixelsDouble.length < n)
-				pixelsDouble = new double[n];
-			pixelsDouble = raster.getSamples(0, 0, ww, hh, c, pixelsDouble);
-			for (int i = 0; i < n; i++) {
-				buf.putDouble(ind, pixelsDouble[i]);
-				ind += inc;
-			}
-			return true;
-		default:
-			logger.warn("Cannot convert to buffer - unknown pixel type {}", server.getPixelType());
-			return false;
 		}
+		
+		private ThreadLocal<Object> pixelBuffer = new ThreadLocal<>();
+		
+		/**
+		 * Get a primitive array of the specified length for extracting pixels from the current server.
+		 * 
+		 * @param length
+		 * @return
+		 */
+		Object getPixelBuffer(int length) {
+			Object originalBuffer = this.pixelBuffer.get();
+			Object updatedBuffer = null;
+			switch (server.getPixelType()) {
+			case FLOAT32:
+				updatedBuffer = ensureFloatArray(originalBuffer, length);
+				break;
+			case FLOAT64:
+				updatedBuffer = ensureDoubleArray(originalBuffer, length);
+				break;
+			default:
+				// Everything else uses ints (including 8-bit RGB)
+				updatedBuffer = ensureIntArray(originalBuffer, length);
+			}
+			if (updatedBuffer != originalBuffer)
+				pixelBuffer.set(updatedBuffer);
+			return updatedBuffer;
+		}
+		
+		
 	}
 	
-	private ThreadLocal<Object> pixelBuffer = new ThreadLocal<>();
-	
-	/**
-	 * Get a primitive array of the specified length for extracting pixels from the current server.
-	 * 
-	 * @param length
-	 * @return
-	 */
-	Object getPixelBuffer(int length) {
-		Object originalBuffer = this.pixelBuffer.get();
-		Object updatedBuffer = null;
-		int bpp = server.getPixelType().bitsPerPixel();
-		if (server.isRGB() || bpp == 8 || bpp == 16) {
-			updatedBuffer = ensureIntArray(originalBuffer, length);
-		} else if (bpp == 32) {
-			updatedBuffer = ensureFloatArray(originalBuffer, length);
-		} else if (bpp == 64) {
-			updatedBuffer = ensureDoubleArray(originalBuffer, length);
-		}
-		if (updatedBuffer != originalBuffer)
-			pixelBuffer.set(updatedBuffer);
-		return updatedBuffer;
-	}
 	
 	static int[] ensureIntArray(Object array, int length) {
 		if (!(array instanceof int[]) || ((int[])array).length != length)
@@ -535,7 +778,32 @@ public class OMEPyramidWriter {
 		return (double[])array;
 	}
 	
+
+//	public static class Builder {
+//		
+//		private List<SeriesBuilder> series = new ArrayList<>();
+//		
+//		
+//		
+//	}
 	
+	/**
+	 * Create a writer capable of writing an image with one or more series.
+	 * @param series
+	 * @return
+	 */
+	public static OMEPyramidWriter createWriter(OMEPyramidSeries... series) {
+		return new OMEPyramidWriter(Arrays.asList(series));
+	}
+	
+	/**
+	 * Create a writer capable of writing an image with a collection ofseries.
+	 * @param series
+	 * @return
+	 */
+	public static OMEPyramidWriter createWriter(Collection<OMEPyramidSeries> series) {
+		return new OMEPyramidWriter(series);
+	}
 
 	/**
 	 * Builder class to define parameters when exporting an image region as OME-TIFF,
@@ -546,51 +814,53 @@ public class OMEPyramidWriter {
 	 */
 	public static class Builder {
 
-		private OMEPyramidWriter writer = new OMEPyramidWriter();
+		private OMEPyramidSeries series = new OMEPyramidSeries();
 
 		/**
 		 * Constructor.
 		 * @param server the ImageServer from which pixels will be requested and written to the OME-TIFF.
 		 */
 		public Builder(ImageServer<BufferedImage> server) {
-			writer.server = server;
-			writer.x = 0;
-			writer.y = 0;
-			writer.width = server.getWidth();
-			writer.height = server.getHeight();
-			writer.downsamples = server.getPreferredDownsamples();
-			if (server.getMetadata().getPreferredTileWidth() == server.getWidth() && server.getMetadata().getPreferredTileHeight() == server.getHeight()) {
-				writer.tileWidth = server.getMetadata().getPreferredTileWidth();
-				writer.tileHeight = server.getMetadata().getPreferredTileHeight();
+			series.server = server;
+			series.server = server;
+			series.x = 0;
+			series.y = 0;
+			series.width = server.getWidth();
+			series.height = server.getHeight();
+			
+			series.downsamples = server.getPreferredDownsamples();
+			if (server.getMetadata().getPreferredTileWidth() >= server.getWidth() && server.getMetadata().getPreferredTileHeight() >= server.getHeight()) {
+				series.tileWidth = server.getMetadata().getPreferredTileWidth();
+				series.tileHeight = server.getMetadata().getPreferredTileHeight();
 			} else {
-				writer.tileWidth = 256;
-				writer.tileHeight = 256;
+				series.tileWidth = 256;
+				series.tileHeight = 256;
 			}
-			writer.zStart = 0;
-			writer.zEnd = server.nZSlices();
-			writer.tStart = 0;
-			writer.tEnd = server.nTimepoints();
+			series.zStart = 0;
+			series.zEnd = server.nZSlices();
+			series.tStart = 0;
+			series.tEnd = server.nTimepoints();
 			if (server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION)
-				writer.channels = new int[] {0};
+				series.channels = new int[] {0};
 			else
-				writer.channels = IntStream.range(0, server.nChannels()).toArray();
+				series.channels = IntStream.range(0, server.nChannels()).toArray();
 		}
 		
-		/**
-		 * Request that any existing file with the same path is kept, rather than being deleted.
-		 * @return
-		 */
-		public Builder keepExistingFile() {
-			writer.keepExisting = true;
-			return this;
-		}
+//		/**
+//		 * Request that any existing file with the same path is kept, rather than being deleted.
+//		 * @return
+//		 */
+//		public Builder keepExistingFile() {
+//			writer.keepExisting = true;
+//			return this;
+//		}
 		
 		/**
 		 * Request that channels are written as separate image planes.
 		 * @return
 		 */
 		public Builder channelsPlanar() {
-			writer.channelExportType = ChannelExportType.PLANAR;
+			series.channelExportType = ChannelExportType.PLANAR;
 			return this;
 		}
 
@@ -599,7 +869,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder channelsInterleaved() {
-			writer.channelExportType = ChannelExportType.INTERLEAVED;
+			series.channelExportType = ChannelExportType.INTERLEAVED;
 			return this;
 		}
 
@@ -608,7 +878,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder channelsImages() {
-			writer.channelExportType = ChannelExportType.IMAGES;
+			series.channelExportType = ChannelExportType.IMAGES;
 			return this;
 		}
 
@@ -617,16 +887,16 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder bigTiff() {
-			writer.bigTiff = Boolean.TRUE;
+			series.bigTiff = Boolean.TRUE;
 			return this;
 		}
 
 		/**
-		 * Specifiy whether the image should be written in BigTIFF format.
+		 * Specify whether the image should be written in BigTIFF format.
 		 * @return
 		 */
 		public Builder bigTiff(boolean doBigTiff) {
-			writer.bigTiff = doBigTiff;
+			series.bigTiff = doBigTiff;
 			return this;
 		}
 
@@ -635,8 +905,8 @@ public class OMEPyramidWriter {
 		 * @param compression
 		 * @return
 		 */
-		public Builder compression(final String compression) {
-			writer.compression = compression;
+		public Builder compression(final CompressionType compression) {
+			series.compression = compression;
 			return this;
 		}
 		
@@ -646,7 +916,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder lossyCompression() {
-			writer.compression = getDefaultLossyCompressionType(writer.server);
+			series.compression = getDefaultLossyCompressionType(series.server);
 			return this;
 		}
 		
@@ -655,7 +925,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder losslessCompression() {
-			writer.compression = getDefaultLosslessCompressionType(writer.server);
+			series.compression = getDefaultLosslessCompressionType(series.server);
 			return this;
 		}
 		
@@ -675,7 +945,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder parallelize(boolean doParallel) {
-			writer.parallelExport = doParallel;
+			series.parallelExport = doParallel;
 			return this;
 		}
 
@@ -684,7 +954,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder allZSlices() {
-			return this.zSlices(0, writer.server.nZSlices());
+			return this.zSlices(0, series.server.nZSlices());
 		}
 
 		/**
@@ -703,8 +973,8 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder zSlices(int zStart, int zEnd) {
-			writer.zStart = zStart;
-			writer.zEnd = zEnd;
+			series.zStart = zStart;
+			series.zEnd = zEnd;
 			return this;
 		}
 
@@ -722,7 +992,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder allTimePoints() {
-			return this.timePoints(0, writer.server.nTimepoints());
+			return this.timePoints(0, series.server.nTimepoints());
 		}
 
 		/**
@@ -732,8 +1002,18 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		private Builder timePoints(int tStart, int tEnd) {
-			writer.tStart = tStart;
-			writer.tEnd = tEnd;
+			series.tStart = tStart;
+			series.tEnd = tEnd;
+			return this;
+		}
+		
+		/**
+		 * Specify a series name
+		 * @param name
+		 * @return
+		 */
+		public Builder name(String name) {
+			series.name = name;
 			return this;
 		}
 
@@ -747,10 +1027,10 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder region(int x, int y, int width, int height) {
-			writer.x = x;
-			writer.y = y;
-			writer.width = width;
-			writer.height = height;
+			series.x = x;
+			series.y = y;
+			series.width = width;
+			series.height = height;
 			return this;
 		}
 
@@ -791,8 +1071,8 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder tileSize(int tileWidth, int tileHeight) {
-			writer.tileWidth = tileWidth;
-			writer.tileHeight = tileHeight;
+			series.tileWidth = tileWidth;
+			series.tileHeight = tileHeight;
 			return this;
 		}
 
@@ -804,7 +1084,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder downsamples(double... downsamples) {
-			writer.downsamples = downsamples;
+			series.downsamples = downsamples;
 			return this;
 		}
 		
@@ -852,8 +1132,8 @@ public class OMEPyramidWriter {
 				do {
 					downsampleList.add(nextDownsample);
 					nextDownsample *= scale;
-				} while ((int)(writer.width / nextDownsample) > writer.tileWidth && (int)(writer.height / nextDownsample) > writer.tileHeight);
-				writer.downsamples = downsampleList.stream().mapToDouble(d -> d).toArray();
+				} while ((int)(series.width / nextDownsample) > series.tileWidth && (int)(series.height / nextDownsample) > series.tileHeight);
+				series.downsamples = downsampleList.stream().mapToDouble(d -> d).toArray();
 //			}
 			return this;
 		}
@@ -865,7 +1145,7 @@ public class OMEPyramidWriter {
 		 * @return
 		 */
 		public Builder channels(int... channels) {
-			writer.channels = channels;
+			series.channels = channels;
 			return this;
 		}
 
@@ -873,19 +1153,19 @@ public class OMEPyramidWriter {
 		 * Create an OMEPyramidWriter to write the OME-TIFF.
 		 * @return
 		 */
-		public OMEPyramidWriter build() {
+		public OMEPyramidSeries build() {
 			// Sanity check downsamples, and remove those that are too much
-			Arrays.sort(writer.downsamples);
+			Arrays.sort(series.downsamples);
 			int lastDownsample = 1;
-			while (lastDownsample < writer.downsamples.length && 
-					writer.width / writer.downsamples[lastDownsample] > 16 &&
-					writer.height / writer.downsamples[lastDownsample] > 16) {
+			while (lastDownsample < series.downsamples.length && 
+					series.width / series.downsamples[lastDownsample] > 16 &&
+					series.height / series.downsamples[lastDownsample] > 16) {
 				lastDownsample++;
 			}
-			if (lastDownsample < writer.downsamples.length)
-				writer.downsamples = Arrays.copyOf(writer.downsamples, lastDownsample);
+			if (lastDownsample < series.downsamples.length)
+				series.downsamples = Arrays.copyOf(series.downsamples, lastDownsample);
 			
-			return writer;
+			return series;
 		}
 
 	}
@@ -905,26 +1185,6 @@ public class OMEPyramidWriter {
 				PyramidOMETiffWriter.COMPRESSION_LZW,
 				PyramidOMETiffWriter.COMPRESSION_ZLIB
 				);
-	}
-
-	/**
-	 * Get all available compression types compatible with a specific ImageServer.
-	 * @param server
-	 * @return
-	 */
-	static Set<String> getCompatibleCompressionTypes(final ImageServer<BufferedImage> server) {
-
-		Set<String> set = new LinkedHashSet<>(getAvailableCompressionTypes());
-		// Remove some types of compression that aren't expected to work
-		if (server.getPixelType().getBytesPerPixel() > 2) {
-			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
-			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K);
-			set.remove(PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY);
-		} else if (server.getPixelType().bitsPerPixel() != 8 || (server.nChannels() > 1 && !server.isRGB())) {
-			set.remove(PyramidOMETiffWriter.COMPRESSION_JPEG);
-		}
-
-		return Collections.unmodifiableSet(set);
 	}
 
 	/**
@@ -956,8 +1216,11 @@ public class OMEPyramidWriter {
 	 * @param server
 	 * @return
 	 */
-	static String getDefaultLosslessCompressionType(final ImageServer<BufferedImage> server) {
-		return PyramidOMETiffWriter.COMPRESSION_LZW;
+	static CompressionType getDefaultLosslessCompressionType(final ImageServer<BufferedImage> server) {
+		if (server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8)
+			return CompressionType.LZW;
+		else
+			return CompressionType.ZLIB;
 	}
 	
 	/**
@@ -970,11 +1233,11 @@ public class OMEPyramidWriter {
 	 * @param server
 	 * @return
 	 */
-	static String getDefaultLossyCompressionType(final ImageServer<BufferedImage> server) {
+	static CompressionType getDefaultLossyCompressionType(final ImageServer<BufferedImage> server) {
 		if (server.isRGB())
-			return PyramidOMETiffWriter.COMPRESSION_JPEG;
-		if (server.getPixelType().bitsPerPixel() <= 16)
-			return PyramidOMETiffWriter.COMPRESSION_J2K_LOSSY;
+			return CompressionType.JPEG;
+		if (server.getPixelType().getBitsPerPixel() <= 16)
+			return CompressionType.J2K_LOSSY;
 		// Don't try another lossy compression method...
 		return getDefaultLosslessCompressionType(server);
 	}
@@ -988,21 +1251,75 @@ public class OMEPyramidWriter {
 	 * @throws FormatException
 	 * @throws IOException
 	 */
-	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression) throws FormatException, IOException {
-		new Builder(server).compression(compression).build().writePyramid(path);
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression) throws FormatException, IOException {
+		writeImage(server, path, compression, RegionRequest.createInstance(server), true, true);
 	}
 	
 	/**
 	 * Static helper method to write an OME-TIFF pyramidal image for a defined region with the specified compression.
+	 * If region is null, the entire image will be written. If region is not null, it defines the bounding box of the exported 
+	 * pixels in addition to the z-slice and timepoint.
 	 * 
-	 * @param server
-	 * @param path
-	 * @param compression
+	 * @param server image to write
+	 * @param path path to output file
+	 * @param compression image compression method
+	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used.
+	 * 
 	 * @throws FormatException
 	 * @throws IOException
 	 */
-	public static void writePyramid(ImageServer<BufferedImage> server, String path, String compression, ImageRegion region) throws FormatException, IOException {
-		new Builder(server).compression(compression).region(region).build().writePyramid(path);
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region) throws FormatException, IOException {
+		if (region == null) {
+			writeImage(server, path, compression);
+			return;
+		}
+		writeImage(server, path, compression, region, false, false);
+	}
+	
+	/**
+	 * Static helper method to write an OME-TIFF pyramidal image for a defined region with the specified compression, optionally including all 
+	 * z-slices or timepoints.
+	 * 
+	 * @param server image to write
+	 * @param path path to output file
+	 * @param compression image compression method
+	 * @param region the region to export. If this is a RegionRequest that defines a downsample other than the default for the server, this downsample will be used.
+	 * @param allZ if true, export all z-slices otherwise export slice defined by region (ignored if image is not a z-stack)
+	 * @param allT if true, export all timepoints otherwise export timepoint defined by region (ignored if image is not a timeseries)
+	 * 
+	 * @throws FormatException
+	 * @throws IOException
+	 */
+	public static void writeImage(ImageServer<BufferedImage> server, String path, CompressionType compression, ImageRegion region, boolean allZ, boolean allT) throws FormatException, IOException {
+		if (region == null) {
+			writeImage(server, path, compression);
+			return;
+		}
+		
+		var builder = new Builder(server)
+				.compression(compression == null ? CompressionType.DEFAULT : compression)
+				.parallelize()
+				.region(region);
+		
+		double downsample = server.getDownsampleForResolution(0);
+		if (region instanceof RegionRequest) {
+			downsample = ((RegionRequest)region).getDownsample();
+		}
+		
+		int maxDimension = (int)(Math.max(region.getWidth(), region.getHeight())/downsample);
+		if (maxDimension > MIN_SIZE_FOR_PYRAMID) {
+			builder.scaledDownsampling(downsample, 4);
+		} else
+			builder.downsamples(downsample);
+		if (maxDimension > MIN_SIZE_FOR_TILING)
+			builder.tileSize(DEFAULT_TILE_SIZE);
+		
+		if (allZ)
+			builder.allZSlices();
+		if (allT)
+			builder.allTimePoints();
+
+		builder.build().writePyramid(path);
 	}
 
 }

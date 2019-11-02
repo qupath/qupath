@@ -56,11 +56,11 @@ import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -76,7 +76,6 @@ import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 import qupathj.QUPath_Send_Overlay_to_QuPath;
 
@@ -173,7 +172,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						// Run in a background thread
 						Collection<? extends PathObject> parents = getParentObjects(runner);
 						if (parents.isEmpty()) {
-							DisplayHelpers.showErrorMessage("ImageJ macro runner", "No annotation or TMA core objects selected!");
+							Dialogs.showErrorMessage("ImageJ macro runner", "No annotation or TMA core objects selected!");
 							return;
 						}
 						
@@ -181,7 +180,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 						for (PathObject parent : parents)
 							addRunnableTasks(qupath.getViewer().getImageData(), parent, tasks);
 						
-						qupath.submitShortTask(() -> runner.runTasks(tasks));
+						qupath.submitShortTask(() -> runner.runTasks(tasks, true));
 //						runner.runTasks(tasks);
 						
 //						Runnable r = new Runnable() {
@@ -195,7 +194,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 			Button btnClose = new Button("Close");
 			btnClose.setOnAction(e -> dialog.hide());
 			
-			GridPane panelButtons = PanelToolsFX.createRowGridControls(btnRun, btnClose);
+			GridPane panelButtons = PaneTools.createRowGridControls(btnRun, btnClose);
 			
 			pane.setCenter(panelMacro);
 			pane.setBottom(panelButtons);
@@ -229,7 +228,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		boolean sendROI = params.getBooleanParameterValue("sendROI");
 		boolean sendOverlay = params.getBooleanParameterValue("sendOverlay");
 		ROI pathROI = pathObject.getROI();		
-		ImageDisplay imageDisplay2 = Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
+		ImageDisplay imageDisplay2 = params.containsKey("useTransform") && Boolean.TRUE.equals(params.getBooleanParameterValue("useTransform")) ? imageDisplay : null;
 		
 		ImageServer<BufferedImage> server = imageDisplay2 == null || imageDisplay2.availableChannels().isEmpty() ? imageData.getServer() : ChannelDisplayTransformServer.createColorTransformServer(imageData.getServer(), imageDisplay.availableChannels());
 		
@@ -238,7 +237,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		try {
 			IJTools.isMemorySufficient(region, imageData);
 		} catch (Exception e1) {
-			DisplayHelpers.showErrorMessage("ImageJ macro error", e1.getMessage());
+			Dialogs.showErrorMessage("ImageJ macro error", e1.getMessage());
 			return;
 		}
 		
@@ -322,8 +321,8 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 					PathObject pathObjectNew = roi == null ? null : IJTools.convertToPathObject(impResult, imageData.getServer(), roi, downsampleFactor, false, region.getPlane());
 					if (pathObjectNew != null) {
 						// If necessary, trim any returned annotation
-						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && pathROI instanceof PathShape && pathObjectNew.getROI() instanceof PathShape) {
-							ROI roiNew = RoiTools.combineROIs((PathShape)pathROI, (PathShape)pathObjectNew.getROI(), CombineOp.INTERSECT);
+						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && RoiTools.isShapeROI(pathROI) && RoiTools.isShapeROI(pathObjectNew.getROI())) {
+							ROI roiNew = RoiTools.combineROIs(pathROI, pathObjectNew.getROI(), CombineOp.INTERSECT);
 							((PathAnnotationObject)pathObjectNew).setROI(roiNew);
 						}
 						// Only add if we have something

@@ -43,13 +43,13 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathPoints;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Helper class for reading/writing point objects in terms of their x,y coordinates.
@@ -127,7 +127,7 @@ public class PointIO {
 				StringBuilder sb = new StringBuilder();
 				sb.append("Name\t").append(pathObject.getDisplayedName()).append("\n");
 				sb.append("Color\t").append(getDisplayedColor(pathObject, defaultColor)).append("\n");
-				sb.append("Coordinates\t").append(points.getNPoints()).append("\n");
+				sb.append("Coordinates\t").append(points.getNumPoints()).append("\n");
 				out.write(sb.toString().getBytes(charset));
 				
 				
@@ -161,7 +161,7 @@ public class PointIO {
 		if (count != pointsList.size())
 			logger.warn("Warning: {} points expected, {} points found", count, pointsList.size());
 		
-		PathPoints points = ROIs.createPointsROI(pointsList, ImagePlane.getDefaultPlane());
+		ROI points = ROIs.createPointsROI(pointsList, ImagePlane.getDefaultPlane());
 		PathObject pathObject = PathObjects.createAnnotationObject(points);
 		if (name != null && name.length() > 0 && !"null".equals(name))
 			pathObject.setName(name);
@@ -176,7 +176,7 @@ public class PointIO {
 //		if (name != null)
 //			sb.append(name);
 //		sb.append("\n");
-		for (Point2 p : points.getPointList())
+		for (Point2 p : points.getAllPoints())
 			sb.append(String.format("%.4f\t%.4f\n", p.getX(), p.getY()));
 		return sb.toString();
 	}

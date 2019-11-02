@@ -24,7 +24,9 @@
 package qupath.lib.regions;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import qupath.lib.images.servers.ImageServer;
@@ -67,12 +69,13 @@ public class RegionRequest extends ImageRegion {
 	}
 	
 	/**
-	 * Create a request for the full width and height of an {@link ImageServer}, for the default plane (first z-slice, time point) and downsample of 1.
+	 * Create a request for the full width and height of an {@link ImageServer}, for the default plane (first z-slice, time point) 
+	 * and first resolution level downsample (usually 1, but not always).
 	 * @param server
 	 * @return
 	 */
 	public static RegionRequest createInstance(ImageServer<?> server) {
-		return createInstance(server, 1.0);
+		return createInstance(server, server.getDownsampleForResolution(0));
 	}
 	
 	/**
@@ -83,6 +86,22 @@ public class RegionRequest extends ImageRegion {
 	 */
 	public static RegionRequest createInstance(ImageServer<?> server, double downsample) {
 		return createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight());
+	}
+	
+	/**
+	 * Create a requests for the full width and height of an {@link ImageServer}, for all planes (z-slices and time points).
+	 * @param server
+	 * @param downsample
+	 * @return
+	 */
+	public static List<RegionRequest> createAllRequests(ImageServer<?> server, double downsample) {
+		List<RegionRequest> requests = new ArrayList<>();
+		for (int t = 0; t < server.nTimepoints(); t++) {
+			for (int z = 0; z < server.nZSlices(); z++) {
+				requests.add(RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), z, t));
+			}			
+		}
+		return requests;
 	}
 
 	/**
@@ -95,6 +114,16 @@ public class RegionRequest extends ImageRegion {
 	 */
 	public static RegionRequest createInstance(String path, double downsample, ROI roi) {
 		return createInstance(path, downsample, ImageRegion.createInstance(roi));
+	}
+	
+	/**
+	 * Create a request that matches another request but with a different path.
+	 * @param path
+	 * @param request
+	 * @return
+	 */
+	public static RegionRequest createInstance(String path, RegionRequest request) {
+		return createInstance(path, request.getDownsample(), request);
 	}
 
 	/**

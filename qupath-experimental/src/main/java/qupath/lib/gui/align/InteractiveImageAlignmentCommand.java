@@ -2,12 +2,22 @@ package qupath.lib.gui.align;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 
+/**
+ * Command to interactively adjust apply an affine transform to an image overlay.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class InteractiveImageAlignmentCommand implements PathCommand {
 	
 	private QuPathGUI qupath;
 	
+	/**
+	 * Constructor.
+	 * @param qupath
+	 */
 	public InteractiveImageAlignmentCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -15,7 +25,7 @@ public class InteractiveImageAlignmentCommand implements PathCommand {
 	@Override
 	public void run() {
 		if (qupath.getImageData() == null) {
-			DisplayHelpers.showErrorMessage("Interactive image alignment", "Please open a 'base' image first!");
+			Dialogs.showNoImageError("Interactive image alignment");
 			return;
 		}
 		new ImageAlignmentPane(qupath);

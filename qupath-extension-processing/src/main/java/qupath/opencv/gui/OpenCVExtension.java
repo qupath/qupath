@@ -33,7 +33,8 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.DefaultMode;
+import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.DetectCytokeratinCV;
@@ -83,9 +84,10 @@ public class OpenCVExtension implements QuPathExtension {
 				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null)
 				);
 
-		Menu menuClassify = qupath.getMenu("Classify", true);
+		Menu menuClassify = qupath.getMenu("Classify>Object classification", true);
 		QuPathGUI.addMenuItems(
 				menuClassify,
+				null,
 				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)));
 		
 		
@@ -101,12 +103,16 @@ public class OpenCVExtension implements QuPathExtension {
 		logger.debug("Ensuring OpenCV classes are loaded");
 		try (var scope = new org.bytedeco.javacpp.PointerScope(true)) {
 			var mat = new org.bytedeco.opencv.opencv_core.Mat();
+			var matvec = new org.bytedeco.opencv.opencv_core.MatVector();
+			var rect = new org.bytedeco.opencv.opencv_core.Rect();
 			org.bytedeco.opencv.opencv_core.Scalar.all(1.0);
 			org.bytedeco.opencv.opencv_ml.RTrees.create();
 			org.bytedeco.opencv.opencv_ml.ANN_MLP.create();
 			org.bytedeco.opencv.opencv_ml.KNearest.create();
 			org.bytedeco.opencv.opencv_ml.DTrees.create();
 			mat.close();
+			matvec.close();
+			rect.close();
 		}
 	}
 
@@ -119,7 +125,7 @@ public class OpenCVExtension implements QuPathExtension {
 			WandToolCV wandTool = new WandToolCV(qupath);
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {
-				qupath.putToolForMode(Modes.WAND, wandTool);
+				qupath.putToolForMode(DefaultMode.WAND, wandTool);
 			});
 			logger.debug("Loading OpenCV classes");
 			ensureClassesLoaded();

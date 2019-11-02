@@ -85,8 +85,8 @@ import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
@@ -499,7 +499,7 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 //				System.err.println(request + ": " + cache.containsKey(request));
 				Image image = cache.get(request);
 				if (image != null) {
-					PaintingToolsFX.paintImage(canvas, image);
+					GuiTools.paintImage(canvas, image);
 				} else
 					logger.trace("No image found for {}", core);
 			} catch (Exception e) {

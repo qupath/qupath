@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.projects.Projects;
 
 /**
@@ -61,7 +61,7 @@ public class ProjectCreateCommand implements PathCommand {
 		for (File f : dir.listFiles()) {
 			if (!f.isHidden()) {
 				logger.error("Cannot create project for non-empty directory {}", dir);
-				DisplayHelpers.showErrorMessage("Project creator", "Project directory must be empty!");
+				Dialogs.showErrorMessage("Project creator", "Project directory must be empty!");
 				return;
 			}
 		}

@@ -1,6 +1,6 @@
 import ij.plugin.filter.RankFilters
 import ij.process.ColorProcessor
-import qupath.imagej.images.servers.ImagePlusServerBuilder
+import qupath.imagej.tools.IJTools
 import qupath.lib.common.ColorTools
 import qupath.lib.regions.RegionRequest
 import qupath.lib.scripting.QP
@@ -31,7 +31,7 @@ if (!imageData.isBrightfield() || !server.isRGB()) {
 }
 
 // Extract pixel size
-double pixelSize = server.getAveragedPixelSizeMicrons()
+double pixelSize = server.getPixelCalibration().getAveragedPixelSizeMicrons()
 // Choose a default if we need one (will result in downsampling by 40 times
 if (Double.isNaN(pixelSize))
     pixelSize = 0.5
@@ -41,11 +41,10 @@ double downsample = Math.round(requestedPixelSizeMicrons / pixelSize)
 
 // Get a downsampled version of the image as an ImagePlus (for ImageJ)
 def request = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight())
-def serverIJ = ImagePlusServerBuilder.ensureImagePlusWholeSlideServer(server)
-def pathImage = serverIJ.readImagePlusRegion(request)
+def pathImage = IJTools.convertToImagePlus(server, request)
 
 // Check we have an RGB image (we should at this point)
-def imp = pathImage.getImage(false)
+def imp = pathImage.getImage()
 def ip = imp.getProcessor()
 if (!(ip instanceof ColorProcessor)) {
     print("Sorry, the background can only be set for a ColorProcessor, but the current ImageProcessor is " + ip)

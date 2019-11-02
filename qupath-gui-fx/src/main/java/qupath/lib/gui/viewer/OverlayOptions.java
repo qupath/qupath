@@ -31,8 +31,8 @@ import javafx.beans.property.SimpleFloatProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableSet;
-import qupath.lib.gui.helpers.MeasurementMapper;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.objects.classes.PathClass;
 
 /**

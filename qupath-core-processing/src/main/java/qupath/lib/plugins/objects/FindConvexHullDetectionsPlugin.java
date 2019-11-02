@@ -35,8 +35,8 @@ import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.AbstractInteractivePlugin;
 import qupath.lib.plugins.PathTask;
@@ -158,7 +158,10 @@ public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin
 			}
 
 			@Override
-			public void taskComplete() {
+			public void taskComplete(boolean wasCancelled) {
+				if (wasCancelled)
+					return;
+				
 				if (toRemove != null && !toRemove.isEmpty()) {
 					if (deleteImmediately)
 						imageData.getHierarchy().removeObjects(toRemove, false);

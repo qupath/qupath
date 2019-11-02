@@ -86,15 +86,24 @@ public class OpenCVTypeAdapters {
 	 * TypeAdapter that helps include OpenCV-based objects within a Java object being serialized to JSON.
 	 */
 	public static abstract class OpenCVTypeAdapter<T> extends TypeAdapter<T> {
+		
+		Gson gson = new GsonBuilder().setLenient().create();
 
 		@Override
 		public void write(JsonWriter out, T value) throws IOException {
 			boolean lenient = out.isLenient();
+			String json = null;
 			try (FileStorage fs = new FileStorage()) {
 				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
 				write(fs, value);
-				String json = fs.releaseAndGetString().getString();
-				out.jsonValue(json.trim());
+				json = fs.releaseAndGetString().getString().trim();
+				
+				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
+				gson.toJson(element, out);
+				
+//				out.jsonValue(json);
+//			} catch (Throwable e) {
+//				e.printStackTrace();
 			} finally {
 				out.setLenient(lenient);
 			}
@@ -108,7 +117,7 @@ public class OpenCVTypeAdapters {
 		public T read(JsonReader in) throws IOException {
 			boolean lenient = in.isLenient();
 			try {
-				JsonElement element = new JsonParser().parse(in);
+				JsonElement element = JsonParser.parseReader(in);
 				JsonObject obj = element.getAsJsonObject();
 				String inputString = obj.toString();//obj.get("mat").toString();
 				try (FileStorage fs = new FileStorage()) {
@@ -155,6 +164,8 @@ public class OpenCVTypeAdapters {
 	
 	
 	private static class StatModelTypeAdapter extends TypeAdapter<StatModel> {
+		
+		Gson gson = new GsonBuilder().setLenient().create();
 
 		@Override
 		public void write(JsonWriter out, StatModel value) throws IOException {
@@ -169,7 +180,6 @@ public class OpenCVTypeAdapters {
 				out.name("statmodel");
 				
 				// jsonValue works for JsonWriter but not JsonTreeWriter, so we try to work around this...
-				Gson gson = new GsonBuilder().setLenient().create();
 				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
 				gson.toJson(element, out);
 //				out.jsonValue(obj.toString());
@@ -184,7 +194,7 @@ public class OpenCVTypeAdapters {
 			boolean lenient = in.isLenient();
 			
 			try {
-				JsonElement element = new JsonParser().parse(in);
+				JsonElement element = JsonParser.parseReader(in);
 				
 				JsonObject obj = element.getAsJsonObject();
 				

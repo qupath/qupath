@@ -29,8 +29,8 @@ import com.google.gson.stream.JsonWriter;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools.ImagePlaneTypeAdapter;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * Gson-compatible TypeAdapter that converts ROIs and Geometry objects to and from a Geo-JSON representation.
@@ -80,7 +80,7 @@ class ROITypeAdapters {
 			else
 				plane = ImagePlane.getDefaultPlane();
 			
-			return ConverterJTS.convertGeometryToROI(geometry, plane);
+			return GeometryTools.geometryToROI(geometry, plane);
 		}
 		
 	}

@@ -64,11 +64,10 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.GridPaneTools;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
@@ -110,7 +109,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
 		if (qupath.getProject() == null) {
-			DisplayHelpers.showErrorMessage(commandName, "No project open!");
+			Dialogs.showErrorMessage(commandName, "No project open!");
 			return Collections.emptyList();
 		}
 		
@@ -176,26 +175,26 @@ public class ProjectImportImagesCommand implements PathCommand {
 		CheckBox cbPyramidize = new CheckBox("Auto-generate pyramids");
 		cbPyramidize.setSelected(true);
 
-		GridPaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize);
-		GridPaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize);
-		GridPaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize);
+		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
 		paneType.setHgap(5);
 		paneType.setVgap(5);
 		int row = 0;
-		GridPaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
-		GridPaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
-		GridPaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
-		GridPaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
+		PaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
+		PaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
+		PaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		PaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
 		
 		paneImages.setCenter(paneList);
 		paneImages.setBottom(paneType);
 		
 //		TilePane paneButtons = new TilePane();
 //		paneButtons.getChildren().addAll(btnFile, btnURL, btnClipboard, btnFileList);
-		GridPane paneButtons = PanelToolsFX.createColumnGridControls(btnFile, btnURL, btnClipboard, btnFileList);
+		GridPane paneButtons = PaneTools.createColumnGridControls(btnFile, btnURL, btnClipboard, btnFileList);
 		paneButtons.setHgap(5);
 		paneButtons.setPadding(new Insets(5));
 		
@@ -298,7 +297,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 						message = "Failed to load " + failures.size() + " images.";
 					if (requestedBuilder != null)
 						message += "\nThe image type might not be supported by '" + requestedBuilder.getName() + "'";
-					DisplayHelpers.showErrorMessage("Import images", message);
+					Dialogs.showErrorMessage("Import images", message);
 					project.removeAllImages(failures, true);
 				}
 				
@@ -329,7 +328,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 		try {
 			project.syncChanges();
 		} catch (IOException e1) {
-			DisplayHelpers.showErrorMessage("Sync project", e1);
+			Dialogs.showErrorMessage("Sync project", e1);
 		}
 		qupath.refreshProject();
 		
@@ -352,9 +351,9 @@ public class ProjectImportImagesCommand implements PathCommand {
 			TextArea textArea = new TextArea();
 			textArea.setText(sb.toString());
 			if (pathSucceeded.isEmpty())
-				DisplayHelpers.showErrorMessage(commandName, textArea);
+				Dialogs.showErrorMessage(commandName, textArea);
 			else
-				DisplayHelpers.showMessageDialog(commandName, textArea);
+				Dialogs.showMessageDialog(commandName, textArea);
 		}
 		logger.info(sb.toString());
 		return entries;
@@ -369,7 +368,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 		boolean changes = false;
 		for (File fileNew : files) {
 			if (list.contains(fileNew.getAbsolutePath())) {
-				DisplayHelpers.showErrorMessage(commandName, "List already contains " + fileNew.getName());
+				Dialogs.showErrorMessage(commandName, "List already contains " + fileNew.getName());
 				continue;
 			}
 			list.add(fileNew.getAbsolutePath());
@@ -384,7 +383,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 		if (path == null)
 			return false;
 		if (list.contains(path)) {
-			DisplayHelpers.showErrorMessage(commandName, "List already contains " + path);
+			Dialogs.showErrorMessage(commandName, "List already contains " + path);
 			return false;
 		}
 		list.add(path);
@@ -397,7 +396,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 		if (file == null)
 			return 0;
 		if (file.length() / 1024 / 1024 > 5) {
-			DisplayHelpers.showErrorMessage(commandName, String.format("%s is too large (%.2f MB) - \n"
+			Dialogs.showErrorMessage(commandName, String.format("%s is too large (%.2f MB) - \n"
 					+ "please choose a text file containing only file paths or select another import option", file.getName(), file.length() / 1024.0 / 1024.0));
 			return 0;
 		}
@@ -418,7 +417,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 				}
 			}
 		} catch (FileNotFoundException e) {
-			DisplayHelpers.showErrorMessage(commandName, "File " + file.getName() + " not found!");
+			Dialogs.showErrorMessage(commandName, "File " + file.getName() + " not found!");
 			return 0;
 		} finally {
 			if (scanner != null)
@@ -456,7 +455,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 			}
 		}
 		if (possiblePaths.isEmpty()) {
-			DisplayHelpers.showErrorMessage(commandName, "Could not find any valid paths on the clipboard!");
+			Dialogs.showErrorMessage(commandName, "Could not find any valid paths on the clipboard!");
 			return 0;
 		}
 		possiblePaths.removeAll(list);
@@ -575,10 +574,12 @@ public class ProjectImportImagesCommand implements PathCommand {
 		}
 		if (!success) {
 			// Try with display transforms
-			if (imageDisplay == null)
+			if (imageDisplay == null) {
 				// By wrapping the thumbnail, we avoid slow z-stack/time series requests & determine brightness & contrast just from one plane
-				imageDisplay = new ImageDisplay(new ImageData<>(new WrappedBufferedImageServer("Dummy", img2)));
+				var wrappedServer = new WrappedBufferedImageServer("Dummy", img2, server.getMetadata().getChannels());
+				imageDisplay = new ImageDisplay(new ImageData<>(wrappedServer));
 //				imageDisplay = new ImageDisplay(new ImageData<>(server));
+			}
 			for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
 				imageDisplay.autoSetDisplayRange(info);
 			}

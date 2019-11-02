@@ -70,9 +70,9 @@ import qupath.lib.analysis.stats.survival.KaplanMeierData;
 import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.helpers.ChartToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.ExportChartPanel;
+import qupath.lib.gui.tools.ChartTools;
 
 /**
  * Wrapper class for custom chart used to show Kaplan Meier survival curves.
@@ -243,7 +243,7 @@ public class KaplanMeierChartWrapper {
 		chart.createSymbolsProperty().addListener((v, o, n) -> updateChart());
 
 		// Expand the clip area to avoid completely cutting off markers occurring at the edge
-		ChartToolsFX.expandChartClip(chart, 5);
+		ChartTools.expandChartClip(chart, 5);
 		
 		
 		MenuItem miCopyPanel = new MenuItem("Entire panel");
@@ -594,7 +594,7 @@ public class KaplanMeierChartWrapper {
 				stage.show();
 				exportPane.refreshChartDisplay();
 			} catch (Exception e) {
-				DisplayHelpers.showErrorNotification("Survival curve error", "Unable to copy the current survival curve!");
+				Dialogs.showErrorNotification("Survival curve error", "Unable to copy the current survival curve!");
 				logger.error("Survival curve copy error", e);
 			}
 		}

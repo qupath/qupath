@@ -40,9 +40,7 @@ import java.util.Set;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.interfaces.PathPoints;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -157,7 +155,7 @@ public abstract class PathObject implements Externalizable {
 	 * This can be used to query or add specific numeric measurements.
 	 * @return
 	 */
-	public MeasurementList getMeasurementList() {
+	public synchronized MeasurementList getMeasurementList() {
 		if (measurements == null)
 			measurements = createEmptyMeasurementList();
 		return measurements;
@@ -177,49 +175,80 @@ public abstract class PathObject implements Externalizable {
 		return list;
 	}
 	
-	protected String objectCountPostfix() {
+	protected synchronized String objectCountPostfix() {
 		ROI pathROI = getROI();
-		if (pathROI instanceof PathPoints) {
-			int nPoints = ((PathPoints)pathROI).getNPoints();
+		if (pathROI != null && pathROI.isPoint()) {
+			int nPoints = pathROI.getNumPoints();
 			if (nPoints == 1)
-				return " - 1 point";
+				return " (1 point)";
 			else
-				return String.format(" - %d points", nPoints);
+				return String.format(" (%d points)", nPoints);
 		}
 		if (!hasChildren())
 			return "";
-		if (childList.size() == 1)
-			return " - 1 object";
-		else
-			return " - " + childList.size() + " objects";
+		int nChildren = nChildObjects();
+		int nDescendants = PathObjectTools.countDescendants(this);
+		if (nChildren == nDescendants)
+			return " (" + nChildren + " objects)";
+		return " (" + (nChildren) + "/" + nDescendants + " objects)";
+//		if (nDescendants == 1)
+//			return " - 1 descendant";
+//		else
+//			return " - " + nDescendants + " descendant";
+//		
+//		if (childList.size() == 1)
+//			return " - 1 object";
+//		else
+//			return " - " + childList.size() + " objects";
 	}
 
 	@Override
 	public String toString() {
-		String postfix;
-		if (getPathClass() == null)
-			postfix = objectCountPostfix();
-		else
-			postfix = " (" + getPathClass().toString() + ")";
+		var sb = new StringBuilder();
+		
+		// Name or class
 		if (getName() != null)
-			return getName() + postfix;
-		if (getROI() != null)
-			return getROI().toString() + postfix;
-		String prefix = PathObjectTools.getSuitableName(getClass(), false);
-		return prefix + postfix; // Entire image
+			sb.append(getName());
+		else
+			sb.append(PathObjectTools.getSuitableName(getClass(), false));
+			
+		// ROI
+		if (!isCell() && hasROI())
+			sb.append(" (").append(getROI().getRoiName()).append(")");
+		
+		// Classification
+		if (getPathClass() != null)
+			sb.append(" (").append(getPathClass().toString()).append(")");
+		
+		// Number of descendants
+		sb.append(objectCountPostfix());
+		return sb.toString();
+		
+//		String postfix;
+//		if (getPathClass() == null)
+//			postfix = objectCountPostfix();
+//		else
+//			postfix = " (" + getPathClass().toString() + ")";
+//		if (getName() != null)
+//			return getName() + postfix;
+//		var roi = getROI();
+//		if (!isCell() && roi != null)
+//			return roi + postfix;
+//		String prefix = PathObjectTools.getSuitableName(getClass(), false);
+//		return prefix + postfix; // Entire image
 	}
 	
 	/**
 	 * Add an object to the child list of this object.
 	 * @param pathObject
 	 */
-	public void addPathObject(PathObject pathObject) {
+	public synchronized void addPathObject(PathObject pathObject) {
 		if (pathObject instanceof PathRootObject) //J
 			throw new IllegalArgumentException("PathRootObject cannot be added as child to another PathObject"); //J 
 		addPathObjectImpl(pathObject);
 	}
 	
-	private void addPathObjectImpl(PathObject pathObject) {
+	private synchronized void addPathObjectImpl(PathObject pathObject) {
 		ensureChildList(nChildObjects() + 1);
 		// Make sure the object is removed from any other parent
 		if (pathObject.parent != this) {
@@ -234,7 +263,7 @@ public abstract class PathObject implements Externalizable {
 	}
 
 	
-	private void addPathObjectsImpl(Collection<? extends PathObject> pathObjects) {
+	private synchronized void addPathObjectsImpl(Collection<? extends PathObject> pathObjects) {
 		if (pathObjects == null || pathObjects.isEmpty())
 			return;
 		ensureChildList(nChildObjects() + pathObjects.size());
@@ -376,7 +405,7 @@ public abstract class PathObject implements Externalizable {
 	 * Add a collection of objects to the child list of this object.
 	 * @param pathObjects
 	 */
-	public void addPathObjects(Collection<? extends PathObject> pathObjects) {
+	public synchronized void addPathObjects(Collection<? extends PathObject> pathObjects) {
 		addPathObjectsImpl(pathObjects);
 	}
 
@@ -384,7 +413,7 @@ public abstract class PathObject implements Externalizable {
 	 * Remove a single object from the child list of this object.
 	 * @param pathObject
 	 */
-	public void removePathObject(PathObject pathObject) {
+	public synchronized void removePathObject(PathObject pathObject) {
 		if (!hasChildren())
 			return;
 		if (pathObject.parent == this)
@@ -396,7 +425,7 @@ public abstract class PathObject implements Externalizable {
 	 * Remove multiple objects from the child list of this object.
 	 * @param pathObjects
 	 */
-	public void removePathObjects(Collection<PathObject> pathObjects) {
+	public synchronized void removePathObjects(Collection<PathObject> pathObjects) {
 		if (!hasChildren())
 			return;
 		for (PathObject pathObject : pathObjects) {
@@ -409,7 +438,7 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Remove all child objects.
 	 */
-	public void clearPathObjects() {
+	public synchronized void clearPathObjects() {
 		if (!hasChildren())
 			return;
 		for (PathObject pathObject : childList) {
@@ -463,12 +492,26 @@ public abstract class PathObject implements Externalizable {
 	 * e.g. a tile or cell.
 	 * 
 	 * @return
+	 * @see #isCell()
 	 * @see PathDetectionObject
 	 * @see PathCellObject
 	 * @see PathTileObject
 	 */
 	public boolean isDetection() {
 		return this instanceof PathDetectionObject;
+	}
+	
+	/**
+	 * Returns true if the object is a cell object (a special type of detection, which can contain second ROI for the nucleus).
+	 * 
+	 * @return
+	 * @see #isDetection()
+	 * @see PathDetectionObject
+	 * @see PathCellObject
+	 * @see PathTileObject
+	 */
+	public boolean isCell() {
+		return this instanceof PathCellObject;
 	}
 	
 	/**
@@ -514,17 +557,28 @@ public abstract class PathObject implements Externalizable {
 	public abstract boolean isEditable();
 	
 	/**
-	 * Get a list of child objects.
+	 * Get a collection of child objects.
 	 * <p>
 	 * In the current implementation, this is immutable - it cannot be modified directly.
 	 * @return
 	 */
-	public Collection<PathObject> getChildObjects() {
+	public synchronized Collection<PathObject> getChildObjects() {
 		if (childList == null)
 			return Collections.emptyList();
 		if (cachedUnmodifiableChildren == null)
 			cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList); // Could use collection (but be careful about hashcode & equals!)
 		return cachedUnmodifiableChildren;
+	}
+	
+	/**
+	 * Get a defensive copy of child objects as an array.
+	 * Why? Well perhaps you want to iterate through it and {@link #getChildObjects()} may result in synchronization problems if 
+	 * the list is modified by another thread. In such a case a defensive copy may already be required, and it is more efficient to request 
+	 * it here.
+	 * @return
+	 */
+	public synchronized PathObject[] getChildObjectsAsArray() {
+		return childList == null ? new PathObject[0] : childList.toArray(PathObject[]::new);
 	}
 	
 	/**

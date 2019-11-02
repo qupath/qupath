@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 
 
@@ -54,7 +54,7 @@ public class DeleteSelectedObjectsCommand implements PathCommand {
 		ImageData<?> imageData = manager.getImageData();
 		if (imageData == null)
 			return;
-		DisplayHelpers.promptToClearAllSelectedObjects(imageData);
+		GuiTools.promptToClearAllSelectedObjects(imageData);
 	}
 	
 

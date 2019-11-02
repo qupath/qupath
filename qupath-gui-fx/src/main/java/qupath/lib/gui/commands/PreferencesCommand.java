@@ -36,10 +36,10 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.GridPaneTools;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.PreferencePanel;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.PaneTools;
 
 /**
  * Command to show a basic property-editing window.
@@ -87,7 +87,7 @@ public class PreferencesCommand implements PathCommand {
 			
 			GridPane paneImportExport = new GridPane();
 			paneImportExport.addRow(0, btnImport, btnExport, btnReset);
-			GridPaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
+			PaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
 			paneImportExport.setMaxWidth(Double.MAX_VALUE);
 
 //			Button btnClose = new Button("Close");
@@ -123,7 +123,7 @@ public class PreferencesCommand implements PathCommand {
 				PathPrefs.exportPreferences(stream);
 				return true;
 			} catch (Exception e) {
-				DisplayHelpers.showErrorMessage("Import preferences", e);
+				Dialogs.showErrorMessage("Import preferences", e);
 			}
 		}
 		return false;
@@ -137,11 +137,11 @@ public class PreferencesCommand implements PathCommand {
 			try (var stream = Files.newInputStream(file.toPath())) {
 				logger.info("Importing preferences from {}", file.getAbsolutePath());
 				PathPrefs.importPreferences(stream);
-				DisplayHelpers.showMessageDialog("Import preferences", 
+				Dialogs.showMessageDialog("Import preferences", 
 						"Preferences have been imported - please restart QuPath to see the changes.");
 				return true;
 			} catch (Exception e) {
-				DisplayHelpers.showErrorMessage("Import preferences", e);
+				Dialogs.showErrorMessage("Import preferences", e);
 			}
 		}
 		return false;

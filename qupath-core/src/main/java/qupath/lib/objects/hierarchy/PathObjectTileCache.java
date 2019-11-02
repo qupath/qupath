@@ -51,8 +51,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TemporaryObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
@@ -181,7 +181,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		
 		// Add the children
 		if (includeChildren && !(pathObject instanceof TemporaryObject) && pathObject.hasChildren()) {
-			for (PathObject child : pathObject.getChildObjects().toArray(PathObject[]::new))
+			for (PathObject child : pathObject.getChildObjectsAsArray())
 				addToCache(child, includeChildren, limitToClass);
 		}
 	}
@@ -203,8 +203,13 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				geometryMap.put(roi, geometry);
 			}
 //			long startTime = System.currentTimeMillis();
-			if (!geometry.isValid())
-				logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
+			if (!geometry.isValid()) {
+				int nVertices = geometry.getNumPoints();
+				if (geometry.getNumPoints() < 100)
+					logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
+				else
+					logger.warn("{} is not a valid geometry! Actual geometry {} ({} vertices)", pathObject, geometry.getGeometryType(), nVertices);
+			}
 //			long endTime = System.currentTimeMillis();
 //			System.err.println("Testing " + (endTime - startTime) + " ms for " + geometry);
 		}
@@ -351,7 +356,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 //				System.err.println("After: " + mapObjects.query(MAX_ENVELOPE).size());
 			// Remove the children
 			if (removeChildren) {
-				for (PathObject child : pathObject.getChildObjects())
+				for (PathObject child : pathObject.getChildObjectsAsArray())
 					removeFromCache(child, removeChildren);
 			}
 		} else if (mapObjects instanceof SpatialIndex && !removeChildren) {
@@ -412,8 +417,10 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 						for (PathObject pathObject : (List<PathObject>)list) {
 							var roi = pathObject.getROI();
 							if (roi == null || region == null || (roi.getZ() == z && roi.getT() == t)) {
-								if (pathObject.getParent() != null || pathObject.isRootObject())
-									pathObjects.add(pathObject);
+								if (pathObject.getParent() != null || pathObject.isRootObject()) {
+									if (envelope.intersects(getEnvelope(pathObject)))
+										pathObjects.add(pathObject);
+								}
 							}
 						}
 					}
@@ -500,7 +507,7 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				addToCache(singleObject, false, singleObject.getClass());
 			} else if (singleChange && event.getEventType() == HierarchyEventType.REMOVED) {
 				removeFromCache(singleObject, false);
-			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE) {// || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
+			} else if (event.getEventType() == HierarchyEventType.OTHER_STRUCTURE_CHANGE || event.getEventType() == HierarchyEventType.CHANGE_OTHER) {
 //				if (singleChange && !singleObject.isRootObject()) {
 //					removeFromCache(singleObject, false);
 //					addToCache(singleObject, false, singleObject.getClass());					

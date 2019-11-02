@@ -50,7 +50,7 @@ import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.tools.GuiTools;
 
 /**
  * Command to show license info for QuPath and any third-party dependencies.
@@ -182,7 +182,7 @@ public class ShowLicensesCommand implements PathCommand {
 		Button btnThirdParty = new Button("Open licenses directory");
 		File dirLicenses = dirBase;
 		btnThirdParty.setOnAction(e -> {
-			DisplayHelpers.openFile(dirLicenses);
+			GuiTools.openFile(dirLicenses);
 		});
 		btnThirdParty.setMaxWidth(Double.MAX_VALUE);
 		

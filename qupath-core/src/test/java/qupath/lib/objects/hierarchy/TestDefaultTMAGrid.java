@@ -31,9 +31,9 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 
 @SuppressWarnings("javadoc")
 public class TestDefaultTMAGrid {

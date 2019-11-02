@@ -75,12 +75,21 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 	}
 
 	@Override
-	public BufferedImage writeImage(ImageServer<BufferedImage> server, RegionRequest request, String pathOutput) throws IOException {
+	public void writeImage(ImageServer<BufferedImage> server, RegionRequest request, String pathOutput) throws IOException {
 		PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(server, request);
 		if (pathImage == null)
 			throw new IOException("Unable to extract region from from " + server.getPath());
 		writeImage(pathImage.getImage(), pathOutput);
-		return pathImage.getImage().getBufferedImage();
+//		return pathImage.getImage().getBufferedImage();
+	}
+	
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
+		ImagePlus imp = IJTools.extractHyperstack(server, RegionRequest.createInstance(server));
+		if (imp == null)
+			throw new IOException("Unable to extract region from from " + server.getPath());
+		writeImage(imp, pathOutput);
+//		return pathImage.getImage().getBufferedImage();
 	}
 
 	@Override
@@ -97,6 +106,11 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 		} else
 			ip = new ColorProcessor(img);
 		writeImage(new ImagePlus("", ip), pathOutput);
+	}
+	
+	@Override
+	public Class<BufferedImage> getImageClass() {
+		return BufferedImage.class;
 	}
 
 	public void writeImage(ImagePlus imp, String pathOutput) throws IOException {

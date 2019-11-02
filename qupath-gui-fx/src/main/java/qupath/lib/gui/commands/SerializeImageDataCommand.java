@@ -27,9 +27,10 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -56,14 +57,14 @@ public class SerializeImageDataCommand implements PathCommand {
 		public void run() {
 			ImageData<BufferedImage> imageData = qupath.getImageData();
 			if (imageData == null) {
-				DisplayHelpers.showErrorMessage("Serialization error", "No image data to save!");
+				Dialogs.showErrorMessage("Serialization error", "No image data to save!");
 				return;
 			}
 			try {
 				var project = qupath.getProject();
 				var entry = project == null ? null : project.getEntry(imageData);
 				if (entry != null) {
-					if (overwriteExisting || DisplayHelpers.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?")) {
+					if (overwriteExisting || Dialogs.showConfirmDialog("Save changes", "Save changes to " + entry.getImageName() + "?")) {
 							entry.saveImageData(imageData);
 					} else
 						return;
@@ -81,7 +82,13 @@ public class SerializeImageDataCommand implements PathCommand {
 					}
 					else {
 						ImageServer<?> server = imageData.getServer();
-						file = qupath.getDialogHelper().promptToSaveFile(null, null, ServerTools.getDisplayableImageName(server), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+						String name = ServerTools.getDisplayableImageName(server);
+						if (name.contains(".")) {
+							try {
+								name = GeneralTools.getNameWithoutExtension(new File(name));
+							} catch (Exception e) {}
+						}
+						file = qupath.getDialogHelper().promptToSaveFile(null, null, name, "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 					}
 					if (file == null)
 						return;
@@ -89,7 +96,7 @@ public class SerializeImageDataCommand implements PathCommand {
 					PathIO.writeImageData(file, imageData);
 				}
 			} catch (IOException e) {
-				DisplayHelpers.showErrorMessage("Save ImageData", e);
+				Dialogs.showErrorMessage("Save ImageData", e);
 			}
 		}
 		

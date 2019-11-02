@@ -29,7 +29,6 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -83,8 +82,6 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -97,11 +94,11 @@ import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PaintingToolsFX;
-import qupath.lib.gui.helpers.PanelToolsFX;
-import qupath.lib.gui.helpers.DisplayHelpers.DialogButton;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -208,7 +205,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		Button btnOpen = qupath.getActionButton(GUIActions.PROJECT_OPEN, false);
 		Button btnCreate = qupath.getActionButton(GUIActions.PROJECT_NEW, false);
 		Button btnAdd = qupath.getActionButton(GUIActions.PROJECT_IMPORT_IMAGES, false);
-		GridPane paneButtons = PanelToolsFX.createColumnGridControls(btnCreate, btnOpen, btnAdd);
+		GridPane paneButtons = PaneTools.createColumnGridControls(btnCreate, btnOpen, btnAdd);
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 		panel.setTop(paneButtons);
@@ -237,19 +234,19 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					var imageData = viewer.getImageData();
 					var entry = imageData == null ? null : getProject().getEntry(imageData);
 					if (entry != null && entries.contains(entry)) {
-						DisplayHelpers.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
+						Dialogs.showErrorMessage("Remove project entries", "Please close all images you want to remove!");
 						return;
 					}
 				}
 			}
 			
 			if (entries.size() == 1) {
-				if (!DisplayHelpers.showConfirmDialog("Remove project entry", "Remove " + entries.iterator().next().getImageName() + " from project?"))
+				if (!Dialogs.showConfirmDialog("Remove project entry", "Remove " + entries.iterator().next().getImageName() + " from project?"))
 					return;
-			} else if (!DisplayHelpers.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
+			} else if (!Dialogs.showYesNoDialog("Remove project entries", String.format("Remove %d entries?", entries.size())))
 				return;
 			
-			var result = DisplayHelpers.showYesNoCancelDialog("Remove project entries",
+			var result = Dialogs.showYesNoCancelDialog("Remove project entries",
 					"Delete all associated data?");
 			if (result == DialogButton.CANCEL)
 				return;
@@ -306,7 +303,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					syncProject(project);						
 				}
 			} else {
-				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
+				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
 			}
 		});
 		
@@ -378,7 +375,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				}
 							
 			} else {
-				DisplayHelpers.showErrorMessage("Edit image description", "No entry is selected!");
+				Dialogs.showErrorMessage("Edit image description", "No entry is selected!");
 			}
 		});
 		
@@ -508,7 +505,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (path == null)
 				return;
 			// Get directory if we will need one
-			DisplayHelpers.browseDirectory(path.toFile());
+			GuiTools.browseDirectory(path.toFile());
 		});
 		action.disabledProperty().bind(Bindings.createBooleanBinding(() -> func.get() == null, tree.getSelectionModel().selectedItemProperty()));
 		return action;
@@ -528,7 +525,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			project.syncChanges();
 			return true;
 		} catch (IOException e) {
-			DisplayHelpers.showErrorMessage("Save project", e);
+			Dialogs.showErrorMessage("Save project", e);
 			return false;
 		}
 	}
@@ -819,7 +816,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			logger.error("Cannot set image name - entry is null");
 		}
 		
-		String name = DisplayHelpers.showInputDialog("Set Image Name", "Enter the new image name", entry.getImageName());
+		String name = Dialogs.showInputDialog("Set Image Name", "Enter the new image name", entry.getImageName());
 		if (name == null)
 			return false;
 		if (name.trim().isEmpty() || name.equals(entry.getImageName())) {
@@ -1149,6 +1146,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (item == null || empty) {
 				setText(null);
 				setGraphic(null);
+				setTooltip(null);
 				return;
 			}
 
@@ -1165,8 +1163,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				tooltip.setText(item.toString());
 				setTooltip(tooltip);
 				setGraphic(null);
-			}
-			else {
+			} else {
 				// Set whatever tooltip we have
 				tooltip.setGraphic(null);
 				setTooltip(tooltip);
@@ -1193,13 +1190,12 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					Image image = SwingFXUtils.toFXImage(img, null);
 					viewTooltip.setImage(image);
 					tooltip.setGraphic(viewTooltip);
-					PaintingToolsFX.paintImage(viewCanvas, image);
+					GuiTools.paintImage(viewCanvas, image);
 					if (getGraphic() == null)
 						setGraphic(label);
 				} else {
 					setGraphic(null);
 				}
-				
 			}
 			
 		}

@@ -25,10 +25,10 @@ package qupath.lib.gui.scripting;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -43,21 +43,26 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.io.PathAwtIO;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tma.TMADataIO;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
@@ -68,8 +73,6 @@ import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathShape;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
 
@@ -85,6 +88,50 @@ public class QPEx extends QP {
 	final private static Logger logger = LoggerFactory.getLogger(QPEx.class);
 	
 	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
+	
+	
+	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
+			Dialogs.class,
+			GuiTools.class
+			));
+	
+	/**
+	 * Get a list of core classes that are likely to be useful for scripting.
+	 * The purpose of this is to allow users to find classes they are likely to need, 
+	 * or to import these automatically at the beginning of scripts.
+	 * @return
+	 */
+	public static List<Class<?>> getCoreClasses() {
+		var list = new ArrayList<>(QP.getCoreClasses());
+		list.addAll(CORE_CLASSES);
+		return list;
+	}
+	
+	/**
+	 * Get a Java/Groovy-friendly multi-line String to import essential classes for scripting.
+	 * @return
+	 */
+	static String getDefaultImports() {
+		return getDefaultImports(false);
+	}
+	
+	/**
+	 * Get a Java/Groovy-friendly String to import essential classes for scripting.
+	 * @param singleLine if true, return imports as a single line (separated by semi-colons)
+	 * @return
+	 */
+	static String getDefaultImports(boolean singleLine) {
+		List<String> imports = new ArrayList<>();
+		for (var cls : QPEx.getCoreClasses())
+			imports.add("import " + cls.getName());
+		// Import script class statically and in the normal way
+		imports.add("import " + QPEx.class.getName());
+		imports.add("import static " + QPEx.class.getName() + ".*");
+		if (singleLine)
+			return String.join("; ", imports);
+		return String.join(";"+System.lineSeparator(), imports);
+	}
+	
 	
 	/**
 	 * Load ImageData from a file.
@@ -141,7 +188,7 @@ public class QPEx extends QP {
 	public static void exportTMAData(final ImageData<BufferedImage> imageData, final String path, final double downsampleFactor) {
 		if (imageData == null)
 			return;
-		PathAwtIO.writeTMAData(new File(resolvePath(path)), imageData, null, downsampleFactor);
+		TMADataIO.writeTMAData(new File(resolvePath(path)), imageData, null, downsampleFactor);
 	}
 	
 	
@@ -308,15 +355,15 @@ public class QPEx extends QP {
 			return null;
 		
 		// Get all the selected annotations with area
-		PathShape shapeNew = null;
+		ROI shapeNew = null;
 		List<PathObject> children = new ArrayList<>();
 		Set<PathClass> pathClasses = new HashSet<>();
 		for (PathObject child : annotations) {
-			if (child instanceof PathAnnotationObject && child.getROI() instanceof PathArea) {
+			if (child instanceof PathAnnotationObject && child.hasROI() && child.getROI().isArea()) {
 				if (shapeNew == null)
-					shapeNew = (PathShape)child.getROI();//.duplicate();
+					shapeNew = child.getROI();//.duplicate();
 				else
-					shapeNew = RoiTools.combineROIs(shapeNew, (PathArea)child.getROI(), RoiTools.CombineOp.ADD);
+					shapeNew = RoiTools.combineROIs(shapeNew, child.getROI(), RoiTools.CombineOp.ADD);
 				if (child.getPathClass() != null)
 					pathClasses.add(child.getPathClass());
 				children.add(child);
@@ -357,7 +404,7 @@ public class QPEx extends QP {
 		
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		// Get the currently-selected area
-		PathArea shapeSelected = null;
+		ROI shapeSelected = null;
 		if (pathObject instanceof PathAnnotationObject) {
 			shapeSelected = getAreaROI(pathObject);
 		}
@@ -368,12 +415,12 @@ public class QPEx extends QP {
 
 		// Get the parent area to use
 		PathObject parent = pathObject.getParent();
-		PathArea shape = getAreaROI(parent);
+		ROI shape = getAreaROI(parent);
 		if (shape == null)
 			shape = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getPlaneWithChannel(shapeSelected));
 
 		// Create the new ROI
-		PathShape shapeNew = RoiTools.combineROIs(shape, shapeSelected, RoiTools.CombineOp.SUBTRACT);
+		ROI shapeNew = RoiTools.combineROIs(shape, shapeSelected, RoiTools.CombineOp.SUBTRACT);
 		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
 
 		// Reassign all other children to the new parent
@@ -387,13 +434,42 @@ public class QPEx extends QP {
 	}
 	
 	
-	private static PathArea getAreaROI(PathObject pathObject) {
+	/**
+	 * Returns a ROI if it is an area, otherwise returns null.
+	 * @param pathObject
+	 * @return
+	 */
+	private static ROI getAreaROI(PathObject pathObject) {
 		if (pathObject == null)
 			return null;
 		ROI pathROI = pathObject.getROI();
-		if (!(pathROI instanceof PathArea))
+		if (pathROI == null || !pathROI.isArea())
 			return null;
-		return (PathArea)pathObject.getROI();
+		return pathObject.getROI();
+	}
+	
+	/**
+	 * Write a rendered image to the specified path. No overlay layers will be included.
+	 * @param imageData
+	 * @param path
+	 * @throws IOException
+	 * @see #writeRenderedImage(QuPathViewer, String)
+	 */
+	public static void writeRenderedImage(ImageData<BufferedImage> imageData, String path) throws IOException {
+		var renderedServer = new RenderedImageServer.Builder(imageData).build();
+		ImageWriterTools.writeImage(renderedServer, path);
+	}
+	
+	/**
+	 * Write a rendered image for the current viewer to the specified path.
+	 * @param viewer
+	 * @param path
+	 * @throws IOException
+	 * @see #writeRenderedImage(ImageData, String)
+	 */
+	public static void writeRenderedImage(QuPathViewer viewer, String path) throws IOException {
+		var renderedServer = RenderedImageServer.createRenderedServer(viewer);
+		ImageWriterTools.writeImage(renderedServer, path);
 	}
 	
 	
@@ -410,6 +486,13 @@ public class QPEx extends QP {
 		saveMeasurements(getCurrentImageData(), PathDetectionObject.class, path, includeColumns);
 	}
 	
+	public static void saveImageMeasurements(final String path, final String... includeColumns) {
+		saveMeasurements(getCurrentImageData(), PathRootObject.class, path, includeColumns);
+	}
+	
+	public static void saveImageMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
+		saveMeasurements(imageData, PathRootObject.class, path, includeColumns);
+	}
 	
 	public static void saveAnnotationMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
 		saveMeasurements(imageData, PathAnnotationObject.class, path, includeColumns);
@@ -435,8 +518,7 @@ public class QPEx extends QP {
 		}
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-		try {
-			PrintWriter writer = new PrintWriter(fileOutput);
+		try (PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8)) {
 			Collection<String> excludeColumns;
 			if (includeColumns.length == 0) {
 				excludeColumns = Collections.emptyList();
@@ -444,13 +526,12 @@ public class QPEx extends QP {
 				excludeColumns = new LinkedHashSet<>(model.getAllNames());
 				excludeColumns.removeAll(Arrays.asList(includeColumns));
 			}
-			writer.println(SummaryMeasurementTableCommand.getTableModelString(model, PathPrefs.getTableDelimiter(), excludeColumns));
+			for (String row : SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.getTableDelimiter(), excludeColumns))
+				writer.println(row);
 			writer.close();
-		} catch (FileNotFoundException e) {
-			logger.error("File {} not found!", fileOutput);
+		} catch (IOException e) {
+			logger.error("Error writing file to " + fileOutput, e);
 		}
 	}
-	
-	
 	
 }

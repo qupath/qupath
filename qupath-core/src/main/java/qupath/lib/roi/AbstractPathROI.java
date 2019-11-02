@@ -26,8 +26,8 @@ package qupath.lib.roi;
 import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.GeometryTools.GeometryConverter;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.roi.jts.ConverterJTS;
 
 /**
  * Abstract implementation of a ROI.
@@ -39,10 +39,10 @@ abstract class AbstractPathROI implements ROI {
 	
 	// Dimension variables
 	int c = -1; // Defaults to -1, indicating all channels
-	int t = 0; // Defaults to 0, indicating first time point
-	int z = 0; // Defaults to 0, indiciating first z-slice
+	int t = 0;  // Defaults to 0, indicating first time point
+	int z = 0;  // Defaults to 0, indicating first z-slice
 	
-	transient ImagePlane plane;
+	private transient ImagePlane plane;
 	
 	public AbstractPathROI() {
 		this(null);
@@ -93,26 +93,62 @@ abstract class AbstractPathROI implements ROI {
 	}
 	
 	/**
-	 * TRUE if the bounding box has zero area
+	 * True if the bounding box has zero area
 	 */
 	@Override
 	public boolean isEmpty() {
-		return getBoundsWidth() * getBoundsHeight() == 0;
+		int n = getNumPoints();
+		if (n == 0)
+			return true;
+		if (isArea())
+			return getArea() == 0;
+		if (isLine())
+			return getLength() == 0;
+		return false;
 	}
 	
 	@Override
 	public String toString() {
+		var sb = new StringBuilder(getRoiName())
+			.append(" (")
+			.append(Math.round(getBoundsX()))
+			.append(", ")
+			.append(Math.round(getBoundsY()))
+			.append(", ")
+			.append(Math.round(getBoundsWidth()))
+			.append(", ")
+			.append(Math.round(getBoundsHeight()));
+		if (getZ() != 0)
+			sb.append(", z=").append(getZ());
+		if (getT() != 0)
+			sb.append(", t=").append(getT());
+		if (getC() != -1)
+			sb.append(", c=").append(getC());
+		sb.append(")");
+		return sb.toString();
+		
 //		Rectangle bounds = getBounds();
-//		return String.format("%s (%d, %d, %d, %d)", getROIType(), bounds.x, bounds.y, bounds.width, bounds.height);
+//		return String.format("%s (%.0f, %.0f, %.0f, %.0f, z=%d, t=%d, c=%d)",
+//				getRoiName(),
+//				getBoundsX(), getBoundsY(), getBoundsWidth(), getBoundsHeight(),
+//				getZ(), getT(), getC());
 //		String name = getName();
 //		if (name != null)
 ////			return name;			
 //			return name + " - " + getROIType();			
-		return getRoiName();
+//		return getRoiName();
 //		return String.format("%s (%.1f, %.1f)", getROIType(), getCentroidX(), getCentroidY());
 //		return "Me";
 	}
 	
+	/**
+	 * Default implementation, calls {@link #getAllPoints()}. Subclasses may override for efficiency.
+	 * @return
+	 */
+	@Override
+	public int getNumPoints() {
+		return getAllPoints().size();
+	}
 
 	@Override
 	public boolean isLine() {
@@ -129,11 +165,34 @@ abstract class AbstractPathROI implements ROI {
 		return getRoiType() == RoiType.POINT;
 	}
 	
-	private static ConverterJTS converter = new ConverterJTS.Builder().build();
+	private static GeometryConverter converter = new GeometryConverter.Builder().build();
 	
 	@Override
 	public Geometry getGeometry() {
 		return converter.roiToGeometry(this);
+	}
+	
+	@Override
+	public double getArea() {
+		return getScaledArea(1, 1);
+	}
+	
+	@Override
+	public double getLength() {
+		return getScaledLength(1, 1);
+	}
+	
+	/**
+	 * Default implementation using JTS. Subclasses may replace this with a more efficient implementation.
+	 */
+	@Override
+	public ROI getConvexHull() {
+		return GeometryTools.geometryToROI(getGeometry().convexHull(), getImagePlane());
+	}
+	
+	@Override
+	public double getSolidity() {
+		return isArea() ? getArea() / getConvexHull().getArea() : Double.NaN;
 	}
 	
 	

@@ -14,4 +14,7 @@
     <appender-ref ref="STDOUT" />
   </root>
   
+  <!-- There are quite a lot of Bio-Formats-related log messages at INFO level... here we suppress these -->
+  <logger name="loci.formats" level="WARN" />
+  
 </configuration>

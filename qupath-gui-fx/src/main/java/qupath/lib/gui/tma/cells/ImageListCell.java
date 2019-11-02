@@ -31,9 +31,9 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ListCell;
 import javafx.scene.image.Image;
-import qupath.lib.gui.helpers.PaintingToolsFX;
 import qupath.lib.gui.tma.entries.TMAEntry;
 import qupath.lib.gui.tma.entries.TMAImageCache;
+import qupath.lib.gui.tools.GuiTools;
 
 /**
  * A ListCell for containing the image of a TMAEntry.
@@ -103,7 +103,7 @@ public class ImageListCell extends ListCell<TMAEntry> {
 		if (img == null)
 			return;
 		if (img != null) {
-			PaintingToolsFX.paintImage(canvas, img);
+			GuiTools.paintImage(canvas, img);
 		}
 	}
 

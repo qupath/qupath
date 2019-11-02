@@ -27,13 +27,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.objects.classes.PathClass;
 
 /**
  * Class for storing primary ImageServer metadata fields.
@@ -46,6 +50,11 @@ import qupath.lib.common.GeneralTools;
 public class ImageServerMetadata {
 	
 	private static Logger logger = LoggerFactory.getLogger(ImageServerMetadata.class);
+	
+	/**
+	 * Default channel to use with images where the channel type is {@link ChannelType#CLASSIFICATION}.
+	 */
+	public static final ImageChannel DEFAULT_CLASSIFICATION_LABELS_CHANNEL = ImageChannel.getInstance("Labels", ColorTools.makeRGB(255, 255, 255));
 	
 	/**
 	 * Enum representing possible channel (band) types for an image.
@@ -111,7 +120,11 @@ public class ImageServerMetadata {
 	
 	private ImageResolutionLevel[] levels;
 	
+	private Map<Integer, PathClass> classificationLabels;
 	private List<ImageChannel> channels = new ArrayList<>();
+	
+	private Number minValue;
+	private Number maxValue;
 	
 	private PixelCalibration pixelCalibration;
 	
@@ -202,12 +215,51 @@ public class ImageServerMetadata {
 		}
 		
 		/**
-		 * Specify the interpretation of channels.
+		 * Specify the minimum value supported by this image.
+		 * If not provided, this will be taken from the {@link PixelType}.
+		 * @param val
+		 * @return
+		 * @see #pixelType(PixelType)
+		 */
+		public Builder minValue(final Number val) {
+			metadata.minValue = val;
+			return this;
+		}
+		
+		/**
+		 * Specify the maximum value supported by this image.
+		 * If not provided, this will be taken from the {@link PixelType}.
+		 * This purpose of this method is to support other effective bit-depths (e.g. 12-bit, 14-bit).
+		 * @param val
+		 * @return
+		 * @see #pixelType(PixelType)
+		 */
+		public Builder maxValue(final Number val) {
+			metadata.maxValue = val;
+			return this;
+		}
+
+		
+		/**
+		 * Specify the interpretation of channels. If this is {@link ChannelType#CLASSIFICATION} it will also 
+		 * set the channels to be the default for this kind of server, i.e. a single channel with {@link ImageServerMetadata#DEFAULT_CLASSIFICATION_LABELS_CHANNEL}.
 		 * @param type
 		 * @return
 		 */
 		public Builder channelType(final ImageServerMetadata.ChannelType type) {
 			this.metadata.channelType = type;
+			if (type == ChannelType.CLASSIFICATION)
+				this.metadata.channels = Collections.singletonList(DEFAULT_CLASSIFICATION_LABELS_CHANNEL);
+			return this;
+		}
+		
+		/**
+		 * Specify the interpretation of classification labels. Only relevant for {@link ChannelType#CLASSIFICATION}.
+		 * @param classificationLabels
+		 * @return
+		 */
+		public Builder classificationLabels(final Map<Integer, PathClass> classificationLabels) {
+			this.metadata.classificationLabels = Collections.unmodifiableMap(new LinkedHashMap<>(classificationLabels));
 			return this;
 		}
 		
@@ -389,7 +441,8 @@ public class ImageServerMetadata {
 				else
 					metadata.preferredTileHeight = Math.min(metadata.height, DEFAULT_TILE_SIZE);
 			}
-			return metadata;
+			// Return a duplicate so that we can reuse the builder if necessary
+			return new ImageServerMetadata(metadata);
 		}
 
 	}
@@ -415,10 +468,19 @@ public class ImageServerMetadata {
 		this.pixelType = metadata.pixelType;
 		
 		this.pixelCalibration = metadata.pixelCalibration;
+		if (metadata.classificationLabels != null) {
+			this.classificationLabels = Collections.unmodifiableMap(new LinkedHashMap<>(metadata.classificationLabels));
+		} else if (metadata.channelType == ChannelType.CLASSIFICATION) {
+			throw new IllegalArgumentException("Classification labels are required whenever the channel type is CLASSIFICATION!");
+		}
 		
 		this.channels = new ArrayList<>(metadata.getChannels());
 		
 		this.magnification = metadata.magnification;
+		
+		this.minValue = metadata.minValue;
+		this.maxValue = metadata.maxValue;
+		this.channelType = metadata.channelType;
 		
 		this.preferredTileWidth = metadata.preferredTileWidth;
 		this.preferredTileHeight = metadata.preferredTileHeight;
@@ -517,6 +579,27 @@ public class ImageServerMetadata {
 	 */
 	public PixelType getPixelType() {
 		return pixelType;
+	}
+	
+	/**
+	 * Get the minimum value supported by this image.
+	 * By default, this is the lower bound of the {@link PixelType} unless otherwise specified.
+	 * @return
+	 * @see #getPixelType()
+	 */
+	public Number getMinValue() {
+		return minValue == null ? getPixelType().getLowerBound() : minValue;
+	}
+	
+	/**
+	 * Get the minimum value supported by this image.
+	 * By default, this is the lower bound of the {@link PixelType} unless otherwise specified.
+	 * This purpose of this method is to support other effective bit-depths (e.g. 12-bit, 14-bit).
+	 * @return
+	 * @see #getPixelType()
+	 */
+	public Number getMaxValue() {
+		return maxValue == null ? getPixelType().getUpperBound() : maxValue;
 	}
 	
 	/**
@@ -672,6 +755,15 @@ public class ImageServerMetadata {
 	}
 	
 	/**
+	 * Get map between labels and classification names. This is relevant only where the channel type is {@link ChannelType#CLASSIFICATION}, 
+	 * otherwise it returns an empty map.
+	 * @return
+	 */
+	public Map<Integer, PathClass> getClassificationLabels() {
+		return classificationLabels == null ? Collections.emptyMap() : classificationLabels;
+	}
+	
+	/**
 	 * Get the channel type, which can be used to interpret the channels.
 	 * @return
 	 */
@@ -743,6 +835,8 @@ public class ImageServerMetadata {
 		result = prime * result + (isRGB ? 1231 : 1237);
 		result = prime * result + Arrays.hashCode(levels);
 		result = prime * result + ((magnification == null) ? 0 : magnification.hashCode());
+		result = prime * result + ((maxValue == null) ? 0 : maxValue.hashCode());
+		result = prime * result + ((minValue == null) ? 0 : minValue.hashCode());
 		result = prime * result + ((name == null) ? 0 : name.hashCode());
 		result = prime * result + ((pixelCalibration == null) ? 0 : pixelCalibration.hashCode());
 		result = prime * result + ((pixelType == null) ? 0 : pixelType.hashCode());
@@ -781,6 +875,16 @@ public class ImageServerMetadata {
 			if (other.magnification != null)
 				return false;
 		} else if (!magnification.equals(other.magnification))
+			return false;
+		if (maxValue == null) {
+			if (other.maxValue != null)
+				return false;
+		} else if (!maxValue.equals(other.maxValue))
+			return false;
+		if (minValue == null) {
+			if (other.minValue != null)
+				return false;
+		} else if (!minValue.equals(other.minValue))
 			return false;
 		if (name == null) {
 			if (other.name != null)

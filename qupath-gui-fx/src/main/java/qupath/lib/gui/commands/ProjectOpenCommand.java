@@ -28,7 +28,7 @@ import java.io.File;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 
@@ -57,7 +57,7 @@ public class ProjectOpenCommand implements PathCommand {
 			Project<BufferedImage> project = ProjectIO.loadProject(fileProject, BufferedImage.class);
 			qupath.setProject(project);
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage("Load project", "Could not read project from " + fileProject.getName());
+			Dialogs.showErrorMessage("Load project", "Could not read project from " + fileProject.getName());
 		}
 		//			openProject(fileProject);
 	}

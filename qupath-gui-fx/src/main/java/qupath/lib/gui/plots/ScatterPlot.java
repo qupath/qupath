@@ -33,7 +33,7 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
-import qupath.lib.gui.helpers.ColorToolsFX;
+import qupath.lib.gui.tools.ColorToolsFX;
 
 /**
  * Store data and draw a simple scatter plot.

@@ -39,11 +39,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.Locale.Category;
 import org.slf4j.Logger;
@@ -63,7 +66,7 @@ public class GeneralTools {
 	final private static Logger logger = LoggerFactory.getLogger(GeneralTools.class);
 	
 	
-	private final static String LATEST_VERSION = getLatestVerion();
+	private final static String LATEST_VERSION = getLatestVersion();
 	
 	/**
 	 * Request the version of QuPath.
@@ -81,10 +84,12 @@ public class GeneralTools {
 	 * 
 	 * @return
 	 */
-	private static String getLatestVerion() {
+	private static String getLatestVersion() {
 		String version = GeneralTools.class.getPackage().getImplementationVersion();
 		if (version == null) {
 			var path = Paths.get("VERSION");
+			if (!Files.exists(path))
+				path = Paths.get("app/VERSION");
 			if (Files.exists(path)) {
 				try {
 					version = Files.readString(path);
@@ -94,6 +99,129 @@ public class GeneralTools {
 			}
 		}
 		return version;
+	}
+	
+	
+	private static List<String> DEFAULT_EXTENSIONS = Arrays.asList(
+			".ome.tif", ".ome.tiff", ".tar.gz"
+			);
+	
+	/**
+	 * Get filename extension. Some implementation notes:
+	 * <ul>
+	 * <li>Note that this is <i>generally</i> 'the final dot and beyond', however this method 
+	 * also handles several important special cases: ".ome.tif", ".ome.tiff" and ".tar.gz".</li>
+	 * <li>The dot is included as the first character.</li>
+	 * <li>No check is performed to see if the  file is actually a directory, but if a dot is the final character then no 
+	 * extension is returned.</li>
+	 * <li>The extension is returned as-is, without adjusting to be upper or lower case.</li>
+	 * </ul>
+	 * @param file
+	 * @return
+	 * see #getNameWithoutExtension(File)
+	 */
+	public static Optional<String> getExtension(File file) {
+		Objects.nonNull(file);
+		return getExtension(file.getName());
+	}
+	
+	/**
+	 * Get extension from a filename. Some implementation notes:
+	 * <ul>
+	 * <li>Note that this is <i>generally</i> 'the final dot and beyond', however this method 
+	 * also handles several important special cases: ".ome.tif", ".ome.tiff" and ".tar.gz".</li>
+	 * <li>The dot is included as the first character.</li>
+	 * <li>No check is performed to see if the  file is actually a directory, but if a dot is the final character then no 
+	 * extension is returned.</li>
+	 * <li>The extension is returned as-is, without adjusting to be upper or lower case.</li>
+	 * </ul>
+	 * @param name
+	 * @return
+	 * @see #getExtension(File)
+	 * @see #getNameWithoutExtension(File)
+	 */
+	public static Optional<String> getExtension(String name) {
+		Objects.nonNull(name);
+		var lower = name.toLowerCase();
+		String ext = null;
+		for (var temp : DEFAULT_EXTENSIONS) {
+			if (lower.endsWith(temp)) {
+				ext = temp;
+				break;
+			}
+		}
+		if (ext == null) {
+			int ind = name.lastIndexOf(".");
+			if (ind >= 0) {
+				ext = name.substring(ind);
+				// Check we only have letter
+				if (!ext.matches(".\\w*"))
+					ext = null;
+			}
+		}
+		return ext == null || ext.equals(".") ? Optional.empty() : Optional.of(lower.substring(lower.length()-ext.length()));
+	}
+	
+	/**
+	 * Strip characters that would make a String invalid as a filename.
+	 * This test is very simple, and may not catch all problems; the behavior of the method may 
+	 * improve in future versions.
+	 * <p>
+	 * Note that the test is not platform-dependent, and may be stricter than absolutely necessary - 
+	 * for example, by removing newline characters.
+	 * This can result in some filenames that <i>would</i> be valid on the current platform 
+	 * being modified. This can however be necessary to help retain cross-platform portability.
+	 * @param name
+	 * @return the (possibly-shortened) filename without invalid characters
+	 */
+	public static String stripInvalidFilenameChars(String name) {
+		return name.replaceAll("[\\\\/:\"*?<>|\\n\\r]+", "");
+	}
+	
+	/**
+	 * Returns true if the output of {@link #stripInvalidFilenameChars(String)} matches the provided name, 
+	 * and the name is not null or blank.
+	 * @param name
+	 * @return true if the name is expected to be valid, false otherwise
+	 * @see #stripInvalidFilenameChars(String)
+	 */
+	public static boolean isValidFilename(String name) {
+		return name != null && !name.isBlank() && name.equals(stripInvalidFilenameChars(name));
+	}
+	
+	/**
+	 * Get the file name with extension removed.
+	 * @param file
+	 * @return
+	 * {@link #getExtension(File)}
+	 */
+	public static String getNameWithoutExtension(File file) {
+		var ext = getExtension(file).orElse(null);
+		String name = file.getName();
+		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
+	}
+	
+	/**
+	 * Get the file name with extension removed.
+	 * @param name
+	 * @return
+	 * {@link #getExtension(File)}
+	 */
+	public static String getNameWithoutExtension(String name) {
+		var ext = getExtension(name).orElse(null);
+		return ext ==  null ? name : name.substring(0, name.length() - ext.length());
+	}
+	
+	/**
+	 * Returns true for file extensions containing multiple parts (or 'dots').
+	 * Examples include ome.tif and tar.gz, which can be problematic with some file choosers.
+	 * @param ext
+	 * @return
+	 */
+	public static boolean isMultipartExtension(String ext) {
+		if (ext.length() > 1 && ext.startsWith("."))
+			return isMultipartExtension(ext.substring(1));
+		return ext.length() - ext.replace(".", "").length() > 0;
 	}
 	
 	
@@ -351,8 +479,23 @@ public class GeneralTools {
 	 * @return
 	 */
 	public final static String micrometerSymbol() {
-		return '\u00B5' + "m";
+		return SYMBOL_MICROMETER;
 	}
+	
+	/**
+	 * Small Green mu (useful for micrometers)
+	 */
+	public final static char SYMBOL_MU = '\u00B5';
+
+	/**
+	 * Small Greek sigma (useful for Gaussian filter sizes, standard deviations)
+	 */
+	public final static char SYMBOL_SIGMA = '\u03C3';
+
+	/**
+	 * String to represent um (but with the proper 'mu' symbol)
+	 */
+	public final static String SYMBOL_MICROMETER = '\u00B5' + "m";
 	
 	
 	/**
@@ -487,6 +630,19 @@ public class GeneralTools {
 				count++;
 		}
 		return count;
+	}
+
+
+	/**
+	 * Compute the sum of elements in a long array (possibly representing a histogram).
+	 * @param values
+	 * @return
+	 */
+	public static long sum(long[] values) {
+		long total = 0L;
+		for (long v : values)
+			total += v;
+		return total;
 	}
 
 }

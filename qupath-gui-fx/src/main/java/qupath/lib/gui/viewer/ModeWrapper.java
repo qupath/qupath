@@ -23,7 +23,7 @@
 
 package qupath.lib.gui.viewer;
 
-import qupath.lib.gui.QuPathGUI.Modes;
+import qupath.lib.gui.QuPathGUI.Mode;
 
 /**
  * Interface for defining a particular input mode, generally used 
@@ -40,8 +40,8 @@ import qupath.lib.gui.QuPathGUI.Modes;
  */
 public interface ModeWrapper {
 	
-	public void setMode(Modes mode);
+	public void setMode(Mode mode);
 	
-	public Modes getMode();	
+	public Mode getMode();	
 
 }

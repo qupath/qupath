@@ -36,7 +36,7 @@ public abstract class AbstractPolyROITool extends AbstractPathROITool {
 		if (currentObject != null && e.getClickCount() == 1) {
 			RoiEditor editor = viewer.getROIEditor();
 			logger.trace("Adjusting polygon {}", e);
-			Point2D p2 = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+			Point2D p2 = mouseLocationToImage(e, true, requestPixelSnapping());
 			ROI roiUpdated = editor.requestNewHandle(p2.getX(), p2.getY());
 			if (currentObject != null && currentObject.getROI() != roiUpdated && currentObject instanceof PathROIObject) {
 				((PathROIObject)currentObject).setROI(roiUpdated);
@@ -78,7 +78,7 @@ public abstract class AbstractPolyROITool extends AbstractPathROITool {
 		RoiEditor editor = viewer.getROIEditor();
 		
 		if (isPolyROI(currentROI) && editor.getROI() == currentROI) {
-			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+			Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 			ROI roiUpdated = editor.setActiveHandlePosition(p.getX(), p.getY(), viewer.getDownsampleFactor(), e.isShiftDown());
 			PathObject pathObject = viewer.getSelectedObject();
 			if (roiUpdated != currentROI && pathObject instanceof PathROIObject) {
@@ -100,7 +100,7 @@ public abstract class AbstractPolyROITool extends AbstractPathROITool {
 		RoiEditor editor = viewer.getROIEditor();
 		
 		if (isPolyROI(currentROI) && editor.getROI() == currentROI) {
-			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, true);
+			Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 			ROI roiUpdated = editor.requestNewHandle(p.getX(), p.getY());
 			PathObject pathObject = viewer.getSelectedObject();
 			if (roiUpdated != currentROI && pathObject instanceof PathROIObject) {

@@ -1,37 +1,52 @@
 package qupath.lib.gui.models;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
  
+/**
+ * Helper class to compute area-based measurements for regions of interest based on pixel classification.
+ * 
+ * @author Pete Bankhead
+ */
 public class PixelClassificationMeasurementManager {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationMeasurementManager.class);
@@ -44,6 +59,8 @@ public class PixelClassificationMeasurementManager {
 	private ROI rootROI = null; // ROI for the Root object, if required
 		
 	private ThreadLocal<BufferedImage> imgTileMask = new ThreadLocal<>();
+	
+	private boolean isMulticlass = false;
 	
 	private double requestedDownsample;
 	private double pixelArea;
@@ -71,30 +88,54 @@ public class PixelClassificationMeasurementManager {
         	pixelArea = requestedDownsample * requestedDownsample;
             pixelAreaUnits = "px^2";
         }
-
 		
 		// Handle root object if we just have a single plane
 		if (classifierServer.nZSlices() == 1 || classifierServer.nTimepoints() == 1)
 			rootROI = ROIs.createRectangleROI(0, 0, classifierServer.getWidth(), classifierServer.getHeight(), ImagePlane.getDefaultPlane());
 		
+		// Treat as multi-class probabilities if that is requested or if we just have one output channel
+		var type = classifierServer.getMetadata().getChannelType();
+		if (type == ChannelType.MULTICLASS_PROBABILITY || 
+				(type == ChannelType.PROBABILITY && classifierServer.nChannels() == 1))
+			isMulticlass = true;
+		
         // Just to get measurement names
 		var channels = classifierServer.getMetadata().getChannels();
-		updateMeasurements(channels, new long[channels.size()], 0, pixelArea, pixelAreaUnits);
+		updateMeasurements(classifierServer.getMetadata().getClassificationLabels(), new long[channels.size()], pixelArea, pixelAreaUnits);
 	}
 	
 	
-	public Number getMeasurementValue(PathObject pathObject, String name) {
+	/**
+	 * Get the measurement value for this object.
+	 * 
+	 * @param pathObject the PathObject to measure
+	 * @param name the measurement name
+	 * @param cachedOnly if true, return null if the measurement cannot be determined from cached tiles
+	 * @return
+	 */
+	public Number getMeasurementValue(PathObject pathObject, String name, boolean cachedOnly) {
 		var roi = pathObject.getROI();
 		if (roi == null || pathObject.isRootObject())
 			roi = rootROI;
+		return getMeasurementValue(roi, name, cachedOnly);
+	}
 		
+	/**
+	 * Get the measurement value for this ROI.
+	 * 
+	 * @param roi the ROI to measure
+	 * @param name the measurement name
+	 * @param cachedOnly if true, return null if the measurement cannot be determined from cached tiles
+	 * @return
+	 */
+	public Number getMeasurementValue(ROI roi, String name, boolean cachedOnly) {
 		var map = measuredROIs.get(classifierServer);
 		if (map == null || roi == null)
 			return null;
 		
 		var ml = map.get(roi);
 		if (ml == null) {
-			ml = calculateMeasurements(roi, true);
+			ml = calculateMeasurements(roi, cachedOnly);
 			if (ml == null)
 				return null;
 			map.put(roi, ml);
@@ -102,6 +143,10 @@ public class PixelClassificationMeasurementManager {
 		return ml.getMeasurementValue(name);
 	}
 
+	/**
+	 * Get the names of all measurements that may be returned.
+	 * @return
+	 */
 	public List<String> getMeasurementNames() {
 		return measurementNames == null ? Collections.emptyList() : measurementNames;
 	}
@@ -116,13 +161,8 @@ public class PixelClassificationMeasurementManager {
 	 */
 	synchronized MeasurementList calculateMeasurements(final ROI roi, final boolean cachedOnly) {
     	
-//        if (!classifierServer.hasPixelSizeMicrons())
-//        	return null;
-    	
-        List<ImageChannel> channels = classifierServer.getMetadata().getChannels();
+        Map<Integer, PathClass> classificationLabels = classifierServer.getMetadata().getClassificationLabels();
         long[] counts = null;
-        long total = 0L;
-        
 
         ImageServer<BufferedImage> server = classifierServer;//imageData.getServer();
         
@@ -131,12 +171,20 @@ public class PixelClassificationMeasurementManager {
         if (type == ImageServerMetadata.ChannelType.FEATURE)
   			return null;
         
-        
-        Shape shape = RoiTools.getShape(roi);
+        Shape shape = null;
+        if (!roi.isPoint())
+        	shape = RoiTools.getShape(roi);
         
         // Get the regions we need
-        var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
-        Collection<TileRequest> requests = server.getTileRequestManager().getTileRequests(regionRequest);
+        Collection<TileRequest> requests;
+        // For the root, we want all tile requests
+        if (roi == rootROI) {
+	        requests = server.getTileRequestManager().getAllTileRequests();
+        } else if (!roi.isEmpty()) {
+	        var regionRequest = RegionRequest.createInstance(server.getPath(), requestedDownsample, roi);
+	        requests = server.getTileRequestManager().getTileRequests(regionRequest);
+        } else
+        	requests = Collections.emptyList();
         
         if (requests.isEmpty()) {
         	logger.debug("Request empty for {}", roi);
@@ -159,8 +207,7 @@ public class PixelClassificationMeasurementManager {
         }
         
         // Calculate stained proportions
-        counts = new long[channels.size()];
-        total = 0L;
+        BasicStroke stroke = null;
         byte[] mask = null;
     	BufferedImage imgMask = imgTileMask.get();
         for (Map.Entry<TileRequest, BufferedImage> entry : localCache.entrySet()) {
@@ -173,83 +220,103 @@ public class PixelClassificationMeasurementManager {
         	}
         	
         	// Get the tile, which is needed for sub-pixel accuracy
-        	Graphics2D g2d = imgMask.createGraphics();
-        	g2d.setColor(Color.BLACK);
-        	g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
-        	g2d.setColor(Color.WHITE);
-        	g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
-        	g2d.translate(-region.getTileX() * region.getDownsample(), -region.getTileY() * region.getDownsample());
-        	g2d.fill(shape);
-        	g2d.dispose();
+        	if (roi.isLine() || roi.isArea()) {
+	        	Graphics2D g2d = imgMask.createGraphics();
+	        	g2d.setColor(Color.BLACK);
+	        	g2d.fillRect(0, 0, tile.getWidth(), tile.getHeight());
+	        	g2d.setColor(Color.WHITE);
+	        	g2d.scale(1.0/region.getDownsample(), 1.0/region.getDownsample());
+	        	g2d.translate(-region.getTileX() * region.getDownsample(), -region.getTileY() * region.getDownsample());
+	        	if (roi.isLine()) {
+	        		float fDownsample = (float)region.getDownsample();
+	        		if (stroke == null || stroke.getLineWidth() != fDownsample)
+	        			stroke = new BasicStroke((float)fDownsample);
+	        		g2d.setStroke(stroke);
+	        		g2d.draw(shape);
+	        	} else if (roi.isArea())
+	        		g2d.fill(shape);
+	        	g2d.dispose();
+        	} else if (roi.isPoint()) {
+        		for (var p : roi.getAllPoints()) {
+        			int x = (int)((p.getX() - region.getImageX()) / region.getDownsample());
+        			int y = (int)((p.getY() - region.getImageY()) / region.getDownsample());
+        			if (x >= 0 && y >= 0 && x < imgMask.getWidth() && y < imgMask.getHeight())
+        				imgMask.getRaster().setSample(x, y, 0, 255);
+        		}
+        	}
         	
 			int h = tile.getHeight();
 			int w = tile.getWidth();
 			if (mask == null || mask.length != h*w)
 				mask = new byte[w * h];
         	
-        	switch (type) {
-			case CLASSIFICATION:
-				var raster = tile.getRaster();
-				var rasterMask = imgMask.getRaster();
-				int b = 0;
-				try {
-					rasterMask.getDataElements(0, 0, w, h, mask);
-					for (int y = 0; y < h; y++) {
-						for (int x = 0; x < w; x++) {
-							if (mask[y*w+x] == (byte)0)
-								continue;
-							int ind = raster.getSample(x, y, b);
-							// TODO: This could be out of range!  But shouldn't be...
-							counts[ind]++;
-							total++;
-						}					
-					}
-				} catch (Exception e) {
-					logger.error("Error calculating classification areas", e);
+			int nChannels = tile.getSampleModel().getNumBands();
+			
+			try {
+				switch (type) {
+					case CLASSIFICATION:
+						// Calculate histogram to get labelled image counts
+						counts = BufferedImageTools.computeUnsignedIntHistogram(tile.getRaster(), counts, imgMask.getRaster());
+						break;
+					case PROBABILITY:
+						// Take classification from the channel with the highest value
+						if (nChannels > 1) {
+							counts = BufferedImageTools.computeArgMaxHistogram(tile.getRaster(), counts, imgMask.getRaster());
+							break;
+						}
+						// For one channel, fall through & treat as multiclass
+					case MULTICLASS_PROBABILITY:
+						// For multiclass, count
+						if (counts == null)
+							counts = new long[nChannels];
+						double threshold = getProbabilityThreshold(tile.getRaster());
+						for (int c = 0; c < nChannels; c++)
+							counts[c] += BufferedImageTools.computeAboveThresholdCounts(tile.getRaster(), c, threshold, imgMask.getRaster());
+					case DEFAULT:
+					case FEATURE:
+					default:
+						// TODO: Consider handling other OutputTypes?
+						return updateMeasurements(classificationLabels, counts, pixelArea, pixelAreaUnits);
 				}
-				break;
-			case PROBABILITY:
-				// Take classification from the channel with the highest value
-				raster = tile.getRaster();
-				rasterMask = imgMask.getRaster();
-				int nChannels = Math.min(channels.size(), raster.getNumBands()); // Expecting these to be the same...
-				try {
-					for (int y = 0; y < h; y++) {
-						for (int x = 0; x < w; x++) {
-							if (rasterMask.getSample(x, y, 0) == 0)
-								continue;
-							double maxValue = raster.getSampleDouble(x, y, 0);
-							int ind = 0;
-							for (int i = 1; i < nChannels; i++) {
-								double val = raster.getSampleDouble(x, y, i);
-								if (val > maxValue) {
-									maxValue = val;
-									ind = i;
-								}
-							}
-							counts[ind]++;
-							total++;
-						}					
-					}
-				} catch (Exception e) {
-					logger.error("Error calculating classification areas", e);
-				}
-				break;
-			default:
-				// TODO: Consider handling other OutputTypes?
-				return updateMeasurements(channels, counts, total, pixelArea, pixelAreaUnits);
-        	}
+			} catch (Exception e) {
+				logger.error("Error calculating classification areas", e);
+				if (nChannels > 1 && type == ChannelType.CLASSIFICATION)
+					logger.error("There are {} channels - are you sure this is really a classification image?", nChannels);
+			}
         }
-    	return updateMeasurements(channels, counts, total, pixelArea, pixelAreaUnits);
+    	return updateMeasurements(classificationLabels, counts, pixelArea, pixelAreaUnits);
     }
+	
+	/**
+	 * Get a suitable threshold assuming a raster contains probability values.
+	 * This is determined from the TransferType. For integer types this is 127.5, 
+	 * otherwise it is 0.5.
+	 * @param raster
+	 * @return
+	 */
+	public static double getProbabilityThreshold(WritableRaster raster) {
+		switch (raster.getTransferType()) {
+			case DataBuffer.TYPE_SHORT:
+			case DataBuffer.TYPE_USHORT:
+			case DataBuffer.TYPE_INT:
+			case DataBuffer.TYPE_BYTE: return 127.5;
+			case DataBuffer.TYPE_FLOAT:
+			case DataBuffer.TYPE_DOUBLE:
+			default: return 0.5;
+		}
+	}
 
-    
-    
-    private synchronized MeasurementList updateMeasurements(List<ImageChannel> channels, long[] counts, long total, double pixelArea, String pixelAreaUnits) {
+	private synchronized MeasurementList updateMeasurements(Map<Integer, PathClass> classificationLabels, long[] counts, double pixelArea, String pixelAreaUnits) {
   		
+    	long total = GeneralTools.sum(counts);
+    	
+    	Collection<PathClass> pathClasses = new LinkedHashSet<>(classificationLabels.values());
+    	
     	boolean addNames = measurementNames == null;
     	List<String> tempList = null;
-    	int nMeasurements = channels.size()*2+2;
+    	int nMeasurements = pathClasses.size()*2;
+    	if (!isMulticlass)
+    		nMeasurements += 2;
     	if (addNames) {
     		tempList = new ArrayList<>();
     		measurementNames = Collections.unmodifiableList(tempList);
@@ -258,32 +325,42 @@ public class PixelClassificationMeasurementManager {
     	
     	MeasurementList measurementList = MeasurementListFactory.createMeasurementList(nMeasurements, MeasurementListType.DOUBLE);
     	
+    	Set<PathClass> ignored = pathClasses.stream().filter(p -> p == null || PathClassTools.isIgnoredClass(p)).collect(Collectors.toSet());
+    	
+    	// Calculate totals for all non-ignored classes
+    	Map<PathClass, Long> pathClassTotals = new LinkedHashMap<>();
     	long totalWithoutIgnored = 0L;
     	if (counts != null) {
-    		for (int c = 0; c < channels.size(); c++) {
-    			if (channels.get(c).isTransparent())
-        			continue;
-    			totalWithoutIgnored += counts[c];
-    		}
+	    	for (int c = 0; c < counts.length; c++) {
+	    		PathClass pathClass = classificationLabels.get(c);
+	    		// Skip background channels
+	    		if (pathClass == null || ignored.contains(pathClass))
+	    			continue;
+	    		long temp = counts[c];
+				totalWithoutIgnored += temp;
+	    		pathClassTotals.put(pathClass, pathClassTotals.getOrDefault(pathClass, 0L) + temp);
+	    	}
+    	} else {
+    		for (var pathClass : pathClasses)
+    			if (pathClass != null && !ignored.contains(pathClass))
+    				pathClassTotals.put(pathClass, 0L);
     	}
     	
-    	for (int c = 0; c < channels.size(); c++) {
-    		// Skip background channels
-    		if (channels.get(c).isTransparent())
-    			continue;
-    		
-    		String namePercentage = "Classifier: " + channels.get(c).getName() + " %";
-    		String nameArea = "Classifier: " + channels.get(c).getName() + " area " + pixelAreaUnits;
-    		if (tempList != null) {
-    			tempList.add(namePercentage);
-    			tempList.add(nameArea);
-    		}
-    		if (counts != null) {
-    			measurementList.putMeasurement(namePercentage, (double)counts[c]/totalWithoutIgnored * 100.0);
-    			if (!Double.isNaN(pixelArea)) {
-    				measurementList.putMeasurement(nameArea, counts[c] * pixelArea);
-    			}
-    		}
+    	// Add measurements for classes
+    	for (var entry : pathClassTotals.entrySet()) {
+    		String name = entry.getKey().toString();
+			String namePercentage = "Classifier: " + name + " %";
+			String nameArea = "Classifier: " + name + " area " + pixelAreaUnits;
+			if (tempList != null) {
+				tempList.add(namePercentage);
+				tempList.add(nameArea);
+			}
+			if (counts != null) {
+				measurementList.putMeasurement(namePercentage, (double)entry.getValue()/totalWithoutIgnored * 100.0);
+				if (!Double.isNaN(pixelArea)) {
+					measurementList.putMeasurement(nameArea, entry.getValue() * pixelArea);
+				}
+			}
     	}
 
     	// Add total area (useful as a check)
@@ -301,6 +378,5 @@ public class PixelClassificationMeasurementManager {
     	measurementList.close();
     	return measurementList;
     }
-	
 	
 }

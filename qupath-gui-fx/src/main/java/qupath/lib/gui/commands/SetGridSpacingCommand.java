@@ -24,7 +24,7 @@
 package qupath.lib.gui.commands;
 
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -56,7 +56,7 @@ public class SetGridSpacingCommand implements PathCommand {
 				.addDoubleParameter("vSpacing", "Vertical spacing", gridLines.getSpaceX())
 				.addBooleanParameter("useMicrons", "Use microns", gridLines.useMicrons());
 		
-		if (!DisplayHelpers.showParameterDialog("Set grid spacing", params))
+		if (!Dialogs.showParameterDialog("Set grid spacing", params))
 			return;
 		
 		gridLines = new GridLines();

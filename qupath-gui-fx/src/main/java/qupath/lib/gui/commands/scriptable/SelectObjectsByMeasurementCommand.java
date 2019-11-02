@@ -44,7 +44,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
@@ -89,7 +89,7 @@ public class SelectObjectsByMeasurementCommand implements PathCommand {
 //			return;
 		
 		// Update the feature list to represent everything we've got
-		features.setAll(PathClassificationLabellingHelper.getAvailableFeatures(imageData.getHierarchy().getFlattenedObjectList(null)));
+		features.setAll(PathClassifierTools.getAvailableFeatures(imageData.getHierarchy().getFlattenedObjectList(null)));
 		
 		if (dialog == null) {
 			createDialog();

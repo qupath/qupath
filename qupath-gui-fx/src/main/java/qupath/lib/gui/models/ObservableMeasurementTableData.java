@@ -53,7 +53,8 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.models.ObservableMeasurementTableData.ROICentroidMeasurementBuilder.CentroidType;
@@ -66,17 +67,15 @@ import qupath.lib.objects.MetadataStore;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.roi.AreaROI;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PolygonROI;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathLine;
-import qupath.lib.roi.interfaces.PathPoints;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -128,14 +127,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		builderMap.clear();
 		
-		// Include the object displayed name
-		builderMap.put("Name", new ObjectNameMeasurementBuilder());
-		
+		// Add the image name
+		builderMap.put("Image", new ImageNameMeasurementBuilder(imageData));
+				
 		// Check if we have any annotations / TMA cores
 		boolean containsDetections = false;
 		boolean containsAnnotations = false;
 //		boolean containsParentAnnotations = false;
 		boolean containsTMACores = false;
+		boolean containsRoot = false;
 		List<PathObject> pathObjectListCopy = new ArrayList<>(list);
 		for (PathObject temp : pathObjectListCopy) {
 			if (temp instanceof PathAnnotationObject) {
@@ -146,8 +146,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				containsTMACores = true;
 			} else if (temp instanceof PathDetectionObject) {
 				containsDetections = true;
-			}
+			} else if (temp.isRootObject())
+				containsRoot = true;
 		}
+		
+		// Include the object displayed name
+//		if (containsDetections || containsAnnotations || containsTMACores)
+		builderMap.put("Name", new ObjectNameMeasurementBuilder());
 		
 		// Include the class
 		if (containsAnnotations || containsDetections) {
@@ -197,19 +202,22 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		
 		// Get all the 'built-in' feature measurements, stored in the measurement list
-		Collection<String> features = PathClassificationLabellingHelper.getAvailableFeatures(pathObjectListCopy);
+		Collection<String> features = PathClassifierTools.getAvailableFeatures(pathObjectListCopy);
 		
 		// Add derived measurements if we don't have only detections
-		if (containsAnnotations || containsTMACores) {
+		if (containsAnnotations || containsTMACores || containsRoot) {
 //		if (containsParentAnnotations || containsTMACores) {
-//			MeasurementBuilder<?> builder = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
-//			builderMap.put(builder.getName(), builder);
-//			features.add(builder.getName());
+			// Omit annotations, mostly because it's can be very slow to compute
+//			var builderAnnotations = new ObjectTypeCountMeasurementBuilder(PathAnnotationObject.class);
+//			builderMap.put(builderAnnotations.getName(), builderAnnotations);
+//			features.add(builderAnnotations.getName());
+			
 			var builder = new ObjectTypeCountMeasurementBuilder(PathDetectionObject.class);
 			builderMap.put(builder.getName(), builder);
 			features.add(builder.getName());
 			
-			manager = new DerivedMeasurementManager(getImageData(), containsAnnotations);
+			// Here, we allow TMA cores to act like annotations
+			manager = new DerivedMeasurementManager(getImageData(), containsAnnotations || containsTMACores);
 			for (MeasurementBuilder<?> builder2 : manager.getMeasurementBuilders()) {
 				builderMap.put(builder2.getName(), builder2);
 				features.add(builder2.getName());
@@ -226,11 +234,14 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			for (PathObject pathObject : pathObjectListCopy) {
 				if (!pathObject.isAnnotation())
 					continue;
-				if (PathObjectTools.hasPointROI(pathObject))
+				ROI roi = pathObject.getROI();
+				if (roi == null)
+					continue;
+				if (roi.isPoint())
 					anyPoints = true;
-				if (pathObject.getROI() instanceof PathArea)
+				if (roi.isArea())
 					anyAreas = true;
-				if (pathObject.getROI() instanceof PathLine)
+				if (roi.isLine())
 					anyLines = true;
 				if (pathObject.getROI() instanceof PolygonROI)
 					anyPolygons = true;
@@ -262,8 +273,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			}
 		}
 		
-		if (containsAnnotations) {
-			var pixelClassifier = imageData.getProperty("PIXEL_LAYER");
+		if (containsAnnotations || containsTMACores || containsRoot) {
+			var pixelClassifier = PixelClassificationImageServer.getPixelLayer(imageData);
 			if (pixelClassifier instanceof ImageServer<?>) {
 				ImageServer<BufferedImage> server = (ImageServer<BufferedImage>)pixelClassifier;
 				if (server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION || server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.PROBABILITY) {
@@ -440,7 +451,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		
 		@Override
 		protected int computeValue() {
-			var pathObjects = imageData.getHierarchy().getObjectsForROI(cls, pathObject.getROI());
+			Collection<PathObject> pathObjects;
+			if (pathObject.isRootObject())
+				pathObjects = imageData.getHierarchy().getObjects(null, cls);
+			else
+				pathObjects = imageData.getHierarchy().getObjectsForROI(cls, pathObject.getROI());
 			pathObjects.remove(pathObject);
 			return pathObjects.size();
 //			return PathObjectTools.countChildren(pathObject, cls, true);
@@ -505,7 +520,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (imageData == null || imageData.getHierarchy() == null)
 				return;
 			
-			Set<PathClass> pathClasses = PathClassificationLabellingHelper.getRepresentedPathClasses(imageData.getHierarchy(), PathDetectionObject.class);
+			Set<PathClass> pathClasses = PathClassifierTools.getRepresentedPathClasses(imageData.getHierarchy(), PathDetectionObject.class);
 
 //			// Ensure that any base classes are present
 //			Set<PathClass> basePathClasses = new LinkedHashSet<>();
@@ -575,13 +590,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			// Add density measurements
 			// These are only added if we have a (non-derived) positive class
 			// Additionally, these are only non-NaN if we have an annotation, or a TMA core containing a single annotation
-//			if (containsAnnotations) {
+			if (containsAnnotations) {
 				for (PathClass pathClass : pathClassList) {
 					if (PathClassTools.isPositiveClass(pathClass) && pathClass.getBaseClass() == pathClass)
 	//				if (!(PathClassFactory.isDefaultIntensityClass(pathClass) || PathClassFactory.isNegativeClass(pathClass)))
 						builders.add(new ClassDensityMeasurementBuilder(imageData.getServer(), pathClass));
 				}
-//			}
+			}
 
 			valid = true;
 		}
@@ -641,12 +656,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				// area should be coming from
 				PathObject pathObjectTemp = pathObject;
 				if (pathObject instanceof TMACoreObject) {
-					if (pathObject.getChildObjects().size() != 1)
+					var children = pathObject.getChildObjectsAsArray();
+					if (children.length != 1)
 						return Double.NaN;
-					pathObjectTemp = pathObject.getChildObjects().stream().findFirst().get();
+					pathObjectTemp = children[0];
 				}
 				// We need an annotation to get a meaningful area
-				if (!(pathObjectTemp instanceof PathAnnotationObject))
+				if (pathObjectTemp == null || !(pathObjectTemp.isAnnotation() || pathObjectTemp.isRootObject()))
 					return Double.NaN;
 				
 				DetectionPathClassCounts counts = map.get(pathObjectTemp);
@@ -656,7 +672,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				}
 				int n = counts.getCountForAncestor(pathClass);
 				ROI roi = pathObjectTemp.getROI();
-				if (roi instanceof PathArea) {
+				// For the root, we can measure density only for 2D images of a single time-point
+				if (pathObjectTemp.isRootObject() && server.nZSlices() == 1 || server.nTimepoints() == 1)
+					roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
+				
+				if (roi != null && roi.isArea()) {
 					double pixelWidth = 1;
 					double pixelHeight = 1;
 					PixelCalibration cal = server == null ? null : server.getPixelCalibration();
@@ -664,7 +684,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 						pixelWidth = cal.getPixelWidthMicrons() / 1000;
 						pixelHeight = cal.getPixelHeightMicrons() / 1000;
 					}
-					return n / (((PathArea)roi).getScaledArea(pixelWidth, pixelHeight));
+					return n / roi.getScaledArea(pixelWidth, pixelHeight);
 				}
 				return Double.NaN;
 			}
@@ -852,7 +872,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			@Override
 			public Binding<Number> createMeasurement(final PathObject pathObject) {
 				// Only return density measurements for annotations
-				if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.getChildObjects().size() == 1))
+				if (pathObject.isAnnotation() || (pathObject.isTMACore() && pathObject.nChildObjects() == 1))
 					return new ClassDensityMeasurementPerMM(server, pathObject, pathClass);
 				return Bindings.createDoubleBinding(() -> Double.NaN);
 			}
@@ -1208,6 +1228,34 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	
+	/**
+	 * Get the displayed name of the parent of this object.
+	 */
+	static class ImageNameMeasurementBuilder extends StringMeasurementBuilder {
+		
+		private ImageData<?> imageData;
+		
+		ImageNameMeasurementBuilder(final ImageData<?> imageData) {
+			this.imageData = imageData;
+		}
+		
+		@Override
+		public String getName() {
+			return "Image";
+		}
+		
+		@Override
+		public String getMeasurementValue(PathObject pathObject) {
+			if (imageData == null)
+				return null;
+			var hierarchy = imageData.getHierarchy();
+			if (PathObjectTools.hierarchyContainsObject(hierarchy, pathObject))
+				return imageData.getServer().getMetadata().getName();
+			return null;
+		}
+		
+	}
+	
 	
 	/**
 	 * Get the displayed name of the parent of this object.
@@ -1316,11 +1364,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					if (!(roi instanceof PathArea))
+					if (roi == null || !roi.isArea())
 						return Double.NaN;
 					if (hasPixelSizeMicrons())
-						return ((PathArea)roi).getScaledArea(pixelWidthMicrons(), pixelHeightMicrons());
-					return ((PathArea)roi).getArea();
+						return roi.getScaledArea(pixelWidthMicrons(), pixelHeightMicrons());
+					return roi.getArea();
 				}
 				
 			};
@@ -1346,11 +1394,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					if (!(roi instanceof PathArea))
+					if (roi == null || !roi.isArea())
 						return Double.NaN;
 					if (hasPixelSizeMicrons())
-						return ((PathArea)roi).getScaledPerimeter(pixelWidthMicrons(), pixelHeightMicrons());
-					return ((PathArea)roi).getPerimeter();
+						return roi.getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
+					return roi.getLength();
 				}
 				
 			};
@@ -1376,13 +1424,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					List<Point2> points;
-					if (roi instanceof PolygonROI)
-						points = ((PolygonROI)roi).getPolygonPoints();
-					else if (roi instanceof AreaROI)
-						points = ((AreaROI)roi).getPolygonPoints();
-					else
-						return Double.NaN;
+					List<Point2> points = roi.getAllPoints();
 					double xScale = hasPixelSizeMicrons() ? pixelWidthMicrons() : 1;
 					double yScale = hasPixelSizeMicrons() ? pixelHeightMicrons() : 1;
 					double maxLengthSq = 0;
@@ -1421,11 +1463,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					if (!(roi instanceof PathLine))
+					if (roi == null || !roi.isLine())
 						return Double.NaN;
 					if (hasPixelSizeMicrons())
-						return ((PathLine)roi).getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
-					return ((PathLine)roi).getLength();
+						return roi.getScaledLength(pixelWidthMicrons(), pixelHeightMicrons());
+					return roi.getLength();
 				}
 				
 			};
@@ -1447,9 +1489,9 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					if (!(roi instanceof PathPoints))
+					if (roi == null || !roi.isPoint())
 						return Double.NaN;
-					return ((PathPoints)roi).getNPoints();
+					return roi.getNumPoints();
 				}
 				
 			};
@@ -1463,7 +1505,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	
 	/**
 	 * Cache to store the number of descendant detection objects with a particular PathClass.
-	 * 
+	 * <p>
 	 * (The parent is included in any count if it's a detection object... but it's expected not to be.
 	 * Rather, this is intended for counting the descendants of annotations or TMA cores.)
 	 *
@@ -1479,7 +1521,13 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		 */
 		DetectionPathClassCounts(final PathObjectHierarchy hierarchy, final PathObject parentObject) {
 //			for (PathObject child : PathObjectTools.getFlattenedObjectList(parentObject, null, true)) {
-			for (PathObject child : hierarchy.getObjectsForROI(PathDetectionObject.class, parentObject.getROI())) {
+			Collection<PathObject> pathObjects;
+			if (parentObject.isRootObject())
+				pathObjects = hierarchy.getDetectionObjects();
+			else
+				pathObjects = hierarchy.getObjectsForROI(PathDetectionObject.class, parentObject.getROI());
+			
+			for (PathObject child : pathObjects) {
 				if (child == parentObject || !child.isDetection())
 					continue;
 				PathClass pathClass = child.getPathClass();
@@ -1633,7 +1681,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 		@Override
 		public Binding<Number> createMeasurement(PathObject pathObject) {
-			return Bindings.createObjectBinding(() -> manager.getMeasurementValue(pathObject, name));
+			// Return only measurements that can be generated rapidly from cached tiles
+			return Bindings.createObjectBinding(() -> manager.getMeasurementValue(pathObject, name, true));
 		}
 		
 	}
@@ -1642,8 +1691,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 
 
 	@Override
-	public ReadOnlyListWrapper<String> getAllNames() {
-		return new ReadOnlyListWrapper<>(fullList);
+	public List<String> getAllNames() {
+		return new ArrayList<>(fullList);
 	}
 
 	@Override

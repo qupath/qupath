@@ -27,6 +27,7 @@ import java.io.File;
 import java.util.Optional;
 import org.controlsfx.control.PropertySheet;
 import org.controlsfx.control.PropertySheet.Item;
+import org.controlsfx.control.PropertySheet.Mode;
 import org.controlsfx.property.editor.AbstractPropertyEditor;
 import org.controlsfx.property.editor.DefaultPropertyEditorFactory;
 import org.controlsfx.property.editor.Editors;
@@ -45,11 +46,11 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.ColorToolsFX;
-import qupath.lib.gui.helpers.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
 /**
@@ -73,6 +74,7 @@ public class PreferencePanel {
 
 	private void setupPanel() {
 		//		propSheet.setMode(Mode.CATEGORY);
+		propSheet.setMode(Mode.CATEGORY);
 		propSheet.setPropertyEditorFactory(new PropertyEditorFactory());
 
 		String category;
@@ -327,6 +329,11 @@ public class PreferencePanel {
 				"Return to Move Tool automatically",
 				category,
 				"Return selected tool to 'Move' automatically after drawing a ROI (applies to all drawing tools except brush & wand)");
+		
+		addPropertyPreference(PathPrefs.usePixelSnappingProperty(), Boolean.class,
+				"Use pixel snapping",
+				category,
+				"Automatically snap pixels to integer coordinates when using drawing tools (some tools, e.g. line, points may override this)");
 		
 		addPropertyPreference(PathPrefs.clipROIsForHierarchyProperty(), Boolean.class,
 				"Clip ROIs to hierarchy",
@@ -635,7 +642,7 @@ public class PreferencePanel {
 		@Override
 		public void setValue(Object value) {
 			if (value instanceof Color)
-				value = ColorToolsFX.getRGBA((Color)value);
+				value = ColorToolsFX.getARGB((Color)value);
 			if (value instanceof Integer)
 				prop.setValue((Integer)value);
 		}

@@ -380,7 +380,7 @@ public class MiniViewerCommand implements PathCommand {
 			AnchorPane.setBottomAnchor(label, 0.0);
 			AnchorPane.setLeftAnchor(label, 0.0);
 			AnchorPane.setRightAnchor(label, 0.0);
-			label.prefWidthProperty().bind(pane.widthProperty());
+			label.prefWidthProperty().bind(pane.prefWidthProperty());
 			label.visibleProperty().bind(canvas.heightProperty().greaterThan(height * 1.2).and(label.textProperty().isNotEmpty()).and(showChannelNames));
 			tempPane.getChildren().add(label);
 
@@ -558,7 +558,8 @@ public class MiniViewerCommand implements PathCommand {
 						mainViewer.getZPosition(),
 						mainViewer.getTPosition(),
 						downsample,
-						imgRGB,
+						mainViewer.getThumbnail(),
+//						imgRGB,
 						null,
 						renderer);
 				

@@ -85,8 +85,8 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.dialogs.ParameterPanelFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.panels.PathImageDetailsPanel.PathImageDetailsTableModel.ROW_TYPE;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -98,9 +98,8 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
-import qupath.lib.roi.interfaces.PathArea;
-import qupath.lib.roi.interfaces.PathLine;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.scripting.QP;
 
 /**
  * A panel used for displaying basic info about an image, e.g. its path, width, height, pixel size etc.
@@ -162,23 +161,39 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 							return;
 						}
 						//			             ComboBoxTableCell<TableEntry, Object>
-						Color textColor = Color.BLACK;
+						String style = null;
 						String text = item == null ? "" : item.toString();
+						String tooltipText = text;
 						if (item instanceof double[]) {
 							text = GeneralTools.arrayToString(Locale.getDefault(Category.FORMAT), (double[])item, 2);
 						} else if (item instanceof StainVector) {
 							StainVector stain = (StainVector)item;
-							textColor = getColorFX(stain.getColor());
+							Integer color = stain.getColor();
+							style = String.format("-fx-text-fill: rgb(%d, %d, %d);", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color));
+							tooltipText = "Double-click to set stain color (either type values or use a small rectangle ROI in the image)";
+						} else {
+							var type = model.getRowType(getIndex());
+							if (type != null) {
+								if (type.equals(ROW_TYPE.PIXEL_WIDTH) || type.equals(ROW_TYPE.PIXEL_HEIGHT)) {
+									if ("Unknown".equals(item))
+										style = "-fx-text-fill: red;";
+									tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
+								} else if (type.equals(ROW_TYPE.METADATA_CHANGED))
+									tooltipText = "Double-click to reset original metadata";
+								else if (type.equals(ROW_TYPE.UNCOMPRESSED_SIZE))
+									tooltipText = "Approximate memory required to store all pixels in the image uncompressed";
+							}
 						}
+						
 						//			             if (item instanceof ImageType) {
 						//			            	 ComboBox<ImageType> combo = new ComboBox<>();
 						//			            	 combo.getItems().addAll(ImageType.values());
 						//			            	 combo.getSelectionModel().select((ImageType)item);
 						//			            	 getChildren().add(combo);
 						//			             } else
-						setTextFill(textColor);
+						setStyle(style);
 						setText(text);
-						setTooltip(new Tooltip(text));
+						setTooltip(new Tooltip(tooltipText));
 					}
 				};
 				
@@ -252,7 +267,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 						try {
 							ImageIO.write(img, "PNG", fileOutput);
 						} catch (Exception e1) {
-							DisplayHelpers.showErrorMessage("Save image", "Error saving " + fileOutput.getName() + "\n" + e1.getLocalizedMessage());
+							Dialogs.showErrorMessage("Save image", "Error saving " + fileOutput.getName() + "\n" + e1.getLocalizedMessage());
 						}
 					}
 				});
@@ -323,7 +338,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		}
 		var originalMetadata = server.getOriginalMetadata();
 		
-		if (DisplayHelpers.showConfirmDialog("Reset metadata", "Reset to original metadata?")) {
+		if (Dialogs.showConfirmDialog("Reset metadata", "Reset to original metadata?")) {
 			imageData.updateServerMetadata(originalMetadata);
 			return true;
 		}
@@ -336,7 +351,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		Double mag = server.getMetadata().getMagnification();
 		if (mag != null && !Double.isFinite(mag))
 			mag = null;
-		Double mag2 = DisplayHelpers.showInputDialog("Set magnification", "Set magnification for full resolution image", mag);
+		Double mag2 = Dialogs.showInputDialog("Set magnification", "Set magnification for full resolution image", mag);
 		if (mag2 == null || Objects.equals(mag, mag2))
 			return false;
 		if (!Double.isFinite(mag2) && mag == null)
@@ -377,10 +392,10 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				setPixelHeight = roi.getBoundsHeight() != 0;
 				setPixelWidth = roi.getBoundsWidth() != 0;
 				message = "Enter selected line length in " + GeneralTools.micrometerSymbol();
-				defaultValue = ((PathLine)roi).getScaledLength(pixelWidth, pixelHeight);
+				defaultValue = roi.getScaledLength(pixelWidth, pixelHeight);
 			} else {
 				message = "Enter selected ROI area in " + GeneralTools.micrometerSymbol() + "^2";
-				defaultValue = ((PathArea)roi).getScaledArea(pixelWidth, pixelHeight);
+				defaultValue = roi.getScaledArea(pixelWidth, pixelHeight);
 			}
 //			if (setPixelHeight && setPixelWidth) {
 //				defaultValue = server.getAveragedPixelSizeMicrons();
@@ -391,15 +406,15 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 //			}
 			if (Double.isNaN(defaultValue))
 				defaultValue = 1.0;
-			Double result = DisplayHelpers.showInputDialog("Set pixel size", message, defaultValue);
+			Double result = Dialogs.showInputDialog("Set pixel size", message, defaultValue);
 			if (result == null)
 				return false;
 			
 			double sizeMicrons;
 			if (roi.isLine())
-				sizeMicrons = result.doubleValue() / ((PathLine)roi).getLength();
+				sizeMicrons = result.doubleValue() / roi.getLength();
 			else
-				sizeMicrons = Math.sqrt(result.doubleValue() / ((PathArea)roi).getArea());
+				sizeMicrons = Math.sqrt(result.doubleValue() / roi.getArea());
 			
 			if (setPixelHeight)
 				pixelHeightMicrons = sizeMicrons;
@@ -412,7 +427,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 					.addDoubleParameter("pixelHeight", "Pixel height", pixelHeightMicrons, GeneralTools.micrometerSymbol(), "Entry the pixel height")
 					.addDoubleParameter("zSpacing", "Z-spacing", zSpacingMicrons, GeneralTools.micrometerSymbol(), "Enter the spacing between slices of a z-stack");
 			params.setHiddenParameters(server.nZSlices() == 1, "zSpacing");
-			if (!DisplayHelpers.showParameterDialog("Set pixel size", params))
+			if (!Dialogs.showParameterDialog("Set pixel size", params))
 				return false;
 			if (server.nZSlices() != 1) {
 				zSpacingMicrons = params.getDoubleParameterValue("zSpacing");
@@ -420,42 +435,18 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			pixelWidthMicrons = params.getDoubleParameterValue("pixelWidth");
 			pixelHeightMicrons = params.getDoubleParameterValue("pixelHeight");
 		}
-		return setPixelSizeMicrons(imageData, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
+		if ((pixelWidthMicrons <= 0 || pixelHeightMicrons <= 0) || (server.nZSlices() > 1 && zSpacingMicrons <= 0)) {
+			if (!Dialogs.showConfirmDialog("Set pixel size", "You entered values <= 0, do you really want to remove this pixel calibration information?")) {
+				return false;
+			}
+			zSpacingMicrons = server.nZSlices() > 1 && zSpacingMicrons > 0 ? zSpacingMicrons : Double.NaN;
+			if (pixelWidthMicrons <= 0 || pixelHeightMicrons <= 0) {
+				pixelWidthMicrons = Double.NaN;
+				pixelHeightMicrons = Double.NaN;
+			}
+		}
+		return QP.setPixelSizeMicrons(imageData, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
 	}
-	
-	
-	/**
-	 * Set the metadata for an ImageServer to have the required pixel sizes.
-	 * <p>
-	 * Returns true if changes were made, false otherwise.
-	 * 
-	 * @param imageData
-	 * @param pixelWidthMicrons
-	 * @param pixelHeightMicrons
-	 * @param zSpacingMicrons
-	 * @return
-	 */
-	static boolean setPixelSizeMicrons(ImageData<BufferedImage> imageData, Number pixelWidthMicrons, Number pixelHeightMicrons, Number zSpacingMicrons) {
-		var server = imageData.getServer();
-		if (isFinite(pixelWidthMicrons) && !isFinite(pixelHeightMicrons))
-			pixelHeightMicrons = pixelWidthMicrons;
-		else if (isFinite(pixelHeightMicrons) && !isFinite(pixelWidthMicrons))
-			pixelWidthMicrons = pixelHeightMicrons;
-		
-		var metadataNew = new ImageServerMetadata.Builder(server.getMetadata())
-			.pixelSizeMicrons(pixelWidthMicrons, pixelHeightMicrons)
-			.zSpacingMicrons(zSpacingMicrons)
-			.build();
-		if (server.getMetadata().equals(metadataNew))
-			return false;
-		imageData.updateServerMetadata(metadataNew);
-		return true;
-	}
-	
-	static boolean isFinite(Number val) {
-		return val != null && Double.isFinite(val.doubleValue());
-	}
-	
 	
 	
 	/**
@@ -472,7 +463,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			values.remove(ImageType.BRIGHTFIELD_OTHER);
 		}
 		
-		ImageType type = (ImageType)DisplayHelpers.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
+		ImageType type = (ImageType)Dialogs.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
 		if (type != null && type != imageData.getImageType()) {
 			imageData.setImageType(type);
 			return true;
@@ -520,13 +511,13 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 			if ((pathROI instanceof RectangleROI) && 
 					!pathROI.isEmpty() &&
 					((RectangleROI) pathROI).getArea() < 500*500) {
-				if (DisplayHelpers.showYesNoDialog("Color deconvolution stains", message)) {
+				if (Dialogs.showYesNoDialog("Color deconvolution stains", message)) {
 					ImageServer<BufferedImage> server = imageData.getServer();
 					BufferedImage img = null;
 					try {
 						img = server.readBufferedImage(RegionRequest.createInstance(server.getPath(), 1, pathROI));
 					} catch (IOException e) {
-						DisplayHelpers.showErrorMessage("Set stain vector", "Unable to read image region");
+						Dialogs.showErrorMessage("Set stain vector", "Unable to read image region");
 						logger.error("Unable to read region", e);
 					}
 					int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
@@ -571,7 +562,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		// Disable editing the name if it should be fixed
 		ParameterPanelFX parameterPanel = new ParameterPanelFX(params);
 		parameterPanel.setParameterEnabled("name", editableName);;
-		if (!DisplayHelpers.showConfirmDialog(title, parameterPanel.getPane()))
+		if (!Dialogs.showConfirmDialog(title, parameterPanel.getPane()))
 			return;
 
 		// Check if anything changed
@@ -592,7 +583,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				stains = stains.changeStain(StainVector.createStainVector(nameAfter, valuesParsed[0], valuesParsed[1], valuesParsed[2]), num);					
 			} catch (Exception e) {
 				logger.error("Error setting stain vectors", e);
-				DisplayHelpers.showErrorMessage("Set stain vectors", "Requested stain vectors are not valid!\nAre two stains equal?");
+				Dialogs.showErrorMessage("Set stain vectors", "Requested stain vectors are not valid!\nAre two stains equal?");
 			}
 		} else {
 			// Update the background
@@ -698,7 +689,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 		
 		private ImageData<BufferedImage> imageData;
 		
-		protected enum ROW_TYPE {NAME, URI, BIT_DEPTH, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
+		protected enum ROW_TYPE {NAME, URI, PIXEL_TYPE, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
 
 //		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
 //				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
@@ -757,8 +748,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				return "Image type";
 			case METADATA_CHANGED:
 				return "Metadata changed";
-			case BIT_DEPTH:
-				return "Bit depth";
+			case PIXEL_TYPE:
+				return "Pixel type";
 			case MAGNIFICATION:
 				return "Magnification";
 			case WIDTH:
@@ -824,8 +815,11 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				return imageData.getImageType();
 			case METADATA_CHANGED:
 				return hasOriginalMetadata(imageData.getServer()) ? "No" : "Yes";
-			case BIT_DEPTH:
-				return server.isRGB() ? "8-bit (RGB)" : server.getPixelType().bitsPerPixel();
+			case PIXEL_TYPE:
+				String type = server.getPixelType().toString().toLowerCase();
+				if (server.isRGB())
+					type += " (rgb)";
+				return type;
 			case MAGNIFICATION:
 				double mag = server.getMetadata().getMagnification();
 				if (Double.isNaN(mag))

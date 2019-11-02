@@ -142,6 +142,13 @@ public class ProcessingCV {
 		public int getHeight() {
 			return height;
 		}
+
+		@Override
+		public float[] getArray(boolean direct) {
+			if (direct)
+				return pixels;
+			return pixels.clone();
+		}
 		
 	}
 

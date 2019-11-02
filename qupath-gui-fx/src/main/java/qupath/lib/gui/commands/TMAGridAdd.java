@@ -31,12 +31,12 @@ import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.helpers.DisplayHelpers;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.DefaultTMAGrid;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -83,7 +83,7 @@ public class TMAGridAdd implements PathCommand {
 	public void run() {
 		ImageData<?> imageData = qupath.getImageData();
 		if (imageData == null || imageData.getHierarchy().getTMAGrid() == null) {
-			DisplayHelpers.showErrorMessage(NAME, "No image with dearrayed TMA cores selected!");
+			Dialogs.showErrorMessage(NAME, "No image with dearrayed TMA cores selected!");
 			return;
 		}
 		try {
@@ -91,7 +91,7 @@ public class TMAGridAdd implements PathCommand {
 				qupath.getAction(GUIActions.TMA_RELABEL).handle(new ActionEvent());
 			}
 		} catch (Exception e) {
-			DisplayHelpers.showErrorMessage(NAME, e.getMessage());
+			Dialogs.showErrorMessage(NAME, e.getMessage());
 		}
 	}
 	
@@ -132,7 +132,7 @@ public class TMAGridAdd implements PathCommand {
 		}
 		if (outsideCores > 0) {
 			String label = outsideCores == 1 ? "core" : "cores";
-			if (!DisplayHelpers.showConfirmDialog("Add to TMA Grid", "Not enough space within image to store " + outsideCores + " new " + label + " - proceed anyway?"))
+			if (!Dialogs.showConfirmDialog("Add to TMA Grid", "Not enough space within image to store " + outsideCores + " new " + label + " - proceed anyway?"))
 				return false;
 		}
 		

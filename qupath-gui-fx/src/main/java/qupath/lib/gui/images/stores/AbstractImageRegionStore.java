@@ -234,6 +234,21 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		return cache.get(request);
 	}	
 	
+	/**
+	 * Get a map of all cached tiles pertaining to a specific ImageServer.
+	 * @param server
+	 * @return
+	 */
+	public synchronized Map<RegionRequest, T> getCachedTilesForServer(ImageServer<T> server) {
+		Map<RegionRequest, T> tiles = new HashMap<>();
+		var serverPath = server.getPath();
+		for (var entry : cache.entrySet()) {
+			if (entry.getValue() != null && entry.getKey().getPath().equals(serverPath))
+				tiles.put(entry.getKey(), entry.getValue());
+		}
+		return tiles;
+	}	
+	
 	
 	static boolean isTiledImageServer(ImageServer<?> server) {
 		return server.getPreferredDownsamples().length > 1;
@@ -286,12 +301,12 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	}
 	
 	
-	protected boolean stopWaiting(final RegionRequest request) {
+	protected synchronized boolean stopWaiting(final RegionRequest request) {
 		if (clearingCache) {
-			synchronized(this) {
+//			synchronized(this) {
 				logger.warn("Stop waiting called while clearing cache");
 				return waitingMap.remove(request) != null;
-			}
+//			}
 		} else
 			return waitingMap.remove(request) != null;
 	}
@@ -360,7 +375,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 */
 	@Override
 	@SuppressWarnings("unchecked")
-	public T getThumbnail(ImageServer<T> server, int zPosition, int tPosition, boolean addToCache) {
+	public synchronized T getThumbnail(ImageServer<T> server, int zPosition, int tPosition, boolean addToCache) {
 		RegionRequest request = getThumbnailRequest(server, zPosition, tPosition);
 		Object result = requestImageTile(server, request, thumbnailCache, true);
 		if (!(result instanceof TileWorker<?>))
@@ -404,7 +419,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		clearingCache = true;
 		// Try to cancel anything we're waiting for
 		if (stopWaiting) {
-			for (TileWorker<T> worker : waitingMap.values().toArray(new TileWorker[0])) {
+			for (TileWorker<T> worker : waitingMap.values().toArray(TileWorker[]::new)) {
 				worker.cancel(true);
 			}
 			waitingMap.clear();

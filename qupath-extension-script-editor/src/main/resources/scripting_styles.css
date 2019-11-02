@@ -1,35 +1,37 @@
-.keyword {
-    -fx-fill: purple;
-    -fx-font-weight: bold;
+.text {
+	-fx-fill: -fx-text-inner-color;
 }
-.semicolon {
+.lineno {
+	-fx-background-color: -fx-background;
+}
+.keyword {
+    -fx-fill: darkorange;
     -fx-font-weight: bold;
 }
 .method {
-    -fx-fill: orange;
     -fx-font-weight: bold;
 }
 .paren {
-    -fx-fill: firebrick;
     -fx-font-weight: bold;
 }
 .bracket {
-    -fx-fill: darkgreen;
     -fx-font-weight: bold;
 }
 .brace {
-    -fx-fill: teal;
     -fx-font-weight: bold;
 }
 .string {
-    -fx-fill: blue;
+    -fx-fill: seagreen;
 }
 .comment {
-	-fx-fill: cadetblue;
+    -fx-fill: rgb(128, 128, 128);
 }
 .error {
     -fx-fill: red;
 }
 .warning {
     -fx-fill: orange;
+}
+.semicolon {
+    -fx-font-weight: bold;
 }

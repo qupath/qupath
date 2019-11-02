@@ -23,6 +23,7 @@
 
 package qupath.opencv.tools;
 
+import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
@@ -57,8 +58,11 @@ import ij.process.ShortProcessor;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
+import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServer;
@@ -135,7 +139,7 @@ public class OpenCVTools {
 				typeCV = CV_16SC(nChannels); 
 				break;
 			case DataBuffer.TYPE_USHORT:
-				typeCV = CV_16SC(nChannels); 
+				typeCV = CV_16UC(nChannels); 
 				break;
 			default:
 				typeCV = CV_64FC(nChannels); // Assume 64-bit is as flexible as we can manage
@@ -338,7 +342,8 @@ public class OpenCVTools {
 			img = new BufferedImage(colorModel, raster, false, null);
 		} else {
 			// Create some kind of raster we can use
-			raster = WritableRaster.createBandedRaster(type, width, height, channels, null);
+			var sampleModel = new BandedSampleModel(type, width, height, channels);
+			raster = WritableRaster.createWritableRaster(sampleModel, null);
 			// We do need a ColorModel or some description
 			colorModel = ColorModelFactory.getDummyColorModel(bpp * channels);
 			img = new BufferedImage(colorModel, raster, false, null);
@@ -575,6 +580,22 @@ public class OpenCVTools {
 		if (mat2 != null)
 			mat2.release();
 		return pixels;
+	}
+	
+	/**
+	 * Convert a Mat to a {@link SimpleImage}.
+	 * @param mat
+	 * @param channel
+	 * @return
+	 */
+	public static SimpleImage matToSimpleImage(Mat mat, int channel) {
+		Mat temp = mat;
+		if (mat.channels() > 1) {
+			temp = new Mat();
+			opencv_core.extractChannel(mat, temp, channel);
+		}
+		float[] pixels = extractPixels(temp, null);
+		return SimpleImages.createFloatImage(pixels, mat.cols(), mat.rows());
 	}
 	
 
@@ -1005,6 +1026,23 @@ public class OpenCVTools {
 	 */
 	public static List<Mat> extractZStack(ImageServer<BufferedImage> server, RegionRequest request) throws IOException {
 		return extractZStack(server, request, 0, server.nZSlices());
+	}
+
+
+	/**
+	 * Crop a region from a Mat based on its bounding box, returning a new image (not a subregion).
+	 * @param mat
+	 * @param x
+	 * @param y
+	 * @param width
+	 * @param height
+	 * @return
+	 */
+	public static Mat crop(Mat mat, int x, int y, int width, int height) {
+		try (Rect rect = new Rect(x, y, width, height)) {
+	    	var temp = mat.apply(rect);
+	    	return temp.clone();
+		}
 	}
 	
 

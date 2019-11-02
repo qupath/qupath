@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.Vector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +43,9 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.helpers.PathObjectTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
@@ -99,7 +98,7 @@ public final class PathObjectHierarchy implements Serializable {
 	private PathObject rootObject = new PathRootObject();
 	
 	transient private PathObjectSelectionModel selectionModel = new PathObjectSelectionModel();
-	transient private Vector<PathObjectHierarchyListener> listeners = new Vector<>();
+	transient private List<PathObjectHierarchyListener> listeners = new ArrayList<>();
 
 	// Cache enabling faster access of objects according to location
 	transient private PathObjectTileCache tileCache = new PathObjectTileCache(this);
@@ -126,7 +125,9 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param listener
 	 */
 	public void addPathObjectListener(PathObjectHierarchyListener listener) {
-		listeners.add(listener);
+		synchronized(listeners) {
+			listeners.add(listener);
+		}
 	}
 	
 	/**
@@ -134,7 +135,9 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param listener
 	 */
 	public void removePathObjectListener(PathObjectHierarchyListener listener) {
-		listeners.remove(listener);
+		synchronized(listeners) {
+			listeners.remove(listener);
+		}
 	}
 	
 	/**
@@ -421,10 +424,10 @@ public final class PathObjectHierarchy implements Serializable {
 				if (pathObject.getParent() == possibleParent)
 					return false;
 				
-				var previousChildren = new HashSet<>(possibleParent.getChildObjects());
+				Collection<PathObject> previousChildren = pathObject.isDetection() ? Collections.emptyList() : new ArrayList<>(possibleParent.getChildObjects());
 				possibleParent.addPathObject(pathObject);
 				// If we have a non-detection, consider reassigning child objects
-				if (!pathObject.isDetection()) {
+				if (!previousChildren.isEmpty()) {
 //					long startTime = System.currentTimeMillis();
 					pathObject.addPathObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
 					
@@ -614,6 +617,7 @@ public final class PathObjectHierarchy implements Serializable {
 			removeObject(pathObject, true, false);
 		addPathObject(pathObject, false);
 		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), false);
+//		fireHierarchyChangedEvent(this, pathObject);
 	}
 	
 	
@@ -683,12 +687,33 @@ public final class PathObjectHierarchy implements Serializable {
 		var locator = tileCache.getLocator(roi, false);
 		var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(roi));
 		return pathObjects.parallelStream().filter(child -> {
+			// Test plane first
+			if (!samePlane(roi, child.getROI(), false))
+				return false;
+			
 			if (child.isDetection())
 				return tileCache.containsCentroid(locator, child);
-			else
+			else {
 				return tileCache.covers(preparedGeometry, child);
+			}
 		}).collect(Collectors.toList());
 	}
+	
+	
+	/**
+	 * Check if two ROIs fall in the same plane, optionally testing the channel as well.
+	 * @param roi1
+	 * @param roi2
+	 * @param checkChannel
+	 * @return
+	 */
+	static boolean samePlane(ROI roi1, ROI roi2, boolean checkChannel) {
+		if (checkChannel)
+			return roi1.getImagePlane().equals(roi2.getImagePlane());
+		else
+			return roi1.getZ() == roi2.getZ() && roi1.getT() == roi2.getT();
+	}
+	
 	
 	/**
 	 * Get the objects within a specified region.
@@ -713,12 +738,12 @@ public final class PathObjectHierarchy implements Serializable {
 	}
 	
 	
-	synchronized void fireObjectRemovedEvent(Object source, PathObject pathObject, PathObject previousParent) {
+	void fireObjectRemovedEvent(Object source, PathObject pathObject, PathObject previousParent) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectRemovedEvent(source, this, previousParent, pathObject);
 		fireEvent(event);
 	}
 
-	synchronized void fireObjectAddedEvent(Object source, PathObject pathObject) {
+	void fireObjectAddedEvent(Object source, PathObject pathObject) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectAddedEvent(source, this, pathObject.getParent(), pathObject);
 		fireEvent(event);
 	}
@@ -728,7 +753,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param source
 	 * @param pathObjects
 	 */
-	public synchronized void fireObjectMeasurementsChangedEvent(Object source, Collection<PathObject> pathObjects) {
+	public void fireObjectMeasurementsChangedEvent(Object source, Collection<PathObject> pathObjects) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_MEASUREMENTS, pathObjects, false);
 		fireEvent(event);
 	}
@@ -738,7 +763,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param source
 	 * @param pathObjects
 	 */
-	public synchronized void fireObjectClassificationsChangedEvent(Object source, Collection<PathObject> pathObjects) {
+	public void fireObjectClassificationsChangedEvent(Object source, Collection<PathObject> pathObjects) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_CLASSIFICATION, pathObjects, false);
 		fireEvent(event);
 	}
@@ -748,7 +773,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param source
 	 * @param pathObjects
 	 */
-	public synchronized void fireObjectsChangedEvent(Object source, Collection<? extends PathObject> pathObjects) {
+	public void fireObjectsChangedEvent(Object source, Collection<? extends PathObject> pathObjects) {
 		fireObjectsChangedEvent(source, pathObjects, false);
 	}
 
@@ -758,7 +783,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param pathObjects
 	 * @param isChanging is true, listeners may choose not to respond until an event is fired with isChanging false
 	 */
-	public synchronized void fireObjectsChangedEvent(Object source, Collection<? extends PathObject> pathObjects, boolean isChanging) {
+	public void fireObjectsChangedEvent(Object source, Collection<? extends PathObject> pathObjects, boolean isChanging) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_OTHER, pathObjects, isChanging);
 		fireEvent(event);
 	}
@@ -768,7 +793,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param source
 	 * @param pathObject
 	 */
-	public synchronized void fireHierarchyChangedEvent(Object source, PathObject pathObject) {
+	public void fireHierarchyChangedEvent(Object source, PathObject pathObject) {
 		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createStructureChangeEvent(source, this, pathObject);
 		fireEvent(event);
 	}
@@ -779,14 +804,14 @@ public final class PathObjectHierarchy implements Serializable {
 	 * has changed.
 	 * @param source
 	 */
-	public synchronized void fireHierarchyChangedEvent(Object source) {
+	public void fireHierarchyChangedEvent(Object source) {
 		fireHierarchyChangedEvent(source, getRootObject());
 	}
 	
 	
-	void fireEvent(PathObjectHierarchyEvent event) {
-		if (listeners != null) {
-			for (PathObjectHierarchyListener listener : listeners.toArray(new PathObjectHierarchyListener[0]))
+	synchronized void fireEvent(PathObjectHierarchyEvent event) {
+		synchronized(listeners) {
+			for (PathObjectHierarchyListener listener : listeners)
 				listener.hierarchyChanged(event);
 		}
 	}

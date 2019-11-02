@@ -52,10 +52,10 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import qupath.lib.classifiers.PathClassificationLabellingHelper;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.helpers.DisplayHelpers;
-import qupath.lib.gui.helpers.PanelToolsFX;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
@@ -170,7 +170,7 @@ class FeatureSelectionPanel {
 
 			String f = nFeatures == 1 ? "1 feature" : nFeatures + " features";
 
-			if (!DisplayHelpers.showYesNoDialog("Delete feature measurements", 
+			if (!Dialogs.showYesNoDialog("Delete feature measurements", 
 					"Are you sure you want to permenently delete " + f + " from all objects?"))
 				return;
 
@@ -229,7 +229,7 @@ class FeatureSelectionPanel {
 			for (SelectableFeature feature : tableFeatures.getItems())
 				feature.setSelected(false);
 		});
-		GridPane panelSelectButtons = PanelToolsFX.createColumnGridControls(btnSelectAll, btnSelectNone);
+		GridPane panelSelectButtons = PaneTools.createColumnGridControls(btnSelectAll, btnSelectNone);
 
 		panelButtons.setTop(panelSelectButtons);
 //		panelButtons.setBottom(btnUpdateFeatures);
@@ -299,7 +299,7 @@ class FeatureSelectionPanel {
 		if (pathObjects == null || pathObjects.isEmpty())
 			availableFeatureNames = Collections.emptyList();
 		else
-			availableFeatureNames = PathClassificationLabellingHelper.getAvailableFeatures(pathObjects);
+			availableFeatureNames = PathClassifierTools.getAvailableFeatures(pathObjects);
 		updateMeasurementsByNames(availableFeatureNames);
 	}
 
