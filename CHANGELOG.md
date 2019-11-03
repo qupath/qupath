@@ -1,3 +1,10 @@
+## Version 0.2.0-m6
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+This is a minor release focused on bug-fixes.
+Changes include:
+* Pixel classifier shows live area measurements with 'Classification' output (in m5 was only with 'Probability' output)
+
+
 ## Version 0.2.0-m5
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 Changes include:
