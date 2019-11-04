@@ -673,7 +673,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				int n = counts.getCountForAncestor(pathClass);
 				ROI roi = pathObjectTemp.getROI();
 				// For the root, we can measure density only for 2D images of a single time-point
-				if (pathObjectTemp.isRootObject() && server.nZSlices() == 1 || server.nTimepoints() == 1)
+				if (pathObjectTemp.isRootObject() && server.nZSlices() == 1 && server.nTimepoints() == 1)
 					roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
 				
 				if (roi != null && roi.isArea()) {
