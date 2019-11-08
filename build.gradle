@@ -32,8 +32,7 @@ def jfxVersion = '13.0.1'
  * OpenCV version
  * Note, if this is a SNAPSHOT version then it must already be installed locally (with Maven)
  */
-def opencvVersion = '4.1.0-1.5.1'
-// def opencvVersion = '4.1.1-1.5.2-SNAPSHOT'
+def opencvVersion = '4.1.2-1.5.2'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)

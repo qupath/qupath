@@ -101,7 +101,7 @@ public class OpenCVExtension implements QuPathExtension {
 	
 	private static void ensureClassesLoaded() {
 		logger.debug("Ensuring OpenCV classes are loaded");
-		try (var scope = new org.bytedeco.javacpp.PointerScope(true)) {
+		try (var scope = new org.bytedeco.javacpp.PointerScope()) {
 			var mat = new org.bytedeco.opencv.opencv_core.Mat();
 			var matvec = new org.bytedeco.opencv.opencv_core.MatVector();
 			var rect = new org.bytedeco.opencv.opencv_core.Rect();
