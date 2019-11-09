@@ -1,14 +1,43 @@
-/*
+/**
  * Gradle script for building QuPath.
- *
+ * <p>
  * To create a complete build including associated license files, try the following:
- *
+ * <p>
  * ./gradlew clean build createPackage -Ppackager=/full/path/to/jpackage
  * or on Windows
  * gradlew.bat clean build createPackage -Ppackager=/full/path/to/jpackage.exe
  */
 
 /**
+ * Configure build script
+ */
+buildscript {
+
+  dependencies {
+    classpath 'com.github.jk1:gradle-license-report:1.11'
+//      classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
+  }
+
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+    maven { url 'https://plugins.gradle.org/m2/' }
+  }
+
+}
+
+/*
+ * Using java-library rather than java enables us to define api dependencies,
+ * i.e. dependencies exported from the API of QuPath.
+ * An example if JTS, since QuPath ROIs can be converted to JTS Geometries and this 
+ * should be accessible throughout the software.
+ */
+plugins {
+  id 'java-library'
+}
+
+/*
  * Some metadata for the manifest
  */
 
@@ -29,12 +58,6 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 def jfxVersion = '13.0.1'
 
 /*
- * OpenCV version
- * Note, if this is a SNAPSHOT version then it must already be installed locally (with Maven)
- */
-def opencvVersion = '4.1.2-1.5.2'
-
-/*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
  */
 def useGPU = false
@@ -45,7 +68,7 @@ def useGPU = false
  */
 def doModular = false
 
-/**
+/*
  * Helps to output build time for reference later
  */
 def buildTime = new Date().format("yyyy-MM-dd, HH:mm")
@@ -55,6 +78,32 @@ def buildTime = new Date().format("yyyy-MM-dd, HH:mm")
  */
 println 'Current Java version: ' + JavaVersion.current()
 println System.properties['java.home']
+
+
+// Request latest commit by a command line call to Git, if required
+def requestLatestCommit = project.findProperty('request-git-tag') == 'true'
+
+// Including the latest commit when building can help traceability - but requires git being available
+ext {
+  latestGitCommit = null
+}
+if (requestLatestCommit) {
+  try {
+    def stdout = new ByteArrayOutputStream()
+    def result = exec {
+      commandLine 'git', 'log', "--pretty=format:'%h'", "-n 1"
+      standardOutput = stdout
+    }
+    latestGitCommit = stdout.toString().trim()
+    println 'Latest commit: ' + latestGitCommit
+  } catch (Exception e) {
+    println 'Unable to get latest commit: ' + e.getLocalizedMessage()
+    latestGitCommit = 'Unknown (is Git installed?)'
+  }
+} else {
+  println "I won't try to get the last commit - consider running with '-Prequest-git-tag=true' if you want this next time (assuming Git is installed)"
+}
+
 
 /*
  * Handle OS-specific decisions
@@ -88,14 +137,21 @@ if (OperatingSystem.current().isMacOsX()) {
   println 'Unknown operating system!'
 }
 
-
-/* 
+/*
  * Note on OpenCV, OpenBLAS & Mac.
  * This appears to segfault sometimes, in which case the following command line parameters may help:
  *   -Dorg.bytedeco.openblas.load=blas -Djava.library.path=.:/usr/lib/ 
  * See https://github.com/bytedeco/javacpp-presets/tree/master/openblas for further information.
+ *
+ * Another way to avoid requiring this is to set the number of threads to 1 within the QuPath code.
  */
 
+/*
+ * Easier to use the wrapper with source
+ */
+wrapper {
+    distributionType = Wrapper.DistributionType.ALL
+}
 
 /*
  * jarjar makes it possible to remove the troublesome MacAdapter in ij.jar, 
@@ -106,10 +162,31 @@ if (OperatingSystem.current().isMacOsX()) {
  */
 //apply plugin: 'org.anarres.jarjar'
 
-/**
+/*
  * Define managed dependencies for use within sub-projects
  */
-subprojects {
+allprojects {
+
+  group = 'qupath'
+  version = qupathVersion
+
+  ext {
+    bioformatsVersion  = '6.3.0'
+    commonsMathVersion = '3.6.1'
+    controlsfxVersion  = '11.0.0'
+    groovyVersion      = '2.5.8'
+    gsonVersion        = '2.8.6'
+    guavaVersion       = '28.1-jre'
+    imagejVersion      = '1.52r'
+    jfxtrasVersion     = '10.0-r1'
+    jpenVersion        = '2-150301'
+    jtsVersion         = '1.16.1'
+    openslideVersion   = '3.4.1_2'
+    richtextVersion    = '0.10.2'
+    // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
+    opencvVersion      = '4.1.2-1.5.2'
+  }
+
   configurations {
   	jts
     groovy
@@ -121,8 +198,6 @@ subprojects {
     opencv
     jpen
     imagej
-    bioformats
-    bioformatsTest
     openslide
     javafx
     nativeloader
@@ -136,41 +211,36 @@ subprojects {
     	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
     	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
     	exclude group: 'org.checkerframework', module: 'checker-qual'
-    }    
+    }
+
   }
 
   dependencies {
 
-    jts "org.locationtech.jts:jts-core:1.16.1"
+    jts "org.locationtech.jts:jts-core:${jtsVersion}"
     // Optionally add GeoJSON support (brings in json-simple as sub-dependency)
     // However, the use of simple-json is troublesome since it brings in an old version of junit
-//   jts "org.locationtech.jts.io:jts-io-common:1.16.1"
+//   jts "org.locationtech.jts.io:jts-io-common:${jtsVersion}"
 
-    groovy "org.codehaus.groovy:groovy:2.5.8"
-    groovy "org.codehaus.groovy:groovy-jsr223:2.5.8"
+    groovy "org.codehaus.groovy:groovy:${groovyVersion}"
+    groovy "org.codehaus.groovy:groovy-jsr223:${groovyVersion}"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
       javafx "org.openjfx:${fx}:${jfxVersion}"
       javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
     }
 
-//	picocli 'info.picocli:picocli:3.9.6'
+    richtextfx "org.fxmisc.richtext:richtextfx:${richtextVersion}"
 
-    richtextfx 'org.fxmisc.richtext:richtextfx:0.10.2'
+    commonsmath "org.apache.commons:commons-math3:${commonsMathVersion}"
 
-    commonsmath 'org.apache.commons:commons-math3:3.6.1'
+    gson "com.google.code.gson:gson:${gsonVersion}"
 
-    gson 'com.google.code.gson:gson:2.8.6'
+    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}"
 
-    controlsfx 'org.controlsfx:controlsfx:11.0.0'
+    jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}"
 
-//	bioformats 'ome:bioformats_package:6.0.1'
-	bioformats 'ome:formats-gpl:6.3.0'
-	bioformatsTest 'ome:bio-formats_plugins:6.3.0' // Only required for testing
-
-    jfxtras 'org.jfxtras:jfxtras-menu:10.0-r1'
-
-    opencv 'org.bytedeco:opencv:${opencvVersion}'
+    opencv "org.bytedeco:opencv:${opencvVersion}"
     if (nativesCPP != null) {
 	  opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
       if (useGPU)
@@ -178,35 +248,48 @@ subprojects {
       else
 	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
-    // opencv 'org.bytedeco:mkl-dnn:0.20-1.5.1' // Explore if can help avoid segfaults on Mac at least
 
-    jpen 'net.sourceforge.jpen:jpen:2-150301'
+    jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)
-      jpen 'net.sourceforge.jpen:jpen:2-150301:' + nativesClassifier
+      jpen "net.sourceforge.jpen:jpen:${jpenVersion}:${nativesClassifier}"
 
-    imagej 'net.imagej:ij:1.52q'
+    imagej "net.imagej:ij:${imagejVersion}"
 //    imagej jarjar.repackage {
-//    	from 'net.imagej:ij:1.52o'
+//    	from "net.imagej:ij:${imagejVersion}"
 //    	classDelete 'MacAdapter'
 //	}
 
-    openslide 'org.openslide:openslide:3.4.1_2'
+    openslide "org.openslide:openslide:${openslideVersion}"
     if (nativesClassifier != null)
-      openslide 'org.openslide:openslide:3.4.1_2:' + nativesClassifier
+      openslide "org.openslide:openslide:${openslideVersion}:${nativesClassifier}"
 
-//    nativeloader 'org.scijava:native-lib-loader:2.3.4'
+    guava "com.google.guava:guava:${guavaVersion}"
+  }
 
-    guava 'com.google.guava:guava:28.1-jre'
+}
+
+/*
+ * Define inter-dependencies of sub-projects
+ */
+project(':qupath-core-processing') {
+  dependencies {
+	  implementation project(':qupath-core')
   }
 }
-
-/**
- * Set group & version
- */
-allprojects  {
-  group = 'qupath'
-  version = qupathVersion
+project(':qupath-gui-fx') {
+  dependencies {
+	  implementation project(':qupath-core'), project(':qupath-core-processing')
+  }
 }
+/*
+ * All extensions require the GUI module
+ */
+configure( subprojects.findAll {it.name.contains('-extension') || it.name.contains('-experimental')} ) {
+	dependencies {
+		implementation project(':qupath-core'), project(':qupath-core-processing'), project(':qupath-gui-fx')
+	}
+}
+
 
 /*
  * Not everybody is ready to be a module yet... 
@@ -280,11 +363,11 @@ subprojects {
     }
 }
 
-/**
+/*
  * Build all projects
  */
 allprojects {
-  apply plugin: 'java'
+  apply plugin: 'java-library'
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
 
@@ -305,6 +388,11 @@ allprojects {
     maven { url "../maven/repo" }
   }
 
+  // May use this in the future, but fails where javadocs are incomplete
+//  java {
+//    withJavadocJar()
+//  }
+
   dependencies {
     implementation group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
     testImplementation group: 'junit', name: 'junit', version:'4.12'
@@ -312,15 +400,11 @@ allprojects {
 }
 
 
-
-/**
+/*
  * Build the main launcher class
  */
-apply plugin: 'java'
+apply plugin: 'java-library'
 rootProject.libsDirName = qupathOutputDir
-
-//println 'BASE NAME: ' + jar.archiveName
-
 
 repositories {
   mavenLocal()
@@ -328,18 +412,18 @@ repositories {
   maven { url "./maven/repo" }
 }
 
-/**
+/*
  * I suspect there may be a cleaner way to specify subprojects...
  */
 dependencies {
-  compile "org.openjfx:javafx-graphics:${jfxVersion}"    
-  compile "org.openjfx:javafx-graphics:${jfxVersion}:${platform}"    
+  implementation "org.openjfx:javafx-graphics:${jfxVersion}"    
+  implementation "org.openjfx:javafx-graphics:${jfxVersion}:${platform}"    
   subprojects {
-    compile it
+    implementation it
   }
 }
 
-/**
+/*
  * Copy licenses from subprojects to include in distribution
  */
 task copyLicenses(type: Copy) {
@@ -355,7 +439,7 @@ task copyLicenses(type: Copy) {
   into additionalResourcesDir + '/licenses'
 }
 
-/**
+/*
  * Get the main changelog & license
  */
 task copyChangelog(type: Copy) {
@@ -367,13 +451,13 @@ task copyChangelog(type: Copy) {
   include 'VERSION'
 }
 
-/**
+/*
  * Extract native libraries where necessary
  */
 task extractNativeLibraries() {
   if (nativesClassifier == null)
     return
-  configurations.compile.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
+  configurations.runtimeClasspath.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
     println 'Extracting native libraries from ' + file + " into " + additionalResourcesDir
     doLast {
       copy {
@@ -385,15 +469,15 @@ task extractNativeLibraries() {
   }
 }
 
-/**
+/*
  * Copy required jars all into one directory
  */
 task copyRuntimeLibs(type: Copy) {
   into additionalResourcesDir
-  from configurations.runtime
+  from configurations.runtimeClasspath
 }
 
-/**
+/*
  * Run automated license generation (in addition to manually-curated licenses)
  */
 apply plugin: 'com.github.jk1.dependency-license-report'
@@ -416,52 +500,7 @@ task copyLicenseReport(type: Copy) {
 }
 
 
-
-/**
- * Configure build script
- */
-buildscript {
-
-  dependencies {
-      classpath 'com.github.jk1:gradle-license-report:1.9'
-//      classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
-  }
-
-  repositories {
-      mavenLocal()
-      mavenCentral()
-      maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
-      maven { url 'https://plugins.gradle.org/m2/' }
-  }
-  
-  // Request latest commit by a command line call to Git, if required
-  def requestLatestCommit = project.findProperty('request-git-tag') == 'true'
-
-  // Try to get version number
-  ext {
-  	latestGitCommit = null
-  }
-  if (requestLatestCommit) {
-	  try {
-	  	def stdout = new ByteArrayOutputStream()
-	    def result = exec {
-	        commandLine 'git', 'log', "--pretty=format:'%h'", "-n 1"
-//	        commandLine 'git', 'describe', '--tags'
-	        standardOutput = stdout
-	    }
-	    latestGitCommit = stdout.toString().trim()
-	    println 'Latest commit: ' + latestGitCommit
-	  } catch (Exception e) {
-	  	println 'Unable to get latest commit: ' + e.getLocalizedMessage()
-	  	latestGitCommit = 'Unknown (is Git installed?)'
-	  }
-  } else {
-    println "I won't try to get the last commit - consider running with '-Prequest-git-tag=true' if you want this next time (assuming Git is installed)"
-  }
-  
-}
-
-/**
+/*
  * Specify the order of some operations
  */
 copyLicenses.dependsOn generateLicenseReport
@@ -472,7 +511,7 @@ jar.dependsOn extractNativeLibraries
 build.dependsOn copyLicenseReport
 build.dependsOn copyRuntimeLibs
 
-/**
+/*
  * Squeeze some useful metadata into the Manifest of the main jar -
  * QuPath can display this through the GUI
  */
@@ -483,7 +522,7 @@ jar {
        "Implementation-Title": 'QuPath',
        "Implementation-Version": qupathVersion,
        "Main-Class": "qupath.QuPath",
-       "Class-Path": configurations.compile.collect { it.getName() }.join(' '),
+       "Class-Path": configurations.compileClasspath.collect { it.getName() }.join(' '),
        "QuPath-build-time": buildTime
     ]
     if (latestGitCommit != null)
@@ -494,7 +533,7 @@ jar {
 }
 
 
-/**
+/*
  * Create javadocs for all modules/packages in one place.
  */
 task mergedJavadocs(type: Javadoc) {
@@ -509,7 +548,7 @@ task mergedJavadocs(type: Javadoc) {
 
 
 
-/**
+/*
  * Create a custom runtime.  Mostly to avoid using the same one as jpackager for now.
  */
 task createRuntime(dependsOn:build, type:Exec) {
@@ -541,7 +580,7 @@ task createRuntime(dependsOn:build, type:Exec) {
 
 }
 
-/**
+/*
  * If we have a packager (somewhere), use it.
  *
  * To call this:

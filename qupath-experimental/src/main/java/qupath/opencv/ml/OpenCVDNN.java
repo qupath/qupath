@@ -60,7 +60,7 @@ public class OpenCVDNN {
 			try {
 				net = opencv_dnn.readNet(pathModel, pathConfig, framework);
 			} catch (RuntimeException e) {
-				throw new IOException("Unable to load moxel from " + pathModel, e);
+				throw new IOException("Unable to load model from " + pathModel, e);
 			}
 		}
 		return net;

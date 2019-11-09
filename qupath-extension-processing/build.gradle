@@ -3,14 +3,5 @@ ext.moduleName = 'qupath.extension.processing'
 description = 'qupath-extension-processing'
 
 configurations {
-  implementation.extendsFrom imagej
-  implementation.extendsFrom opencv
-  implementation.extendsFrom javafx
   implementation.extendsFrom controlsfx
-  implementation.extendsFrom jts
-}
-
-dependencies {
-  implementation project(':qupath-core-processing')
-  implementation project(':qupath-gui-fx')
 }

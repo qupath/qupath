@@ -4,9 +4,4 @@ description = 'qupath-extension-pen'
 
 configurations {
   implementation.extendsFrom jpen
-  implementation.extendsFrom javafx
-}
-
-dependencies {
-  implementation project(':qupath-gui-fx')
 }
