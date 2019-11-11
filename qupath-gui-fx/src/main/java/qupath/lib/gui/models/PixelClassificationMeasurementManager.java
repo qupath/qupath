@@ -35,7 +35,6 @@ import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -354,12 +353,14 @@ public class PixelClassificationMeasurementManager {
 			String namePercentage = "Classifier: " + name + " %";
 			String nameArea = "Classifier: " + name + " area " + pixelAreaUnits;
 			if (tempList != null) {
-				tempList.add(namePercentage);
+				if (pathClassTotals.size() > 1)
+					tempList.add(namePercentage);
 				tempList.add(nameArea);
 			}
 			if (counts != null) {
 				long count = entry.getValue();
-				measurementList.putMeasurement(namePercentage, (double)count/totalWithoutIgnored * 100.0);
+				if (pathClassTotals.size() > 1)
+					measurementList.putMeasurement(namePercentage, (double)count/totalWithoutIgnored * 100.0);
 				if (!Double.isNaN(pixelArea)) {
 					measurementList.putMeasurement(nameArea, count * pixelArea);
 				}

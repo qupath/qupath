@@ -36,6 +36,7 @@ class ClassificationPieChart {
 	void setData(Map<PathClass, Integer> counts, boolean convertToPercentages) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> setData(counts, convertToPercentages));
+			return;
 		}
 
 		var style = new StringBuilder();
