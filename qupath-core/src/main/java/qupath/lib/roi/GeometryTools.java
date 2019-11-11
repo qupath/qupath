@@ -385,9 +385,9 @@ public class GeometryTools {
 								true);
 						double areaAfter = geom.getArea();
 						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.001)) {
-							logger.warn("Unable to fix geometry (area before: {}, area after: {}, tolerance: {})", areaBefore, areaAfter, distance);
-							logger.warn("Original geometry: {}", polygon);
-							logger.warn("Will attempt to proceed using {}", geom);
+							logger.debug("Unable to fix geometry (area before: {}, area after: {}, tolerance: {})", areaBefore, areaAfter, distance);
+							logger.trace("Original geometry: {}", polygon);
+							logger.trace("Will attempt to proceed using {}", geom);
 						} else {
 							logger.debug("Geometry fix looks ok (area before: {}, area after: {})", areaBefore, areaAfter);
 						}
