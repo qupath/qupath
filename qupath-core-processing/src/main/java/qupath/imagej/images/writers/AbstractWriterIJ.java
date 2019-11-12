@@ -34,6 +34,7 @@ import ij.process.ShortProcessor;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.images.PathImage;
@@ -94,6 +95,10 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 
 	@Override
 	public void writeImage(BufferedImage img, String pathOutput) throws IOException {
+		writeImage(createImagePlus(img), pathOutput);
+	}
+	
+	ImagePlus createImagePlus(BufferedImage img) {
 		ImageProcessor ip;
 		if (img.getSampleModel().getNumBands() == 1) {
 			int type = img.getSampleModel().getDataType();
@@ -105,7 +110,29 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 				ip = new FloatProcessor(img.getWidth(), img.getHeight(), img.getRaster().getPixel(0, 0, (float[])null));
 		} else
 			ip = new ColorProcessor(img);
-		writeImage(new ImagePlus("", ip), pathOutput);
+		return new ImagePlus("", ip);
+	}
+	
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, RegionRequest region, OutputStream stream)
+			throws IOException {
+		PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(server, region);
+		if (pathImage == null)
+			throw new IOException("Unable to extract region from from " + server.getPath());
+		writeImage(pathImage.getImage(), stream);
+	}
+
+	@Override
+	public void writeImage(BufferedImage img, OutputStream stream) throws IOException {
+		writeImage(createImagePlus(img), stream);
+	}
+
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, OutputStream stream) throws IOException {
+		ImagePlus imp = IJTools.extractHyperstack(server, RegionRequest.createInstance(server));
+		if (imp == null)
+			throw new IOException("Unable to extract region from from " + server.getPath());
+		writeImage(imp, stream);
 	}
 	
 	@Override
@@ -116,5 +143,7 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 	public void writeImage(ImagePlus imp, String pathOutput) throws IOException {
 		IJ.save(imp, pathOutput);
 	}
+	
+	public abstract void writeImage(ImagePlus imp, OutputStream stream) throws IOException;
 
 }

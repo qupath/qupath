@@ -23,8 +23,20 @@
 
 package qupath.imagej.images.writers;
 
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import ij.ImagePlus;
+import ij.io.FileSaver;
+import ij.io.TiffEncoder;
+import qupath.lib.common.GeneralTools;
 
 /**
  * ImageWriter implementation to write zipped TIFF images using ImageJ.
@@ -52,6 +64,18 @@ public class ZipWriterIJ extends AbstractWriterIJ {
 	@Override
 	public Collection<String> getExtensions() {
 		return Collections.singleton("zip");
+	}
+
+	@Override
+	public void writeImage(ImagePlus imp, OutputStream stream) throws IOException {
+		try (ZipOutputStream zos = new ZipOutputStream(stream)) {
+			String name = GeneralTools.getNameWithoutExtension(imp.getTitle());
+			if (name == null || name.isBlank())
+				name = "image";
+			name += ".tif";
+        	zos.putNextEntry(new ZipEntry(imp.getTitle()));
+        	zos.write(new FileSaver(imp).serialize());
+		}
 	}
 
 }
