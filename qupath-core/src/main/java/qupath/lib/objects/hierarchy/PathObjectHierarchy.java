@@ -390,75 +390,10 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	// TODO: Be very cautious about this!!!!  Use of tileCache inside a synchronized method might lead to deadlocks?
 	private synchronized boolean addPathObjectToList(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
-		
-		if (pathObject != null && !pathObject.isDetection())
-			logger.trace("Adding {} to hierarchy", pathObject);
-		
-		// Get all the annotations that might be a parent of this object
-		var region = ImageRegion.createInstance(pathObject.getROI());
-		Collection<PathObject> tempSet = new HashSet<>();
-		tempSet.add(getRootObject());
-		tileCache.getObjectsForRegion(PathAnnotationObject.class, region, tempSet, true);
-		if (tmaGrid != null)
-			tileCache.getObjectsForRegion(TMACoreObject.class, region, tempSet, true);
-		
-		if (pathObjectParent != null) {
-			tempSet.removeIf(p -> p != pathObjectParent && !PathObjectTools.isAncestor(p, pathObjectParent));
-		}
-
-		var possibleObjects = new ArrayList<PathObject>(tempSet);
-		Collections.sort(possibleObjects, (p1, p2) -> -Integer.compare(p1.getLevel(), p2.getLevel()));
-
-		for (PathObject possibleParent : possibleObjects) {
-			if (possibleParent == pathObject || possibleParent.isDetection())
-				continue;
-			boolean addObject = possibleParent.isRootObject();
-			if (!addObject) {
-				if (pathObject.isDetection())
-					addObject = tileCache.containsCentroid(possibleParent, pathObject);
-				else
-					addObject = pathObjectParent != null && possibleParent == pathObjectParent ||
-								tileCache.covers(possibleParent, pathObject);
-			}
-			if (addObject) {
-				if (pathObject.getParent() == possibleParent)
-					return false;
-				
-				Collection<PathObject> previousChildren = pathObject.isDetection() ? Collections.emptyList() : new ArrayList<>(possibleParent.getChildObjects());
-				possibleParent.addPathObject(pathObject);
-				// If we have a non-detection, consider reassigning child objects
-				if (!previousChildren.isEmpty()) {
-//					long startTime = System.currentTimeMillis();
-					pathObject.addPathObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
-					
-//					var toAdd = previousChildren.parallelStream().filter(child -> {
-//						if (child.isDetection())
-//							return tileCache.containsCentroid(pathObject, child);
-//						else
-//							return tileCache.covers(pathObject, child);
-//					}).collect(Collectors.toList());
-//					pathObject.addPathObjects(toAdd);
-					
-//					for (var child : previousChildren) {
-//						boolean reassignChild = false;
-//						if (child.isDetection())
-//							reassignChild = tileCache.containsCentroid(pathObject, child);
-//						else if (!pathObject.isDetection())
-//							reassignChild = tileCache.covers(pathObject, child);
-//						if (reassignChild) {
-//							pathObject.addPathObject(child);
-//						}
-//					}
-//					long endTime = System.currentTimeMillis();
-//					System.err.println("Add time: " + (endTime - startTime));
-				}
-				
-				// Notify listeners of changes, if required
-				if (fireChangeEvents)
-					fireObjectAddedEvent(this, pathObject);
-				return true;
-			}
-		}
+		pathObjectParent.addPathObject(pathObject);
+		// Notify listeners of changes, if required
+		if (fireChangeEvents)
+			fireObjectAddedEvent(this, pathObject);
 		return true;
 	}
 	
