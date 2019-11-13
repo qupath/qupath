@@ -33,11 +33,11 @@ import java.util.Set;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygonal;
-import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.simplify.VWSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
@@ -271,6 +271,8 @@ public class BrushTool extends AbstractPathROITool {
 			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
 			viewer.getROIEditor().setROI(null); // Avoids handles appearing?
 		}
+		
+		lastPoint = p;
 	}
 	
 	
@@ -393,7 +395,7 @@ public class BrushTool extends AbstractPathROITool {
 					}
 				}
 				if (keepGeometries.size() < shapeNew.getNumGeometries())
-					shapeNew = factory.buildGeometry(keepGeometries);
+					shapeNew = getGeometryFactory().buildGeometry(keepGeometries);
 			}
 						
 			ROI roiNew = GeometryTools.geometryToROI(shapeNew, plane);
@@ -448,7 +450,7 @@ public class BrushTool extends AbstractPathROITool {
 	
 	
 	/**
-	 * Create a new Shape using the specified tool, assuming a user click/drag at the provided x &amp; y coordinates.
+	 * Create a new Geometry using the specified tool, assuming a user click/drag at the provided x &amp; y coordinates.
 	 * 
 	 * @param x
 	 * @param y
@@ -494,17 +496,13 @@ public class BrushTool extends AbstractPathROITool {
 					new Coordinate(x, y)}).buffer(diameter/2.0);
 		}
 		
-//		// Flattening now helps improve performance - especially when drawing at a low magnification
-//		Path2D path = new Path2D.Float();
-//		path.append(shape.getPathIterator(null, viewer.getDownsampleFactor()/2.0), true);
-//		shape = path;
-		
 		return geometry;
 	}
 	
 	private boolean creatingTiledROI = false;
 	
 	protected GeometryFactory getGeometryFactory() {
+		var factory = GeometryTools.getDefaultFactory();
 		return factory;
 	}
 
@@ -517,8 +515,6 @@ public class BrushTool extends AbstractPathROITool {
 		geometry.apply(roundingFilter);
 		return VWSimplifier.simplify(geometry, 0.5);
 	}
-	
-	private GeometryFactory factory = new GeometryFactory(new PrecisionModel(100.0)); // TODO: MAKE THIS VARIABLE OUTSIDE
 	
 	private RoundAndConstrainFilter roundingFilter = new RoundAndConstrainFilter();
 			

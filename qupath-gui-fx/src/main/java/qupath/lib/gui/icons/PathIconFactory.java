@@ -50,7 +50,6 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 

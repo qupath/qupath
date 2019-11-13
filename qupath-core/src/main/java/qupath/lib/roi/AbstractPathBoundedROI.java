@@ -76,6 +76,27 @@ abstract class AbstractPathBoundedROI extends AbstractPathROI {
 	}
 	
 	
+	@Override
+	public double getMaxDiameter() {
+		return Math.max(getBoundsWidth(), getBoundsHeight());
+	}
+	
+	@Override
+	public double getMinDiameter() {
+		return Math.min(getBoundsWidth(), getBoundsHeight());
+	}
+	
+	@Override
+	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
+		return Math.max(getBoundsWidth()*pixelWidth, getBoundsHeight()*pixelHeight);
+	}
+	
+	@Override
+	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
+		return Math.min(getBoundsWidth()*pixelWidth, getBoundsHeight()*pixelHeight);
+	}
+	
+	
 //	public void updateAdjustment(double xx, double yy, boolean shiftDown) {
 //		if (isAdjusting) {
 //			// Update x & y

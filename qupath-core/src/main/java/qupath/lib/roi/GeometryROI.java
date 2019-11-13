@@ -1,11 +1,15 @@
 package qupath.lib.roi;
 
 import java.awt.Shape;
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.algorithm.MinimumBoundingCircle;
+import org.locationtech.jts.algorithm.MinimumDiameter;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -13,8 +17,10 @@ import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKBReader;
+import org.locationtech.jts.io.WKBWriter;
 import org.locationtech.jts.operation.valid.IsValidOp;
-import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +47,30 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	private static Logger logger = LoggerFactory.getLogger(GeometryROI.class);
 	
 	private Geometry geometry;
+	private boolean checkValid = false;
 	
 	private transient GeometryStats stats = null;
+	private transient Shape shape = null;
 	
+	/**
+	 * Create a GeometryROI, without checking for validity.
+	 * @param geometry
+	 * @param plane
+	 */
 	GeometryROI(Geometry geometry, ImagePlane plane) {
+		this(geometry, plane, false);
+	}
+	
+	/**
+	 * Create a new GeometryROI.
+	 * @param geometry
+	 * @param plane
+	 * @param checkValid if true, check the Geometry is valid before computing measurements. 
+	 *                   Because the validity check can be (very) slow, it may be desireable to skip it if not needed.
+	 */
+	GeometryROI(Geometry geometry, ImagePlane plane, boolean checkValid) {
 		super(plane);
+		this.checkValid = checkValid;
 		this.geometry = geometry.copy();
 //		this.stats = computeGeometryStats(geometry, 1, 1);
 //		if (!stats.isValid())
@@ -98,8 +123,11 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	GeometryStats getGeometryStats() {
 		if (stats == null) {
 			synchronized(this) {
-				if (stats == null)
-					stats = computeGeometryStats(geometry, 1, 1);
+				if (stats == null) 
+					stats = computeGeometryStats(geometry, 1, 1, checkValid);
+				// Avoid checking validity in the future
+				if (checkValid && stats.isValid())
+					checkValid = false;
 			}
 		}
 		return stats;
@@ -117,7 +145,17 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 
 	@Override
 	public Shape getShape() {
-		return GeometryTools.geometryToShape(geometry);
+		if (shape == null) {
+			// Cache complex shapes
+			if (getNumPoints() < 10000)
+				return GeometryTools.geometryToShape(geometry);
+			else
+				shape = GeometryTools.geometryToShape(geometry);
+		}
+		if (shape instanceof Area)
+			return new Area(shape);
+		else
+			return new Path2D.Float(shape);
 	}
 
 	@Override
@@ -144,7 +182,7 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
 			return getArea() * pixelWidth * pixelHeight;
 		// TODO: Need to confirm this is not a performance bottleneck in practice (speed vs. memory issue)
-		return computeGeometryStats(geometry, pixelWidth, pixelHeight).getArea();
+		return computeGeometryStats(geometry, pixelWidth, pixelHeight, checkValid).getArea();
 	}
 
 	@Override
@@ -152,7 +190,7 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
 			return getLength() / 2.0 * (pixelWidth + pixelHeight);
 		// TODO: Need to confirm this is not a performance bottleneck in practice (speed vs. memory issue)
-		return computeGeometryStats(geometry, pixelWidth, pixelHeight).getLength();
+		return computeGeometryStats(geometry, pixelWidth, pixelHeight, checkValid).getLength();
 	}
 
 	@Override
@@ -170,23 +208,29 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	}
 	
 	private Object writeReplace() {
-		// Try to preserve areas as they were... but we need to use JTS serialization for others
-		if (isArea()) {
-			AreaROI roi = new AreaROI(RoiTools.getVertices(getShape()), ImagePlane.getPlaneWithChannel(c, z, t));
-			return roi;
-		} else
-			return this;
+		// This relies on JTS serialization
+		return new WKBSerializationProxy(this);
+//		// Try to preserve areas as they were... but we need to use JTS serialization for others
+//		if (isArea()) {
+//			AreaROI roi = new AreaROI(RoiTools.getVertices(getShape()), ImagePlane.getPlaneWithChannel(c, z, t));
+//			return roi;
+//		} else
+//			return this;
 	}
 	
 	
-	static GeometryStats computeGeometryStats(Geometry geometry, double pixelWidth, double pixelHeight) {
+	static GeometryStats computeGeometryStats(Geometry geometry, double pixelWidth, double pixelHeight, boolean checkValid) {
 		if (pixelWidth == 1 && pixelHeight == 1)
-			return new GeometryStats(geometry);
+			return new GeometryStats(geometry, checkValid);
 		var transform = AffineTransformation.scaleInstance(pixelWidth, pixelHeight);
-		return new GeometryStats(transform.transform(geometry));
+		return new GeometryStats(transform.transform(geometry), checkValid);
 	}
 	
-	static class GeometryStats {
+	static class GeometryStats implements Serializable {
+		
+		private static final long serialVersionUID = 1L;
+		
+		private static String UNKNOWN = "Unknown";
 		
 		private double boundsMinX = Double.NaN;
 		private double boundsMinY = Double.NaN;
@@ -196,12 +240,17 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		private double centroidY = Double.NaN;
 		private double area = Double.NaN;
 		private double length = Double.NaN;
-		private TopologyValidationError error;
+		private double maxDiameter = Double.NaN;
+		private double minDiameter = Double.NaN;
+		private String error = UNKNOWN;
 		
-		GeometryStats(Geometry geometry) {
-			error = new IsValidOp(geometry).getValidationError();
-			if (error != null) {
-				logger.warn("Stats requested for invalid geometry: " + error.getMessage());
+		GeometryStats(Geometry geometry, boolean checkValid) {
+			if (checkValid) {
+				var validationError = new IsValidOp(geometry).getValidationError();
+				error = validationError == null ? null : validationError.getMessage();
+			}
+			if (checkValid && error != null) {
+				logger.warn("Stats requested for invalid geometry: " + error);
 			} else {
 				area = geometry.getArea();
 				length = geometry.getLength();
@@ -218,6 +267,16 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 				boundsMaxX = envelope.getMaxX();
 				boundsMaxY = envelope.getMaxY();
 			}
+			maxDiameter = new MinimumBoundingCircle(geometry).getRadius() * 2.0;
+			minDiameter = new MinimumDiameter(geometry).getLength();
+		}
+		
+		public double getMaxDiameter() {
+			return maxDiameter;
+		}
+		
+		public double getMinDiameter() {
+			return minDiameter;
 		}
 		
 		public double getCentroidX() {
@@ -256,7 +315,7 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 			return error == null;
 		}
 		
-		public TopologyValidationError getError() {
+		public String getError() {
 			return error;
 		}
 
@@ -266,6 +325,89 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 	public ROI scale(double scaleX, double scaleY, double originX, double originY) {
 		var transform = AffineTransformation.scaleInstance(scaleX, scaleY, originX, originY);
 		return new GeometryROI(transform.transform(geometry), getImagePlane());
+	}
+
+	@Override
+	public double getMaxDiameter() {
+		return getGeometryStats().maxDiameter;
+	}
+
+	@Override
+	public double getMinDiameter() {
+		return getGeometryStats().minDiameter;
+	}
+
+	@Override
+	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
+		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
+			return getMaxDiameter() / 2.0 * (pixelWidth + pixelHeight);
+		return computeGeometryStats(geometry, pixelWidth, pixelHeight, checkValid).getMaxDiameter();
+	}
+
+	@Override
+	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
+		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
+			return getMinDiameter() / 2.0 * (pixelWidth + pixelHeight);
+		return computeGeometryStats(geometry, pixelWidth, pixelHeight, checkValid).getMinDiameter();
+	}
+	
+	
+	private static class WKBSerializationProxy implements Serializable {
+
+		private static final long serialVersionUID = 1L;
+
+		private final byte[] wkb;
+		private final int c, z, t;
+
+		private GeometryStats stats;
+
+		WKBSerializationProxy(final GeometryROI roi) {
+			this.wkb = new WKBWriter(2).write(roi.geometry);
+			this.c = roi.c;
+			this.z = roi.z;
+			this.t = roi.t;
+			this.stats = roi.stats;
+
+
+		}
+
+		private Object readResolve() throws ParseException {
+			var geometry = new WKBReader().read(wkb);
+			GeometryROI roi = new GeometryROI(geometry, ImagePlane.getPlaneWithChannel(c, z, t));
+			roi.stats = this.stats;
+			return roi;
+		}
+
+	}
+	
+	/**
+	 * Proxy that uses Geometry serialization.
+	 */
+	private static class SerializationProxy implements Serializable {
+		
+		private static final long serialVersionUID = 1L;
+		
+		private final Geometry geometry;
+		private final int c, z, t;
+		
+		private GeometryStats stats;
+		
+		SerializationProxy(final GeometryROI roi) {
+			this.geometry = roi.geometry;
+			this.c = roi.c;
+			this.z = roi.z;
+			this.t = roi.t;
+			this.stats = roi.stats;
+			
+			
+		}
+		
+		private Object readResolve() {
+			GeometryROI roi = new GeometryROI(geometry, ImagePlane.getPlaneWithChannel(c, z, t));
+			roi.stats = this.stats;
+			return roi;
+		}
+		
 	}
 
 }

@@ -31,6 +31,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.locationtech.jts.geom.Geometry;
+
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -61,7 +63,9 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	transient List<MutableVertices> vertices;
-	
+
+	transient Geometry geometry;
+
 	// We potentially spend a lot of time drawing polygons & assessing whether or not to draw them...
 	// By caching the bounds this can be speeded up
 	transient private ClosedShapeStatistics stats = null;
@@ -341,6 +345,17 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 			return roi;
 		}
 		
+	}
+	
+	@Override
+	public Geometry getGeometry() {
+		if (geometry == null) {
+			synchronized(this) {
+				if (geometry == null)
+					geometry = super.getGeometry();
+			}
+		}
+		return geometry;
 	}
 
 	@Override

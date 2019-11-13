@@ -42,6 +42,8 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.MultiPolygon;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
@@ -202,16 +204,16 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 			if (pathObject.isAnnotation() || pathObject.isTMACore()) {
 				geometryMap.put(roi, geometry);
 			}
-//			long startTime = System.currentTimeMillis();
-			if (!geometry.isValid()) {
-				int nVertices = geometry.getNumPoints();
-				if (geometry.getNumPoints() < 100)
-					logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
-				else
-					logger.warn("{} is not a valid geometry! Actual geometry {} ({} vertices)", pathObject, geometry.getGeometryType(), nVertices);
-			}
-//			long endTime = System.currentTimeMillis();
-//			System.err.println("Testing " + (endTime - startTime) + " ms for " + geometry);
+////			long startTime = System.currentTimeMillis();
+//			if (!geometry.isValid()) {
+//				int nVertices = geometry.getNumPoints();
+//				if (geometry.getNumPoints() < 100)
+//					logger.warn("{} is not a valid geometry! Actual geometry {}", pathObject, geometry);
+//				else
+//					logger.warn("{} is not a valid geometry! Actual geometry {} ({} vertices)", pathObject, geometry.getGeometryType(), nVertices);
+//			}
+////			long endTime = System.currentTimeMillis();
+////			System.err.println("Testing " + (endTime - startTime) + " ms for " + geometry);
 		}
 		return geometry;
 	}
@@ -264,14 +266,33 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 	}
 	
 	boolean covers(PathObject possibleParent, PathObject possibleChild) {
-		var parent = getPreparedGeometry(getGeometry(possibleParent));
 		var child = getGeometry(possibleChild);
+		// If we have an annotation, do a quick check for a single coordinate outside
+		if (possibleParent.isAnnotation()) {
+			if (getLocator(possibleParent.getROI(), true).locate(child.getCoordinate()) == Location.EXTERIOR)
+				return false;
+		}
+		var parent = getGeometry(possibleParent);
+		return covers(parent, child);
+	}
+	
+	boolean covers(PreparedGeometry parent, Geometry child) {
 		return parent.covers(child);
 	}
 	
-	boolean covers(PreparedGeometry parent, PathObject possibleChild) {
-		var child = getGeometry(possibleChild);
-		return parent.covers(child);
+	boolean covers(Geometry parent, Geometry child) {
+//		if (!parent.getEnvelopeInternal().covers(child.getEnvelopeInternal()))
+//			return false;
+//		if (parent instanceof Polygon)
+//			return parent.covers(child);
+//		if (parent instanceof MultiPolygon) {
+//			for (int i = 0; i < parent.getNumGeometries(); i++) {
+//				if (covers(parent.getGeometryN(i), child))
+//					return true;
+//			}
+//			return false;
+//		}
+		return covers(getPreparedGeometry(parent), child);
 	}
 	
 	boolean containsCentroid(PathObject possibleParent, PathObject possibleChild) {

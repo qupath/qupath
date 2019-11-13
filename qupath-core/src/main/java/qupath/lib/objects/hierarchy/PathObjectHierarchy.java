@@ -417,8 +417,8 @@ public final class PathObjectHierarchy implements Serializable {
 				if (pathObject.isDetection())
 					addObject = tileCache.containsCentroid(possibleParent, pathObject);
 				else
-					addObject = tileCache.covers(possibleParent, pathObject) ||
-									pathObjectParent != null && possibleParent == pathObjectParent;
+					addObject = pathObjectParent != null && possibleParent == pathObjectParent ||
+								tileCache.covers(possibleParent, pathObject);
 			}
 			if (addObject) {
 				if (pathObject.getParent() == possibleParent)
@@ -694,7 +694,7 @@ public final class PathObjectHierarchy implements Serializable {
 			if (child.isDetection())
 				return tileCache.containsCentroid(locator, child);
 			else {
-				return tileCache.covers(preparedGeometry, child);
+				return tileCache.covers(preparedGeometry, tileCache.getGeometry(child));
 			}
 		}).collect(Collectors.toList());
 	}

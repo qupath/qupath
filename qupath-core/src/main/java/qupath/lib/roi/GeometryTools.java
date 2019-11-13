@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
@@ -20,6 +21,7 @@ import org.locationtech.jts.awt.ShapeReader;
 import org.locationtech.jts.awt.ShapeWriter;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -30,6 +32,7 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
@@ -52,8 +55,23 @@ import qupath.lib.roi.interfaces.ROI;
 public class GeometryTools {
 	
 	private static Logger logger = LoggerFactory.getLogger(GeometryTools.class);
+	
+	private final static GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
+			new PrecisionModel(100.0),
+			0,
+			PackedCoordinateSequenceFactory.FLOAT_FACTORY);
+
     
-    private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder().build();
+    private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder()
+    		.build();
+    
+    /**
+     * Get the default GeometryFactory to construct Geometries within QuPath.
+     * @return
+     */
+    public static GeometryFactory getDefaultFactory() {
+    	return DEFAULT_FACTORY;
+    }
     
     /**
      * Convert a java.awt.Shape to a JTS Geometry.
@@ -117,7 +135,7 @@ public class GeometryTools {
      * @param geometries
      * @return
      */
-    public static Geometry union(Collection<Geometry> geometries) {
+    public static Geometry union(Collection<? extends Geometry> geometries) {
     	if (geometries.isEmpty())
     		return DEFAULT_INSTANCE.factory.createPolygon();
     	if (geometries.size() == 1)
@@ -210,12 +228,11 @@ public class GeometryTools {
         
 
 	    private GeometryConverter(final GeometryFactory factory, final double pixelWidth, final double pixelHeight, final double flatness) {
-	        this.factory = factory == null ? new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE)) : factory;
 	    	if (factory == null) {
 	        	if (pixelWidth == 1 && pixelHeight == 1)
-	        		this.factory = new GeometryFactory(new PrecisionModel(100.0));
+	        		this.factory = DEFAULT_FACTORY;
 	        	else
-	        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE));
+	        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE), 0, PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 	    	} else
 	    		this.factory = factory;
 	        this.flatness = flatness;
@@ -335,7 +352,7 @@ public class GeometryTools {
 					areaCached += areaTempSigned;
 					areaTempSigned = 0;
 					points.clear();
-					points.add(new Coordinate(startX, startY));
+					points.add(new CoordinateXY(startX, startY));
 					closed = false;
 					continue;
 				case PathIterator.SEG_CLOSE:
@@ -349,13 +366,13 @@ public class GeometryTools {
 					// We only wand to add a point if the displacement is above a specified tolerance, 
 					// because JTS can be very sensitive to any hint of self-intersection - and does not always 
 					// like what the PathIterator provides
-					var next = new Coordinate(x1, y1);
+					var next = new CoordinateXY(x1, y1);
 					if (points.isEmpty() || points.get(points.size()-1).distance(next) > precision)
 						points.add(next, false);
 	//				double dx = x1 - points;
 	//				double dy = y1 - y0;
 	//				if (dx*dx + dy*dy > minDisplacement2)
-	//					points.add(new Coordinate(x1, y1));
+	//					points.add(new CoordinateXY(x1, y1));
 					else
 						logger.trace("Skipping nearby points");
 					closed = false;
@@ -397,23 +414,15 @@ public class GeometryTools {
 					totalCount++;
 					if (areaTempSigned < 0) {
 						areaNegative += areaTempSigned;
-//						negative.add(polygon);
 						for (int i = 0; i < polygon.getNumGeometries(); i++) {
 							Polygon p = (Polygon)polygon.getGeometryN(i);
 							negative.add(p);
-//							negative.add(factory.createPolygon(p.getExteriorRing().getCoordinateSequence()));
-//							for (int j = 0; j < p.getNumInteriorRing(); j++)
-//								positive.add(factory.createPolygon(p.getInteriorRingN(j).getCoordinateSequence()));
 						}
 					} else if (areaTempSigned > 0) {
 						areaPositive += areaTempSigned;
-//						positive.add(polygon);
 						for (int i = 0; i < polygon.getNumGeometries(); i++) {
 							Polygon p = (Polygon)polygon.getGeometryN(i);
 							positive.add(p);
-//							positive.add(factory.createPolygon(p.getExteriorRing().getCoordinateSequence()));
-//							for (int j = 0; j < p.getNumInteriorRing(); j++)
-//								negative.add(factory.createPolygon(p.getInteriorRingN(j).getCoordinateSequence()));
 						}
 					}
 					// Zero indicates the shape is empty...
@@ -458,39 +467,85 @@ public class GeometryTools {
 				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
 				// By doing this in order (largest first) we should find the 'correct' containing polygon.
+				
+				// Cache areas so we can use them for sorting without recalculating them every time
 				var areaMap = new HashMap<Geometry, Double>();
 				for (var g : outer)
 					areaMap.put(g, g.getArea());
 				for (var g : holes)
 					areaMap.put(g, g.getArea());
-				var comparator = Comparator.comparingDouble(g -> areaMap.get(g)).reversed();
-				outer.sort(comparator);
-				holes.sort(comparator);
+				
+				// For each hole, find the smallest polygon that contains it
+				var ascendingArea = Comparator.comparingDouble(g -> areaMap.get(g));
+				outer.sort(ascendingArea);
+				holes.sort(ascendingArea);
+				Map<Geometry, List<Geometry>> matches = new HashMap<>();
 				for (var tempHole : holes) {
 					double holeArea = areaMap.get(tempHole);
 					// We assume a single point inside is sufficient because polygons should be non-overlapping
 					var point = tempHole.getCoordinate();
 					var iterOuter = outer.iterator();
+					int count = 0;
 					while (iterOuter.hasNext()) {
 						var tempOuter = iterOuter.next();
 						if (holeArea > areaMap.get(tempOuter)) {
-							logger.warn("No polygons found containing hole!");
-							break;
+							continue;
 						}
 						if (SimplePointInAreaLocator.isContained(point, tempOuter)) {
-							iterOuter.remove();
-							var temp = tempOuter.difference(tempHole);
-							areaMap.put(temp, temp.getArea());
-							outer.add(temp);
-							outer.sort(comparator);
+							var list = matches.get(tempOuter);
+							if (list == null) {
+								list = new ArrayList<>();
+								matches.put(tempOuter, list);
+							}
+							list.add(tempHole);
 							break;
 						}
-						if (!iterOuter.hasNext())
-							logger.warn("No polygons found containing hole!");
 					}
 				}
-				geometry = union(outer);
+				
+				// Loop through the outer polygons and remove all their holes
+				List<Geometry> fixedGeometries = new ArrayList<>();
+				for (var tempOuter : outer) {
+					var list = matches.getOrDefault(tempOuter, null);
+					if (list == null || list.isEmpty()) {
+						fixedGeometries.add(tempOuter);
+					} else {
+						var mergedHoles = union(list);
+						fixedGeometries.add(tempOuter.difference(mergedHoles));
+					}
+				}
+				geometry = union(fixedGeometries);
 				geometryOuter = geometry;
+				
+				
+//				var comparator = Comparator.comparingDouble(g -> areaMap.get(g)).reversed();
+//				outer.sort(comparator);
+//				holes.sort(comparator);
+//				for (var tempHole : holes) {
+//					double holeArea = areaMap.get(tempHole);
+//					// We assume a single point inside is sufficient because polygons should be non-overlapping
+//					var point = tempHole.getCoordinate();
+//					var iterOuter = outer.iterator();
+//					while (iterOuter.hasNext()) {
+//						var tempOuter = iterOuter.next();
+//						if (holeArea > areaMap.get(tempOuter)) {
+//							logger.warn("No polygons found containing hole!");
+//							break;
+//						}
+//						if (SimplePointInAreaLocator.isContained(point, tempOuter)) {
+//							iterOuter.remove();
+//							var temp = tempOuter.difference(tempHole);
+//							areaMap.put(temp, temp.getArea());
+//							outer.add(temp);
+//							outer.sort(comparator);
+//							break;
+//						}
+//						if (!iterOuter.hasNext())
+//							logger.warn("No polygons found containing hole!");
+//					}
+//				}
+//				geometry = union(outer);
+//				geometryOuter = geometry;
 			}
 			
 			// Perform a sanity check using areas

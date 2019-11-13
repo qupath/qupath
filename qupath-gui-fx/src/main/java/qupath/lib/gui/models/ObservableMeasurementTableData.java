@@ -56,7 +56,6 @@ import javafx.collections.transformation.FilteredList;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.geom.Point2;
 import qupath.lib.gui.models.ObservableMeasurementTableData.ROICentroidMeasurementBuilder.CentroidType;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -266,11 +265,16 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				builderMap.put(builder.getName(), builder);
 				features.add(builder.getName());
 			}
-			if (anyPolygons) {
-				MeasurementBuilder<?> builder = new PolygonMaxLengthMeasurementBuilder(imageData);
-				builderMap.put(builder.getName(), builder);
-				features.add(builder.getName());
-			}
+//			if (anyPolygons) {
+//				MeasurementBuilder<?> builder = new MaxDiameterMeasurementBuilder(imageData);
+//				builderMap.put(builder.getName(), builder);
+//				features.add(builder.getName());
+//				
+//				builder = new MinDiameterMeasurementBuilder(imageData);
+//				builderMap.put(builder.getName(), builder);
+//				features.add(builder.getName());
+
+//			}
 		}
 		
 		if (containsAnnotations || containsTMACores || containsRoot) {
@@ -1407,15 +1411,15 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	
-	static class PolygonMaxLengthMeasurementBuilder extends RoiMeasurementBuilder {
+	static class MaxDiameterMeasurementBuilder extends RoiMeasurementBuilder {
 		
-		PolygonMaxLengthMeasurementBuilder(final ImageData<?> imageData) {
+		MaxDiameterMeasurementBuilder(final ImageData<?> imageData) {
 			super(imageData);
 		}
 		
 		@Override
 		public String getName() {
-			return hasPixelSizeMicrons() ? "Max length " + GeneralTools.micrometerSymbol() : "Max length px";
+			return hasPixelSizeMicrons() ? "Max diameter " + GeneralTools.micrometerSymbol() : "Max diameter px";
 		}
 		
 		@Override
@@ -1424,20 +1428,39 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				@Override
 				protected double computeValue() {
 					ROI roi = pathObject.getROI();
-					List<Point2> points = roi.getAllPoints();
-					double xScale = hasPixelSizeMicrons() ? pixelWidthMicrons() : 1;
-					double yScale = hasPixelSizeMicrons() ? pixelHeightMicrons() : 1;
-					double maxLengthSq = 0;
-					for (int i = 0; i < points.size(); i++) {
-						Point2 pi = points.get(i);
-						for (int j = i+1; j < points.size(); j++) {
-							Point2 pj = points.get(j);
-							double dx = (pi.getX() - pj.getX()) * xScale;
-							double dy = (pi.getY() - pj.getY()) * yScale;
-							maxLengthSq = Math.max(maxLengthSq, dx*dx + dy*dy);
-						}
-					}
-					return Math.sqrt(maxLengthSq);
+					if (hasPixelSizeMicrons())
+						return roi.getMaxDiameter();
+					else
+						return roi.getScaledMaxDiameter(pixelWidthMicrons(), pixelHeightMicrons());
+				}
+				
+			};
+		}
+		
+	}
+	
+	
+	static class MinDiameterMeasurementBuilder extends RoiMeasurementBuilder {
+		
+		MinDiameterMeasurementBuilder(final ImageData<?> imageData) {
+			super(imageData);
+		}
+		
+		@Override
+		public String getName() {
+			return hasPixelSizeMicrons() ? "Min diameter " + GeneralTools.micrometerSymbol() : "Min diameter px";
+		}
+		
+		@Override
+		public Binding<Number> createMeasurement(final PathObject pathObject) {
+			return new DoubleBinding() {
+				@Override
+				protected double computeValue() {
+					ROI roi = pathObject.getROI();
+					if (hasPixelSizeMicrons())
+						return roi.getMinDiameter();
+					else
+						return roi.getScaledMinDiameter(pixelWidthMicrons(), pixelHeightMicrons());
 				}
 				
 			};

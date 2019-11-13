@@ -418,9 +418,9 @@ public class PixelClassifierTools {
 				// Merge to a single Geometry
 				var collection = list.stream().map(g -> g.geometry).collect(Collectors.toList());
 //				long start = System.currentTimeMillis();
-				Geometry geometry = collection.get(0).getFactory().createGeometryCollection(collection.toArray(Geometry[]::new)).buffer(0);
+//				Geometry geometry = collection.get(0).getFactory().createGeometryCollection(collection.toArray(Geometry[]::new)).buffer(0);
 //				long middle = System.currentTimeMillis();
-//				Geometry geometry2 = GeometryTools.union(collection);
+				Geometry geometry = GeometryTools.union(collection);
 //				long end = System.currentTimeMillis();
 //				System.err.println("Buffer: " + (middle - start) + ", area = " + geometry.getArea());
 //				System.err.println("Union: " + (end - middle) + ", area = " + geometry2.getArea());

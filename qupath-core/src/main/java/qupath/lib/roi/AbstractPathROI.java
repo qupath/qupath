@@ -195,5 +195,24 @@ abstract class AbstractPathROI implements ROI {
 		return isArea() ? getArea() / getConvexHull().getArea() : Double.NaN;
 	}
 	
+	@Override
+	public double getMaxDiameter() {
+		return getScaledMaxDiameter(1, 1);		
+	}
+	
+	@Override
+	public double getMinDiameter() {
+		return getScaledMinDiameter(1, 1);
+	}
+	
+	@Override
+	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
+		return GeometryROI.computeGeometryStats(getGeometry(), pixelWidth, pixelHeight, false).getMaxDiameter();
+	}
+	
+	@Override
+	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
+		return GeometryROI.computeGeometryStats(getGeometry(), pixelWidth, pixelHeight, false).getMinDiameter();
+	}
 	
 }
