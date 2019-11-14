@@ -27,8 +27,10 @@ import java.awt.Shape;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
@@ -96,6 +98,7 @@ public class ShapeSimplifier {
 		
 		double maxArea = 0;
 		int minSize = Math.max(n / 100, 3);
+		Set<Point2> toRemove = new HashSet<>();
 		while (queue.size() > minSize) {
 			PointWithArea pwa = queue.poll();
 //			logger.info("BEFORE: " + pwa + " (counter " + counter + ")");
@@ -111,7 +114,8 @@ public class ShapeSimplifier {
 				maxArea = pwa.getArea();
 			
 			// Remove the point & update accordingly
-			points.remove(pwa.getPoint());
+//			points.remove(pwa.getPoint());
+			toRemove.add(pwa.getPoint());
 			
 			pwaPrevious = pwa.getPrevious();
 			PointWithArea pwaNext = pwa.getNext();
@@ -128,6 +132,7 @@ public class ShapeSimplifier {
 			
 //			logger.info(pwa);
 		}
+		points.removeAll(toRemove);
 	}
 	
 	
