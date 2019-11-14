@@ -26,12 +26,14 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
@@ -142,6 +144,42 @@ public class GeometryTools {
     		return geometries.iterator().next();
 //    	return DEFAULT_INSTANCE.factory.createGeometryCollection(geometries.toArray(Geometry[]::new)).buffer(0);
     	return UnaryUnionOp.union(geometries);
+    }
+    
+    
+    
+    public static Geometry homogenizeGeometryCollection(Geometry geometry) {
+    	if (geometry instanceof Polygonal || geometry instanceof Puntal || geometry instanceof Lineal) {
+    		return geometry;
+    	}
+    	boolean hasPolygons = false;
+    	boolean hasLines = false;
+    	boolean hasPoints = false;
+    	List<Geometry> collection = new ArrayList<>();
+    	for (int i = 0; i < geometry.getNumGeometries(); i++) {
+    		var geom = homogenizeGeometryCollection(geometry.getGeometryN(i));
+    		if (geom instanceof Polygonal) {
+    			if (!hasPolygons)
+    				collection.clear();
+   				collection.add(geom);
+    			hasPolygons = true;
+    		} else if (geom instanceof Lineal) {
+    			if (hasPolygons)
+    				continue;
+    			if (!hasLines)
+    				collection.clear();
+   				collection.add(geom);
+    			hasLines = true;
+    		} else if (geom instanceof Puntal) {
+    			if (hasPolygons || hasLines)
+    				continue;
+    			collection.add(geom);
+    			hasPoints = true;
+    		}
+    	}
+    	if (collection.size() == geometry.getNumGeometries())
+    		return geometry;
+    	return geometry.getFactory().buildGeometry(collection);
     }
     
     
@@ -619,6 +657,12 @@ public class GeometryTools {
 	    }
 	
 	    private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
+	    	// Make sure out Geometry is all of the same type
+	    	var geometry2 = homogenizeGeometryCollection(geometry);
+	    	if (geometry2 != geometry) {
+	    		logger.warn("Geometries must all be of the same type! Converted {} to {}.", geometry.getGeometryType(), geometry2.getGeometryType());
+	    		geometry = geometry2;
+	    	}
 	    	if (geometry instanceof Point) {
 	    		Coordinate coord = geometry.getCoordinate();
 	    		return ROIs.createPointsROI(coord.x, coord.y, plane);
