@@ -578,8 +578,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (actionLog != null)
 					actionLog.handle(null);
 				// Try to reclaim any memory we can
-				if (e instanceof OutOfMemoryError)
+				if (e instanceof OutOfMemoryError) {
 					getViewer().getImageRegionStore().clearCache(false, false);
+				}
 			}
 		});
 		
@@ -3820,6 +3821,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 	}
 	
+	/**
+	 * Get the UndoRedoManager, which can be useful if needing to clear it in cases where available memory is low.
+	 * @return
+	 */
+	public UndoRedoManager getUndoRedoManager() {
+		return undoRedoManager;
+	}
 	
 	public void setModeSwitchingEnabled(final boolean enabled) {
 		modeLocked.set(!enabled);
