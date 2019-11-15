@@ -16,6 +16,7 @@ import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
+import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +46,9 @@ public class DistanceTools {
 		var server = imageData.getServer();
 		var hierarchy = imageData.getHierarchy();
 		var annotations = hierarchy.getAnnotationObjects();
-		var detections = hierarchy.getDetectionObjects();
+		var detections = hierarchy.getCellObjects();
+		if (detections.isEmpty())
+			detections = hierarchy.getDetectionObjects();
 		
 		var pathClasses = annotations.stream()
 				.map(p -> p.getPathClass())
@@ -65,8 +68,45 @@ public class DistanceTools {
 			logger.debug("Computing distances for {}", pathClass);
 			var filteredAnnotations = annotations.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
 			if (!filteredAnnotations.isEmpty()) {
-				String name = "Distance to " + pathClass + " " + unit;
+				String name = "Distance to annotation " + pathClass + " " + unit;
 				centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, name);
+			}
+		}
+		hierarchy.fireObjectMeasurementsChangedEvent(DistanceTools.class, detections);
+	}
+	
+	/**
+	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list.
+	 * @param imageData
+	 */
+	public static void detectionToDetectionCentroidDistances(ImageData<?> imageData) {
+		var server = imageData.getServer();
+		var hierarchy = imageData.getHierarchy();
+		var detections = hierarchy.getCellObjects();
+		if (detections.isEmpty())
+			detections = hierarchy.getDetectionObjects();
+		
+		var pathClasses = detections.stream()
+				.map(p -> p.getPathClass())
+				.filter(p -> p != null && p.isValid() && !PathClassTools.isIgnoredClass(p))
+				.collect(Collectors.toSet());
+		
+		var cal = server.getPixelCalibration();
+		String xUnit = cal.getPixelWidthUnit();
+		String yUnit = cal.getPixelHeightUnit();
+		double pixelWidth = cal.getPixelWidth().doubleValue();
+		double pixelHeight = cal.getPixelHeight().doubleValue();
+		if (!xUnit.equals(yUnit))
+			throw new IllegalArgumentException("Pixel width & height units do not match! Width " + xUnit + ", height " + yUnit);
+		String unit = xUnit;
+		
+		for (PathClass pathClass : pathClasses) {
+			logger.debug("Computing distances for {}", pathClass);
+			var filteredDetections = detections.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
+			if (!filteredDetections.isEmpty()) {
+				String name = "Distance to detection " + pathClass + " " + unit;
+				centroidToCentroidDistance2D(detections, filteredDetections, pixelWidth, pixelHeight, name);
 			}
 		}
 		hierarchy.fireObjectMeasurementsChangedEvent(DistanceTools.class, detections);
@@ -84,6 +124,8 @@ public class DistanceTools {
 	 */
 	public static void centroidToBoundsDistance2D(Collection<PathObject> sourceObjects, Collection<PathObject> targetObjects, double pixelWidth, double pixelHeight, String measurementName) {		
 		
+		boolean preferNucleus = true;
+		
 		var timePoints = new TreeSet<Integer>();
 		var zSlices = new TreeSet<Integer>();
 		for (var temp : sourceObjects) {
@@ -91,10 +133,11 @@ public class DistanceTools {
 			zSlices.add(temp.getROI().getZ());
 		}
 		
-		var builder = new GeometryTools.GeometryConverter.Builder()
-				.pixelSize(pixelWidth, pixelHeight);
-		
-		var converter = builder.build();
+		var transform = pixelWidth == 1 && pixelHeight == 1 ? null : AffineTransformation.scaleInstance(pixelWidth, pixelHeight);
+//		var builder = new GeometryTools.GeometryConverter.Builder()
+//				.pixelSize(pixelWidth, pixelHeight);
+////		
+//		var converter = builder.build();
 
 		for (int t : timePoints) {
 			for (int z : zSlices) {
@@ -105,13 +148,29 @@ public class DistanceTools {
 				for (var annotation : targetObjects) {
 					var roi = annotation.getROI();
 					if (roi != null && roi.getZ() == z && roi.getT() == t) {
-						var geom = converter.roiToGeometry(annotation.getROI());
+						var geom = annotation.getROI().getGeometry();
+						if (transform != null)
+							geom = transform.transform(geom);
+//						var geom = converter.roiToGeometry(annotation.getROI());
 						if (geom instanceof Puntal)
 							pointGeometries.add(geom);
 						else if (geom instanceof Lineal)
 							lineGeometries.add(geom);
 						else if (geom instanceof Polygonal)
 							areaGeometries.add(geom);
+						else {
+							for (int i = 0; i < geom.getNumGeometries(); i++) {
+								var geom2 = geom.getGeometryN(i);
+								if (geom2 instanceof Puntal)
+									pointGeometries.add(geom2);
+								else if (geom2 instanceof Lineal)
+									lineGeometries.add(geom2);
+								else if (geom2 instanceof Polygonal)
+									areaGeometries.add(geom2);
+								else
+									logger.warn("Unexpected nested Geometry collection, some Geometries may be ignored");
+							}
+						}
 					}
 				}
 		
@@ -142,7 +201,7 @@ public class DistanceTools {
 				
 				var locator = shapeGeometry == null ? null : new IndexedPointInAreaLocator(shapeGeometry);
 				sourceObjects.parallelStream().forEach(p -> {
-					var roi = PathObjectTools.getROI(p, true);
+					var roi = PathObjectTools.getROI(p, preferNucleus);
 					if (roi.getZ() != zi || roi.getT() != ti)
 						return;
 					Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
@@ -159,6 +218,26 @@ public class DistanceTools {
 			}
 		}
 	}
+	
+	
+	/**
+	 * Calculate the distance between source object centroids and the centroid of specified target objects, adding the result to the measurement list of the source objects.
+	 * Calculations are all made in 2D; distances will not be calculated between objects occurring on different z-planes of at different timepoints.
+	 * 
+	 * @param sourceObjects source objects; measurements will be added based on centroid distances
+	 * @param targetObjects target objects; no measurements will be added
+	 * @param pixelWidth pixel width to use in Geometry conversion (use 1 for pixel units)
+	 * @param pixelHeight pixel height to use in Geometry conversion (use 1 for pixel units)
+	 * @param measurementName the name of the measurement to add to the measurement list
+	 */
+	public static void centroidToCentroidDistance2D(Collection<PathObject> sourceObjects, Collection<PathObject> targetObjects, double pixelWidth, double pixelHeight, String measurementName) {
+		boolean preferNucleus = true;
+		var targetPoints = PathObjectTools.convertToPoints(targetObjects, preferNucleus);
+		centroidToBoundsDistance2D(sourceObjects, targetPoints, pixelWidth, pixelHeight, measurementName);
+	}
+		
+
+	
 	
 	/**
 	 * Compute the shortest distance from a coordinate to one of a collection of target coordinates.

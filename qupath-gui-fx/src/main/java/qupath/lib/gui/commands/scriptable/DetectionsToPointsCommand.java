@@ -23,24 +23,18 @@
 
 package qupath.lib.gui.commands.scriptable;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map.Entry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.ROIs;
 
 /**
  * Command to convert detection objects into Point objects, where each point 
@@ -52,6 +46,8 @@ import qupath.lib.roi.ROIs;
  *
  */
 public class DetectionsToPointsCommand implements PathCommand {
+	
+	private final static Logger logger = LoggerFactory.getLogger(DetectionsToPointsCommand.class);
 	
 	private ImageDataWrapper<?> manager;
 	
@@ -79,56 +75,22 @@ public class DetectionsToPointsCommand implements PathCommand {
 				iter.remove();
 		}
 		
-		// If there is more than one object, seek assurance this is really wanted
-		if (pathObjects.size() > 1) {
-			if (!Dialogs.showYesNoDialog("Detections to points", String.format("Convert %d detections to points?\nThis cannot be undone.", pathObjects.size())))
-				return;
+		if (pathObjects.isEmpty()) {
+			logger.warn("No detections found with ROIs!");
+			return;
 		}
 		
-		// Create Points lists for each class
-		HashMap<PathClass, List<Point2>> pointsMap = new HashMap<>();
-		for (PathObject pathObject : pathObjects) {
-			PathClass pathClass = pathObject.getPathClass();
-			
-			List<Point2> points = pointsMap.get(pathClass);
-			if (points == null) {
-				points = new ArrayList<>();
-				pointsMap.put(pathClass, points);
-			}
-			points.add(new Point2(pathObject.getROI().getCentroidX(), pathObject.getROI().getCentroidY()));
-		}
+		// Check if existing objects should be deleted
+		String message = pathObjects.size() == 1 ? "Delete detection after converting to a point?" :
+			String.format("Delete %d detections after converting to points?", pathObjects.size());
+		var button = Dialogs.showYesNoCancelDialog("Detections to points", message);
+		if (button == Dialogs.DialogButton.CANCEL)
+			return;
+		boolean	deleteDetections = button == Dialogs.DialogButton.YES;
 		
+		boolean preferNucleus = true;
 		
-//		HashMap<PathClass, PointsROI> pointsMap = new HashMap<>();
-//		for (PathObject pathObject : pathObjects) {
-//			PathClass pathClass = pathObject.getPathClass();
-//			
-//			PointsROI points = pointsMap.get(pathClass);
-//			if (points == null) {
-//				points = new PointsROI();
-//				pointsMap.put(pathClass, points);
-//				PathObject pointObject = new PathAnnotationObject(points);
-//				pointObject.setPathClass(pathClass);
-//				hierarchy.addPathObject(pointObject, false);
-//			}
-//			points.addPoint(pathObject.getROI().getCentroidX(), pathObject.getROI().getCentroidY());
-//		}
-		
-		
-		// Remove the detection objects
-		hierarchy.removeObjects(pathObjects, true);
-		
-		// Create & add annotation objects to hierarchy
-		for (Entry<PathClass, List<Point2>> entry : pointsMap.entrySet()) {
-			PathObject pointObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(entry.getValue(), ImagePlane.getDefaultPlane()));
-			pointObject.setPathClass(entry.getKey());
-			hierarchy.addPathObject(pointObject);			
-		}
-		
-//		hierarchy.fireChangeEvent(hierarchy.getRootObject());
-//		viewer.repaint();
+		PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
 	}
-	
-	
 
 }

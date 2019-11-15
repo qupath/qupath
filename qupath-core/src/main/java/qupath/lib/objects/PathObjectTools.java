@@ -27,11 +27,13 @@ import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Map.Entry;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -44,6 +46,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
@@ -451,6 +454,64 @@ public class PathObjectTools {
 		}
 		return null;
 	}
+	
+	
+	/**
+	 * Convert a collection of PathObjects to Point annotations, based on ROI centroids, and add the points to the hierarchy.
+	 * 
+	 * @param hierarchy the object hierarchy containing the objects, and to which the points should be added
+	 * @param pathObjects input objects; these are expected to have ROIs
+	 * @param preferNucleus if true, request the nucleus ROI from cell objects where possible; if false, request the outer ROI. 
+	 * 					    This has no effect if the object is not a cell, or does not have two ROIs.
+	 * @param deleteObjects if true, delete the objects from the input collection after point conversion; if false, retain both original objects and points
+	 * 
+	 * @see #convertToPoints(Collection, boolean)
+	 */
+	public static void convertToPoints(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects, boolean preferNucleus, boolean deleteObjects) {
+		var points = convertToPoints(pathObjects, preferNucleus);
+		if (deleteObjects)
+			hierarchy.removeObjects(pathObjects, true);
+		hierarchy.addPathObjects(points);
+	}
+	
+	
+	/**
+	 * Convert a collection of PathObjects to Point annotations, based on ROI centroids.
+	 * Each output annotation contains all points corresponding to input objects with the same classification.
+	 * Consequently, the size of the output collection is equal to the number of distinct classifications 
+	 * found among the input objects.
+	 * 
+	 * @param pathObjects input objects; these are expected to have ROIs
+	 * @param preferNucleus if true, request the nucleus ROI from cell objects where possible; if false, request the outer ROI. 
+	 * 					    This has no effect if the object is not a cell, or does not have two ROIs.
+	 * @return a collection of annotations with point ROIs
+	 * 
+	 * @see #convertToPoints(PathObjectHierarchy, Collection, boolean, boolean)
+	 */
+	public static Collection<PathObject> convertToPoints(Collection<PathObject> pathObjects, boolean preferNucleus) {
+		// Create Points lists for each class
+		HashMap<PathClass, List<Point2>> pointsMap = new HashMap<>();
+		for (PathObject pathObject : pathObjects) {
+			PathClass pathClass = pathObject.getPathClass();
+			List<Point2> points = pointsMap.get(pathClass);
+			if (points == null) {
+				points = new ArrayList<>();
+				pointsMap.put(pathClass, points);
+			}
+			var roi = PathObjectTools.getROI(pathObject, preferNucleus);
+			points.add(new Point2(roi.getCentroidX(), roi.getCentroidY()));
+		}
+		
+		// Create & add annotation objects to hierarchy
+		List<PathObject> annotations = new ArrayList<>();
+		for (Entry<PathClass, List<Point2>> entry : pointsMap.entrySet()) {
+			PathObject pointObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(entry.getValue(), ImagePlane.getDefaultPlane()));
+			pointObject.setPathClass(entry.getKey());
+			annotations.add(pointObject);
+		}
+		return annotations;
+	}
+	
 	
 	/**
 	 * Check if a hierarchy contains a specified PathObject.
