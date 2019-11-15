@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -39,12 +40,14 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
@@ -187,6 +190,92 @@ public final class PathObjectHierarchy implements Serializable {
 			return;
 		this.tmaGrid = tmaGrid;
 		updateTMAHierarchy();
+	}
+	
+	/**
+	 * Comparator to use when looking for a parent annotation in the hierarchy.
+	 * The logic is:
+	 * <ol>
+	 *   <li>Sort by area (smallest first)</li>
+	 *   <li>Sort by hierarchy level (deepest first)</li>
+	 *   <li>Sort by {@link DefaultPathObjectComparator}</li>
+	 * </ol>
+	 * In practice, one expects an object to be placed inside the smallest containing annotation - 
+	 * identical areas are likely to be rare, unless obtained by duplication.
+	 */
+	public static final Comparator<PathObject> HIERARCHY_COMPARATOR = 
+			Comparator.comparingDouble((PathObject p) -> {
+				if (!p.hasROI())
+					return Double.POSITIVE_INFINITY;
+				else
+					return p.getROI().getArea();
+			})
+			.thenComparing(Comparator.comparingInt(PathObject::getLevel).reversed())
+			.thenComparing(DefaultPathObjectComparator.getInstance());
+
+	/**
+	 * Insert an object into the hierarchy. This differs from {@link #addPathObject(PathObject, boolean)} in that it will seek to 
+	 * place the object in an appropriate location relative to existing objects, using the logic of {@link #HIERARCHY_COMPARATOR}.
+	 * @param pathObject the object to add
+	 * @param fireChangeEvents if true, an event will be added after adding the object. Choose false if a single event should be added after making multiple changes.
+	 * @return true if the hierarchy changed as a result of this call, false otherwise
+	 */
+	public synchronized boolean insertPathObject(PathObject pathObject, boolean fireChangeEvents) {
+		return insertPathObject(getRootObject(), pathObject, fireChangeEvents);
+	}
+	
+	private synchronized boolean insertPathObject(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
+		// Get all the annotations that might be a parent of this object
+		var region = ImageRegion.createInstance(pathObject.getROI());
+		Collection<PathObject> tempSet = new HashSet<>();
+		tempSet.add(getRootObject());
+		tileCache.getObjectsForRegion(PathAnnotationObject.class, region, tempSet, true);
+		if (tmaGrid != null)
+			tileCache.getObjectsForRegion(TMACoreObject.class, region, tempSet, true);
+		
+		if (pathObjectParent != null) {
+			tempSet.removeIf(p -> p != pathObjectParent && !PathObjectTools.isAncestor(p, pathObjectParent));
+		}
+
+		var possibleParentObjects = new ArrayList<PathObject>(tempSet);
+		Collections.sort(possibleParentObjects, HIERARCHY_COMPARATOR);
+
+		for (PathObject possibleParent : possibleParentObjects) {
+			if (possibleParent == pathObject || possibleParent.isDetection())
+				continue;
+			
+			boolean addObject;
+			if (possibleParent.isRootObject()) {
+				// If we've reached the root, definitely add
+				addObject = true;
+			} else {
+				// If we're adding a detection, check centroid; otherwise check covers
+				if (pathObject.isDetection())
+					addObject = tileCache.containsCentroid(possibleParent, pathObject);
+				else
+					addObject = pathObjectParent != null && possibleParent == pathObjectParent ||
+								tileCache.covers(possibleParent, pathObject);
+			}
+			
+			if (addObject) {
+				// Don't add if we're already where we should be
+				if (pathObject.getParent() == possibleParent)
+					return false;
+				
+				// Reassign child objects if we need to
+				Collection<PathObject> previousChildren = pathObject.isDetection() ? Collections.emptyList() : new ArrayList<>(possibleParent.getChildObjects());
+				possibleParent.addPathObject(pathObject);
+				if (!previousChildren.isEmpty()) {
+					pathObject.addPathObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
+				}
+				
+				// Notify listeners of changes, if required
+				if (fireChangeEvents)
+					fireObjectAddedEvent(this, pathObject);
+				return true;
+			}
+		}
+		return true;
 	}
 	
 	/**

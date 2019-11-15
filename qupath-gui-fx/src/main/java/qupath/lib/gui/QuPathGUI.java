@@ -289,7 +289,6 @@ import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.GuiTools.SnapshotType;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -1984,11 +1983,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		
 		// Add annotation options
-		Menu menuCombine = createMenu(
+		Menu menuAnnotations = createMenu(
 				"Annotations",
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.ADD), "Merge selected annotations"),
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.SUBTRACT), "Subtract selected annotations"), // TODO: Make this less ambiguous!
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.INTERSECT), "Intersect selected annotations")
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.ADD), "Merge selected"),
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.INTERSECT), "Intersect selected"),
+				createCommandAction(new InverseObjectCommand(this), "Make inverse"),
+				createPluginAction("Split selected", SplitAnnotationsPlugin.class, null)
 				);
 		
 		// Handle awkward 'TMA core missing' option
@@ -2025,11 +2026,33 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuSetClass = createMenu("Set class");
 		
 		
+		MenuItem miInsertToHierarchy = new MenuItem("Insert in hierarchy");
+		miInsertToHierarchy.setOnAction(e -> {
+			var hierarchy = viewer.getHierarchy();
+			if (hierarchy == null)
+				return;
+			var selectedObjects =  new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+			if (selectedObjects.isEmpty())
+				return;
+			hierarchy.removeObjects(selectedObjects, true);
+			selectedObjects.sort(PathObjectHierarchy.HIERARCHY_COMPARATOR.reversed());
+			for (var pathObject : selectedObjects) {
+				hierarchy.insertPathObject(pathObject, true);
+//				hierarchy.insertPathObject(pathObject, selectedObjects.size() == 1);
+			}
+//			if (selectedObjects.size() > 1)
+//				hierarchy.fireHierarchyChangedEvent(this);
+		});
 		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
 		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
 		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), true));
 		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), false));
-		menuCombine.getItems().addAll(0, Arrays.asList(miLockAnnotations, miUnlockAnnotations, new SeparatorMenuItem()));
+		menuAnnotations.getItems().addAll(0, Arrays.asList(
+				miLockAnnotations,
+				miUnlockAnnotations,
+				new SeparatorMenuItem(),
+				miInsertToHierarchy,
+				new SeparatorMenuItem()));
 		
 //		CheckMenuItem miTMAValid = new CheckMenuItem("Set core valid");
 //		miTMAValid.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), false));
@@ -2070,6 +2093,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 			
 			// Check what to show for TMA cores or annotations
+			Collection<PathObject> selectedObjects = viewer.getAllSelectedObjects();
 			PathObject pathObject = viewer.getSelectedObject();
 			menuTMA.setVisible(false);
 			if (pathObject instanceof TMACoreObject) {
@@ -2096,9 +2120,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				}
 			}
 			
+			boolean hasAnnotations = pathObject instanceof PathAnnotationObject || (!selectedObjects.isEmpty() && selectedObjects.stream().allMatch(p -> p.isAnnotation()));
+			
 			updateSetAnnotationPathClassMenu(menuSetClass, viewer);
-			menuCombine.setVisible(pathObject instanceof PathAnnotationObject);
-			topSeparator.setVisible(pathObject instanceof PathAnnotationObject || pathObject instanceof TMACoreObject);
+			menuAnnotations.setVisible(hasAnnotations);
+			topSeparator.setVisible(hasAnnotations || pathObject instanceof TMACoreObject);
 			// Occasionally, the newly-visible top part of a popup menu can have the wrong size?
 			popup.setWidth(popup.getPrefWidth());
 		});
@@ -2109,7 +2135,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				miClearSelectedObjects,
 				menuTMA,
 				menuSetClass,
-				menuCombine,
+				menuAnnotations,
 				topSeparator,
 				menuMultiview,
 				menuCells,
