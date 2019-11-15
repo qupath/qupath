@@ -15,6 +15,6 @@ dependencies {
   implementation("ome:bioformats_package:${bioformatsVersion}") {
   	transitive = false
   }
-  testImplementation("ome:formats-gpl:${bioformatsVersion}")
-  testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")
+  testImplementation("ome:bioformats_package:${bioformatsVersion}")
+//  testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")
 }

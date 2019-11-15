@@ -165,6 +165,7 @@ public class QP {
 			PathClassifierTools.class,
 			ColorTools.class,
 			GeneralTools.class,
+			DistanceTools.class,
 //			ImageWriter.class,
 			ImageWriterTools.class,
 			PathClassTools.class,

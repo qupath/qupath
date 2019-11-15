@@ -115,7 +115,8 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	public long totalBytes() {
 		long total = 0L;
 		for (var manager : map.values()) {
-			total += manager.totalBytes();
+			if (manager != null)
+				total += manager.totalBytes();
 		}
 		return total;
 	}

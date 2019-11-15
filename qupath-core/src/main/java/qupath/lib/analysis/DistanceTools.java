@@ -26,7 +26,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
-import qupath.lib.roi.GeometryTools;
 
 /**
  * Static methods for calculating distances between objects.
