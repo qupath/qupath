@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Map.Entry;
@@ -490,7 +491,7 @@ public class PathObjectTools {
 	 */
 	public static Collection<PathObject> convertToPoints(Collection<PathObject> pathObjects, boolean preferNucleus) {
 		// Create Points lists for each class
-		HashMap<PathClass, List<Point2>> pointsMap = new HashMap<>();
+		Map<PathClass, List<Point2>> pointsMap = new HashMap<>();
 		for (PathObject pathObject : pathObjects) {
 			PathClass pathClass = pathObject.getPathClass();
 			List<Point2> points = pointsMap.get(pathClass);

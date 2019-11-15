@@ -584,7 +584,7 @@ public class IJExtension implements QuPathExtension {
 				);
 		
 		
-		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell analysis", true);
+		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell detection", true);
 		QuPathGUI.addMenuItems(
 				menuCellAnalysis,
 //				qupath.createPluginAction("Mean brown chromogen (legacy)", MeanBrownChromogenPlugin.class, null, false),

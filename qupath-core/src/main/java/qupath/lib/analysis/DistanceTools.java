@@ -79,7 +79,7 @@ public class DistanceTools {
 	 * the result to the detection measurement list.
 	 * @param imageData
 	 */
-	public static void detectionToDetectionCentroidDistances(ImageData<?> imageData) {
+	public static void detectionCentroidDistances(ImageData<?> imageData) {
 		var server = imageData.getServer();
 		var hierarchy = imageData.getHierarchy();
 		var detections = hierarchy.getCellObjects();

@@ -34,7 +34,6 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.DefaultMode;
-import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.DetectCytokeratinCV;
@@ -63,24 +62,24 @@ public class OpenCVExtension implements QuPathExtension {
 //				QuPathGUI.createCommandAction(new AlignCoreAnnotationsCV(qupath), "Align annotations within TMA core (TMA, experimental)")
 //				);
 		
-		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
+		Menu menuFeatures = qupath.getMenu("Analyze>Spatial analysis", true);
 		QuPathGUI.addMenuItems(
 				menuFeatures,
-				qupath.createPluginAction("Add Delaunay cluster features (experimental)", DelaunayClusteringPlugin.class, null)
+				qupath.createPluginAction("Delaunay cluster features 2D (experimental)", DelaunayClusteringPlugin.class, null)
 				);
 
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification", true);
 		QuPathGUI.addMenuItems(
 				menuRegions,
 //				QuPathGUI.createCommandAction(new TissueSegmentationCommand(qupath), "Tissue identification (OpenCV, experimental)"),
-				qupath.createPluginAction("Create cytokeratin annotations (TMA, experimental)", DetectCytokeratinCV.class, null)
+				qupath.createPluginAction("Create cytokeratin annotations (experimental)", DetectCytokeratinCV.class, null)
 				);
 
-		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell analysis", true);
+		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell detection", true);
 		QuPathGUI.addMenuItems(
 				menuCellAnalysis,
 				new SeparatorMenuItem(),
-				qupath.createPluginAction("Watershed nucleus detection (OpenCV, experimental)", WatershedNucleiCV.class, null),
+//				qupath.createPluginAction("Watershed nucleus detection (OpenCV, experimental)", WatershedNucleiCV.class, null),
 				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null)
 				);
 

@@ -10,21 +10,19 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 
 /**
- * New command to get the distance from cells to annotations.
- * <p>
- * Note that this is subject to change! This may be better as a plugin rather than command.
+ * Calculate the distances between detection centroids for each available classification.
  * 
  * @author Pete Bankhead
  *
- * @see DetectionCentroidDistancesCommand
+ * @see DistanceToAnnotationsCommand
  */
-public class DistanceToAnnotationsCommand implements PathCommand {
+public class DetectionCentroidDistancesCommand implements PathCommand {
 	
-	private final static Logger logger = LoggerFactory.getLogger(DistanceToAnnotationsCommand.class);
+	private final static Logger logger = LoggerFactory.getLogger(DetectionCentroidDistancesCommand.class);
 	
 	private QuPathGUI qupath;
 	
-	public DistanceToAnnotationsCommand(QuPathGUI qupath) {
+	public DetectionCentroidDistancesCommand(QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
 
@@ -37,17 +35,17 @@ public class DistanceToAnnotationsCommand implements PathCommand {
 		
 		if (imageData.getServer().nZSlices() > 1) {
 			logger.debug("Warning user that measurements will be 2D...");
-			if (!Dialogs.showConfirmDialog("Distance to annotations 2D", 
-					"Distance to annotations command works only in 2D - distances will not be calculated for objects on different z-slices or time-points")) {
+			if (!Dialogs.showConfirmDialog("Detection centroid distances 2D", 
+					"Detection centroid distances command works only in 2D - distances will not be calculated for objects on different z-slices or time-points")) {
 				logger.debug("Command cancelled");
 				return;
 			}
 		}
 		
-		DistanceTools.detectionToAnnotationDistances(imageData);
+		DistanceTools.detectionCentroidDistances(imageData);
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
-				"Distance to annotations 2D",
-				"detectionToAnnotationDistances()"));
+				"Detection centroid distances 2D",
+				"detectionCentroidDistances()"));
 	}
 	
 }

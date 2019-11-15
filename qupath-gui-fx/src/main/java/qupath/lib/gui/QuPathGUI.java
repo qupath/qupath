@@ -190,6 +190,7 @@ import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.CopyViewToClipboardCommand;
 import qupath.lib.gui.commands.CountingPanelCommand;
+import qupath.lib.gui.commands.DetectionCentroidDistancesCommand;
 import qupath.lib.gui.commands.DistanceToAnnotationsCommand;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.LoadClassifierCommand;
@@ -3287,18 +3288,24 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								)
 						),
 				createMenu(
+						"Cell detection"
+						),
+				createMenu(
 						"Calculate features",
 //						new PathPluginAction("Create tiles", TilerPlugin.class, this),
-						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, null),
-						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, null),
-//						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
-						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, null),
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, null),
 						createPluginAction("Add Shape features (experimental)", ShapeFeaturesPlugin.class, this, null),
-						null,
-						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null),
-						null,
-						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations 2D (experimental)")
+						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, null)
+//						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, null),
+//						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
+//						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, null),
+//						null,
+//						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null)
+						),
+				createMenu(
+						"Spatial analysis",
+						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations 2D (experimental)"),
+						createCommandAction(new DetectionCentroidDistancesCommand(this), "Detection centroid distances 2D (experimental)")
 						)
 				);
 

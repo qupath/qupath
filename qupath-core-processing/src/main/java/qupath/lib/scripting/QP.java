@@ -1862,6 +1862,23 @@ public class QP {
 	
 	
 	/**
+	 * Compute the distance for all detection object centroids to the closest detection with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list.
+	 * @param imageData
+	 */
+	public static void detectionCentroidDistances(ImageData<?> imageData) {
+		DistanceTools.detectionCentroidDistances(imageData);
+	}
+	
+	/**
+	 * Compute the distance for all detection object centroids to the closest detection with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list for the current ImageData.
+	 */
+	public static void detectionCentroidDistances() {
+		DistanceTools.detectionCentroidDistances(getCurrentImageData());
+	}
+	
+	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list.
 	 * @param imageData
