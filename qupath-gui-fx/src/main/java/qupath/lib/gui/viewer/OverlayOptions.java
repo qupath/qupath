@@ -23,11 +23,15 @@
 
 package qupath.lib.gui.viewer;
 
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.FloatProperty;
+import javafx.beans.property.LongProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyLongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleFloatProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableSet;
@@ -63,6 +67,7 @@ public class OverlayOptions {
 
 	private FloatProperty opacity = new SimpleFloatProperty(1.0f);
 	
+	private LongProperty timestamp = new SimpleLongProperty(System.currentTimeMillis());
 	
 //    public void addPropertyChangeListener(PropertyChangeListener listener) {
 //        this.pcs.addPropertyChangeListener(listener);
@@ -72,6 +77,34 @@ public class OverlayOptions {
 //        this.pcs.removePropertyChangeListener(listener);
 //    }
     
+	public OverlayOptions() {
+		InvalidationListener timestamper = (var e) -> updateTimestamp();
+		showAnnotations.addListener(timestamper);
+		showTMAGrid.addListener(timestamper);
+		showPixelClassification.addListener(timestamper);
+		showDetections.addListener(timestamper);
+		showConnections.addListener(timestamper);
+		fillDetections.addListener(timestamper);
+		fillAnnotations.addListener(timestamper);
+		showTMACoreLabels.addListener(timestamper);
+		showGrid.addListener(timestamper);
+		gridLines.addListener(timestamper);
+		hiddenClasses.addListener(timestamper);
+		cellDisplayMode.addListener(timestamper);
+		opacity.addListener(timestamper);
+	}
+	
+	private void updateTimestamp() {
+		this.timestamp.set(System.currentTimeMillis());
+	}
+	
+	/**
+	 * Get a property representing the timestamp of the last recorded change for any property.
+	 * @return
+	 */
+	public ReadOnlyLongProperty lastChangeTimestamp() {
+		return timestamp;
+	}
     
     public void setOpacity(float opacity) {
     	opacity = opacity < 0 ? 0 : (opacity > 1 ? 1 : opacity);

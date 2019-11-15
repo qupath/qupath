@@ -29,13 +29,16 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -65,7 +68,7 @@ import qupath.lib.regions.RegionRequest;
 /**
  * An overlay capable of painting a PathObjectHierarchy, *except* for any 
  * TMA grid (which is handled by TMAGridOverlay).
- * 
+ * <p>
  * TODO: Reconsider separation of hierarchy-drawing overlays whenever a more complete 
  * 'layer' system is in place.
  * 
@@ -80,6 +83,11 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 
 	private DefaultImageRegionStore regionStore = null;
 	private boolean smallImage = false; // If the image is small enough, objects should be drawn directly
+	
+	private Collection<PathObject> selectedObjects = new LinkedHashSet<>();
+	private long overlayOptionsTimestamp;
+	private ImageRegion lastRegion;
+	private BufferedImage buffer;
 	
 	transient private DetectionComparator comparator = new DetectionComparator();
 
@@ -129,10 +137,18 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		
 		if (isInvisible() && hierarchy.getSelectionModel().noSelection())
 			return;
-
-		Rectangle serverBounds = AwtTools.getBounds(imageRegion);
+		
+		OverlayOptions overlayOptions = getOverlayOptions();
+		long timestamp = overlayOptions.lastChangeTimestamp().get();
+		if (overlayOptionsTimestamp != timestamp) {
+			buffer = null;
+			overlayOptionsTimestamp = timestamp;
+		}
+		
 		int t = imageRegion.getT();
 		int z = imageRegion.getZ();
+		
+		Rectangle serverBounds = AwtTools.getBounds(imageRegion);
 		
 		// Ensure antialias is on...?
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -142,97 +158,134 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		Shape shapeRegion = g2d.getClip();
 		if (shapeRegion == null)
 			shapeRegion = AwtTools.getBounds(imageRegion);
-		Rectangle boundsDisplayed = shapeRegion.getBounds();
+		var boundsDisplayed = shapeRegion.getBounds();
+		
 		// Ensure the bounds do not extend beyond what the server actually contains
-		//			if (boundsDisplayed.getMinX() < serverBounds.getMinX() || boundsDisplayed.getMaxX() > serverBounds.getMaxX() || boundsDisplayed.getMinY() < serverBounds.getMinY() || boundsDisplayed.getMaxY() > serverBounds.getMaxY())
 		boundsDisplayed = boundsDisplayed.intersection(serverBounds);
 		if (boundsDisplayed.width <= 0 || boundsDisplayed.height <= 0)
 			return;
-		ImageRegion region = AwtTools.getImageRegion(boundsDisplayed, z, t);
-		//		System.out.println("Displayed clip: " + clip);
 
-		// Paint detection objects
-		long startTime = System.currentTimeMillis();
-
-		// TODO: Cache detections on an overlay image for faster repainting e.g. when drawing ROIs
-		OverlayOptions overlayOptions = getOverlayOptions();
-		if (overlayOptions.getShowDetections() && !hierarchy.isEmpty()) {
-
-			// If we aren't downsampling by much, or we're upsampling, paint directly - making sure to paint the right number of times, and in the right order
-			if (smallImage || overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
-				Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);
-				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
-				
-				if (overlayOptions.getShowConnections()) {
-					Object connections = getImageData().getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
-					if (connections instanceof PathObjectConnections)
-							PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)connections, hierarchy, g2d, getImageData().isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
-				}
-				
-			} else {					
-				// If the image hasn't been updated, then we are viewing the stationary image - we want to wait for a full repaint then to avoid flickering;
-				// On the other hand, if a large image has been updated then we may be browsing quickly - better to repaint quickly while tiles may still be loading
-				if (paintCompletely) {
-////											System.out.println("Painting completely");
-					regionStore.paintRegionCompletely(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, observer, null, 5000);
-				}
-				else {
-////											System.out.println("Painting PROGRESSIVELY");
-					regionStore.paintRegion(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, null, observer, null);
-				}
-			}
-		}
-
-		long endTime = System.currentTimeMillis();
-		if (endTime - startTime > 500)
-			logger.debug(String.format("Painting time: %.4f seconds", (endTime-startTime)/1000.));
-		
-		// Paint the annotations
-		Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
-
+		// Get the annotations & selected objects (which must be painted directly)
 		Collection<PathObject> selectedObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		selectedObjects.removeIf(p -> !p.hasROI() || (p.getROI().getZ() != z || p.getROI().getT() != t));
-		
-		pathObjects.removeAll(selectedObjects);
 
-		List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
-		Collections.sort(pathObjectList, (p1, p2) -> {
-			return Integer.compare(p1.getLevel(), p2.getLevel());
-		});
+		ImageRegion region = AwtTools.getImageRegion(boundsDisplayed, z, t);
 		
+		ImageRegion clipRegion = AwtTools.getImageRegion(g2d.getClipBounds(), z, t);
+
+		if (buffer == null || !Objects.equals(clipRegion, lastRegion)) {
+			
+			lastRegion = clipRegion;
+			
+			// Get the clip without any transform
+			var g = (Graphics2D)g2d.create();
+			g.setTransform(new AffineTransform());
+			var rawClip = g.getClipBounds();
+			g.dispose();
+			if (buffer == null || buffer.getWidth() != rawClip.getWidth() || buffer.getHeight() != rawClip.getHeight()) {
+				buffer = new BufferedImage(rawClip.width, rawClip.height, BufferedImage.TYPE_INT_ARGB);
+				g = buffer.createGraphics();
+			} else {
+				g = buffer.createGraphics();
+				g.setComposite(AlphaComposite.getInstance(AlphaComposite.CLEAR));
+				g.fillRect(0, 0, buffer.getWidth(), buffer.getHeight());
+				g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+			}
+			g.setTransform(g2d.getTransform());
+			
+			//		System.out.println("Displayed clip: " + clip);
+	
+			// Paint detection objects
+			long startTime = System.currentTimeMillis();
+	
+			if (overlayOptions.getShowDetections() && !hierarchy.isEmpty()) {
+	
+				// If we aren't downsampling by much, or we're upsampling, paint directly - making sure to paint the right number of times, and in the right order
+				if (smallImage || overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
+					Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);
+					Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
+					g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+					PathHierarchyPaintingHelper.paintSpecifiedObjects(g, boundsDisplayed, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+					
+					if (overlayOptions.getShowConnections()) {
+						Object connections = getImageData().getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+						if (connections instanceof PathObjectConnections)
+								PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)connections, hierarchy, g, getImageData().isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
+					}
+					
+				} else {					
+					// If the image hasn't been updated, then we are viewing the stationary image - we want to wait for a full repaint then to avoid flickering;
+					// On the other hand, if a large image has been updated then we may be browsing quickly - better to repaint quickly while tiles may still be loading
+					if (paintCompletely) {
+	////											System.out.println("Painting completely");
+						regionStore.paintRegionCompletely(overlayServer, g, shapeRegion, z, t, downsampleFactor, observer, null, 5000);
+					}
+					else {
+	////											System.out.println("Painting PROGRESSIVELY");
+						regionStore.paintRegion(overlayServer, g, shapeRegion, z, t, downsampleFactor, null, observer, null);
+					}
+				}
+			}
+	
+			long endTime = System.currentTimeMillis();
+			if (endTime - startTime > 500)
+				logger.debug(String.format("Painting time: %.4f seconds", (endTime-startTime)/1000.));
+			
+			// Paint the annotations
+			Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
+			pathObjects.removeAll(selectedObjects);
+	
+			List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
+			Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
+					.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
+			
+			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			// The setting below stops some weird 'jiggling' effects during zooming in/out, or poor rendering of shape ROIs
+			g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+			
+			PathHierarchyPaintingHelper.paintSpecifiedObjects(g, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);		
+		}
+		
+		if (buffer != null)
+//			g2d.drawImage(buffer, clipRegion.x, clipRegion.y, clipRegion.width, clipRegion.height, null);
+			g2d.drawImage(buffer, clipRegion.getX(), clipRegion.getY(), clipRegion.getWidth(), clipRegion.getHeight(), null);
+
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		// The setting below stops some weird 'jiggling' effects during zooming in/out, or poor rendering of shape ROIs
 		g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+
 		// Ensure that selected objects are painted last, to make sure they aren't obscured
-		List<PathObject> selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-		if (!selected.isEmpty()) {
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);
+		if (!selectedObjects.isEmpty()) {
 			Composite previousComposite = g2d.getComposite();
 			float opacity = overlayOptions.getOpacity();
 			if (opacity < 1) {
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selected, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				g2d.setComposite(previousComposite);
 			} else {
-				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selected, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
+				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
 			}			
-		} else
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);
+		}
 	}
 
 
+	public void resetBuffer() {
+		lastRegion = null;
+		buffer = null;		
+	}
 	
 	public void clearCachedOverlay() {
 		if (regionStore != null && overlayServer != null)
 			regionStore.clearCacheForServer(overlayServer);
+		resetBuffer();
 	}
 	
 	
 	public void clearCachedOverlayForRegion(ImageRegion request) {
+		lastRegion = null;
+		buffer = null;
 		if (regionStore != null && overlayServer != null)
 			regionStore.clearCacheForRequestOverlap(RegionRequest.createInstance(overlayServer.getPath(), 1, request));
+		resetBuffer();
 	}
 	
 	

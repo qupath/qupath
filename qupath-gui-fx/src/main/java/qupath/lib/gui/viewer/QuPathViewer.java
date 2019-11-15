@@ -2633,24 +2633,25 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private void handleHierarchyChange(final PathObjectHierarchyEvent event) {
 		if (event != null)
 			logger.trace(event.toString());
-		// Clear any cached regions of the overlay, if necessary
-		// TODO: Make this update a bit less conservative - it isn't really needed if we don't modify detections?
-		if (event == null || event.isStructureChangeEvent())
-			hierarchyOverlay.clearCachedOverlay();
-		else {
-			List<PathObject> pathObjects = event.getChangedObjects();
-			List<PathObject> pathDetectionObjects = PathObjectTools.getObjectsOfClass(pathObjects, PathDetectionObject.class);
-			if (pathDetectionObjects.size() <= 50) {
-				// TODO: PUT THIS LISTENER INTO THE HIERARCHY OVERLAY ITSELF?  But then the order of events is uncertain... hierarchy would need to be able to call repaint as well
-				// (or possibly post an event?)
-				for (PathObject temp : pathDetectionObjects) {
-					if (temp.hasROI())
-						hierarchyOverlay.clearCachedOverlayForRegion(ImageRegion.createInstance(temp.getROI()));
-				}
-			} else {
-				hierarchyOverlay.clearCachedOverlay();
-			}
-		}
+//		// Clear any cached regions of the overlay, if necessary
+//		// TODO: Make this update a bit less conservative - it isn't really needed if we don't modify detections?
+//		if (event == null || event.isStructureChangeEvent())
+//			hierarchyOverlay.clearCachedOverlay();
+//		else {
+//			List<PathObject> pathObjects = event.getChangedObjects();
+//			List<PathObject> pathDetectionObjects = PathObjectTools.getObjectsOfClass(pathObjects, PathDetectionObject.class);
+//			if (pathDetectionObjects.size() <= 50) {
+//				// TODO: PUT THIS LISTENER INTO THE HIERARCHY OVERLAY ITSELF?  But then the order of events is uncertain... hierarchy would need to be able to call repaint as well
+//				// (or possibly post an event?)
+//				for (PathObject temp : pathDetectionObjects) {
+//					if (temp.hasROI())
+//						hierarchyOverlay.clearCachedOverlayForRegion(ImageRegion.createInstance(temp.getROI()));
+//				}
+//			} else {
+//				hierarchyOverlay.clearCachedOverlay();
+//			}
+//		}
+		hierarchyOverlay.clearCachedOverlay();
 
 		// Just in case, make sure the handles are updated in any ROIEditor
 		if (event != null && !event.isChanging())
@@ -2687,6 +2688,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			listener.selectedObjectChanged(this, pathObjectSelected);
 		}
 
+		hierarchyOverlay.resetBuffer();
 		logger.trace("Selected path object changed from {} to {}", previousObject, pathObjectSelected);
 
 		repaint();
