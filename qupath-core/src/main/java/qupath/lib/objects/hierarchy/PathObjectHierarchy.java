@@ -224,6 +224,28 @@ public final class PathObjectHierarchy implements Serializable {
 		return insertPathObject(getRootObject(), pathObject, fireChangeEvents);
 	}
 	
+	/**
+	 * Insert a collection of objects into the hierarchy, firing a change event on completion.
+	 * This differs from {@link #addPathObjects(Collection)} in that it will seek to 
+	 * place the object in an appropriate location relative to existing objects, using the logic of {@link #HIERARCHY_COMPARATOR}.
+	 * @param pathObjects the objects to add
+	 * @return true if the hierarchy changed as a result of this call, false otherwise
+	 */
+	public synchronized boolean insertPathObjects(Collection<PathObject> pathObjects) {
+		var selectedObjects =  new ArrayList<>(pathObjects);
+		if (selectedObjects.isEmpty())
+			return false;
+		removeObjects(selectedObjects, true);
+		selectedObjects.sort(PathObjectHierarchy.HIERARCHY_COMPARATOR.reversed());
+		for (var pathObject : selectedObjects) {
+//			hierarchy.insertPathObject(pathObject, true);
+			insertPathObject(pathObject, selectedObjects.size() == 1);
+		}
+		if (selectedObjects.size() > 1)
+			fireHierarchyChangedEvent(this);
+		return true;
+	}
+	
 	private synchronized boolean insertPathObject(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
 		// Get all the annotations that might be a parent of this object
 		var region = ImageRegion.createInstance(pathObject.getROI());
@@ -272,6 +294,8 @@ public final class PathObjectHierarchy implements Serializable {
 				// Notify listeners of changes, if required
 				if (fireChangeEvents)
 					fireObjectAddedEvent(this, pathObject);
+				else
+					tileCache.resetCache();
 				return true;
 			}
 		}

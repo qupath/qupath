@@ -215,6 +215,7 @@ import qupath.lib.gui.commands.RigidObjectEditorCommand;
 import qupath.lib.gui.commands.RotateImageCommand;
 import qupath.lib.gui.commands.SampleScriptLoader;
 import qupath.lib.gui.commands.ExportImageRegionCommand;
+import qupath.lib.gui.commands.HierarchyInsertCommand;
 import qupath.lib.gui.commands.SaveViewCommand;
 import qupath.lib.gui.commands.ScriptInterpreterCommand;
 import qupath.lib.gui.commands.SerializeImageDataCommand;
@@ -2026,23 +2027,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuSetClass = createMenu("Set class");
 		
 		
-		MenuItem miInsertToHierarchy = new MenuItem("Insert in hierarchy");
-		miInsertToHierarchy.setOnAction(e -> {
-			var hierarchy = viewer.getHierarchy();
-			if (hierarchy == null)
-				return;
-			var selectedObjects =  new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-			if (selectedObjects.isEmpty())
-				return;
-			hierarchy.removeObjects(selectedObjects, true);
-			selectedObjects.sort(PathObjectHierarchy.HIERARCHY_COMPARATOR.reversed());
-			for (var pathObject : selectedObjects) {
-//				hierarchy.insertPathObject(pathObject, true);
-				hierarchy.insertPathObject(pathObject, selectedObjects.size() == 1);
-			}
-			if (selectedObjects.size() > 1)
-				hierarchy.fireHierarchyChangedEvent(this);
-		});
+		Action actionInsert = createCommandAction(new HierarchyInsertCommand(this), "Insert in hierarchy");
 		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
 		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
 		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), true));
@@ -2051,7 +2036,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				miLockAnnotations,
 				miUnlockAnnotations,
 				new SeparatorMenuItem(),
-				miInsertToHierarchy,
+				ActionUtils.createMenuItem(actionInsert),
 				new SeparatorMenuItem()));
 		
 //		CheckMenuItem miTMAValid = new CheckMenuItem("Set core valid");
@@ -3206,10 +3191,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						"Select...",
 						createCommandAction(new ResetSelectionCommand(this), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
 						null,
-						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores"),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations"),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select detections"),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells"),
+						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						null,
 						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select by measurements (experimental)")
 						),
@@ -3217,6 +3202,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createMenu("Annotations...",
 					getActionMenuItem(GUIActions.SPECIFY_ANNOTATION),
 					getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
+					null,					
+					createCommandAction(new HierarchyInsertCommand(this), "Insert into hierarchy", null, new KeyCodeCombination(KeyCode.I, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
 					null,					
 					getActionMenuItem(GUIActions.RIGID_OBJECT_EDITOR),
 					getActionMenuItem(GUIActions.ANNOTATION_DUPLICATE),
@@ -3663,7 +3650,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.WAND) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case SELECTION_MODE:
-			return createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, null);
+			return createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
 		case SHOW_GRID:
 			return createSelectableCommandAction(overlayOptions.showGridProperty(), "Show grid", PathIconFactory.PathIcons.GRID, new KeyCodeCombination(KeyCode.G, KeyCombination.SHIFT_DOWN));
 		case SHOW_LOCATION:
