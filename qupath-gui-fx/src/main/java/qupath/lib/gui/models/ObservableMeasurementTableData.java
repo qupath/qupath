@@ -1411,62 +1411,62 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	
-	static class MaxDiameterMeasurementBuilder extends RoiMeasurementBuilder {
-		
-		MaxDiameterMeasurementBuilder(final ImageData<?> imageData) {
-			super(imageData);
-		}
-		
-		@Override
-		public String getName() {
-			return hasPixelSizeMicrons() ? "Max diameter " + GeneralTools.micrometerSymbol() : "Max diameter px";
-		}
-		
-		@Override
-		public Binding<Number> createMeasurement(final PathObject pathObject) {
-			return new DoubleBinding() {
-				@Override
-				protected double computeValue() {
-					ROI roi = pathObject.getROI();
-					if (hasPixelSizeMicrons())
-						return roi.getMaxDiameter();
-					else
-						return roi.getScaledMaxDiameter(pixelWidthMicrons(), pixelHeightMicrons());
-				}
-				
-			};
-		}
-		
-	}
-	
-	
-	static class MinDiameterMeasurementBuilder extends RoiMeasurementBuilder {
-		
-		MinDiameterMeasurementBuilder(final ImageData<?> imageData) {
-			super(imageData);
-		}
-		
-		@Override
-		public String getName() {
-			return hasPixelSizeMicrons() ? "Min diameter " + GeneralTools.micrometerSymbol() : "Min diameter px";
-		}
-		
-		@Override
-		public Binding<Number> createMeasurement(final PathObject pathObject) {
-			return new DoubleBinding() {
-				@Override
-				protected double computeValue() {
-					ROI roi = pathObject.getROI();
-					if (hasPixelSizeMicrons())
-						return roi.getMinDiameter();
-					else
-						return roi.getScaledMinDiameter(pixelWidthMicrons(), pixelHeightMicrons());
-				}
-				
-			};
-		}
-		
-	}
+//	static class MaxDiameterMeasurementBuilder extends RoiMeasurementBuilder {
+//		
+//		MaxDiameterMeasurementBuilder(final ImageData<?> imageData) {
+//			super(imageData);
+//		}
+//		
+//		@Override
+//		public String getName() {
+//			return hasPixelSizeMicrons() ? "Max diameter " + GeneralTools.micrometerSymbol() : "Max diameter px";
+//		}
+//		
+//		@Override
+//		public Binding<Number> createMeasurement(final PathObject pathObject) {
+//			return new DoubleBinding() {
+//				@Override
+//				protected double computeValue() {
+//					ROI roi = pathObject.getROI();
+//					if (hasPixelSizeMicrons())
+//						return roi.getMaxDiameter();
+//					else
+//						return roi.getScaledMaxDiameter(pixelWidthMicrons(), pixelHeightMicrons());
+//				}
+//				
+//			};
+//		}
+//		
+//	}
+//	
+//	
+//	static class MinDiameterMeasurementBuilder extends RoiMeasurementBuilder {
+//		
+//		MinDiameterMeasurementBuilder(final ImageData<?> imageData) {
+//			super(imageData);
+//		}
+//		
+//		@Override
+//		public String getName() {
+//			return hasPixelSizeMicrons() ? "Min diameter " + GeneralTools.micrometerSymbol() : "Min diameter px";
+//		}
+//		
+//		@Override
+//		public Binding<Number> createMeasurement(final PathObject pathObject) {
+//			return new DoubleBinding() {
+//				@Override
+//				protected double computeValue() {
+//					ROI roi = pathObject.getROI();
+//					if (hasPixelSizeMicrons())
+//						return roi.getMinDiameter();
+//					else
+//						return roi.getScaledMinDiameter(pixelWidthMicrons(), pixelHeightMicrons());
+//				}
+//				
+//			};
+//		}
+//		
+//	}
 	
 	
 	static class LineLengthMeasurementBuilder extends RoiMeasurementBuilder {

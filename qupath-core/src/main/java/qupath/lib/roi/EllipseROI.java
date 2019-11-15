@@ -147,6 +147,25 @@ public class EllipseROI extends AbstractPathBoundedROI implements Serializable {
 		return new Ellipse2D.Double(x, y, x2-x, y2-y);
 	}
 	
+//	@Override
+//	public double getMaxDiameter() {
+//		return Math.max(getBoundsWidth(), getBoundsHeight());
+//	}
+//	
+//	@Override
+//	public double getMinDiameter() {
+//		return Math.min(getBoundsWidth(), getBoundsHeight());
+//	}
+//	
+//	@Override
+//	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
+//		return Math.max(getBoundsWidth()*pixelWidth, getBoundsHeight()*pixelHeight);
+//	}
+//	
+//	@Override
+//	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
+//		return Math.min(getBoundsWidth()*pixelWidth, getBoundsHeight()*pixelHeight);
+//	}
 	
 	private Object writeReplace() {
 		return new SerializationProxy(this);

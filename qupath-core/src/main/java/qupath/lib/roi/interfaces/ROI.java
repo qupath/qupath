@@ -311,13 +311,13 @@ public interface ROI {
 	 */
 	public boolean contains(double x, double y);
 	
-	public double getMaxDiameter();
-	
-	public double getMinDiameter();
-	
-	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight);
-	
-	public double getScaledMinDiameter(double pixelWidth, double pixelHeight);
+//	public double getMaxDiameter();
+//	
+//	public double getMinDiameter();
+//	
+//	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight);
+//	
+//	public double getScaledMinDiameter(double pixelWidth, double pixelHeight);
 	
 
 }

@@ -8,8 +8,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.locationtech.jts.algorithm.MinimumBoundingCircle;
-import org.locationtech.jts.algorithm.MinimumDiameter;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -240,8 +238,8 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		private double centroidY = Double.NaN;
 		private double area = Double.NaN;
 		private double length = Double.NaN;
-		private double maxDiameter = Double.NaN;
-		private double minDiameter = Double.NaN;
+//		private double maxDiameter = Double.NaN;
+//		private double minDiameter = Double.NaN;
 		private String error = UNKNOWN;
 		
 		GeometryStats(Geometry geometry, boolean checkValid) {
@@ -267,17 +265,17 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 				boundsMaxX = envelope.getMaxX();
 				boundsMaxY = envelope.getMaxY();
 			}
-			maxDiameter = new MinimumBoundingCircle(geometry).getRadius() * 2.0;
-			minDiameter = new MinimumDiameter(geometry).getLength();
+//			maxDiameter = new MinimumBoundingCircle(geometry).getRadius() * 2.0;
+//			minDiameter = new MinimumDiameter(geometry).getLength();
 		}
 		
-		public double getMaxDiameter() {
-			return maxDiameter;
-		}
-		
-		public double getMinDiameter() {
-			return minDiameter;
-		}
+//		public double getMaxDiameter() {
+//			return maxDiameter;
+//		}
+//		
+//		public double getMinDiameter() {
+//			return minDiameter;
+//		}
 		
 		public double getCentroidX() {
 			return centroidX;
@@ -327,29 +325,29 @@ public class GeometryROI extends AbstractPathROI implements Serializable {
 		return new GeometryROI(transform.transform(geometry), getImagePlane());
 	}
 
-	@Override
-	public double getMaxDiameter() {
-		return getGeometryStats().maxDiameter;
-	}
-
-	@Override
-	public double getMinDiameter() {
-		return getGeometryStats().minDiameter;
-	}
-
-	@Override
-	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
-		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
-			return getMaxDiameter() / 2.0 * (pixelWidth + pixelHeight);
-		return computeGeometryStats(geometry, pixelWidth, pixelHeight, checkValid).getMaxDiameter();
-	}
-
-	@Override
-	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
-		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
-			return getMinDiameter() / 2.0 * (pixelWidth + pixelHeight);
-		return computeGeometryStats(geometry, pixelWidth, pixelHeight, checkValid).getMinDiameter();
-	}
+//	@Override
+//	public double getMaxDiameter() {
+//		return getGeometryStats().getMaxDiameter();
+//	}
+//
+//	@Override
+//	public double getMinDiameter() {
+//		return getGeometryStats().getMinDiameter();
+//	}
+//
+//	@Override
+//	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
+//		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
+//			return getMaxDiameter() / 2.0 * (pixelWidth + pixelHeight);
+//		return computeGeometryStats(geometry, pixelWidth, pixelHeight, checkValid).getMaxDiameter();
+//	}
+//
+//	@Override
+//	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
+//		if (GeneralTools.almostTheSame(pixelWidth, pixelHeight, 0.0001))
+//			return getMinDiameter() / 2.0 * (pixelWidth + pixelHeight);
+//		return computeGeometryStats(geometry, pixelWidth, pixelHeight, checkValid).getMinDiameter();
+//	}
 	
 	
 	private static class WKBSerializationProxy implements Serializable {

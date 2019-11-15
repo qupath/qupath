@@ -2037,11 +2037,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			hierarchy.removeObjects(selectedObjects, true);
 			selectedObjects.sort(PathObjectHierarchy.HIERARCHY_COMPARATOR.reversed());
 			for (var pathObject : selectedObjects) {
-				hierarchy.insertPathObject(pathObject, true);
-//				hierarchy.insertPathObject(pathObject, selectedObjects.size() == 1);
+//				hierarchy.insertPathObject(pathObject, true);
+				hierarchy.insertPathObject(pathObject, selectedObjects.size() == 1);
 			}
-//			if (selectedObjects.size() > 1)
-//				hierarchy.fireHierarchyChangedEvent(this);
+			if (selectedObjects.size() > 1)
+				hierarchy.fireHierarchyChangedEvent(this);
 		});
 		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
 		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
