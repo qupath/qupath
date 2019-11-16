@@ -848,7 +848,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	void showStarupMesssage() {
 		File fileStartup = new File("STARTUP.md");
 		if (!fileStartup.exists()) {
-			return;
+			fileStartup = new File("app", fileStartup.getName());
+			if (!fileStartup.exists()) {
+				logger.trace("No startup file found in {}", fileStartup.getAbsolutePath());
+				return;
+			}
 		}
 		try {
 			TextArea textArea = new TextArea();

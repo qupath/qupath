@@ -630,13 +630,13 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		params << '--mac-package-name' << 'QuPath'
 		params << '--mac-package-identifier' << 'QuPath'
 		if (packageType == 'installer') {
-			params << '--package-type' << 'dmg'
+			params << '--type' << 'dmg'
 		} else {
-			params << '--package-type' << 'app-image'
+			params << '--type' << 'app-image'
 		}
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
-			params << '--package-type' << 'msi'
+			params << '--type' << 'msi'
 			params << '--win-menu'
 			params << '--win-menu-group' << 'QuPath'
 			params << '--win-dir-chooser'
@@ -648,7 +648,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility" 
 			}
 		} else
-			params << '--package-type' << 'app-image'
+			params << '--type' << 'app-image'
 		// Create a separate launcher with a console - this can help with debugging
 		def fileTemp = File.createTempFile('qupath-building', '.properties')
 		def consoleLauncherName = "QuPath-${qupathVersion} (debug)"
@@ -657,7 +657,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 //		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'
 		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
 	} else
-		params << '--package-type' << 'app-image'
+		params << '--type' << 'app-image'
 
     // Store the app version (typically a simplified version of the full format)
     params << '--app-version' << appVersion
