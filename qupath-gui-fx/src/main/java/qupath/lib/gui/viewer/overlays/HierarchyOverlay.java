@@ -130,7 +130,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	
 
 	@Override
-	public void paintOverlay(final Graphics2D g2d, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
+	public synchronized void paintOverlay(final Graphics2D g2d, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
 		
 		// Get the selection model, which can influence colours (TODO: this might not be the best way to do it!)
 		PathObjectHierarchy hierarchy = getHierarchy();
@@ -213,52 +213,56 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		if (endTime - startTime > 500)
 			logger.debug(String.format("Painting time: %.4f seconds", (endTime-startTime)/1000.));
 
-
-		if (buffer == null || !Objects.equals(clipRegion, lastRegion)) {
-			
-			lastRegion = clipRegion;
-			
-			// Get the clip without any transform
-			var g = (Graphics2D)g2d.create();
-			g.setTransform(new AffineTransform());
-			var rawClip = g.getClipBounds();
-			g.dispose();
-			if (buffer == null || buffer.getWidth() != rawClip.getWidth() || buffer.getHeight() != rawClip.getHeight()) {
-				buffer = new BufferedImage(rawClip.width, rawClip.height, BufferedImage.TYPE_INT_ARGB);
-				g = buffer.createGraphics();
-			} else {
-				g = buffer.createGraphics();
-				g.setComposite(AlphaComposite.getInstance(AlphaComposite.CLEAR));
-				g.fillRect(0, 0, buffer.getWidth(), buffer.getHeight());
-				g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-			}
-			g.setClip(0, 0, buffer.getWidth(), buffer.getHeight());
-			g.setTransform(g2d.getTransform());
-			
-			//		System.out.println("Displayed clip: " + clip);
-			
-			// Paint the annotations
-			Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
-			pathObjects.removeAll(selectedObjects);
-	
-			List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
-			Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
-					.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
-			
-			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			// The setting below stops some weird 'jiggling' effects during zooming in/out, or poor rendering of shape ROIs
-			g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-			
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(g, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);		
-		}
-		
-		if (buffer != null)
-//			g2d.drawImage(buffer, clipRegion.x, clipRegion.y, clipRegion.width, clipRegion.height, null);
-			g2d.drawImage(buffer, clipRegion.getX(), clipRegion.getY(), clipRegion.getWidth(), clipRegion.getHeight(), null);
-
+		// The setting below stops some weird 'jiggling' effects during zooming in/out, or poor rendering of shape ROIs
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
+		// If our region has changed, paint directly the first time
+		// The purpose of this is to revert to avoid creating a BufferedImage on every repaint because the overlay is actually
+		// being displayed on different images (e.g. a miniviewer) - therefore we only buffer when we have repeated requests
+		if (!Objects.equals(clipRegion, lastRegion)) {
+			// Paint the annotations
+			resetBuffer();
+			Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
+			pathObjects.removeAll(selectedObjects);
+			List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
+			Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
+					.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
+			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);	
+		} else {
+			if (buffer == null) {
+				// Paint the annotations
+				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
+				pathObjects.removeAll(selectedObjects);
+				if (!pathObjects.isEmpty()) {
+					// Get the clip without any transform
+					var g = (Graphics2D)g2d.create();
+					g.setTransform(new AffineTransform());
+					var rawClip = g.getClipBounds();
+					g.dispose();
+					if (buffer == null || buffer.getWidth() != rawClip.getWidth() || buffer.getHeight() != rawClip.getHeight()) {
+						buffer = new BufferedImage(rawClip.width, rawClip.height, BufferedImage.TYPE_INT_ARGB);
+						g = buffer.createGraphics();
+					} else {
+						g = buffer.createGraphics();
+						g.setComposite(AlphaComposite.getInstance(AlphaComposite.CLEAR));
+						g.fillRect(0, 0, buffer.getWidth(), buffer.getHeight());
+						g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+					}
+					g.setClip(0, 0, buffer.getWidth(), buffer.getHeight());
+					g.setTransform(g2d.getTransform());
+					g.setRenderingHints(g2d.getRenderingHints());
+					List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
+					Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
+							.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
+					PathHierarchyPaintingHelper.paintSpecifiedObjects(g, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);		
+				}
+			}
+			if (buffer != null)
+				g2d.drawImage(buffer, clipRegion.getX(), clipRegion.getY(), clipRegion.getWidth(), clipRegion.getHeight(), null);
+		}
+		lastRegion = clipRegion;
+		
 		// Ensure that selected objects are painted last, to make sure they aren't obscured
 		if (!selectedObjects.isEmpty()) {
 			Composite previousComposite = g2d.getComposite();
@@ -274,19 +278,19 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	}
 
 
-	public void resetBuffer() {
+	public synchronized void resetBuffer() {
 		lastRegion = null;
 		buffer = null;		
 	}
 	
-	public void clearCachedOverlay() {
+	public synchronized void clearCachedOverlay() {
 		if (regionStore != null && overlayServer != null)
 			regionStore.clearCacheForServer(overlayServer);
 		resetBuffer();
 	}
 	
 	
-	public void clearCachedOverlayForRegion(ImageRegion request) {
+	public synchronized void clearCachedOverlayForRegion(ImageRegion request) {
 		lastRegion = null;
 		buffer = null;
 		if (regionStore != null && overlayServer != null)
