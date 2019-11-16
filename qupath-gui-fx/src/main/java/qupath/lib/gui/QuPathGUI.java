@@ -3190,7 +3190,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						),
 				createMenu(
 						"Select...",
-						createCommandAction(new ResetSelectionCommand(this), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
+						createCommandAction(new ResetSelectionCommand(this), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						null,
 						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
@@ -3263,7 +3263,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Try to load a script editor
 		Action actionScriptEditor = createCommandAction(new ShowScriptEditorCommand(this, false), "Show script editor");
-		actionScriptEditor.setAccelerator(new KeyCodeCombination(KeyCode.BRACELEFT, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_ANY));	
+		actionScriptEditor.setAccelerator(new KeyCodeCombination(KeyCode.OPEN_BRACKET, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_ANY));
 		Menu menuAutomate = createMenu(
 				"Automate",
 				actionScriptEditor,
