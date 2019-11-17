@@ -211,6 +211,7 @@ import qupath.lib.gui.commands.ProjectOpenCommand;
 import qupath.lib.gui.commands.ProjectSaveCommand;
 import qupath.lib.gui.commands.QuPathSetupCommand;
 import qupath.lib.gui.commands.ResetPreferencesCommand;
+import qupath.lib.gui.commands.ResolveHierarchyCommand;
 import qupath.lib.gui.commands.ReloadDataCommand;
 import qupath.lib.gui.commands.RigidObjectEditorCommand;
 import qupath.lib.gui.commands.RotateImageCommand;
@@ -3209,6 +3210,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
 					null,					
 					createCommandAction(new HierarchyInsertCommand(this), "Insert into hierarchy", null, new KeyCodeCombination(KeyCode.I, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
+					createCommandAction(new ResolveHierarchyCommand(this), "Resolve hierarchy", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
 					null,					
 					getActionMenuItem(GUIActions.RIGID_OBJECT_EDITOR),
 					getActionMenuItem(GUIActions.ANNOTATION_DUPLICATE),

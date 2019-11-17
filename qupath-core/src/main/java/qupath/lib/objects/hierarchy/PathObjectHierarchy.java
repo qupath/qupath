@@ -231,7 +231,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param pathObjects the objects to add
 	 * @return true if the hierarchy changed as a result of this call, false otherwise
 	 */
-	public synchronized boolean insertPathObjects(Collection<PathObject> pathObjects) {
+	public synchronized boolean insertPathObjects(Collection<? extends PathObject> pathObjects) {
 		var selectedObjects =  new ArrayList<>(pathObjects);
 		if (selectedObjects.isEmpty())
 			return false;
@@ -244,6 +244,25 @@ public final class PathObjectHierarchy implements Serializable {
 		if (selectedObjects.size() > 1)
 			fireHierarchyChangedEvent(this);
 		return true;
+	}
+	
+	/**
+	 * Attempt to resolve the parent-child relationships between all objects within the hierarchy.
+	 */
+	public synchronized void resolveHierarchy() {
+		var annotations = getAnnotationObjects();
+		if (annotations.isEmpty()) {
+			logger.debug("resolveHierarchy() called with no annotations!");
+			return;
+		}
+		var detections = getDetectionObjects();
+		if (annotations.size() > 1 && detections.size() > 1) {
+			logger.warn("Resolving hierarchy that contains {} annotations and {} detections - this may be slow!",
+					annotations.size(), detections.size());
+		} else if (annotations.size() > 100) {
+			logger.warn("Resolving hierarchy with {} annotations - this may be slow!", annotations.size());
+		}
+		insertPathObjects(annotations);
 	}
 	
 	private synchronized boolean insertPathObject(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
