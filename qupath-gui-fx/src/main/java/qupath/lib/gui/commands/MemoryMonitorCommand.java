@@ -19,6 +19,7 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
@@ -76,7 +77,11 @@ public class MemoryMonitorCommand implements PathCommand {
 		private LongProperty maxMemory = new SimpleLongProperty();
 		private LongProperty totalMemory = new SimpleLongProperty();
 		private LongProperty usedMemory = new SimpleLongProperty();
-		
+
+		// Observable properties to store cache values
+		private LongProperty cachedTiles = new SimpleLongProperty();
+		private LongProperty undoRedoSizeBytes = new SimpleLongProperty();
+
 		// Let's sometimes scale to MB, sometimes to GB
 		private final static double scaleMB = 1.0/1024.0/1024.0;
 		private final static double scaleGB = scaleMB/1024.0;
@@ -113,21 +118,44 @@ public class MemoryMonitorCommand implements PathCommand {
 			chart.setCreateSymbols(false);
 
 			// Add it button to make it possible to clear the tile cache
-			// This is a bit of a hack, since there is no clean way to do it yet
+			Label labelClearCache = new Label();
+			labelClearCache.textProperty().bind(Bindings.createStringBinding(() -> {
+				return String.format("Num cached tiles: %d", cachedTiles.get());
+			}, cachedTiles));
 			var btnClearCache = new Button("Clear tile cache");
+			btnClearCache.setTooltip(new Tooltip("Clear the cache used to store image tiles for better viewer performance"));
 			btnClearCache.setOnAction(e -> {
 			    try {
 			        logger.info("Clearing cache...");
-			        QuPathGUI.getInstance().getViewer().getImageRegionStore().clearCache();
+			        qupath.getViewer().getImageRegionStore().clearCache();
 			        System.gc();
 			    } catch (Exception e2) {
-			        logger.error("Error clearing cache", e);;
+			        logger.error("Error clearing cache", e);
 			    }
 			});
 			btnClearCache.setMaxWidth(Double.MAX_VALUE);
+			
+			// Clear Undo/Redo manager
+			Label labelUndoRedo = new Label();
+			labelUndoRedo.textProperty().bind(Bindings.createStringBinding(() -> {
+				return String.format("Undo/Redo memory: %.2f GB", undoRedoSizeBytes.get()/(1024.0 * 1024.0 * 1024.0));
+			}, undoRedoSizeBytes));
+			var btnClearUndoRedo = new Button("Reset undo/redo");
+			btnClearUndoRedo.setTooltip(new Tooltip("Clear all the data needed to support undo/redo"));
+			btnClearUndoRedo.setOnAction(e -> {
+			    try {
+			        logger.info("Clearing undo/redo...");
+			        qupath.getUndoRedoManager().clear();
+			        System.gc();
+			    } catch (Exception e2) {
+			        logger.error("Error undo/redo", e);
+			    }
+			});
+			btnClearUndoRedo.setMaxWidth(Double.MAX_VALUE);
 
 			// Add a button to run the garbage collector
 			var btnGarbageCollector = new Button("Reclaim memory");
+			btnGarbageCollector.setTooltip(new Tooltip("Request all available memory be reclaimed (this helps give a more accurate graph)"));
 			btnGarbageCollector.setOnAction(e -> System.gc());
 			btnGarbageCollector.setMaxWidth(Double.MAX_VALUE);
 
@@ -153,10 +181,14 @@ public class MemoryMonitorCommand implements PathCommand {
 			var paneBottom = new GridPane();
 			int col = 0;
 			int row = 0;
-			paneBottom.add(new Label("Num processors: " + runtime.availableProcessors()), col, row++, 1, 1);
+			paneBottom.add(new Label("Available processors: " + runtime.availableProcessors()), col, row++, 1, 1);
 			paneBottom.add(labThreads, col, row, 1, 1);
 			paneBottom.add(tfThreads, col+1, row++, 1, 1);
+			paneBottom.add(labelClearCache, col, row++, 2, 1);
 			paneBottom.add(btnClearCache, col, row++, 2, 1);
+			
+			paneBottom.add(labelUndoRedo, col, row++, 2, 1);
+			paneBottom.add(btnClearUndoRedo, col, row++, 2, 1);
 			paneBottom.add(btnGarbageCollector, col, row++, 2, 1);
 			paneBottom.setPadding(new Insets(10));
 			paneBottom.setVgap(5);
@@ -197,6 +229,8 @@ public class MemoryMonitorCommand implements PathCommand {
 					totalMemory.set(runtime.totalMemory());
 					maxMemory.set(runtime.maxMemory());
 					usedMemory.set(runtime.totalMemory() - runtime.freeMemory());
+					undoRedoSizeBytes.set(qupath.getUndoRedoManager().totalBytes());
+					cachedTiles.set(qupath.getViewer().getImageRegionStore().getCache().size());
 					snapshot();
 				});
 			}

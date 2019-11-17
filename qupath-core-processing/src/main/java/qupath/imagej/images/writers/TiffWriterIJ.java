@@ -23,8 +23,16 @@
 
 package qupath.imagej.images.writers;
 
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collection;
+
+import ij.ImagePlus;
+import ij.io.FileSaver;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.regions.RegionRequest;
 
 /**
  * ImageWriter implementation to write TIFF images using ImageJ.
@@ -52,6 +60,11 @@ public class TiffWriterIJ extends AbstractWriterIJ {
 	@Override
 	public Collection<String> getExtensions() {
 		return Arrays.asList("tif", "tiff");
+	}
+
+	@Override
+	public void writeImage(ImagePlus imp, OutputStream stream) throws IOException {
+		stream.write(new FileSaver(imp).serialize());
 	}
 
 }

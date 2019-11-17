@@ -1,1 +1,0 @@
-OpenCV is available for download at http://opencv.org/downloads.html

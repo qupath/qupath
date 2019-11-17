@@ -26,6 +26,9 @@ package qupath.lib.gui.icons;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import org.controlsfx.glyphfont.Glyph;
 import org.controlsfx.glyphfont.GlyphFont;
 import org.controlsfx.glyphfont.GlyphFontRegistry;
@@ -50,7 +53,6 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -201,6 +203,7 @@ public class PathIconFactory {
 		return createROIIcon(roi, width, height, color);
 	}
 	
+	private static Map<ROI, Path> pathCache = new WeakHashMap<>();
 	
 	public static Node createROIIcon(ROI pathROI, int width, int height, Color color) {
 				
@@ -237,20 +240,29 @@ public class PathIconFactory {
 				((Glyph)node).setColor(color);
 			return node;
 		} else {
-			var shape = pathROI.isArea() ? RoiTools.getArea(pathROI) : RoiTools.getShape(pathROI);
-			if (shape != null) {
-				var transform = new AffineTransform();
-				transform.translate(-pathROI.getBoundsX(), -pathROI.getBoundsY());
-				transform.scale(scale, scale);
-				PathIterator iterator = shape.getPathIterator(transform, Math.max(0.5, 1.0/scale));
-				return createShapeIcon(iterator, color);
+			var path = pathCache.getOrDefault(pathROI, null);
+			if (path == null) {
+				var shape = pathROI.isArea() ? RoiTools.getArea(pathROI) : RoiTools.getShape(pathROI);
+				if (shape != null) {
+					var transform = new AffineTransform();
+					transform.translate(-pathROI.getBoundsX(), -pathROI.getBoundsY());
+					transform.scale(scale, scale);
+					PathIterator iterator = shape.getPathIterator(transform, Math.max(0.5, 1.0/scale));
+					path = createShapeIcon(iterator, color);
+					pathCache.put(pathROI, path);
+				}
+			} else {
+				path = new Path(path.getElements());
+				path.setStroke(color);
 			}
+			if (path != null)
+				return path;
 		}
 		logger.warn("Unable to create icon for ROI: {}", pathROI);
 		return null;
 	}
 	
-	private static Node createShapeIcon(PathIterator iterator, Color color) {
+	private static Path createShapeIcon(PathIterator iterator, Color color) {
 		Path path = new Path();
 		double[] coords = new double[6];
 		double lastX = Double.NaN;

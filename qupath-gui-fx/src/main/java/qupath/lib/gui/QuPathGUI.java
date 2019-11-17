@@ -190,6 +190,7 @@ import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.CopyViewToClipboardCommand;
 import qupath.lib.gui.commands.CountingPanelCommand;
+import qupath.lib.gui.commands.DetectionCentroidDistancesCommand;
 import qupath.lib.gui.commands.DistanceToAnnotationsCommand;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.LoadClassifierCommand;
@@ -210,11 +211,13 @@ import qupath.lib.gui.commands.ProjectOpenCommand;
 import qupath.lib.gui.commands.ProjectSaveCommand;
 import qupath.lib.gui.commands.QuPathSetupCommand;
 import qupath.lib.gui.commands.ResetPreferencesCommand;
+import qupath.lib.gui.commands.ResolveHierarchyCommand;
 import qupath.lib.gui.commands.ReloadDataCommand;
 import qupath.lib.gui.commands.RigidObjectEditorCommand;
 import qupath.lib.gui.commands.RotateImageCommand;
 import qupath.lib.gui.commands.SampleScriptLoader;
 import qupath.lib.gui.commands.ExportImageRegionCommand;
+import qupath.lib.gui.commands.HierarchyInsertCommand;
 import qupath.lib.gui.commands.SaveViewCommand;
 import qupath.lib.gui.commands.ScriptInterpreterCommand;
 import qupath.lib.gui.commands.SerializeImageDataCommand;
@@ -289,7 +292,6 @@ import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.GuiTools.SnapshotType;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -578,8 +580,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (actionLog != null)
 					actionLog.handle(null);
 				// Try to reclaim any memory we can
-				if (e instanceof OutOfMemoryError)
+				if (e instanceof OutOfMemoryError) {
 					getViewer().getImageRegionStore().clearCache(false, false);
+				}
 			}
 		});
 		
@@ -846,7 +849,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	void showStarupMesssage() {
 		File fileStartup = new File("STARTUP.md");
 		if (!fileStartup.exists()) {
-			return;
+			fileStartup = new File("app", fileStartup.getName());
+			if (!fileStartup.exists()) {
+				logger.trace("No startup file found in {}", fileStartup.getAbsolutePath());
+				return;
+			}
 		}
 		try {
 			TextArea textArea = new TextArea();
@@ -1983,11 +1990,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		
 		// Add annotation options
-		Menu menuCombine = createMenu(
+		Menu menuAnnotations = createMenu(
 				"Annotations",
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.ADD), "Merge selected annotations"),
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.SUBTRACT), "Subtract selected annotations"), // TODO: Make this less ambiguous!
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.INTERSECT), "Intersect selected annotations")
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.ADD), "Merge selected"),
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
+				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.INTERSECT), "Intersect selected"),
+				createCommandAction(new InverseObjectCommand(this), "Make inverse"),
+				createPluginAction("Split selected", SplitAnnotationsPlugin.class, null)
 				);
 		
 		// Handle awkward 'TMA core missing' option
@@ -2024,11 +2033,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Menu menuSetClass = createMenu("Set class");
 		
 		
+		Action actionInsert = createCommandAction(new HierarchyInsertCommand(this), "Insert in hierarchy");
 		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
 		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
 		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), true));
 		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), false));
-		menuCombine.getItems().addAll(0, Arrays.asList(miLockAnnotations, miUnlockAnnotations, new SeparatorMenuItem()));
+		menuAnnotations.getItems().addAll(0, Arrays.asList(
+				miLockAnnotations,
+				miUnlockAnnotations,
+				new SeparatorMenuItem(),
+				ActionUtils.createMenuItem(actionInsert),
+				new SeparatorMenuItem()));
 		
 //		CheckMenuItem miTMAValid = new CheckMenuItem("Set core valid");
 //		miTMAValid.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), false));
@@ -2069,6 +2084,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 			
 			// Check what to show for TMA cores or annotations
+			Collection<PathObject> selectedObjects = viewer.getAllSelectedObjects();
 			PathObject pathObject = viewer.getSelectedObject();
 			menuTMA.setVisible(false);
 			if (pathObject instanceof TMACoreObject) {
@@ -2095,9 +2111,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				}
 			}
 			
+			boolean hasAnnotations = pathObject instanceof PathAnnotationObject || (!selectedObjects.isEmpty() && selectedObjects.stream().allMatch(p -> p.isAnnotation()));
+			
 			updateSetAnnotationPathClassMenu(menuSetClass, viewer);
-			menuCombine.setVisible(pathObject instanceof PathAnnotationObject);
-			topSeparator.setVisible(pathObject instanceof PathAnnotationObject || pathObject instanceof TMACoreObject);
+			menuAnnotations.setVisible(hasAnnotations);
+			topSeparator.setVisible(hasAnnotations || pathObject instanceof TMACoreObject);
 			// Occasionally, the newly-visible top part of a popup menu can have the wrong size?
 			popup.setWidth(popup.getPrefWidth());
 		});
@@ -2108,7 +2126,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				miClearSelectedObjects,
 				menuTMA,
 				menuSetClass,
-				menuCombine,
+				menuAnnotations,
 				topSeparator,
 				menuMultiview,
 				menuCells,
@@ -3177,12 +3195,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						),
 				createMenu(
 						"Select...",
-						createCommandAction(new ResetSelectionCommand(this), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
+						createCommandAction(new ResetSelectionCommand(this), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						null,
-						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores"),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations"),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select detections"),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells"),
+						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						null,
 						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select by measurements (experimental)")
 						),
@@ -3190,6 +3208,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createMenu("Annotations...",
 					getActionMenuItem(GUIActions.SPECIFY_ANNOTATION),
 					getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
+					null,					
+					createCommandAction(new HierarchyInsertCommand(this), "Insert into hierarchy", null, new KeyCodeCombination(KeyCode.I, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
+					createCommandAction(new ResolveHierarchyCommand(this), "Resolve hierarchy", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
 					null,					
 					getActionMenuItem(GUIActions.RIGID_OBJECT_EDITOR),
 					getActionMenuItem(GUIActions.ANNOTATION_DUPLICATE),
@@ -3248,7 +3269,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Try to load a script editor
 		Action actionScriptEditor = createCommandAction(new ShowScriptEditorCommand(this, false), "Show script editor");
-		actionScriptEditor.setAccelerator(new KeyCodeCombination(KeyCode.BRACELEFT, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_ANY));	
+		actionScriptEditor.setAccelerator(new KeyCodeCombination(KeyCode.OPEN_BRACKET, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_ANY));
 		Menu menuAutomate = createMenu(
 				"Automate",
 				actionScriptEditor,
@@ -3273,18 +3294,24 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								)
 						),
 				createMenu(
+						"Cell detection"
+						),
+				createMenu(
 						"Calculate features",
 //						new PathPluginAction("Create tiles", TilerPlugin.class, this),
-						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, null),
-						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, null),
-//						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
-						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, null),
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, null),
 						createPluginAction("Add Shape features (experimental)", ShapeFeaturesPlugin.class, this, null),
-						null,
-						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null),
-						null,
-						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations 2D (experimental)")
+						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, null)
+//						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, null),
+//						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
+//						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, null),
+//						null,
+//						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null)
+						),
+				createMenu(
+						"Spatial analysis",
+						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations 2D (experimental)"),
+						createCommandAction(new DetectionCentroidDistancesCommand(this), "Detection centroid distances 2D (experimental)")
 						)
 				);
 
@@ -3636,7 +3663,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.WAND) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case SELECTION_MODE:
-			return createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, null);
+			return createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
 		case SHOW_GRID:
 			return createSelectableCommandAction(overlayOptions.showGridProperty(), "Show grid", PathIconFactory.PathIcons.GRID, new KeyCodeCombination(KeyCode.G, KeyCombination.SHIFT_DOWN));
 		case SHOW_LOCATION:
@@ -3820,6 +3847,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 	}
 	
+	/**
+	 * Get the UndoRedoManager, which can be useful if needing to clear it in cases where available memory is low.
+	 * @return
+	 */
+	public UndoRedoManager getUndoRedoManager() {
+		return undoRedoManager;
+	}
 	
 	public void setModeSwitchingEnabled(final boolean enabled) {
 		modeLocked.set(!enabled);

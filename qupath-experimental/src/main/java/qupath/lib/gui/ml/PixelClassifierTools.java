@@ -12,7 +12,6 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
@@ -20,7 +19,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -364,10 +362,10 @@ public class PixelClassifierTools {
 				var list = new ArrayList<GeometryWrapper>();
 				try {
 					var img = server.readBufferedImage(t.getRegionRequest());
-					var nChannels = server.nChannels();
 					// Get raster containing classifications and integer values, by taking the argmax
 					var raster = img.getRaster();
 					if (server.getMetadata().getChannelType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
+						var nChannels = server.nChannels();
 						int h = raster.getHeight();
 						int w = raster.getWidth();
 						byte[] output = new byte[w * h];
@@ -416,7 +414,14 @@ public class PixelClassifierTools {
 				var list = entry.getValue();
 				
 				// Merge to a single Geometry
-				Geometry geometry = GeometryTools.union(list.stream().map(g -> g.geometry).collect(Collectors.toList()));
+				var collection = list.stream().map(g -> g.geometry).collect(Collectors.toList());
+//				long start = System.currentTimeMillis();
+//				Geometry geometry = collection.get(0).getFactory().createGeometryCollection(collection.toArray(Geometry[]::new)).buffer(0);
+//				long middle = System.currentTimeMillis();
+				Geometry geometry = GeometryTools.union(collection);
+//				long end = System.currentTimeMillis();
+//				System.err.println("Buffer: " + (middle - start) + ", area = " + geometry.getArea());
+//				System.err.println("Union: " + (end - middle) + ", area = " + geometry2.getArea());
 				
 				// Apply size filters
 				geometry = GeometryTools.refineAreas(geometry, minSizePixels, minHoleSizePixels);
@@ -490,7 +495,7 @@ public class PixelClassifierTools {
 					int x = (int)roi.getCentroidX();
 					int y = (int)roi.getCentroidY();
 					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
-					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannel(ind).getName()), false);
+					return new Reclassifier(p, server.getMetadata().getClassificationLabels().get(ind), false);
 				} catch (Exception e) {
 					return new Reclassifier(p, null, false);
 				}

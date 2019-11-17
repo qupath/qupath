@@ -4,7 +4,6 @@ description = 'qupath-extension-openslide'
 
 configurations {
   implementation.extendsFrom openslide
-  implementation.extendsFrom gson
 }
 
 dependencies {

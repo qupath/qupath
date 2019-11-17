@@ -91,7 +91,7 @@ public class ShapeFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	public Collection<Class<? extends PathObject>> getSupportedParentObjectClasses() {
-		return Arrays.asList(PathCellObject.class, PathDetectionObject.class, TMACoreObject.class);
+		return Arrays.asList(PathCellObject.class, PathDetectionObject.class);
 	}
 	
 	

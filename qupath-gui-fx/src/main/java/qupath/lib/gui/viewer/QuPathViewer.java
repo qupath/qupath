@@ -2651,6 +2651,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				hierarchyOverlay.clearCachedOverlay();
 			}
 		}
+//		hierarchyOverlay.clearCachedOverlay();
 
 		// Just in case, make sure the handles are updated in any ROIEditor
 		if (event != null && !event.isChanging())
@@ -2687,6 +2688,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			listener.selectedObjectChanged(this, pathObjectSelected);
 		}
 
+		hierarchyOverlay.resetBuffer();
 		logger.trace("Selected path object changed from {} to {}", previousObject, pathObjectSelected);
 
 		repaint();

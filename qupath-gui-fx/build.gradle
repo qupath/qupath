@@ -3,16 +3,9 @@ ext.moduleName = 'qupath.gui.fx'
 description = 'qupath-gui-fx'
 
 configurations {
-  implementation.extendsFrom javafx
-  implementation.extendsFrom gson
+  api.extendsFrom javafx
   implementation.extendsFrom guava
   implementation.extendsFrom controlsfx
   implementation.extendsFrom jfxtras
   implementation.extendsFrom commonsmath
-  implementation.extendsFrom jts
-}
-
-dependencies {
-  compile project(':qupath-core')
-  compile project(':qupath-core-processing')
 }

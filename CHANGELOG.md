@@ -1,3 +1,26 @@
+## Version 0.2.0-m6
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+### Important bug fix!
+* Positive per mm^2 measurement fixed; this could be wrong in v0.2.0-m5 (other versions not affected)
+### Important behavior change!
+* Parent-child relationships are no longer automatically calculated between objects!
+For an explanation of the reasons behind this change & what it means, see the blog.
+### Other changes:
+* Pixel classifier shows live area measurements with 'Classification' output (in m5 this worked only with 'Probability' output)
+* New 'Detection centroid distances 2D' command (e.g. to find distances to cells with different classifications)
+* Smoother drawing, faster viewer repainting
+* Point annotation improvements
+  * Faster repainting
+  * Converting detections to points now uses nucleus ROIs when applied to cells, no longer requires deleting the detections
+* More shortcuts, e.g. Ctrl+Alt+A to select annotations, Ctrl+Alt+D to select detections
+* GeometryROI now replaces AreaROI and AWTAreaROI for improved performance and consistency
+* Fixed bug when converting ROIs with nested holes to JTS Geometries
+* Undo/Redo and tile cache size information added to Memory Monitor
+* Added support for ImageWriters to write to output streams
+* Updated build script to Gradle 6.0
+* Use bioformats_package.jar rather than separate dependences (easier to upgrade/downgrade if needed)
+
+
 ## Version 0.2.0-m5
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 Changes include:
