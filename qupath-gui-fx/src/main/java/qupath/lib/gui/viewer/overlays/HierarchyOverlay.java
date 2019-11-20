@@ -130,7 +130,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	
 
 	@Override
-	public synchronized void paintOverlay(final Graphics2D g2d, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
+	public void paintOverlay(final Graphics2D g2d, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
 		
 		// Get the selection model, which can influence colours (TODO: this might not be the best way to do it!)
 		PathObjectHierarchy hierarchy = getHierarchy();
@@ -278,19 +278,19 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	}
 
 
-	public synchronized void resetBuffer() {
+	public void resetBuffer() {
 		lastRegion = null;
 		buffer = null;		
 	}
 	
-	public synchronized void clearCachedOverlay() {
+	public void clearCachedOverlay() {
 		if (regionStore != null && overlayServer != null)
 			regionStore.clearCacheForServer(overlayServer);
 		resetBuffer();
 	}
 	
 	
-	public synchronized void clearCachedOverlayForRegion(ImageRegion request) {
+	public void clearCachedOverlayForRegion(ImageRegion request) {
 		lastRegion = null;
 		buffer = null;
 		if (regionStore != null && overlayServer != null)
