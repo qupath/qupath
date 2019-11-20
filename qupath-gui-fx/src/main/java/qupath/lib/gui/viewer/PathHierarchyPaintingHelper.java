@@ -390,7 +390,11 @@ public class PathHierarchyPaintingHelper {
 								paintROI(cell.getNucleusROI(), g, colorStroke, stroke, colorFill, downsample);
 							painted = true;
 						} else {
-							if ((overlayOptions.getFillAnnotations() && pathObject.isAnnotation() && pathObject.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) || (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
+							if ((overlayOptions.getFillAnnotations() &&
+									pathObject.isAnnotation() && 
+									pathObject.getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION) &&
+									(pathObject.getPathClass() != null || !pathObject.hasChildren()))
+									|| (pathObject.isTMACore() && overlayOptions.getShowTMACoreLabels()))
 								paintROI(pathROI, g, colorStroke, stroke, ColorToolsAwt.getMoreTranslucentColor(colorStroke), downsample);
 							else
 								paintROI(pathROI, g, colorStroke, stroke, colorFill, downsample);
@@ -489,9 +493,9 @@ public class PathHierarchyPaintingHelper {
 	/**
 	 * 
 	 * Convert PathShapes into Java AWT Shapes, reusing existing objects where possible in a thread-safe way.
-	 * 
+	 * <p>
 	 * The purpose is to facilitate painting, i.e. shapes are provided for use before being discarded.
-	 * 
+	 * <p>
 	 * It is essential that the calling code does not modify the shapes in any way, and it should also not return references
 	 * to the shapes, as there is no guarantee they will remain in the same state whenever getShape is called again.
 	 * 
@@ -571,9 +575,12 @@ public class PathHierarchyPaintingHelper {
 				shape = RoiTools.getShape(roi);
 				// Downsample if we have to
 				if (map != this.map) {
-//					shape = GeometryTools.geometryToShape(
-//							VWSimplifier.simplify(roi.getGeometry(), downsample)
-//							);
+					// JTS methods are much slower
+//					var simplifier = new DouglasPeuckerSimplifier(roi.getGeometry());
+//					var simplifier = new VWSimplifier(roi.getGeometry());
+//					simplifier.setDistanceTolerance(downsample);
+//					simplifier.setEnsureValid(false);
+//					shape = GeometryTools.geometryToShape(simplifier.getResultGeometry());
 					shape = simplifyByDownsample(shape, downsample);
 				}
 				map.put(roi, shape);
@@ -657,25 +664,60 @@ public class PathHierarchyPaintingHelper {
 			}
 		}
 		
-		Ellipse2D ellipse = new Ellipse2D.Double();
+		RectangularShape ellipse;
 		
 //		double radius = pathPointsROI == null ? PointsROI.getDefaultPointRadius() : pathPointsROI.getPointRadius();
 		// Ensure that points are drawn with at least a radius of one, after any transforms have been applied
 		double scale = Math.max(1, downsample);
 		radius = (Math.max(1 / scale, radius));
 		
-		g2d.setStroke(stroke);
+		// Get clip bounds
+		Rectangle2D bounds = g2d.getClipBounds();
+		if (bounds != null) {
+			bounds.setRect(bounds.getX()-radius, bounds.getY()-radius, bounds.getWidth()+radius*2, bounds.getHeight()+radius*2);
+		}
+		// Don't fill if we have a small radius, and use a rectangle instead of an ellipse (as this repaints much faster)
+		Graphics2D g = g2d;
+		if (radius / downsample < 0.5) {
+			if (colorStroke == null)
+				colorStroke = colorFill;
+			colorFill = null;
+			ellipse = new Rectangle2D.Double();
+			// Use opacity to avoid obscuring points completely
+			int rule = AlphaComposite.SRC_OVER;
+			float alpha = (float)(radius / downsample);
+			var composite = g.getComposite();
+			if (composite instanceof AlphaComposite) {
+				var temp = (AlphaComposite)composite;
+				rule = temp.getRule();
+				alpha = temp.getAlpha() * alpha;
+			}
+			// If we are close to completely transparent, do not paint
+			if (alpha < 0.01f)
+				return;
+			composite = AlphaComposite.getInstance(rule, alpha);
+			g = (Graphics2D)g2d.create();
+			g.setComposite(composite);
+//			ellipse = new Ellipse2D.Double();
+		} else
+			ellipse = new Ellipse2D.Double();
+		
+		g.setStroke(stroke);
 		for (Point2 p : pathPoints.getAllPoints()) {
+			if (bounds != null && !bounds.contains(p.getX(), p.getY()))
+				continue;
 			ellipse.setFrame(p.getX()-radius, p.getY()-radius, radius*2, radius*2);
 			if (colorFill != null) {
-				g2d.setColor(colorFill);
-				g2d.fill(ellipse);
+				g.setColor(colorFill);
+				g.fill(ellipse);
 			}
 			if (colorStroke != null) {
-				g2d.setColor(colorStroke);
-				g2d.draw(ellipse);
+				g.setColor(colorStroke);
+				g.draw(ellipse);
 			}
 		}
+		if (g != g2d)
+			g.dispose();
 	}
 	
 	

@@ -271,6 +271,25 @@ public class LineROI extends AbstractPathROI implements Serializable {
 		
 	}
 
+//	@Override
+//	public double getMaxDiameter() {
+//		return getLength();
+//	}
+//	
+//	@Override
+//	public double getMinDiameter() {
+//		return 0;
+//	}
+//	
+//	@Override
+//	public double getScaledMaxDiameter(double pixelWidth, double pixelHeight) {
+//		return getScaledLength(pixelWidth, pixelHeight);
+//	}
+//	
+//	@Override
+//	public double getScaledMinDiameter(double pixelWidth, double pixelHeight) {
+//		return 0;
+//	}
 
 	@Override
 	public double getArea() {

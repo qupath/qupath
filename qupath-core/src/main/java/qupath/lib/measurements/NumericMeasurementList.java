@@ -157,7 +157,7 @@ class NumericMeasurementList {
 			// Read from map, if possible
 			if (map != null) {
 				Integer ind = map.get(name);
-				return ind == null ? -1 : ind;
+				return ind == null ? -1 : ind.intValue();
 			}
 			return names.indexOf(name);
 		}

@@ -68,8 +68,6 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	private Geometry parentArea;
 	private Geometry parentAnnotationsArea;
 	
-	transient LevelComparator comparator;
-	
 	/**
 	 * Constructor.
 	 * @param modes property storing the current selected Mode within QuPath.
@@ -250,7 +248,8 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		List<PathObject> pathObjectList = getSelectableObjectList(x, y);
 		if (pathObjectList == null || pathObjectList.isEmpty())
 			return null;
-		int ind = pathObjectList.size() - searchCount % pathObjectList.size() - 1;
+//		int ind = pathObjectList.size() - searchCount % pathObjectList.size() - 1;
+		int ind = searchCount % pathObjectList.size();
 		return pathObjectList.get(ind);
 	}
 	
@@ -273,9 +272,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
 		if (pathObjectList.size() == 1)
 			return pathObjectList;
-		if (comparator == null)
-			comparator = new LevelComparator();
-		Collections.sort(pathObjectList, comparator);
+		Collections.sort(pathObjectList, PathObjectHierarchy.HIERARCHY_COMPARATOR);
 		return pathObjectList;
 	}
 	
@@ -318,19 +315,6 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 			e.consume();
 			return;
 		}
-	}
-
-	/**
-	 * Compare with the goal of making objects earlier in the hierarchy (i.e. closer to the root)
-	 * closer to the start of any sorted collection.
-	 */
-	static class LevelComparator implements Comparator<PathObject> {
-
-		@Override
-		public int compare(PathObject o1, PathObject o2) {
-			return Integer.compare(o1.getLevel(), o2.getLevel());
-		}
-		
 	}
 	
 	

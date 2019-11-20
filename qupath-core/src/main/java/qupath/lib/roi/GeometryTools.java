@@ -8,25 +8,33 @@ import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.awt.GeometryCollectionShape;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.awt.ShapeReader;
 import org.locationtech.jts.awt.ShapeWriter;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
+import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.Puntal;
+import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
@@ -49,8 +57,23 @@ import qupath.lib.roi.interfaces.ROI;
 public class GeometryTools {
 	
 	private static Logger logger = LoggerFactory.getLogger(GeometryTools.class);
+	
+	private final static GeometryFactory DEFAULT_FACTORY = new GeometryFactory(
+			new PrecisionModel(100.0),
+			0,
+			PackedCoordinateSequenceFactory.FLOAT_FACTORY);
+
     
-    private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder().build();
+    private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder()
+    		.build();
+    
+    /**
+     * Get the default GeometryFactory to construct Geometries within QuPath.
+     * @return
+     */
+    public static GeometryFactory getDefaultFactory() {
+    	return DEFAULT_FACTORY;
+    }
     
     /**
      * Convert a java.awt.Shape to a JTS Geometry.
@@ -114,8 +137,49 @@ public class GeometryTools {
      * @param geometries
      * @return
      */
-    public static Geometry union(Collection<Geometry> geometries) {
+    public static Geometry union(Collection<? extends Geometry> geometries) {
+    	if (geometries.isEmpty())
+    		return DEFAULT_INSTANCE.factory.createPolygon();
+    	if (geometries.size() == 1)
+    		return geometries.iterator().next();
+//    	return DEFAULT_INSTANCE.factory.createGeometryCollection(geometries.toArray(Geometry[]::new)).buffer(0);
     	return UnaryUnionOp.union(geometries);
+    }
+    
+    
+    
+    public static Geometry homogenizeGeometryCollection(Geometry geometry) {
+    	if (geometry instanceof Polygonal || geometry instanceof Puntal || geometry instanceof Lineal) {
+    		return geometry;
+    	}
+    	boolean hasPolygons = false;
+    	boolean hasLines = false;
+    	boolean hasPoints = false;
+    	List<Geometry> collection = new ArrayList<>();
+    	for (int i = 0; i < geometry.getNumGeometries(); i++) {
+    		var geom = homogenizeGeometryCollection(geometry.getGeometryN(i));
+    		if (geom instanceof Polygonal) {
+    			if (!hasPolygons)
+    				collection.clear();
+   				collection.add(geom);
+    			hasPolygons = true;
+    		} else if (geom instanceof Lineal) {
+    			if (hasPolygons)
+    				continue;
+    			if (!hasLines)
+    				collection.clear();
+   				collection.add(geom);
+    			hasLines = true;
+    		} else if (geom instanceof Puntal) {
+    			if (hasPolygons || hasLines)
+    				continue;
+    			collection.add(geom);
+    			hasPoints = true;
+    		}
+    	}
+    	if (collection.size() == geometry.getNumGeometries())
+    		return geometry;
+    	return geometry.getFactory().buildGeometry(collection);
     }
     
     
@@ -202,12 +266,11 @@ public class GeometryTools {
         
 
 	    private GeometryConverter(final GeometryFactory factory, final double pixelWidth, final double pixelHeight, final double flatness) {
-	        this.factory = factory == null ? new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE)) : factory;
 	    	if (factory == null) {
 	        	if (pixelWidth == 1 && pixelHeight == 1)
-	        		this.factory = new GeometryFactory(new PrecisionModel(100.0));
+	        		this.factory = DEFAULT_FACTORY;
 	        	else
-	        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE));
+	        		this.factory = new GeometryFactory(new PrecisionModel(PrecisionModel.FLOATING_SINGLE), 0, PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 	    	} else
 	    		this.factory = factory;
 	        this.flatness = flatness;
@@ -301,8 +364,15 @@ public class GeometryTools {
 			double areaTempSigned = 0;
 			double areaCached = 0;
 			
+			// Helpful for debugging where errors in conversion may occur
+			double areaPositive = 0;
+			double areaNegative = 0;
+			
 			double precision = 1.0e-4 * flatness;
 	//		double minDisplacement2 = precision * precision;
+			
+			int totalCount = 0;
+			int errorCount = 0;
 	
 			double[] seg = new double[6];
 			double startX = Double.NaN, startY = Double.NaN;
@@ -320,7 +390,7 @@ public class GeometryTools {
 					areaCached += areaTempSigned;
 					areaTempSigned = 0;
 					points.clear();
-					points.add(new Coordinate(startX, startY));
+					points.add(new CoordinateXY(startX, startY));
 					closed = false;
 					continue;
 				case PathIterator.SEG_CLOSE:
@@ -334,13 +404,13 @@ public class GeometryTools {
 					// We only wand to add a point if the displacement is above a specified tolerance, 
 					// because JTS can be very sensitive to any hint of self-intersection - and does not always 
 					// like what the PathIterator provides
-					var next = new Coordinate(x1, y1);
+					var next = new CoordinateXY(x1, y1);
 					if (points.isEmpty() || points.get(points.size()-1).distance(next) > precision)
-						points.add(next);
+						points.add(next, false);
 	//				double dx = x1 - points;
 	//				double dy = y1 - y0;
 	//				if (dx*dx + dy*dy > minDisplacement2)
-	//					points.add(new Coordinate(x1, y1));
+	//					points.add(new CoordinateXY(x1, y1));
 					else
 						logger.trace("Skipping nearby points");
 					closed = false;
@@ -370,18 +440,29 @@ public class GeometryTools {
 								true);
 						double areaAfter = geom.getArea();
 						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.001)) {
-							logger.warn("Unable to fix geometry (area before: {}, area after: {}, tolerance: {})", areaBefore, areaAfter, distance);
-							logger.warn("Original geometry: {}", polygon);
-							logger.warn("Will attempt to proceed using {}", geom);
+							logger.debug("Unable to fix geometry (area before: {}, area after: {}, tolerance: {})", areaBefore, areaAfter, distance);
+							logger.trace("Original geometry: {}", polygon);
+							logger.trace("Will attempt to proceed using {}", geom);
 						} else {
 							logger.debug("Geometry fix looks ok (area before: {}, area after: {})", areaBefore, areaAfter);
 						}
 						polygon = geom;
+						errorCount++;
 					}
-					if (areaTempSigned < 0)
-						negative.add(polygon);
-					else if (areaTempSigned > 0)
-						positive.add(polygon);
+					totalCount++;
+					if (areaTempSigned < 0) {
+						areaNegative += areaTempSigned;
+						for (int i = 0; i < polygon.getNumGeometries(); i++) {
+							Polygon p = (Polygon)polygon.getGeometryN(i);
+							negative.add(p);
+						}
+					} else if (areaTempSigned > 0) {
+						areaPositive += areaTempSigned;
+						for (int i = 0; i < polygon.getNumGeometries(); i++) {
+							Polygon p = (Polygon)polygon.getGeometryN(i);
+							positive.add(p);
+						}
+					}
 					// Zero indicates the shape is empty...
 				}
 				// Update the coordinates
@@ -394,26 +475,141 @@ public class GeometryTools {
 			areaCached += areaTempSigned;
 			List<Geometry> outer;
 			List<Geometry> holes;
+			double areaOuter;
+			double areaHoles;
 			if (areaCached < 0) {
+				areaOuter = -areaNegative;
+				areaHoles = areaPositive;
 				outer = negative;
 				holes = positive;
 			} else if (areaCached > 0) {
+				areaOuter = areaPositive;
+				areaHoles = -areaNegative;
 				outer = positive;
 				holes = negative;
 			} else {
 				return factory.createPolygon();
 			}
-			Geometry geometry = union(outer);
-	
-			if (!holes.isEmpty()) {
-				Geometry hole = union(holes);
-				geometry = geometry.difference((Geometry)hole);
+			
+			Geometry geometry;
+			Geometry geometryOuter;
+			if (holes.isEmpty()) {
+				// If we have no holes, just just the outer geometry
+				geometryOuter = union(outer);
+				geometry = geometryOuter;
+			} else if (outer.size() == 1) {
+				// If we just have one outer geometry, remove all the holes
+				geometryOuter = union(outer);
+				geometry = geometryOuter.difference(union(holes));
+			} else {
+				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
+				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
+				// By doing this in order (largest first) we should find the 'correct' containing polygon.
+				
+				// Cache areas so we can use them for sorting without recalculating them every time
+				var areaMap = new HashMap<Geometry, Double>();
+				for (var g : outer)
+					areaMap.put(g, g.getArea());
+				for (var g : holes)
+					areaMap.put(g, g.getArea());
+				
+				// For each hole, find the smallest polygon that contains it
+				var ascendingArea = Comparator.comparingDouble(g -> areaMap.get(g));
+				outer.sort(ascendingArea);
+				holes.sort(ascendingArea);
+				Map<Geometry, List<Geometry>> matches = new HashMap<>();
+				for (var tempHole : holes) {
+					double holeArea = areaMap.get(tempHole);
+					// We assume a single point inside is sufficient because polygons should be non-overlapping
+					var point = tempHole.getCoordinate();
+					var iterOuter = outer.iterator();
+					int count = 0;
+					while (iterOuter.hasNext()) {
+						var tempOuter = iterOuter.next();
+						if (holeArea > areaMap.get(tempOuter)) {
+							continue;
+						}
+						if (SimplePointInAreaLocator.isContained(point, tempOuter)) {
+							var list = matches.get(tempOuter);
+							if (list == null) {
+								list = new ArrayList<>();
+								matches.put(tempOuter, list);
+							}
+							list.add(tempHole);
+							break;
+						}
+					}
+				}
+				
+				// Loop through the outer polygons and remove all their holes
+				List<Geometry> fixedGeometries = new ArrayList<>();
+				for (var tempOuter : outer) {
+					var list = matches.getOrDefault(tempOuter, null);
+					if (list == null || list.isEmpty()) {
+						fixedGeometries.add(tempOuter);
+					} else {
+						var mergedHoles = union(list);
+						fixedGeometries.add(tempOuter.difference(mergedHoles));
+					}
+				}
+				geometry = union(fixedGeometries);
+				geometryOuter = geometry;
+				
+				
+//				var comparator = Comparator.comparingDouble(g -> areaMap.get(g)).reversed();
+//				outer.sort(comparator);
+//				holes.sort(comparator);
+//				for (var tempHole : holes) {
+//					double holeArea = areaMap.get(tempHole);
+//					// We assume a single point inside is sufficient because polygons should be non-overlapping
+//					var point = tempHole.getCoordinate();
+//					var iterOuter = outer.iterator();
+//					while (iterOuter.hasNext()) {
+//						var tempOuter = iterOuter.next();
+//						if (holeArea > areaMap.get(tempOuter)) {
+//							logger.warn("No polygons found containing hole!");
+//							break;
+//						}
+//						if (SimplePointInAreaLocator.isContained(point, tempOuter)) {
+//							iterOuter.remove();
+//							var temp = tempOuter.difference(tempHole);
+//							areaMap.put(temp, temp.getArea());
+//							outer.add(temp);
+//							outer.sort(comparator);
+//							break;
+//						}
+//						if (!iterOuter.hasNext())
+//							logger.warn("No polygons found containing hole!");
+//					}
+//				}
+//				geometry = union(outer);
+//				geometryOuter = geometry;
 			}
 			
 			// Perform a sanity check using areas
 			double computedArea = Math.abs(areaCached);
 			double geometryArea = geometry.getArea();
 			if (!GeneralTools.almostTheSame(computedArea, geometryArea, 0.01)) {
+				logger.debug("{}/{} geometries had topology validation errors", errorCount, totalCount);
+//				try {
+//					double geometryAreaSum = 0;
+//					for (var g : outer)
+//						geometryAreaSum += g.getArea();
+//					double geometryHoleAreaSum = 0;
+//					for (var g : holes)
+//						geometryHoleAreaSum += g.getArea();
+//					System.err.println("Positive area: " + areaOuter + ", Geometry: " + geometryOuter.getArea() + ", summed Geometry area: " + geometryAreaSum);
+//					System.err.println("Holes area: " + areaHoles + ", Geometry: " + (geometryHoles == null ? 0 : geometryHoles.getArea()) + ", summed Geometry area: " + geometryHoleAreaSum);
+//					String dirTemp = "";
+//					ImageIO.write(BufferedImageTools.createROIMask(area, 1), "PNG", new File(dirTemp, "Shape mask.png"));
+//					ImageIO.write(BufferedImageTools.createROIMask(GeometryTools.geometryToShape(geometry), 1), "PNG", new File(dirTemp, "Geometry mask.png"));
+//					ImageIO.write(BufferedImageTools.createROIMask(GeometryTools.geometryToShape(geometryOuter), 1), "PNG", new File(dirTemp, "Geometry outer mask.png"));
+//					if (!holes.isEmpty())
+//						ImageIO.write(BufferedImageTools.createROIMask(GeometryTools.geometryToShape(union(holes)), 1), "PNG", new File(dirTemp, "Geometry holes mask.png"));
+//				} catch (IOException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
 				double percent = Math.abs(computedArea - geometryArea) / (computedArea/2.0 + geometryArea/2.0) * 100.0;
 				logger.warn("Difference in area after JTS conversion! Computed area: {}, Geometry area: {} ({} %%)", Math.abs(areaCached), geometry.getArea(),
 						GeneralTools.formatNumber(percent, 3));
@@ -461,6 +657,12 @@ public class GeometryTools {
 	    }
 	
 	    private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
+	    	// Make sure out Geometry is all of the same type
+	    	var geometry2 = homogenizeGeometryCollection(geometry);
+	    	if (geometry2 != geometry) {
+	    		logger.warn("Geometries must all be of the same type! Converted {} to {}.", geometry.getGeometryType(), geometry2.getGeometryType());
+	    		geometry = geometry2;
+	    	}
 	    	if (geometry instanceof Point) {
 	    		Coordinate coord = geometry.getCoordinate();
 	    		return ROIs.createPointsROI(coord.x, coord.y, plane);

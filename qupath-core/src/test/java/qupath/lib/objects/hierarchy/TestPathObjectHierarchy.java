@@ -89,7 +89,7 @@ public class TestPathObjectHierarchy {
 		myPOHL.setFiredState(0);
 
 		// Adding one PO without a child (so 1) - this PO, however, is fully contained within Child1 
-		myPH.addPathObject(myChild2PAO);
+		myPH.insertPathObject(myChild2PAO, true);
 		Collection<PathObject> POAL2 = new ArrayList<>();
 		POAL2 = myPH.getObjects(POAL2, PathAnnotationObject.class);
 		assertEquals(POAL2.size(), 3); //  2 + 1 

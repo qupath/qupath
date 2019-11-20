@@ -165,6 +165,7 @@ public class QP {
 			PathClassifierTools.class,
 			ColorTools.class,
 			GeneralTools.class,
+			DistanceTools.class,
 //			ImageWriter.class,
 			ImageWriterTools.class,
 			PathClassTools.class,
@@ -1861,6 +1862,23 @@ public class QP {
 	
 	
 	/**
+	 * Compute the distance for all detection object centroids to the closest detection with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list.
+	 * @param imageData
+	 */
+	public static void detectionCentroidDistances(ImageData<?> imageData) {
+		DistanceTools.detectionCentroidDistances(imageData);
+	}
+	
+	/**
+	 * Compute the distance for all detection object centroids to the closest detection with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list for the current ImageData.
+	 */
+	public static void detectionCentroidDistances() {
+		DistanceTools.detectionCentroidDistances(getCurrentImageData());
+	}
+	
+	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list.
 	 * @param imageData
@@ -1985,10 +2003,45 @@ public class QP {
 	}
 	
 	
+	/**
+	 * Resolve the location of annotations in the current hierarchy by setting parent/child relationships.
+	 */
+	public static void resolveHierarchy() {
+		resolveHierarchy(getCurrentHierarchy());
+	}
 	
+	/**
+	 * Resolve the location of annotations in the specified hierarchy by setting parent/child relationships.
+	 * 
+	 * @param hierarchy
+	 */
+	public static void resolveHierarchy(PathObjectHierarchy hierarchy) {
+		if (hierarchy == null)
+			return;
+		hierarchy.resolveHierarchy();
+	}
 	
+	/**
+	 * Insert objects into the hierarchy, resolving their location and setting parent/child relationships.
+	 * 
+	 * @param pathObjects
+	 */
+	public static void insertObjects(Collection<? extends PathObject> pathObjects) {
+		var hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			hierarchy.insertPathObjects(pathObjects);
+	}	
 	
-	
+	/**
+	 * Insert object into the hierarchy, resolving its location and setting parent/child relationships.
+	 * 
+	 * @param pathObject
+	 */
+	public static void insertObjects(PathObject pathObject) {
+		var hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			hierarchy.insertPathObject(pathObject, true);
+	}	
 	
 	private static boolean isFinite(Number val) {
 		return val != null && Double.isFinite(val.doubleValue());

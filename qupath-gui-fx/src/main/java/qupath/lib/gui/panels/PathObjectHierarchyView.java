@@ -482,7 +482,9 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 				childrenSet = true;
 				var childArray = value.getChildObjectsAsArray();
 				if (childArray.length > 0) {
-					Arrays.sort(childArray, DefaultPathObjectComparator.getInstance());
+					// Don't sort TMA cores (since it will lose the ordering)
+					if (!Arrays.stream(childArray).anyMatch(p -> p.isTMACore()))
+						Arrays.sort(childArray, DefaultPathObjectComparator.getInstance());
 					List<TreeItem<PathObject>> newChildren = new ArrayList<>();
 					boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;
 					for (PathObject child : childArray) {

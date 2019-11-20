@@ -4,12 +4,6 @@ description = 'qupath-core-processing'
 
 configurations {
   implementation.extendsFrom commonsmath
-  implementation.extendsFrom gson
-  implementation.extendsFrom imagej
-  implementation.extendsFrom opencv
-  implementation.extendsFrom jts
-}
-
-dependencies {
-  compile project(':qupath-core')
+  api.extendsFrom imagej
+  api.extendsFrom opencv
 }

@@ -24,6 +24,7 @@
 package qupath.lib.images.writers;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Collection;
 
 import qupath.lib.images.servers.ImageServer;
@@ -142,5 +143,30 @@ public interface ImageWriter<T> {
 	 * @throws IOException
 	 */
 	public void writeImage(ImageServer<T> server, String pathOutput) throws IOException;
+	
+	/**
+	 * Write an image region to a specified output stream.
+	 * @param server
+	 * @param region
+	 * @param stream
+	 * @throws IOException
+	 */
+	public void writeImage(ImageServer<T> server, RegionRequest region, OutputStream stream) throws IOException;
+
+	/**
+	 * Write a full image to a specified output stream.
+	 * @param img
+	 * @param stream
+	 * @throws IOException
+	 */
+	public void writeImage(T img, OutputStream stream) throws IOException;
+	
+	/**
+	 * Write a full image to a specified output stream.
+	 * @param server
+	 * @param stream
+	 * @throws IOException
+	 */
+	public void writeImage(ImageServer<T> server, OutputStream stream) throws IOException;
 
 }

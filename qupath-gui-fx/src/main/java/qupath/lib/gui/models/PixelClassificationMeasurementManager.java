@@ -100,8 +100,7 @@ public class PixelClassificationMeasurementManager {
 			isMulticlass = true;
 		
         // Just to get measurement names
-		var channels = classifierServer.getMetadata().getChannels();
-		updateMeasurements(classifierServer.getMetadata().getClassificationLabels(), new long[channels.size()], pixelArea, pixelAreaUnits);
+		updateMeasurements(classifierServer.getMetadata().getClassificationLabels(), null, pixelArea, pixelAreaUnits);
 	}
 	
 	
@@ -308,7 +307,7 @@ public class PixelClassificationMeasurementManager {
 
 	private synchronized MeasurementList updateMeasurements(Map<Integer, PathClass> classificationLabels, long[] counts, double pixelArea, String pixelAreaUnits) {
   		
-    	long total = GeneralTools.sum(counts);
+    	long total = counts == null ? 0L : GeneralTools.sum(counts);
     	
     	Collection<PathClass> pathClasses = new LinkedHashSet<>(classificationLabels.values());
     	
@@ -331,12 +330,13 @@ public class PixelClassificationMeasurementManager {
     	Map<PathClass, Long> pathClassTotals = new LinkedHashMap<>();
     	long totalWithoutIgnored = 0L;
     	if (counts != null) {
-	    	for (int c = 0; c < counts.length; c++) {
-	    		PathClass pathClass = classificationLabels.get(c);
+	    	for (var entry : classificationLabels.entrySet()) {
+	    		PathClass pathClass = entry.getValue();
 	    		// Skip background channels
 	    		if (pathClass == null || ignored.contains(pathClass))
 	    			continue;
-	    		long temp = counts[c];
+	    		int c = entry.getKey();
+	    		long temp = counts == null || c >= counts.length ? 0L : counts[c];
 				totalWithoutIgnored += temp;
 	    		pathClassTotals.put(pathClass, pathClassTotals.getOrDefault(pathClass, 0L) + temp);
 	    	}
@@ -348,17 +348,21 @@ public class PixelClassificationMeasurementManager {
     	
     	// Add measurements for classes
     	for (var entry : pathClassTotals.entrySet()) {
-    		String name = entry.getKey().toString();
+    		var pathClass = entry.getKey();
+    		String name = pathClass.toString();
 			String namePercentage = "Classifier: " + name + " %";
 			String nameArea = "Classifier: " + name + " area " + pixelAreaUnits;
 			if (tempList != null) {
-				tempList.add(namePercentage);
+				if (pathClassTotals.size() > 1)
+					tempList.add(namePercentage);
 				tempList.add(nameArea);
 			}
 			if (counts != null) {
-				measurementList.putMeasurement(namePercentage, (double)entry.getValue()/totalWithoutIgnored * 100.0);
+				long count = entry.getValue();
+				if (pathClassTotals.size() > 1)
+					measurementList.putMeasurement(namePercentage, (double)count/totalWithoutIgnored * 100.0);
 				if (!Double.isNaN(pixelArea)) {
-					measurementList.putMeasurement(nameArea, entry.getValue() * pixelArea);
+					measurementList.putMeasurement(nameArea, count * pixelArea);
 				}
 			}
     	}

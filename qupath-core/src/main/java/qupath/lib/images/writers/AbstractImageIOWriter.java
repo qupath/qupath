@@ -26,6 +26,7 @@ package qupath.lib.images.writers;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import javax.imageio.ImageIO;
 
@@ -70,6 +71,11 @@ abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 	public boolean suportsImageType(ImageServer<BufferedImage> server) {
 		return server.isRGB() || (server.nChannels() == 1 && server.getPixelType() == PixelType.UINT8);
 	}
+	
+	@Override
+	public boolean supportsRGB() {
+		return true;
+	}
 
 	@Override
 	public void writeImage(ImageServer<BufferedImage> server, RegionRequest request, String pathOutput) throws IOException {
@@ -89,10 +95,23 @@ abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 	public void writeImage(ImageServer<BufferedImage> server, String pathOutput) throws IOException {
 		writeImage(server, RegionRequest.createInstance(server), pathOutput);
 	}
+	
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, RegionRequest request, OutputStream stream) throws IOException {
+		BufferedImage img = server.readBufferedImage(request);
+		writeImage(img, stream);
+	}
 
 	@Override
-	public boolean supportsRGB() {
-		return true;
+	public void writeImage(BufferedImage img, OutputStream stream) throws IOException {
+		String ext = getDefaultExtension();
+		if (!ImageIO.write(img, ext, stream))
+			throw new IOException("Unable to write using ImageIO with extension " + ext);
+	}
+	
+	@Override
+	public void writeImage(ImageServer<BufferedImage> server, OutputStream stream) throws IOException {
+		writeImage(server, RegionRequest.createInstance(server), stream);
 	}
 	
 }

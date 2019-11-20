@@ -34,18 +34,18 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 
 /**
  * Helper class to add undo/redo support to QuPath.
- * 
+ * <p>
  * This is restricted to tracking changes in the PathObjectHierarchy for individual viewers, 
  * and is intended mostly for cases where there aren't many objects - but where making mistakes 
  * would be especially annoying (e.g. laboriously annotating images).
- * 
+ * <p>
  * Preferences are created to control the maximum number of levels of undo, and also the maximum hierarchy 
  * size.  This latter option is used to automatically turn off undo/redo support if the hierarchy size 
  * grows beyond a specified number of objects.
- * 
+ * <p>
  * The reason is because of the (fairly simple) implementation: every time the hierarchy is changed, 
- * the *entire hierarchy* is serialized in case it becomes necessary to revert back.
- * 
+ * the <i>entire hierarchy</i> is serialized in case it becomes necessary to revert back.
+ * <p>
  * This is a lot easier than trying to figure out how to computationally revert every conceivable change 
  * that the hierarchy might experience, but it is inevitably quite memory hungry and risks having a substantial 
  * impact on performance for large object hierarchies.
@@ -107,6 +107,28 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	 */
 	public boolean undoOnce() {
 		return undoOnce(viewerProperty.get());
+	}
+	
+	/**
+	 * The total number of bytes used for all viewers.
+	 */
+	public long totalBytes() {
+		long total = 0L;
+		for (var manager : map.values()) {
+			if (manager != null)
+				total += manager.totalBytes();
+		}
+		return total;
+	}
+	
+	/**
+	 * Clear all undo/redo stacks (useful when memory is low).
+	 */
+	public void clear() {
+		for (var manager : map.values()) {
+			manager.clear();
+		}
+		refreshProperties();
 	}
 	
 	/**
@@ -237,7 +259,8 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		private Deque<byte[]> redoStack = new ArrayDeque<>();
 		
 		SerializableUndoRedoStack(T object) {
-			current = serialize(object, 1024);
+			if (object != null)
+				current = serialize(object, 1024);
 		}
 		
 		/**
@@ -257,11 +280,35 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		}
 		
 		/**
+		 * Get the total number of allocated bytes.
+		 * @return
+		 */
+		public synchronized long totalBytes() {
+			long total = 0L;
+			if (current != null)
+				total = current.length;
+			for (byte[] bytes : undoStack)
+				total += bytes.length;
+			for (byte[] bytes : redoStack)
+				total += bytes.length;
+			return total;
+		}
+		
+		/**
+		 * Clear the undo and redo stacks, in addition to the current bytes.
+		 */
+		public synchronized void clear() {
+			current = null;
+			undoStack.clear();
+			redoStack.clear();
+		}
+		
+		/**
 		 * Request redo once, updating the current (serialized) object, 
 		 * and return the deserialized version of the object at the top of the 'redo' stack.
 		 * @return
 		 */
-		public T redoOnce() {
+		public synchronized T redoOnce() {
 			if (redoStack.isEmpty()) {
 				logger.debug("Cannot redo! Stack is empty.");
 				return null;
@@ -278,7 +325,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		 * and return the deserialized version of the object at the top of the 'undo' stack.
 		 * @return
 		 */
-		public T undoOnce() {
+		public synchronized T undoOnce() {
 			if (undoStack.isEmpty()) {
 				logger.debug("Cannot undo! Stack is empty.");
 				return null;
@@ -297,12 +344,20 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		 * @param object
 		 * @param historySize
 		 */
-		public void addLatest(final T object, int historySize) {
+		public synchronized void addLatest(final T object, int historySize) {
 			int initialSize = 1024;
 			if (current != null) {
-				// Default to something a bit bigger than the last things we had
-				initialSize = (int)(current.length * 1.1);
-				undoStack.push(current);
+				// If we are low on memory, clear the undo stack
+				var runtime = Runtime.getRuntime();
+				long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+				long remainingMemory = runtime.maxMemory() - usedMemory;
+				if (remainingMemory < current.length * 1.5) {
+					undoStack.clear();
+				} else {
+					// Default to something a bit bigger than the last things we had
+					initialSize = Math.min(Integer.MAX_VALUE-64, (int)(current.length * 1.1));
+					undoStack.push(current);
+				}
 			}
 			current = serialize(object, initialSize);
 			// Reset the ability to redo
@@ -310,7 +365,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 			// Check the history size
 			if (historySize > 0) {
 				while (undoStack.size() > historySize)
-					undoStack.pollLast();	
+					undoStack.pollLast();
 			}
 		}
 		
@@ -369,7 +424,11 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		if (hierarchy == null) {
 			map.put(viewer, (SerializableUndoRedoStack<PathObjectHierarchy>)null);
 		} else {
-			map.put(viewer, new SerializableUndoRedoStack<>(hierarchy));
+			int maxSize = maxUndoHierarchySize.get();
+			if (maxSize >= hierarchy.nObjects())
+				map.put(viewer, new SerializableUndoRedoStack<>(hierarchy));
+			else
+				map.put(viewer, new SerializableUndoRedoStack<>(null));
 			// Listen for changes
 			hierarchy.addPathObjectListener(this);
 		}

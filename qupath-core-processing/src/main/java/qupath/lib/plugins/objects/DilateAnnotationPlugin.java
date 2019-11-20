@@ -220,11 +220,15 @@ public class DilateAnnotationPlugin<T> extends AbstractInteractivePlugin<T> {
 		}
 
 		if (removeInterior) {
-			if (isErosion)
+			// Difference isn't supported for GeometryCollections
+			if (isErosion) {
+				geometry = GeometryTools.homogenizeGeometryCollection(geometry);
 				geometry2 = geometry.difference(geometry2);
-			else {
+			} else {
 				if (geometry.getArea() == 0.0)
 					geometry = geometry.buffer(0.5);
+				geometry2 = GeometryTools.homogenizeGeometryCollection(geometry2);
+				geometry = GeometryTools.homogenizeGeometryCollection(geometry);
 				geometry2 = geometry2.difference(geometry);
 			}
 		}
