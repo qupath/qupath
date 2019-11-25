@@ -1,3 +1,8 @@
+## Version 0.2.0-m7
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+* Fixed bug that could cause QuPath to freeze when selecting objects with a mini-viewer active
+
+
 ## Version 0.2.0-m6
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 ### Important bug fix!

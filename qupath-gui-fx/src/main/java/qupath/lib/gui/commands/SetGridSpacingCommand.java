@@ -53,7 +53,7 @@ public class SetGridSpacingCommand implements PathCommand {
 		
 		ParameterList params = new ParameterList()
 				.addDoubleParameter("hSpacing", "Horizontal spacing", gridLines.getSpaceX())
-				.addDoubleParameter("vSpacing", "Vertical spacing", gridLines.getSpaceX())
+				.addDoubleParameter("vSpacing", "Vertical spacing", gridLines.getSpaceY())
 				.addBooleanParameter("useMicrons", "Use microns", gridLines.useMicrons());
 		
 		if (!Dialogs.showParameterDialog("Set grid spacing", params))
