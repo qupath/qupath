@@ -138,16 +138,40 @@ public class GeometryTools {
      * @return
      */
     public static Geometry union(Collection<? extends Geometry> geometries) {
+    	return union(geometries, false);
+    }
+    
+    
+    /**
+     * Calculate the union of multiple Geometry objects.
+     * @param geometries
+     * @param fastUnion if true, it can be assumed that the Geometries are valid and cannot overlap. This may permit a faster union operation.
+     * @return
+     */
+    private static Geometry union(Collection<? extends Geometry> geometries, boolean fastUnion) {
     	if (geometries.isEmpty())
     		return DEFAULT_INSTANCE.factory.createPolygon();
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
-//    	return DEFAULT_INSTANCE.factory.createGeometryCollection(geometries.toArray(Geometry[]::new)).buffer(0);
+    	if (fastUnion && geometries.size() < 100) {
+    		var geometryArray = geometries.toArray(Geometry[]::new);
+    		double areaSum = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
+    		var union = DEFAULT_INSTANCE.factory.createGeometryCollection(geometryArray).buffer(0);
+    		double areaUnion = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
+    		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001))
+    			return union;
+    		logger.warn("Fast union failed with different areas ({} before vs {} after)", areaSum, areaUnion);
+    	}
     	return UnaryUnionOp.union(geometries);
     }
     
     
-    
+    /**
+     * Ensure a GeometryCollection contains only Geometries of the same type (Polygonal, Lineal or Puntal).
+     * Other geometries (with lower dimension) are discarded.
+     * @param geometry
+     * @return
+     */
     public static Geometry homogenizeGeometryCollection(Geometry geometry) {
     	if (geometry instanceof Polygonal || geometry instanceof Puntal || geometry instanceof Lineal) {
     		return geometry;
@@ -434,6 +458,8 @@ public class GeometryTools {
 					if (error != null) {
 						logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
 						
+						double areaBefore = polygon.getArea();
+
 //						// Faster method of fixing polygons... main disadvantage is that it doesn't always work
 //						var polygonizer = new Polygonizer();
 //						var union = factory.createLineString(coords).union(factory.createPoint(coords[0]));
@@ -445,15 +471,21 @@ public class GeometryTools {
 //							geom = geom.symDifference((Geometry)iter2.next());
 ////						factory.buildGeometry(polygons);
 						
-						// Slow method of fixing polygons
-						double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
-						Geometry geom = GeometrySnapper.snapToSelf(polygon,
-								distance,
-								true);
-						
-						double areaBefore = polygon.getArea();
+						// Try fast buffer trick to make valid (but sometimes this can 'break', e.g. with bow-tie shapes)
+						Geometry geom = polygon.buffer(0);
 						double areaAfter = geom.getArea();
-						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.001)) {
+						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001)) {
+							// Resort to the slow method of fixing polygons if we have to
+							logger.debug("Unable to fix Geometry with buffer(0) - will try snapToSelf instead");
+							double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
+							geom = GeometrySnapper.snapToSelf(polygon,
+									distance,
+									true);
+							areaAfter = geom.getArea();
+						}
+						
+						// Sanity check & warning if something went wrong
+						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001)) {
 							logger.warn("Unable to fix geometry (area before: {}, area after: {})", areaBefore, areaAfter);
 							logger.trace("Original geometry: {}", polygon);
 							logger.trace("Will attempt to proceed using {}", geom);
@@ -508,13 +540,13 @@ public class GeometryTools {
 			Geometry geometry;
 			Geometry geometryOuter;
 			if (holes.isEmpty()) {
-				// If we have no holes, just just the outer geometry
-				geometryOuter = union(outer);
+				// If we have no holes, just use the outer geometry
+				geometryOuter = union(outer, true);
 				geometry = geometryOuter;
 			} else if (outer.size() == 1) {
 				// If we just have one outer geometry, remove all the holes
-				geometryOuter = union(outer);
-				geometry = geometryOuter.difference(union(holes));
+				geometryOuter = union(outer, true);
+				geometry = geometryOuter.difference(union(holes, true));
 			} else {
 				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
@@ -562,11 +594,11 @@ public class GeometryTools {
 					if (list == null || list.isEmpty()) {
 						fixedGeometries.add(tempOuter);
 					} else {
-						var mergedHoles = union(list);
+						var mergedHoles = union(list, true);
 						fixedGeometries.add(tempOuter.difference(mergedHoles));
 					}
 				}
-				geometry = union(fixedGeometries);
+				geometry = union(fixedGeometries, true);
 				geometryOuter = geometry;
 				
 				
