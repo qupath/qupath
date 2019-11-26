@@ -1,6 +1,9 @@
 ## Version 0.2.0-m7
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
-* Fixed bug that could cause QuPath to freeze when selecting objects with a mini-viewer active
+* Fixed bug that could cause QuPath to freeze when selecting objects with a mini-viewer active, see https://github.com/qupath/qupath/issues/377
+* Improved performance converting shapes to geometries, see https://github.com/qupath/qupath/issues/378
+* Improved robustness when drawing complex shapes, see https://github.com/qupath/qupath/issues/376
+* Improved reliability when script directories cannot be found, see https://github.com/qupath/qupath/issues/373
 
 
 ## Version 0.2.0-m6

@@ -450,6 +450,7 @@ public class RoiTools {
 	 * @return
 	 */
 	public static List<ROI> makeTiles(final ROI roi, final int tileWidth, final int tileHeight, final boolean trimToROI) {
+		// TODO: Convert to use JTS Geometries rather than AWT Areas.
 		// Create a collection of tiles
 		Rectangle bounds = AwtTools.getBounds(roi);
 		Area area = getArea(roi);
@@ -525,7 +526,7 @@ public class RoiTools {
 
 		List<ROI> pathROIs = new ArrayList<>();
 
-		Area area = getArea(pathArea);
+		Geometry area = pathArea.getGeometry();
 
 		double xMin = bounds.getMinX();
 		double yMin = bounds.getMinY();
@@ -537,6 +538,8 @@ public class RoiTools {
 		// Center the tiles
 		xMin = (int)(bounds.getCenterX() - (nx * w * .5));
 		yMin = (int)(bounds.getCenterY() - (ny * h * .5));
+		
+		var plane = parentROI.getImagePlane();
 
 		for (int yi = 0; yi < ny; yi++) {
 			for (int xi = 0; xi < nx; xi++) {
@@ -544,7 +547,8 @@ public class RoiTools {
 				double x = xMin + xi * w - overlap;
 				double y = yMin + yi * h - overlap;
 
-				Rectangle2D boundsTile = new Rectangle2D.Double(x, y, w + overlap*2, h + overlap*2);
+				var rect = ROIs.createRectangleROI(x, y, w + overlap*2, h + overlap*2, plane);
+				var boundsTile = rect.getGeometry();
 
 				//				double x = xMin + xi * w;
 				//				double y = yMin + yi * h;
@@ -553,18 +557,13 @@ public class RoiTools {
 				//					logger.info(boundsTile);
 				ROI pathROI = null;
 				if (area.contains(boundsTile))
-					pathROI = ROIs.createRectangleROI(boundsTile.getX(), boundsTile.getY(), boundsTile.getWidth(), boundsTile.getHeight(), parentROI.getImagePlane());
-				else if (pathArea instanceof RectangleROI) {
-					Rectangle2D bounds2 = boundsTile.createIntersection(bounds);
-					pathROI = ROIs.createRectangleROI(bounds2.getX(), bounds2.getY(), bounds2.getWidth(), bounds2.getHeight(), parentROI.getImagePlane());
-				}
+					pathROI = rect;
 				else {
 					if (!area.intersects(boundsTile))
 						continue;
-					Area areaTemp = new Area(boundsTile);
-					areaTemp.intersect(area);
+					Geometry areaTemp = boundsTile.intersection(area);
 					if (!areaTemp.isEmpty())
-						pathROI = ROIs.createAreaROI(areaTemp, parentROI.getImagePlane());					
+						pathROI = GeometryTools.geometryToROI(areaTemp, plane);
 				}
 				if (pathROI != null)
 					pathROIs.add(pathROI);

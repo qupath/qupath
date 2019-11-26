@@ -127,6 +127,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.scripting.QP;
@@ -915,6 +916,22 @@ public class DefaultScriptEditor implements ScriptEditor {
 //				if (dir == null) {
 //					dir = qupath.getProjectScriptsDirectory(true);
 //				}
+				// Elaborate attempt to use scripts directory as default
+				if (dir == null) {
+					try {
+						var project = qupath.getProject();
+						if (project != null) {
+							File dirProject = Projects.getBaseDirectory(project);
+							if (dirProject != null && dirProject.isDirectory()) {
+								File dirScripts = new File(dirProject, "scripts");
+								if (dirScripts.isDirectory())
+									dir = dirScripts;
+							}
+						}
+					} catch (Exception e) {
+						logger.warn("Problem trying to find project scripts directory: {}", e.getLocalizedMessage());
+					}
+				}
 				File file = QuPathGUI.getDialogHelper(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
 				if (file == null)
 					return false;

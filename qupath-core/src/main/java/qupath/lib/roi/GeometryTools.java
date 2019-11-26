@@ -88,6 +88,25 @@ public class GeometryTools {
 //    	return ShapeReader.read(shape, DEFAULT_INSTANCE.flatness, DEFAULT_INSTANCE.factory);
     }
     
+    
+    /**
+     * Create a rectangular Geometry for the specified bounding box.
+     * @param x
+     * @param y
+     * @param width
+     * @param height
+     * @return
+     */
+    public static Geometry createRectangle(double x, double y, double width, double height) {
+    	var shapeFactory = new GeometricShapeFactory(DEFAULT_FACTORY);
+		shapeFactory.setEnvelope(
+				new Envelope(
+						x, x+width, y, y+height)
+				);
+		return shapeFactory.createRectangle();
+    }
+    
+    
     /**
      * Convert a JTS Geometry to a QuPath ROI.
      * @param geometry
