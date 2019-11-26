@@ -29,6 +29,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableStringValue;
@@ -48,6 +51,8 @@ import qupath.lib.gui.tools.GuiTools;
  *
  */
 public class ScriptMenuLoader {
+	
+	private final static Logger logger = LoggerFactory.getLogger(ScriptMenuLoader.class);
 	
 	private ObservableStringValue scriptDirectory;
 	private Menu menu;
@@ -119,20 +124,26 @@ public class ScriptMenuLoader {
 	 */
 	public void updateMenu() {
 		String scriptDir = scriptDirectory.get();
-		if (scriptDir != null) {
-			Path path = Paths.get(scriptDir);
-			// Can only set script directory if we have a property, not just any observable string
-			if (scriptDirectory instanceof StringProperty)
-				menu.getItems().setAll(miSetPath, miOpenDirectory, miCreateScript, new SeparatorMenuItem());
+		try {
+			if (scriptDir != null) {
+				Path path = Paths.get(scriptDir);
+				// Can only set script directory if we have a property, not just any observable string
+				if (scriptDirectory instanceof StringProperty)
+					menu.getItems().setAll(miSetPath, miOpenDirectory, miCreateScript, new SeparatorMenuItem());
+				else
+					menu.getItems().setAll(miOpenDirectory, miCreateScript, new SeparatorMenuItem());
+				if (path != null && path.getFileName() != null) {
+					addMenuItemsForPath(menu, path, true);
+				}
+			} else if (scriptDirectory instanceof StringProperty)
+				menu.getItems().setAll(miSetPath);
 			else
-				menu.getItems().setAll(miOpenDirectory, miCreateScript, new SeparatorMenuItem());
-			if (path != null) {
-				addMenuItemsForPath(menu, path, true);
-			}
-		} else if (scriptDirectory instanceof StringProperty)
-			menu.getItems().setAll(miSetPath);
-		else
+				menu.getItems().clear();
+		} catch (Exception e) {
+			logger.warn("Unable to update scripts for path {} ({})", scriptDir, e.getLocalizedMessage());
+			logger.debug("", e);
 			menu.getItems().clear();
+		}
 	}
 	
 	
