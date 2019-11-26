@@ -538,12 +538,17 @@ public class PathHierarchyPaintingHelper {
 		}
 		
 		private static Shape simplifyByDownsample(final Shape shape, final double downsample) {
-			if (downsample > 50)
-				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
-			if (downsample > 20)
-				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
-			if (downsample > 10)
-				return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
+			try {
+				if (downsample > 50)
+					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 50);
+				if (downsample > 20)
+					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 20);
+				if (downsample > 10)
+					return ShapeSimplifier.simplifyPath(shape instanceof Path2D ? (Path2D)shape : new Path2D.Float(shape), 10);
+			} catch (Exception e) {
+				logger.warn("Unable to simplify path: {}", e.getLocalizedMessage());
+				logger.debug("", e);
+			}
 			return shape;
 		}
 		

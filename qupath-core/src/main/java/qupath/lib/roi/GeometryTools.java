@@ -433,14 +433,28 @@ public class GeometryTools {
 					TopologyValidationError error = new IsValidOp(polygon).getValidationError();
 					if (error != null) {
 						logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
-						double areaBefore = polygon.getArea();
+						
+//						// Faster method of fixing polygons... main disadvantage is that it doesn't always work
+//						var polygonizer = new Polygonizer();
+//						var union = factory.createLineString(coords).union(factory.createPoint(coords[0]));
+//						polygonizer.add(union);
+//						var polygons = polygonizer.getPolygons();
+//						var iter2 = polygons.iterator();
+//						Geometry geom = (Geometry)iter2.next();
+//						while (iter2.hasNext())
+//							geom = geom.symDifference((Geometry)iter2.next());
+////						factory.buildGeometry(polygons);
+						
+						// Slow method of fixing polygons
 						double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
 						Geometry geom = GeometrySnapper.snapToSelf(polygon,
 								distance,
 								true);
+						
+						double areaBefore = polygon.getArea();
 						double areaAfter = geom.getArea();
 						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.001)) {
-							logger.debug("Unable to fix geometry (area before: {}, area after: {}, tolerance: {})", areaBefore, areaAfter, distance);
+							logger.warn("Unable to fix geometry (area before: {}, area after: {})", areaBefore, areaAfter);
 							logger.trace("Original geometry: {}", polygon);
 							logger.trace("Will attempt to proceed using {}", geom);
 						} else {
