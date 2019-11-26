@@ -42,6 +42,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.geom.util.AffineTransformation;
+
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.color.ColorToolsAwt;
@@ -68,6 +75,7 @@ import qupath.lib.objects.PathROIObject;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools.CombineOp;
@@ -179,7 +187,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		PathPrefs.setPaintSelectedBounds(false);
 		// Create & show temporary object
 		for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
-			((PathROIObject)entry.getKey()).setROI(transformer.getTransformedROI(entry.getValue()));
+			((PathROIObject)entry.getKey()).setROI(transformer.getTransformedROI(entry.getValue(), false));
 		
 		// Reset any existing editor (and its visible handles)
 		viewer.getROIEditor().setROI(null);
@@ -209,8 +217,14 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			if (option == DialogButton.NO) {
 				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
 					((PathROIObject)entry.getKey()).setROI(entry.getValue());
-			} else
+			} else {
+				// Apply clipping now
+				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
+					ROI roiTransformed = transformer.getTransformedROI(entry.getValue(), true);
+					((PathROIObject)entry.getKey()).setROI(roiTransformed);
+				}
 				viewer.getHierarchy().fireHierarchyChangedEvent(this, originalObject);
+			}
 		}
 
 		// Update the mode if the viewer is still active
@@ -238,7 +252,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	
 	PathObject createTransformedObject() {
 		ROI roi = originalObject.getROI();
-		ROI shape = RoiTools.getShapeROI(new Area(transformer.getTransformedShape()), roi.getImagePlane());
+		ROI shape = GeometryTools.geometryToROI(transformer.getTransformedShape(), roi.getImagePlane());
 		return PathObjects.createAnnotationObject(shape, originalObject.getPathClass());
 	}
 	
@@ -268,7 +282,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			
 			// Paint bounding box to show rotation
 			Color color = ColorToolsAwt.getCachedColor(0, 0, 0, 96);
-			PathHierarchyPaintingHelper.paintShape(transformer.getTransformedBounds(), g2d, color, stroke, null, downsampleFactor);
+			PathHierarchyPaintingHelper.paintShape(GeometryTools.geometryToShape(transformer.getTransformedBounds()), g2d, color, stroke, null, downsampleFactor);
 			
 			// Paint line to rotation handle
 			Line2D line = transformer.getRotationHandleLine(downsampleFactor);
@@ -304,7 +318,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 				return;
 			
 			Point2D p = viewer.componentPointToImagePoint(e.getX(), e.getY(), new Point2D.Double(), false);
-			if (!transformer.getTransformedBounds().contains(p))
+			if (!contains(transformer.getTransformedBounds(), p.getX(), p.getY()))
 				commitChanges(false);
 		}
 
@@ -315,12 +329,18 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			if (transformer.getRotationHandle(viewer.getDownsampleFactor()).contains(p)) {
 				isRotating = true;
 				lastPoint = p;
-			} else if (transformer.getTransformedBounds().contains(p)) {
+			} else if (contains(transformer.getTransformedBounds(), p.getX(), p.getY())) {
 				isTranslating = true;
 				lastPoint = p;				
 			}
 			e.consume();
 		}
+		
+		
+		boolean contains(Geometry geometry, double x, double y) {
+			return SimplePointInAreaLocator.isContained(new Coordinate(x, y), geometry);
+		}
+		
 
 		public void mouseReleased(MouseEvent e) {
 			isRotating = false;
@@ -344,7 +364,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			lastPoint = p;
 			
 			for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
-				ROI roiTransformed = transformer.getTransformedROI(entry.getValue());
+				ROI roiTransformed = transformer.getTransformedROI(entry.getValue(), false);
 				((PathROIObject)entry.getKey()).setROI(roiTransformed);
 			}
 			viewer.repaint();
@@ -379,26 +399,27 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		private double anchorX;
 		private double anchorY;
 		
-		private Shape shapeOrig;
-		private Rectangle2D boundsOrig;
-		private Shape shapeTransformed;
-		private Shape boundsTransformed;
+		private Geometry shapeOrig;
+		private Geometry boundsOrig;
+		private Geometry shapeTransformed;
+		private Geometry boundsTransformed;
 		
 		private double dx = 0;
 		private double dy = 0;
 		private double theta = 0;
-		private AffineTransform transform;
+		private AffineTransformation transform;
 		
 		RoiAffineTransformer(final ImageRegion bounds, final ROI roi) {
 			if (bounds != null)
 				roiBounds = ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlane(bounds));
 //			this.roi = roi;
-			this.shapeOrig = RoiTools.getShape(roi);
-			this.boundsOrig = shapeOrig.getBounds2D();
-			this.transform = new AffineTransform();
+			this.shapeOrig = roi.getGeometry();
+			this.boundsOrig = shapeOrig.getEnvelope();
+			this.transform = new AffineTransformation();
 			
-			this.anchorX = boundsOrig.getCenterX();
-			this.anchorY = boundsOrig.getCenterY();
+			var centroid = boundsOrig.getCentroid();
+			this.anchorX = centroid.getX();
+			this.anchorY = centroid.getY();
 		}
 		
 		void resetCachedShapes() {
@@ -406,73 +427,60 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			this.boundsTransformed = null;
 		}
 		
-		public ROI getTransformedROI(final ROI roi) {
-			ROI transformedROI = getUnclippedTransformedROI(roi);
-			if (roiBounds == null) // Should this work for points? || !(transformedROI instanceof PathShape))
-				return transformedROI;
-			return RoiTools.combineROIs(transformedROI, roiBounds, CombineOp.INTERSECT);
+		/**
+		 * Get an updated ROI, applying the current transformation.
+		 * @param roi
+		 * @param clipToBounds if true, clip the resulting ROI to the image bounds.
+		 * 						This can be slow to compute, so may prefer to set to false for performance.
+		 * @return
+		 */
+		public ROI getTransformedROI(final ROI roi, boolean clipToBounds) {
+			Geometry geom = roi.getGeometry();
+			updateTransform();
+			geom = transform.transform(geom);
+			if (clipToBounds && roiBounds != null)
+				geom = geom.intersection(roiBounds.getGeometry());
+			return GeometryTools.geometryToROI(geom, roi.getImagePlane());
+			
+			
+//			ROI transformedROI = getUnclippedTransformedROI(roi);
+//			if (roiBounds == null) // Should this work for points? || !(transformedROI instanceof PathShape))
+//				return transformedROI;
+//			return RoiTools.combineROIs(transformedROI, roiBounds, CombineOp.INTERSECT);
 		}
 		
 		public ROI getUnclippedTransformedROI(final ROI roi) {
-			Shape shape = RoiTools.getShape(roi);
+			Geometry shape = roi.getGeometry();
 			
-			double flatness = 0.5;
-			// Try to return an ellipse, if appropriate
-			if (shape instanceof Ellipse2D) {
-				Rectangle2D bounds = shape.getBounds2D();
-				if (theta == 0 || GeneralTools.almostTheSame(bounds.getWidth(), bounds.getHeight(), 0.01)) {
-					return ROIs.createEllipseROI(bounds.getX()+dx, bounds.getY()+dy, bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlaneWithChannel(roi));
-				}
-//				// Don't flatten an ellipse
-//				flatness = 0.5;
-			}
+//			double flatness = 0.5;
+//			// Try to return an ellipse, if appropriate
+//			if (shape instanceof Ellipse2D) {
+//				Rectangle2D bounds = shape.getBounds2D();
+//				if (theta == 0 || GeneralTools.almostTheSame(bounds.getWidth(), bounds.getHeight(), 0.01)) {
+//					return ROIs.createEllipseROI(bounds.getX()+dx, bounds.getY()+dy, bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlaneWithChannel(roi));
+//				}
+////				// Don't flatten an ellipse
+////				flatness = 0.5;
+//			}
 			
 			updateTransform();
-			shape = transform.createTransformedShape(shape);
-			// TODO: Improve the choice of shape this returns
-			if (roi != null && roi.isArea())
-				return RoiTools.getShapeROI(shape, roi.getImagePlane(), flatness);
-			else {
-				// Check if we have a line
-				if (shape instanceof Line2D) {
-					Line2D line = (Line2D)shape;
-					return ROIs.createLineROI(line.getX1(), line.getY1(), line.getX2(), line.getY2(), ImagePlane.getPlaneWithChannel(roi));
-				}
-				// Polyline is the only other option (currently?)
-				PathIterator iter = shape.getPathIterator(null);
-				List<Point2> points = new ArrayList<>();
-				double[] seg = new double[6];
-				while (!iter.isDone()) {
-					switch(iter.currentSegment(seg)) {
-					case PathIterator.SEG_MOVETO:
-						// Fall through
-					case PathIterator.SEG_LINETO:
-						points.add(new Point2(seg[0], seg[1]));
-						break;
-					case PathIterator.SEG_CLOSE:
-						throw new IllegalArgumentException("Found a closed segment in a non-area ROI!");
-					default:
-						throw new RuntimeException("Invalid connection - only straight lines are allowed");
-					};
-					iter.next();
-				}
-				return ROIs.createPolylineROI(points, ImagePlane.getPlaneWithChannel(roi));
-			}
+			shape = transform.transform(shape);
+			return GeometryTools.geometryToROI(shape, roi.getImagePlane());
 		}
 		
 		
-		public Shape getTransformedShape() {
+		public Geometry getTransformedShape() {
 			if (shapeTransformed == null) {
 				updateTransform();
-				shapeTransformed = transform.createTransformedShape(shapeOrig);
+				shapeTransformed = transform.transform(shapeOrig);
 			}
 			return shapeTransformed;
 		}
 
-		public Shape getTransformedBounds() {
+		public Geometry getTransformedBounds() {
 			if (boundsTransformed == null) {
 				updateTransform();
-				boundsTransformed = transform.createTransformedShape(boundsOrig);
+				boundsTransformed = transform.transform(boundsOrig);
 			}
 			return boundsTransformed;
 		}
@@ -511,7 +519,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		
 		
 		void updateTransform() {
-			transform.setToRotation(theta, anchorX+dx, anchorY+dy);
+			transform.setToRotation(theta, anchorX, anchorY);
 			transform.translate(dx, dy);
 			
 //			transform.setToTranslation(dx, dy);
@@ -527,23 +535,37 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		
 		Line2D getRotationHandleLine(final double downsampleFactor) {
 			double displacement = getDisplacement(downsampleFactor);
-			Point2D p1 = new Point2D.Double(boundsOrig.getCenterX(), boundsOrig.getMinY());
-			Point2D p2 = new Point2D.Double(boundsOrig.getCenterX(), boundsOrig.getMinY()-displacement);
+			var env = boundsOrig.getEnvelopeInternal();
+			Coordinate p1 = new Coordinate((env.getMinX() + env.getMaxX()) / 2.0, env.getMinY());
+			Coordinate p2 = new Coordinate((env.getMinX() + env.getMaxX()) / 2.0, env.getMinY()-displacement);
 			transform.transform(p1, p1);
 			transform.transform(p2, p2);
-			return new Line2D.Double(p1, p2);
+			return new Line2D.Double(p1.getX(), p1.getY(), p2.getX(), p2.getY());
 		}
 		
 		Shape getRotationHandle(final double downsampleFactor) {
 //			double radius = 10 * Math.min(downsampleFactor, 50);
 			double radius = 5 * downsampleFactor;
 			double displacement = getDisplacement(downsampleFactor);
-			Ellipse2D ellipse = new Ellipse2D.Double(
-					boundsOrig.getCenterX()-radius,
-					boundsOrig.getMinY()-displacement-radius*2,
+			var env = boundsOrig.getEnvelopeInternal();
+			
+			Coordinate c = new Coordinate((env.getMinX() + env.getMaxX()) / 2.0, env.getMinY()-displacement-radius);
+			transform.transform(c, c);
+			return new Ellipse2D.Double(
+					c.getX() - radius,
+					c.getY() - radius,
 					radius*2,
-					radius*2);
-			return transform.createTransformedShape(ellipse);
+					radius*2
+					);
+			
+//			transform.transform(src, dest)
+//			Ellipse2D ellipse = new Ellipse2D.Double(
+//					(env.getMinX() + env.getMaxX()) / 2.0-radius,
+//					env.getMinY()-displacement-radius*2,
+//					radius*2,
+//					radius*2);
+//			
+//			return transform.createTransformedShape(ellipse);
 		}
 		
 		

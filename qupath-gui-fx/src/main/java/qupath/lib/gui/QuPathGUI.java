@@ -178,10 +178,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
-import qupath.lib.algorithms.CoherenceFeaturePlugin;
-import qupath.lib.algorithms.HaralickFeaturesPlugin;
 import qupath.lib.algorithms.IntensityFeaturesPlugin;
-import qupath.lib.algorithms.LocalBinaryPatternsPlugin;
 import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
@@ -4642,16 +4639,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		
 		// Check if we want to save the current image; we could still veto the project change at this point
-		var viewer = getViewer();
-		var imageData = viewer.getImageData();
-		if (imageData != null) {
-			ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
-//			if (entry != null) {
-				if (!checkSaveChanges(imageData))
-					return;
-				getViewer().setImageData(null);
-//			} else
-//				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer(), null);
+		for (var viewer : getViewers()) {
+			if (viewer == null || !viewer.hasServer())
+				continue;
+			var imageData = viewer.getImageData();
+			if (imageData != null) {
+				ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
+	//			if (entry != null) {
+					if (!checkSaveChanges(imageData))
+						return;
+					viewer.setImageData(null);
+	//			} else
+	//				ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer(), null);
+			}
 		}
 		
 		// Confirm the URIs for the new project

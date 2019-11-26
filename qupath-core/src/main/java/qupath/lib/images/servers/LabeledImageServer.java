@@ -35,6 +35,7 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -64,7 +65,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	private ImageServerMetadata originalMetadata;
 	
 	private PathObjectHierarchy hierarchy;
-	
+		
 	private ColorModel colorModel;
 	private boolean multichannelOutput;
 	
@@ -150,6 +151,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 */
 		private PathClass unannotatedClass = PathClassFactory.getPathClass("Unannotated " + UUID.randomUUID().toString());
 		
+		private Class<? extends PathObject> objectClass = PathAnnotationObject.class;
+		
 		private float lineThickness = 1.0f;
 		private Map<PathClass, Integer> labels = new LinkedHashMap<>();
 		private Map<PathClass, Integer> boundaryLabels = new LinkedHashMap<>();
@@ -163,6 +166,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		LabeledServerParameters(LabeledServerParameters params) {
 			this.unannotatedClass = params.unannotatedClass;
 			this.lineThickness = params.lineThickness;
+			this.objectClass = params.objectClass;
 			this.labels = new LinkedHashMap<>(params.labels);
 			this.boundaryLabels = new LinkedHashMap<>(params.boundaryLabels);
 			this.labelColors = new LinkedHashMap<>(params.labelColors);
@@ -189,6 +193,27 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 */
 		public Builder(ImageData<BufferedImage> imageData) {
 			this.imageData = imageData;
+		}
+		
+		/**
+		 * Use detections rather than annotations for labels.
+		 * The default is to use annotations.
+		 * @return
+		 * @see #useAnnotations()
+		 */
+		public Builder useDetections() {
+			params.objectClass = PathDetectionObject.class;
+			return this;
+		}
+		
+		/**
+		 * Use annotations for labels. This is the default.
+		 * @return
+		 * @see #useDetections()
+		 */
+		public Builder useAnnotations() {
+			params.objectClass = PathAnnotationObject.class;
+			return this;
 		}
 		
 		/**
@@ -428,7 +453,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	 */
 	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
-		return !hierarchy.getObjectsForRegion(PathAnnotationObject.class, request, null).stream().anyMatch( p -> {
+		return !hierarchy.getObjectsForRegion(params.objectClass, request, null).stream().anyMatch( p -> {
 				return params.labels.keySet().contains(p.getPathClass()) || params.boundaryLabels.keySet().contains(p.getPathClass());
 			});
 	}
@@ -466,7 +491,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		long startTime = System.currentTimeMillis();
 		
-		var pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, tileRequest.getRegionRequest(), null);
+		var pathObjects = hierarchy.getObjectsForRegion(params.objectClass, tileRequest.getRegionRequest(), null);
 		BufferedImage img;
 		if (multichannelOutput) {
 			img = createMultichannelTile(tileRequest, pathObjects);
@@ -534,8 +559,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				if (entry.getValue() != label)
 					continue;
 				var pathClass = entry.getKey();
+				boolean noClass = pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified();
 				for (var pathObject : pathObjects) {
-					if (pathObject.getPathClass() == pathClass) {
+					if (pathObject.getPathClass() == pathClass ||
+							(noClass && pathObject.getPathClass() == null)) {
 						var roi = pathObject.getROI();
 						if (roi.isArea())
 							g2d.fill(roi.getShape());
@@ -605,10 +632,12 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			// We want to order consistently to avoid confusing overlaps
 			for (var entry : params.labels.entrySet()) {
 				var pathClass = entry.getKey();
+				boolean noClass = pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified();
 				int c = entry.getValue();
 				color = ColorToolsAwt.getCachedColor(c, c, c);
 				for (var pathObject : pathObjects) {
-					if (pathObject.getPathClass() == pathClass) {
+					if (pathObject.getPathClass() == pathClass ||
+							(noClass && pathObject.getPathClass() == null)) {
 						var roi = pathObject.getROI();
 						g2d.setColor(color);
 						if (roi.isArea())
