@@ -3,8 +3,9 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Fixed bug that could cause QuPath to freeze when selecting objects with a mini-viewer active, see https://github.com/qupath/qupath/issues/377
 * Improved performance converting shapes to geometries, see https://github.com/qupath/qupath/issues/378
 * Improved robustness when drawing complex shapes, see https://github.com/qupath/qupath/issues/376
-* Improved reliability when script directories cannot be found, see https://github.com/qupath/qupath/issues/373
+* Improved stability when script directories cannot be found, see https://github.com/qupath/qupath/issues/373
 * Prompt to save each image when closing a project with multiple viewers active
+* Updated 'Rotate annotation' command to use JTS
 
 
 ## Version 0.2.0-m6

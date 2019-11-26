@@ -172,7 +172,7 @@ public class GeometryTools {
     		return DEFAULT_INSTANCE.factory.createPolygon();
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
-    	if (fastUnion && geometries.size() < 100) {
+    	if (fastUnion) {
     		var geometryArray = geometries.toArray(Geometry[]::new);
     		double areaSum = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
     		var union = DEFAULT_INSTANCE.factory.createGeometryCollection(geometryArray).buffer(0);
@@ -181,7 +181,18 @@ public class GeometryTools {
     			return union;
     		logger.warn("Fast union failed with different areas ({} before vs {} after)", areaSum, areaUnion);
     	}
-    	return UnaryUnionOp.union(geometries);
+    	try {
+    		return UnaryUnionOp.union(geometries);
+    	} catch (Exception e) {
+    		// Throw exception if we have no other options
+    		if (fastUnion)
+    			throw e;
+    		else {
+    			// Try again with other path
+    			logger.warn("Exception attempting default union: {}", e.getLocalizedMessage());
+    			return union(geometries, true);
+    		}
+    	}
     }
     
     
@@ -464,7 +475,9 @@ public class GeometryTools {
 				};
 				areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
 				// Add polygon if it has just been closed
-				if (closed) {
+				if (closed && points.size() == 1) {
+					logger.warn("Cannot create polygon from cordinate array of length 1!");
+				} else if (closed) {
 					points.closeRing();
 					Coordinate[] coords = points.toCoordinateArray();
 	//				for (Coordinate c : coords)
@@ -613,11 +626,11 @@ public class GeometryTools {
 					if (list == null || list.isEmpty()) {
 						fixedGeometries.add(tempOuter);
 					} else {
-						var mergedHoles = union(list, true);
+						var mergedHoles = union(list);
 						fixedGeometries.add(tempOuter.difference(mergedHoles));
 					}
 				}
-				geometry = union(fixedGeometries, true);
+				geometry = union(fixedGeometries);
 				geometryOuter = geometry;
 				
 				
