@@ -12,11 +12,6 @@ import java.util.Arrays;
 
 import org.junit.Test;
 
-import loci.common.ByteArrayHandle;
-import loci.common.Location;
-import loci.formats.ImageReader;
-import loci.formats.MetadataTools;
-import loci.formats.gui.BufferedImageReader;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ome.OMETiffWriter;
 

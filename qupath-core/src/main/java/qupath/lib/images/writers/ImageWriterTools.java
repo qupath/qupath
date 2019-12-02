@@ -69,10 +69,12 @@ public class ImageWriterTools {
 			ext2 = ext2.startsWith(".") ? ext2.substring(1) : ext2;
 		}
 		List<ImageWriter<T>> writers = new ArrayList<>();
-		for (ImageWriter<T> writer : serviceLoader) {
-			if (imageClass == null || imageClass.equals(writer.getImageClass())) {
-				if (ext2 == null || writer.getExtensions().contains(ext2))
-					writers.add(writer);				
+		synchronized(serviceLoader) {
+			for (ImageWriter<T> writer : serviceLoader) {
+				if (imageClass == null || imageClass.equals(writer.getImageClass())) {
+					if (ext2 == null || writer.getExtensions().contains(ext2))
+						writers.add(writer);				
+				}
 			}
 		}
 		Collections.sort(writers, COMPARATOR);
