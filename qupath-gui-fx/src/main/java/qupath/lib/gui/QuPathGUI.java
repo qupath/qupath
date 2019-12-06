@@ -1579,7 +1579,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		toolbar = new ToolBarComponent(this);
 		pane.setTop(toolbar.getComponent());
 		
-		setInitialLocationAndMagnification(getViewer());
+//		setInitialLocationAndMagnification(getViewer());
 
 		// Prepare the viewer
 		setupViewer(viewerManager.getActiveViewer());
@@ -2341,7 +2341,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		try {
 			imageData = entry.readImageData();
 			viewer.setImageData(imageData);
-			setInitialLocationAndMagnification(viewer);
+//			setInitialLocationAndMagnification(viewer);
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
 				if (PathPrefs.getAutoEstimateImageType()) {
 					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
@@ -2545,7 +2545,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				}
 				
 				viewer.setImageData(imageData);
-				setInitialLocationAndMagnification(viewer);
+//				setInitialLocationAndMagnification(viewer);
 
 				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.getPromptForImageType())
 					PathImageDetailsPanel.promptToSetImageType(imageData);
@@ -2769,9 +2769,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
 			if (imageData2 != imageData) {
 				viewer.setImageData(imageData2);
-				// If we just have a single viewer, no harm in centering this
-				if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
-					setInitialLocationAndMagnification(viewer);
+//				// If we just have a single viewer, no harm in centering this
+//				if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
+//					setInitialLocationAndMagnification(viewer);
 			}
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Read image data", e);
@@ -4194,19 +4194,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	protected void setInitialLocationAndMagnification(final QuPathViewer viewer) {
-		if (viewer == null || viewer.getServer() == null)
-			return;
-		// Set to the highest magnification that contains the full image to start
-		int serverWidth = viewer.getServer().getWidth();
-		int serverHeight = viewer.getServer().getHeight();
-		int w = viewer.getWidth() - 20;
-		int h = viewer.getHeight() - 20;
-		double xScale = (double)serverWidth / w;
-		double yScale = (double)serverHeight / h;
-		viewer.setDownsampleFactor(Math.max(1, Math.max(xScale, yScale)));
-		viewer.centerImage();
-	}
+//	protected void setInitialLocationAndMagnification(final QuPathViewer viewer) {
+//		if (viewer == null || viewer.getServer() == null)
+//			return;
+//		// Set to the highest magnification that contains the full image to start
+//		int serverWidth = viewer.getServer().getWidth();
+//		int serverHeight = viewer.getServer().getHeight();
+//		int w = viewer.getWidth() - 20;
+//		int h = viewer.getHeight() - 20;
+//		double xScale = (double)serverWidth / w;
+//		double yScale = (double)serverHeight / h;
+//		viewer.setDownsampleFactor(Math.max(1, Math.max(xScale, yScale)));
+//		viewer.centerImage();
+//	}
 	
 	
 	public MenuBar getMenuBar() {
@@ -5220,7 +5220,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {
 			if (viewer == null)
 				return;
-			if (viewer != getActiveViewer() || viewer.isImageDataChanging()) {
+			if (viewer != getActiveViewer() || viewer.isImageDataChanging() || zoomToFit.get()) {
 //				// Only change downsamples for non-active viewer
 //				double downsample = viewer.getDownsampleFactor();
 //				if (synchronizeViewers) {

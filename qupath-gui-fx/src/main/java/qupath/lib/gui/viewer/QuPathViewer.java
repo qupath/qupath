@@ -815,7 +815,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		
 		zoomToFit.addListener((v, o, n) -> {
 			if (zoomToFit.get()) {
-				setDownsampleFactor(getZoomToFitDownsampleFactor());
+				setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
 				centerImage();
 			}
 			imageUpdated = true;
@@ -1479,6 +1479,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		initializeForServer(server);
 		
+		setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
+		centerImage();
+
 		fireImageDataChanged(imageDataOld, imageDataNew);
 
 		//		featureMapWrapper = new TiledFeatureMapImageWrapper(server.getWidth(), server.getHeight());
@@ -2186,10 +2189,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void setDownsampleFactor(double downsampleFactor, double cx, double cy) {
 		setDownsampleFactor(downsampleFactor, cx, cy, false);
 	}
-
+	
 	/**
 	 * Set downsample factor, so that the specified coordinate in the image space is not shifted in the viewer afterwards.
-	 * The purpose is to make it possible to zoom in/out while keeping the cursor focussed on a particular location.
+	 * The purpose is to make it possible to zoom in/out while keeping the cursor focused on a particular location.
 	 * 
 	 * @param downsampleFactor
 	 * @param cx
@@ -2199,33 +2202,42 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 */
 	public void setDownsampleFactor(double downsampleFactor, double cx, double cy, boolean clipToMinMax) {
 		
-		// Ensure within range, if necessary
-		if (clipToMinMax)
-			downsampleFactor = Math.min(Math.max(downsampleFactor, getMinDownsample()), getMaxDownsample());
-		double currentDownsample = getDownsampleFactor();
-		if (currentDownsample == downsampleFactor)
-			return;
-
 		// Don't allow setting if we have 'zoom to fit'
 		if (getZoomToFit())
 			return;
+		
+		// Ensure within range, if necessary
+		if (clipToMinMax)
+			downsampleFactor = GeneralTools.clipValue(downsampleFactor, getMinDownsample(), getMaxDownsample());
+		
+		setDownsampleFactorImpl(downsampleFactor, cx, cy);
+	}
 
-		// Refine the downsample factor as required
-		//		double fullMag = getFullMagnification();
-		//		downsampleFactor = fullMag / getClosestMagnification(fullMag / downsampleFactor);
+	/**
+	 * Set downsample factor, so that the specified coordinate in the image space is not shifted in the viewer afterwards.
+	 * The purpose is to make it possible to zoom in/out while keeping the cursor focussed on a particular location.
+	 * This avoids doing any additional checking (e.g. of zoom-to-fit).
+	 * 
+	 * @param downsampleFactor
+	 * @param cx
+	 * @param cy
+	 */
+	private void setDownsampleFactorImpl(double downsampleFactor, double cx, double cy) {
+		
+		double currentDownsample = getDownsampleFactor();
 		if (currentDownsample == downsampleFactor)
 			return;
-
+		
 		// Take care of centering according to the specified coordinates
 		if (cx < 0)
-			cx = getWidth() / 2;
+			cx = getWidth() / 2.0;
 		if (cy < 0)
-			cy = getHeight() / 2;
+			cy = getHeight() / 2.0;
 
 		// Compute what the x, y coordinates should be to preserve the same image centering
 		if (!isRotated()) {
-			xCenter += (cx - getWidth()/2) * (currentDownsample - downsampleFactor);
-			yCenter += (cy - getHeight()/2) * (currentDownsample - downsampleFactor);
+			xCenter += (cx - getWidth()/2.0) * (currentDownsample - downsampleFactor);
+			yCenter += (cy - getHeight()/2.0) * (currentDownsample - downsampleFactor);
 		} else {
 			// Get the image coordinate
 			Point2D p2 = componentPointToImagePoint(cx, cy, null, false);

@@ -86,7 +86,7 @@ public class ImageOverview implements QuPathViewerListener {
 
 	protected void mouseViewerToLocation(double x, double y) {
 		ImageServer<BufferedImage> server = viewer.getServer();
-		if (server == null)
+		if (server == null || viewer.getZoomToFit())
 			return;
 		double cx = x / getWidth() * server.getWidth();
 		double cy = y / getHeight() * server.getHeight();
