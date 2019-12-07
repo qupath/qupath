@@ -397,7 +397,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								DELETE_SELECTED_OBJECTS, CLEAR_HIERARCHY, CLEAR_DETECTIONS, CLEAR_TMA_CORES, CLEAR_ANNOTATIONS,
 								PROJECT_NEW, PROJECT_OPEN, PROJECT_CLOSE, PROJECT_SAVE, PROJECT_IMPORT_IMAGES, PROJECT_EXPORT_IMAGE_LIST, PROJECT_METADATA,
 								PREFERENCES, QUPATH_SETUP,
-								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS,
+								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS, MATCH_VIEWER_RESOLUTIONS,
 								UNDO, REDO
 								};
 	
@@ -1940,9 +1940,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				viewerManager.resetGridSize();
 		});
 		MenuItem miToggleSync = getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
+		MenuItem miMatchResolutions = getActionMenuItem(GUIActions.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = createMenu(
 				"Multi-view",
 				miToggleSync,
+				miMatchResolutions,
 				miCloseViewer,
 				null,
 				miResizeGrid,
@@ -3130,6 +3132,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.BRIGHTNESS_CONTRAST),
 				null,
 				getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS),
+				getActionCheckBoxMenuItem(GUIActions.MATCH_VIEWER_RESOLUTIONS),
 				createMenu(
 						"Mini viewers",
 						getActionMenuItem(GUIActions.CHANNEL_VIEWER),
@@ -3827,6 +3830,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		case TOGGLE_SYNCHRONIZE_VIEWERS:
 			return createSelectableCommandAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
+			
+		case MATCH_VIEWER_RESOLUTIONS:
+			Action actionMatchResolutions = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
+			return actionMatchResolutions;
 			
 		case UNDO:
 			Action actionUndo = new Action("Undo", e -> undoRedoManager.undoOnce());
@@ -4984,6 +4991,32 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return openViewers;
 		}
 		
+		/**
+		 * Match the display resolutions (downsamples) of all viewers to match the current viewer.
+		 * This uses calibrated pixel size information if available.
+		 */
+		public void matchResolutions() {
+			var viewer = getViewer();
+			var activeViewers = getViewers().stream().filter(v -> v.hasServer()).collect(Collectors.toList());
+			if (activeViewers.size() <= 1 || !viewer.hasServer())
+				return;
+			var cal = viewer.getServer().getPixelCalibration();
+			double pixelSize = cal.getAveragedPixelSize().doubleValue();
+			double downsample = viewer.getDownsampleFactor();
+			for (var temp : activeViewers) {
+				if (temp == viewer)
+					continue;
+				var cal2 = temp.getServer().getPixelCalibration();
+				double newDownsample;
+				double tempPixelSize = cal2.getAveragedPixelSize().doubleValue();
+				if (Double.isFinite(tempPixelSize) && Double.isFinite(pixelSize) && cal2.getPixelWidthUnit().equals(cal.getPixelWidthUnit()) && cal2.getPixelHeightUnit().equals(cal.getPixelHeightUnit())) {
+					newDownsample = (pixelSize / tempPixelSize) * downsample;
+				} else {
+					newDownsample = downsample;
+				}
+				temp.setDownsampleFactor(newDownsample);
+			}
+		}
 		
 		private void setActiveViewer(final QuPathViewerPlus viewer) {
 			QuPathViewerPlus previousActiveViewer = getActiveViewer();

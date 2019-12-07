@@ -2,6 +2,7 @@
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 * Fixed repainting bug that could cause existing annotations to temporarily shift when drawing new annotations
 * Fixed 'Zoom to fit' bug that meant command did not correctly resize and center the image in the viewer
+* Added 'Match viewer resolutions' command to help synchronize when using multiple viewers
 * Improved tile export within a script
 
 
