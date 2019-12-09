@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServers.AffineTransformImageServerBuilder;
 import qupath.lib.io.GsonTools;
@@ -90,13 +91,16 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 		
 		double downsample = request.getDownsample();
 		
-		var boundsTransformed = transformInverse.createTransformedShape(AwtTools.getBounds(request)).getBounds();
-		
+		var bounds = AwtTools.getBounds(request);
+		var boundsTransformed = transformInverse.createTransformedShape(bounds).getBounds();
+
 		var wrappedServer = getWrappedServer();
-		int minX = Math.max(0, (int)boundsTransformed.getMinX());
-		int maxX = Math.min(wrappedServer.getWidth(), (int)Math.ceil(boundsTransformed.getMaxX()));
-		int minY = Math.max(0, (int)boundsTransformed.getMinY());
-		int maxY = Math.min(wrappedServer.getHeight(), (int)Math.ceil(boundsTransformed.getMaxY()));
+
+		// Pad slightly
+		int minX = Math.max(0, (int)boundsTransformed.getMinX()-1);
+		int maxX = Math.min(wrappedServer.getWidth(), (int)Math.ceil(boundsTransformed.getMaxX()+1));
+		int minY = Math.max(0, (int)boundsTransformed.getMinY()-1);
+		int maxY = Math.min(wrappedServer.getHeight(), (int)Math.ceil(boundsTransformed.getMaxY()+1));
 		
 		var requestTransformed = RegionRequest.createInstance(
 				wrappedServer.getPath(),
@@ -107,54 +111,54 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 				);
 		
 		
+		BufferedImage img = getWrappedServer().readBufferedImage(requestTransformed);
+		if (img == null)
+			return img;
+
+		int w = (int)(request.getWidth() / downsample);
+		int h = (int)(request.getHeight() / downsample);
+		
 		AffineTransform transform2 = new AffineTransform();
-//		AffineTransform transform2 = new AffineTransform(transformInverse);
 		transform2.scale(1.0/downsample, 1.0/downsample);
 		transform2.translate(-request.getX(), -request.getY());
 		transform2.concatenate(transform);
-		
-		BufferedImage img = getWrappedServer().readBufferedImage(requestTransformed);
-		
-		int w = (int)(request.getWidth() / downsample);
-		int h = (int)(request.getHeight() / downsample);
+
+		if (BufferedImageTools.is8bitColorType(img.getType()) || img.getType() == BufferedImage.TYPE_BYTE_GRAY) {
+			var img2 = new BufferedImage(w, h, img.getType());
+			var g2d = img2.createGraphics();
+			g2d.transform(transform2);
+			g2d.drawImage(img, requestTransformed.getX(), requestTransformed.getY(), requestTransformed.getWidth(), requestTransformed.getHeight(), null);
+			g2d.dispose();
+			return img2;
+		}
+
 		var rasterOrig = img.getRaster();
 		var raster = rasterOrig.createCompatibleWritableRaster(w, h);
+		
 		double[] row = new double[w*2];
 		double[] row2 = new double[w*2];
-		
-//		try {
-//			transform2 = transform2.createInverse();
-//		} catch (NoninvertibleTransformException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-		
+		try {
+			transform2 = transform2.createInverse();
+		} catch (NoninvertibleTransformException e) {
+			throw new IOException(e);
+		}
 		Object elements = null;
 		for (int y = 0; y < h; y++) {
 			for (int x = 0; x < w; x++) {
-				row[x*2] = request.getX() + x * downsample;
-				row[x*2+1] = request.getY() + y * downsample;
-//				row[x*2] = x;
-//				row[x*2+1] = y;
+				row[x*2] = x;
+				row[x*2+1] = y;
 			}
 			transform2.transform(row, 0, row2, 0, w);
 			
 			for (int x = 0; x < w; x++) {
-				int xx = (int)row2[x*2];
-				int yy = (int)row2[x*2+1];
+				int xx = (int)((row2[x*2]-requestTransformed.getX())/downsample);
+				int yy = (int)((row2[x*2+1]-requestTransformed.getY())/downsample);
 				if (xx >= 0 && yy >= 0 && xx < img.getWidth() && yy < img.getHeight()) {
 					elements = rasterOrig.getDataElements(xx, yy, elements);
 					raster.setDataElements(x, y, elements);
 				}
-				
-//				int xx = (int)Math.min(Math.max(0, row2[x*2]), img.getWidth()-1);
-//				int yy = (int)Math.min(Math.max(0, row2[x*2+1]), img.getHeight()-1);
-//				elements = rasterOrig.getDataElements(xx, yy, elements);
-//				raster.setDataElements(x, y, elements);
 			}
 		}
-		
-		
 		return new BufferedImage(img.getColorModel(), raster, img.isAlphaPremultiplied(), null);
 	}
 	

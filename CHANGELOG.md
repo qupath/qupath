@@ -4,6 +4,9 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Fixed 'Zoom to fit' bug that meant command did not correctly resize and center the image in the viewer
 * Added 'Match viewer resolutions' command to help synchronize when using multiple viewers
 * Improved tile export within a script
+* Improved interactive transformations
+  * More options for 'Interactive image alignment', including support to specify affine transform manually
+  * Log affine transform when applying 'Rotate annotation'
 
 
 ## Version 0.2.0-m7
