@@ -39,8 +39,6 @@ public class TestGeometryTools {
 		transform.getMatrix(matBefore);
 		transformBack.getMatrix(matAfter);
 		
-		System.err.println(c);
-		
 		assertArrayEquals(destTransform, destTransformation, 0.001);
 		assertArrayEquals(matBefore, matAfter, 0.001);
 		
