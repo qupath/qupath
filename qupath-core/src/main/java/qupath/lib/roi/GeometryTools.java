@@ -35,6 +35,7 @@ import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
+import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
@@ -73,6 +74,28 @@ public class GeometryTools {
      */
     public static GeometryFactory getDefaultFactory() {
     	return DEFAULT_FACTORY;
+    }
+    
+    
+    /**
+     * Convert an {@link AffineTransformation} to an {@link AffineTransform}.
+     * @param transform
+     * @return
+     */
+    public static AffineTransform convertTransform(AffineTransformation transform) {
+    	double[] mat = transform.getMatrixEntries();
+    	return new AffineTransform(mat[0], mat[3], mat[1], mat[4], mat[2], mat[5]);
+    }
+    
+    /**
+     * Convert an {@link AffineTransform} to an {@link AffineTransformation}.
+     * @param transform
+     * @return
+     */
+    public static AffineTransformation convertTransform(AffineTransform transform) {
+    	double[] mat = new double[6];
+    	transform.getMatrix(mat);
+    	return new AffineTransformation(mat[0], mat[2], mat[4], mat[1], mat[3], mat[5]);
     }
     
     /**

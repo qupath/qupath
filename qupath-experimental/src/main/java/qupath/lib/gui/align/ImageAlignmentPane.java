@@ -1,18 +1,25 @@
 package qupath.lib.gui.align;
 
 import java.awt.Graphics2D;
+import java.awt.Transparency;
+import java.awt.color.ColorSpace;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.ComponentColorModel;
+import java.awt.image.DataBuffer;
 import java.io.IOException;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
@@ -39,12 +46,13 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.EventHandler;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
-import javafx.scene.control.Accordion;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
@@ -60,18 +68,25 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.transform.Affine;
+import javafx.scene.transform.NonInvertibleTransformException;
 import javafx.scene.transform.TransformChangedEvent;
 import javafx.stage.Stage;
+import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
@@ -96,6 +111,42 @@ public class ImageAlignmentPane {
 	private DoubleProperty rotationIncrement = new SimpleDoubleProperty(1.0);
 		
 	private StringProperty affineStringProperty;
+	
+	private static enum RegistrationType {
+		AFFINE, RIGID;
+
+		@Override
+		public String toString() {
+			switch(this) {
+			case AFFINE:
+				return "Affine transform";
+			case RIGID:
+				return "Rigid transform";
+			}
+			throw new IllegalArgumentException("Unknown registration type " + this);
+		}
+	}
+	
+	private ObjectProperty<RegistrationType> registrationType = new SimpleObjectProperty<>(RegistrationType.AFFINE);
+	
+	private static enum AlignmentMethod {
+			INTENSITY, AREA_ANNOTATIONS, POINT_ANNOTATIONS;
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case INTENSITY:
+				return "Image intensity";
+			case AREA_ANNOTATIONS:
+				return "Area annotations";
+			case POINT_ANNOTATIONS:
+				return "Point annotations";
+			}
+			throw new IllegalArgumentException("Unknown alignment method " + this);
+		}
+	}
+	
+	private ObjectProperty<AlignmentMethod> alignmentMethod = new SimpleObjectProperty<>(AlignmentMethod.INTENSITY);
 
 	private Map<ImageData<BufferedImage>, ImageServerOverlay> mapOverlays = new WeakHashMap<>();
 	private EventHandler<TransformChangedEvent> transformEventHandler = new EventHandler<TransformChangedEvent>() {
@@ -139,7 +190,7 @@ public class ImageAlignmentPane {
 		btnChooseImages.disableProperty().bind(qupath.projectProperty().isNull());
 		btnChooseImages.setMaxWidth(Double.MAX_VALUE);
 		btnChooseImages.setOnAction(e -> promptToAddImages());
-		
+		GridPane.setHgrow(btnChooseImages, Priority.ALWAYS);
 
 		FloatProperty opacityProperty = viewer.getOverlayOptions().opacityProperty();
 		Slider sliderOpacity = new Slider(0, 1, opacityProperty.get());
@@ -191,30 +242,54 @@ public class ImageAlignmentPane {
 		paneAlignment.setVgap(5);
 		int row = 0;
 		int col = 0;
+		
+		Label labelTranslate = new Label("Adjust translation by clicking & dragging on the image with the 'Shift' key down");
+		labelTranslate.setAlignment(Pos.CENTER);
+		labelTranslate.setMaxWidth(Double.MAX_VALUE);
+		GridPane.setHgrow(labelTranslate, Priority.ALWAYS);
+		GridPane.setFillWidth(labelTranslate, Boolean.TRUE);
+		paneAlignment.add(labelTranslate, 0, row++, 4, 1);
+
 		paneAlignment.add(labelRotationIncrement, col++, row);
 		paneAlignment.add(tfRotationIncrement, col++, row);
 		paneAlignment.add(btnRotateLeft, col++, row);
 		paneAlignment.add(btnRotateRight, col++, row++);
-
-		Label labelTranslate = new Label("Adjust translation by clicking & dragging on the image with the 'Shift' key down");
-		paneAlignment.add(labelTranslate, 0, row++, 4, 1);
-
-		TextArea textArea = new TextArea();
-		affineStringProperty = textArea.textProperty();
-		textArea.setPrefRowCount(5);
-		paneAlignment.add(textArea, 0, row++, 4, 1);
-
 		TitledPane titledAlignment = new TitledPane("Interactive alignment", paneAlignment);
-
+		
 		// Auto-align
+		GridPane paneAutoAlign = new GridPane();
+		row = 0;
+		col = 0;
+
+		Label labelAuto = new Label("Auto-alignment may work better if the images have been coarsely aligned interactively");
+		paneAutoAlign.add(labelAuto, col, row++, 2, 1);
+
+		ComboBox<RegistrationType> comboRegistration = new ComboBox<>(
+				FXCollections.observableArrayList(RegistrationType.values()));
+		comboRegistration.setMaxWidth(Double.MAX_VALUE);
+		comboRegistration.getSelectionModel().select(registrationType.get());
+		registrationType.bind(comboRegistration.getSelectionModel().selectedItemProperty());
+		Label labelRegistrationType = new Label("Registration type");
+		paneAutoAlign.add(labelRegistrationType, 0, row);
+		paneAutoAlign.add(comboRegistration, 1, row++);
+		GridPane.setFillWidth(comboRegistration, Boolean.TRUE);
+		
+		ComboBox<AlignmentMethod> comboAlign = new ComboBox<>(
+				FXCollections.observableArrayList(AlignmentMethod.values()));
+		comboAlign.setMaxWidth(Double.MAX_VALUE);
+		comboAlign.getSelectionModel().select(alignmentMethod.get());
+		alignmentMethod.bind(comboAlign.getSelectionModel().selectedItemProperty());
+		Label labelAlignmentType = new Label("Alignment type");
+		paneAutoAlign.add(labelAlignmentType, 0, row);
+		paneAutoAlign.add(comboAlign, 1, row++);
+		GridPane.setFillWidth(comboAlign, Boolean.TRUE);
+		
 		TextField tfRequestedPixelSizeMicrons = new TextField("20");
 		tfRequestedPixelSizeMicrons.setPrefColumnCount(6);
 		Label labelRequestedPixelSizeMicrons = new Label("Pixel size");
-		CheckBox cbUseAnnotations = new CheckBox("Use annotations");
 		Button btnAutoAlign = new Button("Estimate transform");
 		btnAutoAlign.setMaxWidth(Double.MAX_VALUE);
 		btnAutoAlign.disableProperty().bind(noOverlay);
-		
 		btnAutoAlign.setOnAction(e -> {
 			double requestedPixelSizeMicrons = Double.parseDouble(tfRequestedPixelSizeMicrons.getText());
 			try {
@@ -224,26 +299,77 @@ public class ImageAlignmentPane {
 				logger.error("Error in auto alignment", e2);
 			}
 		});
+//		var paramsAuto = new ParameterList()
+//				.addChoiceParameter("alignmentType", "Alignment type", alignmentType.get(), align);
+		paneAutoAlign.add(labelRequestedPixelSizeMicrons, 0, row);
+		paneAutoAlign.add(tfRequestedPixelSizeMicrons, 1, row++);
+		
+		paneAutoAlign.add(btnAutoAlign, 0, row++, 2, 1);
+//		paneAutoAlign.add(btnAutoAlign, 0, 1, 3, 1);
+		paneAutoAlign.setVgap(5);
+		paneAutoAlign.setHgap(5);
+		TitledPane titledAutoAlign = new TitledPane("Auto-align", paneAutoAlign);
+
+
+		// Show affine transform
+		TextArea textArea = new TextArea();
+		affineStringProperty = textArea.textProperty();
+		textArea.setPrefRowCount(2);
+		GridPane paneTransform = new GridPane();
+		row = 0;
+		paneTransform.add(new Label("Current affine transform being displayed"), 0, row++);
+		paneTransform.add(textArea, 0, row++, 2, 1);
+		Button btnUpdate = new Button("Update");
+		btnUpdate.setOnAction(e -> {
+			var overlay = getSelectedOverlay();
+			var affine = overlay == null ? null : overlay.getAffine();
+			if (affine == null)
+				return;
+			parseAffine(textArea.getText(), affine);
+		});
+		Button btnReset = new Button("Reset");
+		btnReset.setOnAction(e -> {
+			var overlay = getSelectedOverlay();
+			var affine = overlay == null ? null : overlay.getAffine();
+			if (affine == null)
+				return;
+			affine.setToIdentity();
+		});
+		Button btnInvert = new Button("Invert");
+		btnInvert.setOnAction(e -> {
+			var overlay = getSelectedOverlay();
+			var affine = overlay == null ? null : overlay.getAffine();
+			if (affine == null)
+				return;
+			try {
+				affine.invert();
+			} catch (NonInvertibleTransformException ex) {
+				Dialogs.showErrorNotification("Invert transform", "Transform not invertable!");
+				logger.error("Error trying to invert affine transform: " + ex.getLocalizedMessage(), ex);
+			};
+		});
+		btnReset.disableProperty().bind(noOverlay);
+		btnUpdate.disableProperty().bind(noOverlay);
+		textArea.editableProperty().bind(noOverlay.not());
+		paneTransform.add(PaneTools.createColumnGridControls(btnUpdate, btnInvert, btnReset), 0, row++);
+		PaneTools.setFillWidth(Boolean.TRUE, paneTransform.getChildren().toArray(Node[]::new));
+		PaneTools.setHGrowPriority(Priority.ALWAYS, paneTransform.getChildren().toArray(Node[]::new));
+		paneTransform.setVgap(5.0);
+		
+		TitledPane titledTransform = new TitledPane("Affine transform", paneTransform);
+
 		
 		// Need to update transform text with image
 		selectedImageData.addListener((v, o, n) -> affineTransformUpdated());
 
-		GridPane paneAutoAlign = new GridPane();
-		paneAutoAlign.add(labelRequestedPixelSizeMicrons, 0, 0);
-		paneAutoAlign.add(tfRequestedPixelSizeMicrons, 1, 0);
-		paneAutoAlign.add(cbUseAnnotations, 2, 0);
-		paneAutoAlign.add(btnAutoAlign, 3, 0);
-		GridPane.setHgrow(btnChooseImages, Priority.ALWAYS);
-//		paneAutoAlign.add(btnAutoAlign, 0, 1, 3, 1);
-		paneAutoAlign.setVgap(5);
-		paneAutoAlign.setHgap(5);
-
-		TitledPane titledAutoAlign = new TitledPane("Auto-align", paneAutoAlign);
-
-		Accordion paneMain = new Accordion(
-				titledAlignment,
-				titledAutoAlign);
-//		VBox paneMain = new VBox(titledAlignment, titledAutoAlign);
+//		Accordion paneMain = new Accordion(
+//				titledAlignment,
+//				titledAutoAlign);
+		
+		titledAlignment.setCollapsible(false);
+		titledAutoAlign.setCollapsible(false);
+		titledTransform.setCollapsible(false);
+		VBox paneMain = new VBox(titledAlignment, titledAutoAlign, titledTransform);
 
 		// Show only the current overlay on the viewer
 		selectedOverlay.addListener((v, o, n) -> {
@@ -284,6 +410,32 @@ public class ImageAlignmentPane {
 			this.viewer.getCustomOverlayLayers().removeAll(mapOverlays.values());
 		});
 		
+	}
+	
+	
+	void parseAffine(String text, Affine affine) {
+		String delims = "\t\n ";
+		// If we have any periods, then use a comma as an acceptable delimiter as well
+		if (text.contains("."))
+			delims += ",";
+		var tokens = new StringTokenizer(text, delims);
+		if (tokens.countTokens() != 6) {
+			Dialogs.showErrorMessage("Parse affine transform", "Affine transform should be tab-delimited and contain 6 numbers only");
+			return;
+		}
+		var nf = NumberFormat.getInstance();
+		try {
+			double m00 = nf.parse(tokens.nextToken()).doubleValue();
+			double m01 = nf.parse(tokens.nextToken()).doubleValue();
+			double m02 = nf.parse(tokens.nextToken()).doubleValue();
+			double m10 = nf.parse(tokens.nextToken()).doubleValue();
+			double m11 = nf.parse(tokens.nextToken()).doubleValue();
+			double m12 = nf.parse(tokens.nextToken()).doubleValue();
+			affine.setToTransform(m00, m01, m02, m10, m11, m12);
+		} catch (Exception e) {
+			Dialogs.showErrorMessage("Parse affine transform", "Unable to parse affine transform!");
+			logger.error("Error parsing transform: " + e.getLocalizedMessage(), e);
+		}
 	}
 	
 		
@@ -351,13 +503,26 @@ public class ImageAlignmentPane {
 			ImageData<BufferedImage> imageData = null;
 			// Read annotations from any data file
 			try {
-				if (temp.hasImageData()) {
-					imageData = temp.readImageData();
-					Collection<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, null);
-					Set<PathObject> pathObjectsToRemove = pathObjects.stream().filter(p -> !p.isAnnotation()).collect(Collectors.toSet());
-					imageData.getHierarchy().removeObjects(pathObjectsToRemove, true);
-				} else {
-					imageData = temp.readImageData();
+				// Try to get data from an open viewer first, if possible
+				for (var viewer : qupath.getViewers()) {
+					var tempData = viewer.getImageData();
+					if (tempData != null && temp.equals(project.getEntry(viewer.getImageData()))) {
+						imageData = tempData;
+						break;
+					}
+				}
+				// Read the data from the project if necessary
+				if (imageData == null) {
+					if (temp.hasImageData()) {
+						imageData = temp.readImageData();
+						// Remove non-annotations to save memory
+						Collection<PathObject> pathObjects = imageData.getHierarchy().getObjects(null, null);
+						Set<PathObject> pathObjectsToRemove = pathObjects.stream().filter(p -> !p.isAnnotation()).collect(Collectors.toSet());
+						imageData.getHierarchy().removeObjects(pathObjectsToRemove, true);
+					} else {
+						// Read the data from the project (but without a data file we expect this to really create a new image)
+						imageData = temp.readImageData();
+					}
 				}
 			} catch (IOException e) {
 				logger.error("Unable to read ImageData for " + temp.getImageName(), e);
@@ -395,10 +560,13 @@ public class ImageAlignmentPane {
 		}
 		Affine affine = overlay.getAffine();
 		affineStringProperty.set(
-				String.format("Transform: [\n" +
-				"  %.3f, %.3f, %.3f,\n" + 
-				"  %.3f, %.3f, %.3f\n" + 
-				"]",
+				String.format(
+				"%.3f, \t %.3f,\t %.3f,\n" + 
+				"%.3f,\t %.3f,\t %.3f",
+//				String.format("Transform: [\n" +
+//				"  %.3f, %.3f, %.3f,\n" + 
+//				"  %.3f, %.3f, %.3f\n" + 
+//				"]",
 				affine.getMxx(), affine.getMxy(), affine.getTx(),
 				affine.getMyx(), affine.getMyy(), affine.getTy())
 				);
@@ -415,6 +583,13 @@ public class ImageAlignmentPane {
 	static BufferedImage ensureGrayScale(BufferedImage img) {
 		if (img.getType() == BufferedImage.TYPE_BYTE_GRAY)
 			return img;
+		if (img.getType() == BufferedImage.TYPE_BYTE_INDEXED) {
+			 ColorSpace cs = ColorSpace.getInstance(ColorSpace.CS_GRAY);
+             var colorModel = new ComponentColorModel(cs, new int[]{8}, false, true,
+                                                  Transparency.OPAQUE,
+                                                  DataBuffer.TYPE_BYTE);
+			return new BufferedImage(colorModel, img.getRaster(), false, null);
+		}
 		BufferedImage imgGray = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_BYTE_GRAY);
 		Graphics2D g2d = imgGray.createGraphics();
 		g2d.drawImage(img, 0, 0, null);
@@ -444,10 +619,105 @@ public class ImageAlignmentPane {
 			return;
 		}
 		ImageServerOverlay overlay = mapOverlays.get(imageDataSelected);
-		autoAlign(imageDataBase.getServer(), imageDataSelected.getServer(), overlay.getAffine(), requestedPixelSizeMicrons);
-	}
+		
+		var affine = overlay.getAffine();
+		
+		ImageServer<BufferedImage> serverBase, serverSelected;
 
-	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, Affine affine, double requestedPixelSizeMicrons) throws IOException {
+		if (alignmentMethod.get() == AlignmentMethod.POINT_ANNOTATIONS) {
+			logger.debug("Image alignment using point annotations");
+			logger.warn("Point annotation alignment not yet implemented!");
+			Mat transform;
+			List<Point2> pointsBase = new ArrayList<>();
+			List<Point2> pointsSelected = new ArrayList<>();
+			for (var annotation : imageDataBase.getHierarchy().getAnnotationObjects()) {
+				var roi = annotation.getROI();
+				if (roi == null || roi.isArea())
+					continue;
+				pointsBase.addAll(roi.getAllPoints());
+			}
+			for (var annotation : imageDataSelected.getHierarchy().getAnnotationObjects()) {
+				var roi = annotation.getROI();
+				if (roi == null || roi.isArea())
+					continue;
+				pointsSelected.addAll(roi.getAllPoints());
+			}
+			if (pointsBase.isEmpty() && pointsSelected.isEmpty()) {
+				Dialogs.showErrorMessage("Align images", "No points found for either image!");
+				return;
+			}
+			if (pointsBase.size() != pointsSelected.size()) {
+				Dialogs.showErrorMessage("Align images", "Images have different numbers of annotated points (" + pointsBase.size() + " & " + pointsSelected.size() + ")");
+				return;				
+			}
+			Mat matBase = pointsToMat(pointsBase);
+			Mat matSelected = pointsToMat(pointsSelected);
+			
+			transform = opencv_video.estimateRigidTransform(matBase, matSelected, registrationType.get() == RegistrationType.AFFINE);
+//			if (registrationType.get() == RegistrationType.AFFINE)
+//				transform = opencv_calib3d.estimateAffine2D(matBase, matSelected);
+//			else
+//				transform = opencv_calib3d.estimateAffinePartial2D(matBase, matSelected);
+			matToAffine(transform, affine, 1.0);
+			return;
+		}
+		
+		if (alignmentMethod.get() == AlignmentMethod.AREA_ANNOTATIONS) {
+			logger.debug("Image alignment using area annotations");
+			Map<PathClass, Integer> labels = new LinkedHashMap<>();
+			int label = 1;
+			labels.put(PathClassFactory.getPathClassUnclassified(), label++);
+			for (var annotation : imageDataBase.getHierarchy().getAnnotationObjects()) {
+				var pathClass = annotation.getPathClass();
+				if (pathClass != null && !labels.containsKey(pathClass))
+					labels.put(pathClass, label++);
+			}
+			for (var annotation : imageDataSelected.getHierarchy().getAnnotationObjects()) {
+				var pathClass = annotation.getPathClass();
+				if (pathClass != null && !labels.containsKey(pathClass))
+					labels.put(pathClass, label++);
+			}
+			
+			double downsampleBase = requestedPixelSizeMicrons / imageDataBase.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
+			serverBase = new LabeledImageServer.Builder(imageDataBase)
+				.backgroundLabel(0)
+				.addLabels(labels)
+				.downsample(downsampleBase)
+				.build();
+			
+			double downsampleSelected = requestedPixelSizeMicrons / imageDataSelected.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
+			serverSelected = new LabeledImageServer.Builder(imageDataSelected)
+					.backgroundLabel(0)
+					.addLabels(labels)
+					.downsample(downsampleSelected)
+					.build();
+			
+		} else {
+			// Default - just use intensities
+			logger.debug("Image alignment using intensities");
+			serverBase = imageDataBase.getServer();
+			serverSelected = imageDataSelected.getServer();			
+		}
+		
+		autoAlign(serverBase, serverSelected, registrationType.get(), affine, requestedPixelSizeMicrons);
+	}
+	
+	
+	static Mat pointsToMat(Collection<Point2> points) {
+		Mat mat = new Mat(points.size(), 2, opencv_core.CV_32FC1);
+		int r = 0;
+		FloatIndexer idx = mat.createIndexer();
+		for (var p : points) {
+			idx.put(r, 0, (float)p.getX());
+			idx.put(r, 1, (float)p.getY());
+			r++;
+		}
+		idx.release();
+		return mat;
+	}
+	
+
+	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, RegistrationType regionstrationType, Affine affine, double requestedPixelSizeMicrons) throws IOException {
 		PixelCalibration calBase = serverBase.getPixelCalibration();
 		double pixelSize = calBase.getAveragedPixelSizeMicrons();
 		double downsample = 1;
@@ -467,6 +737,10 @@ public class ImageAlignmentPane {
 		
 		Mat matBase = OpenCVTools.imageToMat(imgBase);
 		Mat matOverlay = OpenCVTools.imageToMat(imgOverlay);
+		
+//		opencv_imgproc.threshold(matBase, matBase, opencv_imgproc.THRESH_OTSU, 255, opencv_imgproc.THRESH_BINARY_INV + opencv_imgproc.THRESH_OTSU);
+//		opencv_imgproc.threshold(matOverlay, matOverlay, opencv_imgproc.THRESH_OTSU, 255, opencv_imgproc.THRESH_BINARY_INV + opencv_imgproc.THRESH_OTSU);
+
 		Mat matTransform = Mat.eye(2, 3, opencv_core.CV_32F).asMat();
 		// Initialize using existing transform
 //		affine.setToTransform(mxx, mxy, tx, myx, myy, ty);
@@ -483,9 +757,28 @@ public class ImageAlignmentPane {
 		}
 //		// Might want to mask out completely black pixels (could indicate missing data)?
 //		def matMask = new opencv_core.Mat(matOverlay.size(), opencv_core.CV_8UC1, Scalar.ZERO);
-		TermCriteria termCrit = new TermCriteria(TermCriteria.COUNT+TermCriteria.EPS, 100, 0.001);
+		TermCriteria termCrit = new TermCriteria(TermCriteria.COUNT, 100, 0.0001);
+//		OpenCVTools.matToImagePlus(matBase, "Base").show();
+//		OpenCVTools.matToImagePlus(matOverlay, "Overlay").show();
+////		
+//		Mat matTemp = new Mat();
+//		opencv_imgproc.warpAffine(matOverlay, matTemp, matTransform, matBase.size());
+//		OpenCVTools.matToImagePlus(matTemp, "Transformed").show();
 		try {
-			double result = opencv_video.findTransformECC(matBase, matOverlay, matTransform, opencv_video.MOTION_EUCLIDEAN, termCrit, null);
+			int motion;
+			switch (regionstrationType) {
+			case AFFINE:
+				motion = opencv_video.MOTION_AFFINE;
+				break;
+			case RIGID:
+				motion = opencv_video.MOTION_EUCLIDEAN;
+				break;
+			default:
+				logger.warn("Unknown registraton type {} - will use {}", regionstrationType, RegistrationType.AFFINE);
+				motion = opencv_video.MOTION_AFFINE;
+				break;
+			}
+			double result = opencv_video.findTransformECC(matBase, matOverlay, matTransform, motion, termCrit, null);
 			logger.info("Transformation result: {}", result);
 		} catch (Exception e) {
 			Dialogs.showErrorNotification("Estimate transform", "Unable to estimated transform - result did not converge");
@@ -495,7 +788,6 @@ public class ImageAlignmentPane {
 		
 		// To use the following function, images need to be the same size
 //		def matTransform = opencv_video.estimateRigidTransform(matBase, matOverlay, false);
-			
 		Indexer indexer = matTransform.createIndexer();
 		affine.setToTransform(
 			indexer.getDouble(0, 0),
@@ -511,6 +803,25 @@ public class ImageAlignmentPane {
 		matBase.release();
 		matOverlay.release();
 		matTransform.release();
+	}
+	
+	/**
+	 * Set the values of an Affine based on the contents of a 2x3 Mat.
+	 * @param matTransform the transform data to use
+	 * @param affine the Affine object to be updated
+	 * @param downsample translation values will be scaled by the downsample. Relative scaling is otherwise assumed to be correct.
+	 */
+	static void matToAffine(Mat matTransform, Affine affine, double downsample) {
+		Indexer indexer = matTransform.createIndexer();
+		affine.setToTransform(
+			indexer.getDouble(0, 0),
+			indexer.getDouble(0, 1),
+			indexer.getDouble(0, 2) * downsample,
+			indexer.getDouble(1, 0),
+			indexer.getDouble(1, 1),
+			indexer.getDouble(1, 2) * downsample
+			);
+		indexer.release();
 	}
 	
 	
