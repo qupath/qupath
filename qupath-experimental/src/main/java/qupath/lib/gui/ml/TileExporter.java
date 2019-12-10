@@ -8,6 +8,8 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,6 +213,12 @@ public class TileExporter  {
 		}
 
 		pool.shutdown();
+		try {
+			pool.awaitTermination(24, TimeUnit.HOURS);
+		} catch (InterruptedException e) {
+			logger.error("Tile export interrupted: {}", e);
+			logger.error("", e);
+		}
 	}
 
 

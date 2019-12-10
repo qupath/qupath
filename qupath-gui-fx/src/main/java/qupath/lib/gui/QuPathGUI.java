@@ -397,7 +397,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								DELETE_SELECTED_OBJECTS, CLEAR_HIERARCHY, CLEAR_DETECTIONS, CLEAR_TMA_CORES, CLEAR_ANNOTATIONS,
 								PROJECT_NEW, PROJECT_OPEN, PROJECT_CLOSE, PROJECT_SAVE, PROJECT_IMPORT_IMAGES, PROJECT_EXPORT_IMAGE_LIST, PROJECT_METADATA,
 								PREFERENCES, QUPATH_SETUP,
-								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS,
+								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS, MATCH_VIEWER_RESOLUTIONS,
 								UNDO, REDO
 								};
 	
@@ -1579,7 +1579,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		toolbar = new ToolBarComponent(this);
 		pane.setTop(toolbar.getComponent());
 		
-		setInitialLocationAndMagnification(getViewer());
+//		setInitialLocationAndMagnification(getViewer());
 
 		// Prepare the viewer
 		setupViewer(viewerManager.getActiveViewer());
@@ -1940,9 +1940,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				viewerManager.resetGridSize();
 		});
 		MenuItem miToggleSync = getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
+		MenuItem miMatchResolutions = getActionMenuItem(GUIActions.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = createMenu(
 				"Multi-view",
 				miToggleSync,
+				miMatchResolutions,
 				miCloseViewer,
 				null,
 				miResizeGrid,
@@ -2341,7 +2343,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		try {
 			imageData = entry.readImageData();
 			viewer.setImageData(imageData);
-			setInitialLocationAndMagnification(viewer);
+//			setInitialLocationAndMagnification(viewer);
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
 				if (PathPrefs.getAutoEstimateImageType()) {
 					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
@@ -2545,7 +2547,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				}
 				
 				viewer.setImageData(imageData);
-				setInitialLocationAndMagnification(viewer);
+//				setInitialLocationAndMagnification(viewer);
 
 				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.getPromptForImageType())
 					PathImageDetailsPanel.promptToSetImageType(imageData);
@@ -2769,9 +2771,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
 			if (imageData2 != imageData) {
 				viewer.setImageData(imageData2);
-				// If we just have a single viewer, no harm in centering this
-				if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
-					setInitialLocationAndMagnification(viewer);
+//				// If we just have a single viewer, no harm in centering this
+//				if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
+//					setInitialLocationAndMagnification(viewer);
 			}
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Read image data", e);
@@ -3130,6 +3132,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.BRIGHTNESS_CONTRAST),
 				null,
 				getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS),
+				getActionCheckBoxMenuItem(GUIActions.MATCH_VIEWER_RESOLUTIONS),
 				createMenu(
 						"Mini viewers",
 						getActionMenuItem(GUIActions.CHANNEL_VIEWER),
@@ -3828,6 +3831,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case TOGGLE_SYNCHRONIZE_VIEWERS:
 			return createSelectableCommandAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
 			
+		case MATCH_VIEWER_RESOLUTIONS:
+			Action actionMatchResolutions = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
+			return actionMatchResolutions;
+			
 		case UNDO:
 			Action actionUndo = new Action("Undo", e -> undoRedoManager.undoOnce());
 			actionUndo.disabledProperty().bind(undoRedoManager.canUndo().not());
@@ -4194,19 +4201,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	protected void setInitialLocationAndMagnification(final QuPathViewer viewer) {
-		if (viewer == null || viewer.getServer() == null)
-			return;
-		// Set to the highest magnification that contains the full image to start
-		int serverWidth = viewer.getServer().getWidth();
-		int serverHeight = viewer.getServer().getHeight();
-		int w = viewer.getWidth() - 20;
-		int h = viewer.getHeight() - 20;
-		double xScale = (double)serverWidth / w;
-		double yScale = (double)serverHeight / h;
-		viewer.setDownsampleFactor(Math.max(1, Math.max(xScale, yScale)));
-		viewer.centerImage();
-	}
+//	protected void setInitialLocationAndMagnification(final QuPathViewer viewer) {
+//		if (viewer == null || viewer.getServer() == null)
+//			return;
+//		// Set to the highest magnification that contains the full image to start
+//		int serverWidth = viewer.getServer().getWidth();
+//		int serverHeight = viewer.getServer().getHeight();
+//		int w = viewer.getWidth() - 20;
+//		int h = viewer.getHeight() - 20;
+//		double xScale = (double)serverWidth / w;
+//		double yScale = (double)serverHeight / h;
+//		viewer.setDownsampleFactor(Math.max(1, Math.max(xScale, yScale)));
+//		viewer.centerImage();
+//	}
 	
 	
 	public MenuBar getMenuBar() {
@@ -4984,6 +4991,32 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return openViewers;
 		}
 		
+		/**
+		 * Match the display resolutions (downsamples) of all viewers to match the current viewer.
+		 * This uses calibrated pixel size information if available.
+		 */
+		public void matchResolutions() {
+			var viewer = getViewer();
+			var activeViewers = getViewers().stream().filter(v -> v.hasServer()).collect(Collectors.toList());
+			if (activeViewers.size() <= 1 || !viewer.hasServer())
+				return;
+			var cal = viewer.getServer().getPixelCalibration();
+			double pixelSize = cal.getAveragedPixelSize().doubleValue();
+			double downsample = viewer.getDownsampleFactor();
+			for (var temp : activeViewers) {
+				if (temp == viewer)
+					continue;
+				var cal2 = temp.getServer().getPixelCalibration();
+				double newDownsample;
+				double tempPixelSize = cal2.getAveragedPixelSize().doubleValue();
+				if (Double.isFinite(tempPixelSize) && Double.isFinite(pixelSize) && cal2.getPixelWidthUnit().equals(cal.getPixelWidthUnit()) && cal2.getPixelHeightUnit().equals(cal.getPixelHeightUnit())) {
+					newDownsample = (pixelSize / tempPixelSize) * downsample;
+				} else {
+					newDownsample = downsample;
+				}
+				temp.setDownsampleFactor(newDownsample);
+			}
+		}
 		
 		private void setActiveViewer(final QuPathViewerPlus viewer) {
 			QuPathViewerPlus previousActiveViewer = getActiveViewer();
@@ -5220,7 +5253,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {
 			if (viewer == null)
 				return;
-			if (viewer != getActiveViewer() || viewer.isImageDataChanging()) {
+			if (viewer != getActiveViewer() || viewer.isImageDataChanging() || zoomToFit.get()) {
 //				// Only change downsamples for non-active viewer
 //				double downsample = viewer.getDownsampleFactor();
 //				if (synchronizeViewers) {

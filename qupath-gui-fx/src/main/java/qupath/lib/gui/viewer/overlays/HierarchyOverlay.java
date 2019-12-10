@@ -230,16 +230,17 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 					.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
 			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);	
 		} else {
+			// Get the clip without any transform
+			var gNoTransform = (Graphics2D)g2d.create();
+			gNoTransform.setTransform(new AffineTransform());
+			var rawClip = gNoTransform.getClipBounds();
+			// Create a buffer if we need to
 			if (buffer == null) {
 				// Paint the annotations
 				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
 				pathObjects.removeAll(selectedObjects);
+				Graphics2D g;
 				if (!pathObjects.isEmpty()) {
-					// Get the clip without any transform
-					var g = (Graphics2D)g2d.create();
-					g.setTransform(new AffineTransform());
-					var rawClip = g.getClipBounds();
-					g.dispose();
 					if (buffer == null || buffer.getWidth() != rawClip.getWidth() || buffer.getHeight() != rawClip.getHeight()) {
 						buffer = new BufferedImage(rawClip.width, rawClip.height, BufferedImage.TYPE_INT_ARGB);
 						g = buffer.createGraphics();
@@ -258,8 +259,12 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 					PathHierarchyPaintingHelper.paintSpecifiedObjects(g, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);		
 				}
 			}
-			if (buffer != null)
-				g2d.drawImage(buffer, clipRegion.getX(), clipRegion.getY(), clipRegion.getWidth(), clipRegion.getHeight(), null);
+			if (buffer != null) {
+				// We need to draw without the transform since otherwise the scaling can be off
+				gNoTransform.drawImage(buffer, rawClip.x, rawClip.y, null);
+//				g2d.drawImage(buffer, clipRegion.getX(), clipRegion.getY(), clipRegion.getWidth(), clipRegion.getHeight(), null);
+			}
+			gNoTransform.dispose();
 		}
 		lastRegion = clipRegion;
 		

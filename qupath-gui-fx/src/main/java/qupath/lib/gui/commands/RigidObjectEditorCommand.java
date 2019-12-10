@@ -27,33 +27,25 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.Stroke;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
-import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.prep.PreparedGeometry;
-import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.common.GeneralTools;
-import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
@@ -74,11 +66,9 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
-import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -90,6 +80,8 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeListener<BufferedImage>, QuPathViewerListener {
 
+	private final static Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
+	
 	private QuPathGUI qupath;
 	
 	private QuPathViewer viewer = null;
@@ -218,6 +210,12 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
 					((PathROIObject)entry.getKey()).setROI(entry.getValue());
 			} else {
+				var transform = transformer.transform;
+				var values = transform.getMatrixEntries();
+				logger.info("Applied ROI transform: {}",
+						String.format("\n %f, %f, %f,\n%f, %f, %f",
+								values[0], values[1], values[2],
+								values[3], values[4], values[5]));
 				// Apply clipping now
 				for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet()) {
 					ROI roiTransformed = transformer.getTransformedROI(entry.getValue(), true);

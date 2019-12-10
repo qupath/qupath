@@ -93,11 +93,18 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 		int nBands = 0;
 		for (var server : allServers) {
 			var img = server.readBufferedImage(request);
-			premultiplied = img.isAlphaPremultiplied();
-			nBands += img.getRaster().getNumBands();
-			rasters.add(img.getRaster());
+			if (img == null) {
+				rasters.add(null);
+				nBands += server.nChannels();
+			} else {
+				premultiplied = img.isAlphaPremultiplied();
+				nBands += img.getRaster().getNumBands();
+				rasters.add(img.getRaster());
+			}
 		}
-		var first = rasters.get(0);
+		var first = rasters.stream().filter(r -> r != null).findFirst().orElse(null);
+		if (first == null)
+			return null;
 		int width = first.getWidth();
 		int height = first.getHeight();
 		
@@ -112,6 +119,8 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 		float[] samples = new float[width * height];
 		int currentBand = 0;
 		for (var temp : rasters) {
+			if (temp == null)
+				continue;
 			int w = Math.min(width, temp.getWidth());
 			int h = Math.min(height, temp.getHeight());
 			for (int b = 0; b < temp.getNumBands(); b++) {

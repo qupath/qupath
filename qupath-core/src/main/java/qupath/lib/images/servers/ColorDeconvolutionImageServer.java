@@ -52,6 +52,7 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 			stainNumbers = new int[] {1, 2, 3};
 		List<ImageChannel> channels = new ArrayList<>();
 		StringBuilder sb = new StringBuilder();
+		stainVectors = new ArrayList<>();
 		for (int s : stainNumbers) {
 			if (s < 1 || s > 3) {
 				logger.warn("Invalid stain number {}, must be >= 1 and <= 3 (i.e. 'one-based')", s);
@@ -127,6 +128,8 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 	@Override
 	public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
 		BufferedImage img = getWrappedServer().readBufferedImage(request);
+		if (img == null)
+			return null;
 		
 		int w = img.getWidth();
 		int h = img.getHeight();

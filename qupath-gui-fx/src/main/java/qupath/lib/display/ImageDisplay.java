@@ -894,7 +894,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 			}
 			float[] values = null; // Array needed for values for a particular channel
 			float[] pixels = null; // Array needed for all values if there are multiple thumbnails
-			if (imgList.size() > 1)
+			if (imgList.isEmpty())
+				values = new float[0];
+			else if (imgList.size() > 1)
 				pixels = new float[(int)nPixels];
 			for (SingleChannelDisplayInfo channel : channelsToProcess) {
 				int counter = 0;
