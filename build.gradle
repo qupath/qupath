@@ -171,18 +171,18 @@ allprojects {
   version = qupathVersion
 
   ext {
-    bioformatsVersion  = '6.3.0'
+    bioformatsVersion  = '6.3.1'
     commonsMathVersion = '3.6.1'
-    controlsfxVersion  = '11.0.0'
+    controlsfxVersion  = '11.0.1'
     groovyVersion      = '2.5.8'
     gsonVersion        = '2.8.6'
     guavaVersion       = '28.1-jre'
-    imagejVersion      = '1.52r'
+    imagejVersion      = '1.52s'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.2'
+    richtextVersion    = '0.10.3'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
   }
