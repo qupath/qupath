@@ -91,6 +91,13 @@ public class PreferencePanel {
 				category,
 				"Theme for the QuPath user interface");
 		
+		addChoicePropertyPreference(QuPathStyleManager.fontProperty(),
+				QuPathStyleManager.availableFontsProperty(),
+				QuPathStyleManager.Fonts.class,
+				"Font",
+				category,
+				"Main font for the QuPath user interface");
+		
 		/*
 		 * General
 		 */

@@ -1,3 +1,9 @@
+## Version 0.2.0-m9
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+* New preference to select main font; default changed to Sans-Serif for macOS
+* Update dependencies (Bio-Formats, ImageJ, ControlsFX, RichTextFX)
+
+
 ## Version 0.2.0-m8
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 * Fixed repainting bug that could cause existing annotations to temporarily shift when drawing new annotations
