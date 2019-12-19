@@ -20,7 +20,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -350,7 +349,7 @@ public class SimpleThresholdCommand implements PathCommand {
 			var calculator = FeatureCalculators.createMultiscaleFeatureCalculator(
 					Collections.singletonList(transform),
 					new double[] {sigmaValue},
-					-1,
+					null,
 					false,
 					feature
 					);

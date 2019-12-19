@@ -974,6 +974,7 @@ public class PixelClassifierImageSelectionPane {
 			 bufferWeights.release();
 		 }
 		 
+		 // Create TrainData in an appropriate format (e.g. labels or one-hot encoding)
 		 trainData = model.createTrainData(trainData.getTrainSamples(), trainData.getTrainResponses(), weights);
 		 model.train(trainData);
 		 
@@ -1011,10 +1012,14 @@ public class PixelClassifierImageSelectionPane {
 		 int inputWidth = featureCalculator.getInputSize().getWidth();
 		 int inputHeight = featureCalculator.getInputSize().getHeight();
 		 var cal = helper.getResolution();
+		 var channelType = ImageServerMetadata.ChannelType.CLASSIFICATION;
+		 if (model.supportsProbabilities()) {
+			 channelType = selectedOutputType.get();
+		 }
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputResolution(cal)
 				 .inputShape(inputWidth, inputHeight)
-				 .setChannelType(model.supportsProbabilities() ? selectedOutputType.get() : ImageServerMetadata.ChannelType.CLASSIFICATION)
+				 .setChannelType(channelType)
 				 .outputChannels(channels)
 				 .build();
 

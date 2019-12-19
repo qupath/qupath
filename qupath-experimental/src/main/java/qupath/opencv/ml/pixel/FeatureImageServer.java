@@ -18,6 +18,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.io.GsonTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
@@ -129,7 +130,14 @@ public class FeatureImageServer extends AbstractTileableImageServer {
 
 	@Override
 	protected String createID() {
-		return String.format("%s %s", imageData.getServerPath(), calculator.toString());
+		String calculatorString = calculator.toString();
+		try {
+			// Try to use JSON representation, as this permits feature caching
+			calculatorString = GsonTools.getInstance(false).toJson(calculator);
+		} catch (Exception e) {
+			
+		}
+		return String.format("%s (%f) %s", imageData.getServerPath(), getDownsampleForResolution(0), calculatorString);
 	}
 	
 }

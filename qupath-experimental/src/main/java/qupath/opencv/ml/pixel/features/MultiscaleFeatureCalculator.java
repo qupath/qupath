@@ -13,12 +13,12 @@ import java.util.Objects;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Rect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.annotations.JsonAdapter;
 
-import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
@@ -28,6 +28,8 @@ import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.LocalNormalization;
+import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
+import qupath.opencv.tools.LocalNormalization.SmoothingScale;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 import qupath.opencv.tools.OpenCVTools;
@@ -73,11 +75,15 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 			return this;
 		}
 		
-		public Builder localNormalization(SmoothingScale scale, boolean subtractOnly) {
+		public Builder localNormalization(SmoothingScale scale, double varianceScaleRatio) {
 			if (scale == null)
-				this.localNormalization = null;
+				return localNormalization(null);
 			else
-				this.localNormalization = LocalNormalizationType.getInstance(scale, subtractOnly);
+				return localNormalization(LocalNormalizationType.getInstance(scale, varianceScaleRatio));
+		}
+		
+		public Builder localNormalization(LocalNormalizationType normalization) {
+			this.localNormalization = normalization;
 			return this;
 		}
 		
@@ -97,145 +103,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		
 	}
 	
-	private static class LocalNormalizationType {
-		
-		final private SmoothingScale scale;
-		final private boolean subtractOnly;
-		
-		
-		
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + ((scale == null) ? 0 : scale.hashCode());
-			result = prime * result + (subtractOnly ? 1231 : 1237);
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			LocalNormalizationType other = (LocalNormalizationType) obj;
-			if (scale == null) {
-				if (other.scale != null)
-					return false;
-			} else if (!scale.equals(other.scale))
-				return false;
-			if (subtractOnly != other.subtractOnly)
-				return false;
-			return true;
-		}
-
-		private LocalNormalizationType(SmoothingScale scale, boolean subtractOnly) {
-			this.scale = scale;
-			this.subtractOnly = subtractOnly;
-		}
-		
-		public static LocalNormalizationType getInstance(SmoothingScale scale, boolean subtractOnly) {
-			Objects.nonNull(scale);
-			return new LocalNormalizationType(scale, subtractOnly);
-		}
-		
-	}
 	
-	/**
-	 * Define how filters should be applied to 2D images and z-stacks when calculating multiscale features.
-	 */
-	public static enum ScaleType { 
-		/**
-		 * Apply 2D filters.
-		 */
-		SCALE_2D,
-		/**
-		 * Apply 3D filters where possible.
-		 */
-		SCALE_3D,
-		/**
-		 * Apply 3D filters where possible, correcting for anisotropy in z-resolution to match xy resolution.
-		 */
-		SCALE_3D_ISOTROPIC
-	}
-	
-	public static class SmoothingScale {
-		
-		final private double sigma;
-		final private ScaleType scaleType;
-		
-		private SmoothingScale(ScaleType scaleType, double sigma) {
-			this.sigma = sigma;
-			this.scaleType = scaleType;
-		}
-		
-		public static SmoothingScale get2D(double sigma) {
-			return new SmoothingScale(ScaleType.SCALE_2D, sigma);
-		}
-		
-		public static SmoothingScale get3DAnisotropic(double sigma) {
-			return new SmoothingScale(ScaleType.SCALE_3D, sigma);
-		}
-		
-		public static SmoothingScale get3DIsotropic(double sigma) {
-			return new SmoothingScale(ScaleType.SCALE_3D_ISOTROPIC, sigma);
-		}
-		
-		public static SmoothingScale getInstance(ScaleType scaleType, double sigma) {
-			return new SmoothingScale(scaleType, sigma);
-		}
-		
-		
-		
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + ((scaleType == null) ? 0 : scaleType.hashCode());
-			long temp;
-			temp = Double.doubleToLongBits(sigma);
-			result = prime * result + (int) (temp ^ (temp >>> 32));
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			SmoothingScale other = (SmoothingScale) obj;
-			if (scaleType != other.scaleType)
-				return false;
-			if (Double.doubleToLongBits(sigma) != Double.doubleToLongBits(other.sigma))
-				return false;
-			return true;
-		}
-
-		@Override
-		public String toString() {
-			String sigmaString = String.format("\u03C3: %s", GeneralTools.formatNumber(sigma, 2));
-			switch (scaleType) {
-			case SCALE_3D:
-				return sigmaString + " (3D)";
-			case SCALE_3D_ISOTROPIC:
-				return sigmaString + " (3D isotropic)";
-			case SCALE_2D:
-			default:
-				return sigmaString;
-			}
-		}
-		
-	}
-	
-	
-	
-
 	@Override
 	public List<PixelFeature> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		
@@ -254,10 +122,9 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		
 		// Calculate a suitable amount of padding
 		var localNormalizeScale = localNormalization == null ? null : localNormalization.scale;
-		boolean doLocalNormalize = localNormalizeScale != null && localNormalizeScale.sigma > 0;
-		boolean localNormalizeSubtractOnly = localNormalization == null ? false : localNormalization.subtractOnly;
+		boolean doLocalNormalize = localNormalizeScale != null && localNormalizeScale.getSigma() > 0;
 		if (doLocalNormalize)
-			maxSigmaXY = Math.sqrt(localNormalizeScale.sigma*localNormalizeScale.sigma + maxSigmaXY*maxSigmaXY);
+			maxSigmaXY = Math.sqrt(localNormalizeScale.getSigma()*localNormalizeScale.getSigma() + maxSigmaXY*maxSigmaXY);
 		int padding = (int)Math.ceil(maxSigmaXY) * 8;
 		
 		// Request all the images we need - either a single plane of a z-stack
@@ -310,21 +177,26 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 			
 			if (doLocalNormalize) {
 				double downsample = request.getDownsample();
-				double sigmaX = localNormalizeScale.sigma;
-				double sigmaY = localNormalizeScale.sigma;
-				double sigmaZ = getSigmaZ(localNormalizeScale, cal, downsample);
-				
-				if (sigmaZ > 0)
-					LocalNormalization.gaussianNormalize3D(mats, sigmaX, sigmaY, sigmaZ, localNormalizeSubtractOnly, opencv_core.BORDER_REPLICATE);
-				else
-					LocalNormalization.gaussianNormalize2D(mats, sigmaX, sigmaY, localNormalizeSubtractOnly, opencv_core.BORDER_REPLICATE);
+				var calScaled = cal.createScaledInstance(downsample, downsample, 1.0);
+				LocalNormalization.gaussianNormalize(mats, localNormalization, calScaled, opencv_core.BORDER_REPLICATE);
 			}
 			
 			// Calculate all the features for the specified transform
-			for (var temp : computer.features) {
-				List<Mat> mats2 = mats;
-				features.addAll(temp.calculateFeatures(cal, request.getDownsample(), computer.transform.getName(), mats2.get(ind), padding, mats2.toArray(Mat[]::new)));
-			}
+//			if (computer.features.isEmpty()) {
+//				var matTemp = mats.get(ind);
+//				if (padding > 0)
+//					matTemp = matTemp.apply(new Rect(padding, padding, matTemp.cols()-padding*2, matTemp.rows()-padding*2)).clone();
+//				float[] tempPixels = OpenCVTools.extractPixels(matTemp, null);
+//				features.add(new DefaultPixelFeature<>(computer.transform.getName(), tempPixels, matTemp.cols(), matTemp.rows()));
+//				if (padding > 0)
+//					matTemp.close();
+//			} else {
+				for (var temp : computer.features) {
+					List<Mat> mats2 = mats;
+					var mat = mats2.get(ind);
+					features.addAll(temp.calculateFeatures(cal, request.getDownsample(), computer.transform.getName(), mat, padding, mats2.toArray(Mat[]::new)));
+				}
+//			}
 		}
 		for (var mat : mats)
 			mat.release();
@@ -335,20 +207,9 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 	
 	
 	static double getSigmaZ(SmoothingScale scale, PixelCalibration cal, double downsample) {
-		switch (scale.scaleType) {
-		case SCALE_2D:
-			return 0;
-		case SCALE_3D:
-			return scale.sigma;
-		case SCALE_3D_ISOTROPIC:
-			double pixelSize = cal.getAveragedPixelSize().doubleValue() * downsample;
-			double zSpacing = cal.getZSpacing().doubleValue();
-			if (!Double.isFinite(zSpacing))
-				zSpacing = 1.0;
-			return scale.sigma / zSpacing * pixelSize;
-		default:
-			throw new IllegalArgumentException("Unknown smoothing scale " + scale);
-		}
+		if (downsample == 1)
+			return scale.getSigmaZ(cal);
+		return scale.getSigmaZ(cal.createScaledInstance(downsample, downsample, 1.0));
 	}
 	
 	
@@ -381,6 +242,15 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 			}
 			
 			/**
+			 * Add an identify feature, which applies no smoothing and returns the input pixels.
+			 * This is identified as being a Gaussian-smoothed feature with sigma of 0.
+			 * @return
+			 */
+			public Builder addIdentityFeature() {
+				return addFeatures(SmoothingScale.get2D(0.0), MultiscaleFeature.GAUSSIAN);
+			}
+			
+			/**
 			 * Add features calculated at a specific scale.
 			 * 
 			 * @param scale
@@ -409,6 +279,8 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		public double getMaxSigmaZ(PixelCalibration cal, double downsample) {
 			double sigma = 0;
 			for (MultiscaleFeatureComputer feature : features) {
+				if (feature == null || feature.scale == null)
+					continue;
 				double temp = getSigmaZ(feature.scale, cal, downsample);
 				if (temp > sigma)
 					sigma = temp;
@@ -417,16 +289,17 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		}
 		
 		/**
-		 * Returns the larger sigma value for the x or y dimension.
+		 * Returns the larger sigma value for the x or y dimension (if different).
 		 * @return
 		 */
 		public double getMaxSigmaXY() {
 			double sigma = 0;
 			for (MultiscaleFeatureComputer feature : features) {
-				if (feature.scale.sigma > sigma)
-					sigma = feature.scale.sigma;
-				if (feature.scale.sigma > sigma)
-					sigma = feature.scale.sigma;
+				if (feature == null || feature.scale == null)
+					continue;
+				double temp = feature.scale.getSigma();
+				if (temp > sigma)
+					sigma = temp;
 			}
 			return sigma;
 		}
@@ -451,7 +324,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 			List<Mat> mats = stack.length == 0 ? Collections.singletonList(mat) : Arrays.asList(stack);
 			int ind = mats.indexOf(mat);
 			
-			double sigmaXY = scale.sigma;
+			double sigmaXY = scale.getSigma();
 			double sigmaZ = getSigmaZ(scale, cal, downsample);
 			
 			Map<MultiscaleFeature, Mat> map = new MultiscaleResultsBuilder()

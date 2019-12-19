@@ -46,7 +46,7 @@ class ColorTransformFeatureCalculator implements FeatureCalculator<BufferedImage
 			// Extract pixels for the current band
 			pixels = transform.extractChannel(imageData, img, pixels);
 			String name = transform.getName();
-			features.add(new DefaultPixelFeature<>(name, pixels, img.getWidth(), img.getHeight()));
+			features.add(new DefaultPixelFeature<>(name, pixels, width, height));
 		}
 		return features;
 	}

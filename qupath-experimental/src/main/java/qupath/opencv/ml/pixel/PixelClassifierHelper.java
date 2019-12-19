@@ -513,6 +513,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		
     		// Calculate new features
     		try {
+//    			System.err.println("Calculating " + request);
 	    		features = new TileFeatures(request, featureServer, strategy, rois, labels);
 	    		cache.put(request, features);
     		} catch (IOException e) {
