@@ -43,7 +43,7 @@ public class LocalNormalization {
 		 * Get an object containing the parameters necessary for normalization.
 		 * 
 		 * @param scale Gaussian sigma value used for initial filters (mean subtraction)
-		 * @param varianceScale sigma value used for variance estimation (may be null to apply subtraction only)
+		 * @param scaleVariance sigma value used for variance estimation (may be null to apply subtraction only)
 		 * @return
 		 */
 		public static LocalNormalizationType getInstance(SmoothingScale scale, SmoothingScale scaleVariance) {

@@ -535,8 +535,14 @@ jar {
 
 /*
  * Create javadocs for all modules/packages in one place.
+ * Use -PstrictJavadoc=true to fail on error with doclint (which is rather strict).
  */
+def strictJavadoc = findProperty('strictJavadoc')
+ 
 task mergedJavadocs(type: Javadoc) {
+	if (!strictJavadoc) {
+		options.addBooleanOption 'Xdoclint:none', true
+	}
     source subprojects.collect { project ->
         project.sourceSets.main.allJava
     }
