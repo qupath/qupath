@@ -94,6 +94,17 @@ public class PathPrefs {
 
 	public static BooleanProperty useProjectImageCache = createPersistentPreference("useProjectImageCache", Boolean.FALSE);
 	
+	private static BooleanProperty useSystemMenubar = createPersistentPreference("useSystemMenubar", true);
+	
+	/**
+	 * Property used to specify whether the system menubar should be used.
+	 * This should be bound bidirectionally to the corresponding property of any menubars created.
+	 * @return
+	 */
+	public static BooleanProperty useSystemMenubarProperty() {
+		return useSystemMenubar;
+	}
+	
 	/**
 	 * Export preferences to a stream.  Note that this will only export preferences that have been set explicitly; 
 	 * some preferences may be 'missing' because their defaults were never changed.  This behavior may change in the future.

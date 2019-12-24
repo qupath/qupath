@@ -88,6 +88,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.ObjectTreeBrowser;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
 
@@ -549,7 +550,8 @@ public class ScriptInterpreterCommand implements PathCommand {
 			paneMasterDetail.setDetailNode(tabPane);
 			pane.setTop(menuBar);
 			pane.setCenter(paneMasterDetail);
-			menuBar.setUseSystemMenuBar(true);
+//			menuBar.setUseSystemMenuBar(true);
+			menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 			
 			stage.setScene(new Scene(pane, 800, 600));
 			textAreaInput.requestFocus();

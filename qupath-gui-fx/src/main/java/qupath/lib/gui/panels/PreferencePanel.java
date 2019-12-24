@@ -113,6 +113,11 @@ public class PreferencePanel {
 //							);
 //		}
 		
+		addPropertyPreference(PathPrefs.useSystemMenubarProperty(), Boolean.class,
+				"Use system menubar",
+				category,
+				"Use the system menubar, rather than custom application menubars (default is true).");
+		
 		
 		addPropertyPreference(PathPrefs.doAutoUpdateCheckProperty(), Boolean.class,
 				"Check for updates on startup",

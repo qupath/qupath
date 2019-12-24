@@ -594,7 +594,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		undoRedoManager = new UndoRedoManager(this);
 
 		initializingMenus.set(true);
-		menuBar.setUseSystemMenuBar(true);
+		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 		createMenuBar();
 		pane.setTop(menuBar);
 		

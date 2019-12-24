@@ -1,6 +1,7 @@
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 * New preference to select main font; default changed to Sans-Serif for macOS
+* New preference to turn on/off system menubar
 * Fixed issue with 'Import images' where the window could be too large for some screens
 * Update dependencies (Bio-Formats, ImageJ, ControlsFX, RichTextFX)
 

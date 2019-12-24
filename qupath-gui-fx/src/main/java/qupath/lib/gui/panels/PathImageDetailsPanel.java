@@ -300,7 +300,8 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				Scene scene = new Scene(pane);
 				pane.prefWidthProperty().bind(scene.widthProperty());
 				pane.prefHeightProperty().bind(scene.heightProperty());
-				menubar.setUseSystemMenuBar(true);
+				menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+//				menubar.setUseSystemMenuBar(true);
 				pane.setBackground(new Background(new BackgroundFill(Color.BLACK, null, null)));
 				
 				dialog.setScene(scene);

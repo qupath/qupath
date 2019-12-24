@@ -52,6 +52,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.logging.TextAppendable;
+import qupath.lib.gui.prefs.PathPrefs;
 
 /**
  * Basic log display functionality.
@@ -156,7 +157,8 @@ public class LogViewerCommand implements PathCommand {
 				);
 		menubar.getMenus().addAll(menuFile, menuEdit);
 		pane.setTop(menubar);
-		menubar.setUseSystemMenuBar(true);
+//		menubar.setUseSystemMenuBar(true);
+		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
 		
 		Scene scene = new Scene(pane, 400, 300);
 		dialog.setScene(scene);

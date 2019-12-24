@@ -60,6 +60,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.ProjectBrowser;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -183,8 +184,8 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 		BorderPane pane = new BorderPane();
 		pane.setTop(menubar);
 		pane.setCenter(table);
-		menubar.setUseSystemMenuBar(true);
-		
+//		menubar.setUseSystemMenuBar(true);
+		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());		
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());

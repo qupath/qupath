@@ -411,7 +411,8 @@ public class TMASummaryViewer {
 		
 		BorderPane pane = new BorderPane();
 		pane.setTop(menuBar);
-		menuBar.setUseSystemMenuBar(true);
+		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+//		menuBar.setUseSystemMenuBar(true);
 
 		// Create options
 		ToolBar toolbar = new ToolBar();

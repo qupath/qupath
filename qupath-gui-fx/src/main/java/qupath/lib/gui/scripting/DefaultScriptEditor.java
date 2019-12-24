@@ -608,7 +608,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		dialog.setWidth(600);
 		dialog.setHeight(400);
 		splitMain.setDividerPosition(0, 0.25);
-		menubar.setUseSystemMenuBar(true);
+		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+//		menubar.setUseSystemMenuBar(true);
 		updateUndoActionState();
 		updateCutCopyActionState();
 		
