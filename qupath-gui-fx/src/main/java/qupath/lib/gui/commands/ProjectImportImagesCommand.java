@@ -53,6 +53,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.Clipboard;
@@ -115,7 +116,8 @@ public class ProjectImportImagesCommand implements PathCommand {
 		
 		
 		ListView<String> listView = new ListView<>();
-		listView.setPrefSize(480, 480);
+		listView.setPrefWidth(480);
+		listView.setMinHeight(100);
 		listView.getItems().addAll(defaultPaths);
 		
 		Button btnFile = new Button("Choose files");
@@ -161,16 +163,19 @@ public class ProjectImportImagesCommand implements PathCommand {
 		comboBuilder.getSelectionModel().selectFirst();
 		Label labelBuilder = new Label("Image provider");
 		labelBuilder.setLabelFor(comboBuilder);
+		labelBuilder.setMinWidth(Label.USE_PREF_SIZE);
 		
 		ComboBox<ImageType> comboType = new ComboBox<>();
 		comboType.getItems().setAll(ImageType.values());
 		Label labelType = new Label("Set image type");
 		labelType.setLabelFor(comboType);
+		labelType.setMinWidth(Label.USE_PREF_SIZE);
 				
 		ComboBox<Rotation> comboRotate = new ComboBox<>();
 		comboRotate.getItems().setAll(Rotation.values());
 		Label labelRotate = new Label("Rotate image");
 		labelRotate.setLabelFor(comboRotate);
+		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
 		
 		CheckBox cbPyramidize = new CheckBox("Auto-generate pyramids");
 		cbPyramidize.setSelected(true);
@@ -204,10 +209,14 @@ public class ProjectImportImagesCommand implements PathCommand {
 		
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setResizable(true);
 		dialog.setTitle("Import images to project");
 		ButtonType typeImport = new ButtonType("Import", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
-		dialog.getDialogPane().setContent(pane);
+		ScrollPane scroll = new ScrollPane(pane);
+		scroll.setFitToHeight(true);
+		scroll.setFitToWidth(true);
+		dialog.getDialogPane().setContent(scroll);
 		
 		Optional<ButtonType> result = dialog.showAndWait();
 		if (!result.isPresent() || result.get() != typeImport)
