@@ -176,6 +176,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.algorithms.IntensityFeaturesPlugin;
@@ -2977,6 +2978,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		
 		// Create a File menu
+		Action actionQuit = new Action("Quit", e -> tryToQuit());
+		actionQuit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCodeCombination.SHORTCUT_DOWN));
 		Menu menuFile = createMenu(
 				"File",
 				createMenu(
@@ -3017,7 +3020,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
 						getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
 						createCommandAction(new TMAViewerCommand(), "Launch TMA data viewer")
-						)
+						),
+				null,
+				actionQuit
 				);
 		
 		
@@ -3419,6 +3424,23 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		});
 		return action;
 	}
+	
+	
+	/**
+	 * Request to quit QuPath.
+	 */
+	void tryToQuit() {
+		var stage = getStage();
+		if (stage == null || !stage.isShowing())
+			return;
+		stage.fireEvent(
+				new WindowEvent(
+				        stage,
+				        WindowEvent.WINDOW_CLOSE_REQUEST
+				    )
+				);
+	}
+	
 	
 	/**
 	 * Create an Action to construct and run a plugin interactively.
