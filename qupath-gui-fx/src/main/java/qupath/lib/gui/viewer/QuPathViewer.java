@@ -736,7 +736,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.viewerBackgroundColorProperty(), repainterEntire);
 		
 		manager.attachListener(PathPrefs.useSelectedColorProperty(), repainter);
-		manager.attachListener(PathPrefs.colorDefaultAnnotationsProperty(), repainter);
+		manager.attachListener(PathPrefs.colorDefaultObjectsProperty(), repainterOverlay);
 		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);

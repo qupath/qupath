@@ -45,6 +45,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
@@ -58,6 +59,8 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -191,26 +194,26 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 		listClasses.getSelectionModel().select(0);
 		listClasses.setPrefSize(100, 200);
+		
+		listClasses.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+			if (e.getCode() == KeyCode.BACK_SPACE) {
+				promptToRemoveSelectedClass();
+				e.consume();
+				return;
+			} else if (e.getCode() == KeyCode.ENTER) {
+				promptToEditSelectedClass();
+				e.consume();
+				return;
+			}
+		});
 		//		listClasses.setVisibleRowCount(6);
 
 		// TODO: Add context menu!
 		listClasses.setOnMouseClicked(e -> {
 			if (e.isPopupTrigger() || e.getClickCount() < 2)
 				return;
-			PathClass pathClassSelected = getSelectedPathClass();
-			if (promptToEditClass(pathClassSelected)) {
-				//					listModelPathClasses.fireListDataChangedEvent();
-				refreshList(listClasses);
-				var project = qupath.getProject();
-				// Make sure we have updated the classes in the project
-				if (project != null) {
-					project.setPathClasses(listClasses.getItems());
-				}
-				if (hierarchy != null)
-					hierarchy.fireHierarchyChangedEvent(listClasses);
-			}
-		}
-				);
+			promptToEditSelectedClass();
+		});
 		ContextMenu menu = new ContextMenu();
 		
 		MenuItem miAddClass = new MenuItem("Add class");
@@ -227,17 +230,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		});
 		
 		MenuItem miRemoveClass = new MenuItem("Remove class");
-		miRemoveClass.setOnAction(e -> {
-			PathClass pathClass = getSelectedPathClass();
-			if (pathClass == null)
-				return;
-			if (pathClass == PathClassFactory.getPathClassUnclassified()) {
-				Dialogs.showErrorMessage("Remove class", "Cannot remove selected class");
-				return;
-			}
-			if (Dialogs.showConfirmDialog("Remove classes", "Remove " + pathClass.getName() + "?"))
-				listClasses.getItems().remove(pathClass);
-		});
+		miRemoveClass.setOnAction(e -> promptToRemoveSelectedClass());
 		
 		MenuItem miResetAllClasses = new MenuItem("Reset all classes");
 		miResetAllClasses.setOnAction(e -> {
@@ -551,7 +544,46 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 		qupath.addImageDataChangeListener(this);
 	}
+	
+	/**
+	 * Prompt to edit the selected classification.
+	 * @return true if changes were made, false otherwise
+	 */
+	boolean promptToEditSelectedClass() {
+		PathClass pathClassSelected = getSelectedPathClass();
+		if (promptToEditClass(pathClassSelected)) {
+			//					listModelPathClasses.fireListDataChangedEvent();
+			refreshList(listClasses);
+			var project = qupath.getProject();
+			// Make sure we have updated the classes in the project
+			if (project != null) {
+				project.setPathClasses(listClasses.getItems());
+			}
+			if (hierarchy != null)
+				hierarchy.fireHierarchyChangedEvent(listClasses);
+			return true;
+		}
+		return false;
+	}
 
+	/**
+	 * Prompt to remove the currently selected class, if there is one.
+	 * 
+	 * @return true if changes were made to the class list, false otherwise
+	 */
+	boolean promptToRemoveSelectedClass() {
+		PathClass pathClass = getSelectedPathClass();
+		if (pathClass == null)
+			return false;
+		if (pathClass == PathClassFactory.getPathClassUnclassified()) {
+			Dialogs.showErrorMessage("Remove class", "Cannot remove selected class");
+			return false;
+		}
+		if (Dialogs.showConfirmDialog("Remove class", "Remove '" + pathClass.getName() + "' from class list?"))
+			return listClasses.getItems().remove(pathClass);
+		return false;
+	}
+	
 	
 	void synchronizeListSelectionToHierarchy() {
 		if (hierarchy == null || changingSelection)
@@ -796,6 +828,13 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		labDescription.setLabelFor(textAreaDescription);
 		panel.add(labDescription, 0, 2);
 		panel.add(textAreaDescription, 1, 2);
+		
+		CheckBox cbLocked = new CheckBox("");
+		cbLocked.setSelected(annotation.isLocked());
+		Label labelLocked = new Label("Locked");
+		panel.add(labelLocked, 0, 3);
+		labelLocked.setLabelFor(cbLocked);
+		panel.add(cbLocked, 1, 3);
 
 		if (!Dialogs.showConfirmDialog("Set annotation properties", panel))
 			return false;
@@ -814,6 +853,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			annotation.setDescription(null);
 		else
 			annotation.setDescription(description);
+		
+		annotation.setLocked(cbLocked.isSelected());
 		
 		return true;
 	}
@@ -930,8 +971,8 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		Color color;
 
 		if (defaultColor) {
-			name = "Default annotation color";
-			color = ColorToolsFX.getCachedColor(PathPrefs.getColorDefaultAnnotations());
+			name = "Default object color";
+			color = ColorToolsFX.getCachedColor(PathPrefs.getColorDefaultObjects());
 			//			textField.setEditable(false);
 			//			textField.setEnabled(false);
 			Label label = new Label(name);
@@ -966,9 +1007,9 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getARGB(newColor);
 		if (defaultColor) {
 			if (newColor.isOpaque())
-				PathPrefs.setColorDefaultAnnotations(colorValue);
+				PathPrefs.setColorDefaultObjects(colorValue);
 			else
-				PathPrefs.setColorDefaultAnnotations(colorValue);
+				PathPrefs.setColorDefaultObjects(colorValue);
 		}
 		else {
 //			if (!name.equals(pathClass.getName()) && PathClassFactory.pathClassExists(newName)) {

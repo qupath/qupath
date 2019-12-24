@@ -412,7 +412,12 @@ public class GuiTools {
 		}
 	
 		int n = selected.size();
-		if (Dialogs.showYesNoDialog("Delete objects", "Delete " + n + " objects?")) {
+		String message;
+		if (n == 1)
+			message = "Delete selected object?";
+		else
+			message = "Delete " + n + " selected objects?";
+		if (Dialogs.showYesNoDialog("Delete objects", message)) {
 			// Check for descendants
 			List<PathObject> children = new ArrayList<>();
 			for (PathObject temp : selected) {

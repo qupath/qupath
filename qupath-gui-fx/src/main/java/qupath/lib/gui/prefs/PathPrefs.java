@@ -1201,7 +1201,7 @@ public class PathPrefs {
 	}
 
 	
-	private static IntegerProperty colorDefaultAnnotations = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
+	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
 	
 	private static String extPathClassifier = ".qpclassifier";
 	
@@ -1234,16 +1234,16 @@ public class PathPrefs {
 		return colorTMA.get();
 	}
 	
-	public static IntegerProperty colorDefaultAnnotationsProperty() {
-		return colorDefaultAnnotations;
+	public static IntegerProperty colorDefaultObjectsProperty() {
+		return colorDefaultObjects;
 	}
 
-	public static Integer getColorDefaultAnnotations() {
-		return colorDefaultAnnotations.get();
+	public static Integer getColorDefaultObjects() {
+		return colorDefaultObjects.get();
 	}
 	
-	public static void setColorDefaultAnnotations(int color) {
-		colorDefaultAnnotations.set(color);
+	public static void setColorDefaultObjects(int color) {
+		colorDefaultObjects.set(color);
 	}
 
 	public static void setSelectedObjectColor(int color) {

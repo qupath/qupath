@@ -168,7 +168,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				if (file == null)
 					return;
 				try {
-					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
+					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultObjects());
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save points error", e);
 				}

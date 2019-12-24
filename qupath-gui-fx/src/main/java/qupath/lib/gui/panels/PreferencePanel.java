@@ -404,10 +404,10 @@ public class PreferencePanel {
 				category,
 				"Set the color used to highly the selected object");
 
-		addColorPropertyPreference(PathPrefs.colorDefaultAnnotationsProperty(),
-				"Default annotation color",
+		addColorPropertyPreference(PathPrefs.colorDefaultObjectsProperty(),
+				"Default object color",
 				category,
-				"Set the default color for annotations");
+				"Set the default color for objects");
 
 		addColorPropertyPreference(PathPrefs.colorTMAProperty(),
 				"TMA core color",

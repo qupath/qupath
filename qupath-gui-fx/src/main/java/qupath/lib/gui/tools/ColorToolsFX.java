@@ -244,7 +244,7 @@ public class ColorToolsFX {
 			else
 				return PathPrefs.getTMACoreColor();
 		}
-		return PathPrefs.getColorDefaultAnnotations();
+		return PathPrefs.getColorDefaultObjects();
 	}
 	
 

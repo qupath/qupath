@@ -309,12 +309,16 @@ public class CommandFinderTools {
 		col2.setCellValueFactory(new PropertyValueFactory<>("menuPath"));
 		TableColumn<CommandEntry, String> col3 = new TableColumn<>("Accelerator");
 		col3.setCellValueFactory(new PropertyValueFactory<>("acceleratorText"));
-		col3.setResizable(false);
+//		col3.setResizable(false);
+		
+//		col1.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
+//		col2.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
+//		col3.prefWidthProperty().bind(table.widthProperty().multiply(0.2).subtract(6));
 		
 		table.getColumns().add(col1);
 		table.getColumns().add(col2);
 		table.getColumns().add(col3);
-		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		table.setFocusTraversable(false);
 		return table;
 	}

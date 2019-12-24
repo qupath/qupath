@@ -3810,7 +3810,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 		
 		case DELETE_SELECTED_OBJECTS:
-			return createCommandAction(new DeleteSelectedObjectsCommand(this), "Delete selected objects");
+			return createCommandAction(new DeleteSelectedObjectsCommand(this), "Delete selected objects", null, new KeyCodeCombination(KeyCode.BACK_SPACE));
 		case CLEAR_HIERARCHY:
 			return createCommandAction(new DeleteObjectsCommand(this, null), "Delete all objects");
 		case CLEAR_DETECTIONS:

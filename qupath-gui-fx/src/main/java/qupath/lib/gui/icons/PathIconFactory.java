@@ -74,10 +74,10 @@ public class PathIconFactory {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathIconFactory.class);
 	
-	public static enum PathIcons {	ANNOTATIONS("\ue901", PathPrefs.colorDefaultAnnotationsProperty()),
-									ANNOTATIONS_FILL("\ue900", PathPrefs.colorDefaultAnnotationsProperty()),
+	public static enum PathIcons {	ANNOTATIONS("\ue901", PathPrefs.colorDefaultObjectsProperty()),
+									ANNOTATIONS_FILL("\ue900", PathPrefs.colorDefaultObjectsProperty()),
 									
-									BRUSH_TOOL("\ue902", PathPrefs.colorDefaultAnnotationsProperty()),
+									BRUSH_TOOL("\ue902", PathPrefs.colorDefaultObjectsProperty()),
 									
 									CELL_NULCEI_BOTH("\ue903"),
 									CELL_ONLY("\ue904"),
@@ -87,14 +87,14 @@ public class PathIconFactory {
 									DETECTIONS("\ue908", javafx.scene.paint.Color.rgb(20, 180, 120, 0.9)),
 									DETECTIONS_FILL("\ue907", javafx.scene.paint.Color.rgb(20, 180, 120, 0.9)),
 
-									ELLIPSE_TOOL("\ue909", PathPrefs.colorDefaultAnnotationsProperty()),
+									ELLIPSE_TOOL("\ue909", PathPrefs.colorDefaultObjectsProperty()),
 									EXTRACT_REGION("\ue90a"),
 
 									SELECTION_MODE("S"),
 									
 									GRID("\ue90b"),
 									
-									LINE_TOOL("\ue90c", PathPrefs.colorDefaultAnnotationsProperty()),
+									LINE_TOOL("\ue90c", PathPrefs.colorDefaultObjectsProperty()),
 									LOCATION("\ue90d"),
 									
 									MEASURE("\ue90e"),
@@ -107,14 +107,14 @@ public class PathIconFactory {
 									PIXEL_CLASSIFICATION("C"),
 									
 									PLAYBACK_PLAY("\ue912"),
-									POINTS_TOOL("\ue913", PathPrefs.colorDefaultAnnotationsProperty()),
-									POLYGON_TOOL("\ue914", PathPrefs.colorDefaultAnnotationsProperty()),
+									POINTS_TOOL("\ue913", PathPrefs.colorDefaultObjectsProperty()),
+									POLYGON_TOOL("\ue914", PathPrefs.colorDefaultObjectsProperty()),
 									
 									// TODO: Update to have a unique icon!
-									POLYLINE_TOOL("V", PathPrefs.colorDefaultAnnotationsProperty()),
+									POLYLINE_TOOL("V", PathPrefs.colorDefaultObjectsProperty()),
 									
 									PLAYBACK_RECORD("\ue915"),
-									RECTANGLE_TOOL("\ue916", PathPrefs.colorDefaultAnnotationsProperty()),
+									RECTANGLE_TOOL("\ue916", PathPrefs.colorDefaultObjectsProperty()),
 									
 									SHOW_SCALEBAR("\ue917"),
 									SCREENSHOT("\ue918"),
@@ -124,7 +124,7 @@ public class PathIconFactory {
 									TABLE("\ue91a"),
 									TMA_GRID("\ue91b", PathPrefs.colorTMAProperty()),
 
-									WAND_TOOL("\ue91c", PathPrefs.colorDefaultAnnotationsProperty()),
+									WAND_TOOL("\ue91c", PathPrefs.colorDefaultObjectsProperty()),
 									
 									ZOOM_IN("\ue91d"),
 									ZOOM_OUT("\ue91e"),
