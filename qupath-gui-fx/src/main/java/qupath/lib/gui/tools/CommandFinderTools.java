@@ -39,6 +39,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -61,6 +62,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
@@ -286,7 +288,7 @@ public class CommandFinderTools {
 			if (!item.isVisible())
 				continue;
 			if (item instanceof Menu)
-				addMenuComponents((Menu)item, menuPath + ((Menu)item).getText() + ">", commands);
+				addMenuComponents((Menu)item, menuPath + ((Menu)item).getText(), commands);
 			else if (item instanceof SeparatorMenuItem)
 				continue;
 			else if (item.getText() != null)
@@ -305,8 +307,13 @@ public class CommandFinderTools {
 		col1.setCellValueFactory(new PropertyValueFactory<>("text"));
 		TableColumn<CommandEntry, String> col2 = new TableColumn<>("Menu Path");
 		col2.setCellValueFactory(new PropertyValueFactory<>("menuPath"));
+		TableColumn<CommandEntry, String> col3 = new TableColumn<>("Accelerator");
+		col3.setCellValueFactory(new PropertyValueFactory<>("acceleratorText"));
+		col3.setResizable(false);
+		
 		table.getColumns().add(col1);
 		table.getColumns().add(col2);
+		table.getColumns().add(col3);
 		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 		table.setFocusTraversable(false);
 		return table;
@@ -346,7 +353,7 @@ public class CommandFinderTools {
 			// Create sorted command entry list
 			List<CommandEntry> commandsTemp = new ArrayList<>();
 			for (Menu menu : menubar.getMenus()) {
-				addMenuComponents(menu, menu.getText() + ">", commandsTemp);
+				addMenuComponents(menu, menu.getText() + " \u2192 ", commandsTemp);
 			}
 			Collections.sort(commandsTemp, new Comparator<CommandEntry>() {
 				@Override
@@ -386,12 +393,24 @@ public class CommandFinderTools {
 		
 		private StringProperty menuPath = new SimpleStringProperty();
 		private ObjectProperty<MenuItem> item = new SimpleObjectProperty<>();
-		private StringProperty text = new SimpleStringProperty(); // If I knew what I was doing, I might create a binding...
+		private StringProperty text = new SimpleStringProperty();
+		private StringProperty acceleratorText = new SimpleStringProperty();
 		
 		CommandEntry(final MenuItem item, final String menuPath) {
 			this.item.set(item);
 			this.menuPath.set(menuPath);
-			this.text.set(item.getText());
+			this.text.bind(Bindings.createStringBinding(() -> {
+				var temp = this.item.get();
+				return temp == null ? "" : temp.getText();
+			}, this.item));
+			ObservableObjectValue<KeyCombination> accelerator = Bindings.createObjectBinding(() -> {
+				var temp = this.item.get();
+				return temp == null ? null : temp.getAccelerator();
+			}, this.item);
+			this.acceleratorText.bind(Bindings.createStringBinding(() -> {
+				var temp = accelerator.get();
+				return temp == null ? null : temp.getDisplayText();
+			}, accelerator));
 		}
 		
 		public MenuItem getMenuItem() {
@@ -406,8 +425,16 @@ public class CommandFinderTools {
 			return text.get();
 		}
 		
+		public String getAccleratorText() {
+			return acceleratorTextProperty().get();
+		}
+		
 		public String getMenuPath() {
 			return menuPath.get();
+		}
+		
+		public ReadOnlyStringProperty acceleratorTextProperty() {
+			return acceleratorText;
 		}
 		
 		public ReadOnlyStringProperty textProperty() {

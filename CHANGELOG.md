@@ -3,6 +3,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * New preference to select main font; default changed to Sans-Serif for macOS
 * New preference to turn on/off system menubar
 * New File -> Quit menu item
+* Show accelerator within 'Command list' table
 * Fixed issue with 'Import images' where the window could be too large for some screens
 * Update dependencies (Bio-Formats, ImageJ, ControlsFX, RichTextFX)
 
