@@ -2,10 +2,7 @@ package qupath.lib.gui.ml;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
-
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +24,6 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.opencv.ml.pixel.features.ColorTransforms;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
 import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;

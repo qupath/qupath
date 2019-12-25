@@ -21,6 +21,7 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.ListView;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
@@ -587,6 +588,18 @@ public class GuiTools {
 		double sy = (h - sh)/2;
 		gc.clearRect(0, 0, w, h);
 		gc.drawImage(image, sx, sy, sw, sh);
+	}
+
+	/**
+	 * Refresh a {@link ListView} in the Application thread.
+	 * @param <T>
+	 * @param listView
+	 */
+	public static <T> void refreshList(final ListView<T> listView) {
+		if (Platform.isFxApplicationThread()) {
+			listView.refresh();
+		} else
+			Platform.runLater(() -> refreshList(listView));
 	}
 
 }

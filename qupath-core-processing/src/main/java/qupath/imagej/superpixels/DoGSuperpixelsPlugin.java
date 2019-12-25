@@ -25,7 +25,6 @@ package qupath.imagej.superpixels;
 
 import ij.ImagePlus;
 import ij.gui.PolygonRoi;
-import ij.gui.Roi;
 import ij.plugin.filter.MaximumFinder;
 import ij.plugin.filter.RankFilters;
 import ij.process.Blitter;

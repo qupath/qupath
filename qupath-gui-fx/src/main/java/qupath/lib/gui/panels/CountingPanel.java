@@ -43,6 +43,7 @@ import javafx.scene.layout.Pane;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -96,7 +97,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		});
 		
 		// Make buttons
-		GridPane panelButtons = PathAnnotationPanel.createColumnGridControls(
+		GridPane panelButtons = PaneTools.createColumnGridControls(
 				ActionUtils.createButton(btnAdd),
 				ActionUtils.createButton(btnEdit),
 				ActionUtils.createButton(btnDelete)

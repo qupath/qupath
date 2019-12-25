@@ -51,7 +51,6 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 

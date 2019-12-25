@@ -13,7 +13,6 @@ import java.util.Objects;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Rect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

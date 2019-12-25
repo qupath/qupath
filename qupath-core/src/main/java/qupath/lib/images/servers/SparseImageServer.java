@@ -19,7 +19,6 @@ import java.util.TreeSet;
 import java.util.UUID;
 
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

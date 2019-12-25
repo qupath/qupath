@@ -31,7 +31,6 @@ import javafx.scene.input.DataFormat;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.GuiTools.SnapshotType;
 
 /**
  * Command to copy a screenshot to the system clipboard.
