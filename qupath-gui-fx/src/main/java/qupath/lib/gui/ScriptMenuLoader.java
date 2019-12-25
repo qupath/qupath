@@ -43,6 +43,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MenuTools;
 
 /**
  * Helper class for creating a dynamic menu to a directory containing scripts.
@@ -157,7 +158,7 @@ public class ScriptMenuLoader {
 	private void addMenuItemsForPath(final Menu menu, final Path path, final boolean addDirectly) {
 		
 		if (Files.isDirectory(path)) {
-			Menu subMenu = QuPathGUI.createMenu(path.getFileName().toString());
+			Menu subMenu = MenuTools.createMenu(path.getFileName().toString());
 			
 			try {
 				Files.list(path).forEach(p -> addMenuItemsForPath(addDirectly ? menu : subMenu, p, false));

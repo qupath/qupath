@@ -98,6 +98,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -389,7 +390,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		ContextMenu menu = new ContextMenu();
 		
 		var hasProjectBinding = qupath.projectProperty().isNotNull();
-		var menuOpenDirectories = QuPathGUI.createMenu("Open directory...", 
+		var menuOpenDirectories = MenuTools.createMenu("Open directory...", 
 				actionOpenProjectDirectory,
 				actionOpenProjectEntryDirectory,
 				actionOpenImageServerDirectory);

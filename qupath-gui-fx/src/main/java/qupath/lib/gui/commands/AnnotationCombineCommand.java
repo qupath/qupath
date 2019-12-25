@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
@@ -48,8 +49,15 @@ public class AnnotationCombineCommand implements PathCommand {
 	
 	private static Logger logger = LoggerFactory.getLogger(AnnotationCombineCommand.class);
 
-	final private QuPathViewer viewer;
+	private QuPathGUI qupath;
+	private QuPathViewer viewer;
 	final private RoiTools.CombineOp op;
+	
+	public AnnotationCombineCommand(final QuPathGUI qupath, final RoiTools.CombineOp op) {
+		super();
+		this.qupath = qupath;
+		this.op = op;
+	}
 
 	public AnnotationCombineCommand(final QuPathViewer viewer, final RoiTools.CombineOp op) {
 		super();
@@ -59,6 +67,10 @@ public class AnnotationCombineCommand implements PathCommand {
 
 	@Override
 	public void run() {
+		QuPathViewer viewer = this.viewer;
+		if (viewer == null)
+			viewer = qupath.getViewer();
+		
 		// Ensure the main selected object is first in the list, if possible
 		var selected = new ArrayList<>(viewer.getHierarchy().getSelectionModel().getSelectedObjects());
 		var mainObject = viewer.getHierarchy().getSelectionModel().getSelectedObject();

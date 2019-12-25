@@ -58,7 +58,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -290,6 +289,7 @@ import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
 import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -780,7 +780,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		});
 
 		if (editor instanceof DefaultScriptEditor) {
-			addMenuItems(
+			MenuTools.addMenuItems(
 					menuAutomate,
 					null,
 					createCommandAction(new SampleScriptLoader(this), "Open sample scripts"),
@@ -796,8 +796,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Listen for cache request changes
 		PathPrefs.useProjectImageCacheProperty().addListener(v -> updateProjectActionStates());
 		
-		// Menus should now be complete
+		// Menus should now be complete - try binding visibility
 		initializingMenus.set(false);
+		try {
+			for (var item : MenuTools.getFlattenedMenuItems(menuBar.getMenus(), false)) {
+				if (!item.visibleProperty().isBound())
+					bindVisibilityForExperimental(item);
+			}
+		} catch (Exception e) {
+			logger.warn("Error binding menu visibility: {}", e.getLocalizedMessage());
+			logger.warn("", e);
+		}
 		
 		// Update the title
 		stage.titleProperty().bind(titleBinding);
@@ -1357,8 +1366,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Populate the availablePathClasses with a default list.
+	 * 
+	 * @return true if changes were mad to the available classes, false otherwise
 	 */
-	public void resetAvailablePathClasses() {
+	public boolean resetAvailablePathClasses() {
 		List<PathClass> pathClasses = new ArrayList<>(); 
 		pathClasses.add(PathClassFactory.getPathClassUnclassified());
 		
@@ -1370,10 +1381,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION));
 		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE));
 		
-		if (availablePathClasses == null)
+		if (availablePathClasses == null) {
 			availablePathClasses = FXCollections.observableArrayList(pathClasses);
-		else
-			availablePathClasses.setAll(pathClasses);
+			return true;
+		} else
+			return availablePathClasses.setAll(pathClasses);
 	}
 	
 	/**
@@ -1942,7 +1954,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		});
 		MenuItem miToggleSync = getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
 		MenuItem miMatchResolutions = getActionMenuItem(GUIActions.MATCH_VIEWER_RESOLUTIONS);
-		Menu menuMultiview = createMenu(
+		Menu menuMultiview = MenuTools.createMenu(
 				"Multi-view",
 				miToggleSync,
 				miMatchResolutions,
@@ -1959,7 +1971,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				miRemoveColumn
 				);
 		
-		Menu menuView = createMenu(
+		Menu menuView = MenuTools.createMenu(
 				"Display",
 				getActionCheckBoxMenuItem(GUIActions.SHOW_ANALYSIS_PANEL, null),
 				getAction(GUIActions.BRIGHTNESS_CONTRAST),
@@ -1975,7 +1987,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionCheckBoxMenuItem(GUIActions.ZOOM_TO_FIT, null)
 				);
 		
-		Menu menuTools = createMenu(
+		Menu menuTools = MenuTools.createMenu(
 				"Set tool",
 				getActionCheckBoxMenuItem(GUIActions.MOVE_TOOL, null),
 				getActionCheckBoxMenuItem(GUIActions.RECTANGLE_TOOL, null),
@@ -1990,8 +2002,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		
 		// Add annotation options
-		Menu menuAnnotations = createMenu(
+		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
+		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
+		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), true));
+		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), false));
+		
+		Menu menuAnnotations = MenuTools.createMenu(
 				"Annotations",
+				miLockAnnotations,
+				miUnlockAnnotations,
+				null,
+				createCommandAction(new HierarchyInsertCommand(this), "Insert in hierarchy"),
+				null,
 				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.ADD), "Merge selected"),
 				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
 				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.INTERSECT), "Intersect selected"),
@@ -2006,21 +2028,21 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		miTMAMissing.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), true));
 		
 		Menu menuTMA = new Menu("TMA");
-		addMenuItems(
+		MenuTools.addMenuItems(
 				menuTMA,
 				miTMAValid,
 				miTMAMissing,
 				null,
 				getAction(GUIActions.TMA_ADD_NOTE),
 				null,
-				createMenu(
+				MenuTools.createMenu(
 						"Add",
 					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_BEFORE), "Add TMA row before"),
 					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_AFTER), "Add TMA row after"),
 					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_BEFORE), "Add TMA column before"),
 					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_AFTER), "Add TMA column after")
 					),
-				createMenu(
+				MenuTools.createMenu(
 						"Remove",
 					createCommandAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
 					createCommandAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
@@ -2030,20 +2052,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		
 		// Create an empty placeholder menu
-		Menu menuSetClass = createMenu("Set class");
+		Menu menuSetClass = MenuTools.createMenu("Set class");
 		
-		
-		Action actionInsert = createCommandAction(new HierarchyInsertCommand(this), "Insert in hierarchy");
-		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
-		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
-		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), true));
-		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), false));
-		menuAnnotations.getItems().addAll(0, Arrays.asList(
-				miLockAnnotations,
-				miUnlockAnnotations,
-				new SeparatorMenuItem(),
-				ActionUtils.createMenuItem(actionInsert),
-				new SeparatorMenuItem()));
 		
 //		CheckMenuItem miTMAValid = new CheckMenuItem("Set core valid");
 //		miTMAValid.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), false));
@@ -2051,11 +2061,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		miTMAMissing.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), true));
 		
 		
-		Menu menuCells = createMenu(
+		Menu menuCells = MenuTools.createMenu(
 				"Cells",
-				createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI), null),
-				createRadioMenuItem(getAction(GUIActions.SHOW_CELL_NUCLEI), null),
-				createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES), null)
+				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI), null),
+				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_NUCLEI), null),
+				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES), null)
 				);
 
 		
@@ -2163,6 +2173,29 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
+	static Menu createAnnotationsMenu(QuPathGUI qupath) {
+		// Add annotation options
+		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
+		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
+		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(qupath.getImageData(), true));
+		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(qupath.getImageData(), false));
+
+		return MenuTools.createMenu(
+				"Annotations",
+				miLockAnnotations,
+				miUnlockAnnotations,
+				null,
+				createCommandAction(new HierarchyInsertCommand(qupath), "Insert in hierarchy"),
+				null,
+				createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.ADD), "Merge selected"),
+				createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
+				createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.INTERSECT), "Intersect selected"),
+				createCommandAction(new InverseObjectCommand(qupath), "Make inverse"),
+				createPluginAction("Split selected", SplitAnnotationsPlugin.class, qupath, null)
+				);
+	}
+	
+	
 	/**
 	 * Set selected TMA cores to have the specified 'missing' status.
 	 * 
@@ -2222,6 +2255,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 		if (!changed.isEmpty())
 			hierarchy.fireObjectsChangedEvent(getInstance(), changed);
+	}
+	
+	private static void setSelectedAnnotationLock(final ImageData<?> imageData, final boolean setToLocked) {
+		if (imageData == null)
+			return;
+		setSelectedAnnotationLock(imageData.getHierarchy(), setToLocked);
 	}
 	
 	
@@ -2853,59 +2892,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return menuBar;
 	}
 	
-	/**
-	 * Create a menu, and add new menu items.
-	 * 
-	 * If null is passed as an object, a separator is added.
-	 * 
-	 * @param name
-	 * @param items
-	 * @return new menu
-	 */
-	public static Menu createMenu(final String name, final Object... items) {
-		return addMenuItems(createMenu(name), items);
-	}
 	
-	/**
-	 * Add menu items to an existing menu.
-	 * 
-	 * If null is passed as an object, a separator is added.
-	 * 
-	 * @param menu
-	 * @param items
-	 * @return menu, so that this method can be nested inside other calls.
-	 */
-	public static Menu addMenuItems(final Menu menu, final Object... items) {
-		// Check if the last item was a separator -
-		// we don't want two adjacent separators, since this looks a bit weird
-		boolean lastIsSeparator = menu.getItems().isEmpty() ? false : menu.getItems().get(menu.getItems().size()-1) instanceof SeparatorMenuItem;
-		
-		List<MenuItem> newItems = new ArrayList<>();
-		for (Object item : items) {
-			if (item == null) {
-				if (!lastIsSeparator)
-					newItems.add(new SeparatorMenuItem());
-				lastIsSeparator = true;
-			}
-			else if (item instanceof MenuItem) {
-				newItems.add((MenuItem)item);
-				lastIsSeparator = false;
-			}
-			else if (item instanceof Action) {
-				newItems.add(createMenuItem((Action)item));
-				lastIsSeparator = false;
-			} else
-				logger.warn("Could not add menu item {}", item);
-		}
-		if (!newItems.isEmpty()) {
-			boolean initializing = initializingMenus.get();
-			initializingMenus.set(true);
-//			System.err.println("MENU STUFF: " + initializingMenus.get() + " - " + menu.getText());
-			menu.getItems().addAll(newItems);
-			initializingMenus.set(initializing);
-		}
-		return menu;
-	}
 	
 	
 	/**
@@ -2970,19 +2957,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 	
 	
-	protected MenuBar createMenuBar() {
+	private MenuBar createMenuBar() {
 		
 		// Create a recent projects list
 		ObservableList<URI> recentProjects = PathPrefs.getRecentProjectList();
-		Menu menuRecent = createMenu("Recent projects...");
+		Menu menuRecent = MenuTools.createMenu("Recent projects...");
 		
 		
 		// Create a File menu
 		Action actionQuit = new Action("Quit", e -> tryToQuit());
 		actionQuit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCodeCombination.SHORTCUT_DOWN));
-		Menu menuFile = createMenu(
+		Menu menuFile = MenuTools.createMenu(
 				"File",
-				createMenu(
+				MenuTools.createMenu(
 						"Project...",
 						getActionMenuItem(GUIActions.PROJECT_NEW),
 						getActionMenuItem(GUIActions.PROJECT_OPEN),
@@ -3003,19 +2990,19 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.SAVE_DATA_AS),
 				getActionMenuItem(GUIActions.SAVE_DATA),
 				null,
-				createMenu(
+				MenuTools.createMenu(
 						"Export images...",
 						createCommandAction(new ExportImageRegionCommand(this, false), "Original pixels"),
 						createCommandAction(new ExportImageRegionCommand(this, true), "Rendered RGB (with overlays)")
 						),
-				createMenu(
+				MenuTools.createMenu(
 						"Export snapshot...",
 						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot"),
 						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.MAIN_SCENE), "Main window content"),
 						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.VIEWER), "Current viewer content")
 						),
 				null,
-				createMenu(
+				MenuTools.createMenu(
 						"TMA data...",
 						getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
 						getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
@@ -3054,12 +3041,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		
 		// Create Edit menu
-		Menu menuEdit = createMenu(
+		Menu menuEdit = MenuTools.createMenu(
 				"Edit",
 				getActionMenuItem(GUIActions.UNDO),
 				getActionMenuItem(GUIActions.REDO),
 				null,
-				createMenu("Copy to clipboard...",
+				MenuTools.createMenu("Copy to clipboard...",
 					getActionMenuItem(GUIActions.COPY_VIEW),
 					getActionMenuItem(GUIActions.COPY_WINDOW),
 					getActionMenuItem(GUIActions.COPY_WINDOW_SCREENSHOT),
@@ -3072,7 +3059,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		// Create Tools menu
 		ToggleGroup groupTools = new ToggleGroup();
-		Menu menuTools = createMenu(
+		Menu menuTools = MenuTools.createMenu(
 				"Tools",
 				getActionCheckBoxMenuItem(GUIActions.MOVE_TOOL, groupTools),
 				getActionCheckBoxMenuItem(GUIActions.RECTANGLE_TOOL, groupTools),
@@ -3085,8 +3072,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, groupTools)
 				);
 		
-		Menu menuGestures = createMenu("Multi-touch gestures");
-		addMenuItems(
+		Menu menuGestures = MenuTools.createMenu("Multi-touch gestures");
+		MenuTools.addMenuItems(
 				menuGestures,
 				ActionUtils.createMenuItem(new Action("Turn on all gestures", e -> {
 					PathPrefs.setUseScrollGestures(true);
@@ -3103,7 +3090,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				ActionUtils.createCheckMenuItem(createSelectableCommandAction(PathPrefs.useZoomGesturesProperty(), "Use zoom gestures")),
 				ActionUtils.createCheckMenuItem(createSelectableCommandAction(PathPrefs.useRotateGesturesProperty(), "Use rotate gestures"))
 				);
-		addMenuItems(
+		MenuTools.addMenuItems(
 				menuTools,
 				null,
 				menuGestures);
@@ -3128,7 +3115,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Create View menu
 		SlideLabelView slideLabelView = new SlideLabelView(this);
 		ToggleGroup groupCellDisplay = new ToggleGroup();
-		Menu menuView = createMenu(
+		Menu menuView = MenuTools.createMenu(
 				"View",
 				getActionCheckBoxMenuItem(GUIActions.SHOW_ANALYSIS_PANEL),
 				getActionMenuItem(GUIActions.SHOW_COMMAND_LIST),
@@ -3138,13 +3125,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS),
 				getActionCheckBoxMenuItem(GUIActions.MATCH_VIEWER_RESOLUTIONS),
-				createMenu(
+				MenuTools.createMenu(
 						"Mini viewers",
 						getActionMenuItem(GUIActions.CHANNEL_VIEWER),
 						getActionMenuItem(GUIActions.MINI_VIEWER)
 						),
 				null,
-				createMenu(
+				MenuTools.createMenu(
 						"Zoom",
 						createCommandAction(new ViewerSetDownsampleCommand(this, 0.25), "400%"),
 						createCommandAction(new ViewerSetDownsampleCommand(this, 1), "100%"),
@@ -3154,11 +3141,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						null,
 						getActionMenuItem(GUIActions.ZOOM_IN),
 						getActionMenuItem(GUIActions.ZOOM_OUT),
-						createCheckMenuItem(getAction(GUIActions.ZOOM_TO_FIT))
+						MenuTools.createCheckMenuItem(getAction(GUIActions.ZOOM_TO_FIT))
 						),
 				getActionMenuItem(GUIActions.ROTATE_IMAGE),
 				null,
-				createMenu(
+				MenuTools.createMenu(
 						"Cell display",
 						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_BOUNDARIES, groupCellDisplay),
 						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_NUCLEI, groupCellDisplay),
@@ -3170,7 +3157,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionCheckBoxMenuItem(GUIActions.SHOW_TMA_GRID_LABELS),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_DETECTIONS),
 				getActionCheckBoxMenuItem(GUIActions.FILL_DETECTIONS),
-				createCheckMenuItem(createSelectableCommandAction(overlayOptions.showConnectionsProperty(), "Show object connections")),
+				MenuTools.createCheckMenuItem(createSelectableCommandAction(overlayOptions.showConnectionsProperty(), "Show object connections")),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_PIXEL_CLASSIFICATION),
 				null,
 				getActionCheckBoxMenuItem(GUIActions.SHOW_OVERVIEW),
@@ -3180,7 +3167,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionMenuItem(GUIActions.GRID_SPACING),
 				null,
 				getActionMenuItem(GUIActions.VIEW_TRACKER),
-				createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
+				MenuTools.createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
 				null,
 				createCommandAction(new ShowInputDisplayCommand(this), "Show input on screen"),
 				createCommandAction(new MemoryMonitorCommand(this), "Show memory monitor"),
@@ -3188,9 +3175,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			);
 		
 		
-		Menu menuObjects = createMenu(
+		Menu menuObjects = MenuTools.createMenu(
 				"Objects",
-				createMenu(
+				MenuTools.createMenu(
 						"Delete...",
 						getActionMenuItem(GUIActions.DELETE_SELECTED_OBJECTS),
 						null,
@@ -3198,7 +3185,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						getActionMenuItem(GUIActions.CLEAR_ANNOTATIONS),
 						getActionMenuItem(GUIActions.CLEAR_DETECTIONS)
 						),
-				createMenu(
+				MenuTools.createMenu(
 						"Select...",
 						createCommandAction(new ResetSelectionCommand(this), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						null,
@@ -3210,7 +3197,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select by measurements (experimental)")
 						),
 				null,
-				createMenu("Annotations...",
+				MenuTools.createMenu("Annotations...",
 					getActionMenuItem(GUIActions.SPECIFY_ANNOTATION),
 					getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
 					null,					
@@ -3233,16 +3220,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				);
 
 		
-		Menu menuTMA = createMenu(
+		Menu menuTMA = MenuTools.createMenu(
 				"TMA",
-				createMenu(
+				MenuTools.createMenu(
 					"Add...",
 					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_BEFORE), "Add TMA row before"),
 					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_AFTER), "Add TMA row after"),
 					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_BEFORE), "Add TMA column before"),
 					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_AFTER), "Add TMA column after")
 					),
-				createMenu(
+				MenuTools.createMenu(
 						"Remove...",
 						createCommandAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
 						createCommandAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
@@ -3257,7 +3244,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				);
 		
 		
-		Menu menuMeasure = createMenu(
+		Menu menuMeasure = MenuTools.createMenu(
 				"Measure",
 				getActionMenuItem(GUIActions.MEASUREMENT_MAP),
 				createCommandAction(new MeasurementManager(this), "Show measurement manager"),
@@ -3275,7 +3262,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// Try to load a script editor
 		Action actionScriptEditor = createCommandAction(new ShowScriptEditorCommand(this, false), "Show script editor");
 		actionScriptEditor.setAccelerator(new KeyCodeCombination(KeyCode.OPEN_BRACKET, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_ANY));
-		Menu menuAutomate = createMenu(
+		Menu menuAutomate = MenuTools.createMenu(
 				"Automate",
 				actionScriptEditor,
 				createCommandAction(new ScriptInterpreterCommand(this), "Script interpreter"),
@@ -3285,23 +3272,23 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				);
 		
 		// Add some plugins
-		Menu menuAnalysis = createMenu(
+		Menu menuAnalysis = MenuTools.createMenu(
 				"Analyze",
-				createMenu(
+				MenuTools.createMenu(
 						"Preprocessing",
 						getActionMenuItem(GUIActions.COLOR_DECONVOLUTION_REFINE)
 						),
-				createMenu(
+				MenuTools.createMenu(
 						"Region identification",
-						createMenu(
+						MenuTools.createMenu(
 								"Tiles & superpixels",
 								createPluginAction("Create tiles", TilerPlugin.class, this, null)
 								)
 						),
-				createMenu(
+				MenuTools.createMenu(
 						"Cell detection"
 						),
-				createMenu(
+				MenuTools.createMenu(
 						"Calculate features",
 //						new PathPluginAction("Create tiles", TilerPlugin.class, this),
 						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, null),
@@ -3313,7 +3300,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //						null,
 //						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null)
 						),
-				createMenu(
+				MenuTools.createMenu(
 						"Spatial analysis",
 						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations 2D (experimental)"),
 						createCommandAction(new DetectionCentroidDistancesCommand(this), "Detection centroid distances 2D (experimental)")
@@ -3321,13 +3308,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				);
 
 		// Try to load classifiers
-		Menu menuClassifiers = createMenu("Classify");
+		Menu menuClassifiers = MenuTools.createMenu("Classify");
 
-		Menu menuObjectClassifiers = createMenu("Object classification");
-		Menu menuPixelClassifiers = createMenu("Pixel classification");
-		addMenuItems(menuClassifiers, menuObjectClassifiers, menuPixelClassifiers);
+		Menu menuObjectClassifiers = MenuTools.createMenu("Object classification");
+		Menu menuPixelClassifiers = MenuTools.createMenu("Pixel classification");
+		MenuTools.addMenuItems(menuClassifiers, menuObjectClassifiers, menuPixelClassifiers);
 		
-		addMenuItems(
+		MenuTools.addMenuItems(
 				menuObjectClassifiers,
 				createCommandAction(new LoadClassifierCommand(this), "Load detection classifier"),
 				null,
@@ -3337,7 +3324,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
 				);
 				
-		addMenuItems(
+		MenuTools.addMenuItems(
 				menuClassifiers,
 				null,
 				createCommandAction(new SparseImageServerCommand(this), "Create project training image")
@@ -3347,7 +3334,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			checkForUpdate(false);
 		});
 		
-		Menu menuHelp = createMenu(
+		Menu menuHelp = MenuTools.createMenu(
 				"Help",
 //				createCommandAction(new HelpCommand(this), "Documentation"),
 				getAction(GUIActions.QUPATH_SETUP),
@@ -3514,51 +3501,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	
-//	public static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final DefaultImageRegionStore regionStore, final String arg) {
-//		Action action = new Action(name, event -> {
-//		
-//			QuPathViewer viewer = qupath.getViewer();
-//			ImageServer<BufferedImage> server = viewer.getServer();
-//			if (server == null) {
-//				// TODO: Display an error message to the user!
-//				logger.error("No whole slide image server could be found!");
-//				return;
-//			}
-//			try {
-//				PathPlugin plugin;
-//				if (regionStore != null)
-//					plugin = pluginClass.getConstructor(ImageRegionStore.class).newInstance(regionStore);
-//				else
-//					plugin = pluginClass.getConstructor().newInstance();
-//
-//				// TODO: Check safety...
-//				if (plugin instanceof PathInteractivePlugin)
-//					((PathInteractivePlugin<BufferedImage>)plugin).runInteractive(PluginRunnerFactory.makePluginRunnerFX(qupath, false), arg);
-//				else
-//					((PathPlugin<BufferedImage>)plugin).runPlugin(PluginRunnerFactory.makePluginRunnerFX(qupath, false), arg);
-//							
-//			} catch (Exception e) {
-//				logger.error("Unable to initialize class " + pluginClass, e);
-//			}
-//			
-//		});
-//		
-//		return action;
-//	}
-	
-	
-	
 	public static Action createCommandAction(final PathCommand command, final String name, final Node icon, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> command.run());
 		action.setAccelerator(accelerator);
 		action.setGraphic(icon);
 		return action;
 	}
-	
-//	Action createCommandAction(final PathCommand command, final String name, final PathIconFactory.PathIcons icon, final KeyCombination accelerator) {
-//		return createCommandAction(command, name, PathIconFactory.createNode(iconSize, iconSize, icon), accelerator);
-//	}
 
 	public Action createCommandAction(final String className, final String name, final Object... arguments) {
 		try {
@@ -3597,11 +3545,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		return new PathSelectableAction(command, name, node, accelerator);
 	}
 	
-	private Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final PathIconFactory.PathIcons icon, final KeyCombination accelerator) {
+	private static Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final PathIconFactory.PathIcons icon, final KeyCombination accelerator) {
 		return createSelectableCommandAction(property, name, PathIconFactory.createNode(iconSize, iconSize, icon), accelerator);
 	}
 
-	private Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final Node icon, final KeyCombination accelerator) {
+	private static Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final Node icon, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> command.setSelected(!command.isSelected()));
 		action.selectedProperty().addListener(e -> {
 			command.setSelected(action.isSelected());
@@ -3635,14 +3583,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		toolbar.toolbar.getItems().add(button);
 	}
 	
-//	public void addToolbarCommand(final String name, final PathCommand command, final Icon icon) {
-//		toolbar.toolbar.getItems().add(getActionButton(createCommandAction(command, name, PathIconFactory.createNode(icon), null), icon != null));
-//	}
-	
 
 	
 	
-	protected Action createAction(GUIActions actionType) {
+	private Action createAction(GUIActions actionType) {
 //		QuPathViewerPlus viewer = viewerManager.getActiveViewer();
 		Action action;
 		switch (actionType) {
@@ -4030,7 +3974,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	public MenuItem getActionMenuItem(GUIActions actionType) {
 		Action action = getAction(actionType);
-		return createMenuItem(action);
+		return MenuTools.createMenuItem(action);
 	}
 	
 	public static CheckBox createCheckBox(final Action action) {
@@ -4038,13 +3982,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	public static MenuItem createMenuItem(final Action action) {
-		return bindVisibilityForExperimental(ActionUtils.createMenuItem(action));
-	}
 	
-	public static CheckMenuItem createCheckMenuItem(final Action action) {
-		return bindVisibilityForExperimental(ActionUtils.createCheckMenuItem(action));
-	}
 	
 	/**
 	 * Flag to indicate that menus are being initialized.
@@ -4059,7 +3997,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private static BooleanBinding showLegacyOptions = PathPrefs.showLegacyOptionsProperty().or(initializingMenus);
 	
 	private static <T extends MenuItem> T bindVisibilityForExperimental(final T menuItem) {
-		String text = menuItem.getText().toLowerCase().trim();
+		String text = menuItem.getText();
+		if (text == null)
+			return menuItem;
+		text = text.toLowerCase().trim();
 		if (text.equals("experimental") || text.endsWith("experimental)"))
 			menuItem.visibleProperty().bind(showExperimentalOptions);
 		else if (text.equals("tma") || text.endsWith("tma)"))
@@ -4070,22 +4011,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	private static RadioMenuItem createRadioMenuItem(final Action action, final ToggleGroup group) {
-		RadioMenuItem menuItem = ActionUtils.createRadioMenuItem(action);
-		menuItem.setToggleGroup(group);
-		return bindVisibilityForExperimental(menuItem);
-	}
 	
-
-	public MenuItem getActionCheckBoxMenuItem(GUIActions actionType, ToggleGroup group) {
+	private MenuItem getActionCheckBoxMenuItem(GUIActions actionType, ToggleGroup group) {
 		Action action = getAction(actionType);
 		if (group != null)
-			return createRadioMenuItem(action, group);
+			return MenuTools.createRadioMenuItem(action, group);
 		else
-			return createCheckMenuItem(action);
+			return MenuTools.createCheckMenuItem(action);
 	}
 	
-	public MenuItem getActionCheckBoxMenuItem(GUIActions actionType) {
+	private MenuItem getActionCheckBoxMenuItem(GUIActions actionType) {
 		return getActionCheckBoxMenuItem(actionType, null);
 	}
 	
@@ -4101,7 +4036,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return button;
 	}
 	
-	public ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, ToggleGroup group) {
+	private ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, ToggleGroup group) {
 		Action action = getAction(actionType);
 		ToggleButton button = ActionUtils.createToggleButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
 		if (hideActionText && action.getText() != null) {
@@ -4130,7 +4065,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return button;
 	}
 
-	public ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, boolean isSelected) {
+	private ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, boolean isSelected) {
 		return getActionToggleButton(actionType, hideActionText, null, isSelected);
 	}
 	
@@ -4237,96 +4172,32 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		viewer.centerImage();
 //	}
 	
-	
+	/**
+	 * Get the menubar for the main QuPath application.
+	 * @return
+	 */
 	public MenuBar getMenuBar() {
 		return menuBar;
 	}
 
 	/**
-	 * Get a reference to an existing menu, optionally creating a new menu if it is not present.
+	 * Get a reference to an existing menu from the main QuPath menubar, optionally creating a new menu if it is not present.
 	 * 
 	 * @param name
 	 * @param createMenu
 	 * @return
 	 */
 	public Menu getMenu(final String name, final boolean createMenu) {
-		MenuBar menuBar = getMenuBar();
-		if (menuBar == null)
+		var menubar = getMenuBar();
+		if (menubar == null)
 			return null;
-		
-		Menu menuCurrent = null;
-		for (String n : name.split(">")) {
-			if (menuCurrent == null) {
-				for (Menu menu : menuBar.getMenus()) {
-					if (n.equals(menu.getText())) {
-						menuCurrent = menu;
-						break;
-					}
-				}
-				if (menuCurrent == null) {
-					if (createMenu) {
-						menuCurrent = new Menu(n.trim());
-						// Make sure we don't replace the 'Help' menu at the end
-						List<Menu> menus = menuBar.getMenus();
-						if (!menus.isEmpty() && "Help".equals(menus.get(menus.size()-1).getText()))
-							menus.add(menus.size()-1, menuCurrent);
-						else
-							menus.add(menuCurrent);
-					} else
-						return null;
-				}
-			} else {
-				List<MenuItem> searchItems = menuCurrent.getItems();
-				menuCurrent = null;
-				for (MenuItem menuItem : searchItems) {
-					if (menuItem instanceof Menu && (menuItem.getText().equals(n) || menuItem.getText().equals(n.trim()))) {
-						menuCurrent = (Menu)menuItem;
-						break;
-					}
-				}
-				if (menuCurrent == null) {
-					if (createMenu) {
-						menuCurrent = new Menu(n.trim());
-						searchItems.add(menuCurrent);
-					} else
-						return null;
-				}				
-			}
-		}
-		return menuCurrent;
-	}
-	
-	
-	public MenuItem getMenuItem(String itemName) {
-		Collection<MenuItem> menuItems;
-		int ind = itemName.lastIndexOf(">");
-		if (ind >= 0) {
-			Menu menu = getMenu(itemName.substring(0, ind), false);
-			if (menu == null) {
-				logger.warn("No menu found for {}", itemName);
-				return null;
-			}
-			menuItems = menu.getItems();
-			itemName = itemName.substring(ind+1);
-		} else {
-			menuItems = new HashSet<>();
-			for (Menu menu : getMenuBar().getMenus())
-				menuItems.addAll(menu.getItems());
-		}
-		for (MenuItem menuItem : menuItems) {
-			if (itemName.equals(menuItem.getText()))
-				return menuItem;
-		}
-		logger.warn("No menu item found for {}", itemName);
-		return null;
-	}
-	
-	
-	static Menu createMenu(final String name) {
-		return bindVisibilityForExperimental(new Menu(name));
+		return MenuTools.getMenu(menuBar.getMenus(), name, createMenu);
 	}
 
-	
+	/**
+	 * Get the main QuPath stage.
+	 * @return
+	 */
 	public Stage getStage() {
 		return stage;
 	}

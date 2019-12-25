@@ -1,5 +1,6 @@
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
+* Revised "Annotations" tab
 * New preference to select main font; default changed to Sans-Serif for macOS
 * New preference to turn on/off system menubar
 * New File -> Quit menu item

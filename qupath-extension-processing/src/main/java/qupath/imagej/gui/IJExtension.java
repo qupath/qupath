@@ -81,6 +81,7 @@ import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -469,8 +470,8 @@ public class IJExtension implements QuPathExtension {
 			btnImageJ.setTooltip(new Tooltip("ImageJ commands"));
 			ContextMenu popup = new ContextMenu();
 			popup.getItems().addAll(
-					QuPathGUI.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
-					QuPathGUI.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT), null))
+					MenuTools.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
+					MenuTools.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT), null))
 					);
 			btnImageJ.setOnMouseClicked(e -> {
 				popup.show(btnImageJ, e.getScreenX(), e.getScreenY());
@@ -502,7 +503,7 @@ public class IJExtension implements QuPathExtension {
 //		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
 		
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification>Tiles & superpixels", true);
-		QuPathGUI.addMenuItems(menuRegions,
+		MenuTools.addMenuItems(menuRegions,
 				null,
 				qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null),
 				qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null),
@@ -512,7 +513,7 @@ public class IJExtension implements QuPathExtension {
 				);
 		
 		menuRegions = qupath.getMenu("Analyze>Region identification", true);
-		QuPathGUI.addMenuItems(menuRegions,
+		MenuTools.addMenuItems(menuRegions,
 				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null)
 				);
 
@@ -527,7 +528,7 @@ public class IJExtension implements QuPathExtension {
 		// Put dearraying at the top of the TMA menu
 		Menu menuTMA = qupath.getMenu("TMA", true);
 		menuTMA.getItems().add(0,
-				QuPathGUI.createMenuItem(qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null))
+				MenuTools.createMenuItem(qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null))
 				);
 		menuTMA.getItems().add(1,
 				new SeparatorMenuItem()
@@ -551,9 +552,9 @@ public class IJExtension implements QuPathExtension {
 		
 		Menu menuAutomate = qupath.getMenu("Extensions>ImageJ", true);
 		Action actionMacroRunner = qupath.createPluginAction("ImageJ macro runner", new ImageJMacroRunner(qupath), null);
-		QuPathGUI.addMenuItems(menuAutomate,
-				QuPathGUI.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
-				QuPathGUI.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT), null)),
+		MenuTools.addMenuItems(menuAutomate,
+				MenuTools.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
+				MenuTools.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT), null)),
 				null,
 				miSetPluginsPath,
 				null,
@@ -577,7 +578,7 @@ public class IJExtension implements QuPathExtension {
 		});
 		
 		Menu menuPreprocessing = qupath.getMenu("Analyze>Preprocessing", true);
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuPreprocessing,
 				null,
 				qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null)
@@ -585,7 +586,7 @@ public class IJExtension implements QuPathExtension {
 		
 		
 		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell detection", true);
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuCellAnalysis,
 //				qupath.createPluginAction("Mean brown chromogen (legacy)", MeanBrownChromogenPlugin.class, null, false),
 //				new SeparatorMenuItem(),
