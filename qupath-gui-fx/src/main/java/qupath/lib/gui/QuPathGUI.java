@@ -2001,26 +2001,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				);
 
 		
-		// Add annotation options
-		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
-		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
-		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), true));
-		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(viewer.getHierarchy(), false));
-		
-		Menu menuAnnotations = MenuTools.createMenu(
-				"Annotations",
-				miLockAnnotations,
-				miUnlockAnnotations,
-				null,
-				createCommandAction(new HierarchyInsertCommand(this), "Insert in hierarchy"),
-				null,
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.ADD), "Merge selected"),
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
-				createCommandAction(new AnnotationCombineCommand(viewer, RoiTools.CombineOp.INTERSECT), "Intersect selected"),
-				createCommandAction(new InverseObjectCommand(this), "Make inverse"),
-				createPluginAction("Split selected", SplitAnnotationsPlugin.class, null)
-				);
-		
 		// Handle awkward 'TMA core missing' option
 		CheckMenuItem miTMAValid = new CheckMenuItem("Set core valid");
 		miTMAValid.setOnAction(e -> setTMACoreMissing(viewer.getHierarchy(), false));
@@ -2082,6 +2062,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 		});
 		
+		// Create a standard annotations menu
+		Menu menuAnnotations = populateAnnotationsMenu(this, new Menu("Annotations"));
 		
 		SeparatorMenuItem topSeparator = new SeparatorMenuItem();
 		popup.setOnShowing(e -> {
@@ -2102,10 +2084,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				miTMAValid.setSelected(!isMissing);
 				miTMAMissing.setSelected(isMissing);
 				menuTMA.setVisible(true);
-			} else if (pathObject instanceof PathAnnotationObject) {
-				boolean isLocked = ((PathAnnotationObject)pathObject).isLocked();
-				miLockAnnotations.setSelected(isLocked);
-				miUnlockAnnotations.setSelected(!isLocked);
 			}
 			
 			// Add clear objects option if we have more than one non-TMA object
@@ -2171,30 +2149,113 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		});
 			
 	}
+
+	/**
+	 * Populate a {@link Menu} with standard options to operate on selected annotation objects.
+	 * @param qupath
+	 * @param menu
+	 * @return
+	 */
+	public static Menu populateAnnotationsMenu(QuPathGUI qupath, Menu menu) {
+		createAnnotationsMenuImpl(qupath, menu);
+		return menu;
+	}
+
+	/**
+	 * Populate a {@link ContextMenu} with standard options to operate on selected annotation objects.
+	 * @param qupath
+	 * @param menu
+	 * @return
+	 */	public static ContextMenu populateAnnotationsMenu(QuPathGUI qupath, ContextMenu menu) {
+		createAnnotationsMenuImpl(qupath, menu);
+		return menu;
+	}
+
 	
-	
-	static Menu createAnnotationsMenu(QuPathGUI qupath) {
+	private static void createAnnotationsMenuImpl(QuPathGUI qupath, Object menu) {
 		// Add annotation options
 		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
 		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
 		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(qupath.getImageData(), true));
 		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(qupath.getImageData(), false));
-
-		return MenuTools.createMenu(
-				"Annotations",
-				miLockAnnotations,
-				miUnlockAnnotations,
-				null,
-				createCommandAction(new HierarchyInsertCommand(qupath), "Insert in hierarchy"),
-				null,
+		
+		MenuItem miSetProperties = new MenuItem("Set properties");
+		miSetProperties.setOnAction(e -> {
+			var hierarchy = qupath.getViewer().getHierarchy();
+			if (hierarchy != null)
+				PathAnnotationPanel.promptToSetActiveAnnotationProperties(hierarchy);
+		});
+		
+		MenuItem miInsertHierarchy = MenuTools.createMenuItem(
+				createCommandAction(new HierarchyInsertCommand(qupath), "Insert in hierarchy"));
+		
+		Menu menuCombine = MenuTools.createMenu(
+				"Edit multiple",
 				createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.ADD), "Merge selected"),
 				createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
-				createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.INTERSECT), "Intersect selected"),
+				createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.INTERSECT), "Intersect selected")
+				);
+		
+		Menu menuEdit = MenuTools.createMenu(
+				"Edit single",
 				createCommandAction(new InverseObjectCommand(qupath), "Make inverse"),
-				createPluginAction("Split selected", SplitAnnotationsPlugin.class, qupath, null)
+				createPluginAction("Split", SplitAnnotationsPlugin.class, qupath, null)
+				);
+		
+		MenuItem separator = new SeparatorMenuItem();
+		
+		Runnable validator = () -> {
+			var imageData = qupath.getImageData();
+			PathObject selected = null;
+			Collection<PathObject> allSelected = Collections.emptyList();
+			boolean allSelectedAnnotations = false;
+			boolean hasSelectedAnnotation = false;
+			if (imageData != null) {
+				selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
+				allSelected = new ArrayList<>(imageData.getHierarchy().getSelectionModel().getSelectedObjects());
+				hasSelectedAnnotation = selected != null && selected.isAnnotation();
+				allSelectedAnnotations = allSelected.stream().allMatch(p -> p.isAnnotation());
+			}
+			miLockAnnotations.setDisable(!hasSelectedAnnotation);
+			miUnlockAnnotations.setDisable(!hasSelectedAnnotation);
+			if (hasSelectedAnnotation) {
+				boolean isLocked = selected.isLocked();
+				miLockAnnotations.setSelected(isLocked);
+				miUnlockAnnotations.setSelected(!isLocked);
+			}
+			
+			miSetProperties.setDisable(!hasSelectedAnnotation);
+			miInsertHierarchy.setVisible(selected != null);
+			
+			menuEdit.setVisible(hasSelectedAnnotation);
+			menuCombine.setVisible(allSelectedAnnotations && allSelected.size() > 1);
+			
+			separator.setVisible(menuEdit.isVisible() || menuCombine.isVisible());
+		};
+		
+		List<MenuItem> items;
+		if (menu instanceof Menu) {
+			Menu m = (Menu)menu;
+			items = m.getItems();
+			m.setOnMenuValidation(e -> validator.run());	
+		} else if (menu instanceof ContextMenu) {
+			ContextMenu m = (ContextMenu)menu;
+			items = m.getItems();
+			m.setOnShowing(e -> validator.run());	
+		} else
+			throw new IllegalArgumentException("Menu must be either a standard Menu or a ContextMenu!");
+		
+		MenuTools.addMenuItems(
+				items,
+				miLockAnnotations,
+				miUnlockAnnotations,
+				miSetProperties,
+				miInsertHierarchy,
+				separator,
+				menuEdit,
+				menuCombine
 				);
 	}
-	
 	
 	/**
 	 * Set selected TMA cores to have the specified 'missing' status.
@@ -2966,7 +3027,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Create a File menu
 		Action actionQuit = new Action("Quit", e -> tryToQuit());
-		actionQuit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCodeCombination.SHORTCUT_DOWN));
+//		actionQuit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCodeCombination.SHORTCUT_DOWN));
 		Menu menuFile = MenuTools.createMenu(
 				"File",
 				MenuTools.createMenu(
