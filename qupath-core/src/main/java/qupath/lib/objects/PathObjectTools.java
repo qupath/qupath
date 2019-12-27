@@ -23,6 +23,7 @@
 
 package qupath.lib.objects;
 
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,12 +45,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.geom.Point2;
+import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.LineROI;
+import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -745,6 +748,242 @@ public class PathObjectTools {
 			if (childObject.hasChildren())
 				addPathObjectsRecursively(childObject.getChildObjectsAsArray(), pathObjects, cls);
 		}
+	}
+	
+	
+//	/**
+//	 * Split annotations containing multi-point ROIs into separate single-point ROIs.
+//	 * 
+//	 * @param hierarchy the object hierarchy
+//	 * @param selectedOnly if true, consider only annotations that are currently selected; if false, consider all point annotations in the hierarchy
+//	 * @return true if changes are made to the hierarchy, false otherwise
+//	 */
+//	public static boolean splitPoints(PathObjectHierarchy hierarchy, boolean selectedOnly) {
+//		if (hierarchy == null) {
+//			logger.debug("No hierarchy available, cannot split points!");
+//			return false;
+//		}
+//		return splitPoints(hierarchy, selectedOnly ? hierarchy.getSelectionModel().getSelectedObjects() : hierarchy.getAnnotationObjects());
+//	}
+//
+//	/**
+//	 * Split annotations containing multi-point ROIs into separate single-point ROIs.
+//	 * 
+//	 * @param hierarchy the object hierarchy
+//	 * @param pathObjects a collection of point annotations to split; non-points and non-annotations will be ignored
+//	 * @return pathObjects if changes are made to the hierarchy, false otherwise
+//	 */
+//	public static boolean splitPoints(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects) {
+//		var points = pathObjects.stream().filter(p -> p.isAnnotation() && p.getROI().isPoint() && p.getROI().getNumPoints() > 1).collect(Collectors.toList());
+//		if (points.isEmpty()) {
+//			logger.debug("No (multi)point ROIs available to split!");			
+//			return false;
+//		}
+//		List<PathObject> newObjects = new ArrayList<>();
+//		for (PathObject pathObject : points) {
+//			ROI p = pathObject.getROI();
+//			ImagePlane plane = p.getImagePlane();
+//			PathClass pathClass = pathObject.getPathClass();
+//			for (Point2 p2 : p.getAllPoints()) {
+//				PathObject temp = PathObjects.createAnnotationObject(ROIs.createPointsROI(p2.getX(), p2.getY(), plane), pathClass);
+//				newObjects.add(temp);
+//			}
+//		}
+//		hierarchy.removeObjects(points, true);
+//		hierarchy.addPathObjects(newObjects);
+//		// Reset the selection
+//		hierarchy.getSelectionModel().clearSelection();
+//		return true;
+//	}
+	
+	/**
+	 * Merge point annotations sharing the same {@link PathClass} and {@link ImagePlane} as the selected annotations,
+	 * creating multi-point annotations for all matching points and removing the (previously-separated) annotations.
+	 * 
+	 * @param hierarchy object hierarchy to modify
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
+	public static boolean mergePointsForSelectedObjectClasses(PathObjectHierarchy hierarchy) {
+		var pathClasses = hierarchy.getSelectionModel().getSelectedObjects().stream()
+				.filter(p -> p.isAnnotation() && p.getROI().isPoint())
+				.map(p -> p.getPathClass())
+				.collect(Collectors.toSet());
+		boolean changes = false;
+		for (PathClass pathClass : pathClasses)
+			changes = changes || mergePointsForClass(hierarchy, pathClass);
+		return changes;
+	}
+	
+	/**
+	 * Merge point annotations sharing the same {@link PathClass} and {@link ImagePlane}, 
+	 * creating multi-point annotations for all matching points and removing the (previously-separated) annotations.
+	 * 
+	 * @param hierarchy object hierarchy to modify
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
+	public static boolean mergePointsForAllClasses(PathObjectHierarchy hierarchy) {
+		if (hierarchy == null)
+			return false;
+		var pathClasses = hierarchy.getAnnotationObjects().stream()
+			.filter(p -> p.getROI().isPoint())
+			.map(p -> p.getPathClass())
+			.collect(Collectors.toSet());
+		boolean changes = false;
+		for (PathClass pathClass : pathClasses)
+			changes = changes || mergePointsForClass(hierarchy, pathClass);
+		return changes;
+	}
+	
+	/**
+	 * Merge point annotations with the specified {@link PathClass} sharing the same {@link ImagePlane}, 
+	 * creating a single multi-point annotation for all matching points and removing the (previously-separated) annotations.
+	 * 
+	 * @param hierarchy object hierarchy to modify
+	 * @param pathClass classification for annotations to merge
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 * 
+	 * @see #mergePointsForAllClasses(PathObjectHierarchy)
+	 */
+	public static boolean mergePointsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
+		var map = hierarchy.getAnnotationObjects().stream()
+				.filter(p -> p.getROI().isPoint() && p.getPathClass() == pathClass)
+				.collect(Collectors.groupingBy(p -> p.getROI().getImagePlane()));
+		
+		List<PathObject> toRemove = new ArrayList<>();
+		List<PathObject> toAdd = new ArrayList<>();
+		for (var entry : map.entrySet()) {
+			List<PathObject> objectsToMerge = entry.getValue();
+			if (objectsToMerge.size() <= 1)
+				continue;
+			// Create new points object
+			List<Point2> pointsList = new ArrayList<>();
+			for (PathObject temp : objectsToMerge) {
+				pointsList.addAll(((PointsROI)temp.getROI()).getAllPoints());
+			}
+			var points = ROIs.createPointsROI(pointsList, entry.getKey());
+			toAdd.add(PathObjects.createAnnotationObject(points, pathClass));
+			toRemove.addAll(objectsToMerge);
+		}
+		if (toAdd.isEmpty() && toRemove.isEmpty())
+			return false;
+		hierarchy.removeObjects(toRemove, true);
+		hierarchy.addPathObjects(toAdd);
+		return true;
+	}
+	
+	/**
+	 * Create a(n optionally) transformed version of a {@link PathObject}.
+	 * <p>
+	 * Note: only detections (including tiles and cells) and annotations are supported by this method.
+	 * Other object types (e.g. TMA cores) result in an {@link UnsupportedOperationException} being thrown.
+	 * 
+	 * @param pathObject the object to transform; this will be unchanged
+	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
+	 * @param copyMeasurements if true, the measurement list of the new object will be populated with the measurements of pathObject
+	 * 
+	 * @return a duplicate of pathObject, with affine transform applied to the object's ROI(s) if required
+	 */
+	public static PathObject transformObject(PathObject pathObject, AffineTransform transform, boolean copyMeasurements) {
+		ROI roi = maybeTransformROI(pathObject.getROI(), transform);
+		PathClass pathClass = pathObject.getPathClass();
+		PathObject newObject;
+		if (pathObject instanceof PathCellObject) {
+			ROI roiNucleus = maybeTransformROI(((PathCellObject)pathObject).getNucleusROI(), transform);
+			newObject = PathObjects.createCellObject(roi, roiNucleus, pathClass, null);
+		} else if (pathObject instanceof PathTileObject) {
+			newObject = PathObjects.createTileObject(roi, pathClass, null);			
+		} else if (pathObject instanceof PathDetectionObject) {
+			newObject = PathObjects.createDetectionObject(roi, pathClass, null);			
+		} else if (pathObject instanceof PathAnnotationObject) {
+			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);			
+		} else
+			throw new UnsupportedOperationException("Unable to transform object " + pathObject);
+		if (copyMeasurements && !pathObject.getMeasurementList().isEmpty()) {
+			MeasurementList measurements = pathObject.getMeasurementList();
+			for (int i = 0; i < measurements.size(); i++) {
+				String name = measurements.getMeasurementName(i);
+				double value = measurements.getMeasurementValue(i);
+				newObject.getMeasurementList().addMeasurement(name, value);
+			}
+			newObject.getMeasurementList().close();
+		}
+		return newObject;
+	}
+	
+	private static ROI maybeTransformROI(ROI roi, AffineTransform transform) {
+		if (roi == null || transform == null || transform.isIdentity())
+			return roi;
+		return RoiTools.transformROI(roi, transform);
+	}
+	
+	
+	/**
+	 * Duplicate all the selected objects in a hierarchy.
+	 * 
+	 * @param hierarchy the hierarchy containing the objects to duplicate
+	 * @return true if the hierarchy is changed, false otherwise
+	 */
+	public static boolean duplicateAllSelectedObjects(PathObjectHierarchy hierarchy) {
+		return duplicateSelectedObjects(hierarchy, null);
+	}
+	
+	/**
+	 * Duplicate the selected annotation objects. Selected objects that are not annotations will be ignored.
+	 * 
+	 * @param hierarchy the hierarchy containing the objects to duplicate
+	 * @return true if the hierarchy is changed, false otherwise
+	 */
+	public static boolean duplicateSelectedAnnotations(PathObjectHierarchy hierarchy) {
+		return duplicateSelectedObjects(hierarchy, p -> p.isAnnotation());
+	}
+	
+	/**
+	 * Duplicate the selected objects 
+	 * 
+	 * @param hierarchy the hierarchy containing the objects to duplicate
+	 * @param predicate optional predicate (may be null) used to filter out invalid selected options that should not be duplicated
+	 * @return true if the hierarchy is changed, false otherwise
+	 */
+	public static boolean duplicateSelectedObjects(PathObjectHierarchy hierarchy, Predicate<PathObject> predicate) {
+		if (predicate == null)
+			return duplicateObjects(hierarchy, new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects()));
+		var list = hierarchy.getSelectionModel().getSelectedObjects()
+				.stream()
+				.filter(predicate)
+				.collect(Collectors.toList());
+		return duplicateObjects(hierarchy, list);
+	}
+	
+	/**
+	 * Duplicate the specified objects.
+	 * @param hierarchy hierarchy containing the objects to duplicate
+	 * @param pathObjects objects that should be duplicated
+	 * @return true if the hierarchy is changed, false otherwise
+	 */
+	public static boolean duplicateObjects(PathObjectHierarchy hierarchy, Collection<PathObject> pathObjects) {
+		var map = pathObjects
+				.stream()
+				.collect(Collectors.toMap(p -> p,
+						p -> PathObjectTools.transformObject(p, null, true)));
+		if (map.isEmpty()) {
+			logger.error("No selected objects to duplicate!");
+			return false;
+		}
+		// Add objects using the default add method (not trying to resolve location)
+		hierarchy.addPathObjects(map.values());
+//		// Add objects, inserting with the same parents as the originals
+//		for (var entry : map.entrySet()) {
+//			entry.getKey().getParent().addPathObject(entry.getValue());
+//		}
+		// Conceivably we might not have a hierarchy.
+		// If we do, fire update and try to retain the same selected object (if it was already selected)
+		if (hierarchy != null) {
+			PathObject currentMainObject = hierarchy.getSelectionModel().getSelectedObject();
+			hierarchy.fireHierarchyChangedEvent(PathObjectTools.class);
+	//		hierarchy.addPathObjects(map.values());
+			hierarchy.getSelectionModel().setSelectedObjects(map.values(), map.getOrDefault(currentMainObject, null));
+		}
+		return true;
 	}
 	
 }

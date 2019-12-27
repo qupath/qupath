@@ -214,7 +214,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	private void promptToSetProperties() {
 		PathObject pathObjectSelected = listCounts.getSelectionModel().getSelectedItem();
 		if (pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected)) {
-			PathAnnotationPanel.promptToSetActiveAnnotationProperties(hierarchy);
+			GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
 		}
 	}
 

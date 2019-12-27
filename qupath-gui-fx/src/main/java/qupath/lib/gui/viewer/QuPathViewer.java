@@ -2817,14 +2817,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			KeyCode code = event.getCode();
 			
 			// Handle backspace/delete to remove selected object
-			if (event.getEventType() == KeyEvent.KEY_PRESSED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
+			if (event.getEventType() == KeyEvent.KEY_RELEASED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
 				if (getROIEditor().hasActiveHandle() || getROIEditor().isTranslating()) {
 					logger.debug("Cannot delete object - ROI being edited");
 					return;
 				}
-				if (getImageData() != null) {
-					if (getHierarchy().getSelectionModel().singleSelection()) {
-						GuiTools.promptToRemoveSelectedObject(getHierarchy().getSelectionModel().getSelectedObject(), getHierarchy());
+				var hierarchy = getHierarchy();
+				if (hierarchy != null) {
+					if (hierarchy.getSelectionModel().singleSelection()) {
+						GuiTools.promptToRemoveSelectedObject(hierarchy.getSelectionModel().getSelectedObject(), hierarchy);
 					} else {
 						GuiTools.promptToClearAllSelectedObjects(getImageData());
 					}
@@ -2839,15 +2840,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				return;
 
 			// Center selected object if Enter pressed ('center on enter')
-			if (event.getEventType() == KeyEvent.KEY_PRESSED && code == KeyCode.ENTER) {
+			if (event.getEventType() == KeyEvent.KEY_RELEASED && code == KeyCode.ENTER) {
 				PathObject selectedObject = getSelectedObject();
 				if (selectedObject != null && selectedObject.hasROI())
 					setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());
 				event.consume();
 				return;
 			}
-
-
 
 
 			if (!(code == KeyCode.LEFT || code == KeyCode.UP || code == KeyCode.RIGHT || code == KeyCode.DOWN))

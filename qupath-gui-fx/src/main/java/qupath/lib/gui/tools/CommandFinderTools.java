@@ -250,7 +250,7 @@ public class CommandFinderTools {
 			updateTableFilter(n.toLowerCase(), commands);
 		});
 		
-		textField.setOnKeyPressed(e -> {
+		textField.setOnKeyReleased(e -> {
 			if (e.getCode() == KeyCode.ENTER) {
 				runSelectedCommand(table.getSelectionModel().getSelectedItem());
 				if (clearTextOnRun)

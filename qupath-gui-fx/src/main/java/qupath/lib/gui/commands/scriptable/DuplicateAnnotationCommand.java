@@ -29,15 +29,12 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 
 /**
- * Duplicate a PathAnnotationObject.
- * <br>
- * The resulting object will have the same PathClass and a duplicate ROI, but a different (empty) MeasurementList.
+ * Duplicate selected annotations.
  *
  * @author Pete Bankhead
  *
@@ -58,14 +55,10 @@ public class DuplicateAnnotationCommand implements PathCommand {
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
-		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
-		if (!(pathObject instanceof PathAnnotationObject)) {
-			logger.error("Only annotation objects can be duplicated!");
-			return;
-		}
-		PathObject pathObjectNew = PathObjects.createAnnotationObject(pathObject.getROI().duplicate(), pathObject.getPathClass());
-		hierarchy.addPathObject(pathObjectNew);
-		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
+		PathObjectTools.duplicateSelectedAnnotations(hierarchy);
+		imageData.getHistoryWorkflow().addStep(
+				new DefaultScriptableWorkflowStep("Duplicate selected annotations",
+						"duplicateSelectedAnnotations()"));
 	}
 	
 }

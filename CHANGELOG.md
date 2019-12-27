@@ -1,5 +1,10 @@
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
+* Major changes to annotation ROI manipulation
+  * 'Duplicate annotations' applies to multiple selections
+  * 'Merge annotations' and 'Split annotations' work with point ROIs, not only areas
+  * 'Make inverse' uses ROIs from multiple annotations (within the same plane)
+  * More ROI manipulation commands are scriptable, update selections when complete
 * Revised "Annotations" tab
   * New options to set available class list
 * File -> Quit menu item added
