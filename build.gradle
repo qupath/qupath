@@ -176,7 +176,7 @@ allprojects {
     controlsfxVersion  = '11.0.1'
     groovyVersion      = '2.5.8'
     gsonVersion        = '2.8.6'
-    guavaVersion       = '28.1-jre'
+    guavaVersion       = '28.2-jre'
     imagejVersion      = '1.52s'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'

@@ -2084,10 +2084,36 @@ public class QP {
 		return mergeAnnotations(getCurrentHierarchy(), annotations);
 	}
 	
+	/**
+	 * Merge the currently-selected annotations of the current hierarchy to create a new annotation containing the union of their ROIs.
+	 * <p>
+	 * Note:
+	 * <ul>
+	 * <li>The existing annotations will be removed from the hierarchy if possible, therefore should be duplicated first 
+	 * if this is not desired.</li>
+	 * <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 * </ul>
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
 	public static boolean mergeSelectedAnnotations() {
 		return mergeSelectedAnnotations(getCurrentHierarchy());
 	}
 	
+	/**
+	 * Merge the specified annotations to create a new annotation containing the union of their ROIs.
+	 * <p>
+	 * Note:
+	 * <ul>
+	 * <li>The existing annotations will be removed from the hierarchy if possible, therefore should be duplicated first 
+	 * if this is not desired.</li>
+	 * <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 * </ul>
+	 * 
+	 * @param hierarchy
+	 * @param annotations
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
 	public static boolean mergeAnnotations(final PathObjectHierarchy hierarchy, final Collection<PathObject> annotations) {
 		if (hierarchy == null)
 			return false;
@@ -2119,35 +2145,49 @@ public class QP {
 			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
 		hierarchy.removeObjects(merged, true);
 		hierarchy.addPathObject(pathObjectNew);
+		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 		//				pathObject.removePathObjects(children);
 		//				pathObject.addPathObject(pathObjectNew);
 		//				hierarchy.fireHierarchyChangedEvent(pathObject);
 		return true;
 	}
 
-
-	public static boolean mergeSelectedAnnotations(final PathObjectHierarchy hierarchy) {
+	/**
+	 * Merge the currently-selected annotations to create a new annotation containing the union of their ROIs.
+	 * <p>
+	 * Note:
+	 * <ul>
+	 * <li>The existing annotations will be removed from the hierarchy if possible, therefore should be duplicated first 
+	 * if this is not desired.</li>
+	 * <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 * </ul>
+	 * 
+	 * @param hierarchy
+	 * @return
+	 */	public static boolean mergeSelectedAnnotations(final PathObjectHierarchy hierarchy) {
 		return hierarchy == null ? null : mergeAnnotations(hierarchy, hierarchy.getSelectionModel().getSelectedObjects());
 	}
 	
 	/**
 	 * Make an annotation for the current {@link ImageData}, for which the ROI is obtained by subtracting 
-	 * the existing ROI from the ROI of the parent (or entire image if no parent annotation is available).
-	 * @param pathObject
-	 * @return
+	 * the existing ROI from the ROI of its parent object (or entire image if no suitable parent object is available).
+	 * 
+	 * @param pathObject the existing object defining the ROI to invert
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise
 	 */
 	public static boolean makeInverseAnnotation(final PathObject pathObject) {
 		return makeInverseAnnotation(getCurrentImageData(), pathObject);
 	}
 	
-	public static boolean makeInverseAnnotation() {
-		return makeInverseAnnotation(getCurrentImageData());
-	}
 
-	public static boolean makeInverseAnnotation(final ImageData<?> imageData) {
-		return makeInverseAnnotation(imageData, imageData.getHierarchy().getSelectionModel().getSelectedObjects());
-	}
-	
+	/**
+	 * Make an annotation for the specified {@link ImageData}, for which the ROI is obtained by subtracting 
+	 * the existing ROI from the ROI of its parent object (or entire image if no suitable parent object is available).
+	 * 
+	 * @param imageData the imageData for which an inverted annotation should be created
+	 * @param pathObject the existing object defining the ROI to invert
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise
+	 */
 	public static boolean makeInverseAnnotation(final ImageData<?> imageData, final PathObject pathObject) {
 		if (imageData == null)
 			return false;
@@ -2155,12 +2195,31 @@ public class QP {
 	}
 	
 	/**
+	 * Make an inverse annotation using the current {@link ImageData} and its current selected objects.
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise
+	 */
+	public static boolean makeInverseAnnotation() {
+		return makeInverseAnnotation(getCurrentImageData());
+	}
+
+	/**
+	 * Make an inverse annotation using the specified {@link ImageData} and current selected objects.
+	 * @param imageData the imageData for which an inverted annotation should be created
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise
+	 */
+	public static boolean makeInverseAnnotation(final ImageData<?> imageData) {
+		return makeInverseAnnotation(imageData, imageData.getHierarchy().getSelectionModel().getSelectedObjects());
+	}
+	
+	/**
 	 * Make an annotation, for which the ROI is obtained by subtracting the ROIs of the specified objects from the closest 
 	 * common ancestor ROI (or entire image if the closest ancestor is the root).
+	 * <p>
+	 * In an inverted annotation can be created, it is added to the hierarchy and set as selected.
 	 * 
 	 * @param imageData the image containing the annotation
 	 * @param pathObjects the annotation to invert
-	 * @return the inverted annotation, which is already added to the hierarchy
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise.
 	 */
 	public static boolean makeInverseAnnotation(final ImageData<?> imageData, Collection<PathObject> pathObjects) {
 		if (imageData == null)
