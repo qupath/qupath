@@ -143,7 +143,10 @@ public class ProjectCheckUrisCommand implements PathCommand {
 				case MISSING:
 					// Try to relativize the path to predict a likely replacement - if we have the same root
 					Path pathItem = item.getPath();
-					if (pathItem != null && Objects.equals(pathItem.getRoot(), pathProject.getRoot())) {
+					if (pathItem != null &&
+							pathPrevious != null &&
+							Objects.equals(pathItem.getRoot(), pathPrevious.getRoot()) &&
+							Objects.equals(pathItem.getRoot(), pathProject.getRoot())) {
 						if (tryRelative) {
 							Path pathRelative = pathProject.resolve(pathPrevious.relativize(item.getPath()));
 							if (Files.exists(pathRelative)) {

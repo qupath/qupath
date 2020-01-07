@@ -331,6 +331,7 @@ public class Dialogs {
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help -> Report bug (web)'.\n\n" + e;
 		showErrorMessage(title, message);
+		logger.error(title, e);
 	}
 	
 	/**
