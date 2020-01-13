@@ -522,7 +522,7 @@ jar {
        "Implementation-Title": 'QuPath',
        "Implementation-Version": qupathVersion,
        "Main-Class": "qupath.QuPath",
-       "Class-Path": configurations.compileClasspath.collect { it.getName() }.join(' '),
+       "Class-Path": configurations.runtimeClasspath.collect { it.getName() }.join(' '),
        "QuPath-build-time": buildTime
     ]
     if (latestGitCommit != null)
