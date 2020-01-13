@@ -36,6 +36,7 @@ import com.google.common.collect.Lists;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.Reclassifier;
@@ -45,19 +46,19 @@ import qupath.opencv.ml.Normalizer;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.Preprocessing;
 import qupath.opencv.ml.Preprocessing.PCAProjector;
+import qupath.opencv.ml.objects.features.FeatureExtractor;
+import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 
 public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable {
 
 	final private static Logger logger = LoggerFactory.getLogger(OpenCVMLClassifier.class);
-	
-	public static OpenCVMLClassifier activeClassifier;
-
-	private FeatureExtractor featureExtractor;
-	
+		
 	private Normalizer normalizer;
 	private PCAProjector pca;	
+	
+	private FeatureExtractor featureExtractor;
 	
 	private OpenCVStatModel classifier;
 
@@ -86,6 +87,10 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 	OpenCVMLClassifier(OpenCVStatModel classifier) {
 		this.classifier = classifier;
 	}
+	
+	public static OpenCVMLClassifier create(OpenCVStatModel model) {
+		return new OpenCVMLClassifier(model);
+	}
 
 	@Override
 	public List<String> getRequiredMeasurements() {
@@ -108,7 +113,8 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 	@Override
 	public boolean updateClassifier(Map<PathClass, List<PathObject>> map, List<String> measurements,
 			Normalization normalization) {
-		return updateClassifier(map, new FeatureExtractor(measurements), normalization, -1);
+//		Collections.sort(measurements); // The old classifier tended to use sorted measurements (because it put them in a TreeSet)
+		return updateClassifier(map, FeatureExtractors.createMeasurementListFeatureExtractor(measurements), normalization, -1);
 	}
 		
 		
@@ -143,11 +149,12 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 				bufTargets.put(pathClassIndex);
 		}
 		
-		// Create & apply feature normalizer
-		if (classifier.supportsMissingValues() && normalization == Normalization.NONE) {
+		// Create & apply feature normalizer if we need one
+		// We might even if normalization isn't requested so as to fill in missing values
+		if (classifier.supportsMissingValues() && normalization == Normalization.NONE && pcaRetainedVariance < 0) {
 			normalizer = null;
 		} else {
-			double missingValue = classifier.supportsMissingValues() ? Double.NaN : 0.0;
+			double missingValue = classifier.supportsMissingValues() && pcaRetainedVariance < 0 ? Double.NaN : 0.0;
 			normalizer = Preprocessing.createNormalizer(normalization, matFeatures, missingValue);
 			Preprocessing.normalize(matFeatures, normalizer);
 		}
@@ -172,10 +179,6 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 		classifier.train(trainData);
 		
 		logger.info("Classifier trained with " + matFeatures.rows() + " samples and " + matFeatures.cols() + " features");
-		
-		
-		// TODO: Remove this... it is a hack for testing...
-		activeClassifier = this;
 		
 		timestamp = System.currentTimeMillis();
 		if (classifier instanceof RTreesClassifier) {

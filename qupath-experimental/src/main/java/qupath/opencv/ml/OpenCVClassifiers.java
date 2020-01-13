@@ -349,7 +349,6 @@ public class OpenCVClassifiers {
 			updateModel(statModel, getParameterList(), trainData);
 //			statModel.train(trainData);
 			statModel.train(trainData, getTrainFlags());
-//			System.err.println("Error: " + statModel.calcError(trainData, false, new Mat()));
 		}
 		
 		protected int getTrainFlags() {
@@ -594,7 +593,7 @@ public class OpenCVClassifiers {
 			
 //			model.setCVFolds(cvFolds < 1 ? 1 : cvFolds);
 			model.setCVFolds(0);
-			model.setMaxDepth(maxDepth < 1 ? 1 : maxDepth);
+			model.setMaxDepth(maxDepth <= 0 ? Integer.MAX_VALUE : maxDepth);
 			model.setMinSampleCount(minSampleCount < 1 ? 1 : minSampleCount);
 //			model.setRegressionAccuracy(regressionAccuracy < 1e-6f ? 1e-6f : regressionAccuracy);
 			model.setUse1SERule(use1SERule);
@@ -641,7 +640,11 @@ public class OpenCVClassifiers {
 		
 		@Override
 		RTrees createStatModel() {
-			return RTrees.create();
+			var model = RTrees.create();
+			model.setMaxDepth(0);
+			model.setTermCriteria(
+					new TermCriteria(TermCriteria.COUNT, 50, 0));
+			return model;
 		}
 
 		@Override

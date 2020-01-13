@@ -28,9 +28,9 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
-import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
+import qupath.lib.gui.ml.PixelClassifierPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
-import qupath.lib.gui.ml.PixelClassifierImageSelectionPane.ClassificationResolution;
+import qupath.lib.gui.ml.PixelClassifierPane.ClassificationResolution;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -174,7 +174,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		btnSave.disableProperty().bind(enableButtons.not());
 		btnSave.setOnAction(e -> {
 			try {
-				PixelClassifierImageSelectionPane.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
+				PixelClassifierPane.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
 			} catch (IOException ex) {
 				Dialogs.showErrorMessage("Save classifier", ex);
 			}
@@ -190,7 +190,7 @@ public class SimpleThresholdCommand implements PathCommand {
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
-			PixelClassifierImageSelectionPane.promptToCreateObjects(qupath.getImageData(), 
+			PixelClassifierPane.promptToCreateObjects(qupath.getImageData(), 
 					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
 		});
 		btnClassifyObjects.setOnAction(e -> {
@@ -284,7 +284,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		sigmaSpinner.setEditable(true);
 		spinner.setEditable(true);
 		
-		comboResolutions.getItems().setAll(PixelClassifierImageSelectionPane.getDefaultResolutions(imageData, selectedResolution.get()));
+		comboResolutions.getItems().setAll(PixelClassifierPane.getDefaultResolutions(imageData, selectedResolution.get()));
 		if (selectedResolution.get() == null)
 			comboResolutions.getSelectionModel().selectLast();
 		

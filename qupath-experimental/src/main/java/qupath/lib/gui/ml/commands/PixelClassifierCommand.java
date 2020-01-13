@@ -3,7 +3,7 @@ package qupath.lib.gui.ml.commands;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
+import qupath.lib.gui.ml.PixelClassifierPane;
 
 /**
  * Open GUI for the current viewer to train a new pixel classifier.
@@ -20,7 +20,7 @@ public class PixelClassifierCommand implements PathCommand {
 		if (imageData == null) {
 			Dialogs.showNoImageError("Pixel classifier");
 		} else
-			new PixelClassifierImageSelectionPane(viewer);
+			new PixelClassifierPane(viewer);
 	}
 
 }

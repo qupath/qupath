@@ -24,7 +24,7 @@ import qupath.lib.objects.classes.PathClass;
  * 
  * @author Pete Bankhead
  */
-class ClassificationPieChart {
+public class ClassificationPieChart {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ClassificationPieChart.class);
 	
@@ -33,7 +33,7 @@ class ClassificationPieChart {
 
 	private PieChart chart = new PieChart();
 
-	void setData(Map<PathClass, Integer> counts, boolean convertToPercentages) {
+	public void setData(Map<PathClass, Integer> counts, boolean convertToPercentages) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> setData(counts, convertToPercentages));
 			return;

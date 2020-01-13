@@ -53,8 +53,9 @@ import qupath.lib.roi.PointsROI;
  * 
  * @author Pete Bankhead
  *
+ * @deprecated
  */
-class PathClassificationLabellingHelper {
+public class PathClassificationLabellingHelper {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathClassificationLabellingHelper.class);
 	

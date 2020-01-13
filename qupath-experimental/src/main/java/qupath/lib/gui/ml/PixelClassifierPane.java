@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.openblas.global.openblas;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
@@ -112,9 +111,9 @@ import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
 
 
-public class PixelClassifierImageSelectionPane {
+public class PixelClassifierPane {
 	
-	final static Logger logger = LoggerFactory.getLogger(PixelClassifierImageSelectionPane.class);
+	final static Logger logger = LoggerFactory.getLogger(PixelClassifierPane.class);
 	
 	static enum ClassificationRegion {
 		ENTIRE_IMAGE,
@@ -189,7 +188,7 @@ public class PixelClassifierImageSelectionPane {
 	private Stage stage;
 	
 	
-	public PixelClassifierImageSelectionPane(final QuPathViewer viewer) {
+	public PixelClassifierPane(final QuPathViewer viewer) {
 		this.viewer = viewer;
 		helper = new PixelClassifierHelper(viewer.getImageData(), null);
 		featureRenderer = new FeatureRenderer(viewer.getImageRegionStore());
@@ -204,10 +203,6 @@ public class PixelClassifierImageSelectionPane {
 		// Classifier
 		pane = new GridPane();
 		
-		// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
-		if (!GeneralTools.isWindows())
-			openblas.blas_set_num_threads(1);
-
 		var labelClassifier = new Label("Classifier");
 		var comboClassifier = new ComboBox<OpenCVStatModel>();
 		labelClassifier.setLabelFor(comboClassifier);

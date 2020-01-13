@@ -16,7 +16,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
-import qupath.lib.gui.ml.PixelClassifierImageSelectionPane;
+import qupath.lib.gui.ml.PixelClassifierPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.gui.tools.PaneTools;
 
@@ -111,7 +111,7 @@ public class PixelClassifierLoadCommand implements PathCommand {
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
-			PixelClassifierImageSelectionPane.promptToCreateObjects(viewer.getImageData(), 
+			PixelClassifierPane.promptToCreateObjects(viewer.getImageData(), 
 					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
 		});
 		btnClassifyObjects.setOnAction(e -> {
