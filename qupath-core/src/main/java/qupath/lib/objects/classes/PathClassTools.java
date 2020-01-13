@@ -1,5 +1,13 @@
 package qupath.lib.objects.classes;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * Static methods for use with {@link PathClass} objects.
  * 
@@ -98,6 +106,88 @@ public class PathClassTools {
 		while (pathClass != null && (isPositiveOrGradedIntensityClass(pathClass) || isNegativeClass(pathClass)))
 			pathClass = pathClass.getParentClass();
 		return pathClass;
+	}
+	
+	/**
+	 * Get a list containing the distinct names of all constituent parts of a {@link PathClass}.
+	 * 
+	 * @param pathClass the {@link PathClass} to split
+	 * @return an empty list if the class has no name or is null, otherwise an ordered list containing 
+	 * the result of calling {@code PathClass.getName()} for all derived classes, starting from the root. 
+	 */
+	public static List<String> splitNames(PathClass pathClass) {
+		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+			return Collections.emptyList();
+		List<String> names = new ArrayList<>();
+		while (pathClass != null) {
+			names.add(pathClass.getName());
+			pathClass = pathClass.getParentClass();
+		}
+		Collections.reverse(names);
+		return names;
+	}
+	
+	/**
+	 * Remove duplicate names from a derived {@link PathClass}.
+	 * @param pathClass the input {@link PathClass}, possibly containing elements with identical names
+	 * @return a {@link PathClass} representing the same names, with duplicates removed if necessary
+	 */
+	public static PathClass uniqueNames(PathClass pathClass) {
+		var names = splitNames(pathClass);
+		return PathClassFactory.getPathClass(names.stream().distinct().collect(Collectors.toList()));
+	}
+	
+	/**
+	 * Create a {@link PathClass} with name elements sorted alphabetically.
+	 * This can be useful when comparing classifications that may have been derived independently, 
+	 * and where the name order is unimportant.
+	 * 
+	 * @param pathClass the input {@link PathClass}
+	 * @return a {@link PathClass} representing the same names sorted
+	 * @see #sortNames(PathClass, Comparator)
+	 */
+	public static PathClass sortNames(PathClass pathClass) {
+		return sortNames(pathClass, Comparator.naturalOrder());
+	}
+	
+	/**
+	 * Create a {@link PathClass} with name elements sorted using an arbitrary {@link Comparator}.
+	 * This can be useful when comparing classifications that may have been derived independently, 
+	 * and where the name order is unimportant.
+	 * 
+	 * @param pathClass the input {@link PathClass}
+	 * @return a {@link PathClass} representing the same names sorted
+	 * @see #sortNames(PathClass)
+	 */
+	public static PathClass sortNames(PathClass pathClass, Comparator<String> comparator) {
+		var names = splitNames(pathClass);
+		names.sort(comparator);
+		return PathClassFactory.getPathClass(names);
+	}
+	
+	/**
+	 * Create a {@link PathClass} with specific name elements removed (if present) from an existing classification.
+	 * 
+	 * @param pathClass the input {@link PathClass}
+	 * @return a {@link PathClass} representing the classification with the required names removed
+	 * @see #removeNames(PathClass, String... )
+	 */
+	public static PathClass removeNames(PathClass pathClass, Collection<String> namesToRemove) {
+		var names = splitNames(pathClass);
+		if (names.removeAll(namesToRemove))
+			return PathClassFactory.getPathClass(names);
+		return pathClass;
+	}
+	
+	/**
+	 * Create a {@link PathClass} with specific name elements removed (if present) from an existing classification.
+	 * 
+	 * @param pathClass the input {@link PathClass}
+	 * @return a {@link PathClass} representing the classification with the required names removed
+	 * @see #removeNames(PathClass, Collection)
+	 */
+	public static PathClass removeNames(PathClass pathClass, String... namesToRemove) {
+		return removeNames(pathClass, Arrays.asList(namesToRemove));
 	}
 
 }

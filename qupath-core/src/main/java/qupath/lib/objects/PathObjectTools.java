@@ -28,6 +28,7 @@ import java.awt.geom.Line2D;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -47,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
@@ -870,6 +872,51 @@ public class PathObjectTools {
 		hierarchy.addPathObjects(toAdd);
 		return true;
 	}
+	
+	/**
+	 * Standardize the classifications for a collection of objects.
+	 * This involves sorting the names of derived classes alphabetically, and removing duplicates.
+	 * 
+	 * @param pathObjects collection of objects with classifications that should be standardized
+	 * @return true if changes were made, false otherwise
+	 */
+	public static boolean standardizeClassifications(Collection<PathObject> pathObjects) {
+		return standardizeClassifications(pathObjects, Comparator.naturalOrder());
+	}
+	
+	/**
+	 * Standardize the classifications for a collection of objects.
+	 * This involves sorting the names of derived classes, and removing duplicates.
+	 * 
+	 * @param pathObjects collection of objects with classifications that should be standardized
+	 * @param comparator comparator to use when sorting
+	 * @return true if changes were made, false otherwise
+	 */
+	public static boolean standardizeClassifications(Collection<PathObject> pathObjects, Comparator<String> comparator) {
+		int nChanges = 0;
+		Map<PathClass, PathClass> map = new HashMap<>();
+		for (var pathObject : pathObjects) {
+			var pathClass = pathObject.getPathClass();
+			if (pathClass == null)
+				continue;
+			PathClass pathClassNew;
+			if (!map.containsKey(pathClass)) {
+				pathClassNew =
+						PathClassTools.sortNames(
+							PathClassTools.uniqueNames(pathClass),
+						comparator);
+				map.put(pathClass, pathClassNew);
+			} else
+				pathClassNew = map.get(pathClass);
+			
+			if (!pathClass.equals(pathClassNew)) {
+				pathObject.setPathClass(pathClassNew);
+				nChanges++;
+			}
+		}
+		return nChanges > 0;		
+	}
+	
 	
 	/**
 	 * Create a(n optionally) transformed version of a {@link PathObject}.

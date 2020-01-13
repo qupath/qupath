@@ -198,19 +198,40 @@ public class PathClassFactory {
 			return pathClass;
 		}
 	}
-	
 	/**
-	 * Get the PathClass object associated with a specific name, using the default color.  
-	 * Note that this name must not contain newline or colon characters; doing so will 
-	 * result in an IllegalArgumentException being thrown.
+	 * Get a derived {@link PathClass} object representing all the provided names, 
+	 * using default colors.
+	 * <p>
+	 * Note that names must not contain newline or colon characters; if they do an 
+	 * {@link IllegalArgumentException} will be thrown.
 	 * 
-	 * @param name
-	 * @return
+	 * @param baseName name of the base classification
+	 * @param names array of names for each constituent part of the classification.
+	 * 				For each name, a new class will be derived, starting from the base.
+	 * @return a {@link PathClass}, as defined above
 	 * 
 	 * @see #getPathClass(String, Integer)
 	 */
-	public static PathClass getPathClass(String name) {
-		return getPathClass(name, (Integer)null);
+	public static PathClass getPathClass(String baseName, String... names) {
+		var pathClass = getPathClass(baseName, (Integer)null);
+		for (String n : names)
+			pathClass = getDerivedPathClass(pathClass, n, null);
+		return pathClass;
+	}
+	
+	/**
+	 * Get a PathClass object representing all the provided names.
+	 * The first entry in the list corresponds to the base name.
+	 * 
+	 * @param names list of names for each constituent part of the classification.
+	 * @return a {@link PathClass} containing all names
+	 * 
+	 * @see #getPathClass(String, String...)
+	 */
+	public static PathClass getPathClass(List<String> names) {
+		if (names.isEmpty())
+			return getPathClassUnclassified();
+		return getPathClass(names.get(0), names.subList(1, names.size()).toArray(String[]::new));
 	}
 	
 	
