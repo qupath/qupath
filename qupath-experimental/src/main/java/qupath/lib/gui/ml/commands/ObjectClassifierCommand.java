@@ -27,17 +27,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
 import org.bytedeco.opencv.opencv_ml.KNearest;
-import org.bytedeco.opencv.opencv_ml.LogisticRegression;
 import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -71,10 +69,8 @@ import qupath.lib.gui.panels.classify.FeatureSelectionPanel;
 import qupath.lib.gui.panels.classify.PathClassificationLabellingHelper;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.io.GsonTools;
-import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.ROIs;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
@@ -359,6 +355,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			comboClassifier.getSelectionModel().selectFirst();
 			selectedModel.addListener((v, o, n) -> updateClassifier());
 			var btnEditClassifier = new Button("Edit");
+			btnEditClassifier.setMaxWidth(Double.MAX_VALUE);
 			btnEditClassifier.setOnAction(e -> editClassifierParameters());
 			btnEditClassifier.disableProperty().bind(selectedModel.isNull());
 			
@@ -376,6 +373,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			labelFeatures.setLabelFor(comboFeatures);
 			trainingFeatures = comboFeatures.getSelectionModel().selectedItemProperty();
 			var btnSelectFeatures = new Button("Select");
+			btnSelectFeatures.setMaxWidth(Double.MAX_VALUE);
 			btnSelectFeatures.disableProperty().bind(
 					trainingFeatures.isNotEqualTo(TrainingFeatures.SELECTED)
 					);
@@ -529,22 +527,29 @@ public class ObjectClassifierCommand implements PathCommand {
 		
 		
 		void updateLocationText(MouseEvent e) {
-//			for (var viewer : qupath.getViewers()) {
-//				var hierarchy = viewer.getHierarchy();
-//				if (hierarchy == null)
-//					continue;
-//				var view = viewer.getView();
-//				var p = view.screenToLocal(e.getScreenX(), e.getScreenY());
-//				if (view.contains(p)) {
-//					var p2 = viewer.componentPointToImagePoint(p.getX(), p.getY(), null, false);
-//					var pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class,
-//							ImageRegion.createInstance(
-//									(int)p2.getX(), (int)p2.getY(), 1, 1,
-//									viewer.getZPosition(), viewer.getTPosition()),
-//							null);
-////					System.err.println(pathObjects);
-//				}
-//			}
+			String text = "";
+			for (var viewer : qupath.getViewers()) {
+				var hierarchy = viewer.getHierarchy();
+				if (hierarchy == null)
+					continue;
+				var view = viewer.getView();
+				var p = view.screenToLocal(e.getScreenX(), e.getScreenY());
+				if (view.contains(p)) {
+					var p2 = viewer.componentPointToImagePoint(p.getX(), p.getY(), null, false);
+					var pathObjects = PathObjectTools.getObjectsForLocation(hierarchy,
+							p2.getX(), p2.getY(),
+							viewer.getZPosition(), viewer.getTPosition(), 0);
+					if (!pathObjects.isEmpty()) {
+						text = pathObjects.stream()
+								.filter(pathObject -> pathObject.isDetection())
+								.map(pathObject -> {
+							var pathClass = pathObject.getPathClass();
+							return pathClass == null ? "Unclassified" : pathClass.toString();
+						}).collect(Collectors.joining(", "));
+					}
+				}
+			}
+			cursorLocation.set(text);
 		}
 		
 	}

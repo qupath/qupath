@@ -782,11 +782,13 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	
 	/**
-	 * Get the objects within a specified region.
-	 * @param cls
-	 * @param region
-	 * @param pathObjects
-	 * @return
+	 * Get the objects overlapping or close to a specified region.
+	 * Note that this performs a quick check; the results typically should be filtered if a more strict test for overlapping is applied.
+	 * 
+	 * @param cls class of object to return (subclasses are included)
+	 * @param region requested region overlapping the objects ROI
+	 * @param pathObjects optionally collection to which objects will be added
+	 * @return collection containing identified objects (same as the input collection, if provided)
 	 */
 	public Collection<PathObject> getObjectsForRegion(Class<? extends PathObject> cls, ImageRegion region, Collection<PathObject> pathObjects) {
 		return tileCache.getObjectsForRegion(cls, region, pathObjects, true);
