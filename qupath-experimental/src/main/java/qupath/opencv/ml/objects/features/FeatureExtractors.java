@@ -22,7 +22,7 @@ public class FeatureExtractors {
 		
 		private final static RuntimeTypeAdapterFactory<FeatureExtractor> featureCalculatorTypeAdapter = 
 				RuntimeTypeAdapterFactory.of(FeatureExtractor.class, typeName)
-					.registerSubtype(FeatureExtractor.class);
+					.registerSubtype(DefaultFeatureExtractor.class);
 		
 		private static void registerSubtype(Class<? extends FeatureExtractor> cls) {
 			featureCalculatorTypeAdapter.registerSubtype(cls);

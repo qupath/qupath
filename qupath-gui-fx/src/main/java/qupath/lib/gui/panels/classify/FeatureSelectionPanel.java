@@ -70,7 +70,7 @@ import qupath.lib.objects.PathObject;
  * @author Pete Bankhead
  *
  */
-class FeatureSelectionPanel {
+public class FeatureSelectionPanel {
 
 	private QuPathGUI qupath;
 
@@ -78,6 +78,10 @@ class FeatureSelectionPanel {
 	private TableView<SelectableFeature> tableFeatures = new TableView<>();
 
 	private BorderPane pane;
+	
+	public FeatureSelectionPanel(final QuPathGUI qupath) {
+		this(qupath, null);
+	}
 
 	FeatureSelectionPanel(final QuPathGUI qupath, final PathIntensityClassifierPanel panelIntensities) {
 		this.qupath = qupath;
@@ -255,7 +259,7 @@ class FeatureSelectionPanel {
 	}
 
 
-	void ensureMeasurementsUpdated() {
+	public void ensureMeasurementsUpdated() {
 		updateMeasurements(qupath.getImageData());
 	}
 

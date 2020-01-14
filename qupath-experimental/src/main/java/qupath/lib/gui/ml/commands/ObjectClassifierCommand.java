@@ -26,6 +26,7 @@ package qupath.lib.gui.ml.commands;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
@@ -36,6 +37,7 @@ import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -53,6 +55,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -64,9 +67,14 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.ClassificationPieChart;
+import qupath.lib.gui.panels.classify.FeatureSelectionPanel;
 import qupath.lib.gui.panels.classify.PathClassificationLabellingHelper;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.ROIs;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
@@ -162,17 +170,72 @@ public class ObjectClassifierCommand implements PathCommand {
 		
 		private QuPathGUI qupath;
 		
+		/**
+		 * Use all classifications for training and prediction, or only some.
+		 */
+		private static enum OutputClasses { ALL, SELECTED;
+			
+			@Override
+			public String toString() {
+				switch(this) {
+				case ALL:
+					return "All classes";
+				case SELECTED:
+					return "Selected classes";
+				default:
+					throw new IllegalArgumentException();
+				}
+			}
+		
+		}
+
+		/**
+		 * Use all measurements for training and prediction, or only some.
+		 */
+		private static enum TrainingFeatures { ALL, SELECTED;
+			
+			@Override
+			public String toString() {
+				switch(this) {
+				case ALL:
+					return "All measurements";
+				case SELECTED:
+					return "Selected measurements";
+				default:
+					throw new IllegalArgumentException();
+				}
+			}
+			
+		}
+
+		/**
+		 * Main GUI pane
+		 */
 		private GridPane pane;
 		
-		private ReadOnlyObjectProperty<OpenCVStatModel> selectedClassifier;
-		
+		private ReadOnlyObjectProperty<OpenCVStatModel> selectedModel;
+
+		private ReadOnlyObjectProperty<OutputClasses> outputClasses;
+		private ReadOnlyObjectProperty<TrainingFeatures> trainingFeatures;
+
 		private OpenCVMLClassifier classifier;
 		private ObservableList<PathClass> selectedClasses;
 		
+		private FeatureSelectionPanel featurePane;
+		
+		/**
+		 * Text relevant to the current cursor location when over a viewer
+		 */
 		private StringProperty cursorLocation = new SimpleStringProperty();
 		
+		/**
+		 * If true, update classification as automatically
+		 */
 		private BooleanProperty livePrediction = new SimpleBooleanProperty(false);
 		
+		/**
+		 * Visualization of the training object proportions
+		 */
 		private ClassificationPieChart pieChart;
 		
 		ObjectClassifierPane(QuPathGUI qupath) {
@@ -190,7 +253,7 @@ public class ObjectClassifierCommand implements PathCommand {
 		
 		private void updateClassifier(boolean doClassification) {
 			
-			var temp = selectedClassifier == null ? null : selectedClassifier.get();
+			var temp = selectedModel == null ? null : selectedModel.get();
 			if (temp == null)
 				classifier = null;
 			else
@@ -207,7 +270,11 @@ public class ObjectClassifierCommand implements PathCommand {
 				return;
 			}
 			var detections = imageData.getHierarchy().getDetectionObjects();
-			var measurements = PathClassifierTools.getAvailableFeatures(detections);
+			List<String> measurements;
+			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
+				measurements = featurePane.getSelectedFeatures();
+			else
+				measurements = new ArrayList<>(PathClassifierTools.getAvailableFeatures(detections));
 			if (measurements.isEmpty()) {
 				logger.warn("No measurements - cannot update classifier");
 				pieChart.setData(Collections.emptyMap(), false);
@@ -245,11 +312,23 @@ public class ObjectClassifierCommand implements PathCommand {
 		
 		private boolean saveAndApply() {
 			Dialogs.showErrorNotification("Advanced options", "Not implemented!");
+			
+			if (classifier != null) {
+				try {
+					var json = GsonTools.getInstance(true).toJson(classifier);
+					System.err.println(json);
+					var classifier2 = GsonTools.getInstance().fromJson(json, OpenCVMLClassifier.class);
+					logger.info("Classification deserialized: {}", classifier2);
+				} catch (Exception e) {
+					logger.error("Error attempting classifier serialization " + e.getLocalizedMessage(), e);
+				}
+			}
+			
 			return false;
 		}
 		
 		private boolean editClassifierParameters() {
-			var model = selectedClassifier.get();
+			var model = selectedModel.get();
 			if (model == null) {
 				Dialogs.showErrorMessage("Edit parameters", "No classifier selected!");
 				return false;
@@ -261,11 +340,12 @@ public class ObjectClassifierCommand implements PathCommand {
 		
 		private void initialize() {
 			
+			pane = new GridPane();
 			int row = 0;
 			
-			// Classifier
-			pane = new GridPane();
-
+			/*
+			 * Classifier type
+			 */
 			var labelClassifier = new Label("Classifier");
 			var comboClassifier = new ComboBox<OpenCVStatModel>();
 			comboClassifier.getItems().addAll(
@@ -275,50 +355,44 @@ public class ObjectClassifierCommand implements PathCommand {
 					);
 			labelClassifier.setLabelFor(comboClassifier);
 			
-			selectedClassifier = comboClassifier.getSelectionModel().selectedItemProperty();
+			selectedModel = comboClassifier.getSelectionModel().selectedItemProperty();
 			comboClassifier.getSelectionModel().selectFirst();
-			selectedClassifier.addListener((v, o, n) -> updateClassifier());
+			selectedModel.addListener((v, o, n) -> updateClassifier());
 			var btnEditClassifier = new Button("Edit");
 			btnEditClassifier.setOnAction(e -> editClassifierParameters());
-			btnEditClassifier.disableProperty().bind(selectedClassifier.isNull());
+			btnEditClassifier.disableProperty().bind(selectedModel.isNull());
 			
 			PaneTools.addGridRow(pane, row++, 0, 
 					"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
 					labelClassifier, comboClassifier, btnEditClassifier);
 			
-//			// TODO: Enable feature selection
-//			var labelFeatures = new Label("Features");
-//			var comboFeatures = new ComboBox<FeatureCalculatorBuilder>();
-//			comboFeatures.getItems().add(new FeatureCalculatorBuilder.DefaultFeatureCalculatorBuilder(viewer.getImageData()));
-//			comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder(viewer.getImageData()));
-//			labelFeatures.setLabelFor(comboFeatures);
-//			selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
-//			
-////			var labelFeaturesSummary = new Label("No features selected");
-//			var btnShowFeatures = new Button("Show");
-//			btnShowFeatures.setOnAction(e -> showFeatures());
-//			
-//			var btnCustomizeFeatures = new Button("Edit");
-//			btnCustomizeFeatures.disableProperty().bind(Bindings.createBooleanBinding(() -> {
-//				var calc = selectedFeatureCalculatorBuilder.get();
-//				return calc == null || !calc.canCustomize(viewer.getImageData());
-//			},
-//					selectedFeatureCalculatorBuilder));
-//			btnCustomizeFeatures.setOnAction(e -> {
-//				if (selectedFeatureCalculatorBuilder.get().doCustomize(viewer.getImageData())) {
-//					updateFeatureCalculator();
-//				}
-//			});
-//			comboFeatures.getItems().addAll(defaultFeatureCalculatorBuilders);
-//			
-//			comboFeatures.getSelectionModel().select(0);
-//			comboFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureCalculator());
-//			
-//			PaneTools.addGridRow(pane, row++, 0, 
-//					"Select features for the classifier",
-//					labelFeatures, comboFeatures, btnCustomizeFeatures, btnShowFeatures);
+			/*
+			 * Feature selection
+			 */
+			var labelFeatures = new Label("Features");
+			var comboFeatures = new ComboBox<TrainingFeatures>();
+			comboFeatures.getItems().setAll(TrainingFeatures.values());
+			comboFeatures.getSelectionModel().select(TrainingFeatures.ALL);
+			labelFeatures.setLabelFor(comboFeatures);
+			trainingFeatures = comboFeatures.getSelectionModel().selectedItemProperty();
+			var btnSelectFeatures = new Button("Select");
+			btnSelectFeatures.disableProperty().bind(
+					trainingFeatures.isNotEqualTo(TrainingFeatures.SELECTED)
+					);
+			featurePane = new FeatureSelectionPanel(qupath);
+			featurePane.getPanel().setMinWidth(400);
+			btnSelectFeatures.setOnAction(e -> {
+				qupath.submitShortTask(() -> featurePane.ensureMeasurementsUpdated());
+				Dialogs.showMessageDialog("Select Features", featurePane.getPanel());
+				updateClassifier();
+			});
+			PaneTools.addGridRow(pane, row++, 0, 
+					"Select features for the classifier",
+					labelFeatures, comboFeatures, btnSelectFeatures);
 			
-			// Output
+			/*
+			 * Training & output classes
+			 */
 			var labelOutput = new Label("Classes");
 			var comboOutput = new CheckComboBox<PathClass>(QuPathGUI.getInstance().getAvailablePathClasses());
 			comboOutput.getCheckModel().checkAll();
@@ -331,7 +405,9 @@ public class ObjectClassifierCommand implements PathCommand {
 					"Choose which classes to use when training the classifier - annotations with other classifications will be ignored",
 					labelOutput, comboOutput, comboOutput);
 			
-			// Live predict
+			/*
+			 * Additional options & live predict
+			 */
 			var btnAdvancedOptions = new Button("Advanced options");
 			btnAdvancedOptions.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
 			btnAdvancedOptions.setOnAction(e -> {
@@ -352,14 +428,17 @@ public class ObjectClassifierCommand implements PathCommand {
 			var panePredict = PaneTools.createColumnGridControls(btnAdvancedOptions, btnLive);
 			pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 			
-//			addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
-
+			/*
+			 * Save classifier
+			 */
 			var btnSave = new Button("Save");
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.setOnAction(e -> saveAndApply());
 			pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
 			
-			
+			/*
+			 * Training proportions (pie chart)
+			 */
 			pieChart = new ClassificationPieChart();
 			
 			var chart = pieChart.getChart();
@@ -380,13 +459,15 @@ public class ObjectClassifierCommand implements PathCommand {
 			labelCursor.setTooltip(new Tooltip("Prediction for current cursor location"));
 			pane.add(labelCursor, 0, row++, pane.getColumnCount(), 1);
 						
-			PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifier, comboOutput, panePredict);
-			PaneTools.setHGrowPriority(Priority.ALWAYS, comboClassifier, comboOutput, panePredict);
+			PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifier, comboFeatures, comboOutput, panePredict);
+			PaneTools.setHGrowPriority(Priority.ALWAYS, comboClassifier, comboFeatures, comboOutput, panePredict);
 			PaneTools.setFillWidth(Boolean.TRUE, comboClassifier, comboOutput, panePredict);
 
 //			pane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 			pane.setHgap(5);
 			pane.setVgap(6);
+			
+			qupath.getStage().getScene().addEventFilter(MouseEvent.MOUSE_MOVED, e -> updateLocationText(e));
 			
 //			var btnCreateObjects = new Button("Create objects");
 //			btnCreateObjects.setTooltip(new Tooltip("Create annotations or detections from pixel classification"));
@@ -444,6 +525,26 @@ public class ObjectClassifierCommand implements PathCommand {
 //			if (viewer.getImageData() != null)
 //				viewer.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
 			
+		}
+		
+		
+		void updateLocationText(MouseEvent e) {
+//			for (var viewer : qupath.getViewers()) {
+//				var hierarchy = viewer.getHierarchy();
+//				if (hierarchy == null)
+//					continue;
+//				var view = viewer.getView();
+//				var p = view.screenToLocal(e.getScreenX(), e.getScreenY());
+//				if (view.contains(p)) {
+//					var p2 = viewer.componentPointToImagePoint(p.getX(), p.getY(), null, false);
+//					var pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class,
+//							ImageRegion.createInstance(
+//									(int)p2.getX(), (int)p2.getY(), 1, 1,
+//									viewer.getZPosition(), viewer.getTPosition()),
+//							null);
+////					System.err.println(pathObjects);
+//				}
+//			}
 		}
 		
 	}

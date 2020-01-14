@@ -36,7 +36,6 @@ import com.google.common.collect.Lists;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.Reclassifier;
@@ -230,7 +229,7 @@ public class OpenCVMLClassifier implements PathObjectClassifier, Parameterizable
 	public int classifyPathObjects(Collection<PathObject> pathObjects) {
 
 		if (featureExtractor == null) {
-			logger.warn("No feature extractor!  Cannot classify {} objects", pathObjects.size());
+			logger.warn("No feature extractor! Cannot classify {} objects", pathObjects.size());
 			return 0;
 		}
 		
