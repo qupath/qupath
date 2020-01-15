@@ -70,7 +70,7 @@ import qupath.lib.objects.PathObject;
  * @author Pete Bankhead
  *
  */
-public class FeatureSelectionPanel {
+class FeatureSelectionPanel {
 
 	private QuPathGUI qupath;
 

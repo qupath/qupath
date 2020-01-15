@@ -24,24 +24,34 @@
 package qupath.lib.gui.ml.commands;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
 import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.RTrees;
-import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -49,10 +59,17 @@ import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.cell.CheckBoxTableCell;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -61,19 +78,23 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassifierTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.ClassificationPieChart;
-import qupath.lib.gui.panels.classify.FeatureSelectionPanel;
-import qupath.lib.gui.panels.classify.PathClassificationLabellingHelper;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
+import qupath.opencv.ml.objects.features.FeatureExtractors;
 
 
 /**
@@ -203,21 +224,48 @@ public class ObjectClassifierCommand implements PathCommand {
 			}
 			
 		}
+		
+		/**
+		 * Specify kind of annotations to use for training
+		 */
+		private static enum TrainingAnnotations { ALL, POINTS, AREAS;
+			
+			@Override
+			public String toString() {
+				switch(this) {
+				case ALL:
+					return "All unlocked annotations";
+				case POINTS:
+					return "Points onlys";
+				case AREAS:
+					return "Areas onlys";
+				default:
+					throw new IllegalArgumentException();
+				}
+			}
+			
+		}
 
+		
 		/**
 		 * Main GUI pane
 		 */
 		private GridPane pane;
-		
+
+		private ReadOnlyObjectProperty<PathObjectFilter> objectFilter;
+
 		private ReadOnlyObjectProperty<OpenCVStatModel> selectedModel;
 
 		private ReadOnlyObjectProperty<OutputClasses> outputClasses;
 		private ReadOnlyObjectProperty<TrainingFeatures> trainingFeatures;
 
+		private ReadOnlyObjectProperty<TrainingAnnotations> trainingAnnotations;
+
 		private OpenCVMLClassifier classifier;
-		private ObservableList<PathClass> selectedClasses;
+		private Set<PathClass> selectedClasses = new HashSet<>();
 		
-		private FeatureSelectionPanel featurePane;
+		private Set<String> selectedMeasurements = new LinkedHashSet<>();
+		
 		
 		/**
 		 * Text relevant to the current cursor location when over a viewer
@@ -234,41 +282,69 @@ public class ObjectClassifierCommand implements PathCommand {
 		 */
 		private ClassificationPieChart pieChart;
 		
+		private boolean classifierInvalid;
+		
 		ObjectClassifierPane(QuPathGUI qupath) {
 			this.qupath = qupath;
+			selectedClasses.addAll(qupath.getAvailablePathClasses());
 			initialize();
 		}
 		
-		private void updateClassifier() {
-			updateClassifier(livePrediction.get());
+		private void invalidateClassifier() {
+			classifierInvalid = true;
+			if (livePrediction.get())
+				updateClassifier(true);
 		}
 		
 		public Pane getPane() {
 			return pane;
 		}
 		
+		private List<PathObject> getTrainingAnnotations(PathObjectHierarchy hierarchy) {
+			Predicate<PathObject> trainingFilter = (PathObject p) -> p.isAnnotation() && p.getPathClass() != null && p.hasROI() && !p.isLocked();
+			switch (trainingAnnotations.get()) {
+				case AREAS:
+					trainingFilter = trainingFilter.and(PathObjectFilter.ROI_AREA);
+					break;
+				case POINTS:
+					trainingFilter = trainingFilter.and(PathObjectFilter.ROI_POINT);
+					break;
+				default:
+					break;
+			}
+			return hierarchy.getAnnotationObjects()
+					.stream()
+					.filter(trainingFilter)
+					.collect(Collectors.toList());
+		}
+		
 		private void updateClassifier(boolean doClassification) {
 			
+			var filter = objectFilter.get();
 			var temp = selectedModel == null ? null : selectedModel.get();
 			if (temp == null)
 				classifier = null;
 			else
-				classifier = OpenCVMLClassifier.create(temp);
+				classifier = OpenCVMLClassifier.create(temp, objectFilter.get());
 			if (classifier == null) {
 				pieChart.setData(Collections.emptyMap(), false);
 				return;
 			}
-			
+						
 			var imageData = qupath.getImageData();
 			if (imageData == null) {
 				logger.warn("No image - cannot update classifier");
 				pieChart.setData(Collections.emptyMap(), false);
 				return;
 			}
-			var detections = imageData.getHierarchy().getDetectionObjects();
+			var detections = imageData.getHierarchy()
+					.getFlattenedObjectList(null)
+					.stream()
+					.filter(filter)
+					.collect(Collectors.toList());
 			List<String> measurements;
 			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
-				measurements = featurePane.getSelectedFeatures();
+				measurements = new ArrayList<>(selectedMeasurements);
 			else
 				measurements = new ArrayList<>(PathClassifierTools.getAvailableFeatures(detections));
 			if (measurements.isEmpty()) {
@@ -277,16 +353,42 @@ public class ObjectClassifierCommand implements PathCommand {
 				return;
 			}
 			
-			boolean trainFromPoints = false;
-			var map = PathClassificationLabellingHelper.getClassificationMap(imageData.getHierarchy(), trainFromPoints);
+			// Get training annotations & associated objects
+			var hierarchy = imageData.getHierarchy();
+			var trainingAnnotations = getTrainingAnnotations(hierarchy);
 			
-			var iterator = map.entrySet().iterator();
-			while (iterator.hasNext()) {
-				if (!selectedClasses.contains(iterator.next().getKey()))
-					iterator.remove();
+			// Use a set for detections because we might need to check if we have the same detection for multiple classes
+			Map<PathClass, Set<PathObject>> map = new TreeMap<>();
+			for (var annotation : trainingAnnotations) {
+				var pathClass = annotation.getPathClass();
+				if (outputClasses.get() == OutputClasses.ALL || selectedClasses.contains(pathClass)) {
+					var set = map.computeIfAbsent(pathClass, p -> new HashSet<>());
+					var roi = annotation.getROI();
+					if (roi.isPoint()) {
+						for (Point2 p : annotation.getROI().getAllPoints()) {
+							var pathObjectsTemp = PathObjectTools.getObjectsForLocation(
+									hierarchy, p.getX(), p.getY(), roi.getZ(), roi.getT(), -1);
+							pathObjectsTemp.removeIf(objectFilter.get().negate());
+							set.addAll(pathObjectsTemp);
+						}
+					} else {
+						var pathObjectsTemp = hierarchy.getObjectsForROI(PathDetectionObject.class, annotation.getROI());
+						pathObjectsTemp.removeIf(objectFilter.get().negate());
+						set.addAll(pathObjectsTemp);
+					}
+				}
+			}
+			map.entrySet().removeIf(e -> e.getValue().isEmpty());
+			if (map.size() <= 1) {
+				logger.warn("Not enough training data - samples for at least two classes are needed");
+				return;
 			}
 			
-			classifier.updateClassifier(map, new ArrayList<>(measurements), Normalization.NONE);
+//			var map = PathClassificationLabellingHelper.getClassificationMap(imageData.getHierarchy(), trainFromPoints);
+			
+			var extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
+			double pcaVariance = -1;
+			classifier.updateClassifier(map, extractor, Normalization.NONE, pcaVariance);
 			
 			var counts = new LinkedHashMap<PathClass, Integer>();
 			for (var entry : map.entrySet()) {
@@ -295,20 +397,21 @@ public class ObjectClassifierCommand implements PathCommand {
 			pieChart.setData(counts, true);
 			
 			if (doClassification) {
-				if (classifier.classifyPathObjects(detections) > 0)
+				if (classifier.classifyObjects(imageData) > 0) {
 					imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, detections);
+				}
 			}
 			
 		}
 		
 		private boolean showAdvancedOptions() {
-			Dialogs.showErrorNotification("Advanced options", "Not implemented!");
+			Dialogs.showErrorNotification("Advanced options", "Not yet implemented!");
 			return false;
 		}
 		
 		private boolean saveAndApply() {
-			Dialogs.showErrorNotification("Advanced options", "Not implemented!");
-			
+			Dialogs.showErrorNotification("Advanced options", "Not yet fully implemented!");
+			updateClassifier(true);
 			if (classifier != null) {
 				try {
 					var json = GsonTools.getInstance(true).toJson(classifier);
@@ -330,7 +433,7 @@ public class ObjectClassifierCommand implements PathCommand {
 				return false;
 			}
 			Dialogs.showParameterDialog("Edit parameters", model.getParameterList());
-			updateClassifier();
+			invalidateClassifier();
 			return true;
 		}
 		
@@ -338,6 +441,26 @@ public class ObjectClassifierCommand implements PathCommand {
 			
 			pane = new GridPane();
 			int row = 0;
+			
+			/*
+			 * Input object type
+			 */
+			var labelObjects = new Label("Objects");
+			var comboObjects = new ComboBox<PathObjectFilter>();
+			comboObjects.getItems().addAll(
+					PathObjectFilter.DETECTIONS_ALL,
+					PathObjectFilter.DETECTIONS,
+					PathObjectFilter.CELLS,
+					PathObjectFilter.TILES
+					);
+			labelObjects.setLabelFor(comboObjects);
+			objectFilter = comboObjects.getSelectionModel().selectedItemProperty();
+			comboObjects.getSelectionModel().select(PathObjectFilter.DETECTIONS_ALL);
+			objectFilter.addListener((v, o, n) -> invalidateClassifier());
+			
+			PaneTools.addGridRow(pane, row++, 0, 
+					"Choose object type to classify (default is all detections)",
+					labelObjects, comboObjects, comboObjects);
 			
 			/*
 			 * Classifier type
@@ -350,10 +473,9 @@ public class ObjectClassifierCommand implements PathCommand {
 					OpenCVClassifiers.createStatModel(KNearest.class)
 					);
 			labelClassifier.setLabelFor(comboClassifier);
-			
 			selectedModel = comboClassifier.getSelectionModel().selectedItemProperty();
 			comboClassifier.getSelectionModel().selectFirst();
-			selectedModel.addListener((v, o, n) -> updateClassifier());
+			selectedModel.addListener((v, o, n) -> invalidateClassifier());
 			var btnEditClassifier = new Button("Edit");
 			btnEditClassifier.setMaxWidth(Double.MAX_VALUE);
 			btnEditClassifier.setOnAction(e -> editClassifierParameters());
@@ -377,31 +499,53 @@ public class ObjectClassifierCommand implements PathCommand {
 			btnSelectFeatures.disableProperty().bind(
 					trainingFeatures.isNotEqualTo(TrainingFeatures.SELECTED)
 					);
-			featurePane = new FeatureSelectionPanel(qupath);
-			featurePane.getPanel().setMinWidth(400);
 			btnSelectFeatures.setOnAction(e -> {
-				qupath.submitShortTask(() -> featurePane.ensureMeasurementsUpdated());
-				Dialogs.showMessageDialog("Select Features", featurePane.getPanel());
-				updateClassifier();
+				if (promptToSelectFeatures())
+					invalidateClassifier();
 			});
 			PaneTools.addGridRow(pane, row++, 0, 
-					"Select features for the classifier",
+					"Choose features for the classifier",
 					labelFeatures, comboFeatures, btnSelectFeatures);
 			
 			/*
-			 * Training & output classes
+			 * Output classes
 			 */
-			var labelOutput = new Label("Classes");
-			var comboOutput = new CheckComboBox<PathClass>(QuPathGUI.getInstance().getAvailablePathClasses());
-			comboOutput.getCheckModel().checkAll();
-			selectedClasses = comboOutput.getCheckModel().getCheckedItems();
-			selectedClasses.addListener((Change<? extends PathClass> c) -> {
-				updateClassifier();
+			var labelClasses = new Label("Classes");
+			var comboClasses = new ComboBox<OutputClasses>();
+			comboClasses.getItems().setAll(OutputClasses.values());
+			comboClasses.getSelectionModel().select(OutputClasses.ALL);
+			labelClasses.setLabelFor(comboClasses);
+			outputClasses = comboClasses.getSelectionModel().selectedItemProperty();
+			outputClasses.addListener(v -> invalidateClassifier());
+			var btnSelectClasses = new Button("Select");
+			btnSelectClasses.setMaxWidth(Double.MAX_VALUE);
+			btnSelectClasses.disableProperty().bind(
+					outputClasses.isEqualTo(OutputClasses.ALL)
+					);
+			btnSelectClasses.setOnAction(e -> {
+				if (promptToSelectClasses()) {
+					invalidateClassifier();
+				}
 			});
 			
 			PaneTools.addGridRow(pane, row++, 0, 
 					"Choose which classes to use when training the classifier - annotations with other classifications will be ignored",
-					labelOutput, comboOutput, comboOutput);
+					labelClasses, comboClasses, btnSelectClasses);
+			
+			/*
+			 * Training annotations
+			 */
+			var labelTraining = new Label("Training");
+			var comboTraining = new ComboBox<TrainingAnnotations>();
+			comboTraining.getItems().setAll(TrainingAnnotations.values());
+			comboTraining.getSelectionModel().select(TrainingAnnotations.ALL);
+			trainingAnnotations = comboTraining.getSelectionModel().selectedItemProperty();
+			trainingAnnotations.addListener(v -> invalidateClassifier());
+			
+			PaneTools.addGridRow(pane, row++, 0, 
+					"Choose what kind of annotations to use for training",
+					labelTraining, comboTraining, comboTraining);
+			
 			
 			/*
 			 * Additional options & live predict
@@ -410,10 +554,10 @@ public class ObjectClassifierCommand implements PathCommand {
 			btnAdvancedOptions.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
 			btnAdvancedOptions.setOnAction(e -> {
 				if (showAdvancedOptions())
-					updateClassifier();
+					invalidateClassifier();
 			});
 			
-			var btnLive = new ToggleButton("Live prediction");
+			var btnLive = new ToggleButton("Live update");
 			btnLive.selectedProperty().bindBidirectional(livePrediction);
 			btnLive.setTooltip(new Tooltip("Toggle whether to calculate classification 'live' while viewing the image"));
 			livePrediction.addListener((v, o, n) -> {
@@ -429,7 +573,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			/*
 			 * Save classifier
 			 */
-			var btnSave = new Button("Save");
+			var btnSave = new Button("Save & Apply");
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.setOnAction(e -> saveAndApply());
 			pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
@@ -457,9 +601,9 @@ public class ObjectClassifierCommand implements PathCommand {
 			labelCursor.setTooltip(new Tooltip("Prediction for current cursor location"));
 			pane.add(labelCursor, 0, row++, pane.getColumnCount(), 1);
 						
-			PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifier, comboFeatures, comboOutput, panePredict);
-			PaneTools.setHGrowPriority(Priority.ALWAYS, comboClassifier, comboFeatures, comboOutput, panePredict);
-			PaneTools.setFillWidth(Boolean.TRUE, comboClassifier, comboOutput, panePredict);
+			PaneTools.setMaxWidth(Double.MAX_VALUE, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
+			PaneTools.setHGrowPriority(Priority.ALWAYS, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
+			PaneTools.setFillWidth(Boolean.TRUE, comboTraining, comboObjects, comboClassifier, comboClasses, panePredict);
 
 //			pane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 			pane.setHgap(5);
@@ -526,6 +670,46 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 		
+		boolean promptToSelectFeatures() {
+			var imageData = qupath.getImageData();
+			if (imageData == null)
+				return false;
+			var detections = imageData.getHierarchy().getFlattenedObjectList(null)
+					.stream()
+					.filter(objectFilter.get())
+					.collect(Collectors.toList());
+			
+			var measurements = PathClassifierTools.getAvailableFeatures(detections);
+			if (measurements.isEmpty()) {
+				Dialogs.showErrorMessage("Select features", "No features available for specified objects!");
+				return false;
+			}
+			
+			var featuresPane = new SelectionPane<>(measurements);
+			featuresPane.selectItems(selectedMeasurements);
+			if (!Dialogs.showConfirmDialog("Select features", featuresPane.getPane()))
+				return false;
+			selectedMeasurements.clear();
+			selectedMeasurements.addAll(featuresPane.getSelectedItems());
+			return true;
+		}
+		
+		boolean promptToSelectClasses() {
+			var imageData = qupath.getImageData();
+			if (imageData == null)
+				return false;
+			var annotations = getTrainingAnnotations(imageData.getHierarchy());
+			var pathClasses = annotations.stream().map(p -> p.getPathClass()).collect(Collectors.toCollection(TreeSet::new));
+			var classesPane = new SelectionPane<>(pathClasses);
+			classesPane.selectItems(selectedClasses);
+			if (!Dialogs.showConfirmDialog("Select classes", classesPane.getPane()))
+				return false;
+			selectedClasses.clear();
+			selectedClasses.addAll(classesPane.getSelectedItems());
+			return true;
+		}
+		
+		
 		void updateLocationText(MouseEvent e) {
 			String text = "";
 			for (var viewer : qupath.getViewers()) {
@@ -550,6 +734,175 @@ public class ObjectClassifierCommand implements PathCommand {
 				}
 			}
 			cursorLocation.set(text);
+		}
+		
+	}
+	
+	
+	static class SelectionPane<T> {
+		
+		private TableView<SelectableItem<T>> tableFeatures = new TableView<>();
+
+		private BorderPane pane;
+		
+		SelectionPane(Collection<T> features) {
+			pane = makeFeatureSelectionPanel();
+			updateItems(features);
+		}
+
+		public Pane getPane() {
+			return pane;
+		}
+
+		public List<T> getSelectedItems() {
+			List<T> selectedFeatures = new ArrayList<>();
+			for (SelectableItem<T> feature : tableFeatures.getItems()) {
+				if (feature.isSelected())
+					selectedFeatures.add(feature.getItem());
+			}
+			return selectedFeatures;
+		}
+		
+
+		private BorderPane makeFeatureSelectionPanel() {
+			TableColumn<SelectableItem<T>, String> columnName = new TableColumn<>("Name");
+			columnName.setCellValueFactory(new PropertyValueFactory<>("item"));
+			columnName.setEditable(false);
+
+			TableColumn<SelectableItem<T>, Boolean> columnSelected = new TableColumn<>("Selected");
+			columnSelected.setCellValueFactory(new PropertyValueFactory<>("selected"));
+			columnSelected.setCellFactory(column -> new CheckBoxTableCell<>());
+			columnSelected.setEditable(true);
+			columnSelected.setResizable(false);
+
+			columnName.prefWidthProperty().bind(tableFeatures.widthProperty().subtract(columnSelected.widthProperty()));
+
+			tableFeatures.getColumns().add(columnName);
+			tableFeatures.getColumns().add(columnSelected);
+			tableFeatures.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+			tableFeatures.setEditable(true);
+			
+
+			ContextMenu menu = new ContextMenu();
+			MenuItem itemSelect = new MenuItem("Select");
+			itemSelect.setOnAction(e -> {
+				for (SelectableItem<T> feature : tableFeatures.getSelectionModel().getSelectedItems())
+					feature.setSelected(true);
+			});
+			menu.getItems().add(itemSelect);
+			MenuItem itemDeselect = new MenuItem("Deselect");
+			itemDeselect.setOnAction(e -> {
+				for (SelectableItem<T> feature : tableFeatures.getSelectionModel().getSelectedItems())
+					feature.setSelected(false);
+			});
+			menu.getItems().add(itemDeselect);
+
+			tableFeatures.setContextMenu(menu);
+
+			// Button to update the features
+			BorderPane panelButtons = new BorderPane();
+			Button btnSelectAll = new Button("Select all");
+			btnSelectAll.setOnAction(e -> {
+				for (SelectableItem<T> feature : tableFeatures.getItems())
+					feature.setSelected(true);
+
+			});
+			Button btnSelectNone = new Button("Select none");
+			btnSelectNone.setOnAction(e -> {
+				for (SelectableItem<T> feature : tableFeatures.getItems())
+					feature.setSelected(false);
+			});
+			GridPane panelSelectButtons = PaneTools.createColumnGridControls(btnSelectAll, btnSelectNone);
+
+			panelButtons.setTop(panelSelectButtons);
+
+			BorderPane panelFeatures = new BorderPane();
+			panelFeatures.setCenter(tableFeatures);
+			panelFeatures.setBottom(panelButtons);
+			
+
+			return panelFeatures;
+		}
+
+		void selectItems(Collection<T> toSelect) {
+			for (var item : toSelect) {
+				var temp = itemPool.get(item);
+				if (temp != null)
+					temp.setSelected(true);
+			}
+		}
+		
+		private ObservableList<SelectableItem<T>> getSelectableFeatures() {
+			return tableFeatures.getItems();
+		}
+
+		private void updateItems(final Collection<T> availableItems) {
+			// Ensure we have a set, to avoid duplicate woes
+			Set<T> availableItemSet;
+			if (availableItems instanceof Set)
+				availableItemSet = (Set<T>)availableItems;
+			else
+				availableItemSet = new TreeSet<>(availableItems);
+			
+			List<SelectableItem<T>> items = new ArrayList<>();
+			for (T item : availableItemSet) {
+				items.add(getSelectableItem(item));
+			}
+
+			// It may be the case that this was requested on a background thread - if so, make sure the GUI is updated correctly
+			if (Platform.isFxApplicationThread()) {
+				tableFeatures.getItems().setAll(items);
+			} else {
+				Platform.runLater(() -> {
+					tableFeatures.getItems().setAll(items);
+				});
+			}
+		}
+
+
+		private Map<T, SelectableItem<T>> itemPool = new HashMap<>();
+
+
+
+		private SelectableItem<T> getSelectableItem(final T item) {
+			SelectableItem<T> feature = itemPool.get(item);
+			if (feature == null) {
+				feature = new SelectableItem<>(item);
+				itemPool.put(item, feature);
+			}
+			return feature;
+		}
+
+
+		public static class SelectableItem<T> {
+
+			private ObjectProperty<T> item = new SimpleObjectProperty<>();
+			private BooleanProperty selected = new SimpleBooleanProperty(false);
+
+			public SelectableItem(final T item) {
+				this.item.set(item);
+			}
+
+			public ReadOnlyObjectProperty<T> itemProperty() {
+				return item;
+			}
+
+			public BooleanProperty selectedProperty() {
+				return selected;
+			}
+
+			public boolean isSelected() {
+				return selected.get();
+			}
+
+			public void setSelected(final boolean selected) {
+				this.selected.set(selected);
+			}
+
+			public T getItem() {
+				return item.get();
+			}
+
 		}
 		
 	}

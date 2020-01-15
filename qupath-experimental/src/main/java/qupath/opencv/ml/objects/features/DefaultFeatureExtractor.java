@@ -19,7 +19,7 @@ class DefaultFeatureExtractor implements FeatureExtractor {
 	
 	private List<String> measurements = new ArrayList<>();
 	
-	DefaultFeatureExtractor(final List<String> measurements) {
+	DefaultFeatureExtractor(final Collection<String> measurements) {
 		this.measurements.addAll(measurements);
 	}
 	
