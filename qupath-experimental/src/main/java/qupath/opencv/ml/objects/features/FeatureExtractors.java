@@ -10,6 +10,8 @@ import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
+import qupath.opencv.ml.Normalizer;
+import qupath.opencv.ml.Preprocessing.PCAProjector;
 
 
 public class FeatureExtractors {
@@ -22,7 +24,9 @@ public class FeatureExtractors {
 		
 		private final static RuntimeTypeAdapterFactory<FeatureExtractor> featureCalculatorTypeAdapter = 
 				RuntimeTypeAdapterFactory.of(FeatureExtractor.class, typeName)
-					.registerSubtype(DefaultFeatureExtractor.class);
+					.registerSubtype(DefaultFeatureExtractor.class)
+					.registerSubtype(NormalizedFeatureExtractor.class)
+					.registerSubtype(PCAProjectFeatureExtractor.class);
 		
 		private static void registerSubtype(Class<? extends FeatureExtractor> cls) {
 			featureCalculatorTypeAdapter.registerSubtype(cls);
@@ -48,6 +52,27 @@ public class FeatureExtractors {
 	 */
 	public static FeatureExtractor createMeasurementListFeatureExtractor(List<String> measurements) {
 		return new DefaultFeatureExtractor(measurements);
+	}
+	
+	/**
+	 * Wrap an existing {@link FeatureExtractor} to apply normalization prior to returning the values.
+	 * @param extractor original (base) feature extractor
+	 * @param normalizer {@link Normalizer} to apply to initial features
+	 * @return the new {@link FeatureExtractor}
+	 */
+	public static FeatureExtractor createNormalizingFeatureExtractor(FeatureExtractor extractor, Normalizer normalizer) {
+		return new NormalizedFeatureExtractor(extractor, normalizer);
+	}
+	
+	
+	/**
+	 * Wrap an existing {@link FeatureExtractor} to apply PCA projection prior to returning the values.
+	 * @param extractor original (base) feature extractor
+	 * @param pca {@link PCAProjector} to apply to initial features
+	 * @return the new {@link FeatureExtractor}
+	 */
+	public static FeatureExtractor createPCAProjectFeatureExtractor(FeatureExtractor extractor, PCAProjector pca) {
+		return new PCAProjectFeatureExtractor(extractor, pca);
 	}
 
 }

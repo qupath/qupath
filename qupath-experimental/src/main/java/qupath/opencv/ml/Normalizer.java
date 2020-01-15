@@ -10,13 +10,13 @@ public class Normalizer {
 	
 	private double[] offsets;
 	private double[] scales;
-	private double missingValue;
+	private Double missingValue; // Use Double to simplify life with JSON serialization (lest it be NaN)
 	private transient Boolean isIdentity;
 	
 	private Normalizer(double[] offsets, double[] scales, double missingValue) {
 		if (offsets.length != scales.length)
 			throw new IllegalArgumentException("Length of offsets and scales arrays do not match!");
-		this.missingValue = missingValue;
+		this.missingValue = Double.isNaN(missingValue) ? null : missingValue;
 		this.offsets = offsets.clone();
 		this.scales = scales.clone();
 	}
@@ -32,7 +32,7 @@ public class Normalizer {
 		if (Double.isFinite(val))
 			return val;
 		else
-			return missingValue;
+			return getMissingValue();
 	}
 	
 	/**
@@ -66,7 +66,7 @@ public class Normalizer {
 	 * @return
 	 */
 	public double getMissingValue() {
-		return missingValue;
+		return missingValue == null ? Double.NaN : missingValue.doubleValue();
 	}
 	
 	public int nFeatures() {

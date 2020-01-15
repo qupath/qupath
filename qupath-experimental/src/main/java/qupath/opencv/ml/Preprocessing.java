@@ -160,6 +160,10 @@ public class Preprocessing {
 			//			System.err.println(mean.createIndexer());
 			logger.info("Reduced dimensions from {} to {}",data.cols(), eigenvectors.rows());
 		}
+		
+		public int nComponents() {
+			return eigenvectors == null ? 0 : eigenvectors.rows();
+		}
 
 		public double getRetainedVariance() {
 			return retainedVariance;

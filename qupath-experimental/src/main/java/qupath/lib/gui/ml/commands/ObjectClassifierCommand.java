@@ -23,6 +23,9 @@
 
 package qupath.lib.gui.ml.commands;
 
+import java.awt.image.BufferedImage;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -37,7 +40,11 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_ml.ANN_MLP;
 import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.RTrees;
@@ -46,9 +53,11 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -84,6 +93,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.ClassificationPieChart;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.images.ImageData;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -92,8 +102,11 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.opencv.ml.OpenCVClassifiers;
+import qupath.opencv.ml.Preprocessing;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
+import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 
 
@@ -260,6 +273,10 @@ public class ObjectClassifierCommand implements PathCommand {
 		private ReadOnlyObjectProperty<TrainingFeatures> trainingFeatures;
 
 		private ReadOnlyObjectProperty<TrainingAnnotations> trainingAnnotations;
+		
+		private ObjectProperty<Normalization> normalization = new SimpleObjectProperty<>(Normalization.NONE);
+
+		private DoubleProperty pcaRetainedVariance = new SimpleDoubleProperty(-1.0);
 
 		private OpenCVMLClassifier classifier;
 		private Set<PathClass> selectedClasses = new HashSet<>();
@@ -321,12 +338,8 @@ public class ObjectClassifierCommand implements PathCommand {
 		private void updateClassifier(boolean doClassification) {
 			
 			var filter = objectFilter.get();
-			var temp = selectedModel == null ? null : selectedModel.get();
-			if (temp == null)
-				classifier = null;
-			else
-				classifier = OpenCVMLClassifier.create(temp, objectFilter.get());
-			if (classifier == null) {
+			OpenCVStatModel statModel = selectedModel == null ? null : selectedModel.get();
+			if (statModel == null) {
 				pieChart.setData(Collections.emptyMap(), false);
 				return;
 			}
@@ -386,10 +399,14 @@ public class ObjectClassifierCommand implements PathCommand {
 			
 //			var map = PathClassificationLabellingHelper.getClassificationMap(imageData.getHierarchy(), trainFromPoints);
 			
+			// TODO: Check pcaRetainedVariance
+			var pathClasses = new ArrayList<>(map.keySet());
 			var extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
-			double pcaVariance = -1;
-			classifier.updateClassifier(map, extractor, Normalization.NONE, pcaVariance);
+			updateClassifier(statModel, imageData, map, extractor, normalization.get(), pcaRetainedVariance.get());
 			
+			classifier = OpenCVMLClassifier
+					.create(statModel, filter, extractor, pathClasses);
+						
 			var counts = new LinkedHashMap<PathClass, Integer>();
 			for (var entry : map.entrySet()) {
 				counts.put(entry.getKey(), entry.getValue().size());
@@ -404,9 +421,133 @@ public class ObjectClassifierCommand implements PathCommand {
 			
 		}
 		
+		
+		
+		private static boolean updateClassifier(
+				OpenCVStatModel classifier,
+				ImageData<BufferedImage> imageData,
+				Map<PathClass, Set<PathObject>> map, 
+				FeatureExtractor extractor,
+				Normalization normalization,
+				double pcaRetainedVariance) {
+							
+			var pathClasses = new ArrayList<>(map.keySet());
+			Collections.sort(pathClasses);
+					
+			int nFeatures = extractor.nFeatures();
+			int nSamples = map.values().stream().mapToInt(l -> l.size()).sum();
+
+			var matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
+			FloatBuffer buffer = matFeatures.createBuffer();
+			var matTargets = new Mat(nSamples, 1, opencv_core.CV_32SC1, Scalar.ZERO);
+			IntBuffer bufTargets = matTargets.createBuffer();
+
+			for (var entry : map.entrySet()) {
+				// Extract features
+				var pathClass = entry.getKey();
+				var pathObjects = entry.getValue();
+				extractor.extractFeatures(imageData, pathObjects, buffer);
+				// Update targets
+				int pathClassIndex = pathClasses.indexOf(pathClass);
+				for (int i = 0; i < pathObjects.size(); i++)
+					bufTargets.put(pathClassIndex);
+			}
+						
+			// Create & apply feature normalizer if we need one
+			// We might even if normalization isn't requested so as to fill in missing values
+			if (!(classifier.supportsMissingValues() && normalization == Normalization.NONE && pcaRetainedVariance < 0)) {
+				double missingValue = classifier.supportsMissingValues() && pcaRetainedVariance < 0 ? Double.NaN : 0.0;
+				var normalizer = Preprocessing.createNormalizer(normalization, matFeatures, missingValue);
+				Preprocessing.normalize(matFeatures, normalizer);
+				extractor = FeatureExtractors.createNormalizingFeatureExtractor(extractor, normalizer);
+			}
+			
+			// Create a PCA projector, if needed
+			if (pcaRetainedVariance > 0) {
+				var pca = Preprocessing.createPCAProjector(matFeatures, pcaRetainedVariance, true);
+				pca.project(matFeatures, matFeatures);	
+				extractor = FeatureExtractors.createPCAProjectFeatureExtractor(extractor, pca);
+			}
+			
+			// Quit now if we cancelled, before changing fields and doing the slow bits
+			if (Thread.currentThread().isInterrupted()) {
+				logger.warn("Classifier training interrupted!");
+				matFeatures.close();
+				matTargets.close();
+				return false;
+			}
+			trainClassifier(classifier, matFeatures, matTargets);
+			matFeatures.close();
+			matTargets.close();
+			return true;
+		}
+		
+		
+		static boolean trainClassifier(OpenCVStatModel classifier, Mat matFeatures, Mat matTargets) {		
+			// Train classifier
+			// TODO: Optionally limit the number of training samples we use
+			var trainData = classifier.createTrainData(matFeatures, matTargets, null);
+			classifier.train(trainData);
+			logger.info("Classifier trained with " + matFeatures.rows() + " samples and " + matFeatures.cols() + " features");
+			if (classifier instanceof RTreesClassifier) {
+				tryLoggingVariableImportance((RTreesClassifier)classifier);
+			}
+			return true;
+		}
+
+
+		static boolean tryLoggingVariableImportance(final RTreesClassifier trees) {
+			var importance = trees.getFeatureImportance();
+			if (importance == null)
+				return false;
+			var sorted = IntStream.range(0, importance.length)
+					.boxed()
+					.sorted((a, b) -> -Double.compare(importance[a], importance[b]))
+					.mapToInt(i -> i).toArray();
+
+			var sb = new StringBuilder("Variable importance:");
+			for (int ind : sorted) {
+				sb.append("\n");
+				sb.append(String.format("%.4f \t PCA %d", importance[ind], ind+1));
+			}
+			logger.info(sb.toString());
+			return true;
+		}
+		
+		
+		
+		
 		private boolean showAdvancedOptions() {
-			Dialogs.showErrorNotification("Advanced options", "Not yet implemented!");
-			return false;
+			// TODO: Add PCA options
+			
+//			int row = 0;
+//			var pane = new GridPane();
+//			
+//			var comboNormalization = new ComboBox<Normalization>();
+//			comboNormalization.getItems().setAll(Normalization.values());
+//			comboNormalization.getSelectionModel().select(normalization.get());
+//			var labelNormalization = new Label("Normalization");
+//			labelNormalization.setLabelFor(comboNormalization);
+//			
+//			PaneTools.addGridRow(pane, row++, 0,
+//					"Choose feature normalization",
+//					labelNormalization, comboNormalization);
+//
+//			var comboPCA = new ComboBox<String>();
+//			comboPCA.getItems().setAll("No PCA feature reduction", "PCA ");
+//			comboPCA.getSelectionModel().select(normalization.get());
+//			var labelNormalization = new Label("Normalization");
+//			labelNormalization.setLabelFor(comboNormalization);
+//			
+//			PaneTools.addGridRow(pane, row++, 0,
+//					"Choose feature normalization",
+//					labelNormalization, comboNormalization);
+			
+			var norm = Dialogs.showChoiceDialog("Advanced options", "Feature normalization", Normalization.values(), normalization.get());
+			if (norm == null || norm == normalization.get())
+				return false;
+			normalization.set(norm);
+			return true;
 		}
 		
 		private boolean saveAndApply() {
@@ -494,6 +635,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			comboFeatures.getSelectionModel().select(TrainingFeatures.ALL);
 			labelFeatures.setLabelFor(comboFeatures);
 			trainingFeatures = comboFeatures.getSelectionModel().selectedItemProperty();
+			trainingFeatures.addListener(v -> invalidateClassifier());
 			var btnSelectFeatures = new Button("Select");
 			btnSelectFeatures.setMaxWidth(Double.MAX_VALUE);
 			btnSelectFeatures.disableProperty().bind(
@@ -529,7 +671,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			});
 			
 			PaneTools.addGridRow(pane, row++, 0, 
-					"Choose which classes to use when training the classifier - annotations with other classifications will be ignored",
+					"Choose which classes to use when training the classifier (annotations with other classifications will be ignored)",
 					labelClasses, comboClasses, btnSelectClasses);
 			
 			/*
@@ -589,8 +731,8 @@ public class ObjectClassifierCommand implements PathCommand {
 			chart.setPrefSize(40, 40);
 			chart.setMaxSize(100, 100);
 			chart.setLegendSide(Side.RIGHT);
+			chart.setMaxWidth(Double.MAX_VALUE);
 			GridPane.setVgrow(chart, Priority.ALWAYS);
-			Tooltip.install(chart, new Tooltip("View training classes by proportion"));
 			pane.add(chart, 0, row++, pane.getColumnCount(), 1);
 			
 			// Label showing cursor location

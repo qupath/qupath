@@ -286,11 +286,11 @@ public class Dialogs {
 	/**
 	 * Show a choice dialog with an array of choices (selection from ComboBox or similar).
 	 * @param <T>
-	 * @param title
-	 * @param message
-	 * @param choices
-	 * @param defaultChoice
-	 * @return
+	 * @param title dialog title
+	 * @param message dialog prompt
+	 * @param choices array of available options
+	 * @param defaultChoice initial selected option
+	 * @return chosen option, or {@code null} if the user cancels the dialog
 	 */
 	public static <T> T showChoiceDialog(final String title, final String message, final T[] choices, final T defaultChoice) {
 		return showChoiceDialog(title, message, Arrays.asList(choices), defaultChoice);
@@ -299,11 +299,11 @@ public class Dialogs {
 	/**
 	 * Show a choice dialog with a collection of choices (selection from ComboBox or similar).
 	 * @param <T>
-	 * @param title
-	 * @param message
-	 * @param choices
-	 * @param defaultChoice
-	 * @return
+	 * @param title dialog title
+	 * @param message dialog prompt
+	 * @param choices list of available options
+	 * @param defaultChoice initial selected option
+	 * @return chosen option, or {@code null} if the user cancels the dialog
 	 */
 	@SuppressWarnings("unchecked")
 	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
