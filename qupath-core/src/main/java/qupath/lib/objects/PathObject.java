@@ -450,12 +450,32 @@ public abstract class PathObject implements Externalizable {
 	
 	/**
 	 * Total number of child objects.
-	 * <p>
-	 * Note that this is the size of the child object list - it does not check descendents recursively.
-	 * @return
+	 * Note that this is the size of the child object list - it does not check descendants recursively.
+	 * 
+	 * @return the number of direct child objects
+	 * @see #nDescendants()
 	 */
 	public int nChildObjects() {
 		return childList == null ? 0 : childList.size();
+	}
+	
+	/**
+	 * Total number of descendant objects.
+	 * This involves counting objects recursively; to get the number of direct child object only 
+	 * see {@link #nChildObjects()}.
+	 * 
+	 * @return the number of child objects, plus the number of each child object's descendants
+	 * @see #nChildObjects()
+	 */
+	public int nDescendants() {
+		if (childList == null || childList.isEmpty())
+			return 0;
+		synchronized (this) {
+			int total = 0;
+			for (var child : childList)
+				total += 1 + child.nDescendants();
+			return total;
+		}
 	}
 	
 	/**
@@ -568,6 +588,41 @@ public abstract class PathObject implements Externalizable {
 		if (cachedUnmodifiableChildren == null)
 			cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList); // Could use collection (but be careful about hashcode & equals!)
 		return cachedUnmodifiableChildren;
+	}
+	
+	/**
+	 * Get a collection containing all child objects.
+	 * 
+	 * @param children optional collection to which the children should be added
+	 * @return collection containing all child object (the same as {@code children} if provided)
+	 */
+	public synchronized Collection<PathObject> getChildObjects(Collection<PathObject> children) {
+		if (children == null)
+			return getChildObjects();
+		if (childList == null || childList.isEmpty())
+			return Collections.emptyList();
+		children.addAll(childList);
+		return children;
+	}
+	
+	/**
+	 * Get a collection containing all descendant objects.
+	 * 
+	 * @param descendants optional collection to which the descandents should be added
+	 * @return collection containing all descendant object (the same as {@code descandents} if provided)
+	 */
+	public synchronized Collection<PathObject> getDescendantObjects(Collection<PathObject> descendants) {
+		if (childList == null || childList.isEmpty())
+			return Collections.emptyList();
+		if (descendants == null)
+			descendants = new ArrayList<>();
+//		descendants.addAll(childList);
+		for (var child : childList) {
+			descendants.add(child);
+			if (child.hasChildren())
+				child.getDescendantObjects(descendants);
+		}
+		return descendants;
 	}
 	
 	/**
