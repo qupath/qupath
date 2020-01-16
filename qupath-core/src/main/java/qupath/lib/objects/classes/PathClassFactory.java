@@ -230,7 +230,7 @@ public class PathClassFactory {
 	 */
 	public static PathClass getPathClass(List<String> names) {
 		if (names.isEmpty())
-			return getPathClassUnclassified();
+			return null;//getPathClassUnclassified();
 		return getPathClass(names.get(0), names.subList(1, names.size()).toArray(String[]::new));
 	}
 	

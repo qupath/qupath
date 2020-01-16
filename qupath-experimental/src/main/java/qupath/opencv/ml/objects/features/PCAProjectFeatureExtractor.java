@@ -38,7 +38,6 @@ class PCAProjectFeatureExtractor implements FeatureExtractor {
 
 	@Override
 	public void extractFeatures(ImageData<BufferedImage> imageData, Collection<PathObject> pathObjects, FloatBuffer buffer) {
-		int n = nFeatures();
 		Mat mat = new Mat(pathObjects.size(), featureExtractor.nFeatures(), opencv_core.CV_32FC1);
 		FloatBuffer temp = mat.createBuffer();
 		featureExtractor.extractFeatures(imageData, pathObjects, temp);

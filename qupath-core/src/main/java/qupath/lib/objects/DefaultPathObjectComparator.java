@@ -87,6 +87,11 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 		if (temp != 0)
 			return temp;
 		
+		// Handle ROI location
+		temp = DefaultROIComparator.getInstance().compare(o1.getROI(), o2.getROI());
+		if (temp != 0)
+			return temp;
+		
 		// Try classifications
 		PathClass pc1 = o1.getPathClass();
 		PathClass pc2 = o2.getPathClass();
@@ -96,11 +101,6 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 			return -1;
 		if (pc2 != null)
 			return 1;
-
-		// Handle ROI location
-		temp = DefaultROIComparator.getInstance().compare(o1.getROI(), o2.getROI());
-		if (temp != 0)
-			return temp;
 		
 		// Shouldn't end up here much...
 		return 0;

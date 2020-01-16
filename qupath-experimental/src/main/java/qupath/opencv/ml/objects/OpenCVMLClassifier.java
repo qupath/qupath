@@ -21,6 +21,8 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
@@ -141,6 +143,9 @@ public class OpenCVMLClassifier {
 						GeneralTools.formatNumber((intermediateTime - startTime)/(double)nComplete, 2),
 						GeneralTools.formatNumber(nComplete * 100.0 / pathObjects.size(), 1));
 			}
+			
+			boolean doMulticlass = classifier.supportsMulticlass();
+			double threshold = 0.5;
 
 			try {
 				classifier.predict(samples, results, probabilities);
@@ -149,15 +154,42 @@ public class OpenCVMLClassifier {
 				FloatIndexer idxProbabilities = null;
 				if (!probabilities.empty())
 					idxProbabilities = probabilities.createIndexer();
-				long row = 0;
-				for (var pathObject : tempObjectList) {
-					int prediction = idxResults.get(row);
-					var pathClass = pathClasses.get(prediction);
-					if (idxProbabilities == null)
-						reclassifiers.add(new Reclassifier(pathObject, pathClass, true));
-					else
-						reclassifiers.add(new Reclassifier(pathObject, pathClass, true, idxProbabilities.get(row, prediction)));							
-					row++;
+
+				if (doMulticlass && idxProbabilities != null) {
+					// Use probabilities if we require multiclass outputs
+					long row = 0;
+					int nCols = (int)idxProbabilities.cols();
+					List<String> classifications = new ArrayList<>();
+					for (var pathObject : tempObjectList) {
+						classifications.clear();
+						for (int col = 0; col < nCols; col++) {
+							double prob = idxProbabilities.get(row, col);
+							if (prob >= threshold) {
+								var pathClass = col >= pathClasses.size() ? null : pathClasses.get(col);
+								if (pathClass != null)
+									classifications.add(pathClass.getName());
+							}
+						}
+						var pathClass = PathClassFactory.getPathClass(classifications);
+						if (PathClassTools.isIgnoredClass(pathClass))
+							pathClass = null;
+						reclassifiers.add(new Reclassifier(pathObject, pathClass, false));
+						row++;
+					}
+				} else {
+					// Use results (indexed values) if we do not require multiclass outputs
+					long row = 0;
+					for (var pathObject : tempObjectList) {
+						int prediction = idxResults.get(row);
+						var pathClass = pathClasses.get(prediction);
+						if (PathClassTools.isIgnoredClass(pathClass))
+							pathClass = null;
+						if (idxProbabilities == null)
+							reclassifiers.add(new Reclassifier(pathObject, pathClass, true));
+						else
+							reclassifiers.add(new Reclassifier(pathObject, pathClass, true, idxProbabilities.get(row, prediction)));							
+						row++;
+					}
 				}
 				idxResults.release();
 				if (idxProbabilities != null)

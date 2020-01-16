@@ -4,8 +4,10 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.controlsfx.control.action.Action;
@@ -16,6 +18,8 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
@@ -27,7 +31,9 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
@@ -68,12 +74,17 @@ public class PathClassPane {
 	
 	private Pane pane;
 	
-	/*
+	/**
 	 * List displaying available PathClasses
 	 */
 	private ListView<PathClass> listClasses;
 	
-	/*
+	/**
+	 * Filter visible classes
+	 */
+	private StringProperty filterText = new SimpleStringProperty("");
+	
+	/**
 	 * If set, request that new annotations have their classification set automatically
 	 */
 	private BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
@@ -84,9 +95,20 @@ public class PathClassPane {
 	}
 
 	
+	Predicate<PathClass> createPredicate(String text) {
+		if (text == null || text.isBlank())
+			return p -> true;
+		return (PathClass p) -> {
+			return p == null || p == PathClassFactory.getPathClassUnclassified() ||
+					p.toString().toLowerCase().contains(text);
+		};
+	}
+	
 	private Pane createClassPane() {
 		listClasses = new ListView<>();
-		listClasses.setItems(qupath.getAvailablePathClasses());
+		
+		var filteredList = qupath.getAvailablePathClasses().filtered(createPredicate(null));
+		listClasses.setItems(filteredList);
 		listClasses.setTooltip(new Tooltip("Annotation classes available (right-click to add or remove)"));
 		
 		listClasses.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateAutoSetPathClassProperty());
@@ -96,9 +118,11 @@ public class PathClassPane {
 		listClasses.getSelectionModel().select(0);
 		listClasses.setPrefSize(100, 200);
 		
+		listClasses.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		
 		listClasses.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
 			if (e.getCode() == KeyCode.BACK_SPACE) {
-				promptToRemoveSelectedClass();
+				promptToRemoveSelectedClasses();
 				e.consume();
 				return;
 			} else if (e.getCode() == KeyCode.ENTER) {
@@ -124,6 +148,8 @@ public class PathClassPane {
 			if (hierarchy == null)
 				return;
 			PathClass pathClass = getSelectedPathClass();
+			if (pathClass == PathClassFactory.getPathClassUnclassified())
+				pathClass = null;
 			var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 			List<PathObject> changed = new ArrayList<>();
 			for (PathObject pathObject : pathObjects) {
@@ -159,10 +185,16 @@ public class PathClassPane {
 		GridPane.setHgrow(btnSetClass, Priority.ALWAYS);
 		GridPane.setHgrow(btnAutoClass, Priority.ALWAYS);
 		
+		var tfFilter = new TextField();
+		tfFilter.setTooltip(new Tooltip("Filter classifications in list"));
+		filterText.bind(tfFilter.textProperty());
+		filterText.addListener((v, o, n) -> filteredList.setPredicate(createPredicate(n)));
+		var paneBottom = PaneTools.createRowGrid(tfFilter, paneClassButtons);
+		
 		PaneTools.setMaxWidth(Double.MAX_VALUE,
-				btnSetClass, btnAutoClass);
-						
-		paneClasses.setBottom(paneClassButtons);
+				btnSetClass, btnAutoClass, tfFilter);
+		
+		paneClasses.setBottom(paneBottom);
 		return paneClasses;
 	}
 	
@@ -170,7 +202,7 @@ public class PathClassPane {
 		ContextMenu menu = new ContextMenu();
 		
 		Action actionAddClass = new Action("Add class", e -> promptToAddClass());
-		Action actionRemoveClass = new Action("Remove class", e -> promptToRemoveSelectedClass());
+		Action actionRemoveClass = new Action("Remove class", e -> promptToRemoveSelectedClasses());
 		Action actionResetClasses = new Action("Reset to default classes", e -> promptToResetClasses());
 		Action actionImportClasses = new Action("Import classes from project", e -> promptToImportClasses());
 
@@ -190,8 +222,8 @@ public class PathClassPane {
 //		MenuItem miPopulateFromImage = ActionUtils.createMenuItem(actionPopulateFromImage);
 //		MenuItem miPopulateFromImageBase = ActionUtils.createMenuItem(actionPopulateFromImageBase);
 		
-		MenuItem miClearAllClasses = new MenuItem("Clear all classes");
-		miClearAllClasses.setOnAction(e -> promptToClearClasses());
+//		MenuItem miClearAllClasses = new MenuItem("Clear all classes");
+//		miClearAllClasses.setOnAction(e -> promptToClearClasses());
 
 		MenuItem miPopulateFromImage = new MenuItem("All classes (including sub-classes)");
 		miPopulateFromImage.setOnAction(e -> promptToPopulateFromImage(false));
@@ -218,31 +250,34 @@ public class PathClassPane {
 			var hierarchy = getHierarchy();
 			if (hierarchy == null)
 				return;
-			PathClass pathClass = getSelectedPathClass();
-//			if (pathClass == null)
-//				return;
-			if (pathClass == PathClassFactory.getPathClassUnclassified())
-				pathClass = null;
-			PathClass pathClass2 = pathClass;
+			Set<PathClass> pathClasses = new HashSet<>(getSelectedPathClasses());
+			if (pathClasses.contains(PathClassFactory.getPathClassUnclassified()))
+				pathClasses.add(null);
 			List<PathObject> pathObjectsToSelect = hierarchy.getObjects(null, null)
 					.stream()
-					.filter(p -> !p.isRootObject() && p.getPathClass() == pathClass2)
+					.filter(p -> !p.isRootObject() && pathClasses.contains(p.getPathClass()))
 					.collect(Collectors.toList());
 			if (pathObjectsToSelect.isEmpty())
 				hierarchy.getSelectionModel().clearSelection();
 			else
-				hierarchy.getSelectionModel().setSelectedObjects(pathObjectsToSelect, pathObjectsToSelect.get(0));
+				hierarchy.getSelectionModel().setSelectedObjects(pathObjectsToSelect, null);
 		});		
 
-		MenuItem miToggleClassVisible = new MenuItem("Toggle display class");
-		miToggleClassVisible.setOnAction(e -> {
-			PathClass pathClass = getSelectedPathClass();
-			if (pathClass == null)
-				return;
-			OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
-			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
-			listClasses.refresh();
-		});
+		MenuItem miSetHidden = new MenuItem("Hide classes in viewer");
+		miSetHidden.setOnAction(e -> setSelectedClassesVisibility(false));
+		MenuItem miSetVisible = new MenuItem("Show classes in viewer");
+		miSetVisible.setOnAction(e -> setSelectedClassesVisibility(true));
+		
+//		MenuItem miToggleClassVisible = new MenuItem("Toggle display class");
+//		miToggleClassVisible.setOnAction(e -> {
+//			OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
+//			for (var pathClass : getSelectedPathClasses()) {
+//				if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+//					continue;
+//				overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
+//			}
+//			listClasses.refresh();
+//		});
 		
 		menu.setOnShowing(e -> {
 			var hierarchy = getHierarchy();
@@ -250,6 +285,12 @@ public class PathClassPane {
 			miPopulateFromImage.setDisable(hierarchy == null);
 			miPopulateFromImageBase.setDisable(hierarchy == null);
 			miPopulateFromChannels.setDisable(qupath.getImageData() == null);
+			var selected = getSelectedPathClasses();
+			boolean hasClasses = selected.size() > 1 || 
+					(selected.size() == 1 && selected.get(0) != null && selected.get(0) != PathClassFactory.getPathClassUnclassified());
+			miSetVisible.setDisable(!hasClasses);
+			miSetHidden.setDisable(!hasClasses);
+//			miRemoveClass.setDisable(!hasClasses);
 		});
 		
 		MenuItem miImportFromProject = ActionUtils.createMenuItem(actionImportClasses);
@@ -258,11 +299,13 @@ public class PathClassPane {
 				miAddClass,
 				miRemoveClass,
 				miResetAllClasses,
-				miClearAllClasses,
+//				miClearAllClasses,
 				menuPopulate,
 				miImportFromProject,
 				new SeparatorMenuItem(),
-				miToggleClassVisible,
+				miSetHidden,
+				miSetVisible,
+//				miToggleClassVisible,
 				new SeparatorMenuItem(),
 				miSelectObjects);
 		
@@ -270,12 +313,22 @@ public class PathClassPane {
 	}
 	
 	
+	void setSelectedClassesVisibility(boolean visible) {
+		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
+		for (var pathClass : getSelectedPathClasses()) {
+			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+				continue;
+			overlayOptions.setPathClassHidden(pathClass, !visible);
+		}
+		listClasses.refresh();
+	}
+	
 	void updateAutoSetPathClassProperty() {
 		PathClass pathClass = null;
 		if (doAutoSetPathClass.get()) {
 			pathClass = getSelectedPathClass();
 		}
-		if (pathClass == null || !pathClass.isValid())
+		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
 			PathPrefs.setAutoSetAnnotationClass(null);
 		else
 			PathPrefs.setAutoSetAnnotationClass(pathClass);
@@ -561,32 +614,41 @@ public class PathClassPane {
 	 * 
 	 * @return true if changes were made to the class list, false otherwise
 	 */
-	boolean promptToRemoveSelectedClass() {
-		PathClass pathClass = getSelectedPathClass();
-		if (pathClass == null)
+	boolean promptToRemoveSelectedClasses() {
+		List<PathClass> pathClasses = getSelectedPathClasses()
+				.stream()
+				.filter(p -> p != null && p != PathClassFactory.getPathClassUnclassified())
+				.collect(Collectors.toList());
+		if (pathClasses.isEmpty())
 			return false;
-		if (pathClass == PathClassFactory.getPathClassUnclassified()) {
-			Dialogs.showErrorMessage("Remove class", "Cannot remove selected class");
-			return false;
-		}
-		if (Dialogs.showConfirmDialog("Remove class", "Remove '" + pathClass.getName() + "' from class list?"))
-			return listClasses.getItems().remove(pathClass);
+		String message;
+		if (pathClasses.size() == 1)
+			message = "Remove '" + pathClasses.get(0).toString() + "' from class list?";
+		else
+			message = "Remove " + pathClasses.size() + " classes from list?";
+		if (Dialogs.showConfirmDialog("Remove classes", message))
+			return listClasses.getItems().removeAll(pathClasses);
 		return false;
 	}
 	
 	
 	/**
 	 * Get the currently-selected PathClass.
-	 * 
-	 * This intercepts the 'null' class used to represent no classification.
-	 * 
 	 * @return
 	 */
 	PathClass getSelectedPathClass() {
-		PathClass pathClass = listClasses.getSelectionModel().getSelectedItem();
-		if (pathClass == null || pathClass.getName() == null)
-			return null;
-		return pathClass;
+		return listClasses.getSelectionModel().getSelectedItem();
+	}
+	
+	/**
+	 * Get the currently-selected PathClasses.
+	 * @return
+	 */
+	List<PathClass> getSelectedPathClasses() {
+		return listClasses.getSelectionModel().getSelectedItems()
+				.stream()
+				.map(p -> p.getName() == null ? null : p)
+				.collect(Collectors.toList());
 	}
 	
 	

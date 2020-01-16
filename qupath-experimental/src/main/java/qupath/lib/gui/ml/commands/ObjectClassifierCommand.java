@@ -42,6 +42,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
@@ -55,6 +56,7 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -283,6 +285,10 @@ public class ObjectClassifierCommand implements PathCommand {
 		
 		private Set<String> selectedMeasurements = new LinkedHashSet<>();
 		
+		/**
+		 * Request that multiclass classification is used where possible
+		 */
+		private ReadOnlyBooleanProperty doMulticlass = new SimpleBooleanProperty(true);
 		
 		/**
 		 * Text relevant to the current cursor location when over a viewer
@@ -408,7 +414,8 @@ public class ObjectClassifierCommand implements PathCommand {
 					map,
 					extractor,
 					normalization.get(),
-					pcaRetainedVariance.get());
+					pcaRetainedVariance.get(),
+					doMulticlass.get() && statModel.supportsMulticlass());
 			
 			classifier = OpenCVMLClassifier
 					.create(statModel, filter, extractor, pathClasses);
@@ -445,28 +452,61 @@ public class ObjectClassifierCommand implements PathCommand {
 				Map<PathClass, Set<PathObject>> map, 
 				FeatureExtractor extractor,
 				Normalization normalization,
-				double pcaRetainedVariance) {
+				double pcaRetainedVariance,
+				boolean doMulticlass) {
 							
 			var pathClasses = new ArrayList<>(map.keySet());
 			Collections.sort(pathClasses);
 					
 			int nFeatures = extractor.nFeatures();
 			int nSamples = map.values().stream().mapToInt(l -> l.size()).sum();
+			int nClasses = pathClasses.size();
+			
+			Mat matTargets;
+			Mat matFeatures;
+			if (doMulticlass) {
+				// For multiclass, it's quite likely we have samples represented more than once
+				var sampleSet = new LinkedHashSet<PathObject>();
+				for (var entry : map.entrySet()) {
+					sampleSet.addAll(entry.getValue());
+				}
+				nSamples = sampleSet.size();
+				
+				matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
+				FloatBuffer buffer = matFeatures.createBuffer();
+				matTargets = new Mat(nSamples, nClasses, opencv_core.CV_8UC1, Scalar.ZERO);
+				UByteIndexer idxTargets = matTargets.createIndexer();
+				
+				extractor.extractFeatures(imageData, sampleSet, buffer);
+				
+				int row = 0;
+				for (var sample : sampleSet) {
+					for (int col = 0; col < nClasses; col++) {
+						var pathClass = pathClasses.get(col);
+						if (map.get(pathClass).contains(sample)) {
+							idxTargets.put(row, col, 1);
+						}
+					}
+					row++;
+				}
+				idxTargets.release();				
+			} else {
+				matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
+				FloatBuffer buffer = matFeatures.createBuffer();
 
-			var matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
-			FloatBuffer buffer = matFeatures.createBuffer();
-			var matTargets = new Mat(nSamples, 1, opencv_core.CV_32SC1, Scalar.ZERO);
-			IntBuffer bufTargets = matTargets.createBuffer();
+				matTargets = new Mat(nSamples, 1, opencv_core.CV_32SC1, Scalar.ZERO);
+				IntBuffer bufTargets = matTargets.createBuffer();
 
-			for (var entry : map.entrySet()) {
-				// Extract features
-				var pathClass = entry.getKey();
-				var pathObjects = entry.getValue();
-				extractor.extractFeatures(imageData, pathObjects, buffer);
-				// Update targets
-				int pathClassIndex = pathClasses.indexOf(pathClass);
-				for (int i = 0; i < pathObjects.size(); i++)
-					bufTargets.put(pathClassIndex);
+				for (var entry : map.entrySet()) {
+					// Extract features
+					var pathClass = entry.getKey();
+					var pathObjects = entry.getValue();
+					extractor.extractFeatures(imageData, pathObjects, buffer);
+					// Update targets
+					int pathClassIndex = pathClasses.indexOf(pathClass);
+					for (int i = 0; i < pathObjects.size(); i++)
+						bufTargets.put(pathClassIndex);
+				}
 			}
 						
 			// Create & apply feature normalizer if we need one
@@ -492,27 +532,30 @@ public class ObjectClassifierCommand implements PathCommand {
 				matTargets.close();
 				return null;
 			}
-			trainClassifier(classifier, matFeatures, matTargets);
+			
+			// TODO: Support turning multiclass on/off
+			trainClassifier(classifier, matFeatures, matTargets, doMulticlass);
+			
+			if (classifier instanceof RTreesClassifier) {
+				tryLoggingVariableImportance((RTreesClassifier)classifier, extractor);
+			}
+
 			matFeatures.close();
 			matTargets.close();
 			return extractor;
 		}
-		
-		
-		static boolean trainClassifier(OpenCVStatModel classifier, Mat matFeatures, Mat matTargets) {		
+				
+		static boolean trainClassifier(OpenCVStatModel classifier, Mat matFeatures, Mat matTargets, boolean doMulticlass) {		
 			// Train classifier
 			// TODO: Optionally limit the number of training samples we use
-			var trainData = classifier.createTrainData(matFeatures, matTargets, null);
+			var trainData = classifier.createTrainData(matFeatures, matTargets, null, doMulticlass);
 			classifier.train(trainData);
 			logger.info("Classifier trained with " + matFeatures.rows() + " samples and " + matFeatures.cols() + " features");
-			if (classifier instanceof RTreesClassifier) {
-				tryLoggingVariableImportance((RTreesClassifier)classifier);
-			}
 			return true;
 		}
 
 
-		static boolean tryLoggingVariableImportance(final RTreesClassifier trees) {
+		static boolean tryLoggingVariableImportance(final RTreesClassifier trees, final FeatureExtractor extractor) {
 			var importance = trees.getFeatureImportance();
 			if (importance == null)
 				return false;
@@ -521,10 +564,11 @@ public class ObjectClassifierCommand implements PathCommand {
 					.sorted((a, b) -> -Double.compare(importance[a], importance[b]))
 					.mapToInt(i -> i).toArray();
 
+			var names = extractor.getFeatureNames();
 			var sb = new StringBuilder("Variable importance:");
 			for (int ind : sorted) {
 				sb.append("\n");
-				sb.append(String.format("%.4f \t PCA %d", importance[ind], ind+1));
+				sb.append(String.format("%.4f \t %s", importance[ind], names.get(ind)));
 			}
 			logger.info(sb.toString());
 			return true;
@@ -627,6 +671,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			comboClassifier.getItems().addAll(
 					OpenCVClassifiers.createStatModel(RTrees.class),
 					OpenCVClassifiers.createStatModel(ANN_MLP.class),
+					OpenCVClassifiers.createMulticlassStatModel(ANN_MLP.class),
 					OpenCVClassifiers.createStatModel(KNearest.class)
 					);
 			labelClassifier.setLabelFor(comboClassifier);

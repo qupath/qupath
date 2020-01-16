@@ -42,6 +42,8 @@ import qupath.opencv.ml.Preprocessing.PCAProjector;
  */
 public class OpenCVClassifiers {
 	
+	private static final Logger logger = LoggerFactory.getLogger(OpenCVClassifiers.class);
+	
 	public static class FeaturePreprocessor {
 		
 		private Normalizer normalizer;
@@ -144,6 +146,14 @@ public class OpenCVClassifiers {
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
 	
+	public static OpenCVStatModel createMulticlassStatModel(Class<? extends StatModel> cls) {		
+		if (ANN_MLP.class.equals(cls))
+			return new MulticlassANNClassifierCV();
+		
+		throw new IllegalArgumentException("Unknown StatModel class " + cls);
+	}
+
+	
 	
 	public static OpenCVStatModel wrapStatModel(StatModel statModel) {
 		var cls = statModel.getClass();
@@ -185,20 +195,66 @@ public class OpenCVClassifiers {
 	@JsonAdapter(OpenCVClassifierTypeAdapter.class)
 	public static abstract class OpenCVStatModel {
 		
+		/**
+		 * Classifier can handle missing (NaN) values
+		 * @return true if NaNs are supported, false otherwise
+		 */
 		public abstract boolean supportsMissingValues();
 		
+		/**
+		 * User-friendly, readable name for the classifier
+		 * @return the classifier name
+		 */
 		public abstract String getName();
 		
+		/**
+		 * Classifier has already been trained and is ready to predict.
+		 * @return true if the classifier is trained, false otherwise
+		 */
 		public abstract boolean isTrained();
 		
+		/**
+		 * Classifier is able to handle more than one outputs for a single sample.
+		 * @return true if multiclass clasification is supported, false otherwise
+		 */
+		public abstract boolean supportsMulticlass();
+		
+		/**
+		 * Classifier can be trained interactively  (i.e. quickly).
+		 * @return true if interactive classification is supported, false otherwise
+		 */
 		public abstract boolean supportsAutoUpdate();
 		
+		/**
+		 * Classifier can output a prediction confidence (expressed between 0 and 1), 
+		 * so may be interpreted as a probability... even if it isn't necessarily one.
+		 * @return true if (pseudo-)probabilities can be provided
+		 */
 		public abstract boolean supportsProbabilities();
 		
+		/**
+		 * Retrieve a list of adjustable parameter that can be used to customize the classifier.
+		 * After making changes to the {@link ParameterList}, the classifier should be retrained 
+		 * before being used.
+		 * @return the parameter list for this classifier
+		 */
 		public abstract ParameterList getParameterList();
 				
-		public abstract TrainData createTrainData(Mat samples, Mat targets, Mat weights);
+		/**
+		 * Create training data in the format required by this classifier.
+		 * @param samples
+		 * @param targets
+		 * @param weights optional weights
+		 * @return
+		 * @see #train(TrainData)
+		 */
+		public abstract TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass);
 		
+		/**
+		 * Train the classifier using data in an appropriate format.
+		 * @param trainData
+		 * @see #createTrainData(Mat, Mat, Mat, boolean)
+		 */
 		public abstract void train(TrainData trainData);
 
 		/**
@@ -269,6 +325,17 @@ public class OpenCVClassifiers {
 			params = createParameterList(model);
 		}
 		
+		/**
+		 * Returns false (the default value).
+		 */
+		@Override
+		public boolean supportsMulticlass() {
+			return false;
+		}
+		
+		/**
+		 * Returns true (the default value).
+		 */
 		@Override
 		public boolean supportsAutoUpdate() {
 			return true;
@@ -307,7 +374,9 @@ public class OpenCVClassifiers {
 		}
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets, Mat weights) {
+		public TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass) {
+			if (doMulticlass && !supportsMulticlass())
+				logger.warn("Multiclass classification requested, but not supported");
 			if (useUMat()) {
 				UMat uSamples = samples.getUMat(opencv_core.ACCESS_READ);
 				UMat uTargets = targets.getUMat(opencv_core.ACCESS_READ);
@@ -907,9 +976,9 @@ public class OpenCVClassifiers {
 		}
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets, Mat weights) {
+		public TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass) {
 			targets.convertTo(targets, opencv_core.CV_32F);
-			return super.createTrainData(samples, targets, weights);
+			return super.createTrainData(samples, targets, weights, doMulticlass);
 		}
 
 		@Override
@@ -1300,23 +1369,42 @@ public class OpenCVClassifiers {
 
 		
 		@Override
-		public TrainData createTrainData(Mat samples, Mat targets, Mat weights) {
-			
-			IntBuffer buffer = targets.createBuffer();
-			int[] vals = new int[targets.rows()];
-			buffer.get(vals);
-			int max = Arrays.stream(vals).max().orElseGet(() -> 0) + 1;
-			var targets2 = new Mat(targets.rows(), max, opencv_core.CV_32FC1, Scalar.all(-1.0));
-			FloatIndexer idxTargets = targets2.createIndexer();
-			int row = 0;
-			for (var v : vals) {
-				idxTargets.put(row, v, 1f);
-				row++;
+		public TrainData createTrainData(Mat samples, Mat targets, Mat weights, boolean doMulticlass) {
+			if (doMulticlass) {
+				var indexer = targets.createIndexer();
+				var targets2 = new Mat(targets.rows(), targets.cols(), opencv_core.CV_32FC1, Scalar.all(-1.0));
+				FloatIndexer idxTargets = targets2.createIndexer();
+				int nRows = targets.rows();
+				int nCols = targets.cols();
+				long[] inds = new long[2];
+				for (int r = 0; r < nRows; r++) {
+					for (int c = 0; c < nCols; c++) {
+						inds[0] = r;
+						inds[1] = c;
+						double val = indexer.getDouble(inds);
+						if (val > 0)
+							idxTargets.put(inds, 1f);
+					}
+				}
+				targets.put(targets2);
+				targets2.close();
+			} else {
+				IntBuffer buffer = targets.createBuffer();
+				int[] vals = new int[targets.rows()];
+				buffer.get(vals);
+				int max = Arrays.stream(vals).max().orElseGet(() -> 0) + 1;
+				var targets2 = new Mat(targets.rows(), max, opencv_core.CV_32FC1, Scalar.all(-1.0));
+				FloatIndexer idxTargets = targets2.createIndexer();
+				int row = 0;
+				for (var v : vals) {
+					idxTargets.put(row, v, 1f);
+					row++;
+				}
+				targets.put(targets2);
+				targets2.close();
 			}
-			targets.put(targets2);
-			targets2.close();
 			
-			return super.createTrainData(samples, targets, weights);
+			return super.createTrainData(samples, targets, weights, doMulticlass);
 		}
 		
 		
@@ -1412,6 +1500,23 @@ public class OpenCVClassifiers {
 			model.setTermCriteria(updateTermCriteria(params, model.getTermCriteria()));
 			
 			logger.info("Initializing with layer sizes: " + GeneralTools.arrayToString(Locale.getDefault(), layers, 0));
+		}
+		
+	}
+	
+	/**
+	 * A multiclass version of ANN.
+	 */
+	static class MulticlassANNClassifierCV extends ANNClassifierCV {
+		
+		@Override
+		public boolean supportsMulticlass() {
+			return true;
+		}
+		
+		@Override
+		public String getName() {
+			return "ANN MLP (Multiclass)";
 		}
 		
 	}
