@@ -1986,17 +1986,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				getActionCheckBoxMenuItem(GUIActions.ZOOM_TO_FIT, null)
 				);
 		
+		ToggleGroup groupTools = new ToggleGroup();
 		Menu menuTools = MenuTools.createMenu(
 				"Set tool",
-				getActionCheckBoxMenuItem(GUIActions.MOVE_TOOL, null),
-				getActionCheckBoxMenuItem(GUIActions.RECTANGLE_TOOL, null),
-				getActionCheckBoxMenuItem(GUIActions.ELLIPSE_TOOL, null),
-				getActionCheckBoxMenuItem(GUIActions.LINE_TOOL, null),
-				getActionCheckBoxMenuItem(GUIActions.POLYGON_TOOL, null),
-				getActionCheckBoxMenuItem(GUIActions.POLYLINE_TOOL, null),
-				getActionCheckBoxMenuItem(GUIActions.BRUSH_TOOL, null),
-				getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, null),
-				getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, null)
+				getActionCheckBoxMenuItem(GUIActions.MOVE_TOOL, groupTools),
+				getActionCheckBoxMenuItem(GUIActions.RECTANGLE_TOOL, groupTools),
+				getActionCheckBoxMenuItem(GUIActions.ELLIPSE_TOOL, groupTools),
+				getActionCheckBoxMenuItem(GUIActions.LINE_TOOL, groupTools),
+				getActionCheckBoxMenuItem(GUIActions.POLYGON_TOOL, groupTools),
+				getActionCheckBoxMenuItem(GUIActions.POLYLINE_TOOL, groupTools),
+				getActionCheckBoxMenuItem(GUIActions.BRUSH_TOOL, groupTools),
+				getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, groupTools),
+				getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, groupTools)
 				);
 
 		
@@ -3465,7 +3466,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 
 	private static Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final Node icon, final KeyCombination accelerator) {
-		Action action = new Action(name, e -> command.setSelected(!command.isSelected()));
+		Action action = new Action(name, e -> command.setSelected(true));
 		action.selectedProperty().addListener(e -> {
 			command.setSelected(action.isSelected());
 		});
