@@ -47,6 +47,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -150,11 +151,7 @@ public class PathClassPane {
 		ToggleButton btnAutoClass = ActionUtils.createToggleButton(autoClassifyAnnotationsAction);
 		
 		// Create a button to show context menu (makes it more obvious to the user that it exists)
-		Button btnMore = new Button("\u22EE");
-		btnMore.setTooltip(new Tooltip("More options"));
-		btnMore.setOnAction(e -> {
-			menuClasses.show(btnMore, Side.RIGHT, 0, 0);
-		});
+		Button btnMore = GuiTools.createMoreButton(menuClasses, Side.RIGHT);
 		GridPane paneClassButtons = new GridPane();
 		paneClassButtons.add(btnSetClass, 0, 0);
 		paneClassButtons.add(btnAutoClass, 1, 0);
@@ -192,13 +189,22 @@ public class PathClassPane {
 		MenuItem miResetAllClasses = ActionUtils.createMenuItem(actionResetClasses);
 //		MenuItem miPopulateFromImage = ActionUtils.createMenuItem(actionPopulateFromImage);
 //		MenuItem miPopulateFromImageBase = ActionUtils.createMenuItem(actionPopulateFromImageBase);
+		
+		MenuItem miClearAllClasses = new MenuItem("Clear all classes");
+		miClearAllClasses.setOnAction(e -> promptToClearClasses());
 
 		MenuItem miPopulateFromImage = new MenuItem("All classes (including sub-classes)");
 		miPopulateFromImage.setOnAction(e -> promptToPopulateFromImage(false));
 		MenuItem miPopulateFromImageBase = new MenuItem("Base classes only");
 		miPopulateFromImageBase.setOnAction(e -> promptToPopulateFromImage(true));
+		
+		MenuItem miPopulateFromChannels = new MenuItem("Image channel names");
+		miPopulateFromChannels.setOnAction(e -> promptToPopulateFromChannels());
+
 		Menu menuPopulate = new Menu("Populate from image");
-		menuPopulate.getItems().addAll(miPopulateFromImageBase, miPopulateFromImage);
+		menuPopulate.getItems().addAll(
+				miPopulateFromImageBase, miPopulateFromImage,
+				new SeparatorMenuItem(), miPopulateFromChannels);
 
 		MenuItem miSelectObjects = new MenuItem("Select objects with class");
 		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
@@ -243,6 +249,7 @@ public class PathClassPane {
 			menuPopulate.setDisable(hierarchy == null);
 			miPopulateFromImage.setDisable(hierarchy == null);
 			miPopulateFromImageBase.setDisable(hierarchy == null);
+			miPopulateFromChannels.setDisable(qupath.getImageData() == null);
 		});
 		
 		MenuItem miImportFromProject = ActionUtils.createMenuItem(actionImportClasses);
@@ -250,8 +257,9 @@ public class PathClassPane {
 		menu.getItems().addAll(
 				miAddClass,
 				miRemoveClass,
-				menuPopulate,
 				miResetAllClasses,
+				miClearAllClasses,
+				menuPopulate,
 				miImportFromProject,
 				new SeparatorMenuItem(),
 				miToggleClassVisible,
@@ -277,6 +285,61 @@ public class PathClassPane {
 		var imageData = qupath.getImageData();
 		return imageData == null ? null : imageData.getHierarchy();
 	}
+	
+	/**
+	 * Prompt to populate available class list from the channels of the current {@link ImageServer}.
+	 * @return true if the class list was changed, false otherwise.
+	 */
+	boolean promptToPopulateFromChannels() {
+		var imageData = qupath.getImageData();
+		if (imageData == null)
+			return false;
+		
+		var server = imageData.getServer();
+		List<PathClass> newClasses = new ArrayList<>();
+		for (var channel : server.getMetadata().getChannels()) {
+			newClasses.add(PathClassFactory.getPathClass(channel.getName(), channel.getColor()));
+		}
+		if (newClasses.isEmpty()) {
+			Dialogs.showErrorMessage("Set available classes", "No channels found, somehow!");
+			return false;
+		}
+		
+		List<PathClass> currentClasses = new ArrayList<>(qupath.getAvailablePathClasses());
+		currentClasses.remove(null);
+		if (currentClasses.equals(newClasses)) {
+			Dialogs.showInfoNotification("Set available classes", "Class lists are the same - no changes to make!");
+			return false;
+		}
+		
+		var btn = DialogButton.YES;
+		if (qupath.getAvailablePathClasses().size() > 1)
+			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
+		if (btn == DialogButton.YES) {
+			newClasses.removeAll(qupath.getAvailablePathClasses());
+			return qupath.getAvailablePathClasses().addAll(newClasses);
+		} else if (btn == DialogButton.NO) {
+			newClasses.add(0, PathClassFactory.getPathClassUnclassified());
+			return qupath.getAvailablePathClasses().setAll(newClasses);
+		} else
+			return false;
+	}
+	
+	/**
+	 * Prompt to remove all available classifications ('null' remains)
+	 * @return true if the class list was changed, false otherwise.
+	 */
+	boolean promptToClearClasses() {
+		var available = qupath.getAvailablePathClasses();
+		if (available.isEmpty() || (available.size() == 1 && available.get(0) == PathClassFactory.getPathClassUnclassified()))
+			return false;
+		if (Dialogs.showConfirmDialog("Remove classifications", "Remove all available classes?")) {
+			available.setAll(PathClassFactory.getPathClassUnclassified());
+			return true;
+		} else
+			return false;
+	}
+	
 	
 	/**
 	 * Prompt to populate available class list from the current image.
@@ -309,7 +372,9 @@ public class PathClassPane {
 			return false;
 		}
 		
-		var btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
+		var btn = DialogButton.YES;
+		if (qupath.getAvailablePathClasses().size() > 1)
+			btn = Dialogs.showYesNoCancelDialog("Set available classes", "Keep existing available classes?");
 		if (btn == DialogButton.YES) {
 			newClasses.removeAll(qupath.getAvailablePathClasses());
 			return qupath.getAvailablePathClasses().addAll(newClasses);

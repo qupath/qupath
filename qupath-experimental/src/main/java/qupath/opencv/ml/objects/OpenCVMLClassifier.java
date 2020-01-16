@@ -78,7 +78,7 @@ public class OpenCVMLClassifier {
 		this.filter = filter;
 		this.featureExtractor = extractor;
 		this.pathClasses = new ArrayList<>(pathClasses);
-		this.timestamp = timestamp;
+		this.timestamp = System.currentTimeMillis();
 	}
 	
 	public static OpenCVMLClassifier create(OpenCVStatModel model, PathObjectFilter filter
@@ -91,13 +91,6 @@ public class OpenCVMLClassifier {
 	}
 	
 		
-	void extractAndNormalizeFeatures(ImageData<BufferedImage> imageData, List<PathObject> pathObjects, Mat features) {
-		features.create(pathObjects.size(), featureExtractor.nFeatures(), opencv_core.CV_32FC1);
-		FloatBuffer buffer = features.createBuffer();
-		featureExtractor.extractFeatures(imageData, pathObjects, buffer);
-	}
-	
-	
 	public int classifyObjects(ImageData<BufferedImage> imageData) {
 		var pathObjects = imageData.getHierarchy().getFlattenedObjectList(null);
 		if (filter != null)
@@ -134,7 +127,10 @@ public class OpenCVMLClassifier {
 				logger.warn("Classification interrupted - will not be applied");
 				return 0;
 			}
-			extractAndNormalizeFeatures(imageData, tempObjectList, samples);
+			
+			samples.create(pathObjects.size(), featureExtractor.nFeatures(), opencv_core.CV_32FC1);
+			FloatBuffer buffer = samples.createBuffer();
+			featureExtractor.extractFeatures(imageData, pathObjects, buffer);
 			
 			// Possibly log time taken
 			nComplete += tempObjectList.size();

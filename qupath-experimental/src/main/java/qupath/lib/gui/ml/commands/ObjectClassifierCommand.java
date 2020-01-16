@@ -402,7 +402,13 @@ public class ObjectClassifierCommand implements PathCommand {
 			// TODO: Check pcaRetainedVariance
 			var pathClasses = new ArrayList<>(map.keySet());
 			var extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
-			updateClassifier(statModel, imageData, map, extractor, normalization.get(), pcaRetainedVariance.get());
+			extractor = updateFeatureExtractorAndTrainClassifier(
+					statModel,
+					imageData,
+					map,
+					extractor,
+					normalization.get(),
+					pcaRetainedVariance.get());
 			
 			classifier = OpenCVMLClassifier
 					.create(statModel, filter, extractor, pathClasses);
@@ -422,8 +428,18 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 		
-		
-		private static boolean updateClassifier(
+		/**
+		 * Train a feature extractor and classifier.
+		 * @param classifier
+		 * @param imageData
+		 * @param map
+		 * @param extractor
+		 * @param normalization
+		 * @param pcaRetainedVariance
+		 * @return the updated feature extractor, with any normalization/PCA reduction incorporated, 
+		 * or null if the training was unsuccessful (e.g. it was interrupted)
+		 */
+		private static FeatureExtractor updateFeatureExtractorAndTrainClassifier(
 				OpenCVStatModel classifier,
 				ImageData<BufferedImage> imageData,
 				Map<PathClass, Set<PathObject>> map, 
@@ -474,12 +490,12 @@ public class ObjectClassifierCommand implements PathCommand {
 				logger.warn("Classifier training interrupted!");
 				matFeatures.close();
 				matTargets.close();
-				return false;
+				return null;
 			}
 			trainClassifier(classifier, matFeatures, matTargets);
 			matFeatures.close();
 			matTargets.close();
-			return true;
+			return extractor;
 		}
 		
 		

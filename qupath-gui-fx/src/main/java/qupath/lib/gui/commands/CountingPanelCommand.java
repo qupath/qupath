@@ -246,7 +246,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		dialog = new Stage();
 		dialog.setTitle("Counting");
 		
-		countingPanel = new CountingPanel(hierarchy);
+		countingPanel = new CountingPanel(qupath, hierarchy);
 //		countingPanel.setSize(countingPanel.getPreferredSize());
 		BorderPane pane = new BorderPane();
 		
@@ -255,6 +255,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 			pane.setTop(toolbar);
 		pane.setCenter(countingPanel.getPane());
 		Pane panelButtons = makeButtonPanel();
+		panelButtons.setPadding(new Insets(5, 0, 0, 0));
 		if (panelButtons != null)
 			pane.setBottom(panelButtons);
 		

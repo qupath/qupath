@@ -179,11 +179,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		btnDelete.setTooltip(new Tooltip("Delete all selected objects"));
 
 		// Create a button to show context menu (makes it more obvious to the user that it exists)
-		Button btnMore = new Button("\u22EE");
-		btnMore.setTooltip(new Tooltip("More options"));
-		btnMore.setOnAction(e -> {
-			menuAnnotations.show(btnMore, Side.RIGHT, 0, 0);
-		});
+		Button btnMore = GuiTools.createMoreButton(menuAnnotations, Side.RIGHT);
 		GridPane panelButtons = new GridPane();
 		panelButtons.add(btnSelectAll, 0, 0);
 		panelButtons.add(btnDelete, 1, 0);

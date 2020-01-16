@@ -19,9 +19,11 @@ import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ColorPicker;
@@ -76,6 +78,29 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class GuiTools {
+	
+	/**
+	 * Vertical ellipsis, which can be used to indicate a 'more' button.
+	 */
+	private static String MORE_ELLIPSIS = "\u22EE";
+	
+	/**
+	 * Create a {@link Button} with a standardized icon and tooltip text to indicate 'More', 
+	 * which triggers a {@link ContextMenu} when clicked.
+	 * 
+	 * @param menu context menu to display on click
+	 * @param side preferred side at which the context menu should be displayed
+	 * @return an initialized button with icon, tooltip and onAction event to trigger the context menu.
+	 */
+	public static Button createMoreButton(ContextMenu menu, Side side) {
+		Button btnMore = new Button(MORE_ELLIPSIS);
+		btnMore.setTooltip(new Tooltip("More options"));
+		btnMore.setOnAction(e -> {
+			menu.show(btnMore, side, 0, 0);
+		});
+		return btnMore;
+	}
+	
 	
 	/**
 	 * Kinds of snapshot image that can be created for QuPath.
