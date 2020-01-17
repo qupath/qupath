@@ -186,7 +186,7 @@ public class PathClassPane {
 		GridPane.setHgrow(btnAutoClass, Priority.ALWAYS);
 		
 		var tfFilter = new TextField();
-		tfFilter.setTooltip(new Tooltip("Filter classifications in list"));
+		tfFilter.setTooltip(new Tooltip("Type to filter classifications in list"));
 		filterText.bind(tfFilter.textProperty());
 		filterText.addListener((v, o, n) -> filteredList.setPredicate(createPredicate(n)));
 		var paneBottom = PaneTools.createRowGrid(tfFilter, paneClassButtons);

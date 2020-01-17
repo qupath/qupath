@@ -52,7 +52,6 @@ import org.bytedeco.opencv.opencv_ml.RTrees;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -63,7 +62,8 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.collections.ObservableList;
+import javafx.collections.FXCollections;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
@@ -77,6 +77,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxTableCell;
@@ -243,17 +244,19 @@ public class ObjectClassifierCommand implements PathCommand {
 		/**
 		 * Specify kind of annotations to use for training
 		 */
-		private static enum TrainingAnnotations { ALL, POINTS, AREAS;
+		private static enum TrainingAnnotations { ALL, ALL_UNLOCKED, POINTS, AREAS;
 			
 			@Override
 			public String toString() {
 				switch(this) {
 				case ALL:
-					return "All unlocked annotations";
+					return "All annotations";
+				case ALL_UNLOCKED:
+					return "Unlocked annotations";
 				case POINTS:
-					return "Points onlys";
+					return "Points only";
 				case AREAS:
-					return "Areas onlys";
+					return "Areas only";
 				default:
 					throw new IllegalArgumentException();
 				}
@@ -305,6 +308,9 @@ public class ObjectClassifierCommand implements PathCommand {
 		 */
 		private ClassificationPieChart pieChart;
 		
+		/**
+		 * Flag to indicate that the classifier is in an invalid state, and must be (re)trained before use
+		 */
 		private boolean classifierInvalid;
 		
 		ObjectClassifierPane(QuPathGUI qupath) {
@@ -324,7 +330,7 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 		private List<PathObject> getTrainingAnnotations(PathObjectHierarchy hierarchy) {
-			Predicate<PathObject> trainingFilter = (PathObject p) -> p.isAnnotation() && p.getPathClass() != null && p.hasROI() && !p.isLocked();
+			Predicate<PathObject> trainingFilter = (PathObject p) -> p.isAnnotation() && p.getPathClass() != null && p.hasROI();
 			switch (trainingAnnotations.get()) {
 				case AREAS:
 					trainingFilter = trainingFilter.and(PathObjectFilter.ROI_AREA);
@@ -332,10 +338,14 @@ public class ObjectClassifierCommand implements PathCommand {
 				case POINTS:
 					trainingFilter = trainingFilter.and(PathObjectFilter.ROI_POINT);
 					break;
+				case ALL_UNLOCKED:
+					trainingFilter = trainingFilter.and(PathObjectFilter.UNLOCKED);
+					break;
 				default:
 					break;
 			}
-			return hierarchy.getAnnotationObjects()
+			var annotations = hierarchy.getAnnotationObjects();
+			return annotations
 					.stream()
 					.filter(trainingFilter)
 					.collect(Collectors.toList());
@@ -741,7 +751,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			var labelTraining = new Label("Training");
 			var comboTraining = new ComboBox<TrainingAnnotations>();
 			comboTraining.getItems().setAll(TrainingAnnotations.values());
-			comboTraining.getSelectionModel().select(TrainingAnnotations.ALL);
+			comboTraining.getSelectionModel().select(TrainingAnnotations.ALL_UNLOCKED);
 			trainingAnnotations = comboTraining.getSelectionModel().selectedItemProperty();
 			trainingAnnotations.addListener(v -> invalidateClassifier());
 			
@@ -888,7 +898,7 @@ public class ObjectClassifierCommand implements PathCommand {
 				return false;
 			}
 			
-			var featuresPane = new SelectionPane<>(measurements);
+			var featuresPane = new SelectionPane<>(measurements, true);
 			featuresPane.selectItems(selectedMeasurements);
 			if (!Dialogs.showConfirmDialog("Select features", featuresPane.getPane()))
 				return false;
@@ -903,7 +913,7 @@ public class ObjectClassifierCommand implements PathCommand {
 				return false;
 			var annotations = getTrainingAnnotations(imageData.getHierarchy());
 			var pathClasses = annotations.stream().map(p -> p.getPathClass()).collect(Collectors.toCollection(TreeSet::new));
-			var classesPane = new SelectionPane<>(pathClasses);
+			var classesPane = new SelectionPane<>(pathClasses, true);
 			classesPane.selectItems(selectedClasses);
 			if (!Dialogs.showConfirmDialog("Select classes", classesPane.getPane()))
 				return false;
@@ -943,14 +953,25 @@ public class ObjectClassifierCommand implements PathCommand {
 	
 	
 	static class SelectionPane<T> {
-		
-		private TableView<SelectableItem<T>> tableFeatures = new TableView<>();
 
 		private BorderPane pane;
+
+		private TableView<SelectableItem<T>> tableFeatures;
+		private FilteredList<SelectableItem<T>> list;
 		
-		SelectionPane(Collection<T> features) {
-			pane = makeFeatureSelectionPanel();
-			updateItems(features);
+		SelectionPane(Collection<T> items, boolean includeFilter) {
+			list = FXCollections.observableArrayList(
+					items.stream().map(i -> getSelectableItem(i)).collect(Collectors.toList())
+					).filtered(p -> true);
+			tableFeatures = new TableView<>(list);
+			pane = makeFeatureSelectionPanel(includeFilter);
+		}
+		
+		void updatePredicate(String text) {
+			if (text == null || text.isBlank())
+				list.setPredicate(p -> true);
+			else
+				list.setPredicate(p -> p.getItem().toString().toLowerCase().contains(text.toLowerCase()));
 		}
 
 		public Pane getPane() {
@@ -967,7 +988,7 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 
-		private BorderPane makeFeatureSelectionPanel() {
+		private BorderPane makeFeatureSelectionPanel(boolean includeFilter) {
 			TableColumn<SelectableItem<T>, String> columnName = new TableColumn<>("Name");
 			columnName.setCellValueFactory(new PropertyValueFactory<>("item"));
 			columnName.setEditable(false);
@@ -984,16 +1005,15 @@ public class ObjectClassifierCommand implements PathCommand {
 			tableFeatures.getColumns().add(columnSelected);
 			tableFeatures.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 			tableFeatures.setEditable(true);
-			
 
-			ContextMenu menu = new ContextMenu();
-			MenuItem itemSelect = new MenuItem("Select");
+			var menu = new ContextMenu();
+			var itemSelect = new MenuItem("Select");
 			itemSelect.setOnAction(e -> {
 				for (SelectableItem<T> feature : tableFeatures.getSelectionModel().getSelectedItems())
 					feature.setSelected(true);
 			});
 			menu.getItems().add(itemSelect);
-			MenuItem itemDeselect = new MenuItem("Deselect");
+			var itemDeselect = new MenuItem("Deselect");
 			itemDeselect.setOnAction(e -> {
 				for (SelectableItem<T> feature : tableFeatures.getSelectionModel().getSelectedItems())
 					feature.setSelected(false);
@@ -1003,23 +1023,45 @@ public class ObjectClassifierCommand implements PathCommand {
 			tableFeatures.setContextMenu(menu);
 
 			// Button to update the features
-			BorderPane panelButtons = new BorderPane();
-			Button btnSelectAll = new Button("Select all");
+			var btnSelectAll = new Button("Select all");
 			btnSelectAll.setOnAction(e -> {
 				for (SelectableItem<T> feature : tableFeatures.getItems())
 					feature.setSelected(true);
 
 			});
-			Button btnSelectNone = new Button("Select none");
+			var btnSelectNone = new Button("Select none");
 			btnSelectNone.setOnAction(e -> {
 				for (SelectableItem<T> feature : tableFeatures.getItems())
 					feature.setSelected(false);
 			});
-			GridPane panelSelectButtons = PaneTools.createColumnGridControls(btnSelectAll, btnSelectNone);
+			var panelSelectButtons = PaneTools.createColumnGridControls(btnSelectAll, btnSelectNone);
+			
+			Pane panelButtons;
 
-			panelButtons.setTop(panelSelectButtons);
+			if (includeFilter) {
+				var tfFilter = new TextField("");
+				tfFilter.setTooltip(new Tooltip("Enter text to filter measurements (case-insensitive)"));
+				var labelFilter = new Label("Filter");
+				labelFilter.setLabelFor(tfFilter);
+				labelFilter.setPrefWidth(Label.USE_COMPUTED_SIZE);
+				tfFilter.setMaxWidth(Double.MAX_VALUE);
+				tfFilter.textProperty().addListener((v, o, n) -> updatePredicate(n));
+				var paneFilter = new GridPane();
+				paneFilter.add(labelFilter, 0, 0);
+				paneFilter.add(tfFilter, 1, 0);
+				GridPane.setHgrow(tfFilter, Priority.ALWAYS);
+				GridPane.setFillWidth(tfFilter, Boolean.TRUE);
+				paneFilter.setHgap(5);
+				paneFilter.setPadding(new Insets(5, 0, 5, 0));
+				
+				panelButtons = PaneTools.createRowGrid(
+					panelSelectButtons,
+					paneFilter
+					);
+			} else
+				panelButtons = panelSelectButtons;
 
-			BorderPane panelFeatures = new BorderPane();
+			var panelFeatures = new BorderPane();
 			panelFeatures.setCenter(tableFeatures);
 			panelFeatures.setBottom(panelButtons);
 			
@@ -1034,37 +1076,8 @@ public class ObjectClassifierCommand implements PathCommand {
 					temp.setSelected(true);
 			}
 		}
-		
-		private ObservableList<SelectableItem<T>> getSelectableFeatures() {
-			return tableFeatures.getItems();
-		}
-
-		private void updateItems(final Collection<T> availableItems) {
-			// Ensure we have a set, to avoid duplicate woes
-			Set<T> availableItemSet;
-			if (availableItems instanceof Set)
-				availableItemSet = (Set<T>)availableItems;
-			else
-				availableItemSet = new TreeSet<>(availableItems);
-			
-			List<SelectableItem<T>> items = new ArrayList<>();
-			for (T item : availableItemSet) {
-				items.add(getSelectableItem(item));
-			}
-
-			// It may be the case that this was requested on a background thread - if so, make sure the GUI is updated correctly
-			if (Platform.isFxApplicationThread()) {
-				tableFeatures.getItems().setAll(items);
-			} else {
-				Platform.runLater(() -> {
-					tableFeatures.getItems().setAll(items);
-				});
-			}
-		}
-
 
 		private Map<T, SelectableItem<T>> itemPool = new HashMap<>();
-
 
 
 		private SelectableItem<T> getSelectableItem(final T item) {

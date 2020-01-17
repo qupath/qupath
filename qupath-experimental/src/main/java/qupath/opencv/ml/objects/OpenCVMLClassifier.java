@@ -130,9 +130,9 @@ public class OpenCVMLClassifier {
 				return 0;
 			}
 			
-			samples.create(pathObjects.size(), featureExtractor.nFeatures(), opencv_core.CV_32FC1);
+			samples.create(tempObjectList.size(), featureExtractor.nFeatures(), opencv_core.CV_32FC1);
 			FloatBuffer buffer = samples.createBuffer();
-			featureExtractor.extractFeatures(imageData, pathObjects, buffer);
+			featureExtractor.extractFeatures(imageData, tempObjectList, buffer);
 			
 			// Possibly log time taken
 			nComplete += tempObjectList.size();

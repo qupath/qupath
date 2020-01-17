@@ -52,7 +52,7 @@ public class ExperimentalExtension implements QuPathExtension {
                 QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
                 QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)"),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train object classifier (experimental)")
+                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)")
         );
     	MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),

@@ -40,6 +40,11 @@ public enum PathObjectFilter implements Predicate<PathObject> {
 	TMA_CORES,
 	
 	/**
+	 * Accept any object that is 'unlocked'
+	 */
+	UNLOCKED,
+	
+	/**
 	 * Accept any object that has a ROI
 	 */
 	ROI,
@@ -76,6 +81,8 @@ public enum PathObjectFilter implements Predicate<PathObject> {
 			return "Tiles";
 		case TMA_CORES:
 			return "TMA cores";
+		case UNLOCKED:
+			return "Unlocked";
 		case ROI:
 			return "Has ROI";
 		case ROI_LINE:
@@ -104,6 +111,8 @@ public enum PathObjectFilter implements Predicate<PathObject> {
 			return p.isTile();
 		case TMA_CORES:
 			return p.isTMACore();
+		case UNLOCKED:
+			return !p.isLocked();
 		case ROI:
 			return p.hasROI();
 		case ROI_LINE:
