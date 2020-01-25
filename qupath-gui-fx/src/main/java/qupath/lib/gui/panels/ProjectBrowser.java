@@ -51,9 +51,11 @@ import javax.imageio.ImageIO;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
+import org.controlsfx.control.textfield.TextFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ObjectProperty;
@@ -315,6 +317,14 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null && !entries.isEmpty()) {
 				
 				TextField tfMetadataKey = new TextField();
+				var suggestions = project.getImageList().stream()
+						.map(p -> p.getMetadataKeys())
+						.flatMap(Collection::stream)
+						.distinct()
+						.sorted()
+						.collect(Collectors.toList());
+				TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
+				
 				TextField tfMetadataValue = new TextField();
 				Label labKey = new Label("New key");
 				Label labValue = new Label("New value");
@@ -380,6 +390,37 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 		});
 		
+		Action actionDuplicateImages = new Action("Duplicate image(s)", e -> {
+			Collection<ProjectImageEntry<BufferedImage>> entries = getAllSelectedEntries();
+			if (entries.isEmpty()) {
+				logger.debug("Cannot duplicate project entries - no entries selected");
+				return;
+			}
+			
+			var response = Dialogs.showYesNoCancelDialog("Duplicate images", "Also duplicate data files?");
+			if (response == null)
+				return;
+			boolean copyData = response == response.YES;
+			for (var entry : entries) {
+				try {
+					project.addDuplicate(entry, copyData);
+				} catch (Exception ex) {
+					Dialogs.showErrorNotification("Duplicating image", "Error duplicating " + entry.getImageName());
+					logger.error(ex.getLocalizedMessage(), ex);
+				}
+			}
+			try {
+				project.syncChanges();
+			} catch (Exception ex) {
+				logger.error("Error synchronizing project changes: " + ex.getLocalizedMessage(), ex);
+			}
+			refreshProject();
+			if (entries.size() == 1)
+				logger.debug("Duplicated 1 image entry");
+			else
+				logger.debug("Duplicated {} image entries");
+		});
+		
 		// Open the project directory using Explorer/Finder etc.
 		Action actionOpenProjectDirectory = createBrowsePathAction("Project...", () -> getProjectPath());
 		Action actionOpenProjectEntryDirectory = createBrowsePathAction("Project entry...", () -> getProjectEntryPath());
@@ -400,6 +441,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
+		MenuItem miDuplicateImage = ActionUtils.createMenuItem(actionDuplicateImages);
 		MenuItem miSetImageName = ActionUtils.createMenuItem(actionSetImageName);
 		MenuItem miRefreshThumbnail = ActionUtils.createMenuItem(actionRefreshThumbnail);
 		MenuItem miEditDescription = ActionUtils.createMenuItem(actionEditDescription);
@@ -446,6 +488,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		menu.getItems().addAll(
 				miOpenImage,
 				miRemoveImage,
+				miDuplicateImage,
 				new SeparatorMenuItem(),
 				miSetImageName,
 				miAddMetadata,
@@ -597,7 +640,17 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 	
 	
+	/**
+	 * Refresh the current project, updating the displayed entries.
+	 * Note that this must be called on the JavaFX Application thread.
+	 * If it is not, the request will be passed to the application thread 
+	 * (and therefore not processed immediately).
+	 */
 	public void refreshProject() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> refreshProject());
+			return;
+		}
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
 		tree.getRoot().setExpanded(true);		

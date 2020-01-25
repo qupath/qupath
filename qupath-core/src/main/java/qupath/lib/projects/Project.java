@@ -165,6 +165,18 @@ public interface Project<T> {
 	public ProjectImageEntry<T> addImage(final ServerBuilder<T> server) throws IOException;
 	
 	/**
+	 * Add an image by duplicating an existing entry.
+	 * This retains the same {@link ServerBuilder}, name, description and metadata, but assigns 
+	 * a new unique ID.
+	 * 
+	 * @param entry the entry that should be copied
+	 * @param copyData if true, copy existing image data in addition to other properties
+	 * @return the new entry that has been added to the project
+	 * @throws IOException
+	 */
+	public ProjectImageEntry<T> addDuplicate(final ProjectImageEntry<T> entry, boolean copyData) throws IOException;
+		
+	/**
 	 * Request a {@link ProjectImageEntry} associated with an {@link ImageData}
 	 * @param imageData
 	 * @return

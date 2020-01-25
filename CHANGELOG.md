@@ -7,12 +7,16 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * More ROI manipulation commands are scriptable, update selections when complete
 * Revised "Annotations" tab
   * New options to set available class list
+* Improved project support
+  * Duplicate images, optionally with associated data files
+  * Fixed issue with 'Add images' pane, where the window could be too large for some screens
+  * 'Add images' pane now supports Drag & Drop
+  * 'Add images' pane now supports .qpproj files to import images & data from other projects
 * File -> Quit menu item added
 * New preferences
   * Select main font; default changed to Sans-Serif for macOS
   * Turn on/off system menubar
 * Show accelerator within 'Command list' table
-* Fixed issue with 'Import images' where the window could be too large for some screens
 * Update dependencies (Bio-Formats, ImageJ, ControlsFX, RichTextFX)
 
 
