@@ -869,14 +869,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 					if (cause instanceof InterruptedException)
 						errorWriter.append("Script interrupted at line " + line + ": " + message + "\n");
 					else
-						errorWriter.append("Error at line " + line + ": " + message + "\n");
+						errorWriter.append(cause.getClass().getSimpleName() + " at line " + line + ": " + message + "\n");
 				} else {
 					if (cause instanceof InterruptedException)
 						errorWriter.append("Script interrupted: " + message + "\n");
 					else
-						errorWriter.append("Error: " + message + "\n");
+						errorWriter.append(cause.getClass().getSimpleName() + ": " + message + "\n");
 				}
-				logger.error("Script error", cause);
+				logger.error("Script error (" + cause.getClass().getSimpleName() + ")", cause);
 			} catch (IOException e1) {
 				logger.error("Script IO error: {}", e1);
 			} catch (Exception e1) {
