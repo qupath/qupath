@@ -13,12 +13,14 @@ import qupath.opencv.ml.pixel.features.ColorTransforms;
 import qupath.lib.gui.ml.commands.CreateRegionAnnotationsCommand;
 import qupath.lib.gui.ml.commands.ExportTrainingRegionsCommand;
 import qupath.lib.gui.ml.commands.ObjectClassifierCommand;
+import qupath.lib.gui.ml.commands.ObjectClassifierLoadCommand;
 import qupath.lib.gui.ml.commands.PixelClassifierLoadCommand;
 import qupath.lib.gui.ml.commands.PixelClassifierCommand;
 import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
 import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.io.GsonTools;
+import qupath.opencv.ml.objects.ObjectClassifiers;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
@@ -33,6 +35,7 @@ public class ExperimentalExtension implements QuPathExtension {
 			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapterFactory(FeatureCalculators.getTypeAdapterFactory())
 			.registerTypeAdapterFactory(FeatureExtractors.getTypeAdapterFactory())
+			.registerTypeAdapterFactory(ObjectClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
 	}
 	
@@ -51,10 +54,16 @@ public class ExperimentalExtension implements QuPathExtension {
                 qupath.getMenu("Classify>Pixel classification", true),
                 QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
-                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)"),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)")
+                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)")
         );
+
     	MenuTools.addMenuItems(
+                qupath.getMenu("Classify>Object classification", true),
+                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)"),
+                QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (experimental)")
+                );
+        
+        MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),
                 QuPathGUI.createCommandAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")
         );

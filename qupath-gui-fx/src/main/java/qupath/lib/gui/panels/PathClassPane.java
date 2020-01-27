@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -36,7 +37,10 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -120,13 +124,32 @@ public class PathClassPane {
 		
 		listClasses.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		
+		var copyCombo = new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN);
+		var pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
+		
 		listClasses.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+			if (e.isConsumed())
+				return;
 			if (e.getCode() == KeyCode.BACK_SPACE) {
 				promptToRemoveSelectedClasses();
 				e.consume();
 				return;
 			} else if (e.getCode() == KeyCode.ENTER) {
 				promptToEditSelectedClass();
+				e.consume();
+				return;
+			} else if (copyCombo.match(e)) {
+				// Copy the list if needed
+				String s = listClasses.getSelectionModel().getSelectedItems()
+						.stream().map(p -> p.toString()).collect(Collectors.joining(System.lineSeparator()));
+				if (!s.isBlank()) {
+					Clipboard.getSystemClipboard().setContent(
+							Map.of(DataFormat.PLAIN_TEXT, s));
+				}
+				e.consume();
+				return;
+			} else if (pasteCombo.match(e)) {
+				logger.debug("Paste not implemented for classification list!");
 				e.consume();
 				return;
 			}
@@ -492,11 +515,12 @@ public class PathClassPane {
 		if (input == null || input.trim().isEmpty())
 			return false;
 		PathClass pathClass = PathClassFactory.getPathClass(input);
-		if (listClasses.getItems().contains(pathClass)) {
+		var list = qupath.getAvailablePathClasses();
+		if (list.contains(pathClass)) {
 			Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
 			return false;
 		}
-		listClasses.getItems().add(pathClass);
+		list.add(pathClass);
 		return true;
 	}
 	
@@ -627,7 +651,7 @@ public class PathClassPane {
 		else
 			message = "Remove " + pathClasses.size() + " classes from list?";
 		if (Dialogs.showConfirmDialog("Remove classes", message))
-			return listClasses.getItems().removeAll(pathClasses);
+			return qupath.getAvailablePathClasses().removeAll(pathClasses);
 		return false;
 	}
 	

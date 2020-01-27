@@ -1,6 +1,5 @@
 package qupath.opencv.ml.objects.features;
 
-import java.awt.image.BufferedImage;
 import java.nio.FloatBuffer;
 import java.util.Collection;
 import java.util.List;
@@ -14,12 +13,12 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.opencv.ml.Preprocessing.PCAProjector;
 
-class PCAProjectFeatureExtractor implements FeatureExtractor {
+class PCAProjectFeatureExtractor<T> implements FeatureExtractor<T> {
 	
-	private FeatureExtractor featureExtractor;
+	private FeatureExtractor<T> featureExtractor;
 	private PCAProjector pca;
 	
-	PCAProjectFeatureExtractor(FeatureExtractor featureExtractor, PCAProjector pca) {
+	PCAProjectFeatureExtractor(FeatureExtractor<T> featureExtractor, PCAProjector pca) {
 		this.featureExtractor = featureExtractor;
 		this.pca = pca;
 	}
@@ -37,7 +36,7 @@ class PCAProjectFeatureExtractor implements FeatureExtractor {
 	}
 
 	@Override
-	public void extractFeatures(ImageData<BufferedImage> imageData, Collection<PathObject> pathObjects, FloatBuffer buffer) {
+	public void extractFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, FloatBuffer buffer) {
 		Mat mat = new Mat(pathObjects.size(), featureExtractor.nFeatures(), opencv_core.CV_32FC1);
 		FloatBuffer temp = mat.createBuffer();
 		featureExtractor.extractFeatures(imageData, pathObjects, temp);

@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -16,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -27,14 +27,9 @@ import qupath.lib.objects.classes.Reclassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 
-public class OpenCVMLClassifier {
+public class OpenCVMLClassifier extends AbstractObjectClassifier {
 
 	final private static Logger logger = LoggerFactory.getLogger(OpenCVMLClassifier.class);
-	
-	/**
-	 * Choose which objects are supportsed (often detections)
-	 */
-	private PathObjectFilter filter;
 	
 	/**
 	 * Extract features from objects
@@ -50,11 +45,6 @@ public class OpenCVMLClassifier {
 	 * Supported classifications - this is an ordered list, required to interpret labels
 	 */
 	private List<PathClass> pathClasses;
-
-	/**
-	 * Timestamp representing when the classifier was created/trained
-	 */
-	private long timestamp = System.currentTimeMillis();
 
 	
 //	public static List<OpenCVStatModel> createDefaultStatModels() {
@@ -72,36 +62,36 @@ public class OpenCVMLClassifier {
 //	}
 	
 
-	OpenCVMLClassifier() {}
-
 	OpenCVMLClassifier(OpenCVStatModel classifier, PathObjectFilter filter,
-			FeatureExtractor extractor, List<PathClass> pathClasses) {
+			FeatureExtractor<BufferedImage> extractor, List<PathClass> pathClasses) {
+		super(filter);
 		this.classifier = classifier;
-		this.filter = filter;
 		this.featureExtractor = extractor;
 		this.pathClasses = new ArrayList<>(pathClasses);
-		this.timestamp = System.currentTimeMillis();
 	}
 	
-	public static OpenCVMLClassifier create(OpenCVStatModel model, PathObjectFilter filter
-			, FeatureExtractor extractor, List<PathClass> pathClasses) {
+	public static ObjectClassifier create(OpenCVStatModel model, PathObjectFilter filter,
+			FeatureExtractor<BufferedImage> extractor, List<PathClass> pathClasses) {
 		return new OpenCVMLClassifier(model, filter, extractor, pathClasses);
 	}
 
+	@Override
 	public Collection<PathClass> getPathClasses() {
 		return pathClasses == null ? Collections.emptyList() : Collections.unmodifiableList(pathClasses);
 	}
 	
-		
-	public int classifyObjects(ImageData<BufferedImage> imageData) {
-		var pathObjects = imageData.getHierarchy().getFlattenedObjectList(null);
-		if (filter != null)
-			pathObjects = pathObjects.stream().filter(filter).collect(Collectors.toList());
-		return classifyObjects(imageData, pathObjects);
+	@Override
+	public int classifyObjects(ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
+		return classifyObjects(featureExtractor, classifier, pathClasses, imageData, pathObjects);
 	}
-	
 
-	public int classifyObjects(ImageData<BufferedImage> imageData, Collection<PathObject> pathObjects) {
+	
+	static int classifyObjects(
+			FeatureExtractor featureExtractor,
+			OpenCVStatModel classifier,
+			List<PathClass> pathClasses,
+			ImageData<BufferedImage> imageData,
+			Collection<? extends PathObject> pathObjects) {
 
 		if (featureExtractor == null) {
 			logger.warn("No feature extractor! Cannot classify {} objects", pathObjects.size());

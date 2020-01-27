@@ -17,7 +17,7 @@ import qupath.lib.objects.PathObject;
  * @author Pete Bankhead
  *
  */
-class DefaultFeatureExtractor implements FeatureExtractor {
+class DefaultFeatureExtractor implements FeatureExtractor<BufferedImage> {
 	
 	private List<String> measurements = new ArrayList<>();
 	
@@ -26,7 +26,7 @@ class DefaultFeatureExtractor implements FeatureExtractor {
 	}
 	
 	@Override
-	public void extractFeatures(ImageData<BufferedImage> imageData, Collection<PathObject> pathObjects, FloatBuffer buffer) {
+	public void extractFeatures(ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects, FloatBuffer buffer) {
 		for (var pathObject : pathObjects)
 			extractFeatures(pathObject, buffer);
 	}

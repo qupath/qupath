@@ -1,6 +1,5 @@
 package qupath.opencv.ml.objects.features;
 
-import java.awt.image.BufferedImage;
 import java.nio.FloatBuffer;
 import java.util.Collection;
 import java.util.List;
@@ -9,12 +8,12 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.opencv.ml.Normalizer;
 
-class NormalizedFeatureExtractor implements FeatureExtractor {
+class NormalizedFeatureExtractor<T> implements FeatureExtractor<T> {
 	
-	private FeatureExtractor featureExtractor;
+	private FeatureExtractor<T> featureExtractor;
 	private Normalizer normalizer;
 	
-	NormalizedFeatureExtractor(FeatureExtractor featureExtractor, Normalizer normalizer) {
+	NormalizedFeatureExtractor(FeatureExtractor<T> featureExtractor, Normalizer normalizer) {
 		this.featureExtractor = featureExtractor;
 		this.normalizer = normalizer;
 	}
@@ -30,7 +29,7 @@ class NormalizedFeatureExtractor implements FeatureExtractor {
 	}
 
 	@Override
-	public void extractFeatures(ImageData<BufferedImage> imageData, Collection<PathObject> pathObjects, FloatBuffer buffer) {
+	public void extractFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, FloatBuffer buffer) {
 		int pos = buffer.position();
 		featureExtractor.extractFeatures(imageData, pathObjects, buffer);
 		int n = nFeatures();

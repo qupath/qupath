@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
-import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -249,7 +249,7 @@ public interface Project<T> {
 	 * 
 	 * @return
 	 */
-	public Manager<PathObjectClassifier> getObjectClassifiers();
+	public Manager<ObjectClassifier<T>> getObjectClassifiers();
 	
 	/**
 	 * Get a manager for pixel classifiers saved within this project.

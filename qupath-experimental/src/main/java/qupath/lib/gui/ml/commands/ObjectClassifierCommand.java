@@ -26,6 +26,8 @@ package qupath.lib.gui.ml.commands;
 import java.awt.image.BufferedImage;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -90,6 +92,8 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassifierTools;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -283,7 +287,7 @@ public class ObjectClassifierCommand implements PathCommand {
 
 		private DoubleProperty pcaRetainedVariance = new SimpleDoubleProperty(-1.0);
 
-		private OpenCVMLClassifier classifier;
+		private ObjectClassifier classifier;
 		private Set<PathClass> selectedClasses = new HashSet<>();
 		
 		private Set<String> selectedMeasurements = new LinkedHashSet<>();
@@ -565,7 +569,7 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 
 
-		static boolean tryLoggingVariableImportance(final RTreesClassifier trees, final FeatureExtractor extractor) {
+		static boolean tryLoggingVariableImportance(final RTreesClassifier trees, final FeatureExtractor<?> extractor) {
 			var importance = trees.getFeatureImportance();
 			if (importance == null)
 				return false;
@@ -625,10 +629,26 @@ public class ObjectClassifierCommand implements PathCommand {
 			updateClassifier(true);
 			if (classifier != null) {
 				try {
+					// TODO: REMOVE THIS CHECK
 					var json = GsonTools.getInstance(true).toJson(classifier);
 					System.err.println(json);
-					var classifier2 = GsonTools.getInstance().fromJson(json, OpenCVMLClassifier.class);
-					logger.info("Classification deserialized: {}", classifier2);
+					ObjectClassifier<BufferedImage> classifier2 = GsonTools.getInstance().fromJson(json, OpenCVMLClassifier.class);
+					logger.debug("Classification deserialized: {}", classifier2);
+					
+					var project = qupath.getProject();
+					if (project != null) {
+						String classifierName = Dialogs.showInputDialog("Object classifier", "Classifier name", "");
+						if (classifierName != null) {
+							classifierName = GeneralTools.stripInvalidFilenameChars(classifierName);
+							project.getObjectClassifiers().put(classifierName, classifier);
+							logger.info("Classifier saved to project as {}", classifierName);
+						}
+					} else {
+						var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save object classifier", null, null, "Object classifier", ".obj.json");
+						if (file != null) {
+							Files.writeString(file.toPath(), json, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+						}
+					}
 				} catch (Exception e) {
 					logger.error("Error attempting classifier serialization " + e.getLocalizedMessage(), e);
 				}

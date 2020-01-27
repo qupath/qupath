@@ -58,7 +58,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
@@ -542,7 +542,7 @@ class DefaultProject implements Project<BufferedImage> {
 		
 		void copyDataFromEntry(final DefaultProjectImageEntry entry) throws IOException {
 			// Ensure we have the necessary directory
-			var temp = getEntryPath(true);
+			getEntryPath(true);
 			if (Files.exists(entry.getImageDataPath()))
 				Files.copy(entry.getImageDataPath(), getImageDataPath(), StandardCopyOption.REPLACE_EXISTING);
 			if (Files.exists(entry.getDataSummaryPath()))
@@ -1073,8 +1073,8 @@ class DefaultProject implements Project<BufferedImage> {
 
 
 	@Override
-	public Manager<PathObjectClassifier> getObjectClassifiers() {
-		return new ResourceManager.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
+	public Manager<ObjectClassifier<BufferedImage>> getObjectClassifiers() {
+		return new ResourceManager.JsonFileResourceManager(getObjectClassifiersPath(), ObjectClassifier.class);
 	}
 
 
