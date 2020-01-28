@@ -170,6 +170,8 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		menu.getItems().add(menuItem);
 		listCounts.setContextMenu(menu);
 		
+		listCounts.setCellFactory(v -> new PathObjectListCell());
+		
 		// Add to panel
 		BorderPane panelList = new BorderPane();
 		panelList.setCenter(listCounts);

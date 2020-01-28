@@ -174,7 +174,7 @@ allprojects {
     bioformatsVersion  = '6.3.1'
     commonsMathVersion = '3.6.1'
     controlsfxVersion  = '11.0.1'
-    groovyVersion      = '2.5.8'
+    groovyVersion      = '2.5.9'
     gsonVersion        = '2.8.6'
     guavaVersion       = '28.2-jre'
     imagejVersion      = '1.52s'

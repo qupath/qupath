@@ -70,7 +70,20 @@ public class Dialogs {
 	/**
 	 * Possible buttons pressed in a yes/no/cancel dialog.
 	 */
-	public static enum DialogButton {YES, NO, CANCEL}
+	public static enum DialogButton {
+		/**
+		 * "Yes" option
+		 */
+		YES,
+		/**
+		 * "No" option
+		 */
+		NO,
+		/**
+		 * "Cancel" option
+		 */
+		CANCEL
+		}
 	
 	/**
 	 * Show a confirm dialog (OK/Cancel).
@@ -193,9 +206,9 @@ public class Dialogs {
 	
 	/**
 	 * Show a Yes/No/Cancel dialog.
-	 * @param title
-	 * @param text
-	 * @return
+	 * @param title dialog box title
+	 * @param text prompt message
+	 * @return a {@link DialogButton} indicating the response (YES, NO, CANCEL)
 	 */
 	public static DialogButton showYesNoCancelDialog(String title, String text) {
 		if (!Platform.isFxApplicationThread()) {

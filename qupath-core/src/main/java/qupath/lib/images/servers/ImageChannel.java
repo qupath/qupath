@@ -42,7 +42,7 @@ public class ImageChannel {
 	/**
 	 * Default blue channel for RGB images.
 	 */
-	public final static ImageChannel BLUE  = getInstance("Blue", ColorTools.makeRGB(0, 0, 0255));
+	public final static ImageChannel BLUE  = getInstance("Blue", ColorTools.makeRGB(0, 0, 255));
 	
 	/**
 	 * Get a channel instance with the specified name and color.

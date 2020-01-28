@@ -43,7 +43,6 @@ import javafx.collections.ListChangeListener;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
@@ -56,7 +55,6 @@ import javafx.scene.layout.Priority;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -133,7 +131,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		listAnnotations = new ListView<>();
 		hierarchyChanged(null); // Force update
 
-		listAnnotations.setCellFactory(v -> new PathAnnotationListCell());
+		listAnnotations.setCellFactory(v -> new PathObjectListCell());
 
 		listAnnotations.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		listAnnotations.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<PathObject>() {
@@ -420,56 +418,6 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		// If the lists are different, we need to update accordingly
 		listAnnotations.getSelectionModel().clearSelection();
 		listAnnotations.getItems().setAll(newList);
-	}
-	
-	
-	/**
-	 * A {@link ListCell} for displaying {@linkplain PathObject PathObjects}, including ROI icons.
-	 */
-	static class PathAnnotationListCell extends ListCell<PathObject> {
-
-		private Tooltip tooltip;
-
-		@Override
-		protected void updateItem(PathObject value, boolean empty) {
-			super.updateItem(value, empty);
-			updateTooltip(value);
-			if (value == null || empty) {
-				setText(null);
-				setGraphic(null);
-				return;
-			}
-			setText(value.toString());
-
-			int w = 16;
-			int h = 16;
-
-			if (value.hasROI())
-				setGraphic(PathIconFactory.createPathObjectIcon(value, w, h));
-			else
-				setGraphic(null);
-		}
-
-		void updateTooltip(final PathObject pathObject) {
-			if (tooltip == null) {
-				if (pathObject == null || !pathObject.isAnnotation())
-					return;
-				tooltip = new Tooltip();
-				setTooltip(tooltip);
-			} else if (pathObject == null || !pathObject.isAnnotation()) {
-				setTooltip(null);
-				return;
-			}
-			PathAnnotationObject annotation = (PathAnnotationObject)pathObject;
-			String description = annotation.getDescription();
-			if (description == null) {
-				setTooltip(null);
-			} else {
-				tooltip.setText(description);
-				setTooltip(tooltip);
-			}
-		}
-
 	}
 	
 }

@@ -398,7 +398,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			
 			var response = Dialogs.showYesNoCancelDialog("Duplicate images", "Also duplicate data files?");
-			if (response == null)
+			if (response == null || response == response.CANCEL)
 				return;
 			boolean copyData = response == response.YES;
 			for (var entry : entries) {
