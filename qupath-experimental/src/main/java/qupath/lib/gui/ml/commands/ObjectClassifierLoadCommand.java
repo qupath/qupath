@@ -84,7 +84,7 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 			for (var viewer : qupath.getViewers()) {
 				var imageData = viewer.getImageData();
 				if (imageData != null) {
-					if (selectedClassifier.get().classifyObjects(imageData) > 0)
+					if (selectedClassifier.get().classifyObjects(imageData, true) > 0)
 						imageData.getHierarchy().fireHierarchyChangedEvent(selectedClassifier.get());
 				}
 			}

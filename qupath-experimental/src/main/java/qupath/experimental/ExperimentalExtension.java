@@ -5,6 +5,7 @@ import org.bytedeco.openblas.global.openblas;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
@@ -20,7 +21,7 @@ import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
 import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.io.GsonTools;
-import qupath.opencv.ml.objects.ObjectClassifiers;
+import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
@@ -31,6 +32,8 @@ import qupath.opencv.ml.pixel.features.FeatureCalculators;
 public class ExperimentalExtension implements QuPathExtension {
 	
 	static {
+		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(OpenCVMLClassifier.class);
+		
 		GsonTools.getDefaultBuilder()
 			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapterFactory(FeatureCalculators.getTypeAdapterFactory())

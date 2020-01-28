@@ -441,7 +441,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			pieChart.setData(counts, true);
 			
 			if (doClassification) {
-				if (classifier.classifyObjects(imageData) > 0) {
+				if (classifier.classifyObjects(imageData, true) > 0) {
 					imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, detections);
 				}
 			}

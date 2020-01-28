@@ -16,6 +16,7 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -309,8 +310,9 @@ public class PathClassPane {
 			miPopulateFromImageBase.setDisable(hierarchy == null);
 			miPopulateFromChannels.setDisable(qupath.getImageData() == null);
 			var selected = getSelectedPathClasses();
-			boolean hasClasses = selected.size() > 1 || 
-					(selected.size() == 1 && selected.get(0) != null && selected.get(0) != PathClassFactory.getPathClassUnclassified());
+			boolean hasClasses = !selected.isEmpty();
+//			boolean hasClasses = selected.size() > 1 || 
+//					(selected.size() == 1 && selected.get(0) != null && selected.get(0) != PathClassFactory.getPathClassUnclassified());
 			miSetVisible.setDisable(!hasClasses);
 			miSetHidden.setDisable(!hasClasses);
 //			miRemoveClass.setDisable(!hasClasses);
@@ -335,12 +337,23 @@ public class PathClassPane {
 		return menu;
 	}
 	
+	/**
+	 * Update pane to reflect the current status.
+	 */
+	public void refresh() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> refresh());
+			return;
+		}
+		listClasses.refresh();
+	}
+	
 	
 	void setSelectedClassesVisibility(boolean visible) {
 		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
 		for (var pathClass : getSelectedPathClasses()) {
-			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
-				continue;
+//			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+//				continue;
 			overlayOptions.setPathClassHidden(pathClass, !visible);
 		}
 		listClasses.refresh();
@@ -736,7 +749,7 @@ public class PathClassPane {
 					setText(value.toString() + " (" + n + ")");
 				setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
 			}
-			if (value != null && viewer != null && viewer.getOverlayOptions().isPathClassHidden(value)) {
+			if (!empty && viewer != null && viewer.getOverlayOptions().isPathClassHidden(value)) {
 				setStyle("-fx-font-family:arial; -fx-font-style:italic;");		
 				setText(getText() + " (hidden)");
 			} else

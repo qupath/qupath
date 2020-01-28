@@ -1,9 +1,7 @@
-package qupath.opencv.ml.objects;
+package qupath.lib.classifiers.object;
 
-import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -13,8 +11,6 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
-import qupath.lib.classifiers.object.ObjectClassifier;
-import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
@@ -25,26 +21,26 @@ import qupath.lib.objects.classes.PathClassFactory;
 
 public class ObjectClassifiers {
 	
-	static class ObjectClassifierTypeAdapterFactory implements TypeAdapterFactory {
+	public static class ObjectClassifierTypeAdapterFactory implements TypeAdapterFactory {
 
 		public ObjectClassifierTypeAdapterFactory() {}
 		
 		private static String typeName = "object_classifier_type";
 		
-		private final static RuntimeTypeAdapterFactory<ObjectClassifier> featureCalculatorTypeAdapter = 
+		private final static RuntimeTypeAdapterFactory<ObjectClassifier> objectClassifierTypeAdapter = 
 				RuntimeTypeAdapterFactory.of(ObjectClassifier.class, typeName)
-					.registerSubtype(OpenCVMLClassifier.class)
+//					.registerSubtype(OpenCVMLClassifier.class)
 					.registerSubtype(CompositeClassifier.class)
-					.registerSubtype(SimpleClassifier.class)
-					.registerSubtype(ResetClassifier.class);
+					.registerSubtype(SimpleClassifier.class);
+//					.registerSubtype(ResetClassifier.class);
 		
-		private static void registerSubtype(Class<? extends ObjectClassifier> cls) {
-			featureCalculatorTypeAdapter.registerSubtype(cls);
+		public static void registerSubtype(Class<? extends ObjectClassifier> cls) {
+			objectClassifierTypeAdapter.registerSubtype(cls);
 		}
 		
 		@Override
 		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-			return featureCalculatorTypeAdapter.create(gson, type);
+			return objectClassifierTypeAdapter.create(gson, type);
 		}
 		
 	}
@@ -57,23 +53,23 @@ public class ObjectClassifiers {
 	
 	
 	public static <T> ObjectClassifier<T> createCompositeClassifier(ObjectClassifier<T>... classifiers) {
-		return new CompositeClassifier(Arrays.asList(classifiers));
+		return new CompositeClassifier<>(Arrays.asList(classifiers));
 	}
 	
 	public static <T> ObjectClassifier<T> createCompositeClassifier(Collection<ObjectClassifier<T>> classifiers) {
 		return new CompositeClassifier<>(classifiers);
 	}
 	
-	/**
-	 * Create a classifier that only resets the classification.
-	 * This can be useful as the first input to a {@link CompositeClassifier}.
-	 * 
-	 * @param filter filter to select objects that should be classified
-	 * @return the 'classifier' that sets the classification to null
-	 */
-	public static ObjectClassifier<BufferedImage> createResetClassifier(PathObjectFilter filter) {
-		return new ResetClassifier(filter);
-	}
+//	/**
+//	 * Create a classifier that only resets the classification.
+//	 * This can be useful as the first input to a {@link CompositeClassifier}.
+//	 * 
+//	 * @param filter filter to select objects that should be classified
+//	 * @return the 'classifier' that sets the classification to null
+//	 */
+//	public static <T> ObjectClassifier<T> createResetClassifier(PathObjectFilter filter) {
+//		return new ResetClassifier<T>(filter);
+//	}
 	
 	/**
 	 * Create a classifier that thresholds a single measurement, assigning a class based on an {@link ImageChannel} 
@@ -87,7 +83,7 @@ public class ObjectClassifiers {
 	 * 
 	 * @see PathObjectFilter
 	 */
-	public static ObjectClassifier createChannelClassifier(PathObjectFilter filter, ImageChannel channel, String measurement, double threshold) {
+	public static <T> ObjectClassifier<T> createChannelClassifier(PathObjectFilter filter, ImageChannel channel, String measurement, double threshold) {
 		var pathClass = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
 		return new ClassifyByMeasurementBuilder(measurement)
 			.threshold(threshold)
@@ -96,7 +92,7 @@ public class ObjectClassifiers {
 			.build();
 	}
 	
-	public static class ClassifyByMeasurementBuilder {
+	public static class ClassifyByMeasurementBuilder<T> {
 		
 		private PathObjectFilter filter = PathObjectFilter.DETECTIONS_ALL;
 		private String measurementName;
@@ -190,7 +186,7 @@ public class ObjectClassifiers {
 		}
 		
 		
-		public ObjectClassifier<BufferedImage> build() {
+		public ObjectClassifier<T> build() {
 			if (threshold == null)
 				throw new IllegalArgumentException("No threshold is specified!");
 			var fun = new ClassifyByMeasurementFunction(
@@ -240,29 +236,29 @@ public class ObjectClassifiers {
 		}
 	
 	
-	static class ResetClassifier extends AbstractObjectClassifier {
-
-		protected ResetClassifier(PathObjectFilter filter) {
-			super(filter);
-		}
-
-		@Override
-		public Collection<PathClass> getPathClasses() {
-			return Collections.emptyList();
-		}
-
-		@Override
-		public int classifyObjects(ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects) {
-			int n = 0;
-			for (var pathObject : pathObjects) {
-				if (pathObject.getPathClass() != null) {
-					pathObject.setPathClass(null);
-					n++;
-				}
-			}
-			return n++;
-		}
-		
-	}
+//	static class ResetClassifier<T> extends AbstractObjectClassifier<T> {
+//
+//		protected ResetClassifier(PathObjectFilter filter) {
+//			super(filter);
+//		}
+//
+//		@Override
+//		public Collection<PathClass> getPathClasses() {
+//			return Collections.emptyList();
+//		}
+//
+//		@Override
+//		public int classifyObjects(ImageData<T> imageData, Collection<? extends PathObject> pathObjects) {
+//			int n = 0;
+//			for (var pathObject : pathObjects) {
+//				if (pathObject.getPathClass() != null) {
+//					pathObject.setPathClass(null);
+//					n++;
+//				}
+//			}
+//			return n++;
+//		}
+//		
+//	}
 
 }

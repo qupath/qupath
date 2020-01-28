@@ -1,13 +1,13 @@
-package qupath.opencv.ml.objects;
+package qupath.lib.classifiers.object;
 
-import java.awt.image.BufferedImage;
+import java.util.Collection;
 import java.util.stream.Collectors;
 
-import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 
-public abstract class AbstractObjectClassifier implements ObjectClassifier<BufferedImage> {
+public abstract class AbstractObjectClassifier<T> implements ObjectClassifier<T> {
 	
 	/**
 	 * Choose which objects are supported (often detections)
@@ -24,11 +24,16 @@ public abstract class AbstractObjectClassifier implements ObjectClassifier<Buffe
 	}
 
 	@Override
-	public int classifyObjects(ImageData<BufferedImage> imageData) {
+	public int classifyObjects(ImageData<T> imageData, boolean resetExistingClass) {
+		return classifyObjects(imageData, getCompatibleObjects(imageData), resetExistingClass);
+	}
+	
+	@Override
+	public Collection<PathObject> getCompatibleObjects(ImageData<T> imageData) {
 		var pathObjects = imageData.getHierarchy().getFlattenedObjectList(null);
 		if (filter != null)
 			pathObjects = pathObjects.stream().filter(filter).collect(Collectors.toList());
-		return classifyObjects(imageData, pathObjects);
+		return pathObjects;
 	}
 
 }

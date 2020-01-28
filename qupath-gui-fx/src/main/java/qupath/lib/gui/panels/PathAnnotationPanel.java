@@ -279,6 +279,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			listAnnotations.getItems().clear();
 		}
 		hasImageData.set(this.imageData != null);
+		pathClassPane.refresh();
 	}
 
 	

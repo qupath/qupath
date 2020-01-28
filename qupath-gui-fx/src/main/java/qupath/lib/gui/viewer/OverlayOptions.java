@@ -38,6 +38,7 @@ import javafx.collections.ObservableSet;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 
 /**
  * Default class for storing overlay display options.
@@ -304,6 +305,8 @@ public class OverlayOptions {
 	public boolean isPathClassHidden(final PathClass pathClass) {
 		if (hiddenClasses.isEmpty())
 			return false;
+		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+			return hiddenClasses.contains(null) || hiddenClasses.contains(PathClassFactory.getPathClassUnclassified());
 		return hiddenClasses.contains(pathClass) || (pathClass != null && pathClass.isDerivedClass() && isPathClassHidden(pathClass.getParentClass()));
 	}
 
