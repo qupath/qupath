@@ -46,7 +46,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -170,7 +169,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		menu.getItems().add(menuItem);
 		listCounts.setContextMenu(menu);
 		
-		listCounts.setCellFactory(v -> new PathObjectListCell());
+		listCounts.setCellFactory(v -> new PathObjectListCell(p -> p.toString().replace(" (Points)", "")));
 		
 		// Add to panel
 		BorderPane panelList = new BorderPane();
@@ -279,13 +278,19 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		
 		Collection<PathObject> newList = hierarchy.getPointObjects(PathAnnotationObject.class);
 		
-		if (newList.equals(listCounts.getItems())) {
+		// We want to avoid shuffling the list if possible we adding points
+		var items = listCounts.getItems();
+		if (items.size() == newList.size() && (
+				newList.equals(items) || newList.containsAll(items))) {
 //			if (event != null && event.getEventType() == HierarchyEventType.CHANGE_CLASSIFICATION || event.getEventType() == HierarchyEventType.CHANGE_MEASUREMENTS || (event.getStructureChangeBase() != null && event.getStructureChangeBase().isPoint()) || PathObjectTools.containsPointObject(event.getChangedObjects()))
-				listCounts.refresh();
-			return;
+			listCounts.refresh();
+		} else {
+			// Update the items if we need to
+			listCounts.getItems().setAll(newList);
 		}
 		
-		listCounts.getItems().setAll(newList);
+		// We want to retain selection status
+		selectedPathObjectChanged(hierarchy.getSelectionModel().getSelectedObject(), null, hierarchy.getSelectionModel().getSelectedObjects());
 	}	
 	
 	

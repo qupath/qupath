@@ -1807,10 +1807,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		viewer.getView().addEventFilter(ScrollEvent.ANY, new ScrollEventPanningFilter(viewer));
 		
 		
-		viewer.getView().addEventFilter(KeyEvent.KEY_RELEASED, e -> {
-			if (!e.isConsumed()) {
-				PathObject pathObject = viewer.getSelectedObject();
-				if (pathObject instanceof TMACoreObject) {
+		viewer.getView().addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+			PathObject pathObject = viewer.getSelectedObject();
+			if (!e.isConsumed() && pathObject != null) {
+				if (pathObject.isTMACore()) {
 					TMACoreObject core = (TMACoreObject)pathObject;
 					if (e.getCode() == KeyCode.ENTER) {
 						getAction(GUIActions.TMA_ADD_NOTE).handle(new ActionEvent(e.getSource(), e.getTarget()));
@@ -1820,7 +1820,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						viewer.getHierarchy().fireObjectsChangedEvent(this, Collections.singleton(core));
 						e.consume();
 					}
-				} else if (pathObject instanceof PathAnnotationObject) {
+				} else if (pathObject.isAnnotation()) {
 					if (e.getCode() == KeyCode.ENTER) {
 						GuiTools.promptToSetActiveAnnotationProperties(viewer.getHierarchy());
 						e.consume();

@@ -1,5 +1,7 @@
 package qupath.lib.gui.panels;
 
+import java.util.function.Function;
+
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Tooltip;
 import qupath.lib.gui.icons.PathIconFactory;
@@ -12,6 +14,16 @@ import qupath.lib.objects.PathObject;
 public class PathObjectListCell extends ListCell<PathObject> {
 
 	private Tooltip tooltip;
+	private Function<PathObject, String> fun;
+	
+	PathObjectListCell() {
+		this(PathObject::toString);
+	}
+	
+	PathObjectListCell(Function<PathObject, String> stringExtractor) {
+		this.fun = stringExtractor;
+	}
+
 
 	@Override
 	protected void updateItem(PathObject value, boolean empty) {
@@ -22,7 +34,7 @@ public class PathObjectListCell extends ListCell<PathObject> {
 			setGraphic(null);
 			return;
 		}
-		setText(value.toString());
+		setText(fun.apply(value));
 
 		int w = 16;
 		int h = 16;

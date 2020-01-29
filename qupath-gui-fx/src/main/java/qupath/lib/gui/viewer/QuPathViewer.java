@@ -1772,7 +1772,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Paint the selected object
 		PathObjectHierarchy hierarchy = getHierarchy();
 		PathObject mainSelectedObject = getSelectedObject();
-		Rectangle2D boundsShape = null;
+		Rectangle2D boundsRect = null;
 		for (PathObject selectedObject : hierarchy.getSelectionModel().getSelectedObjects().toArray(new PathObject[0])) {
 			// TODO: Simplify this...
 			if (selectedObject != null && selectedObject.hasROI() && selectedObject.getROI().getZ() == getZPosition() && selectedObject.getROI().getT() == getTPosition()) {
@@ -1788,8 +1788,17 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				
 				ROI pathROI = selectedObject.getROI();
 //				if ((PathPrefs.getPaintSelectedBounds() || (selectedObject.isDetection() && !PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI)) {
-				if ((PathPrefs.getPaintSelectedBounds() || (!PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI)) {
-					boundsShape = AwtTools.getBounds2D(pathROI, boundsShape);
+				if (pathROI != null && (PathPrefs.getPaintSelectedBounds() || (!PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI) && !pathROI.isEmpty()) {
+					Shape boundsShape = null;
+					if (pathROI.isPoint()) {
+						var hull = pathROI.getConvexHull();
+						if (hull != null)
+							boundsShape = hull.getShape();
+					}
+					if (boundsShape == null) {
+						boundsRect = AwtTools.getBounds2D(pathROI, boundsRect);
+						boundsShape = boundsRect;
+					}
 					// Tried to match to pixel boundaries... but resulted in too much jiggling
 //					boundsShape.setFrame(
 //							Math.round(boundsShape.getX()/downsampleFactor)*downsampleFactor-downsampleFactor,
