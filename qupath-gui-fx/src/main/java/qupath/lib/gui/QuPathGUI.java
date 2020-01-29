@@ -300,7 +300,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.ViewerPlusDisplayOptions;
-import qupath.lib.gui.viewer.OverlayOptions.CellDisplayMode;
+import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
 import qupath.lib.gui.viewer.tools.BrushTool;
 import qupath.lib.gui.viewer.tools.EllipseTool;
 import qupath.lib.gui.viewer.tools.LineTool;
@@ -396,7 +396,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								ROTATE_IMAGE, MINI_VIEWER, CHANNEL_VIEWER,
 								RIGID_OBJECT_EDITOR, SHOW_COMMAND_LIST,
 								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG, TMA_RELABEL,
-								SHOW_CELL_BOUNDARIES, SHOW_CELL_NUCLEI, SHOW_CELL_BOUNDARIES_AND_NUCLEI,
+								SHOW_CELL_BOUNDARIES, SHOW_CELL_NUCLEI, SHOW_CELL_BOUNDARIES_AND_NUCLEI, SHOW_CELL_CENTROIDS,
 								SUMMARY_TMA, SUMMARY_ANNOTATIONS, SUMMARY_DETECTIONS,
 								VIEW_TRACKER, MEASUREMENT_MAP, WORKFLOW_DISPLAY,
 								DELETE_SELECTED_OBJECTS, CLEAR_HIERARCHY, CLEAR_DETECTIONS, CLEAR_TMA_CORES, CLEAR_ANNOTATIONS,
@@ -2052,7 +2052,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				"Cells",
 				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI), null),
 				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_NUCLEI), null),
-				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES), null)
+				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES), null),
+				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_CENTROIDS), null)
 				);
 
 		
@@ -3247,7 +3248,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						"Cell display",
 						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_BOUNDARIES, groupCellDisplay),
 						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_NUCLEI, groupCellDisplay),
-						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI, groupCellDisplay)
+						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI, groupCellDisplay),
+						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_CENTROIDS, groupCellDisplay)
 						),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_ANNOTATIONS),
 				getActionCheckBoxMenuItem(GUIActions.FILL_ANNOTATIONS),
@@ -3791,13 +3793,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				for (QuPathViewer v : getViewers())
 					v.repaint();
 			});
-			return createSelectableCommandAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
+			var actionHulls = createSelectableCommandAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
+			actionHulls.setLongText("Show filled convex hull for points (helpful to spot outliers)");
+			return actionHulls;
 		case USE_SELECTED_COLOR:
 			PathPrefs.useSelectedColorProperty().addListener(e -> {
 				for (QuPathViewer v : getViewers())
 					v.repaint();
 			});
-			return createSelectableCommandAction(PathPrefs.useSelectedColorProperty(), "Use selected color for points");
+			var actionSelectedColor = createSelectableCommandAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
+			actionSelectedColor.setLongText("Show selected objects highlighted by color (turn off to always see 'true' classification colors)");
+			return actionSelectedColor;
 		case DETECTIONS_TO_POINTS:
 			return createCommandAction(new DetectionsToPointsCommand(this), "Convert detections to points");
 		case ROTATE_IMAGE:
@@ -3820,11 +3826,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new CommandListDisplayCommand(this), "Show command list", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN));
 
 		case SHOW_CELL_BOUNDARIES:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, CellDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(iconSize, iconSize, PathIcons.CELL_ONLY), null);
+			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(iconSize, iconSize, PathIcons.CELL_ONLY), null);
 		case SHOW_CELL_NUCLEI:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, CellDisplayMode.NUCLEI_ONLY), "Nuclei only", PathIconFactory.createNode(iconSize, iconSize, PathIcons.CELL_NULCEI_BOTH), null);
+			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", PathIconFactory.createNode(iconSize, iconSize, PathIcons.CELL_NULCEI_BOTH), null);
 		case SHOW_CELL_BOUNDARIES_AND_NUCLEI:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, CellDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", PathIconFactory.createNode(iconSize, iconSize, PathIcons.NUCLEI_ONLY), null);
+			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", PathIconFactory.createNode(iconSize, iconSize, PathIcons.NUCLEI_ONLY), null);
+		case SHOW_CELL_CENTROIDS:
+			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.CENTROIDS), "Centroids only", PathIconFactory.createNode(iconSize, iconSize, PathIcons.CENTROIDS_ONLY), null);
 		
 		case RIGID_OBJECT_EDITOR:
 			return createCommandAction(new RigidObjectEditorCommand(this), "Rotate annotation", null, new KeyCodeCombination(KeyCode.R, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));

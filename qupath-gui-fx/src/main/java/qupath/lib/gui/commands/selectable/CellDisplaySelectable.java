@@ -25,7 +25,7 @@ package qupath.lib.gui.commands.selectable;
 
 import qupath.lib.gui.commands.interfaces.PathSelectableCommand;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.OverlayOptions.CellDisplayMode;
+import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
 
 /**
  * Selectable command to specify a cell display mode (i.e. cell border and/or nucleus border).
@@ -36,9 +36,9 @@ import qupath.lib.gui.viewer.OverlayOptions.CellDisplayMode;
 public class CellDisplaySelectable implements PathSelectableCommand {
 	
 	private OverlayOptions overlayOptions;
-	private CellDisplayMode mode;
+	private DetectionDisplayMode mode;
 	
-	public CellDisplaySelectable(final OverlayOptions overlayOptions, final CellDisplayMode mode) {
+	public CellDisplaySelectable(final OverlayOptions overlayOptions, final DetectionDisplayMode mode) {
 		this.overlayOptions = overlayOptions;
 		this.mode = mode;
 	}

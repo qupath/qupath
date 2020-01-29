@@ -40,6 +40,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToolBar;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -197,10 +198,12 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		Pane convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
 		
+		var cbConvex = qupath.getActionCheckBox(GUIActions.CONVEX_POINTS, false);
+		var cbSelected = qupath.getActionCheckBox(GUIActions.USE_SELECTED_COLOR, false);
 //		panel.setSpacing(5);
 		panel.getChildren().addAll(
-				qupath.getActionCheckBox(GUIActions.CONVEX_POINTS, false),
-				qupath.getActionCheckBox(GUIActions.USE_SELECTED_COLOR, false),
+				cbConvex,
+				cbSelected,
 				sliderPane,
 				convertPane,
 				panelLoadSave

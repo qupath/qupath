@@ -1,5 +1,11 @@
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
+* Improved object classification
+  * Completely rewritten object classifiers
+  * Supports multi-class classifications  
+  * JSON serialization
+* Bio-Formats series selector
+* New 'Centroids only' cell display mode
 * Major changes to annotation ROI manipulation
   * 'Duplicate annotations' applies to multiple selections
   * 'Merge annotations' and 'Split annotations' work with point ROIs, not only areas
@@ -7,6 +13,8 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * More ROI manipulation commands are scriptable, update selections when complete
 * Revised "Annotations" tab
   * New options to set available class list
+  * More consistent annotation menus
+* Counting tool improvements
 * Improved project support
   * Duplicate images, optionally with associated data files
   * Fixed issue with 'Add images' pane, where the window could be too large for some screens
@@ -17,7 +25,8 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Select main font; default changed to Sans-Serif for macOS
   * Turn on/off system menubar
 * Show accelerator within 'Command list' table
-* Update dependencies (Bio-Formats, ImageJ, ControlsFX, RichTextFX)
+* Fixed bug in Jar classpath that prevented QuPath running from a command line
+* Update dependencies (Bio-Formats, ControlsFX, ImageJ, Guava, Groovy, RichTextFX)
 
 
 ## Version 0.2.0-m8

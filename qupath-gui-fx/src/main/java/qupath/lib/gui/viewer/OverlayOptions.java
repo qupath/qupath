@@ -48,7 +48,7 @@ import qupath.lib.objects.classes.PathClassFactory;
  */
 public class OverlayOptions {
 	
-	public enum CellDisplayMode {BOUNDARIES_ONLY, NUCLEI_ONLY, NUCLEI_AND_BOUNDARIES};
+	public enum DetectionDisplayMode {BOUNDARIES_ONLY, NUCLEI_ONLY, NUCLEI_AND_BOUNDARIES, CENTROIDS};
 	
 	private ObjectProperty<MeasurementMapper> measurementMapper = new SimpleObjectProperty<>();
 	private BooleanProperty showAnnotations = new SimpleBooleanProperty(true);
@@ -64,7 +64,7 @@ public class OverlayOptions {
 	
 	private ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
 
-	private ObjectProperty<CellDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(CellDisplayMode.NUCLEI_AND_BOUNDARIES);
+	private ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
 
 	private FloatProperty opacity = new SimpleFloatProperty(1.0f);
 	
@@ -113,24 +113,24 @@ public class OverlayOptions {
     }
     
     
-    public CellDisplayMode getCellDisplayMode() {
+    public DetectionDisplayMode getCellDisplayMode() {
     	return cellDisplayMode.get();
     }
     
     public boolean getShowCellNuclei() {
-    	return cellDisplayMode.get() != CellDisplayMode.BOUNDARIES_ONLY;
+    	return cellDisplayMode.get() != DetectionDisplayMode.BOUNDARIES_ONLY;
     }
 
     public boolean getShowCellBoundaries() {
-    	return cellDisplayMode.get() != CellDisplayMode.NUCLEI_ONLY;
+    	return cellDisplayMode.get() != DetectionDisplayMode.NUCLEI_ONLY;
     }
     
     
-    public void setCellDisplayMode(CellDisplayMode mode) {
+    public void setCellDisplayMode(DetectionDisplayMode mode) {
     	this.cellDisplayMode.set(mode);
     }
     
-    public ObjectProperty<CellDisplayMode> cellDisplayModeProperty() {
+    public ObjectProperty<DetectionDisplayMode> cellDisplayModeProperty() {
     	return cellDisplayMode;
     }
     

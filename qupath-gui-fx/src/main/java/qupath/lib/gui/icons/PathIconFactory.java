@@ -81,6 +81,8 @@ public class PathIconFactory {
 									
 									CELL_NULCEI_BOTH("\ue903"),
 									CELL_ONLY("\ue904"),
+									CENTROIDS_ONLY("\ue913"),
+									
 									COG("\ue905"),
 									CONTRAST("\ue906"),
 									
