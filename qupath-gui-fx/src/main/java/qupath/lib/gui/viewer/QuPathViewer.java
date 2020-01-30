@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -2385,11 +2386,40 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 	/**
+	 * Get a string representing the object classification x &amp; y location in the viewer component,
+	 * or an empty String if no object is found.
+	 * 
+	 * @param x x-coordinate in the component space (not image space)
+	 * @param y y-coordinate in the component space (not image space)
+	 * @return a String to display representing the object classification
+	 */
+	public String getObjectClassificationString(double x, double y) {
+		var hierarchy = getHierarchy();
+		if (hierarchy == null)
+			return "";
+		var p2 = componentPointToImagePoint(x, y, null, false);
+		var pathObjects = PathObjectTools.getObjectsForLocation(hierarchy,
+				p2.getX(), p2.getY(),
+				getZPosition(),
+				getTPosition(),
+				0);
+		if (!pathObjects.isEmpty()) {
+			return pathObjects.stream()
+					.filter(pathObject -> pathObject.isDetection())
+					.map(pathObject -> {
+				var pathClass = pathObject.getPathClass();
+				return pathClass == null ? "Unclassified" : pathClass.toString();
+			}).collect(Collectors.joining(", "));
+		}
+		return "";
+	}
+	
+	/**
 	 * Get a string representing the image coordinates for a particular x &amp; y location in the viewer component.
 	 * 
-	 * @param x
-	 * @param y
-	 * @return
+	 * @param x x-coordinate in the component space (not image space)
+	 * @param y y-coordinate in the component space (not image space)
+	 * @return a String to display representing the cursor location
 	 */
 	public String getLocationString(double x, double y, boolean useCalibratedUnits) {
 		ImageServer<BufferedImage> server = getServer();
@@ -2504,10 +2534,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param useCalibratedUnits If true, microns will be used rather than pixels (if known).
 	 * @return
 	 */
-	public String getLocationString(boolean useCalibratedUnits) {
-		if (componentContains(mouseX, mouseY))
-			return getLocationString(mouseX, mouseY, useCalibratedUnits);
-		else
+	protected String getFullLocationString(boolean useCalibratedUnits) {
+		if (componentContains(mouseX, mouseY)) {
+			String classString = getObjectClassificationString(mouseX, mouseY).trim();
+			String locationString = getLocationString(mouseX, mouseY, useCalibratedUnits);
+			if (locationString == null || locationString.isBlank())
+				return "";
+			if (classString != null && !classString.isBlank())
+				classString = classString + "\n";
+			return classString + locationString;
+		} else
 			return "";
 	}
 

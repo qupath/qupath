@@ -13,6 +13,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * More ROI manipulation commands are scriptable, update selections when complete
 * Revised "Annotations" tab
   * New options to set available class list
+  * Toggle class visibility with spacebar
   * More consistent annotation menus
 * Counting tool improvements
 * Improved project support

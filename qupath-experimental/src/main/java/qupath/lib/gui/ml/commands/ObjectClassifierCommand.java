@@ -287,7 +287,7 @@ public class ObjectClassifierCommand implements PathCommand {
 
 		private DoubleProperty pcaRetainedVariance = new SimpleDoubleProperty(-1.0);
 
-		private ObjectClassifier classifier;
+		private ObjectClassifier<BufferedImage> classifier;
 		private Set<PathClass> selectedClasses = new HashSet<>();
 		
 		private Set<String> selectedMeasurements = new LinkedHashSet<>();
@@ -625,13 +625,12 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 		private boolean saveAndApply() {
-			Dialogs.showErrorNotification("Advanced options", "Not yet fully implemented!");
 			updateClassifier(true);
 			if (classifier != null) {
 				try {
 					// TODO: REMOVE THIS CHECK
 					var json = GsonTools.getInstance(true).toJson(classifier);
-					System.err.println(json);
+//					System.err.println(json);
 					ObjectClassifier<BufferedImage> classifier2 = GsonTools.getInstance().fromJson(json, OpenCVMLClassifier.class);
 					logger.debug("Classification deserialized: {}", classifier2);
 					
@@ -952,18 +951,7 @@ public class ObjectClassifierCommand implements PathCommand {
 				var view = viewer.getView();
 				var p = view.screenToLocal(e.getScreenX(), e.getScreenY());
 				if (view.contains(p)) {
-					var p2 = viewer.componentPointToImagePoint(p.getX(), p.getY(), null, false);
-					var pathObjects = PathObjectTools.getObjectsForLocation(hierarchy,
-							p2.getX(), p2.getY(),
-							viewer.getZPosition(), viewer.getTPosition(), 0);
-					if (!pathObjects.isEmpty()) {
-						text = pathObjects.stream()
-								.filter(pathObject -> pathObject.isDetection())
-								.map(pathObject -> {
-							var pathClass = pathObject.getPathClass();
-							return pathClass == null ? "Unclassified" : pathClass.toString();
-						}).collect(Collectors.joining(", "));
-					}
+					text = viewer.getObjectClassificationString(p.getX(), p.getY());
 				}
 			}
 			cursorLocation.set(text);

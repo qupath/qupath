@@ -139,6 +139,10 @@ public class PathClassPane {
 				promptToEditSelectedClass();
 				e.consume();
 				return;
+			} else if (e.getCode() == KeyCode.SPACE) {
+				toggleSelectedClassesVisibility();
+				e.consume();
+				return;
 			} else if (copyCombo.match(e)) {
 				// Copy the list if needed
 				String s = listClasses.getSelectionModel().getSelectedItems()
@@ -328,8 +332,8 @@ public class PathClassPane {
 				menuPopulate,
 				miImportFromProject,
 				new SeparatorMenuItem(),
-				miSetHidden,
 				miSetVisible,
+				miSetHidden,
 //				miToggleClassVisible,
 				new SeparatorMenuItem(),
 				miSelectObjects);
@@ -344,6 +348,15 @@ public class PathClassPane {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> refresh());
 			return;
+		}
+		listClasses.refresh();
+	}
+	
+	
+	void toggleSelectedClassesVisibility() {
+		OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
+		for (var pathClass : getSelectedPathClasses()) {
+			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
 		}
 		listClasses.refresh();
 	}

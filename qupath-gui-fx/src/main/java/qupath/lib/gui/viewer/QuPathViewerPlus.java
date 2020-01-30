@@ -32,7 +32,9 @@ import javafx.beans.property.BooleanProperty;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
@@ -236,9 +238,10 @@ public class QuPathViewerPlus extends QuPathViewer {
 	void updateLocationString() {
 		String s = null;
 		if (labelLocation != null && hasServer())
-			s = getLocationString(useCalibratedLocationString());
+			s = getFullLocationString(useCalibratedLocationString());
 		if (s != null && s.length() > 0) {
 			labelLocation.setText(s);
+//			labelLocation.setTextAlignment(TextAlignment.CENTER);
 			panelLocation.setOpacity(1);
 		} else {
 			panelLocation.setOpacity(0);

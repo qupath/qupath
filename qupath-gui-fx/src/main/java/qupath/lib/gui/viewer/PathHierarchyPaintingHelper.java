@@ -436,6 +436,7 @@ public class PathHierarchyPaintingHelper {
 							default:
 								var cross = localPath2D.get();
 								cross.reset();
+								radius /= Math.sqrt(2);
 								cross.moveTo(x-radius, y-radius);
 								cross.lineTo(x+radius, y+radius);
 								cross.moveTo(x+radius, y-radius);
