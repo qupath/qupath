@@ -25,7 +25,6 @@ package qupath.lib.gui.viewer.tools;
 
 import java.awt.Shape;
 import java.awt.geom.Point2D;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -36,7 +35,6 @@ import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.simplify.VWSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
@@ -242,19 +240,21 @@ public class BrushTool extends AbstractPathROITool {
 			return;
 						
 		// Get the parent, in case we need to constrain the shape
-		PathObject parent = null;
-		if (currentObject != null) {
-			parent = currentObject.getParent();
-		}
-		var currentObject2 = currentObject;
-		if (parent == null || parent.isDetection()) {
-			parent = getSelectableObjectList(p.getX(), p.getY())
-					.stream()
-					.filter(o -> !o.isDetection() && o != currentObject2)
-					.findFirst()
-					.orElseGet(() -> null);
-		}
-		setCurrentParent(hierarchy, parent, currentObject);
+//		PathObject parent = null;
+//		if (currentObject != null) {
+//			parent = currentObject.getParent();
+//		}
+//		var currentObject2 = currentObject;
+//		if (parent == null || parent.isDetection()) {
+//			parent = getSelectableObjectList(p.getX(), p.getY())
+//					.stream()
+//					.filter(o -> !o.isDetection() && o != currentObject2)
+//					.findFirst()
+//					.orElseGet(() -> null);
+//		}
+//		setConstrainedAreaParent(hierarchy, parent, currentObject);
+		setConstrainedAreaParent(hierarchy, xx, yy, Collections.singleton(currentObject));
+
 		
 		// Need to remove the object from the hierarchy while editing it
 		if (!createNew && currentObject != null) {
@@ -299,10 +299,12 @@ public class BrushTool extends AbstractPathROITool {
 		ROI shapeROI = currentROI;
 		
 		PathObject pathObjectUpdated = getUpdatedObject(e, shapeROI, pathObject, -1);
-		if (pathObject != pathObjectUpdated)
+
+		if (pathObject != pathObjectUpdated) {
 			viewer.setSelectedObject(pathObjectUpdated, PathPrefs.isSelectionMode());
-		else
+		} else {
 			viewer.repaint();
+		}
 	}
 	
 	
@@ -346,13 +348,7 @@ public class BrushTool extends AbstractPathROITool {
 	//						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), RoiTools.CombineOp.SUBTRACT, flatness);
 				} else if (avoidOtherAnnotations) {
 					shapeNew = shapeCurrent.union(shapeDrawn);
-					var currentArea = getCurrentParentArea();
-					if (currentArea != null)
-						shapeNew = shapeNew.intersection(getCurrentParentArea());
-					
-					var currentParentAnnotationsArea = getCurrentParentAnnotationsArea(currentObject);
-					if (currentParentAnnotationsArea != null)
-						shapeNew = shapeNew.difference(currentParentAnnotationsArea);
+					shapeNew = refineGeometryByParent(shapeNew);
 				} else {
 					// Just add, regardless of whether there are other annotations below or not
 					var temp = shapeROI.getGeometry();
@@ -387,14 +383,7 @@ public class BrushTool extends AbstractPathROITool {
 			
 			// Sometimes we can end up with a GeometryCollection containing lines/non-areas... if so, remove these
 			if (shapeNew instanceof GeometryCollection) {
-				List<Geometry> keepGeometries = new ArrayList<>();
-				for (int i = 0; i < shapeNew.getNumGeometries(); i++) {
-					if (shapeNew.getGeometryN(i) instanceof Polygonal) {
-						keepGeometries.add(shapeNew);
-					}
-				}
-				if (keepGeometries.size() < shapeNew.getNumGeometries())
-					shapeNew = getGeometryFactory().buildGeometry(keepGeometries);
+				shapeNew = GeometryTools.ensurePolygonal(shapeNew);
 			}
 						
 			ROI roiNew = GeometryTools.geometryToROI(shapeNew, plane);

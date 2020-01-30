@@ -416,7 +416,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			return;
 		}
 		// If the lists are different, we need to update accordingly
-		listAnnotations.getSelectionModel().clearSelection();
+//		listAnnotations.getSelectionModel().clearSelection(); // Clearing the selection would cause annotations to disappear when interactively training a classifier!
 		listAnnotations.getItems().setAll(newList);
 	}
 	

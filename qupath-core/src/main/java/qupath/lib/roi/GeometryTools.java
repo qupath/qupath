@@ -24,6 +24,7 @@ import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Lineal;
@@ -218,6 +219,30 @@ public class GeometryTools {
     	}
     }
     
+    /**
+     * Strip non-polygonal parts from a GeometryCollection (non-recursive).
+     * @param geometry
+     * @return a Geometry containing only Polygons, which may be the same as the input Geometry or empty
+     */
+    public static Geometry ensurePolygonal(Geometry geometry) {
+    	if (geometry instanceof Polygonal)
+    		return geometry;
+    	if (!(geometry instanceof GeometryCollection))
+    		return geometry.getFactory().createPolygon();
+    		
+    	List<Geometry> keepGeometries = new ArrayList<>();
+		for (int i = 0; i < geometry.getNumGeometries(); i++) {
+			if (geometry.getGeometryN(i) instanceof Polygonal) {
+				keepGeometries.add(geometry.getGeometryN(i));
+			}
+		}
+		if (keepGeometries.isEmpty())
+			return geometry.getFactory().createPolygon();
+		if (keepGeometries.size() < geometry.getNumGeometries())
+			return geometry.getFactory().buildGeometry(keepGeometries);
+		else
+			return geometry;
+    }
     
     /**
      * Ensure a GeometryCollection contains only Geometries of the same type (Polygonal, Lineal or Puntal).

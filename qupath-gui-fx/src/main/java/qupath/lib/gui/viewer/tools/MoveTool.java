@@ -131,10 +131,11 @@ public class MoveTool extends AbstractPathTool {
 			
 			// Set the current parent object based on the first click
 			PathObject currentObject = viewer.getSelectedObject();
-			PathObject parent = currentObject == null ? null : currentObject.getParent();
-			if (parent != null && parent.isDetection())
-				parent = null;
-			setCurrentParent(viewer.getHierarchy(), parent, currentObject);
+//			PathObject parent = currentObject == null ? null : currentObject.getParent();
+//			if (parent != null && parent.isDetection())
+//				parent = null;
+//			setConstrainedAreaParent(viewer.getHierarchy(), parent, currentObject);
+			setConstrainedAreaParent(viewer.getHierarchy(), xx, yy, Collections.singleton(currentObject));
 			
 			// See if we can get a handle to edit the ROI
 			// Don't want to edit detections / TMA cores

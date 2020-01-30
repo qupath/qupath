@@ -29,6 +29,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.locationtech.jts.geom.Geometry;
@@ -43,9 +44,11 @@ import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -63,9 +66,9 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	QuPathViewer viewer;
 	ModeWrapper modes;
 	
-	private PathObject currentParent;
-	private Geometry parentArea;
-	private Geometry parentAnnotationsArea;
+	private PathObject constrainedAreaParent;
+	private Geometry constrainedAreaBounds;
+	private Geometry constrainedAreaToRemove;
 	
 	/**
 	 * Constructor.
@@ -131,77 +134,122 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		if (currentROI.isLine())
 			return currentROI;
 		// Handle areas
-		var currentArea = currentROI.getGeometry();
-		if (parentArea != null)
-			currentArea = currentArea.intersection(parentArea);
-		if (parentAnnotationsArea != null)
-			currentArea = currentArea.difference(parentAnnotationsArea);
-		if (currentArea.isEmpty())
+		var geometry = currentROI.getGeometry();
+		geometry = refineGeometryByParent(geometry);
+		if (geometry.isEmpty())
 			return ROIs.createEmptyROI();
 		else
-			return GeometryTools.geometryToROI(currentArea, currentROI.getImagePlane());
+			return GeometryTools.geometryToROI(geometry, currentROI.getImagePlane());
 	}
 	
+	Geometry refineGeometryByParent(Geometry geometry) {
+		return refineGeometryByParent(geometry, true);
+	}
+	
+	private Geometry refineGeometryByParent(Geometry geometry, boolean tryAgain) {
+		try {
+			if (constrainedAreaBounds != null)
+				geometry = geometry.intersection(constrainedAreaBounds);
+			if (constrainedAreaToRemove != null)
+				geometry = geometry.difference(constrainedAreaToRemove);
+		} catch (Exception e) {
+			if (tryAgain) {
+				logger.warn("First Error refining ROI, will retry after buffer(0): {}", e.getLocalizedMessage());
+				return refineGeometryByParent(geometry.buffer(0.0), false);
+			}
+			logger.warn("Error refining ROI: {}", e.getLocalizedMessage());
+			logger.debug("", e);
+		}
+		return geometry;
+	}
 	
 	
 	/**
-	 * Set the current parent object, this can be used for clipping the ROI before it is finalized 
-	 * to prevent accidentally generating overlaps.
+	 * Set the parent that may be used to constrain a new ROI, if possible.
 	 * 
-	 * @param hierarchy
-	 * @param parent
-	 * @param current the current object, which shouldn't affect the clipping
+	 * @param hierarchy object hierarchy containing potential constraining objects
+	 * @param xx x-coordinate in the image space of the starting point for the new object
+	 * @param yy y-coordinate in the image space of the starting point for the new object
+	 * @param exclusions objects not to consider (e.g. the new ROI being created)
 	 */
-	synchronized void setCurrentParent(final PathObjectHierarchy hierarchy, final PathObject parent, final PathObject current) {
-		currentParent = parent;
-				
+	synchronized void setConstrainedAreaParent(final PathObjectHierarchy hierarchy, double xx, double yy, Collection<PathObject> exclusions) {
+		
 		// Reset parent area & its descendant annotation areas
-		parentArea = null;
-		parentAnnotationsArea = null;
+		constrainedAreaBounds = null;
+		constrainedAreaToRemove = null;
+		
+		// Identify the smallest area annotation that contains the specified point
+		constrainedAreaParent = getSelectableObjectList(xx, yy)
+				.stream()
+				.filter(p -> !p.isDetection() && p.hasROI() && p.getROI().isArea() && !exclusions.contains(p))
+				.sorted(Comparator.comparing(p -> p.getROI().getArea()))
+				.findFirst()
+				.orElseGet(() -> null);
+				
+		if (constrainedAreaParent == null)
+			return;
 		
 		// Check the parent is a valid potential parent
-		if (currentParent == null || !(currentParent.hasROI() && currentParent.getROI().isArea()))
-			currentParent = hierarchy.getRootObject();
+		boolean fullImage = false;
+		if (constrainedAreaParent == null || !(constrainedAreaParent.hasROI() && constrainedAreaParent.getROI().isArea())) {
+			constrainedAreaParent = hierarchy.getRootObject();
+			fullImage = true;
+		}
 		
-		// Get a combined area for the parent and any annotation children
-		if (currentParent.hasROI() && currentParent.getROI().isArea())
-			parentArea = currentParent.getROI().getGeometry();
+		// Get the parent Geometry
+		if (constrainedAreaParent.hasROI() && constrainedAreaParent.getROI().isArea())
+			constrainedAreaBounds = constrainedAreaParent.getROI().getGeometry();
 		
+		// Figure out what needs to be subtracted
+		Collection<PathObject> toRemove;
+		if (fullImage)
+			toRemove = hierarchy.getAnnotationObjects();
+		else
+			toRemove = hierarchy.getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(constrainedAreaParent.getROI()), null);
+			
+		for (PathObject child : toRemove) {
+			if (child.isDetection() || child == constrainedAreaParent|| !child.hasROI() || 
+					!child.getROI().isArea() || child.getROI().contains(xx, yy))
+				continue;
+			Geometry childArea = child.getROI().getGeometry();
+			if (constrainedAreaBounds != null &&
+					(!constrainedAreaBounds.intersects(childArea) || constrainedAreaBounds.coveredBy(childArea)))
+				continue;
+			if (constrainedAreaToRemove == null)
+				constrainedAreaToRemove = childArea;
+			else
+				constrainedAreaToRemove = constrainedAreaToRemove.union(childArea);
+		}
+		if (constrainedAreaToRemove != null)
+			constrainedAreaToRemove = GeometryTools.ensurePolygonal(constrainedAreaToRemove);
 	}
 	
 	
-	synchronized void resetCurrentParent() {
-		this.currentParent = null;
-		this.parentArea = null;
-		this.parentAnnotationsArea = null;
+	synchronized void resetConstrainedAreaParent() {
+		this.constrainedAreaParent = null;
+		this.constrainedAreaBounds = null;
+		this.constrainedAreaToRemove = null;
 	}
 	
 	
 	synchronized PathObject getCurrentParent() {
-		return currentParent;
+		return constrainedAreaParent;
 	}
 	
-	synchronized Geometry getCurrentParentArea() {
-		return parentArea;
+	/**
+	 * When drawing a constrained ROI, get a Geometry defining the outer limits.
+	 * @return
+	 */
+	synchronized Geometry getConstrainedAreaBounds() {
+		return constrainedAreaBounds;
 	}
 	
-	synchronized Geometry getCurrentParentAnnotationsArea(final PathObject currentObject) {
-		if (currentParent == null)
-			return null;
-		if (parentAnnotationsArea == null) {
-			for (PathObject child : PathObjectTools.getFlattenedObjectList(currentParent, null, false)) {
-				if (child.isDetection() || child == currentObject)
-					continue;
-				if (child.hasROI() && child.getROI().isArea()) {
-					Geometry childArea = child.getROI().getGeometry();
-					if (parentAnnotationsArea == null)
-						parentAnnotationsArea = childArea;
-					else
-						parentAnnotationsArea = parentAnnotationsArea.union(childArea);
-				}
-			}
-		}
-		return parentAnnotationsArea;
+	/**
+	 * When drawing a constrained ROI, get a Geometry defining the inner area that should be 'subtracted'.
+	 * @return
+	 */
+	synchronized Geometry getConstrainedAreaToSubtract() {
+		return constrainedAreaToRemove;
 	}
 	
 	
