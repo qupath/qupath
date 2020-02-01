@@ -105,6 +105,7 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
@@ -397,13 +398,44 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				return;
 			}
 			
-			var response = Dialogs.showYesNoCancelDialog("Duplicate images", "Also duplicate data files?");
-			if (response == null || response == response.CANCEL)
+			boolean singleImage = false;
+			String name = "";
+			String title = "Duplicate images";
+			String namePrompt = "Append to image name";
+			String nameHelp = "Specify text to append to the image name to distinguish duplicated images";
+			if (entries.size() == 1) {
+				title = "Duplicate image";
+				namePrompt = "Duplicate image name";
+				nameHelp = "Specify name for the duplicated image";
+				singleImage = true;
+				name = entries.iterator().next().getImageName();
+				name = GeneralTools.generateDistinctName(
+						name,
+						project.getImageList().stream().map(p -> p.getImageName()).collect(Collectors.toSet()));
+			}
+			var params = new ParameterList()
+					.addStringParameter("name", namePrompt, name, nameHelp)
+					.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
+			
+			if (!Dialogs.showParameterDialog(title, params))
 				return;
-			boolean copyData = response == response.YES;
+
+			boolean copyData = params.getBooleanParameterValue("copyData");
+			name = params.getStringParameterValue("name");
+
+			// Ensure we have a single space and then the text to append, with extra whitespace removed
+			if (!singleImage && !name.isBlank())
+				name = " " + name.strip();
+			
 			for (var entry : entries) {
 				try {
-					project.addDuplicate(entry, copyData);
+					var newEntry = project.addDuplicate(entry, copyData);
+					if (newEntry != null && !name.isBlank()) {
+						if (singleImage)
+							newEntry.setImageName(name);
+						else
+							newEntry.setImageName(newEntry.getImageName() + name);
+					}
 				} catch (Exception ex) {
 					Dialogs.showErrorNotification("Duplicating image", "Error duplicating " + entry.getImageName());
 					logger.error(ex.getLocalizedMessage(), ex);

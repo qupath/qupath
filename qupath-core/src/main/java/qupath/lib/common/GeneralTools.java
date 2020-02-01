@@ -40,14 +40,18 @@ import java.nio.file.Paths;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.Locale.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -643,6 +647,44 @@ public class GeneralTools {
 		for (long v : values)
 			total += v;
 		return total;
+	}
+	
+	
+	/**
+	 * Generate a name that is distinct from the names in an existing collection, while being based on a provided name.
+	 * <p>
+	 * This is useful, for example, when duplicating named items and requiring that the duplicates can be distinguished.
+	 * The precise way in which the name is derived is implementation-dependent, with the only requirement that it be 
+	 * recognizably derived from the base name.
+	 * <p>
+	 * Currently, names are generated in the form {@code "base (i)"} where {@code i} is an integer.
+	 * <p>
+	 * Note that if the base already has the same form, any existing integer will be stripped away; 
+	 * for example providing {@code "name (1)"} as the base will yield the output {@code "name (2)"}, 
+	 * (assuming this name does not already exist), rather than {@code "name (1) (1)"}.
+	 * 
+	 * @param base the base from which the name should be derived
+	 * @param existingNames a collection of names that are already in use, and therefore must be avoided
+	 * @return the distinct name
+	 */
+	public static String generateDistinctName(String base, Collection<String> existingNames) {
+		if (!existingNames.contains(base))
+			return base;
+		
+		// Check if we already end with a number, and if so strip that
+		if (Pattern.matches(".* (\\([\\d]+\\))$", base)) {
+			base = base.substring(0, base.lastIndexOf(" ("));
+		}
+		
+		// Check for the highest number we currently have
+		int lastInd = 0;
+		var pattern = Pattern.compile(base + " \\(([\\d]+)\\)");
+		for (var existing : existingNames) {
+			var matcher = pattern.matcher(existing);
+			if (matcher.find())
+				lastInd = Math.max(lastInd, Integer.parseInt(matcher.group(1)));
+		}
+		return base + " (" + (lastInd + 1) + ")";
 	}
 
 }
