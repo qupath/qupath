@@ -210,7 +210,8 @@ public class ExtractRegionCommand implements PathCommand {
 			double memory = ((long)width * height * nZ * nT * bytesPerPixel) / (downsample * downsample);
 			
 			// TODO: Perform calculation based on actual amount of available memory
-			if (memory >= Runtime.getRuntime().totalMemory()) {
+			long availableMemory = GeneralTools.estimateAvailableMemory();
+			if (memory >= availableMemory * 0.95) {
 				logger.error("Cannot extract region {} - estimated size is too large (approx. {} MB)", pathObject, GeneralTools.formatNumber(memory / (1024.0 * 1024.0), 2));
 				Dialogs.showErrorMessage("Send region to ImageJ error", "Selected region is too large to extract - please selected a smaller region or use a higher downsample factor");
 				continue;

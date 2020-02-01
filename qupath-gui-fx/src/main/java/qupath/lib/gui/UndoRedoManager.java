@@ -22,6 +22,7 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -348,9 +349,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 			int initialSize = 1024;
 			if (current != null) {
 				// If we are low on memory, clear the undo stack
-				var runtime = Runtime.getRuntime();
-				long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-				long remainingMemory = runtime.maxMemory() - usedMemory;
+				long remainingMemory = GeneralTools.estimateAvailableMemory();
 				if (remainingMemory < current.length * 1.5) {
 					undoStack.clear();
 				} else {

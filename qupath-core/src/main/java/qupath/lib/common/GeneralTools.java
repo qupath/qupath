@@ -686,5 +686,29 @@ public class GeneralTools {
 		}
 		return base + " (" + (lastInd + 1) + ")";
 	}
+	
+	
+	/**
+	 * Estimate the current available memory in bytes, based upon the JVM max and the memory currently used.
+	 * <p>
+	 * This may be used to help determine whether a memory-hungry operation should be attempted.
+	 * 
+	 * @return the estimated unused memory in bytes
+	 */
+	public static long estimateAvailableMemory() {
+		System.gc();
+		return Runtime.getRuntime().maxMemory() - estimateUsedMemory();
+	}
+	
+	/**
+	 * Estimate the current used memory.
+	 * 
+	 * @return the estimated allocated memory in bytes
+	 */
+	public static long estimateUsedMemory() {
+		var runtime = Runtime.getRuntime();
+		return runtime.totalMemory() - runtime.freeMemory();
+	}
+	
 
 }
