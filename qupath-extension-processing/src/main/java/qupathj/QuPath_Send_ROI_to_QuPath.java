@@ -42,7 +42,7 @@ import javafx.application.Platform;
  * @author Pete Bankhead
  *
  */
-public class QUPath_Send_ROI_to_QuPath implements PlugIn {
+public class QuPath_Send_ROI_to_QuPath implements PlugIn {
 
 	@Override
 	public void run(String arg) {

@@ -186,8 +186,8 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 				.findFirst()
 				.orElseGet(() -> null);
 				
-		if (constrainedAreaParent == null)
-			return;
+//		if (constrainedAreaParent == null)
+//			return;
 		
 		// Check the parent is a valid potential parent
 		boolean fullImage = false;

@@ -55,7 +55,7 @@ import javafx.application.Platform;
  * @author Pete Bankhead
  *
  */
-public class QUPath_Send_Overlay_to_QuPath implements PlugIn {
+public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 	
 	private String typeChoice = "Detection";
 	private boolean includeMeasurements = false;

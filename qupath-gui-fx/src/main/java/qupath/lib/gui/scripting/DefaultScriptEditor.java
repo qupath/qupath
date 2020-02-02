@@ -370,8 +370,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 
 	private static ScriptEngineManager createManager() {
-		Thread.currentThread().setContextClassLoader(QuPathGUI.getClassLoader());
-		ScriptEngineManager manager = new ScriptEngineManager(QuPathGUI.getClassLoader());
+		Thread.currentThread().setContextClassLoader(QuPathGUI.getExtensionClassLoader());
+		ScriptEngineManager manager = new ScriptEngineManager(QuPathGUI.getExtensionClassLoader());
 		//		availableLanguages.add(Language.JAVA);
 		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
 			for (Language supported : Language.values()) {

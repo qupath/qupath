@@ -372,9 +372,8 @@ public class IJTools {
 		else
 			pathObject = PathObjects.createAnnotationObject(pathROI);
 		Color color = roi.getStrokeColor();
-		if (color == null)
-			color = Roi.getColor();
-		pathObject.setColorRGB(color.getRGB());
+		if (color != null)
+			pathObject.setColorRGB(color.getRGB());
 		if (roi.getName() != null)
 			pathObject.setName(roi.getName());
 		return pathObject;

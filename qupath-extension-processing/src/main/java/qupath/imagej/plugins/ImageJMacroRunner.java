@@ -77,7 +77,7 @@ import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
-import qupathj.QUPath_Send_Overlay_to_QuPath;
+import qupathj.QuPath_Send_Overlay_to_QuPath;
 
 /**
  * QuPath plugin for running ImageJ macros &amp; returning detected regions.
@@ -336,7 +336,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				
 				boolean exportAsDetection = ((String) params.getChoiceParameterValue("getOverlayAs")).equals("Detections") ? true : false;
 				if (params.getBooleanParameterValue("getOverlay") && impResult.getOverlay() != null) {
-					List<PathObject> childObjects = QUPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, exportAsDetection, true, region.getPlane());
+					List<PathObject> childObjects = QuPath_Send_Overlay_to_QuPath.createPathObjectsFromROIs(imp, impResult.getOverlay().toArray(), imageData.getServer(), downsampleFactor, exportAsDetection, true, region.getPlane());
 					if (!childObjects.isEmpty()) {
 						pathObject.addPathObjects(childObjects);
 						changes = true;

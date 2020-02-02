@@ -410,6 +410,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * Marker interface for a viewer input Mode, used to determine active input tool.
 	 */
 	public static interface Mode {}
+	
 	/**
 	 * Modes that correspond to default drawing tools.
 	 */
@@ -481,9 +482,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private HostServices hostServices;
 	
-	public QuPathGUI(final Stage stage) {
-		this(null, stage);
-	}
 	
 	public QuPathGUI(final HostServices services, final Stage stage) {
 		this(services, stage, null, true);
@@ -846,7 +844,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @return the file that will (attempt to be) used for logging, or <code>null</code> if no file is to be used.
 	 */
-	private File tryToStartLogFile() {
+	private static File tryToStartLogFile() {
 		String pathLogging = PathPrefs.getLoggingPath();
 		if (pathLogging != null) {
 			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
@@ -895,17 +893,31 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}
 	}
 	
+	/**
+	 * Static method to launch QuPath on the JavaFX Application thread.
+	 * <p>
+	 * This can be used from other applications (e.g. MATLAB).
+	 * Afterwards, calls to getInstance() will return the QuPath instance.
+	 * <p>
+	 * If there is already an instance of QuPath running, this ensures that it is visible - but otherwise does nothing.
+	 * <p>
+	 * If {@link HostServices} are available, {@link #launchQuPath(HostServices)} should be used instead.
+	 * This method exists to make it easier to call using reflection whenever {@link HostServices} are not present.
+	 */
+	public static void launchQuPath() {
+		launchQuPath(null);
+	}
 	
 	
 	/**
-	 * Static method to launch QuPath on the JavaFX Platform thread.
+	 * Static method to launch QuPath on the JavaFX Application thread.
 	 * <p>
 	 * This can be used from other applications (e.g. MATLAB).
-	 * <p>
 	 * Afterwards, calls to getInstance() will return the QuPath instance.
 	 * <p>
 	 * If there is already an instance of QuPath running, this ensures that it is visible - but otherwise does nothing.
 	 * 
+	 * @param hostServices JavaFX HostServices if available, otherwise null
 	 */
 	public static void launchQuPath(HostServices hostServices) {
 		if (!Platform.isFxApplicationThread()) {
@@ -1013,7 +1025,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @return
 	 */
-	private File getDefaultQuPathUserDirectory() {
+	private static File getDefaultQuPathUserDirectory() {
 		return new File(System.getProperty("user.home"), "QuPath");
 	}
 	
@@ -1634,7 +1646,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private Image loadIcon(int size) {
 		String path = "icons/QuPath_" + size + ".png";
-		try (InputStream stream = getClassLoader().getResourceAsStream(path)) {
+		try (InputStream stream = getExtensionClassLoader().getResourceAsStream(path)) {
 			if (stream != null) {
 				BufferedImage img = ImageIO.read(stream);
 				if (img != null)
@@ -1692,8 +1704,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	
-	public static ClassLoader getClassLoader() {
+	/**
+	 * Get the {@link ClassLoader} used to load extensions.
+	 * @return
+	 */
+	public static ClassLoader getExtensionClassLoader() {
 		return extensionClassLoader;
 	}
 	
@@ -2503,7 +2518,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			} else {
 				ObservableList<ImageServer<BufferedImage>> serverObservableList = FXCollections.observableArrayList();
 				for (ImageServer<BufferedImage> imageServer: serverList) serverObservableList.add(imageServer);
-				List<ImageServer<BufferedImage>> serverImagesToOpen = promptSerieSelector(this, serverObservableList);
+				List<ImageServer<BufferedImage>> serverImagesToOpen = promptSeriesSelector(this, serverObservableList);
 				
 				// Only allows one image to be opened
 				if (!serverImagesToOpen.isEmpty()) serverNew = serverImagesToOpen.get(0);
@@ -2550,7 +2565,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return false;
 	}
 	
-	private ObservableValue<String> getSerieQuickInfo(ImageServer<BufferedImage> imageServer, int index) {
+	private ObservableValue<String> getSeriesQuickInfo(ImageServer<BufferedImage> imageServer, int index) {
 		String filePath = imageServer.getURIs().iterator().next().toString();
 		String serverType = imageServer.getServerType();
 		String width = "" + imageServer.getWidth() + " px";
@@ -2569,7 +2584,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 	
 	@SuppressWarnings("unchecked")
-	public List<ImageServer<BufferedImage>> promptSerieSelector(QuPathGUI qupath, ObservableList<ImageServer<BufferedImage>> serverList) {			
+	public List<ImageServer<BufferedImage>> promptSeriesSelector(QuPathGUI qupath, ObservableList<ImageServer<BufferedImage>> serverList) {			
 		// Get thumbnails in separate thread
 		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
 
@@ -2580,16 +2595,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// thumbnailBank is the map for storing thumbnails
 		Map<String, BufferedImage> thumbnailBank = new HashMap<String, BufferedImage>();
 		for (ImageServer<BufferedImage> server: serverList) {
-			executor.submit(new Runnable() {
-				
-				@Override
-				public void run() {
-					try {
-						thumbnailBank.put(server.getMetadata().getName(), ProjectImportImagesCommand.getThumbnailRGB(server, null));
-						Platform.runLater( () -> listSeries.refresh());
-					} catch (IOException e) {
-						logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
-					}
+			executor.submit(() -> {
+				try {
+					thumbnailBank.put(server.getMetadata().getName(), ProjectImportImagesCommand.getThumbnailRGB(server, null));
+					Platform.runLater( () -> listSeries.refresh());
+				} catch (IOException e) {
+					logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
 				}
 			});
 		};
@@ -2622,7 +2633,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		valueCol.setMinWidth(242);
 		valueCol.setResizable(false);
 		valueCol.setCellValueFactory(cellData -> {
-			if (selectedSeries != null) return getSerieQuickInfo(selectedSeries, cellData.getValue());
+			if (selectedSeries != null) return getSeriesQuickInfo(selectedSeries, cellData.getValue());
 			else return null;
 		});
 		
@@ -2633,7 +2644,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
             row.hoverProperty().addListener((observable) -> {
                 final var element = row.getItem();
                 if (row.isHover() && selectedSeries != null) {
-                	ObservableValue<String> value = getSerieQuickInfo(selectedSeries, element);
+                	ObservableValue<String> value = getSeriesQuickInfo(selectedSeries, element);
                 	Tooltip tooltip = new Tooltip(value.getValue());
                 	Tooltip.install(row, tooltip);
                 }
@@ -2690,13 +2701,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		try {
 			executor.shutdownNow();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.warn(e.getLocalizedMessage(), e);
 		} finally {
 			selectedSeries = null;
 			try {
-				for (ImageServer<BufferedImage> server: serverList) server.close();
+				for (ImageServer<BufferedImage> server: serverList)
+					server.close();
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.debug(e.getLocalizedMessage(), e);
 			}
 		}		
 		
@@ -2770,7 +2782,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		String pathUsers = PathPrefs.getUserPath();
 		File fileScript = pathUsers == null ? null : new File(pathUsers, "startup.groovy");
 		if (fileScript != null && fileScript.exists()) {
-			ScriptEngine engine = new ScriptEngineManager(getClassLoader()).getEngineByName("groovy");
+			ScriptEngine engine = new ScriptEngineManager(getExtensionClassLoader()).getEngineByName("groovy");
 			engine.getContext().setWriter(new Writer() {
 				
 				@Override
@@ -3480,7 +3492,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	public Action createPluginAction(final String name, final String pluginClassName, final boolean includeRegionStore, final String arg) throws ClassNotFoundException {
-		Class<PathPlugin> cls = (Class<PathPlugin>)getClassLoader().loadClass(pluginClassName);
+		Class<PathPlugin> cls = (Class<PathPlugin>)getExtensionClassLoader().loadClass(pluginClassName);
 		return createPluginAction(name, cls, this, arg);
 	}
 	
@@ -3610,7 +3622,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 	public Action createCommandAction(final String className, final String name, final Object... arguments) {
 		try {
-			Class<? extends PathCommand> cls = (Class<PathCommand>)getClassLoader().loadClass(className);
+			Class<? extends PathCommand> cls = (Class<PathCommand>)getExtensionClassLoader().loadClass(className);
 			Class<?>[] classes = new Class<?>[arguments.length];
 			for (int i = 0; i < arguments.length; i++)
 				classes[i] = arguments[i].getClass();
@@ -4084,10 +4096,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return MenuTools.createMenuItem(action);
 	}
 	
-	public static CheckBox createCheckBox(final Action action) {
-		return ActionUtils.createCheckBox(action);
-	}
-	
 	
 	
 	
@@ -4134,7 +4142,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	public CheckBox getActionCheckBox(GUIActions actionType, boolean hideActionText) {
 		// Not sure why we have to bind?
 		Action action = getAction(actionType);
-		CheckBox button = createCheckBox(action);
+		CheckBox button = ActionUtils.createCheckBox(action);
 		button.selectedProperty().bindBidirectional(action.selectedProperty());
 		if (hideActionText) {
 			button.setTooltip(new Tooltip(button.getText()));
@@ -4542,25 +4550,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	/**
-	 * Set zoom to fit for a specified viewer.
-	 * 
-	 * If the viewer is null, the active viewer will be used instead.
-	 * 
-	 * @param viewer
-	 * @param zoomToFit
-	 */
-	public void setZoomToFit(final QuPathViewer viewer, final boolean zoomToFit) {
-		// If we are turning off zoom to fit, make sure the slider is updated suitable
-		QuPathViewer viewer2 = viewer == null ? getViewer() : viewer;
-		if (viewer2 == null)
-			return;
-		viewer2.setZoomToFit(zoomToFit);
-		if (zoomToFit && viewer2 == getViewer())
-			updateMagnificationString();
-	}
-	
-	
 	private String getDisplayedImageName(ImageData<BufferedImage> imageData) {
 		if (imageData == null)
 			return null;
@@ -4807,12 +4796,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	public DialogHelper getDialogHelper() {
 		return getDialogHelper(getStage());
 	}
-
-	static double getProportion(final double val, final double min, final double max) {
-		return (val - min) / (max - min);
-	}
-	
-	
 	
 	
 	

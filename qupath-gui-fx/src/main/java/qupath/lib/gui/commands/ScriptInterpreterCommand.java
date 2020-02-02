@@ -112,7 +112,7 @@ public class ScriptInterpreterCommand implements PathCommand {
 	@Override
 	public void run() {
 		
-		ScriptInterpreter scriptInterpreter = new ScriptInterpreter(qupath, QuPathGUI.getClassLoader());
+		ScriptInterpreter scriptInterpreter = new ScriptInterpreter(qupath, QuPathGUI.getExtensionClassLoader());
 		scriptInterpreter.getStage().initOwner(qupath.getStage());
 		scriptInterpreter.getStage().show();
 		
