@@ -143,9 +143,9 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		OverlayOptions overlayOptions = getOverlayOptions();
 		long timestamp = overlayOptions.lastChangeTimestamp().get();
 		int pointRadius = PathPrefs.getDefaultPointRadius();
+		BufferedImage bufferLocal = buffer;
 		if (overlayOptionsTimestamp != timestamp || pointRadius != lastPointRadius) {
 			lastPointRadius = pointRadius;
-			buffer = null;
 			overlayOptionsTimestamp = timestamp;
 		}
 		
@@ -236,22 +236,22 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 			gNoTransform.setTransform(new AffineTransform());
 			var rawClip = gNoTransform.getClipBounds();
 			// Create a buffer if we need to
-			if (buffer == null) {
+			if (bufferLocal == null) {
 				// Paint the annotations
 				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
 				pathObjects.removeAll(selectedObjects);
 				Graphics2D g;
 				if (!pathObjects.isEmpty()) {
-					if (buffer == null || buffer.getWidth() != rawClip.getWidth() || buffer.getHeight() != rawClip.getHeight()) {
-						buffer = new BufferedImage(rawClip.width, rawClip.height, BufferedImage.TYPE_INT_ARGB);
-						g = buffer.createGraphics();
+					if (bufferLocal == null || bufferLocal.getWidth() != rawClip.getWidth() || bufferLocal.getHeight() != rawClip.getHeight()) {
+						bufferLocal = new BufferedImage(rawClip.width, rawClip.height, BufferedImage.TYPE_INT_ARGB);
+						g = bufferLocal.createGraphics();
 					} else {
-						g = buffer.createGraphics();
+						g = bufferLocal.createGraphics();
 						g.setComposite(AlphaComposite.getInstance(AlphaComposite.CLEAR));
-						g.fillRect(0, 0, buffer.getWidth(), buffer.getHeight());
+						g.fillRect(0, 0, bufferLocal.getWidth(), bufferLocal.getHeight());
 						g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
 					}
-					g.setClip(0, 0, buffer.getWidth(), buffer.getHeight());
+					g.setClip(0, 0, bufferLocal.getWidth(), bufferLocal.getHeight());
 					g.setTransform(g2d.getTransform());
 					g.setRenderingHints(g2d.getRenderingHints());
 					List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
@@ -260,9 +260,9 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 					PathHierarchyPaintingHelper.paintSpecifiedObjects(g, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);		
 				}
 			}
-			if (buffer != null) {
+			if (bufferLocal != null) {
 				// We need to draw without the transform since otherwise the scaling can be off
-				gNoTransform.drawImage(buffer, rawClip.x, rawClip.y, null);
+				gNoTransform.drawImage(bufferLocal, rawClip.x, rawClip.y, null);
 //				g2d.drawImage(buffer, clipRegion.getX(), clipRegion.getY(), clipRegion.getWidth(), clipRegion.getHeight(), null);
 			}
 			gNoTransform.dispose();

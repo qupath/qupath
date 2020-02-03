@@ -40,6 +40,7 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ListChangeListener.Change;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -104,7 +105,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 	/*
 	 * Selection being changed by outside forces, i.e. don't fire an event
 	 */
-	private boolean changingSelection = false;
+	private boolean suppressSelectionChanges = false;
 	
 	
 	
@@ -134,14 +135,10 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		listAnnotations.setCellFactory(v -> new PathObjectListCell());
 
 		listAnnotations.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		listAnnotations.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<PathObject>() {
-			@Override
-			public void onChanged(Change<? extends PathObject> c) {
-				synchronizeListSelectionToHierarchy();
-			}
-		});
-		
-		listAnnotations.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> synchronizeListSelectionToHierarchy());
+		listAnnotations.getSelectionModel().getSelectedItems().addListener(
+				(Change<? extends PathObject> c) -> synchronizeHierarchySelectionToListSelection()
+		);
+		listAnnotations.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> synchronizeHierarchySelectionToListSelection());
 
 		listAnnotations.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1) {
@@ -198,17 +195,20 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 	}
 	
 	
-	
-	void synchronizeListSelectionToHierarchy() {
-		if (hierarchy == null || changingSelection)
+	/**
+	 * Update the selected objects in the hierarchy to match those in the list, 
+	 * unless selection changes should be suppressed.
+	 */
+	void synchronizeHierarchySelectionToListSelection() {
+		if (hierarchy == null || suppressSelectionChanges)
 			return;
-		changingSelection = true;
+		suppressSelectionChanges = true;
 		Set<PathObject> selectedSet = new HashSet<>(listAnnotations.getSelectionModel().getSelectedItems());
 		PathObject selectedObject = listAnnotations.getSelectionModel().getSelectedItem();
 		if (!selectedSet.contains(selectedObject))
 			selectedObject = null;
 		hierarchy.getSelectionModel().setSelectedObjects(selectedSet, selectedObject);
-		changingSelection = false;
+		suppressSelectionChanges = false;
 	}
 	
 	
@@ -290,10 +290,10 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			return;
 		}
 
-		if (changingSelection)
+		if (suppressSelectionChanges)
 			return;
 		
-		changingSelection = true;
+		suppressSelectionChanges = true;
 		if (synchronizePrimarySelectionOnly) {
 			try {
 				var listSelectionModel = listAnnotations.getSelectionModel();
@@ -304,7 +304,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				}
 				return;
 			} finally {
-				changingSelection = false;
+				suppressSelectionChanges = false;
 			}
 		}
 		
@@ -362,7 +362,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				listAnnotations.scrollTo(pathObjectSelected);
 			
 			if (firstInd) {
-				changingSelection = false;
+				suppressSelectionChanges = false;
 				return;
 			}
 			if (inds.length == 1)
@@ -370,7 +370,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			else if (inds.length > 1)
 				model.selectIndices(inds[0], inds);
 		} finally {
-			changingSelection = false;			
+			suppressSelectionChanges = false;			
 		}
 	}
 
@@ -415,9 +415,12 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				listAnnotations.refresh();
 			return;
 		}
-		// If the lists are different, we need to update accordingly
+		// If the lists are different, we need to update accordingly - but we don't want to trigger accidental selection updates
 //		listAnnotations.getSelectionModel().clearSelection(); // Clearing the selection would cause annotations to disappear when interactively training a classifier!
+		boolean lastChanging = suppressSelectionChanges;
+		suppressSelectionChanges = true;
 		listAnnotations.getItems().setAll(newList);
+		suppressSelectionChanges = lastChanging;
 	}
 	
 }

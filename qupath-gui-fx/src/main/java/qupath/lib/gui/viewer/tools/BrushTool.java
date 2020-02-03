@@ -83,6 +83,13 @@ public class BrushTool extends AbstractPathROITool {
 	double lastRequestedCursorDiameter = Double.NaN;
 	Cursor requestedCursor;
 	
+	/**
+	 * The object currently being edited by the Brush.
+	 * This is set when the mouse is pressed, to avoid relying on QuPathViewer.getSelectedObject() 
+	 * (in case something has sneakily changed this).
+	 */
+	private PathObject currentObject;
+	
 	Point2D lastPoint;
 	
 //	/**
@@ -131,7 +138,7 @@ public class BrushTool extends AbstractPathROITool {
 //		e.setFill(null);
 //		e.setStroke(color);
 //		Image image = e.snapshot(snapshotParameters, null);
-//		requestedCursor = new ImageCursor(image, diameter/2, diameter/2);
+//		requestedCursor = new ImageCursor(image, image.getWidth()/2, image.getHeight()/2);
 //		
 //		this.registerTool(viewer);
 //
@@ -159,7 +166,7 @@ public class BrushTool extends AbstractPathROITool {
 	
 	@Override
 	public void mouseMoved(MouseEvent e) {
-//		ensureCursorType(getRequestedCursor());
+		ensureCursorType(getRequestedCursor());
 	}
 	
 	
@@ -264,13 +271,13 @@ public class BrushTool extends AbstractPathROITool {
 		ROI shapeROI = createNew ? null : currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
-			createNewAnnotation(e, p.getX(), p.getY());
+			this.currentObject = createNewAnnotation(e, p.getX(), p.getY());
 			viewer.getROIEditor().setROI(null);
 		} else {
-			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
+			this.currentObject = getUpdatedObject(e, shapeROI, currentObject, -1);
+			viewer.setSelectedObject(this.currentObject);
 			viewer.getROIEditor().setROI(null); // Avoids handles appearing?
-		}
-		
+		}		
 		lastPoint = p;
 	}
 	
@@ -291,6 +298,10 @@ public class BrushTool extends AbstractPathROITool {
 		PathObject pathObject = viewer.getSelectedObject();
 		if (pathObject == null || !pathObject.isAnnotation() || !pathObject.isEditable())
 			return;
+		if (pathObject != currentObject) {
+			logger.warn("Selected object has changed from {} to {}", currentObject, pathObject);
+			return;
+		}
 
 		ROI currentROI = pathObject.getROI();
 		if (!(currentROI instanceof ROI))
@@ -418,12 +429,11 @@ public class BrushTool extends AbstractPathROITool {
 		if (e.isConsumed())
 			return;
 
-		PathObject currentObject = viewer.getSelectedObject();
-		if (currentObject == null)
-			return;
+		if (currentObject != null)
+			commitObjectToHierarchy(e, currentObject);
 		
 		lastPoint = null;
-		commitObjectToHierarchy(e, currentObject);
+		this.currentObject = null;
 	}
 	
 	
