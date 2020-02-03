@@ -77,11 +77,14 @@ import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
@@ -95,6 +98,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
@@ -289,7 +293,17 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 				menubar.getMenus().addAll(menuFile, menuEdit);
 				
 				// Create image view
-				Image img = SwingFXUtils.toFXImage(imageData.getServer().getAssociatedImage(name), null);
+				var imgBuffered = imageData.getServer().getAssociatedImage(name);
+				if (!BufferedImageTools.is8bitColorType(imgBuffered.getType()) && imgBuffered.getType() != BufferedImage.TYPE_BYTE_GRAY) {
+					// By wrapping the thumbnail, we avoid slow z-stack/time series requests & determine brightness & contrast just from one plane
+					var wrappedServer = new WrappedBufferedImageServer("Dummy", imgBuffered);
+					var imageDisplay = new ImageDisplay(new ImageData<>(wrappedServer));
+					for (ChannelDisplayInfo info : imageDisplay.selectedChannels()) {
+						imageDisplay.autoSetDisplayRange(info);
+					}
+					imgBuffered = imageDisplay.applyTransforms(imgBuffered, null);
+				}
+				Image img = SwingFXUtils.toFXImage(imgBuffered, null);
 				ImageView imageView = new ImageView(img);
 				BorderPane pane = new BorderPane();
 				imageView.fitWidthProperty().bind(pane.widthProperty());
