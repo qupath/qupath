@@ -34,6 +34,8 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import javax.swing.SwingUtilities;
 
@@ -48,6 +50,7 @@ import ij.gui.PointRoi;
 import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.ShapeRoi;
+import ij.gui.Wand;
 import ij.io.FileInfo;
 import ij.measure.Calibration;
 import ij.process.Blitter;
@@ -57,6 +60,7 @@ import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
+import qupath.imagej.processing.RoiLabeling;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -71,6 +75,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
@@ -378,6 +383,86 @@ public class IJTools {
 			pathObject.setName(roi.getName());
 		return pathObject;
 	}
+	
+	public static SortedMap<Number, PathObject> convertLabelsToCells(
+			ImageProcessor ipNuclei, ImageProcessor ipCells,
+			Calibration cal, double downsample, ImagePlane plane) {
+		
+		double x = cal == null ? 0 : cal.xOrigin;
+		double y = cal == null ? 0 : cal.yOrigin;
+		return convertLabelsToCells(ipNuclei, ipCells, x, y, downsample, plane);
+	}
+	
+	
+	public static SortedMap<Number, PathObject> convertLabelsToCells(
+			ImageProcessor ipNuclei, ImageProcessor ipCells,
+			double xOrigin, double yOrigin, double downsample, ImagePlane plane) {
+		
+		int width = ipCells.getWidth();
+		int height = ipCells.getHeight();
+		SortedMap<Number, PathObject> cells = new TreeMap<>();
+		
+		// First, go through and get all nuclei & associated cells
+		var wandCells = new Wand(ipCells);
+		var wandNuclei = new Wand(ipNuclei);
+		int wandMode = Wand.EIGHT_CONNECTED;
+		var bpDone = new ByteProcessor(width, height);
+		bpDone.setValue(255.0);
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				// Check we have valid labels
+				int labelNucleus = (int)ipNuclei.getf(x, y);
+				int labelCell = (int)ipNuclei.getf(x, y);
+				if (labelNucleus > 0 && labelCell != labelNucleus)
+					throw new IllegalArgumentException("All nucleus labels must have an identical corresponding cell label! "
+							+ "Found nucleus label " + labelNucleus + " with cell " + labelCell + " at (" + x + ", " + y + ")");
+				
+				// Check if we've already handled this pixel
+				if (labelNucleus == 0 || bpDone.get(x, y) != (byte)0)
+					continue;
+				
+				wandNuclei.autoOutline(x, y, labelNucleus, labelNucleus, wandMode);
+				var nucleusRoi = RoiLabeling.wandToRoi(wandNuclei);
+				wandCells.autoOutline(x, y, labelCell, labelCell, wandMode);
+				var cellRoi = RoiLabeling.wandToRoi(wandCells);
+				
+				var roiNucleus = convertToROI(nucleusRoi, xOrigin, yOrigin, downsample, plane);
+				var roiCell = convertToROI(cellRoi, xOrigin, yOrigin, downsample, plane);
+				// Retain the cell with the larger nucleus
+				var newCell = PathObjects.createCellObject(roiCell, roiNucleus, null, null);
+				var previous = cells.put(labelNucleus, newCell);
+				if (previous != null) {
+					logger.warn("Found duplicate cells/nuclei for label {}, will keep only one!", labelNucleus);
+					if (PathObjectTools.getROI(newCell, true).getArea() < PathObjectTools.getROI(previous, true).getArea())
+						cells.put(labelNucleus, previous);
+				}
+				
+				// Keep track of what we've done
+				bpDone.fill(cellRoi);
+			}
+		}
+		
+		// Now check if we have any other cells but without nuclei
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				int label = (int)ipCells.getf(x, y);
+				if (label == 0 || bpDone.get(x, y) != (byte)0)
+					continue;
+				wandCells.autoOutline(x, y, label, label, wandMode);
+				var cellRoi = RoiLabeling.wandToRoi(wandCells);
+				var roiCell = convertToROI(cellRoi, xOrigin, yOrigin, downsample, plane);
+				// Use putIfAbsent as we'd rather retain the first cell (which might have a nucleus associated with it)
+				var previous = cells.putIfAbsent(label, PathObjects.createCellObject(roiCell, null, null, null));
+				if (previous != null)
+					logger.warn("Found duplicate cell for label {}, will keep only one!", previous);
+				// Keep track of what we've done
+				bpDone.fill(cellRoi);
+			}
+		}
+		
+		return cells;
+	}
+
 	
 	
 	/**
