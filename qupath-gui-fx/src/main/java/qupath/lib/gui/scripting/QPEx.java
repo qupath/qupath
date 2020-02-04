@@ -28,19 +28,30 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -57,23 +68,16 @@ import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
 
 /**
@@ -365,6 +369,17 @@ public class QPEx extends QP {
 		ImageWriterTools.writeImage(renderedServer, path);
 	}
 	
+	/**
+	 * Write a JavaFX image to the specified path.
+	 * @param image the image to write
+	 * @param path the path to write the image
+	 * @throws IOException
+	 * @see #writeRenderedImage(ImageData, String)
+	 */
+	public static void writeImage(Image image, String path) throws IOException {
+		writeImage(SwingFXUtils.fromFXImage(image, null), path);
+	}
+	
 	
 	
 	public static void saveAnnotationMeasurements(final String path, final String... includeColumns) {
@@ -426,5 +441,78 @@ public class QPEx extends QP {
 			logger.error("Error writing file to " + fileOutput, e);
 		}
 	}
+	
+	/**
+	 * Access a window currently open within QuPath by its title.
+	 * @param title
+	 * @return
+	 */
+	public static Window getWindow(String title) {
+		for (var window : Window.getWindows()) {
+			if (window instanceof Stage) {
+				var stage = (Stage)window;
+				if (title.equals(stage.getTitle()))
+					return stage;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Try to copy an object to the clipboard.
+	 * This will attempt to perform a smart conversion; for example, if a window is provided a snapshot will be taken 
+	 * and copied as an image.
+	 * @param o the object to copy
+	 */
+	public static void copyToClipboard(Object o) {
+		if (!Platform.isFxApplicationThread()) {
+			Object o2 = o;
+			Platform.runLater(() -> copyToClipboard(o2));
+			return;
+		}
+		
+		ClipboardContent content = new ClipboardContent();
+		
+		// Handle things that are (or could become) images
+		if (o instanceof BufferedImage)
+			o = SwingFXUtils.toFXImage((BufferedImage)o, null);
+		if (o instanceof QuPathGUI)
+			o = ((QuPathGUI)o).getStage();
+		if (o instanceof QuPathViewer)
+			o = ((QuPathViewer)o).getView();
+		if (o instanceof Window)
+			o = ((Window)o).getScene();
+		if (o instanceof Scene)
+			o = ((Scene)o).snapshot(null);
+		if (o instanceof Node)
+			o = ((Node)o).snapshot(null, null);
+		if (o instanceof Image)
+			content.putImage((Image)o);
+		
+		// Handle files
+		List<File> files = null;
+		if (o instanceof File)
+			files = Arrays.asList((File)o);
+		else if (o instanceof File[])
+			files = Arrays.asList((File[])o);
+		else if (o instanceof Collection) {
+			files = new ArrayList<>();
+			for (var something : (Collection)o) {
+				if (something instanceof File)
+					files.add((File)something);
+			}
+		}
+		if (files != null && !files.isEmpty())
+			content.putFiles(files);
+		
+		// Handle URLs
+		if (o instanceof URL)
+			content.putUrl(((URL)o).toString());
+		
+		// Always put a String representation
+		content.putString(o.toString());
+		Clipboard.getSystemClipboard().setContent(content);
+	}
+	
 	
 }
