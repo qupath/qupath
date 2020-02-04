@@ -42,6 +42,7 @@ import java.util.stream.Collectors;
 
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools;
@@ -1028,5 +1030,67 @@ public class PathObjectTools {
 		}
 		return true;
 	}
+	
+	
+	/**
+	 * Constrain a cell boundary to fall within a maximum region, determined by scaling the nucleus ROI by a fixed scale factor 
+	 * about its centroid.
+	 * This can be used to create more biologically plausible cell boundaries in cases where the initial boundary estimates may be 
+	 * too large.
+	 * 
+	 * @param cell original cell object
+	 * @param nucleusScaleFactor scale factor by which the nucleus should be expanded to defined maximum cell size
+	 * @param keepMeasurements if true, retain the measurements of the original cell if creating a new cell; if false, discard existing measurements
+	 * @return the updated cell object, or the original cell object either if its boundary falls within the specified limit or it lacks both boundary and nucleus ROIs
+	 */
+	public static PathCellObject constrainCellByScaledNucleus(PathCellObject cell, double nucleusScaleFactor, boolean keepMeasurements) {
+		  var roi = cell.getROI();
+		  var roiNucleus = cell.getNucleusROI();
+		  if (roi == null || roiNucleus == null)
+		    return cell;
+		  var geom = roi.getGeometry();
+		  var geomNucleus = roiNucleus.getGeometry();
+		  var centroid = geomNucleus.getCentroid();
+		  var transform = AffineTransformation.scaleInstance(
+				  nucleusScaleFactor, nucleusScaleFactor, centroid.getX(), centroid.getY());
+		  var geomNucleusExpanded = transform.transform(geomNucleus);
+		  if (geomNucleusExpanded.covers(geom))
+		    return cell;
+		  geom = geom.intersection(geomNucleusExpanded);
+		  geom = GeometryTools.ensurePolygonal(geom);
+		  roi = GeometryTools.geometryToROI(geom, roi.getImagePlane());
+		  return (PathCellObject)PathObjects.createCellObject(
+		          roi, roiNucleus, cell.getPathClass(), keepMeasurements ? cell.getMeasurementList() : null
+		          );
+	}
+	
+	/**
+	 * Constrain a cell boundary to fall within a maximum region, determined by buffering nucleus ROI by a fixed distance.
+	 * This can be used to create more biologically plausible cell boundaries in cases where the initial boundary estimates may be 
+	 * too large.
+	 * 
+	 * @param cell original cell object
+	 * @param distance distance (in pixels) by which the nucleus should be expanded to defined maximum cell size
+	 * @param keepMeasurements if true, retain the measurements of the original cell if creating a new cell; if false, discard existing measurements
+	 * @return the updated cell object, or the original cell object either if its boundary falls within the specified limit or it lacks both boundary and nucleus ROIs
+	 */
+	public static PathCellObject constrainCellByNucleusDistance(PathCellObject cell, double distance, boolean keepMeasurements) {
+		  var roi = cell.getROI();
+		  var roiNucleus = cell.getNucleusROI();
+		  if (roi == null || roiNucleus == null || distance <= 0)
+		    return cell;
+		  var geom = roi.getGeometry();
+		  var geomNucleus = roiNucleus.getGeometry();
+		  var geomNucleusExpanded = geomNucleus.buffer(distance);
+		  if (geomNucleusExpanded.covers(geom))
+		    return cell;
+		  geom = geom.intersection(geomNucleusExpanded);
+		  geom = GeometryTools.ensurePolygonal(geom);
+		  roi = GeometryTools.geometryToROI(geom, roi.getImagePlane());
+		  return (PathCellObject)PathObjects.createCellObject(
+		          roi, roiNucleus, cell.getPathClass(), keepMeasurements ? cell.getMeasurementList() : null
+		          );
+	}
+	
 	
 }
