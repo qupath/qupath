@@ -260,7 +260,7 @@ public class ImageServerProvider {
 		List<UriImageSupport<T>> supports = getServerBuilders(cls, path, args);
 
 		if (!supports.isEmpty()) {
-			List<ImageServer<T>> list = new ArrayList<ImageServer<T>>();
+			List<ImageServer<T>> list = new ArrayList<>();
 			for (UriImageSupport<T> support: supports) {
 				boolean noException = true;
 				try {
@@ -269,11 +269,18 @@ public class ImageServerProvider {
 						noException = true;
 						for (ServerBuilder<T> builder: builders) {
 							var server = builder.build();
-							boolean duplicate = list.parallelStream().anyMatch(s -> s.getOriginalMetadata().equals(server.getOriginalMetadata()));
-							if (duplicate) continue;
-							else list.add(checkServerSize(server));
+//							boolean duplicate = list.parallelStream().anyMatch(s -> s.getOriginalMetadata().equals(server.getOriginalMetadata()));
+//							if (duplicate)
+//								continue;
+//							else
+							server = checkServerSize(server);
+							if (server != null)
+								list.add(checkServerSize(server));
+							else
+								logger.warn("Unable to open {}", server);
 						}
-						if (noException) return list;
+						if (noException)
+							return list;
 					}
 				} catch (Exception e) {
 					noException = false;

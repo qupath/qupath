@@ -23,6 +23,8 @@
 
 package qupath.lib.images.servers.bioformats;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -58,6 +60,9 @@ public class BioFormatsServerOptions {
 //	private boolean requestParallelizeMultichannel = false;
 	private String pathMemoization;
 	
+	// Bio-Formats supports reader customization through key-value pairs
+	private Map<String, String> readerOptions = new LinkedHashMap<>();
+	
 //	private boolean requestChannelZCorrectionVSI = false;
 	
 	private BioFormatsServerOptions() {}
@@ -77,6 +82,50 @@ public class BioFormatsServerOptions {
 	 */
 	public void setPathMemoization(final String pathMemoization) {
 		this.pathMemoization = pathMemoization;
+	}
+	
+	/**
+	 * Get a map representing additional arguments that should be passed to readers.
+	 * This method returns a copy of the map, and therefore changes will not automatically be reflected in 
+	 * the options until these are passed to {@link #setReaderOptions(Map)}.
+	 * 
+	 * @return the additional arguments currently requested when opening images
+	 * @see #clearReaderOptions()
+	 * @see #setReaderOptions(Map)
+	 */
+	public synchronized  Map<String, String> getReaderOptions() {
+		return new LinkedHashMap<>(readerOptions);
+	}
+	
+	/**
+	 * Clear all reader options, returning these to their defaults.
+	 * 
+	 * @see #getReaderOptions()
+	 * @see #setReaderOptions(Map)
+	 */
+	public synchronized  void clearReaderOptions() {
+		readerOptions.clear();
+	}
+
+	/**
+	 * Set additional arguments that should be passed to viewers.
+	 * Example:
+	 * <pre>
+	 * 	BioFormatsServerOptions.setReaderOptions(Map.of("zeissczi.autostitch", "false"));
+	 * </pre>
+	 * Note: options are passed to every server, even when irrelevant for the particular server type.
+	 * Therefore they can end up being stored unnecessarily in projects and server paths.
+	 * For that reason it best practice to call {@link #clearReaderOptions()} after options are no longer required.
+	 * 
+	 * @param options the arguments to pass when opening new readers
+	 * 
+	 * @see #clearReaderOptions()
+	 * @see #getReaderOptions()
+	 */
+	public synchronized void setReaderOptions(Map<String, String> options) {
+		this.readerOptions.clear();
+		if (options != null && !options.isEmpty())
+			this.readerOptions.putAll(options);
 	}
 
 	/**

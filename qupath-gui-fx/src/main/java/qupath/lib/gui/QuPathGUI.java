@@ -2398,7 +2398,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * <p>
 	 * If this encounters an exception, an error message will be shown.
 	 * 
-	 * @param prompt - if true, give the user the opportunity to cancel opening if a whole slide server is already set
+	 * @param prompt if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @return true if the server was set for this GUI, false otherwise
 	 */
 	public boolean openImage(String pathNew, boolean prompt, boolean includeURLs) {
@@ -2517,7 +2517,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				serverNew = serverList.get(0);
 			} else {
 				ObservableList<ImageServer<BufferedImage>> serverObservableList = FXCollections.observableArrayList();
-				for (ImageServer<BufferedImage> imageServer: serverList) serverObservableList.add(imageServer);
+				for (ImageServer<BufferedImage> imageServer: serverList)
+					serverObservableList.add(imageServer);
 				List<ImageServer<BufferedImage>> serverImagesToOpen = promptSeriesSelector(this, serverObservableList);
 				
 				// Only allows one image to be opened
@@ -2605,10 +2606,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			});
 		};
 		
-		listSeries.setCellFactory(v -> new ImageAndNameListCell(thumbnailBank));
+		double thumbnailSize = 80;
+		listSeries.setCellFactory(v -> new ImageAndNameListCell(thumbnailBank, thumbnailSize, thumbnailSize));
 		listSeries.getItems().setAll(serverList);
 
-		
 		
 		// Info table - Changes according to selected series
 		String[] attributes = new String[] {"Full Path", "Server Type", "Width", "Height", "Pixel Width", "Pixel Height", "Pixel Type", "Number of Channels", "Number of Resolutions"};

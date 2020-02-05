@@ -183,6 +183,7 @@ allprojects {
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.3'
+    picocliVersion     = '4.1.4'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
   }
@@ -264,6 +265,8 @@ allprojects {
       openslide "org.openslide:openslide:${openslideVersion}:${nativesClassifier}"
 
     guava "com.google.guava:guava:${guavaVersion}"
+    
+    picocli "info.picocli:picocli:${picocliVersion}"
   }
 
 }

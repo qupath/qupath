@@ -6,6 +6,7 @@ configurations {
   // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately
 //  implementation.extendsFrom bioformats
   implementation.extendsFrom controlsfx
+  implementation.extendsFrom picocli
 //  testImplementation.extendsFrom bioformats
 //  testImplementation.extendsFrom bioformatsTest
   testImplementation.extendsFrom imagej
