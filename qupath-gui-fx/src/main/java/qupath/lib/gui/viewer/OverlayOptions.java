@@ -39,6 +39,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassTools;
 
 /**
  * Default class for storing overlay display options.
@@ -307,7 +308,8 @@ public class OverlayOptions {
 			return false;
 		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
 			return hiddenClasses.contains(null) || hiddenClasses.contains(PathClassFactory.getPathClassUnclassified());
-		return hiddenClasses.contains(pathClass) || (pathClass != null && pathClass.isDerivedClass() && isPathClassHidden(pathClass.getParentClass()));
+		return hiddenClasses.contains(pathClass) || 
+				((PathClassTools.isPositiveOrGradedIntensityClass(pathClass) || PathClassTools.isNegativeClass(pathClass)) && pathClass.isDerivedClass() && isPathClassHidden(pathClass.getParentClass()));
 	}
 
 	/**
