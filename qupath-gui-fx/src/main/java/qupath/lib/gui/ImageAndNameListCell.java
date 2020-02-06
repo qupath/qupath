@@ -11,22 +11,25 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.text.Text;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.ImageServer;
 
-
+/**
+ * A {@link ListCell} that displays an image and associated name.
+ * The image is retrieved from a cache rather than loaded directly, therefore it is assumed that 
+ * the cache is populated elsewhere.
+ */
 public class ImageAndNameListCell extends ListCell<ImageServer<BufferedImage>> {
 	
-	private Map<String, BufferedImage> thumbnailBank;
+	private Map<String, BufferedImage> imageCache;
 	private BorderPane pane = new BorderPane();
 	final private Canvas canvas = new Canvas();
 	
 	private Image img;
 	
-	public ImageAndNameListCell(final Map<String, BufferedImage> thumbnailBank, double imgWidth, double imgHeight) {
+	public ImageAndNameListCell(final Map<String, BufferedImage> imageCache, double imgWidth, double imgHeight) {
 		super();
-		this.thumbnailBank = thumbnailBank;
+		this.imageCache = imageCache;
 		canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
 		canvas.setWidth(imgWidth);
 		canvas.setHeight(imgHeight);
@@ -52,7 +55,7 @@ public class ImageAndNameListCell extends ListCell<ImageServer<BufferedImage>> {
 		}
 		
 		String name = entry.getMetadata().getName();
-		var thumbnail = thumbnailBank.get(name);
+		var thumbnail = imageCache.get(name);
 		if (thumbnail != null)
 			img =  SwingFXUtils.toFXImage(thumbnail, null);
 		

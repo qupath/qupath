@@ -18,7 +18,11 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 
-
+/**
+ * Helper class for creating {@linkplain ObjectClassifier ObjectClassifiers}.
+ * 
+ * @author Pete Bankhead
+ */
 public class ObjectClassifiers {
 	
 	public static class ObjectClassifierTypeAdapterFactory implements TypeAdapterFactory {
@@ -51,11 +55,24 @@ public class ObjectClassifiers {
 		return factory;
 	}
 	
-	
+	/**
+	 * Create a composite {@link ObjectClassifier}, which sequentially applies multiple (usually single-class) classifiers.
+	 * This can be used for multiplexed images, where a single classifier may be trained for each marker.
+	 * @param <T>
+	 * @param classifiers an array of classifiers to combine
+	 * @return the composite object classifier
+	 */
 	public static <T> ObjectClassifier<T> createCompositeClassifier(ObjectClassifier<T>... classifiers) {
 		return new CompositeClassifier<>(Arrays.asList(classifiers));
 	}
 	
+	/**
+	 * Create a composite {@link ObjectClassifier}, which sequentially applies multiple (usually single-class) classifiers.
+	 * This can be used for multiplexed images, where a single classifier may be trained for each marker.
+	 * @param <T>
+	 * @param classifiers a collection of classifiers to combine
+	 * @return the composite object classifier
+	 */
 	public static <T> ObjectClassifier<T> createCompositeClassifier(Collection<ObjectClassifier<T>> classifiers) {
 		return new CompositeClassifier<>(classifiers);
 	}
@@ -92,6 +109,12 @@ public class ObjectClassifiers {
 			.build();
 	}
 	
+	/**
+	 * Builder to create a simple {@link ObjectClassifier} that assigns a classification based upon whether the 
+	 * measurement of an object is above, equal to or below a specified threshold.
+	 * 
+	 * @param <T>
+	 */
 	public static class ClassifyByMeasurementBuilder<T> {
 		
 		private PathObjectFilter filter = PathObjectFilter.DETECTIONS_ALL;
@@ -99,100 +122,179 @@ public class ObjectClassifiers {
 		private Double threshold;
 		private PathClass pathClassBelow, pathClassEquals, pathClassAbove;
 		
+		/**
+		 * Constructor.
+		 * @param measurementName name of the measurement used for clasification (should be present within the object's {@link MeasurementList}).
+		 */
 		public ClassifyByMeasurementBuilder(String measurementName) {
 			this.measurementName = measurementName;
 		}
 
-		public ClassifyByMeasurementBuilder filter(PathObjectFilter filter) {
+		/**
+		 * Define the filter used to identify objects compatible with this classifier.
+		 * @param filter
+		 * @return this builder
+		 */
+		public ClassifyByMeasurementBuilder<T> filter(PathObjectFilter filter) {
 			this.filter = filter;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder cells() {
+		/**
+		 * Set the filter to accept cell objects only.
+		 * @return this builder
+		 */
+		public ClassifyByMeasurementBuilder<T> cells() {
 			return filter(PathObjectFilter.CELLS);
 		}
 		
-		public ClassifyByMeasurementBuilder tiles() {
+		/**
+		 * Set the filter to accept tile objects only.
+		 * @return this builder
+		 */
+		public ClassifyByMeasurementBuilder<T> tiles() {
 			return filter(PathObjectFilter.TILES);
 		}
 		
-		public ClassifyByMeasurementBuilder detections() {
+		/**
+		 * Set the filter to accept all detection objects only.
+		 * @return this builder
+		 */
+		public ClassifyByMeasurementBuilder<T> detections() {
 			return filter(PathObjectFilter.DETECTIONS_ALL);
 		}
 
-		public ClassifyByMeasurementBuilder threshold(double threshold) {
+		/**
+		 * Set the threshold value used for the classification.
+		 * @return this builder
+		 */
+		public ClassifyByMeasurementBuilder<T> threshold(double threshold) {
 			this.threshold = threshold;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder above(String pathClassName) {
+		/**
+		 * Set the classification (by name) for objects for which the specified measurement has a value above the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> above(String pathClassName) {
 			var pathClass = PathClassFactory.getPathClass(pathClassName);
 			this.pathClassAbove = pathClass;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder aboveEquals(String pathClassName) {
+		/**
+		 * Set the classification (by name) for objects for which the specified measurement has a value above or equal to the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> aboveEquals(String pathClassName) {
 			var pathClass = PathClassFactory.getPathClass(pathClassName);
 			this.pathClassAbove = pathClass;
 			this.pathClassEquals = pathClass;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder belowEquals(String pathClassName) {
+		/**
+		 * Set the classification (by name) for objects for which the specified measurement has a value below or equal to the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> belowEquals(String pathClassName) {
 			var pathClass = PathClassFactory.getPathClass(pathClassName);
 			this.pathClassBelow = pathClass;
 			this.pathClassEquals = pathClass;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder below(String pathClassName) {
+		/**
+		 * Set the classification (by name) for objects for which the specified measurement has a value below the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> below(String pathClassName) {
 			var pathClass = PathClassFactory.getPathClass(pathClassName);
 			this.pathClassBelow = pathClass;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder equalTo(String pathClassName) {
+		/**
+		 * Set the classification (by name) for objects for which the specified measurement has a value exactly equal to the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> equalTo(String pathClassName) {
 			var pathClass = PathClassFactory.getPathClass(pathClassName);
 			this.pathClassEquals = pathClass;
 			return this;
 		}
 		
 		
-		public ClassifyByMeasurementBuilder above(PathClass pathClass) {
+		/**
+		 * Set the classification for objects for which the specified measurement has a value above the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> above(PathClass pathClass) {
 			this.pathClassAbove = pathClass;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder aboveEquals(PathClass pathClass) {
+		/**
+		 * Set the classification for objects for which the specified measurement has a value above or equal to the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> aboveEquals(PathClass pathClass) {
 			this.pathClassAbove = pathClass;
 			this.pathClassEquals = pathClass;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder belowEquals(PathClass pathClass) {
+		/**
+		 * Set the classification for objects for which the specified measurement has a value below or equal to the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> belowEquals(PathClass pathClass) {
 			this.pathClassBelow = pathClass;
 			this.pathClassEquals = pathClass;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder below(PathClass pathClass) {
+		/**
+		 * Set the classification for objects for which the specified measurement has a value below the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> below(PathClass pathClass) {
 			this.pathClassBelow = pathClass;
 			return this;
 		}
 		
-		public ClassifyByMeasurementBuilder equalTo(PathClass pathClass) {
+		/**
+		 * Set the classification for objects for which the specified measurement has a value exactly equal to the threshold.
+		 * @return this builder
+		 * @see #threshold(double)
+		 */
+		public ClassifyByMeasurementBuilder<T> equalTo(PathClass pathClass) {
 			this.pathClassEquals = pathClass;
 			return this;
 		}
 		
 		
+		/**
+		 * Build the classifier defined by the parameters of this builder.
+		 * @return the object classifier
+		 */
 		public ObjectClassifier<T> build() {
 			if (threshold == null)
 				throw new IllegalArgumentException("No threshold is specified!");
 			var fun = new ClassifyByMeasurementFunction(
 					measurementName, threshold,
 					pathClassBelow, pathClassEquals, pathClassAbove);
-			return new SimpleClassifier(
+			return new SimpleClassifier<>(
 					filter,
 					fun,
 					Arrays.asList(fun.pathClassBelow, fun.pathClassEquals, fun.pathClassAbove)

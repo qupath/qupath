@@ -6,6 +6,13 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 
+/**
+ * Interface defining object classifiers, which assign {@linkplain PathClass PathClasses} to {@linkplain PathObject PathObjects}.
+ * 
+ * @author Pete Bankhead
+ *
+ * @param <T>
+ */
 public interface ObjectClassifier<T> {
 
 	/**

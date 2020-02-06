@@ -122,10 +122,10 @@ public class IJTools {
 	 * Check if sufficient memory is available to request pixels for a specific region, and the number 
 	 * of pixels is less than the maximum length of a Java array.
 	 * 
-	 * @param region - the requested region coming from 
-	 * @param imageData - this BufferedImage
-	 * @return - true if the memory is sufficient
-	 * @throws Exception - either the fact that IamgeJ cannot handle the image size or that the memory is insufficient
+	 * @param region the requested region coming from 
+	 * @param imageData this BufferedImage
+	 * @return true if the memory is sufficient
+	 * @throws Exception either the fact that IamgeJ cannot handle the image size or that the memory is insufficient
 	 */
 	public static boolean isMemorySufficient(RegionRequest region, final ImageData<BufferedImage> imageData) throws Exception {
 		
@@ -384,6 +384,16 @@ public class IJTools {
 		return pathObject;
 	}
 	
+	/**
+	 * Convert integer labeled images into cell objects.
+	 * 
+	 * @param ipNuclei labels corresponding to cell nuclei; non-zero values here must be identical to the values in ipCells
+	 * @param ipCells labels corresponding to full cell areas
+	 * @param cal a {@link Calibration} object used to aid conversion between ImageJ and QuPath ROIs
+	 * @param downsample the downsample value for the ImageProcessors, used to aid conversion between ImageJ and QuPath ROIs
+	 * @param plane the {@link ImagePlane} defining where ROIs should be added
+	 * @return a {@link SortedMap} containing integer labels from the original labeled images mapped to the corresponding cells that have been created
+	 */
 	public static SortedMap<Number, PathObject> convertLabelsToCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
 			Calibration cal, double downsample, ImagePlane plane) {
@@ -394,6 +404,17 @@ public class IJTools {
 	}
 	
 	
+	/**
+	 * Convert integer labeled images into cell objects.
+	 * 
+	 * @param ipNuclei labels corresponding to cell nuclei; non-zero values here must be identical to the values in ipCells
+	 * @param ipCells labels corresponding to full cell areas
+	 * @param xOrigin the x pixel coordinate for the top left corner of the image, used to aid conversion between ImageJ and QuPath ROIs; equivalent to {@link Calibration#xOrigin}
+	 * @param yOrigin the y pixel coordinate for the top left corner of the image, used to aid conversion between ImageJ and QuPath ROIs; equivalent to {@link Calibration#yOrigin}
+	 * @param downsample the downsample value for the ImageProcessors, used to aid conversion between ImageJ and QuPath ROIs
+	 * @param plane the {@link ImagePlane} defining where ROIs should be added
+	 * @return a {@link SortedMap} containing integer labels from the original labeled images mapped to the corresponding cells that have been created
+	 */
 	public static SortedMap<Number, PathObject> convertLabelsToCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
 			double xOrigin, double yOrigin, double downsample, ImagePlane plane) {

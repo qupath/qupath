@@ -395,6 +395,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		 * @param bytes
 		 * @return
 		 */
+		@SuppressWarnings("unchecked")
 		private T deserialize(byte[] bytes) {
 			try (ByteArrayInputStream stream = new ByteArrayInputStream(bytes)) {
 				ObjectInputStream in = new ObjectInputStream(stream);

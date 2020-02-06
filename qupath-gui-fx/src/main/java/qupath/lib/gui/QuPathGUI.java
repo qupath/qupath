@@ -427,7 +427,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private Map<Mode, Action> modeActions = new HashMap<>();
 
-	final public static int iconSize = 16;
+	/**
+	 * Preferred size for toolbar icons.
+	 */
+	final public static int TOOLBAR_ICON_SIZE = 16;
 
 	private MultiviewManager viewerManager;
 	
@@ -482,12 +485,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private HostServices hostServices;
 	
-	
-	public QuPathGUI(final HostServices services, final Stage stage) {
-		this(services, stage, null, true);
-	}
-
-	
 	/**
 	 * Create a QuPath instance, optionally initializing it with a path to open.
 	 * <p>
@@ -495,10 +492,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * The practical difference is that, if a standalone application, QuPath may call System.exit(0)
 	 * when its window is closed; otherwise, it must not for fear or bringing the host application with it.
 	 * <p>
-	 * If QuPath is launched, for example, as an ImageJ plugin then isStandalone should be false.
+	 * If QuPath is launched, for example, from a running Fiji instance then isStandalone should be false.
 	 * 
-	 * @param path Path of an image, project or data file to open - may be null.
-	 * @param isStandalone True if QuPath should be run as a standalone application.
+	 * @param services host services available during startup; may be null, but required for some functionality (e.g. opening a webpage in the host browser)
+	 * @param stage a stage to use for the main QuPath window (may be null)
+	 * @param path path of an image, project or data file to open (may be null)
+	 * @param isStandalone true if QuPath should be run as a standalone application
 	 */
 	public QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone) {
 		super();
@@ -1220,10 +1219,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	private static Map<Class<? extends QuPathExtension>, QuPathExtension> loadedExtensions = new HashMap<>();
 	
+	/**
+	 * @return a collection of extensions that are currently loaded
+	 */
 	public Collection<QuPathExtension> getLoadedExtensions() {
 		return loadedExtensions.values();
 	}
 	
+	/**
+	 * Check the extensions directory, loading any new extensions found there.
+	 * @param showNotification if true, display a notification if a new extension has been loaded
+	 */
 	public void refreshExtensions(final boolean showNotification) {
 		boolean initializing = initializingMenus.get();
 		initializingMenus.set(true);
@@ -1413,7 +1419,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @return
 	 */
-	private List<PathClass> loadPathClasses() {
+	private static List<PathClass> loadPathClasses() {
 		byte[] bytes = PathPrefs.getUserPreferences().getByteArray("defaultPathClasses", null);
 		if (bytes == null || bytes.length == 0)
 			return Collections.emptyList();
@@ -2250,7 +2256,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			});
 			Node shape;
 			if (useFancyIcons) {
-				Ellipse r = new Ellipse(iconSize/2.0, iconSize/2.0, iconSize, iconSize);
+				Ellipse r = new Ellipse(TOOLBAR_ICON_SIZE/2.0, TOOLBAR_ICON_SIZE/2.0, TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE);
 				if ("None".equals(name)) {
 					r.setFill(Color.rgb(255, 255, 255, 0.75));
 					
@@ -3659,7 +3665,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	private static Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final PathIconFactory.PathIcons icon, final KeyCombination accelerator) {
-		return createSelectableCommandAction(property, name, PathIconFactory.createNode(iconSize, iconSize, icon), accelerator);
+		return createSelectableCommandAction(property, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, icon), accelerator);
 	}
 
 	private static Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final Node icon, final KeyCombination accelerator) {
@@ -3675,7 +3681,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 
 	private Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final DefaultMode mode, final KeyCombination accelerator) {
-		Action action = createSelectableCommandAction(command, name, PathIconFactory.createNode(iconSize, iconSize, mode), accelerator);
+		Action action = createSelectableCommandAction(command, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, mode), accelerator);
 		// Register in the map
 		if (mode != null)
 			modeActions.put(mode, action);
@@ -3704,7 +3710,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Action action;
 		switch (actionType) {
 		case BRIGHTNESS_CONTRAST:
-			return createCommandAction(new BrightnessContrastCommand(this), "Brightness/Contrast", PathIconFactory.createNode(iconSize, iconSize, PathIconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
+			return createCommandAction(new BrightnessContrastCommand(this), "Brightness/Contrast", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
 		case LINE_TOOL:
 			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.LINE), "Line tool", DefaultMode.LINE, new KeyCodeCombination(KeyCode.L));
 			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.LINE) || modeLocked.get(), modeLocked, tools));
@@ -3760,9 +3766,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case ZOOM_TO_FIT:
 			return createSelectableCommandAction(zoomToFit, "Zoom to fit", PathIconFactory.PathIcons.ZOOM_TO_FIT, null);
 		case ZOOM_IN:
-			return createCommandAction(new ZoomCommand.ZoomIn(this), "Zoom in", PathIconFactory.createNode(iconSize, iconSize, PathIconFactory.PathIcons.ZOOM_IN), new KeyCodeCombination(KeyCode.PLUS));
+			return createCommandAction(new ZoomCommand.ZoomIn(this), "Zoom in", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.ZOOM_IN), new KeyCodeCombination(KeyCode.PLUS));
 		case ZOOM_OUT:
-			return createCommandAction(new ZoomCommand.ZoomOut(this), "Zoom out", PathIconFactory.createNode(iconSize, iconSize, PathIconFactory.PathIcons.ZOOM_OUT), new KeyCodeCombination(KeyCode.MINUS));
+			return createCommandAction(new ZoomCommand.ZoomOut(this), "Zoom out", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.ZOOM_OUT), new KeyCodeCombination(KeyCode.MINUS));
 		case COPY_FULL_SCREENSHOT:
 			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.FULL_SCREENSHOT), "Full screenshot");			
 		case COPY_WINDOW_SCREENSHOT:
@@ -3800,7 +3806,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case GRID_SPACING:
 			return createCommandAction(new SetGridSpacingCommand(overlayOptions), "Set grid spacing");
 		case COUNTING_PANEL:
-			return createCommandAction(new CountingPanelCommand(this), "Counting tool", PathIconFactory.createNode(iconSize, iconSize, DefaultMode.POINTS), null);
+			return createCommandAction(new CountingPanelCommand(this), "Counting tool", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, DefaultMode.POINTS), null);
 		case CONVEX_POINTS:
 			PathPrefs.showPointHullsProperty().addListener(e -> {
 				for (QuPathViewer v : getViewers())
@@ -3839,13 +3845,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new CommandListDisplayCommand(this), "Show command list", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN));
 
 		case SHOW_CELL_BOUNDARIES:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(iconSize, iconSize, PathIcons.CELL_ONLY), null);
+			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_ONLY), null);
 		case SHOW_CELL_NUCLEI:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", PathIconFactory.createNode(iconSize, iconSize, PathIcons.CELL_NULCEI_BOTH), null);
+			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_NULCEI_BOTH), null);
 		case SHOW_CELL_BOUNDARIES_AND_NUCLEI:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", PathIconFactory.createNode(iconSize, iconSize, PathIcons.NUCLEI_ONLY), null);
+			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.NUCLEI_ONLY), null);
 		case SHOW_CELL_CENTROIDS:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.CENTROIDS), "Centroids only", PathIconFactory.createNode(iconSize, iconSize, PathIcons.CENTROIDS_ONLY), null);
+			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.CENTROIDS), "Centroids only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CENTROIDS_ONLY), null);
 		
 		case RIGID_OBJECT_EDITOR:
 			return createCommandAction(new RigidObjectEditorCommand(this), "Rotate annotation", null, new KeyCodeCombination(KeyCode.R, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
@@ -3901,7 +3907,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new ProjectMetadataEditorCommand(this), "Edit project metadata");
 			
 		case PREFERENCES:
-			return createCommandAction(new PreferencesCommand(this, prefsPanel), "Preferences...", PathIconFactory.createNode(iconSize, iconSize, PathIcons.COG), new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
+			return createCommandAction(new PreferencesCommand(this, prefsPanel), "Preferences...", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.COG), new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
 		
 		case QUPATH_SETUP:
 			return createCommandAction(new QuPathSetupCommand(this), "Show setup options");
@@ -4465,7 +4471,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
 			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
 			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.FILL_DETECTIONS, true, overlayOptions.getFillObjects()));
+			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
 			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
 
 			final Slider sliderOpacity = new Slider(0, 1, 1);
@@ -4477,7 +4483,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 			
 			Button btnMeasure = new Button();
-			btnMeasure.setGraphic(PathIconFactory.createNode(iconSize, iconSize, PathIcons.TABLE));
+			btnMeasure.setGraphic(PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.TABLE));
 			btnMeasure.setTooltip(new Tooltip("Show measurements table"));
 			ContextMenu popupMeasurements = new ContextMenu();
 			popupMeasurements.getItems().addAll(

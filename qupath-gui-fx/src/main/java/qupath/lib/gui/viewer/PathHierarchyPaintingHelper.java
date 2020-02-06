@@ -300,7 +300,7 @@ public class PathHierarchyPaintingHelper {
 				// Paint the ROI, if necessary
 				if (isSelected || (overlayOptions.getShowDetections() && isDetectedObject) || (overlayOptions.getShowAnnotations() && pathObject.isAnnotation()) || (overlayOptions.getShowTMAGrid() && pathObject.isTMACore())) {
 		
-					boolean doFill = overlayOptions.getFillObjects() || pathObject instanceof ParallelTileObject;
+					boolean doFill = overlayOptions.getFillDetections() || pathObject instanceof ParallelTileObject;
 					boolean doOutline = true;
 					
 					Color color = null;
@@ -389,7 +389,7 @@ public class PathHierarchyPaintingHelper {
 						}
 						
 						g.setStroke(stroke);
-						boolean paintSymbols = overlayOptions.getCellDisplayMode() == DetectionDisplayMode.CENTROIDS && 
+						boolean paintSymbols = overlayOptions.getDetectionDisplayMode() == DetectionDisplayMode.CENTROIDS && 
 								pathObject.isDetection() && !pathObject.isTile();
 						if (paintSymbols) {
 							pathROI = PathObjectTools.getROI(pathObject, true);

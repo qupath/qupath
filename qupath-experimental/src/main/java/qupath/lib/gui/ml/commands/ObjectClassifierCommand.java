@@ -421,7 +421,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			
 			// TODO: Check pcaRetainedVariance
 			var pathClasses = new ArrayList<>(map.keySet());
-			var extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
+			FeatureExtractor<BufferedImage> extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
 			extractor = updateFeatureExtractorAndTrainClassifier(
 					statModel,
 					imageData,
@@ -460,11 +460,11 @@ public class ObjectClassifierCommand implements PathCommand {
 		 * @return the updated feature extractor, with any normalization/PCA reduction incorporated, 
 		 * or null if the training was unsuccessful (e.g. it was interrupted)
 		 */
-		private static FeatureExtractor updateFeatureExtractorAndTrainClassifier(
+		private static <T> FeatureExtractor<T> updateFeatureExtractorAndTrainClassifier(
 				OpenCVStatModel classifier,
-				ImageData<BufferedImage> imageData,
+				ImageData<T> imageData,
 				Map<PathClass, Set<PathObject>> map, 
-				FeatureExtractor extractor,
+				FeatureExtractor<T> extractor,
 				Normalization normalization,
 				double pcaRetainedVariance,
 				boolean doMulticlass) {

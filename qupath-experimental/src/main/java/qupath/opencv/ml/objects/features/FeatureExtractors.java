@@ -8,12 +8,18 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.opencv.ml.Normalizer;
 import qupath.opencv.ml.Preprocessing.PCAProjector;
 
-
+/**
+ * Helper class for extracting features from objects, used along with {@linkplain ObjectClassifier ObjectClassifiers}.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class FeatureExtractors {
 	
 	static class FeatureExtractorTypeAdapterFactory implements TypeAdapterFactory {
@@ -50,8 +56,8 @@ public class FeatureExtractors {
 	 * @param measurements list containing the measurement names
 	 * @return the new {@link FeatureExtractor}
 	 */
-	public static FeatureExtractor createMeasurementListFeatureExtractor(List<String> measurements) {
-		return new DefaultFeatureExtractor(measurements);
+	public static <T> FeatureExtractor<T> createMeasurementListFeatureExtractor(List<String> measurements) {
+		return new DefaultFeatureExtractor<>(measurements);
 	}
 	
 	/**
@@ -60,8 +66,8 @@ public class FeatureExtractors {
 	 * @param normalizer {@link Normalizer} to apply to initial features
 	 * @return the new {@link FeatureExtractor}
 	 */
-	public static FeatureExtractor createNormalizingFeatureExtractor(FeatureExtractor extractor, Normalizer normalizer) {
-		return new NormalizedFeatureExtractor(extractor, normalizer);
+	public static <T> FeatureExtractor<T> createNormalizingFeatureExtractor(FeatureExtractor<T> extractor, Normalizer normalizer) {
+		return new NormalizedFeatureExtractor<>(extractor, normalizer);
 	}
 	
 	
@@ -71,8 +77,8 @@ public class FeatureExtractors {
 	 * @param pca {@link PCAProjector} to apply to initial features
 	 * @return the new {@link FeatureExtractor}
 	 */
-	public static FeatureExtractor createPCAProjectFeatureExtractor(FeatureExtractor extractor, PCAProjector pca) {
-		return new PCAProjectFeatureExtractor(extractor, pca);
+	public static <T> FeatureExtractor<T> createPCAProjectFeatureExtractor(FeatureExtractor<T> extractor, PCAProjector pca) {
+		return new PCAProjectFeatureExtractor<>(extractor, pca);
 	}
 
 }

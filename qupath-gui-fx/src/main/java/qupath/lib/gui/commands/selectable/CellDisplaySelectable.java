@@ -45,13 +45,13 @@ public class CellDisplaySelectable implements PathSelectableCommand {
 
 	@Override
 	public boolean isSelected() {
-		return mode == overlayOptions.getCellDisplayMode();
+		return mode == overlayOptions.getDetectionDisplayMode();
 	}
 
 	@Override
 	public void setSelected(boolean selected) {
 		if (selected)
-			overlayOptions.setCellDisplayMode(mode);
+			overlayOptions.setDetectionDisplayMode(mode);
 	}
 	
 //	private static final long serialVersionUID = 1L;

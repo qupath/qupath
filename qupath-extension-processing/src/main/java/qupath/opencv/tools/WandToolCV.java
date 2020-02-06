@@ -24,7 +24,6 @@
 package qupath.opencv.tools;
 
 import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.geom.Point2D;
@@ -107,7 +106,7 @@ public class WandToolCV extends BrushTool {
 //	private BufferedImage imgSelected = new BufferedImage(w+2, w+2, BufferedImage.TYPE_BYTE_GRAY);
 	private Mat mat = null; //new Mat(w, w, CV_8U);
 	private Mat matMask = new Mat(w+2, w+2, CV_8UC1);
-	private Mat matSelected = new Mat(w+2, w+2, CV_8UC1);
+//	private Mat matSelected = new Mat(w+2, w+2, CV_8UC1);
 	
 	private Mat matFloat = new Mat(w, w, CV_32FC3);
 	
@@ -120,7 +119,7 @@ public class WandToolCV extends BrushTool {
 	private Mat mean = new Mat();
 	private Mat stddev = new Mat();
 
-	private BasicStroke stroke = null;
+//	private BasicStroke stroke = null;
 	
 	private Rectangle2D bounds = new Rectangle2D.Double();
 	

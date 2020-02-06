@@ -1,6 +1,5 @@
 package qupath.opencv.ml.objects.features;
 
-import java.awt.image.BufferedImage;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,7 +16,7 @@ import qupath.lib.objects.PathObject;
  * @author Pete Bankhead
  *
  */
-class DefaultFeatureExtractor implements FeatureExtractor<BufferedImage> {
+class DefaultFeatureExtractor<T> implements FeatureExtractor<T> {
 	
 	private List<String> measurements = new ArrayList<>();
 	
@@ -26,7 +25,7 @@ class DefaultFeatureExtractor implements FeatureExtractor<BufferedImage> {
 	}
 	
 	@Override
-	public void extractFeatures(ImageData<BufferedImage> imageData, Collection<? extends PathObject> pathObjects, FloatBuffer buffer) {
+	public void extractFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, FloatBuffer buffer) {
 		for (var pathObject : pathObjects)
 			extractFeatures(pathObject, buffer);
 	}

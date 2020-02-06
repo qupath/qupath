@@ -30,7 +30,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 /**
  * ViewerManagers contain a list of one or more viewers, at most one of which can be active.
  * 
- * The purpose is to enable commands that operate on a viewer to be instantiated in advance with a ViewerManager instance,
+ * The purpose is to enable commands that operate on a viewer to be instantiated in advance with a {@link ViewerManager} instance,
  * and then query this to find the active viewer only when necessary.
  * 
  * @author Pete Bankhead
@@ -38,8 +38,14 @@ import qupath.lib.gui.viewer.QuPathViewer;
  */
 public interface ViewerManager<T extends QuPathViewer> {
 	
+	/**
+	 * @return the currently active viewer
+	 */
 	public T getViewer();
 
+	/**
+	 * @return a list of all available viewers
+	 */
 	public List<T> getViewers();
 
 }

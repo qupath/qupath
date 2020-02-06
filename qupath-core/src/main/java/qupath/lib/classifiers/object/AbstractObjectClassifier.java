@@ -7,6 +7,13 @@ import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 
+/**
+ * Abstract class to help with the creation of object classifiers.
+ * 
+ * @author Pete Bankhead
+ *
+ * @param <T>
+ */
 public abstract class AbstractObjectClassifier<T> implements ObjectClassifier<T> {
 	
 	/**
