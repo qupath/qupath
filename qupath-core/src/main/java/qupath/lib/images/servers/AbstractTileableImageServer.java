@@ -225,6 +225,23 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			// Interpolate if downsampling
 			if (request.getDownsample() > 1)
 				g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			
+			// Requests could be parallelized, but should consider the number of threads created/what happens if one blocks
+//			Map<TileRequest, BufferedImage> map = tiles.stream()
+//					.collect(Collectors.toMap(tileRequest -> tileRequest,
+//							tileRequest -> {
+//					try {
+//						return getTile(tileRequest);
+//					} catch (Exception ex) {
+//						return null;
+//					}
+//					}));
+//			for (TileRequest tileRequest : tiles) {
+//				BufferedImage imgTile = map.get(tileRequest);
+//				if (imgTile != null)
+//					g2d.drawImage(imgTile, tileRequest.getImageX(), tileRequest.getImageY(), tileRequest.getImageWidth(), tileRequest.getImageHeight(), null);
+//			}
+			
 			for (TileRequest tileRequest : tiles) {
 				BufferedImage imgTile = getTile(tileRequest);
 				g2d.drawImage(imgTile, tileRequest.getImageX(), tileRequest.getImageY(), tileRequest.getImageWidth(), tileRequest.getImageHeight(), null);

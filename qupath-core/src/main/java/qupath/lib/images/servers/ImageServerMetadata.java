@@ -456,7 +456,14 @@ public class ImageServerMetadata {
 
 	ImageServerMetadata(final ImageServerMetadata metadata) {
 		this.name = metadata.name;
-		this.levels = metadata.levels.clone();
+		
+		if (metadata.levels == null || metadata.levels.length == 0)
+			this.levels = new ImageResolutionLevel.Builder(metadata.width, metadata.height)
+					.addFullResolutionLevel()
+					.build()
+					.toArray(ImageResolutionLevel[]::new);
+		else
+			this.levels = metadata.levels.clone();
 		
 		this.width = metadata.width;
 		this.height = metadata.height;
