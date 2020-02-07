@@ -19,9 +19,10 @@ import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ColorTransforms;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
-import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.TransformedFeatureComputer;
 import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
 import qupath.opencv.tools.LocalNormalization.SmoothingScale;

@@ -23,8 +23,8 @@ import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.LocalNormalization;
 import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
@@ -49,7 +49,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 	@Override
 	public boolean supportsImage(ImageData<BufferedImage> imageData) {
 		for (var computer : multiscaleComputers) {
-			if (!computer.transform.supportsImage(imageData)) {
+			if (!computer.transform.supportsImage(imageData.getServer())) {
 				return false;
 			}
 		}
@@ -166,7 +166,7 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 			// Extract transformed pixels & set to a Mat
 			int i = 0;
 			for (BufferedImage img : images) {
-				computer.transform.extractChannel(imageData, img, pixels);
+				computer.transform.extractChannel(imageData.getServer(), img, pixels);
 				Mat mat = mats.get(i);
 				FloatIndexer idx = mat.createIndexer();
 				idx.put(0L, pixels);

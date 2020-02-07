@@ -25,6 +25,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServerBuilder.AbstractServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -50,6 +51,7 @@ public class ImageServers {
 			.registerSubtype(DefaultImageServerBuilder.class, "uri")
 			.registerSubtype(RotatedImageServerBuilder.class, "rotated")
 			.registerSubtype(ConcatChannelsImageServerBuilder.class, "channels")
+			.registerSubtype(ChannelTransformFeatureServerBuilder.class, "color")
 			.registerSubtype(AffineTransformImageServerBuilder.class, "affine")
 			.registerSubtype(SparseImageServerBuilder.class, "sparse")
 			.registerSubtype(CroppedImageServerBuilder.class, "cropped")
@@ -309,6 +311,37 @@ public class ImageServers {
 			if (!changes)
 				return this;
 			return new ConcatChannelsImageServerBuilder(getMetadata(), newBuilder, newChannels);
+		}
+		
+	}
+	
+	static class ChannelTransformFeatureServerBuilder extends AbstractServerBuilder<BufferedImage> {
+		
+		private ServerBuilder<BufferedImage> builder;
+		private List<ColorTransform> transforms;
+		
+		ChannelTransformFeatureServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, List<ColorTransform> transforms) {
+			super(metadata);
+			this.builder = builder;
+			this.transforms = transforms;
+		}
+		
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new ChannelTransformFeatureServer(builder.build(), transforms);
+		}
+		
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new ChannelTransformFeatureServerBuilder(getMetadata(), newBuilder, transforms);
 		}
 		
 	}

@@ -12,8 +12,8 @@ import com.google.gson.annotations.JsonAdapter;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
 /**
  * Feature calculator that simply takes a square of neighboring pixels as the features.
@@ -59,6 +59,7 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 	@Override
 	public List<PixelFeature> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 		int pad = size / 2;
+		var server = imageData.getServer();
 		BufferedImage img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, pad);
 //		WritableRaster raster = img.getRaster();
 
@@ -70,7 +71,7 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 		for (var transform : transforms) {
 //			int b = ServerTools.getChannelIndex(server, channel);
 			// Extract pixels for the current band
-			pixels = transform.extractChannel(imageData, img, pixels);
+			pixels = transform.extractChannel(server, img, pixels);
 //			pixels = raster.getSamples(0, 0, width, height, b, pixels);
 			// Outer loops extract features in turn
 			for (int y = 0; y < size; y++) {
@@ -103,7 +104,7 @@ class ExtractNeighborsFeatureCalculator implements FeatureCalculator<BufferedIma
 	@Override
 	public boolean supportsImage(ImageData<BufferedImage> imageData) {
 		for (var transform : transforms) {
-			if (!transform.supportsImage(imageData))
+			if (!transform.supportsImage(imageData.getServer()))
 				return false;
 		}
 		return true;

@@ -1,4 +1,4 @@
-package qupath.lib.gui.ml;
+package qupath.lib.images.writers;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -18,7 +18,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -31,6 +31,7 @@ public class TileExporter  {
 	private final static Logger logger = LoggerFactory.getLogger(TileExporter.class);
 
 	private ImageData<BufferedImage> imageData;
+	private ImageServer<BufferedImage> server;
 
 	private double downsample;
 	private int tileWidth = 512, tileHeight = 512;
@@ -50,6 +51,7 @@ public class TileExporter  {
 	 */
 	public TileExporter(ImageData<BufferedImage> imageData) {
 		this.imageData = imageData;
+		this.server = imageData.getServer();
 	}
 
 	/**
@@ -70,6 +72,30 @@ public class TileExporter  {
 	public TileExporter tileSize(int tileWidth, int tileHeight) {
 		this.tileWidth = tileWidth;
 		this.tileHeight = tileHeight;
+		return this;
+	}
+	
+	/**
+	 * Export only specified channels.
+	 * @param channels channels to export (0-based indexing)
+	 * @return
+	 */
+	public TileExporter channels(int... channels) {
+		this.server = new TransformedServerBuilder(this.server)
+				.extractChannels(channels)
+				.build();
+		return this;
+	}
+	
+	/**
+	 * Export only specified channels, identified by name.
+	 * @param channelNames channels to export
+	 * @return
+	 */
+	public TileExporter channels(String... channelNames) {
+		this.server = new TransformedServerBuilder(this.server)
+				.extractChannels(channelNames)
+				.build();
 		return this;
 	}
 
@@ -111,7 +137,7 @@ public class TileExporter  {
 	 * @return
 	 */
 	public TileExporter requestedPixelSize(double pixelSize) {
-		this.downsample = imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue() / pixelSize;
+		this.downsample = server.getPixelCalibration().getAveragedPixelSize().doubleValue() / pixelSize;
 		return this;
 	}
 
@@ -177,7 +203,7 @@ public class TileExporter  {
 
 		var pool = Executors.newWorkStealingPool(4);
 
-		var server = imageData.getServer();
+		var server = this.server;
 		var labeledServer = serverLabeled;
 		var requests = getTiledRegionRequests(server,
 				downsample, tileWidth, tileHeight, overlapX, overlapY, includePartialTiles);

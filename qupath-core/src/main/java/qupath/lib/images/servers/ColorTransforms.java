@@ -1,4 +1,4 @@
-package qupath.opencv.ml.pixel.features;
+package qupath.lib.images.servers;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -9,10 +9,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-
-import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
 
 /**
  * Color transforms that may be used to extract single-channel images from BufferedImages.
@@ -31,20 +27,20 @@ public class ColorTransforms {
 		
 		/**
 		 * Extract a (row-wise) array containing the pixels extracted from a BufferedImage.
-		 * @param imageData the ImageData from which the image was read; can be necessary for some transforms (e.g. to request color deconvolution stains)
+		 * @param server the server from which the image was read; can be necessary for some transforms (e.g. to request color deconvolution stains)
 		 * @param img the image
 		 * @param pixels optional preallocated array; will be used if it is long enough to hold the transformed pixels
 		 * @return
 		 */
-		float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels);
+		float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels);
 		
 		/**
 		 * Query whether this transform can be applied to the specified image.
 		 * Reasons why it may not be include the type or channel number being incompatible.
-		 * @param imageData
+		 * @param server
 		 * @return
 		 */
-		boolean supportsImage(ImageData<BufferedImage> imageData);
+		boolean supportsImage(ImageServer<BufferedImage> server);
 		
 		/**
 		 * Get a displayable name for the transform.
@@ -151,7 +147,7 @@ public class ColorTransforms {
 		}
 	
 		@Override
-		public float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels) {
+		public float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels) {
 			pixels = ensureArrayLength(img, pixels);
 			return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), channel, pixels);
 		}
@@ -165,10 +161,18 @@ public class ColorTransforms {
 		public String toString() {
 			return getName();
 		}
+		
+		/**
+		 * Get the channel number to extract (0-based index).
+		 * @return
+		 */
+		public int getChannelNumber() {
+			return channel;
+		}
 
 		@Override
-		public boolean supportsImage(ImageData<BufferedImage> imageData) {
-			return channel < imageData.getServer().nChannels();
+		public boolean supportsImage(ImageServer<BufferedImage> server) {
+			return channel < server.nChannels();
 		}
 		
 	}
@@ -182,9 +186,9 @@ public class ColorTransforms {
 		}
 	
 		@Override
-		public float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels) {
+		public float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels) {
 			pixels = ensureArrayLength(img, pixels);
-			int c = getChannelNumber(imageData.getServer());
+			int c = getChannelNumber(server);
 			if (c >= 0) {
 				return img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), c, pixels);
 			}
@@ -193,6 +197,14 @@ public class ColorTransforms {
 		
 		@Override
 		public String getName() {
+			return channelName;
+		}
+		
+		/**
+		 * Get the channel name to extract.
+		 * @return
+		 */
+		public String getChannelName() {
 			return channelName;
 		}
 	
@@ -213,8 +225,8 @@ public class ColorTransforms {
 		}
 
 		@Override
-		public boolean supportsImage(ImageData<BufferedImage> imageData) {
-			return getChannelNumber(imageData.getServer()) >= 0;
+		public boolean supportsImage(ImageServer<BufferedImage> server) {
+			return getChannelNumber(server) >= 0;
 		}
 		
 	}
@@ -223,7 +235,7 @@ public class ColorTransforms {
 	static abstract class CombineChannels implements ColorTransform {
 				
 		@Override
-		public float[] extractChannel(ImageData<BufferedImage> imageData, BufferedImage img, float[] pixels) {
+		public float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels) {
 			pixels = ensureArrayLength(img, pixels);
 			int w = img.getWidth();
 			int h = img.getHeight();
@@ -241,7 +253,7 @@ public class ColorTransforms {
 		abstract double computeValue(double[] values);
 
 		@Override
-		public boolean supportsImage(ImageData<BufferedImage> imageData) {
+		public boolean supportsImage(ImageServer<BufferedImage> server) {
 			return true;
 		}
 		

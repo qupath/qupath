@@ -10,7 +10,7 @@ import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;

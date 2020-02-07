@@ -11,8 +11,8 @@ import com.google.gson.annotations.JsonAdapter;
 
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
 
 /**
  * Feature calculator that simply applies one or more color transforms to an image, pixel-wise.
@@ -35,7 +35,8 @@ class ColorTransformFeatureCalculator implements FeatureCalculator<BufferedImage
 
 	@Override
 	public List<PixelFeature> calculateFeatures(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
-		BufferedImage img = imageData.getServer().readBufferedImage(request);
+		var server = imageData.getServer();
+		var img = server.readBufferedImage(request);
 
 		List<PixelFeature> features = new ArrayList<>();
 
@@ -44,7 +45,7 @@ class ColorTransformFeatureCalculator implements FeatureCalculator<BufferedImage
 		float[] pixels = null;
 		for (var transform : transforms) {
 			// Extract pixels for the current band
-			pixels = transform.extractChannel(imageData, img, pixels);
+			pixels = transform.extractChannel(server, img, pixels);
 			String name = transform.getName();
 			features.add(new DefaultPixelFeature<>(name, pixels, width, height));
 		}
@@ -59,7 +60,7 @@ class ColorTransformFeatureCalculator implements FeatureCalculator<BufferedImage
 	@Override
 	public boolean supportsImage(ImageData<BufferedImage> imageData) {
 		for (var transform : transforms) {
-			if (!transform.supportsImage(imageData))
+			if (!transform.supportsImage(imageData.getServer()))
 				return false;
 		}
 		return true;

@@ -67,6 +67,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -176,6 +177,7 @@ public class QP {
 			GeometryTools.class,
 			IJTools.class,
 			OpenCVTools.class,
+			TileExporter.class,
 			
 			// External classes
 			BufferedImage.class
