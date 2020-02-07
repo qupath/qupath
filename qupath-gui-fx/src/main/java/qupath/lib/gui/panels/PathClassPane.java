@@ -103,9 +103,10 @@ public class PathClassPane {
 	Predicate<PathClass> createPredicate(String text) {
 		if (text == null || text.isBlank())
 			return p -> true;
+		String text2 = text.toLowerCase();
 		return (PathClass p) -> {
 			return p == null || p == PathClassFactory.getPathClassUnclassified() ||
-					p.toString().toLowerCase().contains(text);
+					p.toString().toLowerCase().contains(text2);
 		};
 	}
 	
