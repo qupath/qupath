@@ -21,6 +21,9 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Fixed issue with 'Add images' pane, where the window could be too large for some screens
   * 'Add images' pane now supports Drag & Drop
   * 'Add images' pane now supports .qpproj files to import images & data from other projects
+* Improved Brightness/Contrast support
+  * Filter box to quickly find specific channels within long lists
+  * New scripting methods to set display range, e.g. setChannelDisplayRange(channel, min, max)
 * File -> Quit menu item added
 * New preferences
   * Select main font; default changed to Sans-Serif for macOS

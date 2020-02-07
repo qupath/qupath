@@ -48,6 +48,10 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
+import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -387,6 +391,93 @@ public class QPEx extends QP {
 		writeImage(SwingFXUtils.fromFXImage(image, null), path);
 	}
 	
+
+	/**
+	 * Set the minimum and maximum display range for the current {@link ImageData} for a channel identified by number.
+	 * @param channel channel number (0-based index)
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(int channel, double minDisplay, double maxDisplay) {
+		setChannelDisplayRange(getCurrentImageData(), channel, minDisplay, maxDisplay);
+	}
+
+	/**
+	 * Set the minimum and maximum display range for the specified {@link ImageData} for a channel identified by number.
+	 * @param imageData
+	 * @param channel channel number (0-based index)
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(ImageData<?> imageData, int channel, double minDisplay, double maxDisplay) {
+		// Try to get an existing display if the image is currently open
+		var viewer = getQuPath().getViewers().stream()
+				.filter(v -> v.getImageData() == imageData)
+				.findFirst()
+				.orElse(null);
+		ImageDisplay display = viewer == null ? new ImageDisplay((ImageData<BufferedImage>)imageData) : viewer.getImageDisplay();
+		var available = display.availableChannels();
+		if (channel < 0 || channel >= available.size()) {
+			logger.warn("Channel {} is out of range ({}-{}) - cannot set display range", channel, 0, available.size()-1);
+			return;
+		}
+		var info = display.availableChannels().get(channel);
+		display.setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
+		// Update the viewer is necessary
+		if (viewer != null)
+			viewer.repaintEntireImage();
+	}
+	
+	/**
+	 * Set the minimum and maximum display range for the current {@link ImageData} for a channel identified by name.
+	 * @param channelName
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(String channelName, double minDisplay, double maxDisplay) {
+		setChannelDisplayRange(getCurrentImageData(), channelName, minDisplay, maxDisplay);
+	}
+
+	/**
+	 * Set the minimum and maximum display range for the specified {@link ImageData} for a channel identified by name.
+	 * @param imageData
+	 * @param channelName
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(ImageData<?> imageData, String channelName, double minDisplay, double maxDisplay) {
+		// Try to get an existing display if the image is currently open
+		var viewer = getQuPath().getViewers().stream()
+				.filter(v -> v.getImageData() == imageData)
+				.findFirst()
+				.orElse(null);
+		ImageDisplay display = viewer == null ? new ImageDisplay((ImageData<BufferedImage>)imageData) : viewer.getImageDisplay();
+		var available = display.availableChannels();
+		ChannelDisplayInfo info = null;
+		var serverChannels = imageData.getServer().getMetadata().getChannels();
+		for (var c : available) {
+			if (channelName.equals(c.getName())) {
+				info = c;
+				break;
+			}
+			// We also need to check the channel names, since the info might have adjusted them (e.g. by adding (C1) at the end)
+			if (c instanceof DirectServerChannelInfo) {
+				int channelNumber = ((DirectServerChannelInfo)c).getChannel();
+				if (channelNumber >= 0 && channelNumber < serverChannels.size() && channelName.equals(serverChannels.get(channelNumber).getName())) {
+					info = c;
+					break;
+				}
+			}
+		}
+		if (info == null) {
+			logger.warn("No channel found with name {} - cannot set display range", channelName);
+			return;
+		}
+		display.setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
+		// Update the viewer is necessary
+		if (viewer != null)
+			viewer.repaintEntireImage();
+	}
 	
 	
 	public static void saveAnnotationMeasurements(final String path, final String... includeColumns) {
