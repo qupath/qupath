@@ -51,6 +51,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.measure.Calibration;
 import ij.plugin.Duplicator;
+import ij.plugin.ImageInfo;
 import ij.process.ByteProcessor;
 import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
@@ -160,24 +161,33 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		}
 
 		List<ImageChannel> channels;
+		boolean is2D = imp.getNFrames() == 1 && imp.getNSlices() == 1;
 		if (isRGB)
 			channels = ImageChannel.getDefaultRGBChannels();
-		else if (imp instanceof CompositeImage) {
-			CompositeImage impComp = (CompositeImage)imp;
-			channels = new ArrayList<ImageChannel>();
+		else {
+			channels = new ArrayList<>(ImageChannel.getDefaultChannelList(imp.getNChannels()));
 			for (int channel = 0; channel < imp.getNChannels(); channel++) {
-				LUT lut = impComp.getChannelLut(channel+1);
-				int ind = lut.getMapSize()-1;
-				String name = impComp.getStack().getSliceLabel(channel + 1);
-				// Use slice label if it is a non-empty single line for a 2D image
-				if (name == null || impComp.getNFrames() > 1 || impComp.getNSlices() > 1 || name.isBlank() || name.contains("\n"))
-					name = "Channel " + (channel + 1);
-				channels.add(
-						ImageChannel.getInstance(name, lut.getRGB(ind))
+				String name = channels.get(channel).getName();
+				Integer color = channels.get(channel).getColor();
+				// Try to get the color from ImageJ if we can
+				if (imp instanceof CompositeImage) {
+					LUT lut = ((CompositeImage)imp).getChannelLut(channel+1);
+					int ind = lut.getMapSize()-1;
+					color = lut.getRGB(ind);
+				}
+				// Try to use the (first line of the) slice label as the channel name if we have a 2D image
+				String sliceLabel = imp.getStack().getSliceLabel(channel + 1);
+				if (sliceLabel != null && is2D) {
+					sliceLabel = sliceLabel.split("\\R", 2)[0];
+					if (!sliceLabel.isBlank())
+						name = sliceLabel;
+				}
+				channels.set(
+						channel,
+						ImageChannel.getInstance(name, color)
 						);
 			}
-		} else
-			channels = ImageChannel.getDefaultChannelList(imp.getNChannels());
+		}
 		
 		this.args = args;
 		var builder = new ImageServerMetadata.Builder() //, uri.normalize().toString())
@@ -204,6 +214,18 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		
 //		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
+	}
+	
+	/**
+	 * Get a String representing the image metadata.
+	 * <p>
+	 * Currently, this reflects the contents of the ImageJ 'Show info' command, which is tied to the 'current' slice 
+	 * and therefore not complete for all slices of a multichannel/multidimensional image.
+	 * This behavior may change in the future.
+	 * @return a String representing image metadata in ImageJ's own form
+	 */
+	public String dumpMetadata() {
+		return new ImageInfo().getImageInfo(imp);
 	}
 	
 	@Override
