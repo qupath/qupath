@@ -180,6 +180,7 @@ public class FileFormatInfo {
 			
 			// Check if we have a TIFF
 			try {
+				// TODO: Support checking zip-inside-TIFF (as frequently used with ImageJ)
 				try (RandomAccessFile in = new RandomAccessFile(file, "r")) {				
 					boolean littleEndian;
 					int byteOrder = in.readShort();

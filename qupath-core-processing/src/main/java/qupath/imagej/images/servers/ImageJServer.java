@@ -39,7 +39,9 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -165,27 +167,49 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 		if (isRGB)
 			channels = ImageChannel.getDefaultRGBChannels();
 		else {
+			String[] sliceLabels = null;
+			int nChannels = imp.getNChannels();
+			
+			// See if we have slice labels that could plausibly act as channel names
+			// For this, they must be non-null and unique for a 2D image
+			if (is2D && nChannels == imp.getStackSize()) {
+				sliceLabels = new String[nChannels];
+				Set<String> sliceLabelSet = new HashSet<>();
+				for (int s = 1; s <= nChannels; s++) {
+					String sliceLabel = imp.getStack().getSliceLabel(s);
+					if (sliceLabel != null && is2D) {
+						sliceLabel = sliceLabel.split("\\R", 2)[0];
+						if (!sliceLabel.isBlank()) {
+							sliceLabels[s-1] = sliceLabel;
+							sliceLabelSet.add(sliceLabel);
+						}
+					}
+				}
+				if (sliceLabelSet.size() < nChannels)
+					sliceLabels = null;
+			}
+			
+			// Get default channels
 			channels = new ArrayList<>(ImageChannel.getDefaultChannelList(imp.getNChannels()));
-			for (int channel = 0; channel < imp.getNChannels(); channel++) {
-				String name = channels.get(channel).getName();
-				Integer color = channels.get(channel).getColor();
-				// Try to get the color from ImageJ if we can
-				if (imp instanceof CompositeImage) {
-					LUT lut = ((CompositeImage)imp).getChannelLut(channel+1);
-					int ind = lut.getMapSize()-1;
-					color = lut.getRGB(ind);
+			
+			// Try to update the channel names and/or colors from ImageJ if we can
+			if (sliceLabels != null || imp instanceof CompositeImage) {
+				for (int channel = 0; channel < imp.getNChannels(); channel++) {
+					String name = channels.get(channel).getName();
+					Integer color = channels.get(channel).getColor();
+					if (imp instanceof CompositeImage) {
+						LUT lut = ((CompositeImage)imp).getChannelLut(channel+1);
+						int ind = lut.getMapSize()-1;
+						color = lut.getRGB(ind);
+					}
+					if (sliceLabels != null) {
+						name = sliceLabels[channel];
+					}
+					channels.set(
+							channel,
+							ImageChannel.getInstance(name, color)
+							);
 				}
-				// Try to use the (first line of the) slice label as the channel name if we have a 2D image
-				String sliceLabel = imp.getStack().getSliceLabel(channel + 1);
-				if (sliceLabel != null && is2D) {
-					sliceLabel = sliceLabel.split("\\R", 2)[0];
-					if (!sliceLabel.isBlank())
-						name = sliceLabel;
-				}
-				channels.set(
-						channel,
-						ImageChannel.getInstance(name, color)
-						);
 			}
 		}
 		
