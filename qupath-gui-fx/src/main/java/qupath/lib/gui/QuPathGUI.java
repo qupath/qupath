@@ -3435,12 +3435,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		MenuTools.addMenuItems(
 				menuObjectClassifiers,
-				createCommandAction(new LoadClassifierCommand(this), "Load detection classifier"),
+				MenuTools.createMenu("Older classifiers", 
+					createCommandAction(new LoadClassifierCommand(this), "Load detection classifier"),
+					null,
+					createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
+					createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
+					),
 				null,
-				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications"),
-				null,
-				createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
-				createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
+				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications")
 				);
 				
 		MenuTools.addMenuItems(

@@ -29,9 +29,6 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.scene.control.Menu;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -83,11 +80,11 @@ public class OpenCVExtension implements QuPathExtension {
 				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null)
 				);
 
-		Menu menuClassify = qupath.getMenu("Classify>Object classification", true);
+		Menu menuClassify = qupath.getMenu("Classify>Object classification>Older classifiers", true);
 		MenuTools.addMenuItems(
 				menuClassify,
 				null,
-				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)));
+				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier"));
 		
 		
 //		// Add the Wand tool

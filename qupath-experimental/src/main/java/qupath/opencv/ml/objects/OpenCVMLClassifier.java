@@ -113,6 +113,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 
 		// Work through the objects in chunks
 		long startTime = System.currentTimeMillis();
+		long lastTime = startTime;
 		int nComplete = 0;
 		for (var tempObjectList : Lists.partition(new ArrayList<>(pathObjects), subListSize)) {
 
@@ -128,11 +129,12 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 			// Possibly log time taken
 			nComplete += tempObjectList.size();
 			long intermediateTime = System.currentTimeMillis();
-			if (intermediateTime - startTime > 1000L) {
-				logger.info("Calculated features for {}/{} objects in {} ms ({} ms per object, {}% complete)", nComplete, pathObjects.size(), 
+			if (intermediateTime - lastTime > 1000L) {
+				logger.debug("Calculated features for {}/{} objects in {} ms ({} ms per object, {}% complete)", nComplete, pathObjects.size(), 
 						(intermediateTime - startTime),
 						GeneralTools.formatNumber((intermediateTime - startTime)/(double)nComplete, 2),
 						GeneralTools.formatNumber(nComplete * 100.0 / pathObjects.size(), 1));
+				lastTime = startTime;
 			}
 			
 			boolean doMulticlass = classifier.supportsMulticlass();

@@ -74,7 +74,7 @@ public class ExperimentalExtension implements QuPathExtension {
 
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Object classification", true),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)"),
+                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
                 QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (experimental)")
                 );
         
