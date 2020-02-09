@@ -43,7 +43,6 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RectangularShape;
-import java.awt.geom.Ellipse2D.Double;
 import java.awt.image.BufferedImage;
 import java.util.Collection;
 import java.util.Collections;

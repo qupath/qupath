@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateSequence;
-import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -338,8 +336,13 @@ public class BrushTool extends AbstractPathROITool {
 		Geometry shapeDrawn = createShape(e, p.getX(), p.getY(),
 				PathPrefs.getUseTileBrush() && !e.isShiftDown(),
 				subtractMode ? null : shapeCurrent);
+		
 		if (shapeDrawn == null)
 			return currentObject;
+		
+		// Do our pixel snapping now, with the simpler geometry (rather than latter when things are already complex)
+		if (requestPixelSnapping())
+			shapeDrawn = GeometryTools.roundCoordinates(shapeDrawn);
 		
 		lastPoint = p;
 		try {
@@ -355,8 +358,6 @@ public class BrushTool extends AbstractPathROITool {
 				if (subtractMode) {
 					// If subtracting... then just subtract
 					shapeNew = shapeROI.getGeometry().difference(shapeDrawn);
-	//				shapeNew = RoiTools.combineROIs(shapeROI,
-	//						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), RoiTools.CombineOp.SUBTRACT, flatness);
 				} else if (avoidOtherAnnotations) {
 					shapeNew = shapeCurrent.union(shapeDrawn);
 					shapeNew = refineGeometryByParent(shapeNew);
@@ -369,34 +370,27 @@ public class BrushTool extends AbstractPathROITool {
 						shapeNew = shapeROI.getGeometry();
 					}
 				}
-				
-	//			// Convert complete polygons to areas
-	//			if (shapeNew instanceof PolygonROI && ((PolygonROI)shapeNew).nVertices() > 50) {
-	//				shapeNew = ROIs.createAreaROI(RoiTools.getShape(shapeNew), ImagePlane.getPlane(shapeNew));
-	//			}
 			} else {
 				shapeNew = shapeDrawn;
 			}
 			
-			if (requestPixelSnapping())
-				shapeNew = roundAndConstrain(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
-			else {
+			// If we aren't snapping, at least remove some vertices
+			if (!requestPixelSnapping()) {
 				try {
 					shapeNew = VWSimplifier.simplify(shapeNew, 0.1);
 				} catch (Exception e2) {
-					logger.debug("Error simplifying ROI: " + e2.getLocalizedMessage(), e2);
+					logger.error("Error simplifying ROI: " + e2.getLocalizedMessage(), e2);
 				}
-				var bounds = GeometryTools.regionToGeometry(viewer.getServerBounds());
-				shapeNew = shapeNew.intersection(bounds);
 			}
 			
-			//		GeometrySnapper.snapToSelf(shapeNew, 1.0, true);
-			
+			// Make sure we fit inside the image
+			shapeNew = GeometryTools.constrainToBounds(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+
 			// Sometimes we can end up with a GeometryCollection containing lines/non-areas... if so, remove these
 			if (shapeNew instanceof GeometryCollection) {
 				shapeNew = GeometryTools.ensurePolygonal(shapeNew);
 			}
-						
+					
 			ROI roiNew = GeometryTools.geometryToROI(shapeNew, plane);
 			
 			if (currentObject instanceof PathAnnotationObject) {
@@ -504,53 +498,6 @@ public class BrushTool extends AbstractPathROITool {
 		return factory;
 	}
 
-	/**
-	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
-	 * @param geometry
-	 */
-	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
-		roundingFilter.setBounds(minX, minY, maxX, maxY);
-		geometry.apply(roundingFilter);
-		return VWSimplifier.simplify(geometry, 0.5);
-	}
-	
-	private RoundAndConstrainFilter roundingFilter = new RoundAndConstrainFilter();
-			
-	static class RoundAndConstrainFilter implements CoordinateSequenceFilter {
-		
-		private double minX = 0;
-		private double minY = 0;
-		private double maxX = Double.POSITIVE_INFINITY;
-		private double maxY = Double.POSITIVE_INFINITY;
-		
-		void setBounds(double minX, double minY, double maxX, double maxY) {
-			this.minX = minX;
-			this.minY = minY;
-			this.maxX = maxX;
-			this.maxY = maxY;
-		}
-		
-		@Override
-		public boolean isGeometryChanged() {
-			return true;
-		}
-		
-		@Override
-		public boolean isDone() {
-			return false;
-		}
-		
-		@Override
-		public void filter(CoordinateSequence seq, int i) {
-			seq.setOrdinate(i, Coordinate.X,
-					Math.min(maxX, Math.max(minX, Math.round(seq.getOrdinate(i, Coordinate.X)))));
-			
-			seq.setOrdinate(i, Coordinate.Y,
-					Math.min(maxY, Math.max(minY, Math.round(seq.getOrdinate(i, Coordinate.Y)))));
-		}
-		
-	};
-
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
 		creatingTiledROI = false;
@@ -558,7 +505,8 @@ public class BrushTool extends AbstractPathROITool {
 		Geometry geom = createShape(e, x, y, PathPrefs.getUseTileBrush(), null);
 		if (geom == null || geom.isEmpty())
 			return ROIs.createEmptyROI();
-		roundAndConstrain(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+		geom = GeometryTools.roundCoordinates(geom);
+		geom = GeometryTools.constrainToBounds(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		return GeometryTools.geometryToROI(geom, plane);
 	}
 	

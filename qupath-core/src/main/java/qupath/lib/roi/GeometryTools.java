@@ -41,6 +41,9 @@ import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
+import org.locationtech.jts.precision.GeometryPrecisionReducer;
+import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
+import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +68,7 @@ public class GeometryTools {
 			0,
 			PackedCoordinateSequenceFactory.FLOAT_FACTORY);
 
+	private final static PrecisionModel INTEGER_PRECISION_MODEL = new PrecisionModel(1);
     
     private static GeometryConverter DEFAULT_INSTANCE = new GeometryConverter.Builder()
     		.build();
@@ -112,6 +116,46 @@ public class GeometryTools {
 //    	return ShapeReader.read(shape, DEFAULT_INSTANCE.flatness, DEFAULT_INSTANCE.factory);
     }
     
+    
+    /**
+	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
+	 * @param geometry
+	 */
+	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
+		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
+		geometry = TopologyPreservingSimplifier.simplify(geometry, 0.0);
+		geometry = geometry.intersection(GeometryTools.createRectangle(minX, minY, maxX-minX, maxY-minY));
+		return geometry;
+//		roundingFilter.setBounds(minX, minY, maxX, maxY);
+//		geometry.apply(roundingFilter);
+//		return VWSimplifier.simplify(geometry, 0.5);
+	}
+	
+	
+	/**
+	 * Round coordinates in a Geometry to integer values.
+	 * @param geometry the updated Geometry
+	 */
+	public static Geometry roundCoordinates(Geometry geometry) {
+		// Warning! This can result in polygons containing holes to lose some holes...
+		geometry = GeometryPrecisionReducer.reduce(geometry, INTEGER_PRECISION_MODEL);
+		// Remove unnecessary coordinates occurring along straight lines
+		geometry = DouglasPeuckerSimplifier.simplify(geometry, 0.0);
+		return geometry;
+	}
+	
+	/**
+	 * Compute the intersection of a Geometry and a specified bounding box.
+	 * The original Geometry <i>may</i> be returned unchanged if no changes are required to fit within the bounds.
+	 * @param geometry the updated Geometry
+	 */
+	public static Geometry constrainToBounds(Geometry geometry, double x, double y, double width, double height) {
+		var env = geometry.getEnvelopeInternal();
+		if (env.getMinX() < x || env.getMinY() < y || env.getMaxX() >= x + width || env.getMaxY() >= y + height)
+			geometry = geometry.intersection(GeometryTools.createRectangle(x, y, width, height));
+		return geometry;
+	}
+	
     
     /**
      * Create a rectangular Geometry for the specified bounding box.
@@ -166,10 +210,10 @@ public class GeometryTools {
      */
     public static Geometry regionToGeometry(ImageRegion region) {
     	var coords = new Coordinate[5];
-    	coords[0] = new Coordinate(region.getMinX(), region.getMinY(), region.getZ());
-    	coords[1] = new Coordinate(region.getMaxX(), region.getMinY(), region.getZ());
-    	coords[2] = new Coordinate(region.getMaxX(), region.getMaxY(), region.getZ());
-    	coords[3] = new Coordinate(region.getMinX(), region.getMaxY(), region.getZ());
+    	coords[0] = DEFAULT_INSTANCE.createCoordinate(region.getMinX(), region.getMinY(), region.getZ());
+    	coords[1] = DEFAULT_INSTANCE.createCoordinate(region.getMaxX(), region.getMinY(), region.getZ());
+    	coords[2] = DEFAULT_INSTANCE.createCoordinate(region.getMaxX(), region.getMaxY(), region.getZ());
+    	coords[3] = DEFAULT_INSTANCE.createCoordinate(region.getMinX(), region.getMaxY(), region.getZ());
     	coords[4] = coords[0];
     	return DEFAULT_INSTANCE.factory.createPolygon(coords);
     }
@@ -400,8 +444,18 @@ public class GeometryTools {
 	    }
 	    
 	    private Geometry lineToGeometry(ROI roi) {
-	    	var coords = roi.getAllPoints().stream().map(p -> new Coordinate(p.getX() * pixelWidth, p.getY() * pixelHeight)).toArray(Coordinate[]::new);
+	    	var coords = roi.getAllPoints().stream().map(p -> createCoordinate(p.getX() * pixelWidth, p.getY() * pixelHeight)).toArray(Coordinate[]::new);
 	    	return factory.createLineString(coords);
+	    }
+	    
+	    private Coordinate createCoordinate(double x, double y) {
+	    	var precisionModel = factory.getPrecisionModel();
+	    	return new CoordinateXY(precisionModel.makePrecise(x), precisionModel.makePrecise(y));
+	    }
+	    
+	    private Coordinate createCoordinate(double x, double y, double z) {
+	    	var precisionModel = factory.getPrecisionModel();
+	    	return new Coordinate(precisionModel.makePrecise(x), precisionModel.makePrecise(y), precisionModel.makePrecise(z));
 	    }
 	    
 	    private Geometry areaToGeometry(ROI roi) {
@@ -463,6 +517,8 @@ public class GeometryTools {
 	
 			CoordinateList points = new CoordinateList();
 			
+			PrecisionModel precisionModel = factory.getPrecisionModel();
+			
 			double areaTempSigned = 0;
 			double areaCached = 0;
 			
@@ -484,8 +540,8 @@ public class GeometryTools {
 				switch(iter.currentSegment(seg)) {
 				case PathIterator.SEG_MOVETO:
 					// Log starting positions - need them again for closing the path
-					startX = seg[0];
-					startY = seg[1];
+					startX = precisionModel.makePrecise(seg[0]);
+					startY = precisionModel.makePrecise(seg[1]);
 					x0 = startX;
 					y0 = startY;
 					iter.next();
@@ -501,8 +557,8 @@ public class GeometryTools {
 					closed = true;
 					break;
 				case PathIterator.SEG_LINETO:
-					x1 = seg[0];
-					y1 = seg[1];
+					x1 = precisionModel.makePrecise(seg[0]);
+					y1 = precisionModel.makePrecise(seg[1]);
 					// We only wand to add a point if the displacement is above a specified tolerance, 
 					// because JTS can be very sensitive to any hint of self-intersection - and does not always 
 					// like what the PathIterator provides
@@ -745,7 +801,8 @@ public class GeometryTools {
 	    
 	    
 	    private Geometry pointsToGeometry(ROI points) {
-	    	var coords = points.getAllPoints().stream().map(p -> new Coordinate(p.getX()*pixelWidth, p.getY()*pixelHeight)).toArray(Coordinate[]::new);
+	    	var coords = points.getAllPoints().stream().map(p -> createCoordinate(p.getX()*pixelWidth, p.getY()*pixelHeight))
+	    			.toArray(Coordinate[]::new);
 	    	if (coords.length == 1)
 	    		return factory.createPoint(coords[0]);
 	    	return factory.createMultiPointFromCoords(coords);

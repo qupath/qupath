@@ -68,6 +68,7 @@ import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.tools.BrushTool;
 import qupath.lib.gui.viewer.tools.QuPathPenManager;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.GeometryTools;
 
 /**
  * Wand tool, which acts rather like the brush - except that it expands regions 
@@ -478,7 +479,8 @@ public class WandToolCV extends BrushTool {
 				.scale(downsample, downsample)
 				.translate(x, y);
 		geometry = transform.transform(geometry);
-		geometry = roundAndConstrain(geometry, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+		geometry = GeometryTools.roundCoordinates(geometry);
+		geometry = GeometryTools.constrainToBounds(geometry, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		if (geometry.getArea() <= 1)
 			return null;
 		
