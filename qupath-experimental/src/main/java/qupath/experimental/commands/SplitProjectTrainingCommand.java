@@ -1,4 +1,4 @@
-package qupath.lib.gui.ml.commands;
+package qupath.experimental.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;

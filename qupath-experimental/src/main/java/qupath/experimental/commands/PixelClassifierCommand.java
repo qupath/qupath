@@ -1,4 +1,4 @@
-package qupath.lib.gui.ml.commands;
+package qupath.experimental.commands;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;

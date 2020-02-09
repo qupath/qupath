@@ -1,4 +1,4 @@
-package qupath.lib.gui.ml.commands;
+package qupath.experimental.commands;
 
 import java.io.IOException;
 import java.util.Collection;

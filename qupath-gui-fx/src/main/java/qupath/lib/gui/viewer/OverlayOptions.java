@@ -100,7 +100,7 @@ public class OverlayOptions {
 //    }
     
 	/**
-	 * Constructor.
+	 * Constructor, using default values.
 	 */
 	public OverlayOptions() {
 		InvalidationListener timestamper = (var e) -> updateTimestamp();
@@ -117,6 +117,28 @@ public class OverlayOptions {
 		hiddenClasses.addListener(timestamper);
 		cellDisplayMode.addListener(timestamper);
 		opacity.addListener(timestamper);
+	}
+	
+	/**
+	 * Constructor, initializing values based on an existing {@link OverlayOptions} object.
+	 */
+	public OverlayOptions(OverlayOptions options) {
+		this();
+		this.cellDisplayMode.set(options.cellDisplayMode.get());
+		this.fillAnnotations.set(options.fillAnnotations.get());
+		this.fillDetections.set(options.fillDetections.get());
+		this.gridLines.set(options.gridLines.get());
+		this.hiddenClasses.addAll(options.hiddenClasses);
+		this.measurementMapper.set(options.measurementMapper.get());
+		this.opacity.set(options.opacity.get());
+		this.showAnnotations.set(options.showAnnotations.get());
+		this.showConnections.set(options.showConnections.get());
+		this.showDetections.set(options.showDetections.get());
+		this.showGrid.set(options.showGrid.get());
+		this.showPixelClassification.set(options.showPixelClassification.get());
+		this.showTMACoreLabels.set(options.showTMACoreLabels.get());
+		this.showTMAGrid.set(this.showTMAGrid.get());
+		this.timestamp.set(options.timestamp.get());
 	}
 	
 	private void updateTimestamp() {

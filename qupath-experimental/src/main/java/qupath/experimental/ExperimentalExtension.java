@@ -5,19 +5,20 @@ import org.bytedeco.openblas.global.openblas;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import qupath.experimental.commands.CreateRegionAnnotationsCommand;
+import qupath.experimental.commands.ExportTrainingRegionsCommand;
+import qupath.experimental.commands.ObjectClassifierCommand;
+import qupath.experimental.commands.ObjectClassifierLoadCommand;
+import qupath.experimental.commands.PixelClassifierCommand;
+import qupath.experimental.commands.PixelClassifierLoadCommand;
+import qupath.experimental.commands.SimpleThresholdCommand;
+import qupath.experimental.commands.SplitProjectTrainingCommand;
+import qupath.experimental.commands.SvgExportCommand;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.ml.commands.CreateRegionAnnotationsCommand;
-import qupath.lib.gui.ml.commands.ExportTrainingRegionsCommand;
-import qupath.lib.gui.ml.commands.ObjectClassifierCommand;
-import qupath.lib.gui.ml.commands.ObjectClassifierLoadCommand;
-import qupath.lib.gui.ml.commands.PixelClassifierLoadCommand;
-import qupath.lib.gui.ml.commands.PixelClassifierCommand;
-import qupath.lib.gui.ml.commands.SimpleThresholdCommand;
-import qupath.lib.gui.ml.commands.SplitProjectTrainingCommand;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.io.GsonTools;
@@ -52,6 +53,17 @@ public class ExperimentalExtension implements QuPathExtension {
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
     	FeatureCalculators.initialize();
+    	
+    	MenuTools.addMenuItems(
+                qupath.getMenu("File>Export images...", true),
+                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportCommand.SvgExportType.SELECTED_REGION),
+                		"Rendered SVG")
+        );
+    	MenuTools.addMenuItems(
+                qupath.getMenu("File>Export snapshot...", true),
+                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportCommand.SvgExportType.VIEWER_SNAPSHOT),
+                		"Current viewer content (SVG)")
+        );
     	
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Pixel classification", true),

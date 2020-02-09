@@ -184,6 +184,7 @@ allprojects {
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.3'
     picocliVersion     = '4.1.4'
+    jfreesvgVersion    = '3.4'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
   }
@@ -204,6 +205,7 @@ allprojects {
     nativeloader
     guava
     picocli
+    jfreesvg
     
     // Guava tries to bring in extra dependencies not required at runtime
     implementation {
@@ -267,6 +269,8 @@ allprojects {
     guava "com.google.guava:guava:${guavaVersion}"
     
     picocli "info.picocli:picocli:${picocliVersion}"
+    
+    jfreesvg "org.jfree:jfreesvg:${jfreesvgVersion}"
   }
 
 }

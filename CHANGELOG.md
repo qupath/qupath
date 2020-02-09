@@ -4,8 +4,9 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Completely rewritten object classifiers
   * Supports multi-class classifications  
   * JSON serialization
-* Bio-Formats series selector
+* Bio-Formats series selector (enable specific series to be accessed outside projects)
 * New 'Centroids only' cell display mode
+* New SVG export options (made possible by JFreeSVG)
 * Major changes to annotation ROI manipulation
   * 'Duplicate annotations' applies to multiple selections
   * 'Merge annotations' and 'Split annotations' work with point ROIs, not only areas
@@ -29,6 +30,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Select main font; default changed to Sans-Serif for macOS
   * Turn on/off system menubar
 * Show accelerator within 'Command list' table
+* Improved attempt to parse channel names from slice labels in ImageJServer
 * Fixed bug in Jar classpath that prevented QuPath running from a command line
 * Update dependencies (Bio-Formats, ControlsFX, ImageJ, Guava, Groovy, RichTextFX)
 

@@ -152,7 +152,7 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 	
-	public static void paintSpecifiedObjects(Graphics2D g2d, Rectangle boundsDisplayed, Collection<PathObject> pathObjects, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
+	public static void paintSpecifiedObjects(Graphics2D g2d, Rectangle boundsDisplayed, Collection<? extends PathObject> pathObjects, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
 		//		System.out.println("MY CLIP: " + g2d.getClipBounds());
 		// Paint objects, if required
 		if (pathObjects == null)

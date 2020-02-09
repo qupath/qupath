@@ -544,7 +544,7 @@ public class GeneralTools {
 		for (String ext : extensions) {
 			if (!ext.startsWith("."))
 				ext = "." + ext;
-			if (pathLower.endsWith(ext))
+			if (pathLower.endsWith(ext.toLowerCase()))
 				return true;
 		}
 		return false;
