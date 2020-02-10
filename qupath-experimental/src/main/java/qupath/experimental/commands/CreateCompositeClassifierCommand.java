@@ -61,8 +61,8 @@ public class CreateCompositeClassifierCommand implements PathCommand {
 		}
 		
 		String instructions = 
-				"Move individual classifiers to include in the composite classifier to the column on the right.\n" +
-				"Note that the order of classifiers in the list determined the order in which they will be applied.";
+				"Move individual classifiers to the column on the right to be included in the composite classifier.\n" +
+				"Note that the order of classifiers in the list determines the order in which they will be applied.";
 				
 		var labelInstructions = new Label(instructions);
 		labelInstructions.setAlignment(Pos.CENTER);

@@ -3448,7 +3448,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		MenuTools.addMenuItems(
 				menuClassifiers,
 				null,
-				createCommandAction(new SparseImageServerCommand(this), "Create project training image")
+				MenuTools.createMenu("Extras",
+						createCommandAction(new SparseImageServerCommand(this), "Create combined training image")
+						)
 			);
 		
 		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {

@@ -499,6 +499,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		TextField tfFilter = new TextField("");
 		tfFilter.textProperty().bindBidirectional(filterText);
 		tfFilter.setTooltip(new Tooltip("Enter text to find specific channels by name"));
+		tfFilter.setPromptText("Filter channels by name");
 		paneTableAndFilter.setBottom(tfFilter);
 		predicate.addListener((v, o, n) -> updatePredicate());
 		

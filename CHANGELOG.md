@@ -1,8 +1,10 @@
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
+
+Changes include:
 * Improved object classification
   * Completely rewritten object classifiers
-  * Supports multi-class classifications  
+  * Support for multi-class & composite classifiers
   * JSON serialization
 * Bio-Formats series selector (enable specific series to be accessed outside projects)
 * New 'Centroids only' cell display mode

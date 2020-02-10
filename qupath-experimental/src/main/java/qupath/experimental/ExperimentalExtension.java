@@ -5,6 +5,7 @@ import org.bytedeco.openblas.global.openblas;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import qupath.experimental.commands.CreateChannelTrainingImagesCommand;
 import qupath.experimental.commands.CreateCompositeClassifierCommand;
 import qupath.experimental.commands.CreateMeasurementClassifierCommand;
 import qupath.experimental.commands.CreateRegionAnnotationsCommand;
@@ -81,7 +82,13 @@ public class ExperimentalExtension implements QuPathExtension {
                 QuPathGUI.createCommandAction(new CreateMeasurementClassifierCommand(qupath), "Create object intensity classifier (experimental)"),
                 QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
                 );
-        
+
+    	MenuTools.addMenuItems(
+                qupath.getMenu("Classify>Extras", true),
+                QuPathGUI.createCommandAction(new CreateChannelTrainingImagesCommand(qupath), "Duplicate channel training images")
+                );
+
+    	
         MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),
                 QuPathGUI.createCommandAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")

@@ -62,6 +62,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -216,6 +217,7 @@ public class PathClassPane {
 		
 		var tfFilter = new TextField();
 		tfFilter.setTooltip(new Tooltip("Type to filter classifications in list"));
+		tfFilter.setPromptText("Filter classifications in list");
 		filterText.bind(tfFilter.textProperty());
 		filterText.addListener((v, o, n) -> filteredList.setPredicate(createPredicate(n)));
 		var paneBottom = PaneTools.createRowGrid(tfFilter, paneClassButtons);
@@ -414,6 +416,8 @@ public class PathClassPane {
 			Dialogs.showInfoNotification("Set available classes", "Class lists are the same - no changes to make!");
 			return false;
 		}
+		// Always need to be able to ignore...
+		newClasses.add(PathClassFactory.getPathClass(StandardPathClasses.IGNORE));
 		
 		var btn = DialogButton.YES;
 		if (qupath.getAvailablePathClasses().size() > 1)
@@ -467,6 +471,8 @@ public class PathClassPane {
 			Dialogs.showErrorMessage("Set available classes", "No classifications found in current image!");
 			return false;
 		}
+		
+		newClasses.add(PathClassFactory.getPathClass(StandardPathClasses.IGNORE));
 		
 		List<PathClass> currentClasses = new ArrayList<>(qupath.getAvailablePathClasses());
 		currentClasses.remove(null);

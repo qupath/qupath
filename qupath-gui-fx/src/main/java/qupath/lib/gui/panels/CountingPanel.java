@@ -28,6 +28,7 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,13 +41,16 @@ import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.shape.Rectangle;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -161,12 +165,21 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		}
 				);
 		ContextMenu menu = new ContextMenu();
-		MenuItem menuItem = new MenuItem("Copy to clipboad");
-		menuItem.setOnAction(e -> {
+		Menu menuSetClass = new Menu("Set class");
+		menu.setOnShowing(e -> {
+			menuSetClass.getItems().setAll(
+					qupath.getAvailablePathClasses().stream()
+					.map(p -> createPathClassMenuItem(p))
+					.collect(Collectors.toList()));
+		});
+		MenuItem miCopy = new MenuItem("Copy to clipboard");
+		miCopy.setOnAction(e -> {
 			copyCoordinatesToClipboard(listCounts.getSelectionModel().getSelectedItem());
 			}
 		);
-		menu.getItems().add(menuItem);
+		miCopy.disableProperty().bind(listCounts.getSelectionModel().selectedItemProperty().isNull());
+		menuSetClass.disableProperty().bind(listCounts.getSelectionModel().selectedItemProperty().isNull());
+		menu.getItems().addAll(menuSetClass, miCopy);
 		listCounts.setContextMenu(menu);
 		
 		listCounts.setCellFactory(v -> new PathObjectListCell(p -> p.toString().replace(" (Points)", "")));
@@ -178,6 +191,23 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 //		panelList.setBorder(BorderFactory.createTitledBorder("Counts"));		
 		
 		pane.setCenter(panelList);
+	}
+	
+	
+	MenuItem createPathClassMenuItem(PathClass pathClass) {
+		var mi = new MenuItem(pathClass.toString());
+		var rect = new Rectangle(8, 8, ColorToolsFX.getCachedColor(pathClass.getColor()));
+		mi.setGraphic(rect);
+		mi.setOnAction(e -> {
+			var pathObject = listCounts.getSelectionModel().getSelectedItem();
+			if (pathClass == PathClassFactory.getPathClassUnclassified())
+				pathObject.setPathClass(null);
+			else
+				pathObject.setPathClass(pathClass);
+			if (hierarchy != null)
+				hierarchy.fireObjectClassificationsChangedEvent(mi, Collections.singleton(pathObject));
+		});
+		return mi;
 	}
 	
 	
