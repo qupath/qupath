@@ -32,6 +32,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,9 +41,11 @@ import java.util.Map.Entry;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1092,5 +1095,128 @@ public class PathObjectTools {
 		          );
 	}
 	
+	
+	/**
+	 * Resolve overlapping objects by size, retaining the object with the larger ROI and discarding the object with the smaller ROI.
+	 * 
+	 * @param pathObjects input object collection, which may contain overlapping objects
+	 * @param overlapTolerance amount of overlap to permit; recommended value is 0, see {@link #removeOverlaps(Collection, Comparator, double)}
+	 * @return output collection of objects, which should have smaller overlapping objects removed
+	 */
+	public static Collection<PathObject> removeOverlapsBySize(Collection<? extends PathObject> pathObjects, double overlapTolerance) {
+		return removeOverlaps(pathObjects, Comparator.comparingDouble((PathObject p) -> getROI(p, false).getArea()).reversed(), overlapTolerance);
+	}
+	
+	/**
+	 * Resolve overlapping object by location, retaining the object closest to the image 'origin' and discarding the object further away.
+	 * Note that this is determined using first the bounding box, then the centroid.
+	 * This is a simpler (and faster) criterion than measuring distance to the original from the ROI itself.
+	 * 
+	 * @param pathObjects input object collection, which may contain overlapping objects
+	 * @param overlapTolerance amount of overlap to permit; recommended value is 0, see {@link #removeOverlaps(Collection, Comparator, double)}
+	 * @return output collection of objects, which should have smaller overlapping objects removed
+	 */
+	public static Collection<PathObject> removeOverlapsByLocation(Collection<? extends PathObject> pathObjects, double overlapTolerance) {
+		// Sort according to bounding box, then centroid, then area
+		return removeOverlaps(pathObjects,
+				Comparator.comparingDouble((PathObject p) -> p.getROI().getBoundsY())
+				.thenComparing((PathObject p) -> p.getROI().getBoundsX())
+				.thenComparing((PathObject p) -> p.getROI().getCentroidY())
+				.thenComparing((PathObject p) -> p.getROI().getCentroidX())
+				.thenComparing((PathObject p) -> getROI(p, false).getArea()),
+				overlapTolerance);
+	}
+
+	
+	/**
+	 * Resolve overlaps, discarding one and keeping the other.
+	 * It assumes that the objects have been sorted so that 'preferred' objects occur first.
+	 * <p>
+	 * 'How overlapping' can be controlled by the {@code overlapTolerance}, where an overlap will be removed
+	 * <ul>
+	 * <li>if {@code overlapTolerance > 0} and the area of the intersection between ROIs is {@code < overlapTolerance} (an absolute comparison)
+	 * <li>if {@code overlapTolerance < 0} and the proportion of the smaller ROI intersecting the larger ROI is {@code < -overlapTolerance} (a relative comparison)
+	 * <li>if {@code overlapTolerance == 0} and there is any non-zero area intersection between ROIs
+	 * </ul>
+	 * For example, {@code overlapTolerance == 10} will require at least 10 pixels between ROIs to intersect to be considered an overlap,
+	 * while {@code overlapTolerance == 0.01} will require at least 1% of the area of the smaller ROI to intersect.
+	 * <p>
+	 * It is recommended to keep {@code overlapTolerance == 0} in most instances to remove all overlaps.
+	 * This is also less computationally expensive because it means intersection areas do not need to be calculated.
+	 * 
+	 * @param pathObjects input object collection, which may contain overlapping objects
+	 * @param comparator comparator, which determines which object is retained when overlaps are found.
+	 *                   Considering the collection to be sorted by the comparator, the 'first' object is the one that will be kept.
+	 * @param overlapTolerance amount of overlap to permit
+	 * @return collection of objects, which should have smaller overlapping objects removed
+	 */
+	public static Collection<PathObject> removeOverlaps(Collection<? extends PathObject> pathObjects, Comparator<PathObject> comparator, double overlapTolerance) {
+		
+		if (overlapTolerance != 0 && overlapTolerance <= -1.0) {
+			logger.warn("A non-zero overlapTolerance <= -1.0 has no effect! Returning the same objects.");
+			return new ArrayList<>(pathObjects);
+		}
+		
+		// Start off by assuming we'll keep everything
+		Collection<PathObject> output = new LinkedHashSet<>(pathObjects);
+		
+		// Identify the objects we can potentially deal with (i.e. with area ROIs)
+		List<PathObject> list = new ArrayList<>();
+		for (PathObject pathObject : pathObjects) {
+			if (pathObject.hasROI() && pathObject.getROI().isArea())
+				list.add(pathObject);
+		}
+		Collections.sort(list, comparator);
+		
+		// Create a spatial index
+		var quadTree = new STRtree();
+		var geomMap = new HashMap<PathObject, Geometry>();
+		var planeMap = new HashMap<PathObject, ImagePlane>();
+		for (PathObject pathObject : list) {
+			var roi = PathObjectTools.getROI(pathObject, false);
+			var geom = roi.getGeometry();
+			quadTree.insert(geom.getEnvelopeInternal(), pathObject);
+			geomMap.put(pathObject, geom);
+			planeMap.put(pathObject, roi.getImagePlane());
+		}
+		
+		// Identify what needs to be removed
+		Set<PathObject> toRemove = new HashSet<>();
+		for (PathObject pathObject : list) {
+			if (toRemove.contains(pathObject))
+				continue;
+			var geom = geomMap.get(pathObject);
+			var plane = planeMap.get(pathObject);
+			@SuppressWarnings("unchecked")
+			List<PathObject> potentialOverlaps = (List<PathObject>)quadTree.query(geom.getEnvelopeInternal());
+			for (PathObject p : potentialOverlaps) {
+				if (p == pathObject || toRemove.contains(p))
+					continue;
+				var planeP = planeMap.get(p);
+				if (plane.getZ() != planeP.getZ() || plane.getT() != planeP.getT())
+					continue;
+				var geomP = geomMap.get(p);
+				// We allow 'touches', since this involves no area intersection
+				if (!geom.intersects(geomP) || geom.touches(geomP))
+					continue;
+				if (overlapTolerance != 0) {
+					try {
+						var overlap = geom.intersection(geomP).getArea();
+						double tol = overlapTolerance;
+						if (overlapTolerance < 0) {
+							tol = Math.min(geom.getArea(), geom.getArea()) * (-overlapTolerance);
+						}
+						if (overlap < tol)
+							continue;
+					} catch (Exception e) {
+						logger.warn("Exception attempting to apply overlap tolerance: " + e.getLocalizedMessage(), e);
+					}
+				}
+				toRemove.add(p);
+			}
+		}
+		output.removeAll(toRemove);
+		return output;
+	}
 	
 }

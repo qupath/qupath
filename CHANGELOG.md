@@ -26,11 +26,13 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Filter box to quickly find specific channels within long lists
   * New scripting methods to set display range, e.g. setChannelDisplayRange(channel, min, max)
 * File -> Quit menu item added
+* Viewer no longer 'resets' location when opening the same image or reloading data
 * New preferences
   * Select main font; default changed to Sans-Serif for macOS
   * Turn on/off system menubar
 * Show accelerator within 'Command list' table
 * Improved attempt to parse channel names from slice labels in ImageJServer
+* More useful static methods, e.g. PathObjectTools.removeOverlaps()
 * Fixed bug in Jar classpath that prevented QuPath running from a command line
 * Update dependencies (Bio-Formats, ControlsFX, ImageJ, Guava, Groovy, RichTextFX)
 
