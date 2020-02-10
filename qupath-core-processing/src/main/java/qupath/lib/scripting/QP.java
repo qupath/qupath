@@ -982,6 +982,7 @@ public class QP {
 	 * @param imageData
 	 * @param classifier
 	 */
+	@Deprecated
 	public static void runClassifier(final ImageData<?> imageData, final PathObjectClassifier classifier) {
 		if (imageData != null)
 			runClassifier(imageData.getHierarchy(), classifier);
@@ -992,7 +993,9 @@ public class QP {
 	 * @param hierarchy
 	 * @param classifier
 	 */
+	@Deprecated
 	public static void runClassifier(final PathObjectHierarchy hierarchy, final PathObjectClassifier classifier) {
+		logger.warn("runClassifier() is a legacy command for 'old' detection classifiers in QuPath v0.1.2 and earlier, and may be removed in a future version");
 		PathClassifierTools.runClassifier(hierarchy, classifier);
 	}
 	
@@ -1000,6 +1003,7 @@ public class QP {
 	 * Run a detection object classifier for the current image data, reading the classifier from a specified path
 	 * @param path
 	 */
+	@Deprecated
 	public static void runClassifier(final String path) {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null)

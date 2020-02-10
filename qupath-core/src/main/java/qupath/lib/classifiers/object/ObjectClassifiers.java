@@ -1,5 +1,10 @@
 package qupath.lib.classifiers.object;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Function;
@@ -12,6 +17,7 @@ import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.io.GsonTools;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
@@ -108,6 +114,33 @@ public class ObjectClassifiers {
 			.aboveEquals(pathClass)
 			.build();
 	}
+	
+	
+	/**
+	 * Read the classifier from a file.
+	 * @param <T>
+	 * @param path
+	 * @throws IOException
+	 */
+	public static <T> ObjectClassifier<T> readClassifier(Path path) throws IOException {
+		try (var reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+			return GsonTools.getInstance().fromJson(reader, ObjectClassifier.class);
+		}
+	}
+	
+	/**
+	 * Write the classifier to a file.
+	 * @param <T>
+	 * @param classifier
+	 * @param path
+	 * @throws IOException
+	 */
+	public static <T> void writeClassifier(ObjectClassifier<T> classifier, Path path) throws IOException {
+		try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
+			GsonTools.getInstance(true).toJson(classifier, writer);
+		}
+	}
+	
 	
 	/**
 	 * Builder to create a simple {@link ObjectClassifier} that assigns a classification based upon whether the 

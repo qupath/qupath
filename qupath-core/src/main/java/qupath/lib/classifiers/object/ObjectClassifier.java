@@ -23,6 +23,9 @@ public interface ObjectClassifier<T> {
 
 	/**
 	 * Classify all compatible objects from an {@link ImageData}.
+	 * <p>
+	 * Note: this method does <i>not</i> typically fire any hierarchy change/object classification events.
+	 * It is up to the caller to fire these events if required.
 	 * 
 	 * @param imageData data containing the object hierarchy
 	 * @return the number of objects whose classification was changed.
@@ -34,6 +37,9 @@ public interface ObjectClassifier<T> {
 	/**
 	 * Classify the objects in the specified collection.
 	 * This provides a means to specify exactly which objects should be classified, avoiding reliance on {@link #getCompatibleObjects(ImageData)}.
+	 * <p>
+	 * Note: this method does <i>not</i> typically fire any hierarchy change/object classification events.
+	 * It is up to the caller to fire these events if required.
 	 * 
 	 * @param imageData data that may or may not be required for classification depending upon how features are extracted
 	 * @param pathObjects the objects to classify

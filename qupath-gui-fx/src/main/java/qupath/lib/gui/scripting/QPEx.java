@@ -30,6 +30,8 @@ import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -48,6 +50,8 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
@@ -426,6 +430,111 @@ public class QPEx extends QP {
 		if (viewer != null)
 			viewer.repaintEntireImage();
 	}
+	
+	/**
+	 * Apply an object classifier to the current {@link ImageData}.
+	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
+	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	public static void runObjectClassifier(String name) throws IllegalArgumentException {
+		runObjectClassifier(getCurrentImageData(), name);
+	}
+	
+	/**
+	 * Apply an object classifier to the specified {@link ImageData}.
+	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
+	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static void runObjectClassifier(ImageData imageData, String name) throws IllegalArgumentException {
+		if (imageData == null) {
+			logger.warn("Cannot run object classifier - no ImageData available!");
+			return;
+		}
+		ObjectClassifier classifier = loadObjectClassifier(name);
+		
+		var pathObjects = classifier.getCompatibleObjects(imageData);
+		if (classifier.classifyObjects(imageData, pathObjects, true) > 0)
+			imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
+	}
+	
+	/**
+	 * Load an object classifier for a project or file path.
+	 * 
+	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @return the requested {@link ObjectClassifier}
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	public static ObjectClassifier loadObjectClassifier(String name) throws IllegalArgumentException {
+		var project = getProject();
+		ObjectClassifier classifier = null;
+		Exception exception = null;
+		if (project != null) {
+			try {
+				if (project.getObjectClassifiers().getNames().contains(name))
+					classifier = project.getObjectClassifiers().get(name);
+			} catch (Exception e) {
+				exception = e;
+				logger.debug("Object classifier '{}' not found in project", name);
+			}
+		}
+		if (classifier == null) {
+			try {
+				var path = Paths.get(name);
+				if (Files.exists(path))
+					classifier = ObjectClassifiers.readClassifier(path);
+			} catch (Exception e) {
+				exception = e;
+				logger.debug("Object classifier '{}' cannot be read from file", name);
+			}
+		}
+		if (classifier == null) {
+			throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+		} else
+			return classifier;
+	}
+	
+	
+	// TODO: Make loadPixelClassifier available whenever the code is refactored
+//	/**
+//	 * Load a pixel classifier for a project or file path.
+//	 * 
+//	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+//	 * @return the requested {@link PixelClassifier}
+//	 * @throws IllegalArgumentException if the classifier cannot be found
+//	 */
+//	public static PixelClassifier loadPixelClassifier(String name) throws IllegalArgumentException {
+//		var project = getProject();
+//		PixelClassifier classifier = null;
+//		Exception exception = null;
+//		if (project != null) {
+//			try {
+//				if (project.getPixelClassifiers().getNames().contains(name))
+//					classifier = project.getPixelClassifiers().get(name);
+//			} catch (Exception e) {
+//				exception = e;
+//				logger.debug("Pixel classifier '{}' not found in project", name);
+//			}
+//		}
+//		if (classifier == null) {
+//			try {
+//				var path = Paths.get(name);
+//				if (Files.exists(path))
+//					classifier = PixelClassifiers.readClassifier(path);
+//			} catch (Exception e) {
+//				exception = e;
+//				logger.debug("Pixel classifier '{}' cannot be read from file", name);
+//			}
+//		}
+//		if (classifier == null) {
+//			throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+//		} else
+//			return classifier;
+//	}
+	
+	
 	
 	/**
 	 * Set the minimum and maximum display range for the current {@link ImageData} for a channel identified by name.

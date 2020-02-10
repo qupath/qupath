@@ -1,6 +1,11 @@
 package qupath.opencv.ml.pixel;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
@@ -11,6 +16,7 @@ import com.google.gson.reflect.TypeToken;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
+import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
@@ -57,6 +63,29 @@ public class PixelClassifiers {
 	
 	public static TypeAdapterFactory getTypeAdapterFactory() {
 		return factory;
+	}
+	
+	/**
+	 * Read a standard pixel classifier from a file.
+	 * @param path the file containing the classifier
+	 * @throws IOException
+	 */
+	public static PixelClassifier readClassifier(Path path) throws IOException {
+		try (var reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+			return GsonTools.getInstance().fromJson(reader, PixelClassifier.class);
+		}
+	}
+	
+	/**
+	 * Write a pixel classifier to a file.
+	 * @param classifier
+	 * @param path
+	 * @throws IOException
+	 */
+	public static void writeClassifier(PixelClassifier classifier, Path path) throws IOException {
+		try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
+			GsonTools.getInstance(true).toJson(classifier, writer);
+		}
 	}
 
 	/**

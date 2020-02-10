@@ -5,6 +5,8 @@ import org.bytedeco.openblas.global.openblas;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import qupath.experimental.commands.CreateCompositeClassifierCommand;
+import qupath.experimental.commands.CreateMeasurementClassifierCommand;
 import qupath.experimental.commands.CreateRegionAnnotationsCommand;
 import qupath.experimental.commands.ExportTrainingRegionsCommand;
 import qupath.experimental.commands.ObjectClassifierCommand;
@@ -74,8 +76,10 @@ public class ExperimentalExtension implements QuPathExtension {
 
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Object classification", true),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
-                QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (experimental)")
+                QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (experimental)"),
+                QuPathGUI.createCommandAction(new CreateCompositeClassifierCommand(qupath), "Create composite object classifier (experimental)"),
+                QuPathGUI.createCommandAction(new CreateMeasurementClassifierCommand(qupath), "Create object intensity classifier (experimental)"),
+                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
                 );
         
         MenuTools.addMenuItems(
