@@ -2101,7 +2101,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (imageData == null)
 				menuCells.setVisible(false);
 			else
-				menuCells.setVisible(!imageData.getHierarchy().getCellObjects().isEmpty());
+				menuCells.setVisible(!imageData.getHierarchy().getDetectionObjects().isEmpty());
 			
 			
 			// Check what to show for TMA cores or annotations

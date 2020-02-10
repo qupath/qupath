@@ -1459,13 +1459,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			return;
 		
 		imageDataChanging.set(true);
-
+		
 		// Remove listeners for previous hierarchy
 		ImageData<BufferedImage> imageDataOld = this.imageDataProperty.get();
 		if (imageDataOld != null) {
 			imageDataOld.getHierarchy().removePathObjectListener(this);
 			imageDataOld.getHierarchy().getSelectionModel().removePathObjectSelectionListener(this);
 		}
+		
+		// Determine if the server has remained the same, so we can avoid shifting the viewer
+		boolean sameServer = false;
+		if (imageDataOld != null && imageDataNew != null && imageDataOld.getServerPath().equals(imageDataNew.getServerPath()))
+			sameServer = true;
 
 		this.imageDataProperty.set(imageDataNew);
 		ImageServer<BufferedImage> server = imageDataNew == null ? null : imageDataNew.getServer();
@@ -1480,8 +1485,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		initializeForServer(server);
 		
-		setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
-		centerImage();
+		if (!sameServer) {
+			setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
+			centerImage();
+		}
 
 		fireImageDataChanged(imageDataOld, imageDataNew);
 
