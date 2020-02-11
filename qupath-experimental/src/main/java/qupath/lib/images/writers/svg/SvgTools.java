@@ -1,8 +1,10 @@
 package qupath.lib.images.writers.svg;
 
+import java.awt.Image;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -11,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.zip.GZIPOutputStream;
@@ -23,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
@@ -71,6 +75,39 @@ public class SvgTools {
 		
 		private final static Logger logger = LoggerFactory.getLogger(SvgBuilder.class);
 		
+		/**
+		 * Enum defining ways in which raster images may be included in the SVG file.
+		 */
+		public static enum ImageIncludeType { 
+			/**
+			 * Do not include images.
+			 */
+			NONE,
+			/**
+			 * Embed the image (as Base64-encoded PNG).
+			 */
+			EMBED,
+			/**
+			 * Link the image (to a separate PNG).
+			 */
+			LINK;
+			
+			@Override
+			public String toString() {
+				switch(this) {
+				case EMBED:
+					return "Embed raster";
+				case LINK:
+					return "Linked raster";
+				case NONE:
+					return "SVG vectors only";
+				default:
+					throw new IllegalArgumentException("Unknown type " + this);
+				}
+			}
+			
+		}
+		
 		private QuPathViewer viewer;
 		
 		private ImageData<BufferedImage> imageData;
@@ -85,7 +122,7 @@ public class SvgTools {
 		private ImageRegion region;
 		private double downsample = -1.0;
 		
-		private boolean includeImage;
+		private ImageIncludeType imageInclude = ImageIncludeType.NONE;
 		
 		private OverlayOptions options = new OverlayOptions();
 		
@@ -100,7 +137,7 @@ public class SvgTools {
 			this.options = new OverlayOptions(viewer.getOverlayOptions());
 			this.downsample = viewer.getDownsampleFactor();
 			this.region = AwtTools.getImageRegion(viewer.getDisplayedRegionShape(), viewer.getZPosition(), viewer.getTPosition());
-			this.includeImage = true;
+			this.imageInclude = ImageIncludeType.EMBED;
 		}
 		
 		/**
@@ -247,19 +284,43 @@ public class SvgTools {
 		}
 		
 		/**
+		 * Specify whether the underlying (raster) image should be embedded in any export.
+		 * This requires that the constructor with a {@link QuPathViewer} is called to supply the 
+		 * necessary rendering settings.
+		 * 
+		 * @return this builder
+		 * @see #linkImages()
+		 */
+		public SvgBuilder embedImages() {
+			this.imageInclude = ImageIncludeType.EMBED;
+			return this;
+		}
+		
+		/**
 		 * Specify whether the underlying (raster) image should be included in any export.
 		 * This requires that the constructor with a {@link QuPathViewer} is called to supply the 
 		 * necessary rendering settings.
 		 * <p>
-		 * Note: Embedded images are not currently supported.
-		 * Only references may be written, which means images must be written as separate files 
+		 * Only references are written, which means images must be written as separate files 
 		 * (which occurs automatically when using {@link #writeSVG(File)}).
 		 * 
-		 * @param include
+		 * @return this builder
+		 * @see #embedImages()
+		 */
+		public SvgBuilder linkImages() {
+			this.imageInclude = ImageIncludeType.LINK;
+			return this;
+		}
+		
+		/**
+		 * Specify if/how raster images should be included in the SVG.
+		 * 
 		 * @return this builder
 		 */
-		public SvgBuilder image(boolean include) {
-			this.includeImage = include;
+		public SvgBuilder images(ImageIncludeType include) {
+			if (include == null)
+				include = ImageIncludeType.NONE;
+			this.imageInclude = include;
 			return this;
 		}
 
@@ -269,6 +330,9 @@ public class SvgTools {
 		 * @throws IOException
 		 */
 		public void writeSVG(File file) throws IOException {
+			
+			boolean embedImages = imageInclude == ImageIncludeType.EMBED;
+			
 			String ext = GeneralTools.getExtension(file).orElse(null);
 			boolean doCompress = false;
 			if (ext == null) {
@@ -290,6 +354,9 @@ public class SvgTools {
 			String imageName = GeneralTools.getNameWithoutExtension(file) + "-image.png";
 			var g2d = buildGraphics(imageName);
 			var doc = g2d.getSVGDocument();
+			if (embedImages)
+				doc = embedImages(g2d);
+			
 			if (doCompress) {
 				try (var stream = 
 						new OutputStreamWriter(
@@ -301,10 +368,14 @@ public class SvgTools {
 					stream.write(doc);
 				}
 			} else
-				Files.writeString(file.toPath(), g2d.getSVGDocument(), StandardCharsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
-			for (var element : g2d.getSVGImages()) {
-				var img = element.getImage();
-				ImageIO.write((RenderedImage)img, "PNG", new File(file.getParent(), imageName));
+				Files.writeString(file.toPath(), doc, StandardCharsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+			
+			// Write linked images, if necessary
+			if (!embedImages) {
+				for (var element : g2d.getSVGImages()) {
+					var img = element.getImage();
+					ImageIO.write((RenderedImage)img, "PNG", new File(file.getParent(), imageName));
+				}
 			}
 		}
 		
@@ -360,7 +431,7 @@ public class SvgTools {
 			var boundsDisplayed = AwtTools.getBounds(region);
 			
 			// If the viewer is specified, draw the image
-			if (includeImage) {
+			if (imageInclude == ImageIncludeType.EMBED || imageInclude == ImageIncludeType.LINK) {
 				if (imageData != null) {
 					DefaultImageRegionStore store;
 					ImageDisplay display;
@@ -404,6 +475,38 @@ public class SvgTools {
 					g2d, boundsDisplayed, pathObjects, options, selectionModel, downsample);
 			
 			return g2d;
+		}
+		
+		
+		/**
+		 * JFreeSVG 3.4 uses an unsupported method of encoding to base64, so here we try to 
+		 * handle it separately.
+		 * TODO: Check if this is required when JFreeSVG 3.5 becomes available, and remove if not.
+		 * 
+		 * @param g2d
+		 * @return
+		 * @throws IOException
+		 */
+		private static String embedImages(SVGGraphics2D g2d) throws IOException {
+			String doc = g2d.getSVGDocument();
+			var elements = g2d.getSVGImages();
+			if (elements.isEmpty())
+				return doc;
+			for (var element : elements) {
+				var href = element.getHref();
+				var img = element.getImage();
+				doc = doc.replaceAll(
+						"xlink:href=\\\"" + href + "\\\"",
+						"xlink:href=\\\"data:image/png;base64," + toBase64PNG(img) + "\"");
+			}
+			return doc;
+		}
+		
+		private static String toBase64PNG(Image img) throws IOException {
+			try (var stream = new ByteArrayOutputStream()) {
+				ImageIO.write(BufferedImageTools.ensureBufferedImage(img), "PNG", stream);
+				return Base64.getEncoder().encodeToString(stream.toByteArray());
+			}
 		}
 
 		

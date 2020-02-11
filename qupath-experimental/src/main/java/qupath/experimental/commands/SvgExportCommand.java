@@ -1,11 +1,13 @@
 package qupath.experimental.commands;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.writers.svg.SvgTools;
+import qupath.lib.images.writers.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 
@@ -38,7 +40,7 @@ public class SvgExportCommand implements PathCommand {
 	
 	// Region export parameters
 	private double downsample = 1.0;
-	private boolean includeImage = true;
+	private ImageIncludeType imageType = ImageIncludeType.NONE;
 	private boolean highlightSelected = false;
 	private boolean compress = false;
 	
@@ -75,7 +77,7 @@ public class SvgExportCommand implements PathCommand {
 			
 			var params = new ParameterList()
 					.addDoubleParameter("downsample", "Downsample factor", downsample, null, "Downsample factor for export resolution (default: current viewer downsample)")
-					.addBooleanParameter("includeImage", "Include image", includeImage, "Export associated image (as reference)")
+					.addChoiceParameter("includeImage", "Raster image", imageType, Arrays.asList(ImageIncludeType.values()), "Export associated raster image")
 					.addBooleanParameter("highlightSelected", "Highlight selected objects", highlightSelected, "Highlight selected objects to distinguish these from unselected objects, as they are shown in the viewer")
 					.addBooleanParameter("compress", "Compress SVGZ", compress, "Write compressed SVGZ file, rather than standard SVG (default: no compression, for improved compatibility with other software)")
 					;
@@ -84,7 +86,7 @@ public class SvgExportCommand implements PathCommand {
 				return;
 			
 			downsample = params.getDoubleParameterValue("downsample");
-			includeImage = params.getBooleanParameterValue("includeImage");
+			imageType = (ImageIncludeType)params.getChoiceParameterValue("includeImage");
 			highlightSelected = params.getBooleanParameterValue("highlightSelected");
 			compress = params.getBooleanParameterValue("compress");
 			
@@ -109,7 +111,8 @@ public class SvgExportCommand implements PathCommand {
 						return;
 			}
 			
-			builder.image(includeImage)
+			builder
+				.images(imageType)
 				.region(request)
 				.downsample(request.getDownsample())
 				.showSelection(highlightSelected);

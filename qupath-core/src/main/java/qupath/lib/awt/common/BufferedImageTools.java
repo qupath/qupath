@@ -25,6 +25,7 @@ package qupath.lib.awt.common;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
@@ -163,6 +164,22 @@ public class BufferedImageTools {
 			return img2;
 		}
 		return img;
+	}
+	
+	/**
+	 * Convert an {@link Image} to a {@link BufferedImage} if necessary, or return the original image unchanged 
+	 * if it is already a {@link BufferedImage}.
+	 * @param image the image to (possible convert)
+	 * @return a {@link BufferedImage}
+	 */
+	public static BufferedImage ensureBufferedImage(Image image) {
+		if (image instanceof BufferedImage)
+			return (BufferedImage)image;
+		var imgBuf = new BufferedImage(image.getWidth(null), image.getWidth(null), BufferedImage.TYPE_INT_ARGB);
+		var g2d = imgBuf.createGraphics();
+		g2d.drawImage(image, 0, 0, null);
+		g2d.dispose();
+		return imgBuf;
 	}
 	
 	/**
