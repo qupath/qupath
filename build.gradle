@@ -55,7 +55,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '13.0.1'
+def jfxVersion = '13.0.2'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -206,16 +206,9 @@ allprojects {
     guava
     picocli
     jfreesvg
-    
-    // Guava tries to bring in extra dependencies not required at runtime
-    implementation {
-    	exclude group: 'com.google.code.findbugs'
-    	exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
-    	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
-    	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
-    	exclude group: 'org.checkerframework', module: 'checker-qual'
-    }
 
+	// Quite possible this shouldn't be here
+	implementation
   }
 
   dependencies {
@@ -239,7 +232,10 @@ allprojects {
 
     gson "com.google.code.gson:gson:${gsonVersion}"
 
-    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}"
+    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}",  { 
+    	// ControlsFX 11.0.1 uses a linux classifier to bring in more JavaFX than it may need
+    	exclude group: 'org.openjfx'
+    }
 
     jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}"
 
@@ -266,7 +262,13 @@ allprojects {
     if (nativesClassifier != null)
       openslide "org.openslide:openslide:${openslideVersion}:${nativesClassifier}"
 
-    guava "com.google.guava:guava:${guavaVersion}"
+    guava "com.google.guava:guava:${guavaVersion}", {
+    	exclude group: 'com.google.code.findbugs'
+    	exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
+    	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+    	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
+    	exclude group: 'org.checkerframework', module: 'checker-qual'
+    }
     
     picocli "info.picocli:picocli:${picocliVersion}"
     
