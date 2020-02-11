@@ -179,7 +179,7 @@ public class PathClassifierTools {
 	 * @param pathObjects
 	 * @return
 	 */
-	public static Set<String> getAvailableFeatures(final Collection<PathObject> pathObjects) {
+	public static Set<String> getAvailableFeatures(final Collection<? extends PathObject> pathObjects) {
 		Set<String> featureSet = new LinkedHashSet<>();
 		// This has a small optimization that takes into consideration the fact that many objects share references to exactly the same MeasurementLists -
 		// so by checking the last list that was added, there is no need to bother the set to add the same thing again.
@@ -258,9 +258,8 @@ public class PathClassifierTools {
 	 * @param measurementName measurement to threshold
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
-	public static void setIntensityClassifications(final Collection<PathObject> pathObjects, final String measurementName, final double... thresholds) {
-		for (PathObject pathObject : pathObjects)
-			setIntensityClassification(pathObject, measurementName, thresholds);
+	public static void setIntensityClassifications(final Collection<? extends PathObject> pathObjects, final String measurementName, final double... thresholds) {
+		pathObjects.parallelStream().forEach(p -> setIntensityClassification(p, measurementName, thresholds));
 	}
 
 	/**

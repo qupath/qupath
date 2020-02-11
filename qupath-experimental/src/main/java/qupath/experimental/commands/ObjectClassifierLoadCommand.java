@@ -58,15 +58,15 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 //			return;
 //		}
 		
-		var comboClassifiers = new ListView<String>();
+		var listClassifiers = new ListView<String>();
 		
-		comboClassifiers.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		listClassifiers.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		var labelPlaceholder = new Label("Object classifiers in the\n" + "current project will appear here");
 		labelPlaceholder.setAlignment(Pos.CENTER);
 		labelPlaceholder.setTextAlignment(TextAlignment.CENTER);
-		comboClassifiers.setPlaceholder(labelPlaceholder);
+		listClassifiers.setPlaceholder(labelPlaceholder);
 		
-		refreshNames(comboClassifiers.getItems());
+		refreshNames(listClassifiers.getItems());
 //		if (comboClassifiers.getItems().isEmpty()) {
 //			Dialogs.showErrorMessage(title, "No object classifiers were found in the current project!");
 //			return;
@@ -77,10 +77,10 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 		var popup = new ContextMenu();
 		var miRemove = new MenuItem("Delete selected");
 		popup.getItems().add(miRemove);
-		miRemove.disableProperty().bind(comboClassifiers.getSelectionModel().selectedItemProperty().isNull());
-		comboClassifiers.setContextMenu(popup);
+		miRemove.disableProperty().bind(listClassifiers.getSelectionModel().selectedItemProperty().isNull());
+		listClassifiers.setContextMenu(popup);
 		miRemove.setOnAction(e -> {
-			var selected = comboClassifiers.getSelectionModel().getSelectedItem();
+			var selected = listClassifiers.getSelectionModel().getSelectedItem();
 			if (selected == null || project == null)
 				return;
 			try {
@@ -91,7 +91,7 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 				if (!Dialogs.showConfirmDialog(title, "Are you sure you want to delete '" + selected + "'?"))
 					return;
 				project.getObjectClassifiers().remove(selected);
-				comboClassifiers.getItems().remove(selected);
+				listClassifiers.getItems().remove(selected);
 			} catch (Exception ex) {
 				Dialogs.showErrorMessage("Error deleting classifier", ex);
 			}
@@ -99,16 +99,16 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 		
 
 		var label = new Label("Choose classifier");
-		label.setLabelFor(comboClassifiers);
+		label.setLabelFor(listClassifiers);
 		
 //		var enableButtons = qupath.viewerProperty().isNotNull().and(selectedClassifier.isNotNull());
 		var btnApplyClassifier = new Button("Apply classifier");
 		btnApplyClassifier.textProperty().bind(Bindings.createStringBinding(() -> {
-			if (comboClassifiers.getSelectionModel().getSelectedItems().size() > 1)
+			if (listClassifiers.getSelectionModel().getSelectedItems().size() > 1)
 				return "Apply classifiers sequentially";
 			return "Apply classifier";
-		}, comboClassifiers.getSelectionModel().getSelectedItems()));
-		btnApplyClassifier.disableProperty().bind(comboClassifiers.getSelectionModel().selectedItemProperty().isNull());
+		}, listClassifiers.getSelectionModel().getSelectedItems()));
+		btnApplyClassifier.disableProperty().bind(listClassifiers.getSelectionModel().selectedItemProperty().isNull());
 		
 		btnApplyClassifier.setOnAction(e -> {
 			var imageData = qupath.getImageData();
@@ -118,7 +118,7 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 			}
 			ObjectClassifier<BufferedImage> classifier = null;
 			try {
-				classifier = getClassifier(project, comboClassifiers.getSelectionModel().getSelectedItems());
+				classifier = getClassifier(project, listClassifiers.getSelectionModel().getSelectedItems());
 			} catch (IOException ex) {
 				Dialogs.showErrorMessage(title, ex);
 				return;
@@ -138,15 +138,15 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 		pane.setHgap(5);
 		pane.setVgap(10);
 		int row = 0;
-		PaneTools.setFillWidth(Boolean.TRUE, label, comboClassifiers, btnApplyClassifier);
-		PaneTools.setVGrowPriority(Priority.ALWAYS, comboClassifiers);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, label, comboClassifiers, btnApplyClassifier);
-		PaneTools.setMaxWidth(Double.MAX_VALUE, label, comboClassifiers, btnApplyClassifier);
+		PaneTools.setFillWidth(Boolean.TRUE, label, listClassifiers, btnApplyClassifier);
+		PaneTools.setVGrowPriority(Priority.ALWAYS, listClassifiers);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, label, listClassifiers, btnApplyClassifier);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, label, listClassifiers, btnApplyClassifier);
 		PaneTools.addGridRow(pane, row++, 0, "Choose object classification model to apply to the current image", label);
-		PaneTools.addGridRow(pane, row++, 0, "Choose object classification model to apply to the current image", comboClassifiers);
+		PaneTools.addGridRow(pane, row++, 0, "Choose object classification model to apply to the current image", listClassifiers);
 		PaneTools.addGridRow(pane, row++, 0, "Apply object classification to all open images", btnApplyClassifier);
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, btnApplyClassifier);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, listClassifiers, btnApplyClassifier);
 				
 		var stage = new Stage();
 		stage.setTitle(title);
@@ -158,7 +158,7 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 		
 		stage.focusedProperty().addListener((v, o, n) -> {
 			if (n)
-				refreshNames(comboClassifiers.getItems());
+				refreshNames(listClassifiers.getItems());
 		});
 		
 //		stage.setResizable(false);

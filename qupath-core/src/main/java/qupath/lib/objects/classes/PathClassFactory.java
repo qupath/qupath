@@ -261,31 +261,33 @@ public class PathClassFactory {
 			return getPathClass(name, rgb);
 		String nameNew = PathClass.derivedClassToString(parentClass, name);
 //		mapPathDerivedClasses.clear();
-		PathClass pathClass = mapPathClasses.get(nameNew);
-		if (pathClass == null) {
-			if (rgb == null) {
-				boolean isTumor = getPathClass(StandardPathClasses.TUMOR) == parentClass;
-				int parentRGB = parentClass.getColor();
-				if (name.equals(ONE_PLUS)) {
-					rgb = isTumor ? COLOR_ONE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.9);
-				} else if (name.equals(TWO_PLUS)) {
-					rgb = isTumor ? COLOR_TWO_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.6);
-				} else if (name.equals(THREE_PLUS))
-					rgb = isTumor ? COLOR_THREE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.4);
-				else if (name.equals(POSITIVE)) {
-					rgb = isTumor ? COLOR_POSITIVE : ColorTools.makeScaledRGB(parentRGB, 0.75);
-				} else if (name.equals(NEGATIVE)) {
-					rgb = isTumor ? COLOR_NEGATIVE : ColorTools.makeScaledRGB(parentRGB, 1.25);
-				} else {
-					double scale = 1.5;
-					rgb = ColorTools.makeScaledRGB(parentRGB, scale);
+		synchronized (mapPathClasses) {
+			PathClass pathClass = mapPathClasses.get(nameNew);
+			if (pathClass == null) {
+				if (rgb == null) {
+					boolean isTumor = getPathClass(StandardPathClasses.TUMOR) == parentClass;
+					int parentRGB = parentClass.getColor();
+					if (name.equals(ONE_PLUS)) {
+						rgb = isTumor ? COLOR_ONE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.9);
+					} else if (name.equals(TWO_PLUS)) {
+						rgb = isTumor ? COLOR_TWO_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.6);
+					} else if (name.equals(THREE_PLUS))
+						rgb = isTumor ? COLOR_THREE_PLUS : ColorTools.makeScaledRGB(parentRGB, 0.4);
+					else if (name.equals(POSITIVE)) {
+						rgb = isTumor ? COLOR_POSITIVE : ColorTools.makeScaledRGB(parentRGB, 0.75);
+					} else if (name.equals(NEGATIVE)) {
+						rgb = isTumor ? COLOR_NEGATIVE : ColorTools.makeScaledRGB(parentRGB, 1.25);
+					} else {
+						double scale = 1.5;
+						rgb = ColorTools.makeScaledRGB(parentRGB, scale);
+					}
 				}
+	//				rgb = new Color(parentClass.getColor()).brighter().getRGB();
+				pathClass = new PathClass(parentClass, name, rgb);
+				mapPathClasses.put(pathClass.toString(), pathClass);
 			}
-//				rgb = new Color(parentClass.getColor()).brighter().getRGB();
-			pathClass = new PathClass(parentClass, name, rgb);
-			mapPathClasses.put(pathClass.toString(), pathClass);
+			return pathClass;
 		}
-		return pathClass;
 	}
 	
 	/**
