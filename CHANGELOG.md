@@ -16,7 +16,7 @@ Changes include:
   * More ROI manipulation commands are scriptable, update selections when complete
 * Revised "Annotations" tab
   * New options to set available class list
-  * Toggle class visibility with spacebar
+  * Change class visibility with spacebar (toggle), s (show) or h (hide)
   * More consistent annotation menus
 * Counting tool improvements
 * Improved project support

@@ -130,6 +130,23 @@ public class PathClassPane {
 		var copyCombo = new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN);
 		var pasteCombo = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
 		
+		// Intercept space presses because we handle them elsewhere
+		listClasses.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+			if (e.getCode() == KeyCode.SPACE || e.getCode() == KeyCode.T) {
+				toggleSelectedClassesVisibility();
+				e.consume();
+				return;
+			} else if (e.getCode() == KeyCode.S) {
+				setSelectedClassesVisibility(true);
+				e.consume();
+				return;
+			} else if (e.getCode() == KeyCode.H) {
+				setSelectedClassesVisibility(false);
+				e.consume();
+				return;
+			}
+		});
+		
 		listClasses.addEventFilter(KeyEvent.KEY_RELEASED, e -> {
 			if (e.isConsumed())
 				return;
@@ -139,10 +156,6 @@ public class PathClassPane {
 				return;
 			} else if (e.getCode() == KeyCode.ENTER) {
 				promptToEditSelectedClass();
-				e.consume();
-				return;
-			} else if (e.getCode() == KeyCode.SPACE) {
-				toggleSelectedClassesVisibility();
 				e.consume();
 				return;
 			} else if (copyCombo.match(e)) {
@@ -266,7 +279,7 @@ public class PathClassPane {
 
 		Menu menuPopulate = new Menu("Populate from image");
 		menuPopulate.getItems().addAll(
-				miPopulateFromImageBase, miPopulateFromImage,
+				miPopulateFromImage, miPopulateFromImageBase,
 				new SeparatorMenuItem(), miPopulateFromChannels);
 
 		MenuItem miSelectObjects = new MenuItem("Select objects with class");
