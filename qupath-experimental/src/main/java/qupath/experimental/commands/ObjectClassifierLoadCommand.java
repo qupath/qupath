@@ -7,7 +7,9 @@ import java.util.Collection;
 import java.util.List;
 
 import javafx.beans.binding.Bindings;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -17,6 +19,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
@@ -50,38 +53,25 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 	public void run() {
 		
 		var project = qupath.getProject();
-		if (project == null) {
-			Dialogs.showErrorMessage(title, "You need a project open to run this command!");
-			return;
-		}
+//		if (project == null) {
+//			Dialogs.showErrorMessage(title, "You need a project open to run this command!");
+//			return;
+//		}
 		
-		Collection<String> names;
-		try {
-			names = project.getObjectClassifiers().getNames();
-			if (names.isEmpty()) {
-				Dialogs.showErrorMessage(title, "No object classifiers were found in the current project!");
-				return;
-			}
-		} catch (IOException e) {
-			Dialogs.showErrorMessage(title, e);
-			return;
-		}
-			
 		var comboClassifiers = new ListView<String>();
 		
 		comboClassifiers.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		comboClassifiers.getItems().setAll(names);
-//		var selectedClassifier = Bindings.createObjectBinding(() -> {
-//			String name = comboClassifiers.getSelectionModel().getSelectedItem();
-//			if (name != null) {
-//				try {
-//					return project.getObjectClassifiers().get(name);
-//				} catch (Exception e) {
-//					Dialogs.showErrorMessage("Load object model", e);
-//				}
-//			}
-//			return null;
-//		}, comboClassifiers.getSelectionModel().selectedItemProperty());
+		var labelPlaceholder = new Label("Object classifiers in the\n" + "current project will appear here");
+		labelPlaceholder.setAlignment(Pos.CENTER);
+		labelPlaceholder.setTextAlignment(TextAlignment.CENTER);
+		comboClassifiers.setPlaceholder(labelPlaceholder);
+		
+		refreshNames(comboClassifiers.getItems());
+//		if (comboClassifiers.getItems().isEmpty()) {
+//			Dialogs.showErrorMessage(title, "No object classifiers were found in the current project!");
+//			return;
+//		}
+
 		
 		// Provide an option to remove a classifier
 		var popup = new ContextMenu();
@@ -121,6 +111,11 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 		btnApplyClassifier.disableProperty().bind(comboClassifiers.getSelectionModel().selectedItemProperty().isNull());
 		
 		btnApplyClassifier.setOnAction(e -> {
+			var imageData = qupath.getImageData();
+			if (imageData == null) {
+				Dialogs.showErrorMessage(title, "No image open!");
+				return;
+			}
 			ObjectClassifier<BufferedImage> classifier = null;
 			try {
 				classifier = getClassifier(project, comboClassifiers.getSelectionModel().getSelectedItems());
@@ -128,13 +123,8 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 				Dialogs.showErrorMessage(title, ex);
 				return;
 			}
-			for (var viewer : qupath.getViewers()) {
-				var imageData = viewer.getImageData();
-				if (imageData != null) {
-					if (classifier.classifyObjects(imageData, true) > 0)
-						imageData.getHierarchy().fireHierarchyChangedEvent(classifier);
-				}
-			}
+			if (classifier.classifyObjects(imageData, true) > 0)
+				imageData.getHierarchy().fireHierarchyChangedEvent(classifier);
 		});
 		
 //		var pane = new BorderPane();
@@ -162,14 +152,45 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 		stage.setTitle(title);
 		stage.setScene(new Scene(pane));
 		stage.initOwner(qupath.getStage());
-		stage.sizeToScene();
+//		stage.sizeToScene();
+		stage.setWidth(300);
+		stage.setHeight(400);
+		
+		stage.focusedProperty().addListener((v, o, n) -> {
+			if (n)
+				refreshNames(comboClassifiers.getItems());
+		});
+		
 //		stage.setResizable(false);
 		stage.show();
 		
 	}
 	
 	
+	/**
+	 * Refresh names from the current project.
+	 * @param availableClassifiers list to which names should be added
+	 */
+	void refreshNames(ObservableList<String> availableClassifiers) {
+		var project = qupath.getProject();
+		if (project == null) {
+			availableClassifiers.clear();
+			return;
+		}
+		Collection<String> names;
+		try {
+			names = project.getObjectClassifiers().getNames();
+			availableClassifiers.setAll(names);
+		} catch (IOException e) {
+			Dialogs.showErrorMessage(title, e);
+			return;
+		}
+	}
+	
+	
 	ObjectClassifier<BufferedImage> getClassifier(Project<BufferedImage> project, List<String> names) throws IOException {
+		if (project == null)
+			return null;
 		if (names.isEmpty())
 			return null;
 		if (names.size() == 1)
