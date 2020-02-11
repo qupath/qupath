@@ -139,6 +139,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	private Set<String> serversRequested = new HashSet<>();
 	
 	private StringProperty descriptionText = new SimpleStringProperty();
+	
+	private static TextField tfFilter;
 
 	private static ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
 			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
@@ -201,9 +203,38 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		titledTree.setCollapsible(false);
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
+		
+		tfFilter = new TextField();
+		tfFilter.setPromptText("Search entry in project");
+		tfFilter.setTooltip(new Tooltip("Type some text to filter the project entries by name or type."));
+		
+		tfFilter.textProperty().addListener((m, o, n) -> {
+			model.rebuildModel();
+			tree.setRoot(model.getRootFX());
+			tree.getRoot().setExpanded(true);
+			
+			// If user has entered keyword(s) for search and some entries match, 
+			// expand the first TreeItem that contains relevant matches.
+			try {
+				var listOfChildren = tree.getRoot().getChildren();
+				if (tfFilter.getText().length() > 0) {
+						for (int i = 0; i < listOfChildren.size(); i++) {
+							if (listOfChildren.get(i).getChildren().size() > 0) {
+								listOfChildren.get(i).setExpanded(true);
+								break;
+							}
+					}
+				}
+			} catch (Exception e) {}
+		});
+		
+		
+		var paneUserFilter = PaneTools.createRowGrid(tfFilter);
+		
 		BorderPane panelTree = new BorderPane();
 		panelTree.setCenter(titledTree);
 
+		panel.setBottom(paneUserFilter);
 		panel.setCenter(panelTree);
 
 		Button btnOpen = qupath.getActionButton(GUIActions.PROJECT_OPEN, false);
@@ -218,6 +249,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				thumbnailSize, FXCollections.observableArrayList(ProjectThumbnailSize.values()), ProjectThumbnailSize.class,
 				"Project thumbnails size", "Appearance", "Choose thumbnail size for the project pane");
 
+	}
+	
+	private static String getUserFilter() {
+		return tfFilter.getText().toLowerCase();
 	}
 
 
@@ -541,7 +576,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		return menu;
 
 	}
-	
 	
 	Path getProjectPath() {
 		return project == null ? null : project.getPath();
@@ -980,6 +1014,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		private String PROJECT_KEY;
 		private String DEFAULT_ROOT = "No project";
 		private String UNASSIGNED_NODE = "(Unassigned)";
+		
 
 		ProjectImageTreeModel(final Project<?> project) {
 			this(project, null);
@@ -1021,24 +1056,34 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			// Populate the map
 			String emptyKey = sortKeys.isEmpty() ? PROJECT_KEY : UNASSIGNED_NODE;
 			var imageList = new ArrayList<>(project.getImageList());
+			String userFilter = getUserFilter();
 						
 			for (ProjectImageEntry<?> entry : imageList) {
+				boolean metadataMatchesFilter = false;
 				String localKey = emptyKey;
 				for (String metadataKey : sortKeys) {
 					String temp = entry.getMetadataValue(metadataKey);
+					
+					
 					if (temp != null) {
+						if (temp.toLowerCase().contains(userFilter))
+							metadataMatchesFilter = true;
 						localKey = temp;
 						break;						
 					}
-				}
+				} 
 				List<ProjectImageEntry<?>> list = map.get(localKey);
 				if (list == null) {
 					list = new ArrayList<>();
 					map.put(localKey, list);
 				}
-				list.add(entry);
+				// Filter out images that do not match the user's keywords or the entry's metadata
+				if (entry.getImageName().toLowerCase().contains(userFilter) || metadataMatchesFilter)
+					list.add(entry);
 			}
 
+			
+			/*
 			// Sort all the lists
 			for (List<ProjectImageEntry<?>> list : map.values()) {
 				list.sort(new Comparator<ProjectImageEntry<?>>() {
@@ -1048,6 +1093,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					}
 				});
 			}
+			*/
 
 			// Populate the key list
 			mapKeyList.addAll(map.keySet());
@@ -1055,6 +1101,31 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			// Ensure unassigned is at the end
 			if (mapKeyList.remove(UNASSIGNED_NODE))
 				mapKeyList.add(UNASSIGNED_NODE);
+		}
+		
+		public boolean matchesUserFilter(String entryMetadata) {
+			String userFilter = getUserFilter();
+			if (userFilter == null || userFilter.equals("")) 
+				return true;
+			if (entryMetadata.toLowerCase().contains(userFilter))
+				return true;
+			return false;
+		}
+		
+		
+		/**
+		 * This method should be used instead of calling Project.getImageList() 
+		 * when we need the list of {@code ImageProjectEntry}s within a project  
+		 * after having filtered out the entries with the key words provided by 
+		 * the user.
+		 * @return {@code List<ProjectImageEntry>}
+		 */
+		public List<ProjectImageEntry<?>> getImageList(){
+			List<ProjectImageEntry<?>> out = 
+				    map.values().stream()
+				        .flatMap(List::stream)
+				        .collect(Collectors.toList());
+			return out;
 		}
 
 
@@ -1069,7 +1140,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null) {
 				Random rand = new Random(project.hashCode());
 				if (sortKeys.isEmpty()) {
-					var imageList = project.getImageList();
+					var imageList = getImageList();
 					if (maskNames)
 						Collections.shuffle(imageList, rand);
 					for (ProjectImageEntry<?> entry : imageList)
@@ -1285,7 +1356,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			
 		}
-		
 		
 	}
 
