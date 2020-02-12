@@ -30,9 +30,11 @@ import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -93,6 +95,72 @@ public class PathClassifierTools {
 			logger.warn("No objects classified!");
 	}
 
+	
+	/**
+	 * Create a mapping between {@linkplain PathObject PathObjects} and their current {@linkplain PathClass PathClasses}.
+	 * This can be useful to preserve a classification so that it may be reset later.
+	 * <p>
+	 * Note: classification probabilities are not retained using this approach.
+	 * @param pathObjects the objects containing classifications
+	 * @return a mapping between objects and their current classifications
+	 * @see #restoreClassificationsFromMap(Map)
+	 */
+	public static Map<PathObject, PathClass> createClassificationMap(Collection<? extends PathObject> pathObjects) {
+		Map<PathObject, PathClass> mapPrevious = new HashMap<>();
+		for (var pathObject : pathObjects) {
+			mapPrevious.put(pathObject, pathObject.getPathClass());
+		}
+		return mapPrevious;
+	}
+	
+	/**
+	 * Reassign classifications to objects, as were previously obtained using {@link #createClassificationMap(Collection)}.
+	 * 
+	 * @param classificationMap the map containing objects and the classifications that should be applied
+	 * @return a collection containing all objects with classifications that were changed. This can be used to fire update events.
+	 * @see #createClassificationMap(Collection)
+	 */
+	public static Collection<PathObject> restoreClassificationsFromMap(Map<PathObject, PathClass> classificationMap) {
+		var changed = new ArrayList<PathObject>();
+		for (var entry : classificationMap.entrySet()) {
+			var pathObject = entry.getKey();
+			var pathClass = entry.getValue();
+			if (pathClass == PathClassFactory.getPathClassUnclassified())
+				pathClass = null;
+			if (!Objects.equals(pathObject.getPathClass(), pathClass)) {
+				pathObject.setPathClass(pathClass);
+				changed.add(pathObject);
+			}
+		}
+		return changed;
+	}
+	
+//	/**
+//	 * Returns true if two {@linkplain PathClass PathClasses} are the same.
+//	 * This involves 
+//	 * @param pc1
+//	 * @param pc2
+//	 * @return
+//	 */
+//	public static boolean sameClassification(PathClass pc1, PathClass pc2) {
+//		return Objects.equals(
+//				getPathClassObject(pc1),
+//				getPathClassObject(pc2)
+//				);
+//	}
+//	
+//	/**
+//	 * Standardize a {@link PathClass}, ensuring that an instance of {@link PathClass} is returned.
+//	 * Effectively this means replacing {@code null} with {@link PathClassFactory#getPathClassUnclassified()}.
+//	 * 
+//	 * @param pathClass the {@link PathClass} to standardize
+//	 * @return an object-representation of this {@link PathClass}
+//	 */
+//	private static PathClass getPathClassObject(PathClass pathClass) {
+//		return pathClass == null ? PathClassFactory.getPathClassUnclassified() : pathClass;
+//	}
+	
+	
 	/**
 	 * Load a classifier that has previously been serialized to a file.
 	 * @param file

@@ -4,6 +4,7 @@ import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -16,8 +17,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
@@ -33,6 +36,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -54,7 +58,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.HierarchyInsertCommand;
-import qupath.lib.gui.commands.MergePointsCommand;
 import qupath.lib.gui.commands.scriptable.InverseObjectCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -911,5 +914,93 @@ public class GuiTools {
 	}
 	
 	
+	/**
+	 * Bind the value of a slider and contents of a text field, so that both may be used to 
+	 * set a numeric (double) value.
+	 * <p>
+	 * This aims to overcome the challenge of keeping both synchronized, while also quietly handling 
+	 * parsing errors that may occur whenever the text field is being edited.
+	 * 
+	 * @param slider slider that may be used to adjust the value
+	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @return a property representing the value represented by the slider and text field
+	 */
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf) {
+		new NumberAndText(slider.valueProperty(), tf.textProperty()).synchronizeTextToNumber();
+		return slider.valueProperty();
+	}
+	
+	
+	/**
+	 * Helper class to synchronize a properties between a Slider and TextField.
+	 */
+	private static class NumberAndText {
+		
+		private static Logger logger = LoggerFactory.getLogger(NumberAndText.class);
+		
+		private boolean synchronizingNumber = false;
+		private boolean synchronizingText = false;
+		
+		private DoubleProperty number;
+		private StringProperty text;
+		private NumberFormat format = GeneralTools.createFormatter(5);
+		
+		NumberAndText(DoubleProperty number, StringProperty text) {
+			this.number = number;
+			this.text = text;
+			this.number.addListener((v, o, n) -> synchronizeTextToNumber());
+			this.text.addListener((v, o, n) -> synchronizeNumberToText());
+		}
+		
+		public void synchronizeNumberToText() {
+			if (synchronizingText)
+				return;
+			synchronizingNumber = true;
+			String value = text.get();
+			if (value.isBlank())
+				return;
+			try {
+				var n = format.parse(value);
+				number.setValue(n);
+			} catch (Exception e) {
+				logger.debug("Error parsing number from '{}' ({})", value, e.getLocalizedMessage());
+			}
+			synchronizingNumber = false;
+		}
+		
+		
+		public void synchronizeTextToNumber() {
+			if (synchronizingNumber)
+				return;
+			synchronizingText = true;
+			double value = number.get();
+			String s;
+			if (Double.isNaN(value))
+				s = "";
+			else if (Double.isFinite(value)) {
+				double log10 = Math.round(Math.log10(value));
+				int ndp = (int)Math.max(4, -log10 + 2);
+				s = GeneralTools.formatNumber(value, ndp);
+			} else
+				s = Double.toString(value);
+			text.set(s);
+			synchronizingText = false;
+		}
+		
+		static void setTextFieldFromNumber(TextField text, double value) {
+			String s;
+			if (Double.isNaN(value))
+				s = "";
+			else if (Double.isFinite(value)) {
+				double log10 = Math.round(Math.log10(value));
+				int ndp = (int)Math.max(4, -log10 + 2);
+				s = GeneralTools.formatNumber(value, ndp);
+			} else
+				s = Double.toString(value);
+			text.setText(s);
+		}
 
+		
+	}
+	
 }

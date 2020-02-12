@@ -1,7 +1,6 @@
 package qupath.experimental.commands;
 
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -15,8 +14,6 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.StringProperty;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -28,12 +25,12 @@ import javafx.scene.layout.GridPane;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.plots.HistogramPanelFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -49,7 +46,7 @@ public class CellIntensityClassificationCommand implements PathCommand {
 	
 	private static final Logger logger = LoggerFactory.getLogger(CellIntensityClassificationCommand.class);
 	
-	private static String title = "Create measurement classifier";
+	private static String title = "Cell intensity classification";
 	
 	private QuPathGUI qupath;
 	
@@ -83,7 +80,7 @@ public class CellIntensityClassificationCommand implements PathCommand {
 			return;
 		}
 
-		var currentClassifications = detections.stream().collect(Collectors.toMap(p -> p, p -> p.getPathClass()));
+		var currentClassifications = PathClassifierTools.createClassificationMap(detections);
 		
 		var comboMeasurements = new ComboBox<String>();
 		comboMeasurements.getItems().setAll(measurements);
@@ -101,7 +98,7 @@ public class CellIntensityClassificationCommand implements PathCommand {
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
 			textFields.add(tf);
-			bindSliderAndTextField(slider, tf);
+			GuiTools.bindSliderAndTextField(slider, tf);
 			slider.valueProperty().addListener((v, o, n) -> {
 				updateClassifications(hierarchy, selectedMeasurement.get(), parseValues(sliders, singleThreshold.get()));
 			});
@@ -187,9 +184,9 @@ public class CellIntensityClassificationCommand implements PathCommand {
 			imageData.getHistoryWorkflow().addStep(nextRequest.toWorkflowStep());
 		} else {
 			// Restore classifications if the user cancelled
-			for (var pathObject : detections)
-				pathObject.setPathClass(currentClassifications.getOrDefault(pathObject, pathObject.getPathClass()));
-			hierarchy.fireObjectClassificationsChangedEvent(this, detections);
+			var changed = PathClassifierTools.restoreClassificationsFromMap(currentClassifications);
+			if (!changed.isEmpty())
+				hierarchy.fireObjectClassificationsChangedEvent(this, changed);
 		}
 		
 	}
@@ -236,87 +233,6 @@ public class CellIntensityClassificationCommand implements PathCommand {
 			return;
 		nextRequest.doClassification();
 	}
-	
-	
-	
-	
-	static void bindSliderAndTextField(Slider slider, TextField tf) {
-		new NumberAndText(slider.valueProperty(), tf.textProperty()).synchronizeTextToNumber();
-	}
-	
-	
-	/**
-	 * Helper class to synchronize a properties between a Slider and TextField.
-	 */
-	static class NumberAndText {
-		
-		private static Logger logger = LoggerFactory.getLogger(NumberAndText.class);
-		
-		private boolean synchronizingNumber = false;
-		private boolean synchronizingText = false;
-		
-		private DoubleProperty number;
-		private StringProperty text;
-		private NumberFormat format = GeneralTools.createFormatter(5);
-		
-		NumberAndText(DoubleProperty number, StringProperty text) {
-			this.number = number;
-			this.text = text;
-			this.number.addListener((v, o, n) -> synchronizeTextToNumber());
-			this.text.addListener((v, o, n) -> synchronizeNumberToText());
-		}
-		
-		public void synchronizeNumberToText() {
-			if (synchronizingText)
-				return;
-			synchronizingNumber = true;
-			String value = text.get();
-			if (value.isBlank())
-				return;
-			try {
-				var n = format.parse(value);
-				number.setValue(n);
-			} catch (Exception e) {
-				logger.debug("Error parsing number from '{}' ({})", value, e.getLocalizedMessage());
-			}
-			synchronizingNumber = false;
-		}
-		
-		
-		public void synchronizeTextToNumber() {
-			if (synchronizingNumber)
-				return;
-			synchronizingText = true;
-			double value = number.get();
-			String s;
-			if (Double.isNaN(value))
-				s = "";
-			else if (Double.isFinite(value)) {
-				double log10 = Math.round(Math.log10(value));
-				int ndp = (int)Math.max(4, -log10 + 2);
-				s = GeneralTools.formatNumber(value, ndp);
-			} else
-				s = Double.toString(value);
-			text.set(s);
-			synchronizingText = false;
-		}
-		
-	}
-	
-	
-	static void setTextFieldFromNumber(TextField text, double value) {
-		String s;
-		if (Double.isNaN(value))
-			s = "";
-		else if (Double.isFinite(value)) {
-			double log10 = Math.round(Math.log10(value));
-			int ndp = (int)Math.max(4, -log10 + 2);
-			s = GeneralTools.formatNumber(value, ndp);
-		} else
-			s = Double.toString(value);
-		text.setText(s);
-	}
-	
 	
 	
 	/**

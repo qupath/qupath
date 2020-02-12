@@ -108,7 +108,7 @@ public class ObjectClassifiers {
 	 */
 	public static <T> ObjectClassifier<T> createChannelClassifier(PathObjectFilter filter, ImageChannel channel, String measurement, double threshold) {
 		var pathClass = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
-		return new ClassifyByMeasurementBuilder(measurement)
+		return new ClassifyByMeasurementBuilder<T>(measurement)
 			.threshold(threshold)
 			.filter(filter)
 			.aboveEquals(pathClass)
@@ -350,9 +350,9 @@ public class ObjectClassifiers {
 		  ClassifyByMeasurementFunction(String measurement, double threshold, PathClass pathClassBelow, PathClass pathClassEquals, PathClass pathClassAbove) {
 		    this.measurement = measurement;
 		    this.threshold = threshold;
-		    this.pathClassBelow = pathClassBelow;
-		    this.pathClassEquals = pathClassEquals;
-		    this.pathClassAbove = pathClassAbove;
+		    this.pathClassBelow = pathClassBelow == PathClassFactory.getPathClassUnclassified() ? null : pathClassBelow;
+		    this.pathClassEquals = pathClassEquals == PathClassFactory.getPathClassUnclassified() ? null : pathClassEquals;
+		    this.pathClassAbove = pathClassAbove == PathClassFactory.getPathClassUnclassified() ? null : pathClassAbove;
 		  }
 
 		  @Override

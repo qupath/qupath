@@ -3,8 +3,8 @@ package qupath.lib.classifiers.object;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.function.Function;
 
+import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementFunction;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
@@ -13,10 +13,17 @@ import qupath.lib.objects.classes.PathClassTools;
 
 class SimpleClassifier<T> extends AbstractObjectClassifier<T> {
 	
-	private Function<PathObject, PathClass> function;
+//	private Function<PathObject, PathClass> function;
+	private ClassifyByMeasurementFunction function;
 	private Collection<PathClass> pathClasses;
 	
-	SimpleClassifier(PathObjectFilter filter, Function<PathObject, PathClass> function, Collection<PathClass> pathClasses) {
+//	SimpleClassifier(PathObjectFilter filter, Function<PathObject, PathClass> function, Collection<PathClass> pathClasses) {
+//		super(filter);
+//		this.function = function;
+//		this.pathClasses = Collections.unmodifiableList(new ArrayList<>(pathClasses));
+//	}
+	
+	SimpleClassifier(PathObjectFilter filter, ClassifyByMeasurementFunction function, Collection<PathClass> pathClasses) {
 		super(filter);
 		this.function = function;
 		this.pathClasses = Collections.unmodifiableList(new ArrayList<>(pathClasses));

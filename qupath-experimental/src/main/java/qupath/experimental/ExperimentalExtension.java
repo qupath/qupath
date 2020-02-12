@@ -15,6 +15,7 @@ import qupath.experimental.commands.ObjectClassifierLoadCommand;
 import qupath.experimental.commands.PixelClassifierCommand;
 import qupath.experimental.commands.PixelClassifierLoadCommand;
 import qupath.experimental.commands.SimpleThresholdCommand;
+import qupath.experimental.commands.SingleMeasurementClassificationCommand;
 import qupath.experimental.commands.SplitProjectTrainingCommand;
 import qupath.experimental.commands.SvgExportCommand;
 import qupath.lib.classifiers.object.ObjectClassifiers;
@@ -79,6 +80,7 @@ public class ExperimentalExtension implements QuPathExtension {
                 qupath.getMenu("Classify>Object classification", true),
                 QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (experimental)"),
                 QuPathGUI.createCommandAction(new CreateCompositeClassifierCommand(qupath), "Create composite object classifier (experimental)"),
+                QuPathGUI.createCommandAction(new SingleMeasurementClassificationCommand(qupath), "Create single measurement classifier (experimental)"),
                 QuPathGUI.createCommandAction(new CellIntensityClassificationCommand(qupath), "Set cell intensity classifications (experimental)"),
                 QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
                 );

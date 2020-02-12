@@ -80,18 +80,21 @@ public class ObjectClassifierLoadCommand implements PathCommand {
 		miRemove.disableProperty().bind(listClassifiers.getSelectionModel().selectedItemProperty().isNull());
 		listClassifiers.setContextMenu(popup);
 		miRemove.setOnAction(e -> {
-			var selected = listClassifiers.getSelectionModel().getSelectedItem();
-			if (selected == null || project == null)
+			var selectedItems = new ArrayList<>(listClassifiers.getSelectionModel().getSelectedItems());
+			if (selectedItems.isEmpty() || project == null)
 				return;
 			try {
-				if (!project.getObjectClassifiers().getNames().contains(selected)) {
-					Dialogs.showErrorMessage(title, "Unable to delete " + selected + " - not found in the current project");
+				String message = selectedItems.size() == 1 ? "'" + selectedItems.get(0) + "'" : selectedItems.size() + " classifiers";
+				if (!Dialogs.showConfirmDialog(title, "Are you sure you want to delete " + message + "?"))
 					return;
+				for (var selected : selectedItems) {
+					if (!project.getObjectClassifiers().getNames().contains(selected)) {
+						Dialogs.showErrorMessage(title, "Unable to delete " + selected + " - not found in the current project");
+						return;
+					}
+					project.getObjectClassifiers().remove(selected);
+					listClassifiers.getItems().remove(selected);
 				}
-				if (!Dialogs.showConfirmDialog(title, "Are you sure you want to delete '" + selected + "'?"))
-					return;
-				project.getObjectClassifiers().remove(selected);
-				listClassifiers.getItems().remove(selected);
 			} catch (Exception ex) {
 				Dialogs.showErrorMessage("Error deleting classifier", ex);
 			}

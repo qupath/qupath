@@ -141,7 +141,10 @@ public class ObjectClassifierCommand implements PathCommand {
 	private Stage dialog;
 //	private ClassifierBuilderPanel<PathObjectClassifier> panel;
 
-	
+	/**
+	 * Constructor.
+	 * @param qupath
+	 */
 	public ObjectClassifierCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
