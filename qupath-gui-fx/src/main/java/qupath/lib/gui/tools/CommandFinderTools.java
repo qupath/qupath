@@ -79,7 +79,23 @@ import qupath.lib.gui.prefs.PathPrefs;
  */
 public class CommandFinderTools {
 	
-	public enum CommandBarDisplay {ALWAYS, NEVER, HOVER;
+	/**
+	 * Available modes for displaying the command bar.
+	 */
+	public enum CommandBarDisplay {
+		/**
+		 * Always display
+		 */
+		ALWAYS,
+		/**
+		 * Never display
+		 */
+		NEVER,
+		/**
+		 * Display only when the cursor hovers nearby
+		 */
+		HOVER;
+		
 		@Override
 		public String toString() {
 			switch(this) {
@@ -288,7 +304,7 @@ public class CommandFinderTools {
 			if (!item.isVisible())
 				continue;
 			if (item instanceof Menu)
-				addMenuComponents((Menu)item, menuPath + ((Menu)item).getText(), commands);
+				addMenuComponents((Menu)item, menuPath + ((Menu)item).getText() + " \u2192 ", commands);
 			else if (item instanceof SeparatorMenuItem)
 				continue;
 			else if (item.getText() != null)
@@ -344,7 +360,7 @@ public class CommandFinderTools {
 	}
 	
 	
-	public static class MenuManager {
+	private static class MenuManager {
 		
 		private MenuBar menubar;
 		private ObservableList<CommandEntry> commandsBase = FXCollections.observableArrayList();
