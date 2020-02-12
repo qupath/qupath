@@ -44,12 +44,19 @@ public class ObjectClassifiers {
 					.registerSubtype(SimpleClassifier.class);
 //					.registerSubtype(ResetClassifier.class);
 		
+		private final static RuntimeTypeAdapterFactory<Function> classifierFunTypeAdapter = 
+				RuntimeTypeAdapterFactory.of(Function.class, "classifier_fun")
+					.registerSubtype(ClassifyByMeasurementFunction.class);
+		
 		public static void registerSubtype(Class<? extends ObjectClassifier> cls) {
 			objectClassifierTypeAdapter.registerSubtype(cls);
 		}
 		
 		@Override
 		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
+			var adaptor = classifierFunTypeAdapter.create(gson, type);
+			if (adaptor != null)
+				return adaptor;
 			return objectClassifierTypeAdapter.create(gson, type);
 		}
 		
@@ -340,37 +347,37 @@ public class ObjectClassifiers {
 	}
 	
 	
-	
+
 	static class ClassifyByMeasurementFunction implements Function<PathObject, PathClass> {
-		
-		  private String measurement;
-		  private PathClass pathClassBelow, pathClassEquals, pathClassAbove;
-		  private double threshold;
 
-		  ClassifyByMeasurementFunction(String measurement, double threshold, PathClass pathClassBelow, PathClass pathClassEquals, PathClass pathClassAbove) {
-		    this.measurement = measurement;
-		    this.threshold = threshold;
-		    this.pathClassBelow = pathClassBelow == PathClassFactory.getPathClassUnclassified() ? null : pathClassBelow;
-		    this.pathClassEquals = pathClassEquals == PathClassFactory.getPathClassUnclassified() ? null : pathClassEquals;
-		    this.pathClassAbove = pathClassAbove == PathClassFactory.getPathClassUnclassified() ? null : pathClassAbove;
-		  }
+		private String measurement;
+		private PathClass pathClassBelow, pathClassEquals, pathClassAbove;
+		private double threshold;
 
-		  @Override
-		  public PathClass apply(PathObject pathObject) {
-		    double val = pathObject.getMeasurementList().getMeasurementValue(measurement);
-		    if (Double.isNaN(val))
-		      return null;
-		    if (val > threshold)
-		      return pathClassAbove;
-		    if (val < threshold)
-		      return pathClassBelow;
-		    if (val == threshold)
-		      return pathClassEquals;
-		    return null;
-		  }
+		ClassifyByMeasurementFunction(String measurement, double threshold, PathClass pathClassBelow, PathClass pathClassEquals, PathClass pathClassAbove) {
+			this.measurement = measurement;
+			this.threshold = threshold;
+			this.pathClassBelow = pathClassBelow == PathClassFactory.getPathClassUnclassified() ? null : pathClassBelow;
+			this.pathClassEquals = pathClassEquals == PathClassFactory.getPathClassUnclassified() ? null : pathClassEquals;
+			this.pathClassAbove = pathClassAbove == PathClassFactory.getPathClassUnclassified() ? null : pathClassAbove;
 		}
-	
-	
+
+		@Override
+		public PathClass apply(PathObject pathObject) {
+			double val = pathObject.getMeasurementList().getMeasurementValue(measurement);
+			if (Double.isNaN(val))
+				return null;
+			if (val > threshold)
+				return pathClassAbove;
+			if (val < threshold)
+				return pathClassBelow;
+			if (val == threshold)
+				return pathClassEquals;
+			return null;
+		}
+	}
+
+
 //	static class ResetClassifier<T> extends AbstractObjectClassifier<T> {
 //
 //		protected ResetClassifier(PathObjectFilter filter) {

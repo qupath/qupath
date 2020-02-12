@@ -367,7 +367,7 @@ public class Charts {
 				String str;
 				Function<Object, String> fun = stringFun.get(key);
 				if (fun == null)
-					str = key.toString();
+					str = key == null ? "No key" : key.toString();
 				else
 					str = fun.apply(key);
 				

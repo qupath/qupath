@@ -14,6 +14,9 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -23,6 +26,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.stage.Modality;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.object.ObjectClassifier;
@@ -69,7 +73,10 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 	public void run() {
 		if (pane == null)
 			pane = new SingleMeasurementPane(qupath);
-		pane.show();
+		if (pane.dialog != null) {
+			pane.dialog.getDialogPane().requestFocus();
+		} else
+			pane.show();
 	}
 	
 	
@@ -87,7 +94,11 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 		 */
 		private Map<String, Double> previousThresholds = new HashMap<>();
 		
-		private ComboBox<String> comboMeasurements = new ComboBox<>();
+		private ObservableList<String> measurements = FXCollections.observableArrayList();
+		private FilteredList<String> measurementsFiltered = measurements.filtered(m -> true);
+		
+		private ComboBox<String> comboMeasurements = new ComboBox<>(measurementsFiltered);
+		
 		private Slider sliderThreshold = new Slider();
 		private ComboBox<PathClass> comboAbove = new ComboBox<>();
 		private ComboBox<PathClass> comboBelow = new ComboBox<>();
@@ -99,6 +110,8 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 		private ClassificationRequest<BufferedImage> nextRequest;
 		
 		private TextField tfSaveName = new TextField();
+		
+		private Dialog<ButtonType> dialog;
 		
 		private ExecutorService pool;
 		
@@ -125,6 +138,14 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			pane.setHgap(5.0);
 			pane.setVgap(5.0);
 			
+//			comboMeasurements.getEditor().textProperty().addListener((v, o, n) -> {
+//				String text = n == null ? "" : n.toLowerCase().strip();
+//				if (n.isEmpty())
+//					measurementsFiltered.setPredicate(p -> true);
+//				else
+//					measurementsFiltered.setPredicate(p -> p.toLowerCase().contains(text));
+//			});
+			
 			int row = 0;
 			var labelFilter = new Label("Objects");
 			PaneTools.addGridRow(pane, row++, 0, "Select objects to classify", labelFilter, comboFilter, comboFilter);
@@ -146,6 +167,8 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			var btnSave = new Button("Save");
 			btnSave.setOnAction(e -> tryToSave());
 			var labelSave = new Label("Classifier name");
+			tfSaveName.setMaxWidth(Double.MAX_VALUE);
+			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.disableProperty().bind(comboMeasurements.valueProperty().isNull().or(tfSaveName.textProperty().isEmpty()));
 			PaneTools.addGridRow(pane, row++, 0, "Specify classifierName", labelSave, tfSaveName, btnSave);
 			
@@ -156,7 +179,8 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			histogramPane.getChart().setPrefHeight(80);
 			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);
 			histogramPane.getChart().setAnimated(false);
-			PaneTools.setToExpandGridPaneWidth(comboFilter, comboMeasurements, sliderThreshold, comboAbove, comboBelow, tfSaveName, cbLivePreview);
+			PaneTools.setToExpandGridPaneWidth(comboFilter, comboMeasurements, sliderThreshold, 
+					comboAbove, comboBelow, tfSaveName, cbLivePreview);
 			PaneTools.setToExpandGridPaneHeight(histogramPane.getChart());
 			
 			// Add listeners
@@ -169,6 +193,7 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			sliderThreshold.valueProperty().addListener((v, o, n) -> maybePreview());
 			comboAbove.valueProperty().addListener((v, o, n) -> maybePreview());
 			comboBelow.valueProperty().addListener((v, o, n) -> maybePreview());
+			cbLivePreview.selectedProperty().addListener((v, o, n) -> maybePreview());
 		}
 		
 		public void show() {
@@ -184,25 +209,30 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			refreshOptions();
 			pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("single-measurement-classifier", true));
 			
-			var dialog = new Dialog<ButtonType>();
+			dialog = new Dialog<ButtonType>();
 			dialog.initOwner(qupath.getStage());
 			dialog.setTitle(title);
 			dialog.getDialogPane().setContent(pane);
 			dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
-			var response = dialog.showAndWait().orElse(ButtonType.CANCEL);
-					
+			dialog.initModality(Modality.NONE);
+			
+			dialog.setOnCloseRequest(e -> {
+				cleanup(imageData, mapPrevious, ButtonType.APPLY.equals(dialog.getResult()));
+			});			
+			
+			dialog.show();
+		}
+		
+		
+		
+		void cleanup(ImageData<BufferedImage> imageData, Map<PathObject, PathClass> mapPrevious, boolean applyLastClassifier) {
 			pool.shutdown();
 			try {
 				pool.awaitTermination(5000L, TimeUnit.SECONDS);
 			} catch (InterruptedException e) {
 				logger.debug("Exception waiting for classification to complete: " + e.getLocalizedMessage(), e);
 			}
-			
-			// Check if we did anything, if not return
-			if (nextRequest == null)
-				return;
-			
-			if (ButtonType.APPLY.equals(response)) {
+			if (applyLastClassifier) {
 				// Make sure we ran the last command, then log it in the workflow
 				var nextRequest = getUpdatedRequest();
 				if (nextRequest != null)
@@ -213,7 +243,9 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 				// Restore classifications if the user cancelled
 				resetClassifications(imageData.getHierarchy(), mapPrevious);
 			}
+			dialog = null;
 		}
+		
 		
 		
 		ImageData<BufferedImage> getImageData() {
@@ -292,7 +324,7 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 		 */
 		void updateAvailableMeasurements() {
 			var measurements = PathClassifierTools.getAvailableFeatures(getCurrentObjects());
-			comboMeasurements.getItems().setAll(measurements);
+			this.measurements.setAll(measurements);
 		}
 		
 		void tryToSave() {

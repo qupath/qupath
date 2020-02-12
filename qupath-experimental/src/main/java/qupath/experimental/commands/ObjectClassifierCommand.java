@@ -40,6 +40,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -76,6 +79,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
@@ -95,6 +99,7 @@ import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
@@ -308,6 +313,9 @@ public class ObjectClassifierCommand implements PathCommand {
 		 */
 		private boolean classifierInvalid;
 		
+		private ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("object-classifier", true));
+		private Future<?> classifierTask;
+		
 		ObjectClassifierPane(QuPathGUI qupath) {
 			this.qupath = qupath;
 			selectedClasses.addAll(qupath.getAvailablePathClasses());
@@ -316,8 +324,11 @@ public class ObjectClassifierCommand implements PathCommand {
 		
 		private void invalidateClassifier() {
 			classifierInvalid = true;
-			if (livePrediction.get())
-				updateClassifier(true);
+			if (livePrediction.get()) {
+				if (classifierTask != null && !classifierTask.isDone())
+					classifierTask.cancel(true);
+				classifierTask = pool.submit(() -> updateClassifier(true));
+			}
 		}
 		
 		public Pane getPane() {
@@ -347,6 +358,8 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 		private void updateClassifier(boolean doClassification) {
+			
+			classifierInvalid = false;
 			
 			var filter = objectFilter.get();
 			OpenCVStatModel statModel = selectedModel == null ? null : selectedModel.get();
@@ -381,6 +394,9 @@ public class ObjectClassifierCommand implements PathCommand {
 			var hierarchy = imageData.getHierarchy();
 			var trainingAnnotations = getTrainingAnnotations(hierarchy);
 			
+			if (Thread.interrupted())
+				return;
+			
 			// Use a set for detections because we might need to check if we have the same detection for multiple classes
 			Map<PathClass, Set<PathObject>> map = new TreeMap<>();
 			for (var annotation : trainingAnnotations) {
@@ -410,6 +426,9 @@ public class ObjectClassifierCommand implements PathCommand {
 			
 //			var map = PathClassificationLabellingHelper.getClassificationMap(imageData.getHierarchy(), trainFromPoints);
 			
+			if (Thread.interrupted())
+				return;
+			
 			// TODO: Check pcaRetainedVariance
 			var pathClasses = new ArrayList<>(map.keySet());
 			FeatureExtractor<BufferedImage> extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
@@ -422,6 +441,9 @@ public class ObjectClassifierCommand implements PathCommand {
 					pcaRetainedVariance.get(),
 					doMulticlass.get() && statModel.supportsMulticlass());
 			
+			if (Thread.interrupted())
+				return;
+
 			classifier = OpenCVMLClassifier
 					.create(statModel, filter, extractor, pathClasses);
 						
@@ -432,6 +454,10 @@ public class ObjectClassifierCommand implements PathCommand {
 			pieChart.setData(counts, true);
 			
 			if (doClassification) {
+				
+				if (Thread.interrupted())
+					return;
+				
 				if (classifier.classifyObjects(imageData, true) > 0) {
 					imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, detections);
 				}
@@ -985,7 +1011,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			}
 			if (event.isAddedOrRemovedEvent()) {
 				// Adding & removing - we don't mind if it's not a relevant object for the classification, or it's an unclassified annotation
-				if (event.getChangedObjects().stream().allMatch(p -> !(filter.test(p) || p.isAnnotation()) || (p.isAnnotation() || p.getPathClass() == null)))
+				if (event.getChangedObjects().stream().allMatch(p -> !(filter.test(p) || p.isAnnotation()) || (p.isAnnotation() && p.getPathClass() == null)))
 					return;				
 			}
 			invalidateClassifier();
