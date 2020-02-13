@@ -78,11 +78,11 @@ public class ExperimentalExtension implements QuPathExtension {
 
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Object classification", true),
-                QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (experimental)"),
-                QuPathGUI.createCommandAction(new CreateCompositeClassifierCommand(qupath), "Create composite object classifier (experimental)"),
-                QuPathGUI.createCommandAction(new SingleMeasurementClassificationCommand(qupath), "Create single measurement classifier (experimental)"),
-                QuPathGUI.createCommandAction(new CellIntensityClassificationCommand(qupath), "Set cell intensity classifications (experimental)"),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train detection classifier (experimental)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
+                QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (New!)"),
+                QuPathGUI.createCommandAction(new CreateCompositeClassifierCommand(qupath), "Create composite object classifier (New!)"),
+                QuPathGUI.createCommandAction(new SingleMeasurementClassificationCommand(qupath), "Create single measurement classifier (New!)"),
+                QuPathGUI.createCommandAction(new CellIntensityClassificationCommand(qupath), "Set cell intensity classifications (New!)"),
+                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train object classifier (New!)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
                 );
 
     	MenuTools.addMenuItems(

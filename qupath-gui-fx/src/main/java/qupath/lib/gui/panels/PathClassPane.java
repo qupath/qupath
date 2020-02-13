@@ -55,6 +55,7 @@ import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -250,9 +251,6 @@ public class PathClassPane {
 		Action actionResetClasses = new Action("Reset to default classes", e -> promptToResetClasses());
 		Action actionImportClasses = new Action("Import classes from project", e -> promptToImportClasses());
 
-//		Action actionPopulateFromImage = new Action("Populate from image (include sub-classes)", e -> promptToPopulateFromImage(false));
-//		Action actionPopulateFromImageBase = new Action("Populate from image (base classes only)", e -> promptToPopulateFromImage(true));
-
 		actionRemoveClass.disabledProperty().bind(Bindings.createBooleanBinding(() -> {
 			PathClass item = listClasses.getSelectionModel().getSelectedItem();
 			return item == null || PathClassFactory.getPathClassUnclassified() == item;
@@ -274,13 +272,12 @@ public class PathClassPane {
 		MenuItem miPopulateFromImageBase = new MenuItem("Base classes only");
 		miPopulateFromImageBase.setOnAction(e -> promptToPopulateFromImage(true));
 		
-		MenuItem miPopulateFromChannels = new MenuItem("Image channel names");
+		MenuItem miPopulateFromChannels = new MenuItem("Populate from image channels");
 		miPopulateFromChannels.setOnAction(e -> promptToPopulateFromChannels());
 
-		Menu menuPopulate = new Menu("Populate from image");
+		Menu menuPopulate = new Menu("Populate from existing objects");
 		menuPopulate.getItems().addAll(
-				miPopulateFromImage, miPopulateFromImageBase,
-				new SeparatorMenuItem(), miPopulateFromChannels);
+				miPopulateFromImage, miPopulateFromImageBase);
 
 		MenuItem miSelectObjects = new MenuItem("Select objects with class");
 		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
@@ -341,17 +338,21 @@ public class PathClassPane {
 		MenuItem miImportFromProject = ActionUtils.createMenuItem(actionImportClasses);
 		
 		menu.getItems().addAll(
-				miAddClass,
-				miRemoveClass,
-				miResetAllClasses,
-//				miClearAllClasses,
+				MenuTools.createMenu("Add/Remove...", 
+						miAddClass,
+						miRemoveClass
+						),
 				menuPopulate,
+				miPopulateFromChannels,
+				miResetAllClasses,
 				miImportFromProject,
 				new SeparatorMenuItem(),
-				miSetVisible,
-				miSetHidden,
-//				miToggleClassVisible,
-				new SeparatorMenuItem(),
+				MenuTools.createMenu("Show/Hide...", 
+						miSetVisible,
+						miSetHidden
+//						miToggleClassVisible
+						),
+//				new SeparatorMenuItem(),
 				miSelectObjects);
 		
 		return menu;
