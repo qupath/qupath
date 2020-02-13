@@ -40,19 +40,19 @@ import org.slf4j.LoggerFactory;
 /**
  * 
  * A MeasurementList that stores its measurements in either a float or a double array, 
- * to avoid the overhead of storing large numbers of Measurement objects.
+ * to avoid the overhead of storing large numbers of {@link Measurement} objects.
  * <p>
  * This makes the storage quite efficient for lists that don't require supporting dynamic measurements.
  * <p>
  * In this implementation, lookups by measurement name initially use indexOf with a list - and
  * can be rather slow.  Therefore while 'adding' is fast, 'putting' is not.
  * <p>
- * However, upon calling closeList(), name lists are shared between similarly closed NumericMeasurementLists,
+ * However, upon calling {@code close()}, name lists are shared between similarly closed NumericMeasurementLists,
  * and a map used to improve random access of measurements.  Therefore if many lists of the same measurements
  * are made, remembering to close each list when it is fully populated can improve performance and greatly
  * reduce memory requirements.
  * <p>
- * These lists can be instantiated through the MeasurementListFactory class.
+ * These lists can be instantiated through the {@link MeasurementListFactory} class.
  * 
  * @author Pete Bankhead
  *
@@ -83,7 +83,7 @@ class NumericMeasurementList {
 			}
 		}
 		
-		List<String> getNames() {
+		List<String> getUnmodifiableNames() {
 			return names;
 		}
 		
@@ -102,12 +102,14 @@ class NumericMeasurementList {
 		protected static final int EXPAND = 8; // Amount by which to expand array as required
 		
 		List<String> names;
+		transient List<String> namesUnmodifiable; // Cache an unmodifiable list so we can return the same one
 		boolean isClosed = false;
 
 		private Map<String, Integer> map; // Optional map for fast measurement lookup
 
 		AbstractNumericMeasurementList(int capacity) {
 			names = new ArrayList<>(capacity);
+			namesUnmodifiable = null;
 		}
 		
 		/**
@@ -128,20 +130,28 @@ class NumericMeasurementList {
 				return;
 			compactStorage();
 			// Try to get a shared list & map
+			NameMap nameMap = getNameMap();				
+			this.names = nameMap.getUnmodifiableNames();
+			this.namesUnmodifiable = names; // NameMap always returns an unmodifiable list
+			this.map = nameMap.getMap();
+			isClosed = true;
+		}
+		
+		
+		private NameMap getNameMap() {
+			NameMap nameMap = namesPool.get(names);
+			if (nameMap != null)
+				return nameMap;
 			synchronized(namesPool) {
-				NameMap nameMap = namesPool.get(names);
+				nameMap = namesPool.get(names);
 				if (nameMap == null) {
 					nameMap = new NameMap(this.names);
 					namesPool.put(nameMap.names, nameMap);
-//					logger.info("CREATED");
 				}
-//				else
-//					logger.info("Using....");					
-				this.names = nameMap.getNames();
-				this.map = nameMap.getMap();
+				return nameMap;
 			}
-			isClosed = true;
 		}
+		
 
 		@Override
 		public boolean isEmpty() {
@@ -175,7 +185,20 @@ class NumericMeasurementList {
 
 		@Override
 		public synchronized List<String> getMeasurementNames() {
-			return Collections.unmodifiableList(names);
+			if (names.isEmpty())
+				return Collections.emptyList();
+			// Try to return the same unmodifiable list of names if we can - this speeds up comparisons
+			if (isClosed()) {
+				if (namesUnmodifiable == null) {
+					var nameMap = getNameMap();
+					namesUnmodifiable = nameMap.getUnmodifiableNames();
+				}
+			}
+			if (namesUnmodifiable == null)
+				namesUnmodifiable = Collections.unmodifiableList(names);
+			else
+				assert names.size() == namesUnmodifiable.size();
+			return namesUnmodifiable;
 		}
 		
 		@Override
@@ -199,6 +222,7 @@ class NumericMeasurementList {
 		public void clear() {
 			ensureListOpen();
 			names.clear();
+			namesUnmodifiable = null;
 			compactStorage();
 		}
 		
@@ -206,7 +230,8 @@ class NumericMeasurementList {
 			if (isClosed()) {
 				isClosed = false;
 				map = null;
-				names = new ArrayList<>(names);				
+				names = new ArrayList<>(names);	
+				namesUnmodifiable = null;
 			}
 		}
 		

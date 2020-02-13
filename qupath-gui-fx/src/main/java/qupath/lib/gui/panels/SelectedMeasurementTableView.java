@@ -33,6 +33,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.TableColumn;
@@ -131,6 +132,10 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	}
 	
 	private void updateTableModel() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> updateTableModel());
+			return;
+		}
 		tableModel.setImageData(this.imageData, getSelectedObjectList());
 		tableMeasurements.getItems().setAll(tableModel.getAllNames());
 		

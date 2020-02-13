@@ -256,7 +256,7 @@ public class PathClassifierTools {
 			if (!pathObject.hasMeasurements())
 				continue;
 			List<String> list = pathObject.getMeasurementList().getMeasurementNames();
-			if (lastNames == null || !lastNames.equals(list))
+			if (lastNames != list)
 				featureSet.addAll(list);
 			lastNames = list;
 		}

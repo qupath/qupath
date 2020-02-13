@@ -26,8 +26,6 @@ package qupath.experimental.commands;
 import java.awt.image.BufferedImage;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,9 +38,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -79,7 +78,6 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
@@ -98,6 +96,7 @@ import javafx.stage.Stage;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.geom.Point2;
@@ -109,7 +108,6 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.ClassificationPieChart;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
@@ -138,7 +136,7 @@ import qupath.opencv.ml.objects.features.FeatureExtractors;
  */
 public class ObjectClassifierCommand implements PathCommand {
 	
-	final private static String name = "Train detection classifier";
+	final private static String name = "Train object classifier";
 	
 	private QuPathGUI qupath;
 	
@@ -156,7 +154,6 @@ public class ObjectClassifierCommand implements PathCommand {
 	
 	@Override
 	public void run() {
-		dialog = null;
 		if (dialog == null) {
 			dialog = new Stage();
 			if (qupath != null)
@@ -173,8 +170,12 @@ public class ObjectClassifierCommand implements PathCommand {
 			dialog.setScene(new Scene(scrollPane));
 
 			panel.registerListeners(qupath);
-			dialog.setOnCloseRequest(e -> panel.deregisterListeners(qupath));
-		}
+			dialog.setOnCloseRequest(e -> {
+				dialog = null; // Reset the dialog so a new one will be created next time
+				panel.deregisterListeners(qupath);
+			});
+		} else
+			dialog.requestFocus();
 		
 		dialog.sizeToScene();
 		dialog.show();
@@ -283,7 +284,7 @@ public class ObjectClassifierCommand implements PathCommand {
 
 		private DoubleProperty pcaRetainedVariance = new SimpleDoubleProperty(-1.0);
 
-		private ObjectClassifier<BufferedImage> classifier;
+//		private ObjectClassifier<BufferedImage> classifier;
 		private Set<PathClass> selectedClasses = new HashSet<>();
 		
 		private Set<String> selectedMeasurements = new LinkedHashSet<>();
@@ -308,13 +309,8 @@ public class ObjectClassifierCommand implements PathCommand {
 		 */
 		private ClassificationPieChart pieChart;
 		
-		/**
-		 * Flag to indicate that the classifier is in an invalid state, and must be (re)trained before use
-		 */
-		private boolean classifierInvalid;
-		
 		private ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("object-classifier", true));
-		private Future<?> classifierTask;
+		private FutureTask<ObjectClassifier<BufferedImage>> classifierTask;
 		
 		ObjectClassifierPane(QuPathGUI qupath) {
 			this.qupath = qupath;
@@ -322,22 +318,56 @@ public class ObjectClassifierCommand implements PathCommand {
 			initialize();
 		}
 		
+		/**
+		 * Flag that the classifier settings have changed.
+		 * Prompt an update if 'live prediction' is requested, otherwise just stop and reset any current classification task.
+		 */
 		private void invalidateClassifier() {
-			classifierInvalid = true;
-			if (livePrediction.get()) {
-				if (classifierTask != null && !classifierTask.isDone())
-					classifierTask.cancel(true);
-				classifierTask = pool.submit(() -> updateClassifier(true));
+			if (!Platform.isFxApplicationThread()) {
+				logger.warn("invalidateClassifier() should only be called from the Application thread! I'll try to recover...");
+				Platform.runLater(() -> invalidateClassifier());
+				return;
 			}
+			if (classifierTask != null && !classifierTask.isDone())
+				classifierTask.cancel(true);
+			classifierTask = null;
+			if (livePrediction.get()) {
+				classifierTask = submitClassifierUpdateTask(true);
+			}
+		}
+		
+		/**
+		 * Submit a classification update task, returning the task.
+		 * The {@code get()} method can then be used to request the classifier 
+		 * (may be null if the task could not create a classifier).
+		 * @param doClassification if true, perform a classification after training the classifier.
+		 * @return
+		 */
+		private FutureTask<ObjectClassifier<BufferedImage>> submitClassifierUpdateTask(boolean doClassification) {
+			var task = createClassifierUpdateTask(true);
+			if (task != null) {
+				if (pool == null || pool.isShutdown()) {
+					logger.error("No thread pool available to train classifer!");
+					return null;
+			    } else
+					pool.submit(task);
+			}
+			return task;
 		}
 		
 		public Pane getPane() {
 			return pane;
 		}
 		
-		private List<PathObject> getTrainingAnnotations(PathObjectHierarchy hierarchy) {
+		/**
+		 * Extract training objects from a hierarchy, based upon the kind of annotations permitted for training.
+		 * @param hierarchy
+		 * @param training
+		 * @return
+		 */
+		private static List<PathObject> getTrainingAnnotations(PathObjectHierarchy hierarchy, TrainingAnnotations training) {
 			Predicate<PathObject> trainingFilter = (PathObject p) -> p.isAnnotation() && p.getPathClass() != null && p.hasROI();
-			switch (trainingAnnotations.get()) {
+			switch (training) {
 				case AREAS:
 					trainingFilter = trainingFilter.and(PathObjectFilter.ROI_AREA);
 					break;
@@ -357,63 +387,130 @@ public class ObjectClassifierCommand implements PathCommand {
 					.collect(Collectors.toList());
 		}
 		
-		private void updateClassifier(boolean doClassification) {
-			
-			classifierInvalid = false;
-			
+		/**
+		 * Create a classifier training task based on the current GUI control values (but don't submit it for processing).
+		 * @param doClassification
+		 * @return
+		 */
+		private FutureTask<ObjectClassifier<BufferedImage>> createClassifierUpdateTask(boolean doClassification) {
 			var filter = objectFilter.get();
 			OpenCVStatModel statModel = selectedModel == null ? null : selectedModel.get();
 			if (statModel == null) {
+				logger.warn("No classifier - cannot update classifier");
 				pieChart.setData(Collections.emptyMap(), false);
-				return;
+				return null;
 			}
-						
+			
 			var imageData = qupath.getImageData();
 			if (imageData == null) {
 				logger.warn("No image - cannot update classifier");
 				pieChart.setData(Collections.emptyMap(), false);
-				return;
+				return null;
 			}
+			
+			// Extract the relevant objects
 			var detections = imageData.getHierarchy()
 					.getFlattenedObjectList(null)
 					.stream()
 					.filter(filter)
 					.collect(Collectors.toList());
-			List<String> measurements;
+			
+			// Determine the measurements to use
+			List<String> measurements = new ArrayList<>();
 			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
 				measurements = new ArrayList<>(selectedMeasurements);
-			else
-				measurements = new ArrayList<>(PathClassifierTools.getAvailableFeatures(detections));
 			if (measurements.isEmpty()) {
-				logger.warn("No measurements - cannot update classifier");
-				pieChart.setData(Collections.emptyMap(), false);
-				return;
+				measurements.addAll(PathClassifierTools.getAvailableFeatures(detections));
+				if (measurements.isEmpty()) {
+					logger.warn("No measurements - cannot update classifier");
+					return null;
+				}
 			}
 			
+			FeatureExtractor<BufferedImage> extractor = FeatureExtractors
+					.createMeasurementListFeatureExtractor(measurements);
+			
+			var training = trainingAnnotations.get();
+			var output = outputClasses.get();
+			var selectedClasses = new HashSet<>(this.selectedClasses);
+			var norm = this.normalization.get();
+			
+			double pcaRetained = pcaRetainedVariance.get();
+			boolean multiclass = doMulticlass.get() && statModel.supportsMulticlass();
+			
+			return new FutureTask<>(() -> {
+				var map = createTrainingData(
+						filter,
+						imageData.getHierarchy(),
+						training,
+						output == OutputClasses.ALL ? null : selectedClasses);
+				if (map == null || Thread.interrupted())
+					return null;
+							
+				var classifier = createClassifier(
+						map,
+						filter,
+						statModel,
+						imageData,
+						extractor,
+						norm,
+						pcaRetained,
+						multiclass
+						);
+				if (classifier == null || Thread.interrupted())
+					return null;
+				
+				if (doClassification) {
+					var pathObjects = classifier.getCompatibleObjects(imageData);
+					if (classifier.classifyObjects(imageData, pathObjects, true) > 0) {
+						imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, pathObjects);
+					}
+				}
+				updatePieChart(map, pieChart);
+				return classifier;
+			});
+		}
+		
+		
+		
+		/**
+		 * Create a map of training data, with target classes as keys and collections of training objects as values.
+		 * @param filter
+		 * @param hierarchy
+		 * @param training
+		 * @param selectedClasses optional collection containing valid output classes; if null, all classes will be used
+		 * @return
+		 */
+		private static Map<PathClass, Set<PathObject>> createTrainingData(
+				PathObjectFilter filter,
+				PathObjectHierarchy hierarchy,
+				TrainingAnnotations training,
+				Collection<PathClass> selectedClasses) {
+			
 			// Get training annotations & associated objects
-			var hierarchy = imageData.getHierarchy();
-			var trainingAnnotations = getTrainingAnnotations(hierarchy);
-			
+			var trainingAnnotations = getTrainingAnnotations(hierarchy, training);
+
 			if (Thread.interrupted())
-				return;
-			
+				return null;
+
 			// Use a set for detections because we might need to check if we have the same detection for multiple classes
 			Map<PathClass, Set<PathObject>> map = new TreeMap<>();
+			var filterNegated = filter.negate();
 			for (var annotation : trainingAnnotations) {
 				var pathClass = annotation.getPathClass();
-				if (outputClasses.get() == OutputClasses.ALL || selectedClasses.contains(pathClass)) {
+				if (selectedClasses == null || selectedClasses.contains(pathClass)) {
 					var set = map.computeIfAbsent(pathClass, p -> new HashSet<>());
 					var roi = annotation.getROI();
 					if (roi.isPoint()) {
 						for (Point2 p : annotation.getROI().getAllPoints()) {
 							var pathObjectsTemp = PathObjectTools.getObjectsForLocation(
 									hierarchy, p.getX(), p.getY(), roi.getZ(), roi.getT(), -1);
-							pathObjectsTemp.removeIf(objectFilter.get().negate());
+							pathObjectsTemp.removeIf(filterNegated);
 							set.addAll(pathObjectsTemp);
 						}
 					} else {
 						var pathObjectsTemp = hierarchy.getObjectsForROI(PathDetectionObject.class, annotation.getROI());
-						pathObjectsTemp.removeIf(objectFilter.get().negate());
+						pathObjectsTemp.removeIf(filterNegated);
 						set.addAll(pathObjectsTemp);
 					}
 				}
@@ -421,49 +518,58 @@ public class ObjectClassifierCommand implements PathCommand {
 			map.entrySet().removeIf(e -> e.getValue().isEmpty());
 			if (map.size() <= 1) {
 				logger.warn("Not enough training data - samples for at least two classes are needed");
-				return;
+				return null;
 			}
-			
-//			var map = PathClassificationLabellingHelper.getClassificationMap(imageData.getHierarchy(), trainFromPoints);
-			
-			if (Thread.interrupted())
-				return;
-			
-			// TODO: Check pcaRetainedVariance
+			return map;
+		}
+		
+		/**
+		 * Train an object classifier.
+		 * 
+		 * @param map training data map, see {@link #createTrainingData(PathObjectFilter, PathObjectHierarchy, TrainingAnnotations, Collection)}
+		 * @param filter filter to select compatible objects
+		 * @param statModel OpenCV stat model to be trained
+		 * @param imageData {@link ImageData} used for feature extraction of the training objects
+		 * @param extractor {@link FeatureExtractor} able to extract features from the training objects
+		 * @param normalization type of normalization that should be applied
+		 * @param pcaRetainedVariance variance to retain if PCA is applied to reduce features (not currently used or tested!)
+		 * @param doMulticlass if true, try to create a multi-class classifier instead of a 'regular' classifier
+		 * @return the trained object classifier, or null if insufficient information was provided or the thread was interrupted during training
+		 */
+		private static ObjectClassifier<BufferedImage> createClassifier(
+				Map<PathClass, Set<PathObject>> map,
+				PathObjectFilter filter,
+				OpenCVStatModel statModel,
+				ImageData<BufferedImage> imageData,
+				FeatureExtractor<BufferedImage> extractor,
+				Normalization normalization,
+				double pcaRetainedVariance,
+				boolean doMulticlass) {
+
 			var pathClasses = new ArrayList<>(map.keySet());
-			FeatureExtractor<BufferedImage> extractor = FeatureExtractors.createMeasurementListFeatureExtractor(measurements);
+			
 			extractor = updateFeatureExtractorAndTrainClassifier(
 					statModel,
 					imageData,
 					map,
 					extractor,
-					normalization.get(),
-					pcaRetainedVariance.get(),
-					doMulticlass.get() && statModel.supportsMulticlass());
+					normalization,
+					pcaRetainedVariance,
+					doMulticlass);
 			
-			if (Thread.interrupted())
-				return;
-
-			classifier = OpenCVMLClassifier
+			return OpenCVMLClassifier
 					.create(statModel, filter, extractor, pathClasses);
-						
+		}
+		
+		static void updatePieChart(Map<PathClass, Set<PathObject>> map, ClassificationPieChart pieChart) {
 			var counts = new LinkedHashMap<PathClass, Integer>();
 			for (var entry : map.entrySet()) {
 				counts.put(entry.getKey(), entry.getValue().size());
 			}
 			pieChart.setData(counts, true);
-			
-			if (doClassification) {
-				
-				if (Thread.interrupted())
-					return;
-				
-				if (classifier.classifyObjects(imageData, true) > 0) {
-					imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, detections);
-				}
-			}
-			
+
 		}
+		
 		
 		
 		/**
@@ -480,7 +586,7 @@ public class ObjectClassifierCommand implements PathCommand {
 		private static <T> FeatureExtractor<T> updateFeatureExtractorAndTrainClassifier(
 				OpenCVStatModel classifier,
 				ImageData<T> imageData,
-				Map<PathClass, Set<PathObject>> map, 
+				Map<PathClass, ? extends Collection<PathObject>> map, 
 				FeatureExtractor<T> extractor,
 				Normalization normalization,
 				double pcaRetainedVariance,
@@ -564,7 +670,6 @@ public class ObjectClassifierCommand implements PathCommand {
 				return null;
 			}
 			
-			// TODO: Support turning multiclass on/off
 			trainClassifier(classifier, matFeatures, matTargets, doMulticlass);
 			
 			if (classifier instanceof RTreesClassifier) {
@@ -579,9 +684,12 @@ public class ObjectClassifierCommand implements PathCommand {
 		static boolean trainClassifier(OpenCVStatModel classifier, Mat matFeatures, Mat matTargets, boolean doMulticlass) {		
 			// Train classifier
 			// TODO: Optionally limit the number of training samples we use
+			long startTime = System.currentTimeMillis();
 			var trainData = classifier.createTrainData(matFeatures, matTargets, null, doMulticlass);
 			classifier.train(trainData);
-			logger.info("Classifier trained with " + matFeatures.rows() + " samples and " + matFeatures.cols() + " features");
+			long endTime = System.currentTimeMillis();
+			logger.info("{} classifier trained with {} samples and {} features ({} ms)",
+					classifier.getName(), matFeatures.rows(), matFeatures.cols(), endTime - startTime);
 			return true;
 		}
 
@@ -642,15 +750,31 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 		private boolean saveAndApply() {
-			updateClassifier(true);
+			// Run the classification, or complete the existing classification
+			if (classifierTask == null) {
+				classifierTask = submitClassifierUpdateTask(false);
+			}
+			ObjectClassifier<BufferedImage> classifier;
+			try {
+				classifier = classifierTask.get();
+			} catch (InterruptedException e1) {
+				Dialogs.showErrorNotification(name, "Classifier training was interrupted!");
+				return false;
+			} catch (ExecutionException e1) {
+				Dialogs.showErrorNotification(name, e1);
+				return false;
+			}
 			if (classifier != null) {
+				// Do the classification now
+				// TODO: Avoid re-applying classification if not needed
+				var imageData = qupath.getImageData();
+				if (imageData != null) {
+					var pathObjects = classifier.getCompatibleObjects(imageData);
+					if (classifier.classifyObjects(imageData, pathObjects, true) > 0)
+						imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
+				}
+
 				try {
-					// TODO: REMOVE THIS CHECK
-					var json = GsonTools.getInstance(true).toJson(classifier);
-//					System.err.println(json);
-					ObjectClassifier<BufferedImage> classifier2 = GsonTools.getInstance().fromJson(json, OpenCVMLClassifier.class);
-					logger.debug("Classification deserialized: {}", classifier2);
-					
 					var project = qupath.getProject();
 					if (project != null) {
 						String classifierName = Dialogs.showInputDialog("Object classifier", "Classifier name", "");
@@ -662,14 +786,13 @@ public class ObjectClassifierCommand implements PathCommand {
 					} else {
 						var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save object classifier", null, null, "Object classifier", ".obj.json");
 						if (file != null) {
-							Files.writeString(file.toPath(), json, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+							ObjectClassifiers.writeClassifier(classifier, file.toPath());
 						}
 					}
 				} catch (Exception e) {
 					logger.error("Error attempting classifier serialization " + e.getLocalizedMessage(), e);
 				}
 			}
-			
 			return false;
 		}
 		
@@ -811,7 +934,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			btnLive.setTooltip(new Tooltip("Toggle whether to calculate classification 'live' while viewing the image"));
 			livePrediction.addListener((v, o, n) -> {
 				if (n) {
-					updateClassifier(n);				
+					invalidateClassifier();				
 					return;
 				}
 			});
@@ -854,68 +977,12 @@ public class ObjectClassifierCommand implements PathCommand {
 			PaneTools.setHGrowPriority(Priority.ALWAYS, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
 			PaneTools.setFillWidth(Boolean.TRUE, comboTraining, comboObjects, comboClassifier, comboClasses, panePredict);
 
-//			pane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 			pane.setHgap(5);
 			pane.setVgap(6);
 			
 			qupath.getStage().getScene().addEventFilter(MouseEvent.MOUSE_MOVED, e -> updateLocationText(e));
 			
-//			var btnCreateObjects = new Button("Create objects");
-//			btnCreateObjects.setTooltip(new Tooltip("Create annotations or detections from pixel classification"));
-//			btnCreateObjects.disableProperty().bind(classificationComplete);
-//			btnCreateObjects.setOnAction(e -> {
-//				var server = getClassificationServerOrShowError();
-//				var imageData = viewer.getImageData();
-//				if (imageData != null && server != null)
-//					promptToCreateObjects(imageData, server);
-//			});
-//			
-//			var btnClassifyObjects = new Button("Classify detections");
-//			btnClassifyObjects.setTooltip(new Tooltip("Assign classifications to detection objects based on the corresponding pixel classification"));
-//			btnClassifyObjects.disableProperty().bind(classificationComplete);
-//			btnClassifyObjects.setOnAction(e -> classifyObjects());
-//			
-//			var panePostProcess = PaneTools.createColumnGridControls(btnCreateObjects, btnClassifyObjects);
-//					
-//			pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
-//
-//			PaneTools.setMaxWidth(Double.MAX_VALUE, pane.getChildren().stream().filter(p -> p instanceof Region).toArray(Region[]::new));
-			
 			pane.setPadding(new Insets(5));
-			
-//			stage = new Stage();
-//			stage.setScene(new Scene(pane));
-//			
-//			stage.setMinHeight(400);
-//			stage.setMinWidth(500);
-//
-//			stage.initOwner(QuPathGUI.getInstance().getStage());
-//			
-//			stage.getScene().getRoot().disableProperty().bind(
-//					QuPathGUI.getInstance().viewerProperty().isNotEqualTo(viewer)
-//					);
-//			
-//			updateTitle();
-//			
-//			updateFeatureCalculator();
-//			
-////			pane.getChildren().stream().forEach(c -> {
-////				if (c instanceof Control)
-////					((Control)c).setMinSize(Control.USE_PREF_SIZE, Control.USE_PREF_SIZE);
-////			});
-//			PaneTools.setMinWidth(
-//					Region.USE_PREF_SIZE,
-//					PaneTools.getContentsOfType(stage.getScene().getRoot(), Region.class, true).toArray(Region[]::new));
-//			
-//			stage.show();
-//			stage.setOnCloseRequest(e -> destroy());
-//			
-//			viewer.getView().addEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
-//			
-//			viewer.getImageDataProperty().addListener(imageDataListener);
-//			if (viewer.getImageData() != null)
-//				viewer.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
-			
 		}
 		
 		
@@ -947,7 +1014,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			var imageData = qupath.getImageData();
 			if (imageData == null)
 				return false;
-			var annotations = getTrainingAnnotations(imageData.getHierarchy());
+			var annotations = getTrainingAnnotations(imageData.getHierarchy(), trainingAnnotations.get());
 			var pathClasses = annotations.stream().map(p -> p.getPathClass()).collect(Collectors.toCollection(TreeSet::new));
 			var classesPane = new SelectionPane<>(pathClasses, true);
 			classesPane.selectItems(selectedClasses);
@@ -1020,6 +1087,11 @@ public class ObjectClassifierCommand implements PathCommand {
 	}
 	
 	
+	/**
+	 * Helper class to display a table with selectable items.
+	 * Includes checkboxes, select all/none options, and (optionally) a filter box.
+	 * @param <T>
+	 */
 	static class SelectionPane<T> {
 
 		private BorderPane pane;
@@ -1032,7 +1104,7 @@ public class ObjectClassifierCommand implements PathCommand {
 					items.stream().map(i -> getSelectableItem(i)).collect(Collectors.toList())
 					).filtered(p -> true);
 			tableFeatures = new TableView<>(list);
-			pane = makeFeatureSelectionPanel(includeFilter);
+			pane = makePane(includeFilter);
 		}
 		
 		void updatePredicate(String text) {
@@ -1056,7 +1128,7 @@ public class ObjectClassifierCommand implements PathCommand {
 		}
 		
 
-		private BorderPane makeFeatureSelectionPanel(boolean includeFilter) {
+		private BorderPane makePane(boolean includeFilter) {
 			TableColumn<SelectableItem<T>, String> columnName = new TableColumn<>("Name");
 			columnName.setCellValueFactory(new PropertyValueFactory<>("item"));
 			columnName.setEditable(false);
@@ -1108,7 +1180,8 @@ public class ObjectClassifierCommand implements PathCommand {
 
 			if (includeFilter) {
 				var tfFilter = new TextField("");
-				tfFilter.setTooltip(new Tooltip("Enter text to filter measurements (case-insensitive)"));
+				tfFilter.setTooltip(new Tooltip("Type to filter table entries (case-insensitive)"));
+				tfFilter.setPromptText("Type to filter table entries");
 				var labelFilter = new Label("Filter");
 				labelFilter.setLabelFor(tfFilter);
 				labelFilter.setPrefWidth(Label.USE_COMPUTED_SIZE);

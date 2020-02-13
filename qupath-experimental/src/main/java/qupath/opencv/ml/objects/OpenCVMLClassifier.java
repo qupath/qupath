@@ -45,6 +45,12 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	 * Supported classifications - this is an ordered list, required to interpret labels
 	 */
 	private List<PathClass> pathClasses;
+	
+	/**
+	 * Request whether probabilities should be estimated.
+	 * This isn't supported for all stat models, and can make things substantially slower.
+	 */
+	private boolean requestProbabilityEstimate = false;
 
 	
 //	public static List<OpenCVStatModel> createDefaultStatModels() {
@@ -82,7 +88,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	
 	@Override
 	public int classifyObjects(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, boolean resetExistingClass) {
-		return classifyObjects(featureExtractor, classifier, pathClasses, imageData, pathObjects, resetExistingClass);
+		return classifyObjects(featureExtractor, classifier, pathClasses, imageData, pathObjects, resetExistingClass, requestProbabilityEstimate);
 	}
 
 	
@@ -92,7 +98,8 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 			List<PathClass> pathClasses,
 			ImageData<T> imageData,
 			Collection<? extends PathObject> pathObjects,
-			boolean resetExistingClass) {
+			boolean resetExistingClass,
+			boolean requestProbabilityEstimate) {
 
 		if (featureExtractor == null) {
 			logger.warn("No feature extractor! Cannot classify {} objects", pathObjects.size());
@@ -103,13 +110,13 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 		
 		List<Reclassifier> reclassifiers = new ArrayList<>();
 
-		// Try not to have more than ~1 million entries per list
-		int subListSize = (int)Math.max(1, Math.min(pathObjects.size(), (1024 * 1024 / featureExtractor.nFeatures())));
+		// Try not to have more than ~10 million entries per list
+		int subListSize = (int)Math.max(1, Math.min(pathObjects.size(), (1024 * 1024 * 10 / featureExtractor.nFeatures())));
 		
 		Mat samples = new Mat();
 		
 		Mat results = new Mat();
-		Mat probabilities = new Mat();
+		Mat probabilities = requestProbabilityEstimate ? new Mat() : null;
 
 		// Work through the objects in chunks
 		long startTime = System.currentTimeMillis();
@@ -145,7 +152,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 
 				IntIndexer idxResults = results.createIndexer();
 				FloatIndexer idxProbabilities = null;
-				if (!probabilities.empty())
+				if (probabilities != null && !probabilities.empty())
 					idxProbabilities = probabilities.createIndexer();
 
 				if (doMulticlass && idxProbabilities != null) {
@@ -201,10 +208,15 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 			}
 			counter += tempObjectList.size();
 		}
+		long predictTime = System.currentTimeMillis() - startTime;
+		logger.info("Prediction time: {} ms for {} objects ({} ns per object)",
+				predictTime, pathObjects.size(),
+				GeneralTools.formatNumber((double)predictTime/pathObjects.size() * 1000.0, 2));
 
 		samples.release();
 		results.release();
-		probabilities.release();
+		if (probabilities != null)
+			probabilities.release();
 
 		// Apply classifications now
 		reclassifiers.stream().forEach(p -> p.apply());
