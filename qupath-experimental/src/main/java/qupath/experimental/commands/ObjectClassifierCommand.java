@@ -113,6 +113,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -226,7 +227,7 @@ public class ObjectClassifierCommand implements PathCommand {
 		/**
 		 * Use all measurements for training and prediction, or only some.
 		 */
-		private static enum TrainingFeatures { ALL, SELECTED;
+		private static enum TrainingFeatures { ALL, SELECTED, FILTERED;
 			
 			@Override
 			public String toString() {
@@ -235,6 +236,8 @@ public class ObjectClassifierCommand implements PathCommand {
 					return "All measurements";
 				case SELECTED:
 					return "Selected measurements";
+				case FILTERED:
+					return "Filtered by output classes";
 				default:
 					throw new IllegalArgumentException();
 				}
@@ -408,19 +411,18 @@ public class ObjectClassifierCommand implements PathCommand {
 				return null;
 			}
 			
-			// Extract the relevant objects
-			var detections = imageData.getHierarchy()
-					.getFlattenedObjectList(null)
-					.stream()
-					.filter(filter)
-					.collect(Collectors.toList());
+			// Get key parameters
+			var training = trainingAnnotations.get();
+			var output = outputClasses.get();
+			var selectedClasses = new HashSet<>(this.selectedClasses);
+			var norm = this.normalization.get();
 			
+			double pcaRetained = pcaRetainedVariance.get();
+			boolean multiclass = doMulticlass.get() && statModel.supportsMulticlass();
+
 			// Determine the measurements to use
-			List<String> measurements = new ArrayList<>();
-			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
-				measurements = new ArrayList<>(selectedMeasurements);
+			var measurements = getRequestedMeasurements();
 			if (measurements.isEmpty()) {
-				measurements.addAll(PathClassifierTools.getAvailableFeatures(detections));
 				if (measurements.isEmpty()) {
 					logger.warn("No measurements - cannot update classifier");
 					return null;
@@ -429,15 +431,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			
 			FeatureExtractor<BufferedImage> extractor = FeatureExtractors
 					.createMeasurementListFeatureExtractor(measurements);
-			
-			var training = trainingAnnotations.get();
-			var output = outputClasses.get();
-			var selectedClasses = new HashSet<>(this.selectedClasses);
-			var norm = this.normalization.get();
-			
-			double pcaRetained = pcaRetainedVariance.get();
-			boolean multiclass = doMulticlass.get() && statModel.supportsMulticlass();
-			
+						
 			return new FutureTask<>(() -> {
 				var map = createTrainingData(
 						filter,
@@ -469,6 +463,41 @@ public class ObjectClassifierCommand implements PathCommand {
 				updatePieChart(map, pieChart);
 				return classifier;
 			});
+		}
+		
+		
+		private List<String> getRequestedMeasurements() {
+			var imageData = qupath.getImageData();
+			if (imageData == null)
+				return Collections.emptyList();
+			
+			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
+				return new ArrayList<>(selectedMeasurements);
+			
+			// Extract the relevant objects
+			var filter = objectFilter.get();
+			var detections = imageData.getHierarchy()
+					.getFlattenedObjectList(null)
+					.stream()
+					.filter(filter)
+					.collect(Collectors.toList());
+
+			var allMeasurements = PathClassifierTools.getAvailableFeatures(detections);
+			if (trainingFeatures.get() == TrainingFeatures.FILTERED) {
+				var measurements = new ArrayList<String>();
+				var trainingAnnotations = getTrainingAnnotations(imageData.getHierarchy(), this.trainingAnnotations.get());
+				var filterText = trainingAnnotations.stream().distinct().map(a -> a.getPathClass().toString().toLowerCase().trim()).collect(Collectors.toSet());
+				for (var m : allMeasurements) {
+					for (var f : filterText) {
+						if (m.toLowerCase().contains(f)) {
+							measurements.add(m);
+							break;
+						}
+					}
+				}
+				return measurements;
+			} else
+				return new ArrayList<>(allMeasurements);
 		}
 		
 		
@@ -765,6 +794,12 @@ public class ObjectClassifierCommand implements PathCommand {
 				return false;
 			}
 			if (classifier != null) {
+				// Make an educated guess at the classifier name if we just have one output class
+				var outputClasses = classifier.getPathClasses().stream().filter(p -> !PathClassTools.isIgnoredClass(p)).collect(Collectors.toList());
+				String defaultName = "";
+				if (outputClasses.size() == 1)
+					defaultName = outputClasses.get(0).toString() + " classifier";
+				
 				// Do the classification now
 				// TODO: Avoid re-applying classification if not needed
 				var imageData = qupath.getImageData();
@@ -777,7 +812,7 @@ public class ObjectClassifierCommand implements PathCommand {
 				try {
 					var project = qupath.getProject();
 					if (project != null) {
-						String classifierName = Dialogs.showInputDialog("Object classifier", "Classifier name", "");
+						String classifierName = Dialogs.showInputDialog("Object classifier", "Classifier name", defaultName);
 						if (classifierName != null) {
 							classifierName = GeneralTools.stripInvalidFilenameChars(classifierName);
 							project.getObjectClassifiers().put(classifierName, classifier);
@@ -861,6 +896,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			 */
 			var labelFeatures = new Label("Features");
 			var comboFeatures = new ComboBox<TrainingFeatures>();
+			labelFeatures.setLabelFor(comboFeatures);
 			comboFeatures.getItems().setAll(TrainingFeatures.values());
 			comboFeatures.getSelectionModel().select(TrainingFeatures.ALL);
 			labelFeatures.setLabelFor(comboFeatures);
@@ -876,14 +912,32 @@ public class ObjectClassifierCommand implements PathCommand {
 					invalidateClassifier();
 			});
 			PaneTools.addGridRow(pane, row++, 0, 
-					"Choose features for the classifier",
+					null,
 					labelFeatures, comboFeatures, btnSelectFeatures);
+			
+			var tooltipFeatures = new Tooltip();
+			tooltipFeatures.setOnShowing(e -> {
+				String text = "Select measurements for the classifier\n";
+				if (trainingFeatures.get() == TrainingFeatures.ALL)
+					text += "Currently, all available measurements will be used";
+				else {
+					var measurements = getRequestedMeasurements();
+					if (measurements.isEmpty())
+						text += "No measurements are currently selected - please choose some!";
+					else
+						text += "Current measurements: \n - " + String.join("\n - ", measurements);
+				}
+				tooltipFeatures.setText(text);
+			});
+			btnSelectFeatures.setTooltip(tooltipFeatures);
+			comboFeatures.setTooltip(tooltipFeatures);
 			
 			/*
 			 * Output classes
 			 */
 			var labelClasses = new Label("Classes");
 			var comboClasses = new ComboBox<OutputClasses>();
+			labelClasses.setLabelFor(comboClasses);
 			comboClasses.getItems().setAll(OutputClasses.values());
 			comboClasses.getSelectionModel().select(OutputClasses.ALL);
 			labelClasses.setLabelFor(comboClasses);
@@ -899,9 +953,24 @@ public class ObjectClassifierCommand implements PathCommand {
 					invalidateClassifier();
 				}
 			});
+			var tooltipClasses = new Tooltip();
+			tooltipClasses.setOnShowing(e -> {
+				String text = "Choose which classes to use when training the classifier\n";
+				if (outputClasses.get() == OutputClasses.SELECTED) {
+					if (selectedClasses.isEmpty())
+						text += "No classes are currently selected - please choose some!";
+					else
+						text += "Current classes (where available): \n - " + selectedClasses.stream().map(c -> c == null ? "Unclassified" : c.toString()).collect(Collectors.joining("\n - "));
+				} else {
+					text += "Currently, all available classes will be used";
+				}
+				tooltipClasses.setText(text);
+			});
+			btnSelectClasses.setTooltip(tooltipClasses);
+			comboClasses.setTooltip(tooltipClasses);
 			
 			PaneTools.addGridRow(pane, row++, 0, 
-					"Choose which classes to use when training the classifier (annotations with other classifications will be ignored)",
+					null,
 					labelClasses, comboClasses, btnSelectClasses);
 			
 			/*
@@ -948,6 +1017,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			var btnSave = new Button("Save & Apply");
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.setOnAction(e -> saveAndApply());
+			btnSave.setTooltip(new Tooltip("Save a classifier with the current settings & apply it to the active image"));
 			pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
 			
 			/*
