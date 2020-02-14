@@ -850,7 +850,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			/*
 			 * Input object type
 			 */
-			var labelObjects = new Label("Objects");
+			var labelObjects = new Label("Object filter");
 			var comboObjects = new ComboBox<PathObjectFilter>();
 			comboObjects.getItems().addAll(
 					PathObjectFilter.DETECTIONS_ALL,
@@ -870,7 +870,7 @@ public class ObjectClassifierCommand implements PathCommand {
 			/*
 			 * Classifier type
 			 */
-			var labelClassifier = new Label("Classifier");
+			var labelClassifier = new Label("Classifier type");
 			var comboClassifier = new ComboBox<OpenCVStatModel>();
 			comboClassifier.getItems().addAll(
 					OpenCVClassifiers.createStatModel(RTrees.class),

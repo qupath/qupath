@@ -420,37 +420,54 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			row.setOnMouseClicked(e -> {
 				if (e.getClickCount() == 2) {
 					ChannelDisplayInfo info = row.getItem();
-					if (info instanceof ChannelDisplayInfo.DirectServerChannelInfo) {
+					var imageData = viewer.getImageData();
+					if (info instanceof ChannelDisplayInfo.DirectServerChannelInfo && imageData != null) {
 						ChannelDisplayInfo.DirectServerChannelInfo multiInfo = (ChannelDisplayInfo.DirectServerChannelInfo)info;
 						int c = multiInfo.getChannel();
+						var channel = imageData.getServer().getMetadata().getChannel(c);
 						
 						Color color = ColorToolsFX.getCachedColor(multiInfo.getColor());
 						picker.setValue(color);
 						
 						
 						Dialog<ButtonType> colorDialog = new Dialog<>();
-						colorDialog.setTitle("Channel color");
+						colorDialog.setTitle("Channel properties");
+												
 						colorDialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
-						colorDialog.getDialogPane().setHeaderText("Select color for " + info.getName());
-						StackPane colorPane = new StackPane(picker);
-						colorDialog.getDialogPane().setContent(colorPane);
+						
+						var paneColor = new GridPane();
+						int r = 0;
+						var labelName = new Label("Channel name");
+						var tfName = new TextField(channel.getName());
+						labelName.setLabelFor(tfName);
+						PaneTools.addGridRow(paneColor, r++, 0, "Enter a name for the current channel", labelName, tfName);
+						var labelColor = new Label("Channel color");
+						labelColor.setLabelFor(picker);
+						PaneTools.addGridRow(paneColor, r++, 0, "Choose the color for the current channel", labelColor, picker);
+						paneColor.setVgap(5.0);
+						paneColor.setHgap(5.0);
+						
+						colorDialog.getDialogPane().setContent(paneColor);
 						Optional<ButtonType> result = colorDialog.showAndWait();
-						if (result.orElseGet(() -> ButtonType.CANCEL) == ButtonType.APPLY) {
+						if (result.orElse(ButtonType.CANCEL) == ButtonType.APPLY) {
 //							if (!DisplayHelpers.showMessageDialog("Choose channel color", picker))
 //								return;
+							String name = tfName.getText().trim();
+							if (name.isEmpty()) {
+								Dialogs.showErrorMessage("Set channel name", "The channel name must not be empty!");
+								return;
+							}
 							Color color2 = picker.getValue();
-							if (color == color2)
+							if (color == color2 && name.equals(channel.getName()))
 								return;
 							
 							// Update the server metadata
-							var imageData = viewer.getImageData();
 							int colorUpdated = ColorToolsFX.getRGB(color2);
 							if (imageData != null) {
 								var server = imageData.getServer();
 								var metadata = server.getMetadata();
 								var channels = new ArrayList<>(metadata.getChannels());
-								var channel = channels.get(c);
-								channels.set(c, ImageChannel.getInstance(channel.getName(), colorUpdated));
+								channels.set(c, ImageChannel.getInstance(name, colorUpdated));
 								var metadata2 = new ImageServerMetadata.Builder(metadata)
 										.channels(channels).build();
 								imageData.updateServerMetadata(metadata2);
