@@ -10,6 +10,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
@@ -98,7 +99,11 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 		private QuPathViewer viewer;
 		
 		private GridPane pane;
-		
+
+		private Predicate<String> ALWAYS_TRUE = m -> true;
+		private String NO_CHANNEL_FILTER = "No filter (allow all channels)";
+		private ComboBox<String> comboChannels = new ComboBox<>();
+
 		private ComboBox<PathObjectFilter> comboFilter = new ComboBox<>();
 		
 		/**
@@ -107,7 +112,7 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 		private Map<String, Double> previousThresholds = new HashMap<>();
 		
 		private ObservableList<String> measurements = FXCollections.observableArrayList();
-		private FilteredList<String> measurementsFiltered = measurements.filtered(m -> true);
+		private FilteredList<String> measurementsFiltered = measurements.filtered(ALWAYS_TRUE);
 		
 		private ComboBox<String> comboMeasurements = new ComboBox<>(measurementsFiltered);
 		
@@ -162,9 +167,13 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 //			});
 			
 			int row = 0;
-			var labelFilter = new Label("Objects");
-			PaneTools.addGridRow(pane, row++, 0, "Select objects to classify", labelFilter, comboFilter, comboFilter);
 			
+			var labelFilter = new Label("Object filter");
+			PaneTools.addGridRow(pane, row++, 0, "Select objects to classify", labelFilter, comboFilter, comboFilter);
+
+			var labelChannels = new Label("Channel filter");
+			PaneTools.addGridRow(pane, row++, 0, "Optionally filter measurement lists & classifications by channel name", labelChannels, comboChannels, comboChannels);
+
 			var labelMeasurements = new Label("Measurement");
 			PaneTools.addGridRow(pane, row++, 0, "Select measurement to threshold", labelMeasurements, comboMeasurements, comboMeasurements);
 			
@@ -172,7 +181,7 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			PaneTools.addGridRow(pane, row++, 0, "Select threshold value", labelThreshold, sliderThreshold, tf);
 
 			var labelAbove = new Label("Above threshold");
-			PaneTools.addGridRow(pane, row++, 0, "Specify the classification for objects above the threshold", labelAbove, comboAbove, comboAbove);
+			PaneTools.addGridRow(pane, row++, 0, "Specify the classification for objects above (or equal to) the threshold", labelAbove, comboAbove, comboAbove);
 
 			var labelBelow = new Label("Below threshold");
 			PaneTools.addGridRow(pane, row++, 0, "Specify the classification for objects below the threshold", labelBelow, comboBelow, comboBelow);
@@ -185,7 +194,7 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			tfSaveName.setMaxWidth(Double.MAX_VALUE);
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.disableProperty().bind(comboMeasurements.valueProperty().isNull().or(tfSaveName.textProperty().isEmpty()));
-			PaneTools.addGridRow(pane, row++, 0, "Specify classifierName", labelSave, tfSaveName, btnSave);
+			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classify and (optionally) save it for later", labelSave, tfSaveName, btnSave);
 			
 			pane.add(histogramPane.getChart(), pane.getColumnCount(), 0, 1, pane.getRowCount());
 			
@@ -194,11 +203,12 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			histogramPane.getChart().setPrefHeight(80);
 			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);
 			histogramPane.getChart().setAnimated(false);
-			PaneTools.setToExpandGridPaneWidth(comboFilter, comboMeasurements, sliderThreshold, 
+			PaneTools.setToExpandGridPaneWidth(comboFilter, comboChannels, comboMeasurements, sliderThreshold, 
 					comboAbove, comboBelow, tfSaveName, cbLivePreview);
 			PaneTools.setToExpandGridPaneHeight(histogramPane.getChart());
 			
 			// Add listeners
+			comboChannels.valueProperty().addListener((v, o, n) -> updateChannelFilter());
 			comboMeasurements.valueProperty().addListener((v, o, n) -> {
 				if (o != null)
 					previousThresholds.put(o, getThreshold());
@@ -210,6 +220,37 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			comboBelow.valueProperty().addListener((v, o, n) -> maybePreview());
 			cbLivePreview.selectedProperty().addListener((v, o, n) -> maybePreview());
 		}
+		
+		
+		void updateChannelFilter() {
+			var selected = comboChannels.getSelectionModel().getSelectedItem();
+			if (selected == null || selected.isBlank() || NO_CHANNEL_FILTER.equals(selected)) {
+				measurementsFiltered.setPredicate(ALWAYS_TRUE);
+			} else {
+				var lowerSelected = selected.trim().toLowerCase();
+				Predicate<String> predicate = m -> m.toLowerCase().contains(lowerSelected);
+				if (measurements.stream().anyMatch(predicate))
+					measurementsFiltered.setPredicate(predicate);
+				else
+					measurementsFiltered.setPredicate(ALWAYS_TRUE);
+				
+				if (comboMeasurements.getSelectionModel().getSelectedItem() == null && !comboMeasurements.getItems().isEmpty())
+					comboMeasurements.getSelectionModel().selectFirst();
+				
+				var imageData = getImageData();
+				var pathClass = qupath.getAvailablePathClasses().stream()
+						.filter(p -> p.toString().toLowerCase().contains(lowerSelected))
+						.findFirst().orElse(null);
+				if (imageData != null && pathClass != null) {
+//					if (imageData.isBrightfield()) {
+					comboAbove.getSelectionModel().select(pathClass);
+					comboBelow.getSelectionModel().select(null);
+//					}
+				}
+				tfSaveName.setText(selected.trim());
+			}
+		}
+		
 		
 		private Map<PathObjectHierarchy, Map<PathObject, PathClass>> mapPrevious = new WeakHashMap<>();
 		
@@ -342,9 +383,32 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 		 */
 		void refreshOptions() {
 			refreshTitle();
+			refreshChannels();
 			updateAvailableClasses();
 			updateAvailableMeasurements();
 			updateThresholdSlider();
+		}
+		
+		void refreshChannels() {
+			var list = new ArrayList<String>();
+			list.add(NO_CHANNEL_FILTER);
+			var imageData = getImageData();
+			if (imageData != null) {
+				var stains = imageData.getColorDeconvolutionStains();
+				if (stains != null) {
+					for (int s = 1; s <= 3; s++) {
+						var stain = stains.getStain(s);
+						if (!stain.isResidual())
+							list.add(stain.getName());
+					}
+				}
+				for (var channel : imageData.getServer().getMetadata().getChannels()) {
+					list.add(channel.getName());
+				}
+			}
+			comboChannels.getItems().setAll(list);
+			if (comboChannels.getSelectionModel().getSelectedItem() == null)
+				comboChannels.getSelectionModel().selectFirst();
 		}
 		
 		void updateAvailableClasses() {
@@ -446,7 +510,7 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			var threshold = getThreshold();
 			var classAbove = comboAbove.getValue();
 			var classBelow = comboBelow.getValue();
-			var classEquals = classAbove;
+			var classEquals = classAbove; // We use >= and if this changes the tooltip must change too!
 			
 			if (measurement == null || Double.isNaN(threshold))
 				return null;
