@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +15,10 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -40,6 +45,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
@@ -55,11 +61,11 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SingleMeasurementClassificationCommand.class);
 	
-	private static String title = "Create measurement classifier";
+	private static String title = "Single measurement classifier";
 	
 	private QuPathGUI qupath;
 	
-	private SingleMeasurementPane pane;
+	private Map<QuPathViewer, SingleMeasurementPane> paneMap = new WeakHashMap<>();
 	
 	/**
 	 * Constructor.
@@ -71,19 +77,25 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		if (pane == null)
-			pane = new SingleMeasurementPane(qupath);
+		var viewer = qupath.getViewer();
+		var pane = paneMap.get(viewer);
+		if (pane == null) {
+			pane = new SingleMeasurementPane(qupath, viewer);
+			paneMap.put(viewer, pane);
+		}
 		if (pane.dialog != null) {
 			pane.dialog.getDialogPane().requestFocus();
-		} else
+		} else {
 			pane.show();
+		}
 	}
 	
 	
 	
-	static class SingleMeasurementPane {
+	static class SingleMeasurementPane implements ChangeListener<ImageData<BufferedImage>> {
 		
 		private QuPathGUI qupath;
+		private QuPathViewer viewer;
 		
 		private GridPane pane;
 		
@@ -113,10 +125,13 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 		
 		private Dialog<ButtonType> dialog;
 		
+		private StringProperty titleProperty = new SimpleStringProperty(title);
+		
 		private ExecutorService pool;
 		
-		SingleMeasurementPane(QuPathGUI qupath) {
+		SingleMeasurementPane(QuPathGUI qupath, QuPathViewer viewer) {
 			this.qupath = qupath;
+			this.viewer = viewer;
 			
 			// Object selection filter
 			this.comboFilter.getItems().setAll(
@@ -196,36 +211,58 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			cbLivePreview.selectedProperty().addListener((v, o, n) -> maybePreview());
 		}
 		
+		private Map<PathObjectHierarchy, Map<PathObject, PathClass>> mapPrevious = new WeakHashMap<>();
+		
+		/**
+		 * Store the classifications for the current hierarchy, so these may be reset if the user cancels.
+		 */
+		void storeClassificationMap(PathObjectHierarchy hierarchy) {
+			if (hierarchy == null)
+				return;
+			var pathObjects = hierarchy.getFlattenedObjectList(null);
+			mapPrevious.put(
+					hierarchy,
+					PathClassifierTools.createClassificationMap(pathObjects)
+					);
+		}
+		
 		public void show() {
-			var imageData = qupath.getImageData();
+			var imageData = viewer.getImageData();
 			if (imageData == null) {
 				Dialogs.showNoImageError(title);
 				return;
 			}
 			
-			var pathObjects = imageData.getHierarchy().getFlattenedObjectList(null);
-			Map<PathObject, PathClass> mapPrevious = PathClassifierTools.createClassificationMap(pathObjects);
-
+			viewer.getImageDataProperty().addListener(this);
+			
+			storeClassificationMap(imageData.getHierarchy());
 			refreshOptions();
+			
 			pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("single-measurement-classifier", true));
 			
 			dialog = new Dialog<ButtonType>();
 			dialog.initOwner(qupath.getStage());
-			dialog.setTitle(title);
+			dialog.titleProperty().bind(titleProperty);
 			dialog.getDialogPane().setContent(pane);
 			dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
 			dialog.initModality(Modality.NONE);
 			
+			dialog.getDialogPane().focusedProperty().addListener((v, o, n) -> {
+				if (n)
+					refreshTitle();
+			});
+			
 			dialog.setOnCloseRequest(e -> {
-				cleanup(imageData, mapPrevious, ButtonType.APPLY.equals(dialog.getResult()));
+				cleanup(ButtonType.APPLY.equals(dialog.getResult()));
 			});			
 			
 			dialog.show();
+			maybePreview();
 		}
 		
 		
 		
-		void cleanup(ImageData<BufferedImage> imageData, Map<PathObject, PathClass> mapPrevious, boolean applyLastClassifier) {
+		void cleanup(boolean applyLastClassifier) {
 			pool.shutdown();
 			try {
 				pool.awaitTermination(5000L, TimeUnit.SECONDS);
@@ -241,15 +278,17 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 //				imageData.getHistoryWorkflow().addStep(nextRequest.toWorkflowStep());
 			} else {
 				// Restore classifications if the user cancelled
-				resetClassifications(imageData.getHierarchy(), mapPrevious);
+				for (var entry : mapPrevious.entrySet())
+					resetClassifications(entry.getKey(), entry.getValue());
 			}
+			viewer.getImageDataProperty().removeListener(this);
 			dialog = null;
 		}
 		
 		
 		
 		ImageData<BufferedImage> getImageData() {
-			return qupath.getImageData();
+			return viewer.getImageData();
 		}
 		
 		PathObjectHierarchy getHierarchy() {
@@ -280,7 +319,29 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			return sliderThreshold.getValue();
 		}
 		
+		void refreshTitle() {
+			var imageData = getImageData();
+			var project = qupath.getProject();
+			if (imageData == null)
+				titleProperty.set(title);
+			else {
+				String imageName = null;
+				if (project != null) {
+					var entry = project.getEntry(imageData);
+					if (entry != null)
+						imageName = entry.getImageName();
+				}
+				if (imageName == null)
+					imageName = imageData.getServer().getMetadata().getName();
+				titleProperty.set(title + " (" + imageName + ")");
+			}
+		}
+		
+		/**
+		 * Refresh all displayed options to match the current image
+		 */
 		void refreshOptions() {
+			refreshTitle();
 			updateAvailableClasses();
 			updateAvailableMeasurements();
 			updateThresholdSlider();
@@ -374,6 +435,8 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 				return null;
 			}
 			var classifier = updateClassifier();
+			if (classifier == null)
+				return null;
 			return new ClassificationRequest<>(imageData, classifier);
 		}
 		
@@ -401,6 +464,16 @@ public class SingleMeasurementClassificationCommand implements PathCommand {
 			if (nextRequest == null || nextRequest.isComplete())
 				return;
 			nextRequest.doClassification();
+		}
+
+		@Override
+		public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
+				ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
+			
+			if (newValue != null && ! mapPrevious.containsKey(newValue.getHierarchy()))
+				storeClassificationMap(newValue.getHierarchy());
+			
+			refreshOptions();
 		}
 		
 		
