@@ -166,11 +166,13 @@ public class CellIntensityClassificationCommand implements PathCommand {
 		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
 		var response = dialog.showAndWait().orElse(ButtonType.CANCEL);
 				
-		pool.shutdown();
-		try {
-			pool.awaitTermination(5000L, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			logger.debug("Exception waiting for classification to complete: " + e.getLocalizedMessage(), e);
+		if (pool != null) {
+			pool.shutdown();
+			try {
+				pool.awaitTermination(5000L, TimeUnit.SECONDS);
+			} catch (InterruptedException e) {
+				logger.debug("Exception waiting for classification to complete: " + e.getLocalizedMessage(), e);
+			}
 		}
 		
 		// Check if we did anything, if not return
