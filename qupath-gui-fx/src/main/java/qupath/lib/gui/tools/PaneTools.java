@@ -1,6 +1,7 @@
 package qupath.lib.gui.tools;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
@@ -146,7 +147,30 @@ public class PaneTools {
 		for (var n : nodes)
 			GridPane.setFillWidth(n, doFill);
 	}
+	
+	/**
+	 * Set constraints and max width values (where possible) so that the specified nodes 
+	 * fill all available horizontal space in a {@link GridPane}.
+	 * @param nodes
+	 */
+	public static void setToExpandGridPaneWidth(Node...nodes) {
+		setFillWidth(Boolean.TRUE, nodes);
+		setHGrowPriority(Priority.ALWAYS, nodes);
+		setMaxWidth(Double.MAX_VALUE, Arrays.stream(nodes).filter(n -> n instanceof Region).map(n -> (Region)n).toArray(Region[]::new));
+	}
+	
+	/**
+	 * Set constraints and max width values (where possible) so that the specified nodes 
+	 * fill all available vertical space in a {@link GridPane}.
+	 * @param nodes
+	 */
+	public static void setToExpandGridPaneHeight(Node...nodes) {
+		setFillHeight(Boolean.TRUE, nodes);
+		setVGrowPriority(Priority.ALWAYS, nodes);
+		setMaxHeight(Double.MAX_VALUE, Arrays.stream(nodes).filter(n -> n instanceof Region).map(n -> (Region)n).toArray(Region[]::new));
+	}
 
+	
 	/**
 	 * Set the {@link GridPane#setFillHeight(Node, Boolean)} property for specified nodes.
 	 * @param doFill

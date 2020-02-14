@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 
 import com.google.gson.reflect.TypeToken;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.GsonTools;
 
@@ -65,6 +68,14 @@ public class ResourceManager {
 		 * @throws IOException
 		 */
 		public void put(String name, T resource) throws IOException;
+		
+		/**
+		 * Remove a resource within the project.
+		 * @param name
+		 * @return true if a resource was successfully removed, false otherwise
+		 * @throws IOException
+		 */
+		public boolean remove(String name) throws IOException;
 			
 	}
 
@@ -107,10 +118,27 @@ public class ResourceManager {
 			return listFilenames(dir, ext);
 		}
 		
+		/**
+		 * Remove a resource within the project.
+		 * @param name
+		 * @throws IOException
+		 */
+		@Override
+		public boolean remove(String name) throws IOException {
+			var path = Paths.get(dir.toString(), name + ext);
+			if (Files.exists(path)) {
+				GeneralTools.deleteFile(path.toFile(), true);
+				return true;
+			}
+			return false;
+		}
+		
 	}
 
 
 	static class StringFileResourceManager extends FileResourceManager<String> {
+		
+		private Charset charset = StandardCharsets.UTF_8;
 
 		StringFileResourceManager(Path dir) {
 			super(dir, ".txt");
@@ -124,14 +152,14 @@ public class ResourceManager {
 		public String get(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			if (Files.exists(path))
-				return Files.readString(path);
+				return Files.readString(path, charset);
 			throw new IOException("No script found with name '" + name + "'");
 		}
 
 		@Override
 		public void put(String name, String resource) throws IOException {
 			var path = Paths.get(ensureDirectoryExists(dir).toString(), name + ext);
-			Files.writeString(path, resource, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+			Files.writeString(path, resource, charset, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 		}
 		
 	}
@@ -196,6 +224,8 @@ public class ResourceManager {
 
 	static class JsonFileResourceManager<T> extends FileResourceManager<T> {
 		
+		private Charset charset = StandardCharsets.UTF_8;
+		
 		private Class<T> cls;
 		
 		JsonFileResourceManager(Path dir, Class<T> cls) {
@@ -206,7 +236,7 @@ public class ResourceManager {
 		@Override
 		public T get(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
-			try (var reader = Files.newBufferedReader(path)) {
+			try (var reader = Files.newBufferedReader(path, charset)) {
 				return GsonTools.getInstance(true).fromJson(reader, cls);
 			}
 		}
@@ -217,7 +247,7 @@ public class ResourceManager {
 				Files.createDirectories(dir);
 			var path = Paths.get(dir.toString(), name + ext);
 			
-			try (var writer = Files.newBufferedWriter(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+			try (var writer = Files.newBufferedWriter(path, charset, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
 				var gson = GsonTools.getInstance(true);
 //				String json = gson.toJson(resource, cls);
 //				writer.write(gson.toJson(resource, cls));

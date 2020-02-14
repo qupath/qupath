@@ -3,10 +3,12 @@ package qupath.lib.images.servers;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.regions.ImageRegion;
 
@@ -73,6 +75,64 @@ public class TransformedServerBuilder {
 	 */
 	public TransformedServerBuilder rotate(Rotation rotation) {
 		server = new RotatedImageServer(server, rotation);
+		return this;
+	}
+	
+	/**
+	 * Extract specified channels for an image.
+	 * @param channels indices (0-based) of channels to extract.
+	 * @return
+	 */
+	public TransformedServerBuilder extractChannels(int... channels) {
+		var transforms = new ArrayList<ColorTransform>();
+		for (int c : channels) {
+			transforms.add(ColorTransforms.createChannelExtractor(c));
+		}
+		server = new ChannelTransformFeatureServer(server, transforms);
+		return this;
+	}
+	
+	/**
+	 * Extract specified channels for an image.
+	 * @param names names of channels to extract.
+	 * @return
+	 */
+	public TransformedServerBuilder extractChannels(String... names) {
+		var transforms = new ArrayList<ColorTransform>();
+		for (String n : names) {
+			transforms.add(ColorTransforms.createChannelExtractor(n));
+		}
+		server = new ChannelTransformFeatureServer(server, transforms);
+		return this;
+	}
+	
+	/**
+	 * Perform a maximum projection of the channels.
+	 * @return
+	 */
+	public TransformedServerBuilder maxChannelProject() {
+		server = new ChannelTransformFeatureServer(server, 
+				Arrays.asList(ColorTransforms.createMaximumChannelTransform()));
+		return this;
+	}
+	
+	/**
+	 * Perform an average (mean) projection of the channels.
+	 * @return
+	 */
+	public TransformedServerBuilder averageChannelProject() {
+		server = new ChannelTransformFeatureServer(server, 
+				Arrays.asList(ColorTransforms.createMeanChannelTransform()));
+		return this;
+	}
+	
+	/**
+	 * Perform a minimum projection of the channels.
+	 * @return
+	 */
+	public TransformedServerBuilder minChannelProject() {
+		server = new ChannelTransformFeatureServer(server, 
+				Arrays.asList(ColorTransforms.createMinimumChannelTransform()));
 		return this;
 	}
 	

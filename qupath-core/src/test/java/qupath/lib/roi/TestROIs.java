@@ -38,6 +38,7 @@ public class TestROIs {
 	public void testAreas() {
 		
 		double delta = 0.01;
+		double deltaLarge = 0.5; // Because of Geometry precision reduction, sometimes a larger delta is needed (still < 1 pixel)
 		
 		// Sample pixel sizes
 		double pixelWidth = 0.5;
@@ -88,7 +89,7 @@ public class TestROIs {
 					if (roi instanceof EllipseROI) {
 						assertTrue(Math.abs(roi.getArea() - geom.getArea())/roi.getArea() < 0.01);
 					} else
-						assertEquals(roi.getArea(), geom.getArea(), delta);
+						assertEquals(roi.getArea(), geom.getArea(), deltaLarge);
 				} else if (roi.isLine()) {
 					assertEquals(roi.getLength(), geom.getLength(), delta);				
 				} else if (roi.isPoint()) {
@@ -100,8 +101,8 @@ public class TestROIs {
 				checkROIMeasurements(areaAdded, pixelWidth, pixelHeight, delta);
 				
 				for (var split : RoiTools.splitROI(roi)) {
-					checkROIMeasurements(split, 1, 1, delta);
-					checkROIMeasurements(split, pixelWidth, pixelHeight, delta);
+					checkROIMeasurements(split, 1, 1, deltaLarge);
+					checkROIMeasurements(split, pixelWidth, pixelHeight, deltaLarge);
 				}
 			}
 		} catch (Exception e) {

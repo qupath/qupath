@@ -3,20 +3,22 @@ package qupath.lib.gui.ml;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
@@ -24,6 +26,8 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
+import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
+import qupath.opencv.tools.LocalNormalization.SmoothingScale;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 /**
@@ -188,6 +192,26 @@ abstract class FeatureCalculatorBuilder {
 	static class DefaultFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
 		
 		private final static Logger logger = LoggerFactory.getLogger(DefaultFeatureCalculatorBuilder.class);
+		
+		private static enum NormalizationType {
+			NONE,
+			GAUSSIAN_MEAN,
+			GAUSSIAN_MEAN_VARIANCE;
+			
+			@Override
+			public String toString() {
+				switch(this) {
+				case GAUSSIAN_MEAN:
+					return "Local mean subtraction only";
+				case GAUSSIAN_MEAN_VARIANCE:
+					return "Local mean & variance";
+				case NONE:
+					return "None";
+				default:
+					throw new IllegalArgumentException("Unknown normalization " + this);
+				}
+			}
+		}
 
 		private GridPane pane;
 		private CheckComboBox<String> comboChannels;
@@ -195,8 +219,11 @@ abstract class FeatureCalculatorBuilder {
 		private ObservableList<String> selectedChannels;
 		private ObservableList<Double> selectedSigmas;
 		private ObservableList<MultiscaleFeature> selectedFeatures;
+		
+		private ObservableList<NormalizationType> localNormalizations = FXCollections.observableArrayList(NormalizationType.values());
 
-		private ObservableBooleanValue doNormalize;
+		private ObservableObjectValue<NormalizationType> normalization;
+		private ObservableObjectValue<Double> normalizationSigma;
 		private ObservableBooleanValue do3D;
 		
 		public DefaultFeatureCalculatorBuilder(ImageData<BufferedImage> imageData) {
@@ -259,16 +286,21 @@ abstract class FeatureCalculatorBuilder {
 			},
 					selectedFeatures));
 
-
-			var cbNormalize = new CheckBox("Do local normalization");
-			doNormalize = cbNormalize.selectedProperty();
+			var labelNormalize = new Label("Local normalization");
+			var comboNormalize = new ComboBox<>(localNormalizations);
+			normalization = comboNormalize.getSelectionModel().selectedItemProperty();
+			comboNormalize.getSelectionModel().selectFirst();
+			
+			var labelNormalizeScale = new Label("Local normalization scale");
+			var spinnerNormalize = new Spinner<Double>(0.0, 32.0, 8.0, 1.0);
+			normalizationSigma = spinnerNormalize.valueProperty();
 
 			var cb3D = new CheckBox("Use 3D filters");
 			do3D = cb3D.selectedProperty();
 
 
 			PaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
-					cbNormalize, cb3D);
+					comboNormalize, spinnerNormalize, cb3D);
 
 			PaneTools.addGridRow(pane, row++, 0,
 					"Choose the image channels used to calculate features",
@@ -283,12 +315,16 @@ abstract class FeatureCalculatorBuilder {
 					labelFeatures, comboFeatures);		
 
 			PaneTools.addGridRow(pane, row++, 0,
-					"Apply local intensity normalization before calculating features",
-					cbNormalize, cbNormalize);		
-
-			PaneTools.addGridRow(pane, row++, 0,
 					"Use 3D filters (rather than 2D)",
 					cb3D, cb3D);	
+
+			PaneTools.addGridRow(pane, row++, 0,
+					"Apply local intensity (Gaussian-weighted) normalization before calculating features",
+					labelNormalize, comboNormalize);
+			
+			PaneTools.addGridRow(pane, row++, 0,
+					"Amount of smoothing to apply for local normalization",
+					labelNormalizeScale, spinnerNormalize);
 
 			//			GridPaneTools.addGridRow(pane, row++, 0,
 			//					"Choose the image channels used to calculate features",
@@ -319,12 +355,43 @@ abstract class FeatureCalculatorBuilder {
 
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
 			String[] channels = selectedChannels.toArray(String[]::new);
+			
+			LocalNormalizationType norm = null;
+			
+			double localNormalizeSigma = normalizationSigma.get();
+			double varianceScaleRatio = 1.0; // TODO: Make the variance scale ratio editable
+			SmoothingScale scale;
+			if (do3D.get())
+				scale = SmoothingScale.get3DIsotropic(localNormalizeSigma);
+			else
+				scale = SmoothingScale.get2D(localNormalizeSigma);
+			
+			if (localNormalizeSigma > 0) {
+				switch (normalization.get()) {
+				case GAUSSIAN_MEAN:
+					norm = LocalNormalizationType.getInstance(scale, 0.0);
+					break;
+				case GAUSSIAN_MEAN_VARIANCE:
+					norm = LocalNormalizationType.getInstance(scale, varianceScaleRatio);
+					break;
+				case NONE:
+				default:
+					break;
+				}
+			}
+
+//			SmoothingScale.getInstance(scaleType, localNormalizeSigma), varianceScaleRatio
+			
+//			return FeatureCalculators.createNormalizingFeatureCalculator(
+//					Arrays.stream(channels).map(c -> ColorTransforms.createChannelExtractor(c)).collect(Collectors.toList()),
+//					norm);
+			
 			return FeatureCalculators.createMultiscaleFeatureCalculator(
 					channels,
 					sigmas,
-					doNormalize.get() && sigmas.length >= 1 ? sigmas[sigmas.length-1] * 4.0 : 0,
-							do3D.get() ? true : false,
-									features
+					norm,
+					do3D.get() ? true : false,
+					features
 					);
 		}
 

@@ -28,10 +28,10 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.scripting.QP;
 
 
 /**
@@ -58,9 +58,9 @@ public class MergeSelectedAnnotationsCommand implements PathCommand {
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		logger.debug("Merging selected annotations");
-		PathObject merged = QPEx.mergeSelectedAnnotations(hierarchy);
-		if (merged != null)
-			hierarchy.getSelectionModel().setSelectedObject(merged);
+		QP.mergeSelectedAnnotations(hierarchy);
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Merge selected annotations",
+				"mergeSelectedAnnotations()"));
 	}
 
 }

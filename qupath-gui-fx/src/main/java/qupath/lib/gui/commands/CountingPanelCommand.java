@@ -40,6 +40,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToolBar;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -54,8 +55,8 @@ import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.CountingPanel;
-import qupath.lib.gui.panels.PathAnnotationPanel;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PointIO;
@@ -168,14 +169,14 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				if (file == null)
 					return;
 				try {
-					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultAnnotations());
+					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultObjects());
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save points error", e);
 				}
 			}
 		);
 		
-		GridPane panelLoadSave = PathAnnotationPanel.createColumnGridControls(
+		GridPane panelLoadSave = PaneTools.createColumnGridControls(
 				btnLoad,
 				btnSave
 				);
@@ -197,10 +198,12 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		Pane convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
 		
+		var cbConvex = qupath.getActionCheckBox(GUIActions.CONVEX_POINTS, false);
+		var cbSelected = qupath.getActionCheckBox(GUIActions.USE_SELECTED_COLOR, false);
 //		panel.setSpacing(5);
 		panel.getChildren().addAll(
-				qupath.getActionCheckBox(GUIActions.CONVEX_POINTS, false),
-				qupath.getActionCheckBox(GUIActions.USE_SELECTED_COLOR, false),
+				cbConvex,
+				cbSelected,
 				sliderPane,
 				convertPane,
 				panelLoadSave
@@ -246,7 +249,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		dialog = new Stage();
 		dialog.setTitle("Counting");
 		
-		countingPanel = new CountingPanel(hierarchy);
+		countingPanel = new CountingPanel(qupath, hierarchy);
 //		countingPanel.setSize(countingPanel.getPreferredSize());
 		BorderPane pane = new BorderPane();
 		
@@ -255,6 +258,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 			pane.setTop(toolbar);
 		pane.setCenter(countingPanel.getPane());
 		Pane panelButtons = makeButtonPanel();
+		panelButtons.setPadding(new Insets(5, 0, 0, 0));
 		if (panelButtons != null)
 			pane.setBottom(panelButtons);
 		

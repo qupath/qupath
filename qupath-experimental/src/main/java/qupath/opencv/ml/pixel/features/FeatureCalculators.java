@@ -19,12 +19,13 @@ import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ColorTransforms;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
-import qupath.opencv.ml.pixel.features.ColorTransforms.ColorTransform;
-import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.ScaleType;
-import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.SmoothingScale;
 import qupath.opencv.ml.pixel.features.MultiscaleFeatureCalculator.TransformedFeatureComputer;
+import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
+import qupath.opencv.tools.LocalNormalization.SmoothingScale;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 public class FeatureCalculators {
@@ -76,18 +77,20 @@ public class FeatureCalculators {
 	
 	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(
 			String[] channels,
-			double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
+			double[] sigmaValues, LocalNormalizationType localNormalization, boolean do3D, MultiscaleFeature... features) {
 		return createMultiscaleFeatureCalculator(
 				Arrays.stream(channels).map(c -> ColorTransforms.createChannelExtractor(c)).collect(Collectors.toList()),
-				sigmaValues, localNormalizeSigma, do3D, features);
+				sigmaValues, localNormalization, do3D, features);
 	}
 	
 	public static FeatureCalculator<BufferedImage> createMultiscaleFeatureCalculator(
-			Collection<ColorTransform> transforms, double[] sigmaValues, double localNormalizeSigma, boolean do3D, MultiscaleFeature... features) {
+			Collection<ColorTransform> transforms, double[] sigmaValues, LocalNormalizationType localNormalization, boolean do3D, MultiscaleFeature... features) {
 		List<SmoothingScale> scales = new ArrayList<>();
-		ScaleType scaleType = do3D ? ScaleType.SCALE_3D_ISOTROPIC : ScaleType.SCALE_2D;
 		for (double sigma : sigmaValues) {
-			scales.add(SmoothingScale.getInstance(scaleType, sigma));				
+			if (do3D)
+				scales.add(SmoothingScale.get3DIsotropic(sigma));				
+			else
+				scales.add(SmoothingScale.get2D(sigma));				
 		}
 		
 		List<TransformedFeatureComputer> computers = new ArrayList<>();
@@ -101,12 +104,34 @@ public class FeatureCalculators {
 		
 		var calculator = new MultiscaleFeatureCalculator.Builder()
 				.addFeatures(computers)
-				.localNormalization(SmoothingScale.getInstance(scaleType, localNormalizeSigma), false)
+				.localNormalization(localNormalization)
 				.build();
 		
 //		System.err.println(GsonTools.getInstance(true).toJson(calculator));
 		
 		return calculator;
+	}
+	
+	/**
+	 * Create a FeatureCalculator that only applies color transforms and local normalization.
+	 * @param transforms
+	 * @param localNormalization
+	 * @return
+	 */
+	public static FeatureCalculator<BufferedImage> createNormalizingFeatureCalculator(
+			Collection<ColorTransform> transforms, LocalNormalizationType localNormalization) {
+		
+		List<TransformedFeatureComputer> computers = new ArrayList<>();
+		for (var transform : transforms) {
+			var builder = new TransformedFeatureComputer.Builder(transform);
+			builder.addIdentityFeature();
+			computers.add(builder.build());
+		}
+		
+		return new MultiscaleFeatureCalculator.Builder()
+				.addFeatures(computers)
+				.localNormalization(localNormalization)
+				.build();
 	}
 	
 	

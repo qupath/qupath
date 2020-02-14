@@ -63,13 +63,17 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.transform.Affine;
+import javafx.scene.transform.MatrixType;
 import javafx.scene.transform.NonInvertibleTransformException;
 import javafx.scene.transform.TransformChangedEvent;
 import javafx.stage.Stage;
@@ -348,10 +352,34 @@ public class ImageAlignmentPane {
 				logger.error("Error trying to invert affine transform: " + ex.getLocalizedMessage(), ex);
 			};
 		});
+		Button btnCopy = new Button("Copy");
+		btnCopy.setOnAction(e -> {
+			var overlay = getSelectedOverlay();
+			var affine = overlay == null ? null : overlay.getAffine();
+			if (affine == null) {
+				logger.warn("No transform found, can't copy to clipboard!");
+				return;
+			}
+			ClipboardContent content = new ClipboardContent();
+			String s = affine.getElement(MatrixType.MT_2D_2x3, 0, 0) + ",\t" +
+					affine.getElement(MatrixType.MT_2D_2x3, 0, 1) + ",\t" +
+					affine.getElement(MatrixType.MT_2D_2x3, 0, 2) + "\n" +
+					affine.getElement(MatrixType.MT_2D_2x3, 1, 0) + ",\t" +
+					affine.getElement(MatrixType.MT_2D_2x3, 1, 1) + ",\t" +
+					affine.getElement(MatrixType.MT_2D_2x3, 1, 2);
+			content.putString(s);
+			Clipboard.getSystemClipboard().setContent(content);
+		});
 		btnReset.disableProperty().bind(noOverlay);
+		btnReset.setTooltip(new Tooltip("Reset the transform"));
+		btnInvert.disableProperty().bind(noOverlay);
+		btnInvert.setTooltip(new Tooltip("Invert the transform"));
 		btnUpdate.disableProperty().bind(noOverlay);
+		btnUpdate.setTooltip(new Tooltip("Update the transform using the current text"));
+		btnCopy.disableProperty().bind(noOverlay);
+		btnCopy.setTooltip(new Tooltip("Copy the current transform to clipboard"));
 		textArea.editableProperty().bind(noOverlay.not());
-		paneTransform.add(PaneTools.createColumnGridControls(btnUpdate, btnInvert, btnReset), 0, row++);
+		paneTransform.add(PaneTools.createColumnGridControls(btnUpdate, btnInvert, btnReset, btnCopy), 0, row++);
 		PaneTools.setFillWidth(Boolean.TRUE, paneTransform.getChildren().toArray(Node[]::new));
 		PaneTools.setHGrowPriority(Priority.ALWAYS, paneTransform.getChildren().toArray(Node[]::new));
 		paneTransform.setVgap(5.0);
@@ -561,8 +589,8 @@ public class ImageAlignmentPane {
 		Affine affine = overlay.getAffine();
 		affineStringProperty.set(
 				String.format(
-				"%.3f, \t %.3f,\t %.3f,\n" + 
-				"%.3f,\t %.3f,\t %.3f",
+				"%.4f, \t %.4f,\t %.4f,\n" + 
+				"%.4f,\t %.4f,\t %.4f",
 //				String.format("Transform: [\n" +
 //				"  %.3f, %.3f, %.3f,\n" + 
 //				"  %.3f, %.3f, %.3f\n" + 

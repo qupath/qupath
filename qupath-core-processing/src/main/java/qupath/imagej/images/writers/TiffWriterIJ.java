@@ -23,7 +23,6 @@
 
 package qupath.imagej.images.writers;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
@@ -31,8 +30,6 @@ import java.util.Collection;
 
 import ij.ImagePlus;
 import ij.io.FileSaver;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * ImageWriter implementation to write TIFF images using ImageJ.

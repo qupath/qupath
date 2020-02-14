@@ -155,6 +155,7 @@ import qupath.lib.gui.tma.entries.TMAObjectEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry;
 import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
 import qupath.lib.gui.tools.ChartTools;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -378,7 +379,7 @@ public class TMASummaryViewer {
 		
 		
 
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuFile,
 				miOpen,
 				miSave,
@@ -411,7 +412,8 @@ public class TMASummaryViewer {
 		
 		BorderPane pane = new BorderPane();
 		pane.setTop(menuBar);
-		menuBar.setUseSystemMenuBar(true);
+		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+//		menuBar.setUseSystemMenuBar(true);
 
 		// Create options
 		ToolBar toolbar = new ToolBar();

@@ -56,7 +56,7 @@ public class CommandListDisplayCommand implements PathCommand {
 			dialog = CommandFinderTools.createCommandFinderDialog(qupath);
 		}
 		dialog.show();
-		qupath.getMenuBar().setUseSystemMenuBar(true);
+//		qupath.getMenuBar().setUseSystemMenuBar(true);
 //		textField.requestFocus();
 	}
 		

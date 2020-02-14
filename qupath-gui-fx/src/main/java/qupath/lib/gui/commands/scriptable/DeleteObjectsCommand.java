@@ -69,7 +69,12 @@ public class DeleteObjectsCommand implements PathCommand {
 			int n = hierarchy.nObjects();
 			if (n == 0)
 				return;
-			if (Dialogs.showYesNoDialog("Delete objects", "Delete " + n + " objects?")) {
+			String message;
+			if (n == 1)
+				message = "Delete object?";
+			else
+				message = "Delete all " + n + " objects?";
+			if (Dialogs.showYesNoDialog("Delete objects", message)) {
 				hierarchy.clearAll();
 				hierarchy.getSelectionModel().setSelectedObject(null);
 				imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Clear all objects", "clearAllObjects();"));

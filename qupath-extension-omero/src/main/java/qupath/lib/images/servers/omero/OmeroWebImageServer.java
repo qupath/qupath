@@ -107,7 +107,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		int sizeT = 1;
 		int sizeZ = 1;
 		int sizeC = 3;
-		int[] tileSize = {256, 256};
+		int[] tileSize = null;//{256, 256};
 		double pixelWidthMicrons = Double.NaN;
 		double pixelHeightMicrons = Double.NaN;
 		double zSpacingMicrons = Double.NaN;
@@ -185,6 +185,10 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 			} else {
 				tileSize = new int[] {sizeX, sizeY};
 			}
+		} else {
+			int tileSizeX = Math.min(sizeX, 3192);
+			int tileSizeY = Math.min(sizeY, 3192);
+			tileSize = new int[] {tileSizeX, tileSizeY};
 		}
 
 		if (map.has("nominalMagnification"))

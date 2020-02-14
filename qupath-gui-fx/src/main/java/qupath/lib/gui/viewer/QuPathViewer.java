@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -736,7 +737,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.viewerBackgroundColorProperty(), repainterEntire);
 		
 		manager.attachListener(PathPrefs.useSelectedColorProperty(), repainter);
-		manager.attachListener(PathPrefs.colorDefaultAnnotationsProperty(), repainter);
+		manager.attachListener(PathPrefs.colorDefaultObjectsProperty(), repainterOverlay);
 		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
@@ -886,7 +887,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			overlayOptionsManager.attachListener(overlayOptions.fillDetectionsProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.hiddenClassesProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.measurementMapperProperty(), repainterOverlay);
-			overlayOptionsManager.attachListener(overlayOptions.cellDisplayModeProperty(), repainterOverlay);
+			overlayOptionsManager.attachListener(overlayOptions.detectionDisplayModeProperty(), repainterOverlay);
 			overlayOptionsManager.attachListener(overlayOptions.showConnectionsProperty(), repainterOverlay);
 
 			overlayOptionsManager.attachListener(overlayOptions.showAnnotationsProperty(), repainter);
@@ -1458,13 +1459,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			return;
 		
 		imageDataChanging.set(true);
-
+		
 		// Remove listeners for previous hierarchy
 		ImageData<BufferedImage> imageDataOld = this.imageDataProperty.get();
 		if (imageDataOld != null) {
 			imageDataOld.getHierarchy().removePathObjectListener(this);
 			imageDataOld.getHierarchy().getSelectionModel().removePathObjectSelectionListener(this);
 		}
+		
+		// Determine if the server has remained the same, so we can avoid shifting the viewer
+		boolean sameServer = false;
+		if (imageDataOld != null && imageDataNew != null && imageDataOld.getServerPath().equals(imageDataNew.getServerPath()))
+			sameServer = true;
 
 		this.imageDataProperty.set(imageDataNew);
 		ImageServer<BufferedImage> server = imageDataNew == null ? null : imageDataNew.getServer();
@@ -1479,8 +1485,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		initializeForServer(server);
 		
-		setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
-		centerImage();
+		if (!sameServer) {
+			setDownsampleFactorImpl(getZoomToFitDownsampleFactor(), -1, -1);
+			centerImage();
+		}
 
 		fireImageDataChanged(imageDataOld, imageDataNew);
 
@@ -1772,7 +1780,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Paint the selected object
 		PathObjectHierarchy hierarchy = getHierarchy();
 		PathObject mainSelectedObject = getSelectedObject();
-		Rectangle2D boundsShape = null;
+		Rectangle2D boundsRect = null;
 		for (PathObject selectedObject : hierarchy.getSelectionModel().getSelectedObjects().toArray(new PathObject[0])) {
 			// TODO: Simplify this...
 			if (selectedObject != null && selectedObject.hasROI() && selectedObject.getROI().getZ() == getZPosition() && selectedObject.getROI().getT() == getTPosition()) {
@@ -1788,8 +1796,17 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				
 				ROI pathROI = selectedObject.getROI();
 //				if ((PathPrefs.getPaintSelectedBounds() || (selectedObject.isDetection() && !PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI)) {
-				if ((PathPrefs.getPaintSelectedBounds() || (!PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI)) {
-					boundsShape = AwtTools.getBounds2D(pathROI, boundsShape);
+				if (pathROI != null && (PathPrefs.getPaintSelectedBounds() || (!PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI) && !pathROI.isEmpty()) {
+					Shape boundsShape = null;
+					if (pathROI.isPoint()) {
+						var hull = pathROI.getConvexHull();
+						if (hull != null)
+							boundsShape = hull.getShape();
+					}
+					if (boundsShape == null) {
+						boundsRect = AwtTools.getBounds2D(pathROI, boundsRect);
+						boundsShape = boundsRect;
+					}
 					// Tried to match to pixel boundaries... but resulted in too much jiggling
 //					boundsShape.setFrame(
 //							Math.round(boundsShape.getX()/downsampleFactor)*downsampleFactor-downsampleFactor,
@@ -2376,11 +2393,40 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 
 	/**
+	 * Get a string representing the object classification x &amp; y location in the viewer component,
+	 * or an empty String if no object is found.
+	 * 
+	 * @param x x-coordinate in the component space (not image space)
+	 * @param y y-coordinate in the component space (not image space)
+	 * @return a String to display representing the object classification
+	 */
+	public String getObjectClassificationString(double x, double y) {
+		var hierarchy = getHierarchy();
+		if (hierarchy == null)
+			return "";
+		var p2 = componentPointToImagePoint(x, y, null, false);
+		var pathObjects = PathObjectTools.getObjectsForLocation(hierarchy,
+				p2.getX(), p2.getY(),
+				getZPosition(),
+				getTPosition(),
+				0);
+		if (!pathObjects.isEmpty()) {
+			return pathObjects.stream()
+					.filter(pathObject -> pathObject.isDetection())
+					.map(pathObject -> {
+				var pathClass = pathObject.getPathClass();
+				return pathClass == null ? "Unclassified" : pathClass.toString();
+			}).collect(Collectors.joining(", "));
+		}
+		return "";
+	}
+	
+	/**
 	 * Get a string representing the image coordinates for a particular x &amp; y location in the viewer component.
 	 * 
-	 * @param x
-	 * @param y
-	 * @return
+	 * @param x x-coordinate in the component space (not image space)
+	 * @param y y-coordinate in the component space (not image space)
+	 * @return a String to display representing the cursor location
 	 */
 	public String getLocationString(double x, double y, boolean useCalibratedUnits) {
 		ImageServer<BufferedImage> server = getServer();
@@ -2495,10 +2541,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param useCalibratedUnits If true, microns will be used rather than pixels (if known).
 	 * @return
 	 */
-	public String getLocationString(boolean useCalibratedUnits) {
-		if (componentContains(mouseX, mouseY))
-			return getLocationString(mouseX, mouseY, useCalibratedUnits);
-		else
+	protected String getFullLocationString(boolean useCalibratedUnits) {
+		if (componentContains(mouseX, mouseY)) {
+			String classString = getObjectClassificationString(mouseX, mouseY).trim();
+			String locationString = getLocationString(mouseX, mouseY, useCalibratedUnits);
+			if (locationString == null || locationString.isBlank())
+				return "";
+			if (classString != null && !classString.isBlank())
+				classString = classString + "\n";
+			return classString + locationString;
+		} else
 			return "";
 	}
 
@@ -2817,14 +2869,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			KeyCode code = event.getCode();
 			
 			// Handle backspace/delete to remove selected object
-			if (event.getEventType() == KeyEvent.KEY_PRESSED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
+			if (event.getEventType() == KeyEvent.KEY_RELEASED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
 				if (getROIEditor().hasActiveHandle() || getROIEditor().isTranslating()) {
 					logger.debug("Cannot delete object - ROI being edited");
 					return;
 				}
-				if (getImageData() != null) {
-					if (getHierarchy().getSelectionModel().singleSelection()) {
-						GuiTools.promptToRemoveSelectedObject(getHierarchy().getSelectionModel().getSelectedObject(), getHierarchy());
+				var hierarchy = getHierarchy();
+				if (hierarchy != null) {
+					if (hierarchy.getSelectionModel().singleSelection()) {
+						GuiTools.promptToRemoveSelectedObject(hierarchy.getSelectionModel().getSelectedObject(), hierarchy);
 					} else {
 						GuiTools.promptToClearAllSelectedObjects(getImageData());
 					}
@@ -2839,15 +2892,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				return;
 
 			// Center selected object if Enter pressed ('center on enter')
-			if (event.getEventType() == KeyEvent.KEY_PRESSED && code == KeyCode.ENTER) {
+			if (event.getEventType() == KeyEvent.KEY_RELEASED && code == KeyCode.ENTER) {
 				PathObject selectedObject = getSelectedObject();
 				if (selectedObject != null && selectedObject.hasROI())
 					setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());
 				event.consume();
 				return;
 			}
-
-
 
 
 			if (!(code == KeyCode.LEFT || code == KeyCode.UP || code == KeyCode.RIGHT || code == KeyCode.DOWN))

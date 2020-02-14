@@ -24,77 +24,49 @@
 package qupath.lib.gui.panels;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
-import javafx.scene.control.ColorPicker;
+import javafx.collections.ListChangeListener.Change;
+import javafx.geometry.Side;
+import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Control;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.layout.RowConstraints;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
-import javafx.util.Callback;
-import qupath.lib.geom.Point2;
+import javafx.scene.layout.Priority;
 import qupath.lib.gui.ImageDataChangeListener;
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
-import qupath.lib.gui.icons.PathIconFactory;
-import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectIO;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -108,291 +80,65 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDataChangeListener<BufferedImage>, PathObjectHierarchyListener {
 
-	static Logger logger = LoggerFactory.getLogger(PathAnnotationPanel.class);
+	private final static Logger logger = LoggerFactory.getLogger(PathAnnotationPanel.class);
 
-	/**
+	private QuPathGUI qupath;
+	private ImageData<BufferedImage> imageData;
+	private PathObjectHierarchy hierarchy;
+	private BooleanProperty hasImageData = new SimpleBooleanProperty(false);
+	
+	private BorderPane pane = new BorderPane();
+
+	/*
 	 * Request that we only synchronize to the primary selection; otherwise synchronizing to 
 	 * multiple selections from long lists can be a performance bottleneck
 	 */
 	private static boolean synchronizePrimarySelectionOnly = true;
 	
-	private QuPathGUI qupath;
+	private PathClassPane pathClassPane;
 	
-	private BorderPane pane = new BorderPane();
-
-	private ImageData<BufferedImage> imageData;
-
+	/*
+	 * List displaying annotations in the current hierarchy
+	 */
 	private ListView<PathObject> listAnnotations;
-	private PathObjectHierarchy hierarchy;
+		
+	/*
+	 * Selection being changed by outside forces, i.e. don't fire an event
+	 */
+	private boolean suppressSelectionChanges = false;
 	
-	private BooleanProperty doAutoSetPathClass = new SimpleBooleanProperty(false);
-
-	// Available PathClasses
-	private ListView<PathClass> listClasses;
-	
-	private boolean changingSelection = false; // Selection being changed by outside forces, i.e. don't fire an event
 	
 	
 	public PathAnnotationPanel(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		
-		listClasses = new ListView<>();
-		listClasses.setItems(qupath.getAvailablePathClasses());
-		listClasses.setTooltip(new Tooltip("Annotation classes available (right-click to add or remove)"));
-		//		listClasses.setCellRenderer(new PathClassListCellRenderer2()); // TODO: Use a good renderer!!!
-		
-		listClasses.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateAutoSetPathClassProperty());
-		
-		listClasses.setCellFactory(new Callback<ListView<PathClass>, ListCell<PathClass>>(){
-
-			@Override
-			public ListCell<PathClass> call(ListView<PathClass> p) {
-
-				ListCell<PathClass> cell = new ListCell<PathClass>(){
-
-					@Override
-					protected void updateItem(PathClass value, boolean empty) {
-						super.updateItem(value, empty);
-						int size = 10;
-						if (value == null || empty) {
-							setText(null);
-							setGraphic(null);
-						} else if (value.getBaseClass() == value && value.getName() == null) {
-							setText("None");
-							setGraphic(new Rectangle(size, size, ColorToolsFX.getCachedColor(0, 0, 0, 0)));
-						} else {
-							int n = 0; 
-							try {
-								// Try to count objects for class
-								// May be possibility of concurrent modification exception?
-//								n = nLabelledObjectsForClass(hierarchy, value);
-								n = getAnnotationsForClass(hierarchy, value).size();
-							} catch (Exception e) {
-								logger.error("Exception while counting objects for class", e);
-							}
-							if (n == 0)
-								setText(value.toString());
-							else
-								setText(value.toString() + " (" + n + ")");
-							setGraphic(new Rectangle(size, size, ColorToolsFX.getPathClassColor(value)));
-						}
-						if (value != null && qupath.getViewer().getOverlayOptions().isPathClassHidden(value)) {
-							setStyle("-fx-font-family:arial; -fx-font-style:italic;");		
-							setText(getText() + " (hidden)");
-						} else
-							setStyle("-fx-font-family:arial; -fx-font-style:normal;");
-					}
-
-				};
-
-				return cell;
-			}
-		});
-
-		listClasses.getSelectionModel().select(0);
-		listClasses.setPrefSize(100, 200);
-		//		listClasses.setVisibleRowCount(6);
-
-		// TODO: Add context menu!
-		listClasses.setOnMouseClicked(e -> {
-			if (e.isPopupTrigger() || e.getClickCount() < 2)
-				return;
-			PathClass pathClassSelected = getSelectedPathClass();
-			if (promptToEditClass(pathClassSelected)) {
-				//					listModelPathClasses.fireListDataChangedEvent();
-				refreshList(listClasses);
-				var project = qupath.getProject();
-				// Make sure we have updated the classes in the project
-				if (project != null) {
-					project.setPathClasses(listClasses.getItems());
-				}
-				if (hierarchy != null)
-					hierarchy.fireHierarchyChangedEvent(listClasses);
-			}
-		}
-				);
-		ContextMenu menu = new ContextMenu();
-		
-		MenuItem miAddClass = new MenuItem("Add class");
-		miAddClass.setOnAction(e -> {
-			String input = Dialogs.showInputDialog("Add class", "Class name", "");
-			if (input == null || input.trim().isEmpty())
-				return;
-			PathClass pathClass = PathClassFactory.getPathClass(input);
-			if (listClasses.getItems().contains(pathClass)) {
-				Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
-				return;
-			}
-			listClasses.getItems().add(pathClass);
-		});
-		
-		MenuItem miRemoveClass = new MenuItem("Remove class");
-		miRemoveClass.setOnAction(e -> {
-			PathClass pathClass = getSelectedPathClass();
-			if (pathClass == null)
-				return;
-			if (pathClass == PathClassFactory.getPathClassUnclassified()) {
-				Dialogs.showErrorMessage("Remove class", "Cannot remove selected class");
-				return;
-			}
-			if (Dialogs.showConfirmDialog("Remove classes", "Remove " + pathClass.getName() + "?"))
-				listClasses.getItems().remove(pathClass);
-		});
-		
-		MenuItem miResetAllClasses = new MenuItem("Reset all classes");
-		miResetAllClasses.setOnAction(e -> {
-			if (Dialogs.showConfirmDialog("Reset classes", "Reset all available classes?"))
-				qupath.resetAvailablePathClasses();
-		});
-		
-		
-		MenuItem miResetLabels = new MenuItem("Reset class");
-		miResetLabels.setOnAction(e -> {
-			if (hierarchy == null)
-				return;
-			PathClass pathClass = getSelectedPathClass();
-			if (pathClass == null)
-				return;
-			List<PathObject> pathObjectsToReset = getAnnotationsForClass(hierarchy, pathClass);
-			if (pathObjectsToReset.isEmpty())
-				return;
-			if (pathObjectsToReset.size() > 1)
-				if (!Dialogs.showYesNoDialog("Confirm reset labels", String.format("Reset %d annotated objects from class %s?", pathObjectsToReset.size(), pathClass.getName())))
-					return;
-			resetAnnotationClassifications(hierarchy, pathClass);
-		});		
-
-		MenuItem miToggleClassVisible = new MenuItem("Toggle display class");
-		miToggleClassVisible.setOnAction(e -> {
-			PathClass pathClass = getSelectedPathClass();
-			if (pathClass == null)
-				return;
-			OverlayOptions overlayOptions = qupath.getViewer().getOverlayOptions();
-			overlayOptions.setPathClassHidden(pathClass, !overlayOptions.isPathClassHidden(pathClass));
-			listClasses.refresh();
-		});
-		
-		// Import classifications from an existing .qpproj file
-		MenuItem miImportFromProject = new MenuItem("Import from project");
-		miImportFromProject.setOnAction(e -> {
-			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Import classifications", null, "QuPath project", ProjectIO.getProjectExtension());
-			if (file == null)
-				return;
-			if (!file.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())) {
-				Dialogs.showErrorMessage("Import PathClasses", file.getName() + " is not a project file!");
-				return;
-			}
-			try {
-				Project<?> project = ProjectIO.loadProject(file, BufferedImage.class);
-				List<PathClass> pathClasses = project.getPathClasses();
-				if (pathClasses.isEmpty()) {
-					Dialogs.showErrorMessage("Import PathClasses", "No classes found in " + file.getName());
-					return;
-				}
-				ObservableList<PathClass> availableClasses = qupath.getAvailablePathClasses();
-				if (pathClasses.size() == availableClasses.size() && availableClasses.containsAll(pathClasses)) {
-					Dialogs.showInfoNotification("Import PathClasses", file.getName() + " contains same classifications - no changes to make");
-					return;
-				}
-				availableClasses.setAll(pathClasses);
-			} catch (Exception ex) {
-				Dialogs.showErrorMessage("Error reading project", ex);
-			}
-		});
-
-		menu.getItems().addAll(
-				miAddClass,
-				miRemoveClass,
-				miResetAllClasses,
-				new SeparatorMenuItem(),
-				miResetLabels,
-				new SeparatorMenuItem(),
-				miToggleClassVisible,
-				new SeparatorMenuItem(),
-				miImportFromProject);
-
-		listClasses.setContextMenu(menu);
-
-
+		pathClassPane = new PathClassPane(qupath);
 		setImageData(qupath.getImageData());
-
-
+		
+		Pane paneAnnotations = createAnnotationsPane();
+		
+//		GridPane paneColumns = PaneTools.createColumnGrid(panelObjects, panelClasses);
+		SplitPane paneColumns = new SplitPane(
+				paneAnnotations,
+				pathClassPane.getPane()
+				);
+		paneColumns.setDividerPositions(0.5);
+		pane.setCenter(paneColumns);
+		qupath.addImageDataChangeListener(this);
+	}
+	
+	
+	private Pane createAnnotationsPane() {
 		listAnnotations = new ListView<>();
 		hierarchyChanged(null); // Force update
 
-
-		//		listAnnotations.setCellRenderer(new PathObjectCellRenderer());
-
-		listAnnotations.setCellFactory(new Callback<ListView<PathObject>, ListCell<PathObject>>(){
-
-			@Override
-			public ListCell<PathObject> call(ListView<PathObject> p) {
-
-				ListCell<PathObject> cell = new ListCell<PathObject>(){
-					
-					Tooltip tooltip;
-
-					@Override
-					protected void updateItem(PathObject value, boolean empty) {
-						super.updateItem(value, empty);
-						updateTooltip(value);
-						if (value == null || empty) {
-							setText(null);
-							setGraphic(null);
-							return;
-						}
-						setText(value.toString());
-						
-						int w = 16;
-						int h = 16;
-						
-						if (value.hasROI())
-							setGraphic(PathIconFactory.createPathObjectIcon(value, w, h));
-						else
-							setGraphic(null);
-					}
-					
-					void updateTooltip(final PathObject pathObject) {
-						if (tooltip == null) {
-							if (pathObject == null || !pathObject.isAnnotation())
-								return;
-							tooltip = new Tooltip();
-							setTooltip(tooltip);
-						} else if (pathObject == null || !pathObject.isAnnotation()) {
-							setTooltip(null);
-							return;
-						}
-						PathAnnotationObject annotation = (PathAnnotationObject)pathObject;
-						String description = annotation.getDescription();
-						if (description == null) {
-							setTooltip(null);
-						} else {
-							tooltip.setText(description);
-							setTooltip(tooltip);
-						}
-					}
-
-				};
-
-				return cell;
-			}
-		});
+		listAnnotations.setCellFactory(v -> new PathObjectListCell());
 
 		listAnnotations.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-//		listAnnotations.getSelectionModel().selectedItemProperty().addListener( (e, oldSelection, newSelection) -> {
-//			if (hierarchy == null || changingSelection)
-//				return;
-//			tableModel.setPathObject(newSelection);
-////			hierarchy.getSelectionModel().setSelectedObject(newSelection, true);
-//		});
-		listAnnotations.getSelectionModel().getSelectedItems().addListener(new ListChangeListener<PathObject>() {
-			@Override
-			public void onChanged(Change<? extends PathObject> c) {
-				synchronizeListSelectionToHierarchy();
-			}
-		});
-		
-		listAnnotations.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> synchronizeListSelectionToHierarchy());
+		listAnnotations.getSelectionModel().getSelectedItems().addListener(
+				(Change<? extends PathObject> c) -> synchronizeHierarchySelectionToListSelection()
+		);
+		listAnnotations.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> synchronizeHierarchySelectionToListSelection());
 
 		listAnnotations.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1) {
@@ -411,294 +157,103 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			}
 		});
 
-		ContextMenu menuPoints = new ContextMenu();
-		MenuItem miSetProperties = new MenuItem("Set properties");
-		miSetProperties.setOnAction(e -> {
-			promptToSetActiveAnnotationProperties(hierarchy);
-		});
-		MenuItem miSplitPoints = new MenuItem("Split points");
-		miSplitPoints.setOnAction(e -> {
-			PathObject pathObject = listAnnotations.getSelectionModel().getSelectedItem();
-			if (pathObject == null || !PathObjectTools.hasPointROI(pathObject) || hierarchy == null)
-				return;
-			PointsROI points = (PointsROI)pathObject.getROI();
-			if (points.getNumPoints() <= 1)
-				return;
-			List<PathObject> newObjects = new ArrayList<>();
-			int c = points.getC();
-			int z = points.getZ();
-			int t = points.getT();
-			PathClass pathClass = pathObject.getPathClass();
-			for (Point2 p : points.getAllPoints()) {
-				PathObject temp = PathObjects.createAnnotationObject(ROIs.createPointsROI(p.getX(), p.getY(), ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
-				newObjects.add(temp);
-			}
-			hierarchy.addPathObjects(newObjects);
-			hierarchy.removeObject(pathObject, true);
-			// Reset the selection if necessary
-			if (hierarchy.getSelectionModel().getSelectedObject() == pathObject)
-				hierarchy.getSelectionModel().setSelectedObject(null);
-
-		});
-		MenuItem miMergePoints = new MenuItem("Merge points for class");
-		miMergePoints.setOnAction(e -> {
-			PathObject pathObject = listAnnotations.getSelectionModel().getSelectedItem();
-			if (pathObject == null || !PathObjectTools.hasPointROI(pathObject) || hierarchy == null)
-				return;
-			PathClass pathClass = pathObject.getPathClass();
-			if (pathClass == null) {
-				logger.error("No PathClass set - merging can only be applied to points of the same class!");
-				return;
-			}
-			List<PathObject> objectsToMerge = new ArrayList<>();
-			PointsROI points = (PointsROI)pathObject.getROI();
-			int c = points.getC();
-			int z = points.getZ();
-			int t = points.getT();
-			for (PathObject temp : hierarchy.getPointObjects(PathAnnotationObject.class)) {
-				if (pathClass.equals(temp.getPathClass()) && c == temp.getROI().getC() && t == temp.getROI().getT() && z == temp.getROI().getZ())
-					objectsToMerge.add(temp);
-			}
-			if (objectsToMerge.size() <= 1) {
-				logger.warn("No objects found with the same classification (for same c, z, t) to merge!");
-				return;
-			}
-			// Create new points object
-			List<Point2> pointsList = new ArrayList<>();
-			for (PathObject temp : objectsToMerge) {
-				pointsList.addAll(((PointsROI)temp.getROI()).getAllPoints());
-			}
-			PathObject pathObjectNew = PathObjects.createAnnotationObject(ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(c, z, t)), pathClass);
-			hierarchy.removeObjects(objectsToMerge, true);
-			hierarchy.addPathObject(pathObjectNew);
-		});
-
-		menuPoints.getItems().addAll(
-				miSetProperties,
-				new SeparatorMenuItem(),
-				miSplitPoints,
-				miMergePoints
-				);
-		listAnnotations.setContextMenu(menuPoints);
+		ContextMenu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, new ContextMenu());
+		listAnnotations.setContextMenu(menuAnnotations);
 
 		// Add the main annotation list
 		BorderPane panelObjects = new BorderPane();
 		panelObjects.setCenter(listAnnotations);
-		//		panelObjects.setBorder(BorderFactory.createTitledBorder("Annotation list"));
-		GridPane panelButtons = PaneTools.createColumnGrid(2);
 
-		Action removeROIAction = createRemoveROIAction();
-		Action clearROIsAction = createClearROIsAction();
+		// Add buttons
+		Button btnSelectAll = new Button("Select all");
+		btnSelectAll.setOnAction(e -> listAnnotations.getSelectionModel().selectAll());
+		btnSelectAll.setTooltip(new Tooltip("Select all annotations"));
 
+		Button btnDelete = new Button("Delete");
+		btnDelete.setOnAction(e -> GuiTools.promptToClearAllSelectedObjects(imageData));
+		btnDelete.setTooltip(new Tooltip("Delete all selected objects"));
 
-		Control button = ActionUtils.createButton(removeROIAction);
-		panelButtons.add(button, 0, 0);
-		button.prefWidthProperty().bind(panelButtons.widthProperty().divide(2));
-		button = ActionUtils.createButton(clearROIsAction);
-		panelButtons.add(button, 1, 0);
-		button.prefWidthProperty().bind(panelButtons.widthProperty().divide(2));
+		// Create a button to show context menu (makes it more obvious to the user that it exists)
+		Button btnMore = GuiTools.createMoreButton(menuAnnotations, Side.RIGHT);
+		GridPane panelButtons = new GridPane();
+		panelButtons.add(btnSelectAll, 0, 0);
+		panelButtons.add(btnDelete, 1, 0);
+		panelButtons.add(btnMore, 2, 0);
+		GridPane.setHgrow(btnSelectAll, Priority.ALWAYS);
+		GridPane.setHgrow(btnDelete, Priority.ALWAYS);
+
+		PaneTools.setMaxWidth(Double.MAX_VALUE,
+				btnSelectAll, btnDelete);
+		
+		BooleanBinding disableButtons = hasImageData.not();
+		btnSelectAll.disableProperty().bind(disableButtons);
+		btnDelete.disableProperty().bind(disableButtons);
+		btnMore.disableProperty().bind(disableButtons);
+
 		panelObjects.setBottom(panelButtons);
-
-		// Add the class list
-		BorderPane panelClasses = new BorderPane();
-		panelClasses.setCenter(listClasses);
-		//		panelClasses.setBorder(BorderFactory.createTitledBorder("Classes"));
-
-		GridPane paneColumns = PaneTools.createColumnGrid(panelObjects, panelClasses);
-
-		panelButtons = PaneTools.createColumnGrid(2);
-
-		Action setSelectedObjectClassAction = new Action("Set class", e -> {
-			hierarchy = QuPathGUI.getInstance().getImageData().getHierarchy();
-			if (hierarchy == null)
-				return;
-			
-			PathClass pathClass = getSelectedPathClass();
-			var pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-			for (PathObject pathObject : pathObjects) {
-//				if (!(pathObject instanceof PathAnnotationObject)) {
-//					// TODO: Support classifying non-annotation objects?
-//					logger.error("Sorry, only annotations can be classified manually.");
-//					return;
-//				}
-				if (pathObject.isTMACore())
-					continue;
-				if (pathObject.getPathClass() == pathClass)
-					continue;				
-				pathObject.setPathClass(pathClass);
-			}
-			hierarchy.fireObjectClassificationsChangedEvent(this, pathObjects);
-			refreshList(listClasses);
-		});
-		setSelectedObjectClassAction.setLongText("Set the class of the currently-selected annotation");
-
-
-		Action autoClassifyAnnotationsAction = new Action("Auto set");
-		autoClassifyAnnotationsAction.setLongText("Automatically set all new annotations to the selected class");
-		autoClassifyAnnotationsAction.selectedProperty().bindBidirectional(doAutoSetPathClass);
-		
-		doAutoSetPathClass.addListener((e, f, g) -> updateAutoSetPathClassProperty());
-
-		button = ActionUtils.createButton(setSelectedObjectClassAction);
-		panelButtons.add(button, 0, 0);
-		button.prefWidthProperty().bind(panelButtons.widthProperty().divide(2));
-		button = ActionUtils.createToggleButton(autoClassifyAnnotationsAction);
-		panelButtons.add(button, 1, 0);
-		button.prefWidthProperty().bind(panelButtons.widthProperty().divide(2));
-		panelClasses.setBottom(panelButtons);
-		
-		pane.setCenter(paneColumns);
-
-		qupath.addImageDataChangeListener(this);
+		return panelObjects;
 	}
-
 	
-	void synchronizeListSelectionToHierarchy() {
-		if (hierarchy == null || changingSelection)
+	
+	/**
+	 * Update the selected objects in the hierarchy to match those in the list, 
+	 * unless selection changes should be suppressed.
+	 */
+	void synchronizeHierarchySelectionToListSelection() {
+		if (hierarchy == null || suppressSelectionChanges)
 			return;
-		changingSelection = true;
+		suppressSelectionChanges = true;
 		Set<PathObject> selectedSet = new HashSet<>(listAnnotations.getSelectionModel().getSelectedItems());
 		PathObject selectedObject = listAnnotations.getSelectionModel().getSelectedItem();
 		if (!selectedSet.contains(selectedObject))
 			selectedObject = null;
 		hierarchy.getSelectionModel().setSelectedObjects(selectedSet, selectedObject);
-		changingSelection = false;
-	}
-	
-
-	void updateAutoSetPathClassProperty() {
-		PathClass pathClass = null;
-		if (doAutoSetPathClass.get()) {
-			pathClass = getSelectedPathClass();
-		}
-		if (pathClass == null || !pathClass.isValid())
-			PathPrefs.setAutoSetAnnotationClass(null);
-		else
-			PathPrefs.setAutoSetAnnotationClass(pathClass);
+		suppressSelectionChanges = false;
 	}
 	
 	
 	
-	/**
-	 * Create an action to remove the selected ROI, and optionally its descendants.
-	 * 
-	 * @return
-	 */
-	Action createRemoveROIAction() {
-		Action action = new Action("Delete", e -> {
-			if (hierarchy == null)
-				return;
-			// TODO: Consider reusing selected object deletion code within viewer
-			// Remove all the selected ROIs
-			List<PathObject> pathObjectsToRemove = new ArrayList<>(listAnnotations.getSelectionModel().getSelectedItems());
-			if (pathObjectsToRemove == null || pathObjectsToRemove.isEmpty())
-				return;
-			int nObjects = pathObjectsToRemove.size();
-			if (!Dialogs.showYesNoDialog("Delete annotations",
-					String.format("Delete %d %s?", nObjects, nObjects == 1 ? "annotation" : "annotations")))
-				return;
-			// Check for descendant objects
-			List<PathObject> descendantList = new ArrayList<>();
-			for (PathObject parent : pathObjectsToRemove)
-				PathObjectTools.getFlattenedObjectList(parent, descendantList, false);
-			descendantList.removeAll(pathObjectsToRemove);
-			int nDescendants = descendantList.size();
-			boolean keepChildren = true;
-			if (nDescendants > 0) {
-				DialogButton result = Dialogs.showYesNoCancelDialog("Delete annotations",
-						String.format("Keep %d descendant %s?", nDescendants, nDescendants == 1 ? "object" : "objects"));
-				if (result == DialogButton.CANCEL)
-					return;
-				else if (result == DialogButton.YES)
-					keepChildren = true;
-				else
-					keepChildren = false;
-			}
-			hierarchy.getSelectionModel().clearSelection();
-			hierarchy.removeObjects(pathObjectsToRemove, keepChildren);
-		});
-		action.setLongText("Delete the currently-selected annotations");
-		return action;
-	}
-
-
-	/**
-	 * Create an action to clear all annotation ROIs.
-	 * 
-	 * @return
-	 */
-	Action createClearROIsAction() {
-		Action action = new Action("Delete all", e -> {
-			if (hierarchy == null)
-				return;
-			List<PathObject> pathObjectsToRemove = new ArrayList<>(listAnnotations.getItems());
-			if (pathObjectsToRemove.isEmpty())
-				return;
-			int nObjects = pathObjectsToRemove.size();
-			if (!Dialogs.showYesNoDialog("Delete all annotations", String.format("Delete %d %s", nObjects, nObjects == 1 ? "annotation" : "annotations")))
-				return;
-			
-			// Prompt to keep descendant objects, if required
-			List<PathObject> children = new ArrayList<>();
-			for (PathObject temp : pathObjectsToRemove) {
-				if (temp.hasChildren()) {
-					children.addAll(temp.getChildObjects());
-				}
-			}
-			children.removeAll(pathObjectsToRemove);
-			boolean keepChildren = true;
-			if (!children.isEmpty()) {
-				DialogButton response = Dialogs.showYesNoCancelDialog("Delete all annotations", "Keep descendant objects?");
-				if (response == DialogButton.CANCEL)
-					return;
-				keepChildren = response == DialogButton.YES;
-			}
-			hierarchy.getSelectionModel().clearSelection();
-			hierarchy.removeObjects(pathObjectsToRemove, keepChildren);
-		});
-		action.setLongText("Clear all annotations in the list");
-		return action;
-	}
-
-
-
-	/**
-	 * Binds the width properties to the GridPane width.
-	 * 
-	 * @param controls
-	 * @return
-	 */
-	public static GridPane createColumnGridControls(final Control... controls) {
-		GridPane pane = new GridPane();
-		int n = controls.length;
-		for (int i = 0; i < n; i++) {
-			ColumnConstraints col = new ColumnConstraints();
-			col.setPercentWidth(100.0/n);			
-			pane.getColumnConstraints().add(col);
-			Control control = controls[i];
-			pane.add(control, i, 0);
-			control.prefWidthProperty().bind(pane.widthProperty().divide(n));
-		}
-		RowConstraints row = new RowConstraints();
-		row.setPercentHeight(100);
-		pane.getRowConstraints().add(row);
-		return pane;
-	}
+//	void promptToDeleteAnnotations() {
+//		Action action = new Action("Delete", e -> {
+//			if (hierarchy == null)
+//				return;
+//			// TODO: Consider reusing selected object deletion code within viewer
+//			// Remove all the selected ROIs
+//			List<PathObject> pathObjectsToRemove = new ArrayList<>(listAnnotations.getSelectionModel().getSelectedItems());
+//			if (pathObjectsToRemove == null || pathObjectsToRemove.isEmpty())
+//				return;
+//			int nObjects = pathObjectsToRemove.size();
+//			if (!Dialogs.showYesNoDialog("Delete annotations",
+//					String.format("Delete %d %s?", nObjects, nObjects == 1 ? "annotation" : "annotations")))
+//				return;
+//			// Check for descendant objects
+//			List<PathObject> descendantList = new ArrayList<>();
+//			for (PathObject parent : pathObjectsToRemove)
+//				PathObjectTools.getFlattenedObjectList(parent, descendantList, false);
+//			descendantList.removeAll(pathObjectsToRemove);
+//			int nDescendants = descendantList.size();
+//			boolean keepChildren = true;
+//			if (nDescendants > 0) {
+//				DialogButton result = Dialogs.showYesNoCancelDialog("Delete annotations",
+//						String.format("Keep %d descendant %s?", nDescendants, nDescendants == 1 ? "object" : "objects"));
+//				if (result == DialogButton.CANCEL)
+//					return;
+//				else if (result == DialogButton.YES)
+//					keepChildren = true;
+//				else
+//					keepChildren = false;
+//			}
+//			hierarchy.getSelectionModel().clearSelection();
+//			hierarchy.removeObjects(pathObjectsToRemove, keepChildren);
+//		});
+//		action.setLongText("Delete the currently-selected annotations");
+//		return action;
+//	}
 
 
 	public Pane getPane() {
 		return pane;
 	}
-
-
-
-	static <T> void refreshList(final ListView<T> listView) {
-		if (Platform.isFxApplicationThread()) {
-			listView.refresh();
-		} else
-			Platform.runLater(() -> refreshList(listView));
-	}
-
 
 
 	void setImageData(ImageData<BufferedImage> imageData) {
@@ -721,105 +276,12 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		} else {
 			listAnnotations.getItems().clear();
 		}
-	}
-
-
-	public ImageData<BufferedImage> getImageData() {
-		return imageData;
-	}
-
-
-	/**
-	 * Get the currently-selected PathClass.
-	 * 
-	 * This intercepts the 'null' class used to represent no classification.
-	 * 
-	 * @return
-	 */
-	PathClass getSelectedPathClass() {
-		PathClass pathClass = listClasses.getSelectionModel().getSelectedItem();
-		if (pathClass == null || pathClass.getName() == null)
-			return null;
-		return pathClass;
-	}
-
-
-
-
-
-
-	public static void promptToSetActiveAnnotationProperties(final PathObjectHierarchy hierarchy) {
-		PathObject currentObject = hierarchy.getSelectionModel().getSelectedObject();
-		if (currentObject == null || !currentObject.isAnnotation())
-			return;
-		ROI roi = currentObject.getROI();
-		if (roi == null)
-			return;
-		if (promptToSetAnnotationProperties((PathAnnotationObject)currentObject)) {
-			hierarchy.fireObjectsChangedEvent(null, Collections.singleton(currentObject));
-			// Ensure the object is still selected
-			hierarchy.getSelectionModel().setSelectedObject(currentObject);
-		}
-	}
-
-
-
-	static boolean promptToSetAnnotationProperties(final PathAnnotationObject annotation) {
-
-
-		GridPane panel = new GridPane();
-		panel.setVgap(5);
-		panel.setHgap(5);
-		TextField textField = new TextField();
-		if (annotation.getName() != null)
-			textField.setText(annotation.getName());
-		textField.setPrefColumnCount(20);
-		// Post focus request to run later, after dialog displayed
-		Platform.runLater(() -> textField.requestFocus());
-		
-		panel.add(new Label("Name "), 0, 0);
-		panel.add(textField, 1, 0);
-
-		boolean promptForColor = true;
-		ColorPicker panelColor = null;
-		if (promptForColor) {
-			panelColor = new ColorPicker(ColorToolsFX.getDisplayedColor(annotation));
-			panel.add(new Label("Color "), 0, 1);
-			panel.add(panelColor, 1, 1);
-			panelColor.prefWidthProperty().bind(textField.widthProperty());
-		}
-		
-		Label labDescription = new Label("Description");
-		TextArea textAreaDescription = new TextArea(annotation.getDescription());
-		textAreaDescription.setPrefRowCount(3);
-		textAreaDescription.setPrefColumnCount(25);
-		labDescription.setLabelFor(textAreaDescription);
-		panel.add(labDescription, 0, 2);
-		panel.add(textAreaDescription, 1, 2);
-
-		if (!Dialogs.showConfirmDialog("Set annotation properties", panel))
-			return false;
-
-		String name = textField.getText().trim();
-		if (name.length() > 0)
-			annotation.setName(name);
-		else
-			annotation.setName(null);
-		if (promptForColor)
-			annotation.setColorRGB(ColorToolsFX.getARGB(panelColor.getValue()));
-
-		// Set the description only if we have to
-		String description = textAreaDescription.getText();
-		if (description == null || description.isEmpty())
-			annotation.setDescription(null);
-		else
-			annotation.setDescription(description);
-		
-		return true;
+		hasImageData.set(this.imageData != null);
+		pathClassPane.refresh();
 	}
 
 	
-
+	
 	@Override
 	public void selectedPathObjectChanged(final PathObject pathObjectSelected, final PathObject previousObject, Collection<PathObject> allSelected) {
 		if (!Platform.isFxApplicationThread()) {
@@ -828,10 +290,10 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			return;
 		}
 
-		if (changingSelection)
+		if (suppressSelectionChanges)
 			return;
 		
-		changingSelection = true;
+		suppressSelectionChanges = true;
 		if (synchronizePrimarySelectionOnly) {
 			try {
 				var listSelectionModel = listAnnotations.getSelectionModel();
@@ -842,7 +304,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				}
 				return;
 			} finally {
-				changingSelection = false;
+				suppressSelectionChanges = false;
 			}
 		}
 		
@@ -900,7 +362,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				listAnnotations.scrollTo(pathObjectSelected);
 			
 			if (firstInd) {
-				changingSelection = false;
+				suppressSelectionChanges = false;
 				return;
 			}
 			if (inds.length == 1)
@@ -908,7 +370,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 			else if (inds.length > 1)
 				model.selectIndices(inds[0], inds);
 		} finally {
-			changingSelection = false;			
+			suppressSelectionChanges = false;			
 		}
 	}
 
@@ -916,73 +378,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 
 
-	// TODO: Fix this so that it can't get the class names out of sync with the PathClassFactory
-	public static boolean promptToEditClass(final PathClass pathClass) {
-		//		if (pathClass == null)
-		//			return false; // TODO: Make work on default ROI color
-
-		boolean defaultColor = pathClass == null;
-
-		BorderPane panel = new BorderPane();
-
-		BorderPane panelName = new BorderPane();
-		String name;
-		Color color;
-
-		if (defaultColor) {
-			name = "Default annotation color";
-			color = ColorToolsFX.getCachedColor(PathPrefs.getColorDefaultAnnotations());
-			//			textField.setEditable(false);
-			//			textField.setEnabled(false);
-			Label label = new Label(name);
-			label.setPadding(new Insets(5, 0, 10, 0));
-			panelName.setCenter(label);
-		} else {
-			name = pathClass.getName();
-			if (name == null)
-				name = "";
-			color = ColorToolsFX.getPathClassColor(pathClass);		
-			Label label = new Label(name);
-			label.setPadding(new Insets(5, 0, 10, 0));
-			panelName.setCenter(label);
-//			textField.setText(name);
-//			panelName.setLeft(new Label("Class name"));
-//			panelName.setCenter(textField);
-		}
-
-		panel.setTop(panelName);
-		ColorPicker panelColor = new ColorPicker(color);
-
-		panel.setCenter(panelColor);
-
-		if (!Dialogs.showConfirmDialog("Edit class", panel))
-			return false;
-
-//		String newName = textField.getText().trim();
-		Color newColor = panelColor.getValue();
-//		if ((name.length() == 0 || name.equals(newName)) && newColor.equals(color))
-//			return false;
-
-		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getARGB(newColor);
-		if (defaultColor) {
-			if (newColor.isOpaque())
-				PathPrefs.setColorDefaultAnnotations(colorValue);
-			else
-				PathPrefs.setColorDefaultAnnotations(colorValue);
-		}
-		else {
-//			if (!name.equals(pathClass.getName()) && PathClassFactory.pathClassExists(newName)) {
-//				logger.warn("Modified name already exists - cannot rename");
-//				return false;
-//			}
-//			pathClass.setName(newName);
-			pathClass.setColor(colorValue);
-		}
-		return true;
-	}
-
-
-
+	
 	@Override
 	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		setImageData(imageDataNew);
@@ -1003,7 +399,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 		}
 
 		Collection<PathObject> newList = hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class);
-		listClasses.refresh();
+		pathClassPane.getListView().refresh();
 		// If the lists are the same, we just need to refresh the appearance (because e.g. classifications or measurements now differ)
 		// For some reason, 'equals' alone wasn't behaving nicely (perhaps due to ordering?)... so try a more manual test instead
 //		if (newList.equals(listAnnotations.getItems())) {
@@ -1019,52 +415,12 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				listAnnotations.refresh();
 			return;
 		}
-		// If the lists are different, we need to update accordingly
-		listAnnotations.getSelectionModel().clearSelection();
+		// If the lists are different, we need to update accordingly - but we don't want to trigger accidental selection updates
+//		listAnnotations.getSelectionModel().clearSelection(); // Clearing the selection would cause annotations to disappear when interactively training a classifier!
+		boolean lastChanging = suppressSelectionChanges;
+		suppressSelectionChanges = true;
 		listAnnotations.getItems().setAll(newList);
+		suppressSelectionChanges = lastChanging;
 	}
 	
-	
-	/**
-	 * Remove all the classifications for a particular class.
-	 * 
-	 * @param pathClass
-	 */
-	static void resetAnnotationClassifications(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
-		List<PathObject> changedList = new ArrayList<>();
-		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
-			if (pathClass.equals(pathObject.getPathClass())) {
-				pathObject.setPathClass(null);
-				changedList.add(pathObject);
-			}
-		}
-		if (!changedList.isEmpty())
-			hierarchy.fireObjectClassificationsChangedEvent(null, changedList);
-	}
-	
-//	static int nLabelledObjectsForClass(final PathObjectHierarchy hierarchy, final PathClass pathClass) {
-//		int n = 0;
-//		for (PathObject pathObject : getAnnotationsForClass(hierarchy, pathClass)) {
-//			n += pathObject.nChildObjects();
-//		}
-//		return n;
-////		return getLabelledObjectsForClass(hierarchy, pathClass).size(); // TODO: Consider a more efficient implementation
-//	}
-	
-	static int countAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
-		if (hierarchy == null)
-			return 0;
-		return PathObjectTools.countObjectsWithClass(hierarchy.getAnnotationObjects(), pathClass, false);
-	}
-
-	static List<PathObject> getAnnotationsForClass(PathObjectHierarchy hierarchy, PathClass pathClass) {
-		if (hierarchy == null)
-			return Collections.emptyList();
-		List<PathObject> annotations = new ArrayList<>();
-		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
-			if (pathClass.equals(pathObject.getPathClass()))
-				annotations.add(pathObject);
-		}
-		return annotations;
-	}
 }

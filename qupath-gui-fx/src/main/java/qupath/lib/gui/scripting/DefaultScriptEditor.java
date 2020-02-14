@@ -122,6 +122,7 @@ import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
@@ -369,8 +370,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 
 	private static ScriptEngineManager createManager() {
-		Thread.currentThread().setContextClassLoader(QuPathGUI.getClassLoader());
-		ScriptEngineManager manager = new ScriptEngineManager(QuPathGUI.getClassLoader());
+		Thread.currentThread().setContextClassLoader(QuPathGUI.getExtensionClassLoader());
+		ScriptEngineManager manager = new ScriptEngineManager(QuPathGUI.getExtensionClassLoader());
 		//		availableLanguages.add(Language.JAVA);
 		for (ScriptEngineFactory factory : manager.getEngineFactories()) {
 			for (Language supported : Language.values()) {
@@ -476,7 +477,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		// File menu
 		Menu menuFile = new Menu("File");
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuFile,
 				createNewAction("New"),
 				createOpenAction("Open..."),
@@ -485,7 +486,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createSaveAction("Save As...", true),
 				null,
 				createRevertAction("Revert/Refresh"),
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoRefreshFiles, "Auto refresh files")),
+				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoRefreshFiles, "Auto refresh files")),
 				null,
 				createCloseAction("Close script")
 //				null,
@@ -498,7 +499,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		// Edit menu
 		Menu menuEdit = new Menu("Edit");
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuEdit,
 				undoAction,
 				redoAction,
@@ -556,7 +557,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		// Run menu
 		Menu menuRun = new Menu("Run");
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuRun,
 				createRunScriptAction("Run", false),
 				createRunScriptAction("Run selected", true),
@@ -565,10 +566,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script start time")),
-				QuPathGUI.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
+				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
+				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
+				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script start time")),
+				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
 				);
 		menubar.getMenus().add(menuRun);
 
@@ -608,7 +609,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		dialog.setWidth(600);
 		dialog.setHeight(400);
 		splitMain.setDividerPosition(0, 0.25);
-		menubar.setUseSystemMenuBar(true);
+		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
+//		menubar.setUseSystemMenuBar(true);
 		updateUndoActionState();
 		updateCutCopyActionState();
 		
@@ -867,14 +869,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 					if (cause instanceof InterruptedException)
 						errorWriter.append("Script interrupted at line " + line + ": " + message + "\n");
 					else
-						errorWriter.append("Error at line " + line + ": " + message + "\n");
+						errorWriter.append(cause.getClass().getSimpleName() + " at line " + line + ": " + message + "\n");
 				} else {
 					if (cause instanceof InterruptedException)
 						errorWriter.append("Script interrupted: " + message + "\n");
 					else
-						errorWriter.append("Error: " + message + "\n");
+						errorWriter.append(cause.getClass().getSimpleName() + ": " + message + "\n");
 				}
-				logger.error("Script error", cause);
+				logger.error("Script error (" + cause.getClass().getSimpleName() + ")", cause);
 			} catch (IOException e1) {
 				logger.error("Script IO error: {}", e1);
 			} catch (Exception e1) {

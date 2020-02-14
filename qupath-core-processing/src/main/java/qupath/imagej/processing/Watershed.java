@@ -28,7 +28,6 @@ import java.util.PriorityQueue;
 
 import ij.IJ;
 import ij.plugin.filter.EDM;
-import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 
@@ -41,18 +40,18 @@ import ij.process.ImageProcessor;
 public class Watershed {
 	
 	/**
-	 * Expand non-zero regions in a binary image up to a maximum distance, using a watershed transform to prevent region merging.
-	 * @param bp
-	 * @param maxDistance
-	 * @param conn8
-	 * @return
+	 * Expand non-zero regions in a labeled image up to a maximum distance, using a watershed transform to prevent region merging.
+	 * The expansion is performed in-place.
+	 * 
+	 * @param ipLabels labeled image, where values &le; 0 represent the background
+	 * @param maxDistance maximum expansion distance, in pixels
+	 * @param conn8 if true, use 8-connectivity
 	 */
-	public static ImageProcessor watershedExpand(final ByteProcessor bp, final double maxDistance, final boolean conn8) {
+	public static void watershedExpandLabels(final ImageProcessor ipLabels, final double maxDistance, final boolean conn8) {
+		var bp = SimpleThresholding.thresholdAbove(ipLabels, 0f);
 		FloatProcessor fpEDM = new EDM().makeFloatEDM(bp, (byte)255, false);
 		fpEDM.multiply(-1);
-		ImageProcessor ipLabels = RoiLabeling.labelImage(bp, 0.5f, conn8);
 		doWatershed(fpEDM, ipLabels, -maxDistance, conn8);
-		return ipLabels;
 	}
 	
 	

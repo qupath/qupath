@@ -29,15 +29,12 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.scene.control.Menu;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.DetectCytokeratinCV;
-import qupath.opencv.WatershedNucleiCV;
 import qupath.opencv.features.DelaunayClusteringPlugin;
 import qupath.opencv.gui.classify.OpenCvClassifierCommand;
 import qupath.opencv.tools.WandToolCV;
@@ -63,31 +60,31 @@ public class OpenCVExtension implements QuPathExtension {
 //				);
 		
 		Menu menuFeatures = qupath.getMenu("Analyze>Spatial analysis", true);
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuFeatures,
 				qupath.createPluginAction("Delaunay cluster features 2D (experimental)", DelaunayClusteringPlugin.class, null)
 				);
 
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification", true);
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuRegions,
 //				QuPathGUI.createCommandAction(new TissueSegmentationCommand(qupath), "Tissue identification (OpenCV, experimental)"),
 				qupath.createPluginAction("Create cytokeratin annotations (experimental)", DetectCytokeratinCV.class, null)
 				);
 
 		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell detection", true);
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuCellAnalysis,
 				new SeparatorMenuItem(),
 //				qupath.createPluginAction("Watershed nucleus detection (OpenCV, experimental)", WatershedNucleiCV.class, null),
 				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null)
 				);
 
-		Menu menuClassify = qupath.getMenu("Classify>Object classification", true);
-		QuPathGUI.addMenuItems(
+		Menu menuClassify = qupath.getMenu("Classify>Object classification>Older classifiers", true);
+		MenuTools.addMenuItems(
 				menuClassify,
 				null,
-				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)));
+				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier"));
 		
 		
 //		// Add the Wand tool

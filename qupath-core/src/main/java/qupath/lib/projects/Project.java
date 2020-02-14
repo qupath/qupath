@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
-import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -165,6 +165,18 @@ public interface Project<T> {
 	public ProjectImageEntry<T> addImage(final ServerBuilder<T> server) throws IOException;
 	
 	/**
+	 * Add an image by duplicating an existing entry.
+	 * This retains the same {@link ServerBuilder}, name, description and metadata, but assigns 
+	 * a new unique ID.
+	 * 
+	 * @param entry the entry that should be copied
+	 * @param copyData if true, copy existing image data in addition to other properties
+	 * @return the new entry that has been added to the project
+	 * @throws IOException
+	 */
+	public ProjectImageEntry<T> addDuplicate(final ProjectImageEntry<T> entry, boolean copyData) throws IOException;
+		
+	/**
 	 * Request a {@link ProjectImageEntry} associated with an {@link ImageData}
 	 * @param imageData
 	 * @return
@@ -237,7 +249,7 @@ public interface Project<T> {
 	 * 
 	 * @return
 	 */
-	public Manager<PathObjectClassifier> getObjectClassifiers();
+	public Manager<ObjectClassifier<T>> getObjectClassifiers();
 	
 	/**
 	 * Get a manager for pixel classifiers saved within this project.

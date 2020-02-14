@@ -23,6 +23,8 @@
 
 package qupath.lib.gui.prefs;
 
+import java.lang.reflect.Method;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +34,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import qupath.lib.common.GeneralTools;
 
 
 /**
@@ -51,23 +54,51 @@ public class QuPathStyleManager {
 	private static ObservableList<StylesheetOption> styles = FXCollections.observableArrayList(
 			DEFAULT_STYLE,
 //			new JavaFXStylesheet("Caspian", Application.STYLESHEET_CASPIAN),
-			new CustomStylesheet("Modena Dark", "Darker version of JavaFX Modena stylesheet (slightly experimental)", "css/dark.css")
+//			new CustomStylesheet("Modena (Helvetica)", "JavaFX Modena stylesheet with Helvetica", "css/helvetica.css"),
+			new CustomStylesheet("Modena Dark", "Darker version of JavaFX Modena stylesheet", "css/dark.css")
+//			new CustomStylesheet("Modena Dark (Helvetica)", "Darker version of JavaFX Modena stylesheet with Helvetica", "css/dark.css", "css/helvetica.css")
 			);
 	
 	private static ObjectProperty<StylesheetOption> selectedStyle = new SimpleObjectProperty<>();
-	
+
+	public static enum Fonts {
+		DEFAULT, SANS_SERIF, SERIF;
+		
+		private String getURL() {
+			switch(this) {
+			case SANS_SERIF:
+				return "css/sans-serif.css";
+			case SERIF:
+				return "css/serif.css";
+			case DEFAULT:
+			default:
+				return null;
+			}
+		}
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case SANS_SERIF:
+				return "Sans-serif";
+			case SERIF:
+				return "Serif";
+			case DEFAULT:
+			default:
+				return "Default";
+			}
+		}
+	}
+
+	private static ObservableList<Fonts> availableFonts = FXCollections.observableArrayList(Fonts.values());
+
+	private static ObjectProperty<Fonts> selectedFont = PathPrefs.createPersistentPreference("selectedFont", 
+			GeneralTools.isMac() ? Fonts.SANS_SERIF : Fonts.DEFAULT, Fonts.class);
+
 	static {
 		// Add listener to adjust style as required
-		selectedStyle.addListener((v, o, n) -> {
-			if (n != null) {
-				PathPrefs.getUserPreferences().put("qupathStylesheet", n.getName());
-				n.setStylesheet();
-			} else {
-				// Default
-				PathPrefs.getUserPreferences().remove("qupathStylesheet");
-				Application.setUserAgentStylesheet(null);
-			}
-		});
+		selectedStyle.addListener((v, o, n) -> updateStyle());
+		selectedFont.addListener((v, o, n) -> updateStyle());
 		
 		// Try to load preference
 		Platform.runLater(() -> {
@@ -80,7 +111,27 @@ public class QuPathStyleManager {
 				}
 			} else
 				selectedStyle.set(DEFAULT_STYLE);
+			updateStyle();
 		});
+	}
+	
+	static void updateStyle() {
+		StylesheetOption n = selectedStyle.get();
+		if (n != null) {
+			PathPrefs.getUserPreferences().put("qupathStylesheet", n.getName());
+			n.setStylesheet();
+		} else {
+			// Default
+			PathPrefs.getUserPreferences().remove("qupathStylesheet");
+			Application.setUserAgentStylesheet(null);
+		}
+		// Set the font if required
+		Fonts font = selectedFont.get();
+		if (font != null) {
+			String url = font.getURL();
+			if (url != null)
+				addStyleSheets(url);
+		}
 	}
 	
 	public static boolean isDefaultStyle() {
@@ -93,6 +144,14 @@ public class QuPathStyleManager {
 
 	public static ObjectProperty<StylesheetOption> selectedStyleProperty() {
 		return selectedStyle;
+	}
+	
+	public static ObservableList<Fonts> availableFontsProperty() {
+		return availableFonts;
+	}
+	
+	public static ObjectProperty<Fonts> fontProperty() {
+		return selectedFont;
 	}
 
 	
@@ -144,26 +203,17 @@ public class QuPathStyleManager {
 		
 		private String name;
 		private String description;
-		private String url;
+		private String[] urls;
 		
-		CustomStylesheet(final String name, final String description, final String url) {
+		CustomStylesheet(final String name, final String description, final String... urls) {
 			this.name = name;
 			this.description = description;
-			this.url = url;
+			this.urls = urls.clone();
 		}
 
 		@Override
 		public void setStylesheet() {
-			Application.setUserAgentStylesheet(null);
-			// TODO: Check if a public alternative to StyleManager ever becomes available...
-			// Unfortunately, for now we resort to using reflection
-			try {
-				Class<?> cStyleManager = Class.forName("com.sun.javafx.css.StyleManager");
-				Object styleManager = cStyleManager.getMethod("getInstance").invoke(null);
-				styleManager.getClass().getMethod("addUserAgentStylesheet", String.class).invoke(styleManager, url);
-			} catch (Exception e) {
-				logger.error("Unable to call addUserAgentStylesheet", e);
-			}
+			setStyleSheets(urls);
 		}
 
 		@Override
@@ -181,6 +231,23 @@ public class QuPathStyleManager {
 			return getName();
 		}
 		
+	}
+	
+	private static void setStyleSheets(String... urls) {
+		Application.setUserAgentStylesheet(null);
+		addStyleSheets(urls);
+	}
+	
+	private static void addStyleSheets(String... urls) {
+		try {
+			Class<?> cStyleManager = Class.forName("com.sun.javafx.css.StyleManager");
+			Object styleManager = cStyleManager.getMethod("getInstance").invoke(null);
+			Method m = styleManager.getClass().getMethod("addUserAgentStylesheet", String.class);
+			for (String url : urls)
+				m.invoke(styleManager, url);
+		} catch (Exception e) {
+			logger.error("Unable to call addUserAgentStylesheet", e);
+		}
 	}
 	
 }

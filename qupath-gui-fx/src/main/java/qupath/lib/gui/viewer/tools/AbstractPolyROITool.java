@@ -42,8 +42,7 @@ public abstract class AbstractPolyROITool extends AbstractPathROITool {
 				((PathROIObject)currentObject).setROI(roiUpdated);
 			}
 			viewer.repaint();
-		}
-		else {
+		} else {
 			commitObjectToHierarchy(e, currentObject);
 		}
 		
@@ -63,6 +62,12 @@ public abstract class AbstractPolyROITool extends AbstractPathROITool {
 			if (isPolyROI(currentROI) && currentROI.isEmpty()) {
 				isFreehandPolyROI = false;
 			} else if (PathPrefs.enableFreehandTools()) {
+				RoiEditor editor = viewer.getROIEditor();
+				Point2D p2 = mouseLocationToImage(e, true, requestPixelSnapping());
+				ROI roiUpdated = editor.setActiveHandlePosition(p2.getX(), p2.getY(), viewer.getDownsampleFactor(), e.isShiftDown());
+				if (currentObject != null && currentObject.getROI() != roiUpdated && currentObject instanceof PathROIObject) {
+					((PathROIObject)currentObject).setROI(roiUpdated);
+				}
 				commitObjectToHierarchy(e, currentObject);
 //				completePolygon(e);
 			}

@@ -644,8 +644,12 @@ public class MultiscaleFeatures {
 				
 				Mat matSmooth = null;
 				if (doSmoothed) {
-					matSmooth = new Mat();
-					opencv_imgproc.sepFilter2D(mat, matSmooth, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					if (sigmaX > 0 || sigmaY > 0) {
+						matSmooth = new Mat();
+						opencv_imgproc.sepFilter2D(mat, matSmooth, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					} else
+						matSmooth = mat.clone();
+					
 					stripPadding(matSmooth);
 					if (gaussianSmoothed)
 						features.put(MultiscaleFeature.GAUSSIAN, matSmooth);

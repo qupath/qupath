@@ -58,7 +58,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
@@ -172,7 +172,7 @@ class DefaultProject implements Project<BufferedImage> {
 		project.loadProject();
 		return project;
 	}
-	
+		
 	
 	/**
 	 * Get an unmodifiable list representing the <code>PathClass</code>es associated with this project.
@@ -298,6 +298,23 @@ class DefaultProject implements Project<BufferedImage> {
 	}
 	
 	@Override
+	public ProjectImageEntry<BufferedImage> addDuplicate(final ProjectImageEntry<BufferedImage> entry, boolean copyData) throws IOException {
+		var entryNew = new DefaultProjectImageEntry(entry.getServerBuilder(), null, entry.getImageName(), entry.getDescription(), entry.getMetadataMap());
+		if (addImage(entryNew)) {
+			if (copyData)
+				entryNew.copyDataFromEntry(entry);
+			else {
+				var img = entry.getThumbnail();
+				if (img != null)
+					entryNew.setThumbnail(img);
+			}
+			return entryNew;
+		}
+		throw new IOException("Unable to add duplicate of " + entry);
+	}
+
+	
+	@Override
 	public ProjectImageEntry<BufferedImage> getEntry(final ImageData<BufferedImage> imageData) {
 		Object id = imageData.getProperty(IMAGE_ID);
 //		String id = imageData.getServer().getPath();
@@ -312,9 +329,10 @@ class DefaultProject implements Project<BufferedImage> {
 
 	@Override
 	public void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData) {
-		images.remove(entry);
+		boolean couldRemove = images.remove(entry);
 //		images.remove(entry.getServerPath());
-		if (removeAllData && entry instanceof DefaultProjectImageEntry) {
+		// Need to make sure we only delete data if it's really inside this project!
+		if (couldRemove && removeAllData && entry instanceof DefaultProjectImageEntry) {
 			((DefaultProjectImageEntry)entry).moveDataToTrash();
 		}
 	}
@@ -487,6 +505,50 @@ class DefaultProject implements Project<BufferedImage> {
 			this.imageName = entry.imageName;
 			this.description = entry.description;
 			this.metadata = entry.metadata;
+		}
+		
+		/**
+		 * Copy the name, description and metadata from another entry.
+		 * @param entry
+		 * @throws IOException
+		 */
+		void copyPropertiesFromEntry(final ProjectImageEntry<BufferedImage> entry) throws IOException {
+			setImageName(entry.getImageName());
+			setDescription(entry.getDescription());
+			for (String key : entry.getMetadataKeys())
+				putMetadataValue(key, entry.getMetadataValue(key));
+		}
+		
+		/**
+		 * Copy the image data from another entry.
+		 * If the current entry does not have a thumbnail then this will also be copied.
+		 * 
+		 * @param entry
+		 * @throws IOException
+		 */
+		void copyDataFromEntry(final ProjectImageEntry<BufferedImage> entry) throws IOException {
+			if (entry instanceof DefaultProjectImageEntry)
+				copyDataFromEntry((DefaultProjectImageEntry)entry);
+			else {
+				if (entry.hasImageData())
+					saveImageData(entry.readImageData());
+				if (getThumbnail() == null) {
+					var imgThumbnail = entry.getThumbnail();
+					if (imgThumbnail != null)
+						setThumbnail(imgThumbnail);
+				}
+			}
+		}
+		
+		void copyDataFromEntry(final DefaultProjectImageEntry entry) throws IOException {
+			// Ensure we have the necessary directory
+			getEntryPath(true);
+			if (Files.exists(entry.getImageDataPath()))
+				Files.copy(entry.getImageDataPath(), getImageDataPath(), StandardCopyOption.REPLACE_EXISTING);
+			if (Files.exists(entry.getDataSummaryPath()))
+				Files.copy(entry.getDataSummaryPath(), getDataSummaryPath(), StandardCopyOption.REPLACE_EXISTING);
+			if (getThumbnail() == null && Files.exists(entry.getThumbnailPath()))
+				Files.copy(entry.getThumbnailPath(), getThumbnailPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
 		
 		private transient ImageResourceManager<BufferedImage> imageManager = null;
@@ -1011,8 +1073,8 @@ class DefaultProject implements Project<BufferedImage> {
 
 
 	@Override
-	public Manager<PathObjectClassifier> getObjectClassifiers() {
-		return new ResourceManager.SerializableFileResourceManager(getObjectClassifiersPath(), PathObjectClassifier.class);
+	public Manager<ObjectClassifier<BufferedImage>> getObjectClassifiers() {
+		return new ResourceManager.JsonFileResourceManager(getObjectClassifiersPath(), ObjectClassifier.class);
 	}
 
 

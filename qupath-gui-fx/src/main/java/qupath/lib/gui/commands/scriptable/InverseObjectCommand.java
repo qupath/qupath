@@ -28,10 +28,9 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.scripting.QP;
 
 /**
  * Create a new annotation which is the inverse of the existing selected annotation,
@@ -59,13 +58,10 @@ public class InverseObjectCommand implements PathCommand {
 		ImageData<?> imageData = manager.getImageData();
 		if (imageData == null)
 			return;
-		PathObjectHierarchy hierarchy = imageData.getHierarchy();
-		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
-		
-		
-		PathObject merged = QPEx.makeInverseAnnotation(imageData, pathObject);
-		if (merged != null)
-			hierarchy.getSelectionModel().setSelectedObject(merged);
+		logger.debug("Make inverse annotation");
+		QP.makeInverseAnnotation(imageData);
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Invert selected annotation",
+				"makeInverseAnnotation()"));
 	}
 	
 }

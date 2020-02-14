@@ -25,6 +25,7 @@ package qupath.lib.roi;
 
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
@@ -153,6 +154,22 @@ public class RoiTools {
 			first = first.intersection(geom);
 		return GeometryTools.geometryToROI(first, plane);
 	}
+	
+	
+	/**
+	 * Apply an affine transform to a ROI, returning the result.
+	 * @param roi the ROI to transform
+	 * @param transform the affine transform to apply; if null or the identity transform, the original ROI is returned unchanged
+	 * @return the transformed ROI, or the original if no (non-identity) transform is specified
+	 */
+	public static ROI transformROI(ROI roi, AffineTransform transform) {
+		if (roi == null || transform == null || transform.isIdentity())
+			return roi;
+		var t = GeometryTools.convertTransform(transform);
+		var geometry2 = t.transform(roi.getGeometry());
+		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
+	}
+	
 	
 	/**
 	 * Intersect a collection of ROIs with a single parent ROI, returning all results that are valid.
@@ -585,15 +602,25 @@ public class RoiTools {
 		if (roi instanceof RectangleROI || roi instanceof LineROI || roi instanceof EllipseROI) {
 			return Collections.singletonList(roi);
 		}
-		
-		var geometry = roi.getGeometry();
-		if (geometry.getNumGeometries() == 1)
-			return Collections.singletonList(roi);
 
 		var list = new ArrayList<ROI>();
 		var plane = ImagePlane.getPlane(roi);
-		for (int i = 0; i < geometry.getNumGeometries(); i++) {
-			list.add(GeometryTools.geometryToROI(geometry.getGeometryN(i), plane));
+		
+		if (roi.isPoint()) {
+			// Handle point ROIs
+			if (roi.getNumPoints() <= 1)
+				return Collections.singletonList(roi);
+			for (var p : roi.getAllPoints()) {
+				list.add(ROIs.createPointsROI(p.getX(), p.getY(), plane));
+			}
+		} else {
+			// Handle everything else
+			var geometry = roi.getGeometry();
+			if (geometry.getNumGeometries() == 1)
+				return Collections.singletonList(roi);
+			for (int i = 0; i < geometry.getNumGeometries(); i++) {
+				list.add(GeometryTools.geometryToROI(geometry.getGeometryN(i), plane));
+			}
 		}
 		return list;
 	}

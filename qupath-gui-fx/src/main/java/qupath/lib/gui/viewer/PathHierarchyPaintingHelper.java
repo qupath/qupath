@@ -60,6 +60,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.MeasurementMapper;
+import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -71,6 +72,7 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
@@ -149,7 +151,7 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 	
-	public static void paintSpecifiedObjects(Graphics2D g2d, Rectangle boundsDisplayed, Collection<PathObject> pathObjects, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
+	public static void paintSpecifiedObjects(Graphics2D g2d, Rectangle boundsDisplayed, Collection<? extends PathObject> pathObjects, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
 		//		System.out.println("MY CLIP: " + g2d.getClipBounds());
 		// Paint objects, if required
 		if (pathObjects == null)
@@ -244,6 +246,10 @@ public class PathHierarchyPaintingHelper {
 		
 	}
 	
+	private static ThreadLocal<Path2D> localPath2D = ThreadLocal.withInitial(Path2D.Double::new);
+	private static ThreadLocal<Rectangle2D> localRect2D = ThreadLocal.withInitial(Rectangle2D.Double::new);
+	private static ThreadLocal<Ellipse2D> localEllipse2D = ThreadLocal.withInitial(Ellipse2D.Double::new);
+	
 	/**
 	 * Paint an object (or, more precisely, its ROI), optionally along with the ROIs of any child objects.
 	 * 
@@ -293,7 +299,7 @@ public class PathHierarchyPaintingHelper {
 				// Paint the ROI, if necessary
 				if (isSelected || (overlayOptions.getShowDetections() && isDetectedObject) || (overlayOptions.getShowAnnotations() && pathObject.isAnnotation()) || (overlayOptions.getShowTMAGrid() && pathObject.isTMACore())) {
 		
-					boolean doFill = overlayOptions.getFillObjects() || pathObject instanceof ParallelTileObject;
+					boolean doFill = overlayOptions.getFillDetections() || pathObject instanceof ParallelTileObject;
 					boolean doOutline = true;
 					
 					Color color = null;
@@ -382,7 +388,63 @@ public class PathHierarchyPaintingHelper {
 						}
 						
 						g.setStroke(stroke);
-						if (pathObject instanceof PathCellObject) {
+						boolean paintSymbols = overlayOptions.getDetectionDisplayMode() == DetectionDisplayMode.CENTROIDS && 
+								pathObject.isDetection() && !pathObject.isTile();
+						if (paintSymbols) {
+							pathROI = PathObjectTools.getROI(pathObject, true);
+							double x = pathROI.getCentroidX();
+							double y = pathROI.getCentroidY();
+							double radius = PathPrefs.getThinStrokeThickness() * 2.0;
+							if (pathObject.getParent() instanceof PathDetectionObject)
+								radius /= 2.0;
+							Shape shape;
+							int nSubclasses = 0;
+							if (pathClass != null) {
+								nSubclasses = PathClassTools.splitNames(pathClass).size();
+							}
+							switch (nSubclasses) {
+							case 0:
+								var ellipse = localEllipse2D.get();
+								ellipse.setFrame(x-radius, y-radius, radius*2, radius*2);								
+								shape = ellipse;
+								break;
+							case 1:
+								var rect = localRect2D.get();
+								rect.setFrame(x-radius, y-radius, radius*2, radius*2);								
+								shape = rect;
+								break;
+							case 2:
+								var triangle = localPath2D.get();
+								double sqrt3 = Math.sqrt(3.0);
+								triangle.reset();
+								triangle.moveTo(x, y-radius*2.0/sqrt3);
+								triangle.lineTo(x-radius, y+radius/sqrt3);
+								triangle.lineTo(x+radius, y+radius/sqrt3);
+								triangle.closePath();
+								shape = triangle;
+								break;
+							case 3:
+								var plus = localPath2D.get();
+								plus.reset();
+								plus.moveTo(x, y-radius);
+								plus.lineTo(x, y+radius);
+								plus.moveTo(x-radius, y);
+								plus.lineTo(x+radius, y);
+								shape = plus;								
+								break;
+							default:
+								var cross = localPath2D.get();
+								cross.reset();
+								radius /= Math.sqrt(2);
+								cross.moveTo(x-radius, y-radius);
+								cross.lineTo(x+radius, y+radius);
+								cross.moveTo(x+radius, y-radius);
+								cross.lineTo(x-radius, y+radius);
+								shape = cross;
+								break;
+							}
+							paintShape(shape, g, colorStroke, stroke, colorFill, downsample);
+						} else if (pathObject instanceof PathCellObject) {
 							PathCellObject cell = (PathCellObject)pathObject;
 							if (overlayOptions.getShowCellBoundaries())
 								paintROI(pathROI, g, colorStroke, stroke, colorFill, downsample);

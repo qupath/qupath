@@ -118,7 +118,7 @@ public class SplitAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 			for (PathObject pathObject : parentObjects) {
 				localSplit.clear();
 				ROI roiOrig = pathObject.getROI();
-				if (roiOrig == null || !roiOrig.isArea()) {
+				if (roiOrig == null) {
 					toSelect.add(pathObject);
 					continue;
 				}

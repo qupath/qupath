@@ -47,10 +47,10 @@ public class ViewTrackerControlPanel {
 
 //	private final static Logger logger = LoggerFactory.getLogger(ViewTrackerPanel.class);
 	
-	private static final Node iconRecord = PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.PLAYBACK_RECORD);
-	private static final Node iconRecordStop = PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.PLAYBACK_RECORD_STOP);
-	private static final Node iconPlay = PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.PLAYBACK_PLAY);
-	private static final Node iconPlayStop = PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.PLAYBACK_PLAY_STOP);
+	private static final Node iconRecord = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_RECORD);
+	private static final Node iconRecordStop = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_RECORD_STOP);
+	private static final Node iconPlay = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_PLAY);
+	private static final Node iconPlayStop = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_PLAY_STOP);
 	
 	private ViewTracker tracker;
 	

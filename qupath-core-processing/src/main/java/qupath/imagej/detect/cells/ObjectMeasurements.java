@@ -50,11 +50,11 @@ class ObjectMeasurements {
 	 * @param prefix
 	 */
 	public static void addShapeStatistics(MeasurementList measurementList, PolygonROI roi, double pixelWidth, double pixelHeight, String prefix) {
-		measurementList.addMeasurement(prefix + "Area", roi.getScaledArea(pixelWidth, pixelHeight));
-		measurementList.addMeasurement(prefix + "Perimeter", roi.getScaledLength(pixelWidth, pixelHeight));
-		measurementList.addMeasurement(prefix + "Circularity", RoiTools.getCircularity(roi, pixelWidth, pixelHeight));
-//		measurementList.addMeasurement(prefix + "Convex area", roi.getScaledConvexArea(pixelWidth, pixelHeight));
-		measurementList.addMeasurement(prefix + "Solidity", roi.getSolidity());
+		measurementList.putMeasurement(prefix + "Area", roi.getScaledArea(pixelWidth, pixelHeight));
+		measurementList.putMeasurement(prefix + "Perimeter", roi.getScaledLength(pixelWidth, pixelHeight));
+		measurementList.putMeasurement(prefix + "Circularity", RoiTools.getCircularity(roi, pixelWidth, pixelHeight));
+//		measurementList.putMeasurement(prefix + "Convex area", roi.getScaledConvexArea(pixelWidth, pixelHeight));
+		measurementList.putMeasurement(prefix + "Solidity", roi.getSolidity());
 	}
 
 	public static void addShapeStatistics(MeasurementList measurementList, Roi roi, ImageProcessor ip, Calibration cal, String prefix) {
@@ -77,14 +77,14 @@ class ObjectMeasurements {
 	
 		// TODO: Add units!
 		if (roi.isArea())
-			measurementList.addMeasurement(prefix + "Area", shapeStats.area());
-		measurementList.addMeasurement(prefix + "Perimeter", shapeStats.perimeter());
-		measurementList.addMeasurement(prefix + "Circularity", shapeStats.circularity());
-		measurementList.addMeasurement(prefix + "Max caliper", shapeStats.maxCaliper());
-		measurementList.addMeasurement(prefix + "Min caliper", shapeStats.minCaliper());
-//		measurementList.addMeasurement(prefix + "Major axis", shapeStats.majorAxisLength());
-//		measurementList.addMeasurement(prefix + "Minor axis", shapeStats.minorAxisLength());
-		measurementList.addMeasurement(prefix + "Eccentricity", shapeStats.eccentricity());
+			measurementList.putMeasurement(prefix + "Area", shapeStats.area());
+		measurementList.putMeasurement(prefix + "Perimeter", shapeStats.perimeter());
+		measurementList.putMeasurement(prefix + "Circularity", shapeStats.circularity());
+		measurementList.putMeasurement(prefix + "Max caliper", shapeStats.maxCaliper());
+		measurementList.putMeasurement(prefix + "Min caliper", shapeStats.minCaliper());
+//		measurementList.putMeasurement(prefix + "Major axis", shapeStats.majorAxisLength());
+//		measurementList.putMeasurement(prefix + "Minor axis", shapeStats.minorAxisLength());
+		measurementList.putMeasurement(prefix + "Eccentricity", shapeStats.eccentricity());
 	
 		// Note: Roundness correlates closely with eccentricity, so was removed
 		// Major & Minor axis correlate closely with max & min caliper, so were removed

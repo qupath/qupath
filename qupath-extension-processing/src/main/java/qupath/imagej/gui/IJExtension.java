@@ -50,6 +50,9 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Predicate;
 
 import javax.swing.SwingUtilities;
@@ -81,6 +84,7 @@ import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.PathImage;
 import qupath.lib.images.servers.ImageServer;
@@ -96,8 +100,8 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
-import qupathj.QUPath_Send_Overlay_to_QuPath;
-import qupathj.QUPath_Send_ROI_to_QuPath;
+import qupathj.QuPath_Send_Overlay_to_QuPath;
+import qupathj.QuPath_Send_ROI_to_QuPath;
 
 /**
  * QuPath extension &amp; associated static helper methods used to support integration of ImageJ with QuPath.
@@ -146,141 +150,126 @@ public class IJExtension implements QuPathExtension {
 
 	/**
 	 * Get an instance of ImageJ, or start one, for interactive use (with GUI displayed).
-	 * Returns null if ImageJ could not be started.
 	 * 
-	 * @return
+	 * @return an ImageJ instance, or null if ImageJ could not be started
 	 */
 	public static synchronized ImageJ getImageJInstance() {
 		if (SwingUtilities.isEventDispatchThread())
 			return getImageJInstanceOnEDT();
 		
-		if (IJ.getInstance() != null)
-			return IJ.getInstance();
+		var ij = IJ.getInstance();
+		if (ij != null) {
+			ensurePluginsInstalled(ij);
+			return ij;
+		}
 		
 		// Try getting ImageJ without resorting to the EDT?
 		return getImageJInstanceOnEDT();
 	}
 		
+	private static Set<ImageJ> installedPlugins = Collections.newSetFromMap(new WeakHashMap<>());
+	
+	/**
+	 * Ensure we have installed the necessary plugins.
+	 * We might not if ImageJ has been launched elsewhere.
+	 * @param imageJ the ImageJ instance for which the plugins should be installed.
+	 */
+	private static synchronized void ensurePluginsInstalled(ImageJ imageJ) {
+		if (installedPlugins.contains(imageJ))
+			return;
+		if (!SwingUtilities.isEventDispatchThread()) {
+			SwingUtilities.invokeLater(() -> ensurePluginsInstalled(imageJ));
+			return;
+		}
+		logger.info("Installing QuPath plugins for ImageJ");
+		Menus.installPlugin(QuPath_Send_ROI_to_QuPath.class.getName(), Menus.PLUGINS_MENU, "Send ROI to QuPath", "", imageJ);
+		Menus.installPlugin(QuPath_Send_Overlay_to_QuPath.class.getName(), Menus.PLUGINS_MENU, "Send Overlay to QuPath", "", imageJ);
+		installedPlugins.add(imageJ);
+	}
 		
 	private static synchronized ImageJ getImageJInstanceOnEDT() {
 		ImageJ ijTemp = IJ.getInstance();
 		Prefs.setThreads(1); // Turn off ImageJ's multithreading, since we do our own
-		if (ijTemp != null)
-			return ijTemp;
-		logger.info("Creating a new standalone ImageJ instance...");
-//		List<Menu> menusPrevious = new ArrayList<>(QuPathGUI.getInstance().getMenuBar().getMenus());
-		try {
-//			Class<?> cls = IJ.getClassLoader().loadClass("MacAdapter");
-//			System.err.println("I LOADED: " + cls);
-			// See http://rsb.info.nih.gov/ij/docs/menus/plugins.html for setting the plugins directory
-			String ijPath = getImageJPath();
-			if (ijPath != null)
-				System.getProperties().setProperty("plugins.dir", ijPath);
-			ijTemp = new ImageJ(ImageJ.STANDALONE);
-		} catch (Exception e) {
-			// There may be an error (e.g. on OSX when attempting to install an ApplicationListener), but one we can safely ignore -
-			// so don't print a full stack trace & try to get an instance again
-			logger.warn(e.getLocalizedMessage());
-			ijTemp = IJ.getInstance();
-		}
 		if (ijTemp == null) {
-			logger.error("Unable to start ImageJ");
-			return null;
-		}
-
-		// Add some useful plugins
-		Menus.installPlugin(QUPath_Send_ROI_to_QuPath.class.getName(), Menus.PLUGINS_MENU, "Send ROI to QuPath", "", ijTemp);
-		Menus.installPlugin(QUPath_Send_Overlay_to_QuPath.class.getName(), Menus.PLUGINS_MENU, "Send Overlay to QuPath", "", ijTemp);
-
-		// ImageJ doesn't necessarily behave well when it is closed but windows are left open -
-		// so here ensure that all remaining displayed images are closed
-		final ImageJ ij = ijTemp;
-		ij.exitWhenQuitting(false);
-		ij.addWindowListener(new WindowAdapter() {
-			
-			@Override
-			public void windowDeactivated(WindowEvent e) {
-//				ij.setMenuBar(null);
+			logger.info("Creating a new standalone ImageJ instance...");
+	//		List<Menu> menusPrevious = new ArrayList<>(QuPathGUI.getInstance().getMenuBar().getMenus());
+			try {
+	//			Class<?> cls = IJ.getClassLoader().loadClass("MacAdapter");
+	//			System.err.println("I LOADED: " + cls);
+				// See http://rsb.info.nih.gov/ij/docs/menus/plugins.html for setting the plugins directory
+				String ijPath = getImageJPath();
+				if (ijPath != null)
+					System.getProperties().setProperty("plugins.dir", ijPath);
+				ijTemp = new ImageJ(ImageJ.STANDALONE);
+			} catch (Exception e) {
+				// There may be an error (e.g. on OSX when attempting to install an ApplicationListener), but one we can safely ignore -
+				// so don't print a full stack trace & try to get an instance again
+				logger.warn(e.getLocalizedMessage());
+				ijTemp = IJ.getInstance();
 			}
-			
-			@Override
-			public void windowLostFocus(WindowEvent e) {
-//				ij.setMenuBar(null);
+			if (ijTemp == null) {
+				logger.error("Unable to start ImageJ");
+				return null;
 			}
-			
-			@Override
-			public void windowClosing(WindowEvent e) {
-				// Spoiler alert: it *is* the EDT (as one would expect)
-//				System.err.println("EDT: " + SwingUtilities.isEventDispatchThread());
-//				System.err.println("Application thread: " + Platform.isFxApplicationThread());
-				ij.requestFocus();
-				for (Frame frame : Frame.getFrames()) {
-					// Close any images we have open
-					if (frame instanceof ImageWindow) {
-						ImageWindow win = (ImageWindow)frame;
-						ImagePlus imp = win.getImagePlus();
-						if (imp != null)
-							imp.setIJMenuBar(false);
-						win.setVisible(false);
-						if (imp != null) {
-							// Save message still appears...
-							imp.changes = false;
-							// Initially tried to close, but then ImageJ hung
-							// Flush was ok, unless it was selected to save changes - in which case that didn't work out
-//							imp.flush();
-//							imp.close();
-							//								imp.flush();
-						} else
-							win.dispose();
-					}
-				}
-				ij.removeWindowListener(this);
-				IJ.wait(10);
-				ij.setMenuBar(null);
-			}
-
-			@Override
-			public void windowClosed(WindowEvent e) {
-//				for (Frame frame : Frame.getFrames()) {
-//					// Close any images we have open
-//					if (frame instanceof ImageWindow) {
-//						ImageWindow win = (ImageWindow)frame;
-//						win.setVisible(false);
-//						ImagePlus imp = win.getImagePlus();
-//						if (imp != null) {
-//							imp.changes = false;
-//							imp.close();
-//							//								imp.flush();
-//						} else
-//							win.dispose();
-//					}
-//				}
-//				ij.removeWindowListener(this);
-//				ij.quit();
-//				ij.dispose();
-//				Platform.runLater(() -> {
-//					QuPathGUI.getInstance().getMenuBar().setUseSystemMenuBar(false);
-//					QuPathGUI.getInstance().getMenuBar().setUseSystemMenuBar(true);					
-//				});
-//				IJ.wait(10);
-//				ij.setMenuBar(null);
-			}
-
-		});
 		
-//		// Unfortunately it isn't possible to use the system menubar when ImageJ is used...
-//		if (GeneralTools.isMac()) {
-//			Platform.runLater(() -> {
-////				for (Menu menu : QuPathGUI.getInstance().getMenuBar().getMenus())
-////					System.err.println("Menu: " + menu.getText());
-////				System.err.println(QuPathGUI.getInstance().getMenuBar().getMenus());
-//				QuPathGUI.getInstance().getMenuBar().setUseSystemMenuBar(false);
-////				QuPathGUI.getInstance().getMenuBar().getMenus().setAll(menusPrevious);
-//				QuPathGUI.getInstance().getMenuBar().setUseSystemMenuBar(true);
-//			});
-//		}
-
-		logger.debug("Created ImageJ instance: {}", ijTemp);
+			// ImageJ doesn't necessarily behave well when it is closed but windows are left open -
+			// so here ensure that all remaining displayed images are closed
+			final ImageJ ij = ijTemp;
+			ij.exitWhenQuitting(false);
+			ij.addWindowListener(new WindowAdapter() {
+				
+				@Override
+				public void windowDeactivated(WindowEvent e) {
+	//				ij.setMenuBar(null);
+				}
+				
+				@Override
+				public void windowLostFocus(WindowEvent e) {
+	//				ij.setMenuBar(null);
+				}
+				
+				@Override
+				public void windowClosing(WindowEvent e) {
+					// Spoiler alert: it *is* the EDT (as one would expect)
+	//				System.err.println("EDT: " + SwingUtilities.isEventDispatchThread());
+	//				System.err.println("Application thread: " + Platform.isFxApplicationThread());
+					ij.requestFocus();
+					for (Frame frame : Frame.getFrames()) {
+						// Close any images we have open
+						if (frame instanceof ImageWindow) {
+							ImageWindow win = (ImageWindow)frame;
+							ImagePlus imp = win.getImagePlus();
+							if (imp != null)
+								imp.setIJMenuBar(false);
+							win.setVisible(false);
+							if (imp != null) {
+								// Save message still appears...
+								imp.changes = false;
+								// Initially tried to close, but then ImageJ hung
+								// Flush was ok, unless it was selected to save changes - in which case that didn't work out
+	//							imp.flush();
+	//							imp.close();
+								//								imp.flush();
+							} else
+								win.dispose();
+						}
+					}
+					ij.removeWindowListener(this);
+					IJ.wait(10);
+					ij.setMenuBar(null);
+				}
+	
+				@Override
+				public void windowClosed(WindowEvent e) {}
+	
+			});
+	
+			logger.debug("Created ImageJ instance: {}", ijTemp);
+		}
+		
+		// Make sure we have QuPath's custom plugins installed
+		ensurePluginsInstalled(ijTemp);
+		
 		return ijTemp;
 	}
 
@@ -463,14 +452,14 @@ public class IJExtension implements QuPathExtension {
 		qupath.addToolbarSeparator();
 		
 		try {
-			ImageView imageView = new ImageView(getImageJIcon(QuPathGUI.iconSize, QuPathGUI.iconSize));
+			ImageView imageView = new ImageView(getImageJIcon(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE));
 			Button btnImageJ = new Button();
 			btnImageJ.setGraphic(imageView);
 			btnImageJ.setTooltip(new Tooltip("ImageJ commands"));
 			ContextMenu popup = new ContextMenu();
 			popup.getItems().addAll(
-					QuPathGUI.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
-					QuPathGUI.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT), null))
+					MenuTools.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
+					MenuTools.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null))
 					);
 			btnImageJ.setOnMouseClicked(e -> {
 				popup.show(btnImageJ, e.getScreenX(), e.getScreenY());
@@ -489,8 +478,8 @@ public class IJExtension implements QuPathExtension {
 			qupath.addToolbarButton(btnImageJ);
 		} catch (Exception e) {
 			logger.error("Error adding toolbar buttons", e);
-			qupath.addToolbarCommand(commandExtractRegionCustom.getName(), commandExtractRegionCustom, PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION));
-			qupath.addToolbarCommand("Make screenshot", screenshotCommand, PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT));
+			qupath.addToolbarCommand(commandExtractRegionCustom.getName(), commandExtractRegionCustom, PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION));
+			qupath.addToolbarCommand("Make screenshot", screenshotCommand, PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT));
 		}
 		
 		
@@ -502,7 +491,7 @@ public class IJExtension implements QuPathExtension {
 //		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
 		
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification>Tiles & superpixels", true);
-		QuPathGUI.addMenuItems(menuRegions,
+		MenuTools.addMenuItems(menuRegions,
 				null,
 				qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null),
 				qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null),
@@ -512,7 +501,7 @@ public class IJExtension implements QuPathExtension {
 				);
 		
 		menuRegions = qupath.getMenu("Analyze>Region identification", true);
-		QuPathGUI.addMenuItems(menuRegions,
+		MenuTools.addMenuItems(menuRegions,
 				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null)
 				);
 
@@ -527,7 +516,7 @@ public class IJExtension implements QuPathExtension {
 		// Put dearraying at the top of the TMA menu
 		Menu menuTMA = qupath.getMenu("TMA", true);
 		menuTMA.getItems().add(0,
-				QuPathGUI.createMenuItem(qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null))
+				MenuTools.createMenuItem(qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null))
 				);
 		menuTMA.getItems().add(1,
 				new SeparatorMenuItem()
@@ -551,9 +540,9 @@ public class IJExtension implements QuPathExtension {
 		
 		Menu menuAutomate = qupath.getMenu("Extensions>ImageJ", true);
 		Action actionMacroRunner = qupath.createPluginAction("ImageJ macro runner", new ImageJMacroRunner(qupath), null);
-		QuPathGUI.addMenuItems(menuAutomate,
-				QuPathGUI.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
-				QuPathGUI.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.iconSize, QuPathGUI.iconSize, PathIconFactory.PathIcons.SCREENSHOT), null)),
+		MenuTools.addMenuItems(menuAutomate,
+				MenuTools.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
+				MenuTools.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null)),
 				null,
 				miSetPluginsPath,
 				null,
@@ -577,7 +566,7 @@ public class IJExtension implements QuPathExtension {
 		});
 		
 		Menu menuPreprocessing = qupath.getMenu("Analyze>Preprocessing", true);
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuPreprocessing,
 				null,
 				qupath.createPluginAction("Simple tissue detection", SimpleTissueDetection2.class, null)
@@ -585,7 +574,7 @@ public class IJExtension implements QuPathExtension {
 		
 		
 		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell detection", true);
-		QuPathGUI.addMenuItems(
+		MenuTools.addMenuItems(
 				menuCellAnalysis,
 //				qupath.createPluginAction("Mean brown chromogen (legacy)", MeanBrownChromogenPlugin.class, null, false),
 //				new SeparatorMenuItem(),

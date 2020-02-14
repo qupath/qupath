@@ -120,7 +120,9 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	private static final Set<String> METHOD_NAMES = new HashSet<>();
 	static {
 		for (Method method : QPEx.class.getMethods()) {
-			METHOD_NAMES.add(method.getName());
+			// Exclude deprecated methods (don't want to encourage them...)
+			if (method.getAnnotation(Deprecated.class) == null)
+				METHOD_NAMES.add(method.getName());
 		}
 		
 		// Remove the methods that come from the Object class...

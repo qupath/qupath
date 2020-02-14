@@ -51,9 +51,11 @@ import javax.imageio.ImageIO;
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
+import org.controlsfx.control.textfield.TextFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ObjectProperty;
@@ -98,10 +100,12 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
@@ -135,6 +139,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	private Set<String> serversRequested = new HashSet<>();
 	
 	private StringProperty descriptionText = new SimpleStringProperty();
+	
+	private static TextField tfFilter;
 
 	private static ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
 			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
@@ -197,9 +203,38 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		titledTree.setCollapsible(false);
 		titledTree.setMaxHeight(Double.MAX_VALUE);
 		
+		
+		tfFilter = new TextField();
+		tfFilter.setPromptText("Search entry in project");
+		tfFilter.setTooltip(new Tooltip("Type some text to filter the project entries by name or type."));
+		
+		tfFilter.textProperty().addListener((m, o, n) -> {
+			model.rebuildModel();
+			tree.setRoot(model.getRootFX());
+			tree.getRoot().setExpanded(true);
+			
+			// If user has entered keyword(s) for search and some entries match, 
+			// expand the first TreeItem that contains relevant matches.
+			try {
+				var listOfChildren = tree.getRoot().getChildren();
+				if (tfFilter.getText().length() > 0) {
+						for (int i = 0; i < listOfChildren.size(); i++) {
+							if (listOfChildren.get(i).getChildren().size() > 0) {
+								listOfChildren.get(i).setExpanded(true);
+								break;
+							}
+					}
+				}
+			} catch (Exception e) {}
+		});
+		
+		
+		var paneUserFilter = PaneTools.createRowGrid(tfFilter);
+		
 		BorderPane panelTree = new BorderPane();
 		panelTree.setCenter(titledTree);
 
+		panel.setBottom(paneUserFilter);
 		panel.setCenter(panelTree);
 
 		Button btnOpen = qupath.getActionButton(GUIActions.PROJECT_OPEN, false);
@@ -214,6 +249,10 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				thumbnailSize, FXCollections.observableArrayList(ProjectThumbnailSize.values()), ProjectThumbnailSize.class,
 				"Project thumbnails size", "Appearance", "Choose thumbnail size for the project pane");
 
+	}
+	
+	private static String getUserFilter() {
+		return tfFilter.getText().toLowerCase();
 	}
 
 
@@ -314,6 +353,14 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null && !entries.isEmpty()) {
 				
 				TextField tfMetadataKey = new TextField();
+				var suggestions = project.getImageList().stream()
+						.map(p -> p.getMetadataKeys())
+						.flatMap(Collection::stream)
+						.distinct()
+						.sorted()
+						.collect(Collectors.toList());
+				TextFields.bindAutoCompletion(tfMetadataKey, suggestions);
+				
 				TextField tfMetadataValue = new TextField();
 				Label labKey = new Label("New key");
 				Label labValue = new Label("New value");
@@ -379,6 +426,68 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 		});
 		
+		Action actionDuplicateImages = new Action("Duplicate image(s)", e -> {
+			Collection<ProjectImageEntry<BufferedImage>> entries = getAllSelectedEntries();
+			if (entries.isEmpty()) {
+				logger.debug("Cannot duplicate project entries - no entries selected");
+				return;
+			}
+			
+			boolean singleImage = false;
+			String name = "";
+			String title = "Duplicate images";
+			String namePrompt = "Append to image name";
+			String nameHelp = "Specify text to append to the image name to distinguish duplicated images";
+			if (entries.size() == 1) {
+				title = "Duplicate image";
+				namePrompt = "Duplicate image name";
+				nameHelp = "Specify name for the duplicated image";
+				singleImage = true;
+				name = entries.iterator().next().getImageName();
+				name = GeneralTools.generateDistinctName(
+						name,
+						project.getImageList().stream().map(p -> p.getImageName()).collect(Collectors.toSet()));
+			}
+			var params = new ParameterList()
+					.addStringParameter("name", namePrompt, name, nameHelp)
+					.addBooleanParameter("copyData", "Also duplicate data files", true, "Duplicate any associated data files along with the image");
+			
+			if (!Dialogs.showParameterDialog(title, params))
+				return;
+
+			boolean copyData = params.getBooleanParameterValue("copyData");
+			name = params.getStringParameterValue("name");
+
+			// Ensure we have a single space and then the text to append, with extra whitespace removed
+			if (!singleImage && !name.isBlank())
+				name = " " + name.strip();
+			
+			for (var entry : entries) {
+				try {
+					var newEntry = project.addDuplicate(entry, copyData);
+					if (newEntry != null && !name.isBlank()) {
+						if (singleImage)
+							newEntry.setImageName(name);
+						else
+							newEntry.setImageName(newEntry.getImageName() + name);
+					}
+				} catch (Exception ex) {
+					Dialogs.showErrorNotification("Duplicating image", "Error duplicating " + entry.getImageName());
+					logger.error(ex.getLocalizedMessage(), ex);
+				}
+			}
+			try {
+				project.syncChanges();
+			} catch (Exception ex) {
+				logger.error("Error synchronizing project changes: " + ex.getLocalizedMessage(), ex);
+			}
+			refreshProject();
+			if (entries.size() == 1)
+				logger.debug("Duplicated 1 image entry");
+			else
+				logger.debug("Duplicated {} image entries");
+		});
+		
 		// Open the project directory using Explorer/Finder etc.
 		Action actionOpenProjectDirectory = createBrowsePathAction("Project...", () -> getProjectPath());
 		Action actionOpenProjectEntryDirectory = createBrowsePathAction("Project entry...", () -> getProjectEntryPath());
@@ -389,7 +498,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		ContextMenu menu = new ContextMenu();
 		
 		var hasProjectBinding = qupath.projectProperty().isNotNull();
-		var menuOpenDirectories = QuPathGUI.createMenu("Open directory...", 
+		var menuOpenDirectories = MenuTools.createMenu("Open directory...", 
 				actionOpenProjectDirectory,
 				actionOpenProjectEntryDirectory,
 				actionOpenImageServerDirectory);
@@ -399,6 +508,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		
 		MenuItem miOpenImage = ActionUtils.createMenuItem(actionOpenImage);
 		MenuItem miRemoveImage = ActionUtils.createMenuItem(actionRemoveImage);
+		MenuItem miDuplicateImage = ActionUtils.createMenuItem(actionDuplicateImages);
 		MenuItem miSetImageName = ActionUtils.createMenuItem(actionSetImageName);
 		MenuItem miRefreshThumbnail = ActionUtils.createMenuItem(actionRefreshThumbnail);
 		MenuItem miEditDescription = ActionUtils.createMenuItem(actionEditDescription);
@@ -445,6 +555,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		menu.getItems().addAll(
 				miOpenImage,
 				miRemoveImage,
+				miDuplicateImage,
 				new SeparatorMenuItem(),
 				miSetImageName,
 				miAddMetadata,
@@ -465,7 +576,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		return menu;
 
 	}
-	
 	
 	Path getProjectPath() {
 		return project == null ? null : project.getPath();
@@ -596,7 +706,17 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	}
 	
 	
+	/**
+	 * Refresh the current project, updating the displayed entries.
+	 * Note that this must be called on the JavaFX Application thread.
+	 * If it is not, the request will be passed to the application thread 
+	 * (and therefore not processed immediately).
+	 */
 	public void refreshProject() {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> refreshProject());
+			return;
+		}
 		model = new ProjectImageTreeModel(project);
 		tree.setRoot(model.getRootFX());
 		tree.getRoot().setExpanded(true);		
@@ -894,6 +1014,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		private String PROJECT_KEY;
 		private String DEFAULT_ROOT = "No project";
 		private String UNASSIGNED_NODE = "(Unassigned)";
+		
 
 		ProjectImageTreeModel(final Project<?> project) {
 			this(project, null);
@@ -935,24 +1056,34 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			// Populate the map
 			String emptyKey = sortKeys.isEmpty() ? PROJECT_KEY : UNASSIGNED_NODE;
 			var imageList = new ArrayList<>(project.getImageList());
+			String userFilter = getUserFilter();
 						
 			for (ProjectImageEntry<?> entry : imageList) {
+				boolean metadataMatchesFilter = false;
 				String localKey = emptyKey;
 				for (String metadataKey : sortKeys) {
 					String temp = entry.getMetadataValue(metadataKey);
+					
+					
 					if (temp != null) {
+						if (temp.toLowerCase().contains(userFilter))
+							metadataMatchesFilter = true;
 						localKey = temp;
 						break;						
 					}
-				}
+				} 
 				List<ProjectImageEntry<?>> list = map.get(localKey);
 				if (list == null) {
 					list = new ArrayList<>();
 					map.put(localKey, list);
 				}
-				list.add(entry);
+				// Filter out images that do not match the user's keywords or the entry's metadata
+				if (entry.getImageName().toLowerCase().contains(userFilter) || metadataMatchesFilter)
+					list.add(entry);
 			}
 
+			
+			/*
 			// Sort all the lists
 			for (List<ProjectImageEntry<?>> list : map.values()) {
 				list.sort(new Comparator<ProjectImageEntry<?>>() {
@@ -962,6 +1093,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					}
 				});
 			}
+			*/
 
 			// Populate the key list
 			mapKeyList.addAll(map.keySet());
@@ -969,6 +1101,31 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			// Ensure unassigned is at the end
 			if (mapKeyList.remove(UNASSIGNED_NODE))
 				mapKeyList.add(UNASSIGNED_NODE);
+		}
+		
+		public boolean matchesUserFilter(String entryMetadata) {
+			String userFilter = getUserFilter();
+			if (userFilter == null || userFilter.equals("")) 
+				return true;
+			if (entryMetadata.toLowerCase().contains(userFilter))
+				return true;
+			return false;
+		}
+		
+		
+		/**
+		 * This method should be used instead of calling Project.getImageList() 
+		 * when we need the list of {@code ImageProjectEntry}s within a project  
+		 * after having filtered out the entries with the key words provided by 
+		 * the user.
+		 * @return {@code List<ProjectImageEntry>}
+		 */
+		public List<ProjectImageEntry<?>> getImageList(){
+			List<ProjectImageEntry<?>> out = 
+				    map.values().stream()
+				        .flatMap(List::stream)
+				        .collect(Collectors.toList());
+			return out;
 		}
 
 
@@ -983,7 +1140,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (project != null) {
 				Random rand = new Random(project.hashCode());
 				if (sortKeys.isEmpty()) {
-					var imageList = project.getImageList();
+					var imageList = getImageList();
 					if (maskNames)
 						Collections.shuffle(imageList, rand);
 					for (ProjectImageEntry<?> entry : imageList)
@@ -1199,7 +1356,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			
 		}
-		
 		
 	}
 

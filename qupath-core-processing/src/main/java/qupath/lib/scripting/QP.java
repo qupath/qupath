@@ -35,17 +35,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +67,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -172,6 +177,7 @@ public class QP {
 			GeometryTools.class,
 			IJTools.class,
 			OpenCVTools.class,
+			TileExporter.class,
 			
 			// External classes
 			BufferedImage.class
@@ -976,6 +982,7 @@ public class QP {
 	 * @param imageData
 	 * @param classifier
 	 */
+	@Deprecated
 	public static void runClassifier(final ImageData<?> imageData, final PathObjectClassifier classifier) {
 		if (imageData != null)
 			runClassifier(imageData.getHierarchy(), classifier);
@@ -986,7 +993,9 @@ public class QP {
 	 * @param hierarchy
 	 * @param classifier
 	 */
+	@Deprecated
 	public static void runClassifier(final PathObjectHierarchy hierarchy, final PathObjectClassifier classifier) {
+		logger.warn("runClassifier() is a legacy command for 'old' detection classifiers in QuPath v0.1.2 and earlier, and may be removed in a future version");
 		PathClassifierTools.runClassifier(hierarchy, classifier);
 	}
 	
@@ -994,6 +1003,7 @@ public class QP {
 	 * Run a detection object classifier for the current image data, reading the classifier from a specified path
 	 * @param path
 	 */
+	@Deprecated
 	public static void runClassifier(final String path) {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null)
@@ -1725,7 +1735,7 @@ public class QP {
 	 * @param measurementName measurement to threshold
 	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
 	 */
-	public static void setIntensityClassifications(final Collection<PathObject> pathObjects, final String measurementName, final double... thresholds) {
+	public static void setIntensityClassifications(final Collection<? extends PathObject> pathObjects, final String measurementName, final double... thresholds) {
 		PathClassifierTools.setIntensityClassifications(pathObjects, measurementName, thresholds);
 	}
 	
@@ -2045,6 +2055,235 @@ public class QP {
 	
 	private static boolean isFinite(Number val) {
 		return val != null && Double.isFinite(val.doubleValue());
+	}
+	
+	/**
+	 * Merge point annotations sharing the same {@link PathClass} and {@link ImagePlane} as the selected annotations
+	 * of the current hierarchy, creating multi-point annotations for all matching points and removing the (previously-separated) annotations.
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
+	public static boolean mergePointsForAllClasses() {
+		return PathObjectTools.mergePointsForAllClasses(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Merge point annotations sharing the same {@link PathClass} and {@link ImagePlane} for the current hierarchy, 
+	 * creating multi-point annotations for all matching points and removing the (previously-separated) annotations.
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
+	public static boolean mergePointsForSelectedObjectClasses() {
+		return PathObjectTools.mergePointsForSelectedObjectClasses(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Duplicate the selected annotations in the current hierarchy.
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
+	public static boolean duplicateSelectedAnnotations() {
+		return PathObjectTools.duplicateSelectedAnnotations(getCurrentHierarchy());
+	}
+	
+	public static boolean mergeAnnotations(final Collection<PathObject> annotations) {
+		return mergeAnnotations(getCurrentHierarchy(), annotations);
+	}
+	
+	/**
+	 * Merge the currently-selected annotations of the current hierarchy to create a new annotation containing the union of their ROIs.
+	 * <p>
+	 * Note:
+	 * <ul>
+	 * <li>The existing annotations will be removed from the hierarchy if possible, therefore should be duplicated first 
+	 * if this is not desired.</li>
+	 * <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 * </ul>
+	 * 
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
+	public static boolean mergeSelectedAnnotations() {
+		return mergeSelectedAnnotations(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Merge the specified annotations to create a new annotation containing the union of their ROIs.
+	 * <p>
+	 * Note:
+	 * <ul>
+	 * <li>The existing annotations will be removed from the hierarchy if possible, therefore should be duplicated first 
+	 * if this is not desired.</li>
+	 * <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 * </ul>
+	 * 
+	 * @param hierarchy
+	 * @param annotations
+	 * @return true if changes are made to the hierarchy, false otherwise
+	 */
+	public static boolean mergeAnnotations(final PathObjectHierarchy hierarchy, final Collection<PathObject> annotations) {
+		if (hierarchy == null)
+			return false;
+		
+		// Get all the selected annotations with area
+		ROI shapeNew = null;
+		List<PathObject> merged = new ArrayList<>();
+		Set<PathClass> pathClasses = new HashSet<>();
+		for (PathObject annotation : annotations) {
+			if (annotation.isAnnotation() && annotation.hasROI() && annotation.getROI().isArea()) {
+				if (shapeNew == null)
+					shapeNew = annotation.getROI();//.duplicate();
+				else
+					shapeNew = RoiTools.combineROIs(shapeNew, annotation.getROI(), RoiTools.CombineOp.ADD);
+				if (annotation.getPathClass() != null)
+					pathClasses.add(annotation.getPathClass());
+				merged.add(annotation);
+			}
+		}
+		// Check if we actually merged anything
+		if (merged.isEmpty() || merged.size() == 1)
+			return false;
+	
+		// Create and add the new object, removing the old ones
+		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
+		if (pathClasses.size() == 1)
+			pathObjectNew.setPathClass(pathClasses.iterator().next());
+		else
+			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
+		hierarchy.removeObjects(merged, true);
+		hierarchy.addPathObject(pathObjectNew);
+		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
+		//				pathObject.removePathObjects(children);
+		//				pathObject.addPathObject(pathObjectNew);
+		//				hierarchy.fireHierarchyChangedEvent(pathObject);
+		return true;
+	}
+
+	/**
+	 * Merge the currently-selected annotations to create a new annotation containing the union of their ROIs.
+	 * <p>
+	 * Note:
+	 * <ul>
+	 * <li>The existing annotations will be removed from the hierarchy if possible, therefore should be duplicated first 
+	 * if this is not desired.</li>
+	 * <li>The new object will be set to be the selected object in the hierarchy (which can be used to retrieve it if needed).</li>
+	 * </ul>
+	 * 
+	 * @param hierarchy
+	 * @return
+	 */	public static boolean mergeSelectedAnnotations(final PathObjectHierarchy hierarchy) {
+		return hierarchy == null ? null : mergeAnnotations(hierarchy, hierarchy.getSelectionModel().getSelectedObjects());
+	}
+	
+	/**
+	 * Make an annotation for the current {@link ImageData}, for which the ROI is obtained by subtracting 
+	 * the existing ROI from the ROI of its parent object (or entire image if no suitable parent object is available).
+	 * 
+	 * @param pathObject the existing object defining the ROI to invert
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise
+	 */
+	public static boolean makeInverseAnnotation(final PathObject pathObject) {
+		return makeInverseAnnotation(getCurrentImageData(), pathObject);
+	}
+	
+
+	/**
+	 * Make an annotation for the specified {@link ImageData}, for which the ROI is obtained by subtracting 
+	 * the existing ROI from the ROI of its parent object (or entire image if no suitable parent object is available).
+	 * 
+	 * @param imageData the imageData for which an inverted annotation should be created
+	 * @param pathObject the existing object defining the ROI to invert
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise
+	 */
+	public static boolean makeInverseAnnotation(final ImageData<?> imageData, final PathObject pathObject) {
+		if (imageData == null)
+			return false;
+		return makeInverseAnnotation(imageData, Collections.singletonList(pathObject));
+	}
+	
+	/**
+	 * Make an inverse annotation using the current {@link ImageData} and its current selected objects.
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise
+	 */
+	public static boolean makeInverseAnnotation() {
+		return makeInverseAnnotation(getCurrentImageData());
+	}
+
+	/**
+	 * Make an inverse annotation using the specified {@link ImageData} and current selected objects.
+	 * @param imageData the imageData for which an inverted annotation should be created
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise
+	 */
+	public static boolean makeInverseAnnotation(final ImageData<?> imageData) {
+		return makeInverseAnnotation(imageData, imageData.getHierarchy().getSelectionModel().getSelectedObjects());
+	}
+	
+	/**
+	 * Make an annotation, for which the ROI is obtained by subtracting the ROIs of the specified objects from the closest 
+	 * common ancestor ROI (or entire image if the closest ancestor is the root).
+	 * <p>
+	 * In an inverted annotation can be created, it is added to the hierarchy and set as selected.
+	 * 
+	 * @param imageData the image containing the annotation
+	 * @param pathObjects the annotation to invert
+	 * @return true if an inverted annotation is added to the hierarchy, false otherwise.
+	 */
+	public static boolean makeInverseAnnotation(final ImageData<?> imageData, Collection<PathObject> pathObjects) {
+		if (imageData == null)
+			return false;
+		
+		var map = pathObjects.stream().filter(p -> p.hasROI() && p.getROI().isArea())
+				.collect(Collectors.groupingBy(p -> p.getROI().getImagePlane()));
+		if (map.isEmpty()) {
+			logger.warn("No area annotations available - cannot created inverse ROI!");
+			return false;
+		}
+		if (map.size() > 1) {
+			logger.error("Cannot merge annotations from different image planes!");
+			return false;
+		}
+		ImagePlane plane = map.keySet().iterator().next();
+		List<PathObject> pathObjectList = map.get(plane);
+				
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
+		
+		// Try to get the best candidate parent
+		Collection<PathObject> parentSet = pathObjectList.stream().map(p -> p.getParent()).collect(Collectors.toCollection(HashSet::new));
+		PathObject parent;
+		if (parentSet.size() > 1) {
+			parentSet.clear();
+			boolean firstTime = true;
+			for (PathObject temp : pathObjectList) {
+				if (firstTime)
+					parentSet.addAll(PathObjectTools.getAncenstorList(temp));
+				else
+					parentSet.retainAll(PathObjectTools.getAncenstorList(temp));
+				firstTime = false;
+			}
+			List<PathObject> parents = new ArrayList<>(parentSet);
+			Collections.sort(parents, Comparator.comparingInt(PathObject::getLevel).reversed()
+					.thenComparingDouble(p -> p.hasROI() ? p.getROI().getArea() : Double.MAX_VALUE));
+			parent = parents.get(0);
+		} else
+			parent = parentSet.iterator().next();			
+		
+		// Get the parent area
+		Geometry geometryParent;
+		if (parent == null || parent.isRootObject() || !parent.hasROI())
+			geometryParent = GeometryTools.createRectangle(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight());
+		else
+			geometryParent = parent.getROI().getGeometry();
+
+		// Get the parent area to use
+		var union = GeometryTools.union(pathObjectList.stream().map(p -> p.getROI().getGeometry()).collect(Collectors.toList()));
+		var geometry = geometryParent.difference(union);
+
+		// Create the new ROI
+		ROI shapeNew = GeometryTools.geometryToROI(geometry, plane);
+		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
+		parent.addPathObject(pathObjectNew);
+		hierarchy.fireHierarchyChangedEvent(parent);	
+		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
+		return true;
 	}
 	
 }

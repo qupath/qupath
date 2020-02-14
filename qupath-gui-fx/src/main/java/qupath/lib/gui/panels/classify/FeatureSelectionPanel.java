@@ -78,6 +78,10 @@ class FeatureSelectionPanel {
 	private TableView<SelectableFeature> tableFeatures = new TableView<>();
 
 	private BorderPane pane;
+	
+	public FeatureSelectionPanel(final QuPathGUI qupath) {
+		this(qupath, null);
+	}
 
 	FeatureSelectionPanel(final QuPathGUI qupath, final PathIntensityClassifierPanel panelIntensities) {
 		this.qupath = qupath;
@@ -255,7 +259,7 @@ class FeatureSelectionPanel {
 	}
 
 
-	void ensureMeasurementsUpdated() {
+	public void ensureMeasurementsUpdated() {
 		updateMeasurements(qupath.getImageData());
 	}
 

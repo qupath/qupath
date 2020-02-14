@@ -24,6 +24,7 @@
 package qupath.lib.gui.viewer.tools;
 
 import java.awt.geom.Point2D;
+import java.util.Collections;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -145,19 +146,14 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		// If we are double-clicking & we don't have a polygon, see if we can access a ROI
 		if (!PathPrefs.isSelectionMode() && e.getClickCount() > 1) {
 			// Reset parent... for now
-			resetCurrentParent();		
+			resetConstrainedAreaParent();		
 			tryToSelect(xx, yy, e.getClickCount()-2, false);
 			e.consume();
 			return;
 		}
 
 		// Set the current parent object based on the first click
-		setCurrentParent(hierarchy, getSelectableObjectList(xx, yy)
-				.stream()
-				.filter(p -> !p.isDetection())
-				.findFirst()
-				.orElseGet(() -> null),
-				null);
+		setConstrainedAreaParent(hierarchy, xx, yy, Collections.emptyList());
 		
 		// Create a new annotation
 		PathObject pathObject = createNewAnnotation(e, xx, yy);

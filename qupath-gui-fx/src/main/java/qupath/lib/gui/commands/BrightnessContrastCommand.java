@@ -33,6 +33,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -40,11 +41,15 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.transformation.FilteredList;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -65,6 +70,7 @@ import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.input.Clipboard;
@@ -132,6 +138,13 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 //	private float maxCurrent = 0;
 	
 	private TableView<ChannelDisplayInfo> table = new TableView<>();
+	private StringProperty filterText = new SimpleStringProperty("");
+	private ObjectBinding<Predicate<ChannelDisplayInfo>> predicate = Bindings.createObjectBinding(() -> {
+		String text = filterText.get().toLowerCase().strip();
+		if (text.isBlank())
+			return info -> true;
+		return info -> info.getName().toLowerCase().contains(text);
+	}, filterText);
 	
 	private ColorPicker picker = new ColorPicker();
 	
@@ -407,37 +420,54 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			row.setOnMouseClicked(e -> {
 				if (e.getClickCount() == 2) {
 					ChannelDisplayInfo info = row.getItem();
-					if (info instanceof ChannelDisplayInfo.DirectServerChannelInfo) {
+					var imageData = viewer.getImageData();
+					if (info instanceof ChannelDisplayInfo.DirectServerChannelInfo && imageData != null) {
 						ChannelDisplayInfo.DirectServerChannelInfo multiInfo = (ChannelDisplayInfo.DirectServerChannelInfo)info;
 						int c = multiInfo.getChannel();
+						var channel = imageData.getServer().getMetadata().getChannel(c);
 						
 						Color color = ColorToolsFX.getCachedColor(multiInfo.getColor());
 						picker.setValue(color);
 						
 						
 						Dialog<ButtonType> colorDialog = new Dialog<>();
-						colorDialog.setTitle("Channel color");
+						colorDialog.setTitle("Channel properties");
+												
 						colorDialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
-						colorDialog.getDialogPane().setHeaderText("Select color for " + info.getName());
-						StackPane colorPane = new StackPane(picker);
-						colorDialog.getDialogPane().setContent(colorPane);
+						
+						var paneColor = new GridPane();
+						int r = 0;
+						var labelName = new Label("Channel name");
+						var tfName = new TextField(channel.getName());
+						labelName.setLabelFor(tfName);
+						PaneTools.addGridRow(paneColor, r++, 0, "Enter a name for the current channel", labelName, tfName);
+						var labelColor = new Label("Channel color");
+						labelColor.setLabelFor(picker);
+						PaneTools.addGridRow(paneColor, r++, 0, "Choose the color for the current channel", labelColor, picker);
+						paneColor.setVgap(5.0);
+						paneColor.setHgap(5.0);
+						
+						colorDialog.getDialogPane().setContent(paneColor);
 						Optional<ButtonType> result = colorDialog.showAndWait();
-						if (result.orElseGet(() -> ButtonType.CANCEL) == ButtonType.APPLY) {
+						if (result.orElse(ButtonType.CANCEL) == ButtonType.APPLY) {
 //							if (!DisplayHelpers.showMessageDialog("Choose channel color", picker))
 //								return;
+							String name = tfName.getText().trim();
+							if (name.isEmpty()) {
+								Dialogs.showErrorMessage("Set channel name", "The channel name must not be empty!");
+								return;
+							}
 							Color color2 = picker.getValue();
-							if (color == color2)
+							if (color == color2 && name.equals(channel.getName()))
 								return;
 							
 							// Update the server metadata
-							var imageData = viewer.getImageData();
 							int colorUpdated = ColorToolsFX.getRGB(color2);
 							if (imageData != null) {
 								var server = imageData.getServer();
 								var metadata = server.getMetadata();
 								var channels = new ArrayList<>(metadata.getChannels());
-								var channel = channels.get(c);
-								channels.set(c, ImageChannel.getInstance(channel.getName(), colorUpdated));
+								channels.set(c, ImageChannel.getInstance(name, colorUpdated));
 								var metadata2 = new ImageServerMetadata.Builder(metadata)
 										.channels(channels).build();
 								imageData.updateServerMetadata(metadata2);
@@ -482,7 +512,15 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		
 		BorderPane panelColor = new BorderPane();
 //		panelColor.setBorder(BorderFactory.createTitledBorder("Color display"));
-		panelColor.setCenter(table);
+		BorderPane paneTableAndFilter = new BorderPane(table);
+		TextField tfFilter = new TextField("");
+		tfFilter.textProperty().bindBidirectional(filterText);
+		tfFilter.setTooltip(new Tooltip("Enter text to find specific channels by name"));
+		tfFilter.setPromptText("Filter channels by name");
+		paneTableAndFilter.setBottom(tfFilter);
+		predicate.addListener((v, o, n) -> updatePredicate());
+		
+		panelColor.setCenter(paneTableAndFilter);
 		
 		CheckBox cbShowGrayscale = new CheckBox("Show grayscale");
 		cbShowGrayscale.selectedProperty().bindBidirectional(showGrayscale);
@@ -548,6 +586,12 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		updateDisplay(getCurrentInfo(), true);
 		updateHistogram();
 		updateSliders();
+		
+		// Update sliders when receiving focus - in case the display has been updated elsewhere
+		dialog.focusedProperty().addListener((v, o, n) -> {
+			if (n)
+				updateSliders();
+		});
 
 		return dialog;
 	}
@@ -751,11 +795,16 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 			n = (int)(range / .01);
 		slidersUpdating = true;
 		
-		sliderMin.setMin(infoVisible.getMinAllowed());
-		sliderMin.setMax(infoVisible.getMaxAllowed());
+		double maxDisplay = Math.max(infoVisible.getMaxDisplay(), infoVisible.getMinDisplay());
+		double minDisplay = Math.min(infoVisible.getMaxDisplay(), infoVisible.getMinDisplay());
+		double minSlider = Math.min(infoVisible.getMinAllowed(), minDisplay);
+		double maxSlider = Math.max(infoVisible.getMaxAllowed(), maxDisplay);
+		
+		sliderMin.setMin(minSlider);
+		sliderMin.setMax(maxSlider);
 		sliderMin.setValue(infoVisible.getMinDisplay());
-		sliderMax.setMin(infoVisible.getMinAllowed());
-		sliderMax.setMax(infoVisible.getMaxAllowed());
+		sliderMax.setMin(minSlider);
+		sliderMax.setMax(maxSlider);
 		sliderMax.setValue(infoVisible.getMaxDisplay());
 		
 		if (is8Bit) {
@@ -850,7 +899,13 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		}
 	}
 	
-	
+	@SuppressWarnings("unchecked")
+	private void updatePredicate() {
+		var items = table.getItems();
+		if (items instanceof FilteredList) {
+			((FilteredList<ChannelDisplayInfo>)items).setPredicate(predicate.get());
+		}
+	}
 	
 	public void updateTable() {
 		if (!isInitialized())
@@ -860,7 +915,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		if (imageDisplay == null) {
 			table.setItems(FXCollections.emptyObservableList());
 		} else {
-			table.setItems(imageDisplay.availableChannels());
+			table.setItems(imageDisplay.availableChannels().filtered(predicate.get()));
 			showGrayscale.bindBidirectional(imageDisplay.useGrayscaleLutProperty());
 		}
 		table.refresh();

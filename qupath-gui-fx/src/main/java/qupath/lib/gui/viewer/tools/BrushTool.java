@@ -25,19 +25,14 @@ package qupath.lib.gui.viewer.tools;
 
 import java.awt.Shape;
 import java.awt.geom.Point2D;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateSequence;
-import org.locationtech.jts.geom.CoordinateSequenceFilter;
-import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.simplify.VWSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
@@ -85,6 +80,13 @@ public class BrushTool extends AbstractPathROITool {
 	
 	double lastRequestedCursorDiameter = Double.NaN;
 	Cursor requestedCursor;
+	
+	/**
+	 * The object currently being edited by the Brush.
+	 * This is set when the mouse is pressed, to avoid relying on QuPathViewer.getSelectedObject() 
+	 * (in case something has sneakily changed this).
+	 */
+	private PathObject currentObject;
 	
 	Point2D lastPoint;
 	
@@ -134,7 +136,7 @@ public class BrushTool extends AbstractPathROITool {
 //		e.setFill(null);
 //		e.setStroke(color);
 //		Image image = e.snapshot(snapshotParameters, null);
-//		requestedCursor = new ImageCursor(image, diameter/2, diameter/2);
+//		requestedCursor = new ImageCursor(image, image.getWidth()/2, image.getHeight()/2);
 //		
 //		this.registerTool(viewer);
 //
@@ -162,7 +164,7 @@ public class BrushTool extends AbstractPathROITool {
 	
 	@Override
 	public void mouseMoved(MouseEvent e) {
-//		ensureCursorType(getRequestedCursor());
+		ensureCursorType(getRequestedCursor());
 	}
 	
 	
@@ -243,19 +245,21 @@ public class BrushTool extends AbstractPathROITool {
 			return;
 						
 		// Get the parent, in case we need to constrain the shape
-		PathObject parent = null;
-		if (currentObject != null) {
-			parent = currentObject.getParent();
-		}
-		var currentObject2 = currentObject;
-		if (parent == null || parent.isDetection()) {
-			parent = getSelectableObjectList(p.getX(), p.getY())
-					.stream()
-					.filter(o -> !o.isDetection() && o != currentObject2)
-					.findFirst()
-					.orElseGet(() -> null);
-		}
-		setCurrentParent(hierarchy, parent, currentObject);
+//		PathObject parent = null;
+//		if (currentObject != null) {
+//			parent = currentObject.getParent();
+//		}
+//		var currentObject2 = currentObject;
+//		if (parent == null || parent.isDetection()) {
+//			parent = getSelectableObjectList(p.getX(), p.getY())
+//					.stream()
+//					.filter(o -> !o.isDetection() && o != currentObject2)
+//					.findFirst()
+//					.orElseGet(() -> null);
+//		}
+//		setConstrainedAreaParent(hierarchy, parent, currentObject);
+		setConstrainedAreaParent(hierarchy, xx, yy, Collections.singleton(currentObject));
+
 		
 		// Need to remove the object from the hierarchy while editing it
 		if (!createNew && currentObject != null) {
@@ -265,13 +269,13 @@ public class BrushTool extends AbstractPathROITool {
 		ROI shapeROI = createNew ? null : currentObject.getROI();
 		if (createNew) {
 			creatingTiledROI = false; // Reset this
-			createNewAnnotation(e, p.getX(), p.getY());
+			this.currentObject = createNewAnnotation(e, p.getX(), p.getY());
 			viewer.getROIEditor().setROI(null);
 		} else {
-			viewer.setSelectedObject(getUpdatedObject(e, shapeROI, currentObject, -1));
+			this.currentObject = getUpdatedObject(e, shapeROI, currentObject, -1);
+			viewer.setSelectedObject(this.currentObject);
 			viewer.getROIEditor().setROI(null); // Avoids handles appearing?
-		}
-		
+		}		
 		lastPoint = p;
 	}
 	
@@ -292,6 +296,10 @@ public class BrushTool extends AbstractPathROITool {
 		PathObject pathObject = viewer.getSelectedObject();
 		if (pathObject == null || !pathObject.isAnnotation() || !pathObject.isEditable())
 			return;
+		if (pathObject != currentObject) {
+			logger.warn("Selected object has changed from {} to {}", currentObject, pathObject);
+			return;
+		}
 
 		ROI currentROI = pathObject.getROI();
 		if (!(currentROI instanceof ROI))
@@ -300,10 +308,12 @@ public class BrushTool extends AbstractPathROITool {
 		ROI shapeROI = currentROI;
 		
 		PathObject pathObjectUpdated = getUpdatedObject(e, shapeROI, pathObject, -1);
-		if (pathObject != pathObjectUpdated)
+
+		if (pathObject != pathObjectUpdated) {
 			viewer.setSelectedObject(pathObjectUpdated, PathPrefs.isSelectionMode());
-		else
+		} else {
 			viewer.repaint();
+		}
 	}
 	
 	
@@ -326,8 +336,13 @@ public class BrushTool extends AbstractPathROITool {
 		Geometry shapeDrawn = createShape(e, p.getX(), p.getY(),
 				PathPrefs.getUseTileBrush() && !e.isShiftDown(),
 				subtractMode ? null : shapeCurrent);
+		
 		if (shapeDrawn == null)
 			return currentObject;
+		
+		// Do our pixel snapping now, with the simpler geometry (rather than latter when things are already complex)
+		if (requestPixelSnapping())
+			shapeDrawn = GeometryTools.roundCoordinates(shapeDrawn);
 		
 		lastPoint = p;
 		try {
@@ -343,17 +358,9 @@ public class BrushTool extends AbstractPathROITool {
 				if (subtractMode) {
 					// If subtracting... then just subtract
 					shapeNew = shapeROI.getGeometry().difference(shapeDrawn);
-	//				shapeNew = RoiTools.combineROIs(shapeROI,
-	//						ROIs.createAreaROI(shapeDrawn, ImagePlane.getPlaneWithChannel(shapeROI.getC(), shapeROI.getZ(), shapeROI.getT())), RoiTools.CombineOp.SUBTRACT, flatness);
 				} else if (avoidOtherAnnotations) {
 					shapeNew = shapeCurrent.union(shapeDrawn);
-					var currentArea = getCurrentParentArea();
-					if (currentArea != null)
-						shapeNew = shapeNew.intersection(getCurrentParentArea());
-					
-					var currentParentAnnotationsArea = getCurrentParentAnnotationsArea(currentObject);
-					if (currentParentAnnotationsArea != null)
-						shapeNew = shapeNew.difference(currentParentAnnotationsArea);
+					shapeNew = refineGeometryByParent(shapeNew);
 				} else {
 					// Just add, regardless of whether there are other annotations below or not
 					var temp = shapeROI.getGeometry();
@@ -363,41 +370,27 @@ public class BrushTool extends AbstractPathROITool {
 						shapeNew = shapeROI.getGeometry();
 					}
 				}
-				
-	//			// Convert complete polygons to areas
-	//			if (shapeNew instanceof PolygonROI && ((PolygonROI)shapeNew).nVertices() > 50) {
-	//				shapeNew = ROIs.createAreaROI(RoiTools.getShape(shapeNew), ImagePlane.getPlane(shapeNew));
-	//			}
 			} else {
 				shapeNew = shapeDrawn;
 			}
 			
-			if (requestPixelSnapping())
-				shapeNew = roundAndConstrain(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
-			else {
+			// If we aren't snapping, at least remove some vertices
+			if (!requestPixelSnapping()) {
 				try {
 					shapeNew = VWSimplifier.simplify(shapeNew, 0.1);
 				} catch (Exception e2) {
-					logger.debug("Error simplifying ROI: " + e2.getLocalizedMessage(), e2);
+					logger.error("Error simplifying ROI: " + e2.getLocalizedMessage(), e2);
 				}
-				var bounds = GeometryTools.regionToGeometry(viewer.getServerBounds());
-				shapeNew = shapeNew.intersection(bounds);
 			}
 			
-			//		GeometrySnapper.snapToSelf(shapeNew, 1.0, true);
-			
+			// Make sure we fit inside the image
+			shapeNew = GeometryTools.constrainToBounds(shapeNew, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+
 			// Sometimes we can end up with a GeometryCollection containing lines/non-areas... if so, remove these
 			if (shapeNew instanceof GeometryCollection) {
-				List<Geometry> keepGeometries = new ArrayList<>();
-				for (int i = 0; i < shapeNew.getNumGeometries(); i++) {
-					if (shapeNew.getGeometryN(i) instanceof Polygonal) {
-						keepGeometries.add(shapeNew);
-					}
-				}
-				if (keepGeometries.size() < shapeNew.getNumGeometries())
-					shapeNew = getGeometryFactory().buildGeometry(keepGeometries);
+				shapeNew = GeometryTools.ensurePolygonal(shapeNew);
 			}
-						
+					
 			ROI roiNew = GeometryTools.geometryToROI(shapeNew, plane);
 			
 			if (currentObject instanceof PathAnnotationObject) {
@@ -430,12 +423,11 @@ public class BrushTool extends AbstractPathROITool {
 		if (e.isConsumed())
 			return;
 
-		PathObject currentObject = viewer.getSelectedObject();
-		if (currentObject == null)
-			return;
+		if (currentObject != null)
+			commitObjectToHierarchy(e, currentObject);
 		
 		lastPoint = null;
-		commitObjectToHierarchy(e, currentObject);
+		this.currentObject = null;
 	}
 	
 	
@@ -506,53 +498,6 @@ public class BrushTool extends AbstractPathROITool {
 		return factory;
 	}
 
-	/**
-	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
-	 * @param geometry
-	 */
-	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
-		roundingFilter.setBounds(minX, minY, maxX, maxY);
-		geometry.apply(roundingFilter);
-		return VWSimplifier.simplify(geometry, 0.5);
-	}
-	
-	private RoundAndConstrainFilter roundingFilter = new RoundAndConstrainFilter();
-			
-	static class RoundAndConstrainFilter implements CoordinateSequenceFilter {
-		
-		private double minX = 0;
-		private double minY = 0;
-		private double maxX = Double.POSITIVE_INFINITY;
-		private double maxY = Double.POSITIVE_INFINITY;
-		
-		void setBounds(double minX, double minY, double maxX, double maxY) {
-			this.minX = minX;
-			this.minY = minY;
-			this.maxX = maxX;
-			this.maxY = maxY;
-		}
-		
-		@Override
-		public boolean isGeometryChanged() {
-			return true;
-		}
-		
-		@Override
-		public boolean isDone() {
-			return false;
-		}
-		
-		@Override
-		public void filter(CoordinateSequence seq, int i) {
-			seq.setOrdinate(i, Coordinate.X,
-					Math.min(maxX, Math.max(minX, Math.round(seq.getOrdinate(i, Coordinate.X)))));
-			
-			seq.setOrdinate(i, Coordinate.Y,
-					Math.min(maxY, Math.max(minY, Math.round(seq.getOrdinate(i, Coordinate.Y)))));
-		}
-		
-	};
-
 	@Override
 	protected ROI createNewROI(MouseEvent e, double x, double y, ImagePlane plane) {
 		creatingTiledROI = false;
@@ -560,7 +505,8 @@ public class BrushTool extends AbstractPathROITool {
 		Geometry geom = createShape(e, x, y, PathPrefs.getUseTileBrush(), null);
 		if (geom == null || geom.isEmpty())
 			return ROIs.createEmptyROI();
-		roundAndConstrain(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
+		geom = GeometryTools.roundCoordinates(geom);
+		geom = GeometryTools.constrainToBounds(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		return GeometryTools.geometryToROI(geom, plane);
 	}
 	

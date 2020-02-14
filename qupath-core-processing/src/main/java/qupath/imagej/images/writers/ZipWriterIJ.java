@@ -23,9 +23,6 @@
 
 package qupath.imagej.images.writers;
 
-import java.io.BufferedOutputStream;
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
@@ -35,7 +32,6 @@ import java.util.zip.ZipOutputStream;
 
 import ij.ImagePlus;
 import ij.io.FileSaver;
-import ij.io.TiffEncoder;
 import qupath.lib.common.GeneralTools;
 
 /**

@@ -101,7 +101,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	private LongProperty changeTimestamp = new SimpleLongProperty(System.currentTimeMillis());
 	
-	transient private Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
+	transient private static Map<String, HistogramManager> cachedHistograms = Collections.synchronizedMap(new HashMap<>());
 	private HistogramManager histogramManager = null;
 	
 	private static BooleanProperty showAllRGBTransforms = PathPrefs.createPersistentPreference("showAllRGBTransforms", true);

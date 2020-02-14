@@ -162,7 +162,7 @@ public class TMADataIO {
 			// Create new overlay options, if we don't have some already
 			if (overlayOptions == null) {
 				overlayOptions = new OverlayOptions();
-				overlayOptions.setFillObjects(true);
+				overlayOptions.setFillDetections(true);
 			}
 			final OverlayOptions options = overlayOptions;
 			

@@ -1,3 +1,52 @@
+## Version 0.2.0-m9
+This is a *milestone* (i.e. still in development) version made available to try out new features early. Changes include:
+
+#### Multiplexed analysis & Object classification
+* Completely rewritten object classifier (currently flagged with 'New'! in the menus)
+  * Support for multi-class classification with composite classifiers
+  * New command to create single-measurement classifiers 
+  * New command to apply intensity (sub)classification
+  * JSON serialization for classifiers
+* New 'Centroids only' cell display mode to visualize cells with complex classifications
+* Improved Brightness/Contrast support
+  * Filter box to quickly find specific channels within long lists
+  * New scripting methods to set display range, e.g. setChannelDisplayRange(channel, min, max)
+
+#### Classes & annotations
+* Revised 'Annotations' tab
+  * New options to set the available class list (e.g. from existing objects, image channels)
+  * Change class visibility with spacebar (toggle), s (show) or h (hide)
+  * Select objects with specific classifications more easily
+  * More consistent annotation menus
+* Major changes to annotation ROI manipulation
+  * 'Duplicate annotations' applies to multiple selections
+  * 'Merge annotations' and 'Split annotations' work with point ROIs, not only areas
+  * 'Make inverse' uses ROIs from multiple annotations (within the same plane)
+  * More ROI manipulation commands are scriptable, update selections when complete
+* Counting tool improvements
+
+### Images & projects
+* Bio-Formats series selector (enables specific series to be accessed outside projects)
+* More project options
+  * Duplicate images, optionally with associated data files
+  * Fixed issue with 'Add images' pane, where the window could be too large for some screens
+  * 'Add images' pane now supports Drag & Drop
+  * 'Add images' pane now supports .qpproj files to import images & data from other projects
+* New SVG export options (made possible by JFreeSVG)
+
+### Other things
+* File -> Quit menu item added
+* Viewer no longer 'resets' location when opening the same image or reloading data
+* New preferences
+  * Select main font; default changed to Sans-Serif for macOS
+  * Turn on/off system menubar
+* Show accelerator within 'Command list' table
+* Improved attempt to parse channel names from slice labels in ImageJServer
+* More useful static methods, e.g. PathObjectTools.removeOverlaps()
+* Fixed bug in Jar classpath that prevented QuPath running from a command line
+* Update dependencies (Bio-Formats, ControlsFX, ImageJ, Guava, Groovy, RichTextFX)
+
+
 ## Version 0.2.0-m8
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 * Fixed repainting bug that could cause existing annotations to temporarily shift when drawing new annotations

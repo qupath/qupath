@@ -1,5 +1,17 @@
 package qupath.lib.objects.classes;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import com.google.common.base.Objects;
+
+import qupath.lib.common.ColorTools;
+
 /**
  * Static methods for use with {@link PathClass} objects.
  * 
@@ -98,6 +110,150 @@ public class PathClassTools {
 		while (pathClass != null && (isPositiveOrGradedIntensityClass(pathClass) || isNegativeClass(pathClass)))
 			pathClass = pathClass.getParentClass();
 		return pathClass;
+	}
+	
+	/**
+	 * Get a list containing the distinct names of all constituent parts of a {@link PathClass}.
+	 * 
+	 * @param pathClass the {@link PathClass} to split
+	 * @return an empty list if the class has no name or is null, otherwise an ordered list containing 
+	 * the result of calling {@code PathClass.getName()} for all derived classes, starting from the root. 
+	 */
+	public static List<String> splitNames(PathClass pathClass) {
+		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+			return Collections.emptyList();
+		List<String> names = new ArrayList<>();
+		while (pathClass != null) {
+			names.add(pathClass.getName());
+			pathClass = pathClass.getParentClass();
+		}
+		Collections.reverse(names);
+		return names;
+	}
+	
+	/**
+	 * Remove duplicate names from a derived {@link PathClass}.
+	 * @param pathClass the input {@link PathClass}, possibly containing elements with identical names
+	 * @return a {@link PathClass} representing the same names, with duplicates removed if necessary
+	 */
+	public static PathClass uniqueNames(PathClass pathClass) {
+		var names = splitNames(pathClass);
+		var namesUnique = names.stream().distinct().collect(Collectors.toList());
+		if (names.equals(namesUnique))
+			return pathClass;
+		return PathClassFactory.getPathClass(namesUnique);
+	}
+	
+	/**
+	 * Create a {@link PathClass} with name elements sorted alphabetically.
+	 * This can be useful when comparing classifications that may have been derived independently, 
+	 * and where the name order is unimportant.
+	 * 
+	 * @param pathClass the input {@link PathClass}
+	 * @return a {@link PathClass} representing the same names sorted
+	 * @see #sortNames(PathClass, Comparator)
+	 */
+	public static PathClass sortNames(PathClass pathClass) {
+		return sortNames(pathClass, Comparator.naturalOrder());
+	}
+	
+	/**
+	 * Create a {@link PathClass} with name elements sorted using an arbitrary {@link Comparator}.
+	 * This can be useful when comparing classifications that may have been derived independently, 
+	 * and where the name order is unimportant.
+	 * 
+	 * @param pathClass the input {@link PathClass}
+	 * @return a {@link PathClass} representing the same names sorted
+	 * @see #sortNames(PathClass)
+	 */
+	public static PathClass sortNames(PathClass pathClass, Comparator<String> comparator) {
+		var names = splitNames(pathClass);
+		names.sort(comparator);
+		return PathClassFactory.getPathClass(names);
+	}
+	
+	/**
+	 * Create a {@link PathClass} with specific name elements removed (if present) from an existing classification.
+	 * 
+	 * @param pathClass the input {@link PathClass}
+	 * @return a {@link PathClass} representing the classification with the required names removed
+	 * @see #removeNames(PathClass, String... )
+	 */
+	public static PathClass removeNames(PathClass pathClass, Collection<String> namesToRemove) {
+		var names = splitNames(pathClass);
+		if (names.removeAll(namesToRemove))
+			return PathClassFactory.getPathClass(names);
+		return pathClass;
+	}
+	
+	/**
+	 * Create a {@link PathClass} with specific name elements removed (if present) from an existing classification.
+	 * 
+	 * @param pathClass the input {@link PathClass}
+	 * @return a {@link PathClass} representing the classification with the required names removed
+	 * @see #removeNames(PathClass, Collection)
+	 */
+	public static PathClass removeNames(PathClass pathClass, String... namesToRemove) {
+		return removeNames(pathClass, Arrays.asList(namesToRemove));
+	}
+	
+	/**
+	 * Merge two classifications together.
+	 * Specifically, the name components of the additional class that are <i>not</i> already contained 
+	 * within the base class will be appended, deriving a new class as required.
+	 * <p>
+	 * Note that if the additional class contains duplicate names these will not automatically be stripped 
+	 * unless they are also present within the base class; use {@link #uniqueNames(PathClass)} if this is required.
+	 * 
+	 * @param baseClass base class, all name components will be retained
+	 * @param additionalClass
+	 * @return the merged classification, or null if both input classes are null
+	 */
+	public static PathClass mergeClasses(PathClass baseClass, PathClass additionalClass) {
+		if (Objects.equal(baseClass, additionalClass))
+			return baseClass;
+
+		if (baseClass == PathClassFactory.getPathClassUnclassified())
+			baseClass = null;
+		
+		if (additionalClass == PathClassFactory.getPathClassUnclassified())
+			additionalClass = null;
+
+		if (baseClass == null) {
+			return additionalClass;
+		}
+		
+		if (additionalClass == null)
+			return baseClass;
+		
+		// Combine distinct names
+		List<String> names = splitNames(additionalClass);
+		PathClass output = baseClass;
+		for (String name : names) {
+			if (!containsName(baseClass, name))
+				output = PathClassFactory.getDerivedPathClass(output, name, averageColors(baseClass.getColor(), additionalClass.getColor()));
+		}
+		return output;
+	}
+	
+	static Integer averageColors(Integer rgb1, Integer rgb2) {
+		if (Objects.equal(rgb1, rgb2))
+			return rgb1;
+		int r = (ColorTools.red(rgb1) + ColorTools.red(rgb2)) / 2;
+		int g = (ColorTools.green(rgb1) + ColorTools.green(rgb2)) / 2;
+		int b = (ColorTools.blue(rgb1) + ColorTools.blue(rgb2)) / 2;
+		return ColorTools.makeRGB(r, g, b);
+	}
+	
+	static boolean containsName(PathClass pathClass, String name) {
+		if (pathClass == null)
+			return false;
+		while (pathClass != null) {
+			if (name.equals(pathClass.getName()))
+				return true;
+			pathClass = pathClass.getParentClass();
+		}
+		return false;
 	}
 
 }

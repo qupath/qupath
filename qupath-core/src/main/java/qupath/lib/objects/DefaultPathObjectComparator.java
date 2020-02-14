@@ -33,8 +33,12 @@ import qupath.lib.roi.DefaultROIComparator;
  * Default comparator to enable objects to be sorted in a more predictable manner.
  * <p>
  * The aim is to help sorted lists to keep non-detection objects near the top, 
- * and thereafter to sort by ROI location (y coordinate first, then x) according to
- * the DefaultROIComparator.
+ * and thereafter to sort by classification and ROI location (y coordinate first, then x) according to
+ * the {@link DefaultROIComparator}.
+ * <p>
+ * Note: The precise comparison is undefined and subject to change/optimization.
+ * This is intended for more reproducible behavior while QuPath is running, but it not 
+ * guaranteed to apply the same comparison across software versions.
  * 
  * @author Pete Bankhead
  *
@@ -77,24 +81,26 @@ public class DefaultPathObjectComparator implements Comparator<PathObject> {
 		temp = -Boolean.compare(o1.isDetection(), o2.isDetection());
 		if (temp != 0)
 			return temp;
-
-		// Handle ROI location
-		temp = DefaultROIComparator.getInstance().compare(o1.getROI(), o2.getROI());
-		if (temp != 0)
-			return temp;
 		
 		// Try object class again
 		temp = o1.getClass().getName().compareTo(o2.getClass().getName());
 		if (temp != 0)
 			return temp;
 		
+		// Handle ROI location
+		temp = DefaultROIComparator.getInstance().compare(o1.getROI(), o2.getROI());
+		if (temp != 0)
+			return temp;
+		
 		// Try classifications
 		PathClass pc1 = o1.getPathClass();
 		PathClass pc2 = o2.getPathClass();
-		if (pc1 != null)
+		if (pc1 != null && pc2 != null)
 			return pc1.compareTo(pc2);
+		if (pc1 == null)
+			return -1;
 		if (pc2 != null)
-			return pc2.compareTo(pc1);
+			return 1;
 		
 		// Shouldn't end up here much...
 		return 0;

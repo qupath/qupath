@@ -94,6 +94,17 @@ public class PathPrefs {
 
 	public static BooleanProperty useProjectImageCache = createPersistentPreference("useProjectImageCache", Boolean.FALSE);
 	
+	private static BooleanProperty useSystemMenubar = createPersistentPreference("useSystemMenubar", true);
+	
+	/**
+	 * Property used to specify whether the system menubar should be used.
+	 * This should be bound bidirectionally to the corresponding property of any menubars created.
+	 * @return
+	 */
+	public static BooleanProperty useSystemMenubarProperty() {
+		return useSystemMenubar;
+	}
+	
 	/**
 	 * Export preferences to a stream.  Note that this will only export preferences that have been set explicitly; 
 	 * some preferences may be 'missing' because their defaults were never changed.  This behavior may change in the future.
@@ -1190,7 +1201,7 @@ public class PathPrefs {
 	}
 
 	
-	private static IntegerProperty colorDefaultAnnotations = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
+	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
 	
 	private static String extPathClassifier = ".qpclassifier";
 	
@@ -1223,16 +1234,16 @@ public class PathPrefs {
 		return colorTMA.get();
 	}
 	
-	public static IntegerProperty colorDefaultAnnotationsProperty() {
-		return colorDefaultAnnotations;
+	public static IntegerProperty colorDefaultObjectsProperty() {
+		return colorDefaultObjects;
 	}
 
-	public static Integer getColorDefaultAnnotations() {
-		return colorDefaultAnnotations.get();
+	public static Integer getColorDefaultObjects() {
+		return colorDefaultObjects.get();
 	}
 	
-	public static void setColorDefaultAnnotations(int color) {
-		colorDefaultAnnotations.set(color);
+	public static void setColorDefaultObjects(int color) {
+		colorDefaultObjects.set(color);
 	}
 
 	public static void setSelectedObjectColor(int color) {

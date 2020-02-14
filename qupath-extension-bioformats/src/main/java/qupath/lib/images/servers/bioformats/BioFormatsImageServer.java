@@ -71,6 +71,9 @@ import org.slf4j.LoggerFactory;
 
 import ome.units.UNITS;
 import ome.units.quantity.Length;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Unmatched;
 import loci.common.DataTools;
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
@@ -82,6 +85,8 @@ import loci.formats.ImageReader;
 import loci.formats.Memoizer;
 import loci.formats.MetadataTools;
 import loci.formats.gui.AWTImageTools;
+import loci.formats.in.DynamicMetadataOptions;
+import loci.formats.in.MetadataOptions;
 import loci.formats.meta.DummyMetadata;
 import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataStore;
@@ -212,6 +217,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private String path;
 	
+	/**
+	 * Specific options used by some Bio-Formats readers, e.g. Map.of("zeissczi.autostitch", "false")
+	 */
+	private Map<String, String> readerOptions = new LinkedHashMap<>();
+	
 //	/**
 //	 * Try to parallelize multichannel requests (experimental!)
 //	 */
@@ -235,14 +245,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		this(uri, BioFormatsServerOptions.getInstance(), args);
 	}
 	
-
-	static boolean isSeriesOption(String name) {
-		return "-s".equals(name) || "--series".equals(name);
-	}
-	
-	static boolean isSeriesNameOption(String name) {
-		return "-n".equals(name) || "--name".equals(name);
-	}
 	
 	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
 		super();
@@ -255,8 +257,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
 		double pixelWidth = Double.NaN, pixelHeight = Double.NaN, zSpacing = Double.NaN, magnification = Double.NaN;
 		TimeUnit timeUnit = null;
-
+		
 		// See if there is a series name embedded in the path (temporarily the way things were done in v0.2.0-m1 and v0.2.0-m2)
+		// Add it to the args if so
 		if (args.length == 0) {
 			if (uri.getFragment() != null) {
 				args = new String[] {"--series", uri.getFragment()};
@@ -275,22 +278,23 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		}
 		this.uri = uri;
 		
-		// Try to parse args
-		String requestedSeriesName = null;
-		int seriesIndex = -1;
-		for (int i = 0; i < args.length-1; i++) {
-			if (isSeriesOption(args[i])) {
-				seriesIndex = Integer.parseInt(args[i+1]);
-			} else if (isSeriesNameOption(args[i])) {
-				requestedSeriesName = args[i+1];
-			}
-		}
+		// Parse the arguments
+		var bfArgs = BioFormatsArgs.parse(args);
+		readerOptions.putAll(options.getReaderOptions());
+		if (bfArgs.readerOptions != null)
+			readerOptions.putAll(bfArgs.readerOptions);
+		
+		// Try to parse args, extracting the series if present
+		int seriesIndex = bfArgs.series;
+		String requestedSeriesName = bfArgs.seriesName;
+		if (requestedSeriesName.isBlank())
+			requestedSeriesName = null;
 		
 		// This appears to work more reliably than converting to a File
 		filePath = Paths.get(uri).toString();
 
 		// Create a reader & extract the metadata
-		readerWrapper = manager.getPrimaryReaderWrapper(options, filePath);
+		readerWrapper = manager.getPrimaryReaderWrapper(options, filePath, readerOptions);
 		IFormatReader reader = readerWrapper.getReader();
 		meta = (OMEPyramidStore)reader.getMetadataStore();
 
@@ -358,7 +362,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 								firstSeries = s;
 								firstPixels = sizeX * sizeY * sizeZ * sizeT;
 							}
-							imageMap.put(name, DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, null, uri, "--series", Integer.toString(s)));
+							imageMap.put(name, DefaultImageServerBuilder.createInstance(
+									BioFormatsServerBuilder.class, null, uri,
+									new BioFormatsArgs(s, readerOptions).backToArgs()
+									));
 						}
 					}
 
@@ -664,6 +671,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			this.args = args;
 			
 			// Set metadata
+			path = createID();
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
 					getClass(), path, width, height).
 //					args(args).
@@ -765,7 +773,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	private IFormatReader getReader() {
 		try {
 			if (willParallelize())
-				return manager.getReaderForThread(options, filePath);
+				return manager.getReaderForThread(options, filePath, readerOptions);
 			else
 				return readerWrapper.getReader();
 		} catch (Exception e) {
@@ -1126,32 +1134,32 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		public synchronized IFormatReader getReaderForThread(final BioFormatsServerOptions options, final String path) throws DependencyException, ServiceException, FormatException, IOException {
+		public synchronized IFormatReader getReaderForThread(final BioFormatsServerOptions options, final String path, Map<String, String> readerOptions) throws DependencyException, ServiceException, FormatException, IOException {
 			
 			LocalReaderWrapper wrapper = localReader.get();
 			
 			// Check if we already have the correct reader
 			IFormatReader reader = wrapper == null ? null : wrapper.getReader();
 			if (reader != null) {
-				if (path.equals(reader.getCurrentFile()))
+				if (path.equals(reader.getCurrentFile()) && wrapper.argsMatch(readerOptions))
 					return reader;		
 				else
 					reader.close(false);
 			}
 			
 			// Create a new reader
-			reader = createReader(options, path, null);
+			reader = createReader(options, path, null, readerOptions);
 			
 			// Store wrapped reference with associated cleaner
-			wrapper = wrapReader(reader);
+			wrapper = wrapReader(reader, readerOptions);
 			localReader.set(wrapper);
 			
 			return reader;
 		}
 		
 		
-		private static LocalReaderWrapper wrapReader(IFormatReader reader) {
-			LocalReaderWrapper wrapper = new LocalReaderWrapper(reader);
+		private static LocalReaderWrapper wrapReader(IFormatReader reader, Map<String, String> readerOptions) {
+			LocalReaderWrapper wrapper = new LocalReaderWrapper(reader, readerOptions);
 			logger.debug("Constructing reader for {}", Thread.currentThread());
 			cleaner.register(
 					wrapper,
@@ -1176,8 +1184,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		synchronized IFormatReader createPrimaryReader(final BioFormatsServerOptions options, final String path, IMetadata metadata) throws DependencyException, ServiceException, FormatException, IOException {
-			return createReader(options, path, metadata == null ? MetadataTools.createOMEXMLMetadata() : metadata);
+		synchronized IFormatReader createPrimaryReader(final BioFormatsServerOptions options, final String path, IMetadata metadata, Map<String, String> readerOptions) throws DependencyException, ServiceException, FormatException, IOException {
+			return createReader(options, path, metadata == null ? MetadataTools.createOMEXMLMetadata() : metadata, readerOptions);
 		}
 		
 		
@@ -1192,12 +1200,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		synchronized LocalReaderWrapper getPrimaryReaderWrapper(final BioFormatsServerOptions options, final String path) throws DependencyException, ServiceException, FormatException, IOException {
+		synchronized LocalReaderWrapper getPrimaryReaderWrapper(final BioFormatsServerOptions options, final String path, Map<String, String> readerOptions) throws DependencyException, ServiceException, FormatException, IOException {
 			for (LocalReaderWrapper wrapper : primaryReaders) {
-				if (path.equals(wrapper.getReader().getCurrentFile()))
+				if (path.equals(wrapper.getReader().getCurrentFile()) && wrapper.argsMatch(readerOptions))
 					return wrapper;
 			}
-			LocalReaderWrapper wrapper = wrapReader(createPrimaryReader(options, path, null));
+			LocalReaderWrapper wrapper = wrapReader(createPrimaryReader(options, path, null, readerOptions), readerOptions);
 			primaryReaders.add(wrapper);
 			return wrapper;
 		}
@@ -1213,8 +1221,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		static IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store) throws FormatException, IOException {
-			return createReader(options, null, id, store);
+		static IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store, Map<String, String> readerOptions) throws FormatException, IOException {
+			return createReader(options, null, id, store, readerOptions);
 		}
 		
 		/**
@@ -1238,7 +1246,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws FormatException
 		 * @throws IOException
 		 */
-		private static synchronized IFormatReader createReader(final BioFormatsServerOptions options, final Class<? extends IFormatReader> cls, final String id, final MetadataStore store) throws FormatException, IOException {
+		private static synchronized IFormatReader createReader(final BioFormatsServerOptions options, final Class<? extends IFormatReader> cls, 
+				final String id, final MetadataStore store, Map<String, String> readerOptions) throws FormatException, IOException {
 			IFormatReader imageReader;
 			if (cls != null) {
 				ClassList<IFormatReader> list = new ClassList<>(IFormatReader.class);
@@ -1248,6 +1257,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				imageReader = new ImageReader();
 			
 			imageReader.setFlattenedResolutions(false);
+			
+			// Try to set any reader options that we have
+			MetadataOptions metadataOptions = imageReader.getMetadataOptions();
+			if (!readerOptions.isEmpty() && metadataOptions instanceof DynamicMetadataOptions) {
+				for (var option : readerOptions.entrySet()) {
+					((DynamicMetadataOptions)metadataOptions).set(option.getKey(), option.getValue());
+				}
+			}
 			
 			Memoizer memoizer = null;
 			int memoizationTimeMillis = options.getMemoizationTimeMillis();
@@ -1392,13 +1409,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		static class LocalReaderWrapper {
 			
 			private IFormatReader reader;
+			private Map<String, String> readerOptions;
 			
-			LocalReaderWrapper(IFormatReader reader) {
+			LocalReaderWrapper(IFormatReader reader, Map<String, String> readerOptions) {
 				this.reader = reader;
+				this.readerOptions = readerOptions == null || readerOptions.isEmpty() ? Collections.emptyMap() :
+					new LinkedHashMap<>(readerOptions);
 			}
 			
 			public IFormatReader getReader() {
 				return reader;
+			}
+
+			public boolean argsMatch(Map<String, String> readerOptions) {
+				return this.readerOptions.equals(readerOptions);
 			}
 
 		}
@@ -1426,6 +1450,54 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				}
 			}
 			
+		}
+		
+	}
+	
+	static class BioFormatsArgs {
+		
+		@Option(names = {"--series", "-s"}, defaultValue = "-1", description = "Series number (0-based, must be < image count for the file)")
+		int series = -1;
+
+		@Option(names = {"--name", "-n"}, defaultValue = "", description = "Series name (legacy option, please use --series instead)")
+		String seriesName = "";
+
+		@Option(names = {"--bfOptions"}, description = "Bio-Formats reader options")
+		Map<String, String> readerOptions = new LinkedHashMap<>();
+		
+		@Unmatched
+		List<String> unmatched = new ArrayList<>();
+		
+		BioFormatsArgs() {}
+		
+		BioFormatsArgs(int series, Map<String, String> readerOptions) {
+			this.series = series;
+			if (readerOptions != null)
+				this.readerOptions.putAll(readerOptions);
+		}
+		
+		String[] backToArgs() {
+			var args = new ArrayList<String>();
+			if (series >= 0) {
+				args.add("--series");
+				args.add(Integer.toString(series));
+			} else if (seriesName != null && !seriesName.isBlank()) {
+				args.add("--name");
+				args.add(seriesName);				
+			}
+			for (var option : readerOptions.entrySet()) {
+				// Note: this assumes that options & values contain no awkwardness (e.g. quotes, spaces)
+				args.add("--bfOptions");
+				args.add(option.getKey()+"="+option.getValue());
+			}
+			args.addAll(unmatched);
+			return args.toArray(String[]::new);
+		}
+		
+		static BioFormatsArgs parse(String[] args) {
+			var bfArgs = new BioFormatsArgs();
+			new CommandLine(bfArgs).parseArgs(args);
+			return bfArgs;
 		}
 		
 	}

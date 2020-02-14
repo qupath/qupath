@@ -4,8 +4,10 @@ import java.awt.Desktop;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -15,16 +17,34 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Slider;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.scene.robot.Robot;
 import javafx.stage.Screen;
@@ -36,16 +56,23 @@ import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.AnnotationCombineCommand;
+import qupath.lib.gui.commands.HierarchyInsertCommand;
+import qupath.lib.gui.commands.scriptable.InverseObjectCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Assorted static methods to help with JavaFX and QuPath GUI-related tasks.
@@ -54,6 +81,29 @@ import qupath.lib.roi.PointsROI;
  *
  */
 public class GuiTools {
+	
+	/**
+	 * Vertical ellipsis, which can be used to indicate a 'more' button.
+	 */
+	private static String MORE_ELLIPSIS = "\u22EE";
+	
+	/**
+	 * Create a {@link Button} with a standardized icon and tooltip text to indicate 'More', 
+	 * which triggers a {@link ContextMenu} when clicked.
+	 * 
+	 * @param menu context menu to display on click
+	 * @param side preferred side at which the context menu should be displayed
+	 * @return an initialized button with icon, tooltip and onAction event to trigger the context menu.
+	 */
+	public static Button createMoreButton(ContextMenu menu, Side side) {
+		Button btnMore = new Button(MORE_ELLIPSIS);
+		btnMore.setTooltip(new Tooltip("More options"));
+		btnMore.setOnAction(e -> {
+			menu.show(btnMore, side, 0, 0);
+		});
+		return btnMore;
+	}
+	
 	
 	/**
 	 * Kinds of snapshot image that can be created for QuPath.
@@ -412,7 +462,12 @@ public class GuiTools {
 		}
 	
 		int n = selected.size();
-		if (Dialogs.showYesNoDialog("Delete objects", "Delete " + n + " objects?")) {
+		String message;
+		if (n == 1)
+			message = "Delete selected object?";
+		else
+			message = "Delete " + n + " selected objects?";
+		if (Dialogs.showYesNoDialog("Delete objects", message)) {
 			// Check for descendants
 			List<PathObject> children = new ArrayList<>();
 			for (PathObject temp : selected) {
@@ -435,7 +490,7 @@ public class GuiTools {
 				logger.info(selected.size() + " object(s) deleted");
 			else
 				logger.info(selected.size() + " object(s) deleted with descendants");
-			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Clear selected objects", "clearSelectedObjects();"));
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Delete selected objects", "clearSelectedObjects();"));
 			logger.info(selected.size() + " object(s) deleted");
 			return true;
 		} else
@@ -584,4 +639,368 @@ public class GuiTools {
 		gc.drawImage(image, sx, sy, sw, sh);
 	}
 
+	/**
+	 * Refresh a {@link ListView} in the Application thread.
+	 * @param <T>
+	 * @param listView
+	 */
+	public static <T> void refreshList(final ListView<T> listView) {
+		if (Platform.isFxApplicationThread()) {
+			listView.refresh();
+		} else
+			Platform.runLater(() -> refreshList(listView));
+	}
+
+	/**
+	 * Prompt the user to set properties for the currently-selected annotation(s).
+	 * 
+	 * @param hierarchy current hierarchy
+	 * @return true if changes to annotation properties were made, false otherwise.
+	 */
+	public static boolean promptToSetActiveAnnotationProperties(final PathObjectHierarchy hierarchy) {
+		PathObject currentObject = hierarchy.getSelectionModel().getSelectedObject();
+		if (currentObject == null || !currentObject.isAnnotation())
+			return false;
+		ROI roi = currentObject.getROI();
+		if (roi == null)
+			return false;
+		
+		Collection<PathAnnotationObject> otherAnnotations = hierarchy.getSelectionModel().getSelectedObjects().stream()
+				.filter(p -> p.isAnnotation() && p != currentObject)
+				.map(p -> (PathAnnotationObject)p)
+				.collect(Collectors.toList());
+		
+		if (promptToSetAnnotationProperties((PathAnnotationObject)currentObject, otherAnnotations)) {
+			hierarchy.fireObjectsChangedEvent(null, Collections.singleton(currentObject));
+			// Ensure the object is still selected
+			hierarchy.getSelectionModel().setSelectedObject(currentObject);
+			return true;
+		}
+		return false;
+	}
+	
+	
+	private static boolean promptToSetAnnotationProperties(final PathAnnotationObject annotation, Collection<PathAnnotationObject> otherAnnotations) {
+		
+		GridPane panel = new GridPane();
+		panel.setVgap(5);
+		panel.setHgap(5);
+		TextField textField = new TextField();
+		if (annotation.getName() != null)
+			textField.setText(annotation.getName());
+		textField.setPrefColumnCount(20);
+		// Post focus request to run later, after dialog displayed
+		Platform.runLater(() -> textField.requestFocus());
+		
+		panel.add(new Label("Name "), 0, 0);
+		panel.add(textField, 1, 0);
+
+		boolean promptForColor = true;
+		ColorPicker panelColor = null;
+		if (promptForColor) {
+			panelColor = new ColorPicker(ColorToolsFX.getDisplayedColor(annotation));
+			panel.add(new Label("Color "), 0, 1);
+			panel.add(panelColor, 1, 1);
+			panelColor.prefWidthProperty().bind(textField.widthProperty());
+		}
+		
+		Label labDescription = new Label("Description");
+		TextArea textAreaDescription = new TextArea(annotation.getDescription());
+		textAreaDescription.setPrefRowCount(3);
+		textAreaDescription.setPrefColumnCount(25);
+		labDescription.setLabelFor(textAreaDescription);
+		panel.add(labDescription, 0, 2);
+		panel.add(textAreaDescription, 1, 2);
+		
+		CheckBox cbLocked = new CheckBox("");
+		cbLocked.setSelected(annotation.isLocked());
+		Label labelLocked = new Label("Locked");
+		panel.add(labelLocked, 0, 3);
+		labelLocked.setLabelFor(cbLocked);
+		panel.add(cbLocked, 1, 3);
+		
+		
+		CheckBox cbAll = new CheckBox("");
+		boolean hasOthers = otherAnnotations != null && !otherAnnotations.isEmpty();
+		cbAll.setSelected(hasOthers);
+		Label labelApplyToAll = new Label("Apply to all");
+		cbAll.setTooltip(new Tooltip("Apply properties to all " + (otherAnnotations.size() + 1) + " selected annotations"));
+		if (hasOthers) {
+			panel.add(labelApplyToAll, 0, 4);
+			labelApplyToAll.setLabelFor(cbAll);
+			panel.add(cbAll, 1, 4);
+		}
+		
+
+		if (!Dialogs.showConfirmDialog("Set annotation properties", panel))
+			return false;
+		
+		List<PathAnnotationObject> toChange = new ArrayList<>();
+		toChange.add(annotation);
+		if (cbAll.isSelected())
+			toChange.addAll(otherAnnotations);
+		
+		String name = textField.getText().trim();
+		
+		for (var temp : toChange) {
+			if (name.length() > 0)
+				temp.setName(name);
+			else
+				temp.setName(null);
+			if (promptForColor)
+				temp.setColorRGB(ColorToolsFX.getARGB(panelColor.getValue()));
+	
+			// Set the description only if we have to
+			String description = textAreaDescription.getText();
+			if (description == null || description.isEmpty())
+				temp.setDescription(null);
+			else
+				temp.setDescription(description);
+			
+			temp.setLocked(cbLocked.isSelected());
+		}
+		
+		return true;
+	}
+	
+	
+	/**
+	 * Populate a {@link Menu} with standard options to operate on selected annotation objects.
+	 * @param qupath
+	 * @param menu
+	 * @return
+	 */
+	public static Menu populateAnnotationsMenu(QuPathGUI qupath, Menu menu) {
+		createAnnotationsMenuImpl(qupath, menu);
+		return menu;
+	}
+
+	/**
+	 * Populate a {@link ContextMenu} with standard options to operate on selected annotation objects.
+	 * @param qupath
+	 * @param menu
+	 * @return
+	 */	public static ContextMenu populateAnnotationsMenu(QuPathGUI qupath, ContextMenu menu) {
+		createAnnotationsMenuImpl(qupath, menu);
+		return menu;
+	}
+
+	
+	private static void createAnnotationsMenuImpl(QuPathGUI qupath, Object menu) {
+		// Add annotation options
+		CheckMenuItem miLockAnnotations = new CheckMenuItem("Lock");
+		CheckMenuItem miUnlockAnnotations = new CheckMenuItem("Unlock");
+		miLockAnnotations.setOnAction(e -> setSelectedAnnotationLock(qupath.getImageData(), true));
+		miUnlockAnnotations.setOnAction(e -> setSelectedAnnotationLock(qupath.getImageData(), false));
+		
+		MenuItem miSetProperties = new MenuItem("Set properties");
+		miSetProperties.setOnAction(e -> {
+			var hierarchy = qupath.getViewer().getHierarchy();
+			if (hierarchy != null)
+				GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
+		});
+		
+		MenuItem miInsertHierarchy = MenuTools.createMenuItem(
+				QuPathGUI.createCommandAction(new HierarchyInsertCommand(qupath), "Insert in hierarchy"));
+		
+		Menu menuCombine = MenuTools.createMenu(
+				"Edit multiple",
+				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.ADD), "Merge selected"),
+				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
+				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.INTERSECT), "Intersect selected")
+				);
+		
+		Menu menuEdit = MenuTools.createMenu(
+				"Edit single",
+				QuPathGUI.createCommandAction(new InverseObjectCommand(qupath), "Make inverse"),
+				QuPathGUI.createPluginAction("Split", SplitAnnotationsPlugin.class, qupath, null)
+				);
+		
+//		Menu menuPoints = MenuTools.createMenu(
+//				"Points",
+//				QuPathGUI.createCommandAction(new MergePointsCommand(qupath, true), "Merge all points for class"),
+//				QuPathGUI.createCommandAction(new MergePointsCommand(qupath, true), "Merge selected points for class")
+//				);
+		
+		MenuItem separator = new SeparatorMenuItem();
+		
+		Runnable validator = () -> {
+			var imageData = qupath.getImageData();
+			PathObject selected = null;
+			Collection<PathObject> allSelected = Collections.emptyList();
+			boolean allSelectedAnnotations = false;
+			boolean hasSelectedAnnotation = false;
+			if (imageData != null) {
+				selected = imageData.getHierarchy().getSelectionModel().getSelectedObject();
+				allSelected = new ArrayList<>(imageData.getHierarchy().getSelectionModel().getSelectedObjects());
+				hasSelectedAnnotation = selected != null && selected.isAnnotation();
+				allSelectedAnnotations = allSelected.stream().allMatch(p -> p.isAnnotation());
+			}
+			miLockAnnotations.setDisable(!hasSelectedAnnotation);
+			miUnlockAnnotations.setDisable(!hasSelectedAnnotation);
+			if (hasSelectedAnnotation) {
+				boolean isLocked = selected.isLocked();
+				miLockAnnotations.setSelected(isLocked);
+				miUnlockAnnotations.setSelected(!isLocked);
+			}
+			
+			miSetProperties.setDisable(!hasSelectedAnnotation);
+			miInsertHierarchy.setVisible(selected != null);
+			
+			menuEdit.setVisible(hasSelectedAnnotation);
+			menuCombine.setVisible(allSelectedAnnotations && allSelected.size() > 1);
+			
+			separator.setVisible(menuEdit.isVisible() || menuCombine.isVisible());
+		};
+		
+		List<MenuItem> items;
+		if (menu instanceof Menu) {
+			Menu m = (Menu)menu;
+			items = m.getItems();
+			m.setOnMenuValidation(e -> validator.run());	
+		} else if (menu instanceof ContextMenu) {
+			ContextMenu m = (ContextMenu)menu;
+			items = m.getItems();
+			m.setOnShowing(e -> validator.run());	
+		} else
+			throw new IllegalArgumentException("Menu must be either a standard Menu or a ContextMenu!");
+		
+		MenuTools.addMenuItems(
+				items,
+				miLockAnnotations,
+				miUnlockAnnotations,
+				miSetProperties,
+				miInsertHierarchy,
+				separator,
+				menuEdit,
+				menuCombine
+				);
+	}
+	
+	/**
+	 * Set selected TMA cores to have the specified 'locked' status.
+	 * 
+	 * @param hierarchy
+	 * @param setToLocked
+	 */
+	private static void setSelectedAnnotationLock(final PathObjectHierarchy hierarchy, final boolean setToLocked) {
+		if (hierarchy == null)
+			return;
+		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
+		List<PathObject> changed = new ArrayList<>();
+		if (pathObject instanceof PathAnnotationObject) {
+			PathAnnotationObject annotation = (PathAnnotationObject)pathObject;
+			annotation.setLocked(setToLocked);
+			changed.add(annotation);
+			// Update any other selected cores to have the same status
+			for (PathObject pathObject2 : hierarchy.getSelectionModel().getSelectedObjects()) {
+				if (pathObject2 instanceof PathAnnotationObject) {
+					annotation = (PathAnnotationObject)pathObject2;
+					if (annotation.isLocked() != setToLocked) {
+						annotation.setLocked(setToLocked);
+						changed.add(annotation);
+					}
+				}
+			}
+		}
+		if (!changed.isEmpty())
+			hierarchy.fireObjectsChangedEvent(GuiTools.class, changed);
+	}
+	
+	private static void setSelectedAnnotationLock(final ImageData<?> imageData, final boolean setToLocked) {
+		if (imageData == null)
+			return;
+		setSelectedAnnotationLock(imageData.getHierarchy(), setToLocked);
+	}
+	
+	
+	/**
+	 * Bind the value of a slider and contents of a text field, so that both may be used to 
+	 * set a numeric (double) value.
+	 * <p>
+	 * This aims to overcome the challenge of keeping both synchronized, while also quietly handling 
+	 * parsing errors that may occur whenever the text field is being edited.
+	 * 
+	 * @param slider slider that may be used to adjust the value
+	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @return a property representing the value represented by the slider and text field
+	 */
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf) {
+		new NumberAndText(slider.valueProperty(), tf.textProperty()).synchronizeTextToNumber();
+		return slider.valueProperty();
+	}
+	
+	
+	/**
+	 * Helper class to synchronize a properties between a Slider and TextField.
+	 */
+	private static class NumberAndText {
+		
+		private static Logger logger = LoggerFactory.getLogger(NumberAndText.class);
+		
+		private boolean synchronizingNumber = false;
+		private boolean synchronizingText = false;
+		
+		private DoubleProperty number;
+		private StringProperty text;
+		private NumberFormat format = GeneralTools.createFormatter(5);
+		
+		NumberAndText(DoubleProperty number, StringProperty text) {
+			this.number = number;
+			this.text = text;
+			this.number.addListener((v, o, n) -> synchronizeTextToNumber());
+			this.text.addListener((v, o, n) -> synchronizeNumberToText());
+		}
+		
+		public void synchronizeNumberToText() {
+			if (synchronizingText)
+				return;
+			synchronizingNumber = true;
+			String value = text.get();
+			if (value.isBlank())
+				return;
+			try {
+				var n = format.parse(value);
+				number.setValue(n);
+			} catch (Exception e) {
+				logger.debug("Error parsing number from '{}' ({})", value, e.getLocalizedMessage());
+			}
+			synchronizingNumber = false;
+		}
+		
+		
+		public void synchronizeTextToNumber() {
+			if (synchronizingNumber)
+				return;
+			synchronizingText = true;
+			double value = number.get();
+			String s;
+			if (Double.isNaN(value))
+				s = "";
+			else if (Double.isFinite(value)) {
+				double log10 = Math.round(Math.log10(value));
+				int ndp = (int)Math.max(4, -log10 + 2);
+				s = GeneralTools.formatNumber(value, ndp);
+			} else
+				s = Double.toString(value);
+			text.set(s);
+			synchronizingText = false;
+		}
+		
+		static void setTextFieldFromNumber(TextField text, double value) {
+			String s;
+			if (Double.isNaN(value))
+				s = "";
+			else if (Double.isFinite(value)) {
+				double log10 = Math.round(Math.log10(value));
+				int ndp = (int)Math.max(4, -log10 + 2);
+				s = GeneralTools.formatNumber(value, ndp);
+			} else
+				s = Double.toString(value);
+			text.setText(s);
+		}
+
+		
+	}
+	
 }

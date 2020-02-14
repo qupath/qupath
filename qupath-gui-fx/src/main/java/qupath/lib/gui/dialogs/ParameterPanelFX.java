@@ -23,14 +23,17 @@
 
 package qupath.lib.gui.dialogs;
 
+import java.math.BigInteger;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Vector;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +79,7 @@ import qupath.lib.plugins.parameters.StringParameter;
  */
 public class ParameterPanelFX {
 
-	private Vector<ParameterChangeListener> listeners = new Vector<>();
+	private List<ParameterChangeListener> listeners = Collections.synchronizedList(new ArrayList<>());
 
 	private final static Logger logger = LoggerFactory.getLogger(ParameterPanelFX.class);
 	
@@ -320,15 +323,15 @@ public class ParameterPanelFX {
 		if (value == null)
 			s = "";
 		else  {
-			if ((value instanceof Double) || (value instanceof Float)) {
-				double v = value.doubleValue();
-				if (v == Math.round(v))
-					s = String.format("%.0f", v);
-				else
-					s = GeneralTools.formatNumber(v, 4);
-//					s = String.format("%.4f", v);
-			} else
+			if (value instanceof Long || value instanceof BigInteger)
 				s = String.format("%d", value.longValue());
+			else {
+				// Try to use a sensible number of decimal places
+				double v = value.doubleValue();
+				double log10 = Math.round(Math.log10(v));
+				int ndp = (int)Math.max(4, -log10 + 2);
+				s = GeneralTools.formatNumber(v, ndp);
+			}
 			if (unit != null)
 				s += (" " + unit);
 		}

@@ -91,6 +91,13 @@ public class PreferencePanel {
 				category,
 				"Theme for the QuPath user interface");
 		
+		addChoicePropertyPreference(QuPathStyleManager.fontProperty(),
+				QuPathStyleManager.availableFontsProperty(),
+				QuPathStyleManager.Fonts.class,
+				"Font",
+				category,
+				"Main font for the QuPath user interface");
+		
 		/*
 		 * General
 		 */
@@ -105,6 +112,11 @@ public class PreferencePanel {
 //								"Set to a value <= 0 to reset to default."
 //							);
 //		}
+		
+		addPropertyPreference(PathPrefs.useSystemMenubarProperty(), Boolean.class,
+				"Use system menubar",
+				category,
+				"Use the system menubar, rather than custom application menubars (default is true).");
 		
 		
 		addPropertyPreference(PathPrefs.doAutoUpdateCheckProperty(), Boolean.class,
@@ -392,10 +404,10 @@ public class PreferencePanel {
 				category,
 				"Set the color used to highly the selected object");
 
-		addColorPropertyPreference(PathPrefs.colorDefaultAnnotationsProperty(),
-				"Default annotation color",
+		addColorPropertyPreference(PathPrefs.colorDefaultObjectsProperty(),
+				"Default object color",
 				category,
-				"Set the default color for annotations");
+				"Set the default color for objects");
 
 		addColorPropertyPreference(PathPrefs.colorTMAProperty(),
 				"TMA core color",

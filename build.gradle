@@ -55,7 +55,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '13.0.1'
+def jfxVersion = '13.0.2'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -171,18 +171,20 @@ allprojects {
   version = qupathVersion
 
   ext {
-    bioformatsVersion  = '6.3.0'
+    bioformatsVersion  = '6.3.1'
     commonsMathVersion = '3.6.1'
-    controlsfxVersion  = '11.0.0'
-    groovyVersion      = '2.5.8'
+    controlsfxVersion  = '11.0.1'
+    groovyVersion      = '2.5.9'
     gsonVersion        = '2.8.6'
-    guavaVersion       = '28.1-jre'
-    imagejVersion      = '1.52r'
+    guavaVersion       = '28.2-jre'
+    imagejVersion      = '1.52s'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.2'
+    richtextVersion    = '0.10.3'
+    picocliVersion     = '4.1.4'
+    jfreesvgVersion    = '3.4'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
   }
@@ -203,16 +205,10 @@ allprojects {
     nativeloader
     guava
     picocli
-    
-    // Guava tries to bring in extra dependencies not required at runtime
-    implementation {
-    	exclude group: 'com.google.code.findbugs'
-    	exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
-    	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
-    	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
-    	exclude group: 'org.checkerframework', module: 'checker-qual'
-    }
+    jfreesvg
 
+	// Quite possible this shouldn't be here
+	implementation
   }
 
   dependencies {
@@ -236,7 +232,10 @@ allprojects {
 
     gson "com.google.code.gson:gson:${gsonVersion}"
 
-    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}"
+    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}",  { 
+    	// ControlsFX 11.0.1 uses a linux classifier to bring in more JavaFX than it may need
+    	exclude group: 'org.openjfx'
+    }
 
     jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}"
 
@@ -263,7 +262,17 @@ allprojects {
     if (nativesClassifier != null)
       openslide "org.openslide:openslide:${openslideVersion}:${nativesClassifier}"
 
-    guava "com.google.guava:guava:${guavaVersion}"
+    guava "com.google.guava:guava:${guavaVersion}", {
+    	exclude group: 'com.google.code.findbugs'
+    	exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
+    	exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+    	exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
+    	exclude group: 'org.checkerframework', module: 'checker-qual'
+    }
+    
+    picocli "info.picocli:picocli:${picocliVersion}"
+    
+    jfreesvg "org.jfree:jfreesvg:${jfreesvgVersion}"
   }
 
 }
@@ -522,7 +531,7 @@ jar {
        "Implementation-Title": 'QuPath',
        "Implementation-Version": qupathVersion,
        "Main-Class": "qupath.QuPath",
-       "Class-Path": configurations.compileClasspath.collect { it.getName() }.join(' '),
+       "Class-Path": configurations.runtimeClasspath.collect { it.getName() }.join(' '),
        "QuPath-build-time": buildTime
     ]
     if (latestGitCommit != null)
@@ -535,8 +544,14 @@ jar {
 
 /*
  * Create javadocs for all modules/packages in one place.
+ * Use -PstrictJavadoc=true to fail on error with doclint (which is rather strict).
  */
+def strictJavadoc = findProperty('strictJavadoc')
+ 
 task mergedJavadocs(type: Javadoc) {
+	if (!strictJavadoc) {
+		options.addBooleanOption 'Xdoclint:none', true
+	}
     source subprojects.collect { project ->
         project.sourceSets.main.allJava
     }

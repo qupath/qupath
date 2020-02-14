@@ -28,19 +28,33 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
+import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifiers;
+import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -49,7 +63,10 @@ import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
+import qupath.lib.gui.tools.Charts;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
@@ -57,23 +74,16 @@ import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.RoiTools;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
 
 /**
@@ -91,8 +101,16 @@ public class QPEx extends QP {
 	
 	
 	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
+			// QuPath classes
+			QuPathGUI.class,
 			Dialogs.class,
-			GuiTools.class
+			GuiTools.class,
+			Charts.class,
+			MenuTools.class,
+			PaneTools.class,
+			
+			// JavaFX classes
+			Platform.class
 			));
 	
 	/**
@@ -341,113 +359,6 @@ public class QPEx extends QP {
 		return QuPathGUI.getSharedDialogHelper().promptForFile(null, null, filterDescription, extensions);
 	}
 	
-
-	public static PathObject mergeAnnotations(final Collection<PathObject> annotations) {
-		return mergeAnnotations(getCurrentHierarchy(), annotations);
-	}
-	
-	public static PathObject mergeSelectedAnnotations() {
-		return mergeSelectedAnnotations(getCurrentHierarchy());
-	}
-	
-	public static PathObject mergeAnnotations(final PathObjectHierarchy hierarchy, final Collection<PathObject> annotations) {
-		if (hierarchy == null)
-			return null;
-		
-		// Get all the selected annotations with area
-		ROI shapeNew = null;
-		List<PathObject> children = new ArrayList<>();
-		Set<PathClass> pathClasses = new HashSet<>();
-		for (PathObject child : annotations) {
-			if (child instanceof PathAnnotationObject && child.hasROI() && child.getROI().isArea()) {
-				if (shapeNew == null)
-					shapeNew = child.getROI();//.duplicate();
-				else
-					shapeNew = RoiTools.combineROIs(shapeNew, child.getROI(), RoiTools.CombineOp.ADD);
-				if (child.getPathClass() != null)
-					pathClasses.add(child.getPathClass());
-				children.add(child);
-			}
-		}
-		// Check if we actually merged anything
-		if (children.isEmpty())
-			return null;
-		if (children.size() == 1)
-			return children.get(0);
-	
-		// Create and add the new object, removing the old ones
-		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
-		if (pathClasses.size() == 1)
-			pathObjectNew.setPathClass(pathClasses.iterator().next());
-		else
-			logger.warn("Cannot assign class unambiguously - " + pathClasses.size() + " classes represented in selection");
-		hierarchy.removeObjects(children, true);
-		hierarchy.addPathObject(pathObjectNew);
-		//				pathObject.removePathObjects(children);
-		//				pathObject.addPathObject(pathObjectNew);
-		//				hierarchy.fireHierarchyChangedEvent(pathObject);
-		return pathObjectNew;
-	}
-
-
-	public static PathObject mergeSelectedAnnotations(final PathObjectHierarchy hierarchy) {
-		return hierarchy == null ? null : mergeAnnotations(hierarchy, hierarchy.getSelectionModel().getSelectedObjects());
-	}
-	
-	public static PathObject makeInverseAnnotation(final PathObject pathObject) {
-		return makeInverseAnnotation(getCurrentImageData(), pathObject);
-	}
-	
-	public static PathObject makeInverseAnnotation(final ImageData<?> imageData, final PathObject pathObject) {
-		if (imageData == null)
-			return null;
-		
-		PathObjectHierarchy hierarchy = imageData.getHierarchy();
-		// Get the currently-selected area
-		ROI shapeSelected = null;
-		if (pathObject instanceof PathAnnotationObject) {
-			shapeSelected = getAreaROI(pathObject);
-		}
-		if (shapeSelected == null) {
-			logger.error("Cannot create inverse annotation from " + pathObject);
-			return null;
-		}
-
-		// Get the parent area to use
-		PathObject parent = pathObject.getParent();
-		ROI shape = getAreaROI(parent);
-		if (shape == null)
-			shape = ROIs.createRectangleROI(0, 0, imageData.getServer().getWidth(), imageData.getServer().getHeight(), ImagePlane.getPlaneWithChannel(shapeSelected));
-
-		// Create the new ROI
-		ROI shapeNew = RoiTools.combineROIs(shape, shapeSelected, RoiTools.CombineOp.SUBTRACT);
-		PathObject pathObjectNew = PathObjects.createAnnotationObject(shapeNew);
-
-		// Reassign all other children to the new parent
-		List<PathObject> children = new ArrayList<>(parent.getChildObjects());
-		children.remove(pathObject);
-		pathObjectNew.addPathObjects(children);
-
-		parent.addPathObject(pathObjectNew);
-		hierarchy.fireHierarchyChangedEvent(parent);		
-		return pathObjectNew;
-	}
-	
-	
-	/**
-	 * Returns a ROI if it is an area, otherwise returns null.
-	 * @param pathObject
-	 * @return
-	 */
-	private static ROI getAreaROI(PathObject pathObject) {
-		if (pathObject == null)
-			return null;
-		ROI pathROI = pathObject.getROI();
-		if (pathROI == null || !pathROI.isArea())
-			return null;
-		return pathObject.getROI();
-	}
-	
 	/**
 	 * Write a rendered image to the specified path. No overlay layers will be included.
 	 * @param imageData
@@ -472,6 +383,209 @@ public class QPEx extends QP {
 		ImageWriterTools.writeImage(renderedServer, path);
 	}
 	
+	/**
+	 * Write a JavaFX image to the specified path.
+	 * @param image the image to write
+	 * @param path the path to write the image
+	 * @throws IOException
+	 * @see #writeRenderedImage(ImageData, String)
+	 */
+	public static void writeImage(Image image, String path) throws IOException {
+		writeImage(SwingFXUtils.fromFXImage(image, null), path);
+	}
+	
+
+	/**
+	 * Set the minimum and maximum display range for the current {@link ImageData} for a channel identified by number.
+	 * @param channel channel number (0-based index)
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(int channel, double minDisplay, double maxDisplay) {
+		setChannelDisplayRange(getCurrentImageData(), channel, minDisplay, maxDisplay);
+	}
+
+	/**
+	 * Set the minimum and maximum display range for the specified {@link ImageData} for a channel identified by number.
+	 * @param imageData
+	 * @param channel channel number (0-based index)
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(ImageData<?> imageData, int channel, double minDisplay, double maxDisplay) {
+		// Try to get an existing display if the image is currently open
+		var viewer = getQuPath().getViewers().stream()
+				.filter(v -> v.getImageData() == imageData)
+				.findFirst()
+				.orElse(null);
+		ImageDisplay display = viewer == null ? new ImageDisplay((ImageData<BufferedImage>)imageData) : viewer.getImageDisplay();
+		var available = display.availableChannels();
+		if (channel < 0 || channel >= available.size()) {
+			logger.warn("Channel {} is out of range ({}-{}) - cannot set display range", channel, 0, available.size()-1);
+			return;
+		}
+		var info = display.availableChannels().get(channel);
+		display.setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
+		// Update the viewer is necessary
+		if (viewer != null)
+			viewer.repaintEntireImage();
+	}
+	
+	/**
+	 * Apply an object classifier to the current {@link ImageData}.
+	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
+	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	public static void runObjectClassifier(String name) throws IllegalArgumentException {
+		runObjectClassifier(getCurrentImageData(), name);
+	}
+	
+	/**
+	 * Apply an object classifier to the specified {@link ImageData}.
+	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
+	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static void runObjectClassifier(ImageData imageData, String name) throws IllegalArgumentException {
+		if (imageData == null) {
+			logger.warn("Cannot run object classifier - no ImageData available!");
+			return;
+		}
+		ObjectClassifier classifier = loadObjectClassifier(name);
+		
+		var pathObjects = classifier.getCompatibleObjects(imageData);
+		if (classifier.classifyObjects(imageData, pathObjects, true) > 0)
+			imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
+	}
+	
+	/**
+	 * Load an object classifier for a project or file path.
+	 * 
+	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @return the requested {@link ObjectClassifier}
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	public static ObjectClassifier loadObjectClassifier(String name) throws IllegalArgumentException {
+		var project = getProject();
+		ObjectClassifier classifier = null;
+		Exception exception = null;
+		if (project != null) {
+			try {
+				if (project.getObjectClassifiers().getNames().contains(name))
+					classifier = project.getObjectClassifiers().get(name);
+			} catch (Exception e) {
+				exception = e;
+				logger.debug("Object classifier '{}' not found in project", name);
+			}
+		}
+		if (classifier == null) {
+			try {
+				var path = Paths.get(name);
+				if (Files.exists(path))
+					classifier = ObjectClassifiers.readClassifier(path);
+			} catch (Exception e) {
+				exception = e;
+				logger.debug("Object classifier '{}' cannot be read from file", name);
+			}
+		}
+		if (classifier == null) {
+			throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+		} else
+			return classifier;
+	}
+	
+	
+	// TODO: Make loadPixelClassifier available whenever the code is refactored
+//	/**
+//	 * Load a pixel classifier for a project or file path.
+//	 * 
+//	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+//	 * @return the requested {@link PixelClassifier}
+//	 * @throws IllegalArgumentException if the classifier cannot be found
+//	 */
+//	public static PixelClassifier loadPixelClassifier(String name) throws IllegalArgumentException {
+//		var project = getProject();
+//		PixelClassifier classifier = null;
+//		Exception exception = null;
+//		if (project != null) {
+//			try {
+//				if (project.getPixelClassifiers().getNames().contains(name))
+//					classifier = project.getPixelClassifiers().get(name);
+//			} catch (Exception e) {
+//				exception = e;
+//				logger.debug("Pixel classifier '{}' not found in project", name);
+//			}
+//		}
+//		if (classifier == null) {
+//			try {
+//				var path = Paths.get(name);
+//				if (Files.exists(path))
+//					classifier = PixelClassifiers.readClassifier(path);
+//			} catch (Exception e) {
+//				exception = e;
+//				logger.debug("Pixel classifier '{}' cannot be read from file", name);
+//			}
+//		}
+//		if (classifier == null) {
+//			throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+//		} else
+//			return classifier;
+//	}
+	
+	
+	
+	/**
+	 * Set the minimum and maximum display range for the current {@link ImageData} for a channel identified by name.
+	 * @param channelName
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(String channelName, double minDisplay, double maxDisplay) {
+		setChannelDisplayRange(getCurrentImageData(), channelName, minDisplay, maxDisplay);
+	}
+
+	/**
+	 * Set the minimum and maximum display range for the specified {@link ImageData} for a channel identified by name.
+	 * @param imageData
+	 * @param channelName
+	 * @param minDisplay
+	 * @param maxDisplay
+	 */
+	public static void setChannelDisplayRange(ImageData<?> imageData, String channelName, double minDisplay, double maxDisplay) {
+		// Try to get an existing display if the image is currently open
+		var viewer = getQuPath().getViewers().stream()
+				.filter(v -> v.getImageData() == imageData)
+				.findFirst()
+				.orElse(null);
+		ImageDisplay display = viewer == null ? new ImageDisplay((ImageData<BufferedImage>)imageData) : viewer.getImageDisplay();
+		var available = display.availableChannels();
+		ChannelDisplayInfo info = null;
+		var serverChannels = imageData.getServer().getMetadata().getChannels();
+		for (var c : available) {
+			if (channelName.equals(c.getName())) {
+				info = c;
+				break;
+			}
+			// We also need to check the channel names, since the info might have adjusted them (e.g. by adding (C1) at the end)
+			if (c instanceof DirectServerChannelInfo) {
+				int channelNumber = ((DirectServerChannelInfo)c).getChannel();
+				if (channelNumber >= 0 && channelNumber < serverChannels.size() && channelName.equals(serverChannels.get(channelNumber).getName())) {
+					info = c;
+					break;
+				}
+			}
+		}
+		if (info == null) {
+			logger.warn("No channel found with name {} - cannot set display range", channelName);
+			return;
+		}
+		display.setMinMaxDisplay(info, (float)minDisplay, (float)maxDisplay);
+		// Update the viewer is necessary
+		if (viewer != null)
+			viewer.repaintEntireImage();
+	}
 	
 	
 	public static void saveAnnotationMeasurements(final String path, final String... includeColumns) {
@@ -533,5 +647,78 @@ public class QPEx extends QP {
 			logger.error("Error writing file to " + fileOutput, e);
 		}
 	}
+	
+	/**
+	 * Access a window currently open within QuPath by its title.
+	 * @param title
+	 * @return
+	 */
+	public static Window getWindow(String title) {
+		for (var window : Window.getWindows()) {
+			if (window instanceof Stage) {
+				var stage = (Stage)window;
+				if (title.equals(stage.getTitle()))
+					return stage;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Try to copy an object to the clipboard.
+	 * This will attempt to perform a smart conversion; for example, if a window is provided a snapshot will be taken 
+	 * and copied as an image.
+	 * @param o the object to copy
+	 */
+	public static void copyToClipboard(Object o) {
+		if (!Platform.isFxApplicationThread()) {
+			Object o2 = o;
+			Platform.runLater(() -> copyToClipboard(o2));
+			return;
+		}
+		
+		ClipboardContent content = new ClipboardContent();
+		
+		// Handle things that are (or could become) images
+		if (o instanceof BufferedImage)
+			o = SwingFXUtils.toFXImage((BufferedImage)o, null);
+		if (o instanceof QuPathGUI)
+			o = ((QuPathGUI)o).getStage();
+		if (o instanceof QuPathViewer)
+			o = ((QuPathViewer)o).getView();
+		if (o instanceof Window)
+			o = ((Window)o).getScene();
+		if (o instanceof Scene)
+			o = ((Scene)o).snapshot(null);
+		if (o instanceof Node)
+			o = ((Node)o).snapshot(null, null);
+		if (o instanceof Image)
+			content.putImage((Image)o);
+		
+		// Handle files
+		List<File> files = null;
+		if (o instanceof File)
+			files = Arrays.asList((File)o);
+		else if (o instanceof File[])
+			files = Arrays.asList((File[])o);
+		else if (o instanceof Collection) {
+			files = new ArrayList<>();
+			for (var something : (Collection)o) {
+				if (something instanceof File)
+					files.add((File)something);
+			}
+		}
+		if (files != null && !files.isEmpty())
+			content.putFiles(files);
+		
+		// Handle URLs
+		if (o instanceof URL)
+			content.putUrl(((URL)o).toString());
+		
+		// Always put a String representation
+		content.putString(o.toString());
+		Clipboard.getSystemClipboard().setContent(content);
+	}
+	
 	
 }

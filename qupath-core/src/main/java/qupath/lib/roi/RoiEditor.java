@@ -63,8 +63,10 @@ public class RoiEditor {
 	private MutablePoint activeHandle;
 	
 	private boolean isTranslating = false;
+	private ROI roiTranslateOrigin;
 	private MutablePoint pTranslateOrigin;
 	private MutablePoint pTranslateCurrent;
+	private boolean translateSnapToPixel;
 	
 	transient private RoiHandleAdjuster<?> adjuster;
 	
@@ -130,14 +132,17 @@ public class RoiEditor {
 	 * 
 	 * @param x
 	 * @param y
+	 * @param snapToPixel if true, request that translations snap to pixel coordinates
 	 * @return
 	 */
-	public boolean startTranslation(double x, double y) {
+	public boolean startTranslation(double x, double y, boolean snapToPixel) {
 		if (pathROI == null)
 			return false;
 		pTranslateOrigin = new MutablePoint(x, y);
 		pTranslateCurrent = new MutablePoint(x, y);
 		isTranslating = true;
+		roiTranslateOrigin = pathROI;
+		translateSnapToPixel = snapToPixel;
 		return true;
 	}
 	
@@ -161,6 +166,10 @@ public class RoiEditor {
 		
 		double dx = x - pTranslateCurrent.getX();
 		double dy = y - pTranslateCurrent.getY();
+//		if (snapToPixel) {
+//			dx = Math.round(dx);
+//			dy = Math.round(dy);
+//		}
 		
 		// Optionally constrain translation to keep within specified bounds (e.g. the image itself)
 		Rect constrainBounds = new Rect(constrainRegion.getX(), constrainRegion.getY(), constrainRegion.getWidth(), constrainRegion.getHeight());
@@ -175,13 +184,14 @@ public class RoiEditor {
 			else if (bounds.getMaxY() + dy >= constrainBounds.getMaxY())
 				dy = constrainBounds.getMaxY() - bounds.getMaxY() - 1;
 		}
-		
+
+		pTranslateCurrent.setLocation(pTranslateCurrent.getX() + dx, pTranslateCurrent.getY() + dy);
+
 		if (dx == 0 && dy == 0)
 			return pathROI;
 
 //		pathROI = ((TranslatableROI)pathROI).translate(dx, dy);
 		setROI(pathROI.translate(dx, dy), false);
-		pTranslateCurrent.setLocation(x, y);
 //		// TODO: Fix the inelegance... setting the ROI this way off translating, so we need to turn it back on again...
 //		pTranslateStart = new MutablePoint(x, y);
 		return pathROI;
@@ -195,9 +205,19 @@ public class RoiEditor {
 	 */
 	public boolean finishTranslation() {
 		boolean displacement = isTranslating && pTranslateOrigin.distanceSq(pTranslateCurrent) > 0;
-		isTranslating = false;
-		pTranslateOrigin = null;
-		pTranslateCurrent = null;
+		if (displacement && translateSnapToPixel && roiTranslateOrigin != null) {
+			// If we want to snap to pixel translations, we return to the original and move it all in one go
+			double dx = Math.round(pTranslateCurrent.getX() - pTranslateOrigin.getX());
+			double dy = Math.round(pTranslateCurrent.getY() - pTranslateOrigin.getY());
+			isTranslating = false;
+			pTranslateOrigin = null;
+			pTranslateCurrent = null;
+			setROI(roiTranslateOrigin.translate(dx, dy), false);
+		} else {
+			isTranslating = false;
+			pTranslateOrigin = null;
+			pTranslateCurrent = null;
+		}
 		return displacement;
 	}
 	
@@ -729,7 +749,7 @@ public class RoiEditor {
 				return roi;
 			activeHandle.setLocation(xNew, yNew);
 			roi = new PolylineROI(createPoint2List(handles), roi.getImagePlane());
-//			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.nVertices());
+//			System.out.println("UPDATED HANDLES: " + handles.size() + ", " + roi.getNumPoints());
 			return roi;
 		}
 		
@@ -747,9 +767,15 @@ public class RoiEditor {
 			// (removed)
 			
 			// Don't add a handle at almost the sample place as an existing handle
-			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && handles.get(handles.size() - 2).distanceSq(x, y) < 4) {
+			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && 
+					(handles.get(handles.size() - 2).distanceSq(x, y) < 0.5)) {
 				return roi;
 			}
+						
+//			// Don't add a handle at almost the sample place as an existing handle
+//			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && handles.get(handles.size() - 2).distanceSq(x, y) < 0.5) {
+//				return roi;
+//			}
 			
 //			// If we have 2 points, which are identical, shift instead of creating
 //			if (handles.size() >= 2 && activeHandle == handles.get(handles.size() - 1) && activeHandle.distanceSq(handles.get(handles.size() - 2)) < 0.000001) {

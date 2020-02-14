@@ -28,25 +28,37 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
+import javafx.geometry.Side;
+import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.shape.Rectangle;
 import qupath.lib.geom.Point2;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -64,11 +76,14 @@ import qupath.lib.roi.ROIs;
  */
 public class CountingPanel implements PathObjectSelectionListener, PathObjectHierarchyListener {
 
+	private QuPathGUI qupath;
+	
 	private BorderPane pane = new BorderPane();
 	
 	private PathObjectHierarchy hierarchy;
 	
 	private ListView<PathObject> listCounts;
+	private ObservableList<PathClass> availableClasses;
 	
 	private Action btnAdd = new Action("Add", e -> {
 		PathObject pathObjectCounts = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()));
@@ -84,9 +99,30 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 			GuiTools.promptToRemoveSelectedObject(pathObjectSelected, hierarchy);
 	});
 	
+	/**
+	 * Create point annotations for all available classifications
+	 */
+	private Action btnCreateForClasses = new Action("Create points for all classes", e -> {
+		var viewer = qupath.getViewer();
+		var hierarchy = viewer.getHierarchy();
+		var availableClasses = qupath.getAvailablePathClasses()
+				.stream()
+				.filter(p -> p != null && p != PathClassFactory.getPathClassUnclassified())
+				.collect(Collectors.toList());
+		if (hierarchy == null || availableClasses.isEmpty())
+			return;
+		var plane = viewer.getImagePlane();
+		var pathObjects = new ArrayList<PathObject>();
+		for (PathClass pathClass : availableClasses) {
+			pathObjects.add(PathObjects.createAnnotationObject(ROIs.createPointsROI(plane), pathClass));
+		}
+		hierarchy.addPathObjects(pathObjects);
+	});
 	
-	public CountingPanel(final PathObjectHierarchy hierarchy) {
+	
+	public CountingPanel(final QuPathGUI qupath, final PathObjectHierarchy hierarchy) {
 		
+		this.qupath = qupath;
 		listCounts = new ListView<>();
 		
 		setHierarchy(hierarchy);
@@ -96,12 +132,20 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		});
 		
 		// Make buttons
-		GridPane panelButtons = PathAnnotationPanel.createColumnGridControls(
+		GridPane paneMainButtons = PaneTools.createColumnGridControls(
 				ActionUtils.createButton(btnAdd),
 				ActionUtils.createButton(btnEdit),
 				ActionUtils.createButton(btnDelete)
 				);
-				
+		
+		// Add additional options
+		var popup = new ContextMenu();
+		popup.getItems()
+			.add(ActionUtils.createMenuItem(btnCreateForClasses));
+		
+		var paneButtons = new BorderPane(paneMainButtons);
+		Button btnMore = GuiTools.createMoreButton(popup, Side.RIGHT);
+		paneButtons.setRight(btnMore);
 				
 		// Add double-click listener
 		listCounts.setOnMouseClicked(e -> {
@@ -121,21 +165,49 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		}
 				);
 		ContextMenu menu = new ContextMenu();
-		MenuItem menuItem = new MenuItem("Copy to clipboad");
-		menuItem.setOnAction(e -> {
+		Menu menuSetClass = new Menu("Set class");
+		menu.setOnShowing(e -> {
+			menuSetClass.getItems().setAll(
+					qupath.getAvailablePathClasses().stream()
+					.map(p -> createPathClassMenuItem(p))
+					.collect(Collectors.toList()));
+		});
+		MenuItem miCopy = new MenuItem("Copy to clipboard");
+		miCopy.setOnAction(e -> {
 			copyCoordinatesToClipboard(listCounts.getSelectionModel().getSelectedItem());
 			}
 		);
-		menu.getItems().add(menuItem);
+		miCopy.disableProperty().bind(listCounts.getSelectionModel().selectedItemProperty().isNull());
+		menuSetClass.disableProperty().bind(listCounts.getSelectionModel().selectedItemProperty().isNull());
+		menu.getItems().addAll(menuSetClass, miCopy);
 		listCounts.setContextMenu(menu);
+		
+		listCounts.setCellFactory(v -> new PathObjectListCell(p -> p.toString().replace(" (Points)", "")));
 		
 		// Add to panel
 		BorderPane panelList = new BorderPane();
 		panelList.setCenter(listCounts);
-		panelList.setBottom(panelButtons);
+		panelList.setBottom(paneButtons);
 //		panelList.setBorder(BorderFactory.createTitledBorder("Counts"));		
 		
 		pane.setCenter(panelList);
+	}
+	
+	
+	MenuItem createPathClassMenuItem(PathClass pathClass) {
+		var mi = new MenuItem(pathClass.toString());
+		var rect = new Rectangle(8, 8, ColorToolsFX.getCachedColor(pathClass.getColor()));
+		mi.setGraphic(rect);
+		mi.setOnAction(e -> {
+			var pathObject = listCounts.getSelectionModel().getSelectedItem();
+			if (pathClass == PathClassFactory.getPathClassUnclassified())
+				pathObject.setPathClass(null);
+			else
+				pathObject.setPathClass(pathClass);
+			if (hierarchy != null)
+				hierarchy.fireObjectClassificationsChangedEvent(mi, Collections.singleton(pathObject));
+		});
+		return mi;
 	}
 	
 	
@@ -213,7 +285,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	private void promptToSetProperties() {
 		PathObject pathObjectSelected = listCounts.getSelectionModel().getSelectedItem();
 		if (pathObjectSelected != null && PathObjectTools.hasPointROI(pathObjectSelected)) {
-			PathAnnotationPanel.promptToSetActiveAnnotationProperties(hierarchy);
+			GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
 		}
 	}
 
@@ -236,13 +308,19 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		
 		Collection<PathObject> newList = hierarchy.getPointObjects(PathAnnotationObject.class);
 		
-		if (newList.equals(listCounts.getItems())) {
+		// We want to avoid shuffling the list if possible we adding points
+		var items = listCounts.getItems();
+		if (items.size() == newList.size() && (
+				newList.equals(items) || newList.containsAll(items))) {
 //			if (event != null && event.getEventType() == HierarchyEventType.CHANGE_CLASSIFICATION || event.getEventType() == HierarchyEventType.CHANGE_MEASUREMENTS || (event.getStructureChangeBase() != null && event.getStructureChangeBase().isPoint()) || PathObjectTools.containsPointObject(event.getChangedObjects()))
-				listCounts.refresh();
-			return;
+			listCounts.refresh();
+		} else {
+			// Update the items if we need to
+			listCounts.getItems().setAll(newList);
 		}
 		
-		listCounts.getItems().setAll(newList);
+		// We want to retain selection status
+		selectedPathObjectChanged(hierarchy.getSelectionModel().getSelectedObject(), null, hierarchy.getSelectionModel().getSelectedObjects());
 	}	
 	
 	
