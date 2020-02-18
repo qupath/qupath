@@ -1,3 +1,7 @@
+## Version 0.2.0-m10
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+
+
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early. Changes include:
 
