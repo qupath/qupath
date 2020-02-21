@@ -39,9 +39,10 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 	
 	private ColorDeconvolutionStains stains;
 	private List<ColorTransformMethod> methods;
-	private List<StainVector> stainVectors;
+	private int[] stainNumbers;
 	private ImageServerMetadata metadata;
-	private ColorModel colorModel;
+	private transient List<StainVector> stainVectors;
+	private transient ColorModel colorModel;
 
 	public ColorDeconvolutionImageServer(ImageServer<BufferedImage> server, ColorDeconvolutionStains stains, int... stainNumbers) {
 		super(server);
@@ -50,6 +51,8 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 		this.methods = new ArrayList<>();
 		if (stainNumbers.length == 0)
 			stainNumbers = new int[] {1, 2, 3};
+		this.stainNumbers = stainNumbers;
+		
 		List<ImageChannel> channels = new ArrayList<>();
 		StringBuilder sb = new StringBuilder();
 		stainVectors = new ArrayList<>();
@@ -82,8 +85,6 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 		}
 		this.stainVectors = Collections.unmodifiableList(stainVectors);
 		
-		this.colorModel = ColorModelFactory.getProbabilityColorModel32Bit(channels);
-		
 		metadata = new ImageServerMetadata.Builder(server.getMetadata())
 //				.path(String.format("%s, %s (%s)", server.getPath(), stains.toString(), sb.toString()))
 				.pixelType(PixelType.FLOAT32)
@@ -93,12 +94,18 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 				.build();
 	}
 	
+	private ColorModel getColorModel() {
+		if (colorModel == null)
+			this.colorModel = ColorModelFactory.getProbabilityColorModel32Bit(getMetadata().getChannels());
+		return colorModel;
+	}
+	
 	/**
 	 * Returns null (does not support ServerBuilders).
 	 */
 	@Override
 	protected ServerBuilder<BufferedImage> createServerBuilder() {
-		return null;
+		return new ImageServers.ColorDeconvolutionServerBuilder(getMetadata(), getWrappedServer().getBuilder(), stains, stainNumbers);
 	}
 	
 	/**
@@ -122,6 +129,12 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 	 * @return
 	 */
 	public List<StainVector> getStainVectors() {
+		if (stainVectors == null) {
+			var list = new ArrayList<StainVector>();
+			for (int s : stainNumbers)
+				list.add(stains.getStain(s));
+			this.stainVectors = Collections.unmodifiableList(list);
+		}
 		return stainVectors;
 	}
 	
@@ -146,7 +159,7 @@ class ColorDeconvolutionImageServer extends TransformingImageServer<BufferedImag
 			ColorTransformer.getTransformedPixels(rgb, methods.get(b), pixels, stains);			
 			raster.setSamples(0, 0, img.getWidth(), img.getHeight(), b, pixels);
 		}
-		return new BufferedImage(colorModel, Raster.createWritableRaster(model, buffer, null), false, null);
+		return new BufferedImage(getColorModel(), Raster.createWritableRaster(model, buffer, null), false, null);
 		
 //		WritableRaster raster = WritableRaster.createInterleavedRaster(DataBuffer.TYPE_FLOAT, img.getWidth(), img.getHeight(), 1, null);
 //		ColorTransformer.getTransformedPixels(rgb, method, pixels, stains);

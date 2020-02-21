@@ -25,6 +25,7 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServerBuilder.AbstractServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
@@ -56,6 +57,7 @@ public class ImageServers {
 			.registerSubtype(SparseImageServerBuilder.class, "sparse")
 			.registerSubtype(CroppedImageServerBuilder.class, "cropped")
 			.registerSubtype(PyramidGeneratingServerBuilder.class, "pyramidize")
+			.registerSubtype(ColorDeconvolutionServerBuilder.class, "color_deconvolved")
 			;
 	
 	/**
@@ -345,6 +347,39 @@ public class ImageServers {
 		}
 		
 	}
+	
+	static class ColorDeconvolutionServerBuilder extends AbstractServerBuilder<BufferedImage> {
+		
+		private ServerBuilder<BufferedImage> builder;
+		private ColorDeconvolutionStains stains;
+		private int[] channels;
+		
+		ColorDeconvolutionServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, ColorDeconvolutionStains stains, int... channels) {
+			super(metadata);
+			this.builder = builder;
+			this.stains = stains;
+			this.channels = channels == null ? null : channels.clone();
+		}
+		
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new ColorDeconvolutionImageServer(builder.build(), stains, channels);
+		}
+		
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new ColorDeconvolutionServerBuilder(getMetadata(), newBuilder, stains, channels);
+		}
+		
+	}
 
 	static class RotatedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
 	
@@ -479,7 +514,6 @@ public class ImageServers {
 				in.setLenient(lenient);
 			}
 		}
-		
 		
 	}
 
