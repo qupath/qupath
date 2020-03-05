@@ -2,6 +2,8 @@ package qupath.lib.gui.ml;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
@@ -23,6 +25,7 @@ import javafx.scene.layout.GridPane;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
@@ -36,6 +39,8 @@ import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
  * @author Pete Bankhead
  */
 abstract class FeatureCalculatorBuilder {
+	
+	private final static Logger logger = LoggerFactory.getLogger(FeatureCalculatorBuilder.class);
 
 	public abstract FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
 
@@ -68,6 +73,26 @@ abstract class FeatureCalculatorBuilder {
 		combo.setContextMenu(menu);
 	}
 	
+	
+	/**
+	 * Create a collection representing available unique channel names, logging a warning if a channel name is duplicated
+	 * @param server server containing channels
+	 * @return set of channel names
+	 */
+	static Collection<String> getAvailableUniqueChannelNames(ImageServer<?> server) {
+		var set = new LinkedHashSet<String>();
+		int i = 1;
+		for (var c : server.getMetadata().getChannels()) {
+			var name = c.getName();
+			if (!set.contains(name))
+				set.add(name);
+			else
+				logger.warn("Found duplicate channel name! Will skip channel " + i + " (name '" + name + "')");
+			i++;
+		}
+		return set;
+	}
+	
 
 	static class ExtractNeighborsFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
 		
@@ -95,8 +120,7 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				for (var c : server.getMetadata().getChannels())
-					comboChannels.getItems().add(c.getName());
+				comboChannels.getItems().setAll(getAvailableUniqueChannelNames(server));
 				comboChannels.getCheckModel().checkAll();
 			}
 			
@@ -157,9 +181,7 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				List<String> channels = new ArrayList<>();
-				for (var c : server.getMetadata().getChannels())
-					channels.add(c.getName());		
+				List<String> channels = new ArrayList<>(getAvailableUniqueChannelNames(server));
 				if (!comboChannels.getItems().equals(channels)) {
 					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
 					comboChannels.getCheckModel().clearChecks();
@@ -242,8 +264,7 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				for (var c : server.getMetadata().getChannels())
-					comboChannels.getItems().add(c.getName());
+				comboChannels.getItems().setAll(getAvailableUniqueChannelNames(server));
 				comboChannels.getCheckModel().checkAll();
 			}
 			
@@ -406,9 +427,7 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				List<String> channels = new ArrayList<>();
-				for (var c : server.getMetadata().getChannels())
-					channels.add(c.getName());			
+				List<String> channels = new ArrayList<>(getAvailableUniqueChannelNames(server));
 				if (!comboChannels.getItems().equals(channels)) {
 					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
 					comboChannels.getCheckModel().clearChecks();
