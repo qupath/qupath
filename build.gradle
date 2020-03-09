@@ -174,17 +174,17 @@ allprojects {
     bioformatsVersion  = '6.3.1'
     commonsMathVersion = '3.6.1'
     controlsfxVersion  = '11.0.1'
-    groovyVersion      = '2.5.9'
+    groovyVersion      = '3.0.2'
     gsonVersion        = '2.8.6'
     guavaVersion       = '28.2-jre'
-    imagejVersion      = '1.52s'
+    imagejVersion      = '1.52t'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.3'
+    richtextVersion    = '0.10.4'
     picocliVersion     = '4.1.4'
-    jfreesvgVersion    = '3.4'
+    jfreesvgVersion    = '4.0'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
   }
@@ -272,7 +272,7 @@ allprojects {
     
     picocli "info.picocli:picocli:${picocliVersion}"
     
-    jfreesvg "org.jfree:jfreesvg:${jfreesvgVersion}"
+    jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
   }
 
 }
@@ -383,6 +383,8 @@ allprojects {
   repositories {
     mavenLocal()
     mavenCentral()
+
+    maven { url 'http://maven.imagej.net/content/groups/public' }
 
     maven {
       name 'Unidata'
