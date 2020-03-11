@@ -6,7 +6,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
    * Freeze when launching ImageJ from Mac under some circumstances
    * Use default channel names if Bio-Formats returns an empty String
    * Log meaningful warning if pixel classifier uses duplicated channel names
- * Update dependencies: JFreeSVG, ImageJ, RichTextFX
+ * Update dependencies: JavaFX, JFreeSVG, ImageJ, RichTextFX
 
 
 ## Version 0.2.0-m9

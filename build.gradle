@@ -14,7 +14,7 @@
 buildscript {
 
   dependencies {
-    classpath 'com.github.jk1:gradle-license-report:1.11'
+    classpath 'com.github.jk1:gradle-license-report:1.13'
 //      classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
   }
 
@@ -55,7 +55,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '13.0.2'
+def jfxVersion = '14'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -183,7 +183,7 @@ allprojects {
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.4'
-    picocliVersion     = '4.1.4'
+    picocliVersion     = '4.2.0'
     jfreesvgVersion    = '4.0'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
@@ -580,15 +580,21 @@ task createRuntime(dependsOn:build, type:Exec) {
    def params = ["${System.properties['java.home']}/bin/jlink"]
 	
     params << '--output' << outputDir.getAbsolutePath()
-    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported,jdk.zipfs'
+    params << '--add-modules' << String.join(',', 
+    	'java.desktop',
+    	'java.xml',
+    	'java.scripting',
+    	'java.sql',
+    	'java.naming',
+    	'java.management', // Useful to check memory usage
+    	'jdk.unsupported',
+    	'jdk.zipfs')
 
     params << '--strip-debug'
     params << '--no-header-files'
     params << '--no-man-pages'
     params << '--strip-native-commands'
     params << '--compress=2'
-
-//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
 
     print String.join(' ', params)
     
