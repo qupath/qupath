@@ -1,7 +1,7 @@
-QuPath v0.2.0-m9
-================
+QuPath v0.2.0-m10
+=================
 
-Welcome to QuPath v0.2.0-m9!
+Welcome to QuPath v0.2.0-m10!
 
 You can read more about what is different at https://qupath.github.io/
 

@@ -1,3 +1,14 @@
+## Version 0.2.0-m10
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+ * Update to Groovy 3
+   * Scripts now support more recent Java syntax (e.g. lambdas, try-with-resources)
+ * Bug fixes, including:
+   * Freeze when launching ImageJ from Mac under some circumstances
+   * Use default channel names if Bio-Formats returns an empty String
+   * Log meaningful warning if pixel classifier uses duplicated channel names
+ * Update dependencies: JavaFX, JFreeSVG, ImageJ, RichTextFX
+
+
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early. Changes include:
 

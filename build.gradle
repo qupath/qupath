@@ -14,7 +14,7 @@
 buildscript {
 
   dependencies {
-    classpath 'com.github.jk1:gradle-license-report:1.11'
+    classpath 'com.github.jk1:gradle-license-report:1.13'
 //      classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
   }
 
@@ -55,7 +55,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '13.0.2'
+def jfxVersion = '14'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -174,17 +174,17 @@ allprojects {
     bioformatsVersion  = '6.3.1'
     commonsMathVersion = '3.6.1'
     controlsfxVersion  = '11.0.1'
-    groovyVersion      = '2.5.9'
+    groovyVersion      = '3.0.2'
     gsonVersion        = '2.8.6'
     guavaVersion       = '28.2-jre'
-    imagejVersion      = '1.52s'
+    imagejVersion      = '1.52t'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.3'
-    picocliVersion     = '4.1.4'
-    jfreesvgVersion    = '3.4'
+    richtextVersion    = '0.10.4'
+    picocliVersion     = '4.2.0'
+    jfreesvgVersion    = '4.0'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
   }
@@ -272,7 +272,7 @@ allprojects {
     
     picocli "info.picocli:picocli:${picocliVersion}"
     
-    jfreesvg "org.jfree:jfreesvg:${jfreesvgVersion}"
+    jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
   }
 
 }
@@ -383,6 +383,8 @@ allprojects {
   repositories {
     mavenLocal()
     mavenCentral()
+
+    maven { url 'http://maven.imagej.net/content/groups/public' }
 
     maven {
       name 'Unidata'
@@ -578,15 +580,21 @@ task createRuntime(dependsOn:build, type:Exec) {
    def params = ["${System.properties['java.home']}/bin/jlink"]
 	
     params << '--output' << outputDir.getAbsolutePath()
-    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported,jdk.zipfs'
+    params << '--add-modules' << String.join(',', 
+    	'java.desktop',
+    	'java.xml',
+    	'java.scripting',
+    	'java.sql',
+    	'java.naming',
+    	'java.management', // Useful to check memory usage
+    	'jdk.unsupported',
+    	'jdk.zipfs')
 
     params << '--strip-debug'
     params << '--no-header-files'
     params << '--no-man-pages'
     params << '--strip-native-commands'
     params << '--compress=2'
-
-//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
 
     print String.join(' ', params)
     
@@ -627,6 +635,10 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
   	def appVersion = qupathVersion.replace('-SNAPSHOT', '')
 
     def packageType = findProperty('type')
+    if (!packageType) {
+    	packageType = 'app-image'
+    	println 'No package type specified, using default ' + packageType
+   	}
 
     def params = [packager]
 
@@ -645,9 +657,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		params << '--mac-package-name' << 'QuPath'
 		params << '--mac-package-identifier' << 'QuPath'
 		if (packageType == 'installer') {
-			params << '--type' << 'dmg'
+			params << '--type' << 'pkg'
 		} else {
-			params << '--type' << 'app-image'
+			params << '--type' << packageType
 		}
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
@@ -663,7 +675,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility" 
 			}
 		} else
-			params << '--type' << 'app-image'
+			params << '--type' << packageType
 		// Create a separate launcher with a console - this can help with debugging
 		def fileTemp = File.createTempFile('qupath-building', '.properties')
 		def consoleLauncherName = "QuPath-${qupathVersion} (debug)"
@@ -672,7 +684,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 //		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'
 		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
 	} else
-		params << '--type' << 'app-image'
+		params << '--type' << packageType
 
     // Store the app version (typically a simplified version of the full format)
     params << '--app-version' << appVersion

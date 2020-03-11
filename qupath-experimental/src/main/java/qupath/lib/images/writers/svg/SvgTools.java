@@ -1,10 +1,8 @@
 package qupath.lib.images.writers.svg;
 
-import java.awt.Image;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -13,20 +11,18 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.zip.GZIPOutputStream;
 
 import javax.imageio.ImageIO;
 
-import org.jfree.graphics2d.svg.SVGGraphics2D;
-import org.jfree.graphics2d.svg.SVGHints;
+import org.jfree.svg.SVGGraphics2D;
+import org.jfree.svg.SVGHints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
@@ -354,8 +350,6 @@ public class SvgTools {
 			String imageName = GeneralTools.getNameWithoutExtension(file) + "-image.png";
 			var g2d = buildGraphics(imageName);
 			var doc = g2d.getSVGDocument();
-			if (embedImages)
-				doc = embedImages(g2d);
 			
 			if (doCompress) {
 				try (var stream = 
@@ -446,10 +440,14 @@ public class SvgTools {
 							display = new ImageDisplay(imageData);							
 					}
 					
-					g2d.setRenderingHint(SVGHints.KEY_IMAGE_HANDLING, SVGHints.VALUE_IMAGE_HANDLING_REFERENCE);
-					if (imageName == null)
-						imageName = "image.png";
-					g2d.setRenderingHint(SVGHints.KEY_IMAGE_HREF, imageName);
+					if (imageInclude == ImageIncludeType.LINK) {
+						g2d.setRenderingHint(SVGHints.KEY_IMAGE_HANDLING, SVGHints.VALUE_IMAGE_HANDLING_REFERENCE);
+						if (imageName == null)
+							imageName = "image.png";
+						g2d.setRenderingHint(SVGHints.KEY_IMAGE_HREF, imageName);
+					} else {
+						g2d.setRenderingHint(SVGHints.KEY_IMAGE_HANDLING,  SVGHints.VALUE_IMAGE_HANDLING_EMBED);
+					}
 					
 					BufferedImage imgTemp = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 					var g = imgTemp.createGraphics();
@@ -477,38 +475,6 @@ public class SvgTools {
 			return g2d;
 		}
 		
-		
-		/**
-		 * JFreeSVG 3.4 uses an unsupported method of encoding to base64, so here we try to 
-		 * handle it separately.
-		 * TODO: Check if this is required when JFreeSVG 3.5 becomes available, and remove if not.
-		 * 
-		 * @param g2d
-		 * @return
-		 * @throws IOException
-		 */
-		private static String embedImages(SVGGraphics2D g2d) throws IOException {
-			String doc = g2d.getSVGDocument();
-			var elements = g2d.getSVGImages();
-			if (elements.isEmpty())
-				return doc;
-			for (var element : elements) {
-				var href = element.getHref();
-				var img = element.getImage();
-				doc = doc.replaceAll(
-						"xlink:href=\\\"" + href + "\\\"",
-						"xlink:href=\\\"data:image/png;base64," + toBase64PNG(img) + "\"");
-			}
-			return doc;
-		}
-		
-		private static String toBase64PNG(Image img) throws IOException {
-			try (var stream = new ByteArrayOutputStream()) {
-				ImageIO.write(BufferedImageTools.ensureBufferedImage(img), "PNG", stream);
-				return Base64.getEncoder().encodeToString(stream.toByteArray());
-			}
-		}
-
 		
 		/**
 		 * Create a String representation of the SVG document.
