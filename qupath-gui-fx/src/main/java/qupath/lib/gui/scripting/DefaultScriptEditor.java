@@ -97,6 +97,9 @@ import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -1521,6 +1524,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> {
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null) {
+				updateClipboard();
 				editor.paste();
 			}
 			e.consume();
@@ -2019,6 +2023,32 @@ public class DefaultScriptEditor implements ScriptEditor {
 		addNewScript(script, getDefaultLanguage(), true);
 		if (!dialog.isShowing())
 			dialog.show();
+	}
+	
+	
+	/**
+	 * Method that may be applied prior to pasting, so 'improve' the contents of the clipboard.
+	 * This means converting File objects into an appropriate String representation.
+	 */
+	protected void updateClipboard() {
+		// Intercept clipboard if we have files, to create a suitable string representation as well
+		var clipboard = Clipboard.getSystemClipboard();
+		var files = clipboard.getFiles();
+		if (files != null && !files.isEmpty()) {
+			String s;
+			if (files.size() == 1)
+				s = files.get(0).getAbsolutePath();
+			else {
+				s = "[" + files.stream().map(f -> "\"" + f.getAbsolutePath() + "\"").collect(Collectors.joining("," + System.lineSeparator())) + "]";
+			}
+			if ("\\".equals(File.separator)) {
+				s = s.replace("\\", "/");
+			}
+			var content = new ClipboardContent();
+			content.put(DataFormat.FILES, files);
+			content.putString(s);
+			clipboard.setContent(content);
+		}
 	}
 	
 	
