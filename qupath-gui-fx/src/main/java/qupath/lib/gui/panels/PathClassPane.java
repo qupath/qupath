@@ -566,6 +566,9 @@ public class PathClassPane {
 		if (list.contains(pathClass)) {
 			Dialogs.showErrorMessage("Add class", "Class '" + input + "' already exists!");
 			return false;
+		} else if (input.toLowerCase().equals("null")) {
+			Dialogs.showErrorMessage("Add class", "Cannot add a 'null' class, try another name!");
+			return false;
 		}
 		list.add(pathClass);
 		return true;

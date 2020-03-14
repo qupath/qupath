@@ -136,11 +136,17 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		btnLoad.setOnAction(event -> {
 				if (hierarchy == null)
 					return;
-				File file = qupath.getDialogHelper().promptForFile(null, null, "zip files", new String[]{"zip"});
+				File file = qupath.getDialogHelper().promptForFile(null, null, "TSV (Tab delimited)", new String[]{"tsv"});
 				if (file == null)
 					return;
 				try {
-					List<PathObject> pointsList = PointIO.readPointsObjectList(file);
+					List<PathObject> pointsList = null;
+					if (file.toPath().toString().endsWith(".zip"))
+						pointsList = PointIO.readPointsObjectList(file);
+					
+					else if (file.toPath().toString().endsWith(".tsv"))
+						pointsList = PointIO.readPointsObjectFromFile(file);
+					
 					if (pointsList != null) {
 						for (PathObject points : pointsList)
 							hierarchy.addPathObject(points);
@@ -161,11 +167,11 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				}
 				String defaultName = null;
 				try {
-					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.zip"; // Sorry, this is lazy...
+					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.tsv"; // Sorry, this is lazy...
 				} catch (Exception e) {
 					// Ignore...
 				};
-				File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "zip files", "zip");
+				File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "TSV (Tab delimited)", "tsv");
 				if (file == null)
 					return;
 				try {
