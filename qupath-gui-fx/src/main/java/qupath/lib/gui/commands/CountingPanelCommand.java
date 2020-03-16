@@ -26,6 +26,8 @@ package qupath.lib.gui.commands;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -37,10 +39,10 @@ import javafx.geometry.Orientation;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToolBar;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -63,6 +65,7 @@ import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.parameters.ParameterList;
 
 /**
  * Command to open up a counting panel to aid with creating Point annotations.
@@ -160,7 +163,26 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		btnSave.setOnAction(event -> {
 				if (countingPanel == null)
 					return;
+				
+				// Prompt the user with choice over which annotations to save
+				ListView<PathObject> listView = countingPanel.getListView();
+				var selection = listView.getSelectionModel().getSelectedItems();
 				List<PathObject> pointsList = countingPanel.getPathObjects();
+				if (!selection.isEmpty()) {
+					ArrayList<String> choiceList = new ArrayList<>();
+					choiceList.addAll(Arrays.asList("All point annotations", "Selected objects"));
+					
+					
+					ParameterList paramsParents = new ParameterList();
+					paramsParents.addChoiceParameter("Save annotations", "Process", choiceList.get(0), choiceList);
+					if (!Dialogs.showParameterDialog("Save annotations", paramsParents))
+						return;
+					
+					String choiceString = (String)paramsParents.getChoiceParameterValue("Save annotations");
+					if ("Selected objects".equals(choiceString))
+						pointsList = selection;
+				}
+
 				if (pointsList.isEmpty()) {
 					Dialogs.showErrorMessage("Save points", "No points available!");
 					return;
@@ -175,7 +197,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				if (file == null)
 					return;
 				try {
-					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultObjects());
+					PointIO.writePointsObjectsList(file, pointsList);
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save points error", e);
 				}

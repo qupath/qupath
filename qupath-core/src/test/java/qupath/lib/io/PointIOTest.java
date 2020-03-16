@@ -11,12 +11,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
-import qupath.lib.common.ColorTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -31,8 +30,8 @@ import qupath.lib.io.PointIO;
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class PointIOTest {
 
-	Map<Integer, Double[][]> map;
-	String pathOut;
+	static Map<Integer, Double[][]> map;
+	static File file;
 
 	/**
 	 * Creates five sets of Point2's, representing the different types of Point2's:
@@ -44,10 +43,9 @@ public class PointIOTest {
 	 *
 	 * N.B: Each sets has its own unique color.
 	 */
-	@Before
-	public void init() {
+	@BeforeClass
+	public static void init() {
 		map = new HashMap<Integer, Double[][]>();
-		pathOut = "testPointsObjectsList.tsv";
 
 		// Set 1
 		double x = 5000;
@@ -106,7 +104,7 @@ public class PointIOTest {
 	@Test
 	public void test1WritePointsObjectsList() {
 		List<PathObject> pathObjects = new ArrayList<>();
-		Integer[] colors = new Integer[] {-14336, -13487566, -65536, -3342337, -1305168};
+		Integer[] colors = new Integer[] {-14336, -13487566, null, -3342337, -1305168};
 
 		for (var entry: map.entrySet()) {
 			ArrayList<Point2> pointsList = new ArrayList<>();
@@ -119,7 +117,6 @@ public class PointIOTest {
 			}
 			ROI points = ROIs.createPointsROI(pointsList, ImagePlane.getPlaneWithChannel(c, z, t));
 			PathObject pathObject = PathObjects.createAnnotationObject(points);
-			pathObject.setColorRGB(colors[entry.getKey()-1]);
 
 			if (entry.getKey() == 3)
 				pathObject.setPathClass(PathClassFactory.getPathClass("Other"));
@@ -129,15 +126,16 @@ public class PointIOTest {
 				pathObject.setPathClass(PathClassFactory.getPathClass("Tumor"));
 				pathObject.setName("bar");
 			}
+			
+			pathObject.setColorRGB(colors[entry.getKey()-1]);
 			pathObjects.add(pathObject);
 		}
 
 
-		File file = new File(pathOut);
 		try {
-			PointIO.writePointsObjectsList(file, pathObjects, ColorTools.makeRGB(255, 0, 0));
+			file = File.createTempFile("tmp", ".tsv");
+			PointIO.writePointsObjectsList(file, pathObjects);
 		} catch (IOException e) {
-			e.printStackTrace();
 			fail();
 		}
 	}
@@ -145,8 +143,6 @@ public class PointIOTest {
 
 	@Test
 	public void test2ReadPointsObjectFromFile() {
-		File file = new File(pathOut);
-
 		List<PathObject> pathObjects = null;
 		List<Double[]> pointsList = new ArrayList<>();
 		try {
@@ -157,12 +153,11 @@ public class PointIOTest {
 			}
 
 		} catch (IOException e) {
-			e.printStackTrace();
 			fail();
 		}
 
-		// Check that we have the same number of imported points as originally
-		assertTrue(pathObjects.size() == 150);
+		// Check that we have the same number of sets as originally
+		assertTrue(pathObjects.size() == 5);
 
 		// Check that all coordinates are the same
 		assertTrue(map.values().stream().allMatch(p -> {
@@ -201,21 +196,11 @@ public class PointIOTest {
 								q.getROI().getT() == 0);
 				}));
 
-		finalize();
-
+		file.delete();
 	}
 
-	/**
-	 * Deletes the temporary TSV file created for the tests
-	 */
-	public void finalize() {
-		File file = new File(pathOut);
-		if (file.exists()) {
-			file.delete();
-		}
-	}
 
-	private boolean isInside(Double[][] array, Point2 point) {
+	static boolean isInside(Double[][] array, Point2 point) {
 		boolean found = false;
 		for (int i = 0; i < array.length; i++) {
 				if (array[i][0] == point.getX() && array[i][1] == point.getY())
