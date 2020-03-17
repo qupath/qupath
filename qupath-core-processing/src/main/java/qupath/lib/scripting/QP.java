@@ -69,6 +69,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
@@ -84,6 +85,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
+import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
@@ -178,6 +180,10 @@ public class QP {
 			IJTools.class,
 			OpenCVTools.class,
 			TileExporter.class,
+			
+			// IO classes
+			PointIO.class,
+			ProjectIO.class,
 			
 			// External classes
 			BufferedImage.class
