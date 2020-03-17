@@ -223,6 +223,13 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
 			
+			// Intercept any paste requests to update the clipboard
+			var pasteShortcut = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
+			codeArea.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+				if (pasteShortcut.match(e))
+					updateClipboard();
+			});
+			
 			var cleanup = codeArea
 					.multiPlainChanges()
 					.successionEnds(Duration.ofMillis(delayMillis))

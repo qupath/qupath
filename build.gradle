@@ -171,7 +171,7 @@ allprojects {
   version = qupathVersion
 
   ext {
-    bioformatsVersion  = '6.3.1'
+    bioformatsVersion  = '6.4.0'
     commonsMathVersion = '3.6.1'
     controlsfxVersion  = '11.0.1'
     groovyVersion      = '3.0.2'
