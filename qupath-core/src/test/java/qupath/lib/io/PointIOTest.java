@@ -102,7 +102,7 @@ public class PointIOTest {
 	 * Uses the map generated in init() method and writes all its points down to a TSV file.
 	 */
 	@Test
-	public void test1WritePointsObjectsList() {
+	public void test1WritePoints() {
 		List<PathObject> pathObjects = new ArrayList<>();
 		Integer[] colors = new Integer[] {-14336, -13487566, null, -3342337, -1305168};
 
@@ -134,7 +134,7 @@ public class PointIOTest {
 
 		try {
 			file = File.createTempFile("tmp", ".tsv");
-			PointIO.writePointsObjectsList(file, pathObjects);
+			PointIO.writePoints(file, pathObjects);
 		} catch (IOException e) {
 			fail();
 		}
@@ -142,11 +142,11 @@ public class PointIOTest {
 
 
 	@Test
-	public void test2ReadPointsObjectFromFile() {
+	public void test2ReadPoints() {
 		List<PathObject> pathObjects = null;
 		List<Double[]> pointsList = new ArrayList<>();
 		try {
-			pathObjects = PointIO.readPointsObjectFromFile(file);
+			pathObjects = PointIO.readPoints(file);
 			for (var pathObject: pathObjects) {
 				Point2 point = pathObject.getROI().getAllPoints().get(0);
 				pointsList.add(new Double[] {point.getX(), point.getY()});
@@ -200,6 +200,12 @@ public class PointIOTest {
 	}
 
 
+	/**
+	 * Helper class for test2ReadPoints(). Returns true if point is inside the nested Double array.
+	 * @param array
+	 * @param point
+	 * @return boolean
+	 */
 	static boolean isInside(Double[][] array, Point2 point) {
 		boolean found = false;
 		for (int i = 0; i < array.length; i++) {

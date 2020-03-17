@@ -24,6 +24,7 @@
 package qupath.lib.io;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -31,9 +32,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -51,7 +54,6 @@ import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
@@ -62,6 +64,7 @@ import qupath.lib.roi.interfaces.ROI;
  * Helper class for reading/writing point objects in terms of their x,y coordinates.
  * 
  * @author Pete Bankhead
+ * @author Melvin Gelbard
  *
  */
 public class PointIO {
@@ -74,7 +77,7 @@ public class PointIO {
 	 * @return list of PathObjects
 	 * @throws IOException
 	 */
-	public static List<PathObject> readPointsObjectFromStream(InputStream stream) throws IOException {
+	public static List<PathObject> readPoints(InputStream stream) throws IOException {
 		List<PathObject> pathObjects = new ArrayList<>();
 		Map<String[], List<Point2>> pointsMap = new HashMap<>();
 		Scanner scanner = null;
@@ -101,7 +104,7 @@ public class PointIO {
 			Integer color = null;
 			if (temp.indexOf("color") > -1) {
 				var colorTemp = entry.getKey()[temp.indexOf("color")-2];
-				if (!colorTemp.isEmpty())
+				if (colorTemp != null && !colorTemp.isEmpty())
 					color = Integer.parseInt(colorTemp);
 			}
 			int c = temp.indexOf("c") > defaultPlane.getC() ? Integer.parseInt(entry.getKey()[temp.indexOf("c")-2]) : defaultPlane.getC();
@@ -130,9 +133,9 @@ public class PointIO {
 	 * @return list of PathObjects
 	 * @throws IOException
 	 */
-	public static List<PathObject> readPointsObjectFromFile(File file) throws IOException {
+	public static List<PathObject> readPoints(File file) throws IOException {
 		try (FileInputStream fis = new FileInputStream(file)){
-			return readPointsObjectFromStream(fis);
+			return readPoints(fis);
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);
 		}
@@ -147,7 +150,7 @@ public class PointIO {
 	 * @param pathObjects
 	 * @throws IOException
 	 */
-	public static void writePointsObjectsList(OutputStream stream, List<? extends PathObject> pathObjects) throws IOException {
+	public static void writePoints(OutputStream stream, Collection<? extends PathObject> pathObjects) throws IOException {
 		// Check that all PathObjects contain only point annotations
 		int unfilteredSize = pathObjects.size();
 		pathObjects = pathObjects.stream()
@@ -159,7 +162,7 @@ public class PointIO {
 					+ " elements in list is/are not point annotations. These will be skipped.");
 		
 		
-		try (OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8)) {
+		try (Writer writer = new BufferedWriter(new OutputStreamWriter(stream, StandardCharsets.UTF_8))) {
 			
 			List<String> cols = new ArrayList<>();
 			cols.addAll(Arrays.asList("x", "y"));
@@ -189,7 +192,7 @@ public class PointIO {
 			
 			for (String col: cols)
 				writer.write(col + sep);
-			writer.write("\n");
+			writer.write(System.lineSeparator());
 			
 			for (PathObject pathObject : pathObjects) {
 				if (!PathObjectTools.hasPointROI(pathObject))
@@ -200,24 +203,24 @@ public class PointIO {
 				for (Point2 point: points.getAllPoints()) {
 					String[] row = new String[cols.size()];
 					
-					row[cols.indexOf("x")] = point.getX() + sep;
-					row[cols.indexOf("y")] = point.getY() + sep;
+					row[cols.indexOf("x")] = point.getX() + "";
+					row[cols.indexOf("y")] = sep + point.getY();
 					if (hasC)
-						row[cols.indexOf("c")] = points.getC() + sep;
+						row[cols.indexOf("c")] = sep + points.getC();
 					if (hasZ)
-						row[cols.indexOf("z")] = points.getZ() + sep;
+						row[cols.indexOf("z")] = sep + points.getZ();
 					if (hasT)
-						row[cols.indexOf("t")] = points.getT() + sep;
+						row[cols.indexOf("t")] = sep + points.getT();
 					if (hasClass)
-						row[cols.indexOf("class")] = pathObject.getPathClass() != null ? pathObject.getPathClass() + sep : sep;
+						row[cols.indexOf("class")] = pathObject.getPathClass() != null ? sep + pathObject.getPathClass() : sep;
 					if (hasName)
-						row[cols.indexOf("name")] = pathObject.getName() != null ? pathObject.getName() + sep : sep;
+						row[cols.indexOf("name")] = pathObject.getName() != null ? sep + pathObject.getName() : sep;
 					if (hasColor)
-						row[cols.indexOf("color")] = pathObject.getColorRGB() != null ? pathObject.getColorRGB() + sep : sep;
+						row[cols.indexOf("color")] = pathObject.getColorRGB() != null ? sep + pathObject.getColorRGB() : sep;
 					
 					for (String val: row)
 						writer.write(val);
-					writer.write("\n");
+					writer.write(System.lineSeparator());
 				}
 			}
 		}
@@ -230,9 +233,9 @@ public class PointIO {
 	 * @param pathObjects
 	 * @throws IOException
 	 */
-	public static void writePointsObjectsList(File file, List<? extends PathObject> pathObjects) throws IOException {
+	public static void writePoints(File file, Collection<? extends PathObject> pathObjects) throws IOException {
 		try(FileOutputStream fos = new FileOutputStream(file)) {
-			writePointsObjectsList(fos, pathObjects);
+			writePoints(fos, pathObjects);
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);
 		}
@@ -242,20 +245,21 @@ public class PointIO {
 	/**
 	 * Helper method that takes a String representing any row taken from a 'Point2 annotations 
 	 * TSV file' and creates a Point2 object to put into the provided map.
-	 * @param s
+	 * @param line
+	 * @param cols
 	 * @param pointsMap
 	 */
-	private static void putPointObjectFromString(String s, String[] cols, Map<String[], List<Point2>> pointsMap) {
+	private static void putPointObjectFromString(String line, String[] cols, Map<String[], List<Point2>> pointsMap) {
 		String[] info = new String[cols.length-2];
-		String[] values = s.split("(?<=\t)");
+		String[] values = line.split("(?<=\t)");
 
 		// Core columns
 		double x = Double.parseDouble(values[0].trim());
 		double y = Double.parseDouble(values[1].trim());
 		
 		// Optional columns
-		for (int i = 0; i < cols.length-2; i++) {
-				info[i] = values[i+2].trim();
+		for (int i = 2; i < values.length; i++) {
+				info[i-2] = values[i].trim();
 		}
 		
 		boolean found = false;
@@ -264,7 +268,7 @@ public class PointIO {
 				pointsMap.get(key).add(new Point2(x, y));
 				found = true;
 				break;
-			}	
+			}
 		}
 		if (!found) {
 			List<Point2> newArray = new ArrayList<>();
@@ -272,22 +276,6 @@ public class PointIO {
 			pointsMap.put(info, newArray);
 		}
 
-	}
-	
-	
-	
-	private static Integer getDisplayedColor(final PathObject pathObject, final Integer defaultColor) {
-		// Check if any color has been set - if so, return it
-		Integer color = pathObject.getColorRGB();
-		if (color != null)
-			return color;
-		// Check if any class has been set, if so then use its color
-		PathClass pathClass = pathObject.getPathClass();
-		if (pathClass != null)
-			color = pathClass.getColor();
-		if (color != null)
-			return color;
-		return defaultColor;
 	}
 	
 	
@@ -344,8 +332,7 @@ public class PointIO {
 			pointsList.add(new Point2(x, y));
 		}
 		scanner.close();
-//		if (name != null && name.length() > 0)
-//			points.setName(name);
+		
 		if (count != pointsList.size())
 			logger.warn("Warning: {} points expected, {} points found", count, pointsList.size());
 		
@@ -355,18 +342,5 @@ public class PointIO {
 			pathObject.setName(name);
 		pathObject.setColorRGB(color);
 		return pathObject;
-	}
-	
-	
-	private static String getPointsAsString(PointsROI points) {
-		StringBuilder sb = new StringBuilder();
-//		String name = points.getName();
-//		if (name != null)
-//			sb.append(name);
-//		sb.append("\n");
-		for (Point2 p : points.getAllPoints())
-			sb.append(String.format("%.4f\t%.4f\n", p.getX(), p.getY()));
-		return sb.toString();
-	}
-	
+	}	
 }

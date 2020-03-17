@@ -65,7 +65,6 @@ import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.plugins.parameters.ParameterList;
 
 /**
  * Command to open up a counting panel to aid with creating Point annotations.
@@ -85,6 +84,8 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 	
 	private Slider sliderRadius;
 	private Button btnLoad, btnSave;
+	
+	private String savingOption = "Selected points";
 	
 	public CountingPanelCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -148,7 +149,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 						pointsList = PointIO.readPointsObjectList(file);
 					
 					else if (file.toPath().toString().endsWith(".tsv"))
-						pointsList = PointIO.readPointsObjectFromFile(file);
+						pointsList = PointIO.readPoints(file);
 					
 					if (pointsList != null) {
 						for (PathObject points : pointsList)
@@ -172,15 +173,12 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 					ArrayList<String> choiceList = new ArrayList<>();
 					choiceList.addAll(Arrays.asList("All point annotations", "Selected objects"));
 					
-					
-					ParameterList paramsParents = new ParameterList();
-					paramsParents.addChoiceParameter("Save annotations", "Process", choiceList.get(0), choiceList);
-					if (!Dialogs.showParameterDialog("Save annotations", paramsParents))
+					var choice = Dialogs.showChoiceDialog("Save points", "Choose point annotations to save", Arrays.asList("All points", "Selected points"), savingOption);
+					if (choice == null)
 						return;
-					
-					String choiceString = (String)paramsParents.getChoiceParameterValue("Save annotations");
-					if ("Selected objects".equals(choiceString))
+					if (choice.equals("Selected points"))
 						pointsList = selection;
+					savingOption = choice;
 				}
 
 				if (pointsList.isEmpty()) {
@@ -197,7 +195,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				if (file == null)
 					return;
 				try {
-					PointIO.writePointsObjectsList(file, pointsList);
+					PointIO.writePoints(file, pointsList);
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save points error", e);
 				}
