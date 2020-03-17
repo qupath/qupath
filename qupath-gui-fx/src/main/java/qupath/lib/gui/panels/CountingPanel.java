@@ -215,6 +215,10 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 		return pane;
 	}
 	
+	public ListView<PathObject> getListView() {
+		return listCounts;
+	}
+	
 	
 	public List<PathObject> getPathObjects() {
 		return new ArrayList<>(listCounts.getItems());

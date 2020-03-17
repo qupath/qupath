@@ -26,6 +26,8 @@ package qupath.lib.gui.commands;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -37,10 +39,10 @@ import javafx.geometry.Orientation;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToolBar;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -82,6 +84,8 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 	
 	private Slider sliderRadius;
 	private Button btnLoad, btnSave;
+	
+	private String savingOption = "Selected points";
 	
 	public CountingPanelCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -136,11 +140,17 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		btnLoad.setOnAction(event -> {
 				if (hierarchy == null)
 					return;
-				File file = qupath.getDialogHelper().promptForFile(null, null, "zip files", new String[]{"zip"});
+				File file = qupath.getDialogHelper().promptForFile(null, null, "TSV (Tab delimited)", new String[]{"tsv"});
 				if (file == null)
 					return;
 				try {
-					List<PathObject> pointsList = PointIO.readPointsObjectList(file);
+					List<PathObject> pointsList = null;
+					if (file.toPath().toString().endsWith(".zip"))
+						pointsList = PointIO.readPointsObjectList(file);
+					
+					else if (file.toPath().toString().endsWith(".tsv"))
+						pointsList = PointIO.readPoints(file);
+					
 					if (pointsList != null) {
 						for (PathObject points : pointsList)
 							hierarchy.addPathObject(points);
@@ -154,22 +164,38 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		btnSave.setOnAction(event -> {
 				if (countingPanel == null)
 					return;
+				
+				// Prompt the user with choice over which annotations to save
+				ListView<PathObject> listView = countingPanel.getListView();
+				var selection = listView.getSelectionModel().getSelectedItems();
 				List<PathObject> pointsList = countingPanel.getPathObjects();
+				if (!selection.isEmpty()) {
+					ArrayList<String> choiceList = new ArrayList<>();
+					choiceList.addAll(Arrays.asList("All point annotations", "Selected objects"));
+					
+					var choice = Dialogs.showChoiceDialog("Save points", "Choose point annotations to save", Arrays.asList("All points", "Selected points"), savingOption);
+					if (choice == null)
+						return;
+					if (choice.equals("Selected points"))
+						pointsList = selection;
+					savingOption = choice;
+				}
+
 				if (pointsList.isEmpty()) {
 					Dialogs.showErrorMessage("Save points", "No points available!");
 					return;
 				}
 				String defaultName = null;
 				try {
-					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.zip"; // Sorry, this is lazy...
+					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.tsv"; // Sorry, this is lazy...
 				} catch (Exception e) {
 					// Ignore...
 				};
-				File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "zip files", "zip");
+				File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "TSV (Tab delimited)", "tsv");
 				if (file == null)
 					return;
 				try {
-					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultObjects());
+					PointIO.writePoints(file, pointsList);
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save points error", e);
 				}
