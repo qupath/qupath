@@ -31,7 +31,7 @@ If you find QuPath useful in work that you publish, please [cite the publication
 
 
 
-#### Developers
+## Developers
 
 QuPath is being actively developed at the University of Edinburgh by:
 
