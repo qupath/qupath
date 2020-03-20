@@ -30,8 +30,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +70,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	
 	private PathObject constrainedAreaParent;
 	private Geometry constrainedAreaBounds;
-	private Geometry constrainedAreaToRemove;
+	private Collection<Geometry> constrainedAreasToRemove = new LinkedHashSet<>();
 	
 	/**
 	 * Constructor.
@@ -150,8 +152,20 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		try {
 			if (constrainedAreaBounds != null)
 				geometry = geometry.intersection(constrainedAreaBounds);
-			if (constrainedAreaToRemove != null)
-				geometry = geometry.difference(constrainedAreaToRemove);
+			int count = 0;
+			if (!constrainedAreasToRemove.isEmpty()) {
+				var envelope = geometry.getEnvelopeInternal();
+				for (var temp : constrainedAreasToRemove) {
+					// Note: the relate operation tests for interior intersections, but can be very slow
+					// Ideally, we would reduce these tests
+					if (envelope.intersects(temp.getEnvelopeInternal()) && geometry.relate(temp, "T********")) {
+						geometry = geometry.difference(temp);
+						envelope = geometry.getEnvelopeInternal();
+						count++;
+					}
+				}
+			}
+			logger.debug("Clipped ROI with {} geometries", count);
 		} catch (Exception e) {
 			if (tryAgain) {
 				logger.warn("First Error refining ROI, will retry after buffer(0): {}", e.getLocalizedMessage());
@@ -176,7 +190,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		
 		// Reset parent area & its descendant annotation areas
 		constrainedAreaBounds = null;
-		constrainedAreaToRemove = null;
+		constrainedAreasToRemove.clear();
 		
 		// Identify the smallest area annotation that contains the specified point
 		constrainedAreaParent = getSelectableObjectList(xx, yy)
@@ -207,28 +221,27 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		else
 			toRemove = hierarchy.getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(constrainedAreaParent.getROI()), null);
 			
+		Envelope boundsEnvelope = constrainedAreaBounds == null ? null : constrainedAreaBounds.getEnvelopeInternal();
 		for (PathObject child : toRemove) {
 			if (child.isDetection() || child == constrainedAreaParent|| !child.hasROI() || 
 					!child.getROI().isArea() || child.getROI().contains(xx, yy))
 				continue;
 			Geometry childArea = child.getROI().getGeometry();
+			Envelope childEnvelope = childArea.getEnvelopeInternal();
+			// Quickly filter out objects that don't intersect with the bounds, or which entirely cover it
 			if (constrainedAreaBounds != null &&
-					(!constrainedAreaBounds.intersects(childArea) || constrainedAreaBounds.coveredBy(childArea)))
+					(!boundsEnvelope.intersects(childEnvelope) || 
+							(childEnvelope.covers(boundsEnvelope) && childArea.covers(constrainedAreaBounds))))
 				continue;
-			if (constrainedAreaToRemove == null)
-				constrainedAreaToRemove = childArea;
-			else
-				constrainedAreaToRemove = constrainedAreaToRemove.union(childArea);
+			constrainedAreasToRemove.add(childArea);
 		}
-		if (constrainedAreaToRemove != null)
-			constrainedAreaToRemove = GeometryTools.ensurePolygonal(constrainedAreaToRemove);
 	}
 	
 	
 	synchronized void resetConstrainedAreaParent() {
 		this.constrainedAreaParent = null;
 		this.constrainedAreaBounds = null;
-		this.constrainedAreaToRemove = null;
+		this.constrainedAreasToRemove.clear();;
 	}
 	
 	
@@ -244,13 +257,13 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 		return constrainedAreaBounds;
 	}
 	
-	/**
-	 * When drawing a constrained ROI, get a Geometry defining the inner area that should be 'subtracted'.
-	 * @return
-	 */
-	synchronized Geometry getConstrainedAreaToSubtract() {
-		return constrainedAreaToRemove;
-	}
+//	/**
+//	 * When drawing a constrained ROI, get a Geometry defining the inner area that should be 'subtracted'.
+//	 * @return
+//	 */
+//	synchronized Geometry getConstrainedAreaToSubtract() {
+//		return constrainedAreaToRemove;
+//	}
 	
 	
 	
