@@ -29,6 +29,7 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -53,6 +54,7 @@ import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.textfield.TextFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -146,6 +148,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	
 	private static String[] additionalSortKeys;
 	
+	private static final String URI = "URI";
 	
 	public ProjectBrowser(final QuPathGUI qupath) {
 		this.project = qupath.getProject();
@@ -250,7 +253,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				thumbnailSize, FXCollections.observableArrayList(ProjectThumbnailSize.values()), ProjectThumbnailSize.class,
 				"Project thumbnails size", "Appearance", "Choose thumbnail size for the project pane");
 		
-		additionalSortKeys = new String[] {"URI"};
+		additionalSortKeys = new String[] {URI};
 
 	}
 	
@@ -916,7 +919,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	
 	/**
 	 * Gets the value of the entry for the specified key.
-	 * E.g. if key == 'URI', the value returned will be the entry's URI.
+	 * E.g. if key == URI, the value returned will be the entry's URI.
 	 * This method should be used to get sorting values that
 	 * are not specifically part of an entry's metadata.
 	 * @param <T>
@@ -924,12 +927,15 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	 * @return value
 	 * @throws IOException 
 	 */
-	private static <T> String getValue(ProjectImageEntry<T> entry, String key) throws IOException {
-		if (key.equals("URI")) {
+	private static <T> String getDefaultValue(ProjectImageEntry<T> entry, String key) throws IOException {
+		if (key.equals(URI)) {
 			var URIs = entry.getServerURIs();
 			var it = URIs.iterator();
 			if (URIs.size() == 1) {
-				String fullURI = it.next().getPath();
+				URI uri = it.next();
+				String fullURI = uri.getPath();
+				if (uri.getAuthority() != null)
+					return "[remote] " + uri.getAuthority() + fullURI;
 				return fullURI.substring(fullURI.lastIndexOf("/")+1, fullURI.length());
 			}
 			else
@@ -1044,7 +1050,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		private List<String> mapKeyList = new ArrayList<>();
 
 		private List<String> sortMetadataKeys = new ArrayList<>();
-		private List<String> sortAdditionalKeys = new ArrayList<>();
+		private List<String> sortDefaultKeys = new ArrayList<>();
 		private String PROJECT_KEY;
 		private String DEFAULT_ROOT = "No project";
 		private String UNASSIGNED_NODE = "(Unassigned)";
@@ -1064,7 +1070,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (metadataKey != null)
 				setMetadataKeys(metadataKey);
 			//			rebuildModel();
-			sortAdditionalKeys.add("URI");
+			sortDefaultKeys.add(URI);
 		}
 
 		public void setMetadataKeys(final String... metadataSortKeys) {
@@ -1099,8 +1105,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				for (String sortingKey : sortMetadataKeys) {
 					try {
 						String temp;
-						if (sortAdditionalKeys.contains(sortingKey))
-							temp = getValue(entry, sortingKey);
+						if (sortDefaultKeys.contains(sortingKey))
+							temp = getDefaultValue(entry, sortingKey);
 						else
 							temp = entry.getMetadataValue(sortingKey);
 
@@ -1111,7 +1117,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 							break;
 						}
 					} catch (IOException e) {
-						e.printStackTrace();
+						logger.error(e.toString());
 					}
 				}
 
