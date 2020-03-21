@@ -49,6 +49,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -1051,6 +1052,39 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //		}
 //		return false;
 //	}
+	
+	
+	/**
+	 * Get the directory containing the QuPath code
+	 * @return {@link File} object representing the code directory, or null if this cannot be determined
+	 */
+	File getCodeDirectory() {
+		URI uri = null;
+		try {
+			if (hostServices != null) {
+				String code = hostServices.getCodeBase();
+				if (code == null || code.isBlank())
+					code = hostServices.getDocumentBase();
+				if (code != null && code.isBlank()) {
+					uri = GeneralTools.toURI(code);
+					return new File(uri);
+				}
+			}
+		} catch (URISyntaxException e) {
+			logger.debug("Exception converting to URI: " + e.getLocalizedMessage(), e);
+		}
+		try {
+			return Paths.get(
+					QuPathGUI.class
+					.getProtectionDomain()
+					.getCodeSource()
+					.getLocation()
+					.toURI()).getParent().toFile();
+		} catch (Exception e) {
+			logger.error("Error identifying code directory: " + e.getLocalizedMessage(), e);
+			return null;
+		}
+	}
 	
 	
 	/**
