@@ -288,7 +288,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
-import qupath.lib.gui.tma.cells.ImageListCell;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -317,7 +316,6 @@ import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -2515,7 +2513,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			List<ImageServer<BufferedImage>> serverList = ImageServerProvider.getServerList(pathNew, BufferedImage.class);
 			
 			if (serverList.size() == 0) {
-				String message = "Unable to build ImageServer for " + pathNew;
+				String message = "Unable to build ImageServer for " + pathNew + ".\nSee View > Show log for more details";
 				Dialogs.showErrorMessage("Unable to build server", message);
 				return false;
 			}
@@ -2541,12 +2539,29 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (serverNew != null) {
 					int minSize = PathPrefs.getMinPyramidDimension();
 					if (serverNew.nResolutions() == 1 && Math.max(serverNew.getWidth(), serverNew.getHeight()) > minSize) {
+						// Check if we have any hope at all with the current settings
+						long estimatedBytes = (long)serverNew.getWidth() * (long)serverNew.getHeight() * (long)serverNew.nChannels() * (long)serverNew.getPixelType().getBytesPerPixel();
+						double requiredBytes = estimatedBytes * (4.0/3.0);
+						if (prompt && imageRegionStore != null && requiredBytes >= imageRegionStore.getTileCacheSize()) {
+							logger.warn("Selected image is {} x {} x {} pixels ({})", serverNew.getWidth(), serverNew.getHeight(), serverNew.nChannels(), serverNew.getPixelType());
+							Dialogs.showErrorMessage("Image too large",
+									"Non-pyramidal image is too large for the available tile cache!\n" +
+									"Try converting the image to a pyramidal file format, or increasing the memory available to QuPath.");
+							return false;
+						}
+						// Offer to pyramidalize
 						var serverWrapped = ImageServers.pyramidalize(serverNew);
 						if (serverWrapped.nResolutions() > 1) {
-							if (prompt && Dialogs.showYesNoDialog("Auto pyramidalize",
-									"QuPath works best with large images saved in a pyramidal format.\n\n" +
-									"Do you want to generate a pyramid dynamically from " + ServerTools.getDisplayableImageName(serverNew) + "?"))
-								serverNew = serverWrapped;
+							if (prompt) {
+								var response = Dialogs.showYesNoCancelDialog("Auto pyramidalize",
+										"QuPath works best with large images saved in a pyramidal format.\n\n" +
+										"Do you want to generate a pyramid dynamically from " + ServerTools.getDisplayableImageName(serverNew) + "?" +
+										"\n(This requires more memory, but is usually worth it)");
+								if (response == DialogButton.CANCEL)
+									return false;
+								if (response == DialogButton.YES)
+									serverNew = serverWrapped;
+							}
 						}
 					}
 					imageData = createNewImageData(serverNew);

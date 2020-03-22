@@ -3,9 +3,9 @@
  * <p>
  * To create a complete build including associated license files, try the following:
  * <p>
- * ./gradlew clean build createPackage -Ppackager=/full/path/to/jpackage
+ * ./gradlew clean build createPackage
  * or on Windows
- * gradlew.bat clean build createPackage -Ppackager=/full/path/to/jpackage.exe
+ * gradlew.bat clean build createPackage
  */
 
 /**
@@ -30,7 +30,7 @@ buildscript {
 /*
  * Using java-library rather than java enables us to define api dependencies,
  * i.e. dependencies exported from the API of QuPath.
- * An example if JTS, since QuPath ROIs can be converted to JTS Geometries and this 
+ * An example is JTS, since QuPath ROIs can be converted to JTS Geometries and this 
  * should be accessible throughout the software.
  */
 plugins {
@@ -97,7 +97,7 @@ if (requestLatestCommit) {
     latestGitCommit = stdout.toString().trim()
     println 'Latest commit: ' + latestGitCommit
   } catch (Exception e) {
-    println 'Unable to get latest commit: ' + e.getLocalizedMessage()
+    logger.warn('Unable to get latest commit: ' + e.getLocalizedMessage())
     latestGitCommit = 'Unknown (is Git installed?)'
   }
 } else {
@@ -127,14 +127,14 @@ if (OperatingSystem.current().isMacOsX()) {
 } else if (OperatingSystem.current().isWindows()) {
   nativesClassifier = 'natives-windows'
   if (System.properties['sun.arch.data.model'] == '32') {
-	println "WARNING: You appear to be using a 32-bit JDK - If I can't find a 32-bit version of JavaFX, this will fail! Probably at the 'test' stage."
+	logger.warn("You appear to be using a 32-bit JDK - If I can't find a 32-bit version of JavaFX, this will fail! Probably at the 'test' stage.")
 	nativesCPP = 'windows-x86'
   } else
 	nativesCPP = 'windows-x86_64'
   platform = 'win'
   iconName = 'windows/QuPath.ico'
 } else {
-  println 'Unknown operating system!'
+  logger.warn('Unknown operating system!')
 }
 
 /*
@@ -384,18 +384,20 @@ allprojects {
     mavenLocal()
     mavenCentral()
 
+    // May be required for snapshot ImageJ2 jars
     maven { url 'http://maven.imagej.net/content/groups/public' }
 
+	// Required for Bio-Formats
     maven {
       name 'Unidata'
       url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
     }
-    maven {
-      url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
-    }
-    maven {
-      url 'https://oss.sonatype.org/content/repositories/snapshots'
-    }
+    maven { url 'https://artifacts.openmicroscopy.org/artifactory/maven/' }
+    
+    // May be required for snapshot JavaCPP jars
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    
+    // Currently required for OpenSlide
     maven { url "../maven/repo" }
   }
 
@@ -406,7 +408,7 @@ allprojects {
 
   dependencies {
     implementation group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
-    testImplementation group: 'junit', name: 'junit', version:'4.12'
+    testImplementation group: 'junit', name: 'junit', version:'4.13'
   }
 }
 
@@ -569,6 +571,11 @@ task mergedJavadocs(type: Javadoc) {
  * Create a custom runtime.  Mostly to avoid using the same one as jpackager for now.
  */
 task createRuntime(dependsOn:build, type:Exec) {
+
+  String jreModules = findProperty('jreModules')
+  if (!jreModules) {
+    jreModules = 'default'
+  }
 	
   def outputDir = new File(rootProject.buildDir, 'jre')
 
@@ -576,19 +583,42 @@ task createRuntime(dependsOn:build, type:Exec) {
   onlyIf { !outputDir.exists() }
 
   doFirst {
-
-   def params = ["${System.properties['java.home']}/bin/jlink"]
-	
-    params << '--output' << outputDir.getAbsolutePath()
-    params << '--add-modules' << String.join(',', 
-    	'java.desktop',
+  
+  	// Indispensible modules
+    def requiredModules = [
+        'java.desktop',
     	'java.xml',
     	'java.scripting',
     	'java.sql',
     	'java.naming',
-    	'java.management', // Useful to check memory usage
     	'jdk.unsupported',
-    	'jdk.zipfs')
+    	'jdk.zipfs',           // Needed for zip filesystem support
+    ]
+    
+    def usefulModules = [
+        'java.net.http',       // Add HttpClient support (may be used by scripts)
+    	'java.management',     // Useful to check memory usage
+    	'jdk.management.agent' // Enables VisualVM to connect and sample CPU use
+    ]
+  
+    def addModules
+    if (jreModules == 'all') {
+      println 'Creating Java runtime using all modules'
+      addModules = 'ALL-MODULE-PATH'
+    } else if (jreModules == 'minimum') {
+      println 'Creating minimal Java runtime (this may exclude some useful modules)'
+      addModules = String.join(',', requiredModules)
+    } else {
+      if (jreModules != 'default')
+      	logger.warn("Unsupported jreModules property '${jreModules}', will use 'default' instead")
+      println 'Creating default Java runtime'
+      addModules = String.join(',', requiredModules + usefulModules)
+    }
+    
+    def params = ["${System.properties['java.home']}/bin/jlink"]
+   
+    params << '--output' << outputDir.getAbsolutePath()
+    params << '--add-modules' << addModules
 
     params << '--strip-debug'
     params << '--no-header-files'
@@ -604,43 +634,26 @@ task createRuntime(dependsOn:build, type:Exec) {
 }
 
 /*
- * If we have a packager (somewhere), use it.
- *
- * To call this:
- *   gradlew createPackage -Ppackager=/path/to/jpackager
- *
- * Or to make an installer:
- *   gradlew createPackage -Ppackager=/path/to/jpackager -Ptype=installer}
+ * Create a native package. This requires jpackage, first included within JDK 14.
  */
 task createPackage(dependsOn:createRuntime, type:Exec) {
 
   doFirst {
-
-    def packager = findProperty('packager')
-    if (packager == null || !new File(packager).exists()) {
-      println '-------'
-      println 'Please specify where I can find a suitable packager!  Something like this:'
-      if (OperatingSystem.current().isWindows())
-	      println 'gradlew.bat createPackage -Ppackager=/full/path/to/jpackage.exe'
-	  else
-	      println 'gradlew createPackage -Ppackager=/full/path/to/jpackage'
-      println 'Current value of -Ppackager is ' + packager
-      println 'Note: You can also specify this in a gradle.properties file'
-      println '-------'
-      throw new GradleException('Please specify where I can find a suitable jpackage!')
-    }
-    println 'Using packager: ' + packager
-
+  
+  	if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_14)) {
+  		throw new GradleException("Creating a package requires jpackage in JDK 14, but the current JDK version is ${JavaVersion.current()}.")
+  	}
+  
 	// Versioning rules can be strict on some platforms - may need to further change this
   	def appVersion = qupathVersion.replace('-SNAPSHOT', '')
 
     def packageType = findProperty('type')
     if (!packageType) {
     	packageType = 'app-image'
-    	println 'No package type specified, using default ' + packageType
+    	logger.info("No package type specified, using default ${packageType}")
    	}
 
-    def params = [packager]
+    def params = ["${System.properties['java.home']}/bin/jpackage"]
 
     params << '--input' << new File(rootProject.buildDir, rootProject.libsDirName).getAbsolutePath()
     params << '--dest' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
@@ -648,7 +661,6 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     params << '--main-jar' << jar.archiveName
     
     params << '--name' << 'QuPath-' + qupathVersion
-//    params << '--class' << 'qupath.QuPath'
 
     // Default to using 50% available memory
 	params << '--java-options' << '-XX:MaxRAMPercentage=50'
@@ -672,7 +684,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 			int lastDash = appVersion.lastIndexOf('-')
 			if (lastDash > 0) {
 				appVersion = appVersion.substring(0, lastDash)
-				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility" 
+				logger.info("Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility")
 			}
 		} else
 			params << '--type' << packageType
@@ -697,9 +709,6 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     params << '--icon' << pathIcon
 
 	params << '--runtime-image' << new File(rootProject.buildDir, 'jre').getAbsolutePath()
-//    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
-
-//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
 
     println String.join(' ', params)
     

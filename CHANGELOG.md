@@ -1,12 +1,15 @@
 ## Version 0.2.0-m10
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
-* Update to Groovy 3
+* Updated to use Java 14
+* Updated to Groovy 3
   * Scripts now support more recent Java syntax (e.g. lambdas, try-with-resources)
-* Enable files to be pasted into the script editor, convert to absolute paths
+* Enable files to be pasted into the script editor (converting them to absolute paths)
 * Updated methods to save/load points within the counting tool
   * Use TSV files to improve portability
   * Support including classifications and other annotation properties
+* Improved support for profiling with VisualVM
 * Bug fixes, including:
+  * Poor performance when working with many annotations (regression in m9)
   * Freeze when launching ImageJ from Mac under some circumstances
   * Use default channel names if Bio-Formats returns an empty String
   * Log meaningful warning if pixel classifier uses duplicated channel names
