@@ -98,6 +98,10 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 */
 	private int minThumbnailSize = 16;
 
+	/**
+	 * Maximum tile cache size, in bytes
+	 */
+	private long tileCacheSizeBytes;
 	
 	private TileRequestManager manager = new TileRequestManager(10);
 	
@@ -111,14 +115,19 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 
 	protected AbstractImageRegionStore(final SizeEstimator<T> sizeEstimator, final int thumbnailSize, final long tileCacheSizeBytes) {
 		this.maxThumbnailSize = thumbnailSize;
+		this.tileCacheSizeBytes = tileCacheSizeBytes;
 		
 		// Because Guava uses integer weights, and we sometimes have *very* large images, we convert our size estimates KB
 		Weigher<RegionRequest, T> weigher = (var r, var t) -> (int)Long.min(Integer.MAX_VALUE, sizeEstimator.getApproxImageSize(t)/1024);
-		long maxWeigth = Long.max(1, tileCacheSizeBytes / 1024);
+		long maxWeight = Long.max(1, tileCacheSizeBytes / 1024);
+		// If concurrency > 1, the maximum size for an individual tile becomes maxWeight/concurrencyLevel
+		// This makes it more difficult to tune the cache size when working with large, non-pyramidal images
+		int concurrencyLevel = 1;
 		Cache<RegionRequest, T> originalCache = CacheBuilder.newBuilder()
 				.weigher(weigher)
-				.maximumWeight(maxWeigth)
+				.maximumWeight(maxWeight)
 				.softValues()
+				.concurrencyLevel(concurrencyLevel)
 //				.recordStats()
 				.removalListener(n -> {
 //					System.err.println(n.getKey() + " (" + cache.size() + ")");
@@ -130,7 +139,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 
 		Cache<RegionRequest, T> originalThumbnailCache = CacheBuilder.newBuilder()
 				.weigher(weigher)
-				.maximumWeight(maxWeigth)
+				.concurrencyLevel(1)
+				.maximumWeight(maxWeight)
 				.softValues()
 				.build();
 		
@@ -145,6 +155,14 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		this(sizeEstimator, DEFAULT_THUMBNAIL_WIDTH, tileCacheSizeBytes);
 	}
 
+	/**
+	 * Get the tile cache size, in bytes.
+	 * Image tiles larger than this cannot be cached.
+	 * @return
+	 */
+	public long getTileCacheSize() {
+		return tileCacheSizeBytes;
+	}
 	
 	/**
 	 * 
