@@ -52,6 +52,7 @@ import qupath.lib.roi.ConvexHull;
  * Purpose is to remove edge detections, where the tissue quality tends to be lower.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public class FindConvexHullDetectionsPlugin<T> extends AbstractInteractivePlugin<T> {

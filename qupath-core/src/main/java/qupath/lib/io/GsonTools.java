@@ -129,6 +129,8 @@ public class GsonTools {
 	
 	/**
 	 * Get default Gson, optionally with pretty printing enabled.
+	 * 
+	 * @param pretty if true, write using pretty-printing (i.e. more whitespace for formatting)
 	 * @return
 	 * 
 	 * @see #getInstance()

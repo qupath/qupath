@@ -79,6 +79,7 @@ public class PathAnnotationObject extends PathROIObject {
 
 	/**
 	 * Get a free text description previously set for this annotation.
+	 * @return 
 	 */
 	public String getDescription() {
 		return (String)retrieveMetadataValue(KEY_ANNOTATION_TEXT);

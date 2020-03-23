@@ -65,6 +65,7 @@ public class PixelClassifierMetadata {
 
     /**
      * Requested width of input image, or -1 if the classifier is not fussy
+     * @return 
      */
     public int getInputWidth() {
     	return inputWidth;
@@ -72,6 +73,7 @@ public class PixelClassifierMetadata {
 
     /**
      * Requested height of input image, or -1 if the classifier is not fussy
+     * @return 
      */
     public int getInputHeight() {
     	return inputHeight;
@@ -79,6 +81,7 @@ public class PixelClassifierMetadata {
 
     /**
      * Requested number of channels in input image; default is 3 (consistent with assuming RGB)
+     * @return 
      */
     public int getInputNumChannels() {
     	return inputNumChannels;
@@ -100,6 +103,7 @@ public class PixelClassifierMetadata {
 
     /**
      * Type of output; default is OutputType.Probability
+     * @return 
      */
     public ImageServerMetadata.ChannelType getOutputType() {
     	return outputType;
@@ -108,6 +112,7 @@ public class PixelClassifierMetadata {
     /**
      * List representing the names &amp; display colors for each output channel,
      * or for the output classifications if <code>outputType == OutputType.Classification</code>
+     * @return 
      */
     public synchronized List<ImageChannel> getOutputChannels() {
     	if (outputChannels == null && classificationLabels != null) {

@@ -640,27 +640,6 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		}
 
 		/**
-		 * Get the number of available channels, optionally discounting any 'residual' or hematoxylin channels if color deconvolution should be used.
-		 * 
-		 * @return
-		 */
-		public int nChannels(final boolean skipHematoxylin, final boolean skipResidual) {
-			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-			if (stains != null) {
-				int n = 0;
-				for (int i = 1; i <= 3; i++) {
-					if (skipResidual && stains.getStain(i).isResidual())
-						continue;
-					if (skipHematoxylin && ColorDeconvolutionStains.isHematoxylin(stains.getStain(i)))
-						continue;
-					n++;
-				}
-				return n;
-			}
-			return imageData.getServer().nChannels();
-		}
-
-		/**
 		 * Get the names of available channels, optionally discounting any 'residual' or hematoxylin channels if color deconvolution should be used.
 		 * 
 		 * @param skipHematoxylin

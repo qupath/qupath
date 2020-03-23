@@ -267,6 +267,7 @@ public class PixelClassifierTools {
 	     * @param minSizePixels
 	     * @param minHoleSizePixels
 	     * @param doSplit
+	     * @param clearExisting 
 	     * @return
 	     */
     public static boolean createDetectionsFromPixelClassifier(
@@ -289,6 +290,7 @@ public class PixelClassifierTools {
      * @param minSizePixels
      * @param minHoleSizePixels
      * @param doSplit
+     * @param clearExisting 
      * @return
      */
 	public static boolean createAnnotationsFromPixelClassifier(

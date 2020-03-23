@@ -102,6 +102,7 @@ public class ServerTools {
 	 * Generally, this will be &lt;= the requested downsample (but it may be slightly more if the error introduced
 	 * would be very small, i.e. if 4 is requested and 4.0001 is available, 4.0001 would be returned).
 	 * 
+	 * @param server 
 	 * @param requestedDownsample
 	 * @return
 	 * 

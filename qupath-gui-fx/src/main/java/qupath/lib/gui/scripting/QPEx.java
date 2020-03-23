@@ -444,6 +444,7 @@ public class QPEx extends QP {
 	/**
 	 * Apply an object classifier to the specified {@link ImageData}.
 	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
+	 * @param imageData 
 	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
 	 * @throws IllegalArgumentException if the classifier cannot be found
 	 */

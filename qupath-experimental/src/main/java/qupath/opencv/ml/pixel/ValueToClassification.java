@@ -68,6 +68,7 @@ public class ValueToClassification {
 
 		/**
 		 * Get the appropriate classification given a specific threshold value.
+		 * @param value 
 		 * @return
 		 */
 		PathClass getClassification(double value);

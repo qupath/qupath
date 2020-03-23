@@ -110,11 +110,13 @@ public class PathHierarchyPaintingHelper {
 	/**
 	 * Create a thumbnail image, with the overlay painted.
 	 * If a BufferedImage is supplied, it will be used if it has the required width &amp; height - otherwise a new one will be generated.
+	 * @param hierarchy 
 	 * 
 	 * @param overlayOptions
 	 * @param serverWidth
 	 * @param serverHeight
 	 * @param imgThumbnail
+	 * @param region 
 	 * @return
 	 */
 	public static BufferedImage createThumbnail(PathObjectHierarchy hierarchy, OverlayOptions overlayOptions, int serverWidth, int serverHeight, BufferedImage imgThumbnail, ImageRegion region) {
@@ -826,6 +828,7 @@ public class PathHierarchyPaintingHelper {
 	 * then the distance between consecutive handles will be used to influence the actual handle size.  This is helpful 
 	 * when handles are densely packed.
 	 * 
+	 * @param roiEditor 
 	 * @param g2d
 	 * @param minHandleSize
 	 * @param maxHandleSize

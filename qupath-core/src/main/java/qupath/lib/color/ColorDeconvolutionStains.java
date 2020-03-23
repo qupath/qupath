@@ -495,6 +495,7 @@ public class ColorDeconvolutionStains implements Externalizable {
 	
 	/**
 	 * Parses 3 values, suitable for use as a stain vector
+	 * @param locale 
 	 * @param s
 	 * @return
 	 */

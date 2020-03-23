@@ -76,6 +76,7 @@ public interface ROI {
 
 	/**
 	 * Get the ImagePlane, which contains the values for c, z and t in a single object.
+	 * @return 
 	 */
 	public ImagePlane getImagePlane();
 	

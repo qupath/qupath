@@ -123,6 +123,7 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
 
     /**
      * Get the preferred method of interpolation to use for display.
+     * @return 
      */
     public ImageInterpolation getInterpolation() {
 		return interpolation.get();
@@ -130,6 +131,7 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
 
     /**
      * The preferred method of interpolation to use for display.
+     * @return 
      */
     public ObjectProperty<ImageInterpolation> interpolationProperty() {
     		return interpolation;

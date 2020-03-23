@@ -13,10 +13,6 @@ import javax.imageio.ImageIO;
 
 import org.junit.Test;
 
-import qupath.lib.images.writers.ImageWriter;
-import qupath.lib.images.writers.JpegWriter;
-import qupath.lib.images.writers.PngWriter;
-
 @SuppressWarnings("javadoc")
 public class ImageWriterIJTest {
 

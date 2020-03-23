@@ -366,10 +366,6 @@ public class MorphologicalReconstruction {
 //		return result;
 //	}
 	
-	/**
-	 * Somewhat awkwardly, two ip.invert()'s in ImageJ do not necessarily 
-	 * @param ip
-	 */
 //	private static void invertReproducibly(ImageProcessor ip) {
 //		if (ip == null)
 //			return;
@@ -384,6 +380,12 @@ public class MorphologicalReconstruction {
 //		}
 //	}
 	
+	/**
+	 * Apply a morphological closing by reconstruction.
+	 * @param ip {@link ImageProcessor} to process
+	 * @param radius minimum filter radius
+	 * @return processed image
+	 */
 	public static ImageProcessor closingByReconstruction(final ImageProcessor ip, final double radius) {
 		final ImageProcessor ipDuplicate = ip.duplicate();
 //		invertReproducibly(ipDuplicate);

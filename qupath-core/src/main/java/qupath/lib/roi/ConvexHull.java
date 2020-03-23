@@ -46,9 +46,12 @@ public class ConvexHull {
 	 * TODO: Consider a more efficient convex hull calculation.
 	 * 
 	 * For implementation details, see
-	 * 	- http://en.wikipedia.org/wiki/Gift_wrapping_algorithm
-	 * 	- http://en.wikipedia.org/wiki/Graham_scan 
+	 * <ul>
+	 * 	<li>http://en.wikipedia.org/wiki/Gift_wrapping_algorithm</li>
+	 * 	<li>http://en.wikipedia.org/wiki/Graham_scan</li>
+	 * </ul>
 	 * 
+	 * @param points 
 	 * @return
 	 */
 	public static List<Point2> getConvexHull(List<Point2> points) {

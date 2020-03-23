@@ -120,7 +120,9 @@ import com.google.gson.stream.JsonWriter;
  *       .registerSubtype(Circle.class)
  *       .registerSubtype(Diamond.class);
  * }</pre>
+ * 
  */
+@SuppressWarnings("javadoc")
 public final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory {
   private final Class<?> baseType;
   private final String typeFieldName;

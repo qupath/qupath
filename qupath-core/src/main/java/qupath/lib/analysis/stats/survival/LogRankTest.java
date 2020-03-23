@@ -127,6 +127,7 @@ public class LogRankTest {
 
 		/**
 		 * Returns a presentable representation of the log-rank test result, including hazard ratio and confidence interval.
+		 * @return 
 		 */
 		public String getResultString() {
 			if (Double.isNaN(pValue))

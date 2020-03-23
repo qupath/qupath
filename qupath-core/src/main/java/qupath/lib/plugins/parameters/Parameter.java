@@ -50,6 +50,9 @@ public interface Parameter<S> extends Serializable {
 
 	/**
 	 * Set last value using a string; implementing classes may need to parse this
+	 * @param locale 
+	 * @param value 
+	 * @return 
 	 */
 	public boolean setStringLastValue(Locale locale, String value);
 

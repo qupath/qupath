@@ -735,6 +735,7 @@ public class PathPrefs {
 	 * Controls percentage of saturated pixels to apply when automatically setting brightness/contrast.
 	 * <p>
 	 * A value of 1 indicates that approximately 1% dark pixels and 1% bright pixels should be saturated.
+	 * @return 
 	 */
 	public static DoubleProperty autoBrightnessContrastSaturationPercentProperty() {
 		return autoBrightnessContrastSaturation;
@@ -1324,6 +1325,7 @@ public class PathPrefs {
 	
 	/**
 	 * Always paint selected objects in the viewer, even if the opacity setting is 0.
+	 * @param alwaysPaint 
 	 */
 	public static void setAlwaysPaintSelectedObjects(boolean alwaysPaint) {
 		alwaysPaintSelectedObjects.set(alwaysPaint);
@@ -1583,6 +1585,7 @@ public class PathPrefs {
 	 * 
 	 * @param name
 	 * @param defaultValue
+	 * @param enumType 
 	 * @return
 	 */
 	public static <T extends Enum<T>> ObjectProperty<T> createPersistentPreference(final String name, final T defaultValue, final Class<T> enumType) {

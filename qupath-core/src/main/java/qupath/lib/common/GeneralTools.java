@@ -603,6 +603,7 @@ public class GeneralTools {
 	 * @param url
 	 * @param timeoutMillis
 	 * @return
+	 * @throws IOException 
 	 */
 	public static String readURLAsString(final URL url, final int timeoutMillis) throws IOException {
 		StringBuilder response = new StringBuilder();

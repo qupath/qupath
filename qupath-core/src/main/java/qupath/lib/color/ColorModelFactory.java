@@ -79,6 +79,7 @@ public final class ColorModelFactory {
     /**
      * Create an indexed colormap for a labelled (indexed color) image.
      * @param labelColors map with integer labels as keys and packed (A)RGB colors as values.
+     * @param includeAlpha if true, allow alpha values to be included in the colormap
      * @return
      */
     public static ColorModel createIndexedColorModel(Map<Integer, Integer> labelColors, boolean includeAlpha) {

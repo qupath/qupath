@@ -2290,6 +2290,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If an image is currently open, this command will prompt to save any changes.
 	 * 
 	 * @param entry
+	 * @return 
 	 */
 	public boolean openImageEntry(ProjectImageEntry<BufferedImage> entry) {
 		Project<BufferedImage> project = getProject();
@@ -2401,8 +2402,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If the path is the same as a currently-open server, do nothing.
 	 * <p>
 	 * If this encounters an exception, an error message will be shown.
-	 * 
+
+	 * @param pathNew 
 	 * @param prompt if true, give the user the opportunity to cancel opening if a whole slide server is already set
+	 * @param includeURLs 
 	 * @return true if the server was set for this GUI, false otherwise
 	 */
 	public boolean openImage(String pathNew, boolean prompt, boolean includeURLs) {
@@ -2419,6 +2422,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If the path is the same as a currently-open server, do nothing.
 	 * 
 	 * @param viewer the viewer into which the image should be opened
+	 * @param pathNew 
 	 * @param prompt if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @param includeURLs if true, any prompt should support URL input and not only a file chooser
 	 * @return true if the server was set for this GUI, false otherwise
@@ -3041,6 +3045,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * shutdown will be called on any pools created this way whenever QuPath is quit.
 	 * 
 	 * @param owner
+	 * @return 
 	 * 
 	 */
 	public ExecutorService createSingleThreadExecutor(final Object owner) {
@@ -3054,8 +3059,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Create a completion service that uses a shared threadpool for the application.
+	 * @param <V> 
 	 * 
 	 * @param cls
+	 * @return 
 	 */
 	public <V> ExecutorCompletionService<V> createSharedPoolCompletionService(Class<V> cls) {
 		return new ExecutorCompletionService<V>(poolMultipleThreads);
@@ -4729,8 +4736,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		getAction(GUIActions.PROJECT_METADATA).setDisabled(project == null);
 		
 		// Ensure the URLHelpers status is appropriately set
-		FileSystem fileSystem = null;
-		String fileSystemRoot = null;
 		File dirBase = Projects.getBaseDirectory(project);
 		if (dirBase != null && PathPrefs.useProjectImageCache()) {
 			File cache = new File(dirBase, "cache");
@@ -4742,8 +4747,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //				URI cachePath = URI.create("jar:" + new File(cache, "/!/tiles").toURI().toString());
 //				fileSystem = FileSystems.newFileSystem(cachePath, Collections.singletonMap("create", "true"));
 //				fileSystemRoot = "";
-				fileSystem = FileSystems.getDefault();
-				fileSystemRoot = cache.getAbsolutePath();
+				FileSystem fileSystem = FileSystems.getDefault();
+				String fileSystemRoot = cache.getAbsolutePath();
+				logger.debug("File system: {}", fileSystem);
+				logger.debug("File system root: {}", fileSystemRoot);
 			} catch (Exception e) {
 				logger.error("Error creating file system", e);
 			}
@@ -5215,6 +5222,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		/**
 		 * Remove viewer from display
 		 * @param viewer
+		 * @return 
 		 */
 		public boolean removeViewer(QuPathViewer viewer) {
 			if (viewers.size() == 1) {

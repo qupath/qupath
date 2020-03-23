@@ -48,6 +48,7 @@ import qupath.lib.regions.RegionRequest;
  * Abstract implementation of ImageServer providing some common functionality.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public abstract class AbstractImageServer<T> implements ImageServer<T> {

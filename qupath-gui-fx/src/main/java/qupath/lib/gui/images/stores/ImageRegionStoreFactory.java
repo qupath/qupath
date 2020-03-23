@@ -36,6 +36,7 @@ public class ImageRegionStoreFactory {
 	 * 
 	 * TileListeners will be notified on the JavaFX application thread if isJavaFX is true,
 	 * otherwise they will be notified on the Event Dispatch Thread (for Swing).
+	 * @param tileCacheSize 
 	 * 
 	 * @return
 	 */

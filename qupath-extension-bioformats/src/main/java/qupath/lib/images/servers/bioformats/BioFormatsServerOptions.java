@@ -146,6 +146,7 @@ public class BioFormatsServerOptions {
 
 	/**
 	 * Set whether Bio-Formats should be enabled or disabled (in favor of other readers).
+	 * @param bioformatsEnabled 
 	 */
 	public void setBioformatsEnabled(final boolean bioformatsEnabled) {
 		this.bioformatsEnabled = bioformatsEnabled;
@@ -161,6 +162,7 @@ public class BioFormatsServerOptions {
 
 	/**
 	 * Set the number of milliseconds that must elapse when opening an image before a memoization file is generated.
+	 * @param memoizationTimeMillis 
 	 */
 	public void setMemoizationTimeMillis(final int memoizationTimeMillis) {
 		this.memoizationTimeMillis = memoizationTimeMillis;

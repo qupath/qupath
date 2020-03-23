@@ -83,6 +83,7 @@ public interface PathOverlay {
 	public void setPreferredOverlayColor(Color color);
 
 	/**
+	 * @return 
 	 * @see #setPreferredOverlayColor
 	 */
 	public Color getPreferredOverlayColor();

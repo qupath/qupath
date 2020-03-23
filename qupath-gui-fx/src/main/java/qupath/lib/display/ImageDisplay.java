@@ -712,6 +712,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	/**
 	 * Create a JSON representation of the main components of the current display.
 	 * 
+	 * @param prettyPrint 
 	 * @return
 	 */
 	public String toJSON(final boolean prettyPrint) {
