@@ -6,8 +6,6 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.TypeAdapter;
@@ -30,17 +28,17 @@ public class ValueToClassification {
 	
 	private static class ThresholdClassifierTypeAdapter extends TypeAdapter<ThresholdClassifier> {
 		
-		private static Gson gson = new GsonBuilder().setLenient().create();
-
 		@Override
 		public void write(JsonWriter out, ThresholdClassifier value) throws IOException {
+			var gson = GsonTools.getInstance();
+//			gson.toJson(value, ThresholdClassifier.class, out);
 			gson.toJson(gson.toJsonTree(value), out);
 		}
 
 		@Override
 		public ThresholdClassifier read(JsonReader in) throws IOException {
 			JsonObject obj = JsonParser.parseReader(in).getAsJsonObject();
-			
+			var gson = GsonTools.getInstance();
 			if (hasMembers(obj, "thresholdValue", "lessThanThreshold", "equalsThreshold", "greaterThanThreshold")) {
 				return gson.fromJson(obj, SimpleClassificationThresholder.class);
 			}
