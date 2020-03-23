@@ -59,11 +59,10 @@ class PyramidGeneratingImageServer extends AbstractTileableImageServer {
 		int level = ServerTools.getPreferredResolutionLevel(this, downsample);
 		double closestOriginalDownsample = ServerTools.getPreferredDownsampleFactor(server, downsample);
 		if (level == 0 || closestOriginalDownsample >= getDownsampleForResolution(level - 1))
-			return server.readBufferedImage(RegionRequest.createInstance(server.getPath(), request.getDownsample(), request));
+			return server.readBufferedImage(request.updatePath(server.getPath()));
 		
 		// Read image from the 'previous' resolution
-		RegionRequest request2 = RegionRequest.createInstance(request.getPath(), getDownsampleForResolution(level - 1),
-				request.getX(), request.getY(), request.getWidth(), request.getHeight(), request.getZ(), request.getT());
+		RegionRequest request2 = request.updateDownsample(getDownsampleForResolution(level - 1));
 		
 		// If we have an empty tile, we should also return an empty tile
 		BufferedImage img = readBufferedImage(request2);
