@@ -46,10 +46,6 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.EllipseROI;
-import qupath.lib.roi.LineROI;
-import qupath.lib.roi.PolygonROI;
-import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -173,21 +169,33 @@ public class RoiTools {
 	
 	/**
 	 * Intersect a collection of ROIs with a single parent ROI, returning all results that are valid.
+	 * Where possible, ROIs are returned unchanged.
 	 * 
 	 * @param parent the parent ROI, used to define the clip boundary
 	 * @param rois a collection of ROIs that should be intersected with parent
-	 * @return collection of intersected ROIs; this may be shorter than rois if some lie completely outside parent
+	 * @return list of intersected ROIs; this may be shorter than rois if some lie completely outside parent
 	 */
-	public static Collection<ROI> clipToROI(ROI parent, Collection<ROI> rois) {
+	public static List<ROI> clipToROI(ROI parent, Collection<ROI> rois) {
 		var geom = parent.getGeometry();
 		List<ROI> results = new ArrayList<>();
 		for (var r : rois) {
 			if (!sameImagePlane(parent, r))
 				continue;
 			var g = r.getGeometry();
-			if (geom.intersects(g)) {
+			// Quick check to see if we can use the ROI unchanged
+			if (geom.covers(g))
+				results.add(r);
+			else {
+				// Compute the intersection
 				g = geom.intersection(g);
-				results.add(GeometryTools.geometryToROI(g, parent.getImagePlane()));
+				// If we have a collection, we need to ensure homogeneity - intersections between two areas can result in lines occurring
+				g = GeometryTools.homogenizeGeometryCollection(geom.intersection(g));
+				// Return the intersection if it is non-null, and also avoids any 'collapse', e.g. an area becoming a line
+				if (!g.isEmpty()) {
+					var r2 = GeometryTools.geometryToROI(g, r.getImagePlane());
+					if (r.isArea() == r2.isArea() && r.isLine() == r2.isLine() && r.isPoint() == r2.isPoint())
+						results.add(r2);
+				}
 			}
 		}
 		return results;

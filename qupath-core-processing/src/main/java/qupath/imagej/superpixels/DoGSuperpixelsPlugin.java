@@ -138,9 +138,19 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 				return null;
 			}
 			// Get a PathImage if we have a new ROI
-			if (!pathROI.equals(this.pathROI)) {
+			if (!pathROI.equals(this.pathROI) || true) {
 				ImageServer<BufferedImage> server = imageData.getServer();
-				this.pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), params.getDoubleParameterValue("downsampleFactor"), pathROI));
+				
+
+				double downsample = params.getDoubleParameterValue("downsampleFactor");
+				
+				// Create an expanded request (we will clip to the actual ROI later)
+				var request = RegionRequest.createInstance(server.getPath(), downsample, pathROI)
+						.pad2D((int)Math.ceil(downsample * 2), (int)Math.ceil(downsample * 2))
+						.intersect2D(0, 0, server.getWidth(), server.getHeight());
+				
+				this.pathImage = IJTools.convertToImagePlus(server, request);
+				
 //				this.pathImage = IJTools.createPathImage(server, pathROI, params.getDoubleParameterValue("downsampleFactor"));
 				this.pathROI = pathROI;
 			}
@@ -193,7 +203,6 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 			// Convert to tiles & create a labelled image for later
 			PolygonRoi[] polygons = RoiLabeling.labelsToFilledROIs(ipLabels, (int)ipLabels.getMax());
 			List<PathObject> pathObjects = new ArrayList<>(polygons.length);
-			int label = 0;
 			// Set thresholds - regions means must be within specified range
 			double minThreshold = params.getDoubleParameterValue("minThreshold");
 			double maxThreshold = params.getDoubleParameterValue("maxThreshold");
@@ -217,9 +226,6 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 						return Collections.emptyList();
 
 					superpixelROIs.add(IJTools.convertToROI(roi, pathImage));
-					label++;
-					ipLabels.setValue(label);
-					ipLabels.fill(roi);
 				}
 				if (pathROI != null)
 					superpixelROIs = RoiTools.clipToROI(pathROI, superpixelROIs);
@@ -254,7 +260,6 @@ public class DoGSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffer
 		}
 		
 	}
-	
 	
 	
 	@Override
