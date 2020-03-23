@@ -177,7 +177,7 @@ allprojects {
     groovyVersion      = '3.0.2'
     gsonVersion        = '2.8.6'
     guavaVersion       = '28.2-jre'
-    imagejVersion      = '1.52t'
+    imagejVersion      = '1.52u'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
@@ -385,7 +385,7 @@ allprojects {
     mavenCentral()
 
     // May be required for snapshot ImageJ2 jars
-    maven { url 'http://maven.imagej.net/content/groups/public' }
+    maven { url 'https://maven.imagej.net/content/groups/public' }
 
 	// Required for Bio-Formats
     maven {
