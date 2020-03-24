@@ -1199,6 +1199,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	 * Update the retained objects map, then consolidate this into a single training map and return.
 	 * 
 	 * Entries should be added to the returned map in order of image path (sorted Strings).
+	 * @return 
 	 */
 	public synchronized Map<PathClass, List<PathObject>> getTrainingMap() {
 		updateRetainedObjectsMap();

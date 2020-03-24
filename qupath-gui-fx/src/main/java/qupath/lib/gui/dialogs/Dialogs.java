@@ -132,6 +132,7 @@ public class Dialogs {
 	 * Show a standard message dialog.
 	 * @param title
 	 * @param message
+	 * @return 
 	 */
 	public static boolean showMessageDialog(String title, String message) {
 		logger.info("{}: {}", title, message);
@@ -320,7 +321,6 @@ public class Dialogs {
 	 * @param defaultChoice initial selected option
 	 * @return chosen option, or {@code null} if the user cancels the dialog
 	 */
-	@SuppressWarnings("unchecked")
 	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
@@ -617,7 +617,8 @@ public class Dialogs {
 
 	/**
 	 * Prompt user to select a file or input a URL.
-	 * 
+
+	 * @param title dialog title
 	 * @param defaultPath default path to display - may be null
 	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
@@ -734,6 +735,7 @@ public class Dialogs {
 		
 		/**
 		 * Specify the modality of the dialog.
+		 * @param modality 
 		 * @modality requested modality
 		 * @return this builder
 		 */
@@ -744,6 +746,7 @@ public class Dialogs {
 		
 		/**
 		 * Create a dialog styled as a specified alert type.
+		 * @param type 
 		 * @return this builder
 		 */
 		public Builder alertType(AlertType type) {
@@ -904,6 +907,7 @@ public class Dialogs {
 		 * be called on the JavaFX application thread even if called from another thread.
 		 * Callers should be cautious that this does not result in deadlock (e.g. if called from 
 		 * the Swing Event Dispatch Thread on some platforms).
+		 * @return 
 		 */
 		public Optional<ButtonType> showAndWait() {
 			return GuiTools.callOnApplicationThread(() -> build().showAndWait());

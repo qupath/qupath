@@ -255,6 +255,8 @@ public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHi
 	 * Set a new hierarchy, updating the plot accordingly.
 	 * 
 	 * @param hierarchy
+	 * @param survivalKey 
+	 * @param censoredKey 
 	 */
 	public void setHierarchy(final PathObjectHierarchy hierarchy, final String survivalKey, final String censoredKey) {
 		if (this.hierarchy != null)

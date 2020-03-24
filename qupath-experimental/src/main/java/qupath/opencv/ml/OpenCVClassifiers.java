@@ -245,6 +245,7 @@ public class OpenCVClassifiers {
 		 * @param samples
 		 * @param targets
 		 * @param weights optional weights
+		 * @param doMulticlass 
 		 * @return
 		 * @see #train(TrainData)
 		 */

@@ -177,6 +177,7 @@ public class ImagePlane implements Comparable<ImagePlane> {
 	/**
 	 * Returns an ImagePlane with channel, z and t set from an existing ROI.
 	 * 
+	 * @param roi 
 	 * @return
 	 */
 	public static ImagePlane getPlaneWithChannel(final ROI roi) {
@@ -186,6 +187,7 @@ public class ImagePlane implements Comparable<ImagePlane> {
 	/**
 	 * Returns an ImagePlane with channel -1, and z and t set from an existing ROI.
 	 * 
+	 * @param roi 
 	 * @return
 	 */
 	public static ImagePlane getPlane(final ROI roi) {
@@ -195,6 +197,7 @@ public class ImagePlane implements Comparable<ImagePlane> {
 	/**
 	 * Returns an ImagePlane with channel -1 and z and t set from an existing ImageRegion.
 	 * 
+	 * @param region 
 	 * @return
 	 */
 	public static ImagePlane getPlane(final ImageRegion region) {

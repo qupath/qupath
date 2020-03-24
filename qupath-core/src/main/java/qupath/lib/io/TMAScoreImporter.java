@@ -272,6 +272,7 @@ public class TMAScoreImporter {
 	 * Read CSV data from a file into a map connecting column headers (keys) to lists of Strings (entries).
 	 * @param file
 	 * @return
+	 * @throws IOException 
 	 */
 	public static Map<String, List<String>> readCSV(final File file) throws IOException {
 		try (Scanner scanner = new Scanner(file)) {

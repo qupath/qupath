@@ -161,6 +161,7 @@ public interface Project<T> {
 	 * Add an image for a particular ImageServer.
 	 * @param server
 	 * @return
+	 * @throws IOException 
 	 */
 	public ProjectImageEntry<T> addImage(final ServerBuilder<T> server) throws IOException;
 	
@@ -187,6 +188,7 @@ public interface Project<T> {
 	 * Remove an image from the project, optionally including associated data.
 	 * 
 	 * @param entry
+	 * @param removeAllData 
 	 */
 	public void removeImage(final ProjectImageEntry<?> entry, boolean removeAllData);
 

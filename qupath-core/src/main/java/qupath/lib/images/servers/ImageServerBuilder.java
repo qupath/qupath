@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
  * Helper class for creating ImageServers from a given URI and optional argument list.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public interface ImageServerBuilder<T> {
@@ -60,6 +61,7 @@ public interface ImageServerBuilder<T> {
 	 * @param uri
 	 * @param args optional String arguments that may be used by the builder.
 	 * @return
+	 * @throws Exception 
 	 */
 	public ImageServer<T> buildServer(URI uri, String... args) throws Exception;
 	

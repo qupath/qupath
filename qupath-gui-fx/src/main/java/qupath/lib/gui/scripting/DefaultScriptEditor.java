@@ -123,7 +123,6 @@ import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;

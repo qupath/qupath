@@ -748,6 +748,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 		/**
 		 * Add any required parameters (and title) to the ParameterList.
 		 * 
+		 * @param imageData 
 		 * @param params
 		 */
 		public abstract void addParameters(final ImageData<?> imageData, final ParameterList params);

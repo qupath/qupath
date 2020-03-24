@@ -135,6 +135,7 @@ public class IJExtension implements QuPathExtension {
 	
 	/**
 	 * Get the path for a local ImageJ installation, if set.
+	 * @return 
 	 */
 	public static String getImageJPath() {
 		return imageJPath.get();

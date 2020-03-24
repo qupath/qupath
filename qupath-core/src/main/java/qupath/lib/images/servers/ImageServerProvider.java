@@ -110,6 +110,8 @@ public class ImageServerProvider {
 	
 	/**
 	 * Request all available {@link ImageServerBuilder ImageServerBuilders} supporting a given image class.
+	 * @param imageClass 
+	 * @param <T> 
 	 * @return
 	 */
 	@SuppressWarnings("unchecked")

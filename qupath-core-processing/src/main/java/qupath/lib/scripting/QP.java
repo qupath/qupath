@@ -732,6 +732,7 @@ public class QP {
 	 * by passing n values, the first n channel names will be set.
 	 * Any name that is null will be left unchanged.
 	 * 
+	 * @param imageData
 	 * @param colors
 	 * @see #setChannelNames(ImageData, String...)
 	 */
@@ -768,6 +769,7 @@ public class QP {
 	 * Also, currently it is not possible to set channels for RGB images - attempting to do so 
 	 * will throw an IllegalArgumentException.
 	 * 
+	 * @param imageData 
 	 * @param channels
 	 * @see #setChannelNames(ImageData, String...)
 	 * @see #setChannelColors(ImageData, Integer...)
@@ -817,6 +819,7 @@ public class QP {
 	 * Run the specified plugin on the specified {@code ImageData}.
 	 * 
 	 * @param className
+	 * @param imageData
 	 * @param args
 	 * @return
 	 * @throws InterruptedException
@@ -1275,7 +1278,7 @@ public class QP {
 
 	/**
 	 * Get a list of all objects in the specified hierarchy according to a specified predicate.
-	 * 
+	 * @param hierarchy 
 	 * @param predicate
 	 * @return
 	 */
@@ -1285,7 +1288,7 @@ public class QP {
 
 	/**
 	 * Set selected objects to contain (only) all objects in the specified hierarchy according to a specified predicate.
-	 * 
+	 * @param hierarchy 
 	 * @param predicate
 	 */
 	public static void selectObjects(final PathObjectHierarchy hierarchy, final Predicate<PathObject> predicate) {
@@ -1303,7 +1306,7 @@ public class QP {
 	
 	/**
 	 * Set objects that are a subclass of a specified class.
-	 * 
+	 * @param hierarchy 
 	 * @param cls
 	 */
 	public static void selectObjectsByClass(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls) {
@@ -1329,6 +1332,7 @@ public class QP {
 	/**
 	 * Select all TMA core objects in the specified hierarchy, optionally including missing cores.
 	 * @param hierarchy
+	 * @param includeMissing 
 	 */
 	public static void selectTMACores(final PathObjectHierarchy hierarchy, final boolean includeMissing) {
 		hierarchy.getSelectionModel().setSelectedObjects(PathObjectTools.getTMACoreObjects(hierarchy, includeMissing), null);
@@ -1368,6 +1372,7 @@ public class QP {
 	
 	/**
 	 * Select all TMA core objects in the current hierarchy, optionally including missing cores.
+	 * @param includeMissing 
 	 */
 	public static void selectTMACores(final boolean includeMissing) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();

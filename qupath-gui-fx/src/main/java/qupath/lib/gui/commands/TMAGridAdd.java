@@ -100,6 +100,7 @@ public class TMAGridAdd implements PathCommand {
 	 * 
 	 * @param imageData
 	 * @param type
+	 * @return 
 	 */
 	public static boolean addToTMA(final ImageData<?> imageData, final TMAAddType type) {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
@@ -148,6 +149,7 @@ public class TMAGridAdd implements PathCommand {
 	 * @param hierarchy
 	 * @param selectedCore
 	 * @param type
+	 * @return 
 	 */
 	public static TMAGrid createAugmentedTMAGrid(final PathObjectHierarchy hierarchy, final TMACoreObject selectedCore, final TMAAddType type) {
 		

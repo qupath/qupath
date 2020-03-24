@@ -32,6 +32,7 @@ import java.util.List;
  * in a way that is amenable to display within a table.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public interface PathTableData<T> {

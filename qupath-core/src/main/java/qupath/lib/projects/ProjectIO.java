@@ -78,6 +78,7 @@ public class ProjectIO {
 	 * @param fileProject
 	 * @param cls
 	 * @return
+	 * @throws IOException 
 	 */
 	public static <T> Project<T> loadProject(final File fileProject, final Class<T> cls) throws IOException {
 		try (Reader fileReader = new BufferedReader(new FileReader(fileProject))){
@@ -97,6 +98,7 @@ public class ProjectIO {
 	/**
 	 * Get the default extension for a QuPath project file.
 	 * 
+	 * @param includePeriod 
 	 * @return
 	 */
 	public static String getProjectExtension(boolean includePeriod) {

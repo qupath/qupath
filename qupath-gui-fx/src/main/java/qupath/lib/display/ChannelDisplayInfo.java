@@ -174,6 +174,7 @@ public interface ChannelDisplayInfo {
 	 * @param x
 	 * @param y
 	 * @param rgb
+	 * @param useColorLUT 
 	 * @return
 	 */
 	public abstract int updateRGBAdditive(BufferedImage img, int x, int y, int rgb, boolean useColorLUT);
@@ -190,9 +191,9 @@ public interface ChannelDisplayInfo {
 
 
 	/**
-	 * Returns true if this does something - anything.
-	 * <p>
-	 * Returns false if not, e.g. if we have an RGB image, with no transformations of any kind applied (e.g. brightness/contrast)
+	 * Returns true if this does something - anything - and false otherwise.
+	 * For example, this will return false if we have an RGB image with no transformations of any kind applied (e.g. brightness/contrast)
+	 * @return
 	 */
 	public boolean doesSomething();
 	
@@ -428,6 +429,7 @@ public interface ChannelDisplayInfo {
 		 * Get a suitable RGB value for displaying a pixel with the specified value
 		 * 
 		 * @param value
+		 * @param useColorLUT 
 		 * @return
 		 */
 		public abstract int getRGB(float value, boolean useColorLUT);

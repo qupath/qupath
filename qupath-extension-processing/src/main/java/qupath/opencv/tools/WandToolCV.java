@@ -163,8 +163,8 @@ public class WandToolCV extends BrushTool {
 	
 	/**
 	 * Set whether the wand tool should be influenced by pixel values painted on image overlays.
-	 * <p>
 	 * If false, only RGB values of the underlying image will be used.
+	 * @param useOverlays 
 	 */
 	public static void setWandUseOverlays(final boolean useOverlays) {
 		wandUseOverlays.set(useOverlays);
@@ -226,6 +226,7 @@ public class WandToolCV extends BrushTool {
 	
 	/**
 	 * Set the wand sensitivity value, which influences how similar local intensity values must be for the wand region growing.
+	 * @param sensitivity 
 	 */
 	public static void setWandSensitivity(final double sensitivity) {
 		wandSensitivityProperty.set(sensitivity);

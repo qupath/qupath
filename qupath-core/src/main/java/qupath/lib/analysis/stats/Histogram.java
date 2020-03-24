@@ -196,6 +196,7 @@ public class Histogram { // implements Serializable {
 
 	/**
 	 * Get the index of the bin that should contain the specified value.
+	 * @param value 
 	 * @return
 	 */
 	public int getBinIndexForValue(double value) {

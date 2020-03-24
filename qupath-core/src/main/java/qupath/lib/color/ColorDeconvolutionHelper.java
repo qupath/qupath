@@ -278,6 +278,7 @@ public class ColorDeconvolutionHelper {
 	 * @param rgb
 	 * @param stains
 	 * @param minStain minimum optical density for each RGB channel (default 0.15)
+	 * @param percentageClipped 
 	 * @return
 	 */
 	public static ColorDeconvolutionStains refineColorDeconvolutionStains(final int[] rgb, final ColorDeconvolutionStains stains, final double minStain, final double percentageClipped) {

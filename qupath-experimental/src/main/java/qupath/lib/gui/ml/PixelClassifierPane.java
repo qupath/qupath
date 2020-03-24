@@ -576,6 +576,7 @@ public class PixelClassifierPane {
 	 * This provides a mechanism to install additional feature calculators.
 	 * <p>
 	 * Note that the builder will only be added if it is not already present.
+	 * @param builder the builder to be installed
 	 * 
 	 * @return true if the builder was added, false otherwise.
 	 */

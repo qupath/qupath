@@ -311,6 +311,7 @@ public class SvgTools {
 		/**
 		 * Specify if/how raster images should be included in the SVG.
 		 * 
+		 * @param include 
 		 * @return this builder
 		 */
 		public SvgBuilder images(ImageIncludeType include) {

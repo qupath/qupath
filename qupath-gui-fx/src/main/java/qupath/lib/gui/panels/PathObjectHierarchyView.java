@@ -482,15 +482,31 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 				childrenSet = true;
 				var childArray = value.getChildObjectsAsArray();
 				if (childArray.length > 0) {
-					// Don't sort TMA cores (since it will lose the ordering)
-					if (!Arrays.stream(childArray).anyMatch(p -> p.isTMACore()))
-						Arrays.sort(childArray, DefaultPathObjectComparator.getInstance());
-					List<TreeItem<PathObject>> newChildren = new ArrayList<>();
+					// We want annotations first, then TMA cores, then everything else
+					// We should sort the annotations, but not the rest (because TMA cores are already ordered, and detections may be numerous)
+					List<PathObject> sortable = new ArrayList<>();
+					List<PathObject> tmaCores = new ArrayList<>();
 					boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;
-					for (PathObject child : childArray) {
-						if (includeDetections || child.hasChildren() || !child.isDetection())
-							newChildren.add(createNode(child));
+					List<PathObject> others = new ArrayList<>();
+					for (var child : childArray) {
+						if (child.isTMACore())
+							tmaCores.add(child);
+						else if (child.isAnnotation() || child.hasChildren())
+							sortable.add(child);
+						else if (includeDetections)
+							others.add(child);
 					}
+					Collections.sort(sortable, DefaultPathObjectComparator.getInstance());
+					
+					// Create nodes in a predictable order
+					List<TreeItem<PathObject>> newChildren = new ArrayList<>();
+					for (var child : sortable)
+						newChildren.add(createNode(child));
+					for (var child : tmaCores)
+						newChildren.add(createNode(child));
+					for (var child : others)
+						newChildren.add(createNode(child));
+						
 					children.setAll(newChildren);
 				} else if (!children.isEmpty())
 					children.clear();

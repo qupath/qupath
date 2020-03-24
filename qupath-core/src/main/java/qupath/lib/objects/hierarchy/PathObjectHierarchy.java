@@ -676,13 +676,15 @@ public final class PathObjectHierarchy implements Serializable {
 	/**
 	 * Update an object that is already in the hierarchy (e.g. because its ROI has changed).
 	 * 
-	 * @param pathObject
+	 * @param pathObject the object to update
+	 * @param isChanging if true, indicate that the object is still being changed.
+	 *                   Some listeners may delay processing in expectation of an update event where isChanging is false.
 	 */
-	public void updateObject(PathObject pathObject) {
+	public void updateObject(PathObject pathObject, boolean isChanging) {
 		if (inHierarchy(pathObject))
 			removeObject(pathObject, true, false);
 		addPathObject(pathObject, false);
-		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), false);
+		fireObjectsChangedEvent(this, Collections.singletonList(pathObject), isChanging);
 //		fireHierarchyChangedEvent(this, pathObject);
 	}
 	

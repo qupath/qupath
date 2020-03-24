@@ -132,6 +132,7 @@ public class ParameterList implements Serializable {
 	 * @param unit
 	 * @param lowerBound
 	 * @param upperBound
+	 * @param helpText 
 	 * @return
 	 */
 	public ParameterList addDoubleParameter(String key, String prompt, double defaultValue, String unit, double lowerBound, double upperBound, String helpText) {
@@ -308,6 +309,7 @@ public class ParameterList implements Serializable {
 	
 	/**
 	 * Returns a map of keys and their corresponding parameter values
+	 * @param includeHidden 
 	 * @return
 	 */
 	public Map<String, Object> getKeyValueParameters(final boolean includeHidden) {

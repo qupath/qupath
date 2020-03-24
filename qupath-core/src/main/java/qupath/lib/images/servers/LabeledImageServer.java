@@ -29,10 +29,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.GeneratingImageServer;
-import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -285,6 +282,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		/**
 		 * Specify the background label (0 by default) and color.
 		 * @param label
+		 * @param color 
 		 * @return
 		 */
 		public Builder backgroundLabel(int label, Integer color) {

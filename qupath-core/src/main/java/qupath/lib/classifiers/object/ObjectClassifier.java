@@ -28,6 +28,7 @@ public interface ObjectClassifier<T> {
 	 * It is up to the caller to fire these events if required.
 	 * 
 	 * @param imageData data containing the object hierarchy
+	 * @param resetExistingClass 
 	 * @return the number of objects whose classification was changed.
 	 * 
 	 * @see #getCompatibleObjects(ImageData)
@@ -43,6 +44,7 @@ public interface ObjectClassifier<T> {
 	 * 
 	 * @param imageData data that may or may not be required for classification depending upon how features are extracted
 	 * @param pathObjects the objects to classify
+	 * @param resetExistingClass 
 	 * @return the number of objects whose classification was changed.
 	 * 
 	 * @see #classifyObjects(ImageData, boolean)

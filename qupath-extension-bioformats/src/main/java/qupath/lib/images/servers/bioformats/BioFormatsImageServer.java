@@ -1128,6 +1128,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * 
 		 * @param options
 		 * @param path
+		 * @param readerOptions 
 		 * @return
 		 * @throws DependencyException
 		 * @throws ServiceException

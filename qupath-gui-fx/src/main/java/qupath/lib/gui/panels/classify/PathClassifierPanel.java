@@ -26,7 +26,6 @@ package qupath.lib.gui.panels.classify;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.stream.Collectors;
@@ -47,7 +46,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
 

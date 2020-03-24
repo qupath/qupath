@@ -53,6 +53,8 @@ public interface TMAEntry {
 	 * 
 	 * If getMeasurement returns null, this will give NaN.
 	 * Otherwise, it will return getMeasurement(name).doubleValue();
+	 * @param name 
+	 * @return 
 	 */
 	double getMeasurementAsDouble(String name);
 

@@ -112,6 +112,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	
 	/**
 	 * The total number of bytes used for all viewers.
+	 * @return 
 	 */
 	public long totalBytes() {
 		long total = 0L;

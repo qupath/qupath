@@ -121,6 +121,7 @@ public class OverlayOptions {
 	
 	/**
 	 * Constructor, initializing values based on an existing {@link OverlayOptions} object.
+	 * @param options 
 	 */
 	public OverlayOptions(OverlayOptions options) {
 		this();

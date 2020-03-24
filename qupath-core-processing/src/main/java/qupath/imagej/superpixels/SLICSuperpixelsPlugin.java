@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,21 +58,23 @@ import qupath.lib.plugins.ObjectDetector;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
  * An implementation of SLIC superpixels, as described at http://ivrl.epfl.ch/research/superpixels
- * 
+ * <p>
  * This largely follows the description at:
- *   Radhakrishna Achanta, Appu Shaji, Kevin Smith, Aurelien Lucchi, Pascal Fua, and Sabine Süsstrunk
- *   SLIC Superpixels Compared to State-of-the-art Superpixel Methods
+ * <blockquote>
+ *   Radhakrishna Achanta, Appu Shaji, Kevin Smith, Aurelien Lucchi, Pascal Fua, and Sabine Süsstrunk <br/>
+ *   SLIC Superpixels Compared to State-of-the-art Superpixel Methods <br/>
  *   IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 34, num. 11, p. 2274 - 2282, May 2012.
+ * </blockquote>
  *   
  * It doesn't follow the code made available by the authors, and differs in some details. 
- * 
+ * <p>
  * For example, the 'spacing' parameter is also used to determine the resolution at which the superpixel computation 
  * is performed, and a Gaussian filter is used to help reduce textures in advance.
- * 
  * It is also possible to use color deconvolved images, rather than transforming RGB to CIELAB.
  * 
  * @author Pete Bankhead
@@ -174,7 +177,15 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			// Get a PathImage if we have a new ROI
 			if (!pathROI.equals(this.pathROI)) {
 				ImageServer<BufferedImage> server = imageData.getServer();
-				this.pathImage = IJTools.convertToImagePlus(server, RegionRequest.createInstance(server.getPath(), getPreferredDownsample(imageData, params), pathROI));
+				
+				double downsample = getPreferredDownsample(imageData, params);
+				
+				// Create an expanded request (we will clip to the actual ROI later)
+				var request = RegionRequest.createInstance(server.getPath(), downsample, pathROI)
+						.pad2D((int)Math.ceil(downsample * 2), (int)Math.ceil(downsample * 2))
+						.intersect2D(0, 0, server.getWidth(), server.getHeight());
+				
+				this.pathImage = IJTools.convertToImagePlus(server, request);
 				this.pathROI = pathROI;
 			}
 			
@@ -232,6 +243,8 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			}
 			
 			// Initialize centres and distances
+			// TODO: Consider that the use of short here places a limit upon the maximum number of labels
+			// (In practice should be ok because of enforced tiling for large regions?)
 			int w = imp.getWidth();
 			int h = imp.getHeight();
 			short[] labels = new short[w*h];
@@ -254,9 +267,15 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			    }
 			}
 			
+			if (Thread.currentThread().isInterrupted())
+				return Collections.emptyList();
+
+			
 			// Loop through and perform local k-means clustering
 			for (int i = 0; i < maxIterations; i++) {
 			    int centerLabel = 0;
+				if (Thread.currentThread().isInterrupted())
+					return Collections.emptyList();
 			    for (ClusterCenter center : centers) {
 			        center.updateFeatures();
 			        for (int label : center.getNearbyClusters()) {
@@ -386,45 +405,29 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 			}
 			
 			
-			// Convert to ROIs
+			// Convert to tilez
 			ShortProcessor ipLabels = new ShortProcessor(w, h, newLabels, null);
-			
-			// Remove everything outside the ROI, if required
-			if (pathROI != null) {
-				Roi roi = IJTools.convertToIJRoi(pathROI, pathImage);
-				RoiLabeling.clearOutside(ipLabels, roi);
-				// It's important to move away from the containing ROI, to help with brush selections ending up
-				// having the correct parent (i.e. don't want to risk moving slightly outside the parent object's ROI)
-				// (Or at least it previously seemed important... it has an unwanted effect when tiling though)
-//				ipLabels.setValue(0);
-//				ipLabels.setLineWidth(1);
-//				ipLabels.draw(roi);
-			}
-			
-			
-			// Convert to tiles & create a labelled image for later
 			List<PolygonRoi> polygons = RoiLabeling.labelsToFilledRoiList(ipLabels, true);
-			List<PathObject> pathObjects = new ArrayList<>(polygons.size());
-			label = 0;
+			List<PathObject> pathObjects;
+			List<ROI> superpixelROIs = new ArrayList<>();
 			try {
 				for (Roi roi : polygons) {
 					if (roi == null)
 						continue;
-					ROI superpixelROI = IJTools.convertToROI(roi, pathImage);
-					if (pathROI == null)
-						continue;
-					PathObject tile = PathObjects.createTileObject(superpixelROI);
-					pathObjects.add(tile);
-					label++;
-					ipLabels.setValue(label);
-					ipLabels.fill(roi);
+					superpixelROIs.add(IJTools.convertToROI(roi, pathImage));
 				}
+				
+				superpixelROIs = RoiTools.clipToROI(pathROI, superpixelROIs);
+				
+				pathObjects = superpixelROIs.stream()
+						.map(r -> PathObjects.createTileObject(r))
+						.collect(Collectors.toList());
 			} catch (Exception e) {
 				logger.error("Error created tiled ROIs", e);
+				pathObjects = Collections.emptyList();
 			}
 			
 			lastResultSummary = pathObjects.size() + " tiles created";
-			
 			return pathObjects;
 		}
 		

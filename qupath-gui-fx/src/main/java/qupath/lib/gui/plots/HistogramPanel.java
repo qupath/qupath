@@ -216,6 +216,7 @@ public class HistogramPanel extends Canvas {
 	/**
 	 * Add vertical lines at requested x coordinate
 	 * @param x
+	 * @param color 
 	 */
 	public void addVerticalLine(double x, Color color) {
 		vLines.put(x, color);

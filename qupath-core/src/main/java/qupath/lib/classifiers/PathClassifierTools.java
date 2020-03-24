@@ -193,6 +193,7 @@ public class PathClassifierTools {
 	/**
 	 * Create a {@link PathObjectClassifier} that applies an array of classifiers, sequentially in order.
 	 * @param classifiers
+	 * @return 
 	 */
 	public static PathObjectClassifier createCompositeClassifier(final PathObjectClassifier... classifiers) {
 		return new CompositeClassifier(Arrays.asList(classifiers));
@@ -201,6 +202,7 @@ public class PathClassifierTools {
 	/**
 	 * Create a {@link PathObjectClassifier} that applies a collection of classifiers, sequentially in order.
 	 * @param classifiers
+	 * @return 
 	 */
 	public static PathObjectClassifier createCompositeClassifier(final Collection<PathObjectClassifier> classifiers) {
 		return new CompositeClassifier(classifiers);
@@ -265,6 +267,8 @@ public class PathClassifierTools {
 
 	/**
 	 * Get a set of the represented path classes, i.e. those with at least 1 manually-labelled object.
+	 * @param hierarchy 
+	 * @param cls 
 	 * 
 	 * @return
 	 */

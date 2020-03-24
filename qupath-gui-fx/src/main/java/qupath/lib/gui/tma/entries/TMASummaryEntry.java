@@ -370,6 +370,7 @@ public class TMASummaryEntry implements TMAEntry {
 	 * 
 	 * @param entries
 	 * @param measurement
+	 * @param skipMissing 
 	 * @return
 	 */
 	public static double getMedianMeasurement(final List<TMAEntry> entries, final String measurement, final boolean skipMissing) {
