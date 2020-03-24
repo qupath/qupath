@@ -567,7 +567,7 @@ public class GeneralTools {
 	}
 
 	/**
-	 * Returnst true if running on Windows.
+	 * Returns true if running on Windows.
 	 * @return
 	 */
 	public static boolean isWindows() {

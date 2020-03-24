@@ -30,6 +30,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -2034,18 +2035,39 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Intercept clipboard if we have files, to create a suitable string representation as well
 		var clipboard = Clipboard.getSystemClipboard();
 		var files = clipboard.getFiles();
+		var text = clipboard.getString();
+		var content = new ClipboardContent();
+		var hasPath = false;
+		String s = "";
+		
+		if (text != null && !text.isEmpty()) {
+			var oneLine = text.split(System.lineSeparator()).length == 1;
+			var isWindows = GeneralTools.isWindows();
+			if (isWindows && oneLine) {
+				if (text.contains(File.separator))
+					s = Arrays.asList(text.split("\\\\")).stream().map(n -> n.replace(File.separator, "/")).collect(Collectors.joining("/"));
+				else
+					s = text.replace(File.separator, "/");
+			}
+			hasPath = true;
+		}
+		
 		if (files != null && !files.isEmpty()) {
-			String s;
-			if (files.size() == 1)
-				s = files.get(0).getAbsolutePath();
-			else {
+			if (files.size() == 1) {
+				if (hasPath)
+					s = "[\"" + s + "\"," + System.lineSeparator() + files.get(0).getAbsolutePath() + "]" ;
+				else
+					s = files.get(0).getAbsolutePath();
+			} else {
 				s = "[" + files.stream().map(f -> "\"" + f.getAbsolutePath() + "\"").collect(Collectors.joining("," + System.lineSeparator())) + "]";
 			}
 			if ("\\".equals(File.separator)) {
 				s = s.replace("\\", "/");
 			}
-			var content = new ClipboardContent();
 			content.put(DataFormat.FILES, files);
+		}
+		
+		if (!s.isEmpty()) {
 			content.putString(s);
 			clipboard.setContent(content);
 		}
