@@ -618,8 +618,8 @@ public class PathClassPane {
 	 * @return
 	 */
 	public static boolean promptToEditClass(final PathClass pathClass) {
-		//		if (pathClass == null)
-		//			return false; // TODO: Make work on default ROI color
+		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
+			return false;
 
 		boolean defaultColor = pathClass == null;
 

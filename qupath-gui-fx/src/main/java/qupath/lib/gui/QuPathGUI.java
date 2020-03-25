@@ -4664,7 +4664,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				continue;
 			var imageData = viewer.getImageData();
 			if (imageData != null) {
-				ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
+//				ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 	//			if (entry != null) {
 					if (!checkSaveChanges(imageData))
 						return;
@@ -4716,6 +4716,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				project.setPathClasses(getAvailablePathClasses());
 			} else {
 				// Update the available classes
+				if (!pathClasses.contains(PathClassFactory.getPathClassUnclassified())) {
+					pathClasses = new ArrayList<>(pathClasses);
+					pathClasses.add(0, PathClassFactory.getPathClassUnclassified());
+				}
 				getAvailablePathClasses().setAll(pathClasses);
 			}
 		}

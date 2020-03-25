@@ -61,7 +61,7 @@ public class ValueToClassification {
 	 * Interface implemented by classes capable of converting a single threshold value into a classification.
 	 * <p>
 	 * Beware implementations of this may should be registered with {@link GsonTools} to be serializable;
-	 * it if for this reason not really intended to support alternative implementations at this time.
+	 * it is for this reason not really intended to support alternative implementations at this time.
 	 */
 	@JsonAdapter(ThresholdClassifierTypeAdapter.class)
 	public static interface ThresholdClassifier {

@@ -824,7 +824,17 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @param pathObjects
 	 */
 	public void fireObjectMeasurementsChangedEvent(Object source, Collection<? extends PathObject> pathObjects) {
-		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_MEASUREMENTS, pathObjects, false);
+		fireObjectMeasurementsChangedEvent(source, pathObjects, false);
+	}
+	
+	/**
+	 * Fire a hierarchy update indicating object measurements have changed.
+	 * @param source
+	 * @param pathObjects
+	 * @param isChanging
+	 */
+	public void fireObjectMeasurementsChangedEvent(Object source, Collection<? extends PathObject> pathObjects, boolean isChanging) {
+		PathObjectHierarchyEvent event = PathObjectHierarchyEvent.createObjectsChangedEvent(source, this, HierarchyEventType.CHANGE_MEASUREMENTS, pathObjects, isChanging);
 		fireEvent(event);
 	}
 	
