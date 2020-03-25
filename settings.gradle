@@ -8,6 +8,7 @@ include ':qupath-extension-bioformats'
 include ':qupath-extension-omero'
 include ':qupath-extension-openslide'
 include ':qupath-extension-pen'
+include ':qupath-extension-svg'
 include ':qupath-experimental'
 
 project(':qupath-core').projectDir = "$rootDir/qupath-core" as File
@@ -19,4 +20,5 @@ project(':qupath-extension-bioformats').projectDir = "$rootDir/qupath-extension-
 project(':qupath-extension-omero').projectDir = "$rootDir/qupath-extension-omero" as File
 project(':qupath-extension-openslide').projectDir = "$rootDir/qupath-extension-openslide" as File
 project(':qupath-extension-pen').projectDir = "$rootDir/qupath-extension-pen" as File
+project(':qupath-extension-svg').projectDir = "$rootDir/qupath-extension-svg" as File
 project(':qupath-experimental').projectDir = "$rootDir/qupath-experimental" as File

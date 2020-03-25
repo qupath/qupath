@@ -17,7 +17,6 @@ import qupath.experimental.commands.PixelClassifierLoadCommand;
 import qupath.experimental.commands.SimpleThresholdCommand;
 import qupath.experimental.commands.SingleMeasurementClassificationCommand;
 import qupath.experimental.commands.SplitProjectTrainingCommand;
-import qupath.experimental.commands.SvgExportCommand;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -57,17 +56,6 @@ public class ExperimentalExtension implements QuPathExtension {
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
     	FeatureCalculators.initialize();
-    	
-    	MenuTools.addMenuItems(
-                qupath.getMenu("File>Export images...", true),
-                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportCommand.SvgExportType.SELECTED_REGION),
-                		"Rendered SVG")
-        );
-    	MenuTools.addMenuItems(
-                qupath.getMenu("File>Export snapshot...", true),
-                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportCommand.SvgExportType.VIEWER_SNAPSHOT),
-                		"Current viewer content (SVG)")
-        );
     	
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Pixel classification", true),
