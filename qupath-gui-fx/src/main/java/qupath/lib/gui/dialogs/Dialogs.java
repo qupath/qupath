@@ -735,8 +735,7 @@ public class Dialogs {
 		
 		/**
 		 * Specify the modality of the dialog.
-		 * @param modality 
-		 * @modality requested modality
+		 * @param modality requested modality
 		 * @return this builder
 		 */
 		public Builder modality(Modality modality) {
