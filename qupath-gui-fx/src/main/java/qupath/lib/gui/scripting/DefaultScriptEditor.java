@@ -224,20 +224,25 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private Collection<KeyCombination> accelerators = new HashSet<>();
 	
 	// Keyboard accelerators
-	protected KeyCombination comboPasteEscape = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
-	protected KeyCombination comboPaste = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
-	protected KeyCombination comboCopy = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
+	protected KeyCombination comboPasteEscape = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+//	protected KeyCombination comboPaste = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
+//	protected KeyCombination comboCopy = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
 	
 	// Note: it doesn't seem to work to set the accelerators...
 	// this leads to the actions being called twice, due to the built-in behaviour of TextAreas
-	private Action copyAction = createCopyAction("Copy", comboCopy);
-	private Action cutAction = createCutAction("Cut", null);
-	private Action pasteAction = createPasteAction("Paste", false, comboPaste);
-	private Action pasteAndEscapeAction = createPasteAction("Paste & escape", true, comboPasteEscape);
-	private Action undoAction = createUndoAction("Undo", null);
-	private Action redoAction = createRedoAction("Redo", null);
+	protected Action copyAction;
+	protected Action cutAction;
+	protected Action pasteAction;
+	protected Action pasteAndEscapeAction;
+	protected Action undoAction;
+	protected Action redoAction;
 	
-	private Action findAction = createFindAction("Find");
+	protected Action runScriptAction;
+	protected Action runSelectedAction;
+	protected Action runProjectScriptAction;
+	protected Action runProjectScriptNoSaveAction;
+	
+	protected Action findAction;
 
 	private String tabString = "    "; // String to insert when tab key pressed
 
@@ -283,7 +288,25 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
+		initializeActions();
 //		createDialog();
+	}
+	
+	
+	private void initializeActions() {
+		copyAction = createCopyAction("Copy", null);
+		cutAction = createCutAction("Cut", null);
+		pasteAction = createPasteAction("Paste", false, null);
+		pasteAndEscapeAction = createPasteAction("Paste & escape", true, comboPasteEscape);
+		undoAction = createUndoAction("Undo", null);
+		redoAction = createRedoAction("Redo", null);
+		
+		runScriptAction = createRunScriptAction("Run", false);
+		runSelectedAction = createRunScriptAction("Run selected", true);
+		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
+		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without save)", false);
+		
+		findAction = createFindAction("Find");
 	}
 	
 	
@@ -428,7 +451,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 
 	protected ScriptEditorControl getNewEditor() {
-		TextArea editor = new TextArea();
+		TextArea editor = new CustomTextArea();
 		editor.setWrapText(false);
 		editor.setFont(fontMain);
 		
@@ -443,12 +466,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 				handleNewLine(control);
 				e.consume();
-			} else {
-				for (var combo : getAccelerators()) {
-					if (combo.match(e))
-						e.consume();
-				}
-			}
+			} 
 	    });
 
 //		editor.getDocument().addUndoableEditListener(new UndoManager());
@@ -558,10 +576,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Menu menuRun = new Menu("Run");
 		MenuTools.addMenuItems(
 				menuRun,
-				createRunScriptAction("Run", false),
-				createRunScriptAction("Run selected", true),
-				createRunProjectScriptAction("Run for project", true),
-				createRunProjectScriptAction("Run for project (without save)", false),
+				runScriptAction,
+				runSelectedAction,
+				runProjectScriptAction,
+				runProjectScriptNoSaveAction,
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
@@ -1488,17 +1506,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 	};
 	
-	/**
-	 * Get a collection of accelerator key combinations corresponding to menu items.
-	 * The {@link ScriptEditorControl} should not respond to these, which may mean that key events need to be intercepted.
-	 * @return 
-	 */
-	protected Collection<KeyCombination> getAccelerators() {
-		return accelerators;
-	}
 	
-	protected static boolean pasteFromClipboard(ScriptEditorControl control, boolean escapeCharacters) {
-		// Intercept clipboard if we have files, to create a suitable string representation as well
+	protected static String getClipboardText(boolean escapeCharacters) {
 		var clipboard = Clipboard.getSystemClipboard();
 		var files = clipboard.getFiles();
 		String text = clipboard.getString();
@@ -1514,11 +1523,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 			text = s;
 		}
+		if (text != null && escapeCharacters)
+			text = StringEscapeUtils.escapeJava(text);
+		return text;
+	}
+	
+	protected static boolean pasteFromClipboard(ScriptEditorControl control, boolean escapeCharacters) {
+		// Intercept clipboard if we have files, to create a suitable string representation as well
+		var text = getClipboardText(escapeCharacters);
 		if (text == null)
 			return false;
-		if (escapeCharacters) {
-			text = StringEscapeUtils.escapeJava(text);
-		}
 		control.paste(text);
 		return true;
 	}
@@ -2392,4 +2406,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	}
 	
+	static class CustomTextArea extends TextArea {
+		
+		CustomTextArea() {
+			super();
+			setStyle("-fx-font-family: monospaced;");
+		}
+		
+		/**
+		 * We need to override the default Paste command to handle escaping
+		 */
+		@Override
+		public void paste() {
+			var text = getClipboardText(false);
+			if (text != null)
+				replaceSelection(text);
+		}
+		
+	}
+
 }

@@ -340,7 +340,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
      * queried for the corresponding (possibly-non-RGB) cached tile.
      * 
      * @param request
-     * @param img
+     * @param server
      * @return
      */
      BufferedImage getCachedTileRGB(TileRequest request, ImageServer<BufferedImage> server) {
