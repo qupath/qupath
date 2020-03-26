@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,6 +52,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleScriptContext;
 
+import org.apache.commons.text.StringEscapeUtils;
 import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -98,8 +100,6 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -220,14 +220,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNull());
 	
+	// Accelerators that have been assigned to actions
+	private Collection<KeyCombination> accelerators = new HashSet<>();
+	
+	// Keyboard accelerators
+	protected KeyCombination comboPasteEscape = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+	protected KeyCombination comboPaste = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
+	protected KeyCombination comboCopy = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
+	
 	// Note: it doesn't seem to work to set the accelerators...
 	// this leads to the actions being called twice, due to the built-in behaviour of TextAreas
-	private Action copyAction = createCopyAction("Copy");
-	private Action cutAction = createCutAction("Cut");
-	private Action pasteAction = createPasteAction("Paste");
-	private Action undoAction = createUndoAction("Undo");
-	private Action redoAction = createRedoAction("Redo");
-
+	private Action copyAction = createCopyAction("Copy", comboCopy);
+	private Action cutAction = createCutAction("Cut", null);
+	private Action pasteAction = createPasteAction("Paste", false, comboPaste);
+	private Action pasteAndEscapeAction = createPasteAction("Paste & escape", true, comboPasteEscape);
+	private Action undoAction = createUndoAction("Undo", null);
+	private Action redoAction = createRedoAction("Redo", null);
+	
 	private Action findAction = createFindAction("Find");
 
 	private String tabString = "    "; // String to insert when tab key pressed
@@ -434,25 +443,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 				handleNewLine(control);
 				e.consume();
+			} else {
+				for (var combo : getAccelerators()) {
+					if (combo.match(e))
+						e.consume();
+				}
 			}
-//	        else if (copyAction.getAccelerator().match(e)) {
-//	        	copyAction.handle(null);
-//	        	e.consume();
-//	        } else if (pasteAction.getAccelerator().match(e)) {
-//	        	pasteAction.handle(null);
-//	        	e.consume();
-//	        } else if (cutAction.getAccelerator().match(e)) {
-//	        	cutAction.handle(null);
-//	        	e.consume();
-//	        } else if (undoAction.getAccelerator().match(e)) {
-//	        	undoAction.handle(null);
-//	        	e.consume();
-//	        } else if (redoAction.getAccelerator().match(e)) {
-//	        	redoAction.handle(null);
-//	        	e.consume();
-//	        }
-
-//	        if ()
 	    });
 
 //		editor.getDocument().addUndoableEditListener(new UndoManager());
@@ -509,6 +505,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				cutAction,
 				copyAction,
 				pasteAction,
+				pasteAndEscapeAction,
 				null,
 				findAction
 				);
@@ -1491,67 +1488,120 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 	};
 	
+	/**
+	 * Get a collection of accelerator key combinations corresponding to menu items.
+	 * The {@link ScriptEditorControl} should not respond to these, which may mean that key events need to be intercepted.
+	 * @return 
+	 */
+	protected Collection<KeyCombination> getAccelerators() {
+		return accelerators;
+	}
+	
+	protected static boolean pasteFromClipboard(ScriptEditorControl control, boolean escapeCharacters) {
+		// Intercept clipboard if we have files, to create a suitable string representation as well
+		var clipboard = Clipboard.getSystemClipboard();
+		var files = clipboard.getFiles();
+		String text = clipboard.getString();
+		if (files != null && !files.isEmpty()) {
+			String s;
+			if (files.size() == 1)
+				s = files.get(0).getAbsolutePath();
+			else {
+				s = "[" + files.stream().map(f -> "\"" + f.getAbsolutePath() + "\"").collect(Collectors.joining("," + System.lineSeparator())) + "]";
+			}
+			if ("\\".equals(File.separator)) {
+				s = s.replace("\\", "/");
+			}
+			text = s;
+		}
+		if (text == null)
+			return false;
+		if (escapeCharacters) {
+			text = StringEscapeUtils.escapeJava(text);
+		}
+		control.paste(text);
+		return true;
+	}
 	
 	
 	
-	Action createCopyAction(final String name) {
+	Action createCopyAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
+			if (e.isConsumed())
+				return;
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null) {
 				editor.copy();
 			}
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
 	
 	
-	Action createCutAction(final String name) {
+	Action createCutAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
+			if (e.isConsumed())
+				return;
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null) {
 				editor.cut();
 			}
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
-	
-	Action createPasteAction(final String name) {
+		
+	Action createPasteAction(final String name, final boolean doEscape, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
+			if (e.isConsumed())
+				return;
 			ScriptEditorControl editor = getCurrentTextComponent();
-			if (editor != null) {
-				updateClipboard();
-				editor.paste();
-			}
+			if (editor != null)
+				pasteFromClipboard(editor, doEscape);
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
 	
 	
-	Action createUndoAction(final String name) {
+	Action createUndoAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null && editor.isUndoable())
 				editor.undo();
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
 	
-	Action createRedoAction(final String name) {
+	Action createRedoAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null && editor.isRedoable())
 				editor.redo();
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
 	
@@ -2025,32 +2075,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
-	/**
-	 * Method that may be applied prior to pasting, so 'improve' the contents of the clipboard.
-	 * This means converting File objects into an appropriate String representation.
-	 */
-	protected void updateClipboard() {
-		// Intercept clipboard if we have files, to create a suitable string representation as well
-		var clipboard = Clipboard.getSystemClipboard();
-		var files = clipboard.getFiles();
-		if (files != null && !files.isEmpty()) {
-			String s;
-			if (files.size() == 1)
-				s = files.get(0).getAbsolutePath();
-			else {
-				s = "[" + files.stream().map(f -> "\"" + f.getAbsolutePath() + "\"").collect(Collectors.joining("," + System.lineSeparator())) + "]";
-			}
-			if ("\\".equals(File.separator)) {
-				s = s.replace("\\", "/");
-			}
-			var content = new ClipboardContent();
-			content.put(DataFormat.FILES, files);
-			content.putString(s);
-			clipboard.setContent(content);
-		}
-	}
-	
-	
 	protected Language getDefaultLanguage() {
 		if (availableLanguages.contains(Language.GROOVY))
 				return Language.GROOVY;
@@ -2109,7 +2133,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public void cut();
 		
-		public void paste();
+		public void paste(String text);
 		
 		@Override
 		public void appendText(final String text);
@@ -2196,8 +2220,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 
 		@Override
-		public void paste() {
-			textArea.paste();
+		public void paste(String text) {
+			if (text != null)
+				textArea.replaceSelection(text);
+//			textArea.paste();
 		}
 
 		@Override
@@ -2286,16 +2312,28 @@ public class DefaultScriptEditor implements ScriptEditor {
 			pane.add(tfFind, 1, 0);
 			CheckBox cbIgnoreCase = new CheckBox("Ignore case");
 			pane.add(cbIgnoreCase, 0, 1, 2, 1);
-			pane.setVgap(5);
-
-			((Button)dialog.getDialogPane().lookupButton(btNext)).addEventFilter(ActionEvent.ACTION, e -> {
+			pane.setVgap(10);
+			
+			var actionNext = new Action("Next", e -> {
 				findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
 				e.consume();
 			});
-			((Button)dialog.getDialogPane().lookupButton(btPrevious)).addEventFilter(ActionEvent.ACTION, e -> {
-				findPrevious(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+//			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
+			var actionPrevious = new Action("Previous", e -> {
+				findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
 				e.consume();
 			});
+//			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN));
+			tfFind.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+				if (e.getCode() == KeyCode.ENTER) {
+					actionNext.handle(new ActionEvent());
+					e.consume();
+				}
+			});
+
+			((Button)dialog.getDialogPane().lookupButton(btNext)).addEventFilter(ActionEvent.ACTION, e -> actionNext.handle(e));
+			((Button)dialog.getDialogPane().lookupButton(btPrevious)).addEventFilter(ActionEvent.ACTION, e -> actionPrevious.handle(e));
+			
 //			((Button)dialog.getDialogPane().lookupButton(btClose)).addEventFilter(ActionEvent.ACTION, e -> {
 //				findPrevious(getCurrentTextComponent(), tfFind.getText());
 //				e.consume();

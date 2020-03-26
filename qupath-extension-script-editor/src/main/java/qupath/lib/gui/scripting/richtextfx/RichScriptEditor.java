@@ -223,12 +223,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
 			
-			// Intercept any paste requests to update the clipboard
-			var pasteShortcut = new KeyCodeCombination(KeyCode.V, KeyCodeCombination.SHORTCUT_DOWN);
-			codeArea.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-				if (pasteShortcut.match(e))
-					updateClipboard();
-			});
+			CodeAreaControl control = new CodeAreaControl(codeArea);
 			
 			var cleanup = codeArea
 					.multiPlainChanges()
@@ -250,9 +245,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
-			
-			CodeAreaControl control = new CodeAreaControl(codeArea);
-			
+						
 			codeArea.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 				if (e.isConsumed())
 					return;
@@ -265,6 +258,11 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				} else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 					handleNewLine(control);
 					e.consume();
+				} else {
+					for (var combo : getAccelerators()) {
+						if (combo.match(e))
+							e.consume();
+					}
 				}
 				if (!e.isConsumed())
 					matchMethodName(control, e);
@@ -554,8 +552,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 
 		@Override
-		public void paste() {
-			textArea.paste();
+		public void paste(String text) {
+			if (text != null)
+				textArea.replaceSelection(text);
+//			textArea.paste();
 		}
 		
 		@Override
