@@ -7,7 +7,7 @@ import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.MenuTools;
 
 /**
- * Extension to make more experimental commands present in the GUI.
+ * Extension for SVG image export.
  */
 public class SvgExtension implements QuPathExtension {
 	
@@ -16,12 +16,12 @@ public class SvgExtension implements QuPathExtension {
     	
     	MenuTools.addMenuItems(
                 qupath.getMenu("File>Export images...", true),
-                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportCommand.SvgExportType.SELECTED_REGION),
+                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportType.SELECTED_REGION),
                 		"Rendered SVG")
         );
     	MenuTools.addMenuItems(
                 qupath.getMenu("File>Export snapshot...", true),
-                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportCommand.SvgExportType.VIEWER_SNAPSHOT),
+                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportType.VIEWER_SNAPSHOT),
                 		"Current viewer content (SVG)")
         );
     	

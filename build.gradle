@@ -173,6 +173,7 @@ allprojects {
   ext {
     bioformatsVersion  = '6.4.0'
     commonsMathVersion = '3.6.1'
+    commonsTextVersion = '1.8'
     controlsfxVersion  = '11.0.1'
     groovyVersion      = '3.0.2'
     gsonVersion        = '2.8.6'
@@ -184,7 +185,7 @@ allprojects {
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.4'
     picocliVersion     = '4.2.0'
-    jfreesvgVersion    = '4.0'
+    jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
     
@@ -198,6 +199,7 @@ allprojects {
     groovy
     richtextfx
     commonsmath
+    commonstext
     gson
     controlsfx
     jfxtras
@@ -233,6 +235,8 @@ allprojects {
     richtextfx "org.fxmisc.richtext:richtextfx:${richtextVersion}"
 
     commonsmath "org.apache.commons:commons-math3:${commonsMathVersion}"
+    
+    commonstext "org.apache.commons:commons-text:${commonsTextVersion}"
 
     gson "com.google.code.gson:gson:${gsonVersion}"
 
