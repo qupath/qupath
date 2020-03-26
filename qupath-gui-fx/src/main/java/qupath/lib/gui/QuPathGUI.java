@@ -256,6 +256,7 @@ import qupath.lib.gui.commands.scriptable.ResetClassificationsCommand;
 import qupath.lib.gui.commands.scriptable.ResetSelectionCommand;
 import qupath.lib.gui.commands.scriptable.SelectAllAnnotationCommand;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
+import qupath.lib.gui.commands.scriptable.SelectObjectsByClassificationCommand;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByMeasurementCommand;
 import qupath.lib.gui.commands.scriptable.ShapeSimplifierCommand;
 import qupath.lib.gui.commands.scriptable.SpecifyAnnotationCommand;
@@ -3331,7 +3332,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 							createCommandAction(new SelectObjectsByClassCommand(this, PathTileObject.class), "Select tiles", null, null)
 							),
 						null,
-						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select by measurements (experimental)")
+						createCommandAction(new SelectObjectsByClassificationCommand(this), "Select objects by classification"),
+						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select objects by measurements (legacy)")
 						),
 				null,
 				MenuTools.createMenu("Annotations...",

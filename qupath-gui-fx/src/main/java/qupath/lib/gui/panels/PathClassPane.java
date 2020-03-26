@@ -3,8 +3,8 @@ package qupath.lib.gui.panels;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -59,14 +59,17 @@ import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+import qupath.lib.scripting.QP;
 
 /**
  * Component used to display and edit available {@linkplain PathClass PathClasses}.
@@ -279,7 +282,7 @@ public class PathClassPane {
 		menuPopulate.getItems().addAll(
 				miPopulateFromImage, miPopulateFromImageBase);
 
-		MenuItem miSelectObjects = new MenuItem("Select objects with class");
+		MenuItem miSelectObjects = new MenuItem("Select objects by classification");
 		miSelectObjects.disableProperty().bind(Bindings.createBooleanBinding(
 				() -> {
 					var item = listClasses.getSelectionModel().getSelectedItem();
@@ -288,20 +291,10 @@ public class PathClassPane {
 				listClasses.getSelectionModel().selectedItemProperty()));
 		
 		miSelectObjects.setOnAction(e -> {
-			var hierarchy = getHierarchy();
-			if (hierarchy == null)
+			var imageData = qupath.getImageData();
+			if (imageData == null)
 				return;
-			Set<PathClass> pathClasses = new HashSet<>(getSelectedPathClasses());
-			if (pathClasses.contains(PathClassFactory.getPathClassUnclassified()))
-				pathClasses.add(null);
-			List<PathObject> pathObjectsToSelect = hierarchy.getObjects(null, null)
-					.stream()
-					.filter(p -> !p.isRootObject() && pathClasses.contains(p.getPathClass()))
-					.collect(Collectors.toList());
-			if (pathObjectsToSelect.isEmpty())
-				hierarchy.getSelectionModel().clearSelection();
-			else
-				hierarchy.getSelectionModel().setSelectedObjects(pathObjectsToSelect, null);
+			selectObjectsByClassification(imageData, getSelectedPathClasses().toArray(PathClass[]::new));
 		});		
 
 		MenuItem miSetHidden = new MenuItem("Hide classes in viewer");
@@ -357,6 +350,28 @@ public class PathClassPane {
 		
 		return menu;
 	}
+	
+	
+	/**
+	 * Select objects by classification, logging the step (if performed) in the history workflow.
+	 * @param imageData the {@link ImageData} containing objects to be selected
+	 * @param pathClasses classifications that will result in an object being selected
+	 * @return true if a selection command was run, false otherwise (e.g. if no pathClasses were specified)
+	 */
+	public static boolean selectObjectsByClassification(ImageData<?> imageData, PathClass... pathClasses) {
+		var hierarchy = imageData.getHierarchy();
+		if (pathClasses.length == 0) {
+			logger.warn("Cannot select objects by classification - no classifications selected!");
+			return false;
+		}
+		QP.selectObjectsByClassification(hierarchy, pathClasses);
+		var s = Arrays.stream(pathClasses).map(p -> "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Select objects by classification",
+				"selectObjectsByClassification(" + s + ");"));
+		return true;
+	}
+	
+	
 	
 	/**
 	 * Update pane to reflect the current status.

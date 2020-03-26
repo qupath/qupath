@@ -1276,6 +1276,30 @@ public class QP {
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(pathObjects, mainSelection);
 	}
+	
+	/**
+	 * Set one or more objects to be selected within the specified hierarchy.
+	 * @param hierarchy
+	 * @param pathObjects
+	 */
+	public static void selectObjects(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
+		if (pathObjects.length == 0)
+			return;
+		if (pathObjects.length == 1)
+			hierarchy.getSelectionModel().setSelectedObject(pathObjects[0]);
+		else
+			hierarchy.getSelectionModel().setSelectedObjects(Arrays.asList(pathObjects), null);
+	}
+	
+	/**
+	 * Set one or more objects to be selected within the current hierarchy.
+	 * @param pathObjects
+	 */
+	public static void selectObjects(final PathObject... pathObjects) {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			selectObjects(hierarchy, pathObjects);
+	}
 
 	/**
 	 * Get a list of all objects in the specified hierarchy according to a specified predicate.
@@ -1416,6 +1440,46 @@ public class QP {
 			selectTiles(hierarchy);
 	}
 	
+	/**
+	 * Select objects for the current hierarchy that have one of the specified classifications.
+	 * @param pathClassNames one or more classification names, which may be converted to a {@link PathClass} with {@link #getPathClass(String)}
+	 */
+	public static void selectObjectsByClassification(final String... pathClassNames) {
+		var hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			selectObjectsByClassification(hierarchy, pathClassNames);
+	}
+	
+	/**
+	 * Select objects for the current hierarchy that have one of the specified {@link PathClass} classifications assigned.
+	 * @param pathClasses one or more classifications
+	 */
+	public static void selectObjectsByClassification(final PathClass... pathClasses) {
+		var hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			selectObjectsByClassification(hierarchy, pathClasses);
+	}
+
+	/**
+	 * Select objects for the specified hierarchy that have one of the specified classifications.
+	 * @param hierarchy the hierarchy containing objects that may be selected
+	 * @param pathClassNames one or more classification names, which may be converted to a {@link PathClass} with {@link #getPathClass(String)}
+	 */
+	public static void selectObjectsByClassification(final PathObjectHierarchy hierarchy, final String... pathClassNames) {
+		var pathClasses = Arrays.stream(pathClassNames).map(s -> getPathClass(s)).toArray(PathClass[]::new);
+		selectObjectsByClassification(hierarchy, pathClasses);
+	}
+	
+	/**
+	 * Select objects for the specified hierarchy that have one of the specified {@link PathClass} classifications assigned.
+	 * @param hierarchy the hierarchy containing objects that may be selected
+	 * @param pathClasses one or more classifications
+	 */
+	public static void selectObjectsByClassification(final PathObjectHierarchy hierarchy, final PathClass... pathClasses) {
+		var pathClassSet = Arrays.stream(pathClasses).map(p -> p == PathClassFactory.getPathClassUnclassified() ? null : p).collect(Collectors.toCollection(HashSet::new));
+		selectObjects(hierarchy, p -> pathClassSet.contains(p.getPathClass()));
+	}
+
 	
 	// TODO: Update parsePredicate to something more modern... a proper DSL
 	@Deprecated
@@ -1491,8 +1555,6 @@ public class QP {
 			scanner.close();
 		}
 	}
-
-
 
 	/**
 	 * Select objects based on a specified measurement.
