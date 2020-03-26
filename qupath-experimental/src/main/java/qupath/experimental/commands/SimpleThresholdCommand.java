@@ -247,7 +247,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		stage.setTitle("Simple threshold");
 		stage.initOwner(qupath.getStage());
 		stage.setScene(new Scene(pane));
-		stage.setAlwaysOnTop(true);
+//		stage.setAlwaysOnTop(true);
 		stage.sizeToScene();
 		stage.setResizable(false);
 		stage.show();

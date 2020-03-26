@@ -173,6 +173,7 @@ allprojects {
   ext {
     bioformatsVersion  = '6.4.0'
     commonsMathVersion = '3.6.1'
+    commonsTextVersion = '1.8'
     controlsfxVersion  = '11.0.1'
     groovyVersion      = '3.0.2'
     gsonVersion        = '2.8.6'
@@ -184,9 +185,13 @@ allprojects {
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.4'
     picocliVersion     = '4.2.0'
-    jfreesvgVersion    = '4.0'
+    jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     opencvVersion      = '4.1.2-1.5.2'
+    
+    // Additional versions
+    logbackVersion     = '1.2.3'
+    junitVersion       = '4.13'
   }
 
   configurations {
@@ -194,6 +199,7 @@ allprojects {
     groovy
     richtextfx
     commonsmath
+    commonstext
     gson
     controlsfx
     jfxtras
@@ -229,6 +235,8 @@ allprojects {
     richtextfx "org.fxmisc.richtext:richtextfx:${richtextVersion}"
 
     commonsmath "org.apache.commons:commons-math3:${commonsMathVersion}"
+    
+    commonstext "org.apache.commons:commons-text:${commonsTextVersion}"
 
     gson "com.google.code.gson:gson:${gsonVersion}"
 
@@ -407,8 +415,8 @@ allprojects {
 //  }
 
   dependencies {
-    implementation group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
-    testImplementation group: 'junit', name: 'junit', version:'4.13'
+    implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+    testImplementation "junit:junit:${junitVersion}"
   }
 }
 
@@ -568,7 +576,7 @@ task mergedJavadocs(type: Javadoc) {
 
 
 /*
- * Create a custom runtime.  Mostly to avoid using the same one as jpackager for now.
+ * Create a custom runtime
  */
 task createRuntime(dependsOn:build, type:Exec) {
 

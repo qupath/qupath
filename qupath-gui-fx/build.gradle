@@ -7,5 +7,6 @@ configurations {
   implementation.extendsFrom guava
   implementation.extendsFrom controlsfx
   implementation.extendsFrom jfxtras
+  implementation.extendsFrom commonstext
   implementation.extendsFrom commonsmath
 }

@@ -187,7 +187,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 		if (stringRep == null) {
 			if (name == null)
 				stringRep = defaultName;
-			if (isDerivedClass())
+			else if (isDerivedClass())
 				stringRep = derivedClassToString(parentClass, name);
 			else
 				stringRep = name;

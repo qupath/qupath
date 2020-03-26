@@ -1,4 +1,4 @@
-package qupath.lib.images.writers.svg;
+package qupath.lib.extension.svg;
 
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;

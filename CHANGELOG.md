@@ -1,8 +1,11 @@
 ## Version 0.2.0-m10
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 * Updated to use Java 14
-* Updated to Groovy 3
-  * Scripts now support more recent Java syntax (e.g. lambdas, try-with-resources)
+* Scripting improvements
+  * Updated to Groovy 3 - scripts now support more recent Java syntax (e.g. lambdas, try-with-resources)
+  * Pasting files results in them being converted to absolute paths
+  * New 'Paste & escape' command to automatically escape characters for Java Strings
+* Scriptable 'Select objects by classification' command
 * Enable files to be pasted into the script editor (converting them to absolute paths)
 * Updated methods to save/load points within the counting tool
   * Use TSV files to improve portability

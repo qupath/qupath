@@ -256,6 +256,7 @@ import qupath.lib.gui.commands.scriptable.ResetClassificationsCommand;
 import qupath.lib.gui.commands.scriptable.ResetSelectionCommand;
 import qupath.lib.gui.commands.scriptable.SelectAllAnnotationCommand;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
+import qupath.lib.gui.commands.scriptable.SelectObjectsByClassificationCommand;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByMeasurementCommand;
 import qupath.lib.gui.commands.scriptable.ShapeSimplifierCommand;
 import qupath.lib.gui.commands.scriptable.SpecifyAnnotationCommand;
@@ -323,6 +324,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -3323,10 +3325,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						null,
 						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						MenuTools.createMenu(
+								"Select detections...",
+							createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select all detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+							createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+							createCommandAction(new SelectObjectsByClassCommand(this, PathTileObject.class), "Select tiles", null, null)
+							),
 						null,
-						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select by measurements (experimental)")
+						createCommandAction(new SelectObjectsByClassificationCommand(this), "Select objects by classification"),
+						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select objects by measurements (legacy)")
 						),
 				null,
 				MenuTools.createMenu("Annotations...",
@@ -4664,7 +4671,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				continue;
 			var imageData = viewer.getImageData();
 			if (imageData != null) {
-				ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
+//				ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 	//			if (entry != null) {
 					if (!checkSaveChanges(imageData))
 						return;
@@ -4716,6 +4723,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				project.setPathClasses(getAvailablePathClasses());
 			} else {
 				// Update the available classes
+				if (!pathClasses.contains(PathClassFactory.getPathClassUnclassified())) {
+					pathClasses = new ArrayList<>(pathClasses);
+					pathClasses.add(0, PathClassFactory.getPathClassUnclassified());
+				}
 				getAvailablePathClasses().setAll(pathClasses);
 			}
 		}

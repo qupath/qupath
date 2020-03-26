@@ -66,8 +66,8 @@ import qupath.lib.roi.interfaces.ROI;
  * <p>
  * This largely follows the description at:
  * <blockquote>
- *   Radhakrishna Achanta, Appu Shaji, Kevin Smith, Aurelien Lucchi, Pascal Fua, and Sabine Süsstrunk <br/>
- *   SLIC Superpixels Compared to State-of-the-art Superpixel Methods <br/>
+ *   Radhakrishna Achanta, Appu Shaji, Kevin Smith, Aurelien Lucchi, Pascal Fua, and Sabine Süsstrunk <br>
+ *   SLIC Superpixels Compared to State-of-the-art Superpixel Methods <br>
  *   IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 34, num. 11, p. 2274 - 2282, May 2012.
  * </blockquote>
  *   

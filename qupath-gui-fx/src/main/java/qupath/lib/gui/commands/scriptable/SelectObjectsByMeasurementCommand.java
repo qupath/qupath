@@ -162,7 +162,6 @@ public class SelectObjectsByMeasurementCommand implements PathCommand {
 		labelResults.setMaxWidth(Double.MAX_VALUE);
 		paneText.add(labelResults, 0, 3, 2, 1);
 		GridPane.setHgrow(labelResults, Priority.ALWAYS);
-		Paint colorStandard = labelResults.getTextFill();
 		
 		Button btnRun = new Button("Run");
 		btnRun.setOnAction(event -> {
@@ -171,7 +170,7 @@ public class SelectObjectsByMeasurementCommand implements PathCommand {
 				String command = tf.getText().trim();
 				QP.selectObjectsByMeasurement(imageData, command);
 				int n = imageData.getHierarchy().getSelectionModel().getSelectedObjects().size();
-				labelResults.setTextFill(colorStandard);
+				labelResults.setStyle(null);
 				if (n == 1)
 					labelResults.setText("1 object selected");
 				else
@@ -187,7 +186,7 @@ public class SelectObjectsByMeasurementCommand implements PathCommand {
 					imageData.getHistoryWorkflow().addStep(newStep);
 			} catch (Exception e) {
 //				DisplayHelpers.showErrorMessage("Select objects", e.getMessage());
-				labelResults.setTextFill(Color.RED);
+				labelResults.setStyle("-fx-text-fill: red;");
 				labelResults.setText("Error: " + e.getMessage());
 			}
 		});

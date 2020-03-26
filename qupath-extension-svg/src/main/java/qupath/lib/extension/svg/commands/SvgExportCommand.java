@@ -1,13 +1,13 @@
-package qupath.experimental.commands;
+package qupath.lib.extension.svg.commands;
 
 import java.io.IOException;
 import java.util.Arrays;
 
+import qupath.lib.extension.svg.SvgTools;
+import qupath.lib.extension.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.images.writers.svg.SvgTools;
-import qupath.lib.images.writers.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 

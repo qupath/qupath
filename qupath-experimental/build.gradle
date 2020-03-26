@@ -6,7 +6,6 @@ configurations {
   implementation.extendsFrom jfxtras
   implementation.extendsFrom guava
   implementation.extendsFrom controlsfx
-  implementation.extendsFrom jfreesvg
   implementation.extendsFrom commonsmath
 }
 
