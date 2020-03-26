@@ -37,6 +37,7 @@ import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -92,6 +93,8 @@ public class SelectObjectsByClassCommand implements PathCommand {
 			method = "selectTMACores();";
 		else if (cls == PathCellObject.class)
 			method = "selectCells();";
+		else if (cls == PathTileObject.class)
+			method = "selectTiles();";
 		else
 			// TODO: Get a suitable name to disguise Java classes
 			method = "selectObjectsByClass(" + cls.getName() + ");";

@@ -73,6 +73,7 @@ import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -1398,6 +1399,22 @@ public class QP {
 			selectCells(hierarchy);
 	}
 	
+	/**
+	 * Select all tile objects in the specified hierarchy.
+	 * @param hierarchy
+	 */
+	public static void selectTiles(final PathObjectHierarchy hierarchy) {
+		selectObjectsByClass(hierarchy, PathTileObject.class);
+	}
+
+	/**
+	 * Select all tile objects in the current hierarchy.
+	 */
+	public static void selectTiles() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			selectTiles(hierarchy);
+	}
 	
 	
 	// TODO: Update parsePredicate to something more modern... a proper DSL

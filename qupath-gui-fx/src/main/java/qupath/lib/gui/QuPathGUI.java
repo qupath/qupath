@@ -323,6 +323,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -3323,8 +3324,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						null,
 						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						MenuTools.createMenu(
+								"Select detections...",
+							createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select all detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+							createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+							createCommandAction(new SelectObjectsByClassCommand(this, PathTileObject.class), "Select tiles", null, null)
+							),
 						null,
 						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select by measurements (experimental)")
 						),
