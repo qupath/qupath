@@ -135,8 +135,8 @@ public class Dialogs {
 	 * @return 
 	 */
 	public static boolean showMessageDialog(String title, String message) {
-		logger.info("{}: {}", title, message);
 		if (Platform.isFxApplicationThread()) {
+			logger.info("{}: {}", title, message);
 			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK);
 			alert.setTitle(title);
 			alert.getDialogPane().setHeader(null);
@@ -346,7 +346,6 @@ public class Dialogs {
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help -> Report bug (web)'.\n\n" + e;
 		showErrorMessage(title, message);
-		logger.error(title, e);
 	}
 	
 	/**
