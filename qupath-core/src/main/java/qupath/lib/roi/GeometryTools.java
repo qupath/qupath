@@ -252,8 +252,9 @@ public class GeometryTools {
     		double areaSum = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
     		var union = DEFAULT_INSTANCE.factory.createGeometryCollection(geometryArray).buffer(0);
     		double areaUnion = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
-    		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001))
+    		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001)) {
     			return union;
+    		}
     		logger.warn("Fast union failed with different areas ({} before vs {} after)", areaSum, areaUnion);
     	}
     	try {

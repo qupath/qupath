@@ -74,6 +74,8 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.CellTools;
+import qupath.lib.objects.DelaunayTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -150,11 +152,12 @@ public class QP {
 	
 	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
 			// Core datastructures
-			//ImageData.class,
-			//ImageServer.class,
-			//PathObject.class,
-			//PathObjectHierarchy.class,
-			//PathClass.class,
+			ImageData.class,
+			ImageServer.class,
+			PathObject.class,
+			PathObjectHierarchy.class,
+			PathClass.class,
+			
 			ImageRegion.class,
 			RegionRequest.class,
 			ImagePlane.class,
@@ -181,6 +184,9 @@ public class QP {
 			IJTools.class,
 			OpenCVTools.class,
 			TileExporter.class,
+			
+			DelaunayTools.class,
+			CellTools.class,
 			
 			// IO classes
 			PointIO.class,
