@@ -343,6 +343,8 @@ public class HistogramPanelFX {
 		 * This will cause any chart using this series to be updated.
 		 * It is possible to set the same histogram as is contained here originally,
 		 * in order to enforce updates to charts (useful because the histogram itself is not Observable).
+		 * @param histogram 
+		 * @param color 
 		 */
 		public void setHistogram(final Histogram histogram, final Color color) {
 			this.histogram = histogram;

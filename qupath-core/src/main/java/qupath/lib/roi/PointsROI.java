@@ -53,6 +53,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 //	protected double pointRadius = -1;
 	
 	transient private double xMin = Double.NaN, yMin = Double.NaN, xMax = Double.NaN, yMax = Double.NaN;
+	transient private double xCentroid = Double.NaN, yCentroid = Double.NaN;
 	transient private ROI convexHull = null;
 //	transient protected Point2 pointAdjusting = null;
 	
@@ -110,20 +111,31 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 	public double getCentroidX() {
 		if (points.isEmpty())
 			return Double.NaN;
-		double xSum = 0;
-		for (Point2 p : points)
-			xSum += p.getX();
-		return xSum / points.size();
+		if (Double.isNaN(xCentroid))
+			computeCentroid();
+		return xCentroid;
 	}
 
 	@Override
 	public double getCentroidY() {
 		if (points.isEmpty())
 			return Double.NaN;
+		if (Double.isNaN(yCentroid))
+			computeCentroid();
+		return yCentroid;
+	}
+	
+	
+	private void computeCentroid() {
+		double xSum = 0;
 		double ySum = 0;
-		for (Point2 p : points)
-			ySum += p.getY();
-		return ySum / points.size();
+		int n = points.size();
+		for (Point2 p : points) {
+			xSum += p.getX() / n;
+			ySum += p.getY() / n;
+		}
+		xCentroid = xSum;
+		yCentroid = ySum;
 	}
 
 

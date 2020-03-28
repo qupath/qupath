@@ -620,6 +620,8 @@ public class Charts {
 		
 		/**
 		 * Plot values extracted from objects within a specified collection.
+		 * @param name 
+		 * @param <T> 
 		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param collection the objects to plot
 		 * @param xFun function capable of extracting a numeric value for the x location from each object in the collection
@@ -635,6 +637,7 @@ public class Charts {
 
 		/**
 		 * Create a scatterplot using collections of numeric values.
+		 * @param name 
 		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x
 		 * @param y
@@ -648,6 +651,7 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot using arrays of numeric values.
+		 * @param name 
 		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
@@ -659,6 +663,8 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot using collections of numeric values, with an associated custom object.
+		 * @param name 
+		 * @param <T> 
 		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
@@ -671,6 +677,8 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot using collections of numeric values, with an associated custom object.
+		 * @param name 
+		 * @param <T> 
 		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param x x-values
 		 * @param y y-values
@@ -690,6 +698,7 @@ public class Charts {
 		
 		/**
 		 * Create a scatterplot from existing data plots.
+		 * @param name 
 		 * @name the name of the data series (useful if multiple series will be plot, otherwise may be null)
 		 * @param data the data points to plot
 		 * @return this builder

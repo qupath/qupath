@@ -111,7 +111,7 @@ public abstract class PathObject implements Externalizable {
 	 * Subclasses should override this method to support locking or unlocking. 
 	 * Default implementation always returns true.
 	 * 
-	 * return true if the object is locked and should not be modified.
+	 * @return true if the object is locked and should not be modified.
 	 */
 	public boolean isLocked() {
 		return true;
@@ -608,8 +608,8 @@ public abstract class PathObject implements Externalizable {
 	/**
 	 * Get a collection containing all descendant objects.
 	 * 
-	 * @param descendants optional collection to which the descandents should be added
-	 * @return collection containing all descendant object (the same as {@code descandents} if provided)
+	 * @param descendants optional collection to which the descendants should be added
+	 * @return collection containing all descendant object (the same as {@code descendants} if provided)
 	 */
 	public synchronized Collection<PathObject> getDescendantObjects(Collection<PathObject> descendants) {
 		if (childList == null || childList.isEmpty())

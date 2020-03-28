@@ -31,6 +31,7 @@ import ij.Prefs;
 import ij.gui.ImageWindow;
 import ij.gui.Overlay;
 import ij.gui.Roi;
+import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -134,6 +135,7 @@ public class IJExtension implements QuPathExtension {
 	
 	/**
 	 * Get the path for a local ImageJ installation, if set.
+	 * @return 
 	 */
 	public static String getImageJPath() {
 		return imageJPath.get();
@@ -177,7 +179,7 @@ public class IJExtension implements QuPathExtension {
 	private static synchronized void ensurePluginsInstalled(ImageJ imageJ) {
 		if (installedPlugins.contains(imageJ))
 			return;
-		if (!SwingUtilities.isEventDispatchThread()) {
+		if (!Platform.isFxApplicationThread() && !SwingUtilities.isEventDispatchThread()) {
 			SwingUtilities.invokeLater(() -> ensurePluginsInstalled(imageJ));
 			return;
 		}

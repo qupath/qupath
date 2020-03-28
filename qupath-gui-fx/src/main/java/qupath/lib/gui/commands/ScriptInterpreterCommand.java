@@ -904,12 +904,11 @@ public class ScriptInterpreterCommand implements PathCommand {
 			        		if (e.getClickCount() == 2) {
 			        			
 			        			
-			        			ObjectTreeBrowser browser = new ObjectTreeBrowser();
-			        			browser.setObject(item, value.getClass(), value);
+			        			var treeView = ObjectTreeBrowser.createObjectTreeBrowser(item, value);
 			        			Stage stage = new Stage();
 			        			stage.setTitle("Object Inspector: " + item);
 			        			stage.initOwner(qupath.getStage());
-			        			stage.setScene(new Scene(browser.getPane(), 400, 400));
+			        			stage.setScene(new Scene(new BorderPane(treeView), 400, 400));
 			        			stage.show();
 			        			
 			        			

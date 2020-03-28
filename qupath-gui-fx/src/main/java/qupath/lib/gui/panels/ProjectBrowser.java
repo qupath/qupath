@@ -29,12 +29,12 @@ import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -54,6 +54,7 @@ import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.textfield.TextFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -145,6 +146,9 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 	private static ObjectProperty<ProjectThumbnailSize> thumbnailSize = PathPrefs.createPersistentPreference("projectThumbnailSize",
 			ProjectThumbnailSize.SMALL, ProjectThumbnailSize.class);
 	
+	private static String[] additionalSortKeys;
+	
+	private static final String URI = "URI";
 	
 	public ProjectBrowser(final QuPathGUI qupath) {
 		this.project = qupath.getProject();
@@ -248,6 +252,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		qupath.getPreferencePanel().addChoicePropertyPreference(
 				thumbnailSize, FXCollections.observableArrayList(ProjectThumbnailSize.values()), ProjectThumbnailSize.class,
 				"Project thumbnails size", "Appearance", "Choose thumbnail size for the project pane");
+		
+		additionalSortKeys = new String[] {URI};
 
 	}
 	
@@ -534,7 +540,13 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			Map<String, MenuItem> newItems = new TreeMap<>();
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
+				// Add all entry metadata keys
 				for (String key : entry.getMetadataKeys()) {
+					if (!newItems.containsKey(key))
+						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
+				}
+				// Add all additional keys
+				for (String key : additionalSortKeys) {
 					if (!newItems.containsKey(key))
 						newItems.put(key, ActionUtils.createMenuItem(createSortByKeyAction(key, key)));
 				}
@@ -904,6 +916,33 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		}
 		return entries;
 	}
+	
+	/**
+	 * Gets the value of the entry for the specified key.
+	 * E.g. if key == URI, the value returned will be the entry's URI.
+	 * This method should be used to get sorting values that
+	 * are not specifically part of an entry's metadata.
+	 * @param <T>
+	 * @param key
+	 * @return value
+	 * @throws IOException 
+	 */
+	private static <T> String getDefaultValue(ProjectImageEntry<T> entry, String key) throws IOException {
+		if (key.equals(URI)) {
+			var URIs = entry.getServerURIs();
+			var it = URIs.iterator();
+			if (URIs.size() == 1) {
+				URI uri = it.next();
+				String fullURI = uri.getPath();
+				if (uri.getAuthority() != null)
+					return "[remote] " + uri.getAuthority() + fullURI;
+				return fullURI.substring(fullURI.lastIndexOf("/")+1, fullURI.length());
+			}
+			else
+				return "Multiple URIs";
+		}
+		return "Undefined";
+	}
 
 
 
@@ -1010,7 +1049,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		private Map<String, List<ProjectImageEntry<?>>> map = new HashMap<>();
 		private List<String> mapKeyList = new ArrayList<>();
 
-		private List<String> sortKeys = new ArrayList<>();
+		private List<String> sortMetadataKeys = new ArrayList<>();
+		private List<String> sortDefaultKeys = new ArrayList<>();
 		private String PROJECT_KEY;
 		private String DEFAULT_ROOT = "No project";
 		private String UNASSIGNED_NODE = "(Unassigned)";
@@ -1030,14 +1070,15 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			if (metadataKey != null)
 				setMetadataKeys(metadataKey);
 			//			rebuildModel();
+			sortDefaultKeys.add(URI);
 		}
 
 		public void setMetadataKeys(final String... metadataSortKeys) {
-			sortKeys.clear();
+			sortMetadataKeys.clear();
 			if (metadataSortKeys != null) {
 				for (String key : metadataSortKeys) {
 					if (key != null)
-						sortKeys.add(key);
+						sortMetadataKeys.add(key);
 				}
 			}
 			rebuildModel();
@@ -1054,24 +1095,33 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 				return;
 
 			// Populate the map
-			String emptyKey = sortKeys.isEmpty() ? PROJECT_KEY : UNASSIGNED_NODE;
+			String emptyKey = sortMetadataKeys.isEmpty() ? PROJECT_KEY : UNASSIGNED_NODE;
 			var imageList = new ArrayList<>(project.getImageList());
 			String userFilter = getUserFilter();
 						
 			for (ProjectImageEntry<?> entry : imageList) {
 				boolean metadataMatchesFilter = false;
 				String localKey = emptyKey;
-				for (String metadataKey : sortKeys) {
-					String temp = entry.getMetadataValue(metadataKey);
-					
-					
-					if (temp != null) {
-						if (temp.toLowerCase().contains(userFilter))
-							metadataMatchesFilter = true;
-						localKey = temp;
-						break;						
+				for (String sortingKey : sortMetadataKeys) {
+					try {
+						String temp;
+						if (sortDefaultKeys.contains(sortingKey))
+							temp = getDefaultValue(entry, sortingKey);
+						else
+							temp = entry.getMetadataValue(sortingKey);
+
+						if (temp != null) {
+							if (temp.toLowerCase().contains(userFilter))
+								metadataMatchesFilter = true;
+							localKey = temp;
+							break;
+						}
+					} catch (IOException e) {
+						logger.error(e.toString());
 					}
-				} 
+				}
+
+				
 				List<ProjectImageEntry<?>> list = map.get(localKey);
 				if (list == null) {
 					list = new ArrayList<>();
@@ -1082,7 +1132,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 					list.add(entry);
 			}
 
-			
 			/*
 			// Sort all the lists
 			for (List<ProjectImageEntry<?>> list : map.values()) {
@@ -1139,7 +1188,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			List<TreeItem<Object>> items = root.getChildren();
 			if (project != null) {
 				Random rand = new Random(project.hashCode());
-				if (sortKeys.isEmpty()) {
+				if (sortMetadataKeys.isEmpty()) {
 					var imageList = getImageList();
 					if (maskNames)
 						Collections.shuffle(imageList, rand);
@@ -1172,7 +1221,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 			if (project == null)
 				return null;
-			if (parent == PROJECT_KEY && !sortKeys.isEmpty())
+			if (parent == PROJECT_KEY && !sortMetadataKeys.isEmpty())
 				return mapKeyList.get(index);
 			List<ProjectImageEntry<?>> list = map.get(parent);
 			return list.get(index);
@@ -1181,7 +1230,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		public int getChildCount(Object parent) {
 			if (project == null)
 				return 0;
-			if (parent == PROJECT_KEY && !sortKeys.isEmpty())
+			if (parent == PROJECT_KEY && !sortMetadataKeys.isEmpty())
 				return map.size();
 			List<ProjectImageEntry<?>> list = map.get(parent);
 			return list == null ? 0 : list.size();
@@ -1194,7 +1243,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		public int getIndexOfChild(Object parent, Object child) {
 			if (project == null)
 				return -1;
-			if (parent == PROJECT_KEY && !sortKeys.isEmpty())
+			if (parent == PROJECT_KEY && !sortMetadataKeys.isEmpty())
 				return mapKeyList.indexOf(child);
 			List<ProjectImageEntry<?>> list = map.get(parent);
 			return list == null ? -1 : list.indexOf(child);
@@ -1356,8 +1405,5 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 			}
 			
 		}
-		
 	}
-
-
 }

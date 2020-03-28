@@ -256,6 +256,7 @@ import qupath.lib.gui.commands.scriptable.ResetClassificationsCommand;
 import qupath.lib.gui.commands.scriptable.ResetSelectionCommand;
 import qupath.lib.gui.commands.scriptable.SelectAllAnnotationCommand;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
+import qupath.lib.gui.commands.scriptable.SelectObjectsByClassificationCommand;
 import qupath.lib.gui.commands.scriptable.SelectObjectsByMeasurementCommand;
 import qupath.lib.gui.commands.scriptable.ShapeSimplifierCommand;
 import qupath.lib.gui.commands.scriptable.SpecifyAnnotationCommand;
@@ -288,7 +289,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
-import qupath.lib.gui.tma.cells.ImageListCell;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -317,7 +317,6 @@ import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
-import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -325,6 +324,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -2292,6 +2292,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If an image is currently open, this command will prompt to save any changes.
 	 * 
 	 * @param entry
+	 * @return 
 	 */
 	public boolean openImageEntry(ProjectImageEntry<BufferedImage> entry) {
 		Project<BufferedImage> project = getProject();
@@ -2403,8 +2404,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If the path is the same as a currently-open server, do nothing.
 	 * <p>
 	 * If this encounters an exception, an error message will be shown.
-	 * 
+
+	 * @param pathNew 
 	 * @param prompt if true, give the user the opportunity to cancel opening if a whole slide server is already set
+	 * @param includeURLs 
 	 * @return true if the server was set for this GUI, false otherwise
 	 */
 	public boolean openImage(String pathNew, boolean prompt, boolean includeURLs) {
@@ -2421,6 +2424,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If the path is the same as a currently-open server, do nothing.
 	 * 
 	 * @param viewer the viewer into which the image should be opened
+	 * @param pathNew 
 	 * @param prompt if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @param includeURLs if true, any prompt should support URL input and not only a file chooser
 	 * @return true if the server was set for this GUI, false otherwise
@@ -2515,7 +2519,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			List<ImageServer<BufferedImage>> serverList = ImageServerProvider.getServerList(pathNew, BufferedImage.class);
 			
 			if (serverList.size() == 0) {
-				String message = "Unable to build ImageServer for " + pathNew;
+				String message = "Unable to build ImageServer for " + pathNew + ".\nSee View > Show log for more details";
 				Dialogs.showErrorMessage("Unable to build server", message);
 				return false;
 			}
@@ -2541,12 +2545,29 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (serverNew != null) {
 					int minSize = PathPrefs.getMinPyramidDimension();
 					if (serverNew.nResolutions() == 1 && Math.max(serverNew.getWidth(), serverNew.getHeight()) > minSize) {
+						// Check if we have any hope at all with the current settings
+						long estimatedBytes = (long)serverNew.getWidth() * (long)serverNew.getHeight() * (long)serverNew.nChannels() * (long)serverNew.getPixelType().getBytesPerPixel();
+						double requiredBytes = estimatedBytes * (4.0/3.0);
+						if (prompt && imageRegionStore != null && requiredBytes >= imageRegionStore.getTileCacheSize()) {
+							logger.warn("Selected image is {} x {} x {} pixels ({})", serverNew.getWidth(), serverNew.getHeight(), serverNew.nChannels(), serverNew.getPixelType());
+							Dialogs.showErrorMessage("Image too large",
+									"Non-pyramidal image is too large for the available tile cache!\n" +
+									"Try converting the image to a pyramidal file format, or increasing the memory available to QuPath.");
+							return false;
+						}
+						// Offer to pyramidalize
 						var serverWrapped = ImageServers.pyramidalize(serverNew);
 						if (serverWrapped.nResolutions() > 1) {
-							if (prompt && Dialogs.showYesNoDialog("Auto pyramidalize",
-									"QuPath works best with large images saved in a pyramidal format.\n\n" +
-									"Do you want to generate a pyramid dynamically from " + ServerTools.getDisplayableImageName(serverNew) + "?"))
-								serverNew = serverWrapped;
+							if (prompt) {
+								var response = Dialogs.showYesNoCancelDialog("Auto pyramidalize",
+										"QuPath works best with large images saved in a pyramidal format.\n\n" +
+										"Do you want to generate a pyramid dynamically from " + ServerTools.getDisplayableImageName(serverNew) + "?" +
+										"\n(This requires more memory, but is usually worth it)");
+								if (response == DialogButton.CANCEL)
+									return false;
+								if (response == DialogButton.YES)
+									serverNew = serverWrapped;
+							}
 						}
 					}
 					imageData = createNewImageData(serverNew);
@@ -3026,6 +3047,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * shutdown will be called on any pools created this way whenever QuPath is quit.
 	 * 
 	 * @param owner
+	 * @return 
 	 * 
 	 */
 	public ExecutorService createSingleThreadExecutor(final Object owner) {
@@ -3039,8 +3061,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Create a completion service that uses a shared threadpool for the application.
+	 * @param <V> 
 	 * 
 	 * @param cls
+	 * @return 
 	 */
 	public <V> ExecutorCompletionService<V> createSharedPoolCompletionService(Class<V> cls) {
 		return new ExecutorCompletionService<V>(poolMultipleThreads);
@@ -3301,10 +3325,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						null,
 						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						MenuTools.createMenu(
+								"Select detections...",
+							createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select all detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+							createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+							createCommandAction(new SelectObjectsByClassCommand(this, PathTileObject.class), "Select tiles", null, null)
+							),
 						null,
-						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select by measurements (experimental)")
+						createCommandAction(new SelectObjectsByClassificationCommand(this), "Select objects by classification"),
+						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select objects by measurements (legacy)")
 						),
 				null,
 				MenuTools.createMenu("Annotations...",
@@ -4642,7 +4671,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				continue;
 			var imageData = viewer.getImageData();
 			if (imageData != null) {
-				ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
+//				ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 	//			if (entry != null) {
 					if (!checkSaveChanges(imageData))
 						return;
@@ -4694,6 +4723,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				project.setPathClasses(getAvailablePathClasses());
 			} else {
 				// Update the available classes
+				if (!pathClasses.contains(PathClassFactory.getPathClassUnclassified())) {
+					pathClasses = new ArrayList<>(pathClasses);
+					pathClasses.add(0, PathClassFactory.getPathClassUnclassified());
+				}
 				getAvailablePathClasses().setAll(pathClasses);
 			}
 		}
@@ -4714,8 +4747,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		getAction(GUIActions.PROJECT_METADATA).setDisabled(project == null);
 		
 		// Ensure the URLHelpers status is appropriately set
-		FileSystem fileSystem = null;
-		String fileSystemRoot = null;
 		File dirBase = Projects.getBaseDirectory(project);
 		if (dirBase != null && PathPrefs.useProjectImageCache()) {
 			File cache = new File(dirBase, "cache");
@@ -4727,8 +4758,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //				URI cachePath = URI.create("jar:" + new File(cache, "/!/tiles").toURI().toString());
 //				fileSystem = FileSystems.newFileSystem(cachePath, Collections.singletonMap("create", "true"));
 //				fileSystemRoot = "";
-				fileSystem = FileSystems.getDefault();
-				fileSystemRoot = cache.getAbsolutePath();
+				FileSystem fileSystem = FileSystems.getDefault();
+				String fileSystemRoot = cache.getAbsolutePath();
+				logger.debug("File system: {}", fileSystem);
+				logger.debug("File system root: {}", fileSystemRoot);
 			} catch (Exception e) {
 				logger.error("Error creating file system", e);
 			}
@@ -5200,6 +5233,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		/**
 		 * Remove viewer from display
 		 * @param viewer
+		 * @return 
 		 */
 		public boolean removeViewer(QuPathViewer viewer) {
 			if (viewers.size() == 1) {

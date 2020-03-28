@@ -113,6 +113,7 @@ public interface DialogHelper {
 	/**
 	 * Prompt user to select a file or input a URL.
 	 * 
+	 * @param title dialog title
 	 * @param defaultPath default path to display - may be null
 	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)

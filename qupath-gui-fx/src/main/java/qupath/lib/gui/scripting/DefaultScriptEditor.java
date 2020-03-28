@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,6 +52,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleScriptContext;
 
+import org.apache.commons.text.StringEscapeUtils;
 import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -97,6 +99,7 @@ import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -120,7 +123,6 @@ import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -218,15 +220,29 @@ public class DefaultScriptEditor implements ScriptEditor {
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNull());
 	
+	// Accelerators that have been assigned to actions
+	private Collection<KeyCombination> accelerators = new HashSet<>();
+	
+	// Keyboard accelerators
+	protected KeyCombination comboPasteEscape = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+//	protected KeyCombination comboPaste = new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN);
+//	protected KeyCombination comboCopy = new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN);
+	
 	// Note: it doesn't seem to work to set the accelerators...
 	// this leads to the actions being called twice, due to the built-in behaviour of TextAreas
-	private Action copyAction = createCopyAction("Copy");
-	private Action cutAction = createCutAction("Cut");
-	private Action pasteAction = createPasteAction("Paste");
-	private Action undoAction = createUndoAction("Undo");
-	private Action redoAction = createRedoAction("Redo");
-
-	private Action findAction = createFindAction("Find");
+	protected Action copyAction;
+	protected Action cutAction;
+	protected Action pasteAction;
+	protected Action pasteAndEscapeAction;
+	protected Action undoAction;
+	protected Action redoAction;
+	
+	protected Action runScriptAction;
+	protected Action runSelectedAction;
+	protected Action runProjectScriptAction;
+	protected Action runProjectScriptNoSaveAction;
+	
+	protected Action findAction;
 
 	private String tabString = "    "; // String to insert when tab key pressed
 
@@ -272,7 +288,25 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
+		initializeActions();
 //		createDialog();
+	}
+	
+	
+	private void initializeActions() {
+		copyAction = createCopyAction("Copy", null);
+		cutAction = createCutAction("Cut", null);
+		pasteAction = createPasteAction("Paste", false, null);
+		pasteAndEscapeAction = createPasteAction("Paste & escape", true, comboPasteEscape);
+		undoAction = createUndoAction("Undo", null);
+		redoAction = createRedoAction("Redo", null);
+		
+		runScriptAction = createRunScriptAction("Run", false);
+		runSelectedAction = createRunScriptAction("Run selected", true);
+		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
+		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without save)", false);
+		
+		findAction = createFindAction("Find");
 	}
 	
 	
@@ -417,7 +451,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 
 	protected ScriptEditorControl getNewEditor() {
-		TextArea editor = new TextArea();
+		TextArea editor = new CustomTextArea();
 		editor.setWrapText(false);
 		editor.setFont(fontMain);
 		
@@ -432,25 +466,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 				handleNewLine(control);
 				e.consume();
-			}
-//	        else if (copyAction.getAccelerator().match(e)) {
-//	        	copyAction.handle(null);
-//	        	e.consume();
-//	        } else if (pasteAction.getAccelerator().match(e)) {
-//	        	pasteAction.handle(null);
-//	        	e.consume();
-//	        } else if (cutAction.getAccelerator().match(e)) {
-//	        	cutAction.handle(null);
-//	        	e.consume();
-//	        } else if (undoAction.getAccelerator().match(e)) {
-//	        	undoAction.handle(null);
-//	        	e.consume();
-//	        } else if (redoAction.getAccelerator().match(e)) {
-//	        	redoAction.handle(null);
-//	        	e.consume();
-//	        }
-
-//	        if ()
+			} 
 	    });
 
 //		editor.getDocument().addUndoableEditListener(new UndoManager());
@@ -507,6 +523,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				cutAction,
 				copyAction,
 				pasteAction,
+				pasteAndEscapeAction,
 				null,
 				findAction
 				);
@@ -559,10 +576,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Menu menuRun = new Menu("Run");
 		MenuTools.addMenuItems(
 				menuRun,
-				createRunScriptAction("Run", false),
-				createRunScriptAction("Run selected", true),
-				createRunProjectScriptAction("Run for project", true),
-				createRunProjectScriptAction("Run for project (without save)", false),
+				runScriptAction,
+				runSelectedAction,
+				runProjectScriptAction,
+				runProjectScriptNoSaveAction,
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
@@ -1490,65 +1507,115 @@ public class DefaultScriptEditor implements ScriptEditor {
 	};
 	
 	
+	protected static String getClipboardText(boolean escapeCharacters) {
+		var clipboard = Clipboard.getSystemClipboard();
+		var files = clipboard.getFiles();
+		String text = clipboard.getString();
+		if (files != null && !files.isEmpty()) {
+			String s;
+			if (files.size() == 1)
+				s = files.get(0).getAbsolutePath();
+			else {
+				s = "[" + files.stream().map(f -> "\"" + f.getAbsolutePath() + "\"").collect(Collectors.joining("," + System.lineSeparator())) + "]";
+			}
+			if ("\\".equals(File.separator)) {
+				s = s.replace("\\", "/");
+			}
+			text = s;
+		}
+		if (text != null && escapeCharacters)
+			text = StringEscapeUtils.escapeJava(text);
+		return text;
+	}
+	
+	protected static boolean pasteFromClipboard(ScriptEditorControl control, boolean escapeCharacters) {
+		// Intercept clipboard if we have files, to create a suitable string representation as well
+		var text = getClipboardText(escapeCharacters);
+		if (text == null)
+			return false;
+		control.paste(text);
+		return true;
+	}
 	
 	
-	Action createCopyAction(final String name) {
+	
+	Action createCopyAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
+			if (e.isConsumed())
+				return;
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null) {
 				editor.copy();
 			}
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
 	
 	
-	Action createCutAction(final String name) {
+	Action createCutAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
+			if (e.isConsumed())
+				return;
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null) {
 				editor.cut();
 			}
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
-	
-	Action createPasteAction(final String name) {
+		
+	Action createPasteAction(final String name, final boolean doEscape, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
+			if (e.isConsumed())
+				return;
 			ScriptEditorControl editor = getCurrentTextComponent();
-			if (editor != null) {
-				editor.paste();
-			}
+			if (editor != null)
+				pasteFromClipboard(editor, doEscape);
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
 	
 	
-	Action createUndoAction(final String name) {
+	Action createUndoAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null && editor.isUndoable())
 				editor.undo();
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
 	
-	Action createRedoAction(final String name) {
+	Action createRedoAction(final String name, final KeyCombination accelerator) {
 		Action action = new Action(name, e -> {
 			ScriptEditorControl editor = getCurrentTextComponent();
 			if (editor != null && editor.isRedoable())
 				editor.redo();
 			e.consume();
 		});
-//		action.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+		if (accelerator != null) {
+			action.setAccelerator(accelerator);
+			accelerators.add(accelerator);
+		}
 		return action;
 	}
 	
@@ -2080,7 +2147,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public void cut();
 		
-		public void paste();
+		public void paste(String text);
 		
 		@Override
 		public void appendText(final String text);
@@ -2167,8 +2234,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 
 		@Override
-		public void paste() {
-			textArea.paste();
+		public void paste(String text) {
+			if (text != null)
+				textArea.replaceSelection(text);
+//			textArea.paste();
 		}
 
 		@Override
@@ -2257,16 +2326,28 @@ public class DefaultScriptEditor implements ScriptEditor {
 			pane.add(tfFind, 1, 0);
 			CheckBox cbIgnoreCase = new CheckBox("Ignore case");
 			pane.add(cbIgnoreCase, 0, 1, 2, 1);
-			pane.setVgap(5);
-
-			((Button)dialog.getDialogPane().lookupButton(btNext)).addEventFilter(ActionEvent.ACTION, e -> {
+			pane.setVgap(10);
+			
+			var actionNext = new Action("Next", e -> {
 				findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
 				e.consume();
 			});
-			((Button)dialog.getDialogPane().lookupButton(btPrevious)).addEventFilter(ActionEvent.ACTION, e -> {
-				findPrevious(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+//			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
+			var actionPrevious = new Action("Previous", e -> {
+				findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
 				e.consume();
 			});
+//			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN));
+			tfFind.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+				if (e.getCode() == KeyCode.ENTER) {
+					actionNext.handle(new ActionEvent());
+					e.consume();
+				}
+			});
+
+			((Button)dialog.getDialogPane().lookupButton(btNext)).addEventFilter(ActionEvent.ACTION, e -> actionNext.handle(e));
+			((Button)dialog.getDialogPane().lookupButton(btPrevious)).addEventFilter(ActionEvent.ACTION, e -> actionPrevious.handle(e));
+			
 //			((Button)dialog.getDialogPane().lookupButton(btClose)).addEventFilter(ActionEvent.ACTION, e -> {
 //				findPrevious(getCurrentTextComponent(), tfFind.getText());
 //				e.consume();
@@ -2325,4 +2406,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	}
 	
+	static class CustomTextArea extends TextArea {
+		
+		CustomTextArea() {
+			super();
+			setStyle("-fx-font-family: monospaced;");
+		}
+		
+		/**
+		 * We need to override the default Paste command to handle escaping
+		 */
+		@Override
+		public void paste() {
+			var text = getClipboardText(false);
+			if (text != null)
+				replaceSelection(text);
+		}
+		
+	}
+
 }

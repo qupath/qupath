@@ -99,7 +99,8 @@ public interface PathObjectClassifier {
 	public abstract String getName();
 	
 	/**
-	 * Time (from System.currentTimeMillis()) at which the classified was built / last modified.
+	 * Time (from {@code System.currentTimeMillis()}) at which the classified was built or last modified.
+	 * @return 
 	 */
 	public long getLastModifiedTimestamp();
 	

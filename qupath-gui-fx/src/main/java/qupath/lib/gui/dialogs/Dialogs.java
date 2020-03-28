@@ -25,6 +25,7 @@ package qupath.lib.gui.dialogs;
 
 import java.awt.GraphicsEnvironment;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -41,6 +42,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
@@ -130,10 +132,11 @@ public class Dialogs {
 	 * Show a standard message dialog.
 	 * @param title
 	 * @param message
+	 * @return 
 	 */
 	public static boolean showMessageDialog(String title, String message) {
-		logger.info("{}: {}", title, message);
 		if (Platform.isFxApplicationThread()) {
+			logger.info("{}: {}", title, message);
 			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK);
 			alert.setTitle(title);
 			alert.getDialogPane().setHeader(null);
@@ -318,7 +321,6 @@ public class Dialogs {
 	 * @param defaultChoice initial selected option
 	 * @return chosen option, or {@code null} if the user cancels the dialog
 	 */
-	@SuppressWarnings("unchecked")
 	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
@@ -344,7 +346,6 @@ public class Dialogs {
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help -> Report bug (web)'.\n\n" + e;
 		showErrorMessage(title, message);
-		logger.error(title, e);
 	}
 	
 	/**
@@ -615,7 +616,8 @@ public class Dialogs {
 
 	/**
 	 * Prompt user to select a file or input a URL.
-	 * 
+
+	 * @param title dialog title
 	 * @param defaultPath default path to display - may be null
 	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
@@ -625,6 +627,290 @@ public class Dialogs {
 	public static String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription,
 			String... exts) {
 		return QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts);
+	}
+	
+	/**
+	 * Builder class to create a custom {@link Dialog}.
+	 */
+	public static class Builder {
+		
+		private AlertType alertType;
+		private Window owner = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
+		private String title = "";
+		private String header = null;
+		private String contentText = null;
+		private Node expandableContent = null;
+		private Node content = null;
+		private boolean resizable = false;
+		private double width = -1;
+		private double height = -1;
+		private List<ButtonType> buttons = null;
+		private Modality modality = Modality.APPLICATION_MODAL;
+		
+		/**
+		 * Specify the dialog title.
+		 * @param title dialog title
+		 * @return this builder
+		 */
+		public Builder title(String title) {
+			this.title = title;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog header text.
+		 * This is text that is displayed prominently within the dialog.
+		 * @param header dialog header
+		 * @return this builder
+		 * @see #contentText(String)
+		 */
+		public Builder headerText(String header) {
+			this.header = header;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog content text.
+		 * This is text that is displayed within the dialog.
+		 * @param content dialog content text
+		 * @return this builder
+		 * @see #headerText(String)
+		 */
+		public Builder contentText(String content) {
+			this.contentText = content;
+			return this;
+		}
+		
+		/**
+		 * Specify a {@link Node} to display within the dialog.
+		 * @param content dialog content
+		 * @return this builder
+		 * @see #contentText(String)
+		 */
+		public Builder content(Node content) {
+			this.content = content;
+			return this;
+		}
+		
+		/**
+		 * Specify a {@link Node} to display within the dialog as expandable content, not initially visible.
+		 * @param content dialog expandable content
+		 * @return this builder
+		 * @see #content(Node)
+		 */
+		public Builder expandableContent(Node content) {
+			this.expandableContent = content;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog owner.
+		 * @param owner dialog title
+		 * @return this builder
+		 */
+		public Builder owner(Window owner) {
+			this.owner = owner;
+			return this;
+		}
+		
+		/**
+		 * Make the dialog resizable (but default it is not).
+		 * @return this builder
+		 */
+		public Builder resizable() {
+			resizable = false;
+			return this;
+		}
+
+		/**
+		 * Specify that the dialog should be non-modal.
+		 * By default, most dialogs are modal (and therefore block clicks to other windows).
+		 * @return this builder
+		 */
+		public Builder nonModal() {
+			this.modality = Modality.NONE;
+			return this;
+		}
+		
+		/**
+		 * Specify the modality of the dialog.
+		 * @param modality requested modality
+		 * @return this builder
+		 */
+		public Builder modality(Modality modality) {
+			this.modality = modality;
+			return this;
+		}
+		
+		/**
+		 * Create a dialog styled as a specified alert type.
+		 * @param type 
+		 * @return this builder
+		 */
+		public Builder alertType(AlertType type) {
+			alertType = type;
+			return this;
+		}
+		
+		/**
+		 * Create a warning alert dialog.
+		 * @return this builder
+		 */
+		public Builder warning() {
+			return alertType(AlertType.WARNING);
+		}
+		
+		/**
+		 * Create an error alert dialog.
+		 * @return this builder
+		 */
+		public Builder error() {
+			return alertType(AlertType.ERROR);
+		}
+		
+		/**
+		 * Create an information alert dialog.
+		 * @return this builder
+		 */
+		public Builder information() {
+			return alertType(AlertType.INFORMATION);
+		}
+		
+		/**
+		 * Create an confirmation alert dialog.
+		 * @return this builder
+		 */
+		public Builder confirmation() {
+			return alertType(AlertType.CONFIRMATION);
+		}
+		
+		/**
+		 * Specify the buttons to display in the dialog.
+		 * @param buttonTypes buttons to use
+		 * @return this builder
+		 */
+		public Builder buttons(ButtonType... buttonTypes) {
+			this.buttons = Arrays.asList(buttonTypes);
+			return this;
+		}
+		
+		/**
+		 * Specify the buttons to display in the dialog.
+		 * @param buttonNames names of buttons to use
+		 * @return this builder
+		 */
+		public Builder buttons(String... buttonNames) {
+			var list = new ArrayList<ButtonType>();
+			for (String name : buttonNames) {
+				ButtonType type;
+				switch (name.toLowerCase()) {
+				case "ok": type = ButtonType.OK; break;
+				case "yes": type = ButtonType.YES; break;
+				case "no": type = ButtonType.NO; break;
+				case "cancel": type = ButtonType.CANCEL; break;
+				case "apply": type = ButtonType.APPLY; break;
+				case "close": type = ButtonType.CLOSE; break;
+				case "finish": type = ButtonType.FINISH; break;
+				case "next": type = ButtonType.NEXT; break;
+				case "previous": type = ButtonType.PREVIOUS; break;
+				default: type = new ButtonType(name); break;
+				}
+				list.add(type);
+			}
+			this.buttons = list;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog width.
+		 * @param width requested width
+		 * @return this builder
+		 */
+		public Builder width(double width) {
+			this.width = width;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog height.
+		 * @param height requested height
+		 * @return this builder
+		 */
+		public Builder height(double height) {
+			this.height = height;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog height.
+		 * @param width requested width
+		 * @param height requested height
+		 * @return this builder
+		 */
+		public Builder size(double width, double height) {
+			this.width = width;
+			this.height = height;
+			return this;
+		}
+		
+		/**
+		 * Build the dialog.
+		 * @return a {@link Dialog} created with the specified features.
+		 */
+		public Dialog<ButtonType> build() {
+			Dialog<ButtonType> dialog;
+			if (alertType == null)
+				dialog = new Alert(AlertType.NONE);
+			else
+				dialog = new Alert(alertType);
+			dialog.initOwner(owner);
+			dialog.setTitle(title);
+			if (header != null)
+				dialog.setHeaderText(header);
+			if (contentText != null)
+				dialog.setContentText(contentText);
+			if (content != null)
+				dialog.getDialogPane().setContent(content);
+			if (expandableContent != null)
+				dialog.getDialogPane().setExpandableContent(expandableContent);
+			if (width > 0)
+				dialog.setWidth(width);
+			if (height > 0)
+				dialog.setHeight(height);
+			if (buttons != null)
+				dialog.getDialogPane().getButtonTypes().setAll(buttons);
+			
+			// We do need to be able to close the dialog somehow
+			if (dialog.getDialogPane().getButtonTypes().isEmpty()) {
+				dialog.getDialogPane().getScene().getWindow().setOnCloseRequest(e -> dialog.hide());
+			}
+			
+			dialog.setResizable(resizable);
+			dialog.initModality(modality);
+			return dialog;
+		}
+		
+		/**
+		 * Show the dialog.
+		 * This is similar to {@code build().show()} except that it will automatically 
+		 * be called on the JavaFX application thread even if called from another thread.
+		 */
+		public void show() {
+			GuiTools.runOnApplicationThread(() -> build().show());
+		}
+		
+		/**
+		 * Show the dialog.
+		 * This is similar to {@code build().showAndWait()} except that it will automatically 
+		 * be called on the JavaFX application thread even if called from another thread.
+		 * Callers should be cautious that this does not result in deadlock (e.g. if called from 
+		 * the Swing Event Dispatch Thread on some platforms).
+		 * @return 
+		 */
+		public Optional<ButtonType> showAndWait() {
+			return GuiTools.callOnApplicationThread(() -> build().showAndWait());
+		}
+		
 	}
 	
 	

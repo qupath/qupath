@@ -34,6 +34,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * and then query this to find the active viewer only when necessary.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public interface ViewerManager<T extends QuPathViewer> {

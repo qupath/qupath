@@ -425,6 +425,7 @@ public class MoveTool extends AbstractPathTool {
 		 * Start moving, with initial velocity given by dx and dy.
 		 * @param dx
 		 * @param dy
+		 * @param constantVelocity 
 		 */
 		public void startMoving(final double dx, final double dy, final boolean constantVelocity) {
 			this.dx = dx;

@@ -281,12 +281,14 @@ public class PathIO {
 	
 	/**
 	 * Read ImageData from a File into an existing ImageData object, or create a new one if required.
+	 * @param <T> 
 	 * 
 	 * @param file
 	 * @param imageData
 	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
 	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
 	 * 								stored path is no longer accurate.
+	 * @param cls 
 	 * @return
 	 * @throws IOException 
 	 */
@@ -300,6 +302,8 @@ public class PathIO {
 	 * 
 	 * @param file
 	 * @param imageData
+	 * @throws FileNotFoundException 
+	 * @throws IOException 
 	 */
 	public static void writeImageData(final File file, final ImageData<?> imageData) throws FileNotFoundException, IOException {
 		File backup = null;
@@ -418,6 +422,7 @@ public class PathIO {
 	 * 
 	 * @param fileIn
 	 * @return
+	 * @throws IOException 
 	 */
 	public static PathObjectHierarchy readHierarchy(final InputStream fileIn) throws IOException {
 

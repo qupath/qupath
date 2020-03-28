@@ -48,6 +48,7 @@ import qupath.lib.roi.interfaces.ROI;
  * Simple plugin to create square tiles, which may later have measurements added.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public class TilerPlugin<T> extends AbstractDetectionPlugin<T> {

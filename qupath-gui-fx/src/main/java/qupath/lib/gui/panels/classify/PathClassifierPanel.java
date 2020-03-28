@@ -26,7 +26,9 @@ package qupath.lib.gui.panels.classify;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.Collection;
 import java.util.Date;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +46,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObject;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
 
 
@@ -121,7 +124,15 @@ public class PathClassifierPanel {
 		if (classifier == null || imageData == null || !classifier.isValid())
 			return;
 
-
+		Collection<PathObject> pathObjects = imageData.getHierarchy().getDetectionObjects();
+		var availableFeatures = PathClassifierTools.getAvailableFeatures(pathObjects);
+		var requiredFeatures = classifier.getRequiredMeasurements();
+		String missingFeatures = requiredFeatures.stream()
+										.filter(p -> !availableFeatures.contains(p))
+										.collect(Collectors.joining("\n\t"));
+		if (!missingFeatures.isEmpty())
+			logger.warn("Detection objects are missing the following feature(s):\n\t" + missingFeatures +  "\nWill proceed with classification anyway..");
+		
 		// TODO: Set cursor
 
 		//		QuPathGUI qupath = manager instanceof QuPathGUI ? (QuPathGUI)manager : null;

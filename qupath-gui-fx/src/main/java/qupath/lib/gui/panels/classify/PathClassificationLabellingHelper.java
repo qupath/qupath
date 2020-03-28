@@ -53,7 +53,7 @@ import qupath.lib.roi.PointsROI;
  * 
  * @author Pete Bankhead
  *
- * @deprecated
+ * @Deprecated
  */
 class PathClassificationLabellingHelper {
 	
@@ -207,6 +207,7 @@ class PathClassificationLabellingHelper {
 	 * @param map
 	 * @param splitType
 	 * @param proportion between 0 (empty map) and 1
+	 * @param seed 
 	 * @return
 	 */
 	public static Map<PathClass, List<PathObject>> resampleClassificationMap(final Map<PathClass, List<PathObject>> map, final SplitType splitType, final double proportion, final long seed) {

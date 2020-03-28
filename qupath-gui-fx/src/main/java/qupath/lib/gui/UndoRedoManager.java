@@ -32,6 +32,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
 
 /**
  * Helper class to add undo/redo support to QuPath.
@@ -112,6 +113,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	
 	/**
 	 * The total number of bytes used for all viewers.
+	 * @return 
 	 */
 	public long totalBytes() {
 		long total = 0L;
@@ -462,9 +464,15 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		boolean sizeOK = hierarchy.nObjects() <= maxSize;
 		for (QuPathViewer viewer : viewers) {
 			if (viewer.getHierarchy() == hierarchy) {
+				
 				SerializableUndoRedoStack<PathObjectHierarchy> undoRedo = map.get(viewer);
 				// If the size is ok, register the change for potential undo-ing
 				if (sizeOK) {
+					// Consider trying to reduce these calls
+//					if (event.getEventType() == HierarchyEventType.CHANGE_MEASUREMENTS && 
+//							!event.getChangedObjects().stream().anyMatch(p -> p.isDetection()))
+//						continue;
+					
 					if (undoRedo == null)
 						map.put(viewer, new SerializableUndoRedoStack<>(hierarchy));
 					else

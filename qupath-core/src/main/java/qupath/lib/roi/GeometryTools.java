@@ -135,6 +135,7 @@ public class GeometryTools {
 	/**
 	 * Round coordinates in a Geometry to integer values.
 	 * @param geometry the updated Geometry
+	 * @return 
 	 */
 	public static Geometry roundCoordinates(Geometry geometry) {
 		// Warning! This can result in polygons containing holes to lose some holes...
@@ -148,6 +149,11 @@ public class GeometryTools {
 	 * Compute the intersection of a Geometry and a specified bounding box.
 	 * The original Geometry <i>may</i> be returned unchanged if no changes are required to fit within the bounds.
 	 * @param geometry the updated Geometry
+	 * @param x 
+	 * @param y 
+	 * @param width 
+	 * @param height 
+	 * @return 
 	 */
 	public static Geometry constrainToBounds(Geometry geometry, double x, double y, double width, double height) {
 		var env = geometry.getEnvelopeInternal();
@@ -178,6 +184,7 @@ public class GeometryTools {
     /**
      * Convert a JTS Geometry to a QuPath ROI.
      * @param geometry
+     * @param plane 
      * @return
      */
     public static ROI geometryToROI(Geometry geometry, ImagePlane plane) {

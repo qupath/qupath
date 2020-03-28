@@ -90,7 +90,7 @@ public class PointsTool extends AbstractPathTool {
 		editor.resetActiveHandle();
 		
 		var currentObject = viewer.getSelectedObject();
-		viewer.getHierarchy().updateObject(currentObject);
+		viewer.getHierarchy().updateObject(currentObject, false);
 //		viewer.getHierarchy().fireHierarchyChangedEvent(this, vcurrentObject);
 
 //		// Find out the coordinates in the image domain & update the adjustment
@@ -164,7 +164,7 @@ public class PointsTool extends AbstractPathTool {
 			ROI points2 = removeNearbyPoint(points, x, y, distance);
 			if (points != points2) {
 				((PathROIObject)currentObject).setROI(points2);
-				hierarchy.updateObject(currentObject);
+				hierarchy.updateObject(currentObject, false);
 //				hierarchy.fireHierarchyChangedEvent(this, currentObject);
 				return true;
 			}
@@ -252,7 +252,7 @@ public class PointsTool extends AbstractPathTool {
 			}
 			if (points2 != points) {
 				currentObject.setROI(points2);
-				viewer.getHierarchy().updateObject(currentObject);
+				viewer.getHierarchy().updateObject(currentObject, true);
 //				viewer.getHierarchy().fireHierarchyChangedEvent(this, currentObject);
 			}
 		}

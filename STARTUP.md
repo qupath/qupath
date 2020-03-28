@@ -1,7 +1,7 @@
-QuPath v0.2.0-m9
-================
+QuPath v0.2.0-m10
+=================
 
-Welcome to QuPath v0.2.0-m9!
+Welcome to QuPath v0.2.0-m10!
 
 You can read more about what is different at https://qupath.github.io/
 
@@ -21,5 +21,5 @@ The final tip is a reward for people who read this message.
 * To report bugs: https://github.com/qupath/qupath/issues
 * To follow on Twitter: https://twitter.com/qupath
 
-** Don't forget to cite QuPath in any publications where you use it! **
+** Don't forget to cite QuPath in any publications where you use it!**
 See https://github.com/qupath/qupath/wiki/Citing-QuPath to learn how.

@@ -163,12 +163,14 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * 
 	 * @param request
 	 * @return
+	 * @throws IOException 
 	 */
 	public T readBufferedImage(RegionRequest request) throws IOException;
  
 	
 	/**
 	 * A string describing the type of server, for example the name of the library used (Openslide, Bioformats...)
+	 * @return 
 	 */
 	public String getServerType();
 	
@@ -268,6 +270,7 @@ public interface ImageServer<T> extends AutoCloseable {
 	 * @param z
 	 * @param t
 	 * @return
+	 * @throws IOException 
 	 */
 	public T getDefaultThumbnail(int z, int t) throws IOException;
 	

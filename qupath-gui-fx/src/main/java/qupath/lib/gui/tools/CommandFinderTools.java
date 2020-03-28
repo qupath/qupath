@@ -304,7 +304,7 @@ public class CommandFinderTools {
 			if (!item.isVisible())
 				continue;
 			if (item instanceof Menu)
-				addMenuComponents((Menu)item, menuPath + ((Menu)item).getText() + " \u2192 ", commands);
+				addMenuComponents((Menu)item, menuPath + " \u2192 " + ((Menu)item).getText(), commands);
 			else if (item instanceof SeparatorMenuItem)
 				continue;
 			else if (item.getText() != null)
@@ -373,7 +373,7 @@ public class CommandFinderTools {
 			// Create sorted command entry list
 			List<CommandEntry> commandsTemp = new ArrayList<>();
 			for (Menu menu : menubar.getMenus()) {
-				addMenuComponents(menu, menu.getText() + " \u2192 ", commandsTemp);
+				addMenuComponents(menu, menu.getText(), commandsTemp);
 			}
 			Collections.sort(commandsTemp, new Comparator<CommandEntry>() {
 				@Override

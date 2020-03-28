@@ -45,7 +45,6 @@ import loci.plugins.in.ImporterOptions;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.bioformats.BioFormatsImageServer;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;

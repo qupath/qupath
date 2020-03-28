@@ -93,7 +93,7 @@ import com.google.gson.stream.JsonWriter;
  * Both the type field name ({@code "type"}) and the type labels ({@code
  * "Rectangle"}) are configurable.
  *
- * <h3>Registering Types</h3>
+ * <h2>Registering Types</h2>
  * Create a {@code RuntimeTypeAdapterFactory} by passing the base type and type field
  * name to the {@link #of} factory method. If you don't supply an explicit type
  * field name, {@code "type"} will be used. <pre>   {@code
@@ -120,7 +120,9 @@ import com.google.gson.stream.JsonWriter;
  *       .registerSubtype(Circle.class)
  *       .registerSubtype(Diamond.class);
  * }</pre>
+ * 
  */
+@SuppressWarnings("javadoc")
 public final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory {
   private final Class<?> baseType;
   private final String typeFieldName;

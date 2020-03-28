@@ -57,6 +57,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  * effective stain separation.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListener {
@@ -134,6 +135,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	/**
 	 * Create a new ImageData with a specified object hierarchy and type.
 	 * @param server
+	 * @param hierarchy 
 	 * @param type
 	 */
 	public ImageData(ImageServer<T> server, PathObjectHierarchy hierarchy, ImageType type) {

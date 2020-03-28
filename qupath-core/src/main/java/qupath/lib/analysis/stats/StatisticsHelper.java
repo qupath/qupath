@@ -52,6 +52,7 @@ public class StatisticsHelper {
 	/**
 	 * Add all pixels from a SimpleImage to an existing RunningStatistics object.
 	 * 
+	 * @param stats 
 	 * @param img
 	 */
 	public static void updateRunningStatistics(RunningStatistics stats, SimpleImage img) {

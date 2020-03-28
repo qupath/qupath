@@ -3,6 +3,7 @@ ext.moduleName = 'qupath.extension.scripteditor'
 description = 'qupath-extension-script-editor'
 
 configurations {
+  implementation.extendsFrom controlsfx
   implementation.extendsFrom groovy
   implementation.extendsFrom richtextfx
 }

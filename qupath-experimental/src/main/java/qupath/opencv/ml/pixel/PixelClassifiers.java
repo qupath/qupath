@@ -68,6 +68,7 @@ public class PixelClassifiers {
 	/**
 	 * Read a standard pixel classifier from a file.
 	 * @param path the file containing the classifier
+	 * @return 
 	 * @throws IOException
 	 */
 	public static PixelClassifier readClassifier(Path path) throws IOException {

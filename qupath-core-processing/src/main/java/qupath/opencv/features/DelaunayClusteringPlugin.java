@@ -57,6 +57,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  * Warning! Because the implementation will have to change in the future, it is best not to rely on this class!
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {

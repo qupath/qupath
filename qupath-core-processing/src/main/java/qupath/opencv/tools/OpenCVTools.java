@@ -728,6 +728,7 @@ public class OpenCVTools {
 	 * 
 	 * @param title
 	 * @param mats
+	 * @return 
 	 */
 	public static ImagePlus matToImagePlus(String title, Mat... mats) {
 		ImageStack stack = null;
@@ -921,6 +922,7 @@ public class OpenCVTools {
 	 * @param mats
 	 * @param kernelZ
 	 * @param ind3D if -1, return filtered results for all mats, otherwise only return results for the mat at the specified ind3D
+	 * @param border 
 	 * @return
 	 */
 	public static List<Mat> filterZ(List<Mat> mats, Mat kernelZ, int ind3D, int border) {

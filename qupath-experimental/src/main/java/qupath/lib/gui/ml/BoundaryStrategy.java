@@ -147,6 +147,7 @@ public class BoundaryStrategy {
 	
 	/**
 	 * Create a boundary strategy with the specified thickness.
+	 * @param strategy method for handling boundaries
 	 * @param thickness the required thickness
 	 * @return
 	 */

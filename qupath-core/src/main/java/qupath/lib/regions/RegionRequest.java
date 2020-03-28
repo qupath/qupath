@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.roi.interfaces.ROI;
@@ -199,6 +200,95 @@ public class RegionRequest extends ImageRegion {
 	public double getDownsample() {
 		return downsample;
 	}
+	
+	/**
+	 * Intersect to the specified 2D region, ignoring z and t.
+	 * @param region the region defining the x, y, width and height of the maximum permitted bounding box.
+	 * @return the clipped {@link RegionRequest}, which may be this if no clipping is required.
+	 */
+	public RegionRequest intersect2D(ImageRegion region) {
+		if (getX() >= region.getX() && getY() >= region.getY() && getMaxY() <= region.getMaxY() && getMaxX() <= region.getMaxX())
+			return this;
+		int x = Math.max(getMinX(), region.getMinX());
+		int y = Math.max(getMinY(), region.getMinY());
+		int x2 = Math.min(getMaxX(), region.getMaxX());
+		int y2 = Math.min(getMaxY(), region.getMaxY());
+		return RegionRequest.createInstance(
+				getPath(),
+				getDownsample(),
+				x, y, Math.max(x2-x, 0), Math.max(y2-y, 0),
+				getZ(), getT());
+	}
+	
+	/**
+	 * Intersect to the specified 2D region.
+	 * @param x x-coordinate of the second region's bounding box
+	 * @param y y-coordinate of the second region's bounding box
+	 * @param width width of the second region's bounding box
+	 * @param height height of the second region's bounding box
+	 * @return the clipped {@link RegionRequest}, which may be this if no clipping is required.
+	 */
+	public RegionRequest intersect2D(int x, int y, int width, int height) {
+		return intersect2D(ImageRegion.createInstance(x, y, width, height, getZ(), getT()));
+	}
+	
+	/**
+	 * Create a {@link RegionRequest} equivalent to this one with the updated z value.
+	 * @param z requested z position
+	 * @return {@link RegionRequest} with the specified z value (may be this object unchanged).
+	 */
+	public RegionRequest updateZ(int z) {
+		if (getZ() == z)
+			return this;
+		return RegionRequest.createInstance(getPath(), getDownsample(), getX(), getY(), getWidth(), getHeight(), z, getT());
+	}
+	
+	/**
+	 * Create a {@link RegionRequest} equivalent to this one with the updated t value.
+	 * @param t requested t position
+	 * @return {@link RegionRequest} with the specified t value (may be this object unchanged).
+	 */
+	public RegionRequest updateT(int t) {
+		if (getT() == t)
+			return this;
+		return RegionRequest.createInstance(getPath(), getDownsample(), getX(), getY(), getWidth(), getHeight(), getZ(), t);
+	}
+	
+	/**
+	 * Create a {@link RegionRequest} equivalent to this one with the updated downsample value.
+	 * @param downsample requested downsample position
+	 * @return {@link RegionRequest} with the specified downsample value (may be this object unchanged).
+	 */
+	public RegionRequest updateDownsample(double downsample) {
+		if (getDownsample() == downsample)
+			return this;
+		return RegionRequest.createInstance(getPath(), downsample, getX(), getY(), getWidth(), getHeight(), getZ(), getT());
+	}
+	
+	/**
+	 * Create a {@link RegionRequest} equivalent to this one with the updated path.
+	 * @param path requested path position
+	 * @return {@link RegionRequest} with the specified path value (may be this object unchanged).
+	 */
+	public RegionRequest updatePath(String path) {
+		Objects.requireNonNull(path);
+		if (getPath().equals(path))
+			return this;
+		return RegionRequest.createInstance(path, getDownsample(), getX(), getY(), getWidth(), getHeight(), getZ(), getT());
+	}
+	
+	/**
+	 * Add symmetric padding to the x and y dimensions of a request.
+	 * @param xPad padding to add along the x dimension; the width will be adjusted by {@code xPad * 2}
+	 * @param yPad padding to add along the y dimension; the height will be adjusted by {@code yPad * 2}
+	 * @return {@link RegionRequest} with the specified padding (may be this object unchanged if the padding is zero).
+	 */
+	public RegionRequest pad2D(int xPad, int yPad) {
+		if (xPad == 0 && yPad == 0)
+			return this;
+		return RegionRequest.createInstance(getPath(), getDownsample(), getX()-xPad, getY()-yPad, getWidth()+xPad*2, getHeight()+yPad*2, getZ(), getT());
+	}
+	
 
 
 	/* (non-Javadoc)

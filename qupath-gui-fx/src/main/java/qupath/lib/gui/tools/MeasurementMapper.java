@@ -221,7 +221,8 @@ public class MeasurementMapper {
 	}
 
 	/**
-	 * Returns true if objects with values outside the specified min/max range have the min/max colors returned, false if null should be returned instead.
+	 * Specify whether out-of-range values should be excluded.
+	 * @param excludeOutsideRange 
 	 */
 	public void setExcludeOutsideRange(boolean excludeOutsideRange) {
 		this.excludeOutsideRange = excludeOutsideRange;

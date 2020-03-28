@@ -116,6 +116,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	/**
 	 * Register a neighboring tile, if it intersects with the bounds of this one
 	 * @param pto
+	 * @return 
 	 */
 	public synchronized boolean suggestNeighbor(final ParallelTileObject pto) {
 		if (bounds.intersects(pto.bounds)) {
@@ -182,6 +183,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 	 * 
 	 * This both changes its display color, and triggers a check to see if overlaps with
 	 * detections made in adjacent tiles can be resolved.
+	 * @param wasCancelled 
 	 */
 	public synchronized void setComplete(boolean wasCancelled) {
 		// Flag that the processing is complete

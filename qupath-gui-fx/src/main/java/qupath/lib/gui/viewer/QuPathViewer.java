@@ -1542,6 +1542,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Request a region to repaint using image coordinates (rather than component coordinates).
 	 * 
 	 * @param region
+	 * @param updateImage 
 	 */
 	public void repaintImageRegion(Rectangle2D region, boolean updateImage) {
 		Rectangle clipBounds = transform.createTransformedShape(region).getBounds();
@@ -2313,6 +2314,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * 
 	 * @param point
 	 * @param pointDest
+	 * @param constrainToBounds 
 	 * @return
 	 */
 	public Point2D componentPointToImagePoint(Point2D point, Point2D pointDest, boolean constrainToBounds) {
@@ -2346,6 +2348,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * 
 	 * @param point
 	 * @param pointDest
+	 * @param constrainToBounds 
 	 * @return
 	 */
 	public Point2D imagePointToComponentPoint(Point2D point, Point2D pointDest, boolean constrainToBounds) {
@@ -2426,6 +2429,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * 
 	 * @param x x-coordinate in the component space (not image space)
 	 * @param y y-coordinate in the component space (not image space)
+	 * @param useCalibratedUnits 
 	 * @return a String to display representing the cursor location
 	 */
 	public String getLocationString(double x, double y, boolean useCalibratedUnits) {

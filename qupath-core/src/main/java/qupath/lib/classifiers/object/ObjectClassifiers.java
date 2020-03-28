@@ -127,6 +127,7 @@ public class ObjectClassifiers {
 	 * Read the classifier from a file.
 	 * @param <T>
 	 * @param path
+	 * @return 
 	 * @throws IOException
 	 */
 	public static <T> ObjectClassifier<T> readClassifier(Path path) throws IOException {
@@ -206,6 +207,7 @@ public class ObjectClassifiers {
 
 		/**
 		 * Set the threshold value used for the classification.
+		 * @param threshold 
 		 * @return this builder
 		 */
 		public ClassifyByMeasurementBuilder<T> threshold(double threshold) {
@@ -215,6 +217,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification (by name) for objects for which the specified measurement has a value above the threshold.
+		 * @param pathClassName 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -226,6 +229,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification (by name) for objects for which the specified measurement has a value above or equal to the threshold.
+		 * @param pathClassName 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -238,6 +242,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification (by name) for objects for which the specified measurement has a value below or equal to the threshold.
+		 * @param pathClassName 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -250,6 +255,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification (by name) for objects for which the specified measurement has a value below the threshold.
+		 * @param pathClassName 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -261,6 +267,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification (by name) for objects for which the specified measurement has a value exactly equal to the threshold.
+		 * @param pathClassName 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -273,6 +280,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification for objects for which the specified measurement has a value above the threshold.
+		 * @param pathClass 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -283,6 +291,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification for objects for which the specified measurement has a value above or equal to the threshold.
+		 * @param pathClass 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -294,6 +303,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification for objects for which the specified measurement has a value below or equal to the threshold.
+		 * @param pathClass 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -305,6 +315,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification for objects for which the specified measurement has a value below the threshold.
+		 * @param pathClass 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */
@@ -315,6 +326,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Set the classification for objects for which the specified measurement has a value exactly equal to the threshold.
+		 * @param pathClass 
 		 * @return this builder
 		 * @see #threshold(double)
 		 */

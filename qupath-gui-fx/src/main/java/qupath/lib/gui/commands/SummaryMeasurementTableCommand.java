@@ -767,6 +767,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	 * @param delim
 	 * @param excludeColumns
 	 * @return
+	 * @throws IllegalArgumentException 
 	 */
 	public static <T> String getTableModelString(final PathTableData<T> model, final String delim, Collection<String> excludeColumns) throws IllegalArgumentException {
 		List<String> rows = getTableModelStrings(model, delim, excludeColumns);

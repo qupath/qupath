@@ -24,7 +24,7 @@ This project is governed by its [Code of Conduct](CODE_OF_CONDUCT.md). By partic
 
 For questions and discussions, use the forum at [forum.image.sc](https://forum.image.sc/tags/qupath).
 
-You should also check out [Getting help](https://github.com/qupath/qupath/wiki/Getting-help) - maybe there's already an answer out there.
+You should also check out [Getting help](https://qupath.readthedocs.io/en/latest/docs/starting/help.html) - maybe there's already an answer out there.
 
 
 ## How can I contribute?
@@ -36,7 +36,7 @@ If you use QuPath in your research, please **cite the QuPath paper** published i
 **Bankhead, P. et al. (2017). QuPath: Open source software for digital pathology image analysis. _Scientific Reports_.**
 https://doi.org/10.1038/s41598-017-17204-5
 
-There are details on how to cite QuPath [here](https://github.com/qupath/qupath/wiki/Citing-QuPath) along with a list of papers where it is used. Include a citation to make sure your papers have a 📗 and not a 😞
+There are details on how to cite QuPath [here](https://qupath.readthedocs.io/en/latest/docs/intro/citing.html) along with a list of papers where it is used. Include a citation to make sure your papers have a 📗 and not a 😞
 
 > Writing and supporting usable, open source software takes _a lot_ of time. [Many papers don't properly cite the software they use](https://doi.org/10.1038/s41592-019-0350-x), even though doing so is one of the simplest ways to help the developers get support to continue their work.
 >
@@ -88,7 +88,7 @@ Contact Pete [here](https://www.ed.ac.uk/pathology/people/staff-students/peter-b
 
 The easiest way to extend QuPath is to write a script or an extension.
 
-There's some documentation at https://github.com/qupath/qupath/wiki/Writing-custom-scripts
+There's some documentation at https://qupath.readthedocs.io/en/latest/docs/scripting/index.html
 
 However, be warned that the API remains quite unstable. Changing this is a high priority, but do expect breaking changes to continue while major new features are added over the next few releases.
 

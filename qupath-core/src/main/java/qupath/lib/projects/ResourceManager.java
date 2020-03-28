@@ -237,7 +237,7 @@ public class ResourceManager {
 		public T get(String name) throws IOException {
 			var path = Paths.get(dir.toString(), name + ext);
 			try (var reader = Files.newBufferedReader(path, charset)) {
-				return GsonTools.getInstance(true).fromJson(reader, cls);
+				return GsonTools.getInstance().fromJson(reader, cls);
 			}
 		}
 
