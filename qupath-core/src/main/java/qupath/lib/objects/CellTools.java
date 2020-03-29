@@ -8,22 +8,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.locationtech.jts.densify.Densifier;
-import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.algorithm.Centroid;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.locationtech.jts.index.strtree.STRtree;
-import org.locationtech.jts.simplify.VWSimplifier;
-import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.roi.GeometryTools;
-import qupath.lib.roi.interfaces.ROI;
 
 public class CellTools {
 	
@@ -93,8 +86,10 @@ public class CellTools {
 			var geomNucleus = roiNucleus.getGeometry();
 			var geomCell = geomNucleus.buffer(distance);
 			if (nucleusScale > 1) {
-				double x = roiNucleus.getCentroidX();
-				double y = roiNucleus.getCentroidY();
+				geomNucleus = geomNucleus.convexHull();
+				var centroid = new Centroid(geomNucleus).getCentroid();
+				double x = centroid.getX();
+				double y = centroid.getY();
 				transform.setToTranslation(-x, -y);
 				transform.scale(nucleusScale, nucleusScale);
 				transform.translate(x, y);
@@ -119,7 +114,7 @@ public class CellTools {
 		
 		// Creating a large, dense triangulation can be very slow
 		// Here, we create a spatial cache with a mapping to the preferred expanded Geometry
-		int max = 200;
+		int max = 500;
 		if (cellBoundaryMap.size() > max) {
 			var cache = new STRtree(max);
 			var envelopes = new HashMap<PathObject, Envelope>();
@@ -144,6 +139,7 @@ public class CellTools {
 	}
 	
 	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private static List<PathObject> detectionsToCellsSubtree(STRtree tree, List<?> list, Map<PathObject, Geometry> cellBoundaryMap, Map<PathObject, Envelope> envelopes) {
 		if (list.isEmpty())
 			return Collections.emptyList();
@@ -182,110 +178,45 @@ public class CellTools {
 	
 	private static List<PathObject> detectionsToCells(Collection<PathObject> detections, Collection<PathObject> allDetections, Map<PathObject, Geometry> cellBoundaryMap) {
 		
-		double densityFactor = 4.0;
-		
-		var coords = new HashMap<Coordinate, PathObject>();
-		var map = new HashMap<PathObject, List<Geometry>>();
-		
-		// We need to densify
-		for (var detection : allDetections) {
-			var roi = PathObjectTools.getROI(detection, true);
-			var geom = roi.getGeometry();
-			
-			var list = new ArrayList<Geometry>();
-			map.put(detection, list);
-			
-			geom = Densifier.densify(geom, densityFactor);
-			var coordsTemp = geom.getCoordinates();
-			
-			for (var c : coordsTemp) {
-				coords.put(c, detection);
-			}
-		}
-		
-		// Attempts to call VoronoiDiagramBuilder would sometimes fail when clipping to the envelope - 
-		// Because we do our own clipping anyway, we skip that step by requesting the diagram via the subdivision instead
-		var builder = new VoronoiDiagramBuilder();
-		builder.setSites(coords.keySet());
-		var diagram = builder.getSubdivision().getVoronoiDiagram(GeometryTools.getDefaultFactory());
-//		var diagram = builder.getDiagram(GeometryTools.getDefaultFactory());
+		var subdivision = DelaunayTools.newBuilder(allDetections)
+			.preferNucleus(true)
+			.roiBounds(4.0)
+			.build();
 		
 		var cells = new ArrayList<PathObject>();
-		for (int i = 0; i < diagram.getNumGeometries(); i++) {
-			var geomCell = diagram.getGeometryN(i);
-			if (!(geomCell instanceof Polygonal))
-				continue;
-			var coord = (Coordinate)geomCell.getUserData();
-			var detection = coords.get(coord);
-			map.get(detection).add(geomCell);
-		}
-		
+		var faces = subdivision.getVoronoiFaces();
 		for (var detection : detections) {
-			var faces = map.get(detection);
+			var face = faces.get(detection);
+			var bounds = cellBoundaryMap.get(detection);
+			if (face == null || bounds == null) {
+				logger.warn("Missing boundary information for {} - will skip", detection);
+				continue;
+			}
+			var geomCell = face;
+			try {
+				geomCell = GeometryTools.ensurePolygonal(face.intersection(bounds));
+			} catch (Exception e) {
+				if (face.getArea() > bounds.getArea()) {
+					geomCell = bounds;
+					logger.warn("Error computing intersection between cell boundary and Voronoi face - will use bounds result: " + e.getLocalizedMessage(), e);
+				} else
+					logger.warn("Error computing intersection between cell boundary and Voronoi face - will use Voronoi result: " + e.getLocalizedMessage(), e);
+			}
 			var roiNucleus = PathObjectTools.getROI(detection, true);
-
-			var geomCell = GeometryCombiner.combine(faces).buffer(0.0);
-			
-			// If we have a polygon, it shouldn't contain any holes
-			if (geomCell instanceof Polygon) {
-				var poly = (Polygon)geomCell;
-				if (poly.getNumInteriorRing() > 0) {
-					var factory = poly.getFactory();
-					geomCell = factory.createPolygon(poly.getExteriorRing().getCoordinateSequence());
-				}
-			}
-			
-			// Constrain by voronoi
-			var nucleusBuffered = cellBoundaryMap.get(detection);
-			try {
-				geomCell = geomCell.intersection(nucleusBuffered);
-				geomCell = GeometryTools.ensurePolygonal(geomCell);
-			} catch (Exception e) {
-				logger.error("Problem with Voronoi cell intersection: " + e.getLocalizedMessage(), e);
-				logger.debug("Voronoi cell valid: {}, Buffered nucleus valid: {}", geomCell.isValid(), nucleusBuffered.isValid());
-			}
-			
-			try {
-				int nPoints = geomCell.getNumPoints();
-				geomCell = VWSimplifier.simplify(geomCell, 1.0);
-				int nPointsAfter = geomCell.getNumPoints();
-				logger.debug("Reduced cell boundary from {} to {} points", nPoints, nPointsAfter);
-			} catch (Exception e) {
-				logger.error("Problem simplifying cell boundary: " + e.getLocalizedMessage(), e);
-			}
-			
-			ROI roiCell;
+			var roiCell = roiNucleus;
 			if (geomCell.isEmpty()) {
-				logger.warn("Failed to create cell for Geometry: using the nucleus instead");
-				roiCell = roiNucleus;
+				logger.warn("Unable to create cell ROI for {} - I'll use the nucleus ROI instead", detection);
 			} else
 				roiCell = GeometryTools.geometryToROI(geomCell, roiNucleus.getImagePlane());
-			
-			var geomNucleus = roiNucleus.getGeometry();
-			if (geomCell.getNumGeometries() == 1 && geomNucleus.getNumGeometries() == 1 && !geomCell.covers(geomNucleus))
-				roiNucleus = GeometryTools.geometryToROI(geomCell.intersection(geomNucleus), roiNucleus.getImagePlane());
-			
 			cells.add(PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList()));
- 		}
-		
+		}
 		return cells;
-	}
-	
-	
-	private static PathObject detectionToCell(PathObject detection, double distance) {
-		var roiNucleus = PathObjectTools.getROI(detection, true);
-		var geomCell = roiNucleus.getGeometry();
-		geomCell = geomCell.convexHull();
-//		geomCell = geomCell.buffer(distance);
-//		geomCell = new OctagonalEnvelope(geomCell).toGeometry(geomCell.getFactory());
-		var roiCell = GeometryTools.geometryToROI(geomCell, roiNucleus.getImagePlane());
-		return PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList());
 	}
 	
 	
 	
 	/**
-	 * Constrain a cell boundary to fall within a maximum region, determined by buffering nucleus ROI by a fixed distance.
+	 * Constrain a cell boundary to fall within a maximum region, determined by buffering the convex hull of the nucleus ROI by a fixed distance.
 	 * This can be used to create more biologically plausible cell boundaries in cases where the initial boundary estimates may be 
 	 * too large.
 	 * 
@@ -300,7 +231,7 @@ public class CellTools {
 		  if (roi == null || roiNucleus == null || distance <= 0)
 		    return cell;
 		  var geom = roi.getGeometry();
-		  var geomNucleus = roiNucleus.getGeometry();
+		  var geomNucleus = roiNucleus.getGeometry().convexHull();
 		  var geomNucleusExpanded = geomNucleus.buffer(distance);
 		  if (geomNucleusExpanded.covers(geom))
 		    return cell;

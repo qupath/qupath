@@ -279,6 +279,8 @@ public class GeometryTools {
     public static Geometry ensurePolygonal(Geometry geometry) {
     	if (geometry instanceof Polygonal)
     		return geometry;
+    	
+    	// Create an empty polygon if we have something else (e.g. points, lines)
     	if (!(geometry instanceof GeometryCollection))
     		return geometry.getFactory().createPolygon();
     		
@@ -308,7 +310,7 @@ public class GeometryTools {
     	}
     	boolean hasPolygons = false;
     	boolean hasLines = false;
-    	boolean hasPoints = false;
+//    	boolean hasPoints = false;
     	List<Geometry> collection = new ArrayList<>();
     	for (int i = 0; i < geometry.getNumGeometries(); i++) {
     		var geom = homogenizeGeometryCollection(geometry.getGeometryN(i));
@@ -328,7 +330,7 @@ public class GeometryTools {
     			if (hasPolygons || hasLines)
     				continue;
     			collection.add(geom);
-    			hasPoints = true;
+//    			hasPoints = true;
     		}
     	}
     	if (collection.size() == geometry.getNumGeometries())
@@ -588,7 +590,7 @@ public class GeometryTools {
 				areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
 				// Add polygon if it has just been closed
 				if (closed && points.size() == 1) {
-					logger.warn("Cannot create polygon from cordinate array of length 1!");
+					logger.debug("Error when converting area to Geometry: cannot create polygon from cordinate array of length 1!");
 				} else if (closed) {
 					points.closeRing();
 					Coordinate[] coords = points.toCoordinateArray();
@@ -851,7 +853,7 @@ public class GeometryTools {
 	    	// Make sure out Geometry is all of the same type
 	    	var geometry2 = homogenizeGeometryCollection(geometry);
 	    	if (geometry2 != geometry) {
-	    		logger.warn("Geometries must all be of the same type! Converted {} to {}.", geometry.getGeometryType(), geometry2.getGeometryType());
+	    		logger.warn("Geometries must all be of the same type when converting to a ROI! Converted {} to {}.", geometry.getGeometryType(), geometry2.getGeometryType());
 	    		geometry = geometry2;
 	    	}
 	    	if (geometry instanceof Point) {
