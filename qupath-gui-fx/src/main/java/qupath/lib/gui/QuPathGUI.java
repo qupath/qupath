@@ -390,7 +390,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								SELECTION_MODE,
 								BRIGHTNESS_CONTRAST,
 								SHOW_OVERVIEW, SHOW_LOCATION, SHOW_SCALEBAR, SHOW_GRID, SHOW_ANALYSIS_PANEL,
-								SHOW_ANNOTATIONS, FILL_ANNOTATIONS, SHOW_TMA_GRID, SHOW_TMA_GRID_LABELS, SHOW_DETECTIONS, FILL_DETECTIONS, SHOW_PIXEL_CLASSIFICATION,
+								SHOW_ANNOTATIONS, SHOW_NAMES, FILL_ANNOTATIONS, SHOW_TMA_GRID, SHOW_TMA_GRID_LABELS, SHOW_DETECTIONS, FILL_DETECTIONS, SHOW_PIXEL_CLASSIFICATION,
 								SPECIFY_ANNOTATION, ANNOTATION_DUPLICATE, GRID_SPACING,
 								COUNTING_PANEL, CONVEX_POINTS, USE_SELECTED_COLOR, DETECTIONS_TO_POINTS,
 								ROTATE_IMAGE, MINI_VIEWER, CHANNEL_VIEWER,
@@ -3287,6 +3287,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_ANNOTATIONS),
 				getActionCheckBoxMenuItem(GUIActions.FILL_ANNOTATIONS),
+				getActionCheckBoxMenuItem(GUIActions.SHOW_NAMES),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_TMA_GRID),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_TMA_GRID_LABELS),
 				getActionCheckBoxMenuItem(GUIActions.SHOW_DETECTIONS),
@@ -3811,6 +3812,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createCommandAction(new SerializeImageDataCommand(this, true), "Save", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
 		case SHOW_PIXEL_CLASSIFICATION:
 			return createSelectableCommandAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification", PathIconFactory.PathIcons.PIXEL_CLASSIFICATION, new KeyCodeCombination(KeyCode.C));
+		case SHOW_NAMES:
+			return createSelectableCommandAction(overlayOptions.showNamesProperty(), "Show labels", (Node)null, new KeyCodeCombination(KeyCode.N));
 		case SHOW_ANNOTATIONS:
 			return createSelectableCommandAction(overlayOptions.showAnnotationsProperty(), "Show annotations", PathIconFactory.PathIcons.ANNOTATIONS, new KeyCodeCombination(KeyCode.A));
 		case FILL_ANNOTATIONS:

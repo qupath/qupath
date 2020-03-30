@@ -24,12 +24,15 @@
 package qupath.lib.gui.viewer.overlays;
 
 import java.awt.AlphaComposite;
+import java.awt.Color;
 import java.awt.Composite;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
 import java.util.ArrayList;
@@ -47,6 +50,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -90,6 +94,8 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	private BufferedImage buffer;
 	
 	private int lastPointRadius = PathPrefs.getDefaultPointRadius();
+	
+	private Font font = new Font("SansSerif", Font.BOLD, 10);
 	
 	transient private DetectionComparator comparator = new DetectionComparator();
 
@@ -218,15 +224,24 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
+		// Prepare to handle labels, if we need to
+		Collection<PathObject> objectsWithNames = new ArrayList<>();
+		Collection<PathObject> annotations = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
+		for (var iterator = annotations.iterator(); iterator.hasNext(); ) {
+			var next = iterator.next();
+			if ((next.getName() != null && !next.getName().isBlank()))
+				objectsWithNames.add(next);
+			if (selectedObjects.contains(next))
+				iterator.remove();
+		}
+		
 		// If our region has changed, paint directly the first time
 		// The purpose of this is to revert to avoid creating a BufferedImage on every repaint because the overlay is actually
 		// being displayed on different images (e.g. a miniviewer) - therefore we only buffer when we have repeated requests
 		if (!Objects.equals(clipRegion, lastRegion)) {
 			// Paint the annotations
 			resetBuffer();
-			Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
-			pathObjects.removeAll(selectedObjects);
-			List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
+			List<PathObject> pathObjectList = new ArrayList<>(annotations);
 			Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
 					.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
 			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);	
@@ -238,10 +253,8 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 			// Create a buffer if we need to
 			if (bufferLocal == null) {
 				// Paint the annotations
-				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathAnnotationObject.class, region, null);
-				pathObjects.removeAll(selectedObjects);
 				Graphics2D g;
-				if (!pathObjects.isEmpty()) {
+				if (!annotations.isEmpty()) {
 					if (bufferLocal == null || bufferLocal.getWidth() != rawClip.getWidth() || bufferLocal.getHeight() != rawClip.getHeight()) {
 						bufferLocal = new BufferedImage(rawClip.width, rawClip.height, BufferedImage.TYPE_INT_ARGB);
 						g = bufferLocal.createGraphics();
@@ -254,7 +267,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 					g.setClip(0, 0, bufferLocal.getWidth(), bufferLocal.getHeight());
 					g.setTransform(g2d.getTransform());
 					g.setRenderingHints(g2d.getRenderingHints());
-					List<PathObject> pathObjectList = new ArrayList<>(pathObjects);
+					List<PathObject> pathObjectList = new ArrayList<>(annotations);
 					Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
 							.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
 					PathHierarchyPaintingHelper.paintSpecifiedObjects(g, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);		
@@ -279,8 +292,64 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 				g2d.setComposite(previousComposite);
 			} else {
 				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, selectedObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);				
-			}			
+			}
 		}
+		
+		// Paint labels
+		if (overlayOptions.getShowNames() && !objectsWithNames.isEmpty()) {
+			
+			double requestedFontSize;
+			switch (PathPrefs.viewerFontSizeProperty().get()) {
+			case HUGE:
+				requestedFontSize = 24;
+				break;
+			case LARGE:
+				requestedFontSize = 18;
+				break;
+			case SMALL:
+				requestedFontSize = 10;
+				break;
+			case TINY:
+				requestedFontSize = 8;
+				break;
+			case MEDIUM:
+			default:
+				requestedFontSize = 14;
+				break;
+			}
+			float fontSize = (float)(requestedFontSize * downsampleFactor);
+			if (!GeneralTools.almostTheSame(font.getSize2D(), fontSize, 0.001))
+				font = font.deriveFont(fontSize);
+			
+			g2d.setFont(font);
+			var metrics = g2d.getFontMetrics(font);
+			var rect = new Rectangle2D.Double();
+			g2d.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
+			g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+			for (var annotation : objectsWithNames) {
+				var name = annotation.getName();
+				
+				var roi = annotation.getROI();
+				
+				if (name != null && !name.isBlank() && roi != null) {
+					g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
+	
+					var bounds = metrics.getStringBounds(name, g2d);
+					
+					double pad = 5.0 * downsampleFactor;
+					double x = roi.getCentroidX() - bounds.getWidth() / 2.0;
+					double y = roi.getCentroidY() + bounds.getY() + metrics.getAscent() + pad;
+	
+					rect.setFrame(x+bounds.getX()-pad, y+bounds.getY()-pad, bounds.getWidth()+pad*2, bounds.getHeight()+pad*2);
+					g2d.fill(rect);
+					g2d.setColor(Color.WHITE);
+	
+					g2d.drawString(name, (float)x, (float)y);
+				}
+			}
+		}
+		
 	}
 
 
