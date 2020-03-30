@@ -32,7 +32,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent.HierarchyEventType;
 
 /**
  * Helper class to add undo/redo support to QuPath.

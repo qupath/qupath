@@ -40,8 +40,6 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.Paint;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.PathClassifierTools;

@@ -41,19 +41,10 @@ import java.util.Map.Entry;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.locationtech.jts.densify.Densifier;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
 import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
-import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.locationtech.jts.index.strtree.STRtree;
-import org.locationtech.jts.simplify.VWSimplifier;
-import org.locationtech.jts.triangulate.VoronoiDiagramBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +56,6 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
-import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools;
