@@ -25,9 +25,8 @@ import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathRootObject;
 import qupath.lib.projects.ProjectImageEntry;
 
 
@@ -44,7 +43,7 @@ public class MeasurementExporter {
 	private List<String> excludeColumns = new ArrayList<String>();
 	
 	// Default: Exporting annotations
-	private Class<? extends PathObject> type = PathAnnotationObject.class;
+	private Class<? extends PathObject> type = PathRootObject.class;
 	
 	private String separator = PathPrefs.getTableDelimiter();
 	
@@ -53,15 +52,12 @@ public class MeasurementExporter {
 	public MeasurementExporter() {}
 	
 	/**
-	 * Specify if the export should use detections or annotations. 
-	 * Default: annotations.
-	 * @param useDetection
+	 * Specify what type of object should be exported. 
+	 * Default: image (root object).
+	 * @param type
 	 */
-	public MeasurementExporter useDetections(boolean useDetection) {
-		if (useDetection)
-			this.type = PathDetectionObject.class;
-		else
-			this.type = PathAnnotationObject.class;
+	public MeasurementExporter exportType(Class<? extends PathObject> type) {
+		this.type = type;
 		return this;
 	}
 	
@@ -87,6 +83,9 @@ public class MeasurementExporter {
 	
 	/**
 	 * Specify the separator used between measurement values.
+	 * To avoid unexpected behavior, it is recommended to
+	 * use either tab ({@code \t}), comma ({@code ,}) or 
+	 * semicolon ({@code ;}).
 	 * @param sep
 	 */
 	public MeasurementExporter separator(String sep) {
@@ -151,9 +150,9 @@ public class MeasurementExporter {
 	 * them to the given output file.
 	 * @param file
 	 */
-	public void exportAnnotationMeasurements(File file) {
+	public void exportMeasurements(File file) {
 		try(FileOutputStream fos = new FileOutputStream(file)) {
-			exportAnnotationMeasurements(fos);
+			exportMeasurements(fos);
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage(), e);
 		}
@@ -168,22 +167,30 @@ public class MeasurementExporter {
 	 * them to the given output stream.
 	 * @param stream
 	 */
-	public void exportAnnotationMeasurements(OutputStream stream) {
+	public void exportMeasurements(OutputStream stream) {
 		long startTime = System.currentTimeMillis();
 		
 		Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<ProjectImageEntry<?>, String[]>();
 		Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<ProjectImageEntry<?>, Integer>();
 		List<String> allColumns = new ArrayList<String>();
 		Multimap<String, String> valueMap = LinkedListMultimap.create();
+		String pattern = "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
 		
 		for (ProjectImageEntry<?> entry: imageList) {
 			try {
 				ImageData<?> imageData = entry.readImageData();
 				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 				model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-				
 				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);
-				String[] header = data.get(0).split(separator);
+				
+				// Get header
+				String[] header;
+				String headerString = data.get(0);
+				if (headerString.chars().filter(e -> e == '"').count() > 1)
+					header = headerString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
+				else
+					header = headerString.split(separator);
+				
 				imageCols.put(entry, header);
 				nImageEntries.put(entry, data.size()-1);
 				
@@ -193,12 +200,19 @@ public class MeasurementExporter {
 				}
 				
 				// To keep the same column order, just delete non-relevant columns
-				if (!includeOnlyColumns.get(0).isEmpty())
+				if (!includeOnlyColumns.isEmpty())
 					allColumns.removeIf(n -> !includeOnlyColumns.contains(n));
 				
 				for (int i = 1; i < data.size(); i++) {
+					String[] row;
+					String rowString = data.get(i);
 					
-					String[] row = data.get(i).split(separator);
+					// Check if some values in the row are escaped
+					if (rowString.chars().filter(e -> e == '"').count() > 1)
+						row = rowString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
+					else
+						row = rowString.split(separator);
+					
 					// Put value in map
 					for (int elem = 0; elem < row.length; elem++) {
 						if (allColumns.contains(header[elem]))

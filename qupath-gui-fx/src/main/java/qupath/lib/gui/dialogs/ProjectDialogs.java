@@ -35,18 +35,13 @@ public class ProjectDialogs {
 	private final static Logger logger = LoggerFactory.getLogger(ProjectDialogs.class);
 	
 	/**
-	 * Populates a given ListSelectionView with all the project entries. Its parameters are:
-	 * <li> qupath: variable used to understand which image(s) is/are opened in viewer(s) </li>
-	 * <li> project: variable used to get all images to populate the list </li>
-	 * <li> listSelectionView: main variable </li>
-	 * <li> previousImages: keeps track of images already used previously (can be null)</li>
-	 * <li> doSave: variable used to know whether displaying info about data saving </li>
+	 * Populates a given ListSelectionView with all the project entries.
 	 * 
-	 * @param qupath
-	 * @param project
-	 * @param listSelectionView
-	 * @param previousImages
-	 * @param doSave
+	 * @param qupath	variable used to understand which image(s) is/are opened in viewer(s).
+	 * @param project	variable used to get all images to populate the list.
+	 * @param listSelectionView	variable that will be populated.
+	 * @param previousImages	keeps track of images already used previously (can be null).
+	 * @param doSave	variable used to know whether displaying info about data saving.
 	 * @return multi-selection control
 	 */
 	public static ListSelectionView<ProjectImageEntry<BufferedImage>> createImageChoicePane(QuPathGUI qupath, 
@@ -84,8 +79,6 @@ public class ProjectDialogs {
             }
         }
     );
-//		if (!DisplayHelpers.showMessageDialog("Select project images", listSelectionView))
-//			return;
 		
 		// Add a filter text field
 		TextField tfFilter = new TextField();
@@ -172,7 +165,7 @@ public class ProjectDialogs {
 	 * is a bug that prevents this being correctly bound.
 	 * @param <T>
 	 * @param listSelectionView
-	 * @return
+	 * @return target items
 	 */
 	public static <T> ObservableList<T> getTargetItems(ListSelectionView<T> listSelectionView) {
 		var skin = listSelectionView.getSkin();
@@ -187,6 +180,13 @@ public class ProjectDialogs {
 		}
 	}
 	
+	/**
+	 * We should just be able to call {@link ListSelectionView#getSourceItems()}, but in ControlsFX 11 there 
+	 * is a bug that prevents this being correctly bound.
+	 * @param <T>
+	 * @param listSelectionView
+	 * @return source items
+	 */
 	public static <T> ObservableList<T> getSourceItems(ListSelectionView<T> listSelectionView) {
 		var skin = listSelectionView.getSkin();
 		try {

@@ -731,7 +731,13 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		
 		int nColumns = names.size();
 		for (int col = 0; col < nColumns; col++) {
-			sb.append(names.get(col));
+			if (names.get(col).chars().filter(e -> e == '"').count() % 2 != 0)
+				logger.warn("Syntax is ambiguous (i.e. misuse of '\"'), which might result in inconsistencies/errors.");
+			if (names.get(col).contains(delim))
+				sb.append("\"" + names.get(col) + "\"");
+			else
+				sb.append(names.get(col));
+			
 			if (col < nColumns - 1)
 				sb.append(delim);
 		}
@@ -741,8 +747,14 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		for (T object : model.getEntries()) {
 			for (int col = 0; col < nColumns; col++) {
 				String val = model.getStringValue(object, names.get(col));
-				if (val != null)
-					sb.append(val);
+				if (val != null) {
+					if (val.contains("\""))
+						logger.warn("Syntax is ambiguous (i.e. misuse of '\"'), which might result in inconsistencies/errors.");
+					if (val.contains(delim))
+						sb.append("\"" + val + "\"");
+					else
+						sb.append(val);						
+				}
 //				double value = model.getNumericValue(object, model.getAllNames().get(col));
 //				if (Double.isNaN(value))
 //					sb.append("-");

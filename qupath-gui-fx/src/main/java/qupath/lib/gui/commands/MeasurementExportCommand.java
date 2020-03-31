@@ -30,7 +30,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
-import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
@@ -50,7 +49,11 @@ import qupath.lib.gui.tools.MeasurementExporter;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
@@ -102,6 +105,8 @@ public class MeasurementExportCommand implements PathCommand {
 		
 		BorderPane imageEntryPane = new BorderPane();
 		GridPane optionPane = new GridPane();
+		optionPane.setHgap(5.0);
+		optionPane.setVgap(5.0);
 		
 		
 		// TOP PANE (SELECT PROJECT ENTRY FOR EXPORT)
@@ -112,8 +117,8 @@ public class MeasurementExportCommand implements PathCommand {
 
 		// BOTTOM PANE (OPTIONS)
 		int row = 0;
-		Label pathOutputLabel = new Label("Output File");
-		var btnChooseFile = new Button("Choose path");
+		Label pathOutputLabel = new Label("Output file");
+		var btnChooseFile = new Button("Choose");
 		btnChooseFile.setOnAction(e -> {
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
@@ -126,22 +131,22 @@ public class MeasurementExportCommand implements PathCommand {
 			}
 		});
 		
-		optionPane.add(pathOutputLabel, 0, row);
-		optionPane.add(outputText, 1, row);
-		optionPane.add(btnChooseFile, 2, row++);
 		pathOutputLabel.setLabelFor(outputText);
+		PaneTools.addGridRow(optionPane, row++, 0, "Choose output file", pathOutputLabel, outputText, btnChooseFile);
+		outputText.setMaxWidth(Double.MAX_VALUE);
+		btnChooseFile.setMaxWidth(Double.MAX_VALUE);
 		
 
-		Label pathObjectLabel = new Label("Apply on");
+		Label pathObjectLabel = new Label("Export type");
 		pathObjectLabel.setLabelFor(pathObjectCombo);
-		PaneTools.addGridRow(optionPane, row++, 0, "Choose to export either annotations or detections", pathObjectLabel, pathObjectCombo, pathObjectCombo, pathObjectCombo);
-		pathObjectCombo.getItems().setAll("Annotations", "Detections");
+		pathObjectCombo.getItems().setAll("Image", "Annotations", "Detections", "Cells", "TMA cores");
 		pathObjectCombo.getSelectionModel().selectFirst();
+		PaneTools.addGridRow(optionPane, row++, 0, "Choose the export type", pathObjectLabel, pathObjectCombo, pathObjectCombo);
 
-
+		
 		Label separatorLabel = new Label("Separator");
 		separatorLabel.setLabelFor(separatorCombo);
-		separatorCombo.getItems().setAll("Tab (.tsv)", "Comma (.csv)");
+		separatorCombo.getItems().setAll("Tab (.tsv)", "Comma (.csv)", "Semicolon (.csv)");
 		separatorCombo.getSelectionModel().selectFirst();
 		PaneTools.addGridRow(optionPane, row++, 0, "Choose a value separator", separatorLabel, separatorCombo, separatorCombo);
 		
@@ -155,7 +160,7 @@ public class MeasurementExportCommand implements PathCommand {
 		Label excludeLabel = new Label("Columns to exclude (Optional)");
 		excludeLabel.setLabelFor(excludeText);
 		excludeText.setPromptText("Image, Name, Class, ...");
-		PaneTools.addGridRow(optionPane, row++, 0, "Enter the specific column(s) to include (case sensitive)", excludeLabel, excludeText, excludeText);
+		PaneTools.addGridRow(optionPane, row++, 0, "Enter the specific column(s) to exclude (case sensitive)", excludeLabel, excludeText, excludeText);
 		
 		
 		// Add listener to separatorCombo
@@ -165,7 +170,7 @@ public class MeasurementExportCommand implements PathCommand {
 			String currentOut = outputText.getText();
 			if (n.equals("Tab (.tsv)") && currentOut.endsWith(".csv"))
 				outputText.setText(currentOut.replace(".csv", ".tsv"));
-			else if (n.equals("Comma (.csv)") && currentOut.endsWith(".tsv"))
+			else if ((n.equals("Comma (.csv)") || n.equals("Semicolon (.csv)")) && currentOut.endsWith(".tsv"))
 				outputText.setText(currentOut.replace(".tsv", ".csv"));
 		});
 		
@@ -182,9 +187,7 @@ public class MeasurementExportCommand implements PathCommand {
 				
 		});
 
-		optionPane.setVgap(6.0);
-		optionPane.setHgap(10.0);
-		optionPane.setPadding(new Insets(10.0));
+		PaneTools.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeText, excludeText);
 		
 		dialog = new Dialog<>();
 		dialog.getDialogPane().setMinHeight(400);
@@ -198,7 +201,6 @@ public class MeasurementExportCommand implements PathCommand {
 		dialog.getDialogPane().lookupButton(btnExport).disableProperty().bind(Bindings.size(listSelectionView.getTargetItems()).isEqualTo(0));
 		
 		mainPane.setTop(imageEntryPane);
-		//mainPane.setCenter(centrePane);
 		mainPane.setBottom(optionPane);
 		
 		Optional<ButtonType> result = dialog.showAndWait();
@@ -207,10 +209,41 @@ public class MeasurementExportCommand implements PathCommand {
 			return;
 		
 		String selectedItem = pathObjectCombo.getSelectionModel().getSelectedItem();
-		boolean useDetections = selectedItem.equals("Detections") ? true : false;
 		String[] exclude = Arrays.stream(excludeText.getText().split(",")).map(String::trim).toArray(String[]::new);
-		String[] include = Arrays.stream(includeText.getText().split(",")).map(String::trim).toArray(String[]::new);
-		String separator = separatorCombo.getSelectionModel().getSelectedItem().equals("Tab (.tsv)") ? "\t" : ", ";
+		String[] include = Arrays.stream(includeText.getText().split(",")).map(String::trim).filter(n -> !"".equals(n)).toArray(String[]::new);
+		String separator = defSep;
+		
+		Class<? extends PathObject> type = PathRootObject.class;
+		switch (selectedItem) {
+		case "Image":
+			type = PathRootObject.class;
+			break;
+		case "Annotations":
+			type = PathAnnotationObject.class;
+			break;
+		case "Detections":
+			type = PathDetectionObject.class;
+			break;
+		case "Cells":
+			type = PathCellObject.class;
+			break;
+		case "TMA cores":
+			type = TMACoreObject.class;
+			break;
+		};
+
+		
+		switch (separatorCombo.getSelectionModel().getSelectedItem()) {
+		case "Tab (.tsv)":
+			separator = "\t";
+			break;
+		case "Comma (.csv)":
+			separator = ",";
+			break;
+		case "Semicolon (.csv)":
+			separator = ";";
+			break;
+		};
 		
 		MeasurementExporter exporter;
 		exporter = new MeasurementExporter()
@@ -218,7 +251,7 @@ public class MeasurementExportCommand implements PathCommand {
 			.separator(separator)
 			.excludeColumns(exclude)
 			.includeOnlyColumns(include)
-			.useDetections(useDetections);
+			.exportType(type);
 		
 		ExportTask worker = new ExportTask(exporter, outputText.getText());
 		
@@ -254,7 +287,7 @@ public class MeasurementExportCommand implements PathCommand {
 		private List<String> includeOnlyColumns;
 		private String separator;
 		
-		// Default: Exporting annotations
+		// Default: Exporting image
 		private Class<? extends PathObject> type = PathAnnotationObject.class;
 		
 		
@@ -288,6 +321,7 @@ public class MeasurementExportCommand implements PathCommand {
 			List<String> allColumns = new ArrayList<String>();
 			Multimap<String, String> valueMap = LinkedListMultimap.create();
 			File file = new File(pathOut);
+			String pattern = "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
 			
 			int counter = 0;
 			
@@ -305,9 +339,16 @@ public class MeasurementExportCommand implements PathCommand {
 					ImageData<?> imageData = entry.readImageData();
 					ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 					model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
-					
 					List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);
-					String[] header = data.get(0).split(separator);
+					
+					// Get header
+					String[] header;
+					String headerString = data.get(0);
+					if (headerString.chars().filter(e -> e == '"').count() > 1)
+						header = headerString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
+					else
+						header = headerString.split(separator);
+					
 					imageCols.put(entry, header);
 					nImageEntries.put(entry, data.size()-1);
 					
@@ -317,12 +358,19 @@ public class MeasurementExportCommand implements PathCommand {
 					}
 					
 					// To keep the same column order, just delete non-relevant columns
-					if (!includeOnlyColumns.get(0).isEmpty())
+					if (!includeOnlyColumns.isEmpty())
 						allColumns.removeIf(n -> !includeOnlyColumns.contains(n));
 					
 					for (int i = 1; i < data.size(); i++) {
+						String[] row;
+						String rowString = data.get(i);
 						
-						String[] row = data.get(i).split(separator);
+						// Check if some values in the row are escaped
+						if (rowString.chars().filter(e -> e == '"').count() > 1)
+							row = rowString.split(separator.equals("\t") ? "\\" + separator : separator + pattern , -1);
+						else
+							row = rowString.split(separator);
+						
 						// Put value in map
 						for (int elem = 0; elem < row.length; elem++) {
 							if (allColumns.contains(header[elem]))
@@ -344,7 +392,6 @@ public class MeasurementExportCommand implements PathCommand {
 				}
 				
 				int counter2 = 0;
-				boolean sepWithinCells = false;
 				for (ProjectImageEntry<?> entry: imageList) {
 					if (isQuietlyCancelled() || isCancelled()) {
 						logger.warn("Export cancelled with " + (imageList.size() - counter2) + " image(s) remaining");
@@ -359,13 +406,6 @@ public class MeasurementExportCommand implements PathCommand {
 						for (int nCol = 0; nCol < allColumns.size(); nCol++) {
 							if (Arrays.stream(imageCols.get(entry)).anyMatch(allColumns.get(nCol)::equals)) {
 								String val = (String)its[nCol].next();
-								
-								// Check for occurrences of the separator
-								if (val.contains(separator) && !sepWithinCells) {
-									sepWithinCells = true;
-									logger.warn("Some measurement values contain the separator chosen, this might "
-											+ "lead to inconsistencies in the output.");
-								}
 									
 								// NaN values -> blank
 								if (val.equals("NaN"))
