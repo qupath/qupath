@@ -23,7 +23,6 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.lib.io.PointIO;
 
 
 @SuppressWarnings("javadoc")

@@ -743,6 +743,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
 		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
 		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
+		manager.attachListener(PathPrefs.viewerFontSizeProperty(), repainter);
 
 		manager.attachListener(PathPrefs.gridSpacingXProperty(), repainter);
 		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
@@ -891,6 +892,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			overlayOptionsManager.attachListener(overlayOptions.showConnectionsProperty(), repainterOverlay);
 
 			overlayOptionsManager.attachListener(overlayOptions.showAnnotationsProperty(), repainter);
+			overlayOptionsManager.attachListener(overlayOptions.showNamesProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.fillAnnotationsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showDetectionsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showPixelClassificationProperty(), repainter);

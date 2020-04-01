@@ -26,8 +26,6 @@ package qupath.lib.objects;
 import java.util.Collection;
 import java.util.List;
 
-import qupath.lib.objects.PathObject;
-
 /**
  * Interface defining a basic structure to represent relationships between PathObjects that do not fit with  
  * the parent-child idea of the PathObjectHierarchy.

@@ -79,7 +79,7 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	public void addFileAppender(File file) {
 		if (LoggerFactory.getILoggerFactory() instanceof LoggerContext) {
 			LoggerContext context = (LoggerContext)LoggerFactory.getILoggerFactory();
-			FileAppender appender = new FileAppender<>();
+			FileAppender<ILoggingEvent> appender = new FileAppender<>();
 			
 			PatternLayoutEncoder encoder = new PatternLayoutEncoder();
 			encoder.setContext(context);

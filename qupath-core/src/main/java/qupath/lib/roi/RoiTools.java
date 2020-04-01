@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,10 +114,12 @@ public class RoiTools {
 	 * @param rois
 	 * @return
 	 */
-	public static ROI unionROIs(Collection<ROI> rois) {
+	public static ROI union(Collection<ROI> rois) {
 		logger.trace("Calculating union of {} ROIs", rois.size());
 		if (rois.isEmpty())
 			return ROIs.createEmptyROI();
+		if (rois.size() == 1)
+			return rois.iterator().next();
 		ImagePlane plane = rois.iterator().next().getImagePlane();
 		List<Geometry> geometries = new ArrayList<>();
 		for (var r : rois) {
@@ -135,9 +138,11 @@ public class RoiTools {
 	 * @param rois
 	 * @return
 	 */
-	public static ROI intersectROIs(Collection<ROI> rois) {
+	public static ROI intersection(Collection<ROI> rois) {
 		if (rois.isEmpty())
 			return ROIs.createEmptyROI();
+		if (rois.size() == 1)
+			return rois.iterator().next();
 		ImagePlane plane = rois.iterator().next().getImagePlane();
 		List<Geometry> geometries = new ArrayList<>();
 		for (var r : rois) {
@@ -363,6 +368,58 @@ public class RoiTools {
 			return ROIs.createPolylineROI(points, plane);
 	}
 
+	/**
+	 * Get the Euclidean distance between the centroids of two ROIs.
+	 * @param roi1 first ROI
+	 * @param roi2 second ROI
+	 * @return the distance between centroids
+	 */
+	public static double getCentroidDistance(ROI roi1, ROI roi2) {
+		return getCentroidDistance(roi1, roi2, 1.0, 1.0);
+	}
+	
+	/**
+	 * Get the calibrated Euclidean distance between the centroids of two ROIs using specified pixel sizes.
+	 * @param roi1 first ROI
+	 * @param roi2 second ROI
+	 * @param pixelWidth horizontal scale factor for pixels
+	 * @param pixelHeight vertical scale factor for pixels
+	 * @return the distance between centroids
+	 */
+	public static double getCentroidDistance(ROI roi1, ROI roi2, double pixelWidth, double pixelHeight) {
+		double dx = (roi1.getCentroidX() - roi2.getCentroidX()) * pixelWidth;
+		double dy = (roi1.getCentroidY() - roi2.getCentroidY()) * pixelHeight;
+		return Math.sqrt(dx*dx + dy*dy);
+	}
+	
+	/**
+	 * Get the Euclidean distance between the boundaries of two ROIs.
+	 * @param roi1 first ROI
+	 * @param roi2 second ROI
+	 * @return the distance between boundaries
+	 */
+	public static double getBoundaryDistance(ROI roi1, ROI roi2) {
+		return getBoundaryDistance(roi1, roi2, 1.0, 1.0);
+	}
+	
+	/**
+	 * Get the calibrated Euclidean distance between the boundaries of two ROIs using specified pixel sizes.
+	 * @param roi1 first ROI
+	 * @param roi2 second ROI
+	 * @param pixelWidth horizontal scale factor for pixels
+	 * @param pixelHeight vertical scale factor for pixels
+	 * @return the distance between boundaries
+	 */
+	public static double getBoundaryDistance(ROI roi1, ROI roi2, double pixelWidth, double pixelHeight) {
+		if (pixelWidth == pixelHeight) {
+			double pixelSize = pixelWidth;
+			return roi1.getGeometry().distance(roi2.getGeometry()) * pixelSize;
+		}
+		var transform = AffineTransformation.scaleInstance(pixelWidth, pixelHeight);
+		var g1 = transform.transform(roi1.getGeometry());
+		var g2 = transform.transform(roi2.getGeometry());
+		return g1.distance(g2);
+	}
 
 	/**
 	 * Create a {@link ROI} from an Shape.
@@ -542,6 +599,17 @@ public class RoiTools {
 			}
 		}
 		return pathROIs;
+	}
+	
+	
+	/**
+	 * Buffer the specified ROI, dilating (or eroding) by the specified distance.
+	 * @param roi the ROI to buffer
+	 * @param distance the distance to buffer, in pixels. If negative an erosion will be performed.
+	 * @return the modified ROI (which may be empty)
+	 */
+	public static ROI buffer(ROI roi, double distance) {
+		return GeometryTools.geometryToROI(roi.getGeometry().buffer(distance), roi.getImagePlane());
 	}
 	
 	

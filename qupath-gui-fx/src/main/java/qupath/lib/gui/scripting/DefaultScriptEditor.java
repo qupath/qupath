@@ -578,7 +578,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
 				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script start time")),
+				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script time")),
 				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
 				);
 		menubar.getMenus().add(menuRun);
@@ -718,12 +718,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
 		
 		LoggingAppender.getInstance().addTextComponent(console);
+		long startTime = System.currentTimeMillis();
 		if (outputScriptStartTime.get())
-			logger.info("Starting script at {}", new Date());
+			logger.info("Starting script at {}", new Date(startTime));
 		try {
 			Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
-			if (result != null)
+			if (result != null) {
 				logger.info("Result: {}", result);
+			}
+			if (outputScriptStartTime.get())
+				logger.info(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
 		} finally {
 			Platform.runLater(() -> LoggingAppender.getInstance().removeTextComponent(console));	
 		}

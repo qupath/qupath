@@ -116,14 +116,14 @@ public class AnnotationCombineCommand implements PathCommand {
 		
 		switch (op) {
 		case ADD:
-			newROI = RoiTools.unionROIs(allROIs);
+			newROI = RoiTools.union(allROIs);
 			break;
 		case INTERSECT:
-			newROI = RoiTools.intersectROIs(allROIs);
+			newROI = RoiTools.intersection(allROIs);
 			break;
 		case SUBTRACT:
 			var first = allROIs.remove(0);
-			newROI = RoiTools.combineROIs(first, RoiTools.unionROIs(allROIs), op);
+			newROI = RoiTools.combineROIs(first, RoiTools.union(allROIs), op);
 			break;
 		default:
 			throw new IllegalArgumentException("Unknown combine op " + op);

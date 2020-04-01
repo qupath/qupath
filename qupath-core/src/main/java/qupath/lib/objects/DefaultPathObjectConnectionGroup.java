@@ -37,7 +37,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.objects.PathObject;
 import qupath.lib.roi.interfaces.ROI;
 
 /**

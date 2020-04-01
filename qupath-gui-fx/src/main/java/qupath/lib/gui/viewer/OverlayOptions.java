@@ -73,6 +73,7 @@ public class OverlayOptions {
 	
 	private ObjectProperty<MeasurementMapper> measurementMapper = new SimpleObjectProperty<>();
 	private BooleanProperty showAnnotations = new SimpleBooleanProperty(true);
+	private BooleanProperty showNames = new SimpleBooleanProperty(true);
 	private BooleanProperty showTMAGrid = new SimpleBooleanProperty(true);
 	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(true);
 	private BooleanProperty showDetections = new SimpleBooleanProperty(true);
@@ -105,6 +106,7 @@ public class OverlayOptions {
 	public OverlayOptions() {
 		InvalidationListener timestamper = (var e) -> updateTimestamp();
 		showAnnotations.addListener(timestamper);
+		showNames.addListener(timestamper);
 		showTMAGrid.addListener(timestamper);
 		showPixelClassification.addListener(timestamper);
 		showDetections.addListener(timestamper);
@@ -133,6 +135,7 @@ public class OverlayOptions {
 		this.measurementMapper.set(options.measurementMapper.get());
 		this.opacity.set(options.opacity.get());
 		this.showAnnotations.set(options.showAnnotations.get());
+		this.showNames.set(options.showNames.get());
 		this.showConnections.set(options.showConnections.get());
 		this.showDetections.set(options.showDetections.get());
 		this.showGrid.set(options.showGrid.get());
@@ -234,7 +237,7 @@ public class OverlayOptions {
     
     
     /**
-	 * Show the annotations on the image, including the TMA grid.
+	 * Show the TMA grid on the image, if present.
 	 * 
 	 * @param show
 	 */
@@ -243,12 +246,21 @@ public class OverlayOptions {
 	}
 	
 	/**
-	 * Show the annotations on the image, including the TMA grid.
+	 * Show the annotations on the image.
 	 * 
 	 * @param show
 	 */
 	public void setShowAnnotations(boolean show) {
 		this.showAnnotations.set(show);
+	}
+	
+	/**
+	 * Show the object names on the image.
+	 * 
+	 * @param show
+	 */
+	public void setShowNames(boolean show) {
+		this.showNames.set(show);
 	}
 	
 	/**
@@ -338,6 +350,13 @@ public class OverlayOptions {
 	 */
 	public boolean getShowAnnotations() {
 		return showAnnotations.get();
+	}
+	
+	/**
+	 * @return true if annotation names should be displayed in viewers, false otherwise
+	 */
+	public boolean getShowNames() {
+		return showNames.get();
 	}
 	
 	/**
@@ -490,10 +509,17 @@ public class OverlayOptions {
 	
 	
 	/**
-	 * @return the boolean property indicating whether any annotations should be displayed
+	 * @return the boolean property indicating whether annotations should be displayed
 	 */
 	public BooleanProperty showAnnotationsProperty() {
 		return showAnnotations;
+	}
+	
+	/**
+	 * @return the boolean property indicating whether object labels should be displayed
+	 */
+	public BooleanProperty showNamesProperty() {
+		return showNames;
 	}
 	
 	/**
