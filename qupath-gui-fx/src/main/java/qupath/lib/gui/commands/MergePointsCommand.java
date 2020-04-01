@@ -27,7 +27,7 @@ public class MergePointsCommand implements PathCommand {
 		var imageData = qupath.getImageData();
 		var hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy == null) {
-			Dialogs.showErrorNotification("Merge points", "No image selected - cannot merge points!");
+			Dialogs.showNoImageError("Merge points");
 			return;
 		}
 		if (selectedOnly) {

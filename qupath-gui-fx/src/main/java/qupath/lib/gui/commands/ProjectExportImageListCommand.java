@@ -64,7 +64,7 @@ public class ProjectExportImageListCommand implements PathCommand {
 	public void run() {
 		var project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showErrorMessage(commandName, "No project open!");
+			Dialogs.showNoProjectError(commandName);
 			return;
 		}
 		// Try to get a project directory

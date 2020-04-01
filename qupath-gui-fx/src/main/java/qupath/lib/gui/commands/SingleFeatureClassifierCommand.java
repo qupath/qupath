@@ -181,7 +181,7 @@ public class SingleFeatureClassifierCommand implements PathCommand {
 		
 		ImageData<?> imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showErrorMessage(commandName, "No image available!");
+			Dialogs.showNoImageError(commandName);
 			return;
 		}
 		Set<String> features = PathClassifierTools.getAvailableFeatures(imageData.getHierarchy().getObjects(null, cls));

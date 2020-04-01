@@ -1124,7 +1124,7 @@ public class TMASummaryViewer {
 	private void setTMAEntriesFromOpenProject() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath == null || qupath.getProject() == null || qupath.getProject().getImageList().isEmpty()) {
-			Dialogs.showErrorMessage("Show TMA summary", "No project available!");
+			Dialogs.showNoProjectError("Show TMA summary");
 			return;
 		}
 		Project<BufferedImage> project = qupath.getProject();

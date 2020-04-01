@@ -316,7 +316,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 	private static void runWorkflowStepInteractively(final QuPathGUI qupath, final WorkflowStep step) {
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showErrorMessage("Run workflow step", "No image selected!");
+			Dialogs.showNoImageError("Run workflow step");
 			return;
 		}
 		if (step instanceof SimplePluginWorkflowStep) {

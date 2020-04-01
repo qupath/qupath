@@ -95,7 +95,7 @@ public class MeasurementManager implements PathCommand {
 		
 		ImageData<?> imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showErrorMessage("Measurement Manager", "No image selected!");
+			Dialogs.showNoImageError("Measurement Manager");
 			return;
 		}
 		

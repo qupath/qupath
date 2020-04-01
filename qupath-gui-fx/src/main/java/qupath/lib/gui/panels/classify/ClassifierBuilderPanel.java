@@ -534,7 +534,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		Project<BufferedImage> project = qupath.getProject();
 		String title = "Load training from project";
 		if (project == null || project.isEmpty()) {
-			Dialogs.showErrorMessage(title, "No project available!");
+			Dialogs.showNoProjectError(title);
 			return;
 		}
 
@@ -590,7 +590,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			return;
 		}
 		if (project == null || project.isEmpty()) {
-			Dialogs.showErrorMessage(title, "No project available!");
+			Dialogs.showNoProjectError(title);
 			return;
 		}
 

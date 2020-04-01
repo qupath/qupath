@@ -48,6 +48,7 @@ public class PaneTools {
 					GridPane.setColumnSpan(n, span + 1);
 			} else {
 				pane.add(n, col, row);
+				GridPane.setColumnSpan(n, 1);
 				if (tooltip != null) {
 					installTooltipRecursive(tooltip, n);
 				}

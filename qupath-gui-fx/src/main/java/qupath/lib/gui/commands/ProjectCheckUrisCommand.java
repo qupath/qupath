@@ -70,7 +70,7 @@ public class ProjectCheckUrisCommand implements PathCommand {
 	public void run() {
 		var project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showErrorMessage("Check URIs", "No project open!");
+			Dialogs.showNoProjectError("Check URIs");
 			return;
 		}
 		try {

@@ -97,7 +97,7 @@ public class MeasurementExportCommand implements PathCommand {
 	private void createAndShowDialog() {
 		project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showErrorMessage("No open project", "Open a project to run this command!");
+			Dialogs.showNoProjectError("Export measurements");
 			return;
 		}
 		
