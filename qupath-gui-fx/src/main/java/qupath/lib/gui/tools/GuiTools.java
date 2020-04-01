@@ -13,6 +13,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
+import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1001,6 +1002,20 @@ public class GuiTools {
 		}
 
 		
+	}
+
+
+	/**
+	 * Add a context menu to a CheckComboBox to quickly select all items, or clear selection.
+	 * @param combo
+	 */
+	public static void installSelectAllOrNoneMenu(CheckComboBox<?> combo) {
+		var miAll = new MenuItem("Select all");
+		var miNone = new MenuItem("Select none");
+		miAll.setOnAction(e -> combo.getCheckModel().checkAll());
+		miNone.setOnAction(e -> combo.getCheckModel().clearChecks());
+		var menu = new ContextMenu(miAll, miNone);
+		combo.setContextMenu(menu);
 	}
 	
 }

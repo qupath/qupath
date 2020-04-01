@@ -94,16 +94,7 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showConfirmDialog(String title, String text) {
-		if (Platform.isFxApplicationThread()) {
-			Alert alert = new Alert(AlertType.CONFIRMATION);
-			alert.setTitle(title);
-			alert.setHeaderText(null);
-//			alert.setContentText(text);
-			alert.getDialogPane().setContent(createContentLabel(text));
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.isPresent() && result.get() == ButtonType.OK;
-		} else
-			return GuiTools.callOnApplicationThread(() -> showConfirmDialog(title, text));
+		return showConfirmDialog(text, createContentLabel(text));
 	}
 	
 	/**
@@ -113,19 +104,14 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showMessageDialog(final String title, final Node node) {
-		if (Platform.isFxApplicationThread()) {
-			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK);
-			alert.setTitle(title);
-			alert.getDialogPane().setContent(node);
-//			if (resizable) {
-//				// Note: there is nothing to stop the dialog being shrunk to a ridiculously small size!
-//				alert.setResizable(resizable);
-//			}
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.isPresent() && result.get() == ButtonType.OK;
-		} else {
-			return GuiTools.callOnApplicationThread(() -> showMessageDialog(title, node));
-		}
+		return new Builder()
+				.alertType(AlertType.NONE)
+				.buttons(ButtonType.OK)
+				.title(title)
+				.content(node)
+				.resizable()
+				.showAndWait()
+				.orElse(ButtonType.CANCEL) == ButtonType.OK;
 	}
 	
 	/**
@@ -135,17 +121,7 @@ public class Dialogs {
 	 * @return 
 	 */
 	public static boolean showMessageDialog(String title, String message) {
-		if (Platform.isFxApplicationThread()) {
-			logger.info("{}: {}", title, message);
-			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK);
-			alert.setTitle(title);
-			alert.getDialogPane().setHeader(null);
-//			alert.getDialogPane().setContentText(message);
-			alert.getDialogPane().setContent(createContentLabel(message));
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.orElse(ButtonType.CANCEL) == ButtonType.OK;
-		} else
-			return GuiTools.callOnApplicationThread(() -> showMessageDialog(title, message));
+		return showMessageDialog(title, createContentLabel(message));
 	}
 	
 	/**
@@ -155,18 +131,14 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showConfirmDialog(String title, Node node) {
-		if (Platform.isFxApplicationThread()) {
-			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK, ButtonType.CANCEL);
-			if (QuPathGUI.getInstance() != null)
-				alert.initOwner(QuPathGUI.getInstance().getStage());
-			alert.setTitle(title);
-			alert.getDialogPane().setContent(node);
-			alert.setResizable(true);
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.isPresent() && result.get() == ButtonType.OK;
-		} else {
-			return GuiTools.callOnApplicationThread(() -> showConfirmDialog(title, node));
-		}
+		return new Builder()
+				.alertType(AlertType.CONFIRMATION)
+				.buttons(ButtonType.OK, ButtonType.CANCEL)
+				.title(title)
+				.content(node)
+				.resizable()
+				.showAndWait()
+				.orElse(ButtonType.NO) == ButtonType.OK;
 	}
 	
 	/**
@@ -176,18 +148,13 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showYesNoDialog(String title, String text) {
-		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> showYesNoDialog(title, text));
-		}
-		Alert alert = new Alert(AlertType.NONE);
-		if (QuPathGUI.getInstance() != null)
-			alert.initOwner(QuPathGUI.getInstance().getStage());
-		alert.getButtonTypes().addAll(ButtonType.YES, ButtonType.NO);
-		alert.setTitle(title);
-		alert.getDialogPane().setContent(createContentLabel(text));
-		Optional<ButtonType> result = alert.showAndWait();
-		boolean response = result.isPresent() && result.get() == ButtonType.YES;
-		return response;
+		return new Builder()
+			.alertType(AlertType.NONE)
+			.buttons(ButtonType.YES, ButtonType.NO)
+			.title(title)
+			.content(createContentLabel(text))
+			.showAndWait()
+			.orElse(ButtonType.NO) == ButtonType.YES;
 	}
 	
 	/**
@@ -214,20 +181,15 @@ public class Dialogs {
 	 * @return a {@link DialogButton} indicating the response (YES, NO, CANCEL)
 	 */
 	public static DialogButton showYesNoCancelDialog(String title, String text) {
-		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> showYesNoCancelDialog(title, text));
-		}
-		// TODO: Check the order of buttons in Yes, No, Cancel dialog - seems weird on OSX
-		Alert alert = new Alert(AlertType.NONE);
-		alert.getButtonTypes().addAll(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
-		alert.setTitle(title);
-//			alert.setContentText(text);
-		alert.getDialogPane().setContent(createContentLabel(text));
-		Optional<ButtonType> result = alert.showAndWait();
-		if (result.isPresent())
-			return getJavaFXPaneYesNoCancel(result.get());
-		else
-			return DialogButton.CANCEL;
+		var result = new Builder()
+				.alertType(AlertType.NONE)
+				.buttons(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL)
+				.title(title)
+				.content(createContentLabel(text))
+				.resizable()
+				.showAndWait()
+				.orElse(ButtonType.CANCEL);
+		return getJavaFXPaneYesNoCancel(result);
 	}
 	
 	
@@ -286,6 +248,8 @@ public class Dialogs {
 		if (Platform.isFxApplicationThread()) {
 			TextInputDialog dialog = new TextInputDialog(initialInput);
 			dialog.setTitle(title);
+			if (QuPathGUI.getInstance() != null)
+				dialog.initOwner(QuPathGUI.getInstance().getStage());
 			dialog.setHeaderText(null);
 			dialog.setContentText(message);
 			dialog.setResizable(true);
@@ -321,10 +285,13 @@ public class Dialogs {
 	 * @param defaultChoice initial selected option
 	 * @return chosen option, or {@code null} if the user cancels the dialog
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
 			dialog.setTitle(title);
+			if (QuPathGUI.getInstance() != null)
+				dialog.initOwner(QuPathGUI.getInstance().getStage());
 			dialog.getDialogPane().setHeaderText(null);
 			if (message != null)
 				dialog.getDialogPane().setContentText(message);
@@ -346,6 +313,7 @@ public class Dialogs {
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help -> Report bug (web)'.\n\n" + e;
 		showErrorMessage(title, message);
+		logger.error(title, e);
 	}
 	
 	/**
@@ -354,10 +322,6 @@ public class Dialogs {
 	 * @param e
 	 */
 	public static void showErrorNotification(final String title, final Throwable e) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showErrorNotification(title, e));
-			return;
-		}
 		String message = e.getLocalizedMessage();
 		if (message != null && !message.isBlank() && !message.equals(title))
 			logger.error(title + ": " + e.getLocalizedMessage(), e);
@@ -365,14 +329,7 @@ public class Dialogs {
 			logger.error(title , e);
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help > Report bug'.\n\n" + e;
-		if (Platform.isFxApplicationThread()) {
-			createNotifications().title(title).text(message).showError();
-		} else {
-			String finalMessage = message;
-			Platform.runLater(() -> {
-				createNotifications().title(title).text(finalMessage).showError();
-			});
-		}
+		showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
 	}
 
 	/**
@@ -381,12 +338,8 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showErrorNotification(final String title, final String message) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showErrorNotification(title, message));
-			return;
-		}
 		logger.error(title + ": " + message);
-		createNotifications().title(title).text(message).showError();
+		showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
 	}
 
 	/**
@@ -395,12 +348,8 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showWarningNotification(final String title, final String message) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showWarningNotification(title, message));
-			return;
-		}
 		logger.warn(title + ": " + message);
-		createNotifications().title(title).text(message).showWarning();
+		showNotifications(createNotifications().title(title).text(message), AlertType.WARNING);
 	}
 
 	/**
@@ -409,12 +358,8 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showInfoNotification(final String title, final String message) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showInfoNotification(title, message));
-			return;
-		}
 		logger.info(title + ": " + message);
-		createNotifications().title(title).text(message).showInformation();
+		showNotifications(createNotifications().title(title).text(message), AlertType.INFORMATION);
 	}
 
 	/**
@@ -423,13 +368,38 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showPlainNotification(final String title, final String message) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showPlainNotification(title, message));
-			return;
-		}
 		logger.info(title + ": " + message);
-		createNotifications().title(title).text(message).show();
+		showNotifications(createNotifications().title(title).text(message), AlertType.NONE);
 	}
+	
+	/**
+	 * Show notification, making sure it is on the application thread
+	 * @param notification
+	 */
+	private static void showNotifications(Notifications notification, AlertType type) {
+		if (Platform.isFxApplicationThread()) {
+			switch (type) {
+			case CONFIRMATION:
+				notification.showConfirm();
+				break;
+			case ERROR:
+				notification.showError();
+				break;
+			case INFORMATION:
+				notification.showInformation();
+				break;
+			case WARNING:
+				notification.showWarning();
+				break;
+			case NONE:
+			default:
+				notification.show();
+				break;			
+			}
+		} else
+			Platform.runLater(() -> showNotifications(notification, type));
+	}
+	
 	
 	/**
 	 * Necessary to have owner when calling notifications (bug in controlsfx?).
@@ -455,6 +425,15 @@ public class Dialogs {
 		showErrorMessage(title, "No image is available!");
 	}
 	
+	/**
+	 * Show an error message that no project is available. This is included to help 
+	 * standardize the message throughout the software.
+	 * @param title
+	 */
+	public static void showNoProjectError(String title) {
+		showErrorMessage(title, "No project is available!");
+	}
+	
 	
 	/**
 	 * Show an error message.
@@ -462,41 +441,21 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showErrorMessage(final String title, final String message) {
-		if (!GraphicsEnvironment.isHeadless()) {
-			if (Platform.isFxApplicationThread()) {
-				Alert alert = new Alert(AlertType.ERROR);
-				alert.setTitle(title);
-				alert.getDialogPane().setHeaderText(null);
-//				alert.setContentText(message);
-				alert.getDialogPane().setContent(createContentLabel(message));
-				alert.show();
-			} else {
-				Platform.runLater(() -> showErrorMessage(title, message));
-				return;
-			}
-		}
 		logger.error(title + ": " + message);
+		showErrorMessage(title, createContentLabel(message));
 	}
 	
 	/**
 	 * Show an error message, with the content defined within a {@link Node}.
 	 * @param title
-	 * @param message
+	 * @param node
 	 */
-	public static void showErrorMessage(final String title, final Node message) {
-		if (!GraphicsEnvironment.isHeadless()) {
-			if (Platform.isFxApplicationThread()) {
-				Alert alert = new Alert(AlertType.ERROR);
-				alert.setTitle(title);
-				alert.getDialogPane().setHeaderText(null);
-				alert.getDialogPane().setContent(message);
-				alert.show();
-			} else {
-				GuiTools.runOnApplicationThread(() -> showErrorMessage(title, message));
-				return;
-			}
-		}
-		logger.error(title + ": " + message);
+	public static void showErrorMessage(final String title, final Node node) {
+		new Builder()
+			.alertType(AlertType.ERROR)
+			.title(title)
+			.content(node)
+			.show();
 	}
 
 	/**
@@ -505,20 +464,12 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showPlainMessage(final String title, final String message) {
-		if (!GraphicsEnvironment.isHeadless()) {
-			if (Platform.isFxApplicationThread()) {
-				Alert alert = new Alert(AlertType.INFORMATION);
-				alert.getDialogPane().setHeaderText(null);
-				alert.setTitle(title);
-//				alert.setContentText(message);
-				alert.getDialogPane().setContent(createContentLabel(message));
-				alert.show();
-			} else {
-				Platform.runLater(() -> showPlainMessage(title, message));
-				return;
-			}
-		}
 		logger.info(title + ": " + message);
+		new Builder()
+			.alertType(AlertType.INFORMATION)
+			.title(title)
+			.content(createContentLabel(message))
+			.show();
 	}
 	
 	/**
@@ -617,7 +568,7 @@ public class Dialogs {
 	/**
 	 * Prompt user to select a file or input a URL.
 
-	 * @param title dialog title
+	 * @param title the title to display for the dialog (may be null)
 	 * @param defaultPath default path to display - may be null
 	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
@@ -629,6 +580,7 @@ public class Dialogs {
 		return QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts);
 	}
 	
+
 	/**
 	 * Builder class to create a custom {@link Dialog}.
 	 */
@@ -867,6 +819,9 @@ public class Dialogs {
 			dialog.setTitle(title);
 			if (header != null)
 				dialog.setHeaderText(header);
+			else
+				// The alert type can make some rather ugly header text appear
+				dialog.setHeaderText(null);
 			if (contentText != null)
 				dialog.setContentText(contentText);
 			if (content != null)
@@ -896,6 +851,10 @@ public class Dialogs {
 		 * be called on the JavaFX application thread even if called from another thread.
 		 */
 		public void show() {
+			if (GraphicsEnvironment.isHeadless()) {
+				logger.warn("Cannot show dialog in headless mode!");
+				return;
+			}
 			GuiTools.runOnApplicationThread(() -> build().show());
 		}
 		
@@ -912,6 +871,5 @@ public class Dialogs {
 		}
 		
 	}
-	
 	
 }

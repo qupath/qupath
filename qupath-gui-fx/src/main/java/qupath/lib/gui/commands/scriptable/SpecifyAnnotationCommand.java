@@ -269,7 +269,7 @@ public class SpecifyAnnotationCommand implements PathCommand {
 				var viewer = qupath.getViewer();
 				var imageData = viewer == null ? null : viewer.getImageData();
 				if (imageData == null) {
-					Dialogs.showErrorMessage("Create annotation", "No image selected!");
+					Dialogs.showNoImageError("Create annotation");
 					return;
 				}
 				var server = imageData.getServer();

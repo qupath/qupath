@@ -118,7 +118,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
 		if (qupath.getProject() == null) {
-			Dialogs.showErrorMessage(commandName, "No project open!");
+			Dialogs.showNoProjectError(commandName);
 			return Collections.emptyList();
 		}
 		

@@ -61,7 +61,7 @@ public class SvgExportCommand implements PathCommand {
 		var viewer = qupath.getViewer();
 		var imageData = viewer.getImageData();
 		if (imageData == null) {
-			Dialogs.showErrorMessage(title, "No image selected!");
+			Dialogs.showNoImageError(title);
 			return;
 		}
 				

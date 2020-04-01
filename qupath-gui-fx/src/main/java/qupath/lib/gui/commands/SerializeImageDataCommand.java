@@ -57,7 +57,7 @@ public class SerializeImageDataCommand implements PathCommand {
 		public void run() {
 			ImageData<BufferedImage> imageData = qupath.getImageData();
 			if (imageData == null) {
-				Dialogs.showErrorMessage("Serialization error", "No image data to save!");
+				Dialogs.showNoImageError("Serialization error");
 				return;
 			}
 			try {

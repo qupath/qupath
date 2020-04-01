@@ -1174,16 +1174,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	void handleRunProject(final boolean doSave) {
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
-			Dialogs.showErrorMessage("Script editor", "No project open");
+			Dialogs.showNoProjectError("Script editor");
 			return;
 		}
 		ScriptTab tab = getCurrentScriptTab();
 		if (tab == null || tab.getEditorComponent().getText().trim().length() == 0) {
-			Dialogs.showErrorMessage("Script editor", "No script selected");
+			Dialogs.showNoProjectError("Script editor");
 			return;
 		}
 		if (tab.getLanguage() == null) {
-			Dialogs.showErrorMessage("Script editor", "No language set");
+			Dialogs.showNoProjectError("Script editor");
 			return;			
 		}
 		

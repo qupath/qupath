@@ -39,6 +39,11 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
+/**
+ * Helper class for generating interactive charts.
+ * 
+ * @author Pete Bankhead
+ */
 public class Charts {
 	
 	// See https://stackoverflow.com/questions/17164375/subclassing-a-java-builder-class/34741836#34741836 

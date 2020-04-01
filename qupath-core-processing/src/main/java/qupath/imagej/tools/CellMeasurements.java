@@ -35,8 +35,34 @@ public class CellMeasurements {
 	
 	final private static Logger logger = LoggerFactory.getLogger(CellMeasurements.class);
 	
+	/**
+	 * Requested intensity measurements.
+	 */
 	public enum Measurements {
-		MEAN, MEDIAN, MIN, MAX, STD_DEV, VARIANCE;
+		/**
+		 * Arithmetic mean
+		 */
+		MEAN,
+		/**
+		 * Median value
+		 */
+		MEDIAN,
+		/**
+		 * Minimum value
+		 */
+		MIN,
+		/**
+		 * Maximum value
+		 */
+		MAX,
+		/**
+		 * Standard deviation value
+		 */
+		STD_DEV,
+		/**
+		 * Variance value
+		 */
+		VARIANCE;
 		
 		private String getMeasurementName() {
 			switch (this) {
@@ -217,6 +243,14 @@ public class CellMeasurements {
 		return array;
 	}
 	
+	/**
+	 * Measure objects within the specified image, adding them to the corresponding measurement lists.
+	 * @param img intensity values to measure
+	 * @param imgLabels labels corresponding to objects
+	 * @param pathObjects map between label values and objects
+	 * @param baseName base name to include when adding measurements (e.g. the channel name)
+	 * @param measurements requested measurements
+	 */
 	public static void measureObjects(
 			SimpleImage img, SimpleImage imgLabels,
 			Map<? extends Number, PathObject> pathObjects,
@@ -225,7 +259,14 @@ public class CellMeasurements {
 		measureObjects(img, imgLabels, mapToArray(pathObjects), baseName, measurements);
 	}
 	
-	
+	/**
+	 * Measure objects within the specified image, adding them to the corresponding measurement lists.
+	 * @param img intensity values to measure
+	 * @param imgLabels labels corresponding to objects
+	 * @param pathObjects array of objects, where array index for an object is 1 less than the label in imgLabels
+	 * @param baseName base name to include when adding measurements (e.g. the channel name)
+	 * @param measurements requested measurements
+	 */
 	public static void measureObjects(
 			SimpleImage img, SimpleImage imgLabels,
 			PathObject[] pathObjects,
