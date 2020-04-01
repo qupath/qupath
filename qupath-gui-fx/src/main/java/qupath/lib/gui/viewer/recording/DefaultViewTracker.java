@@ -206,6 +206,7 @@ class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	 * @param canvasSize
 	 * @param cursorPoint
 	 * @param eyePoint
+	 * @param isFixated 
 	 * @return The frame, if one was added, or null otherwise.
 	 */
 	protected synchronized ViewRecordingFrame addFrame(final long timestamp, final Shape imageBounds, final Dimension canvasSize, final Point2D cursorPoint, final Point2D eyePoint, final Boolean isFixated) {

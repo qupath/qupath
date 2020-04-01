@@ -39,12 +39,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Writer;
 import java.lang.Thread.UncaughtExceptionHandler;
-import java.lang.reflect.Constructor;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -73,7 +70,6 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.jar.Attributes;
-import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
@@ -134,9 +130,7 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
-import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.Slider;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
@@ -174,7 +168,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -264,6 +257,7 @@ import qupath.lib.gui.commands.scriptable.SpecifyAnnotationCommand;
 import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.commands.selectable.CellDisplaySelectable;
 import qupath.lib.gui.commands.selectable.ToolSelectable;
+import qupath.lib.gui.controls.cells.ImageAndNameListCell;
 import qupath.lib.gui.dialogs.DialogHelper;
 import qupath.lib.gui.dialogs.DialogHelperFX;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -341,7 +335,6 @@ import qupath.lib.plugins.objects.RefineAnnotationsPlugin;
 import qupath.lib.plugins.objects.ShapeFeaturesPlugin;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
-import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -500,7 +493,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param path path of an image, project or data file to open (may be null)
 	 * @param isStandalone true if QuPath should be run as a standalone application
 	 */
-	public QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone) {
+	QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone) {
 		super();
 		
 		this.hostServices = services;
@@ -952,11 +945,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Try to launch a browser window for a specified URL.
-	 * <p>
-	 * Returns true if this was (as far as we know...) successful, and false otherwise.
 	 * 
-	 * @param url
-	 * @return
+	 * @param url the URL to open in the browser
+	 * @return true if this was (as far as we know...) successful, and false otherwise
 	 */
 	public static boolean launchBrowserWindow(final String url) {
 		var instance = getInstance();
@@ -978,28 +969,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return false;
 		}
 	}
-	
-	
-	
-//	/**
-//	 * Directory containing extensions.
-//	 * 
-//	 * This can contain any jars - all will be added to the search path when starting QuPath.
-//	 * 
-//	 * @return
-//	 */
-//	public File getExtensionDirectory() {
-//		// Original version... saved with QuPath, but could lead to permissions woes
-//		File currentFile;
-//		try {
-//			currentFile = new File(QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-//			File dirExtensions = new File(currentFile.getParentFile().getParentFile(), "extensions");
-//			return dirExtensions;
-//		} catch (URISyntaxException e) {
-//			logger.error("Unable to find extensions directory!", e);
-//		}
-//		return null;
-//	}
 	
 	
 	/**
@@ -1040,20 +1009,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	public boolean canInstallExtensions() {
 		return true;
-//		return isRunningJar();
 	}
-	
-//	private boolean isRunningJar() {
-//		try {
-//			File currentFile = new File(QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-//			return currentFile.getName().toLowerCase().endsWith(".jar");
-//		} catch (URISyntaxException e) {
-//			logger.error("Error determining whether jar running!", e);
-//		}
-//		return false;
-//	}
-	
-	
+		
 	/**
 	 * Check for any updates, showing the new changelog if any updates found.
 	 * 
@@ -1552,13 +1509,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return;
 		for (Node child : parent.getChildrenUnmodifiable()) {
 			if (child instanceof TreeView<?>)
-				((TreeView)child).refresh();
+				((TreeView<?>)child).refresh();
 			else if (child instanceof ListView<?>)
-				((ListView)child).refresh();
+				((ListView<?>)child).refresh();
 			else if (child instanceof TableView<?>)
-				((TableView)child).refresh();
+				((TableView<?>)child).refresh();
 			else if (child instanceof TreeTableView<?>)
-				((TreeTableView)child).refresh();
+				((TreeTableView<?>)child).refresh();
 			else if (child instanceof Parent)
 				updateListsAndTables((Parent)child);
 		}
@@ -1615,7 +1572,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		pane = new BorderPane();
 		pane.setCenter(splitPane);
 		toolbar = new ToolBarComponent(this);
-		pane.setTop(toolbar.getComponent());
+		pane.setTop(toolbar.getToolBar());
 		
 //		setInitialLocationAndMagnification(getViewer());
 
@@ -1667,9 +1624,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	/**
-	 * Returns true if this is a standalone QuPathGUI instance, as flagged during startup.
+	 * Query whether this is a standalone QuPathGUI instance, as flagged during startup.
+	 * It can be important to know this so as to avoid calling System.exit(0) or similar, 
+	 * and bringing down some other application entirely.
 	 * 
-	 * @return
+	 * @return true if this is a standalone QuPathGUI instance, false otherwise
 	 */
 	public boolean isStandalone() {
 		return isStandalone;
@@ -1689,7 +1648,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return viewerManager == null ? null : viewerManager.getActiveViewer();
 	}
 	
-	
+	/**
+	 * Get the static instance of the current QuPath GUI.
+	 * @return
+	 */
 	public static QuPathGUI getInstance() {
 		return instance;
 	}
@@ -2746,7 +2708,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return listSeries.getSelectionModel().getSelectedItems();
 	}
 
-	public ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server) {
+	/**
+	 * Create a new {@link ImageData} from the specified server.
+	 * @param server
+	 * @return
+	 */
+	private ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server) {
 		return createNewImageData(server, PathPrefs.getAutoEstimateImageType());
 	}
 	
@@ -3008,7 +2975,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	/**
-	 * Get a reference to the PreferencePanel.
+	 * Get a reference to the {@link PreferencePanel}.
 	 * 
 	 * This can be useful for extensions to be able to add in their own preferences.
 	 * 
@@ -3227,23 +3194,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				menuTools,
 				null,
 				menuGestures);
-		
-//		if (PathPrefs.getRequestAdvancedControllers()) {
-//			try {
-//				// If we have an advanced input controller, try turning it on.
-//				// Previously, we had a menu item... but here, we assume that if a controller is plugged in, then it's wanted.
-//				// However, note that it doesn't like it if a controller is unplugged... in which case it won't work, even if it's plugged back in.
-//				Class<?> cAdvancedController = getClassLoader().loadClass("qupath.lib.gui.input.AdvancedControllerActionFactory");
-//				Method method = cAdvancedController.getMethod("tryToTurnOnAdvancedController", QuPathGUI.class);
-//				if (Boolean.TRUE.equals(method.invoke(null, this))) {
-//					logger.info("Advanced controllers turned ON");
-//				} else
-//					logger.debug("No advanced controllers found");
-//			} catch (Exception e) {
-//				logger.error("Unable to load advanced controller support");
-//				logger.debug("{}", e);
-//			}
-//		}
 		
 		// Create View menu
 		SlideLabelView slideLabelView = new SlideLabelView(this);
@@ -3482,16 +3432,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		Menu menuHelp = MenuTools.createMenu(
 				"Help",
-//				createCommandAction(new HelpCommand(this), "Documentation"),
 				getAction(GUIActions.QUPATH_SETUP),
 				null,
 				createCommandAction(new OpenWebpageCommand(this, URL_DOCS), "Documentation (web)"),
 				createCommandAction(new OpenWebpageCommand(this, URL_VIDEOS), "Demo videos (web)"),
-//				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
 				actionUpdateCheck,
 				null,
 				createCommandAction(new OpenWebpageCommand(this, URL_CITATION), "Cite QuPath (web)"),
-//				createCommandAction(new OpenWebpageCommand(this, URL_EXTENSIONS), "Add extensions (web)"),
 				createCommandAction(new OpenWebpageCommand(this, URL_BUGS), "Report bug (web)"),
 				createCommandAction(new OpenWebpageCommand(this, URL_FORUM), "View user forum (web)"),
 				createCommandAction(new OpenWebpageCommand(this, URL_SOURCE), "View source code (web)"),
@@ -3524,15 +3471,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 
 	
-	
-	public Action createPluginAction(final String name, final String pluginClassName, final boolean includeRegionStore, final String arg) throws ClassNotFoundException {
-		Class<PathPlugin> cls = (Class<PathPlugin>)getExtensionClassLoader().loadClass(pluginClassName);
-		return createPluginAction(name, cls, this, arg);
-	}
-	
-	
 	/**
-	 * Update project display.
+	 * Refresh the project, updating the display if required.
+	 * This can be called whenever the project has changed (e.g. by adding or removing items).
 	 */
 	public void refreshProject() {
 		projectBrowser.refreshProject();
@@ -3653,21 +3594,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		action.setGraphic(icon);
 		return action;
 	}
-
-	public Action createCommandAction(final String className, final String name, final Object... arguments) {
-		try {
-			Class<? extends PathCommand> cls = (Class<PathCommand>)getExtensionClassLoader().loadClass(className);
-			Class<?>[] classes = new Class<?>[arguments.length];
-			for (int i = 0; i < arguments.length; i++)
-				classes[i] = arguments[i].getClass();
-			Constructor<? extends PathCommand> constructor = cls.getConstructor(classes);
-			PathCommand pathCommand = constructor.newInstance(arguments);
-			return createCommandAction(pathCommand, name);
-		} catch (Exception e) {
-			logger.error("Unable to construct command: {}", e);
-		}
-		return null;
-	}
 	
 	public static Action createCommandAction(final PathCommand command, final String name) {
 		return createCommandAction(command, name, (Node)null, null);
@@ -3715,25 +3641,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return action;
 	}
 	
-	
-	
-	public void addToolbarSeparator() {
-		toolbar.toolbar.getItems().add(new Separator(Orientation.VERTICAL));
+	/**
+	 * Get the main toolbar.
+	 * @return
+	 */
+	public ToolBar getToolBar() {
+		return toolbar.getToolBar();
 	}
-	
-	public void addToolbarCommand(final String name, final PathCommand command, final Node icon) {
-		toolbar.toolbar.getItems().add(getActionButton(createCommandAction(command, name, icon, null), icon != null));
-	}
-	
-	public void addToolbarButton(final Button button) {
-		toolbar.toolbar.getItems().add(button);
-	}
-	
-
 	
 	
 	private Action createAction(GUIActions actionType) {
-//		QuPathViewerPlus viewer = viewerManager.getActiveViewer();
 		Action action;
 		switch (actionType) {
 		case BRIGHTNESS_CONTRAST:
@@ -3786,7 +3703,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return createSelectableCommandAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar", PathIconFactory.PathIcons.SHOW_SCALEBAR, null);
 		case SHOW_ANALYSIS_PANEL:
 			// I don't understand why registering a listener within the ShowAnalysisPanelSelectable constructor didn't work... but it didn't
-			ShowAnalysisPanelSelectable temp = new ShowAnalysisPanelSelectable(pane, splitPane, analysisPanel, viewerManager, true);
+			ShowAnalysisPaneSelectable temp = new ShowAnalysisPaneSelectable(pane, splitPane, analysisPanel, viewerManager, true);
 			action = createSelectableCommandAction(temp.showPanelProperty(), "Show analysis panel", PathIconFactory.PathIcons.MEASURE, new KeyCodeCombination(KeyCode.A, KeyCombination.SHIFT_DOWN));
 			action.selectedProperty().addListener((e, f, g) -> temp.setAnalysisPanelVisible(g));
 			return action;
@@ -3975,7 +3892,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	/**
-	 * Get the UndoRedoManager, which can be useful if needing to clear it in cases where available memory is low.
+	 * Get the {@link UndoRedoManager}, which can be useful if needing to clear it in cases where available memory is low.
 	 * @return
 	 */
 	public UndoRedoManager getUndoRedoManager() {
@@ -4129,7 +4046,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return mode;
 	}
 	
-	public MenuItem getActionMenuItem(GUIActions actionType) {
+	MenuItem getActionMenuItem(GUIActions actionType) {
 		Action action = getAction(actionType);
 		return MenuTools.createMenuItem(action);
 	}
@@ -4218,7 +4135,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return button;
 	}
 
-	private ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, boolean isSelected) {
+	ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, boolean isSelected) {
 		return getActionToggleButton(actionType, hideActionText, null, isSelected);
 	}
 	
@@ -4232,6 +4149,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			Tooltip.install(button, new Tooltip(action.getText()));
 		}
 		return button;
+	}
+	
+	/**
+	 * Return the global {@link OverlayOptions} instance, used to control display within viewers by default.
+	 * @return
+	 */
+	public OverlayOptions getOverlayOptions() {
+		return overlayOptions;
 	}
 	
 	/**
@@ -4354,233 +4279,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	public Stage getStage() {
 		return stage;
 	}
-	
-	class ToolBarComponent {
-		
-		private double lastMagnification = Double.NaN;
-		
-		private Label labelMag = new Label("1x");
-		private Tooltip tooltipMag = new Tooltip("Current magnification - double-click to set");
-		private ToolBar toolbar = new ToolBar();
-		
-		ToolBarComponent(final QuPathGUI qupath) {
-			
-			labelMag.setTooltip(tooltipMag);
-			labelMag.setPrefWidth(60);
-			labelMag.setMinWidth(60);
-			labelMag.setMaxWidth(60);
-			labelMag.setTextAlignment(TextAlignment.CENTER);
-			
-			labelMag.setOnMouseEntered(e -> refreshMagnificationTooltip());
-			
-			labelMag.setOnMouseClicked(e -> {
-
-					QuPathViewer viewer = qupath.getViewer();
-					if (viewer == null || e.getClickCount() != 2 || !viewer.hasServer())
-						return;
-					double fullMagnification = viewer.getServer().getMetadata().getMagnification();
-					boolean hasMagnification = !Double.isNaN(fullMagnification);
-					ParameterList params = new ParameterList();
-					if (hasMagnification) {
-						double defaultValue = Math.rint(viewer.getMagnification() * 1000) / 1000;
-						params.addDoubleParameter("magnification", "Enter magnification", defaultValue);
-					} else {
-						double defaultValue = Math.rint(viewer.getDownsampleFactor() * 1000) / 1000;
-						params.addDoubleParameter("downsample", "Enter downsample factor", defaultValue);			
-					}
-//					ParameterPanelFX panel = new ParameterPanelFX(params);
-//					panel.getPane().setPadding(new Insets(10, 10, 10, 10));
-					
-					if (!Dialogs.showParameterDialog("Set magnification", params))
-						return;
-					
-					if (hasMagnification) {
-						double mag = params.getDoubleParameterValue("magnification");
-						if (!Double.isNaN(mag))
-							viewer.setMagnification(mag);
-					} else {
-						double downsample = params.getDoubleParameterValue("downsample");
-						if (!Double.isNaN(downsample))
-							viewer.setDownsampleFactor(downsample);
-					}
-				
-			});
-			
-			// Show analysis panel
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_ANALYSIS_PANEL, true, null, true));
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-//			GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
-//			toolbar.getItems().add(new Button("", fontAwesome.create(FontAwesome.Glyph.ARROWS).color(Color.GRAY)));
-//			toolbar.getItems().add(new Button("", fontAwesome.create(FontAwesome.Glyph.MAGIC).color(Color.GRAY)));
-//			toolbar.getItems().add(new Button("", fontAwesome.create(FontAwesome.Glyph.ANGLE_DOUBLE_LEFT).color(Color.GRAY)));
-			
-			ToggleGroup groupTools = new ToggleGroup();
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.MOVE_TOOL, true, groupTools, true));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.RECTANGLE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.ELLIPSE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.LINE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.POLYGON_TOOL, true, groupTools, false));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.POLYLINE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			ToggleButton btnBrush = qupath.getActionToggleButton(GUIActions.BRUSH_TOOL, true, groupTools, false);
-			toolbar.getItems().add(btnBrush);
-			btnBrush.setOnMouseClicked(e -> {
-				if (e.isPopupTrigger() || e.getClickCount() < 2)
-					return;
-
-				final ParameterList params = new ParameterList()
-						.addDoubleParameter("brushSize", "Brush diameter", PathPrefs.getBrushDiameter(), "pixels", "Enter the default brush diameter, in pixels")
-						.addBooleanParameter("brushScaleMag", "Scale brush size by magnification", PathPrefs.getBrushScaleByMag())
-						.addBooleanParameter("brushCreateNew", "Create new objects when painting", PathPrefs.getBrushCreateNewObjects());
-				final ParameterPanelFX panel = new ParameterPanelFX(params);
-				panel.addParameterChangeListener(new ParameterChangeListener() {
-
-					@Override
-					public void parameterChanged(ParameterList parameterList, String key, boolean isAdjusting) {
-						if ("brushSize".equals(key)) {
-							double radius = params.getDoubleParameterValue("brushSize");
-							if (!Double.isNaN(radius)) {
-								PathPrefs.setBrushDiameter((int)Math.round(Math.max(1, radius)));
-							}
-						} else if ("brushCreateNew".equals(key))
-							PathPrefs.setBrushCreateNewObjects(params.getBooleanParameterValue("brushCreateNew"));
-						else if ("brushScaleMag".equals(key))
-							PathPrefs.setBrushScaleByMag(params.getBooleanParameterValue("brushScaleMag"));
-					}
-
-				});
-				
-				Dialogs.showConfirmDialog("Brush tool options", panel.getPane());
-				
-//				dialog = new JDialog(qupath.getFrame(), "Brush tool options");
-//				dialog.add(panel);
-//				panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-//				dialog.pack();
-//				dialog.setLocationRelativeTo(null);
-//				dialog.setAlwaysOnTop(true);
-//				dialog.setModal(false);
-//				dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-//				dialog.setVisible(true);
-			});
-//			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			ToggleButton toggleWand = qupath.getActionToggleButton(GUIActions.WAND_TOOL, true, groupTools, false);
-//			toggleWand.visibleProperty().bind(Bindings.not(qupath.getAction(GUIActions.WAND_TOOL).disabledProperty()));
-			toolbar.getItems().add(toggleWand);
-//			if (qupath.tools.containsKey(Modes.WAND))
-//				toolbar.getItems().add(toggleWand);
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.POINTS_TOOL, true, groupTools, false));
-//			toolbar.getItems().add(getActionToggleButton(GUIActions.POINTS_TOOL, true, groupTools, false));
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SELECTION_MODE, true, null, PathPrefs.isSelectionMode()));			
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-
-//			toolbar.getItems().add(getActionToggleButton(GUIActions.USE_COLOR_LUT, true, false));
-			toolbar.getItems().add(qupath.getActionButton(GUIActions.BRIGHTNESS_CONTRAST, true));
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "1%", 100), false, false));
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "10%", 10), false, false));
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "50%", 2), false, false));
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "100%", 1), false, false));
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "400%", 0.25), false, false));
-	// //		toolbar.getItems().add(sliderMag);
-			toolbar.getItems().add(labelMag);
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.ZOOM_TO_FIT, true, false));
-
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			OverlayOptions overlayOptions = qupath.overlayOptions;
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
-
-			final Slider sliderOpacity = new Slider(0, 1, 1);
-			sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
-			sliderOpacity.setTooltip(new Tooltip("Overlay opacity"));
-			toolbar.getItems().add(sliderOpacity);
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			
-			Button btnMeasure = new Button();
-			btnMeasure.setGraphic(PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.TABLE));
-			btnMeasure.setTooltip(new Tooltip("Show measurements table"));
-			ContextMenu popupMeasurements = new ContextMenu();
-			popupMeasurements.getItems().addAll(
-					qupath.getActionMenuItem(GUIActions.SUMMARY_TMA),
-					qupath.getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),
-					qupath.getActionMenuItem(GUIActions.SUMMARY_DETECTIONS),
-					qupath.getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS)
-					);
-			btnMeasure.setOnMouseClicked(e -> {
-				popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());
-			});
-			
-			toolbar.getItems().add(btnMeasure);
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			// TODO: Check if viewer really needed...
-			QuPathViewerPlus viewer = qupath.getViewer();
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_OVERVIEW, true, viewer.isOverviewVisible()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_LOCATION, true, viewer.isLocationVisible()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_SCALEBAR, true, viewer.isScalebarVisible()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_GRID, true, overlayOptions.getShowGrid()));
-			
-			// Add preferences button
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			toolbar.getItems().add(qupath.getActionButton(GUIActions.PREFERENCES, true));
-		}
-		
-		void refreshMagnificationTooltip() {
-			// Ensure we have the right tooltip for magnification
-			if (tooltipMag == null)
-				return;
-			var imageData = getImageData();
-			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
-			if (imageData == null)
-				tooltipMag.setText("Magnification");
-			else if (mag != null && !Double.isNaN(mag))
-				tooltipMag.setText("Display magnification - double-click to edit");
-			else
-				tooltipMag.setText("Display scale value - double-click to edit");
-		}
-		
-		public void updateMagnificationDisplay(final QuPathViewer viewer) {
-			if (viewer == null || labelMag == null)
-				return;
-			// Update magnification info
-			double mag = viewer.getMagnification();
-			if (Math.abs(mag - lastMagnification) / mag < 0.0001)
-				return;
-			lastMagnification = mag;
-			Platform.runLater(() -> {
-				labelMag.setText(GuiTools.getMagnificationString(viewer));
-//				labelMag.setTextAlignment(TextAlignment.CENTER);
-			});
-		}
-		
-		public Node getComponent() {
-			return toolbar;
-		}
-		
-		
-	}
-	
-	
-		
-	
 	
 	private void updateMagnificationString() {
 		if (toolbar == null)
@@ -4786,9 +4484,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 
 	/**
-	 * Get a shared DialogHelper.
+	 * Get a shared {@link DialogHelper}.
 	 * 
-	 * Generally it's better to use getDialogHelper where a QuPathGUI instance is available, since it will have
+	 * Generally it's better to use getDialogHelper where a {@link QuPathGUI} instance is available, since it will have
 	 * its parent window set.
 	 * 
 	 * @return
@@ -4801,9 +4499,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	/**
-	 * Get a DialogHelper with a specified Window as a parent.
+	 * Get a DialogHelper with a specified {@link Window} as a parent.
 	 * 
-	 * This will return a different DialogHelper for each different Window parent,
+	 * This will return a different {@link DialogHelper} for each different Window parent,
 	 * but the same DialogHelper for the same Windows.
 	 * 
 	 * @param parent
@@ -4824,7 +4522,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * Call getDialogHelper for the Window containing a specified Node.
 	 * 
 	 * This is a convenience method when a dialog is related to a Node,
-	 * so there isn't a need to get a reference to its parent Window manually.
+	 * so there isn't a need to get a reference to its parent {@link Window} manually.
 	 * 
 	 * @param node
 	 * @return
@@ -4842,7 +4540,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	
-	static class ShowAnalysisPanelSelectable {
+	static class ShowAnalysisPaneSelectable {
 		
 		private BorderPane parent;
 		private SplitPane splitPane;
@@ -4852,19 +4550,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		private BooleanProperty showPanel = new SimpleBooleanProperty();
 		
-		public ShowAnalysisPanelSelectable(final BorderPane parent, final SplitPane splitPane, final Control analysisPanel, final MultiviewManager manager, final boolean defaultVisible) {
+		ShowAnalysisPaneSelectable(final BorderPane parent, final SplitPane splitPane, final Control analysisPanel, final MultiviewManager manager, final boolean defaultVisible) {
 			this.parent = parent;
 			this.splitPane = splitPane;
 			this.analysisPanel = analysisPanel;
 			this.manager = manager;
 			
 			showPanel.setValue(parent.getCenter() == splitPane);
-			
-//			// This didn't get fired when it was used...
-//			showPanel.addListener((v, o, n) -> {
-//				System.err.println("Property changes");
-//				setAnalysisPanelVisible(n);
-//			});
 		}
 		
 		void setAnalysisPanelVisible(boolean visible) {
@@ -4885,16 +4577,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		public boolean analysisPanelVisible() {
 			return parent.getCenter() == splitPane;
 		}
-
-//		public void setShowPanel(boolean selected) {
-//			System.err.println("Property changes instead");
-//			this.showPanel.setValue(selected);
-//		}
-//		
-//		public boolean getShowPanel() {
-//			System.err.println("Property value requested");
-//			return showPanel.get();
-//		}
 		
 		public BooleanProperty showPanelProperty() {
 			return showPanel;
@@ -5351,57 +5033,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return synchronizeViewers;
 		}
 		
-		
-		/**
-		 * Convert the viewers to quadrants, using new split panes appropriately.
-		 * Warning: this will throw a RuntimeException if > viewers are open.
-		 */
-		public void setupQuadrants() {
-			// TODO: REINSTATE QUADRANTS!!!!
-//			if (viewers.size() > 4)
-//				throw new RuntimeException("Cannot set up quadrants while > 4 viewers are open");
-//			
-//			JSplitPane splitTop = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true);
-//			splitTop.setResizeWeight(0.5);
-//			splitTop.setOneTouchExpandable(true);
-//
-//			JSplitPane splitBottom = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true);
-//			splitBottom.setResizeWeight(0.5);
-//			splitBottom.setOneTouchExpandable(true);
-//			
-//			// Add the available viewers, and any extra ones that are needed
-//			if (viewers.size() > 0)
-//				splitTop.setLeftComponent(viewers.get(0));
-//			else
-//				splitTop.setLeftComponent(viewerManager.createViewer());
-//			if (viewers.size() > 1)
-//				splitTop.setRightComponent(viewers.get(1));
-//			else
-//				splitTop.setRightComponent(viewerManager.createViewer());
-//			if (viewers.size() > 2)
-//				splitBottom.setLeftComponent(viewers.get(2));
-//			else
-//				splitBottom.setLeftComponent(viewerManager.createViewer());
-//			if (viewers.size() > 3)
-//				splitBottom.setRightComponent(viewers.get(3));
-//			else
-//				splitBottom.setRightComponent(viewerManager.createViewer());
-//			
-//			JSplitPane splitMain = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true, splitTop, splitBottom);
-//			splitMain.setResizeWeight(0.5);
-//			splitMain.setOneTouchExpandable(true);
-//			
-//			panel.removeAll();
-//			panel.add(splitMain, BorderLayout.CENTER);
-//			
-//			// Need synchronous validation for the divider locations to work (i.e. not revalidate())
-//			panel.invalidate();
-//			panel.validate();
-//			splitMain.setDividerLocation(0.5);
-//			splitTop.setDividerLocation(0.5);
-//			splitBottom.setDividerLocation(0.5);
-		}
-		
 
 		@Override
 		public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {
@@ -5415,9 +5046,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (viewer != getActiveViewer()) {
 				return;
 			}
-			
-//			logger.info("SELECTED OBJECT CHANGED");
-
 			
 			// Synchronize TMA cores
 			if (!(pathObjectSelected instanceof TMACoreObject))
@@ -5537,8 +5165,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 			private SplitPane splitPaneMain = new SplitPane();
 			private List<SplitPane> splitPaneRows = new ArrayList<>();
-			
-//			private Map<Node, QuPathViewer> viewerMap = new WeakHashMap<>();
 			
 			SplitPaneGrid(final Node node) {
 				splitPaneMain.setOrientation(Orientation.VERTICAL);
@@ -5750,88 +5376,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	@Override
 	public void removeImageDataChangeListener(ImageDataChangeListener<BufferedImage> listener) {
 		listeners.remove(listener);
-	}
-	
-	
-	public static class ExtensionClassLoader extends URLClassLoader {
-
-		public ExtensionClassLoader() {
-			super(new URL[0], QuPathGUI.class.getClassLoader());
-//			refresh();
-		}
-		
-		/**
-		 * Request that a specified JAR file be added to the classpath.
-		 * 
-		 * @param file
-		 * @return
-		 */
-		private boolean addJAR(final File file) {
-			try (JarFile jar = new JarFile(file)) {
-				if (jar.entries().hasMoreElements()) {
-					addURL(file.toURI().toURL());
-					return true;
-				}
-			} catch (IOException e) {
-				logger.error("Unable to add file to classpath", e);
-			}
-			return false;
-		}
-		
-		/**
-		 * Ensure all Jars in the extensions directory (and one subdirectory down) are available
-		 */
-		public void refresh() {
-			File dirExtensions = getExtensionDirectory();
-			if (dirExtensions == null) {
-				logger.debug("Extensions directory is null - no extensions will be loaded");
-				return;
-			}
-			if (!dirExtensions.isDirectory()) {
-				logger.error("Invalid extensions directory! '{}' is not a directory.", dirExtensions);
-				return;
-			}
-			refreshExtensions(dirExtensions);
-			for (File dir : dirExtensions.listFiles()) {
-				if (!dir.isHidden() && dir.isDirectory()) {
-					Path dirPath = dir.toPath();
-					if (Files.isSymbolicLink(dirPath))
-						try {
-							dir = Files.readSymbolicLink(dirPath).toFile();
-						} catch (IOException e) {
-							logger.error("Error refreshing extensions", e);
-						}
-					refreshExtensions(dir);
-				}
-			}
-		}
-		
-		/**
-		 * Ensure all Jars from the specified directory are available.
-		 * 
-		 * @param dirExtensions
-		 */
-		private void refreshExtensions(final File dirExtensions) {
-			if (dirExtensions == null) {
-				logger.debug("No extensions directory specified");				
-				return;
-			} else if (!dirExtensions.isDirectory()) {
-				logger.warn("Cannot load extensions from " + dirExtensions + " - not a valid directory");	
-				return;
-			}
-			logger.info("Refreshing extensions in " + dirExtensions);				
-			for (File file : dirExtensions.listFiles()) {
-				if (file.getName().toLowerCase().endsWith(".jar")) {
-					try {
-						addURL(file.toURI().toURL());
-						logger.info("Added extension: " + file.getAbsolutePath());
-					} catch (MalformedURLException e) {
-						logger.debug("Error adding {} to classpath", file, e);
-					}
-				}
-			}
-		}
-		
 	}
 	
 }

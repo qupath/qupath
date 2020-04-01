@@ -341,6 +341,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 * 	- null, if this is the value stored in the TiledImageCache (i.e. the tile has previously been fetched, and there is no image corresponding to the request)
 	 * @param server
 	 * @param request
+	 * @param cache 
+	 * @param ensureTileReturned 
 	 * @return
 	 */
 	protected synchronized Object requestImageTile(final ImageServer<T> server, final RegionRequest request, final Map<RegionRequest, T> cache, final boolean ensureTileReturned) {

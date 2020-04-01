@@ -40,8 +40,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
@@ -117,7 +117,7 @@ public class QuPath {
 //					logger.warn("Unable to load OpenCV native library!");
 				
 				// 
-				ClassLoader classLoader = new QuPathGUI.ExtensionClassLoader();
+				ClassLoader classLoader = new ExtensionClassLoader();
 				ScriptEngineManager manager = new ScriptEngineManager(classLoader);
 				if (scriptName == null || !scriptName.contains(".")) {
 					logger.error("Invalid path to script: " + scriptName);

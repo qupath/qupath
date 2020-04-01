@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +73,6 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -82,7 +80,6 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
@@ -434,35 +431,6 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		Scene scene = new Scene(pane, 600, 500);
 		frame.setScene(scene);
 		frame.show();
-
-
-		// I accept this is a terrible hack... I would greatly appreciate someone telling me the proper way to get the accelerator keys to work
-		final Action actionShowTMAction = qupath.getAction(GUIActions.SHOW_TMA_GRID);
-		final Action actionShowAnnotations = qupath.getAction(GUIActions.SHOW_ANNOTATIONS);
-		final Action actionShowObjects = qupath.getAction(GUIActions.SHOW_DETECTIONS);
-		final Action actionFillObjects = qupath.getAction(GUIActions.FILL_DETECTIONS);
-		final KeyCombination showTMAKeyStroke = actionShowTMAction.getAccelerator();
-		final KeyCombination showAnnotationsKeystroke = actionShowAnnotations.getAccelerator();
-		final KeyCombination showObjectsKeystroke = actionShowObjects.getAccelerator();
-		final KeyCombination fillObjectsKeystroke = actionFillObjects.getAccelerator();
-		scene.setOnKeyPressed(e -> {
-			Action action = null;
-			if (showObjectsKeystroke.match(e))
-				action = actionShowObjects;
-			else if (fillObjectsKeystroke.match(e))
-				action = actionFillObjects;
-			else if (showAnnotationsKeystroke.match(e))
-				action = actionShowAnnotations;
-			else if (showTMAKeyStroke.match(e))
-				action = actionShowTMAction;
-
-			if (action != null) {
-				action.setSelected(!action.isSelected());
-			}
-
-		});
-
-		
 		
 		
 		// Add ability to remove entries from table
@@ -495,15 +463,6 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				menuLimitClasses.getItems().add(miClass);
 			}
 		});
-//		miLimitClasses.setOnAction(e -> {
-//			List<PathObject> selected = table.getSelectionModel().getSelectedItems();
-//			table.getSelectionModel().clearSelection();
-//			model.setPredicate(p -> p.getPathClass() != null && p.getPathClass().getBaseClass() == PathClassFactory.getDefaultPathClass(PathClasses.TUMOR));
-//			model.getEntries().removeAll(selected);
-//			table.getItems().removeAll(selected);
-//			table.refresh();
-//			histogramDisplay.refreshHistogram();
-//		});
 		
 		if (type != TMACoreObject.class) {
 			menu.getItems().add(menuLimitClasses);

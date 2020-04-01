@@ -670,15 +670,8 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		return false;
 	}
 
-	
 
-
-	public boolean hasProject() {
-		return getProject() != null;
-	}
-
-
-	public Project<BufferedImage> getProject() {
+	private Project<BufferedImage> getProject() {
 		return project;
 	}
 
@@ -703,18 +696,6 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		tree.setRoot(model.getRootFX());
 		tree.getRoot().setExpanded(true);
 		return true;
-	}
-	
-	
-	
-//	public List<String> findMissingPaths(final Project<?> project) {
-//		return project.getImageList().stream().f
-//	}
-	
-	private static boolean pathMissing(String path) {
-		int ind = path.lastIndexOf("::");
-		return !path.startsWith("http") && !new File(path).exists() && 
-				(ind < 0 || !new File(path.substring(0, ind)).exists());
 	}
 	
 	

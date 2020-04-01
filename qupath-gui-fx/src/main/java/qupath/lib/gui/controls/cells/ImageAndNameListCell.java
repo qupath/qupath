@@ -1,4 +1,4 @@
-package qupath.lib.gui;
+package qupath.lib.gui.controls.cells;
 
 import java.awt.image.BufferedImage;
 import java.util.Map;

@@ -33,10 +33,12 @@ import ij.gui.Overlay;
 import ij.gui.Roi;
 import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
+import javafx.geometry.Orientation;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
@@ -451,7 +453,8 @@ public class IJExtension implements QuPathExtension {
 		PathCommand screenshotCommand = new ScreenshotCommand(qupath);
 		
 		// Add buttons to toolbar
-		qupath.addToolbarSeparator();
+		var toolbar = qupath.getToolBar();
+		toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 		
 		try {
 			ImageView imageView = new ImageView(getImageJIcon(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE));
@@ -477,11 +480,9 @@ public class IJExtension implements QuPathExtension {
 //			});
 //			popup.getItems().addAll(new SeparatorMenuItem(), miSetPluginsPath);
 			
-			qupath.addToolbarButton(btnImageJ);
+			toolbar.getItems().add(btnImageJ);
 		} catch (Exception e) {
 			logger.error("Error adding toolbar buttons", e);
-			qupath.addToolbarCommand(commandExtractRegionCustom.getName(), commandExtractRegionCustom, PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION));
-			qupath.addToolbarCommand("Make screenshot", screenshotCommand, PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT));
 		}
 		
 		

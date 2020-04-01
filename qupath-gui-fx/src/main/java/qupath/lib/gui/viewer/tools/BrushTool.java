@@ -443,6 +443,7 @@ public class BrushTool extends AbstractPathROITool {
 	
 	/**
 	 * Create a new Geometry using the specified tool, assuming a user click/drag at the provided x &amp; y coordinates.
+	 * @param e 
 	 * 
 	 * @param x
 	 * @param y

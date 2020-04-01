@@ -1,4 +1,4 @@
-package qupath.lib.objects;
+package qupath.lib.analysis;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -38,6 +38,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
