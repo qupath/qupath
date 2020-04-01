@@ -26,7 +26,7 @@ package qupath.lib.gui.commands.scriptable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ViewerManager;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -50,16 +50,16 @@ public class SelectAllAnnotationCommand implements PathCommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(SelectAllAnnotationCommand.class);
 	
-	final private ViewerManager<?>  qupath;
+	final private ObservableValue<? extends QuPathViewer>  viewerValue;
 	
-	public SelectAllAnnotationCommand(final ViewerManager<?> qupath) {
+	public SelectAllAnnotationCommand(final ObservableValue<? extends QuPathViewer> viewerValue) {
 		super();
-		this.qupath = qupath;
+		this.viewerValue = viewerValue;
 	}
 
 	@Override
 	public void run() {
-		QuPathViewer viewer = qupath.getViewer();
+		QuPathViewer viewer = viewerValue.getValue();
 		if (viewer == null)
 			return;
 		ImageData<?> imageData = viewer.getImageData();

@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.value.ObservableValue;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
@@ -41,7 +42,6 @@ import javafx.scene.layout.Pane;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.ViewerManager;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -62,7 +62,7 @@ public class PathClassifierPanel {
 
 	private BorderPane pane = new BorderPane();
 
-	private ViewerManager<?> manager;
+	private ObservableValue<? extends QuPathViewer> viewerValue;
 
 	private String pathClassifier = null;
 	private PathObjectClassifier classifier = null;
@@ -71,9 +71,9 @@ public class PathClassifierPanel {
 	private Button btnRun = new Button("Run classifier");
 	private TextArea textClassifier = new TextArea();
 
-	public PathClassifierPanel(final ViewerManager<?> manager) {
+	public PathClassifierPanel(final ObservableValue<? extends QuPathViewer> viewerValue) {
 
-		this.manager = manager;
+		this.viewerValue = viewerValue;
 
 		btnLoad.setOnAction(e -> {
 			File file = QuPathGUI.getDialogHelper(btnLoad.getScene().getWindow()).promptForFile("Load classifier", null, "Classifiers", new String[]{PathPrefs.getClassifierExtension()});
@@ -117,7 +117,7 @@ public class PathClassifierPanel {
 
 
 	void runClassifier() {
-		QuPathViewer viewer = manager.getViewer();
+		QuPathViewer viewer = viewerValue.getValue();
 		if (viewer == null)
 			return;
 		ImageData<BufferedImage> imageData = viewer.getImageData();

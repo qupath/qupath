@@ -67,7 +67,7 @@ public class LoadClassifierCommand implements PathCommand {
 		dialog.setTitle("Classifier");
 		dialog.initOwner(qupath.getStage());
 		BorderPane pane = new BorderPane();
-		pane.setCenter(new PathClassifierPanel(qupath).getPane());
+		pane.setCenter(new PathClassifierPanel(qupath.viewerProperty()).getPane());
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		dialog.setScene(new Scene(pane, 300, 400));
 	}

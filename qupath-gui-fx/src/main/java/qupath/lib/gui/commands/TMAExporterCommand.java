@@ -27,9 +27,9 @@ import java.awt.image.BufferedImage;
 
 import java.io.File;
 
+import javafx.beans.value.ObservableValue;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.ViewerManager;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -49,17 +49,17 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  */
 public class TMAExporterCommand implements PathCommand {
 	
-	final private ViewerManager<?> manager;
+	final private ObservableValue<? extends QuPathViewer> viewerValue;
 	private File dirPrevious;
 	
-	public TMAExporterCommand(final ViewerManager<?> manager) {
+	public TMAExporterCommand(final ObservableValue<? extends QuPathViewer> viewerValue) {
 		super();
-		this.manager = manager;
+		this.viewerValue = viewerValue;
 	}
 
 	@Override
 	public void run() {
-		QuPathViewer viewer = manager.getViewer();
+		QuPathViewer viewer = viewerValue.getValue();
 		if (viewer == null)
 			return;
 		ImageData<BufferedImage> imageData = viewer.getImageData();

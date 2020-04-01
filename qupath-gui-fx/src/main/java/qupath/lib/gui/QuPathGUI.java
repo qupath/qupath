@@ -352,7 +352,7 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
  * @author Pete Bankhead
  *
  */
-public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
+public class QuPathGUI implements ModeWrapper {
 	
 	static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
 	
@@ -1633,7 +1633,6 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 	}
 	
 	
-	@Override
 	public List<QuPathViewerPlus> getViewers() {
 		if (viewerManager == null)
 			return Collections.emptyList();
@@ -1641,7 +1640,6 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 	}
 	
 	
-	@Override
 	public QuPathViewerPlus getViewer() {
 		return viewerManager == null ? null : viewerManager.getActiveViewer();
 	}
@@ -3214,11 +3212,11 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 				null,
 				MenuTools.createMenu(
 						"Zoom",
-						createCommandAction(new ViewerSetDownsampleCommand(this, 0.25), "400%"),
-						createCommandAction(new ViewerSetDownsampleCommand(this, 1), "100%"),
-						createCommandAction(new ViewerSetDownsampleCommand(this, 2), "50%"),
-						createCommandAction(new ViewerSetDownsampleCommand(this, 10), "10%"),
-						createCommandAction(new ViewerSetDownsampleCommand(this, 100), "1%"),
+						createCommandAction(new ViewerSetDownsampleCommand(this.viewerProperty(), 0.25), "400%"),
+						createCommandAction(new ViewerSetDownsampleCommand(this.viewerProperty(), 1), "100%"),
+						createCommandAction(new ViewerSetDownsampleCommand(this.viewerProperty(), 2), "50%"),
+						createCommandAction(new ViewerSetDownsampleCommand(this.viewerProperty(), 10), "10%"),
+						createCommandAction(new ViewerSetDownsampleCommand(this.viewerProperty(), 100), "1%"),
 						null,
 						getActionMenuItem(GUIActions.ZOOM_IN),
 						getActionMenuItem(GUIActions.ZOOM_OUT),
@@ -3708,9 +3706,9 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 		case ZOOM_TO_FIT:
 			return createSelectableCommandAction(zoomToFit, "Zoom to fit", PathIconFactory.PathIcons.ZOOM_TO_FIT, null);
 		case ZOOM_IN:
-			return createCommandAction(new ZoomCommand.ZoomIn(this), "Zoom in", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.ZOOM_IN), new KeyCodeCombination(KeyCode.PLUS));
+			return createCommandAction(ZoomCommand.createZoomInCommand(this.viewerProperty()), "Zoom in", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.ZOOM_IN), new KeyCodeCombination(KeyCode.PLUS));
 		case ZOOM_OUT:
-			return createCommandAction(new ZoomCommand.ZoomOut(this), "Zoom out", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.ZOOM_OUT), new KeyCodeCombination(KeyCode.MINUS));
+			return createCommandAction(ZoomCommand.createZoomOutCommand(this.viewerProperty()), "Zoom out", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.ZOOM_OUT), new KeyCodeCombination(KeyCode.MINUS));
 		case COPY_FULL_SCREENSHOT:
 			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.FULL_SCREENSHOT), "Full screenshot");			
 		case COPY_WINDOW_SCREENSHOT:
@@ -3818,7 +3816,7 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 		case WORKFLOW_DISPLAY:
 			return createCommandAction(new WorkflowDisplayCommand(this), "Show workflow command history", null, new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
 		case TMA_EXPORT_DATA:
-			return createCommandAction(new TMAExporterCommand(this), "Export TMA data");
+			return createCommandAction(new TMAExporterCommand(this.viewerProperty()), "Export TMA data");
 			
 		case SHOW_LOG:
 			return createCommandAction(new LogViewerCommand(this), "Show log", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
@@ -3864,7 +3862,7 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 		case TRANSFER_ANNOTATION:
 			return createCommandAction(new TransferAnnotationCommand(this), "Transfer last annotation", null, new KeyCodeCombination(KeyCode.E, KeyCombination.SHIFT_DOWN));
 		case SELECT_ALL_ANNOTATION:
-			return createCommandAction(new SelectAllAnnotationCommand(this), "Create full image annotation", null, new KeyCodeCombination(KeyCode.A, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
+			return createCommandAction(new SelectAllAnnotationCommand(this.viewerProperty()), "Create full image annotation", null, new KeyCodeCombination(KeyCode.A, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
 		
 		case TOGGLE_SYNCHRONIZE_VIEWERS:
 			return createSelectableCommandAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
@@ -4648,7 +4646,7 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 	
 	
 	
-	class MultiviewManager implements QuPathViewerListener, ViewerManager<QuPathViewerPlus> {
+	class MultiviewManager implements QuPathViewerListener {
 		
 		private List<QuPathViewerPlus> viewers = new ArrayList<>();
 		private SimpleObjectProperty<QuPathViewerPlus> activeViewerProperty = new SimpleObjectProperty<>();
@@ -4680,7 +4678,6 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 			splitPaneGrid = new SplitPaneGrid(defaultViewer.getView());
 		}
 		
-		@Override
 		public List<QuPathViewerPlus> getViewers() {
 			return Collections.unmodifiableList(viewers);
 		}
@@ -5149,7 +5146,6 @@ public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 			removeViewer(viewer); // May be avoidable...?
 		}
 
-		@Override
 		public QuPathViewerPlus getViewer() {
 			return getActiveViewer();
 		}

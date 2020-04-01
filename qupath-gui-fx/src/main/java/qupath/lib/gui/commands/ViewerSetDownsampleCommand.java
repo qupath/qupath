@@ -23,7 +23,7 @@
 
 package qupath.lib.gui.commands;
 
-import qupath.lib.gui.ViewerManager;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.QuPathViewer;
 
@@ -35,7 +35,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  */
 public class ViewerSetDownsampleCommand implements PathCommand {
 	
-	private ViewerManager<?> manager;
+	private ObservableValue<? extends QuPathViewer> viewerValue;
 	private QuPathViewer viewer;
 	private double downsample;
 	
@@ -50,16 +50,16 @@ public class ViewerSetDownsampleCommand implements PathCommand {
 		this.downsample = downsample;
 	}
 	
-	public ViewerSetDownsampleCommand(final ViewerManager<?> manager, final double downsample) {
-		this.manager = manager;
+	public ViewerSetDownsampleCommand(final ObservableValue<? extends QuPathViewer> viewerValue, final double downsample) {
+		this.viewerValue = viewerValue;
 		this.downsample = downsample;
 	}
 	
 	private QuPathViewer getViewer() {
 		if (viewer != null)
 			return viewer;
-		if (manager != null)
-			return manager.getViewer();
+		if (viewerValue != null)
+			return viewerValue.getValue();
 		return null;
 	}
 

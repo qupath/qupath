@@ -813,7 +813,7 @@ public class GuiTools {
 		
 		Menu menuEdit = MenuTools.createMenu(
 				"Edit single",
-				QuPathGUI.createCommandAction(new InverseObjectCommand(qupath.imageDataProperty()), "Make inverse"),
+				QuPathGUI.createCommandAction(new InverseObjectCommand<>(qupath.imageDataProperty()), "Make inverse"),
 				QuPathGUI.createPluginAction("Split", SplitAnnotationsPlugin.class, qupath, null)
 				);
 		
@@ -986,19 +986,6 @@ public class GuiTools {
 				s = Double.toString(value);
 			text.set(s);
 			synchronizingText = false;
-		}
-		
-		static void setTextFieldFromNumber(TextField text, double value) {
-			String s;
-			if (Double.isNaN(value))
-				s = "";
-			else if (Double.isFinite(value)) {
-				double log10 = Math.round(Math.log10(value));
-				int ndp = (int)Math.max(4, -log10 + 2);
-				s = GeneralTools.formatNumber(value, ndp);
-			} else
-				s = Double.toString(value);
-			text.setText(s);
 		}
 
 		
