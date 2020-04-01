@@ -32,14 +32,14 @@ import org.controlsfx.control.BreadCrumbBar;
 
 import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.util.Callback;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -62,7 +62,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionModel;
  * @author Pete Bankhead
  *
  */
-public class PathObjectHierarchyView implements ImageDataChangeListener<BufferedImage>, PathObjectSelectionListener, PathObjectHierarchyListener {
+public class PathObjectHierarchyView implements ChangeListener<ImageData<BufferedImage>>, PathObjectSelectionListener, PathObjectHierarchyListener {
 	
 	/**
 	 * Request that we only synchronize to the primary selection; otherwise synchronizing to 
@@ -126,7 +126,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 		treeView.expandedItemCountProperty().addListener((v, o, n) -> synchronizeTreeToSelectionModel());
 		
 		setImageData(qupath.getImageData());
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 		
 		// Add popup to control detection display
 		ContextMenu popup = new ContextMenu();
@@ -454,7 +454,7 @@ public class PathObjectHierarchyView implements ImageDataChangeListener<Buffered
 	
 	
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		setImageData(imageDataNew);
 	}
 	

@@ -73,7 +73,10 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 		this.gui = gui;
 	}
 	
-	
+	/**
+	 * Prepare a target node to accept drag & drop events.
+	 * @param target
+	 */
 	public void setupTarget(final Node target) {
 		target.setOnDragOver(new EventHandler<DragEvent>() {
             @Override
@@ -86,6 +89,10 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 		target.setOnDragDropped(this);
 	}
 	
+	/**
+	 * Prepare a target scene to accept drag & drop events.
+	 * @param target
+	 */
 	public void setupTarget(final Scene target) {
 		target.setOnDragOver(new EventHandler<DragEvent>() {
             @Override

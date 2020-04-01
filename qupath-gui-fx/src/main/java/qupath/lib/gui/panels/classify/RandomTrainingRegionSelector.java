@@ -43,6 +43,8 @@ import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -61,8 +63,6 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.ColorTools;
 import qupath.lib.geom.Point2;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.commands.interfaces.PathCommand;
@@ -166,10 +166,10 @@ public class RandomTrainingRegionSelector implements PathCommand {
 		pointCreator.registerViewer(viewer);
 		
 		// Adapt to changing active viewers
-		ImageDataChangeListener<BufferedImage> listener = new ImageDataChangeListener<BufferedImage>() {
+		var listener = new ChangeListener<ImageData<BufferedImage>>() {
 
 			@Override
-			public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+			public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 				if (pointCreator != null) {
 					QuPathViewer viewer = qupath.getViewer();
 					pointCreator.registerViewer(viewer);
@@ -180,12 +180,12 @@ public class RandomTrainingRegionSelector implements PathCommand {
 			}
 			
 		};
-		qupath.addImageDataChangeListener(listener);
+		qupath.imageDataProperty().addListener(listener);
 		
 		// Remove listeners for cleanup
 		dialog.setOnCloseRequest(e -> {
 			pointCreator.deregisterViewer();
-			qupath.removeImageDataChangeListener(listener);
+			qupath.imageDataProperty().removeListener(listener);
 			dialog.setOnCloseRequest(null);
 			dialog = null;
 			// Re-enable mode switching

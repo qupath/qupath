@@ -352,13 +352,11 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
  * @author Pete Bankhead
  *
  */
-public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, ViewerManager<QuPathViewerPlus> {
+public class QuPathGUI implements ModeWrapper, ViewerManager<QuPathViewerPlus> {
 	
 	static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
 	
 	private static QuPathGUI instance;
-	
-	private List<ImageDataChangeListener<BufferedImage>> listeners = Collections.synchronizedList(new ArrayList<>());
 	
 	private ScriptEditor scriptEditor = null;
 	
@@ -3272,15 +3270,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 						),
 				MenuTools.createMenu(
 						"Select...",
-						createCommandAction(new ResetSelectionCommand(this), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new ResetSelectionCommand(this.imageDataProperty()), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						null,
-						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new SelectObjectsByClassCommand(this.imageDataProperty(), TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+						createCommandAction(new SelectObjectsByClassCommand(this.imageDataProperty(), PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
 						MenuTools.createMenu(
 								"Select detections...",
-							createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select all detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-							createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-							createCommandAction(new SelectObjectsByClassCommand(this, PathTileObject.class), "Select tiles", null, null)
+							createCommandAction(new SelectObjectsByClassCommand(this.imageDataProperty(), PathDetectionObject.class), "Select all detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+							createCommandAction(new SelectObjectsByClassCommand(this.imageDataProperty(), PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
+							createCommandAction(new SelectObjectsByClassCommand(this.imageDataProperty(), PathTileObject.class), "Select tiles", null, null)
 							),
 						null,
 						createCommandAction(new SelectObjectsByClassificationCommand(this), "Select objects by classification"),
@@ -3303,9 +3301,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					createPluginAction("Remove fragments", RefineAnnotationsPlugin.class, null),
 					createPluginAction("Fill holes", FillAnnotationHolesPlugin.class, null),
 					null,
-					createCommandAction(new InverseObjectCommand(this), "Make inverse"),
-					createCommandAction(new MergeSelectedAnnotationsCommand(this), "Merge selected"),
-					createCommandAction(new ShapeSimplifierCommand(this), "Simplify shape")
+					createCommandAction(new InverseObjectCommand(this.imageDataProperty()), "Make inverse"),
+					createCommandAction(new MergeSelectedAnnotationsCommand(this.imageDataProperty()), "Merge selected"),
+					createCommandAction(new ShapeSimplifierCommand(this.imageDataProperty()), "Simplify shape")
 				)
 				);
 
@@ -3415,7 +3413,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
 					),
 				null,
-				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications")
+				createCommandAction(new ResetClassificationsCommand(this.imageDataProperty(), PathDetectionObject.class), "Reset detection classifications")
 				);
 				
 		MenuTools.addMenuItems(
@@ -3748,7 +3746,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		case SPECIFY_ANNOTATION:
 			return createCommandAction(new SpecifyAnnotationCommand(this), "Specify annotation");
 		case ANNOTATION_DUPLICATE:
-			return createCommandAction(new DuplicateAnnotationCommand(this), "Duplicate annotation", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHIFT_DOWN));
+			return createCommandAction(new DuplicateAnnotationCommand(this.imageDataProperty()), "Duplicate annotation", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHIFT_DOWN));
 		case GRID_SPACING:
 			return createCommandAction(new SetGridSpacingCommand(overlayOptions), "Set grid spacing");
 		case COUNTING_PANEL:
@@ -3770,7 +3768,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			actionSelectedColor.setLongText("Show selected objects highlighted by color (turn off to always see 'true' classification colors)");
 			return actionSelectedColor;
 		case DETECTIONS_TO_POINTS:
-			return createCommandAction(new DetectionsToPointsCommand(this), "Convert detections to points");
+			return createCommandAction(new DetectionsToPointsCommand(this.imageDataProperty()), "Convert detections to points");
 		case ROTATE_IMAGE:
 			return createCommandAction(new RotateImageCommand(this), "Rotate image");
 		case CHANNEL_VIEWER:
@@ -3827,16 +3825,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 		
 		case DELETE_SELECTED_OBJECTS:
-			return createCommandAction(new DeleteSelectedObjectsCommand(this), "Delete selected objects");
+			return createCommandAction(new DeleteSelectedObjectsCommand(this.imageDataProperty()), "Delete selected objects");
 //			return createCommandAction(new DeleteSelectedObjectsCommand(this), "Delete selected objects", null, new KeyCodeCombination(KeyCode.BACK_SPACE));
 		case CLEAR_HIERARCHY:
-			return createCommandAction(new DeleteObjectsCommand(this, null), "Delete all objects");
+			return createCommandAction(new DeleteObjectsCommand(this.imageDataProperty(), null), "Delete all objects");
 		case CLEAR_DETECTIONS:
-			return createCommandAction(new DeleteObjectsCommand(this, PathDetectionObject.class), "Delete all detections");
+			return createCommandAction(new DeleteObjectsCommand(this.imageDataProperty(), PathDetectionObject.class), "Delete all detections");
 		case CLEAR_TMA_CORES:
-			return createCommandAction(new DeleteObjectsCommand(this, TMACoreObject.class), "Delete TMA grid");
+			return createCommandAction(new DeleteObjectsCommand(this.imageDataProperty(), TMACoreObject.class), "Delete TMA grid");
 		case CLEAR_ANNOTATIONS:
-			return createCommandAction(new DeleteObjectsCommand(this, PathAnnotationObject.class), "Delete all annotations");
+			return createCommandAction(new DeleteObjectsCommand(this.imageDataProperty(), PathAnnotationObject.class), "Delete all annotations");
 			
 			
 		case PROJECT_NEW:
@@ -4334,6 +4332,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
+	public ReadOnlyObjectProperty<ImageData<BufferedImage>> imageDataProperty() {
+		return imageDataProperty;
+	}
+	
 	private void fireImageDataChangedEvent(final ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {		
 		
 		imageDataProperty.set(imageDataNew);
@@ -4341,12 +4343,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// A bit awkward, this... but make sure the extended scripting helper static class knows what's happened
 		QPEx.setBatchImageData(imageDataNew);
 		
-		// Notify listeners
-		for (ImageDataChangeListener<BufferedImage> listener : listeners) {
-			listener.imageDataChanged(this, imageDataOld, imageDataNew);
-		}
-		
-//		refreshMagnificationTooltip();
 	}
 	
 	
@@ -4587,9 +4583,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 
 
-	@Override
+//	public ImageData<BufferedImage> getImageData() {
+//		return getViewer() == null ? null : getViewer().getImageData();
+//	}
+	
 	public ImageData<BufferedImage> getImageData() {
-		return getViewer() == null ? null : getViewer().getImageData();
+		return imageDataProperty.get();
 	}
 	
 	
@@ -5364,18 +5363,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			qupath.viewerManager.applyLastAnnotationToActiveViewer();
 		}
 		
-	}
-	
-	
-	@Override
-	public void addImageDataChangeListener(ImageDataChangeListener<BufferedImage> listener) {
-		listeners.add(listener);
-	}
-
-
-	@Override
-	public void removeImageDataChangeListener(ImageDataChangeListener<BufferedImage> listener) {
-		listeners.remove(listener);
 	}
 	
 }

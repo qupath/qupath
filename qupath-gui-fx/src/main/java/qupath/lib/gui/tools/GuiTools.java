@@ -813,7 +813,7 @@ public class GuiTools {
 		
 		Menu menuEdit = MenuTools.createMenu(
 				"Edit single",
-				QuPathGUI.createCommandAction(new InverseObjectCommand(qupath), "Make inverse"),
+				QuPathGUI.createCommandAction(new InverseObjectCommand(qupath.imageDataProperty()), "Make inverse"),
 				QuPathGUI.createPluginAction("Split", SplitAnnotationsPlugin.class, qupath, null)
 				);
 		

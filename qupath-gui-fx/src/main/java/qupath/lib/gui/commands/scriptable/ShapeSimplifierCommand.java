@@ -26,7 +26,7 @@ package qupath.lib.gui.commands.scriptable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
@@ -44,23 +44,25 @@ import qupath.lib.roi.interfaces.ROI;
  * Simplify a shape by reducing the number of vertices it contains.
  * 
  * @author Pete Bankhead
+ * 
+ * @param <T> generic parameter for {@link ImageData}
  *
  */
-public class ShapeSimplifierCommand implements PathCommand {
+public class ShapeSimplifierCommand<T> implements PathCommand {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ShapeSimplifierCommand.class);
 	
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> manager;
 	private double altitudeThreshold = 1;
 	
-	public ShapeSimplifierCommand(final ImageDataWrapper<?> manager) {
+	public ShapeSimplifierCommand(final ObservableValue<ImageData<T>> manager) {
 		this.manager = manager;
 	}
 	
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();

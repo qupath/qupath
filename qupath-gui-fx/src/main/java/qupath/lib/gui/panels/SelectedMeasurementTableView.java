@@ -35,13 +35,12 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.util.Callback;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
@@ -56,7 +55,7 @@ import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
  * @author Pete Bankhead
  *
  */
-public class SelectedMeasurementTableView implements PathObjectSelectionListener, ImageDataChangeListener<BufferedImage>,
+public class SelectedMeasurementTableView implements PathObjectSelectionListener, ChangeListener<ImageData<BufferedImage>>,
 	PathObjectHierarchyListener, PropertyChangeListener {
 	
 	private final static Logger logger = LoggerFactory.getLogger(SelectedMeasurementTableView.class);
@@ -71,7 +70,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	
 	public SelectedMeasurementTableView(final QuPathGUI qupath) {
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 	}
 	
 	
@@ -165,7 +164,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	}
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld,
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
 			ImageData<BufferedImage> imageDataNew) {
 		if (this.imageData != null) {
 			this.imageData.removePropertyChangeListener(this);

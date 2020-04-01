@@ -29,7 +29,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
@@ -48,16 +48,18 @@ import qupath.lib.scripting.QP;
  * Select objects according to a specified predicate.
  * 
  * @author Pete Bankhead
+ * 
+ * @param <T> generic parameter for {@link ImageData}
  *
  */
-public class SelectObjectsByClassCommand implements PathCommand {
+public class SelectObjectsByClassCommand<T> implements PathCommand {
 	
 	public final static Logger logger = LoggerFactory.getLogger(SelectObjectsByClassCommand.class);
 	
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> manager;
 	private Class<? extends PathObject> cls;
 	
-	public SelectObjectsByClassCommand(final ImageDataWrapper<?> manager, final Class<? extends PathObject> cls) {
+	public SelectObjectsByClassCommand(final ObservableValue<ImageData<T>> manager, final Class<? extends PathObject> cls) {
 		super();
 		this.manager = manager;
 		this.cls = cls;
@@ -65,7 +67,7 @@ public class SelectObjectsByClassCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
 		selectObjectsByClass(imageData, cls);

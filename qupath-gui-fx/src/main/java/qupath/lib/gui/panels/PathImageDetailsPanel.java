@@ -47,6 +47,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
@@ -85,8 +87,6 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
@@ -113,7 +113,7 @@ import qupath.lib.scripting.QP;
  * @author Pete Bankhead
  *
  */
-public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedImage>, PropertyChangeListener {
+public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedImage>>, PropertyChangeListener {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathImageDetailsPanel.class);
 	
@@ -136,7 +136,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 	
 	public PathImageDetailsPanel(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 		
 		// Create the table
 		table.setMinHeight(200);
@@ -695,7 +695,7 @@ public class PathImageDetailsPanel implements ImageDataChangeListener<BufferedIm
 
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		setImageData(imageDataNew);
 	}
 		

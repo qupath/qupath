@@ -26,7 +26,7 @@ package qupath.lib.gui.commands.scriptable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
@@ -36,24 +36,32 @@ import qupath.lib.images.ImageData;
  * Delete all selected objects (except TMA cores... which can't be deleted this way).
  * 
  * @author Pete Bankhead
+ * @param <T> generic parameter for {@link ImageData}
  *
  */
-public class DeleteSelectedObjectsCommand implements PathCommand {
+public class DeleteSelectedObjectsCommand<T> implements PathCommand {
 	
-	public final static Logger logger = LoggerFactory.getLogger(DeleteSelectedObjectsCommand.class);
+	private final static Logger logger = LoggerFactory.getLogger(DeleteSelectedObjectsCommand.class);
 	
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> imageDataValue;
 	
-	public DeleteSelectedObjectsCommand(final ImageDataWrapper<?> manager) {
+	/**
+	 * Constructor.
+	 * @param imageDataValue
+	 */
+	public DeleteSelectedObjectsCommand(final ObservableValue<ImageData<T>> imageDataValue) {
 		super();
-		this.manager = manager;
+		this.imageDataValue = imageDataValue;
 	}
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
-		if (imageData == null)
+		ImageData<?> imageData = imageDataValue.getValue();
+		if (imageData == null) {
+			logger.warn("Cannot delete objects, no ImageData available");
 			return;
+		}
+		logger.debug("Calling prompt to delete objects");
 		GuiTools.promptToClearAllSelectedObjects(imageData);
 	}
 	

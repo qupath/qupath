@@ -26,7 +26,7 @@ package qupath.lib.gui.commands.scriptable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -37,22 +37,24 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  * Reset the selection, i.e. ensure no objects are selected.
  * 
  * @author Pete Bankhead
+ * 
+ * @param <T> generic parameter for {@link ImageData}
  *
  */
-public class ResetSelectionCommand implements PathCommand {
+public class ResetSelectionCommand<T> implements PathCommand {
 	
 	public final static Logger logger = LoggerFactory.getLogger(ResetSelectionCommand.class);
 	
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> manager;
 	
-	public ResetSelectionCommand(final ImageDataWrapper<?> manager) {
+	public ResetSelectionCommand(final ObservableValue<ImageData<T>> manager) {
 		super();
 		this.manager = manager;
 	}
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
 		resetSelection(imageData);

@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -37,8 +39,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -50,7 +50,7 @@ import qupath.lib.images.servers.ImageServer;
  * @author Pete Bankhead
  *
  */
-public class SlideLabelView implements ImageDataChangeListener<BufferedImage> {
+public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> {
 	
 	private static Logger logger = LoggerFactory.getLogger(SlideLabelView.class);
 	
@@ -62,7 +62,7 @@ public class SlideLabelView implements ImageDataChangeListener<BufferedImage> {
 	public SlideLabelView(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		createDialog();
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 	}
 	
 	private void createDialog() {
@@ -99,7 +99,7 @@ public class SlideLabelView implements ImageDataChangeListener<BufferedImage> {
 	}
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		updateLabel(imageDataNew);
 	}
 	

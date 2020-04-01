@@ -26,7 +26,7 @@ package qupath.lib.gui.commands.scriptable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjectTools;
@@ -37,21 +37,23 @@ import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
  * Duplicate selected annotations.
  *
  * @author Pete Bankhead
+ * 
+ * @param <T> generic parameter for {@link ImageData}
  *
  */
-public class DuplicateAnnotationCommand implements PathCommand {
+public class DuplicateAnnotationCommand<T> implements PathCommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DuplicateAnnotationCommand.class);
 			
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> manager;
 	
-	public DuplicateAnnotationCommand(final ImageDataWrapper<?> manager) {
+	public DuplicateAnnotationCommand(final ObservableValue<ImageData<T>> manager) {
 		this.manager = manager;
 	}
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();

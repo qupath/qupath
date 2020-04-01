@@ -39,6 +39,8 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
 import javafx.scene.Scene;
@@ -58,8 +60,6 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
@@ -83,7 +83,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  * @author Pete Bankhead
  *
  */
-public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedImage>, WorkflowListener {
+public class WorkflowCommandLogView implements ChangeListener<ImageData<BufferedImage>>, WorkflowListener {
 
 	final private static Logger logger = LoggerFactory.getLogger(WorkflowCommandLogView.class);
 	
@@ -107,7 +107,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 		this.qupath = qupath;
 //		this.viewer = qupath.getViewer();
 //		viewer.addViewerListener(this);
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData != null) {
 			workflow = imageData.getHistoryWorkflow();
@@ -436,7 +436,7 @@ public class WorkflowCommandLogView implements ImageDataChangeListener<BufferedI
 	}
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		if (imageDataOld == imageDataNew)
 			return;
 		if (imageDataOld != null)

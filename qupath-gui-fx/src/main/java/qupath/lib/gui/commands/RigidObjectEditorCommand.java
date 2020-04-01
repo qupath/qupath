@@ -43,11 +43,11 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -78,7 +78,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeListener<BufferedImage>, QuPathViewerListener {
+public class RigidObjectEditorCommand implements PathCommand, ChangeListener<ImageData<BufferedImage>>, QuPathViewerListener {
 
 	private final static Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
 	
@@ -96,7 +96,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 
 	public RigidObjectEditorCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.qupath.addImageDataChangeListener(this);
+		this.qupath.imageDataProperty().addListener(this);
 	}
 	
 	
@@ -256,7 +256,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		commitChanges(false);
 	}
 	

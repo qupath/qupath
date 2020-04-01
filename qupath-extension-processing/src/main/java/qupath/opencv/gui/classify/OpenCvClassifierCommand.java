@@ -127,7 +127,7 @@ public class OpenCvClassifierCommand implements PathCommand {
 	private void resetPanel() {
 		if (panel == null)
 			return;
-		qupath.removeImageDataChangeListener(panel);
+		qupath.imageDataProperty().removeListener(panel);
 		panel.setImageData(qupath.getImageData(), null);
 		if (dialog != null)
 			dialog.setOnCloseRequest(null);

@@ -34,6 +34,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Scene;
@@ -49,8 +51,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.QuPathGUI.GUIActions;
@@ -72,7 +72,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * @author Pete Bankhead
  *
  */
-public class CountingPanelCommand implements PathCommand, ImageDataChangeListener<BufferedImage> {
+public class CountingPanelCommand implements PathCommand, ChangeListener<ImageData<BufferedImage>> {
 
 	final private static Logger logger = LoggerFactory.getLogger(CountingPanelCommand.class);
 	
@@ -89,9 +89,9 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 	
 	public CountingPanelCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 //		viewer.addViewerListener(this);
-		imageDataChanged(null, null, qupath.getImageData());
+		changed(qupath.imageDataProperty(), null, qupath.getImageData());
 	}
 	
 	private ToolBar makeToolbarButtons() {
@@ -311,7 +311,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 	}
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> manager, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> manager, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		this.hierarchy = imageDataNew == null ? null : imageDataNew.getHierarchy();
 		if (countingPanel != null) {
 			countingPanel.setHierarchy(this.hierarchy);

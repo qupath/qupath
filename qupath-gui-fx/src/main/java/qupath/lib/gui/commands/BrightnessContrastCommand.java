@@ -47,6 +47,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.transformation.FilteredList;
@@ -93,8 +94,6 @@ import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -116,7 +115,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
  * @author Pete Bankhead
  *
  */
-public class BrightnessContrastCommand implements PathCommand, ImageDataChangeListener<BufferedImage>, PropertyChangeListener {
+public class BrightnessContrastCommand implements PathCommand, ChangeListener<ImageData<BufferedImage>>, PropertyChangeListener {
 	
 	private static Logger logger = LoggerFactory.getLogger(BrightnessContrastCommand.class);
 	
@@ -162,7 +161,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	 */
 	public BrightnessContrastCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.qupath.addImageDataChangeListener(this);
+		this.qupath.imageDataProperty().addListener(this);
 		
 		// Add 'pure' red, green & blue to the available colors
 		picker.getCustomColors().addAll(
@@ -193,7 +192,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		
 		initializePopup();
 		
-		imageDataChanged(null, null, qupath.getImageData());
+		changed(null, null, qupath.getImageData());
 		
 		BorderPane pane = new BorderPane();
 		
@@ -873,7 +872,8 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source,
+			ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		// TODO: Consider different viewers but same ImageData
 		if (imageDataOld == imageDataNew)
 			return;

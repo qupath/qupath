@@ -28,7 +28,7 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
@@ -44,21 +44,22 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * 
  * @author Pete Bankhead
  *
+ * @param <T> generic parameter for {@link ImageData}
  */
-public class DetectionsToPointsCommand implements PathCommand {
+public class DetectionsToPointsCommand<T> implements PathCommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DetectionsToPointsCommand.class);
 	
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> manager;
 	
-	public DetectionsToPointsCommand(final ImageDataWrapper<?> manager) {
+	public DetectionsToPointsCommand(final ObservableValue<ImageData<T>> manager) {
 		super();
 		this.manager = manager;
 	}
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();

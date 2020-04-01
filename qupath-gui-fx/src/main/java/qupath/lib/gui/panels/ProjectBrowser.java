@@ -62,6 +62,8 @@ import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
@@ -92,8 +94,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
@@ -118,7 +118,7 @@ import qupath.lib.projects.Projects;
  * @author Pete Bankhead
  *
  */
-public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
+public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> {
 
 	final static String THUMBNAIL_EXT = "jpg";
 
@@ -154,7 +154,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 		this.project = qupath.getProject();
 		this.qupath = qupath;
 
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 		
 		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> {
 			tree.refresh();
@@ -734,7 +734,7 @@ public class ProjectBrowser implements ImageDataChangeListener<BufferedImage> {
 
 
 	@Override
-	public void imageDataChanged(final ImageDataWrapper<BufferedImage> viewer, final ImageData<BufferedImage> imageDataOld, final ImageData<BufferedImage> imageDataNew) {
+	public void changed(final ObservableValue<? extends ImageData<BufferedImage>> source, final ImageData<BufferedImage> imageDataOld, final ImageData<BufferedImage> imageDataNew) {
 		if (imageDataNew == null || project == null)
 			return;
 		ProjectImageEntry<BufferedImage> entry = project.getEntry(imageDataNew);

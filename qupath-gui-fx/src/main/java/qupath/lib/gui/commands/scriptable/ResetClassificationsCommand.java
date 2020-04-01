@@ -29,7 +29,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
@@ -45,15 +45,16 @@ import qupath.lib.scripting.QP;
  * 
  * @author Pete Bankhead
  *
+ * @param <T> generic parameter for {@link ImageData}
  */
-public class ResetClassificationsCommand implements PathCommand {
+public class ResetClassificationsCommand<T> implements PathCommand {
 	
 	public final static Logger logger = LoggerFactory.getLogger(ResetClassificationsCommand.class);
 	
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> manager;
 	private Class<? extends PathObject> cls;
 	
-	public ResetClassificationsCommand(final ImageDataWrapper<?> manager, final Class<? extends PathObject> cls) {
+	public ResetClassificationsCommand(final ObservableValue<ImageData<T>> manager, final Class<? extends PathObject> cls) {
 		super();
 		this.manager = manager;
 		this.cls = cls;
@@ -61,7 +62,7 @@ public class ResetClassificationsCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
 		resetClassifications(imageData, cls);

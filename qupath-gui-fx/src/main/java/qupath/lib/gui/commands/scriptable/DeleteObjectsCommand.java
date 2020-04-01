@@ -27,7 +27,7 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
@@ -42,16 +42,17 @@ import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
  * Command to delete selected objects, or all objects of a specified type.
  * 
  * @author Pete Bankhead
+ * @param <T> generic parameter for {@link ImageData}
  *
  */
-public class DeleteObjectsCommand implements PathCommand {
+public class DeleteObjectsCommand<T> implements PathCommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DeleteObjectsCommand.class);
 	
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> manager;
 	private Class<? extends PathObject> cls;
 	
-	public DeleteObjectsCommand(final ImageDataWrapper<?> manager, final Class<? extends PathObject> cls) {
+	public DeleteObjectsCommand(final ObservableValue<ImageData<T>> manager, final Class<? extends PathObject> cls) {
 		super();
 		this.manager = manager;
 		this.cls = cls;
@@ -59,7 +60,7 @@ public class DeleteObjectsCommand implements PathCommand {
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();

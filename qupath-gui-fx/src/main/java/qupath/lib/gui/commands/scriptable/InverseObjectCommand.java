@@ -26,7 +26,7 @@ package qupath.lib.gui.commands.scriptable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.ImageDataWrapper;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -36,26 +36,25 @@ import qupath.lib.scripting.QP;
  * Create a new annotation which is the inverse of the existing selected annotation,
  * i.e. it includes the entire (2D) image except for the bit currently annotated.
  * 
- * TODO: Handle multiple selections.
- * 
  * @author Pete Bankhead
+ * 
+ * @param <T> generic parameter for {@link ImageData}
  *
  */
-public class InverseObjectCommand implements PathCommand {
+public class InverseObjectCommand<T> implements PathCommand {
 	
 	final private static Logger logger = LoggerFactory.getLogger(InverseObjectCommand.class);
 	
-	private ImageDataWrapper<?> manager;
+	private ObservableValue<ImageData<T>> manager;
 	
-	public InverseObjectCommand(final ImageDataWrapper<?> manager) {
+	public InverseObjectCommand(final ObservableValue<ImageData<T>> manager) {
 		this.manager = manager;
 	}
 	
 
 	@Override
 	public void run() {
-		
-		ImageData<?> imageData = manager.getImageData();
+		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
 		logger.debug("Make inverse annotation");

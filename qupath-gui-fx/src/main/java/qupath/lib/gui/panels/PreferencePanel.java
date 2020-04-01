@@ -85,8 +85,8 @@ public class PreferencePanel {
 		 */
 		category = "Appearance";
 		addChoicePropertyPreference(QuPathStyleManager.selectedStyleProperty(),
-				QuPathStyleManager.stylesProperty(),
-				QuPathStyleManager.StylesheetOption.class,
+				QuPathStyleManager.availableStylesProperty(),
+				QuPathStyleManager.StyleOption.class,
 				"Theme",
 				category,
 				"Theme for the QuPath user interface");

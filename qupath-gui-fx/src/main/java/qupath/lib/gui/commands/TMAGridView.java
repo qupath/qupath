@@ -49,6 +49,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -81,8 +82,6 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
@@ -104,7 +103,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class TMAGridView implements PathCommand, ImageDataChangeListener<BufferedImage>, PathObjectHierarchyListener {
+public class TMAGridView implements PathCommand, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 	
 	final private static Logger logger = LoggerFactory.getLogger(TMAGridView.class);
 	
@@ -170,7 +169,7 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 
 	public TMAGridView(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.qupath.addImageDataChangeListener(this);
+		this.qupath.imageDataProperty().addListener(this);
 	}
 
 	@Override
@@ -210,7 +209,7 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 	
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld,
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
 			ImageData<BufferedImage> imageDataNew) {
 		
 		if (this.imageData != null) {

@@ -39,6 +39,8 @@ import javafx.application.Platform;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener.Change;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
@@ -52,8 +54,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -77,7 +77,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDataChangeListener<BufferedImage>, PathObjectHierarchyListener {
+public class PathAnnotationPanel implements PathObjectSelectionListener, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 
 	private final static Logger logger = LoggerFactory.getLogger(PathAnnotationPanel.class);
 
@@ -123,7 +123,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 				);
 		paneColumns.setDividerPositions(0.5);
 		pane.setCenter(paneColumns);
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 	}
 	
 	
@@ -379,7 +379,7 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ImageDa
 
 	
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		setImageData(imageDataNew);
 	}
 

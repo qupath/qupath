@@ -54,6 +54,8 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Cursor;
@@ -86,8 +88,6 @@ import javafx.util.Callback;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
@@ -121,7 +121,7 @@ import qupath.lib.roi.interfaces.ROI;
  *
  * @param <T>
  */
-public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements PathObjectHierarchyListener, ImageDataChangeListener<BufferedImage> {
+public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements PathObjectHierarchyListener, ChangeListener<ImageData<BufferedImage>> {
 
 	private final static Logger logger = LoggerFactory.getLogger(ClassifierBuilderPanel.class);
 
@@ -230,7 +230,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 		//		viewer.addViewerListener(this);
 		setImageData(null, qupath.getImageData());
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 
 		btnSaveClassifier = new Button("Save classifier");
 		btnSaveClassifier.setOnAction(event -> {
@@ -1605,7 +1605,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	
 	
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld,
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
 			ImageData<BufferedImage> imageDataNew) {
 
 		// Check if we've anything that we should cache

@@ -67,6 +67,8 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
@@ -100,8 +102,6 @@ import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.geom.Point2;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -199,7 +199,7 @@ public class ObjectClassifierCommand implements PathCommand {
 	
 	
 	
-	static class ObjectClassifierPane implements ImageDataChangeListener<BufferedImage>, PathObjectHierarchyListener {
+	static class ObjectClassifierPane implements ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 		
 		private final static Logger logger = LoggerFactory.getLogger(ObjectClassifierPane.class);
 		
@@ -1113,17 +1113,17 @@ public class ObjectClassifierCommand implements PathCommand {
 
 		
 		private void registerListeners(QuPathGUI qupath) {
-			qupath.addImageDataChangeListener(this);
-			imageDataChanged(qupath, null, qupath.getImageData());
+			qupath.imageDataProperty().addListener(this);
+			changed(qupath.imageDataProperty(), null, qupath.getImageData());
 		}
 
 		private void deregisterListeners(QuPathGUI qupath) {
-			qupath.removeImageDataChangeListener(this);
-			imageDataChanged(qupath, qupath.getImageData(), null);
+			qupath.imageDataProperty().removeListener(this);
+			changed(qupath.imageDataProperty(), qupath.getImageData(), null);
 		}
 
 		@Override
-		public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld,
+		public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
 				ImageData<BufferedImage> imageDataNew) {
 			if (imageDataOld != null)
 				imageDataOld.getHierarchy().removePathObjectListener(this);
