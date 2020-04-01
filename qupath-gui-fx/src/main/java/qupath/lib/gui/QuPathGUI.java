@@ -194,6 +194,7 @@ import qupath.lib.gui.commands.DistanceToAnnotationsCommand;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
+import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.MeasurementManager;
 import qupath.lib.gui.commands.MeasurementMapCommand;
 import qupath.lib.gui.commands.MemoryMonitorCommand;
@@ -397,7 +398,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 								RIGID_OBJECT_EDITOR, SHOW_COMMAND_LIST,
 								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG, TMA_RELABEL,
 								SHOW_CELL_BOUNDARIES, SHOW_CELL_NUCLEI, SHOW_CELL_BOUNDARIES_AND_NUCLEI, SHOW_CELL_CENTROIDS,
-								SUMMARY_TMA, SUMMARY_ANNOTATIONS, SUMMARY_DETECTIONS,
+								SUMMARY_TMA, SUMMARY_ANNOTATIONS, SUMMARY_DETECTIONS, EXPORT_MEASUREMENTS,
 								VIEW_TRACKER, MEASUREMENT_MAP, WORKFLOW_DISPLAY,
 								DELETE_SELECTED_OBJECTS, CLEAR_HIERARCHY, CLEAR_DETECTIONS, CLEAR_TMA_CORES, CLEAR_ANNOTATIONS,
 								PROJECT_NEW, PROJECT_OPEN, PROJECT_CLOSE, PROJECT_SAVE, PROJECT_IMPORT_IMAGES, PROJECT_EXPORT_IMAGE_LIST, PROJECT_METADATA,
@@ -2404,7 +2405,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * If the path is the same as a currently-open server, do nothing.
 	 * <p>
 	 * If this encounters an exception, an error message will be shown.
-
 	 * @param pathNew 
 	 * @param prompt if true, give the user the opportunity to cancel opening if a whole slide server is already set
 	 * @param includeURLs 
@@ -3390,7 +3390,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				null,
 				getActionMenuItem(GUIActions.SUMMARY_TMA),
 				getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),
-				getActionMenuItem(GUIActions.SUMMARY_DETECTIONS)
+				getActionMenuItem(GUIActions.SUMMARY_DETECTIONS),
+				null,
+				getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS)
 //				null,
 //				createCommandAction(new TMADescendantsMeasurementCommand(this), "Add core summary measurement (TMA)"),
 //				null,
@@ -3888,6 +3890,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //			return createCommandAction(new SummaryTableCommand(this, PathDetectionObject.class), "Show detection measurements");
 		case SUMMARY_ANNOTATIONS:
 			return createCommandAction(new SummaryMeasurementTableCommand(this, PathAnnotationObject.class), "Show annotation measurements");
+		case EXPORT_MEASUREMENTS:
+			return createCommandAction(new MeasurementExportCommand(this), "Export measurements");
 		
 		case VIEW_TRACKER:
 			return createCommandAction(new ViewTrackerCommand(this), "Show tracking panel", null, new KeyCodeCombination(KeyCode.T, KeyCombination.SHIFT_DOWN)); // TODO: Note: this only works with the original viewer
@@ -4513,7 +4517,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			popupMeasurements.getItems().addAll(
 					qupath.getActionMenuItem(GUIActions.SUMMARY_TMA),
 					qupath.getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),
-					qupath.getActionMenuItem(GUIActions.SUMMARY_DETECTIONS)
+					qupath.getActionMenuItem(GUIActions.SUMMARY_DETECTIONS),
+					qupath.getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS)
 					);
 			btnMeasure.setOnMouseClicked(e -> {
 				popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());

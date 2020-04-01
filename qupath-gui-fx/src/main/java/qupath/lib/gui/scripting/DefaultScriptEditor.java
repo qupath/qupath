@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -69,12 +68,9 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -106,11 +102,8 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -120,12 +113,12 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
@@ -1195,115 +1188,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 		// Ensure that the previous images remain selected if the project still contains them
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
-		
-		listSelectionView.getSourceItems().setAll(project.getImageList());
-		if (listSelectionView.getSourceItems().containsAll(previousImages)) {
-			listSelectionView.getSourceItems().removeAll(previousImages);
-			listSelectionView.getTargetItems().addAll(previousImages);
-		}
-		listSelectionView.setCellFactory(new Callback<ListView<ProjectImageEntry<BufferedImage>>, 
-	            ListCell<ProjectImageEntry<BufferedImage>>>() {
-            @Override 
-            public ListCell<ProjectImageEntry<BufferedImage>> call(ListView<ProjectImageEntry<BufferedImage>> list) {
-                return new ListCell<ProjectImageEntry<BufferedImage>>() {
-                	private Tooltip tooltip = new Tooltip();
-                	@Override
-            		protected void updateItem(ProjectImageEntry<BufferedImage> item, boolean empty) {
-                		super.updateItem(item, empty);
-                		if (item == null || empty) {
-                			setText(null);
-                			setGraphic(null);
-                			setTooltip(null);
-                			return;
-                		}
-                		setText(item.getImageName());
-                		setGraphic(null);
-                		tooltip.setText(item.toString());
-            			setTooltip(tooltip);
-                	}
-                };
-            }
-        }
-    );
-//		if (!DisplayHelpers.showMessageDialog("Select project images", listSelectionView))
-//			return;
-		
-		// Add a filter text field
-		TextField tfFilter = new TextField();
-		CheckBox cbWithData = new CheckBox("With data file only");
-		tfFilter.setTooltip(new Tooltip("Enter text to filter image list"));
-		cbWithData.setTooltip(new Tooltip("Filter image list to only images with associated data files"));
-		tfFilter.textProperty().addListener((v, o, n) -> updateImageList(listSelectionView, project, n, cbWithData.selectedProperty().get()));
-		cbWithData.selectedProperty().addListener((v, o, n) -> updateImageList(listSelectionView, project, tfFilter.getText(), cbWithData.selectedProperty().get()));
-		
-		GridPane paneFooter = new GridPane();
 
-		paneFooter.setMaxWidth(Double.MAX_VALUE);
-		cbWithData.setMaxWidth(Double.MAX_VALUE);
-		paneFooter.add(tfFilter, 0, 0);
-		paneFooter.add(cbWithData, 0, 1);
-				
-		PaneTools.setHGrowPriority(Priority.ALWAYS, tfFilter, cbWithData);
-		PaneTools.setFillWidth(Boolean.TRUE, tfFilter, cbWithData);
-		cbWithData.setMinWidth(CheckBox.USE_PREF_SIZE);
-		paneFooter.setVgap(5);
-		listSelectionView.setSourceFooter(paneFooter);
 		
-		// Create label to show number selected, with a possible warning if we have a current image open
-		List<ProjectImageEntry<BufferedImage>> currentImages = new ArrayList<>();
-		Label labelSameImageWarning = new Label(
-				"A selected image is open in the viewer!\n"
-				+ "Use 'File>Reload data' to see changes.");
-		
-		Label labelSelected = new Label();
-		labelSelected.setTextAlignment(TextAlignment.CENTER);
-		labelSelected.setAlignment(Pos.CENTER);
-		labelSelected.setMaxWidth(Double.MAX_VALUE);
-		GridPane.setHgrow(labelSelected, Priority.ALWAYS);
-		GridPane.setFillWidth(labelSelected, Boolean.TRUE);
-		Platform.runLater(() -> {
-			getTargetItems(listSelectionView).addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
-				labelSelected.setText(e.getList().size() + " selected");
-				if (labelSameImageWarning != null && currentImages != null) {
-					boolean visible = false;
-					var targets = e.getList();
-					for (var current : currentImages) {
-						if (targets.contains(current)) {
-							visible = true;
-							break;
-						}
-					}
-					labelSameImageWarning.setVisible(visible);
-				}
-			});
-		});
-		
-		var paneSelected = new GridPane();
-		PaneTools.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
-
-		// Get the current images that are open
-		currentImages.addAll(qupath.getViewers().stream()
-				.map(v -> {
-					var imageData = v.getImageData();
-					return imageData == null ? null : qupath.getProject().getEntry(imageData);
-				})
-				.filter(d -> d != null)
-				.collect(Collectors.toList()));
-		// Create a warning label to display if we need to
-		if (doSave && !currentImages.isEmpty()) {
-			labelSameImageWarning.setTextFill(Color.RED);
-			labelSameImageWarning.setMaxWidth(Double.MAX_VALUE);
-			labelSameImageWarning.setMinHeight(Label.USE_PREF_SIZE);
-			labelSameImageWarning.setTextAlignment(TextAlignment.CENTER);
-			labelSameImageWarning.setAlignment(Pos.CENTER);
-			labelSameImageWarning.setVisible(false);
-			PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
-			PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
-			PaneTools.addGridRow(paneSelected, 1, 0,
-					"'Run For Project' will save the data file for any image that is open - you will need to reopen the image to see the changes",
-					labelSameImageWarning);
-		}
-		listSelectionView.setTargetFooter(paneSelected);
+		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, doSave);
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());
@@ -1320,7 +1207,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		previousImages.clear();
 //		previousImages.addAll(listSelectionView.getTargetItems());
 
-		previousImages.addAll(getTargetItems(listSelectionView));
+		previousImages.addAll(ProjectDialogs.getTargetItems(listSelectionView));
 
 		if (previousImages.isEmpty())
 			return;
@@ -1355,69 +1242,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		runningTask.set(qupath.createSingleThreadExecutor(this).submit(worker));
 		progress.show();
 	}
-	
-	
-	/**
-	 * We should just be able to call {@link ListSelectionView#getTargetItems()}, but in ControlsFX 11 there 
-	 * is a bug that prevents this being correctly bound.
-	 * @param <T>
-	 * @param listSelectionView
-	 * @return
-	 */
-	private static <T> ObservableList<T> getTargetItems(ListSelectionView<T> listSelectionView) {
-		var skin = listSelectionView.getSkin();
-		try {
-			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
-			var method = skin.getClass().getMethod("getTargetListView");
-			var view = (ListView<?>)method.invoke(skin);
-			return (ObservableList<T>)view.getItems();
-		} catch (Exception e) {
-			logger.warn("Unable to access target list by reflection, sorry", e);
-			return listSelectionView.getTargetItems();
-		}
-	}
-	
-	private static <T> ObservableList<T> getSourceItems(ListSelectionView<T> listSelectionView) {
-		var skin = listSelectionView.getSkin();
-		try {
-			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
-			var method = skin.getClass().getMethod("getSourceListView");
-			var view = (ListView<?>)method.invoke(skin);
-			return (ObservableList<T>)view.getItems();
-		} catch (Exception e) {
-			logger.warn("Unable to access target list by reflection, sorry", e);
-			return listSelectionView.getSourceItems();
-		}
-	}
-	
-	
-	
-	private void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, final Project<BufferedImage> project, final String filterText, final boolean withDataOnly) {
-		String text = filterText.trim().toLowerCase();
-		
-		// Get an update source items list
-		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(project.getImageList());
-		var targetItems = getTargetItems(listSelectionView);
-		sourceItems.removeAll(targetItems);
-		// Remove those without a data file, if necessary
-		if (withDataOnly) {
-			sourceItems.removeIf(p -> !p.hasImageData());
-			targetItems.removeIf(p -> !p.hasImageData());
-		}
-		// Apply filter text
-		if (text.length() > 0 && !sourceItems.isEmpty()) {
-			Iterator<ProjectImageEntry<BufferedImage>> iter = sourceItems.iterator();
-			while (iter.hasNext()) {
-				if (!iter.next().getImageName().toLowerCase().contains(text))
-					iter.remove();
-			}
-		}
-		if (getSourceItems(listSelectionView).equals(sourceItems))
-			return;
-		getSourceItems(listSelectionView).setAll(sourceItems);
-	}
-	
-	
 	
 	class ProjectTask extends Task<Void> {
 		
@@ -2424,5 +2248,4 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 	}
-
 }
