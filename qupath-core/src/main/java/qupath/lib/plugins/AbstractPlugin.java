@@ -178,6 +178,7 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	 * Called after parsing the argument String, and immediately before creating &amp; running any generated tasks.
 	 * 
 	 * Does nothing by default.
+	 * @param pluginRunner 
 	 */
 	protected void preprocess(final PluginRunner<T> pluginRunner) {};
 
@@ -185,6 +186,7 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	 * Called immediately after running any generated tasks.
 	 * 
 	 * Does nothing by default.
+	 * @param pluginRunner 
 	 */
 	protected void postprocess(final PluginRunner<T> pluginRunner) {};
 

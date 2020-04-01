@@ -765,6 +765,7 @@ public abstract class PathObject implements Externalizable {
 	 * 
 	 * @param key
 	 * @param value
+	 * @return 
 	 * 
 	 * @see #retrieveMetadataValue
 	 */

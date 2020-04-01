@@ -100,6 +100,11 @@ public class DelaunayTools {
 		};
 	}
 	
+	/**
+	 * Create a new {@link Builder} to compute a triangulation using the specified objects.
+	 * @param pathObjects
+	 * @return
+	 */
 	public static Builder newBuilder(Collection<PathObject> pathObjects) {
 		return new Builder(pathObjects);
 	}
@@ -429,11 +434,17 @@ public class DelaunayTools {
 		return annotations;
 	}
 	
-	public static Collection<PathObject> classifyObjectsByCluster(Collection<Collection<? extends PathObject>> clusters) {
-		int c = 1;
+	/**
+	 * Assign object classifications based upon pre-computed clusters.
+	 * @param clusters a collection of {@link PathObject} collections, each of which corresponds to a cluster of related objects.
+	 * @param pathClassFun function used to create a {@link PathClass} from a cluster number (determined by where it falls within the collection).
+	 * @return a collection of objects that have had their classifications set by this method
+	 */
+	public static Collection<PathObject> classifyObjectsByCluster(Collection<Collection<? extends PathObject>> clusters, Function<Integer, PathClass> pathClassFun) {
+		int c = 0;
 		var list = new ArrayList<PathObject>();
 		for (var cluster : clusters) {
-			var pathClass = PathClassFactory.getPathClass("Cluster " + c);
+			var pathClass = pathClassFun.apply(c);
 			for (var pathObject : cluster) {
 				pathObject.setPathClass(pathClass);
 				list.add(pathObject);
@@ -441,6 +452,15 @@ public class DelaunayTools {
 			c++;
 		}
 		return list;
+	}
+	
+	/**
+	 * Assign object classifications based upon pre-computed clusters.
+	 * @param clusters a collection of {@link PathObject} collections, each of which corresponds to a cluster of related objects.
+	 * @return a collection of objects that have had their classifications set by this method
+	 */
+	public static Collection<PathObject> classifyObjectsByCluster(Collection<Collection<? extends PathObject>> clusters) {
+		return classifyObjectsByCluster(clusters, c -> PathClassFactory.getPathClass("Cluster " + (c + 1)));
 	}
 	
 	

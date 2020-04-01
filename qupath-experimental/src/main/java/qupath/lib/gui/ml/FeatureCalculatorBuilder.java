@@ -17,12 +17,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -60,20 +59,6 @@ abstract class FeatureCalculatorBuilder {
 	//		}
 
 
-	/**
-	 * Add a context menu to a CheckComboBox to quickly select all items, or clear selection.
-	 * @param combo
-	 */
-	static void installSelectAllOrNoneMenu(CheckComboBox<?> combo) {
-		var miAll = new MenuItem("Select all");
-		var miNone = new MenuItem("Select none");
-		miAll.setOnAction(e -> combo.getCheckModel().checkAll());
-		miNone.setOnAction(e -> combo.getCheckModel().clearChecks());
-		var menu = new ContextMenu(miAll, miNone);
-		combo.setContextMenu(menu);
-	}
-	
-	
 	/**
 	 * Create a collection representing available unique channel names, logging a warning if a channel name is duplicated
 	 * @param server server containing channels
@@ -115,7 +100,7 @@ abstract class FeatureCalculatorBuilder {
 
 			var labelChannels = new Label("Channels");
 			comboChannels = new CheckComboBox<String>();
-			installSelectAllOrNoneMenu(comboChannels);
+			GuiTools.installSelectAllOrNoneMenu(comboChannels);
 
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
@@ -258,7 +243,7 @@ abstract class FeatureCalculatorBuilder {
 
 			var labelChannels = new Label("Channels");
 			comboChannels = new CheckComboBox<String>();
-			installSelectAllOrNoneMenu(comboChannels);
+			GuiTools.installSelectAllOrNoneMenu(comboChannels);
 			//			var btnChannels = new Button("Select");
 			//			btnChannels.setOnAction(e -> selectChannels());
 			@SuppressWarnings("resource")
@@ -279,7 +264,7 @@ abstract class FeatureCalculatorBuilder {
 
 
 			var comboScales = new CheckComboBox<Double>();
-			installSelectAllOrNoneMenu(comboScales);
+			GuiTools.installSelectAllOrNoneMenu(comboScales);
 			var labelScales = new Label("Scales");
 			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
 			comboScales.getCheckModel().check(1);
@@ -290,7 +275,7 @@ abstract class FeatureCalculatorBuilder {
 
 
 			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
-			installSelectAllOrNoneMenu(comboFeatures);
+			GuiTools.installSelectAllOrNoneMenu(comboFeatures);
 			var labelFeatures = new Label("Features");
 			comboFeatures.getItems().addAll(MultiscaleFeature.values());
 			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);

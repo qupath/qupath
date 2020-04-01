@@ -18,6 +18,11 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.roi.GeometryTools;
 
+/**
+ * Helper class for working with {@linkplain PathObject PathObjects} that represent cells.
+ * 
+ * @author Pete Bankhead
+ */
 public class CellTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(CellTools.class);
@@ -55,7 +60,12 @@ public class CellTools {
 		          );
 	}
 
-	
+	/**
+	 * Adjust cell boundary ROIs to be non-overlapping, by assigning overlaps to the cell with the closest nucleus.
+	 * Results are returned as a new list of cells.
+	 * @param cells input cells
+	 * @return a new list of cells, potentially containing some of the original cells and other adjusted cells
+	 */
 	public static List<PathObject> constrainCellOverlaps(Collection<? extends PathObject> cells) {
 		var map = new HashMap<PathObject, Geometry>();
 		for (var cell : cells) {

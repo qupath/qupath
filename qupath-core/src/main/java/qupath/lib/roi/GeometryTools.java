@@ -120,6 +120,11 @@ public class GeometryTools {
     /**
 	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
 	 * @param geometry
+     * @param minX 
+     * @param minY 
+     * @param maxX 
+     * @param maxY 
+     * @return 
 	 */
 	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
 		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
@@ -403,7 +408,9 @@ public class GeometryTools {
 	}
 	
 
-    
+    /**
+     * Converter to help switch from a {@link ROI} to a {@link Geometry}.
+     */
     public static class GeometryConverter {
     	
         private GeometryFactory factory;
@@ -667,7 +674,9 @@ public class GeometryTools {
 			areaCached += areaTempSigned;
 			List<Geometry> outer;
 			List<Geometry> holes;
+			@SuppressWarnings("unused")
 			double areaOuter;
+			@SuppressWarnings("unused")
 			double areaHoles;
 			if (areaCached < 0) {
 				areaOuter = -areaNegative;
@@ -715,6 +724,7 @@ public class GeometryTools {
 					// We assume a single point inside is sufficient because polygons should be non-overlapping
 					var point = tempHole.getCoordinate();
 					var iterOuter = outer.iterator();
+					@SuppressWarnings("unused")
 					int count = 0;
 					while (iterOuter.hasNext()) {
 						var tempOuter = iterOuter.next();
