@@ -1417,7 +1417,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 				int nCorrect = 0;
 				List<PathClass> pathClasses = new ArrayList<>(mapTest.keySet());
 				Collections.sort(pathClasses);
-				ConfusionMatrix confusion = new ConfusionMatrix(pathClasses);
+				ConfusionMatrix<PathClass> confusion = new ConfusionMatrix<>(pathClasses);
 				int nCorrectTumor = 0;
 				//			int nWrong = 0;
 				int nUnclassified = 0;

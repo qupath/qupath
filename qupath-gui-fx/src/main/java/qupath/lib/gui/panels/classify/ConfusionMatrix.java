@@ -26,8 +26,7 @@ package qupath.lib.gui.panels.classify;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import qupath.lib.objects.classes.PathClass;
+import java.util.function.Function;
 
 /**
  * Helper class for creating a confusion matrix.
@@ -35,21 +34,26 @@ import qupath.lib.objects.classes.PathClass;
  * @author Pete Bankhead
  *
  */
-class ConfusionMatrix {
+class ConfusionMatrix<T> {
 
-	private List<PathClass> pathClasses = new ArrayList<>();
+	private List<T> classes = new ArrayList<>();
 	private int[][] matrix;
 	private int errors = 0;
+	private Function<T, String> stringFun;
 
 	/**
 	 * Set up confusion matrix considering the specific classes.
 	 * 
 	 * @param pathClasses
 	 */
-	ConfusionMatrix(final Collection<PathClass> pathClasses) {
-		this.pathClasses.addAll(pathClasses);
-		int n = pathClasses.size();
+	ConfusionMatrix(final Collection<T> classes, Function<T, String> stringFun) {
+		this.classes.addAll(classes);
+		int n = classes.size();
 		matrix = new int[n][n];
+	}
+	
+	ConfusionMatrix(final Collection<T> classes) {
+		this(classes, t -> t.toString());
 	}
 	
 	/**
@@ -58,9 +62,9 @@ class ConfusionMatrix {
 	 * @param trueClass
 	 * @param assignedClass
 	 */
-	void registerClassification(final PathClass trueClass, final PathClass assignedClass) {
-		int indTrue = pathClasses.indexOf(trueClass);
-		int indAssigned = trueClass == assignedClass ? indTrue : pathClasses.indexOf(assignedClass);
+	void registerClassification(final T trueClass, final T assignedClass) {
+		int indTrue = classes.indexOf(trueClass);
+		int indAssigned = trueClass == assignedClass ? indTrue : classes.indexOf(assignedClass);
 		if (indTrue < 0 || indAssigned < 0) {
 			errors++;
 			return;
@@ -71,25 +75,22 @@ class ConfusionMatrix {
 	@Override
 	public String toString() {
 		int nChars = 5;
-		for (PathClass pc : pathClasses) {
-			nChars = Math.max(nChars, pc.getName().length());
+		for (T pc : classes) {
+			nChars = Math.max(nChars, stringFun.apply(pc).length());
 		}
 		String fString = "%1$" + nChars + "s";
 
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < nChars; i++)
 			sb.append(" ");
-		for (PathClass pc : pathClasses) {
-			sb.append("\t").append(String.format(fString, pc.getName()));
+		for (T pc : classes) {
+			sb.append("\t").append(String.format(fString, stringFun.apply(pc)));
 		}
 		sb.append("\n");
-		for (int i = 0; i < pathClasses.size(); i++) {
-			sb.append(String.format(fString, pathClasses.get(i).getName()));
-			for (int j = 0; j < pathClasses.size(); j++) {
-
+		for (int i = 0; i < classes.size(); i++) {
+			sb.append(String.format(fString, stringFun.apply(classes.get(i))));
+			for (int j = 0; j < classes.size(); j++) {
 				sb.append("\t").append(String.format(fString, matrix[i][j]));
-
-				//					sb.append("\t").append(matrix[i][j]);
 			}
 			sb.append("\n");
 		}

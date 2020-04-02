@@ -113,9 +113,9 @@ public class CommandFinderTools {
 	};
 
 	/**
-	 * Create a component that contains a TextField for entering menu commands to run quickly.
+	 * Create a component that contains a {@link TextField} for entering menu commands to run quickly.
 	 * 
-	 * This component is a container that holds a main Node, and displays the TextField only when requested.
+	 * This component is a container that holds a main {@link Node}, and displays the {@link TextField} only when requested.
 	 * 
 	 * @param qupath
 	 * @param node

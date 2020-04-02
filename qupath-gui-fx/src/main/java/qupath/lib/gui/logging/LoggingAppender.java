@@ -42,9 +42,7 @@ import javafx.application.Platform;
 
 
 /**
- * Logging appender for redirecting the default Logback output to an internally-accessible area.
- * 
- * TODO: Look for a more suitable solution in the event that another logging system is used...
+ * Logging appender for directing the default Logback output to other text components.
  * 
  * @author Pete Bankhead
  *
@@ -96,19 +94,30 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 			logger.warn("Cannot append logging info without logback!");
 	}
 
-
+	/**
+	 * Get the static {@link LoggingAppender} instance currently used for logging.
+	 * @return
+	 */
 	public synchronized static LoggingAppender getInstance() {
 		if (instance == null)
 			instance = new LoggingAppender();
 		return instance;
 	}
 
-	public synchronized void addTextComponent(final TextAppendable component) {
+	/**
+	 * Register a {@link TextAppendable} that will be accept logging events and be updated on the JavaFX Application thread.
+	 * @param component the appendable to add
+	 */
+	public synchronized void addTextApplendableFX(final TextAppendable component) {
 		textComponentsFX.add(component);
 		isActive = true;
 	}
 
-	public synchronized void removeTextComponent(final TextAppendable component) {
+	/**
+	 * Deregister a {@link TextAppendable} so that it will no longer be informed of logging events.
+	 * @param component the appendable to remove
+	 */
+	public synchronized void removeTextAppendableFX(final TextAppendable component) {
 		textComponentsFX.remove(component);
 		isActive = !textComponentsFX.isEmpty();
 	}
@@ -117,7 +126,6 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	protected void append(ILoggingEvent event) {
 		// Log event if it's important enough
 		if (isActive && event.getLevel().isGreaterOrEqual(minLevel)) {
-//			final boolean isError = event.getLevel().isGreaterOrEqual(Level.WARN);
 			String message = event.getLevel() + ": " + event.getFormattedMessage() + "\n";
 			if (event.getThrowableProxy() != null && event.getLevel().isGreaterOrEqual(Level.ERROR)) {
 				for (StackTraceElementProxy element : event.getThrowableProxy().getStackTraceElementProxyArray())
@@ -128,12 +136,7 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 					for (StackTraceElementProxy element : event.getThrowableProxy().getCause().getStackTraceElementProxyArray())
 						message += "        " + element.getSTEAsString() + "\n";
 				}
-				
-//				for (StackTraceElement element : event.getCallerData())
-//					tempMessage += "    TRACED: " + element.toString() + "\n";
-//				tempMessage += "MESSAGE: " + event.getThrowableProxy().getMessage() + "\n";
 			}
-			
 			// Buffer the next message
 			buffer(message);
 		}
@@ -157,8 +160,10 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 				message = buffer.toString();
 				buffer.setLength(0);
 			}
-			for (TextAppendable text : textComponentsFX) {
-				log(text, message);
+			if (!message.isEmpty()) {
+				for (TextAppendable text : textComponentsFX) {
+					log(text, message);
+				}
 			}
 		} else {
 			if (!flushRequested) {
@@ -168,31 +173,9 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 		}
 	}
 	
-	private void logTextAppendables(final String message) {
-		if (Platform.isFxApplicationThread()) {
-			for (TextAppendable text : textComponentsFX) {
-				log(text, message);
-			}
-		} else
-			Platform.runLater(() -> logTextAppendables(message));
-	}
-	
 	
 	private static void log(final TextAppendable component, final String message) {
 		component.appendText(message);
-//		if (isError)
-//			component.setStyle( "-fx-text-fill: red" );
-//		else
-//			component.setStyle( "-fx-text-fill: blue" );
-//		Text text = new Text(message);
-//		if (isError)
-//			text.setFill(javafx.scene.paint.Color.RED);
-//		component.getChildren().add(text);
-//		String current = component.get();
-//		if (current == null)
-//			component.set(message);
-//		else
-//			component.set(current + message);
 	}
 
 }

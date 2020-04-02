@@ -717,7 +717,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		context.setWriter(new ScriptConsoleWriter(console, false));
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
 		
-		LoggingAppender.getInstance().addTextComponent(console);
+		LoggingAppender.getInstance().addTextApplendableFX(console);
 		long startTime = System.currentTimeMillis();
 		if (outputScriptStartTime.get())
 			logger.info("Starting script at {}", new Date(startTime));
@@ -729,7 +729,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (outputScriptStartTime.get())
 				logger.info(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
 		} finally {
-			Platform.runLater(() -> LoggingAppender.getInstance().removeTextComponent(console));	
+			Platform.runLater(() -> LoggingAppender.getInstance().removeTextAppendableFX(console));	
 		}
 	}
 
