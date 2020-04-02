@@ -600,6 +600,14 @@ public class GeometryTools {
 					logger.debug("Error when converting area to Geometry: cannot create polygon from cordinate array of length 1!");
 				} else if (closed) {
 					points.closeRing();
+					if (points.size() <= 3) {
+						logger.debug("Discarding small 'ring' segment during area conversion (only 3 coordinates)");
+						x0 = x1;
+						y0 = y1;
+						iter.next();
+						continue;
+					}
+					
 					Coordinate[] coords = points.toCoordinateArray();
 	//				for (Coordinate c : coords)
 	//					model.makePrecise(c);
