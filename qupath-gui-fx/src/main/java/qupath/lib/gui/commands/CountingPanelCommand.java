@@ -52,13 +52,13 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.CountingPanel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PointIO;
@@ -264,8 +264,8 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 		}
 		
 		if (dialog != null) {
-			if (qupath.getMode() != DefaultMode.POINTS)
-				qupath.setMode(DefaultMode.POINTS);
+			if (qupath.getMode() != PathTools.POINTS)
+				qupath.setMode(PathTools.POINTS);
 			attemptToSelectPoints();
 			if (!dialog.isShowing())
 				dialog.show();
@@ -292,15 +292,15 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		Scene scene = new Scene(pane, 300, 450);
 		dialog.setScene(scene);
-		dialog.setOnCloseRequest(e -> qupath.setMode(DefaultMode.MOVE));
+		dialog.setOnCloseRequest(e -> qupath.setMode(PathTools.MOVE));
 		
 //		dialog.getDialogPane().setMinSize(220, 350);
 //		dialog.getDialogPane().setPrefSize(300, 450);
 //		dialog.getDialogPane().setMaxSize(400, 800);
 		
 //		dialog.setAlwaysOnTop(true);
-		if (qupath.getMode() != DefaultMode.POINTS)
-			qupath.setMode(DefaultMode.POINTS);
+		if (qupath.getMode() != PathTools.POINTS)
+			qupath.setMode(PathTools.POINTS);
 		attemptToSelectPoints();
 		
 		dialog.initModality(Modality.NONE);

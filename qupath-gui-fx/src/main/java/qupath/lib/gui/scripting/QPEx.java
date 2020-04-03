@@ -97,6 +97,13 @@ public class QPEx extends QP {
 
 	final private static Logger logger = LoggerFactory.getLogger(QPEx.class);
 	
+	/**
+	 * Placeholder for the path to the current project.
+	 * May be used as follows:
+	 * <pre>
+	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
+	 * </pref>
+	 */
 	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
 	
 	
@@ -168,16 +175,6 @@ public class QPEx extends QP {
 		return imageData;
 	}
 	
-	
-	
-	public static void writeTMAData(final String path) {
-		writeTMAData(path, true);
-	}
-	
-	@Deprecated
-	public static void writeTMAData(final String path, final boolean includeImages) {
-		writeTMAData((ImageData<BufferedImage>)getCurrentImageData(), resolvePath(path), includeImages);
-	}
 
 	public static void exportTMAData(final String path, final double downsampleFactor) {
 		exportTMAData((ImageData<BufferedImage>)getCurrentImageData(), resolvePath(path), downsampleFactor);
@@ -192,16 +189,7 @@ public class QPEx extends QP {
 		return
 			path;
 	}
-	
-	public static void writeTMAData(final ImageData<BufferedImage> imageData, final String path) {
-		writeTMAData(imageData, path, true);
-	}
-	
-	@Deprecated
-	public static void writeTMAData(final ImageData<BufferedImage> imageData, final String path, final boolean includeImages) {
-		double downsample = includeImages ? Double.NaN : -1;
-		exportTMAData(imageData, path, downsample);
-	}
+
 	
 	public static void exportTMAData(final ImageData<BufferedImage> imageData, final String path, final double downsampleFactor) {
 		if (imageData == null)

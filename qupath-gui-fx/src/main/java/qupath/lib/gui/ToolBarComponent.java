@@ -92,35 +92,8 @@ class ToolBarComponent {
 			
 			ToggleButton btnBrush = qupath.getActionToggleButton(GUIActions.BRUSH_TOOL, true, groupTools, false);
 			toolbar.getItems().add(btnBrush);
-			btnBrush.setOnMouseClicked(e -> {
-				if (e.isPopupTrigger() || e.getClickCount() < 2)
-					return;
-
-				final ParameterList params = new ParameterList()
-						.addDoubleParameter("brushSize", "Brush diameter", PathPrefs.getBrushDiameter(), "pixels", "Enter the default brush diameter, in pixels")
-						.addBooleanParameter("brushScaleMag", "Scale brush size by magnification", PathPrefs.getBrushScaleByMag())
-						.addBooleanParameter("brushCreateNew", "Create new objects when painting", PathPrefs.getBrushCreateNewObjects());
-				final ParameterPanelFX panel = new ParameterPanelFX(params);
-				panel.addParameterChangeListener(new ParameterChangeListener() {
-
-					@Override
-					public void parameterChanged(ParameterList parameterList, String key, boolean isAdjusting) {
-						if ("brushSize".equals(key)) {
-							double radius = params.getDoubleParameterValue("brushSize");
-							if (!Double.isNaN(radius)) {
-								PathPrefs.setBrushDiameter((int)Math.round(Math.max(1, radius)));
-							}
-						} else if ("brushCreateNew".equals(key))
-							PathPrefs.setBrushCreateNewObjects(params.getBooleanParameterValue("brushCreateNew"));
-						else if ("brushScaleMag".equals(key))
-							PathPrefs.setBrushScaleByMag(params.getBooleanParameterValue("brushScaleMag"));
-					}
-
-				});
-				Dialogs.showConfirmDialog("Brush tool options", panel.getPane());
-			});
-			ToggleButton toggleWand = qupath.getActionToggleButton(GUIActions.WAND_TOOL, true, groupTools, false);
-			toolbar.getItems().add(toggleWand);
+//			ToggleButton toggleWand = qupath.getActionToggleButton(GUIActions.WAND_TOOL, true, groupTools, false);
+//			toolbar.getItems().add(toggleWand);
 			
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 

@@ -80,8 +80,6 @@ import javax.script.ScriptException;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
-import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
-import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,7 +100,6 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
 import javafx.concurrent.Task;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
@@ -289,22 +286,14 @@ import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.ViewerPlusDisplayOptions;
 import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
-import qupath.lib.gui.viewer.tools.BrushTool;
-import qupath.lib.gui.viewer.tools.EllipseTool;
-import qupath.lib.gui.viewer.tools.LineTool;
-import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
-import qupath.lib.gui.viewer.tools.PointsTool;
-import qupath.lib.gui.viewer.tools.PolygonTool;
-import qupath.lib.gui.viewer.tools.PolylineTool;
-import qupath.lib.gui.viewer.tools.RectangleTool;
+import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -352,7 +341,7 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
  * @author Pete Bankhead
  *
  */
-public class QuPathGUI implements ModeWrapper {
+public class QuPathGUI {
 	
 	static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
 	
@@ -397,18 +386,17 @@ public class QuPathGUI implements ModeWrapper {
 								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS, MATCH_VIEWER_RESOLUTIONS,
 								UNDO, REDO
 								};
+								
 	
-	/**
-	 * Marker interface for a viewer input Mode, used to determine active input tool.
-	 */
-	public static interface Mode {}
 	
-	/**
-	 * Modes that correspond to default drawing tools.
-	 */
-	public enum DefaultMode implements Mode { MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, POLYLINE, BRUSH, POINTS, WAND }; //, TMA };
+	
+	
+	private ObjectProperty<PathTool> modeProperty = new SimpleObjectProperty<>(PathTools.MOVE);
+	private ObservableList<PathTool> tools = FXCollections.observableArrayList(
+			PathTools.MOVE, PathTools.RECTANGLE, PathTools.ELLIPSE, PathTools.LINE, PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
+			);
+	
 	private BooleanProperty modeLocked = new SimpleBooleanProperty(false);
-	private Mode mode = DefaultMode.MOVE;
 	
 	// ExecutorServices for single & multiple threads
 	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
@@ -417,7 +405,7 @@ public class QuPathGUI implements ModeWrapper {
 	
 	private Map<KeyCombination, Action> mapActions = new HashMap<>();
 	
-	private Map<Mode, Action> modeActions = new HashMap<>();
+	private Map<PathTool, Action> modeActions = new HashMap<>();
 
 	/**
 	 * Preferred size for toolbar icons.
@@ -556,7 +544,7 @@ public class QuPathGUI implements ModeWrapper {
 		logger.trace("Time to tools: {} ms", (System.currentTimeMillis() - startTime));
 		
 		// Initialize all tools
-		initializeTools();
+//		initializeTools();
 
 		// Initialize main GUI
 //		initializeMainComponent();
@@ -1578,11 +1566,28 @@ public class QuPathGUI implements ModeWrapper {
 		setupViewer(viewerManager.getActiveViewer());
 
 		// Ensure the mode is set
+
+		// Ensure actions are set appropriately
+		modeProperty.addListener((v, o, n) -> {
+			Action action = modeActions.get(n);
+			if (action != null)
+				action.setSelected(true);
+			
+			activateTools(getViewer());
+			
+			if (n == PathTools.POINTS)
+				getAction(GUIActions.COUNTING_PANEL).handle(null);
+			
+			updateCursor();			
+		});
 		setMode(getMode());
 		
 		
 		return pane;
 	}
+	
+	
+	
 
 	
 	/**
@@ -1709,9 +1714,6 @@ public class QuPathGUI implements ModeWrapper {
 //				viewerManager.setActiveViewer(viewer);
 //		});
 		
-		
-		// Register tools
-		viewer.registerTools(tools);
 		
 		// Create popup menu
 		setViewerPopupMenu(viewer);
@@ -1848,7 +1850,7 @@ public class QuPathGUI implements ModeWrapper {
 				return;
 			}
 			// Swallow the event if we're using a touch screen without the move tool selected - we want to draw instead
-			if (lastTouchEvent && viewer.getMode() != DefaultMode.MOVE) {
+			if (lastTouchEvent && viewer.getActiveTool() != PathTools.MOVE) {
 				e.consume();
 				return;
 			}
@@ -1983,8 +1985,8 @@ public class QuPathGUI implements ModeWrapper {
 				getActionCheckBoxMenuItem(GUIActions.POLYGON_TOOL, groupTools),
 				getActionCheckBoxMenuItem(GUIActions.POLYLINE_TOOL, groupTools),
 				getActionCheckBoxMenuItem(GUIActions.BRUSH_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, groupTools)
+				getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, groupTools)
+//				getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, groupTools)
 				);
 
 		
@@ -3164,7 +3166,7 @@ public class QuPathGUI implements ModeWrapper {
 				getActionCheckBoxMenuItem(GUIActions.POLYGON_TOOL, groupTools),
 				getActionCheckBoxMenuItem(GUIActions.POLYLINE_TOOL, groupTools),
 				getActionCheckBoxMenuItem(GUIActions.BRUSH_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, groupTools),
+//				getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, groupTools),
 				getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, groupTools)
 				);
 		
@@ -3629,11 +3631,11 @@ public class QuPathGUI implements ModeWrapper {
 //		return new PathSelectableAction(command, name, node, accelerator);
 	}
 
-	private Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final DefaultMode mode, final KeyCombination accelerator) {
-		Action action = createSelectableCommandAction(command, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, mode), accelerator);
+	private Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final PathTool tool, final KeyCombination accelerator) {
+		Action action = createSelectableCommandAction(command, name, tool.getIcon(), accelerator);
 		// Register in the map
-		if (mode != null)
-			modeActions.put(mode, action);
+		if (tool != null)
+			modeActions.put(tool, action);
 		return action;
 	}
 	
@@ -3652,41 +3654,41 @@ public class QuPathGUI implements ModeWrapper {
 		case BRIGHTNESS_CONTRAST:
 			return createCommandAction(new BrightnessContrastCommand(this), "Brightness/Contrast", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
 		case LINE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.LINE), "Line tool", DefaultMode.LINE, new KeyCodeCombination(KeyCode.L));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.LINE) || modeLocked.get(), modeLocked, tools));
+			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.LINE), "Line tool", PathTools.LINE, new KeyCodeCombination(KeyCode.L));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(PathTools.LINE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case ELLIPSE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.ELLIPSE), "Ellipse tool", DefaultMode.ELLIPSE, new KeyCodeCombination(KeyCode.O));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.ELLIPSE) || modeLocked.get(), modeLocked, tools));
+			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.ELLIPSE), "Ellipse tool", PathTools.ELLIPSE, new KeyCodeCombination(KeyCode.O));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(PathTools.ELLIPSE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case MOVE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.MOVE), "Move tool", DefaultMode.MOVE, new KeyCodeCombination(KeyCode.M));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.MOVE) || modeLocked.get(), modeLocked, tools));
+			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.MOVE), "Move tool", PathTools.MOVE, new KeyCodeCombination(KeyCode.M));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(PathTools.MOVE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case POINTS_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POINTS), "Points tool", DefaultMode.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POINTS) || modeLocked.get(), modeLocked, tools));
+			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.POINTS), "Points tool", PathTools.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(PathTools.POINTS) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case POLYGON_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POLYGON), "Polygon tool", DefaultMode.POLYGON, new KeyCodeCombination(KeyCode.P));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POLYGON) || modeLocked.get(), modeLocked, tools));
+			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.POLYGON), "Polygon tool", PathTools.POLYGON, new KeyCodeCombination(KeyCode.P));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(PathTools.POLYGON) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case POLYLINE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POLYLINE), "Polyline tool", DefaultMode.POLYLINE, new KeyCodeCombination(KeyCode.V));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POLYLINE) || modeLocked.get(), modeLocked, tools));
+			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.POLYLINE), "Polyline tool", PathTools.POLYLINE, new KeyCodeCombination(KeyCode.V));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(PathTools.POLYLINE) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case BRUSH_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.BRUSH), "Brush tool", DefaultMode.BRUSH, new KeyCodeCombination(KeyCode.B));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.BRUSH) || modeLocked.get(), modeLocked, tools));
+			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.BRUSH), "Brush tool", PathTools.BRUSH, new KeyCodeCombination(KeyCode.B));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(PathTools.BRUSH) || modeLocked.get(), modeLocked, tools));
 			return action;
 		case RECTANGLE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.RECTANGLE), "Rectangle tool", DefaultMode.RECTANGLE, new KeyCodeCombination(KeyCode.R));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.RECTANGLE) || modeLocked.get(), modeLocked, tools));
+			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.RECTANGLE), "Rectangle tool", PathTools.RECTANGLE, new KeyCodeCombination(KeyCode.R));
+			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(PathTools.RECTANGLE) || modeLocked.get(), modeLocked, tools));
 			return action;
-		case WAND_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.WAND), "Wand tool", DefaultMode.WAND, new KeyCodeCombination(KeyCode.W));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.WAND) || modeLocked.get(), modeLocked, tools));
-			return action;
+//		case WAND_TOOL:
+//			action = createSelectableCommandAction(new ToolSelectable(modeProperty, PathTools.WAND), "Wand tool", PathTools.WAND, new KeyCodeCombination(KeyCode.W));
+//			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(PathTools.WAND) || modeLocked.get(), modeLocked, tools));
+//			return action;
 		case SELECTION_MODE:
 			return createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
 		case SHOW_GRID:
@@ -3748,7 +3750,7 @@ public class QuPathGUI implements ModeWrapper {
 		case GRID_SPACING:
 			return createCommandAction(new SetGridSpacingCommand(overlayOptions), "Set grid spacing");
 		case COUNTING_PANEL:
-			return createCommandAction(new CountingPanelCommand(this), "Counting tool", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, DefaultMode.POINTS), null);
+			return createCommandAction(new CountingPanelCommand(this), "Counting tool", PathTools.POINTS.getIcon(), null);
 		case CONVEX_POINTS:
 			PathPrefs.showPointHullsProperty().addListener(e -> {
 				for (QuPathViewer v : getViewers())
@@ -3904,38 +3906,30 @@ public class QuPathGUI implements ModeWrapper {
 	public boolean isModeSwitchingEnabled() {
 		return !modeLocked.get();
 	}
-
-	
-	private void initializeTools() {
-		// Create tools
-		putToolForMode(DefaultMode.MOVE, new MoveTool(this));
-		putToolForMode(DefaultMode.RECTANGLE, new RectangleTool(this));
-		putToolForMode(DefaultMode.ELLIPSE, new EllipseTool(this));
-		putToolForMode(DefaultMode.LINE, new LineTool(this));
-		putToolForMode(DefaultMode.POINTS, new PointsTool(this));
-		putToolForMode(DefaultMode.POLYGON, new PolygonTool(this));
-		putToolForMode(DefaultMode.POLYLINE, new PolylineTool(this));
-		putToolForMode(DefaultMode.BRUSH, new BrushTool(this));
-	}
 	
 	
 	/**
-	 * Set a PathTool for use with a specified Mode.
-	 * 
-	 * This will replace the default tool for that mode.  The purpose of this method is to allow 
-	 * 'better' implementations of the tools to be implemented elsewhere (e.g. in extensions that 
-	 * require optional dependencies).
-	 * 
-	 * @param mode
-	 * @param tool
+	 * Get a read-only list of the current available tools.
+	 * @return
 	 */
-	public void putToolForMode(final Mode mode, final PathTool tool) {
-		tools.put(mode, tool);
+	public List<PathTool> getAvailableTools() {
+		return Collections.unmodifiableList(tools);
+	}
+	
+	public boolean installTool(PathTool tool) {
+		if (tool == null || tools.contains(tool))
+			return false;
+		// Keep the points tool last (since it is kind
+		int ind = tools.indexOf(PathTools.POINTS);
+		if (ind < 0)
+			tools.add(tool);
+		else
+			tools.add(ind, tool);
+		return true;
 	}
 	
 	
-	@Override
-	public void setMode(Mode mode) {
+	public void setMode(PathTool mode) {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> setMode(mode));
 			return;
@@ -3944,21 +3938,7 @@ public class QuPathGUI implements ModeWrapper {
 			logger.warn("Mode switching currently disabled - cannot change to {}", mode);
 			return;
 		}
-		this.mode = mode;
-		// Ensure actions are set appropriately
-		Action action = modeActions.get(mode);
-		if (action != null)
-			action.setSelected(true);
-		
-		activateTools(getViewer());
-		
-		if (mode == DefaultMode.POINTS)
-			getAction(GUIActions.COUNTING_PANEL).handle(null);
-		
-//		for (QuPathViewerPlus viewer : viewerManager.getViewers())
-//			viewer.setMode(mode);
-//		getViewer().setMode(mode);
-		updateCursor();
+		this.modeProperty.set(mode);
 	}
 	
 	
@@ -3987,7 +3967,7 @@ public class QuPathGUI implements ModeWrapper {
 		if (stage == null || stage.getScene() == null)
 			return;
 		var mode = getMode();
-		if (mode == DefaultMode.MOVE)
+		if (mode == PathTools.MOVE)
 			updateCursor(Cursor.HAND);
 		else
 			updateCursor(Cursor.DEFAULT);
@@ -4037,9 +4017,12 @@ public class QuPathGUI implements ModeWrapper {
 	}
 	
 
-	@Override
-	public Mode getMode() {
-		return mode;
+	public PathTool getMode() {
+		return modeProperty.get();
+	}
+	
+	public ObjectProperty<PathTool> modeProperty() {
+		return modeProperty;
 	}
 	
 	MenuItem getActionMenuItem(GUIActions actionType) {
@@ -4047,8 +4030,25 @@ public class QuPathGUI implements ModeWrapper {
 		return MenuTools.createMenuItem(action);
 	}
 	
+	public ToggleButton getActionToggleButton(GUIActions action, boolean hideActionText) {
+		return ActionTools.getActionToggleButton(getAction(action), hideActionText, null);
+	}
 	
+	public ToggleButton getActionToggleButton(GUIActions action, boolean hideActionText, ToggleGroup group, boolean isSelected) {
+		return ActionTools.getActionToggleButton(getAction(action), hideActionText, null, isSelected);
+	}
 	
+	ToggleButton getActionToggleButton(GUIActions action, boolean hideActionText, boolean isSelected) {
+		return ActionTools.getActionToggleButton(getAction(action), hideActionText, null, isSelected);
+	}
+	
+	public Button getActionButton(GUIActions action, boolean hideActionText) {
+		return ActionTools.getActionButton(getAction(action), hideActionText);
+	}
+	
+	public CheckBox getActionCheckBox(GUIActions action, boolean hideActionText) {
+		return ActionTools.getActionCheckBox(getAction(action), hideActionText);
+	}
 	
 	/**
 	 * Flag to indicate that menus are being initialized.
@@ -4076,75 +4076,12 @@ public class QuPathGUI implements ModeWrapper {
 		return menuItem;
 	}
 	
-	
+	private MenuItem getActionCheckBoxMenuItem(GUIActions actionType) {
+		return ActionTools.getActionCheckBoxMenuItem(getAction(actionType), null);
+	}
 	
 	private MenuItem getActionCheckBoxMenuItem(GUIActions actionType, ToggleGroup group) {
-		Action action = getAction(actionType);
-		if (group != null)
-			return MenuTools.createRadioMenuItem(action, group);
-		else
-			return MenuTools.createCheckMenuItem(action);
-	}
-	
-	private MenuItem getActionCheckBoxMenuItem(GUIActions actionType) {
-		return getActionCheckBoxMenuItem(actionType, null);
-	}
-	
-	public CheckBox getActionCheckBox(GUIActions actionType, boolean hideActionText) {
-		// Not sure why we have to bind?
-		Action action = getAction(actionType);
-		CheckBox button = ActionUtils.createCheckBox(action);
-		button.selectedProperty().bindBidirectional(action.selectedProperty());
-		if (hideActionText) {
-			button.setTooltip(new Tooltip(button.getText()));
-			button.setText("");
-		}
-		return button;
-	}
-	
-	private ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, ToggleGroup group) {
-		Action action = getAction(actionType);
-		ToggleButton button = ActionUtils.createToggleButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
-		if (hideActionText && action.getText() != null) {
-			Tooltip.install(button, new Tooltip(action.getText()));
-//			button.setTooltip(new Tooltip(action.getText()));
-////			button.setText(null);
-		}
-		
-		// Internally, ControlsFX duplicates graphics (or gives up) because Nodes can't appear multiple times the scene graph
-		// Consequently, we need to bind changes to the text fill here so that they filter through
-		if (button.getGraphic() instanceof Glyph) {
-			((Glyph)button.getGraphic()).textFillProperty().bind(((Glyph)action.getGraphic()).textFillProperty());
-		}
-		
-		if (group != null)
-			button.setToggleGroup(group);
-		return button;
-	}
-
-	public ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText) {
-		return getActionToggleButton(actionType, hideActionText, null);
-	}
-	
-	public ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, ToggleGroup group, boolean isSelected) {
-		ToggleButton button = getActionToggleButton(actionType, hideActionText, group);
-		return button;
-	}
-
-	ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, boolean isSelected) {
-		return getActionToggleButton(actionType, hideActionText, null, isSelected);
-	}
-	
-	public Button getActionButton(GUIActions actionType, boolean hideActionText) {
-		return getActionButton(getAction(actionType), hideActionText);
-	}
-	
-	public Button getActionButton(Action action, boolean hideActionText) {
-		Button button = ActionUtils.createButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
-		if (hideActionText && action.getText() != null) {
-			Tooltip.install(button, new Tooltip(action.getText()));
-		}
-		return button;
+		return ActionTools.getActionCheckBoxMenuItem(getAction(actionType), group);
 	}
 	
 	/**
@@ -4175,9 +4112,6 @@ public class QuPathGUI implements ModeWrapper {
 		return action;
 	}
 
-	
-	private ObservableMap<Mode, PathTool> tools = FXCollections.observableMap(new HashMap<>());
-	
 	
 	private Control createAnalysisPanel() {
 		TabPane tabbedPanel = new TabPane();

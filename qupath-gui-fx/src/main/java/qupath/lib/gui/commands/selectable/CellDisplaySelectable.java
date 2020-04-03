@@ -54,37 +54,4 @@ public class CellDisplaySelectable implements PathSelectableCommand {
 			overlayOptions.setDetectionDisplayMode(mode);
 	}
 	
-//	private static final long serialVersionUID = 1L;
-//	
-//	private OverlayOptions overlayOptions;
-//	private CellDisplayMode mode;
-//	
-//	public CellDisplayAction(final OverlayOptions overlayOptions, final CellDisplayMode mode) {
-//		super(getTitle(mode), null);
-//		this.overlayOptions = overlayOptions;
-//		this.mode = mode;
-//		putValue(Action.SELECTED_KEY, mode == overlayOptions.getCellDisplayMode());
-//		putValue(SHORT_DESCRIPTION, "Show " + getTitle(mode));
-//	}
-//	
-//	private static String getTitle(CellDisplayMode mode) {
-//		switch (mode) {
-//		case BOUNDARIES_ONLY:
-//			return "Cell boundaries only";
-//		case NUCLEI_AND_BOUNDARIES:
-//			return "Nuclei & cell boundaries";
-//		case NUCLEI_ONLY:
-//			return "Nuclei only";
-//		default:
-//			break;
-//		}
-//		return null;
-//	}
-//		
-//	@Override
-//	public void actionPerformed(ActionEvent e) {
-//		if ((Boolean)getValue(Action.SELECTED_KEY))
-//			overlayOptions.setCellDisplayMode(mode);
-//	}
-	
 }

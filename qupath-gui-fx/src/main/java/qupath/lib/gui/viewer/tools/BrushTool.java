@@ -23,7 +23,6 @@
 
 package qupath.lib.gui.viewer.tools;
 
-import java.awt.Shape;
 import java.awt.geom.Point2D;
 import java.util.Collections;
 import java.util.List;
@@ -39,12 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.scene.Cursor;
-import javafx.scene.SnapshotParameters;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.paint.Color;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.ModeWrapper;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.tools.QuPathPenManager.PenInputManager;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -101,17 +96,13 @@ public class BrushTool extends AbstractPathROITool {
 //	    }
 //	};
 	
-	private SnapshotParameters snapshotParameters = new SnapshotParameters();
-	
 	/**
-	 * Create a new brush tool.
-	 * @param modes
+	 * Returns false.
 	 */
-	public BrushTool(ModeWrapper modes) {
-		super(modes);
-		snapshotParameters.setFill(Color.TRANSPARENT);
+	@Override
+	protected boolean preferReturnToMove() {
+		return false;
 	}
-	
 	
 	protected Cursor getRequestedCursor() {
 		// Display of image cursors seems buggy, at least on macOS?
@@ -156,11 +147,6 @@ public class BrushTool extends AbstractPathROITool {
 //		ensureCursorType(getRequestedCursor());
 	}
 	
-	@Override
-	public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {
-//		ensureCursorType(getRequestedCursor());
-	}
-	
 	
 	@Override
 	public void mouseMoved(MouseEvent e) {
@@ -180,6 +166,7 @@ public class BrushTool extends AbstractPathROITool {
 		
 		ensureCursorType(getRequestedCursor());
 		
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return;
@@ -293,6 +280,7 @@ public class BrushTool extends AbstractPathROITool {
         }
 		
 		// Can only modify annotations
+		var viewer = getViewer();
 		PathObject pathObject = viewer.getSelectedObject();
 		if (pathObject == null || !pathObject.isAnnotation() || !pathObject.isEditable())
 			return;
@@ -328,6 +316,7 @@ public class BrushTool extends AbstractPathROITool {
 	private PathObject getUpdatedObject(MouseEvent e, ROI shapeROI, PathObject currentObject, double flatness) {
 		Point2D p = mouseLocationToImage(e, true, requestPixelSnapping());
 		
+		var viewer = getViewer();
 		ImagePlane plane = shapeROI == null ? ImagePlane.getPlane(viewer.getZPosition(), viewer.getTPosition()) : shapeROI.getImagePlane();
 		Geometry shapeNew;
 		boolean subtractMode = isSubtractMode(e);
@@ -434,6 +423,7 @@ public class BrushTool extends AbstractPathROITool {
 	protected double getBrushDiameter() {
 		PenInputManager manager = QuPathPenManager.getPenManager();
 		double scale = manager.getPressure();
+		var viewer = getViewer();
 		if (PathPrefs.getBrushScaleByMag())
 			return PathPrefs.getBrushDiameter() * viewer.getDownsampleFactor() * scale;
 		else
@@ -506,6 +496,7 @@ public class BrushTool extends AbstractPathROITool {
 		Geometry geom = createShape(e, x, y, PathPrefs.getUseTileBrush(), null);
 		if (geom == null || geom.isEmpty())
 			return ROIs.createEmptyROI();
+		var viewer = getViewer();
 		geom = GeometryTools.roundCoordinates(geom);
 		geom = GeometryTools.constrainToBounds(geom, 0, 0, viewer.getServerWidth(), viewer.getServerHeight());
 		return GeometryTools.geometryToROI(geom, plane);

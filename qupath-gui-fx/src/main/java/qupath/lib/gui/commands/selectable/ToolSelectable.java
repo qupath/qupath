@@ -23,35 +23,28 @@
 
 package qupath.lib.gui.commands.selectable;
 
-import qupath.lib.gui.QuPathGUI.Mode;
+import javafx.beans.property.ObjectProperty;
 import qupath.lib.gui.commands.interfaces.PathSelectableCommand;
-import qupath.lib.gui.viewer.ModeWrapper;
 
-/**
- * Action that sets the input mode (tool) for a viewer.
- * 
- * @author Pete Bankhead
- *
- */
-public class ToolSelectable implements PathSelectableCommand {
+public class ToolSelectable<T> implements PathSelectableCommand {
 
-	final private ModeWrapper wrapper;
-	final private Mode mode;
+	final private ObjectProperty<T> activeMode;
+	final private T mode;
 	
-	public ToolSelectable(final ModeWrapper wrapper, final Mode mode) {
-		this.wrapper = wrapper;
+	public ToolSelectable(final ObjectProperty<T> activeMode, final T mode) {
+		this.activeMode = activeMode;
 		this.mode = mode;
 	}
 
 	@Override
 	public boolean isSelected() {
-		return wrapper.getMode() == mode;
+		return activeMode.get() == mode;
 	}
 
 	@Override
 	public void setSelected(boolean selected) {
 		if (selected)
-			wrapper.setMode(mode);
+			activeMode.set(mode);
 	}
 	
 }

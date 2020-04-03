@@ -45,7 +45,6 @@ import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.shape.Rectangle;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.objects.PathObject;
@@ -320,31 +319,6 @@ public class PathIconFactory {
 		}
 		catch (Exception e) {
 			logger.error("Unable to load icon {}", type, e);
-			return null;
-		}
-	}
-	
-	public static Node createNode(int width, int height, QuPathGUI.DefaultMode mode) {
-		switch (mode) {
-		case LINE:
-			return createNode(width, height, PathIcons.LINE_TOOL);
-		case MOVE:
-			return createNode(width, height, PathIcons.MOVE_TOOL);
-		case ELLIPSE:
-			return createNode(width, height, PathIcons.ELLIPSE_TOOL);
-		case POINTS:
-			return createNode(width, height, PathIcons.POINTS_TOOL);
-		case POLYGON:
-			return createNode(width, height, PathIcons.POLYGON_TOOL);
-		case POLYLINE:
-			return createNode(width, height, PathIcons.POLYLINE_TOOL);
-		case BRUSH:
-			return createNode(width, height, PathIcons.BRUSH_TOOL);
-		case WAND:
-			return createNode(width, height, PathIcons.WAND_TOOL);
-		case RECTANGLE:
-			return createNode(width, height, PathIcons.RECTANGLE_TOOL);
-		default:
 			return null;
 		}
 	}

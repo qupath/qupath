@@ -32,7 +32,6 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -53,13 +52,8 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PointsTool extends AbstractPathTool {
 
-	
-	public PointsTool(ModeWrapper modes) {
-		super(modes);
-	}
-
-
 	private PointsROI getCurrentPoints() {
+		var viewer = getViewer();
 		PathObject currentObject = viewer.getSelectedObject();
 		if (currentObject == null)
 			return null;
@@ -86,6 +80,7 @@ public class PointsTool extends AbstractPathTool {
 		if (points == null)
 			return;
 
+		var viewer = getViewer();
 		RoiEditor editor = viewer.getROIEditor();
 		editor.resetActiveHandle();
 		
@@ -107,6 +102,7 @@ public class PointsTool extends AbstractPathTool {
             return;
         }
 		
+		var viewer = getViewer();
 		RoiEditor editor = viewer.getROIEditor();
 		if (!(editor.getROI() instanceof PointsROI) || !editor.hasActiveHandle())
 			return;
@@ -156,6 +152,7 @@ public class PointsTool extends AbstractPathTool {
 	 * @return
 	 */
 	private boolean handleAltClick(double x, double y, PathObject currentObject) {
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		double distance = PathPrefs.getDefaultPointRadius();
 		// Remove a point if the current selection has one
@@ -197,6 +194,7 @@ public class PointsTool extends AbstractPathTool {
         }
 		
 		// Get a server, if we can
+		var viewer = getViewer();
 		ImageServer<?> server = viewer.getServer();
 		if (server == null)
 			return;

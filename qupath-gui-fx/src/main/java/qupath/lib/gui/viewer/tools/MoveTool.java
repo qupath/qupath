@@ -38,7 +38,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -65,30 +64,20 @@ public class MoveTool extends AbstractPathTool {
 	private double dx, dy; // Last dragging displacements
 	private long lastDragTimestamp; // Used to determine if the user has stopped dragging (but may not yet have release the mouse button)
 	
-	private ViewerMover mover;
-	
-	
-	public MoveTool(final ModeWrapper modes) {
-		super(modes);
-	}
-
-	
-	@Override
-	public void registerTool(final QuPathViewer viewer) {
-		super.registerTool(viewer);
-		mover = new ViewerMover(viewer);
-	}
-	
+	private ViewerMover mover;	
 	
 	@Override
 	public void mousePressed(MouseEvent e) {
 		
-		mover.stopMoving();
+		if (mover != null)
+			mover.stopMoving();
 		
 		super.mousePressed(e);
 		
 		if (!e.isPrimaryButtonDown() || e.isConsumed())
             return;
+		
+		var viewer = getViewer();
 		
 		boolean snapping = false;
 		Point2D p = mouseLocationToImage(e, false, snapping);
@@ -179,7 +168,8 @@ public class MoveTool extends AbstractPathTool {
 	@Override
 	public void mouseDragged(MouseEvent e) {
 		
-		mover.stopMoving();
+		if (mover != null)
+			mover.stopMoving();
 		
 		super.mouseDragged(e);
 		
@@ -187,6 +177,7 @@ public class MoveTool extends AbstractPathTool {
             return;
 
 		// Handle ROIs if the spacebar isn't down
+		var viewer = getViewer();
 		if (!viewer.isSpaceDown()) {
 			
 			RoiEditor editor = viewer.getROIEditor();
@@ -275,6 +266,7 @@ public class MoveTool extends AbstractPathTool {
 		if (e.isConsumed())
 			return;
 		
+		var viewer = getViewer();
 		RoiEditor editor = viewer.getROIEditor();
 		if (editor != null && (editor.hasActiveHandle() || editor.isTranslating())) {
 			boolean roiChanged = (editor.isTranslating() && editor.finishTranslation()) || editor.hasActiveHandle();
@@ -324,6 +316,7 @@ public class MoveTool extends AbstractPathTool {
 		
 		// Optionally continue a dragging movement until the canvas comes to a standstill
 		if (pDragging != null && PathPrefs.requestDynamicDragging() && System.currentTimeMillis() - lastDragTimestamp < 100 && (dx*dx + dy*dy > viewer.getDownsampleFactor())) {
+			mover = new ViewerMover(viewer);
 			mover.startMoving(dx, dy, false);
 		} else
 	        viewer.setDoFasterRepaint(false);
@@ -348,6 +341,7 @@ public class MoveTool extends AbstractPathTool {
 		super.mouseMoved(e);
 		
 		// We don't want to change a waiting cursor unnecessarily
+		var viewer = getViewer();
 		Cursor cursorType = viewer.getCursor();
 		if (cursorType == Cursor.WAIT)
 			return;

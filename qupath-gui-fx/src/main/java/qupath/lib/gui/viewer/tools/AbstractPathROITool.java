@@ -30,12 +30,12 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.ObjectProperty;
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
-import qupath.lib.gui.QuPathGUI.DefaultMode;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.ModeWrapper;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -57,11 +57,6 @@ import qupath.lib.roi.interfaces.ROI;
 abstract class AbstractPathROITool extends AbstractPathTool {
 	
 	final private static Logger logger = LoggerFactory.getLogger(AbstractPathROITool.class);
-	
-	
-	AbstractPathROITool(ModeWrapper modes) {
-		super(modes);
-	}
 
 	/**
 	 * Create a new ROI with the given starting coordinates.
@@ -83,6 +78,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 	 */
 	PathObject createNewAnnotation(MouseEvent e, double x, double y) {
 		
+		var viewer = getViewer();
 		var currentObject = viewer.getSelectedObject();
 		var editor = viewer.getROIEditor();
 		if (currentObject != null && currentObject.getParent() == null && currentObject.getROI() == editor.getROI() && (editor.isTranslating() || editor.hasActiveHandle())) {
@@ -116,6 +112,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
             return;
         }
 		
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return;
@@ -128,7 +125,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 
 		// If we're adjusting a polygon/polyline with an appropriate tool, return at leave it up to the tool to handle the custom things
 		if (adjustingPolygon) {
-			if (viewer.getMode() == DefaultMode.POLYGON || viewer.getMode() == DefaultMode.POLYLINE)
+			if (viewer.getActiveTool() == PathTools.POLYGON || viewer.getActiveTool() == PathTools.POLYLINE)
 				return;
 			else {
 				viewer.getHierarchy().getSelectionModel().clearSelection();
@@ -174,6 +171,14 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 	}
 
 	
+	/**
+	 * Return true if this tool would prefer to switch back to 'Move' after a ROI has been drawn.
+	 * @return
+	 */
+	protected boolean preferReturnToMove() {
+		return PathPrefs.getReturnToMoveMode();
+	}
+	
 	
 	/**
 	 * When drawing an object is complete, add it to the hierarchy - or whatever else is required.
@@ -185,6 +190,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		if (pathObject == null)
 			return;
 		
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		
 		var currentROI = pathObject.getROI();
@@ -241,14 +247,13 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		var editor = viewer.getROIEditor();
 		editor.ensureHandlesUpdated();
 		editor.resetActiveHandle();
-		if (PathPrefs.getReturnToMoveMode() && modes.getMode() != DefaultMode.BRUSH && modes.getMode() != DefaultMode.WAND)
-			modes.setMode(DefaultMode.MOVE);
+		
+		if (preferReturnToMove()) {
+			var qupath = QuPathGUI.getInstance();
+			if (qupath != null)
+				qupath.setMode(PathTools.MOVE);
+		}
 	}
-	
-	
-	@Override
-	public void deregisterTool(QuPathViewer viewer) {
-		super.deregisterTool(viewer);
-	}
+
 	
 }

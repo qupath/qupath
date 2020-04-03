@@ -28,7 +28,6 @@ import java.util.Collections;
 
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathROIObject;
 import qupath.lib.roi.RoiEditor;
@@ -43,10 +42,6 @@ import qupath.lib.roi.interfaces.ROI;
  */
 abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
 
-	AbstractPathDraggingROITool(ModeWrapper modes) {
-		super(modes);
-	}
-
 	@Override
 	public void mouseDragged(MouseEvent e) {
 		super.mouseDragged(e);
@@ -55,6 +50,7 @@ abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
             return;
         }
 		
+		var viewer = getViewer();
 		ROI currentROI = viewer.getCurrentROI() instanceof ROI ? (ROI)viewer.getCurrentROI() : null;
 		RoiEditor editor = viewer.getROIEditor();
 		
@@ -81,6 +77,7 @@ abstract class AbstractPathDraggingROITool extends AbstractPathROITool {
             return;
         }
 		
+		var viewer = getViewer();
 		PathObject selectedObject = viewer.getSelectedObject();
 		if (selectedObject == null)
 			return;

@@ -237,7 +237,6 @@ public class WandToolCV extends BrushTool {
 	 * @param qupath
 	 */
 	public WandToolCV(QuPathGUI qupath) {
-		super(qupath);
 		addProperties(qupath);
 	}
 	
