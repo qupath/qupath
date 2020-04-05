@@ -80,6 +80,7 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -463,8 +464,8 @@ public class IJExtension implements QuPathExtension {
 			btnImageJ.setTooltip(new Tooltip("ImageJ commands"));
 			ContextMenu popup = new ContextMenu();
 			popup.getItems().addAll(
-					MenuTools.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
-					MenuTools.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null))
+					ActionTools.getActionMenuItem(qupath.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
+					ActionTools.getActionMenuItem(qupath.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null))
 					);
 			btnImageJ.setOnMouseClicked(e -> {
 				popup.show(btnImageJ, e.getScreenX(), e.getScreenY());
@@ -519,7 +520,7 @@ public class IJExtension implements QuPathExtension {
 		// Put dearraying at the top of the TMA menu
 		Menu menuTMA = qupath.getMenu("TMA", true);
 		menuTMA.getItems().add(0,
-				MenuTools.createMenuItem(qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null))
+				ActionTools.getActionMenuItem(qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null))
 				);
 		menuTMA.getItems().add(1,
 				new SeparatorMenuItem()
@@ -544,8 +545,8 @@ public class IJExtension implements QuPathExtension {
 		Menu menuAutomate = qupath.getMenu("Extensions>ImageJ", true);
 		Action actionMacroRunner = qupath.createPluginAction("ImageJ macro runner", new ImageJMacroRunner(qupath), null);
 		MenuTools.addMenuItems(menuAutomate,
-				MenuTools.createMenuItem(QuPathGUI.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
-				MenuTools.createMenuItem(QuPathGUI.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null)),
+				ActionTools.getActionMenuItem(qupath.createCommandAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
+				ActionTools.getActionMenuItem(qupath.createCommandAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null)),
 				null,
 				miSetPluginsPath,
 				null,

@@ -56,6 +56,7 @@ import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.AnnotationCombineCommand;
 import qupath.lib.gui.commands.HierarchyInsertCommand;
@@ -801,19 +802,19 @@ public class GuiTools {
 				GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
 		});
 		
-		MenuItem miInsertHierarchy = MenuTools.createMenuItem(
-				QuPathGUI.createCommandAction(new HierarchyInsertCommand(qupath), "Insert in hierarchy"));
+		MenuItem miInsertHierarchy = ActionTools.getActionMenuItem(
+				qupath.createCommandAction(new HierarchyInsertCommand(qupath), "Insert in hierarchy"));
 		
 		Menu menuCombine = MenuTools.createMenu(
 				"Edit multiple",
-				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.ADD), "Merge selected"),
-				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
-				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.INTERSECT), "Intersect selected")
+				qupath.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.ADD), "Merge selected"),
+				qupath.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
+				qupath.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.INTERSECT), "Intersect selected")
 				);
 		
 		Menu menuEdit = MenuTools.createMenu(
 				"Edit single",
-				QuPathGUI.createCommandAction(new InverseObjectCommand<>(qupath.imageDataProperty()), "Make inverse"),
+				qupath.createCommandAction(new InverseObjectCommand<>(qupath.imageDataProperty()), "Make inverse"),
 				QuPathGUI.createPluginAction("Split", SplitAnnotationsPlugin.class, qupath, null)
 				);
 		

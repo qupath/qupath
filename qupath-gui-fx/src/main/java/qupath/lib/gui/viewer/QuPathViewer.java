@@ -721,6 +721,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.viewerInterpolateBilinearProperty(), repainterEntire);
 		manager.attachListener(PathPrefs.viewerBackgroundColorProperty(), repainterEntire);
 		
+		manager.attachListener(PathPrefs.showPointHullsProperty(), repainter);
 		manager.attachListener(PathPrefs.useSelectedColorProperty(), repainter);
 		manager.attachListener(PathPrefs.colorDefaultObjectsProperty(), repainterOverlay);
 		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
@@ -1084,14 +1085,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void setMode(PathTool tool) {
 		logger.trace("Setting tool {} for {}", tool, this);
 		var activeTool = mode.get();
-		if (tool == activeTool)
-			return;
 		if (activeTool != null)
 			activeTool.deregisterTool(this);
 		this.mode.set(tool);
 		if (tool != null)
-			mode.set(tool);
-		tool.registerTool(this);
+			tool.registerTool(this);
 		updateCursor();
 		updateRoiEditor();
 	}

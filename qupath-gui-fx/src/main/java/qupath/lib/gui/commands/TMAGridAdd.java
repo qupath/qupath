@@ -29,7 +29,6 @@ import java.util.List;
 import javafx.event.ActionEvent;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
@@ -88,7 +87,7 @@ public class TMAGridAdd implements PathCommand {
 		}
 		try {
 			if (addToTMA(imageData, type)) {
-				qupath.getAction(GUIActions.TMA_RELABEL).handle(new ActionEvent());
+				qupath.getActionManager().TMA_RELABEL.handle(new ActionEvent());
 			}
 		} catch (Exception e) {
 			Dialogs.showErrorMessage(NAME, e.getMessage());

@@ -52,6 +52,7 @@ public class ViewTrackerControlPanel {
 	private static final Node iconPlay = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_PLAY);
 	private static final Node iconPlayStop = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_PLAY_STOP);
 	
+	private QuPathGUI qupath;
 	private ViewTracker tracker;
 	
 	private ToolBar toolbar = new ToolBar();
@@ -60,8 +61,9 @@ public class ViewTrackerControlPanel {
 	 * Constructor.
 	 * @param viewer the viewer to track
 	 */
-	public ViewTrackerControlPanel(final QuPathViewer viewer) {
+	public ViewTrackerControlPanel(final QuPathGUI qupath, final QuPathViewer viewer) {
 		this(viewer, ViewTrackers.createViewTracker(viewer));
+		this.qupath = qupath;
 	}
 
 	/**
@@ -75,8 +77,8 @@ public class ViewTrackerControlPanel {
 //		ToolBar toolbar = new ToolBar();
 		ViewTrackerPlayback playback = new ViewTrackerPlayback(tracker, viewer);
 		
-		Action actionRecord = QuPathGUI.createSelectableCommandAction(tracker.recordingProperty(), "Record", iconRecord, null);
-		Action actionPlayback = QuPathGUI.createSelectableCommandAction(playback.playingProperty(), "Play", iconPlay, null);
+		Action actionRecord = qupath.createSelectableCommandAction(tracker.recordingProperty(), "Record", iconRecord, null);
+		Action actionPlayback = qupath.createSelectableCommandAction(playback.playingProperty(), "Play", iconPlay, null);
 		actionPlayback.setDisabled(tracker.isEmpty());
 		
 		// Can't select one while the other is selected
@@ -113,7 +115,7 @@ public class ViewTrackerControlPanel {
 				ActionUtils.createToggleButton(actionRecord, ActionTextBehavior.HIDE),
 				ActionUtils.createToggleButton(actionPlayback, ActionTextBehavior.HIDE),
 				new Separator(),
-				ActionUtils.createButton(QuPathGUI.createCommandAction(new ViewTrackerExportCommand(viewer, tracker), "More..."))
+				ActionUtils.createButton(qupath.createCommandAction(new ViewTrackerExportCommand(viewer, tracker), "More..."))
 				);
 		
 //		pane.getChildren().addAll(toolbar);

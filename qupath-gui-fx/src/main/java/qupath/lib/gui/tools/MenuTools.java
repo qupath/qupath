@@ -15,6 +15,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ToggleGroup;
+import qupath.lib.gui.ActionTools;
 
 /**
  * Static methods to help with creating and populating JavaFX menus.
@@ -70,7 +71,7 @@ public class MenuTools {
 				lastIsSeparator = false;
 			}
 			else if (item instanceof Action) {
-				newItems.add(createMenuItem((Action)item));
+				newItems.add(ActionTools.getActionMenuItem((Action)item));
 				lastIsSeparator = false;
 			} else
 				logger.warn("Could not add menu item {}", item);
@@ -107,7 +108,7 @@ public class MenuTools {
 				lastIsSeparator = false;
 			}
 			else if (item instanceof Action) {
-				newItems.add(createMenuItem((Action)item));
+				newItems.add(ActionTools.getActionMenuItem((Action)item));
 				lastIsSeparator = false;
 			} else
 				logger.warn("Could not add menu item {}", item);
@@ -192,37 +193,6 @@ public class MenuTools {
 //		logger.warn("No menu item found for {}", itemName);
 //		return null;
 //	}
-	
-	
-	/**
-	 * Create a {@link MenuItem} for an {@link Action}.
-	 * @param action
-	 * @return
-	 */
-	public static MenuItem createMenuItem(final Action action) {
-		return ActionUtils.createMenuItem(action);
-	}
-	
-	/**
-	 * Create a {@link CheckMenuItem} for an {@link Action}.
-	 * @param action
-	 * @return
-	 */
-	public static CheckMenuItem createCheckMenuItem(final Action action) {
-		return ActionUtils.createCheckMenuItem(action);
-	}
-	
-	/**
-	 * Create a {@link RadioMenuItem} for an {@link Action}.
-	 * @param action
-	 * @param group group to which the {@link RadioMenuItem} should be a member
-	 * @return
-	 */
-	public static RadioMenuItem createRadioMenuItem(final Action action, final ToggleGroup group) {
-		RadioMenuItem menuItem = ActionUtils.createRadioMenuItem(action);
-		menuItem.setToggleGroup(group);
-		return menuItem;
-	}
 	
 	/**
 	 * Get a flattened list of all menu items recursively.

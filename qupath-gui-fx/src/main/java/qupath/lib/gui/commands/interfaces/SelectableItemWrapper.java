@@ -21,30 +21,36 @@
  * #L%
  */
 
-package qupath.lib.gui.commands.selectable;
+package qupath.lib.gui.commands.interfaces;
 
 import javafx.beans.property.ObjectProperty;
-import qupath.lib.gui.commands.interfaces.PathSelectableCommand;
 
-public class ToolSelectable<T> implements PathSelectableCommand {
+/**
+ * Helper class for managing items, only one of which may be selected.
+ * 
+ * @param <T>
+ */
+public class SelectableItemWrapper<T> {
 
-	final private ObjectProperty<T> activeMode;
-	final private T mode;
+	final private ObjectProperty<T> selected;
+	final private T item;
 	
-	public ToolSelectable(final ObjectProperty<T> activeMode, final T mode) {
-		this.activeMode = activeMode;
-		this.mode = mode;
+	public SelectableItemWrapper(final ObjectProperty<T> selected, final T item) {
+		this.selected = selected;
+		this.item = item;
 	}
 
-	@Override
 	public boolean isSelected() {
-		return activeMode.get() == mode;
+		return selected.get() == item;
 	}
 
-	@Override
 	public void setSelected(boolean selected) {
 		if (selected)
-			activeMode.set(mode);
+			this.selected.set(item);
+	}
+	
+	public T getItem() {
+		return this.item;
 	}
 	
 }

@@ -51,7 +51,7 @@ public class ViewTrackerCommand implements PathCommand {
 		dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Tracking");
-		final ViewTrackerControlPanel panel = new ViewTrackerControlPanel(qupath.getViewer());
+		final ViewTrackerControlPanel panel = new ViewTrackerControlPanel(qupath, qupath.getViewer());
 		StackPane pane = new StackPane(panel.getNode());
 		dialog.setScene(new Scene(pane));
 		dialog.setResizable(false);

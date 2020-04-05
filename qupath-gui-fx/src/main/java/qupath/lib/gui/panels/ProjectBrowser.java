@@ -94,8 +94,8 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -241,9 +241,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		panel.setBottom(paneUserFilter);
 		panel.setCenter(panelTree);
 
-		Button btnOpen = qupath.getActionButton(GUIActions.PROJECT_OPEN, false);
-		Button btnCreate = qupath.getActionButton(GUIActions.PROJECT_NEW, false);
-		Button btnAdd = qupath.getActionButton(GUIActions.PROJECT_IMPORT_IMAGES, false);
+		var actionManager = qupath.getActionManager();
+		Button btnOpen = ActionTools.getActionButton(actionManager.PROJECT_OPEN, false);
+		Button btnCreate = ActionTools.getActionButton(actionManager.PROJECT_NEW, false);
+		Button btnAdd = ActionTools.getActionButton(actionManager.PROJECT_IMPORT_IMAGES, false);
 		GridPane paneButtons = PaneTools.createColumnGridControls(btnCreate, btnOpen, btnAdd);
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));

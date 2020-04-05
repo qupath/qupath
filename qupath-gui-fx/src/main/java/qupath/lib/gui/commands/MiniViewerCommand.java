@@ -176,7 +176,7 @@ public class MiniViewerCommand implements PathCommand {
 	 * @param manager
 	 * @return
 	 */
-	static ContextMenu createPopup(final MiniViewerManager manager) {
+	ContextMenu createPopup(final MiniViewerManager manager) {
 		
 		List<RadioMenuItem> radioItems = Arrays.asList(
 				ActionUtils.createRadioMenuItem(createDownsampleAction("400 %", manager.downsample, 0.25)),
@@ -200,12 +200,12 @@ public class MiniViewerCommand implements PathCommand {
 
 		ContextMenu popup = new ContextMenu();
 		popup.getItems().addAll(
-				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.synchronizeToMainViewer, "Synchronize to main viewer")),
+				ActionUtils.createCheckMenuItem(qupath.createSelectableCommandAction(manager.synchronizeToMainViewer, "Synchronize to main viewer")),
 				menuZoom,
 				new SeparatorMenuItem(),
-				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.showCursor, "Show cursor")),
-				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.showChannelNames, "Show channel names")),
-				ActionUtils.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(manager.showOverlays, "Show overlays"))
+				ActionUtils.createCheckMenuItem(qupath.createSelectableCommandAction(manager.showCursor, "Show cursor")),
+				ActionUtils.createCheckMenuItem(qupath.createSelectableCommandAction(manager.showChannelNames, "Show channel names")),
+				ActionUtils.createCheckMenuItem(qupath.createSelectableCommandAction(manager.showOverlays, "Show overlays"))
 				);
 
 		group.selectToggle(radioItems.get(2));

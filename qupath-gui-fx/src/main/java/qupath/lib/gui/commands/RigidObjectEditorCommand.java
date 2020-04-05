@@ -228,7 +228,7 @@ public class RigidObjectEditorCommand implements PathCommand, ChangeListener<Ima
 		// Update the mode if the viewer is still active
 		qupath.setModeSwitchingEnabled(true);
 		if (viewer == qupath.getViewer())
-			viewer.setMode(qupath.getMode());
+			viewer.setMode(qupath.getSelectedTool());
 		
 		viewer.getView().removeEventHandler(MouseEvent.ANY, mouseListener);
 		viewer.getCustomOverlayLayers().remove(overlay);

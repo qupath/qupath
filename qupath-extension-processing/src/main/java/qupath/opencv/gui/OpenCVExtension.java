@@ -86,7 +86,7 @@ public class OpenCVExtension implements QuPathExtension {
 		MenuTools.addMenuItems(
 				menuClassify,
 				null,
-				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier"));
+				qupath.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier"));
 		
 		
 //		// Add the Wand tool

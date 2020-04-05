@@ -109,6 +109,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -495,7 +496,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createSaveAction("Save As...", true),
 				null,
 				createRevertAction("Revert/Refresh"),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoRefreshFiles, "Auto refresh files")),
+				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(autoRefreshFiles, "Auto refresh files")),
 				null,
 				createCloseAction("Close script")
 //				null,
@@ -576,10 +577,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script time")),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
+				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
+				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
+				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(outputScriptStartTime, "Log script time")),
+				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
 				);
 		menubar.getMenus().add(menuRun);
 

@@ -35,6 +35,7 @@ import org.controlsfx.glyphfont.GlyphFontRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
@@ -156,30 +157,49 @@ public class PathIconFactory {
 		
 		private Glyph createGlyph(int size) {
 			Glyph g = icoMoon.create(getCode()).size(size);
-			if (observableColor == null) {
-				// This isn't ideal, but it turns out that Glyphs don't seem to stick with the label colors
-				// defined in CSS - possibly because of the way in which they are duplicated?
+			if (observableColor == null || observableColor.getValue() == null) {
 				if (color != null)
 					g.color(color);
-//				else {
-//					g.setStyle("-fx-text-fill:white");
-//				}
 			} else {
-				if (observableColor.getValue() == null)
-					g.color(color);
-				else
-					g.setTextFill(ColorToolsFX.getCachedColor(observableColor.get()));
 				// Respond to color changes
-				observableColor.addListener((v, o, n) -> {
-					if (n != null) {
-						g.setTextFill(ColorToolsFX.getCachedColor(n.intValue()));
-					}
-				});
+				g = new DuplicatableGlyph(g);
+				g.textFillProperty().bind(Bindings.createObjectBinding(() -> {
+					return ColorToolsFX.getCachedColor(observableColor.get());
+				}, observableColor));
 			}
+//				observableColor.addListener((v, o, n) -> {
+//					if (n != null) {
+//						g.setTextFill(ColorToolsFX.getCachedColor(n.intValue()));
+//					}
+//				});
 			return g;
 		}
 		
 	};
+	
+	/**
+	 * This exists because Glyph.duplicate() does not bind to fill color changes.
+	 * The duplicate method is called each time a new GUI component is created, because the same node 
+	 * cannot appear more than once in the scene graph.
+	 */
+	private static class DuplicatableGlyph extends Glyph {
+		
+		DuplicatableGlyph(Glyph glyph) {
+			super();
+			setText(glyph.getText());
+			setFontFamily(glyph.getFontFamily());
+	        setIcon(glyph.getIcon());
+	        setFontSize(glyph.getFontSize());
+	        textFillProperty().bind(glyph.textFillProperty());
+		}
+		
+		@Override
+		public Glyph duplicate() {
+			return new DuplicatableGlyph(this);
+		}
+		
+	}
+	
 									
 	public static Node createPathObjectIcon(PathObject pathObject, int width, int height) {
 		var color = ColorToolsFX.getDisplayedColor(pathObject);
@@ -237,8 +257,9 @@ public class PathIconFactory {
 		} else if (pathROI.isPoint()) {
 			// Just show generic points
 			Node node = PathIconFactory.createNode(Math.min(width, height), Math.min(width, height), PathIconFactory.PathIcons.POINTS_TOOL);	
-			if (node instanceof Glyph)
+			if (node instanceof Glyph && !((Glyph) node).textFillProperty().isBound()) {
 				((Glyph)node).setColor(color);
+			}
 			return node;
 		} else {
 			var path = pathCache.getOrDefault(pathROI, null);

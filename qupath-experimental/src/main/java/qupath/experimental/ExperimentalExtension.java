@@ -59,36 +59,36 @@ public class ExperimentalExtension implements QuPathExtension {
     	
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Pixel classification", true),
-                QuPathGUI.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
-                QuPathGUI.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
-                QuPathGUI.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)")
+                qupath.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
+                qupath.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
+                qupath.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)")
         );
 
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Object classification", true),
-                QuPathGUI.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (New!)"),
-                QuPathGUI.createCommandAction(new CreateCompositeClassifierCommand(qupath), "Create composite object classifier (New!)"),
-                QuPathGUI.createCommandAction(new SingleMeasurementClassificationCommand(qupath), "Create single measurement classifier (New!)"),
-                QuPathGUI.createCommandAction(new CellIntensityClassificationCommand(qupath), "Set cell intensity classifications (New!)"),
-                QuPathGUI.createCommandAction(new ObjectClassifierCommand(qupath), "Train object classifier (New!)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
+                qupath.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (New!)"),
+                qupath.createCommandAction(new CreateCompositeClassifierCommand(qupath), "Create composite object classifier (New!)"),
+                qupath.createCommandAction(new SingleMeasurementClassificationCommand(qupath), "Create single measurement classifier (New!)"),
+                qupath.createCommandAction(new CellIntensityClassificationCommand(qupath), "Set cell intensity classifications (New!)"),
+                qupath.createCommandAction(new ObjectClassifierCommand(qupath), "Train object classifier (New!)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
                 );
 
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Extras", true),
-                QuPathGUI.createCommandAction(new CreateChannelTrainingImagesCommand(qupath), "Duplicate channel training images")
+                qupath.createCommandAction(new CreateChannelTrainingImagesCommand(qupath), "Duplicate channel training images")
                 );
 
     	
         MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),
-                QuPathGUI.createCommandAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")
+                qupath.createCommandAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")
         );
         
     	MenuTools.addMenuItems(
 				qupath.getMenu("Extensions>AI", true),
-				QuPathGUI.createCommandAction(new SplitProjectTrainingCommand(qupath), "Split project train/validation/test"),
-				QuPathGUI.createCommandAction(new CreateRegionAnnotationsCommand(qupath), "Create region annotations"),
-				QuPathGUI.createCommandAction(new ExportTrainingRegionsCommand(qupath), "Export training regions")
+				qupath.createCommandAction(new SplitProjectTrainingCommand(qupath), "Split project train/validation/test"),
+				qupath.createCommandAction(new CreateRegionAnnotationsCommand(qupath), "Create region annotations"),
+				qupath.createCommandAction(new ExportTrainingRegionsCommand(qupath), "Export training regions")
 				);
 
     }

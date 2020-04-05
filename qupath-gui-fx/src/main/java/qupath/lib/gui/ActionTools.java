@@ -7,7 +7,6 @@ import java.util.function.Consumer;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
-import org.controlsfx.glyphfont.Glyph;
 
 import javafx.beans.property.Property;
 import javafx.beans.value.ObservableValue;
@@ -20,7 +19,6 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
-import qupath.lib.gui.tools.MenuTools;
 
 public class ActionTools {
 	
@@ -32,9 +30,10 @@ public class ActionTools {
 
 		private Consumer<ActionEvent> handler;
 		
-		private static enum Keys {TEXT, LONG_TEXT, SELECTED, GRAPHIC, DISABLED, ACCELERATOR};
+		private static enum Keys {TEXT, LONG_TEXT, SELECTED, GRAPHIC, DISABLED, ACCELERATOR, SELECTABLE};
 		private Map<Keys, Object> properties = new HashMap<>();
 
+		ActionBuilder() {}
 		
 		ActionBuilder(String text, Consumer<ActionEvent> handler) {
 			this.handler = handler;
@@ -57,6 +56,15 @@ public class ActionTools {
 		 */
 		public ActionBuilder text(String value) {
 			return property(Keys.TEXT, value);
+		}
+		
+		/**
+		 * Sets the selectable property of the action.
+		 * @param isSelectable
+		 * @return this builder
+		 */
+		public ActionBuilder selectable(boolean isSelectable) {
+			return property(Keys.SELECTABLE, isSelectable);
 		}
 		
 		/**
@@ -105,7 +113,7 @@ public class ActionTools {
 		}
 		
 		/**
-		 * Bind the text property of the action to an {@link ObservableValue}.
+		 * Bind the text property of the action to an {@link ObservableValue}, bidirectionally if possible.
 		 * @param value
 		 * @return this builder
 		 */
@@ -114,7 +122,7 @@ public class ActionTools {
 		}
 		
 		/**
-		 * Bind the long text property of the action to an {@link ObservableValue}.
+		 * Bind the long text property of the action to an {@link ObservableValue}, bidirectionally if possible.
 		 * @param value
 		 * @return this builder
 		 */
@@ -123,7 +131,7 @@ public class ActionTools {
 		}
 		
 		/**
-		 * Bind the graphic property of the action to an {@link ObservableValue}.
+		 * Bind the graphic property of the action to an {@link ObservableValue}, bidirectionally if possible.
 		 * @param value
 		 * @return this builder
 		 */
@@ -132,7 +140,7 @@ public class ActionTools {
 		}
 		
 		/**
-		 * Bind the accelerator property of the action to an {@link ObservableValue}.
+		 * Bind the accelerator property of the action to an {@link ObservableValue}, bidirectionally if possible.
 		 * @param value
 		 * @return this builder
 		 */
@@ -141,7 +149,7 @@ public class ActionTools {
 		}
 		
 		/**
-		 * Bind the selected property of the action to an {@link ObservableValue}.
+		 * Bind the selected property of the action to an {@link ObservableValue}, bidirectionally if possible.
 		 * @param value
 		 * @return this builder
 		 */
@@ -150,7 +158,7 @@ public class ActionTools {
 		}
 		
 		/**
-		 * Bind the disabled property of the action to an {@link ObservableValue}.
+		 * Bind the disabled property of the action to an {@link ObservableValue}, bidirectionally if possible.
 		 * @param value
 		 * @return this builder
 		 */
@@ -170,8 +178,12 @@ public class ActionTools {
 			property.setValue(value);
 		}
 		
+		@SuppressWarnings({ "rawtypes", "unchecked" })
 		private static <T> void bindProperty(Property<T> property, ObservableValue<? extends T> value) {
-			property.bind(value);
+			if (value instanceof Property) {
+				property.bindBidirectional((Property)value);
+			} else
+				property.bind(value);
 		}
 		
 		/**
@@ -195,6 +207,9 @@ public class ActionTools {
 				case LONG_TEXT:
 					updateProperty(action.longTextProperty(), value);
 					break;
+				case SELECTABLE:
+					setSelectable(action, (Boolean)value);
+					break;
 				case SELECTED:
 					updateProperty(action.selectedProperty(), value);
 					break;
@@ -210,35 +225,60 @@ public class ActionTools {
 		
 	}
 	
+	/**
+	 * Specify that an {@link Action} has a meaningful 'selected' status.
+	 * Such actions often relate to properties and lack action event handlers.
+	 * @param action
+	 * @return true if the action has been flagged as selectable, false otherwise.
+	 */
+	public static boolean isSelectable(Action action) {
+		return Boolean.TRUE.equals(action.getProperties().get(qupath.lib.gui.ActionTools.ActionBuilder.Keys.SELECTABLE));
+	}
+	
+	/**
+	 * Set the selectable property for an action.
+	 * @param action
+	 * @param selectable
+	 * @see #isSelectable(Action)
+	 */
+	public static void setSelectable(Action action, boolean selectable) {
+		action.getProperties().put(qupath.lib.gui.ActionTools.ActionBuilder.Keys.SELECTABLE, selectable);
+	}
+	
+	
 	public static ActionBuilder actionBuilder(String text, Consumer<ActionEvent> handler) {
 		return new ActionBuilder(text, handler);
+	}
+	
+	public static ActionBuilder actionBuilder() {
+		return new ActionBuilder();
 	}
 	
 	public static ActionBuilder actionBuilder(Consumer<ActionEvent> handler) {
 		return new ActionBuilder(handler);
 	}
 	
-	
+	public static MenuItem getActionMenuItem(Action action) {
+		return ActionUtils.createMenuItem(action);
+	}
 	
 	public static MenuItem getActionCheckBoxMenuItem(Action action, ToggleGroup group) {
-		if (group != null)
-			return MenuTools.createRadioMenuItem(action, group);
-		else
-			return MenuTools.createCheckMenuItem(action);
+		if (group != null) {
+			var menuItem = ActionUtils.createRadioMenuItem(action);
+			menuItem.setToggleGroup(group);
+			return menuItem;
+		} else
+			return ActionUtils.createCheckMenuItem(action);
 	}
 	
 	public static MenuItem getActionCheckBoxMenuItem(Action action) {
 		return getActionCheckBoxMenuItem(action, null);
 	}
 	
-	public static CheckBox getActionCheckBox(Action action, boolean hideActionText) {
+	public static CheckBox getActionCheckBox(Action action) {
 		// Not sure why we have to bind?
 		CheckBox button = ActionUtils.createCheckBox(action);
 		button.selectedProperty().bindBidirectional(action.selectedProperty());
-		if (hideActionText) {
-			button.setTooltip(new Tooltip(button.getText()));
-			button.setText("");
-		}
 		return button;
 	}
 	
@@ -247,15 +287,6 @@ public class ActionTools {
 		if (hideActionText && action.getText() != null) {
 			Tooltip.install(button, new Tooltip(action.getText()));
 		}
-		
-		// Internally, ControlsFX duplicates graphics (or gives up) because Nodes can't appear multiple times the scene graph
-		// Consequently, we need to bind changes to the text fill here so that they filter through
-		if (action.getGraphic() instanceof Glyph) {
-			var actionGraphic = (Glyph)action.getGraphic();
-			var buttonGraphic = (Glyph)button.getGraphic();
-			buttonGraphic.textFillProperty().bind(actionGraphic.textFillProperty());
-		}
-		
 		if (group != null)
 			button.setToggleGroup(group);
 		return button;
@@ -270,7 +301,7 @@ public class ActionTools {
 		return button;
 	}
 
-	ToggleButton getActionToggleButton(Action action, boolean hideActionText, boolean isSelected) {
+	static ToggleButton getActionToggleButton(Action action, boolean hideActionText, boolean isSelected) {
 		return getActionToggleButton(action, hideActionText, null, isSelected);
 	}
 	

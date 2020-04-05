@@ -16,12 +16,12 @@ public class SvgExtension implements QuPathExtension {
     	
     	MenuTools.addMenuItems(
                 qupath.getMenu("File>Export images...", true),
-                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportType.SELECTED_REGION),
+                qupath.createCommandAction(new SvgExportCommand(qupath, SvgExportType.SELECTED_REGION),
                 		"Rendered SVG")
         );
     	MenuTools.addMenuItems(
                 qupath.getMenu("File>Export snapshot...", true),
-                QuPathGUI.createCommandAction(new SvgExportCommand(qupath, SvgExportType.VIEWER_SNAPSHOT),
+                qupath.createCommandAction(new SvgExportCommand(qupath, SvgExportType.VIEWER_SNAPSHOT),
                 		"Current viewer content (SVG)")
         );
     	

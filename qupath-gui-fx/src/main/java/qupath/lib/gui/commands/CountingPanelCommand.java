@@ -51,8 +51,8 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.GUIActions;
 import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.CountingPanel;
@@ -98,14 +98,15 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 		if (qupath == null)
 			return null;
 		
+		var actionManager = qupath.getActionManager();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
-				qupath.getActionToggleButton(GUIActions.MOVE_TOOL, true),
-				qupath.getActionToggleButton(GUIActions.POINTS_TOOL, true),
+				ActionTools.getActionToggleButton(actionManager.MOVE_TOOL, true),
+				ActionTools.getActionToggleButton(actionManager.POINTS_TOOL, true),
 				new Separator(Orientation.VERTICAL),
-				qupath.getActionToggleButton(GUIActions.SHOW_ANNOTATIONS, true),
-				qupath.getActionToggleButton(GUIActions.FILL_DETECTIONS, true),
-				qupath.getActionToggleButton(GUIActions.SHOW_GRID, true));
+				ActionTools.getActionToggleButton(actionManager.SHOW_ANNOTATIONS, true),
+				ActionTools.getActionToggleButton(actionManager.FILL_DETECTIONS, true),
+				ActionTools.getActionToggleButton(actionManager.SHOW_GRID, true));
 		return toolbar;
 	}
 	
@@ -219,13 +220,14 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 //		constraints.setPercentWidth(50);
 //		panelLoadSave.getColumnConstraints().addAll(constraints);
 		
+		var actionManager = qupath.getActionManager();
 		
-		Button btnConvert = qupath.getActionButton(GUIActions.DETECTIONS_TO_POINTS, false);
+		Button btnConvert = ActionTools.getActionButton(actionManager.DETECTIONS_TO_POINTS, false);
 		Pane convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
 		
-		var cbConvex = qupath.getActionCheckBox(GUIActions.CONVEX_POINTS, false);
-		var cbSelected = qupath.getActionCheckBox(GUIActions.USE_SELECTED_COLOR, false);
+		var cbConvex = ActionTools.getActionCheckBox(actionManager.CONVEX_POINTS);
+		var cbSelected = ActionTools.getActionCheckBox(actionManager.USE_SELECTED_COLOR);
 //		panel.setSpacing(5);
 		panel.getChildren().addAll(
 				cbConvex,
@@ -264,7 +266,7 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 		}
 		
 		if (dialog != null) {
-			if (qupath.getMode() != PathTools.POINTS)
+			if (qupath.getSelectedTool() != PathTools.POINTS)
 				qupath.setMode(PathTools.POINTS);
 			attemptToSelectPoints();
 			if (!dialog.isShowing())
@@ -299,7 +301,7 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 //		dialog.getDialogPane().setMaxSize(400, 800);
 		
 //		dialog.setAlwaysOnTop(true);
-		if (qupath.getMode() != PathTools.POINTS)
+		if (qupath.getSelectedTool() != PathTools.POINTS)
 			qupath.setMode(PathTools.POINTS);
 		attemptToSelectPoints();
 		

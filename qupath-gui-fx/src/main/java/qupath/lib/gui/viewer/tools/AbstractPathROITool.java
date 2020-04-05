@@ -30,11 +30,9 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.ObjectProperty;
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.Mode;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
