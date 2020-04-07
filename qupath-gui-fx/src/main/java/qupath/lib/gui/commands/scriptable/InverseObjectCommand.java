@@ -54,7 +54,10 @@ public class InverseObjectCommand<T> implements PathCommand {
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getValue();
+		makeInverseAnnotation(manager.getValue());
+	}
+	
+	public static <T> void makeInverseAnnotation(ImageData<T> imageData) {
 		if (imageData == null)
 			return;
 		logger.debug("Make inverse annotation");

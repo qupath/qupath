@@ -1,5 +1,8 @@
 package qupath.lib.gui;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.application.Platform;
 import javafx.geometry.Orientation;
 import javafx.scene.control.Button;
@@ -23,6 +26,8 @@ import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.plugins.parameters.ParameterList;
 
 class ToolBarComponent {
+	
+	private final static Logger logger = LoggerFactory.getLogger(ToolBarComponent.class);
 		
 		private QuPathGUI qupath;
 		
@@ -132,12 +137,15 @@ class ToolBarComponent {
 			btnMeasure.setGraphic(PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
 			btnMeasure.setTooltip(new Tooltip("Show measurements table"));
 			ContextMenu popupMeasurements = new ContextMenu();
-			popupMeasurements.getItems().addAll(
-					ActionTools.getActionMenuItem(actionManager.SUMMARY_TMA),
-					ActionTools.getActionMenuItem(actionManager.SUMMARY_ANNOTATIONS),
-					ActionTools.getActionMenuItem(actionManager.SUMMARY_DETECTIONS),
-					ActionTools.getActionMenuItem(actionManager.EXPORT_MEASUREMENTS)
-					);
+			
+			// TODO: ADD SUMMARY MEASUREMENTS AGAIN!
+			logger.warn("REMEMBER TO REINSTATE SUMMARY MEASUREMENT COMMANDS PROPERLY");
+//			popupMeasurements.getItems().addAll(
+//					ActionTools.getActionMenuItem(qupath.measureManager.TMA),
+//					ActionTools.getActionMenuItem(qupath.measureManager.ANNOTATIONS),
+//					ActionTools.getActionMenuItem(qupath.measureManager.DETECTIONS),
+//					ActionTools.getActionMenuItem(qupath.measureManager.EXPORT)
+//					);
 			btnMeasure.setOnMouseClicked(e -> {
 				popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());
 			});
@@ -155,7 +163,7 @@ class ToolBarComponent {
 			
 			// Add preferences button
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			toolbar.getItems().add(ActionTools.getActionButton(actionManager.PREFERENCES, true));
+			toolbar.getItems().add(ActionTools.getActionButton(qupath.lookupActionByText("Preferences..."), true));
 		}
 		
 		void refreshMagnificationTooltip() {

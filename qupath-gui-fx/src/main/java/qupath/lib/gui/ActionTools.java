@@ -1,12 +1,23 @@
 package qupath.lib.gui;
 
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.Property;
 import javafx.beans.value.ObservableValue;
@@ -15,12 +26,18 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
+import qupath.lib.gui.icons.PathIconFactory;
 
 public class ActionTools {
+	
+	private static Logger logger = LoggerFactory.getLogger(ActionTools.class);
+	
+	private static final String ACTION_KEY = ActionTools.class.getName();
 	
 	/**
 	 * Builder class for custom {@link Action} objects.
@@ -225,6 +242,197 @@ public class ActionTools {
 		
 	}
 	
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+	public @interface ActionMenu {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.METHOD})
+	public @interface ActionMethod {}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.METHOD, ElementType.FIELD})
+	public @interface ActionAccelerator {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.METHOD, ElementType.FIELD})
+	public @interface ActionDescription {
+		String value();
+	}
+	
+	@Documented
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target({ElementType.METHOD, ElementType.FIELD})
+	public @interface ActionIcon {
+		PathIconFactory.PathIcons value();
+	}
+	
+	public static List<Action> getAnnotatedActions(Object obj) {
+		List<Action> actions = new ArrayList<>();
+		
+		Class<?> cls = obj instanceof Class<?> ? (Class<?>)obj : obj.getClass();
+		
+		// If the class is annotated with a menu, use that as a base; all other menus will be nested within this
+		var menuAnnotation = cls.getAnnotation(ActionMenu.class);
+		String baseMenu = menuAnnotation == null ? "" : menuAnnotation.value();
+		
+		// Get accessible fields corresponding to actions
+		for (var f : cls.getDeclaredFields()) {
+			if (!f.canAccess(obj))
+				continue;
+			try {
+				var value = f.get(obj);
+				if (value instanceof Action) {
+					var action = (Action)value;
+					parseAnnotations(action, f, baseMenu);
+					actions.add(action);
+				}
+			} catch (Exception e) {
+				logger.error("Error setting up action: {}", e.getLocalizedMessage(), e);
+			}
+		}
+		
+		// Get accessible & annotated methods that may be converted to actions
+		for (var m : cls.getDeclaredMethods()) {
+			if (!m.isAnnotationPresent(ActionMethod.class) || !m.canAccess(obj))
+				continue;
+			try {
+				Action action = null;
+				if (m.getParameterCount() == 0) {
+					action = new Action(e -> {
+						try {
+							m.invoke(obj);
+						} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e1) {
+							logger.error("Error invoking method: " + e1.getLocalizedMessage(), e1);
+						}
+					});
+				} else {
+					logger.warn("Only methods with 0 parameters can currently be converted to actions by annotation only!");
+				}
+				if (action != null) {
+					parseAnnotations(action, m, baseMenu);
+					actions.add(action);
+				}
+			} catch (Exception e) {
+				logger.error("Error setting up action: {}", e.getLocalizedMessage(), e);
+			}
+		}
+		
+		return actions;
+	}
+
+	public static void parseAnnotations(Action action, AnnotatedElement element) {
+		parseAnnotations(action, element, "");
+	}
+	
+	public static void parseAnnotations(Action action, AnnotatedElement element, String baseMenu) {
+		parseMenu(action, element.getAnnotation(ActionMenu.class), baseMenu);
+		parseDescription(action, element.getAnnotation(ActionDescription.class));
+		parseAccelerator(action, element.getAnnotation(ActionAccelerator.class));
+		parseIcon(action, element.getAnnotation(ActionIcon.class));
+	}
+	
+	private static void parseMenu(Action action, ActionMenu annotation, String baseMenu) {
+		String menuString = baseMenu == null || baseMenu.isBlank() ? "" : baseMenu + ">";
+		if (annotation != null)
+			menuString += annotation.value();
+		if (menuString.isEmpty())
+			return;
+		var ind = menuString.lastIndexOf(">");
+		if (ind <= 0) {
+			logger.warn("Invalid menu string {}, will skip {}", menuString, action);
+			return;
+		}
+		var name = menuString.substring(ind+1);
+		var menu = menuString.substring(0, ind);
+		if (!name.isEmpty())
+			action.setText(name);
+		action.getProperties().put("MENU", menu);
+	}
+	
+	private static void parseDescription(Action action, ActionDescription annotation) {
+		if (annotation == null)
+			return;
+		var description = annotation.value();
+		action.setLongText(description);
+	}
+	
+	private static void parseIcon(Action action, ActionIcon annotation) {
+		if (annotation == null)
+			return;
+		var icon = annotation.value();
+		action.setGraphic(PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, icon));
+	}
+	
+	private static void parseAccelerator(Action action, ActionAccelerator annotation) {
+		if (annotation == null)
+			return;
+		var accelerator = annotation.value();
+		if (!accelerator.isBlank()) {
+			try {
+				action.setAccelerator(KeyCombination.keyCombination(accelerator));
+			} catch (Exception e) {
+				logger.warn("Unable to parse key combination '{}', cannot create accelerator for {}", accelerator, action);					
+			}
+		}
+	}
+	
+	private static <T extends Node> T includeAction(T node, Action action) {
+		node.getProperties().put(ACTION_KEY, action);
+		return node;
+	}
+	
+	private static <T extends MenuItem> T includeAction(T item, Action action) {
+		item.getProperties().put(ACTION_KEY, action);
+		return item;
+	}
+	
+	/**
+	 * Add an Action to the properties of a Node, so that it may be retrieved later.
+	 * @param node the node for which the action should be added
+	 * @param action an action to store as the properties of the node
+	 */
+	public static void putActionProperty(Node node, Action action) {
+		node.getProperties().put(ACTION_KEY, action);
+	}
+	
+	/**
+	 * Add an Action to the properties of a MenuItem, so that it may be retrieved later.
+	 * @param node the node for which the action should be added
+	 * @param action an action to store as the properties of the node
+	 */
+	public static void putActionProperty(MenuItem node, Action action) {
+		node.getProperties().put(ACTION_KEY, action);
+	}
+	
+	/**
+	 * Retrieve an Action stored within the properties of a node, or null if no action is found.
+	 * @param node
+	 * @return
+	 */
+	public static Action getActionProperty(Node node) {
+		return node.hasProperties() ? (Action)node.getProperties().get(ACTION_KEY) : null;
+	}
+	
+	/**
+	 * Retrieve an Action stored within the properties of a menu item, or null if no action is found.
+	 * @param item
+	 * @return
+	 */
+	public static Action getActionProperty(MenuItem item) {
+		return (Action)item.getProperties().get(ACTION_KEY);
+	}
+	
+	
 	/**
 	 * Specify that an {@link Action} has a meaningful 'selected' status.
 	 * Such actions often relate to properties and lack action event handlers.
@@ -245,6 +453,13 @@ public class ActionTools {
 		action.getProperties().put(qupath.lib.gui.ActionTools.ActionBuilder.Keys.SELECTABLE, selectable);
 	}
 	
+	/**
+	 * Create an action indicating that a separator should be added (e.g. to a menu or toolbar).
+	 * @return
+	 */
+	public static Action createSeparator() {
+		return new Action(null, null);
+	}
 	
 	public static ActionBuilder actionBuilder(String text, Consumer<ActionEvent> handler) {
 		return new ActionBuilder(text, handler);
@@ -259,16 +474,26 @@ public class ActionTools {
 	}
 	
 	public static MenuItem getActionMenuItem(Action action) {
-		return ActionUtils.createMenuItem(action);
+		if (action.getText() == null || action == ActionUtils.ACTION_SEPARATOR) {
+			return new SeparatorMenuItem();
+		}
+		MenuItem item;
+		if (isSelectable(action))
+			item = ActionUtils.createCheckMenuItem(action);
+		else
+			item = ActionUtils.createMenuItem(action);
+		return includeAction(item, action);
 	}
 	
 	public static MenuItem getActionCheckBoxMenuItem(Action action, ToggleGroup group) {
+		MenuItem item;
 		if (group != null) {
 			var menuItem = ActionUtils.createRadioMenuItem(action);
 			menuItem.setToggleGroup(group);
-			return menuItem;
+			item = menuItem;
 		} else
-			return ActionUtils.createCheckMenuItem(action);
+			item = ActionUtils.createCheckMenuItem(action);
+		return includeAction(item, action);
 	}
 	
 	public static MenuItem getActionCheckBoxMenuItem(Action action) {
@@ -279,24 +504,24 @@ public class ActionTools {
 		// Not sure why we have to bind?
 		CheckBox button = ActionUtils.createCheckBox(action);
 		button.selectedProperty().bindBidirectional(action.selectedProperty());
-		return button;
+		return includeAction(button, action);
 	}
 	
-	public static ToggleButton getActionToggleButton(Action action, boolean hideActionText, ToggleGroup group) {
+	private static ToggleButton getActionToggleButton(Action action, boolean hideActionText, ToggleGroup group) {
 		ToggleButton button = ActionUtils.createToggleButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
 		if (hideActionText && action.getText() != null) {
 			Tooltip.install(button, new Tooltip(action.getText()));
 		}
 		if (group != null)
 			button.setToggleGroup(group);
-		return button;
+		return includeAction(button, action);
 	}
 
 	public static ToggleButton getActionToggleButton(Action action, boolean hideActionText) {
 		return getActionToggleButton(action, hideActionText, null);
 	}
 	
-	public static ToggleButton getActionToggleButton(Action action, boolean hideActionText, ToggleGroup group, boolean isSelected) {
+	static ToggleButton getActionToggleButton(Action action, boolean hideActionText, ToggleGroup group, boolean isSelected) {
 		ToggleButton button = getActionToggleButton(action, hideActionText, group);
 		return button;
 	}
@@ -307,10 +532,10 @@ public class ActionTools {
 	
 	public static Button getActionButton(Action action, boolean hideActionText) {
 		Button button = ActionUtils.createButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
-		if (hideActionText && action.getText() != null) {
-			Tooltip.install(button, new Tooltip(action.getText()));
-		}
-		return button;
+//		if (hideActionText && action.getText() != null) {
+//			Tooltip.install(button, new Tooltip(action.getText()));
+//		}
+		return includeAction(button, action);
 	}
 
 }

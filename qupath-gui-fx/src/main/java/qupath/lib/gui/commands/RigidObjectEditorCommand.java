@@ -162,7 +162,7 @@ public class RigidObjectEditorCommand implements PathCommand, ChangeListener<Ima
 		
 		
 		viewer.setMode(null);
-		qupath.setModeSwitchingEnabled(false);
+		qupath.setToolSwitchingEnabled(false);
 		viewer.addViewerListener(this);
 		viewer.getView().addEventHandler(MouseEvent.ANY, mouseListener);
 		
@@ -226,7 +226,7 @@ public class RigidObjectEditorCommand implements PathCommand, ChangeListener<Ima
 		}
 
 		// Update the mode if the viewer is still active
-		qupath.setModeSwitchingEnabled(true);
+		qupath.setToolSwitchingEnabled(true);
 		if (viewer == qupath.getViewer())
 			viewer.setMode(qupath.getSelectedTool());
 		

@@ -29,6 +29,7 @@ import java.util.List;
 import javafx.event.ActionEvent;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -134,7 +135,7 @@ public class TMAGridRemove implements PathCommand {
 		hierarchy.getSelectionModel().clearSelection();
 		
 		// Request new labels
-		qupath.getActionManager().TMA_RELABEL.handle(new ActionEvent());
+		TMAGridRelabel.promptToRelabelTMAGrid(imageData);
 	}
 	
 

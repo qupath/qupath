@@ -55,7 +55,10 @@ public class MergeSelectedAnnotationsCommand<T> implements PathCommand {
 
 	@Override
 	public void run() {
-		ImageData<?> imageData = manager.getValue();
+		mergeSelectedAnnotations(manager.getValue());
+	}
+
+	public static <T> void mergeSelectedAnnotations(ImageData<T> imageData) {
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
@@ -64,5 +67,5 @@ public class MergeSelectedAnnotationsCommand<T> implements PathCommand {
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Merge selected annotations",
 				"mergeSelectedAnnotations()"));
 	}
-
+	
 }

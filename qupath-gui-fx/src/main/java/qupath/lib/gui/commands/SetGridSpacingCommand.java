@@ -20,7 +20,7 @@
  * <http://www.gnu.org/licenses/gpl-3.0.html>.
  * #L%
  */
-
+ 
 package qupath.lib.gui.commands;
 
 import qupath.lib.gui.commands.interfaces.PathCommand;

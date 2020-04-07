@@ -28,8 +28,6 @@ import java.util.Arrays;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.StringProperty;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -47,26 +45,18 @@ import qupath.lib.scripting.QP;
  * @author Pete Bankhead
  *
  */
-public class TMAGridRelabel implements PathCommand {
+public class TMAGridRelabel {
 	
-	public static String NAME = "Relabel TMA cores";
-	
-	private QuPathGUI qupath;
-	
-	private StringProperty rowLabelsProperty = PathPrefs.createPersistentPreference("tmaRowLabels", "A-J");
-	private StringProperty columnLabelsProperty = PathPrefs.createPersistentPreference("tmaColumnLabels", "1-16");
-	private BooleanProperty rowFirstProperty = PathPrefs.createPersistentPreference("tmaLabelRowFirst", true);
-	
-	public TMAGridRelabel(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
+	private static StringProperty rowLabelsProperty = PathPrefs.createPersistentPreference("tmaRowLabels", "A-J");
+	private static StringProperty columnLabelsProperty = PathPrefs.createPersistentPreference("tmaColumnLabels", "1-16");
+	private static BooleanProperty rowFirstProperty = PathPrefs.createPersistentPreference("tmaLabelRowFirst", true);
 
-	@Override
-	public void run() {
+	public static <T> void promptToRelabelTMAGrid(ImageData<T> imageData) {
 		
-		ImageData<?> imageData = qupath.getImageData();
+		String title = "Relabel TMA grid";
+		
 		if (imageData == null || imageData.getHierarchy().getTMAGrid() == null) {
-			Dialogs.showErrorMessage(NAME, "No TMA grid selected!");
+			Dialogs.showErrorMessage(title, "No TMA grid selected!");
 			return;
 		}
 		
@@ -75,7 +65,7 @@ public class TMAGridRelabel implements PathCommand {
 		params.addStringParameter("labelsVertical", "Row labels", rowLabelsProperty.get(), "Enter row labels.\nThis can be a continuous range of letters or numbers (e.g. 1-10 or A-J),\nor a discontinuous list separated by spaces (e.g. A B C E F G).");
 		params.addChoiceParameter("labelOrder", "Label order", rowFirstProperty.get() ? "Row first" : "Column first", Arrays.asList("Column first", "Row first"), "Create TMA labels either in the form Row-Column or Column-Row");
 		
-		if (!Dialogs.showParameterDialog(NAME, params))
+		if (!Dialogs.showParameterDialog(title, params))
 			return;
 		
 		// Parse the arguments
@@ -88,11 +78,11 @@ public class TMAGridRelabel implements PathCommand {
 		String[] columnLabels = PathObjectTools.parseTMALabelString(labelsHorizontal);
 		String[] rowLabels = PathObjectTools.parseTMALabelString(labelsVertical);
 		if (columnLabels.length < grid.getGridWidth()) {
-			Dialogs.showErrorMessage(NAME, "Not enough column labels specified!");
+			Dialogs.showErrorMessage(title, "Not enough column labels specified!");
 			return;			
 		}
 		if (rowLabels.length < grid.getGridHeight()) {
-			Dialogs.showErrorMessage(NAME, "Not enough row labels specified!");
+			Dialogs.showErrorMessage(title, "Not enough row labels specified!");
 			return;			
 		}
 		

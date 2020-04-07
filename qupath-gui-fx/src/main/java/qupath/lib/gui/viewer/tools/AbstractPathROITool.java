@@ -249,7 +249,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 		if (preferReturnToMove()) {
 			var qupath = QuPathGUI.getInstance();
 			if (qupath != null)
-				qupath.setMode(PathTools.MOVE);
+				qupath.setSelectedTool(PathTools.MOVE);
 		}
 	}
 

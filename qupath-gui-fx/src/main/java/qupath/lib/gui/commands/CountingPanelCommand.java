@@ -267,7 +267,7 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 		
 		if (dialog != null) {
 			if (qupath.getSelectedTool() != PathTools.POINTS)
-				qupath.setMode(PathTools.POINTS);
+				qupath.setSelectedTool(PathTools.POINTS);
 			attemptToSelectPoints();
 			if (!dialog.isShowing())
 				dialog.show();
@@ -294,7 +294,7 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		Scene scene = new Scene(pane, 300, 450);
 		dialog.setScene(scene);
-		dialog.setOnCloseRequest(e -> qupath.setMode(PathTools.MOVE));
+		dialog.setOnCloseRequest(e -> qupath.setSelectedTool(PathTools.MOVE));
 		
 //		dialog.getDialogPane().setMinSize(220, 350);
 //		dialog.getDialogPane().setPrefSize(300, 450);
@@ -302,7 +302,7 @@ public class CountingPanelCommand implements PathCommand, ChangeListener<ImageDa
 		
 //		dialog.setAlwaysOnTop(true);
 		if (qupath.getSelectedTool() != PathTools.POINTS)
-			qupath.setMode(PathTools.POINTS);
+			qupath.setSelectedTool(PathTools.POINTS);
 		attemptToSelectPoints();
 		
 		dialog.initModality(Modality.NONE);

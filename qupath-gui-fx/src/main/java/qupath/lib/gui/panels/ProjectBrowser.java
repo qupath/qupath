@@ -241,10 +241,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		panel.setBottom(paneUserFilter);
 		panel.setCenter(panelTree);
 
-		var actionManager = qupath.getActionManager();
-		Button btnOpen = ActionTools.getActionButton(actionManager.PROJECT_OPEN, false);
-		Button btnCreate = ActionTools.getActionButton(actionManager.PROJECT_NEW, false);
-		Button btnAdd = ActionTools.getActionButton(actionManager.PROJECT_IMPORT_IMAGES, false);
+		Button btnOpen = ActionTools.getActionButton(qupath.lookupActionByText("Open project"), false);
+		Button btnCreate = ActionTools.getActionButton(qupath.lookupActionByText("Create project"), false);
+		Button btnAdd = ActionTools.getActionButton(qupath.lookupActionByText("Add images"), false);
 		GridPane paneButtons = PaneTools.createColumnGridControls(btnCreate, btnOpen, btnAdd);
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
@@ -968,7 +967,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		boolean changed = setProjectEntryImageName(entry, name);
 		if (changed) {
 			tree.refresh();
-			qupath.updateTitle();
+			qupath.refreshTitle();
 		}
 		return changed;
 	}

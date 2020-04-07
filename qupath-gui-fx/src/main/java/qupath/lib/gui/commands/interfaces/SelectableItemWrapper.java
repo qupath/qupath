@@ -23,7 +23,10 @@
 
 package qupath.lib.gui.commands.interfaces;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.WeakChangeListener;
 
 /**
  * Helper class for managing items, only one of which may be selected.
@@ -33,11 +36,17 @@ import javafx.beans.property.ObjectProperty;
 public class SelectableItemWrapper<T> {
 
 	final private ObjectProperty<T> selected;
+	final private BooleanProperty itemSelected = new SimpleBooleanProperty();
 	final private T item;
 	
 	public SelectableItemWrapper(final ObjectProperty<T> selected, final T item) {
 		this.selected = selected;
 		this.item = item;
+		this.selected.addListener(new WeakChangeListener<>((v, o, n) -> itemSelected.set(n == item)));
+		this.itemSelected.addListener(new WeakChangeListener<>((v, o, n) -> {
+			if (n)
+				selected.set(item);
+		}));
 	}
 
 	public boolean isSelected() {
@@ -47,6 +56,10 @@ public class SelectableItemWrapper<T> {
 	public void setSelected(boolean selected) {
 		if (selected)
 			this.selected.set(item);
+	}
+	
+	public BooleanProperty selectedProperty() {
+		return itemSelected;
 	}
 	
 	public T getItem() {

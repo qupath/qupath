@@ -65,6 +65,10 @@ public class ShapeSimplifierCommand<T> implements PathCommand {
 		ImageData<?> imageData = manager.getValue();
 		if (imageData == null)
 			return;
+	}
+	
+	
+	public static <T> void promptToSimplifyShape(ImageData<T> imageData, double altitudeThreshold) {
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
 		if (!(pathObject instanceof PathAnnotationObject) || pathObject.hasChildren() || !RoiTools.isShapeROI(pathObject.getROI())) {

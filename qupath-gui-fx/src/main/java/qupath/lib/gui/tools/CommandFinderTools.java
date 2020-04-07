@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.controlsfx.control.HiddenSidesPane;
@@ -56,6 +57,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -66,6 +68,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 
@@ -255,6 +258,38 @@ public class CommandFinderTools {
 	}
 	
 	
+	static class TooltipCellFactory<S, T> extends TableCell<S, T> {
+		
+		private Function<S, String> funTip;
+		private Tooltip tooltip = new Tooltip();
+		
+		public TooltipCellFactory(Function<S, String> funTip) {
+			super();
+			this.funTip = funTip;
+		}
+		
+		@Override
+		public void updateItem(T item, boolean empty) {
+			super.updateItem(item, empty);
+			setGraphic(null);
+			if (item == null || empty || funTip == null) {
+				setText(null);
+				setTooltip(null);
+				return;
+			}
+			setText(item.toString());
+			var row = getTableRow();
+			String text = row == null ? null : funTip.apply(row.getItem());
+			if (text == null || text.isEmpty()) {
+				setTooltip(null);
+			} else {
+				tooltip.setText(text);
+				setTooltip(tooltip);
+			}
+		}
+	
+	}
+	
 	
 	
 	private static TextField createTextField(final TableView<CommandEntry> table, final FilteredList<CommandEntry> commands, final boolean clearTextOnRun, final Stage dialog, final ObservableBooleanValue hideDialogOnRun) {
@@ -325,11 +360,15 @@ public class CommandFinderTools {
 		col2.setCellValueFactory(new PropertyValueFactory<>("menuPath"));
 		TableColumn<CommandEntry, String> col3 = new TableColumn<>("Accelerator");
 		col3.setCellValueFactory(new PropertyValueFactory<>("acceleratorText"));
-//		col3.setResizable(false);
 		
-//		col1.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
-//		col2.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
-//		col3.prefWidthProperty().bind(table.widthProperty().multiply(0.2).subtract(6));
+		Function<CommandEntry, String> tipExtractor = entry -> entry == null ? null : entry.getLongText();
+		col1.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
+		col2.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
+		col3.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
+		
+		col1.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
+		col2.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
+		col3.prefWidthProperty().bind(table.widthProperty().multiply(0.2).subtract(6));
 		
 		table.getColumns().add(col1);
 		table.getColumns().add(col2);
@@ -408,7 +447,9 @@ public class CommandFinderTools {
 	}
 
 	
-	
+	/**
+	 * Helper class to wrap summary data for a command to display in the list.
+	 */
 	public static class CommandEntry {
 		
 		private StringProperty menuPath = new SimpleStringProperty();
@@ -433,34 +474,77 @@ public class CommandFinderTools {
 			}, accelerator));
 		}
 		
+		/**
+		 * Get the menu item corresponding to this command.
+		 * @return
+		 */
 		public MenuItem getMenuItem() {
 			return item.get();
 		}
 		
+		/**
+		 * Get a string representation of the menu path for this command, including the menu path and the text.
+		 * @return
+		 */
 		public String getCommandPath() {
 			return menuPath + getText();
 		}
 		
+		/**
+		 * Get the name of the command.
+		 * @return
+		 */
 		public String getText() {
 			return text.get();
 		}
 		
+		/**
+		 * Get the long text (description) for the command, if available.
+		 * This assumes an action property has been set, see {@link ActionTools#putActionProperty(MenuItem, org.controlsfx.control.action.Action)}
+		 * @return the long text for the command, or null if no such text is available
+		 */
+		public String getLongText() {
+			var item = this.item.get();
+			var action = item == null ? null : ActionTools.getActionProperty(item);
+			return action == null ? null : action.getLongText();
+		}
+		
+		/**
+		 * Get a String representation of any accelerator for the command
+		 * @return
+		 */
 		public String getAccleratorText() {
 			return acceleratorTextProperty().get();
 		}
 		
+		/**
+		 * Get a String representation of the menu containing this command.
+		 * @return
+		 */
 		public String getMenuPath() {
 			return menuPath.get();
 		}
 		
+		/**
+		 * Property corresponding to {@link #getAccleratorText()}
+		 * @return
+		 */
 		public ReadOnlyStringProperty acceleratorTextProperty() {
 			return acceleratorText;
 		}
 		
+		/**
+		 * Property corresponding to {@link #getText()}
+		 * @return
+		 */
 		public ReadOnlyStringProperty textProperty() {
 			return text;
 		}
 		
+		/**
+		 * Property corresponding to {@link #getMenuPath()}
+		 * @return
+		 */
 		public ReadOnlyStringProperty menuPathProperty() {
 			return menuPath;
 		}

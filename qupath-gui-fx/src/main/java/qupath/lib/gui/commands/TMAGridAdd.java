@@ -26,10 +26,10 @@ package qupath.lib.gui.commands;
 import java.util.ArrayList;
 import java.util.List;
 
-import javafx.event.ActionEvent;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -87,7 +87,7 @@ public class TMAGridAdd implements PathCommand {
 		}
 		try {
 			if (addToTMA(imageData, type)) {
-				qupath.getActionManager().TMA_RELABEL.handle(new ActionEvent());
+				TMAGridRelabel.promptToRelabelTMAGrid(imageData);
 			}
 		} catch (Exception e) {
 			Dialogs.showErrorMessage(NAME, e.getMessage());

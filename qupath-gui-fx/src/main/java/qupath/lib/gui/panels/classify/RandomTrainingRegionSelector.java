@@ -140,9 +140,9 @@ public class RandomTrainingRegionSelector implements PathCommand {
 			createDialog();
 		dialog.show();
 		// Don't allow changing modes
-		qupath.setModeSwitchingEnabled(true);
-		qupath.setMode(PathTools.MOVE);
-		qupath.setModeSwitchingEnabled(false);
+		qupath.setToolSwitchingEnabled(true);
+		qupath.setSelectedTool(PathTools.MOVE);
+		qupath.setToolSwitchingEnabled(false);
 	}
 	
 	
@@ -189,7 +189,7 @@ public class RandomTrainingRegionSelector implements PathCommand {
 			dialog.setOnCloseRequest(null);
 			dialog = null;
 			// Re-enable mode switching
-			qupath.setModeSwitchingEnabled(true);
+			qupath.setToolSwitchingEnabled(true);
 		});
 		
 		ParameterPanelFX paramPanel = new ParameterPanelFX(params);

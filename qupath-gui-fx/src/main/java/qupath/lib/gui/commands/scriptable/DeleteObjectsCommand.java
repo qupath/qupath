@@ -61,6 +61,10 @@ public class DeleteObjectsCommand<T> implements PathCommand {
 	@Override
 	public void run() {
 		ImageData<?> imageData = manager.getValue();
+	}
+	
+	
+	public static <T> void deleteObjects(ImageData<T> imageData, Class<? extends PathObject> cls) {
 		if (imageData == null)
 			return;
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
