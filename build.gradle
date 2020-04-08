@@ -433,6 +433,10 @@ repositories {
   maven { url "./maven/repo" }
 }
 
+configurations {
+    implementation.extendsFrom picocli
+}
+
 /*
  * I suspect there may be a cleaner way to specify subprojects...
  */

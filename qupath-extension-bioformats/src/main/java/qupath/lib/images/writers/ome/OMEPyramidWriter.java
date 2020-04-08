@@ -36,11 +36,15 @@ import ome.xml.model.enums.DimensionOrder;
 import ome.xml.model.enums.PixelType;
 import ome.xml.model.primitives.Color;
 import ome.xml.model.primitives.PositiveInteger;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
@@ -422,7 +426,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Write an OME-TIFF pyramidal image to the given file.
 		 * 
-		 * @param path file path for outpu
+		 * @param path file path for output
 		 * @throws FormatException
 		 * @throws IOException
 		 */
@@ -435,7 +439,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Append an image as a specific series.
 		 * 
-		 * @param writer the current writter; it should already be innitialized, with metadata and ID set
+		 * @param writer the current writer; it should already be initialized, with metadata and ID set
 		 * @param meta the metadata, which should already have been initialized and set in the writer before writing any pixels
 		 * @param series number of series to be written (starting with 0; assumes previous series already written)
 		 * @throws FormatException
@@ -1325,6 +1329,144 @@ public class OMEPyramidWriter {
 			builder.allTimePoints();
 
 		builder.build().writePyramid(path);
+	}
+	
+	/**
+	 * Allows command line option to convert an input image to OME-TIFF
+	 * 
+	 * @author Melvin Gelbard
+	 */
+	@Command(name = "convert", description = "Converts an input image to OME-TIFF.", footer = "\nCopyright(c) 2020", mixinStandardHelpOptions = true)
+	public static class ConvertCommand implements Runnable {
+		
+		final private static Logger logger = LoggerFactory.getLogger(ConvertCommand.class);
+		
+		@Parameters(index = "0", description="Path to the file to convert.", paramLabel = "input")
+		private File inputFile;
+		
+		@Parameters(index = "1", description="Path of the output file.", paramLabel = "output")
+		private File outputFile;
+		
+		@Option(names = {"-d", "--downsample"}, defaultValue = "1.0", description = "Downsample the input image by the given factor.")
+		private double downsample;
+		
+		@Option(names = {"-c", "--compression"}, defaultValue = "default", description = "Type of compression to use for conversion.")
+		private String compression;
+		
+		// TODO
+		@Option(names = {"-r", "--crop"}, defaultValue = "(0, 0)", description = "Crop the input image to fit the given size. (To do!)")
+		private String crop;
+		
+		@Option(names = {"--tile-size"}, defaultValue = "-1", description = "Set the tile size (of equal height and width).")
+		private int tileSize;
+		
+		@Option(names = {"--tile-width"}, defaultValue = "256", description = "Set the tile width.")
+		private int tileWidth;
+		
+		@Option(names = {"--tile-height"}, defaultValue = "256", description = "Set the tile height.")
+		private int tileHeight;
+		
+		@Option(names = {"-z"}, description = "Request that all z-slices are exported.", paramLabel = "z-slices")
+		private boolean allZ;
+		
+		@Option(names = {"-t"}, description = "Request that all timepoints of a time series will be written.", paramLabel = "timepoints")
+		private boolean allT;
+		
+		@Option(names = {"-p", "--paralellize"}, description = "Specify if tile export should be parallelized if possible.", paramLabel = "parallelization")
+		private boolean parallelize;
+		
+		
+		@Override
+		public void run() {
+			try {
+				if (inputFile == null || outputFile == null)
+					throw new IOException("Incorrect given path(s)");
+			} catch (IOException e) {
+				logger.error(e.getLocalizedMessage());
+				return;
+			}
+			
+			// Change name if not ending with .ome.tif
+			if (outputFile.getPath().endsWith(".tif") && !outputFile.getPath().endsWith(".ome.tif"))
+				outputFile = new File(outputFile.getParentFile(), outputFile.getPath().substring(0, outputFile.getPath().length()-4) + ".ome.tif");
+
+			
+			try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(inputFile.getPath(), BufferedImage.class)) {
+				
+				// Get compression from user (or CompressionType.DEFAULT)
+				CompressionType compressionType = stringToCompressionType(compression);
+
+				// Check that compression is compatible with image
+				if (!Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).anyMatch(c -> c == compressionType))
+					throw new Exception("Compression chosen: " + compressionType.toString() + " is not compatible with image.");
+				
+				// Check if output will be a single tile
+				boolean singleTile = server.getTileRequestManager().getTileRequests(RegionRequest.createInstance(server)).size() == 1;
+				
+				if (singleTile)
+					parallelize = false;
+				
+				if (tileSize > -1) {
+					tileWidth = tileSize;
+					tileHeight = tileSize;
+				}
+				
+				Builder builder = new OMEPyramidWriter.Builder(server)
+						.compression(compressionType)
+						.tileSize(tileWidth, tileHeight)
+						.parallelize(parallelize);
+				
+				int width = server.getWidth();
+				int height = server.getHeight();
+				if (downsample <= 1 || Math.max(width, height)/server.getDownsampleForResolution(0) < 4096)
+					builder.downsamples(server.getDownsampleForResolution(0));
+				else
+					builder.scaledDownsampling(server.getDownsampleForResolution(0), downsample);
+				
+				if (allZ)
+					builder.allZSlices();
+				if (allT)
+					builder.allTimePoints();
+				
+				builder.build().writePyramid(outputFile.getPath());
+				
+			} catch (Exception e) {
+				logger.error(e.getLocalizedMessage());
+			}
+		}
+		
+		
+		private CompressionType stringToCompressionType(String compressionParam) {
+			switch (compressionParam.toLowerCase()) {
+			case "default":
+				return CompressionType.DEFAULT;
+			
+			case "jpeg-2000":
+			case "jpeg2000":
+			case "j2k":
+				return CompressionType.J2K;
+			
+			case "jpeg-2000-lossy":
+			case "jpeg2000lossy":
+			case "j2k-lossy":
+				return CompressionType.J2K_LOSSY;
+			
+			case "jpeg":
+				return CompressionType.JPEG;
+			
+			case "lzw":
+				return CompressionType.LZW;
+				
+			case "uncompressed":
+				return CompressionType.UNCOMPRESSED;
+				
+			case "zlib":
+				return CompressionType.ZLIB;
+				
+			default:
+				return CompressionType.DEFAULT;
+			}
+		}
 	}
 
 }
