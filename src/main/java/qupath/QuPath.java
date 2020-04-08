@@ -48,6 +48,7 @@ import picocli.CommandLine.Parameters;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
@@ -181,7 +182,8 @@ class ScriptCommand implements Runnable {
 		QPEx.setBatchImageData(imageData);
 
 		// Evaluate the script
-		result = engine.eval(script, context);
+		// TODO: discover why it sometimes print "null" at the end of the result
+		result = DefaultScriptEditor.executeScript(engine, script, imageData, true, context);
 		
 		// Ensure writers are flushed
 		outWriter.flush();
