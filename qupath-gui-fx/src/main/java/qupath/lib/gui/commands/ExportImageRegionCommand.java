@@ -35,7 +35,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -44,10 +43,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
@@ -65,7 +64,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class ExportImageRegionCommand implements PathCommand {
+public class ExportImageRegionCommand implements Runnable {
 
 	private QuPathGUI qupath;
 	
@@ -109,8 +108,8 @@ public class ExportImageRegionCommand implements PathCommand {
 		ComboBox<ImageWriter<BufferedImage>> comboImageType = new ComboBox<>();
 		
 		Function<ImageWriter<BufferedImage>, String> fun = (ImageWriter<BufferedImage> writer) -> writer.getName();
-		comboImageType.setCellFactory(p -> new StringifyListCell<>(fun));
-		comboImageType.setButtonCell(new StringifyListCell<>(fun));
+		comboImageType.setCellFactory(p -> GuiTools.createCustomListCell(fun));
+		comboImageType.setButtonCell(GuiTools.createCustomListCell(fun));
 		
 		var writers = ImageWriterTools.getCompatibleWriters(server, null);
 		comboImageType.getItems().setAll(writers);
@@ -245,27 +244,6 @@ public class ExportImageRegionCommand implements PathCommand {
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Export region", e);
 		}
-	}
-	
-	
-	static class StringifyListCell<T> extends ListCell<T> {
-		
-		private Function<T, String> fun;
-		
-		StringifyListCell(Function<T, String> fun) {
-			super();
-			this.fun = fun;
-		}
-		
-		@Override
-		protected void updateItem(T item, boolean empty) {
-			super.updateItem(item, empty);
-			if (empty)
-				setText(null);
-			else
-				setText(fun.apply(item));
-		}
-		
 	}
 	
 	

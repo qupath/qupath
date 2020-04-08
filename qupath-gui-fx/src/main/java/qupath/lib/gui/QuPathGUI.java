@@ -79,7 +79,6 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 import org.controlsfx.control.action.Action;
-import org.controlsfx.control.action.ActionCheck;
 import org.controlsfx.control.action.ActionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,6 +97,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -146,8 +146,6 @@ import javafx.scene.control.TreeView;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -171,88 +169,21 @@ import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
-import qupath.lib.algorithms.IntensityFeaturesPlugin;
-import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.ActionTools.ActionAccelerator;
-import qupath.lib.gui.ActionTools.ActionDescription;
-import qupath.lib.gui.ActionTools.ActionIcon;
-import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.CountingPanelCommand;
-import qupath.lib.gui.commands.DetectionCentroidDistancesCommand;
-import qupath.lib.gui.commands.DistanceToAnnotationsCommand;
-import qupath.lib.gui.commands.EstimateStainVectorsCommand;
-import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
-import qupath.lib.gui.commands.MeasurementExportCommand;
-import qupath.lib.gui.commands.MeasurementManager;
-import qupath.lib.gui.commands.MeasurementMapCommand;
-import qupath.lib.gui.commands.MemoryMonitorCommand;
-import qupath.lib.gui.commands.MiniViewerCommand;
-import qupath.lib.gui.commands.OpenCommand;
-import qupath.lib.gui.commands.PreferencesCommand;
 import qupath.lib.gui.commands.ProjectCheckUrisCommand;
-import qupath.lib.gui.commands.ProjectCloseCommand;
-import qupath.lib.gui.commands.ProjectCreateCommand;
-import qupath.lib.gui.commands.ProjectExportImageListCommand;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
-import qupath.lib.gui.commands.ProjectMetadataEditorCommand;
-import qupath.lib.gui.commands.ProjectOpenCommand;
-import qupath.lib.gui.commands.QuPathSetupCommand;
-import qupath.lib.gui.commands.ResetPreferencesCommand;
-import qupath.lib.gui.commands.ResolveHierarchyCommand;
-import qupath.lib.gui.commands.ReloadDataCommand;
-import qupath.lib.gui.commands.RigidObjectEditorCommand;
-import qupath.lib.gui.commands.RotateImageCommand;
 import qupath.lib.gui.commands.SampleScriptLoader;
-import qupath.lib.gui.commands.ExportImageRegionCommand;
-import qupath.lib.gui.commands.HierarchyInsertCommand;
-import qupath.lib.gui.commands.SaveViewCommand;
-import qupath.lib.gui.commands.ScriptInterpreterCommand;
-import qupath.lib.gui.commands.SerializeImageDataCommand;
-import qupath.lib.gui.commands.SetGridSpacingCommand;
-import qupath.lib.gui.commands.ShowInstalledExtensionsCommand;
-import qupath.lib.gui.commands.ShowInputDisplayCommand;
-import qupath.lib.gui.commands.ShowLicensesCommand;
-import qupath.lib.gui.commands.ShowScriptEditorCommand;
-import qupath.lib.gui.commands.ShowSystemInfoCommand;
-import qupath.lib.gui.commands.TMAGridView;
-import qupath.lib.gui.commands.SingleFeatureClassifierCommand;
-import qupath.lib.gui.commands.SparseImageServerCommand;
-import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.commands.TMAAddNote;
-import qupath.lib.gui.commands.TMAViewerCommand;
 import qupath.lib.gui.commands.TMAGridAdd;
 import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
 import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
-import qupath.lib.gui.commands.TMAGridReset;
 import qupath.lib.gui.commands.TMAGridRemove;
-import qupath.lib.gui.commands.TMAExporterCommand;
-import qupath.lib.gui.commands.TMAScoreImportCommand;
 import qupath.lib.gui.commands.ViewTrackerCommand;
-import qupath.lib.gui.commands.ViewerSetDownsampleCommand;
-import qupath.lib.gui.commands.WorkflowDisplayCommand;
-import qupath.lib.gui.commands.ZoomCommand;
-import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.commands.interfaces.SelectableItemWrapper;
-import qupath.lib.gui.commands.scriptable.DeleteObjectsCommand;
-import qupath.lib.gui.commands.scriptable.DeleteSelectedObjectsCommand;
-import qupath.lib.gui.commands.scriptable.DetectionsToPointsCommand;
-import qupath.lib.gui.commands.scriptable.DuplicateAnnotationCommand;
-import qupath.lib.gui.commands.scriptable.InverseObjectCommand;
-import qupath.lib.gui.commands.scriptable.MergeSelectedAnnotationsCommand;
-import qupath.lib.gui.commands.scriptable.ResetClassificationsCommand;
-import qupath.lib.gui.commands.scriptable.ResetSelectionCommand;
-import qupath.lib.gui.commands.scriptable.SelectAllAnnotationCommand;
-import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
-import qupath.lib.gui.commands.scriptable.SelectObjectsByClassificationCommand;
-import qupath.lib.gui.commands.scriptable.SelectObjectsByMeasurementCommand;
-import qupath.lib.gui.commands.scriptable.ShapeSimplifierCommand;
-import qupath.lib.gui.commands.scriptable.SpecifyAnnotationCommand;
-import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.controls.cells.ImageAndNameListCell;
 import qupath.lib.gui.dialogs.DialogHelper;
 import qupath.lib.gui.dialogs.DialogHelperFX;
@@ -273,7 +204,6 @@ import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.panels.SelectedMeasurementTableView;
 import qupath.lib.gui.panels.SlideLabelView;
 import qupath.lib.gui.panels.WorkflowPanel;
-import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -302,12 +232,9 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -316,13 +243,6 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.AbstractPluginRunner;
 import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.objects.DilateAnnotationPlugin;
-import qupath.lib.plugins.objects.FillAnnotationHolesPlugin;
-import qupath.lib.plugins.objects.FindConvexHullDetectionsPlugin;
-import qupath.lib.plugins.objects.RefineAnnotationsPlugin;
-import qupath.lib.plugins.objects.ShapeFeaturesPlugin;
-import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
-import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -374,14 +294,14 @@ public class QuPathGUI {
 	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
 	private ExecutorService poolMultipleThreads = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), ThreadTools.createThreadFactory("qupath-shared-", false));	
 	
-	private Map<PathTool, Action> modeActions = new HashMap<>();
+	private Map<PathTool, Action> toolActions = new HashMap<>();
 	
 	/**
 	 * Preferred size for toolbar icons.
 	 */
 	final public static int TOOLBAR_ICON_SIZE = 16;
 
-	private MultiviewManager viewerManager;
+	MultiviewManager viewerManager;
 	
 	private ObjectProperty<Project<BufferedImage>> project = new SimpleObjectProperty<>();
 	
@@ -431,17 +351,12 @@ public class QuPathGUI {
 	
 	private HostServices hostServices;
 	
-	private SlideLabelView slideLabelView = new SlideLabelView(this);
+	SlideLabelView slideLabelView = new SlideLabelView(this);
 	
 	/**
 	 * Keystrokes can be lost on macOS... so ensure these are handled
 	 */
 	private Map<KeyCombination, Action> comboMap = new HashMap<>();
-
-	
-	static Action createAction(PathCommand command) {
-		return new Action(e -> command.run());
-	}
 	
 	
 	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
@@ -451,7 +366,14 @@ public class QuPathGUI {
 	private BooleanBinding noViewer = viewerProperty.isNull();
 	private BooleanBinding noImageData = imageDataProperty.isNull();
 	
-	Action createImageDataAction(Consumer<ImageData<BufferedImage>> command) {
+	/**
+	 * Create an {@link Action} that depends upon an {@link ImageData}.
+	 * When the action is invoked, it will be passed the current {@link ImageData} as a parameter.
+	 * The action will also be disabled if no image data is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command) {
 		var action = new Action(e -> {
 			var imageData = getImageData();
 			if (imageData == null)
@@ -459,7 +381,46 @@ public class QuPathGUI {
 			else
 				command.accept(imageData);
 		});
+		action.disabledProperty().bind(noImageData);
+		return action;
+	}
+	
+	/**
+	 * Create an {@link Action} that depends upon an {@link QuPathViewer}.
+	 * When the action is invoked, it will be passed the current {@link QuPathViewer} as a parameter.
+	 * The action will also be disabled if no viewer is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createViewerAction(Consumer<QuPathViewer> command) {
+		var action = new Action(e -> {
+			var viewer = getViewer();
+			if (viewer == null)
+				Dialogs.showErrorMessage("No viewer", "No viewer is selected!");
+			else
+				command.accept(viewer);
+		});
 		action.disabledProperty().bind(noViewer);
+		return action;
+	}
+	
+	// TODO: Remove this command whenever annotations can be applied more easily
+	private Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
+		var action = createImageDataAction(command);
+		action.setText(name);
+		return action;
+	}
+	
+	public Action createHierarchyAction(Consumer<PathObjectHierarchy> command) {
+		var action = new Action(e -> {
+			var imageData = getImageData();
+			var hierarchy = imageData == null ? null : imageData.getHierarchy();
+			if (hierarchy == null)
+				Dialogs.showNoImageError("No image");
+			else
+				command.accept(hierarchy);
+		});
+		action.disabledProperty().bind(noImageData);
 		return action;
 	}
 	
@@ -491,599 +452,12 @@ public class QuPathGUI {
 		return new Action(e -> runnable.run());
 	}
 	
-	public static abstract class AbstractActionManager {
-		
-		public List<Action> getActions() {
-			return ActionTools.getAnnotatedActions(this);
-		}
-		
-	}
-
-	public final static String COMMAND_ID_PROJECT_OPEN = "qupath.PROJECT_OPEN";
-	
-	
-	@ActionMenu("Tools")
-	public class ToolsMenuManager extends AbstractActionManager {
-		
-		public final Action MOVE_TOOL = actionManager.MOVE_TOOL;
-		public final Action RECTANGLE_TOOL = actionManager.RECTANGLE_TOOL;
-		public final Action ELLIPSE_TOOL = actionManager.ELLIPSE_TOOL;
-		public final Action LINE_TOOL = actionManager.LINE_TOOL;
-		public final Action POLYGON_TOOL = actionManager.POLYGON_TOOL;
-		public final Action POLYLINE_TOOL = actionManager.POLYLINE_TOOL;
-		public final Action BRUSH_TOOL = actionManager.BRUSH_TOOL;
-		public final Action POINTS_TOOL = actionManager.POINTS_TOOL;
-		
-		public final Action SEP_0 = ActionTools.createSeparator();
-		
-		@ActionMenu("Multi-touch gestures>Turn on all gestures")
-		public final Action GESTURES_ALL = createAction(() -> {
-			PathPrefs.setUseScrollGestures(true);
-			PathPrefs.setUseZoomGestures(true);
-			PathPrefs.setUseRotateGestures(true);
-		});
-		
-		@ActionMenu("Multi-touch gestures>Turn off all gestures")
-		public final Action GESTURES_NONE = createAction(() -> {
-			PathPrefs.setUseScrollGestures(false);
-			PathPrefs.setUseZoomGestures(false);
-			PathPrefs.setUseRotateGestures(false);
-		});
-
-		@ActionMenu("Multi-touch gestures>")
-		public final Action SEP_1 = ActionTools.createSeparator();
-		
-		@ActionMenu("Multi-touch gestures>Use scroll gestures")
-		public final Action GESTURES_SCROLL = createSelectableCommandAction(PathPrefs.useScrollGesturesProperty(), null);
-		@ActionMenu("Multi-touch gestures>Use zoom gestures")
-		public final Action GESTURES_ZOOM = createSelectableCommandAction(PathPrefs.useZoomGesturesProperty(), null);
-		@ActionMenu("Multi-touch gestures>Use rotate gestures")
-		public final Action GESTURES_ROTATE = createSelectableCommandAction(PathPrefs.useRotateGesturesProperty(), null);
-
+	private void installActions(Collection<? extends Action> actions) {
+		installActions(getMenuBar().getMenus(), actions);
+		actions.stream().forEach(a -> registerAccelerator(a));
 	}
 	
-	
-	@ActionMenu("Edit")
-	public static class EditMenuManager extends AbstractActionManager {
-		
-		private QuPathGUI qupath;
-		
-		@ActionMenu("Undo")
-		@ActionAccelerator("shortcut+z")
-		public final Action UNDO;
-		
-		@ActionMenu("Redo")
-		@ActionAccelerator("shortcut+shift+z")
-		public final Action REDO;
-		
-		public final Action SEP_0 = ActionTools.createSeparator();
-		
-		// Copy actions
-		@ActionMenu("Copy to clipboard...>Current viewer")
-		@ActionAccelerator("shortcut+c")
-		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
-		
-		@ActionMenu("Copy to clipboard...>Main window content")
-		public final Action COPY_WINDOW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_SCENE));
-		
-		@ActionMenu("Copy to clipboard...>Main window screenshot")
-		public final Action COPY_WINDOW_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));			
-		
-		@ActionMenu("Copy to clipboard...>Full screenshot")
-		public final Action COPY_FULL_SCREENSHOT = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.FULL_SCREENSHOT));
-
-		public final Action SEP_1 = ActionTools.createSeparator();
-		
-		@ActionMenu("Preferences...")
-		@ActionIcon(PathIcons.COG)
-		@ActionAccelerator("shortcut+,")
-		@ActionDescription("Set preferences to customize QuPath's appearance and behavior")
-		public final Action PREFERENCES;
-		
-		@ActionMenu("Reset preferences")
-		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath")
-		public final Action RESET_PREFERENCES = createAction(new ResetPreferencesCommand());
-
-		
-		public EditMenuManager(QuPathGUI qupath) {
-			this.qupath = qupath;
-			var undoRedo = qupath.getUndoRedoManager();
-			UNDO = createUndoAction(undoRedo);
-			REDO = createRedoAction(undoRedo);
-			PREFERENCES = createAction(new PreferencesCommand(qupath, qupath.prefsPanel));
-		}
-		
-		private Action createUndoAction(UndoRedoManager undoRedoManager) {
-			Action actionUndo = new Action("Undo", e -> undoRedoManager.undoOnce());
-			actionUndo.disabledProperty().bind(undoRedoManager.canUndo().not());
-			return actionUndo;
-		}
-		
-		private Action createRedoAction(UndoRedoManager undoRedoManager) {
-			Action actionRedo = new Action("Redo", e -> undoRedoManager.redoOnce());
-			actionRedo.disabledProperty().bind(undoRedoManager.canRedo().not());
-			return actionRedo;
-		}
-		
-		private void copyViewToClipboard(final QuPathGUI qupath, final GuiTools.SnapshotType type) {
-			Image img = GuiTools.makeSnapshotFX(qupath, qupath.getViewer(), type);
-			Clipboard.getSystemClipboard().setContent(Collections.singletonMap(DataFormat.IMAGE, img));
-		}
-	}
-	
-
-	@ActionMenu("Automate")
-	public class AutomateMenuManager extends AbstractActionManager {
-		
-		@ActionMenu("Show script editor")
-		@ActionAccelerator("shortcut+[")
-		public final Action SCRIPT_EDITOR = createAction(new ShowScriptEditorCommand(QuPathGUI.this, false));
-
-		@ActionMenu("Script interpreter")
-		public final Action SCRIPT_INTERPRETER = createAction(new ScriptInterpreterCommand(QuPathGUI.this));
-		
-		public final Action SEP_0 = ActionTools.createSeparator();
-		
-		@ActionMenu("Show workflow command history")
-		@ActionAccelerator("shortcut+shift+w")
-		public final Action HISTORY_SHOW = createAction(new WorkflowDisplayCommand(QuPathGUI.this));
-
-		@ActionMenu("Create command history script")
-		public final Action HISTORY_SCRIPT = createAction(new ShowScriptEditorCommand(QuPathGUI.this, true));
-
-	}
-	
-	@ActionMenu("Analyze")
-	public class AnalyzeMenuManager extends AbstractActionManager {
-		
-		@ActionMenu("Preprocessing>Estimate stain vectors")
-		public final Action COLOR_DECONVOLUTION_REFINE = createAction(new EstimateStainVectorsCommand(QuPathGUI.this));
-		
-		@ActionMenu("Region identification>Tiles & superpixels>Create tiles")
-		public final Action CREATE_TILES = createPluginAction("Create tiles", TilerPlugin.class, QuPathGUI.this, null);
-
-		@ActionMenu("Cell detection>")
-		public final Action SEP_0 = ActionTools.createSeparator();
-
-		@ActionMenu("Calculate features>Add smoothed features")
-		public final Action SMOOTHED_FEATURES = createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, QuPathGUI.this, null);
-		@ActionMenu("Calculate features>Add intensity features")
-		public final Action INTENSITY_FEATURES = createPluginAction("Add intensity features", IntensityFeaturesPlugin.class, QuPathGUI.this, null);
-		@ActionMenu("Calculate features>Add shape features (deprecated)")
-		public final Action SHAPE_FEATURES = createPluginAction("Add shape features", ShapeFeaturesPlugin.class, QuPathGUI.this, null);
-
-		@ActionMenu("Spatial analysis>Distance to annotations 2D")
-		public final Action DISTANCE_TO_ANNOTATIONS = createAction(new DistanceToAnnotationsCommand(QuPathGUI.this));
-		@ActionMenu("Spatial analysis>Detect centroid distances 2D")
-		public final Action DISTANCE_CENTROIDS = createAction(new DetectionCentroidDistancesCommand(QuPathGUI.this));
-
-	}
-	
-	@ActionMenu("Classify")
-	public class ClassifyMenuManager extends AbstractActionManager {
-		
-		
-		@ActionMenu("Object classification>Legacy>Load detection classifier (legacy)")
-		public final Action LEGACY_DETECTION = createAction(new LoadClassifierCommand(QuPathGUI.this));
-		
-		@ActionMenu("Object classification>")
-		public final Action SEP_1 = ActionTools.createSeparator();
-
-		@ActionMenu("Object classification>Legacy>Choose random training samples (legacy)")
-		public final Action LEGACY_RANDOM_TRAINING = createAction(new RandomTrainingRegionSelector(QuPathGUI.this, getAvailablePathClasses()));
-
-		@ActionMenu("Object classification>Legacy>Classify by specific feature (legacy)")
-		public final Action LEGACY_FEATURE = createAction(new SingleFeatureClassifierCommand(QuPathGUI.this, PathDetectionObject.class));
-
-		@ActionMenu("Object classification>")
-		public final Action SEP_2 = ActionTools.createSeparator();
-
-		@ActionMenu("Object classification>Reset detection classifications")
-		public final Action RESET_DETECTION_CLASSIFICATIONS = createImageDataAction(imageData -> ResetClassificationsCommand.resetClassifications(imageData, PathDetectionObject.class));
-
-		@ActionMenu("Pixel classification>")
-		public final Action SEP_3 = ActionTools.createSeparator();
-
-		public final Action SEP_4 = ActionTools.createSeparator();
-
-		@ActionMenu("Extras>Create combined training image")
-		public final Action TRAINING_IMAGE = createAction(new SparseImageServerCommand(QuPathGUI.this));
-
-	}
-	
-	@ActionMenu("File")
-	public class FileMenuManager extends AbstractActionManager {
-		
-		@ActionMenu("Project...>Create project")
-		public final Action PROJECT_NEW = createAction(new ProjectCreateCommand(QuPathGUI.this));
-		
-		@ActionMenu("Project...>Open project")
-		public final Action PROJECT_OPEN = createAction(new ProjectOpenCommand(QuPathGUI.this));
-		
-		@ActionMenu("Project...>Close project")
-		public final Action PROJECT_CLOSE = createAction(new ProjectCloseCommand(QuPathGUI.this));
-		
-		@ActionMenu("Project...>")
-		public final Action SEP_1 = ActionTools.createSeparator();
-
-		@ActionMenu("Project...>Add images")
-		public final Action IMPORT_IMAGES = createAction(new ProjectImportImagesCommand(QuPathGUI.this));
-		@ActionMenu("Project...>Export image list")
-		public final Action EXPORT_IMAGE_LIST = createAction(new ProjectExportImageListCommand(QuPathGUI.this));	
-		
-		@ActionMenu("Project...>")
-		public final Action SEP_2 = ActionTools.createSeparator();
-
-		@ActionMenu("Project...>Edit project metadata")
-		public final Action METADATA = createAction(new ProjectMetadataEditorCommand(QuPathGUI.this));
-		
-		@ActionMenu("Project...>Check project URIs")
-		public final Action CHECK_URIS = createAction(new ProjectCheckUrisCommand(QuPathGUI.this));
-
-		public final Action SEP_3 = ActionTools.createSeparator();
-
-		// TODO: ADD RECENT PROJECTS
-		@ActionMenu("Open...")
-		@ActionAccelerator("shortcut+o")
-		public final Action OPEN_IMAGE = createAction(new OpenCommand(QuPathGUI.this));
-		@ActionMenu("Open URI...")
-		@ActionAccelerator("shortcut+shift+o")
-		public final Action OPEN_IMAGE_OR_URL = createAction(new OpenCommand(QuPathGUI.this, true));
-		
-		@ActionMenu("Reload data")
-		@ActionAccelerator("shortcut+r")
-		public final Action RELOAD_DATA = createAction(new ReloadDataCommand(QuPathGUI.this));
-
-		public final Action SEP_4 = ActionTools.createSeparator();
-		
-		@ActionMenu("Save As")
-		@ActionAccelerator("shortcut+s")
-		public final Action SAVE_DATA_AS = createAction(new SerializeImageDataCommand(QuPathGUI.this, false));
-		@ActionMenu("Save")
-		@ActionAccelerator("shortcut+shift+s")
-		public final Action SAVE_DATA = createAction(new SerializeImageDataCommand(QuPathGUI.this, true));
-		
-		public final Action SEP_5 = ActionTools.createSeparator();
-		
-		@ActionMenu("Export images...>Original pixels")
-		public final Action EXPORT_ORIGINAL = createAction(new ExportImageRegionCommand(QuPathGUI.this, false));
-		@ActionMenu("Export images...>Rendered RGB (with overlays)")
-		public final Action EXPORT_RENDERED = createAction(new ExportImageRegionCommand(QuPathGUI.this, false));
-		
-		@ActionMenu("Export snapshot...>Main window screenshot")
-		public final Action SNAPSHOT_WINDOW = createAction(new SaveViewCommand(QuPathGUI.this, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));
-		@ActionMenu("Export snapshot...>Main window content")
-		public final Action SNAPSHOT_WINDOW_CONTENT = createAction(new SaveViewCommand(QuPathGUI.this, GuiTools.SnapshotType.MAIN_SCENE));
-		@ActionMenu("Export snapshot...>Current viewer content")
-		public final Action SNAPSHOT_VIEWER_CONTENT = createAction(new SaveViewCommand(QuPathGUI.this, GuiTools.SnapshotType.VIEWER));
-		
-		public final Action SEP_6 = ActionTools.createSeparator();
-
-		@ActionMenu("TMA data...>Import TMA map")
-		public final Action TMA_IMPORT = createAction(new TMAScoreImportCommand(QuPathGUI.this));
-		@ActionMenu("TMA data...>Launch Export TMA data")
-		public final Action TMA_EXPORT = createAction(new TMAExporterCommand(QuPathGUI.this.viewerProperty()));
-		@ActionMenu("TMA data...>Launch TMA data viewer")
-		public final Action TMA_VIEWER = createAction(new TMAViewerCommand());
-
-		public final Action SEP_7 = ActionTools.createSeparator();
-
-		@ActionMenu("Quit")
-		public final Action QUIT = new Action("Quit", e -> tryToQuit());
-
-	}
-	
-	
-	@ActionMenu("Objects")
-	public class ObjectsMenuManager extends AbstractActionManager {
-		
-		@ActionMenu("Delete...>Delete selected objects")
-		public final Action DELETE_SELECTED_OBJECTS = createAction(new DeleteSelectedObjectsCommand<>(QuPathGUI.this.imageDataProperty()));
-		
-		@ActionMenu("Delete...>")
-		public final Action SEP_1 = ActionTools.createSeparator();
-		
-		@ActionMenu("Delete...>Delete all objects")
-		public final Action CLEAR_HIERARCHY = createImageDataAction(imageData -> DeleteObjectsCommand.deleteObjects(imageData, null));
-		@ActionMenu("Delete...>Delete all annotations")
-		public final Action CLEAR_ANNOTATIONS = createImageDataAction(imageData -> DeleteObjectsCommand.deleteObjects(imageData, PathAnnotationObject.class));
-		@ActionMenu("Delete...>Delete all detects")
-		public final Action CLEAR_DETECTIONS = createImageDataAction(imageData -> DeleteObjectsCommand.deleteObjects(imageData, PathDetectionObject.class));
-
-		@ActionMenu("Select...>Reset selection")
-		@ActionAccelerator("shortcut+alt+r")
-		public final Action RESET_SELECTION = createImageDataAction(imageData -> ResetSelectionCommand.resetSelection(imageData));
-
-		@ActionMenu("Select...>")
-		public final Action SEP_2 = ActionTools.createSeparator();
-
-		@ActionMenu("Select...>Select TMA cores")
-		@ActionAccelerator("shortcut+alt+t")
-		public final Action SELECT_TMA_CORES = createImageDataAction(imageData -> SelectObjectsByClassCommand.selectObjectsByClass(imageData, TMACoreObject.class));
-		@ActionMenu("Select...>Select annotations")
-		@ActionAccelerator("shortcut+alt+a")
-		public final Action SELECT_ANNOTATIONS = createImageDataAction(imageData -> SelectObjectsByClassCommand.selectObjectsByClass(imageData, PathAnnotationObject.class));
-
-		@ActionMenu("Select...>Select detections...>Select all detections")
-		@ActionAccelerator("shortcut+alt+d")
-		public final Action SELECT_ALL_DETECTIONS = createImageDataAction(imageData -> SelectObjectsByClassCommand.selectObjectsByClass(imageData, PathDetectionObject.class));
-		@ActionMenu("Select...>Select detections...>Select cells")
-		@ActionAccelerator("shortcut+alt+c")
-		public final Action SELECT_CELLS = createImageDataAction(imageData -> SelectObjectsByClassCommand.selectObjectsByClass(imageData, PathCellObject.class));
-		@ActionMenu("Select...>Select detections...>Select tiles")
-		public final Action SELECT_TILES = createImageDataAction(imageData -> SelectObjectsByClassCommand.selectObjectsByClass(imageData, PathTileObject.class));
-
-		@ActionMenu("Select...>")
-		public final Action SEP_3 = ActionTools.createSeparator();
-
-		@ActionMenu("Select...>Select objects by classification")
-		public final Action SELECT_BY_CLASSIFICATION = createAction(new SelectObjectsByClassificationCommand(QuPathGUI.this));
-		@ActionMenu("Select...>Select objects by measurements (legacy)")
-		public final Action SELECT_BY_MEASUREMENT = createAction(new SelectObjectsByMeasurementCommand(QuPathGUI.this));
-		
-		public final Action SEP_4 = ActionTools.createSeparator();
-		
-		@ActionMenu("Annotations...>Specify annotation")
-		public final Action SPECIFY_ANNOTATION = createAction(new SpecifyAnnotationCommand(QuPathGUI.this));
-		@ActionMenu("Annotations...>Create full image annotation")
-		@ActionAccelerator("shortcut+shift+a")
-		public final Action SELECT_ALL_ANNOTATION = createAction(new SelectAllAnnotationCommand(QuPathGUI.this.viewerProperty()));
-
-		@ActionMenu("Annotations...>")
-		public final Action SEP_5 = ActionTools.createSeparator();
-		
-		@ActionMenu("Annotations...>Insert into hierarchy")
-		@ActionAccelerator("shortcut+shift+i")
-		public final Action INSERT_INTO_HIERARCHY = createAction(new HierarchyInsertCommand(QuPathGUI.this));
-		@ActionMenu("Annotations...>Resolve hierarchy")
-		@ActionAccelerator("shortcut+shift+r")
-		public final Action RESOLVE_HIERARCHY = createAction(new ResolveHierarchyCommand(QuPathGUI.this));
-		
-
-		@ActionMenu("Annotations...>")
-		public final Action SEP_6 = ActionTools.createSeparator();
-
-		@ActionMenu("Annotations...>Rotate annotation")
-		@ActionAccelerator("shortcut+shift+alt+r")
-		public final Action RIGID_OBJECT_EDITOR = createAction(new RigidObjectEditorCommand(QuPathGUI.this));
-		@ActionMenu("Annotations...>Duplicate annotations")
-		@ActionAccelerator("shift+d")
-		public final Action ANNOTATION_DUPLICATE = createAction(new DuplicateAnnotationCommand<>(QuPathGUI.this.imageDataProperty()));
-		@ActionMenu("Annotations...>Transfer last annotation")
-		@ActionAccelerator("shift+e")
-		public final Action TRANSFER_ANNOTATION = createAction(() -> QuPathGUI.this.viewerManager.applyLastAnnotationToActiveViewer());
-
-		@ActionMenu("Annotations...>")
-		public final Action SEP_7 = ActionTools.createSeparator();
-
-		@ActionMenu("Annotations...>Expand annotations")
-		public final Action EXPAND_ANNOTATIONS = createPluginAction("Expand annotations", DilateAnnotationPlugin.class, null);
-		@ActionMenu("Annotations...>Split annotations")
-		public final Action SPLIT_ANNOTATIONS = createPluginAction("Split annotations", SplitAnnotationsPlugin.class, null);
-		@ActionMenu("Annotations...>Remove fragments")
-		public final Action REMOVE_FRAGMENTS = createPluginAction("Remove annotations", RefineAnnotationsPlugin.class, null);
-		@ActionMenu("Annotations...>Fill holes")
-		public final Action FILL_HOLES = createPluginAction("Fill holes", FillAnnotationHolesPlugin.class, null);
-
-		@ActionMenu("Annotations...>")
-		public final Action SEP_8 = ActionTools.createSeparator();
-		
-		@ActionMenu("Annotations...>Make inverse")
-		public final Action MAKE_INVERSE = createImageDataAction(imageData -> InverseObjectCommand.makeInverseAnnotation(imageData));
-		@ActionMenu("Annotations...>Merge selected")
-		public final Action MERGE_SELECTED = createImageDataAction(imageData -> MergeSelectedAnnotationsCommand.mergeSelectedAnnotations(imageData));
-		@ActionMenu("Annotations...>Simplify shape")
-		public final Action SIMPLIFY_SHAPE = createImageDataAction(imageData -> ShapeSimplifierCommand.promptToSimplifyShape(imageData, 1.0));
-
-	}
-	
-	
-	@ActionMenu("TMA")
-	public class TMAMenuManager extends AbstractActionManager {
-		
-		@ActionMenu("Add...>Add TMA row before")
-		public final Action ADD_ROW_BEFORE = createAction(new TMAGridAdd(QuPathGUI.this, TMAAddType.ROW_BEFORE));
-		@ActionMenu("Add...>Add TMA row after")
-		public final Action ADD_ROW_AFTER = createAction(new TMAGridAdd(QuPathGUI.this, TMAAddType.ROW_AFTER));
-		@ActionMenu("Add...>Add TMA column before")
-		public final Action ADD_COLUMN_BEFORE = createAction(new TMAGridAdd(QuPathGUI.this, TMAAddType.COLUMN_BEFORE));
-		@ActionMenu("Add...>Add TMA column after")
-		public final Action ADD_COLUMN_AFTER = createAction(new TMAGridAdd(QuPathGUI.this, TMAAddType.COLUMN_AFTER));
-		
-		@ActionMenu("Remove...>Remove TMA row")
-		public final Action REMOVE_ROW = createAction(new TMAGridRemove(QuPathGUI.this, TMARemoveType.ROW));
-		@ActionMenu("Remove...>Remove TMA column")
-		public final Action REMOVE_COLUMN = createAction(new TMAGridRemove(QuPathGUI.this, TMARemoveType.COLUMN));
-
-		@ActionMenu("Relabel TMA grid")
-		public final Action RELABEL = createImageDataAction(imageData -> TMAGridRelabel.promptToRelabelTMAGrid(imageData));
-		@ActionMenu("Reset TMA metadata")
-		public final Action RESET_METADATA = createAction(new TMAGridReset(QuPathGUI.this));
-		@ActionMenu("TMA grid summary view")
-		public final Action CLEAR_CORES = createAction(new DeleteObjectsCommand<>(QuPathGUI.this.imageDataProperty(), TMACoreObject.class));
-		@ActionMenu("Delete TMA grid")
-		public final Action SUMMARY_GRID = createAction(new TMAGridView(QuPathGUI.this));
-
-		public final Action SEP_0 = ActionTools.createSeparator();
-		
-		@ActionMenu("Find convex hull detections (TMA)")
-		public final Action CONVEX_HULL = createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, QuPathGUI.this, null);
-
-	}
-	
-	@ActionMenu("View")
-	public class ViewMenuManager extends AbstractActionManager {
-		
-		public final Action SHOW_ANALYSIS_PANEL = actionManager.SHOW_ANALYSIS_PANEL;
-		public final Action COMMAND_LIST = actionManager.SHOW_COMMAND_LIST;
-		public final Action SEP_0 = ActionTools.createSeparator();
-		public final Action BRIGHTNESS_CONTRAST = actionManager.BRIGHTNESS_CONTRAST;
-		public final Action SEP_1 = ActionTools.createSeparator();
-		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = actionManager.TOGGLE_SYNCHRONIZE_VIEWERS;
-		public final Action MATCH_VIEWER_RESOLUTIONS = actionManager.MATCH_VIEWER_RESOLUTIONS;
-		
-		@ActionMenu("Mini viewers...>Show channel viewer")
-		public final Action CHANNEL_VIEWER = createAction(new MiniViewerCommand(QuPathGUI.this, true));
-		@ActionMenu("Mini viewers...>Show mini viewer")
-		public final Action MINI_VIEWER = createAction(new MiniViewerCommand(QuPathGUI.this, false));
-		
-		public final Action SEP_2 = ActionTools.createSeparator();
-		
-		@ActionMenu("Zoom...>400%")
-		public final Action ZOOM_400 = createAction(new ViewerSetDownsampleCommand(QuPathGUI.this.viewerProperty(), 0.25));
-		@ActionMenu("Zoom...>100%")
-		public final Action ZOOM_100 = createAction(new ViewerSetDownsampleCommand(QuPathGUI.this.viewerProperty(), 1));
-		@ActionMenu("Zoom...>10%")
-		public final Action ZOOM_10 = createAction(new ViewerSetDownsampleCommand(QuPathGUI.this.viewerProperty(), 10));
-		@ActionMenu("Zoom...>1%")
-		public final Action ZOOM_1 = createAction(new ViewerSetDownsampleCommand(QuPathGUI.this.viewerProperty(), 100));
-		
-		public final Action SEP_3 = ActionTools.createSeparator();
-		@ActionMenu("Zoom...>Zoom in")
-		@ActionIcon(PathIcons.ZOOM_IN)
-		@ActionAccelerator("+")
-		public final Action ZOOM_IN = createAction(ZoomCommand.createZoomInCommand(QuPathGUI.this.viewerProperty()));
-		@ActionMenu("Zoom...>Zoom out")
-		@ActionIcon(PathIcons.ZOOM_OUT)
-		@ActionAccelerator("-")
-		public final Action ZOOM_OUT = createAction(ZoomCommand.createZoomOutCommand(QuPathGUI.this.viewerProperty()));
-		@ActionMenu("Zoom...>Zoom to fit")
-		public final Action ZOOM_TO_FIT = actionManager.ZOOM_TO_FIT;
-				
-		@ActionMenu("Rotate image")
-		public final Action ROTATE_IMAGE = createAction(new RotateImageCommand(QuPathGUI.this));
-
-		public final Action SEP_4 = ActionTools.createSeparator();
-		
-		@ActionMenu("Cell display>")
-		public final Action SHOW_CELL_BOUNDARIES = actionManager.SHOW_CELL_BOUNDARIES;
-		public final Action SHOW_CELL_NUCLEI = actionManager.SHOW_CELL_NUCLEI;
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = actionManager.SHOW_CELL_BOUNDARIES_AND_NUCLEI;
-		public final Action SHOW_CELL_CENTROIDS = actionManager.SHOW_CELL_CENTROIDS;
-		
-		public final Action SHOW_ANNOTATIONS = actionManager.SHOW_ANNOTATIONS;
-		public final Action FILL_ANNOTATIONS = actionManager.FILL_ANNOTATIONS;
-		public final Action SHOW_NAMES = actionManager.SHOW_NAMES;
-		public final Action SHOW_TMA_GRID = actionManager.SHOW_TMA_GRID;
-		public final Action SHOW_TMA_GRID_LABELS = actionManager.SHOW_TMA_GRID_LABELS;
-		public final Action SHOW_DETECTIONS = actionManager.SHOW_DETECTIONS;
-		public final Action FILL_DETECTIONS = actionManager.FILL_DETECTIONS;
-
-		@ActionMenu("Show object connections")
-		public final Action SHOW_CONNECTIONS = createSelectableCommandAction(overlayOptions.showConnectionsProperty(), "Show object connections");
-
-		public final Action SHOW_PIXEL_CLASSIFICATION = actionManager.SHOW_PIXEL_CLASSIFICATION;
-		
-		public final Action SEP_5 = ActionTools.createSeparator();
-		
-		public final Action SHOW_OVERVIEW = actionManager.SHOW_OVERVIEW;
-		public final Action SHOW_LOCATION = actionManager.SHOW_LOCATION;
-		public final Action SHOW_SCALEBAR = actionManager.SHOW_SCALEBAR;
-		public final Action SHOW_GRID = actionManager.SHOW_GRID;
-		public final Action GRID_SPACING = actionManager.GRID_SPACING;
-		
-		public final Action SEP_6 = ActionTools.createSeparator();
-		
-		public final Action VIEW_TRACKER = actionManager.VIEW_TRACKER;
-		public final Action SLIDE_LABEL = createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label");
-
-		public final Action SEP_7 = ActionTools.createSeparator();
-		
-		@ActionMenu("Show input display")
-		public final Action INPUT_DISPLAY = createAction(new ShowInputDisplayCommand(QuPathGUI.this));
-
-		@ActionMenu("Show memory monitor")
-		public final Action MEMORY_MONITORY = createAction(new MemoryMonitorCommand(QuPathGUI.this));
-		
-		@ActionMenu("Show log")
-		public final Action SHOW_LOG = actionManager.SHOW_LOG;
-		
-	}
-	
-	
-	@ActionMenu("Measure")
-	public class MeasureMenuManager extends AbstractActionManager {
-		
-		@ActionMenu("Show measurement maps")
-		@ActionAccelerator("shortcut+shift+m")
-		@ActionDescription("View detection measurements in context using interactive, color-coded maps")
-		public final Action MAPS = createAction(new MeasurementMapCommand(QuPathGUI.this));
-		
-		@ActionMenu("Show measurement manager")
-		@ActionDescription("View and optionally delete detection measurements")
-		public final Action MANAGER = createAction(new MeasurementManager(QuPathGUI.this));
-		
-		@ActionMenu("")
-		public final Action SEP_1 = ActionTools.createSeparator();
-		
-		@ActionMenu("Show TMA measurements")		
-		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
-		public final Action TMA = createAction(new SummaryMeasurementTableCommand(QuPathGUI.this, TMACoreObject.class));
-		
-		@ActionMenu("Show annotation measurements")		
-		@ActionDescription("Show summary measurements for annotation objects")
-		public final Action ANNOTATIONS = createAction(new SummaryMeasurementTableCommand(QuPathGUI.this, PathAnnotationObject.class));
-		
-		@ActionMenu("Show detection measurements")		
-		@ActionDescription("Show summary measurements for detection objects")
-		public final Action DETECTIONS = createAction(new SummaryMeasurementTableCommand(QuPathGUI.this, PathDetectionObject.class));
-		
-		public final Action SEP_2 = ActionTools.createSeparator();
-
-		@ActionMenu("Export measurements")		
-		@ActionDescription("Export summary measurements for multiple images within a project")
-		public final Action EXPORT = createAction(new MeasurementExportCommand(QuPathGUI.this));
-		
-	}
-	
-	
-	@ActionMenu("Help")
-	public class HelpMenuManager extends AbstractActionManager {
-
-		@ActionMenu("Show setup options")
-		public final Action QUPATH_SETUP = createAction(new QuPathSetupCommand(QuPathGUI.this));
-
-		@ActionMenu("")
-		public final Action SEP_1 = ActionTools.createSeparator();
-
-		@ActionMenu("Documentation (web)")
-		public final Action DOCS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_DOCS));
-		
-		@ActionMenu("Demo videos (web)")
-		public final Action DEMOS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_VIDEOS));
-
-		@ActionMenu("Check for updates (web)")
-		public final Action UPDATE = createAction(() -> checkForUpdate(false));
-
-		public final Action SEP_2 = ActionTools.createSeparator();
-		
-		@ActionMenu("Cite QuPath (web)")
-		public final Action CITE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_CITATION));
-		
-		@ActionMenu("Report bug (web)")
-		public final Action BUGS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_BUGS));
-		
-		@ActionMenu("View user forum (web)")
-		public final Action FORUM = createAction(() -> QuPathGUI.launchBrowserWindow(URL_FORUM));
-		
-		@ActionMenu("View source code (web)")
-		public final Action SOURCE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_SOURCE));
-
-		public final Action SEP_3 = ActionTools.createSeparator();
-
-		@ActionMenu("License")
-		public final Action LICENSE = createAction(new ShowLicensesCommand(QuPathGUI.this));
-		
-		@ActionMenu("System info")
-		public final Action INFO = createAction(new ShowSystemInfoCommand(QuPathGUI.this));
-		
-		@ActionMenu("Installed extensions")
-		public final Action EXTENSIONS = createAction(new ShowInstalledExtensionsCommand(QuPathGUI.this));
-		
-	}
-	
-	
-	private static void installActions(List<Menu> menus, Collection<Action> actions) {
+	private static void installActions(List<Menu> menus, Collection<? extends Action> actions) {
 		
 		var menuMap = new HashMap<String, Menu>();
 		
@@ -1132,47 +506,47 @@ public class QuPathGUI {
 		Action SELECTION_MODE = createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
 		
 		// Toolbar actions
-		Action BRIGHTNESS_CONTRAST = createCommandAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
+		Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
 		Action SHOW_OVERVIEW = createSelectableCommandAction(viewerDisplayOptions.showOverviewProperty(), "Show slide overview", PathIconFactory.PathIcons.OVERVIEW, null);
 		Action SHOW_LOCATION = createSelectableCommandAction(viewerDisplayOptions.showLocationProperty(), "Show cursor location", PathIconFactory.PathIcons.LOCATION, null);
 		Action SHOW_SCALEBAR = createSelectableCommandAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar", PathIconFactory.PathIcons.SHOW_SCALEBAR, null);
 		public Action SHOW_GRID = createSelectableCommandAction(overlayOptions.showGridProperty(), "Show grid", PathIconFactory.PathIcons.GRID, new KeyCodeCombination(KeyCode.G, KeyCombination.SHIFT_DOWN));
 
 		Action SHOW_PIXEL_CLASSIFICATION = createSelectableCommandAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification", PathIconFactory.PathIcons.PIXEL_CLASSIFICATION, new KeyCodeCombination(KeyCode.C));
-		private Action GRID_SPACING = createCommandAction(new SetGridSpacingCommand(overlayOptions), "Set grid spacing");
-		private Action COUNTING_PANEL = createCommandAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
+		Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), "Set grid spacing");
+		private Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
 			
 		// TMA actions
-		private Action TMA_ADD_NOTE = createCommandAction(new TMAAddNote(QuPathGUI.this), "Add TMA note");
+		private Action TMA_ADD_NOTE = ActionTools.createAction(new TMAAddNote(QuPathGUI.this), "Add TMA note");
 //		public Action TMA_RELABEL = createCommandAction(new TMAGridRelabel(QuPathGUI.this), "Relabel TMA grid");
 		
 		// Overlay options actions
-		private Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectableItemWrapper<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_ONLY), null);
-		private Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectableItemWrapper<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_NULCEI_BOTH), null);
-		private Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItemWrapper<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.NUCLEI_ONLY), null);
-		private Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectableItemWrapper<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CENTROIDS_ONLY), null);
+		Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_ONLY), null);
+		Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_NULCEI_BOTH), null);
+		Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.NUCLEI_ONLY), null);
+		Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CENTROIDS_ONLY), null);
 		public Action SHOW_ANNOTATIONS = createSelectableCommandAction(overlayOptions.showAnnotationsProperty(), "Show annotations", PathIconFactory.PathIcons.ANNOTATIONS, new KeyCodeCombination(KeyCode.A));
-		private Action SHOW_NAMES = createSelectableCommandAction(overlayOptions.showNamesProperty(), "Show labels", (Node)null, new KeyCodeCombination(KeyCode.N));
-		private Action FILL_ANNOTATIONS = createSelectableCommandAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations", PathIconFactory.PathIcons.ANNOTATIONS_FILL, new KeyCodeCombination(KeyCode.F, KeyCombination.SHIFT_DOWN));	
+		Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show labels", (Node)null, new KeyCodeCombination(KeyCode.N));
+		Action FILL_ANNOTATIONS = createSelectableCommandAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations", PathIconFactory.PathIcons.ANNOTATIONS_FILL, new KeyCodeCombination(KeyCode.F, KeyCombination.SHIFT_DOWN));	
 		Action SHOW_TMA_GRID = createSelectableCommandAction(overlayOptions.showTMAGridProperty(), "Show TMA grid", PathIconFactory.PathIcons.TMA_GRID, new KeyCodeCombination(KeyCode.G));
-		private Action SHOW_TMA_GRID_LABELS = createSelectableCommandAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
+		Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
 		Action SHOW_DETECTIONS = createSelectableCommandAction(overlayOptions.showDetectionsProperty(), "Show detections", PathIconFactory.PathIcons.DETECTIONS, new KeyCodeCombination(KeyCode.D));
 		public Action FILL_DETECTIONS = createSelectableCommandAction(overlayOptions.fillDetectionsProperty(), "Fill detections", PathIconFactory.PathIcons.DETECTIONS_FILL, new KeyCodeCombination(KeyCode.F));	
-		public Action CONVEX_POINTS = createSelectableCommandAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
+		public Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
 		
-		public Action DETECTIONS_TO_POINTS = createCommandAction(new DetectionsToPointsCommand<>(QuPathGUI.this.imageDataProperty()), "Convert detections to points");
+		public Action DETECTIONS_TO_POINTS = createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true), "Convert detections to points");
 		
 		// Viewer actions
-		private Action VIEW_TRACKER = createCommandAction(new ViewTrackerCommand(QuPathGUI.this), "Show tracking panel", null, new KeyCodeCombination(KeyCode.T, KeyCombination.SHIFT_DOWN)); // TODO: Note: this only works with the original viewer
-		private Action TOGGLE_SYNCHRONIZE_VIEWERS = createSelectableCommandAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
-		private Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
+		Action VIEW_TRACKER = ActionTools.createAction(new ViewTrackerCommand(QuPathGUI.this), "Show tracking panel", null, new KeyCodeCombination(KeyCode.T, KeyCombination.SHIFT_DOWN)); // TODO: Note: this only works with the original viewer
+		Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
+		Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
 		
 		// General GUI actions
-		private Action SHOW_LOG = createCommandAction(new LogViewerCommand(QuPathGUI.this), "Show log", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
+		Action SHOW_LOG = ActionTools.createAction(new LogViewerCommand(QuPathGUI.this), "Show log", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
 
 		Action SHOW_ANALYSIS_PANEL = createShowAnalysisPaneAction();
-		public Action USE_SELECTED_COLOR = createSelectableCommandAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
-		private Action SHOW_COMMAND_LIST = createCommandAction(new CommandListDisplayCommand(QuPathGUI.this), "Show command list", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN));
+		public Action USE_SELECTED_COLOR = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
+		Action SHOW_COMMAND_LIST = ActionTools.createAction(new CommandListDisplayCommand(QuPathGUI.this), "Show command list", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN));
 		
 	}
 	
@@ -1196,7 +570,7 @@ public class QuPathGUI {
 	/**
 	 * A list of all actions currently registered for this GUI.
 	 */
-	private List<Action> actions = new ArrayList<>();
+	private ObservableList<Action> actions = FXCollections.observableArrayList();
 	
 	/**
 	 * Search for an action based upon its text (name) property.
@@ -1204,11 +578,6 @@ public class QuPathGUI {
 	 * @return the action, if found, or null otherwise
 	 */
 	public Action lookupActionByText(String text) {
-		return actions.stream().filter(p -> text.equals(p.getText())).findFirst().orElse(null);
-	}
-	
-	
-	public Action lookupDefaultAction(String text) {
 		return actions.stream().filter(p -> text.equals(p.getText())).findFirst().orElse(null);
 	}
 	
@@ -1258,7 +627,21 @@ public class QuPathGUI {
 		this.stage = stage;
 		this.isStandalone = isStandalone;
 		
-		menuBar = new MenuBar();
+		menuBar = new MenuBar(
+				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Automate", "Analyze", "Classify", "Extensions", "Help")
+				.stream().map(Menu::new).toArray(Menu[]::new)
+				);
+		actions.addListener((ListChangeListener.Change<? extends Action> c) -> {
+			while (c.next()) {
+				if (c.wasPermutated()) {
+					logger.warn("Menu permutations not supported!");
+				} else if (c.wasRemoved() ) {
+					logger.warn("Menu item removal not supported!");					
+				} else if (c.wasAdded() ) {
+					installActions(c.getAddedSubList());					
+				}
+			}
+		});
 		
 		// Prepare for image name masking
 		project.addListener((v, o, n) -> {
@@ -1326,10 +709,7 @@ public class QuPathGUI {
 		
 		initializingMenus.set(true);
 		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
-		createMenuBar();
 		pane.setTop(menuBar);
-		
-//		CommandAnnotations.installAnnotatedCommands(this, CommandAnnotations.class);
 		
 		Scene scene;
 		try {
@@ -1443,17 +823,17 @@ public class QuPathGUI {
 				return;
 			}
 			
-//			for (var entry : comboMap.entrySet()) {
-//				if (entry.getKey().match(e)) {
-//					var action = entry.getValue();
-//					if (ActionTools.isSelectable(action))
-//						action.setSelected(!action.isSelected());
-//					else
-//						action.handle(new ActionEvent(e.getSource(), e.getTarget()));
-//					e.consume();
-//					return;
-//				}
-//			}
+			for (var entry : comboMap.entrySet()) {
+				if (entry.getKey().match(e)) {
+					var action = entry.getValue();
+					if (ActionTools.isSelectable(action))
+						action.setSelected(!action.isSelected());
+					else
+						action.handle(new ActionEvent(e.getSource(), e.getTarget()));
+					e.consume();
+					return;
+				}
+			}
 			
 			// Generic 'hiding'
 			if (new KeyCodeCombination(KeyCode.H).match(e)) {
@@ -1516,7 +896,7 @@ public class QuPathGUI {
 			MenuTools.addMenuItems(
 					menuAutomate,
 					null,
-					createCommandAction(new SampleScriptLoader(this), "Open sample scripts"),
+					ActionTools.createAction(new SampleScriptLoader(this), "Open sample scripts"),
 					sharedScriptMenuLoader.getMenu(),
 					userScriptMenuLoader.getMenu(),
 					projectScriptMenuLoader.getMenu()
@@ -1543,6 +923,8 @@ public class QuPathGUI {
 		
 		// Update the title
 		stage.titleProperty().bind(titleBinding);
+		
+		// Register all the accelerators
 		
 		// Update display
 		// Requesting the style should be enough to make sure it is called...
@@ -1753,7 +1135,7 @@ public class QuPathGUI {
 	 * @param isAutoCheck If true, the check will only be performed if the auto-update preferences allow it, 
 	 * 					  and the user won't be prompted if no update is available.
 	 */
-	private void checkForUpdate(final boolean isAutoCheck) {
+	void checkForUpdate(final boolean isAutoCheck) {
 		
 		// Confirm if the user wants us to check for updates
 		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheck();
@@ -2293,17 +1675,7 @@ public class QuPathGUI {
 
 		
 		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
-		var temp = getActionManager();
-		for (var manager : Arrays.asList(
-				new FileMenuManager(), new EditMenuManager(this),
-				new ObjectsMenuManager(), new ToolsMenuManager(),
-				new ViewMenuManager(),
-				new MeasureMenuManager(), new AutomateMenuManager(),
-				new AnalyzeMenuManager(), new TMAMenuManager(),
-				new ClassifyMenuManager(), new HelpMenuManager()
-				)) {
-			actions.addAll(manager.getActions());
-		}
+		actions.addAll(new Menus(this).getActions());
 
 		
 //		analysisPanel = createAnalysisPanel();
@@ -2337,7 +1709,7 @@ public class QuPathGUI {
 
 		// Ensure actions are set appropriately
 		selectedToolProperty.addListener((v, o, n) -> {
-			Action action = modeActions.get(n);
+			Action action = toolActions.get(n);
 			if (action != null)
 				action.setSelected(true);
 			
@@ -2427,13 +1799,13 @@ public class QuPathGUI {
 	
 	void activateTools(final QuPathViewerPlus viewer) {
 		if (viewer != null)
-			viewer.setMode(getSelectedTool());		
+			viewer.setActiveTool(getSelectedTool());		
 //		logger.debug("Tools activated for {}", viewer);
 	}
 	
 	
 	void deactivateTools(final QuPathViewerPlus viewer) {
-		viewer.setMode(null);
+		viewer.setActiveTool(null);
 	}
 	
 	
@@ -2715,11 +2087,11 @@ public class QuPathGUI {
 				ActionTools.getActionCheckBoxMenuItem(actionManager.SHOW_ANALYSIS_PANEL, null),
 				actionManager.BRIGHTNESS_CONTRAST,
 				null,
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 0.25), "400%"),
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 1), "100%"),
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 2), "50%"),
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 10), "10%"),
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 100), "1%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 0.25), "400%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 1), "100%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 2), "50%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 10), "10%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 100), "1%"),
 				null,
 				// TODO: ADD ZOOM COMMANDS AGAIN
 //				actionManager.ZOOM_IN,
@@ -2758,15 +2130,15 @@ public class QuPathGUI {
 				null,
 				MenuTools.createMenu(
 						"Add",
-					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_BEFORE), "Add TMA row before"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_AFTER), "Add TMA row after"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_BEFORE), "Add TMA column before"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_AFTER), "Add TMA column after")
+					ActionTools.createAction(new TMAGridAdd(this, TMAAddType.ROW_BEFORE), "Add TMA row before"),
+					ActionTools.createAction(new TMAGridAdd(this, TMAAddType.ROW_AFTER), "Add TMA row after"),
+					ActionTools.createAction(new TMAGridAdd(this, TMAAddType.COLUMN_BEFORE), "Add TMA column before"),
+					ActionTools.createAction(new TMAGridAdd(this, TMAAddType.COLUMN_AFTER), "Add TMA column after")
 					),
 				MenuTools.createMenu(
 						"Remove",
-					createCommandAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
-					createCommandAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
+					ActionTools.createAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
+					ActionTools.createAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
 					)
 				);
 		
@@ -3760,35 +3132,24 @@ public class QuPathGUI {
 	}
 	
 	
-	private final static String URL_DOCS       = "https://qupath.readthedocs.io";
-	private final static String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
-	private final static String URL_CITATION   = "https://qupath.readthedocs.io/en/latest/docs/intro/citing.html";
-	private final static String URL_BUGS       = "https://github.com/qupath/qupath/issues";
-	private final static String URL_FORUM      = "https://forum.image.sc/tags/qupath";
-	private final static String URL_SOURCE     = "https://github.com/qupath/qupath";
+	final static String URL_DOCS       = "https://qupath.readthedocs.io";
+	final static String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
+	final static String URL_CITATION   = "https://qupath.readthedocs.io/en/latest/docs/intro/citing.html";
+	final static String URL_BUGS       = "https://github.com/qupath/qupath/issues";
+	final static String URL_FORUM      = "https://forum.image.sc/tags/qupath";
+	final static String URL_SOURCE     = "https://github.com/qupath/qupath";
 
 	
 	
-	private MenuBar createMenuBar() {
-		
-//		// Create the structure of the main menubar
-//		var menus = Arrays.asList(
-//				"File", "Edit", "Tools", "View", "Objects", "TMA", "Automate", "Analyze", "Classify", "Extensions", "Help"
-//				).stream()
-//				.map(m -> new MenuItem(m))
-//				.collect(Collectors.toCollection(ArrayList::new));
-		
+	
+	private Menu createRecentProjectsMenu() {
 		
 		// Create a recent projects list
 		ObservableList<URI> recentProjects = PathPrefs.getRecentProjectList();
 		// TODO: ADD RECENT ITEMS!!!
 		Menu menuRecent = MenuTools.createMenu("Recent projects...");
 		
-		
-		// Create a File menu
-		Menu menuFile = MenuTools.createMenu("File");
-		
-		menuFile.setOnMenuValidation(e -> {
+		menuRecent.setOnMenuValidation(e -> {
 			menuRecent.getItems().clear();
 			for (URI uri : recentProjects) {
 				if (uri == null)
@@ -3810,52 +3171,11 @@ public class QuPathGUI {
 			}
 		});
 		
-		
-		// Create Edit menu
-		Menu menuEdit = MenuTools.createMenu("Edit");
-
-		// Create Tools menu
-		Menu menuTools = MenuTools.createMenu("Tools");
-		
-		// Create View menu
-		Menu menuView = MenuTools.createMenu("View");
-		
-		Menu menuObjects = MenuTools.createMenu("Objects");
-		
-		Menu menuTMA = MenuTools.createMenu("TMA");
-		
-		Menu menuMeasure = MenuTools.createMenu("Measure");
-		
-		// Try to load a script editor
-		Menu menuAutomate = MenuTools.createMenu("Automate");
-		
-		// Add some plugins
-		Menu menuAnalysis = MenuTools.createMenu("Analyze");
-
-		// Try to load classifiers
-		Menu menuClassifiers = MenuTools.createMenu("Classify");
-		
-		Menu menuHelp = MenuTools.createMenu("Help");
-		
-		// Add all to menubar
-		var menubar = addToMenuBar(
-				getMenuBar(),
-				menuFile,
-				menuEdit,
-				menuTools,
-				menuView,
-				menuObjects,
-				menuTMA,
-				menuMeasure,
-				menuAutomate,
-				menuAnalysis,
-				menuClassifiers,
-				menuHelp
-				);
-		
-		installActions(menubar.getMenus(), actions);
-		return menubar;
+		return menuRecent;
 	}
+	
+	
+	
 	
 	
 	public Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final String arg) {
@@ -3977,57 +3297,25 @@ public class QuPathGUI {
 	}
 	
 
-	public Action createCommandAction(final PathCommand command, final String name, final Node icon, final KeyCombination accelerator) {
-		var action = ActionTools.actionBuilder(name, e -> command.run())
-				.accelerator(accelerator)
-				.graphic(icon)
-				.build();
-		return registerAccelerator(action);
-	}
-	
-	public Action createCommandAction(final PathCommand command, final String name) {
-		return createCommandAction(command, name, (Node)null, null);
-	}
-	
-	public Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name) {
-		return createSelectableCommandAction(property, name, (Node)null, null);
-	}
-
-	public Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final Node icon, final KeyCombination accelerator) {
-		var action = ActionTools.actionBuilder()
-			.text(name)
-			.selected(property)
-			.selectable(true)
-			.accelerator(accelerator)
-			.graphic(icon)
-			.build();
-		return registerAccelerator(action);
-	}
-	
 	private Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final PathIconFactory.PathIcons icon, final KeyCombination accelerator) {
-		return createSelectableCommandAction(property, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, icon), accelerator);
+		return ActionTools.createSelectableAction(property, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, icon), accelerator);
 	}
 	
 	private Action createToolAction(final PathTool tool, final KeyCombination accelerator) {
-		  var action = createSelectableCommandAction(new SelectableItemWrapper<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), accelerator);
+		  var action = createSelectableCommandAction(new SelectionManager<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), accelerator);
 		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || selectedToolLocked.get(), selectedToolLocked, tools));
 		  return action;
 	}
 
-	private <T> Action createSelectableCommandAction(final SelectableItemWrapper<T> command, final String name, final Node icon, final KeyCombination accelerator) {
+	private static <T> Action createSelectableCommandAction(final SelectionManager<T> command, final String name, final Node icon, final KeyCombination accelerator) {
 		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
 				.text(name)
 				.accelerator(accelerator)
 				.selectable(true)
 				.selected(command.selectedProperty())
-//				.selected(command.isSelected())
 				.graphic(icon)
 				.build();
-//		action.selectedProperty().addListener(e -> {
-//			command.setSelected(action.isSelected());
-//		});
-//		action.setSelected(command.isSelected());
-		return registerAccelerator(action);
+		return action;
 	}
 
 	/**
@@ -4085,7 +3373,7 @@ public class QuPathGUI {
 	public boolean installTool(PathTool tool) {
 		if (tool == null || tools.contains(tool))
 			return false;
-		// Keep the points tool last (since it is kind
+		// Keep the points tool last
 		int ind = tools.indexOf(PathTools.POINTS);
 		if (ind < 0)
 			tools.add(tool);
@@ -4368,12 +3656,6 @@ public class QuPathGUI {
 		return imageDataProperty;
 	}
 	
-	public ObservableValue<PathObjectHierarchy> hierarchyProperty() {
-		return Bindings.createObjectBinding(() -> {
-			var imageData = imageDataProperty.getValue();
-			return imageData == null ? null : imageData.getHierarchy();
-		}, imageDataProperty());
-	}
 	
 	private void fireImageDataChangedEvent(final ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {		
 		

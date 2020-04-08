@@ -30,7 +30,6 @@ import java.io.File;
 import javafx.beans.value.ObservableValue;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
@@ -47,7 +46,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  * @author Pete Bankhead
  *
  */
-public class TMAExporterCommand implements PathCommand {
+public class TMAExporterCommand implements Runnable {
 	
 	final private ObservableValue<? extends QuPathViewer> viewerValue;
 	private File dirPrevious;

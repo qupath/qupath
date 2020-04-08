@@ -27,7 +27,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.value.ObservableValue;
 import javafx.util.Duration;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**
@@ -36,7 +35,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * @author Pete Bankhead
  *
  */
-public class ZoomCommand implements PathCommand {
+public class ZoomCommand implements Runnable {
 	
 	private ObservableValue<? extends QuPathViewer> viewerValue;
 	private int zoomAmount;

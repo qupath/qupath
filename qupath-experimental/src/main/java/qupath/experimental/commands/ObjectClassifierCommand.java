@@ -103,7 +103,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.ClassificationPieChart;
 import qupath.lib.gui.tools.PaneTools;
@@ -135,7 +134,7 @@ import qupath.opencv.ml.objects.features.FeatureExtractors;
  * @author Pete Bankhead
  *
  */
-public class ObjectClassifierCommand implements PathCommand {
+public class ObjectClassifierCommand implements Runnable {
 	
 	final private static String name = "Train object classifier";
 	

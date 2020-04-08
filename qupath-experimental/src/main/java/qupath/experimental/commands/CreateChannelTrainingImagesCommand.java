@@ -12,7 +12,6 @@ import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageChannel;
@@ -30,7 +29,7 @@ import qupath.lib.roi.ROIs;
  * @author Pete Bankhead
  *
  */
-public class CreateChannelTrainingImagesCommand implements PathCommand {
+public class CreateChannelTrainingImagesCommand implements Runnable {
 	
 	private String title = "Create training images";
 	private QuPathGUI qupath;

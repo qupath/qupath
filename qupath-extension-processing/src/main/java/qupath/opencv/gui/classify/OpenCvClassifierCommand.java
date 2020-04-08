@@ -32,7 +32,6 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.panels.classify.ClassifierBuilderPanel;
@@ -52,7 +51,7 @@ import qupath.opencv.classify.SVMClassifier;
  * @author Pete Bankhead
  *
  */
-public class OpenCvClassifierCommand implements PathCommand {
+public class OpenCvClassifierCommand implements Runnable {
 	
 	final private static String name = "Create detection classifier";
 	

@@ -13,7 +13,6 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierPane;
@@ -28,7 +27,7 @@ import qupath.lib.gui.tools.PaneTools;
  * @author Pete Bankhead
  *
  */
-public class PixelClassifierLoadCommand implements PathCommand {
+public class PixelClassifierLoadCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	

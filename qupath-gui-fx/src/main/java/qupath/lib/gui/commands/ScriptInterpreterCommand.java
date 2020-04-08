@@ -85,7 +85,6 @@ import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import jfxtras.scene.layout.GridPane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.ObjectTreeBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -99,7 +98,7 @@ import qupath.lib.images.ImageData;
  * @author Pete Bankhead
  *
  */
-public class ScriptInterpreterCommand implements PathCommand {
+public class ScriptInterpreterCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ScriptInterpreterCommand.class);
 

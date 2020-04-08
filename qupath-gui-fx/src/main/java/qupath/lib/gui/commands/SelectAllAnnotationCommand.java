@@ -21,13 +21,12 @@
  * #L%
  */
 
-package qupath.lib.gui.commands.scriptable;
+package qupath.lib.gui.commands;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.value.ObservableValue;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -46,7 +45,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class SelectAllAnnotationCommand implements PathCommand {
+public class SelectAllAnnotationCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(SelectAllAnnotationCommand.class);
 	

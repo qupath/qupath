@@ -1082,7 +1082,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	//	}
 
 
-	public void setMode(PathTool tool) {
+	public void setActiveTool(PathTool tool) {
 		logger.trace("Setting tool {} for {}", tool, this);
 		var activeTool = mode.get();
 		if (activeTool != null)

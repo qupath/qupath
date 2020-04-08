@@ -111,7 +111,6 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.dialogs.ProjectDialogs;
@@ -496,7 +495,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createSaveAction("Save As...", true),
 				null,
 				createRevertAction("Revert/Refresh"),
-				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(autoRefreshFiles, "Auto refresh files")),
+				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(autoRefreshFiles, "Auto refresh files")),
 				null,
 				createCloseAction("Close script")
 //				null,
@@ -577,10 +576,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
-				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
-				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
-				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(outputScriptStartTime, "Log script time")),
-				ActionTools.getActionCheckBoxMenuItem(qupath.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
+				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
+				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Send output to log")),
+				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
+				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console"))
 				);
 		menubar.getMenus().add(menuRun);
 
@@ -718,7 +717,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		context.setWriter(new ScriptConsoleWriter(console, false));
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
 		
-		LoggingAppender.getInstance().addTextApplendableFX(console);
+		LoggingAppender.getInstance().addTextAppendableFX(console);
 		long startTime = System.currentTimeMillis();
 		if (outputScriptStartTime.get())
 			logger.info("Starting script at {}", new Date(startTime));
@@ -2123,7 +2122,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	
-	class ScriptFindCommand implements PathCommand {
+	class ScriptFindCommand implements Runnable {
 		
 		private Dialog<Void> dialog;
 		private TextField tfFind = new TextField();

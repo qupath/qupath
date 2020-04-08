@@ -28,7 +28,6 @@ import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.panels.classify.PathClassifierPanel;
 
 /**
@@ -37,7 +36,7 @@ import qupath.lib.gui.panels.classify.PathClassifierPanel;
  * @author Pete Bankhead
  *
  */
-public class LoadClassifierCommand implements PathCommand {
+public class LoadClassifierCommand implements Runnable {
 	
 	final private QuPathGUI qupath;
 	

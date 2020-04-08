@@ -538,4 +538,31 @@ public class ActionTools {
 		return includeAction(button, action);
 	}
 
+	public static Action createSelectableAction(final ObservableValue<Boolean> property, final String name, final Node icon, final KeyCombination accelerator) {
+		var action = actionBuilder()
+			.text(name)
+			.selected(property)
+			.selectable(true)
+			.accelerator(accelerator)
+			.graphic(icon)
+			.build();
+		return action;
+	}
+
+	public static Action createSelectableAction(final ObservableValue<Boolean> property, final String name) {
+		return createSelectableAction(property, name, (Node)null, null);
+	}
+
+	public static Action createAction(final Runnable command, final String name, final Node icon, final KeyCombination accelerator) {
+		var action = actionBuilder(name, e -> command.run())
+				.accelerator(accelerator)
+				.graphic(icon)
+				.build();
+		return action;
+	}
+
+	public static Action createAction(final Runnable command, final String name) {
+		return createAction(command, name, (Node)null, null);
+	}
+
 }

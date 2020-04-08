@@ -25,7 +25,6 @@ package qupath.lib.gui.commands;
 
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tools.CommandFinderTools;
 
 /**
@@ -37,7 +36,7 @@ import qupath.lib.gui.tools.CommandFinderTools;
  * @author Pete Bankhead
  *
  */
-public class CommandListDisplayCommand implements PathCommand {
+public class CommandListDisplayCommand implements Runnable {
 
 	private QuPathGUI qupath;
 	
@@ -56,8 +55,6 @@ public class CommandListDisplayCommand implements PathCommand {
 			dialog = CommandFinderTools.createCommandFinderDialog(qupath);
 		}
 		dialog.show();
-//		qupath.getMenuBar().setUseSystemMenuBar(true);
-//		textField.requestFocus();
 	}
 		
 }

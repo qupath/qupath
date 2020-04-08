@@ -37,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.ProjectImageEntry;
@@ -48,7 +47,7 @@ import qupath.lib.projects.Projects;
  * 
  * @author Pete Bankhead
  */
-public class ProjectExportImageListCommand implements PathCommand {
+public class ProjectExportImageListCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProjectExportImageListCommand.class);
 	

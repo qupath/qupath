@@ -71,7 +71,6 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -97,7 +96,7 @@ import qupath.lib.projects.ProjectImageEntry;
  * 
  * @author Pete Bankhead
  */
-public class ProjectImportImagesCommand implements PathCommand {
+public class ProjectImportImagesCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProjectImportImagesCommand.class);
 	

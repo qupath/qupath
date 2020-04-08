@@ -285,7 +285,6 @@ public class Dialogs {
 	 * @param defaultChoice initial selected option
 	 * @return chosen option, or {@code null} if the user cancels the dialog
 	 */
-	@SuppressWarnings("unchecked")
 	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);

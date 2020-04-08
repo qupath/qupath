@@ -40,7 +40,6 @@ import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
@@ -65,7 +64,7 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 
 // TODO: Save current image(s)?
-public class MeasurementExportCommand implements PathCommand {
+public class MeasurementExportCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	private final static Logger logger = LoggerFactory.getLogger(MeasurementExportCommand.class);

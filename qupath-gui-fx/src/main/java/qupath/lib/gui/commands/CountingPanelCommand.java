@@ -53,7 +53,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.CountingPanel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -72,7 +71,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * @author Pete Bankhead
  *
  */
-public class CountingPanelCommand implements PathCommand, ChangeListener<ImageData<BufferedImage>> {
+public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<BufferedImage>> {
 
 	final private static Logger logger = LoggerFactory.getLogger(CountingPanelCommand.class);
 	

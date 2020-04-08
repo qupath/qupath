@@ -26,6 +26,7 @@ package qupath.lib.gui.images.stores;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import qupath.lib.awt.common.AwtTools;
@@ -72,6 +73,9 @@ public class ImageRegionStoreHelpers {
 	 * @return The list of requests - identical to the one provided as an input parameter, unless this was null
 	 */
 	public static List<RegionRequest> getTilesToRequest(ImageServer<?> server, Shape clipShape, double downsampleFactor, int zPosition, int tPosition, List<RegionRequest> regions) {
+		
+		if (server == null)
+			return Collections.emptyList();
 
 		var request = RegionRequest.createInstance(server.getPath(), downsampleFactor, AwtTools.getImageRegion(clipShape, zPosition, tPosition));
 		

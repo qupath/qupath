@@ -49,7 +49,6 @@ import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -78,7 +77,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class RigidObjectEditorCommand implements PathCommand, ChangeListener<ImageData<BufferedImage>>, QuPathViewerListener {
+public class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<BufferedImage>>, QuPathViewerListener {
 
 	private final static Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
 	
@@ -161,7 +160,7 @@ public class RigidObjectEditorCommand implements PathCommand, ChangeListener<Ima
 		this.originalObject = pathObject;
 		
 		
-		viewer.setMode(null);
+		viewer.setActiveTool(null);
 		qupath.setToolSwitchingEnabled(false);
 		viewer.addViewerListener(this);
 		viewer.getView().addEventHandler(MouseEvent.ANY, mouseListener);
@@ -228,7 +227,7 @@ public class RigidObjectEditorCommand implements PathCommand, ChangeListener<Ima
 		// Update the mode if the viewer is still active
 		qupath.setToolSwitchingEnabled(true);
 		if (viewer == qupath.getViewer())
-			viewer.setMode(qupath.getSelectedTool());
+			viewer.setActiveTool(qupath.getSelectedTool());
 		
 		viewer.getView().removeEventHandler(MouseEvent.ANY, mouseListener);
 		viewer.getCustomOverlayLayers().remove(overlay);

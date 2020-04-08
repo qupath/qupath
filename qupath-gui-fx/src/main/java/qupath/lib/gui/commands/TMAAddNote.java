@@ -29,7 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -41,7 +40,7 @@ import qupath.lib.objects.TMACoreObject;
  * @author Pete Bankhead
  *
  */
-public class TMAAddNote implements PathCommand {
+public class TMAAddNote implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(TMAAddNote.class);
 	

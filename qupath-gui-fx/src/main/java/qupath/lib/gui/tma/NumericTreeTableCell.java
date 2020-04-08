@@ -21,32 +21,41 @@
  * #L%
  */
 
-package qupath.lib.gui.commands;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package qupath.lib.gui.tma;
 
-import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.prefs.PathPrefs;
+import javafx.geometry.Pos;
+import javafx.scene.control.TreeTableCell;
+import qupath.lib.common.GeneralTools;
 
 /**
- * Command to reset all preferences in PathPrefs to their default states.
+ * A TableCell to display numbers in a formatted way, with decimal places adjusted according to magnitude.
  * 
  * @author Pete Bankhead
  *
+ * @param <T>
  */
-public class ResetPreferencesCommand implements PathCommand {
-	
-	private static Logger logger = LoggerFactory.getLogger(ResetPreferencesCommand.class);
+class NumericTreeTableCell<T> extends TreeTableCell<T, Number> {
 
 	@Override
-	public void run() {
-		if (Dialogs.showConfirmDialog("Reset Preferences", "Do you want to reset all custom preferences?\n\nYou may have to restart QuPath to see all changes.")) {
-			PathPrefs.resetPreferences();
+	protected void updateItem(Number item, boolean empty) {
+		super.updateItem(item, empty);
+		if (item == null || empty) {
+			setText(null);
+			setStyle("");
+		} else {
+			setAlignment(Pos.CENTER);
+			if (Double.isNaN(item.doubleValue()))
+				setText("-");
+			else {
+				if (item.doubleValue() >= 1000)
+					setText(GeneralTools.formatNumber(item.doubleValue(), 1));
+				else if (item.doubleValue() >= 10)
+					setText(GeneralTools.formatNumber(item.doubleValue(), 2));
+				else
+					setText(GeneralTools.formatNumber(item.doubleValue(), 3));
+			}
 		}
-		else
-			logger.info("Reset preferences command skipped!");
 	}
 
 }

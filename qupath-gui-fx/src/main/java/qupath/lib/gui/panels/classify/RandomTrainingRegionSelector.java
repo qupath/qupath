@@ -64,7 +64,6 @@ import javafx.util.Callback;
 import qupath.lib.common.ColorTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -109,7 +108,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class RandomTrainingRegionSelector implements PathCommand {
+public class RandomTrainingRegionSelector implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(RandomTrainingRegionSelector.class);
 	

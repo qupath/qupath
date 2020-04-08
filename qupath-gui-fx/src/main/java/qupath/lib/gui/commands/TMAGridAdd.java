@@ -28,8 +28,6 @@ import java.util.List;
 
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -46,7 +44,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
  * @author Pete Bankhead
  *
  */
-public class TMAGridAdd implements PathCommand {
+public class TMAGridAdd implements Runnable {
 	
 	public static enum TMAAddType {ROW_AFTER, ROW_BEFORE, COLUMN_AFTER, COLUMN_BEFORE};
 	

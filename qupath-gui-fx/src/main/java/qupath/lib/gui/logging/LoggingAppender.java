@@ -108,7 +108,7 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	 * Register a {@link TextAppendable} that will be accept logging events and be updated on the JavaFX Application thread.
 	 * @param component the appendable to add
 	 */
-	public synchronized void addTextApplendableFX(final TextAppendable component) {
+	public synchronized void addTextAppendableFX(final TextAppendable component) {
 		textComponentsFX.add(component);
 		isActive = true;
 	}

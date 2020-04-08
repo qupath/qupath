@@ -83,8 +83,8 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -102,7 +102,7 @@ import qupath.lib.regions.ImageRegion;
  * @author Pete Bankhead
  *
  */
-public class MiniViewerCommand implements PathCommand {
+public class MiniViewerCommand implements Runnable {
 
 	private QuPathGUI qupath;
 	
@@ -200,12 +200,12 @@ public class MiniViewerCommand implements PathCommand {
 
 		ContextMenu popup = new ContextMenu();
 		popup.getItems().addAll(
-				ActionUtils.createCheckMenuItem(qupath.createSelectableCommandAction(manager.synchronizeToMainViewer, "Synchronize to main viewer")),
+				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(manager.synchronizeToMainViewer, "Synchronize to main viewer")),
 				menuZoom,
 				new SeparatorMenuItem(),
-				ActionUtils.createCheckMenuItem(qupath.createSelectableCommandAction(manager.showCursor, "Show cursor")),
-				ActionUtils.createCheckMenuItem(qupath.createSelectableCommandAction(manager.showChannelNames, "Show channel names")),
-				ActionUtils.createCheckMenuItem(qupath.createSelectableCommandAction(manager.showOverlays, "Show overlays"))
+				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(manager.showCursor, "Show cursor")),
+				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(manager.showChannelNames, "Show channel names")),
+				ActionUtils.createCheckMenuItem(ActionTools.createSelectableAction(manager.showOverlays, "Show overlays"))
 				);
 
 		group.selectToggle(radioItems.get(2));
@@ -512,8 +512,13 @@ public class MiniViewerCommand implements PathCommand {
 			void updateThumbnail() {
 				if (renderer == null)
 					imgRGB = mainViewer.getRGBThumbnail();
-				else
-					imgRGB = renderer.applyTransforms(mainViewer.getThumbnail(), imgRGB);
+				else {
+					var imgThumbnail = mainViewer.getThumbnail();
+					if (imgThumbnail == null)
+						imgRGB = null;
+					else
+						imgRGB = renderer.applyTransforms(mainViewer.getThumbnail(), imgRGB);
+				}
 			}
 			
 			void repaint() {

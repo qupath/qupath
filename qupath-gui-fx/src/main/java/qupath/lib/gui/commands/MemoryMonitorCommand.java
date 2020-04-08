@@ -24,7 +24,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -48,7 +47,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  *
  * @author Pete Bankhead
  */
-public class MemoryMonitorCommand implements PathCommand {
+public class MemoryMonitorCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(MemoryMonitorCommand.class);
 	

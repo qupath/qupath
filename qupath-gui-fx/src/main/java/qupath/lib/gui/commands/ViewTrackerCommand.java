@@ -27,7 +27,6 @@ import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.recording.ViewTrackerControlPanel;
 
 /**
@@ -36,7 +35,7 @@ import qupath.lib.gui.viewer.recording.ViewTrackerControlPanel;
  * @author Pete Bankhead
  *
  */
-public class ViewTrackerCommand implements PathCommand {
+public class ViewTrackerCommand implements Runnable {
 
 	private QuPathGUI qupath;
 	

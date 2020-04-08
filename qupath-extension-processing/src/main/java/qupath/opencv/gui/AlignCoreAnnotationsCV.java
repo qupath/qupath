@@ -46,7 +46,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -72,7 +71,7 @@ import qupath.opencv.tools.OpenCVTools;
  * @author Pete Bankhead
  *
  */
-public class AlignCoreAnnotationsCV implements PathCommand {
+public class AlignCoreAnnotationsCV implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(AlignCoreAnnotationsCV.class);
 	

@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.scene.control.Menu;
 import javafx.scene.control.SeparatorMenuItem;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.icons.PathIconFactory;
@@ -86,7 +87,7 @@ public class OpenCVExtension implements QuPathExtension {
 		MenuTools.addMenuItems(
 				menuClassify,
 				null,
-				qupath.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier"));
+				ActionTools.createAction(new OpenCvClassifierCommand(qupath), "Create detection classifier"));
 		
 		
 //		// Add the Wand tool

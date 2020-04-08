@@ -27,7 +27,6 @@ import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.panels.WorkflowCommandLogView;
 
 /**
@@ -36,7 +35,7 @@ import qupath.lib.gui.panels.WorkflowCommandLogView;
  * @author Pete Bankhead
  *
  */
-public class WorkflowDisplayCommand implements PathCommand {
+public class WorkflowDisplayCommand implements Runnable {
 
 	private QuPathGUI qupath;
 	private Stage dialog;

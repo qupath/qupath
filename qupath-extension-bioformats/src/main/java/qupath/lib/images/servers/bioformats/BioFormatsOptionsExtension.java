@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -70,7 +71,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		
 		MenuTools.addMenuItems(
 				qupath.getMenu("File>Export images...", true),
-				qupath.createCommandAction(new OMEPyramidWriterCommand(qupath), "OME TIFF"));
+				ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF"));
 		
 		
 		

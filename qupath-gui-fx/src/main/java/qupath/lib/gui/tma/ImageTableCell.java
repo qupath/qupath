@@ -22,7 +22,7 @@
  */
 
 
-package qupath.lib.gui.tma.cells;
+package qupath.lib.gui.tma;
 
 import org.controlsfx.control.PopOver;
 
@@ -50,7 +50,7 @@ import qupath.lib.gui.tools.GuiTools;
  * @author Pete Bankhead
  *
  */
-public class ImageTableCell extends TreeTableCell<TMAEntry, TMAEntry> {
+class ImageTableCell extends TreeTableCell<TMAEntry, TMAEntry> {
 		
 		final private Canvas canvas = new Canvas();
 		

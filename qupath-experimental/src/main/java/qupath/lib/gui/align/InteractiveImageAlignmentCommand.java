@@ -1,7 +1,6 @@
 package qupath.lib.gui.align;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 
 /**
@@ -10,7 +9,7 @@ import qupath.lib.gui.dialogs.Dialogs;
  * @author Pete Bankhead
  *
  */
-public class InteractiveImageAlignmentCommand implements PathCommand {
+public class InteractiveImageAlignmentCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	

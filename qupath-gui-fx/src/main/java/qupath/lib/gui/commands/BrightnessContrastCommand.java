@@ -95,7 +95,6 @@ import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.HistogramData;
@@ -115,7 +114,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
  * @author Pete Bankhead
  *
  */
-public class BrightnessContrastCommand implements PathCommand, ChangeListener<ImageData<BufferedImage>>, PropertyChangeListener {
+public class BrightnessContrastCommand implements Runnable, ChangeListener<ImageData<BufferedImage>>, PropertyChangeListener {
 	
 	private static Logger logger = LoggerFactory.getLogger(BrightnessContrastCommand.class);
 	

@@ -14,7 +14,6 @@ import javafx.scene.control.Dialog;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.panels.ProjectBrowser;
@@ -29,7 +28,7 @@ import qupath.lib.projects.ProjectImageEntry;
  * @author Pete Bankhead
  *
  */
-public class SplitProjectTrainingCommand implements PathCommand {
+public class SplitProjectTrainingCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(SplitProjectTrainingCommand.class);
 	

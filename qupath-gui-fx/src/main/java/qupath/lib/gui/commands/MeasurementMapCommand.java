@@ -27,7 +27,6 @@ import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.panels.MeasurementMapPanel;
 import qupath.lib.gui.viewer.OverlayOptions;
 
@@ -38,7 +37,7 @@ import qupath.lib.gui.viewer.OverlayOptions;
  * @author Pete Bankhead
  *
  */
-public class MeasurementMapCommand implements PathCommand {
+public class MeasurementMapCommand implements Runnable {
 
 	private QuPathGUI qupath;
 	private Stage dialog = null;

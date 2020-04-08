@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import javafx.stage.Stage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tma.entries.DefaultTMAEntry;
 import qupath.lib.gui.tma.entries.TMAEntry;
 import qupath.lib.images.ImageData;
@@ -64,7 +63,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class TMAExplorer implements PathCommand {
+public class TMAExplorer implements Runnable {
 
 	private static Logger logger = LoggerFactory.getLogger(TMAExplorer.class);
 

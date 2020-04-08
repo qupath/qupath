@@ -49,14 +49,13 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 
 /**
  * QuPath command to display &amp; open sample scripts.
  * 
  * @author Pete Bankhead
  */
-public class SampleScriptLoader implements PathCommand {
+public class SampleScriptLoader implements Runnable {
 
 	final private static Logger logger = LoggerFactory.getLogger(SampleScriptLoader.class);
 

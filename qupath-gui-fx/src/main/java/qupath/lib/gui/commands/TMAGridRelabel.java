@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.commands.scriptable;
+package qupath.lib.gui.commands;
 
 import java.util.Arrays;
 

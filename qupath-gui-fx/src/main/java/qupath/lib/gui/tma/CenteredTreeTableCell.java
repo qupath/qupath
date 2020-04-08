@@ -21,18 +21,35 @@
  * #L%
  */
 
-package qupath.lib.gui.commands.interfaces;
+package qupath.lib.gui.tma;
+
+import javafx.geometry.Pos;
+import javafx.scene.control.TreeTableCell;
 
 /**
- * Minimal interface for a command that can be run.
- * <p>
- * Depending upon what GUI framework is used, this may be wrapped in (for example) an Action or called from an event handler.
+ * A TableCell with centered text.
  * 
  * @author Pete Bankhead
  *
+ * @param <S>
+ * @param <T>
  */
-public interface PathCommand {
-	
-	public void run();
+class CenteredTreeTableCell<S, T> extends TreeTableCell<S, T> {
+
+	public CenteredTreeTableCell() {
+		super();
+		setAlignment(Pos.CENTER);
+	}
+
+	@Override
+	protected void updateItem(T item, boolean empty) {
+		super.updateItem(item, empty);
+		if (item == null || empty) {
+			setText(null);
+			setGraphic(null);
+			return;
+		}
+		setText(item.toString());
+	}
 
 }

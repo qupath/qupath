@@ -6,7 +6,6 @@ import java.util.Arrays;
 import qupath.lib.extension.svg.SvgTools;
 import qupath.lib.extension.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
@@ -17,7 +16,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class SvgExportCommand implements PathCommand {
+public class SvgExportCommand implements Runnable {
 	
 	/**
 	 * Export methods for SVG.

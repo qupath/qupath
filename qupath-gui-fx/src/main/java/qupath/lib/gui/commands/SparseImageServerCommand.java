@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import javafx.concurrent.Task;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
@@ -36,7 +35,7 @@ import qupath.lib.roi.RectangleROI;
  * 
  * @author Pete Bankhead
  */
-public class SparseImageServerCommand implements PathCommand {
+public class SparseImageServerCommand implements Runnable {
 	
 	private static Logger logger = LoggerFactory.getLogger(SparseImageServerCommand.class);
 	

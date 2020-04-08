@@ -1,7 +1,6 @@
 package qupath.experimental.commands;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassifierPane;
 
@@ -11,7 +10,7 @@ import qupath.lib.gui.ml.PixelClassifierPane;
  * @author Pete Bankhead
  *
  */
-public class PixelClassifierCommand implements PathCommand {
+public class PixelClassifierCommand implements Runnable {
 
 	@Override
 	public void run() {

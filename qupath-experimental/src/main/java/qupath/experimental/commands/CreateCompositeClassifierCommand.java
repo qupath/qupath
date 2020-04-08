@@ -23,7 +23,6 @@ import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
@@ -33,7 +32,7 @@ import qupath.lib.projects.Project;
  * 
  * @author Pete Bankhead
  */
-public class CreateCompositeClassifierCommand implements PathCommand {
+public class CreateCompositeClassifierCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(CreateCompositeClassifierCommand.class);
 	

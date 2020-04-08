@@ -49,7 +49,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tools.GuiTools;
 
 /**
@@ -58,7 +57,7 @@ import qupath.lib.gui.tools.GuiTools;
  * @author Pete Bankhead
  *
  */
-public class ShowLicensesCommand implements PathCommand {
+public class ShowLicensesCommand implements Runnable {
 
 	final private static Logger logger = LoggerFactory.getLogger(ShowLicensesCommand.class);
 

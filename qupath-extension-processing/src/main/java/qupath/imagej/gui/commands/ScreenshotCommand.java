@@ -35,7 +35,6 @@ import javax.swing.SwingUtilities;
 
 import qupath.imagej.gui.IJExtension;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ServerTools;
@@ -46,7 +45,7 @@ import qupath.lib.images.servers.ServerTools;
  * @author Pete Bankhead
  *
  */
-public class ScreenshotCommand implements PathCommand {
+public class ScreenshotCommand implements Runnable {
 
 	private QuPathGUI qupath;
 

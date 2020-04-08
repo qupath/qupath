@@ -21,32 +21,41 @@
  * #L%
  */
 
-package qupath.lib.gui.commands.interfaces;
+package qupath.lib.gui;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.WeakChangeListener;
+import javafx.beans.value.ChangeListener;
+import javafx.scene.control.ToggleGroup;
 
 /**
- * Helper class for managing items, only one of which may be selected.
+ * Helper class for managing items when only one of them may be selected.
+ * This is similar to a {@link ToggleGroup}, but without a dependency on any GUI components.
  * 
  * @param <T>
  */
-public class SelectableItemWrapper<T> {
+public class SelectionManager<T> {
 
 	final private ObjectProperty<T> selected;
 	final private BooleanProperty itemSelected = new SimpleBooleanProperty();
 	final private T item;
 	
-	public SelectableItemWrapper(final ObjectProperty<T> selected, final T item) {
+	final ChangeListener<T> selectedListener;
+	final ChangeListener<Boolean> itemSelectedListener;
+	
+	public SelectionManager(final ObjectProperty<T> selected, final T item) {
 		this.selected = selected;
 		this.item = item;
-		this.selected.addListener(new WeakChangeListener<>((v, o, n) -> itemSelected.set(n == item)));
-		this.itemSelected.addListener(new WeakChangeListener<>((v, o, n) -> {
+		selectedListener = ((v, o, n) -> {
+			itemSelected.set(n == item);
+		});
+		itemSelectedListener = ((v, o, n) -> {
 			if (n)
 				selected.set(item);
-		}));
+		});
+		this.selected.addListener(selectedListener);
+		this.itemSelected.addListener(itemSelectedListener);
 	}
 
 	public boolean isSelected() {

@@ -35,7 +35,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 
 /**
  * Command to display some basic system info - useful to see memory etc.
@@ -43,7 +42,7 @@ import qupath.lib.gui.commands.interfaces.PathCommand;
  * @author Pete Bankhead
  *
  */
-public class ShowSystemInfoCommand implements PathCommand {
+public class ShowSystemInfoCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ShowSystemInfoCommand.class);
 	

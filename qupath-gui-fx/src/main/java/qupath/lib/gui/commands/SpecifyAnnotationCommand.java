@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.commands.scriptable;
+package qupath.lib.gui.commands;
 
 import java.text.NumberFormat;
 
@@ -45,7 +45,6 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -65,7 +64,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class SpecifyAnnotationCommand implements PathCommand {
+public class SpecifyAnnotationCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	

@@ -49,7 +49,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -61,7 +60,7 @@ import qupath.lib.images.servers.ImageServerProvider;
  * @author Pete Bankhead
  *
  */
-public class ShowInstalledExtensionsCommand implements PathCommand {
+public class ShowInstalledExtensionsCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ShowInstalledExtensionsCommand.class);
 	

@@ -241,13 +241,13 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 		// If we're compositing channels, it's worthwhile to cache RGB tiles for so long as the ImageDisplay remains constant
 //		boolean useDisplayCache = imageDisplay != null && !server.isRGB() && server.nChannels() > 1;
-		boolean useDisplayCache = !server.isRGB() && server.nChannels() > 1 && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION;
+		boolean useDisplayCache = server != null && !server.isRGB() && server.nChannels() > 1 && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION;
 		long displayTimestamp = imageDisplay == null ? 0L : imageDisplay.getLastChangeTimestamp();
 		String displayCachePath = null;
 		if (useDisplayCache) {
 			if (imageDisplay == null)
 				displayCachePath = "RGB::" + server.getPath();
-			else
+			else if (server != null)
 				displayCachePath = server.getPath() + imageDisplay.getUniqueID();
 		}
 

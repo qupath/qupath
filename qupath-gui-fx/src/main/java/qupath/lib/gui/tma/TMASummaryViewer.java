@@ -144,10 +144,6 @@ import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
 import qupath.lib.gui.panels.survival.KaplanMeierDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tma.cells.BasicTableCell;
-import qupath.lib.gui.tma.cells.ImageListCell;
-import qupath.lib.gui.tma.cells.ImageTableCell;
-import qupath.lib.gui.tma.cells.NumericTableCell;
 import qupath.lib.gui.tma.entries.DefaultTMAEntry;
 import qupath.lib.gui.tma.entries.TMAEntry;
 import qupath.lib.gui.tma.entries.TMAImageCache;
@@ -1412,7 +1408,7 @@ public class TMASummaryViewer {
 						return new SimpleDoubleProperty(value);
 					}
 				});
-				column.setCellFactory(c -> new NumericTableCell<>());
+				column.setCellFactory(c -> new NumericTreeTableCell<>());
 				columns.add(column);
 			} else {
 				TreeTableColumn<TMAEntry, Object> column = new TreeTableColumn<>(name);
@@ -1422,7 +1418,7 @@ public class TMASummaryViewer {
 						return new SimpleObjectProperty<>(p.getValue() == null ? null : model.getStringValue(p.getValue().getValue(), name));
 					}
 				});
-				column.setCellFactory(c -> new BasicTableCell<>());
+				column.setCellFactory(c -> new CenteredTreeTableCell<>());
 				columns.add(column);
 			}
 		}

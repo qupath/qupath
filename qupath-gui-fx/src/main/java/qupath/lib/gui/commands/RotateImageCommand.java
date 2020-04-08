@@ -40,7 +40,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.TMACoreObject;
@@ -55,7 +54,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class RotateImageCommand implements PathCommand {
+public class RotateImageCommand implements Runnable {
 
 	final private static Logger logger = LoggerFactory.getLogger(RotateImageCommand.class);
 

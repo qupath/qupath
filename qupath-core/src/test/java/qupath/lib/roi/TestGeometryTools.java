@@ -11,7 +11,6 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 /**
  * Test {@link GeometryTools}. Note that most of the relevant tests for ROI conversion are in {@link TestROIs}.
  */
-@SuppressWarnings("javadoc")
 public class TestGeometryTools {
 	
 	/**

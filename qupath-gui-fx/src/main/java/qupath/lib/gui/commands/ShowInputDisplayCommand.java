@@ -47,7 +47,6 @@ import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 
@@ -59,7 +58,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  *
  * @author Pete Bankhead
  */
-public class ShowInputDisplayCommand implements PathCommand {
+public class ShowInputDisplayCommand implements Runnable {
 
 	private final static Logger logger = LoggerFactory.getLogger(ShowInputDisplayCommand.class);
 

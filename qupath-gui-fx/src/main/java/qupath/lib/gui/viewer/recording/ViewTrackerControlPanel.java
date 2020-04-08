@@ -32,6 +32,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.scene.Node;
 import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.icons.PathIconFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -77,8 +78,8 @@ public class ViewTrackerControlPanel {
 //		ToolBar toolbar = new ToolBar();
 		ViewTrackerPlayback playback = new ViewTrackerPlayback(tracker, viewer);
 		
-		Action actionRecord = qupath.createSelectableCommandAction(tracker.recordingProperty(), "Record", iconRecord, null);
-		Action actionPlayback = qupath.createSelectableCommandAction(playback.playingProperty(), "Play", iconPlay, null);
+		Action actionRecord = ActionTools.createSelectableAction(tracker.recordingProperty(), "Record", iconRecord, null);
+		Action actionPlayback = ActionTools.createSelectableAction(playback.playingProperty(), "Play", iconPlay, null);
 		actionPlayback.setDisabled(tracker.isEmpty());
 		
 		// Can't select one while the other is selected
@@ -115,7 +116,7 @@ public class ViewTrackerControlPanel {
 				ActionUtils.createToggleButton(actionRecord, ActionTextBehavior.HIDE),
 				ActionUtils.createToggleButton(actionPlayback, ActionTextBehavior.HIDE),
 				new Separator(),
-				ActionUtils.createButton(qupath.createCommandAction(new ViewTrackerExportCommand(viewer, tracker), "More..."))
+				ActionUtils.createButton(ActionTools.createAction(new ViewTrackerExportCommand(viewer, tracker), "More..."))
 				);
 		
 //		pane.getChildren().addAll(toolbar);

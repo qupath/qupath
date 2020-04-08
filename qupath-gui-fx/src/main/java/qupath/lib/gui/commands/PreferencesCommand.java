@@ -35,7 +35,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panels.PreferencePanel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -47,7 +46,7 @@ import qupath.lib.gui.tools.PaneTools;
  * @author Pete Bankhead
  *
  */
-public class PreferencesCommand implements PathCommand {
+public class PreferencesCommand implements Runnable {
 	
 	private static Logger logger = LoggerFactory.getLogger(PreferencesCommand.class);
 	

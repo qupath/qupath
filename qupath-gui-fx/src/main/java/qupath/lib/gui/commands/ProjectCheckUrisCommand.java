@@ -51,12 +51,11 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
 
-public class ProjectCheckUrisCommand implements PathCommand {
+public class ProjectCheckUrisCommand implements Runnable {
 	
 	private static int maxRecursiveSearchDepth = 8;
 	

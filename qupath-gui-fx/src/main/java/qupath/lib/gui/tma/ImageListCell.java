@@ -22,7 +22,7 @@
  */
 
 
-package qupath.lib.gui.tma.cells;
+package qupath.lib.gui.tma;
 
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Pos;
@@ -41,7 +41,7 @@ import qupath.lib.gui.tools.GuiTools;
  * @author Pete Bankhead
  *
  */
-public class ImageListCell extends ListCell<TMAEntry> {
+class ImageListCell extends ListCell<TMAEntry> {
 
 	final private TMAImageCache imageCache;
 	

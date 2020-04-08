@@ -51,7 +51,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -75,7 +74,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class ExtractRegionCommand implements PathCommand {
+public class ExtractRegionCommand implements Runnable {
 	
 	private static Logger logger = LoggerFactory.getLogger(ExtractRegionCommand.class);
 	

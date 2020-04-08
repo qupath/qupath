@@ -57,7 +57,6 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -78,7 +77,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class EstimateStainVectorsCommand implements PathCommand {
+public class EstimateStainVectorsCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(EstimateStainVectorsCommand.class);
 	

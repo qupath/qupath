@@ -49,7 +49,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.prefs.PathPrefs;
 
@@ -62,7 +61,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  * @author Pete Bankhead
  *
  */
-public class LogViewerCommand implements PathCommand {
+public class LogViewerCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(LogViewerCommand.class);
 	
@@ -72,7 +71,7 @@ public class LogViewerCommand implements PathCommand {
 	
 	public LogViewerCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		LoggingAppender.getInstance().addTextApplendableFX(text -> textPane.appendText(text));
+		LoggingAppender.getInstance().addTextAppendableFX(text -> textPane.appendText(text));
 	}
 
 	@Override

@@ -52,7 +52,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -69,7 +68,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
  * @author Pete Bankhead
  *
  */
-public class TMAScoreImportCommand implements PathCommand {
+public class TMAScoreImportCommand implements Runnable {
 
 	final private static Logger logger = LoggerFactory.getLogger(TMAScoreImportCommand.class);
 	

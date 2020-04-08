@@ -80,7 +80,6 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
@@ -113,7 +112,7 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  * @author Pete Bankhead
  */
-public class SummaryMeasurementTableCommand implements PathCommand {
+public class SummaryMeasurementTableCommand implements Runnable {
 
 	final private static Logger logger = LoggerFactory.getLogger(SummaryMeasurementTableCommand.class);
 

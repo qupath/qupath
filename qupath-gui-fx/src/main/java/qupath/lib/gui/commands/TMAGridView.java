@@ -83,7 +83,6 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
@@ -103,7 +102,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class TMAGridView implements PathCommand, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
+public class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 	
 	final private static Logger logger = LoggerFactory.getLogger(TMAGridView.class);
 	

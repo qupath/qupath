@@ -19,6 +19,7 @@ import qupath.experimental.commands.SingleMeasurementClassificationCommand;
 import qupath.experimental.commands.SplitProjectTrainingCommand;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -59,36 +60,36 @@ public class ExperimentalExtension implements QuPathExtension {
     	
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Pixel classification", true),
-                qupath.createCommandAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
-                qupath.createCommandAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
-                qupath.createCommandAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)")
+                ActionTools.createAction(new PixelClassifierCommand(), "Train pixel classifier (experimental)", null, new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN)),
+                ActionTools.createAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier (experimental)"),
+                ActionTools.createAction(new SimpleThresholdCommand(qupath), "Create simple thresholder (experimental)")
         );
 
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Object classification", true),
-                qupath.createCommandAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (New!)"),
-                qupath.createCommandAction(new CreateCompositeClassifierCommand(qupath), "Create composite object classifier (New!)"),
-                qupath.createCommandAction(new SingleMeasurementClassificationCommand(qupath), "Create single measurement classifier (New!)"),
-                qupath.createCommandAction(new CellIntensityClassificationCommand(qupath), "Set cell intensity classifications (New!)"),
-                qupath.createCommandAction(new ObjectClassifierCommand(qupath), "Train object classifier (New!)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
+                ActionTools.createAction(new ObjectClassifierLoadCommand(qupath), "Load object classifier (New!)"),
+                ActionTools.createAction(new CreateCompositeClassifierCommand(qupath), "Create composite object classifier (New!)"),
+                ActionTools.createAction(new SingleMeasurementClassificationCommand(qupath), "Create single measurement classifier (New!)"),
+                ActionTools.createAction(new CellIntensityClassificationCommand(qupath), "Set cell intensity classifications (New!)"),
+                ActionTools.createAction(new ObjectClassifierCommand(qupath), "Train object classifier (New!)", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN))
                 );
 
     	MenuTools.addMenuItems(
                 qupath.getMenu("Classify>Extras", true),
-                qupath.createCommandAction(new CreateChannelTrainingImagesCommand(qupath), "Duplicate channel training images")
+                ActionTools.createAction(new CreateChannelTrainingImagesCommand(qupath), "Duplicate channel training images")
                 );
 
     	
         MenuTools.addMenuItems(
                 qupath.getMenu("Analyze", true),
-                qupath.createCommandAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")
+                ActionTools.createAction(new InteractiveImageAlignmentCommand(qupath), "Interactive image alignment (experimental)")
         );
         
     	MenuTools.addMenuItems(
 				qupath.getMenu("Extensions>AI", true),
-				qupath.createCommandAction(new SplitProjectTrainingCommand(qupath), "Split project train/validation/test"),
-				qupath.createCommandAction(new CreateRegionAnnotationsCommand(qupath), "Create region annotations"),
-				qupath.createCommandAction(new ExportTrainingRegionsCommand(qupath), "Export training regions")
+				ActionTools.createAction(new SplitProjectTrainingCommand(qupath), "Split project train/validation/test"),
+				ActionTools.createAction(new CreateRegionAnnotationsCommand(qupath), "Create region annotations"),
+				ActionTools.createAction(new ExportTrainingRegionsCommand(qupath), "Export training regions")
 				);
 
     }

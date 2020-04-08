@@ -64,7 +64,6 @@ import javafx.stage.Modality;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -82,7 +81,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * @author Pete Bankhead
  *
  */
-public class SingleFeatureClassifierCommand implements PathCommand {
+public class SingleFeatureClassifierCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(SingleFeatureClassifierCommand.class);
 	
