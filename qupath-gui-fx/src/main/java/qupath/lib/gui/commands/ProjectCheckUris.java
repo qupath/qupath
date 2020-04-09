@@ -55,41 +55,9 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
 
-public class ProjectCheckUrisCommand implements Runnable {
+class ProjectCheckUris {
 	
 	private static int maxRecursiveSearchDepth = 8;
-	
-	private QuPathGUI qupath;
-	
-	public ProjectCheckUrisCommand(QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-
-	@Override
-	public void run() {
-		var project = qupath.getProject();
-		if (project == null) {
-			Dialogs.showNoProjectError("Check URIs");
-			return;
-		}
-		try {
-			// Show URI manager dialog if we have any missing URIs
-			if (!ProjectCheckUrisCommand.checkURIs(project, false))
-				return;
-		} catch (IOException e) {
-			Dialogs.showErrorMessage("Update URIs", e);
-		}
-	}
-	
-	
-	public static boolean checkURIs(Project<?> project, boolean onlyIfMissing) throws IOException {
-		var manager = new ProjectUriManager(project);
-		if (!onlyIfMissing || manager.countOriginalItems(UriStatus.MISSING) > 0) {
-			return manager.showDialog();
-		}
-		return true;
-	}
-	
 	
 	static class ProjectUriManager {
 		

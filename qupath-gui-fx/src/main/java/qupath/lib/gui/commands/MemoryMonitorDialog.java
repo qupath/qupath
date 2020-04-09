@@ -47,7 +47,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  *
  * @author Pete Bankhead
  */
-public class MemoryMonitorDialog {
+class MemoryMonitorDialog {
 
 
 	private final static Logger logger = LoggerFactory.getLogger(MemoryMonitorDialog.class);

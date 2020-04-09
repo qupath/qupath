@@ -35,7 +35,7 @@ import qupath.lib.regions.RegionRequest;
  *
  * @param <T>
  */
-public interface TileWorker<T> extends RunnableFuture<T> {
+interface TileWorker<T> extends RunnableFuture<T> {
 	
 	/**
 	 * The region that has been requested for this worker to fetch, including downsample.

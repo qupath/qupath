@@ -57,20 +57,11 @@ import qupath.lib.gui.tools.GuiTools;
  * @author Pete Bankhead
  *
  */
-public class ShowLicensesCommand implements Runnable {
+class ShowLicensesCommand {
 
 	final private static Logger logger = LoggerFactory.getLogger(ShowLicensesCommand.class);
 
-	private QuPathGUI qupath;
-
-	public ShowLicensesCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-
-	@Override
-	public void run() {
-
-		logger.trace("Running 'Show licenses' command");
+	public static Stage createLicensesDialog(QuPathGUI qupath) {
 
 		// Create a suitable String to show for QuPath generally
 		StringBuilder sbQuPath = new StringBuilder();
@@ -139,7 +130,7 @@ public class ShowLicensesCommand implements Runnable {
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("Licenses");
 		dialog.setScene(new Scene(tabPane));
-		dialog.show();
+		return dialog;
 	}
 
 
@@ -161,7 +152,7 @@ public class ShowLicensesCommand implements Runnable {
 	 * @param dirBase
 	 * @return
 	 */
-	private Pane createLicenseTreePane(final File dirBase) {
+	private static Pane createLicenseTreePane(final File dirBase) {
 		TreeView<File> tree = new TreeView<>();
 		tree.setRoot(new LicenseFileTreeItem(dirBase));
 		tree.setShowRoot(false);

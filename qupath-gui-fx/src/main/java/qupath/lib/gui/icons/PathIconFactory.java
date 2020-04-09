@@ -74,6 +74,10 @@ public class PathIconFactory {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathIconFactory.class);
 	
+	/**
+	 * Default icons for QuPath commands.
+	 */
+	@SuppressWarnings("javadoc")
 	public static enum PathIcons {	ANNOTATIONS("\ue901", PathPrefs.colorDefaultObjectsProperty()),
 									ANNOTATIONS_FILL("\ue900", PathPrefs.colorDefaultObjectsProperty()),
 									
@@ -112,7 +116,6 @@ public class PathIconFactory {
 									POINTS_TOOL("\ue913", PathPrefs.colorDefaultObjectsProperty()),
 									POLYGON_TOOL("\ue914", PathPrefs.colorDefaultObjectsProperty()),
 									
-									// TODO: Update to have a unique icon!
 									POLYLINE_TOOL("V", PathPrefs.colorDefaultObjectsProperty()),
 									
 									PLAYBACK_RECORD("\ue915"),
@@ -200,7 +203,13 @@ public class PathIconFactory {
 		
 	}
 	
-									
+	/**
+	 * Create an icon depicting a PathObject.
+	 * @param pathObject the region of interest
+	 * @param width the preferred icon width
+	 * @param height the preferred icon height
+	 * @return a node that may be used as an icon resembling the shapes of an object's ROI(s)
+	 */							
 	public static Node createPathObjectIcon(PathObject pathObject, int width, int height) {
 		var color = ColorToolsFX.getDisplayedColor(pathObject);
 		var roi = pathObject.getROI();
@@ -226,23 +235,31 @@ public class PathIconFactory {
 	
 	private static Map<ROI, Path> pathCache = new WeakHashMap<>();
 	
-	public static Node createROIIcon(ROI pathROI, int width, int height, Color color) {
+	/**
+	 * Create an icon depicting a ROI.
+	 * @param roi the region of interest
+	 * @param width the preferred icon width
+	 * @param height the preferred icon height
+	 * @param color the icon (line) color
+	 * @return a node that may be used as an icon resembling the shape of the ROI
+	 */
+	public static Node createROIIcon(ROI roi, int width, int height, Color color) {
 				
-		double scale = Math.min(width/pathROI.getBoundsWidth(), height/pathROI.getBoundsHeight());
-		if (pathROI instanceof RectangleROI) {
-			Rectangle rect = new Rectangle(0, 0, pathROI.getBoundsWidth()*scale, pathROI.getBoundsHeight()*scale);
+		double scale = Math.min(width/roi.getBoundsWidth(), height/roi.getBoundsHeight());
+		if (roi instanceof RectangleROI) {
+			Rectangle rect = new Rectangle(0, 0, roi.getBoundsWidth()*scale, roi.getBoundsHeight()*scale);
 			rect.setStroke(color);
 			rect.setFill(null);
 			return rect;
-		} else if (pathROI instanceof EllipseROI) {
-			double w = pathROI.getBoundsWidth()*scale;
-			double h = pathROI.getBoundsHeight()*scale;
+		} else if (roi instanceof EllipseROI) {
+			double w = roi.getBoundsWidth()*scale;
+			double h = roi.getBoundsHeight()*scale;
 			Ellipse ellipse = new Ellipse(w/2, height/2, w/2, h/2);
 			ellipse.setStroke(color);
 			ellipse.setFill(null);
 			return ellipse;
-		} else if (pathROI instanceof LineROI) {
-			LineROI l = (LineROI)pathROI;
+		} else if (roi instanceof LineROI) {
+			LineROI l = (LineROI)roi;
 			double xMin = Math.min(l.getX1(), l.getX2());
 			double yMin = Math.min(l.getY1(), l.getY2());
 			Line line = new Line(
@@ -254,7 +271,7 @@ public class PathIconFactory {
 			line.setStroke(color);
 			line.setFill(null);
 			return line;
-		} else if (pathROI.isPoint()) {
+		} else if (roi.isPoint()) {
 			// Just show generic points
 			Node node = PathIconFactory.createNode(Math.min(width, height), Math.min(width, height), PathIconFactory.PathIcons.POINTS_TOOL);	
 			if (node instanceof Glyph && !((Glyph) node).textFillProperty().isBound()) {
@@ -262,16 +279,16 @@ public class PathIconFactory {
 			}
 			return node;
 		} else {
-			var path = pathCache.getOrDefault(pathROI, null);
+			var path = pathCache.getOrDefault(roi, null);
 			if (path == null) {
-				var shape = pathROI.isArea() ? RoiTools.getArea(pathROI) : RoiTools.getShape(pathROI);
+				var shape = roi.isArea() ? RoiTools.getArea(roi) : RoiTools.getShape(roi);
 				if (shape != null) {
 					var transform = new AffineTransform();
-					transform.translate(-pathROI.getBoundsX(), -pathROI.getBoundsY());
+					transform.translate(-roi.getBoundsX(), -roi.getBoundsY());
 					transform.scale(scale, scale);
 					PathIterator iterator = shape.getPathIterator(transform, Math.max(0.5, 1.0/scale));
 					path = createShapeIcon(iterator, color);
-					pathCache.put(pathROI, path);
+					pathCache.put(roi, path);
 				}
 			} else {
 				path = new Path(path.getElements());
@@ -280,7 +297,7 @@ public class PathIconFactory {
 			if (path != null)
 				return path;
 		}
-		logger.warn("Unable to create icon for ROI: {}", pathROI);
+		logger.warn("Unable to create icon for ROI: {}", roi);
 		return null;
 	}
 	
@@ -326,10 +343,16 @@ public class PathIconFactory {
 		return path;
 	}
 	
+	/**
+	 * Create a node from a default icon glyph.
+	 * @param width preferred width of the icon node
+	 * @param height preferred height of the icon node
+	 * @param type enum identifying the icon
+	 * @return a node that may be used as an icon
+	 */
 	public static Node createNode(int width, int height, PathIcons type) {
 		try {
-			Glyph g = type.createGlyph(width);
-			
+			Glyph g = type.createGlyph(Math.min(width, height));
 //			g.useGradientEffect();
 //			g.useHoverEffect();
 //			g.setOpacity(0.5);

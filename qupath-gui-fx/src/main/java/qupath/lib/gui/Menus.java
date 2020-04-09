@@ -21,20 +21,9 @@ import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI.ActionManager;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
-import qupath.lib.gui.commands.ExportImageRegionCommand;
 import qupath.lib.gui.commands.MeasurementExportCommand;
-import qupath.lib.gui.commands.MeasurementManager;
-import qupath.lib.gui.commands.PreferencesCommand;
-import qupath.lib.gui.commands.ProjectCheckUrisCommand;
-import qupath.lib.gui.commands.ProjectExportImageListCommand;
-import qupath.lib.gui.commands.ProjectImportImagesCommand;
-import qupath.lib.gui.commands.ProjectMetadataEditorCommand;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.RigidObjectEditorCommand;
-import qupath.lib.gui.commands.ScriptInterpreterCommand;
-import qupath.lib.gui.commands.ShowInputDisplayCommand;
-import qupath.lib.gui.commands.ShowInstalledExtensionsCommand;
-import qupath.lib.gui.commands.ShowLicensesCommand;
-import qupath.lib.gui.commands.ShowSystemInfoCommand;
 import qupath.lib.gui.commands.SparseImageServerCommand;
 import qupath.lib.gui.commands.SpecifyAnnotationCommand;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
@@ -43,8 +32,8 @@ import qupath.lib.gui.commands.TMAGridView;
 import qupath.lib.gui.commands.TMAScoreImportCommand;
 import qupath.lib.gui.commands.ZoomCommand;
 import qupath.lib.gui.icons.PathIconFactory.PathIcons;
-import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
@@ -173,7 +162,7 @@ class Menus {
 		@ActionIcon(PathIcons.COG)
 		@ActionAccelerator("shortcut+,")
 		@ActionDescription("Set preferences to customize QuPath's appearance and behavior")
-		public final Action PREFERENCES;
+		public final Action PREFERENCES = createAction(() -> Commands.showPreferencesDialog(qupath));
 		
 		@ActionMenu("Reset preferences")
 		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath")
@@ -184,7 +173,6 @@ class Menus {
 			var undoRedo = qupath.getUndoRedoManager();
 			UNDO = createUndoAction(undoRedo);
 			REDO = createRedoAction(undoRedo);
-			PREFERENCES = createAction(new PreferencesCommand(qupath, qupath.getPreferencePanel()));
 		}
 		
 		private Action createUndoAction(UndoRedoManager undoRedoManager) {
@@ -214,7 +202,7 @@ class Menus {
 		public final Action SCRIPT_EDITOR = createAction(() -> Commands.showScriptEditor(qupath));
 
 		@ActionMenu("Script interpreter")
-		public final Action SCRIPT_INTERPRETER = createAction(new ScriptInterpreterCommand(qupath));
+		public final Action SCRIPT_INTERPRETER = createAction(() -> Commands.showScriptInterpreter(qupath));
 		
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
@@ -263,9 +251,6 @@ class Menus {
 		@ActionMenu("Object classification>")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
-		@ActionMenu("Object classification>Legacy>Choose random training samples (legacy)")
-		public final Action LEGACY_RANDOM_TRAINING = createAction(new RandomTrainingRegionSelector(qupath, qupath.getAvailablePathClasses()));
-
 		@ActionMenu("Object classification>")
 		public final Action SEP_2 = ActionTools.createSeparator();
 
@@ -298,18 +283,18 @@ class Menus {
 		public final Action SEP_1 = ActionTools.createSeparator();
 
 		@ActionMenu("Project...>Add images")
-		public final Action IMPORT_IMAGES = createAction(new ProjectImportImagesCommand(qupath));
+		public final Action IMPORT_IMAGES = qupath.createProjectAction(project -> ProjectCommands.promptToImportImages(qupath));
 		@ActionMenu("Project...>Export image list")
-		public final Action EXPORT_IMAGE_LIST = createAction(new ProjectExportImageListCommand(qupath));	
+		public final Action EXPORT_IMAGE_LIST = qupath.createProjectAction(project -> ProjectCommands.promptToExportImageList(project));	
 		
 		@ActionMenu("Project...>")
 		public final Action SEP_2 = ActionTools.createSeparator();
 
 		@ActionMenu("Project...>Edit project metadata")
-		public final Action METADATA = createAction(new ProjectMetadataEditorCommand(qupath));
+		public final Action METADATA = qupath.createProjectAction(project -> ProjectCommands.showProjectMetadataEditor(qupath));
 		
 		@ActionMenu("Project...>Check project URIs")
-		public final Action CHECK_URIS = createAction(new ProjectCheckUrisCommand(qupath));
+		public final Action CHECK_URIS = qupath.createProjectAction(project -> ProjectCommands.promptToCheckURIs(project, false));
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
@@ -337,9 +322,9 @@ class Menus {
 		public final Action SEP_5 = ActionTools.createSeparator();
 		
 		@ActionMenu("Export images...>Original pixels")
-		public final Action EXPORT_ORIGINAL = createAction(new ExportImageRegionCommand(qupath, false));
+		public final Action EXPORT_ORIGINAL = qupath.createImageDataAction(imageData -> Commands.promptToExportImageRegion(qupath.getViewer(), false));
 		@ActionMenu("Export images...>Rendered RGB (with overlays)")
-		public final Action EXPORT_RENDERED = createAction(new ExportImageRegionCommand(qupath, false));
+		public final Action EXPORT_RENDERED = qupath.createImageDataAction(imageData -> Commands.promptToExportImageRegion(qupath.getViewer(), true));
 		
 		@ActionMenu("Export snapshot...>Main window screenshot")
 		public final Action SNAPSHOT_WINDOW = createAction(() -> Commands.saveSnapshot(qupath, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT));
@@ -503,8 +488,15 @@ class Menus {
 	@ActionMenu("View")
 	public class ViewMenuManager {
 		
+		@ActionMenu("Show analysis pane")
+		@ActionAccelerator("shortcut+a")
 		public final Action SHOW_ANALYSIS_PANEL = actionManager.SHOW_ANALYSIS_PANEL;
-		public final Action COMMAND_LIST = actionManager.SHOW_COMMAND_LIST;
+		
+		@ActionMenu("Show command list")
+		@ActionAccelerator("shortcut+l")
+		public final Action COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createCommandFinderDialog(qupath));
+
+		
 		public final Action SEP_0 = ActionTools.createSeparator();
 		public final Action BRIGHTNESS_CONTRAST = actionManager.BRIGHTNESS_CONTRAST;
 		public final Action SEP_1 = ActionTools.createSeparator();
@@ -579,7 +571,7 @@ class Menus {
 		public final Action SEP_7 = ActionTools.createSeparator();
 		
 		@ActionMenu("Show input display")
-		public final Action INPUT_DISPLAY = createAction(new ShowInputDisplayCommand(qupath));
+		public final Action INPUT_DISPLAY = createAction(() -> Commands.showInputDisplay(qupath));
 
 		@ActionMenu("Show memory monitor")
 		public final Action MEMORY_MONITORY = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
@@ -600,7 +592,7 @@ class Menus {
 		
 		@ActionMenu("Show measurement manager")
 		@ActionDescription("View and optionally delete detection measurements")
-		public final Action MANAGER = qupath.createImageDataAction(imageData -> MeasurementManager.showDetectionMeasurementManager(qupath, imageData));
+		public final Action MANAGER = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementManager(qupath, imageData));
 		
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
@@ -661,13 +653,13 @@ class Menus {
 		public final Action SEP_3 = ActionTools.createSeparator();
 
 		@ActionMenu("License")
-		public final Action LICENSE = createAction(new ShowLicensesCommand(qupath));
+		public final Action LICENSE = Commands.createSingleStageAction(() -> Commands.createLicensesWindow(qupath));
 		
 		@ActionMenu("System info")
-		public final Action INFO = createAction(new ShowSystemInfoCommand(qupath));
+		public final Action INFO = Commands.createSingleStageAction(() -> Commands.createShowSystemInfoDialog(qupath));
 		
 		@ActionMenu("Installed extensions")
-		public final Action EXTENSIONS = createAction(new ShowInstalledExtensionsCommand(qupath));
+		public final Action EXTENSIONS = createAction(() -> Commands.showInstalledExtensions(qupath));
 		
 	}
 

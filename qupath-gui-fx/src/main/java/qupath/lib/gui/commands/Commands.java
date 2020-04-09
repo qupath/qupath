@@ -4,12 +4,14 @@ import java.awt.Window;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -17,24 +19,35 @@ import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.value.ObservableDoubleValue;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.MemoryMonitorDialog;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panels.MeasurementMapPanel;
 import qupath.lib.gui.panels.PathClassPane;
+import qupath.lib.gui.panels.PreferencePanel;
 import qupath.lib.gui.panels.WorkflowCommandLogView;
 import qupath.lib.gui.panels.classify.PathClassifierPanel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -46,6 +59,7 @@ import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ImageWriterTools;
@@ -68,6 +82,7 @@ import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
@@ -171,6 +186,199 @@ public class Commands {
 			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", String.format("createSelectAllObject(true, %d, %d);", z, t)));
 	}
 	
+	
+	
+	
+	
+private static DoubleProperty exportDownsample = PathPrefs.createPersistentPreference("exportRegionDownsample", 1.0);
+	
+	private static ImageWriter<BufferedImage> lastWriter = null;
+
+	/**
+	 * Prompt to export the current image region selected in the viewer.
+	 * @param viewer the viewer containing the image to export
+	 * @param renderedImage if true, export the rendered (RGB) image rather than original pixel values
+	 */
+	public static void promptToExportImageRegion(QuPathViewer viewer, boolean renderedImage) {
+		if (viewer == null || viewer.getServer() == null) {
+			Dialogs.showErrorMessage("Export image region", "No viewer & image selected!");
+			return;
+		}
+		
+		ImageServer<BufferedImage> server = viewer.getServer();
+		if (renderedImage)
+			server = RenderedImageServer.createRenderedServer(viewer);
+		PathObject pathObject = viewer.getSelectedObject();
+		ROI roi = pathObject == null ? null : pathObject.getROI();
+		
+		double regionWidth = roi == null ? server.getWidth() : roi.getBoundsWidth();
+		double regionHeight = roi == null ? server.getHeight() : roi.getBoundsHeight();
+		
+		// Create a dialog
+		GridPane pane = new GridPane();
+		int row = 0;
+		pane.add(new Label("Export format"), 0, row);
+		ComboBox<ImageWriter<BufferedImage>> comboImageType = new ComboBox<>();
+		
+		Function<ImageWriter<BufferedImage>, String> fun = (ImageWriter<BufferedImage> writer) -> writer.getName();
+		comboImageType.setCellFactory(p -> GuiTools.createCustomListCell(fun));
+		comboImageType.setButtonCell(GuiTools.createCustomListCell(fun));
+		
+		var writers = ImageWriterTools.getCompatibleWriters(server, null);
+		comboImageType.getItems().setAll(writers);
+		comboImageType.setTooltip(new Tooltip("Choose export image format"));
+		if (writers.contains(lastWriter))
+			comboImageType.getSelectionModel().select(lastWriter);
+		else
+			comboImageType.getSelectionModel().selectFirst();
+		comboImageType.setMaxWidth(Double.MAX_VALUE);
+		GridPane.setHgrow(comboImageType, Priority.ALWAYS);
+		pane.add(comboImageType, 1, row++);
+		
+		TextArea textArea = new TextArea();
+		textArea.setPrefRowCount(2);
+		textArea.setEditable(false);
+		textArea.setWrapText(true);
+//		textArea.setPadding(new Insets(15, 0, 0, 0));
+		comboImageType.setOnAction(e -> textArea.setText(((ImageWriter<BufferedImage>)comboImageType.getValue()).getDetails()));			
+		textArea.setText(((ImageWriter<BufferedImage>)comboImageType.getValue()).getDetails());
+		pane.add(textArea, 0, row++, 2, 1);
+		
+		var label = new Label("Downsample factor");
+		pane.add(label, 0, row);
+		TextField tfDownsample = new TextField();
+		label.setLabelFor(tfDownsample);
+		pane.add(tfDownsample, 1, row++);
+		tfDownsample.setTooltip(new Tooltip("Amount to scale down image - choose 1 to export at full resolution (note: for large images this may not succeed for memory reasons)"));
+		ObservableDoubleValue downsample = Bindings.createDoubleBinding(() -> {
+			try {
+				return Double.parseDouble(tfDownsample.getText());
+			} catch (NumberFormatException e) {
+				return Double.NaN;
+			}
+		}, tfDownsample.textProperty());
+		
+		// Define a sensible limit for non-pyramidal images
+		long maxPixels = 10000*10000;
+		
+		Label labelSize = new Label();
+		labelSize.setMinWidth(400);
+		labelSize.setTextAlignment(TextAlignment.CENTER);
+		labelSize.setContentDisplay(ContentDisplay.CENTER);
+		labelSize.setAlignment(Pos.CENTER);
+		labelSize.setMaxWidth(Double.MAX_VALUE);
+		labelSize.setTooltip(new Tooltip("Estimated size of exported image"));
+		pane.add(labelSize, 0, row++, 2, 1);
+		labelSize.textProperty().bind(Bindings.createStringBinding(() -> {
+			if (!Double.isFinite(downsample.get())) {
+				labelSize.setStyle("-fx-text-fill: red;");
+				return "Invalid downsample value!  Must be >= 1";
+			}
+			else {
+				long w = (long)(regionWidth / downsample.get() + 0.5);
+				long h = (long)(regionHeight / downsample.get() + 0.5);
+				String warning = "";
+				var writer = comboImageType.getSelectionModel().getSelectedItem();
+				boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
+				if (!supportsPyramid && w * h > maxPixels) {
+					labelSize.setStyle("-fx-text-fill: red;");
+					warning = " (too big!)";
+				} else if (w < 5 || h < 5) {
+					labelSize.setStyle("-fx-text-fill: red;");
+					warning = " (too small!)";					
+				} else
+					labelSize.setStyle(null);
+				return String.format("Output image size: %d x %d pixels%s",
+						w, h, warning
+						);
+			}
+		}, downsample, comboImageType.getSelectionModel().selectedIndexProperty()));
+		
+		tfDownsample.setText(Double.toString(exportDownsample.get()));
+		
+		PaneTools.setMaxWidth(Double.MAX_VALUE, labelSize, textArea, tfDownsample, comboImageType);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, labelSize, textArea, tfDownsample, comboImageType);
+		
+		pane.setVgap(5);
+		pane.setHgap(5);
+		
+		if (!Dialogs.showConfirmDialog("Export image region", pane))
+			return;
+		
+		var writer = comboImageType.getSelectionModel().getSelectedItem();
+		boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
+		int w = (int)(regionWidth / downsample.get() + 0.5);
+		int h = (int)(regionHeight / downsample.get() + 0.5);
+		if (!supportsPyramid && w * h > maxPixels) {
+			Dialogs.showErrorNotification("Export image region", "Requested export region too large - try selecting a smaller region, or applying a higher downsample factor");
+			return;
+		}
+		
+		if (downsample.get() < 1 || !Double.isFinite(downsample.get())) {
+			Dialogs.showErrorMessage("Export image region", "Downsample factor must be >= 1!");
+			return;
+		}
+				
+		exportDownsample.set(downsample.get());
+		
+		// Now that we know the output, we can create a new server to ensure it is downsampled as the necessary resolution
+		if (renderedImage && downsample.get() != server.getDownsampleForResolution(0))
+			server = new RenderedImageServer.Builder(viewer).downsamples(downsample.get()).build();
+		
+//		selectedImageType.set(comboImageType.getSelectionModel().getSelectedItem());
+		
+		// Create RegionRequest
+		RegionRequest request = null;
+		if (pathObject != null && pathObject.hasROI())
+			request = RegionRequest.createInstance(server.getPath(), exportDownsample.get(), roi);				
+
+		// Create a sensible default file name, and prompt for the actual name
+		String ext = writer.getDefaultExtension();
+		String writerName = writer.getName();
+		String defaultName = GeneralTools.getNameWithoutExtension(new File(ServerTools.getDisplayableImageName(server)));
+		if (roi != null) {
+			defaultName = String.format("%s (%s, x=%d, y=%d, w=%d, h=%d)", defaultName,
+					GeneralTools.formatNumber(request.getDownsample(), 2),
+					request.getX(), request.getY(), request.getWidth(), request.getHeight());
+		}
+		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Export image region", null, defaultName, writerName, ext);
+		if (fileOutput == null)
+			return;
+		
+		try {
+			if (request == null) {
+				if (exportDownsample.get() == 1.0)
+					writer.writeImage(server, fileOutput.getAbsolutePath());
+				else
+					writer.writeImage(ImageServers.pyramidalize(server, exportDownsample.get()), fileOutput.getAbsolutePath());
+			} else
+				writer.writeImage(server, request, fileOutput.getAbsolutePath());
+			lastWriter = writer;
+		} catch (IOException e) {
+			Dialogs.showErrorMessage("Export region", e);
+		}
+	}
+	
+	
+	/**
+	 * Show a dialog displaying the extensions installed for a specified QuPath instance.
+	 * @param qupath the QuPath instance
+	 */
+	public static void showInstalledExtensions(final QuPathGUI qupath) {
+		ShowInstalledExtensionsCommand.showInstalledExtensions(qupath);
+	}
+	
+	
+	/**
+	 * Show a simple dialog for viewing (and optionally removing) detection measurements.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void showDetectionMeasurementManager(QuPathGUI qupath, ImageData<?> imageData) {
+		MeasurementManager.showDetectionMeasurementManager(qupath, imageData);
+	}
+	
+	
 	/**
 	 * Reset TMA metadata, if available.
 	 * @param imageData
@@ -185,7 +393,6 @@ public class Commands {
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Reset TMA metadata", "resetTMAMetadata(true);"));		
 		return true;
 	}
-	
 	
 	/**
 	 * Create a command that generates a persistent single dialog on demand.
@@ -249,6 +456,136 @@ public class Commands {
 			dialog.hide();
 		});
 		return dialog;
+	}
+	
+	
+	/**
+	 * Show a script interpreter window for a Qupath instance.
+	 * @param qupath the QuPath instance
+	 */
+	public static void showScriptInterpreter(QuPathGUI qupath) {
+		var scriptInterpreter = new ScriptInterpreter(qupath, QuPathGUI.getExtensionClassLoader());
+		scriptInterpreter.getStage().initOwner(qupath.getStage());
+		scriptInterpreter.getStage().show();
+	}
+	
+	
+	/**
+	 * Create and show a new input display dialog.
+	 * <p>
+	 * This makes input such as key-presses and mouse button presses visible on screen, and is therefore
+	 *  useful for demos and tutorials where shortcut keys are used.
+	 *  
+	 * @param qupath the QuPath instance
+	 */
+	public static void showInputDisplay(QuPathGUI qupath) {
+		try {
+			new InputDisplayDialog(qupath.getStage()).show();
+		} catch (Exception e) {
+			Dialogs.showErrorMessage("Error showing input display", e);
+		}
+	}
+	
+	/**
+	 * Create a window summarizing license information for QuPath and its third party dependencies.
+	 * @param qupath the current QuPath instance
+	 * @return a window to display license information
+	 */
+	public static Stage createLicensesWindow(QuPathGUI qupath) {
+		return ShowLicensesCommand.createLicensesDialog(qupath);
+	}
+	
+	
+	/**
+	 * Create a window summarizing key system information relevant for QuPath.
+	 * @param qupath the current QuPath instance
+	 * @return a window to display license information
+	 */
+	public static Stage createShowSystemInfoDialog(QuPathGUI qupath) {
+		return ShowSystemInfoCommand.createShowSystemInfoDialog(qupath);
+	}
+	
+	
+	/**
+	 * Show a dialog to adjust QuPath preferences.
+	 * @param qupath the QuPath instance
+	 */
+	public static void showPreferencesDialog(QuPathGUI qupath) {
+		
+		var panel = new PreferencePanel(qupath);
+		
+		var dialog = new Stage();
+		dialog.initOwner(qupath.getStage());
+//			dialog.initModality(Modality.APPLICATION_MODAL);
+		dialog.setTitle("Preferences");
+		
+		Button btnExport = new Button("Export");
+		btnExport.setOnAction(e -> exportPreferences(dialog));
+		btnExport.setMaxWidth(Double.MAX_VALUE);
+
+		Button btnImport = new Button("Import");
+		btnImport.setOnAction(e -> importPreferences(dialog));
+		btnImport.setMaxWidth(Double.MAX_VALUE);
+		
+		Button btnReset = new Button("Reset");
+		btnReset.setOnAction(e -> PathPrefs.resetPreferences());
+		btnReset.setMaxWidth(Double.MAX_VALUE);
+		
+		GridPane paneImportExport = new GridPane();
+		paneImportExport.addRow(0, btnImport, btnExport, btnReset);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, btnImport, btnExport, btnReset);
+		paneImportExport.setMaxWidth(Double.MAX_VALUE);
+
+//			Button btnClose = new Button("Close");
+//			btnClose.setOnAction(e -> {
+//				dialog.hide();
+//			});
+		
+		BorderPane pane = new BorderPane();
+		pane.setCenter(panel.getNode());
+		pane.setBottom(paneImportExport);
+		if (qupath != null && qupath.getStage() != null) {
+			pane.setPrefHeight(Math.round(Math.max(300, qupath.getStage().getHeight()*0.75)));
+		}
+		paneImportExport.prefWidthProperty().bind(pane.widthProperty());
+//			btnClose.prefWidthProperty().bind(pane.widthProperty());
+		dialog.setScene(new Scene(pane));
+		dialog.setMinWidth(300);
+		dialog.setMinHeight(300);
+		
+		dialog.show();
+	}
+
+	private static boolean exportPreferences(Stage parent) {
+		var file = QuPathGUI.getDialogHelper(parent).promptToSaveFile(
+				"Export preferences", null, null, "Preferences file", "xml");
+		if (file != null) {
+			try (var stream = Files.newOutputStream(file.toPath())) {
+				logger.info("Exporting preferences to {}", file.getAbsolutePath());
+				PathPrefs.exportPreferences(stream);
+				return true;
+			} catch (Exception e) {
+				Dialogs.showErrorMessage("Import preferences", e);
+			}
+		}
+		return false;
+	}
+	
+	private static boolean importPreferences(Stage parent) {
+		var file = QuPathGUI.getDialogHelper(parent).promptForFile(
+				"Import preferences", null, "Preferences file", "xml");
+		if (file != null) {
+			try (var stream = Files.newInputStream(file.toPath())) {
+				logger.info("Importing preferences from {}", file.getAbsolutePath());
+				PathPrefs.importPreferences(stream);
+				Dialogs.showMessageDialog("Import preferences", 
+						"Preferences have been imported - please restart QuPath to see the changes.");
+				return true;
+			} catch (Exception e) {
+				Dialogs.showErrorMessage("Import preferences", e);
+			}
+		}
+		return false;
 	}
 	
 	

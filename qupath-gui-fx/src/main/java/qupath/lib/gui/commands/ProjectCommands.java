@@ -1,34 +1,13 @@
-/*-
- * #%L
- * This file is part of QuPath.
- * %%
- * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
- * Contact: IP Management (ipmanagement@qub.ac.uk)
- * %%
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public
- * License along with this program.  If not, see
- * <http://www.gnu.org/licenses/gpl-3.0.html>.
- * #L%
- */
-
 package qupath.lib.gui.commands;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -39,44 +18,68 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 
-/**
- * Command to export image paths &amp; metadata from a current project.
- * 
- * @author Pete Bankhead
- */
-public class ProjectExportImageListCommand implements Runnable {
+public class ProjectCommands {
 	
-	private final static Logger logger = LoggerFactory.getLogger(ProjectExportImageListCommand.class);
+	private final static Logger logger = LoggerFactory.getLogger(ProjectCommands.class);
 	
-	private static final String commandName = "Project: Export image list";
+	public static boolean promptToCheckURIs(Project<?> project, boolean onlyIfMissing) {
+		try {
+			return checkURIs(project, onlyIfMissing);
+		} catch (IOException e) {
+			Dialogs.showErrorMessage("Check project URIs", e);
+			return false;
+		}
+	}
 
-	private QuPathGUI qupath;
-	
-	public ProjectExportImageListCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
+	public static boolean checkURIs(Project<?> project, boolean onlyIfMissing) throws IOException {
+		var manager = new ProjectCheckUris.ProjectUriManager(project);
+		if (!onlyIfMissing || manager.countOriginalItems(ProjectCheckUris.UriStatus.MISSING) > 0) {
+			return manager.showDialog();
+		}
+		return true;
 	}
 	
-	@Override
-	public void run() {
-		var project = qupath.getProject();
+	
+	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
+		return ProjectImportImagesCommand.promptToImportImages(qupath);
+	}
+	
+	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
+		return ProjectImportImagesCommand.addSingleImageToProject(project, server, type);
+	}
+	
+	public static BufferedImage getThumbnailRGB(ImageServer<BufferedImage> server) throws IOException {
+		return ProjectImportImagesCommand.getThumbnailRGB(server, null);
+	}
+	
+	public static void showProjectMetadataEditor(QuPathGUI qupath) {
+		ProjectMetadataEditorCommand.showProjectMetadataEditor(qupath);
+	}
+	
+	
+	public static void promptToExportImageList(Project<?> project) {
+		var title = "Export image list";
 		if (project == null) {
-			Dialogs.showNoProjectError(commandName);
+			Dialogs.showNoProjectError(title);
 			return;
 		}
 		// Try to get a project directory
 		File dirBase = Projects.getBaseDirectory(project);
 		
 		// Prompt for where to save
-		File fileOutput = qupath.getDialogHelper().promptToSaveFile(commandName, dirBase, null, "Text files", ".txt");
+		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(title, dirBase, null, "Text files", ".txt");
 		if (fileOutput == null)
 			return;
 		
 		// Write out image paths, along with metadata values
 		Set<String> keys = new TreeSet<>();
-		for (ProjectImageEntry<?> entry : qupath.getProject().getImageList()) {
+		for (ProjectImageEntry<?> entry : project.getImageList()) {
 			keys.addAll(entry.getMetadataKeys());
 		}
 		
@@ -119,12 +122,11 @@ public class ProjectExportImageListCommand implements Runnable {
 				}
 			}		
 		} catch (IOException e) {
-			Dialogs.showErrorMessage(commandName, fileOutput.getAbsolutePath() + " not found!");
+			Dialogs.showErrorMessage(title, fileOutput.getAbsolutePath() + " not found!");
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Exported {} images in {} ms", n, endTime - startTime);
 		
 	}
-	
-	
+
 }

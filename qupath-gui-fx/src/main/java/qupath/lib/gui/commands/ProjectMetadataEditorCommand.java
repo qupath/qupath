@@ -73,7 +73,7 @@ import qupath.lib.projects.ProjectImageEntry;
  * @author Pete Bankhead
  *
  */
-public class ProjectMetadataEditorCommand implements Runnable {
+class ProjectMetadataEditorCommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProjectMetadataEditorCommand.class);
 
@@ -85,9 +85,7 @@ public class ProjectMetadataEditorCommand implements Runnable {
 		this.qupath = qupath;
 	}
 	
-	@Override
-	public void run() {
-		
+	public static void showProjectMetadataEditor(QuPathGUI qupath) {
 		Project<?> project = qupath.getProject();
 		if (project == null) {
 			logger.warn("No project available!");

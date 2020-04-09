@@ -96,31 +96,19 @@ import qupath.lib.projects.ProjectImageEntry;
  * 
  * @author Pete Bankhead
  */
-public class ProjectImportImagesCommand implements Runnable {
+class ProjectImportImagesCommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProjectImportImagesCommand.class);
-	
-	private static final String commandName = "Project: Import images";
+		
+	private final static String commandName = "Import images";
 
-	private QuPathGUI qupath;
-	
-	public ProjectImportImagesCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-	
-	@Override
-	public void run() {
-		promptToImportImages(qupath);
-	}
-	
-	
 	
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
-		if (qupath.getProject() == null) {
+		var project = qupath.getProject();
+		if (project == null) {
 			Dialogs.showNoProjectError(commandName);
 			return Collections.emptyList();
 		}
-		
 		
 		ListView<String> listView = new ListView<>();
 		listView.setPrefWidth(480);
@@ -275,7 +263,6 @@ public class ProjectImportImagesCommand implements Runnable {
 		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
-		var project = qupath.getProject();
 		List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
 		Task<Collection<ProjectImageEntry<BufferedImage>>> worker = new Task<>() {
 			@Override

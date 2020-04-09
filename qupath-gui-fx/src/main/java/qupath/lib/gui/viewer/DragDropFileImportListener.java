@@ -41,7 +41,7 @@ import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.ProjectImportImagesCommand;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
@@ -293,7 +293,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 				// Try importing multiple images to a project
 				String[] potentialFiles = list.stream().filter(f -> f.isFile()).map(f -> f.getAbsolutePath()).toArray(String[]::new);
 				if (potentialFiles.length > 0) {
-					ProjectImportImagesCommand.promptToImportImages(qupath, potentialFiles);
+					ProjectCommands.promptToImportImages(qupath, potentialFiles);
 					return;
 				}
 			}

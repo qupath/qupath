@@ -42,53 +42,32 @@ import qupath.lib.gui.QuPathGUI;
  * @author Pete Bankhead
  *
  */
-public class ShowSystemInfoCommand implements Runnable {
+class ShowSystemInfoCommand {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ShowSystemInfoCommand.class);
 	
-	private QuPathGUI qupath;
-	
-	private Stage dialog;
-	private TextArea textArea;
-	
-	public ShowSystemInfoCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-	
-	@Override
-	public void run() {
-		logger.trace("Running system info command");
-//		if (dialog == null)
-			createDialog();
-		updateText();
-		if (dialog.isShowing())
-			dialog.toFront();
-		else
-			dialog.show();
-	}
-	
-	
-	private void createDialog() {
-		dialog = new Stage();
+	public static Stage createShowSystemInfoDialog(QuPathGUI qupath) {
+		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("System info");
 		
-		dialog.focusedProperty().addListener((v, o, n) -> {
-			if (n)
-				updateText();
-		});
-		
-		textArea = new TextArea();
+		var textArea = new TextArea();
 		textArea.setPrefColumnCount(40);
 		textArea.setPrefRowCount(25);
 		textArea.setEditable(false);
-		
+
+		dialog.focusedProperty().addListener((v, o, n) -> {
+			if (n)
+				updateText(qupath, textArea);
+		});
+
 		BorderPane pane = new BorderPane();
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		pane.setCenter(textArea);
 		
 		dialog.setScene(new Scene(pane));
+		return dialog;
 	}
 	
 	
@@ -157,25 +136,12 @@ public class ShowSystemInfoCommand implements Runnable {
 		return sb.toString();
 	}
 	
-	private void updateText() {
-		
+	private static void updateText(QuPathGUI qupath, TextArea textArea) {
 		String buildString = qupath.getBuildString();
 		if (buildString == null)
 			textArea.setText(getInfoString());
 		else
 			textArea.setText(buildString + "\n\n" + getInfoString());
-	    
-//	    
-//		int row = 0;
-//		int inc = 1;
-//		for (QuPathExtension extension : qupath.getLoadedExtensions()) {
-//			addEntry(pane, new QuPathExtensionEntry(extension), row);
-//			row += inc;
-//		}
-//		for (ImageServerBuilder<?> builder : ImageServerProvider.getInstalledImageServerBuilders()) {
-//			addEntry(pane, new QuPathExtensionEntry(builder), row);
-//			row += inc;
-//		}
 	}
 
 }

@@ -216,6 +216,7 @@ public class CommandFinderTools {
 	 * @return
 	 */
 	public static Stage createCommandFinderDialog(final QuPathGUI qupath) {
+		// TODO: Explore updating this with the action list changes
 		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
 		menuManager.refresh();
 		

@@ -172,13 +172,10 @@ import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
-import qupath.lib.gui.commands.CommandListDisplayCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
-import qupath.lib.gui.commands.ProjectCheckUrisCommand;
-import qupath.lib.gui.commands.ProjectImportImagesCommand;
-import qupath.lib.gui.commands.SampleScriptLoader;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.commands.ViewTrackerCommand;
 import qupath.lib.gui.controls.cells.ImageAndNameListCell;
@@ -502,7 +499,6 @@ public class QuPathGUI {
 			
 		// TMA actions
 		private Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
-//		public Action TMA_RELABEL = createCommandAction(new TMAGridRelabel(QuPathGUI.this), "Relabel TMA grid");
 		
 		// Overlay options actions
 		Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_ONLY), null);
@@ -530,7 +526,6 @@ public class QuPathGUI {
 
 		Action SHOW_ANALYSIS_PANEL = createShowAnalysisPaneAction();
 		public Action USE_SELECTED_COLOR = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
-		Action SHOW_COMMAND_LIST = ActionTools.createAction(new CommandListDisplayCommand(QuPathGUI.this), "Show command list", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN));
 		
 	}
 	
@@ -883,7 +878,6 @@ public class QuPathGUI {
 			MenuTools.addMenuItems(
 					menuAutomate,
 					null,
-					ActionTools.createAction(new SampleScriptLoader(this), "Open sample scripts"),
 					sharedScriptMenuLoader.getMenu(),
 					userScriptMenuLoader.getMenu(),
 					projectScriptMenuLoader.getMenu()
@@ -2571,7 +2565,7 @@ public class QuPathGUI {
 		if (!pathNew.equals(pathOld)) {
 			// If we have a project, show the import dialog
 			if (getProject() != null) {
-				List<ProjectImageEntry<BufferedImage>> entries = ProjectImportImagesCommand.promptToImportImages(this, pathNew);
+				List<ProjectImageEntry<BufferedImage>> entries = ProjectCommands.promptToImportImages(this, pathNew);
 				if (entries.isEmpty())
 					return false;
 				return openImageEntry(entries.get(0));
@@ -2687,7 +2681,7 @@ public class QuPathGUI {
 		for (ImageServer<BufferedImage> server: serverList) {
 			executor.submit(() -> {
 				try {
-					thumbnailBank.put(server.getMetadata().getName(), ProjectImportImagesCommand.getThumbnailRGB(server, null));
+					thumbnailBank.put(server.getMetadata().getName(), ProjectCommands.getThumbnailRGB(server));
 					Platform.runLater( () -> listSeries.refresh());
 				} catch (IOException e) {
 					logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
@@ -3703,7 +3697,7 @@ public class QuPathGUI {
 		if (project != null) {
 			try {
 				// Show URI manager dialog if we have any missing URIs
-				if (!ProjectCheckUrisCommand.checkURIs(project, true))
+				if (!ProjectCommands.checkURIs(project, true))
 					return;
 			} catch (IOException e) {
 				Dialogs.showErrorMessage("Update URIs", e);
@@ -3758,12 +3752,7 @@ public class QuPathGUI {
 	
 	
 	private void updateProjectActionStates() {
-		Project<?> project = getProject();
-//		actionManager.PROJECT_CLOSE.setDisabled(project == null);
-//		actionManager.PROJECT_IMPORT_IMAGES.setDisabled(project == null);
-//		actionManager.PROJECT_EXPORT_IMAGE_LIST.setDisabled(project == null);
-//		actionManager.PROJECT_METADATA.setDisabled(project == null);
-		
+		Project<?> project = getProject();		
 		// Ensure the URLHelpers status is appropriately set
 		File dirBase = Projects.getBaseDirectory(project);
 		if (dirBase != null && PathPrefs.useProjectImageCache()) {

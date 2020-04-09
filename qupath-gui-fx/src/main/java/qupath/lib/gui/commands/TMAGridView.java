@@ -95,8 +95,8 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Grid display of TMA cores.
- * 
- * Requires cores in memory, so won't scale wonderfully... but quite useful for individual slides.
+ * <p>
+ * This requires cores in memory, so does not scale wonderfully... but it can be quite useful for individual slides.
  * 
  * @author Pete Bankhead
  *

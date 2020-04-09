@@ -77,7 +77,7 @@ import qupath.lib.scripting.QP;
  * @author Pete Bankhead
  *
  */
-public class MeasurementManager {
+class MeasurementManager {
 	
 	
 	/**

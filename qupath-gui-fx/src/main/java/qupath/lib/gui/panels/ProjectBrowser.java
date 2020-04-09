@@ -96,7 +96,7 @@ import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.ProjectImportImagesCommand;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -723,7 +723,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		if (project.getEntry(imageData) != null)
 			return;
 
-		var entry = ProjectImportImagesCommand.addSingleImageToProject(project, imageData.getServer(), null);
+		var entry = ProjectCommands.addSingleImageToProject(project, imageData.getServer(), null);
 		if (entry != null) {
 			tree.setRoot(model.getRootFX());
 			setSelectedEntry(tree, tree.getRoot(), project.getEntry(imageData));
@@ -791,7 +791,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
 			newServer = true;
 		}
-		BufferedImage img2 = ProjectImportImagesCommand.getThumbnailRGB(server, null);
+		BufferedImage img2 = ProjectCommands.getThumbnailRGB(server);
 		if (newServer) {
 			try {
 				server.close();
