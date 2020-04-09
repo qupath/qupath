@@ -1,6 +1,8 @@
 ## Version 0.2.0-m10
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 * Updated to use Java 14
+* Code revised and cleaned up
+  * Commands are activated/deactivated according to status (e.g. if an image or project is opened)
 * Scripting improvements
   * Updated to Groovy 3 - scripts now support more recent Java syntax (e.g. lambdas, try-with-resources)
   * Pasting files results in them being converted to absolute paths
@@ -18,6 +20,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Bug fixes, including:
   * Gap between tiles when calculating superpixels for large regions (https://github.com/qupath/qupath/issues/345)
   * Cannot create objects when loading simple thresholding classifier (https://github.com/qupath/qupath/issues/403)
+  * Consistency in Measurement Map display (https://github.com/qupath/qupath/issues/295)
   * Poor performance when working with many annotations (regression in m9)
   * Freeze when launching ImageJ from Mac under some circumstances
   * Use default channel names if Bio-Formats returns an empty String

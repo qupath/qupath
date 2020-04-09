@@ -398,7 +398,7 @@ public class QuPathGUI {
 	}
 	
 	// TODO: Remove this command whenever annotations can be applied more easily
-	private Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
+	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
 		var action = createImageDataAction(command);
 		action.setText(name);
 		return action;
@@ -475,15 +475,15 @@ public class QuPathGUI {
 		Action ZOOM_TO_FIT = createSelectableCommandAction(zoomToFit, "Zoom to fit", PathIconFactory.PathIcons.ZOOM_TO_FIT, null);
 		
 		// Tool actions
-		public Action MOVE_TOOL = createToolAction(PathTools.MOVE, new KeyCodeCombination(KeyCode.M));
-		Action RECTANGLE_TOOL = createToolAction(PathTools.RECTANGLE, new KeyCodeCombination(KeyCode.R));
-		Action ELLIPSE_TOOL = createToolAction(PathTools.ELLIPSE, new KeyCodeCombination(KeyCode.O));
-		Action POLYGON_TOOL = createToolAction(PathTools.POLYGON, new KeyCodeCombination(KeyCode.P));
-		Action POLYLINE_TOOL = createToolAction(PathTools.POLYLINE, new KeyCodeCombination(KeyCode.V));
-		Action BRUSH_TOOL = createToolAction(PathTools.BRUSH, new KeyCodeCombination(KeyCode.B));
-		Action LINE_TOOL = createToolAction(PathTools.LINE, new KeyCodeCombination(KeyCode.L));
-		public Action POINTS_TOOL = createToolAction(PathTools.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
-//		Action WAND_TOOL = createToolAction(PathTools.WAND, new KeyCodeCombination(KeyCode.W));
+		private Action MOVE_TOOL = getToolAction(PathTools.MOVE, new KeyCodeCombination(KeyCode.M));
+		private Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE, new KeyCodeCombination(KeyCode.R));
+		private Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE, new KeyCodeCombination(KeyCode.O));
+		private Action POLYGON_TOOL = getToolAction(PathTools.POLYGON, new KeyCodeCombination(KeyCode.P));
+		private Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE, new KeyCodeCombination(KeyCode.V));
+		private Action BRUSH_TOOL = getToolAction(PathTools.BRUSH, new KeyCodeCombination(KeyCode.B));
+		private Action LINE_TOOL = getToolAction(PathTools.LINE, new KeyCodeCombination(KeyCode.L));
+		private Action POINTS_TOOL = getToolAction(PathTools.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
+//		Action WAND_TOOL = getToolAction(PathTools.WAND, new KeyCodeCombination(KeyCode.W));
 		Action SELECTION_MODE = createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
 		
 		// Toolbar actions
@@ -800,8 +800,8 @@ public class QuPathGUI {
 		});
 		
 		stage.getScene().setOnKeyReleased(e -> {
-			// Previously we needed to mop up some shortcuts when using the System menubar on macOS, but apparently not any more (?_
-			if (e.isConsumed() || e.getTarget() instanceof TextInputControl) {
+			// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
+			if (e.isConsumed() || e.getTarget() instanceof TextInputControl || !PathPrefs.useSystemMenubarProperty().get()) {
 				return;
 			}
 			
@@ -823,6 +823,7 @@ public class QuPathGUI {
 				action.setSelected(!action.isSelected());
 				action = actionManager.SHOW_PIXEL_CLASSIFICATION;
 				action.setSelected(!action.isSelected());
+				e.consume();
 			}
 			
 		});
@@ -3290,6 +3291,19 @@ public class QuPathGUI {
 		return ActionTools.createSelectableAction(property, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, icon), accelerator);
 	}
 	
+	public Action getToolAction(PathTool tool) {
+		return getToolAction(tool, null);
+	}
+	
+	Action getToolAction(PathTool tool, KeyCombination accelerator) {
+		var action = toolActions.get(tool);
+		if (action == null) {
+			action = createToolAction(tool, accelerator);
+			toolActions.put(tool, action);
+		}
+		return action;
+	}
+	
 	private Action createToolAction(final PathTool tool, final KeyCombination accelerator) {
 		  var action = createSelectableCommandAction(new SelectionManager<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), accelerator);
 		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || selectedToolLocked.get(), selectedToolLocked, tools));
@@ -3355,14 +3369,18 @@ public class QuPathGUI {
 	 * Get a read-only list of the current available tools.
 	 * @return
 	 */
-	public List<PathTool> getAvailableTools() {
-		return Collections.unmodifiableList(tools);
+	public ObservableList<PathTool> getAvailableTools() {
+		return FXCollections.unmodifiableObservableList(tools);
 	}
 	
-	public boolean installTool(PathTool tool) {
+	public boolean installTool(PathTool tool, KeyCodeCombination accelerator) {
 		if (tool == null || tools.contains(tool))
 			return false;
 		// Keep the points tool last
+		if (accelerator != null) {
+			var action = getToolAction(tool, accelerator);
+			comboMap.put(accelerator, action);
+		}
 		int ind = tools.indexOf(PathTools.POINTS);
 		if (ind < 0)
 			tools.add(tool);

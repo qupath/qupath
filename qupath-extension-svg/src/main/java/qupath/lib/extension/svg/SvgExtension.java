@@ -1,7 +1,6 @@
 package qupath.lib.extension.svg;
 
-import qupath.lib.extension.svg.commands.SvgExportCommand;
-import qupath.lib.extension.svg.commands.SvgExportCommand.SvgExportType;
+import qupath.lib.extension.svg.SvgExportCommand.SvgExportType;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
@@ -15,15 +14,17 @@ public class SvgExtension implements QuPathExtension {
     @Override
     public void installExtension(QuPathGUI qupath) {
     	
+    	var actionExport = ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.SELECTED_REGION), "Rendered SVG");
+    	actionExport.disabledProperty().bind(qupath.imageDataProperty().isNull());
+    	var actionSnapshot = ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.VIEWER_SNAPSHOT), "Current viewer content (SVG)");
+    	
     	MenuTools.addMenuItems(
                 qupath.getMenu("File>Export images...", true),
-                ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.SELECTED_REGION),
-                		"Rendered SVG")
+                actionExport
         );
     	MenuTools.addMenuItems(
                 qupath.getMenu("File>Export snapshot...", true),
-                ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.VIEWER_SNAPSHOT),
-                		"Current viewer content (SVG)")
+                actionSnapshot
         );
     	
     }

@@ -71,8 +71,6 @@ import qupath.imagej.detect.cells.WatershedCellMembraneDetection;
 import qupath.imagej.detect.dearray.TMADearrayerPluginIJ;
 import qupath.imagej.detect.tissue.PositivePixelCounterIJ;
 import qupath.imagej.detect.tissue.SimpleTissueDetection2;
-import qupath.imagej.gui.commands.ExtractRegionCommand;
-import qupath.imagej.gui.commands.ScreenshotCommand;
 import qupath.imagej.plugins.ImageJMacroRunner;
 import qupath.imagej.superpixels.DoGSuperpixelsPlugin;
 import qupath.imagej.superpixels.SLICSuperpixelsPlugin;
@@ -280,12 +278,12 @@ public class IJExtension implements QuPathExtension {
 	
 	
 	/**
-	 * 
-	 * @param server
+	 * Extract a region of interest from an image as an ImageJ ImagePlus.
+	 * @param server the image
 	 * @param pathROI
 	 * @param request
-	 * @param setROI		{@code true} if a (non-rectangular) ROI should be converted to the closest matching ImageJ {@code Roi} &amp; set on the image
-	 * @return
+	 * @param setROI true if a ROI should be converted to the closest matching ImageJ {@code Roi} &amp; set on the image, false otherwise
+	 * @return an {@link ImagePlus} wrapped in a {@link PathImage} to give additional calibration information
 	 * @throws IOException 
 	 */
 	public static PathImage<ImagePlus> extractROI(ImageServer<BufferedImage> server, ROI pathROI, RegionRequest request, boolean setROI) throws IOException {
@@ -439,18 +437,18 @@ public class IJExtension implements QuPathExtension {
 	 */
 	public static void addQuPathCommands(final QuPathGUI qupath) {
 		
-		
 		// Add a preference to set the ImageJ path
 		qupath.getPreferencePanel().addDirectoryPropertyPreference(
 				imageJPath, "ImageJ plugins directory", "ImageJ",
 				"Set the path to the 'plugins' directory of an existing ImageJ installation");
 		
 		// Experimental brush tool turned off for now
-		//			qupath.getViewer().registerTool(Modes.BRUSH, new FancyBrushTool(qupath));
-
 		ExtractRegionCommand commandExtractRegionCustom = new ExtractRegionCommand(qupath);
+		var actionExtractRegion = ActionTools.createAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null);
+		actionExtractRegion.disabledProperty().bind(qupath.imageDataProperty().isNull());
 
 		var screenshotCommand = new ScreenshotCommand(qupath);
+		var actionSnapshot = ActionTools.createAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null);
 		
 		// Add buttons to toolbar
 		var toolbar = qupath.getToolBar();
@@ -463,22 +461,12 @@ public class IJExtension implements QuPathExtension {
 			btnImageJ.setTooltip(new Tooltip("ImageJ commands"));
 			ContextMenu popup = new ContextMenu();
 			popup.getItems().addAll(
-					ActionTools.createMenuItem(ActionTools.createAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
-					ActionTools.createMenuItem(ActionTools.createAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null))
+					ActionTools.createMenuItem(actionExtractRegion),
+					ActionTools.createMenuItem(actionSnapshot)
 					);
 			btnImageJ.setOnMouseClicked(e -> {
 				popup.show(btnImageJ, e.getScreenX(), e.getScreenY());
 			});
-			
-//			// Make it possible to set the ImageJ plugins path, to give easy access to user plugins
-//			MenuItem miSetPluginsPath = new MenuItem("Set ImageJ plugins directory");
-//			miSetPluginsPath.setOnAction(e -> {
-//				String path = PathPrefs.getImageJPath();
-//				File dir = qupath.getDialogHelper().promptForDirectory(new File(path));
-//				if (dir != null)
-//					PathPrefs.setImageJPath(dir.getAbsolutePath());
-//			});
-//			popup.getItems().addAll(new SeparatorMenuItem(), miSetPluginsPath);
 			
 			toolbar.getItems().add(btnImageJ);
 		} catch (Exception e) {
@@ -489,16 +477,11 @@ public class IJExtension implements QuPathExtension {
 
 		
 		// Add an analysis menu
-//		Menu menuAnalysis = qupath.getMenu("Analyze", true);
-		
-//		Menu menuFeatures = qupath.getMenu("Analyze>Calculate features", true);
-		
 		Menu menuRegions = qupath.getMenu("Analyze>Region identification>Tiles & superpixels", true);
 		MenuTools.addMenuItems(menuRegions,
 				null,
 				qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null),
 				qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null),
-//				qupath.createPluginAction("Gaussian superpixel segmentation", GaussianSuperpixelsPlugin.class, null, false),
 				null,
 				qupath.createPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, null)				
 				);
@@ -508,14 +491,6 @@ public class IJExtension implements QuPathExtension {
 				qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null)
 				);
 
-		
-//		//			menuExperimental.add(new PathPluginAction("SVM classifier", SVMClassifierPlugin.class, qupath));
-////		menuExperimental.add(new PathPluginAction<>("Experimental cell detection", WatershedCellDetection2.class, qupath));
-////		menuExperimental.add(new PathPluginAction<>("Simple DAB quantification", SimpleDABQuantification.class, qupath));
-////		menuExperimental.add(new PathPluginAction<>("Simple membrane detection (experimental)", SimpleMembraneDetection.class, qupath));
-//		menuExperimental.getItems().add(new PathPluginAction("Compute experimental cell features", ExperimentalCellFeaturesPlugin.class, qupath));
-//		menuExperimental.getItems().add(new PathPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, qupath));
-
 		// Put dearraying at the top of the TMA menu
 		Menu menuTMA = qupath.getMenu("TMA", true);
 		menuTMA.getItems().add(0,
@@ -524,12 +499,6 @@ public class IJExtension implements QuPathExtension {
 		menuTMA.getItems().add(1,
 				new SeparatorMenuItem()
 				);
-//		QuPathGUI.addMenuItems(
-//				menuTMA,
-//				null,
-//				qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null, false)
-//				);
-		
 		
 		// Make it possible to set the ImageJ plugins path, to give easy access to user plugins
 		MenuItem miSetPluginsPath = new MenuItem("Set ImageJ plugins directory");
@@ -544,8 +513,8 @@ public class IJExtension implements QuPathExtension {
 		Menu menuAutomate = qupath.getMenu("Extensions>ImageJ", true);
 		Action actionMacroRunner = qupath.createPluginAction("ImageJ macro runner", new ImageJMacroRunner(qupath), null);
 		MenuTools.addMenuItems(menuAutomate,
-				ActionTools.createMenuItem(ActionTools.createAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null)),
-				ActionTools.createMenuItem(ActionTools.createAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null)),
+				actionExtractRegion,
+				actionSnapshot,
 				null,
 				miSetPluginsPath,
 				null,
@@ -579,37 +548,12 @@ public class IJExtension implements QuPathExtension {
 		Menu menuCellAnalysis = qupath.getMenu("Analyze>Cell detection", true);
 		MenuTools.addMenuItems(
 				menuCellAnalysis,
-//				qupath.createPluginAction("Mean brown chromogen (legacy)", MeanBrownChromogenPlugin.class, null, false),
-//				new SeparatorMenuItem(),
 				qupath.createPluginAction("Cell detection", WatershedCellDetection.class, null),
 				qupath.createPluginAction("Positive cell detection", PositiveCellDetection.class, null),
-				qupath.createPluginAction("Cell + membrane detection", WatershedCellMembraneDetection.class, null),
-//				qupath.createPluginAction("Cell + membrane detection + percentage (experimental)", WatershedCellMembraneDetectionWithBoundaries.class, null, false),
-//				new SeparatorMenuItem(),
-//				qupath.createPluginAction("Lesion detection (experimental)", LesionDetector.class, null, false),
-				
+				qupath.createPluginAction("Cell + membrane detection", WatershedCellMembraneDetection.class, null),				
 				new SeparatorMenuItem(),
 				qupath.createPluginAction("Subcellular detection (experimental)", SubcellularDetection.class, null)
 				);
-
-
-
-//		// Add ImageJ-specific options to viewer's popup-menu
-//		final QuPathViewer viewer = qupath.getViewer();
-//		final JPopupMenu popup = viewer.getComponentPopupMenu() == null ? new JPopupMenu() : viewer.getComponentPopupMenu();
-//
-//		JMenu menuIJ = new JMenu("ImageJ");
-//		menuIJ.add(actionScreenshot);
-//		menuIJ.addSeparator();
-//		menuIJ.add(actionExtractRegion1);
-//		menuIJ.add(actionExtractRegion2);
-//		menuIJ.add(actionExtractRegion4);
-//		menuIJ.add(actionExtractRegionCustom);
-//
-//		popup.addSeparator();
-//		popup.add(menuIJ);		
-//
-//		viewer.setComponentPopupMenu(popup);
 	}
 
 	

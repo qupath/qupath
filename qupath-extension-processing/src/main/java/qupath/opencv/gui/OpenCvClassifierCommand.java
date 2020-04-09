@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.opencv.gui.classify;
+package qupath.opencv.gui;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,7 +51,7 @@ import qupath.opencv.classify.SVMClassifier;
  * @author Pete Bankhead
  *
  */
-public class OpenCvClassifierCommand implements Runnable {
+class OpenCvClassifierCommand implements Runnable {
 	
 	final private static String name = "Create detection classifier";
 	

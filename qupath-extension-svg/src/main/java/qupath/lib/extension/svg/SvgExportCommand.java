@@ -1,9 +1,8 @@
-package qupath.lib.extension.svg.commands;
+package qupath.lib.extension.svg;
 
 import java.io.IOException;
 import java.util.Arrays;
 
-import qupath.lib.extension.svg.SvgTools;
 import qupath.lib.extension.svg.SvgTools.SvgBuilder.ImageIncludeType;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -16,7 +15,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class SvgExportCommand implements Runnable {
+class SvgExportCommand implements Runnable {
 	
 	/**
 	 * Export methods for SVG.
@@ -55,8 +54,6 @@ public class SvgExportCommand implements Runnable {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
-		
 		var viewer = qupath.getViewer();
 		var imageData = viewer.getImageData();
 		if (imageData == null) {

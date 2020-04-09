@@ -91,14 +91,7 @@ class Menus {
 	@ActionMenu("Tools")
 	public class ToolsMenuManager {
 		
-		public final Action MOVE_TOOL = actionManager.MOVE_TOOL;
-		public final Action RECTANGLE_TOOL = actionManager.RECTANGLE_TOOL;
-		public final Action ELLIPSE_TOOL = actionManager.ELLIPSE_TOOL;
-		public final Action LINE_TOOL = actionManager.LINE_TOOL;
-		public final Action POLYGON_TOOL = actionManager.POLYGON_TOOL;
-		public final Action POLYLINE_TOOL = actionManager.POLYLINE_TOOL;
-		public final Action BRUSH_TOOL = actionManager.BRUSH_TOOL;
-		public final Action POINTS_TOOL = actionManager.POINTS_TOOL;
+		public final Action[] TOOLS = qupath.getAvailableTools().stream().map(a -> qupath.getToolAction(a, null)).toArray(Action[]::new);
 		
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
@@ -222,17 +215,17 @@ class Menus {
 		public final Action COLOR_DECONVOLUTION_REFINE = createAction(new EstimateStainVectorsCommand(qupath));
 		
 		@ActionMenu("Region identification>Tiles & superpixels>Create tiles")
-		public final Action CREATE_TILES = qupath.createPluginAction("Create tiles", TilerPlugin.class, qupath, null);
+		public final Action CREATE_TILES = qupath.createPluginAction("Create tiles", TilerPlugin.class, null);
 
 		@ActionMenu("Cell detection>")
 		public final Action SEP_0 = ActionTools.createSeparator();
 
 		@ActionMenu("Calculate features>Add smoothed features")
-		public final Action SMOOTHED_FEATURES = qupath.createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, qupath, null);
+		public final Action SMOOTHED_FEATURES = qupath.createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, null);
 		@ActionMenu("Calculate features>Add intensity features")
-		public final Action INTENSITY_FEATURES = qupath.createPluginAction("Add intensity features", IntensityFeaturesPlugin.class, qupath, null);
+		public final Action INTENSITY_FEATURES = qupath.createPluginAction("Add intensity features", IntensityFeaturesPlugin.class, null);
 		@ActionMenu("Calculate features>Add shape features (deprecated)")
-		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, qupath, null);
+		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
 
 		@ActionMenu("Spatial analysis>Distance to annotations 2D")
 		public final Action DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData));
@@ -481,7 +474,7 @@ class Menus {
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
 		@ActionMenu("Find convex hull detections (TMA)")
-		public final Action CONVEX_HULL = qupath.createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, qupath, null);
+		public final Action CONVEX_HULL = qupath.createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, null);
 
 	}
 	

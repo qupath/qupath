@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.imagej.gui.commands;
+package qupath.imagej.gui;
 
 import ij.CompositeImage;
 import ij.IJ;
@@ -44,7 +44,6 @@ import javax.swing.SwingUtilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.GeneralTools;
@@ -74,7 +73,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class ExtractRegionCommand implements Runnable {
+class ExtractRegionCommand implements Runnable {
 	
 	private static Logger logger = LoggerFactory.getLogger(ExtractRegionCommand.class);
 	

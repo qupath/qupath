@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.imagej.gui.commands;
+package qupath.imagej.gui;
 
 import ij.ImageJ;
 import ij.ImagePlus;
@@ -33,7 +33,6 @@ import java.awt.image.BufferedImage;
 
 import javax.swing.SwingUtilities;
 
-import qupath.imagej.gui.IJExtension;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -45,7 +44,7 @@ import qupath.lib.images.servers.ServerTools;
  * @author Pete Bankhead
  *
  */
-public class ScreenshotCommand implements Runnable {
+class ScreenshotCommand implements Runnable {
 
 	private QuPathGUI qupath;
 
@@ -66,19 +65,7 @@ public class ScreenshotCommand implements Runnable {
 			return;
 		
 		BufferedImage img = GuiTools.makeSnapshot(qupath, GuiTools.SnapshotType.VIEWER);
-//		Graphics2D g2d;
-//		Border border = viewer.getBorder();
-//		if (border == null) {
-//			img = new BufferedImage(viewer.getWidth(), viewer.getHeight(), BufferedImage.TYPE_INT_RGB);
-//			g2d = img.createGraphics();
-//		} else {
-//			// Shift according to insets to avoid painting the panel border
-//			Insets insets = border.getBorderInsets(viewer);
-//			img = new BufferedImage(viewer.getWidth()-insets.left-insets.right, viewer.getHeight()-insets.top-insets.bottom, BufferedImage.TYPE_INT_RGB);
-//			g2d = img.createGraphics();
-//			g2d.translate(-insets.left, -insets.top);
-//		}
-//		viewer.paintAll(g2d);
+
 		// Try to start up & display ImageJ
 		ImageJ ij = IJExtension.getImageJInstance();
 		if (ij != null)
@@ -102,8 +89,6 @@ public class ScreenshotCommand implements Runnable {
 		Interpreter.batchMode = false; // Make sure we aren't in batch mode, so that image will display
 		
 		SwingUtilities.invokeLater(() -> imp.show());
-		
-//		new PathImagePlus(viewer.getWholeSlideImageServer().getServerPath(), imp, viewer.getDisplayedImageBounds()).getImage().show();
 	}
 	
 }

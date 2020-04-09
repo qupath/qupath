@@ -94,7 +94,7 @@ public class WandToolCV extends BrushTool {
 		 */
 		RGB,
 		/**
-		 * Color image converted to CIELAB, euclidean distance calculated
+		 * Color image converted to CIELAB, Euclidean distance calculated
 		 */
 		LAB_DISTANCE
 	};

@@ -68,10 +68,11 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 			logger.info("Bio-Formats version {}", bfVersion);
 		}
 		
-		
+		var actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF");
+		actionWriter.disabledProperty().bind(qupath.imageDataProperty().isNull());
 		MenuTools.addMenuItems(
 				qupath.getMenu("File>Export images...", true),
-				ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF"));
+				actionWriter);
 		
 		
 		

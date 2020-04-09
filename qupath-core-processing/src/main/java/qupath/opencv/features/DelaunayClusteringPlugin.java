@@ -133,13 +133,6 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 			return Collections.singletonList(hierarchy.getRootObject());
 		else
 			return selected;
-//		List<PathObject> selected = runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());
-//		if (selected.isEmpty()) {
-//			if (runner.getHierarchy().getTMAGrid() != null)
-//				return PathObjectTools.getTMACoreObjects(runner.getHierarchy(), false);
-//			return Collections.singletonList(runner.getHierarchy().getRootObject());
-//		} else
-//			return selected;
 	}
 
 	@Override

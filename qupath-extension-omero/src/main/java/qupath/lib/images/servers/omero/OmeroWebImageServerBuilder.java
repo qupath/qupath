@@ -183,6 +183,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		return BufferedImage.class;
 	}
 	
+	@SuppressWarnings("unused")
 	static class OmeroWebClient {
 
 		private Timer timer;

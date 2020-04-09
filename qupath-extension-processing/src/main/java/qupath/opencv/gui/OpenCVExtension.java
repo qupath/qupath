@@ -23,13 +23,19 @@
 
 package qupath.opencv.gui;
 
+import org.bytedeco.javacpp.Loader;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_dnn;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_ml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.scene.control.Menu;
 import javafx.scene.control.SeparatorMenuItem;
-import qupath.lib.gui.ActionTools;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.icons.PathIconFactory;
@@ -39,7 +45,6 @@ import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.DetectCytokeratinCV;
 import qupath.opencv.features.DelaunayClusteringPlugin;
-import qupath.opencv.gui.classify.OpenCvClassifierCommand;
 import qupath.opencv.tools.WandToolCV;
 
 /**
@@ -55,12 +60,6 @@ public class OpenCVExtension implements QuPathExtension {
 	static void addQuPathCommands(final QuPathGUI qupath) {
 		
 		logger.debug("Installing " + OpenCVExtension.class);
-
-//		Menu menuTMA = qupath.getMenu("TMA", true);
-//		QuPathGUI.addMenuItems(
-//				menuTMA,
-//				QuPathGUI.createCommandAction(new AlignCoreAnnotationsCV(qupath), "Align annotations within TMA core (TMA, experimental)")
-//				);
 		
 		Menu menuFeatures = qupath.getMenu("Analyze>Spatial analysis", true);
 		MenuTools.addMenuItems(
@@ -83,11 +82,12 @@ public class OpenCVExtension implements QuPathExtension {
 				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null)
 				);
 
+		var classifierCommand = new OpenCvClassifierCommand(qupath);
 		Menu menuClassify = qupath.getMenu("Classify>Object classification>Older classifiers", true);
 		MenuTools.addMenuItems(
 				menuClassify,
 				null,
-				ActionTools.createAction(new OpenCvClassifierCommand(qupath), "Create detection classifier"));
+				qupath.createImageDataAction(imageData -> classifierCommand.run(), "Create detection classifier"));
 		
 		
 //		// Add the Wand tool
@@ -100,18 +100,14 @@ public class OpenCVExtension implements QuPathExtension {
 	
 	private static void ensureClassesLoaded() {
 		logger.debug("Ensuring OpenCV classes are loaded");
-		try (var scope = new org.bytedeco.javacpp.PointerScope()) {
-			var mat = new org.bytedeco.opencv.opencv_core.Mat();
-			var matvec = new org.bytedeco.opencv.opencv_core.MatVector();
-			var rect = new org.bytedeco.opencv.opencv_core.Rect();
-			org.bytedeco.opencv.opencv_core.Scalar.all(1.0);
-			org.bytedeco.opencv.opencv_ml.RTrees.create();
-			org.bytedeco.opencv.opencv_ml.ANN_MLP.create();
-			org.bytedeco.opencv.opencv_ml.KNearest.create();
-			org.bytedeco.opencv.opencv_ml.DTrees.create();
-			mat.close();
-			matvec.close();
-			rect.close();
+		try (@SuppressWarnings("unchecked")
+		var scope = new org.bytedeco.javacpp.PointerScope()) {
+			Loader.load(opencv_core.class);
+			Loader.load(opencv_imgproc.class);
+			Loader.load(opencv_ml.class);
+			Loader.load(opencv_dnn.class);
+		} catch (Exception e) {
+			logger.error("Error loading OpenCV: " + e.getLocalizedMessage(), e);
 		}
 	}
 
@@ -125,7 +121,7 @@ public class OpenCVExtension implements QuPathExtension {
 					PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {
-				qupath.installTool(wandTool);
+				qupath.installTool(wandTool, new KeyCodeCombination(KeyCode.W));
 			});
 			logger.debug("Loading OpenCV classes");
 			ensureClassesLoaded();

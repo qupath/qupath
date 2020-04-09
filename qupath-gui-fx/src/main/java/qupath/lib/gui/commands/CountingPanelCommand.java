@@ -100,8 +100,8 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		var actionManager = qupath.getActionManager();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
-				ActionTools.createToggleButton(actionManager.MOVE_TOOL, true),
-				ActionTools.createToggleButton(actionManager.POINTS_TOOL, true),
+				ActionTools.createToggleButton(qupath.getToolAction(PathTools.MOVE), true),
+				ActionTools.createToggleButton(qupath.getToolAction(PathTools.POINTS), true),
 				new Separator(Orientation.VERTICAL),
 				ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true),
 				ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true),

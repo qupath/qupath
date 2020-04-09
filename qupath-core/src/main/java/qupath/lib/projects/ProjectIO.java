@@ -81,6 +81,7 @@ public class ProjectIO {
 	 * @throws IOException 
 	 */
 	public static <T> Project<T> loadProject(final File fileProject, final Class<T> cls) throws IOException {
+		logger.debug("Loading project from {}", fileProject);
 		try (Reader fileReader = new BufferedReader(new FileReader(fileProject))){
 			Gson gson = new Gson();
 			JsonObject element = gson.fromJson(fileReader, JsonObject.class);

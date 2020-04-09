@@ -303,6 +303,11 @@ public class ActionTools {
 					var action = (Action)value;
 					parseAnnotations(action, f, baseMenu);
 					actions.add(action);
+				} else if (value instanceof Action[]) {
+					for (var temp : (Action[])value) {
+						parseAnnotations(temp, f, baseMenu);
+						actions.add(temp);		
+					}
 				}
 			} catch (Exception e) {
 				logger.error("Error setting up action: {}", e.getLocalizedMessage(), e);
