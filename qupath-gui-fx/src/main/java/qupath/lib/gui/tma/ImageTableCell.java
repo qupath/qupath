@@ -40,7 +40,6 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.Screen;
 import qupath.lib.gui.tma.entries.TMAEntry;
-import qupath.lib.gui.tma.entries.TMAImageCache;
 import qupath.lib.gui.tools.GuiTools;
 
 

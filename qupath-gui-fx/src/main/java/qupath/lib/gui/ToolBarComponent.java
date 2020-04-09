@@ -82,48 +82,48 @@ class ToolBarComponent {
 			});
 			
 			// Show analysis panel
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_ANALYSIS_PANEL, true, null, true));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_ANALYSIS_PANEL, true, null, true));
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 			
 			ToggleGroup groupTools = new ToggleGroup();
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.MOVE_TOOL, true, groupTools, true));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.RECTANGLE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.ELLIPSE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.LINE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.POLYGON_TOOL, true, groupTools, false));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.POLYLINE_TOOL, true, groupTools, false));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.MOVE_TOOL, true, groupTools, true));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.RECTANGLE_TOOL, true, groupTools, false));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.ELLIPSE_TOOL, true, groupTools, false));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.LINE_TOOL, true, groupTools, false));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.POLYGON_TOOL, true, groupTools, false));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.POLYLINE_TOOL, true, groupTools, false));
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 			
-			ToggleButton btnBrush = ActionTools.getActionToggleButton(actionManager.BRUSH_TOOL, true, groupTools, false);
+			ToggleButton btnBrush = ActionTools.createToggleButton(actionManager.BRUSH_TOOL, true, groupTools, false);
 			toolbar.getItems().add(btnBrush);
 //			ToggleButton toggleWand = ActionTools.getActionToggleButton(qupath.WAND_TOOL, true, groupTools, false);
 //			toolbar.getItems().add(toggleWand);
 			
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.POINTS_TOOL, true, groupTools, false));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.POINTS_TOOL, true, groupTools, false));
 			
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 			
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SELECTION_MODE, true, null, PathPrefs.isSelectionMode()));			
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SELECTION_MODE, true, null, PathPrefs.isSelectionMode()));			
 			
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 
-			toolbar.getItems().add(ActionTools.getActionButton(actionManager.BRIGHTNESS_CONTRAST, true));
+			toolbar.getItems().add(ActionTools.createButton(actionManager.BRIGHTNESS_CONTRAST, true));
 			
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 			
 			toolbar.getItems().add(labelMag);
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.ZOOM_TO_FIT, true, false));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.ZOOM_TO_FIT, true, false));
 
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
 			
 			OverlayOptions overlayOptions = qupath.getOverlayOptions();
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
 
 			final Slider sliderOpacity = new Slider(0, 1, 1);
 			sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
@@ -156,14 +156,14 @@ class ToolBarComponent {
 			
 			// TODO: Check if viewer really needed...
 			QuPathViewerPlus viewer = qupath.getViewer();
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_OVERVIEW, true, viewer.isOverviewVisible()));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_LOCATION, true, viewer.isLocationVisible()));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_SCALEBAR, true, viewer.isScalebarVisible()));
-			toolbar.getItems().add(ActionTools.getActionToggleButton(actionManager.SHOW_GRID, true, overlayOptions.getShowGrid()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_OVERVIEW, true, viewer.isOverviewVisible()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_LOCATION, true, viewer.isLocationVisible()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_SCALEBAR, true, viewer.isScalebarVisible()));
+			toolbar.getItems().add(ActionTools.createToggleButton(actionManager.SHOW_GRID, true, overlayOptions.getShowGrid()));
 			
 			// Add preferences button
 			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			toolbar.getItems().add(ActionTools.getActionButton(qupath.lookupActionByText("Preferences..."), true));
+			toolbar.getItems().add(ActionTools.createButton(qupath.lookupActionByText("Preferences..."), true));
 		}
 		
 		void refreshMagnificationTooltip() {

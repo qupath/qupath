@@ -67,7 +67,7 @@ public class MenuTools {
 				lastIsSeparator = false;
 			}
 			else if (item instanceof Action) {
-				newItems.add(ActionTools.getActionMenuItem((Action)item));
+				newItems.add(ActionTools.createMenuItem((Action)item));
 				lastIsSeparator = false;
 			} else
 				logger.warn("Could not add menu item {}", item);
@@ -104,7 +104,7 @@ public class MenuTools {
 				lastIsSeparator = false;
 			}
 			else if (item instanceof Action) {
-				newItems.add(ActionTools.getActionMenuItem((Action)item));
+				newItems.add(ActionTools.createMenuItem((Action)item));
 				lastIsSeparator = false;
 			} else
 				logger.warn("Could not add menu item {}", item);
@@ -164,6 +164,8 @@ public class MenuTools {
 		}
 		return menuCurrent;
 	}
+	
+	
 	
 	
 //	public static MenuItem getMenuItem(List<Menu> menus, String itemName) {

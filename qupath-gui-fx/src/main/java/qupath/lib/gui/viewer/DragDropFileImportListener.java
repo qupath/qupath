@@ -56,7 +56,7 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 
 /**
- * Drag 'n drop support for main QuPath application, which supports a range of different supported file types.
+ * Drag and drop support for main QuPath application, which supports a range of different supported file types.
  * 
  * @author Pete Bankhead
  *
@@ -65,42 +65,36 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(DragDropFileImportListener.class);
 
-	private QuPathGUI gui;
+	private QuPathGUI qupath;
 	
 	private List<FileDropHandler> fileDropHandlers = new ArrayList<>();
 
-	public DragDropFileImportListener(final QuPathGUI gui) {
-		this.gui = gui;
+	public DragDropFileImportListener(final QuPathGUI qupath) {
+		this.qupath = qupath;
 	}
 	
 	/**
-	 * Prepare a target node to accept drag & drop events.
+	 * Prepare a target node to accept drag and drop events.
 	 * @param target
 	 */
 	public void setupTarget(final Node target) {
-		target.setOnDragOver(new EventHandler<DragEvent>() {
-            @Override
-            public void handle(DragEvent event) {
-            	// Remove this condition if the user can drag onto anything, not only a canvas
-                event.acceptTransferModes(TransferMode.COPY);
-                event.consume();
-            }
+		target.setOnDragOver(event -> {
+        	// Remove this condition if the user can drag onto anything, not only a canvas
+            event.acceptTransferModes(TransferMode.COPY);
+            event.consume();
         });
 		target.setOnDragDropped(this);
 	}
 	
 	/**
-	 * Prepare a target scene to accept drag & drop events.
+	 * Prepare a target scene to accept drag and drop events.
 	 * @param target
 	 */
 	public void setupTarget(final Scene target) {
-		target.setOnDragOver(new EventHandler<DragEvent>() {
-            @Override
-            public void handle(DragEvent event) {
-            	// Remove this condition if the user can drag onto anything, not only a canvas
-                event.acceptTransferModes(TransferMode.COPY);
-                event.consume();
-            }
+		target.setOnDragOver(event -> {
+        	// Remove this condition if the user can drag onto anything, not only a canvas
+            event.acceptTransferModes(TransferMode.COPY);
+            event.consume();
         });
 		target.setOnDragDropped(this);
 	}
@@ -112,15 +106,15 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
         Object source = event.getSource();
         // Look for the viewer that we dragged on to - may be null, if drag was on
         QuPathViewer viewer = null;
-        for (QuPathViewer viewer2 : gui.getViewers()) {
+        for (QuPathViewer viewer2 : qupath.getViewers()) {
         	if (viewer2.getView() == source) {
         		viewer = viewer2;
         		break;
         	}
         }
         // If only one viewer is available, there is no ambiguity... use it
-        if (viewer == null && gui.getViewers().size() == 1)
-        	viewer = gui.getViewer();
+        if (viewer == null && qupath.getViewers().size() == 1)
+        	viewer = qupath.getViewer();
         
 		if (dragboard.hasFiles()) {
 	        logger.debug("Files dragged onto {}", source);
@@ -155,7 +149,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 		this.fileDropHandlers.remove(handler);
 	}
     
-    public void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
+    void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
     	try {
     		handleFileDropImpl(viewer, list);
     	} catch (IOException e) {
@@ -181,8 +175,8 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 				nJars++;
 		}
 		if (nJars == list.size()) {
-			if (gui.canInstallExtensions())
-				gui.installExtensions(list);
+			if (qupath.canInstallExtensions())
+				qupath.installExtensions(list);
 			else
 				Dialogs.showErrorMessage("Install extensions", "Sorry, extensions can only be installed when QuPath is run as a standalone application.");
 			return;
@@ -206,7 +200,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					break;
 				}
 				try {
-					gui.openSavedData(viewer, file, false, true);
+					qupath.openSavedData(viewer, file, false, true);
 				} catch (Exception e) {
 					Dialogs.showErrorMessage("Open image", e);
 				}
@@ -234,7 +228,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					// If we have an empty directory, offer to set it as a project
 					if (Dialogs.showYesNoDialog("Create project", "Create project for empty directory?")) {
 						Project<BufferedImage> project = Projects.createProject(file, BufferedImage.class);
-						gui.setProject(project);
+						qupath.setProject(project);
 						if (!project.isEmpty())
 							project.syncChanges();
 						return;
@@ -248,7 +242,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			if (singleFile && (fileName.endsWith(ProjectIO.getProjectExtension()))) {
 				try {
 					Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
-					gui.setProject(project);
+					qupath.setProject(project);
 				} catch (Exception e) {
 					Dialogs.showErrorMessage("Project error", e);
 //					logger.error("Could not open as project file: {}", e);
@@ -273,7 +267,7 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 
 
 			// Open Javascript
-			ScriptEditor scriptEditor = gui.getScriptEditor();
+			ScriptEditor scriptEditor = qupath.getScriptEditor();
 			if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
 				scriptEditor.showScript(file);
 				return;
@@ -293,20 +287,20 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 					Dialogs.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
 					return;
 				}
-				gui.openImage(viewer, file.getAbsolutePath(), true, true);
+				qupath.openImage(viewer, file.getAbsolutePath(), true, true);
 				return;
-			} else if (gui.getProject() != null) {
+			} else if (qupath.getProject() != null) {
 				// Try importing multiple images to a project
 				String[] potentialFiles = list.stream().filter(f -> f.isFile()).map(f -> f.getAbsolutePath()).toArray(String[]::new);
 				if (potentialFiles.length > 0) {
-					ProjectImportImagesCommand.promptToImportImages(gui, potentialFiles);
+					ProjectImportImagesCommand.promptToImportImages(qupath, potentialFiles);
 					return;
 				}
 			}
 
 
 		}
-		if (gui.getProject() == null) {
+		if (qupath.getProject() == null) {
 			if (list.size() > 1) {
 				Dialogs.showErrorMessage("Drag & drop", "Could not handle multiple file drop - if you want to handle multiple images, you need to create a project first");
 				return;

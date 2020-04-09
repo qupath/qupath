@@ -84,7 +84,6 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.ActionTools;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -102,12 +101,8 @@ import qupath.lib.regions.ImageRegion;
  * @author Pete Bankhead
  *
  */
-public class MiniViewerCommand implements Runnable {
+public class MiniViewers {
 
-	private QuPathGUI qupath;
-	
-	private boolean channelViewer;
-	
 	/**
 	 * Style binding to use the same background color as the main viewer.
 	 */
@@ -116,23 +111,9 @@ public class MiniViewerCommand implements Runnable {
 		return String.format("-fx-background-color: rgb(%d, %d, %d)", ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
 	}, PathPrefs.viewerBackgroundColorProperty());
 
-	public MiniViewerCommand(final QuPathGUI qupath, final boolean channelViewer) {
-		super();
-		this.qupath = qupath;
-		this.channelViewer = channelViewer;
-	}
-	
-	@Override
-	public void run() {
-		createDialog();
-	}
-	
-	private void createDialog() {
-		final QuPathViewer viewer = qupath.getViewer();
-		if (viewer == null)
-			return;
+	static Stage createDialog(QuPathViewer viewer, boolean channelViewer) {
 		final Stage dialog = new Stage();
-		dialog.initOwner(qupath.getStage());
+		dialog.initOwner(viewer.getView().getScene().getWindow());
 		
 		ObservableList<ChannelDisplayInfo> channels = viewer.getImageDisplay().availableChannels();
 		MiniViewerManager manager = new MiniViewerManager(viewer, channelViewer ? channels.size() : 0);
@@ -166,8 +147,7 @@ public class MiniViewerCommand implements Runnable {
 			});
 		}
 		createPopup(manager);
-						
-		dialog.show();
+		return dialog;
 	}
 	
 	/**
@@ -176,7 +156,7 @@ public class MiniViewerCommand implements Runnable {
 	 * @param manager
 	 * @return
 	 */
-	ContextMenu createPopup(final MiniViewerManager manager) {
+	static ContextMenu createPopup(final MiniViewerManager manager) {
 		
 		List<RadioMenuItem> radioItems = Arrays.asList(
 				ActionUtils.createRadioMenuItem(createDownsampleAction("400 %", manager.downsample, 0.25)),

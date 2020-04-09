@@ -22,7 +22,7 @@
  */
 
 
-package qupath.lib.gui.tma.entries;
+package qupath.lib.gui.tma;
 
 import java.lang.ref.SoftReference;
 import java.util.Collections;
@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javafx.scene.image.Image;
+import qupath.lib.gui.tma.entries.TMAEntry;
 
 /**
  * Image cache for storing images related to TMAEntries.
@@ -40,7 +41,7 @@ import javafx.scene.image.Image;
  * @author Pete Bankhead
  *
  */
-public class TMAImageCache {
+class TMAImageCache {
 	
 	private int maxSmallWidth;
 	

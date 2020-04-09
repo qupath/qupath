@@ -51,11 +51,12 @@ import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
 
 
 /**
- * Create a pane used to display and run a classifier loaded from a file.
+ * Create a pane used to display and run an (old-style) detection classifier loaded from a file.
  * 
  * @author Pete Bankhead
  *
  */
+@Deprecated
 public class PathClassifierPanel {
 
 	private final static Logger logger = LoggerFactory.getLogger(PathClassifierPanel.class);

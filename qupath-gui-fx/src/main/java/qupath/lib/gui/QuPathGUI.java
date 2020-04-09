@@ -173,16 +173,13 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.CommandListDisplayCommand;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCheckUrisCommand;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.commands.SampleScriptLoader;
-import qupath.lib.gui.commands.TMAAddNote;
-import qupath.lib.gui.commands.TMAGridAdd;
-import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
-import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
-import qupath.lib.gui.commands.TMAGridRemove;
+import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.commands.ViewTrackerCommand;
 import qupath.lib.gui.controls.cells.ImageAndNameListCell;
 import qupath.lib.gui.dialogs.DialogHelper;
@@ -303,7 +300,7 @@ public class QuPathGUI {
 
 	MultiviewManager viewerManager;
 	
-	private ObjectProperty<Project<BufferedImage>> project = new SimpleObjectProperty<>();
+	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
 	
 	private ProjectBrowser projectBrowser;
 	
@@ -360,7 +357,6 @@ public class QuPathGUI {
 	
 	
 	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
-	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
 	
 	private BooleanBinding noProject = projectProperty.isNull();
 	private BooleanBinding noViewer = viewerProperty.isNull();
@@ -396,7 +392,7 @@ public class QuPathGUI {
 		var action = new Action(e -> {
 			var viewer = getViewer();
 			if (viewer == null)
-				Dialogs.showErrorMessage("No viewer", "No viewer is selected!");
+				Dialogs.showErrorMessage("No viewer", "This command required an active viewer!");
 			else
 				command.accept(viewer);
 		});
@@ -419,18 +415,6 @@ public class QuPathGUI {
 				Dialogs.showNoImageError("No image");
 			else
 				command.accept(hierarchy);
-		});
-		action.disabledProperty().bind(noImageData);
-		return action;
-	}
-	
-	Action creatViewerAction(Consumer<QuPathViewer> command) {
-		var action = new Action(e -> {
-			var viewer = getViewer();
-			if (viewer == null)
-				Dialogs.showErrorMessage("No viewer", "This command requires an active viewer!");
-			else
-				command.accept(viewer);
 		});
 		action.disabledProperty().bind(noImageData);
 		return action;
@@ -467,7 +451,7 @@ public class QuPathGUI {
 				var menu = menuMap.computeIfAbsent((String)menuString, s -> MenuTools.getMenu(menus, s, true));
 				var items = menu.getItems();
 				var name = action.getText();
-				var newItem = ActionTools.getActionMenuItem(action);
+				var newItem = ActionTools.createMenuItem(action);
 				if (!(newItem instanceof SeparatorMenuItem)) {
 					var existing = items.stream().filter(m -> m.getText() != null && m.getText().equals(name)).findFirst().orElse(null);
 					if (existing != null) {
@@ -517,7 +501,7 @@ public class QuPathGUI {
 		private Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
 			
 		// TMA actions
-		private Action TMA_ADD_NOTE = ActionTools.createAction(new TMAAddNote(QuPathGUI.this), "Add TMA note");
+		private Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
 //		public Action TMA_RELABEL = createCommandAction(new TMAGridRelabel(QuPathGUI.this), "Relabel TMA grid");
 		
 		// Overlay options actions
@@ -578,7 +562,10 @@ public class QuPathGUI {
 	 * @return the action, if found, or null otherwise
 	 */
 	public Action lookupActionByText(String text) {
-		return actions.stream().filter(p -> text.equals(p.getText())).findFirst().orElse(null);
+		var found = actions.stream().filter(p -> text.equals(p.getText())).findFirst().orElse(null);
+		if (found == null)
+			logger.warn("No action called '{}' could be found!", text);
+		return found;
 	}
 	
 	
@@ -628,7 +615,7 @@ public class QuPathGUI {
 		this.isStandalone = isStandalone;
 		
 		menuBar = new MenuBar(
-				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Automate", "Analyze", "Classify", "Extensions", "Help")
+				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Measure", "Automate", "Analyze", "Classify", "Extensions", "Help")
 				.stream().map(Menu::new).toArray(Menu[]::new)
 				);
 		actions.addListener((ListChangeListener.Change<? extends Action> c) -> {
@@ -644,7 +631,7 @@ public class QuPathGUI {
 		});
 		
 		// Prepare for image name masking
-		project.addListener((v, o, n) -> {
+		projectProperty.addListener((v, o, n) -> {
 			if (n != null)
 				n.setMaskImageNames(PathPrefs.getMaskImageNames());
 			refreshTitle();
@@ -871,10 +858,10 @@ public class QuPathGUI {
 				return null;
 			return new File(dir, "scripts").getAbsolutePath();
 //			return getProjectScriptsDirectory(false).getAbsolutePath();
-		}, project);
+		}, projectProperty);
 		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
 		projectScriptMenuLoader.getMenu().visibleProperty().bind(
-				project.isNotNull().and(initializingMenus.not())
+				projectProperty.isNotNull().and(initializingMenus.not())
 				);
 		
 		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
@@ -1190,15 +1177,7 @@ public class QuPathGUI {
 				if (compareChangelogHeaders(changeLogCurrent, changeLogOnline)) {
 					// If not isAutoCheck, inform user even if there are no updated at this time
 					if (!isAutoCheck) {
-						Platform.runLater(() -> {
-//							Dialog<Void> dialog = new Dialog<>();
-//							dialog.setTitle("Update check");
-//							dialog.initOwner(getStage());
-//							dialog.getDialogPane().setHeaderText("QuPath is up-to-date!");
-//							dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-//							dialog.showAndWait();
-							Dialogs.showMessageDialog("Update check", "QuPath is up-to-date!");
-						});
+						Platform.runLater(() -> Dialogs.showMessageDialog("Update check", "QuPath is up-to-date!"));
 					}
 					return;
 				}
@@ -2062,8 +2041,8 @@ public class QuPathGUI {
 		miResizeGrid.setOnAction(e -> {
 				viewerManager.resetGridSize();
 		});
-		MenuItem miToggleSync = ActionTools.getActionCheckBoxMenuItem(actionManager.TOGGLE_SYNCHRONIZE_VIEWERS, null);
-		MenuItem miMatchResolutions = ActionTools.getActionMenuItem(actionManager.MATCH_VIEWER_RESOLUTIONS);
+		MenuItem miToggleSync = ActionTools.createCheckMenuItem(actionManager.TOGGLE_SYNCHRONIZE_VIEWERS, null);
+		MenuItem miMatchResolutions = ActionTools.createMenuItem(actionManager.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = MenuTools.createMenu(
 				"Multi-view",
 				miToggleSync,
@@ -2084,7 +2063,7 @@ public class QuPathGUI {
 		logger.warn("ADD ZOOM IN/OUT BUTTONS!");
 		Menu menuView = MenuTools.createMenu(
 				"Display",
-				ActionTools.getActionCheckBoxMenuItem(actionManager.SHOW_ANALYSIS_PANEL, null),
+				ActionTools.createCheckMenuItem(actionManager.SHOW_ANALYSIS_PANEL, null),
 				actionManager.BRIGHTNESS_CONTRAST,
 				null,
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 0.25), "400%"),
@@ -2096,20 +2075,20 @@ public class QuPathGUI {
 				// TODO: ADD ZOOM COMMANDS AGAIN
 //				actionManager.ZOOM_IN,
 //				actionManager.ZOOM_OUT,
-				ActionTools.getActionCheckBoxMenuItem(actionManager.ZOOM_TO_FIT, null)
+				ActionTools.createCheckMenuItem(actionManager.ZOOM_TO_FIT, null)
 				);
 		
 		ToggleGroup groupTools = new ToggleGroup();
 		Menu menuTools = MenuTools.createMenu(
 				"Set tool",
-				ActionTools.getActionCheckBoxMenuItem(actionManager.MOVE_TOOL, groupTools),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.RECTANGLE_TOOL, groupTools),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.ELLIPSE_TOOL, groupTools),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.LINE_TOOL, groupTools),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.POLYGON_TOOL, groupTools),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.POLYLINE_TOOL, groupTools),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.BRUSH_TOOL, groupTools),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.POINTS_TOOL, groupTools)
+				ActionTools.createCheckMenuItem(actionManager.MOVE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(actionManager.RECTANGLE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(actionManager.ELLIPSE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(actionManager.LINE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(actionManager.POLYGON_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(actionManager.POLYLINE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(actionManager.BRUSH_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(actionManager.POINTS_TOOL, groupTools)
 //				ActionTools.getActionCheckBoxMenuItem(actionManager.WAND_TOOL, groupTools)
 				);
 
@@ -2130,15 +2109,15 @@ public class QuPathGUI {
 				null,
 				MenuTools.createMenu(
 						"Add",
-					ActionTools.createAction(new TMAGridAdd(this, TMAAddType.ROW_BEFORE), "Add TMA row before"),
-					ActionTools.createAction(new TMAGridAdd(this, TMAAddType.ROW_AFTER), "Add TMA row after"),
-					ActionTools.createAction(new TMAGridAdd(this, TMAAddType.COLUMN_BEFORE), "Add TMA column before"),
-					ActionTools.createAction(new TMAGridAdd(this, TMAAddType.COLUMN_AFTER), "Add TMA column after")
+					createImageDataAction(imageData -> TMACommands.promptToAddRowBeforeSelected(imageData), "Add TMA row before"),
+					createImageDataAction(imageData -> TMACommands.promptToAddRowAfterSelected(imageData), "Add TMA row after"),
+					createImageDataAction(imageData -> TMACommands.promptToAddColumnBeforeSelected(imageData), "Add TMA column before"),
+					createImageDataAction(imageData -> TMACommands.promptToAddColumnAfterSelected(imageData), "Add TMA column after")
 					),
 				MenuTools.createMenu(
 						"Remove",
-					ActionTools.createAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
-					ActionTools.createAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
+					createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridRow(imageData), "Remove TMA row"),
+					createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridColumn(imageData), "column")
 					)
 				);
 		
@@ -2155,10 +2134,10 @@ public class QuPathGUI {
 		
 		Menu menuCells = MenuTools.createMenu(
 				"Cells",
-				ActionTools.getActionCheckBoxMenuItem(actionManager.SHOW_CELL_BOUNDARIES_AND_NUCLEI, null),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.SHOW_CELL_NUCLEI, null),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.SHOW_CELL_BOUNDARIES, null),
-				ActionTools.getActionCheckBoxMenuItem(actionManager.SHOW_CELL_CENTROIDS, null)
+				ActionTools.createCheckMenuItem(actionManager.SHOW_CELL_BOUNDARIES_AND_NUCLEI, null),
+				ActionTools.createCheckMenuItem(actionManager.SHOW_CELL_NUCLEI, null),
+				ActionTools.createCheckMenuItem(actionManager.SHOW_CELL_BOUNDARIES, null),
+				ActionTools.createCheckMenuItem(actionManager.SHOW_CELL_CENTROIDS, null)
 				);
 
 		
@@ -3191,13 +3170,24 @@ public class QuPathGUI {
 		projectBrowser.refreshProject();
 	}
 	
-	
+	/**
+	 * Create an Action to call the specified plugin for the current image.
+	 * @param name plugin name
+	 * @param plugin the plugin to call
+	 * @param arg any argument required by the plugin
+	 * @return an action that may be called to run the plugin
+	 */
 	public Action createPluginAction(final String name, final PathPlugin<BufferedImage> plugin, final String arg) {
-		return new Action(name, event -> {
+		var action = new Action(name, event -> {
 			try {
 				if (plugin instanceof PathInteractivePlugin) {
+					var imageData = getImageData();
+					if (imageData == null) {
+						Dialogs.showNoImageError(name);
+						return;
+					}
 					PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
-					ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, pluginInteractive.getDefaultParameterList(getImageData()), new PluginRunnerFX(this));
+					ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, pluginInteractive.getDefaultParameterList(imageData), new PluginRunnerFX(this));
 					dialog.showDialog();
 //					((PathInteractivePlugin<BufferedImage>)plugin).runInteractive(new PluginRunnerFX(this, false), arg);
 				}
@@ -3208,6 +3198,9 @@ public class QuPathGUI {
 				Dialogs.showErrorMessage("Error", "Error running " + plugin.getName());
 			}
 		});
+		// We assume that plugins require image data
+		action.disabledProperty().bind(noImageData);
+		return action;
 	}
 	
 	
@@ -3238,10 +3231,12 @@ public class QuPathGUI {
 	 */
 	public static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
 		try {
-			return new Action(name, event -> {
+			var action = new Action(name, event -> {
 				PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
 				qupath.runPlugin(plugin, arg, true);
 			});
+			action.disabledProperty().bind(qupath.noImageData);
+			return action;
 		} catch (Exception e) {
 			logger.error("Unable to initialize class " + pluginClass, e);
 		}
@@ -3639,7 +3634,7 @@ public class QuPathGUI {
 						return name;
 					return name + " - " + getDisplayedImageName(imageData);
 				},
-				project, imageDataProperty, PathPrefs.showImageNameInTitleProperty(), PathPrefs.maskImageNamesProperty());
+				projectProperty, imageDataProperty, PathPrefs.showImageNameInTitleProperty(), PathPrefs.maskImageNamesProperty());
 	
 	
 	/**
@@ -3673,7 +3668,7 @@ public class QuPathGUI {
 	 * @param project
 	 */
 	public void setProject(final Project<BufferedImage> project) {
-		var currentProject = this.project.get();
+		var currentProject = this.projectProperty.get();
 		if (currentProject == project)
 			return;
 		
@@ -3729,9 +3724,9 @@ public class QuPathGUI {
 				list.add(0, uri);
 		}
 		
-		this.project.set(project);
+		this.projectProperty.set(project);
 		if (!this.projectBrowser.setProject(project)) {
-			this.project.set(null);
+			this.projectProperty.set(null);
 			this.projectBrowser.setProject(null);
 		}
 		
@@ -3793,11 +3788,11 @@ public class QuPathGUI {
 	
 	
 	public ReadOnlyObjectProperty<Project<BufferedImage>> projectProperty() {
-		return project;
+		return projectProperty;
 	}
 	
 	public Project<BufferedImage> getProject() {
-		return project.get();
+		return projectProperty.get();
 	}
 
 	/**

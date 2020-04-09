@@ -10,7 +10,6 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.servers.ImageServer;
 
@@ -22,7 +21,6 @@ import qupath.lib.images.servers.ImageServer;
 public class ImageAndNameListCell extends ListCell<ImageServer<BufferedImage>> {
 	
 	private Map<String, BufferedImage> imageCache;
-	private BorderPane pane = new BorderPane();
 	final private Canvas canvas = new Canvas();
 	
 	private Image img;

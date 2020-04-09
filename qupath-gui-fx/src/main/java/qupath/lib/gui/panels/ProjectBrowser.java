@@ -241,9 +241,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		panel.setBottom(paneUserFilter);
 		panel.setCenter(panelTree);
 
-		Button btnOpen = ActionTools.getActionButton(qupath.lookupActionByText("Open project"), false);
-		Button btnCreate = ActionTools.getActionButton(qupath.lookupActionByText("Create project"), false);
-		Button btnAdd = ActionTools.getActionButton(qupath.lookupActionByText("Add images"), false);
+		Button btnOpen = ActionTools.createButton(qupath.lookupActionByText("Open project"), false);
+		Button btnCreate = ActionTools.createButton(qupath.lookupActionByText("Create project"), false);
+		Button btnAdd = ActionTools.createButton(qupath.lookupActionByText("Add images"), false);
 		GridPane paneButtons = PaneTools.createColumnGridControls(btnCreate, btnOpen, btnAdd);
 		paneButtons.prefWidthProperty().bind(panel.widthProperty());
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));

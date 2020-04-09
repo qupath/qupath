@@ -495,7 +495,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createSaveAction("Save As...", true),
 				null,
 				createRevertAction("Revert/Refresh"),
-				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(autoRefreshFiles, "Auto refresh files")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoRefreshFiles, "Auto refresh files")),
 				null,
 				createCloseAction("Close script")
 //				null,
@@ -576,10 +576,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
-				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
-				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Send output to log")),
-				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
-				ActionTools.getActionCheckBoxMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console"))
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Send output to log")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console"))
 				);
 		menubar.getMenus().add(menuRun);
 

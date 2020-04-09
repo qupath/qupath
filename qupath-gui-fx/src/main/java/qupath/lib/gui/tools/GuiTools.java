@@ -60,8 +60,8 @@ import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
-import qupath.lib.gui.Commands;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -806,7 +806,7 @@ public class GuiTools {
 		
 		var actionInsertInHierarchy = qupath.createHierarchyAction(h -> Commands.insertSelectedObjectsInHierarchy(h));
 		actionInsertInHierarchy.setText("Insert in hierarchy");
-		var miInsertHierarchy = ActionTools.getActionMenuItem(actionInsertInHierarchy);
+		var miInsertHierarchy = ActionTools.createMenuItem(actionInsertInHierarchy);
 		
 		var actionMerge = qupath.createImageDataAction(imageData -> Commands.mergeSelectedAnnotations(imageData));
 		actionMerge.setText("Merge selected");

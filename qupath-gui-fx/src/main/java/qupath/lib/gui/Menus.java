@@ -19,41 +19,29 @@ import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI.ActionManager;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.ExportImageRegionCommand;
-import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.MeasurementManager;
-import qupath.lib.gui.commands.MeasurementMapCommand;
-import qupath.lib.gui.commands.MemoryMonitorCommand;
-import qupath.lib.gui.commands.MiniViewerCommand;
 import qupath.lib.gui.commands.PreferencesCommand;
 import qupath.lib.gui.commands.ProjectCheckUrisCommand;
 import qupath.lib.gui.commands.ProjectExportImageListCommand;
 import qupath.lib.gui.commands.ProjectImportImagesCommand;
 import qupath.lib.gui.commands.ProjectMetadataEditorCommand;
 import qupath.lib.gui.commands.RigidObjectEditorCommand;
-import qupath.lib.gui.commands.RotateImageCommand;
 import qupath.lib.gui.commands.ScriptInterpreterCommand;
-import qupath.lib.gui.commands.SelectAllAnnotationCommand;
 import qupath.lib.gui.commands.ShowInputDisplayCommand;
 import qupath.lib.gui.commands.ShowInstalledExtensionsCommand;
 import qupath.lib.gui.commands.ShowLicensesCommand;
 import qupath.lib.gui.commands.ShowSystemInfoCommand;
-import qupath.lib.gui.commands.SingleFeatureClassifierCommand;
 import qupath.lib.gui.commands.SparseImageServerCommand;
 import qupath.lib.gui.commands.SpecifyAnnotationCommand;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.commands.TMAExporterCommand;
-import qupath.lib.gui.commands.TMAGridAdd;
-import qupath.lib.gui.commands.TMAGridRelabel;
-import qupath.lib.gui.commands.TMAGridRemove;
+import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.commands.TMAGridView;
 import qupath.lib.gui.commands.TMAScoreImportCommand;
-import qupath.lib.gui.commands.WorkflowDisplayCommand;
 import qupath.lib.gui.commands.ZoomCommand;
-import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
-import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
 import qupath.lib.gui.icons.PathIconFactory.PathIcons;
 import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -232,7 +220,7 @@ class Menus {
 		
 		@ActionMenu("Show workflow command history")
 		@ActionAccelerator("shortcut+shift+w")
-		public final Action HISTORY_SHOW = createAction(new WorkflowDisplayCommand(qupath));
+		public final Action HISTORY_SHOW = Commands.createSingleStageAction(() -> Commands.createWorkflowDisplayDialog(qupath));
 
 		@ActionMenu("Create command history script")
 		public final Action HISTORY_SCRIPT = qupath.createImageDataAction(imageData -> Commands.showWorkflowScript(qupath, imageData));
@@ -270,16 +258,13 @@ class Menus {
 		
 		
 		@ActionMenu("Object classification>Legacy>Load detection classifier (legacy)")
-		public final Action LEGACY_DETECTION = createAction(new LoadClassifierCommand(qupath));
+		public final Action LEGACY_DETECTION = Commands.createSingleStageAction(() -> Commands.createLegacyLoadDetectionClassifierCommand(qupath));
 		
 		@ActionMenu("Object classification>")
 		public final Action SEP_1 = ActionTools.createSeparator();
 
 		@ActionMenu("Object classification>Legacy>Choose random training samples (legacy)")
 		public final Action LEGACY_RANDOM_TRAINING = createAction(new RandomTrainingRegionSelector(qupath, qupath.getAvailablePathClasses()));
-
-		@ActionMenu("Object classification>Legacy>Classify by specific feature (legacy)")
-		public final Action LEGACY_FEATURE = createAction(new SingleFeatureClassifierCommand(qupath, PathDetectionObject.class));
 
 		@ActionMenu("Object classification>")
 		public final Action SEP_2 = ActionTools.createSeparator();
@@ -368,7 +353,7 @@ class Menus {
 		@ActionMenu("TMA data...>Import TMA map")
 		public final Action TMA_IMPORT = createAction(new TMAScoreImportCommand(qupath));
 		@ActionMenu("TMA data...>Launch Export TMA data")
-		public final Action TMA_EXPORT = createAction(new TMAExporterCommand(qupath.viewerProperty()));
+		public final Action TMA_EXPORT = qupath.createImageDataAction(imageData -> TMACommands.promptToExportTMAData(qupath, imageData));
 		@ActionMenu("TMA data...>Launch TMA data viewer")
 		public final Action TMA_VIEWER = createAction(() -> Commands.launchTMADataViewer(qupath));
 
@@ -431,7 +416,7 @@ class Menus {
 		public final Action SPECIFY_ANNOTATION = createAction(new SpecifyAnnotationCommand(qupath));
 		@ActionMenu("Annotations...>Create full image annotation")
 		@ActionAccelerator("shortcut+shift+a")
-		public final Action SELECT_ALL_ANNOTATION = createAction(new SelectAllAnnotationCommand(qupath.viewerProperty()));
+		public final Action SELECT_ALL_ANNOTATION = qupath.createImageDataAction(imageData -> Commands.createFullImageAnnotation(qupath.getViewer()));
 
 		@ActionMenu("Annotations...>")
 		public final Action SEP_5 = ActionTools.createSeparator();
@@ -455,7 +440,7 @@ class Menus {
 		public final Action ANNOTATION_DUPLICATE = qupath.createImageDataAction(imageData -> Commands.duplicateSelectedAnnotations(imageData));
 		@ActionMenu("Annotations...>Transfer last annotation")
 		@ActionAccelerator("shift+e")
-		public final Action TRANSFER_ANNOTATION = createAction(() -> qupath.viewerManager.applyLastAnnotationToActiveViewer());
+		public final Action TRANSFER_ANNOTATION = qupath.createImageDataAction(imageData -> qupath.viewerManager.applyLastAnnotationToActiveViewer());
 
 		@ActionMenu("Annotations...>")
 		public final Action SEP_7 = ActionTools.createSeparator();
@@ -486,26 +471,26 @@ class Menus {
 	public class TMAMenuManager {
 		
 		@ActionMenu("Add...>Add TMA row before")
-		public final Action ADD_ROW_BEFORE = createAction(new TMAGridAdd(qupath, TMAAddType.ROW_BEFORE));
+		public final Action ADD_ROW_BEFORE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowBeforeSelected(imageData));
 		@ActionMenu("Add...>Add TMA row after")
-		public final Action ADD_ROW_AFTER = createAction(new TMAGridAdd(qupath, TMAAddType.ROW_AFTER));
+		public final Action ADD_ROW_AFTER = qupath.createImageDataAction(imageData -> TMACommands.promptToAddRowAfterSelected(imageData));
 		@ActionMenu("Add...>Add TMA column before")
-		public final Action ADD_COLUMN_BEFORE = createAction(new TMAGridAdd(qupath, TMAAddType.COLUMN_BEFORE));
+		public final Action ADD_COLUMN_BEFORE = qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnBeforeSelected(imageData));
 		@ActionMenu("Add...>Add TMA column after")
-		public final Action ADD_COLUMN_AFTER = createAction(new TMAGridAdd(qupath, TMAAddType.COLUMN_AFTER));
+		public final Action ADD_COLUMN_AFTER = qupath.createImageDataAction(imageData -> TMACommands.promptToAddColumnAfterSelected(imageData));
 		
 		@ActionMenu("Remove...>Remove TMA row")
-		public final Action REMOVE_ROW = createAction(new TMAGridRemove(qupath, TMARemoveType.ROW));
+		public final Action REMOVE_ROW = qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridRow(imageData));
 		@ActionMenu("Remove...>Remove TMA column")
-		public final Action REMOVE_COLUMN = createAction(new TMAGridRemove(qupath, TMARemoveType.COLUMN));
+		public final Action REMOVE_COLUMN = qupath.createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridColumn(imageData));
 
 		@ActionMenu("Relabel TMA grid")
-		public final Action RELABEL = qupath.createImageDataAction(imageData -> TMAGridRelabel.promptToRelabelTMAGrid(imageData));
+		public final Action RELABEL = qupath.createImageDataAction(imageData -> TMACommands.promptToRelabelTMAGrid(imageData));
 		@ActionMenu("Reset TMA metadata")
 		public final Action RESET_METADATA = qupath.createImageDataAction(imageData -> Commands.resetTMAMetadata(imageData));
-		@ActionMenu("TMA grid summary view")
-		public final Action CLEAR_CORES = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, TMACoreObject.class));
 		@ActionMenu("Delete TMA grid")
+		public final Action CLEAR_CORES = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, TMACoreObject.class));
+		@ActionMenu("TMA grid summary view")
 		public final Action SUMMARY_GRID = createAction(new TMAGridView(qupath));
 
 		public final Action SEP_0 = ActionTools.createSeparator();
@@ -527,9 +512,9 @@ class Menus {
 		public final Action MATCH_VIEWER_RESOLUTIONS = actionManager.MATCH_VIEWER_RESOLUTIONS;
 		
 		@ActionMenu("Mini viewers...>Show channel viewer")
-		public final Action CHANNEL_VIEWER = createAction(new MiniViewerCommand(qupath, true));
+		public final Action CHANNEL_VIEWER = qupath.createViewerAction(viewer -> Commands.showChannelViewer(viewer));
 		@ActionMenu("Mini viewers...>Show mini viewer")
-		public final Action MINI_VIEWER = createAction(new MiniViewerCommand(qupath, false));
+		public final Action MINI_VIEWER = qupath.createViewerAction(viewer -> Commands.showMiniViewer(viewer));
 		
 		public final Action SEP_2 = ActionTools.createSeparator();
 		
@@ -555,7 +540,7 @@ class Menus {
 		public final Action ZOOM_TO_FIT = actionManager.ZOOM_TO_FIT;
 				
 		@ActionMenu("Rotate image")
-		public final Action ROTATE_IMAGE = createAction(new RotateImageCommand(qupath));
+		public final Action ROTATE_IMAGE = Commands.createSingleStageAction(() -> Commands.createRotateImageDialog(qupath));
 
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
@@ -597,7 +582,7 @@ class Menus {
 		public final Action INPUT_DISPLAY = createAction(new ShowInputDisplayCommand(qupath));
 
 		@ActionMenu("Show memory monitor")
-		public final Action MEMORY_MONITORY = createAction(new MemoryMonitorCommand(qupath));
+		public final Action MEMORY_MONITORY = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
 		
 		@ActionMenu("Show log")
 		public final Action SHOW_LOG = actionManager.SHOW_LOG;
@@ -611,11 +596,11 @@ class Menus {
 		@ActionMenu("Show measurement maps")
 		@ActionAccelerator("shortcut+shift+m")
 		@ActionDescription("View detection measurements in context using interactive, color-coded maps")
-		public final Action MAPS = createAction(new MeasurementMapCommand(qupath));
+		public final Action MAPS = Commands.createSingleStageAction(() -> Commands.createMeasurementMapDialog(qupath));
 		
 		@ActionMenu("Show measurement manager")
 		@ActionDescription("View and optionally delete detection measurements")
-		public final Action MANAGER = createAction(new MeasurementManager(qupath));
+		public final Action MANAGER = qupath.createImageDataAction(imageData -> MeasurementManager.showDetectionMeasurementManager(qupath, imageData));
 		
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();

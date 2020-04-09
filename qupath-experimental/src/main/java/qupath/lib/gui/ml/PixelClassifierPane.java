@@ -76,7 +76,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.MiniViewerCommand;
+import qupath.lib.gui.commands.MiniViewers;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
@@ -151,7 +151,7 @@ public class PixelClassifierPane {
 	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
 
 	
-	private MiniViewerCommand.MiniViewerManager miniViewer;
+	private MiniViewers.MiniViewerManager miniViewer;
 	
 	private BooleanProperty livePrediction = new SimpleBooleanProperty(false);
 	
@@ -391,7 +391,7 @@ public class PixelClassifierPane {
 		
 		
 		
-		miniViewer = new MiniViewerCommand.MiniViewerManager(viewer, 0);
+		miniViewer = new MiniViewers.MiniViewerManager(viewer, 0);
 		var viewerPane = miniViewer.getPane();
 //		GridPane.setFillWidth(viewerPane, Boolean.TRUE);
 //		GridPane.setFillHeight(viewerPane, Boolean.TRUE);

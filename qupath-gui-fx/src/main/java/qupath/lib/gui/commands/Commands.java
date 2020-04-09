@@ -1,4 +1,4 @@
-package qupath.lib.gui;
+package qupath.lib.gui.commands;
 
 import java.awt.Window;
 import java.awt.image.BufferedImage;
@@ -10,21 +10,37 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.MemoryMonitorDialog;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.panels.MeasurementMapPanel;
 import qupath.lib.gui.panels.PathClassPane;
 import qupath.lib.gui.panels.WorkflowCommandLogView;
+import qupath.lib.gui.panels.classify.PathClassifierPanel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -43,13 +59,18 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.Projects;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.ShapeSimplifier;
@@ -104,7 +125,51 @@ public class Commands {
 				"Resolve hierarchy",
 				"resolveHierarchy()"));
 	}
+
 	
+	
+	/**
+	 * Create a full image annotation for the image in the specified viewer.
+	 * The z and t positions of the viewer will be used.
+	 * @param viewer the viewer containing the image to be processed
+	 */
+	public static void createFullImageAnnotation(QuPathViewer viewer) {
+		if (viewer == null)
+			return;
+		ImageData<?> imageData = viewer.getImageData();
+		if (imageData == null)
+			return;
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
+		
+		// Check if we already have a comparable annotation
+		int z = viewer.getZPosition();
+		int t = viewer.getTPosition();
+		ImageRegion bounds = viewer.getServerBounds();
+		ROI roi = ROIs.createRectangleROI(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), ImagePlane.getPlane(z, t));
+		for (PathObject pathObject : hierarchy.getAnnotationObjects()) {
+			ROI r2 = pathObject.getROI();
+			if (r2 instanceof RectangleROI && 
+					roi.getBoundsX() == r2.getBoundsX() && 
+					roi.getBoundsY() == r2.getBoundsY() && 
+					roi.getBoundsWidth() == r2.getBoundsWidth() && 
+					roi.getBoundsHeight() == r2.getBoundsHeight() &&
+					roi.getImagePlane().equals(r2.getImagePlane())) {
+				logger.info("Full image annotation already exists! {}", pathObject);
+				viewer.setSelectedObject(pathObject);
+				return;
+			}
+		}
+		
+		PathObject pathObject = PathObjects.createAnnotationObject(roi);
+		hierarchy.addPathObject(pathObject);
+		viewer.setSelectedObject(pathObject);
+		
+		// Log in the history
+		if (z == 0 && t == 0)
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", "createSelectAllObject(true);"));
+		else
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Create full image annotation", String.format("createSelectAllObject(true, %d, %d);", z, t)));
+	}
 	
 	/**
 	 * Reset TMA metadata, if available.
@@ -119,6 +184,185 @@ public class Commands {
 		QP.resetTMAMetadata(imageData.getHierarchy(), true);
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Reset TMA metadata", "resetTMAMetadata(true);"));		
 		return true;
+	}
+	
+	
+	/**
+	 * Create a command that generates a persistent single dialog on demand.
+	 * A reference to the dialog can be retained, so that if the command is called again 
+	 * either the original dialog is shown and/or brought to the front.
+	 * @param supplier supplier function to generate the dialog on demand
+	 * @return the action
+	 */
+	public static Action createSingleStageAction(Supplier<Stage> supplier) {
+		var command = new SingleStageCommand(supplier);
+		return new Action(e -> command.show());
+	}
+	
+	static class SingleStageCommand {
+		
+		private Stage stage;
+		private Supplier<Stage> supplier;
+		
+		SingleStageCommand(Supplier<Stage> supplier) {
+			this.supplier = supplier;
+		}
+		
+		void show() {
+			if (stage == null) {
+				stage = supplier.get();
+			}
+			if (stage.isShowing())
+				stage.toFront();
+			else
+				stage.show();
+		}
+		
+	}
+	
+	/**
+	 * Create a dialog for displaying measurement maps.
+	 * @param qupath the {@link QuPathGUI} instance to which the maps refer
+	 * @return a measurement map dialog
+	 */
+	public static Stage createMeasurementMapDialog(QuPathGUI qupath) {
+		var dialog = new Stage();
+		if (qupath != null)
+			dialog.initOwner(qupath.getStage());
+		dialog.setTitle("Measurement maps");
+		
+		var panel = new MeasurementMapPanel(qupath);
+		BorderPane pane = new BorderPane();
+		pane.setCenter(panel.getPane());
+		
+		Scene scene = new Scene(pane, 300, 400);
+		dialog.setScene(scene);
+		dialog.setMinWidth(300);
+		dialog.setMinHeight(400);
+//		pane.setMinSize(300, 400);
+//		dialog.setResizable(false);
+		
+		dialog.setOnCloseRequest(e -> {
+			OverlayOptions overlayOptions = qupath.getOverlayOptions();
+			if (overlayOptions != null)
+				overlayOptions.resetMeasurementMapper();
+			dialog.hide();
+		});
+		return dialog;
+	}
+	
+	
+	/**
+	 * Create a dialog for rotating the image in the current viewer (for display only.
+	 * @param qupath the {@link QuPathGUI} instance
+	 * @return a rotate image dialog
+	 */
+	public static Stage createRotateImageDialog(QuPathGUI qupath) {
+		var dialog = new Stage();
+		dialog.initOwner(qupath.getStage());
+		dialog.setTitle("Rotate view");
+
+		BorderPane pane = new BorderPane();
+
+		final Label label = new Label("0 degrees");
+		label.setTextAlignment(TextAlignment.CENTER);
+		QuPathViewer viewerTemp = qupath.getViewer();
+		var slider = new Slider(-90, 90, viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
+		slider.setMajorTickUnit(10);
+		slider.setMinorTickCount(5);
+		slider.setShowTickMarks(true);
+		slider.valueProperty().addListener((v, o, n) -> {
+			QuPathViewer viewer = qupath.getViewer();
+			if (viewer == null)
+				return;
+			double rotation = slider.getValue();
+			label.setText(String.format("%.1f degrees", rotation));
+			viewer.setRotation(Math.toRadians(rotation));
+		});
+
+		Button btnReset = new Button("Reset");
+		btnReset.setOnAction(e -> slider.setValue(0));
+
+		Button btnTMAAlign = new Button("Straighten TMA");
+		btnTMAAlign.setOnAction(e -> {
+
+			QuPathViewer viewer = qupath.getViewer();
+			if (viewer == null)
+				return;
+			TMAGrid tmaGrid = viewer.getHierarchy().getTMAGrid();
+			if (tmaGrid == null || tmaGrid.getGridWidth() < 2)
+				return;
+			// Determine predominant angle
+			List<Double> angles = new ArrayList<>();
+			for (int y = 0; y < tmaGrid.getGridHeight(); y++) {
+				for (int x = 1; x < tmaGrid.getGridWidth(); x++) {
+					TMACoreObject core1 = tmaGrid.getTMACore(y, x-1);
+					TMACoreObject core2 = tmaGrid.getTMACore(y, x);
+					if (core1.isMissing() || core2.isMissing())
+						continue;
+					ROI roi1 = core1.getROI();
+					ROI roi2 = core2.getROI();
+					double angle = Double.NaN;
+					if (roi1 != null && roi2 != null) {
+						double dx = roi2.getCentroidX() - roi1.getCentroidX();
+						double dy = roi2.getCentroidY() - roi1.getCentroidY();
+						angle = Math.atan2(dy, dx);
+						//								angle = Math.atan(dy / dx);
+					}
+					if (!Double.isNaN(angle)) {
+						logger.debug("Angle :" + angle);
+						angles.add(angle);
+					}
+				}
+			}
+			// Compute median angle
+			if (angles.isEmpty())
+				return;
+			Collections.sort(angles);
+			double angleMedian = Math.toDegrees(angles.get(angles.size()/2));
+			slider.setValue(angleMedian);
+
+			logger.debug("Median angle: " + angleMedian);
+
+		});
+
+		GridPane panelButtons = PaneTools.createColumnGridControls(
+				btnReset,
+				btnTMAAlign
+				);
+		panelButtons.setPrefWidth(300);
+		
+		slider.setPadding(new Insets(5, 0, 10, 0));
+
+		pane.setTop(label);
+		pane.setCenter(slider);
+		pane.setBottom(panelButtons);
+		pane.setPadding(new Insets(10, 10, 10, 10));
+
+		Scene scene = new Scene(pane);
+		dialog.setScene(scene);
+		dialog.setResizable(false);
+		return dialog;
+	}
+	
+	
+	/**
+	 * Create a dialog to load an (old-style) detection classifier.
+	 * <p>
+	 * Note: these classifiers are deprecated and will be removed in a later version.
+	 * @param qupath the {@link QuPathGUI} instance to which the dialog relates
+	 * @return a load detection classifier dialog
+	 */
+	@Deprecated
+	public static Stage createLegacyLoadDetectionClassifierCommand(QuPathGUI qupath) {
+		var dialog = new Stage();
+		dialog.setTitle("Load detection classifier");
+		dialog.initOwner(qupath.getStage());
+		BorderPane pane = new BorderPane();
+		pane.setCenter(new PathClassifierPanel(qupath.viewerProperty()).getPane());
+		pane.setPadding(new Insets(10, 10, 10, 10));
+		dialog.setScene(new Scene(pane, 300, 400));
+		return dialog;
 	}
 	
 	
@@ -867,6 +1111,21 @@ public class Commands {
 	}
 	
 	
+	/**
+	 * Create a dialog to show the workflow history for the current image data.
+	 * @param qupath the QuPath instance
+	 * @return a workflow display dialog
+	 */
+	public static Stage createWorkflowDisplayDialog(QuPathGUI qupath) {
+		var view = new WorkflowCommandLogView(qupath);
+		Stage dialog = new Stage();
+		dialog.initOwner(qupath.getStage());
+		dialog.setTitle("Workflow viewer");
+		Pane pane = view.getPane();
+		dialog.setScene(new Scene(pane, 400, 400));
+		return dialog;
+	}
+	
 	
 	/**
 	 * Show the QuPath script editor with a script corresponding to the command history of a specified image.
@@ -880,6 +1139,7 @@ public class Commands {
 		}
 		WorkflowCommandLogView.showScript(qupath.getScriptEditor(), imageData.getHistoryWorkflow());
 	}
+	
 	
 	/**
 	 * Show the script editor, or bring the window to the front if it is already open.
@@ -896,6 +1156,30 @@ public class Commands {
 			((Window)scriptEditor).toFront();
 		else
 			scriptEditor.showEditor();
+	}
+
+	public static Stage createMemoryMonitorDialog(QuPathGUI qupath) {
+		return new MemoryMonitorDialog(qupath).getStage();
+	}
+
+	/**
+	 * Show a mini viewer window associated with a specific viewer.
+	 * @param viewer the viewer with which to associate this window
+	 */
+	public static void showMiniViewer(QuPathViewer viewer) {
+		if (viewer == null)
+			return;
+		MiniViewers.createDialog(viewer, false);
+	}
+
+	/**
+	 * Show a channel viewer window associated with a specific viewer.
+	 * @param viewer the viewer with which to associate this window
+	 */
+	public static void showChannelViewer(QuPathViewer viewer) {
+		if (viewer == null)
+			return;
+		MiniViewers.createDialog(viewer, true);
 	}
 	
 	

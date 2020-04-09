@@ -100,12 +100,12 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		var actionManager = qupath.getActionManager();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
-				ActionTools.getActionToggleButton(actionManager.MOVE_TOOL, true),
-				ActionTools.getActionToggleButton(actionManager.POINTS_TOOL, true),
+				ActionTools.createToggleButton(actionManager.MOVE_TOOL, true),
+				ActionTools.createToggleButton(actionManager.POINTS_TOOL, true),
 				new Separator(Orientation.VERTICAL),
-				ActionTools.getActionToggleButton(actionManager.SHOW_ANNOTATIONS, true),
-				ActionTools.getActionToggleButton(actionManager.FILL_DETECTIONS, true),
-				ActionTools.getActionToggleButton(actionManager.SHOW_GRID, true));
+				ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true),
+				ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true),
+				ActionTools.createToggleButton(actionManager.SHOW_GRID, true));
 		return toolbar;
 	}
 	
@@ -221,12 +221,12 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		
 		var actionManager = qupath.getActionManager();
 		
-		Button btnConvert = ActionTools.getActionButton(actionManager.DETECTIONS_TO_POINTS, false);
+		Button btnConvert = ActionTools.createButton(actionManager.DETECTIONS_TO_POINTS, false);
 		Pane convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
 		
-		var cbConvex = ActionTools.getActionCheckBox(actionManager.CONVEX_POINTS);
-		var cbSelected = ActionTools.getActionCheckBox(actionManager.USE_SELECTED_COLOR);
+		var cbConvex = ActionTools.createCheckBox(actionManager.CONVEX_POINTS);
+		var cbSelected = ActionTools.createCheckBox(actionManager.USE_SELECTED_COLOR);
 //		panel.setSpacing(5);
 		panel.getChildren().addAll(
 				cbConvex,

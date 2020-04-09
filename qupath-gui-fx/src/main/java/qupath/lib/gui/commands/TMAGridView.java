@@ -69,7 +69,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Separator;
-import javafx.scene.control.TableView;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.DropShadow;
@@ -178,7 +177,6 @@ public class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedI
 		else if (!stage.isShowing())
 			stage.show();
 		initializeData(qupath.getImageData());
-		new TableView<>().refresh();;
 	}
 	
 	private static void sortCores(final ObservableList<TMACoreObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {

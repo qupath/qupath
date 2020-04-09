@@ -33,6 +33,14 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
 import qupath.lib.gui.icons.PathIconFactory;
 
+/**
+ * Helper methods for generating and configuring {@linkplain Action Actions} and UI elements.
+ * <p>
+ * This has some similarities with {@link ActionUtils}, however has QuPath-specific behavior that make it 
+ * a better choice when working with actions related to {@link QuPathGUI}.
+ * 
+ * @author Pete Bankhead
+ */
 public class ActionTools {
 	
 	private static Logger logger = LoggerFactory.getLogger(ActionTools.class);
@@ -473,7 +481,7 @@ public class ActionTools {
 		return new ActionBuilder(handler);
 	}
 	
-	public static MenuItem getActionMenuItem(Action action) {
+	public static MenuItem createMenuItem(Action action) {
 		if (action.getText() == null || action == ActionUtils.ACTION_SEPARATOR) {
 			return new SeparatorMenuItem();
 		}
@@ -485,7 +493,7 @@ public class ActionTools {
 		return includeAction(item, action);
 	}
 	
-	public static MenuItem getActionCheckBoxMenuItem(Action action, ToggleGroup group) {
+	public static MenuItem createCheckMenuItem(Action action, ToggleGroup group) {
 		MenuItem item;
 		if (group != null) {
 			var menuItem = ActionUtils.createRadioMenuItem(action);
@@ -496,11 +504,11 @@ public class ActionTools {
 		return includeAction(item, action);
 	}
 	
-	public static MenuItem getActionCheckBoxMenuItem(Action action) {
-		return getActionCheckBoxMenuItem(action, null);
+	public static MenuItem createCheckMenuItem(Action action) {
+		return createCheckMenuItem(action, null);
 	}
 	
-	public static CheckBox getActionCheckBox(Action action) {
+	public static CheckBox createCheckBox(Action action) {
 		// Not sure why we have to bind?
 		CheckBox button = ActionUtils.createCheckBox(action);
 		button.selectedProperty().bindBidirectional(action.selectedProperty());
@@ -517,20 +525,20 @@ public class ActionTools {
 		return includeAction(button, action);
 	}
 
-	public static ToggleButton getActionToggleButton(Action action, boolean hideActionText) {
+	public static ToggleButton createToggleButton(Action action, boolean hideActionText) {
 		return getActionToggleButton(action, hideActionText, null);
 	}
 	
-	static ToggleButton getActionToggleButton(Action action, boolean hideActionText, ToggleGroup group, boolean isSelected) {
+	static ToggleButton createToggleButton(Action action, boolean hideActionText, ToggleGroup group, boolean isSelected) {
 		ToggleButton button = getActionToggleButton(action, hideActionText, group);
 		return button;
 	}
 
-	static ToggleButton getActionToggleButton(Action action, boolean hideActionText, boolean isSelected) {
-		return getActionToggleButton(action, hideActionText, null, isSelected);
+	static ToggleButton createToggleButton(Action action, boolean hideActionText, boolean isSelected) {
+		return createToggleButton(action, hideActionText, null, isSelected);
 	}
 	
-	public static Button getActionButton(Action action, boolean hideActionText) {
+	public static Button createButton(Action action, boolean hideActionText) {
 		Button button = ActionUtils.createButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
 //		if (hideActionText && action.getText() != null) {
 //			Tooltip.install(button, new Tooltip(action.getText()));

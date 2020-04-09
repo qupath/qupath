@@ -31,6 +31,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.controlsfx.control.HiddenSidesPane;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
@@ -401,6 +403,8 @@ public class CommandFinderTools {
 	
 	private static class MenuManager {
 		
+		private static Logger logger = LoggerFactory.getLogger(MenuManager.class);
+		
 		private MenuBar menubar;
 		private ObservableList<CommandEntry> commandsBase = FXCollections.observableArrayList();
 		
@@ -428,6 +432,10 @@ public class CommandFinderTools {
 		}
 		
 		static void fireMenuItem(final MenuItem menuItem) {
+			if (menuItem.isDisable()) {
+				logger.error("'{}' command is not currently available!", menuItem.getText());
+				return;
+			}
 			if (menuItem instanceof CheckMenuItem)
 				fireMenuItem((CheckMenuItem)menuItem);
 			else if (menuItem instanceof RadioMenuItem)
