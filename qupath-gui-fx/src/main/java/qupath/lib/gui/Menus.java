@@ -20,18 +20,13 @@ import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI.ActionManager;
 import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.commands.EstimateStainVectorsCommand;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.ProjectCommands;
-import qupath.lib.gui.commands.RigidObjectEditorCommand;
 import qupath.lib.gui.commands.SparseImageServerCommand;
 import qupath.lib.gui.commands.SpecifyAnnotationCommand;
-import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.lib.gui.commands.TMAGridView;
-import qupath.lib.gui.commands.TMAScoreImportCommand;
 import qupath.lib.gui.commands.ZoomCommand;
-import qupath.lib.gui.icons.PathIconFactory.PathIcons;
+import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -212,7 +207,7 @@ class Menus {
 	public class AnalyzeMenuManager {
 		
 		@ActionMenu("Preprocessing>Estimate stain vectors")
-		public final Action COLOR_DECONVOLUTION_REFINE = createAction(new EstimateStainVectorsCommand(qupath));
+		public final Action COLOR_DECONVOLUTION_REFINE = qupath.createImageDataAction(imageData -> Commands.promptToEstimateStainVectors(imageData));
 		
 		@ActionMenu("Region identification>Tiles & superpixels>Create tiles")
 		public final Action CREATE_TILES = qupath.createPluginAction("Create tiles", TilerPlugin.class, null);
@@ -329,7 +324,7 @@ class Menus {
 		public final Action SEP_6 = ActionTools.createSeparator();
 
 		@ActionMenu("TMA data...>Import TMA map")
-		public final Action TMA_IMPORT = createAction(new TMAScoreImportCommand(qupath));
+		public final Action TMA_IMPORT = qupath.createImageDataAction(imageData -> TMACommands.promptToImportTMAData(imageData));
 		@ActionMenu("TMA data...>Launch Export TMA data")
 		public final Action TMA_EXPORT = qupath.createImageDataAction(imageData -> TMACommands.promptToExportTMAData(qupath, imageData));
 		@ActionMenu("TMA data...>Launch TMA data viewer")
@@ -412,7 +407,7 @@ class Menus {
 
 		@ActionMenu("Annotations...>Rotate annotation")
 		@ActionAccelerator("shortcut+shift+alt+r")
-		public final Action RIGID_OBJECT_EDITOR = createAction(new RigidObjectEditorCommand(qupath));
+		public final Action RIGID_OBJECT_EDITOR = qupath.createImageDataAction(imageData -> Commands.editSelectedAnnotation(qupath));
 		@ActionMenu("Annotations...>Duplicate annotations")
 		@ActionAccelerator("shift+d")
 		public final Action ANNOTATION_DUPLICATE = qupath.createImageDataAction(imageData -> Commands.duplicateSelectedAnnotations(imageData));
@@ -469,7 +464,7 @@ class Menus {
 		@ActionMenu("Delete TMA grid")
 		public final Action CLEAR_CORES = qupath.createImageDataAction(imageData -> Commands.promptToDeleteObjects(imageData, TMACoreObject.class));
 		@ActionMenu("TMA grid summary view")
-		public final Action SUMMARY_GRID = createAction(new TMAGridView(qupath));
+		public final Action SUMMARY_GRID = qupath.createImageDataAction(imageData -> TMACommands.showTMAGridView(qupath));
 
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
@@ -482,7 +477,7 @@ class Menus {
 	public class ViewMenuManager {
 		
 		@ActionMenu("Show analysis pane")
-		@ActionAccelerator("shortcut+a")
+		@ActionAccelerator("shift+a")
 		public final Action SHOW_ANALYSIS_PANEL = actionManager.SHOW_ANALYSIS_PANEL;
 		
 		@ActionMenu("Show command list")
@@ -592,15 +587,15 @@ class Menus {
 		
 		@ActionMenu("Show TMA measurements")		
 		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
-		public final Action TMA = createAction(new SummaryMeasurementTableCommand(qupath, TMACoreObject.class));
+		public final Action TMA = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(qupath, imageData));
 		
 		@ActionMenu("Show annotation measurements")		
 		@ActionDescription("Show summary measurements for annotation objects")
-		public final Action ANNOTATIONS = createAction(new SummaryMeasurementTableCommand(qupath, PathAnnotationObject.class));
+		public final Action ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(qupath, imageData));
 		
 		@ActionMenu("Show detection measurements")		
 		@ActionDescription("Show summary measurements for detection objects")
-		public final Action DETECTIONS = createAction(new SummaryMeasurementTableCommand(qupath, PathDetectionObject.class));
+		public final Action DETECTIONS = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(qupath, imageData));
 		
 		public final Action SEP_2 = ActionTools.createSeparator();
 

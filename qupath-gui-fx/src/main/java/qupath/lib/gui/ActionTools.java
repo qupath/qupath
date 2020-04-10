@@ -31,7 +31,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
-import qupath.lib.gui.icons.PathIconFactory;
+import qupath.lib.gui.icons.IconFactory;
 
 /**
  * Helper methods for generating and configuring {@linkplain Action Actions} and UI elements.
@@ -281,7 +281,7 @@ public class ActionTools {
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.METHOD, ElementType.FIELD})
 	public @interface ActionIcon {
-		PathIconFactory.PathIcons value();
+		IconFactory.PathIcons value();
 	}
 	
 	public static List<Action> getAnnotatedActions(Object obj) {
@@ -383,7 +383,7 @@ public class ActionTools {
 		if (annotation == null)
 			return;
 		var icon = annotation.value();
-		action.setGraphic(PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, icon));
+		action.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, icon));
 	}
 	
 	private static void parseAccelerator(Action action, ActionAccelerator annotation) {

@@ -22,8 +22,8 @@ import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.icons.PathIconFactory;
-import qupath.lib.gui.icons.PathIconFactory.PathIcons;
+import qupath.lib.gui.icons.IconFactory;
+import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -118,7 +118,7 @@ class ToolBarComponent {
 			
 			
 			Button btnMeasure = new Button();
-			btnMeasure.setGraphic(PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
+			btnMeasure.setGraphic(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.TABLE));
 			btnMeasure.setTooltip(new Tooltip("Show measurements table"));
 			ContextMenu popupMeasurements = new ContextMenu();
 			

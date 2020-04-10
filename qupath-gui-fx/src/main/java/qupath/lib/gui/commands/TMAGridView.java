@@ -101,7 +101,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
+class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 	
 	final private static Logger logger = LoggerFactory.getLogger(TMAGridView.class);
 	

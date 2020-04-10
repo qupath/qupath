@@ -80,6 +80,7 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
@@ -112,12 +113,11 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  * @author Pete Bankhead
  */
-public class SummaryMeasurementTableCommand implements Runnable {
+public class SummaryMeasurementTableCommand {
 
 	final private static Logger logger = LoggerFactory.getLogger(SummaryMeasurementTableCommand.class);
 
 	private QuPathGUI qupath;
-	private Class<? extends PathObject> type;
 	
 	/**
 	 * Max thumbnails to store in cache
@@ -144,19 +144,22 @@ public class SummaryMeasurementTableCommand implements Runnable {
 	/**
 	 * Command to show a summary measurement table, for PathObjects of a specified type (e.g. annotation, detection).
 	 * @param qupath
-	 * @param type
 	 */
-	public SummaryMeasurementTableCommand(final QuPathGUI qupath, final Class<? extends PathObject> type) {
+	public SummaryMeasurementTableCommand(final QuPathGUI qupath) {
 		super();
 		this.qupath = qupath;
-		this.type = type;
 	}
 
-	@Override
-	public void run() {
-		final ImageData<BufferedImage> imageData = qupath.getViewer().getImageData();
-		if (imageData == null)
+	/**
+	 * Show a measurement table for the specified image data.
+	 * @param imageData the image data
+	 * @param type the object type to show
+	 */
+	public void showTable(ImageData<BufferedImage> imageData, Class<? extends PathObject> type) {
+		if (imageData == null) {
+			Dialogs.showNoImageError("Show measurement table");
 			return;
+		}
 
 		final PathObjectHierarchy hierarchy = imageData.getHierarchy();
 

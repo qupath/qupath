@@ -9,8 +9,8 @@ import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.icons.PathIconFactory;
-import qupath.lib.gui.icons.PathIconFactory.PathIcons;
+import qupath.lib.gui.icons.IconFactory;
+import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 public class PathTools {
@@ -25,7 +25,7 @@ public class PathTools {
 	public static final PathTool POINTS    = createTool(new PointsTool(), "Points", createIcon(PathIcons.POINTS_TOOL));
 	
 	private static Node createIcon(PathIcons icon) {
-		return PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, icon);
+		return IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, icon);
 	}
 	
 	

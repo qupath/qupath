@@ -1,4 +1,4 @@
-package qupath.lib.gui.controls.cells;
+package qupath.lib.gui;
 
 import java.awt.image.BufferedImage;
 import java.util.Map;
@@ -18,7 +18,7 @@ import qupath.lib.images.servers.ImageServer;
  * The image is retrieved from a cache rather than loaded directly, therefore it is assumed that 
  * the cache is populated elsewhere.
  */
-public class ImageAndNameListCell extends ListCell<ImageServer<BufferedImage>> {
+class ImageAndNameListCell extends ListCell<ImageServer<BufferedImage>> {
 	
 	private Map<String, BufferedImage> imageCache;
 	final private Canvas canvas = new Canvas();

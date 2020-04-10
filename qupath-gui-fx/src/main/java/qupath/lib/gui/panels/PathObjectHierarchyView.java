@@ -41,7 +41,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.icons.PathIconFactory;
+import qupath.lib.gui.icons.IconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.ImageData;
@@ -408,7 +408,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 					// It consumes too many resources to create enough icons to represent every detection this way...
 					// consider reintroducing in the future with a more efficient implementation, e.g. reusing images & canvases
 					Color color = ColorToolsFX.getDisplayedColor(item);
-					setGraphic(PathIconFactory.createPathObjectIcon(item, 16, 16));
+					setGraphic(IconFactory.createPathObjectIcon(item, 16, 16));
 				} else
 					setGraphic(null);
 			}

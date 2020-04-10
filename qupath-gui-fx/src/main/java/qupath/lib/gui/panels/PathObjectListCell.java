@@ -4,7 +4,7 @@ import java.util.function.Function;
 
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Tooltip;
-import qupath.lib.gui.icons.PathIconFactory;
+import qupath.lib.gui.icons.IconFactory;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 
@@ -40,7 +40,7 @@ public class PathObjectListCell extends ListCell<PathObject> {
 		int h = 16;
 
 		if (value.hasROI())
-			setGraphic(PathIconFactory.createPathObjectIcon(value, w, h));
+			setGraphic(IconFactory.createPathObjectIcon(value, w, h));
 		else
 			setGraphic(null);
 	}

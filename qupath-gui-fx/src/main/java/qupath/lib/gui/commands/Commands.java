@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -188,9 +189,67 @@ public class Commands {
 	
 	
 	
+	private static Map<QuPathGUI, RigidObjectEditorCommand> rigidObjectEditorMap = new WeakHashMap<>();
+	
+	/**
+	 * Prompt to edit the selected annotation by translation and rotation.
+	 * <p>
+	 * Note that this method may change in future versions to be tied to a specified image data, 
+	 * rather than a specific QuPath instance.
+	 * @param qupath the QuPath instance for which the object should be edited
+	 */
+	public static void editSelectedAnnotation(QuPathGUI qupath) {		
+		var editor = rigidObjectEditorMap.computeIfAbsent(qupath, q -> new RigidObjectEditorCommand(q));
+		editor.run();
+	}
+	
+	/**
+	 * Show a measurement table for all detection objects.
+	 * @param qupath the QuPath instance
+	 * @param imageData the image data for which to show measurements
+	 */
+	public static void showDetectionMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathDetectionObject.class);
+	}
+	
+	/**
+	 * Show a measurement table for all cell objects.
+	 * @param qupath the QuPath instance
+	 * @param imageData the image data for which to show measurements
+	 */
+	public static void showCellMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathCellObject.class);
+	}
+	
+	/**
+	 * Show a measurement table for all annotation objects.
+	 * @param qupath the QuPath instance
+	 * @param imageData the image data for which to show measurements
+	 */
+	public static void showAnnotationMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		new SummaryMeasurementTableCommand(qupath).showTable(imageData, PathAnnotationObject.class);
+	}
+	
+	/**
+	 * Show a measurement table for all TMA core objects.
+	 * @param qupath the QuPath instance
+	 * @param imageData the image data for which to show measurements
+	 */
+	public static void showTMAMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		new SummaryMeasurementTableCommand(qupath).showTable(imageData, TMACoreObject.class);
+	}
 	
 	
-private static DoubleProperty exportDownsample = PathPrefs.createPersistentPreference("exportRegionDownsample", 1.0);
+	/**
+	 * Prompt to estimate stain vectors for the specified image, using any current region of interest.
+	 * @param imageData the image data for which stain vectors should be estimated
+	 */
+	public static void promptToEstimateStainVectors(ImageData<BufferedImage> imageData) {
+		EstimateStainVectorsCommand.promptToEstimateStainVectors(imageData);
+	}
+	
+	
+	private static DoubleProperty exportDownsample = PathPrefs.createPersistentPreference("exportRegionDownsample", 1.0);
 	
 	private static ImageWriter<BufferedImage> lastWriter = null;
 

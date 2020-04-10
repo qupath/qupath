@@ -5,6 +5,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 import javafx.beans.property.BooleanProperty;
@@ -29,6 +31,12 @@ import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.scripting.QP;
 
+/**
+ * Helper class implementing simple 'single-method' commands related to tissue microarrays for easy inclusion in the GUI.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class TMACommands {
 	
 	private enum TMARemoveType { ROW, COLUMN;
@@ -47,6 +55,21 @@ public class TMACommands {
 	
 	private final static String NOTE_NAME = "Note";
 	
+	
+	
+	private static Map<QuPathGUI, TMAGridView> gridViewMap = new WeakHashMap<>();
+	
+	/**
+	 * Show a TMA core grid view.
+	 * <p>
+	 * Note that this method may change in future versions to be tied to a specified image data, 
+	 * rather than a specific QuPath instance.
+	 * @param qupath the QuPath instance for which the grid should be shown
+	 */
+	public static void showTMAGridView(QuPathGUI qupath) {
+		var gridView = gridViewMap.computeIfAbsent(qupath, q -> new TMAGridView(q));
+		gridView.run();
+	}
 	
 	
 	/**
@@ -126,6 +149,23 @@ public class TMACommands {
 		}
 	}
 	
+	
+	/**
+	 * Command to install a drag and drop file handler for exported TMA data.
+	 * @param qupath QuPath instance to which the handler should be installed
+	 */
+	public static synchronized void installDragAndDropHandler(QuPathGUI qupath) {
+		TMADataImporter.installDragAndDropHandler(qupath);
+	}
+	
+	
+	/**
+	 * Prompt to import TMA data for the specified image data.
+	 * @param imageData the image data for which the TMA data should be imported
+	 */
+	public static void promptToImportTMAData(ImageData<?> imageData) {
+		TMADataImporter.importTMAData(imageData);
+	}
 	
 	
 	private static StringProperty rowLabelsProperty = PathPrefs.createPersistentPreference("tmaRowLabels", "A-J");

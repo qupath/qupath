@@ -82,7 +82,7 @@ import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.icons.PathIconFactory;
+import qupath.lib.gui.icons.IconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.MenuTools;
@@ -444,11 +444,11 @@ public class IJExtension implements QuPathExtension {
 		
 		// Experimental brush tool turned off for now
 		ExtractRegionCommand commandExtractRegionCustom = new ExtractRegionCommand(qupath);
-		var actionExtractRegion = ActionTools.createAction(commandExtractRegionCustom, "Send region to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.EXTRACT_REGION), null);
+		var actionExtractRegion = ActionTools.createAction(commandExtractRegionCustom, "Send region to ImageJ", IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.EXTRACT_REGION), null);
 		actionExtractRegion.disabledProperty().bind(qupath.imageDataProperty().isNull());
 
 		var screenshotCommand = new ScreenshotCommand(qupath);
-		var actionSnapshot = ActionTools.createAction(screenshotCommand, "Send snapshot to ImageJ", PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.SCREENSHOT), null);
+		var actionSnapshot = ActionTools.createAction(screenshotCommand, "Send snapshot to ImageJ", IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.SCREENSHOT), null);
 		
 		// Add buttons to toolbar
 		var toolbar = qupath.getToolBar();

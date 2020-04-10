@@ -38,8 +38,8 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.icons.PathIconFactory;
-import qupath.lib.gui.icons.PathIconFactory.PathIcons;
+import qupath.lib.gui.icons.IconFactory;
+import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.opencv.CellCountsCV;
@@ -118,7 +118,7 @@ public class OpenCVExtension implements QuPathExtension {
 		var t = new Thread(() -> {
 			// Add the Wand tool in a background thread (as it is rather slow to load)
 			var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand tool",
-					PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
+					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {
 				qupath.installTool(wandTool, new KeyCodeCombination(KeyCode.W));

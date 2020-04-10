@@ -178,15 +178,14 @@ import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.commands.ViewTrackerCommand;
-import qupath.lib.gui.controls.cells.ImageAndNameListCell;
 import qupath.lib.gui.dialogs.DialogHelper;
 import qupath.lib.gui.dialogs.DialogHelperFX;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.icons.PathIconFactory;
-import qupath.lib.gui.icons.PathIconFactory.PathIcons;
+import qupath.lib.gui.icons.IconFactory;
+import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LoggingAppender;
@@ -317,7 +316,7 @@ public class QuPathGUI {
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 	
 	private BorderPane pane; // Main component, to hold toolbar & splitpane
-	private Control analysisPanel;
+	private TabPane analysisPanel = new TabPane();
 	
 	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
 	private OverlayOptions overlayOptions = new OverlayOptions();
@@ -472,7 +471,7 @@ public class QuPathGUI {
 	public class ActionManager {
 		
 		// Zoom actions
-		Action ZOOM_TO_FIT = createSelectableCommandAction(zoomToFit, "Zoom to fit", PathIconFactory.PathIcons.ZOOM_TO_FIT, null);
+		Action ZOOM_TO_FIT = createSelectableCommandAction(zoomToFit, "Zoom to fit", IconFactory.PathIcons.ZOOM_TO_FIT, null);
 		
 		// Tool actions
 		private Action MOVE_TOOL = getToolAction(PathTools.MOVE, new KeyCodeCombination(KeyCode.M));
@@ -484,16 +483,16 @@ public class QuPathGUI {
 		private Action LINE_TOOL = getToolAction(PathTools.LINE, new KeyCodeCombination(KeyCode.L));
 		private Action POINTS_TOOL = getToolAction(PathTools.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
 //		Action WAND_TOOL = getToolAction(PathTools.WAND, new KeyCodeCombination(KeyCode.W));
-		Action SELECTION_MODE = createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
+		Action SELECTION_MODE = createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", IconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
 		
 		// Toolbar actions
-		Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
-		Action SHOW_OVERVIEW = createSelectableCommandAction(viewerDisplayOptions.showOverviewProperty(), "Show slide overview", PathIconFactory.PathIcons.OVERVIEW, null);
-		Action SHOW_LOCATION = createSelectableCommandAction(viewerDisplayOptions.showLocationProperty(), "Show cursor location", PathIconFactory.PathIcons.LOCATION, null);
-		Action SHOW_SCALEBAR = createSelectableCommandAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar", PathIconFactory.PathIcons.SHOW_SCALEBAR, null);
-		public Action SHOW_GRID = createSelectableCommandAction(overlayOptions.showGridProperty(), "Show grid", PathIconFactory.PathIcons.GRID, new KeyCodeCombination(KeyCode.G, KeyCombination.SHIFT_DOWN));
+		Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, IconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
+		Action SHOW_OVERVIEW = createSelectableCommandAction(viewerDisplayOptions.showOverviewProperty(), "Show slide overview", IconFactory.PathIcons.OVERVIEW, null);
+		Action SHOW_LOCATION = createSelectableCommandAction(viewerDisplayOptions.showLocationProperty(), "Show cursor location", IconFactory.PathIcons.LOCATION, null);
+		Action SHOW_SCALEBAR = createSelectableCommandAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar", IconFactory.PathIcons.SHOW_SCALEBAR, null);
+		public Action SHOW_GRID = createSelectableCommandAction(overlayOptions.showGridProperty(), "Show grid", IconFactory.PathIcons.GRID, new KeyCodeCombination(KeyCode.G, KeyCombination.SHIFT_DOWN));
 
-		Action SHOW_PIXEL_CLASSIFICATION = createSelectableCommandAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification", PathIconFactory.PathIcons.PIXEL_CLASSIFICATION, new KeyCodeCombination(KeyCode.C));
+		Action SHOW_PIXEL_CLASSIFICATION = createSelectableCommandAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification", IconFactory.PathIcons.PIXEL_CLASSIFICATION, new KeyCodeCombination(KeyCode.C));
 		Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), "Set grid spacing");
 		private Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
 			
@@ -501,17 +500,17 @@ public class QuPathGUI {
 		private Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
 		
 		// Overlay options actions
-		Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_ONLY), null);
-		Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_NULCEI_BOTH), null);
-		Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.NUCLEI_ONLY), null);
-		Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CENTROIDS_ONLY), null);
-		public Action SHOW_ANNOTATIONS = createSelectableCommandAction(overlayOptions.showAnnotationsProperty(), "Show annotations", PathIconFactory.PathIcons.ANNOTATIONS, new KeyCodeCombination(KeyCode.A));
+		Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_ONLY), null);
+		Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_NULCEI_BOTH), null);
+		Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.NUCLEI_ONLY), null);
+		Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CENTROIDS_ONLY), null);
+		public Action SHOW_ANNOTATIONS = createSelectableCommandAction(overlayOptions.showAnnotationsProperty(), "Show annotations", IconFactory.PathIcons.ANNOTATIONS, new KeyCodeCombination(KeyCode.A));
 		Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show labels", (Node)null, new KeyCodeCombination(KeyCode.N));
-		Action FILL_ANNOTATIONS = createSelectableCommandAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations", PathIconFactory.PathIcons.ANNOTATIONS_FILL, new KeyCodeCombination(KeyCode.F, KeyCombination.SHIFT_DOWN));	
-		Action SHOW_TMA_GRID = createSelectableCommandAction(overlayOptions.showTMAGridProperty(), "Show TMA grid", PathIconFactory.PathIcons.TMA_GRID, new KeyCodeCombination(KeyCode.G));
+		Action FILL_ANNOTATIONS = createSelectableCommandAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations", IconFactory.PathIcons.ANNOTATIONS_FILL, new KeyCodeCombination(KeyCode.F, KeyCombination.SHIFT_DOWN));	
+		Action SHOW_TMA_GRID = createSelectableCommandAction(overlayOptions.showTMAGridProperty(), "Show TMA grid", IconFactory.PathIcons.TMA_GRID, new KeyCodeCombination(KeyCode.G));
 		Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
-		Action SHOW_DETECTIONS = createSelectableCommandAction(overlayOptions.showDetectionsProperty(), "Show detections", PathIconFactory.PathIcons.DETECTIONS, new KeyCodeCombination(KeyCode.D));
-		public Action FILL_DETECTIONS = createSelectableCommandAction(overlayOptions.fillDetectionsProperty(), "Fill detections", PathIconFactory.PathIcons.DETECTIONS_FILL, new KeyCodeCombination(KeyCode.F));	
+		Action SHOW_DETECTIONS = createSelectableCommandAction(overlayOptions.showDetectionsProperty(), "Show detections", IconFactory.PathIcons.DETECTIONS, new KeyCodeCombination(KeyCode.D));
+		public Action FILL_DETECTIONS = createSelectableCommandAction(overlayOptions.fillDetectionsProperty(), "Fill detections", IconFactory.PathIcons.DETECTIONS_FILL, new KeyCodeCombination(KeyCode.F));	
 		public Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
 		
 		public Action DETECTIONS_TO_POINTS = createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true), "Convert detections to points");
@@ -541,8 +540,8 @@ public class QuPathGUI {
 	
 	private Action createShowAnalysisPaneAction() {
 		ShowAnalysisPaneSelectable temp = new ShowAnalysisPaneSelectable(pane, splitPane, analysisPanel, viewerManager, true);
-		var action = createSelectableCommandAction(temp.showPanelProperty(), "Show analysis panel", PathIconFactory.PathIcons.MEASURE, new KeyCodeCombination(KeyCode.A, KeyCombination.SHIFT_DOWN));
-		action.selectedProperty().addListener((e, f, g) -> temp.setAnalysisPanelVisible(g));
+		var action = createSelectableCommandAction(temp.showPaneProperty(), "Show analysis panel", IconFactory.PathIcons.MEASURE, new KeyCodeCombination(KeyCode.A, KeyCombination.SHIFT_DOWN));
+//		action.selectedProperty().addListener((e, f, g) -> temp.setAnalysisPanelVisible(g));
 		return action;
 	}
 	
@@ -710,6 +709,7 @@ public class QuPathGUI {
 
 		// Remove this to only accept drag-and-drop into a viewer
 		dragAndDrop.setupTarget(scene);
+		TMACommands.installDragAndDropHandler(this);
 		
 		stage.setOnCloseRequest(e -> {
 			
@@ -1651,9 +1651,8 @@ public class QuPathGUI {
 		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
 		actions.addAll(new Menus(this).getActions());
 
-		
 //		analysisPanel = createAnalysisPanel();
-		createAnalysisPanel();
+		initializeAnalysisPanel();
 		analysisPanel.setMinWidth(300);
 		analysisPanel.setPrefWidth(400);
 		splitPane.setMinWidth(analysisPanel.getMinWidth() + 200);
@@ -3287,8 +3286,8 @@ public class QuPathGUI {
 	}
 	
 
-	private Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final PathIconFactory.PathIcons icon, final KeyCombination accelerator) {
-		return ActionTools.createSelectableAction(property, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, icon), accelerator);
+	private Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final IconFactory.PathIcons icon, final KeyCombination accelerator) {
+		return ActionTools.createSelectableAction(property, name, IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, icon), accelerator);
 	}
 	
 	public Action getToolAction(PathTool tool) {
@@ -3521,15 +3520,13 @@ public class QuPathGUI {
 	}
 
 	
-	private void createAnalysisPanel() {
-		TabPane tabbedPanel = new TabPane();
-		analysisPanel = tabbedPanel;
-		tabbedPanel.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
+	private void initializeAnalysisPanel() {
+		analysisPanel.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		projectBrowser = new ProjectBrowser(this);
 
-		tabbedPanel.getTabs().add(new Tab("Project", projectBrowser.getPane()));
+		analysisPanel.getTabs().add(new Tab("Project", projectBrowser.getPane()));
 		PathImageDetailsPanel pathImageDetailsPanel = new PathImageDetailsPanel(this);
-		tabbedPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getContainer()));
+		analysisPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getContainer()));
 
 		final PathAnnotationPanel panelAnnotations = new PathAnnotationPanel(this);
 		SplitPane splitAnnotations = new SplitPane();
@@ -3537,7 +3534,7 @@ public class QuPathGUI {
 		splitAnnotations.getItems().addAll(
 				panelAnnotations.getPane(),
 				new SelectedMeasurementTableView(this).getTable());
-		tabbedPanel.getTabs().add(new Tab("Annotations", splitAnnotations));
+		analysisPanel.getTabs().add(new Tab("Annotations", splitAnnotations));
 
 		final PathObjectHierarchyView paneHierarchy = new PathObjectHierarchyView(this);
 		SplitPane splitHierarchy = new SplitPane();
@@ -3545,7 +3542,7 @@ public class QuPathGUI {
 		splitHierarchy.getItems().addAll(
 				paneHierarchy.getPane(),
 				new SelectedMeasurementTableView(this).getTable());
-		tabbedPanel.getTabs().add(new Tab("Hierarchy", splitHierarchy));
+		analysisPanel.getTabs().add(new Tab("Hierarchy", splitHierarchy));
 		
 		// Bind the split pane dividers to create a more consistent appearance
 		splitAnnotations.getDividers().get(0).positionProperty().bindBidirectional(
@@ -3553,12 +3550,7 @@ public class QuPathGUI {
 				);
 
 		WorkflowPanel workflowPanel = new WorkflowPanel(this);
-		tabbedPanel.getTabs().add(new Tab("Workflow", workflowPanel.getPane()));
-		
-//		PathObjectHierarchyPanel pathObjectHierarchyPanel = new PathObjectHierarchyPanel(this);
-//		tabbedPanel.getTabs().add(new Tab("Hierarchy", pathObjectHierarchyPanel.getPane()));
-		
-//		return tabbedPanel;
+		analysisPanel.getTabs().add(new Tab("Workflow", workflowPanel.getPane()));
 	}
 	
 	
@@ -3863,26 +3855,26 @@ public class QuPathGUI {
 		
 		private BorderPane parent;
 		private SplitPane splitPane;
-		private Control analysisPanel;
+		private Control analysisPane;
 		private MultiviewManager manager;
 		protected double lastDividerLocation;
 		
-		private BooleanProperty showPanel = new SimpleBooleanProperty();
+		private BooleanProperty showPane = new SimpleBooleanProperty();
 		
-		ShowAnalysisPaneSelectable(final BorderPane parent, final SplitPane splitPane, final Control analysisPanel, final MultiviewManager manager, final boolean defaultVisible) {
+		ShowAnalysisPaneSelectable(final BorderPane parent, final SplitPane splitPane, final Control analysisPane, final MultiviewManager manager, final boolean defaultVisible) {
 			this.parent = parent;
 			this.splitPane = splitPane;
-			this.analysisPanel = analysisPanel;
+			this.analysisPane = analysisPane;
 			this.manager = manager;
-			
-			showPanel.setValue(parent.getCenter() == splitPane);
+			showPane = analysisPane.visibleProperty();
+			showPane.addListener((v, o, n) -> setAnalysisPanelVisible(n));
 		}
 		
-		void setAnalysisPanelVisible(boolean visible) {
+		private void setAnalysisPanelVisible(boolean visible) {
 			if (visible) {
 				if (analysisPanelVisible())
 					return;
-				splitPane.getItems().setAll(analysisPanel, manager.getNode());
+				splitPane.getItems().setAll(analysisPane, manager.getNode());
 				splitPane.setDividerPosition(0, lastDividerLocation);
 				parent.setCenter(splitPane);
 			} else {
@@ -3893,12 +3885,12 @@ public class QuPathGUI {
 			}
 		}
 			
-		public boolean analysisPanelVisible() {
+		private boolean analysisPanelVisible() {
 			return parent.getCenter() == splitPane;
 		}
 		
-		public BooleanProperty showPanelProperty() {
-			return showPanel;
+		public BooleanProperty showPaneProperty() {
+			return showPane;
 		}	
 		
 	}

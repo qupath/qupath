@@ -63,16 +63,16 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class PathIconFactory {
+public class IconFactory {
 	
 	static {
         // Register a custom default font
-        GlyphFontRegistry.register("icomoon", PathIconFactory.class.getClassLoader().getResourceAsStream("fonts/icomoon.ttf") , 12);
+        GlyphFontRegistry.register("icomoon", IconFactory.class.getClassLoader().getResourceAsStream("fonts/icomoon.ttf") , 12);
     }
 
 	private static GlyphFont icoMoon = GlyphFontRegistry.font("icomoon");
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathIconFactory.class);
+	final private static Logger logger = LoggerFactory.getLogger(IconFactory.class);
 	
 	/**
 	 * Default icons for QuPath commands.
@@ -273,7 +273,7 @@ public class PathIconFactory {
 			return line;
 		} else if (roi.isPoint()) {
 			// Just show generic points
-			Node node = PathIconFactory.createNode(Math.min(width, height), Math.min(width, height), PathIconFactory.PathIcons.POINTS_TOOL);	
+			Node node = IconFactory.createNode(Math.min(width, height), Math.min(width, height), IconFactory.PathIcons.POINTS_TOOL);	
 			if (node instanceof Glyph && !((Glyph) node).textFillProperty().isBound()) {
 				((Glyph)node).setColor(color);
 			}
