@@ -48,6 +48,7 @@ import picocli.CommandLine.Parameters;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tma.QuPathTMAViewer;
@@ -122,7 +123,7 @@ class ScriptCommand implements Runnable {
 			
 			ImageData<BufferedImage> imageData;
 			
-			if (inputFile.toLowerCase().endsWith(".qpproj")) {
+			if (inputFile.toLowerCase().endsWith(ProjectIO.getProjectExtension())) {
 				Project<BufferedImage> project = ProjectIO.loadProject(new File(inputFile), null);
 				for (var entry: project.getImageList()) {
 					ImageServer<BufferedImage> server = entry.getServerBuilder().build();
@@ -135,7 +136,7 @@ class ScriptCommand implements Runnable {
 					}
 					server.close();
 				}
-			} else if (inputFile.toLowerCase().endsWith(".qpdata")) {
+			} else if (inputFile.toLowerCase().endsWith(PathPrefs.getSerializationExtension())) {
 				imageData = PathIO.readImageData(new File(inputFile), null, null, BufferedImage.class);
 				System.out.println(runScript(imageData));
 			} else {
@@ -150,7 +151,6 @@ class ScriptCommand implements Runnable {
 		}
 	}
 	
-	// TODO: import QP/QPEx
 	private Object runScript(ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		Object result = null;
 		
