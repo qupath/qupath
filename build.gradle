@@ -175,9 +175,9 @@ allprojects {
     commonsMathVersion = '3.6.1'
     commonsTextVersion = '1.8'
     controlsfxVersion  = '11.0.1'
-    groovyVersion      = '3.0.2'
+    groovyVersion      = '3.0.3'
     gsonVersion        = '2.8.6'
-    guavaVersion       = '28.2-jre'
+    guavaVersion       = '29.0-jre'
     imagejVersion      = '1.52u'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
@@ -187,7 +187,7 @@ allprojects {
     picocliVersion     = '4.2.0'
     jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    opencvVersion      = '4.1.2-1.5.2'
+    opencvVersion      = '4.3.0-1.5.3'
     
     // Additional versions
     logbackVersion     = '1.2.3'
@@ -627,6 +627,9 @@ task createRuntime(dependsOn:build, type:Exec) {
    
     params << '--output' << outputDir.getAbsolutePath()
     params << '--add-modules' << addModules
+    
+    if (jreModules == 'default')
+	    params << '--bind-services'
 
     params << '--strip-debug'
     params << '--no-header-files'

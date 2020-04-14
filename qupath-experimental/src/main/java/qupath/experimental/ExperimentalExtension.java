@@ -1,7 +1,5 @@
 package qupath.experimental;
 
-import org.bytedeco.openblas.global.openblas;
-
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -18,7 +16,6 @@ import qupath.experimental.commands.SimpleThresholdCommand;
 import qupath.experimental.commands.SingleMeasurementClassificationCommand;
 import qupath.experimental.commands.SplitProjectTrainingCommand;
 import qupath.lib.classifiers.object.ObjectClassifiers;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.align.InteractiveImageAlignmentCommand;
@@ -49,11 +46,7 @@ public class ExperimentalExtension implements QuPathExtension {
 	
     @Override
     public void installExtension(QuPathGUI qupath) {
-    	
-    	// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
-    	if (!GeneralTools.isWindows())
-    		openblas.blas_set_num_threads(1);
-    	
+    	    	
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifier.class);
 //		PixelClassifiers.PixelClassifierTypeAdapterFactory.registerSubtype(OpenCVPixelClassifierDNN.class);
     	FeatureCalculators.initialize();

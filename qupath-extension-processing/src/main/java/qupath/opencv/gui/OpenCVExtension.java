@@ -24,10 +24,8 @@
 package qupath.opencv.gui;
 
 import org.bytedeco.javacpp.Loader;
+import org.bytedeco.openblas.global.openblas;
 import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_dnn;
-import org.bytedeco.opencv.global.opencv_imgproc;
-import org.bytedeco.opencv.global.opencv_ml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +34,7 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.icons.IconFactory;
@@ -89,48 +88,29 @@ public class OpenCVExtension implements QuPathExtension {
 				null,
 				qupath.createImageDataAction(imageData -> classifierCommand.run(), "Create detection classifier"));
 		
-		
-//		// Add the Wand tool
-//		logger.debug("Installing wand tool");
-//		Platform.runLater(() -> {
-//			WandToolCV wandTool = new WandToolCV(qupath);
-//			qupath.putToolForMode(Modes.WAND, wandTool);
-//		});
-	}
-	
-	private static void ensureClassesLoaded() {
-		logger.debug("Ensuring OpenCV classes are loaded");
-		try (@SuppressWarnings("unchecked")
-		var scope = new org.bytedeco.javacpp.PointerScope()) {
-			Loader.load(opencv_core.class);
-			Loader.load(opencv_imgproc.class);
-			Loader.load(opencv_ml.class);
-			Loader.load(opencv_dnn.class);
-		} catch (Exception e) {
-			logger.error("Error loading OpenCV: " + e.getLocalizedMessage(), e);
-		}
 	}
 
 
 	@Override
 	public void installExtension(QuPathGUI qupath) {
-		// Can be annoying waiting a few seconds while classes are loaded later on
-		var t = new Thread(() -> {
-			// Add the Wand tool in a background thread (as it is rather slow to load)
-			var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand tool",
-					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
-			logger.debug("Installing wand tool");
-			Platform.runLater(() -> {
-				qupath.installTool(wandTool, new KeyCodeCombination(KeyCode.W));
-			});
-			logger.debug("Loading OpenCV classes");
-			ensureClassesLoaded();
-		});
-		t.setDaemon(true);
-		t.start();
+    	// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
+    	if (!GeneralTools.isWindows()) {
+    		openblas.blas_set_num_threads(1);
+    	}
 
-		
+    	// Add most commands
 		addQuPathCommands(qupath);
+		
+		// Install the Wand tool
+		Loader.load(opencv_core.class);
+		var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand tool",
+				IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
+		logger.debug("Installing wand tool");
+		Platform.runLater(() -> {
+			qupath.installTool(wandTool, new KeyCodeCombination(KeyCode.W));
+		});
+		
+		logger.debug("Loading OpenCV classes");
 	}
 	
 	@Override
