@@ -450,7 +450,7 @@ public class WandToolCV extends BrushTool {
 			
 			// Create a polygon geometry
 			IntIndexer idxrContours = contour.createIndexer();
-			for (long r = 0; r < idxrContours.rows(); r++) {
+			for (long r = 0; r < idxrContours.size(0); r++) {
 				int px = idxrContours.get(r, 0L, 0L);
 				int py = idxrContours.get(r, 0L, 1L);
 				double xx = (px - w/2-1);// * downsample + x;

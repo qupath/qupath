@@ -174,10 +174,10 @@ public class PathHierarchyPaintingHelper {
 		// Paint the TMA grid, if required
 		if (!overlayOptions.getShowTMAGrid())
 			return;
-		Stroke strokeThick = getCachedStroke(PathPrefs.getThickStrokeThickness() * downsampleFactor);
+		Stroke strokeThick = getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsampleFactor);
 		g2d.setStroke(strokeThick);
 		// Paint the TMA grid
-		Color colorGrid = ColorToolsAwt.getCachedColor(PathPrefs.getTMAGridColor());
+		Color colorGrid = ColorToolsAwt.getCachedColor(PathPrefs.colorTMAProperty().get());
 		for (int gy = 0; gy < tmaGrid.getGridHeight(); gy++) {
 			for (int gx = 0; gx < tmaGrid.getGridWidth(); gx++) {
 				g2d.setStroke(strokeThick); // Reset stroke for lines
@@ -277,7 +277,7 @@ public class PathHierarchyPaintingHelper {
 		// Always paint the selected object
 		// Note: this makes the assumption that child ROIs are completely contained within their parents;
 		//			this probably should be the case, but isn't guaranteed
-		boolean isSelected = (selectionModel != null && selectionModel.isSelected(pathObject)) && (PathPrefs.getUseSelectedColor() || !PathObjectTools.hasPointROI(pathObject));
+		boolean isSelected = (selectionModel != null && selectionModel.isSelected(pathObject)) && (PathPrefs.useSelectedColorProperty().get() || !PathObjectTools.hasPointROI(pathObject));
 		boolean isDetectedObject = pathObject.isDetection() || (pathObject.isTile() && pathObject.hasMeasurements());
 		
 		// Check if the PathClass isn't being shown
@@ -307,8 +307,8 @@ public class PathHierarchyPaintingHelper {
 					Color color = null;
 					boolean useMapper = false;
 					double fillOpacity = .75;
-					if (isSelected && PathPrefs.getUseSelectedColor() && PathPrefs.getSelectedObjectColor() != null)
-						color = ColorToolsAwt.getCachedColor(PathPrefs.getSelectedObjectColor());
+					if (isSelected && PathPrefs.useSelectedColorProperty().get() && PathPrefs.colorSelectedObjectProperty().getValue() != null)
+						color = ColorToolsAwt.getCachedColor(PathPrefs.colorSelectedObjectProperty().get());
 					else {
 						MeasurementMapper mapper = overlayOptions.getMeasurementMapper();
 						useMapper = mapper != null && mapper.isValid() && pathObject.isDetection();
@@ -345,7 +345,7 @@ public class PathHierarchyPaintingHelper {
 						if (w > 0 && h > 0) {
 							g.setColor(color);
 //							g.setColor(DisplayHelpers.getMoreTranslucentColor(color));
-//							g.setStroke(getCachedStroke(overlayOptions.getThinStrokeThickness()));
+//							g.setStroke(getCachedStroke(overlayOptions.strokeThinThicknessProperty().get()));
 							g.fillRect(x, y, w, h);
 						}
 						painted = true;
@@ -363,26 +363,26 @@ public class PathHierarchyPaintingHelper {
 									colorFill = ColorToolsAwt.getMoreTranslucentColor(colorFill);
 							} else if (pathObject.getParent() instanceof PathDetectionObject) {
 								colorFill = ColorToolsAwt.getTranslucentColor(colorFill);
-							} else if (pathObject instanceof PathTileObject && pathClass == null && color !=null && color.getRGB() == PathPrefs.getTileColor()) {
+							} else if (pathObject instanceof PathTileObject && pathClass == null && color !=null && color.getRGB() == PathPrefs.colorTileProperty().get()) {
 								// Don't fill in empty, unclassified tiles
 								colorFill = null; //DisplayHelpers.getMoreTranslucentColor(colorFill);
 							}
 						}
-//						Color colorStroke = doOutline ? (colorFill == null ? color : (downsample > overlayOptions.getThinStrokeThickness() ? null : DisplayHelpers.darkenColor(color))) : null;
+//						Color colorStroke = doOutline ? (colorFill == null ? color : (downsample > overlayOptions.strokeThinThicknessProperty().get() ? null : DisplayHelpers.darkenColor(color))) : null;
 						Color colorStroke = doOutline ? (colorFill == null ? color : ColorToolsAwt.darkenColor(color)) : null;
 						
 						// For thick lines, antialiasing is very noticeable... less so for thin lines (of which there may be a huge number)
 						if (isDetectedObject) {
 							// Detections inside detections get half the line width
 							if (pathObject.getParent() instanceof PathDetectionObject)
-								stroke = getCachedStroke(PathPrefs.getThinStrokeThickness() / 2.0);
+								stroke = getCachedStroke(PathPrefs.detectionStrokeThicknessProperty().get() / 2.0);
 							else
-								stroke = getCachedStroke(PathPrefs.getThinStrokeThickness());
+								stroke = getCachedStroke(PathPrefs.detectionStrokeThicknessProperty().get());
 						}
 						else {
-							double thicknessScale = downsample * (isSelected && !PathPrefs.getUseSelectedColor() ? 1.6 : 1);
-							float thickness = (float)(PathPrefs.getThickStrokeThickness() * thicknessScale);
-							if (isSelected && pathObject.getParent() == null && PathPrefs.isSelectionMode()) {
+							double thicknessScale = downsample * (isSelected && !PathPrefs.useSelectedColorProperty().get() ? 1.6 : 1);
+							float thickness = (float)(PathPrefs.annotationStrokeThicknessProperty().get() * thicknessScale);
+							if (isSelected && pathObject.getParent() == null && PathPrefs.selectionModeProperty().get()) {
 								stroke = getCachedStrokeDashed(thickness);
 							} else {
 								stroke = getCachedStroke(thickness);
@@ -396,7 +396,7 @@ public class PathHierarchyPaintingHelper {
 							pathROI = PathObjectTools.getROI(pathObject, true);
 							double x = pathROI.getCentroidX();
 							double y = pathROI.getCentroidY();
-							double radius = PathPrefs.getThinStrokeThickness() * 2.0;
+							double radius = PathPrefs.detectionStrokeThicknessProperty().get() * 2.0;
 							if (pathObject.getParent() instanceof PathDetectionObject)
 								radius /= 2.0;
 							Shape shape;
@@ -503,7 +503,7 @@ public class PathHierarchyPaintingHelper {
 			else if (pathROI.isLine())
 				paintShape(shape, g, colorStroke, stroke, null, downsample);
 		} else if (pathROI.isPoint()) {
-			paintPoints(pathROI, g2d, PathPrefs.getDefaultPointRadius(), colorStroke, stroke, colorFill, downsample);
+			paintPoints(pathROI, g2d, PathPrefs.pointRadiusProperty().get(), colorStroke, stroke, colorFill, downsample);
 		}
 		g2d.dispose();
 	}
@@ -722,7 +722,7 @@ public class PathHierarchyPaintingHelper {
 	
 	public static void paintPoints(ROI pathPoints, Graphics2D g2d, double radius, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
 		PointsROI pathPointsROI = pathPoints instanceof PointsROI ? (PointsROI)pathPoints : null;
-		if (pathPointsROI != null && PathPrefs.getShowPointHulls()) {
+		if (pathPointsROI != null && PathPrefs.showPointHullsProperty().get()) {
 			ROI convexHull = pathPointsROI.getConvexHull();
 			if (convexHull != null) {
 				Color colorHull = colorFill != null ? colorFill : colorStroke;
@@ -735,7 +735,7 @@ public class PathHierarchyPaintingHelper {
 		
 		RectangularShape ellipse;
 		
-//		double radius = pathPointsROI == null ? PointsROI.getDefaultPointRadius() : pathPointsROI.getPointRadius();
+//		double radius = pathPointsROI == null ? PointsROI.defaultPointRadiusProperty().get() : pathPointsROI.getPointRadius();
 		// Ensure that points are drawn with at least a radius of one, after any transforms have been applied
 		double scale = Math.max(1, downsample);
 		radius = (Math.max(1 / scale, radius));
@@ -918,7 +918,7 @@ public class PathHierarchyPaintingHelper {
 
 			float alpha = (float)(1f - downsampleFactor / 5);
 			alpha = Math.min(alpha, 0.25f);
-			float thickness = PathPrefs.getThinStrokeThickness();
+			float thickness = PathPrefs.detectionStrokeThicknessProperty().get();
 			if (alpha < .1f || thickness / downsampleFactor <= 0.5)
 				return;
 

@@ -599,7 +599,7 @@ class ProjectImportImagesCommand {
 			
 			// Pyramidalize this if we need to
 			ImageServer<BufferedImage> server2 = server;
-			int minPyramidDimension = PathPrefs.getMinPyramidDimension();
+			int minPyramidDimension = PathPrefs.minPyramidDimensionProperty().get();
 			if (pyramidizeSingleResolution && server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > minPyramidDimension) {
 				var serverTemp = ImageServers.pyramidalize(server);
 				if (serverTemp.nResolutions() > 1) {

@@ -45,7 +45,7 @@ public class MeasurementExporter {
 	// Default: Exporting annotations
 	private Class<? extends PathObject> type = PathRootObject.class;
 	
-	private String separator = PathPrefs.getTableDelimiter();
+	private String separator = PathPrefs.tableDelimiterProperty().get();
 	
 	private List<ProjectImageEntry<BufferedImage>> imageList;
 	

@@ -119,9 +119,9 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 //		TilePane panel = new TilePane(Orientation.VERTICAL);
 //		panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 10, 10));
 		
-		sliderRadius = new Slider(1, 100, PathPrefs.getDefaultPointRadius());
+		sliderRadius = new Slider(1, 100, PathPrefs.pointRadiusProperty().get());
 		sliderRadius.valueProperty().addListener(event -> {
-			PathPrefs.setDefaultPointRadius((int)sliderRadius.getValue());
+			PathPrefs.pointRadiusProperty().set((int)sliderRadius.getValue());
 //			PathPrefs.setMinPointSeparation(sliderRadius.getValue());
 			qupath.getViewer().repaint();
 			}

@@ -83,7 +83,7 @@ public class ProjectCommands {
 			keys.addAll(entry.getMetadataKeys());
 		}
 		
-		String delim = PathPrefs.getTableDelimiter();
+		String delim = PathPrefs.tableDelimiterProperty().get();
 		long startTime = System.currentTimeMillis();
 		int n = 0;
 		try (PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8)) {

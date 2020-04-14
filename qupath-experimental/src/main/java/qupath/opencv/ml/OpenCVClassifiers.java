@@ -742,7 +742,7 @@ public class OpenCVClassifiers {
 //				synchronized (this) {
 					var importance = trees.getVarImportance();
 					var indexer = importance.createIndexer();
-					int nFeatures = (int)indexer.rows();
+					int nFeatures = (int)indexer.size(0);
 					featureImportance = new double[nFeatures];
 					for (int r = 0; r < nFeatures; r++) {
 						featureImportance[r] = indexer.getDouble(r);
@@ -1431,8 +1431,8 @@ public class OpenCVClassifiers {
 						
 				var indexer = probabilities.createIndexer();
 				long[] inds = new long[2];
-				long rows = indexer.rows();
-				long cols = indexer.cols();
+				long rows = indexer.size(0); // previously .rows()
+				long cols = indexer.size(1); // previously .cols()
 				double scale = 0.5 / beta;
 				double offset = 0.5;
 						

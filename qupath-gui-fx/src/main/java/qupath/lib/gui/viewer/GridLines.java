@@ -61,11 +61,11 @@ public class GridLines {
 	}
 	
 	public boolean useMicrons() {
-		return PathPrefs.gridScaleMicrons().get();
+		return PathPrefs.gridScaleMicronsProperty().get();
 	}
 	
 	public void setUseMicrons(boolean useMicrons) {
-		PathPrefs.gridScaleMicrons().set(useMicrons);
+		PathPrefs.gridScaleMicronsProperty().set(useMicrons);
 	}
 
 }

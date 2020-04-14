@@ -73,7 +73,7 @@ public class MeasurementExportCommand implements Runnable {
 	private Dialog<ButtonType> dialog = null;
 	private Project<BufferedImage> project;
 	private List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
-	private String defSep = PathPrefs.getTableDelimiter();
+	private String defSep = PathPrefs.tableDelimiterProperty().get();
 	
 	// GUI
 	private TextField outputText = new TextField();

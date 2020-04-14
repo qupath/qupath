@@ -43,7 +43,6 @@ import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
@@ -77,6 +76,8 @@ public class TMADataIO {
 	final private static Logger logger = LoggerFactory.getLogger(TMADataIO.class);
 
 	final public static String TMA_DEARRAYING_DATA_EXTENSION = ".qptma";
+	
+	private static double preferredExportPixelSizeMicrons = 1.0;
 	
 	/**
 	 * Write TMA summary data, without any image export.
@@ -188,7 +189,7 @@ public class TMADataIO {
 				logger.warn("Unable to write image overview", e);
 			}
 
-			final double downsample = Double.isNaN(downsampleFactor) ? (server.getPixelCalibration().hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, PathPrefs.getPreferredTMAExportPixelSizeMicrons()) : 1) : downsampleFactor;
+			final double downsample = Double.isNaN(downsampleFactor) ? (server.getPixelCalibration().hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, preferredExportPixelSizeMicrons) : 1) : downsampleFactor;
 			
 			// Creating a plugin makes it possible to parallelize & show progress easily
 			var renderedImageServer = new RenderedImageServer.Builder(imageData)

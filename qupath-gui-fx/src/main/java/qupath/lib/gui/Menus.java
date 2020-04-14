@@ -92,16 +92,16 @@ class Menus {
 		
 		@ActionMenu("Multi-touch gestures>Turn on all gestures")
 		public final Action GESTURES_ALL = createAction(() -> {
-			PathPrefs.setUseScrollGestures(true);
-			PathPrefs.setUseZoomGestures(true);
-			PathPrefs.setUseRotateGestures(true);
+			PathPrefs.useScrollGesturesProperty().set(true);
+			PathPrefs.useZoomGesturesProperty().set(true);
+			PathPrefs.useRotateGesturesProperty().set(true);
 		});
 		
 		@ActionMenu("Multi-touch gestures>Turn off all gestures")
 		public final Action GESTURES_NONE = createAction(() -> {
-			PathPrefs.setUseScrollGestures(false);
-			PathPrefs.setUseZoomGestures(false);
-			PathPrefs.setUseRotateGestures(false);
+			PathPrefs.useScrollGesturesProperty().set(false);
+			PathPrefs.useZoomGesturesProperty().set(false);
+			PathPrefs.useRotateGesturesProperty().set(false);
 		});
 
 		@ActionMenu("Multi-touch gestures>")

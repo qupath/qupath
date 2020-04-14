@@ -9,12 +9,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.jar.JarFile;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * {@link ClassLoader} for loading QuPath extensions and other jars from the user directory.
  * 
  * @author Pete Bankhaad
  */
 public class ExtensionClassLoader extends URLClassLoader {
+	
+	private final static Logger logger = LoggerFactory.getLogger(ExtensionClassLoader.class);
 
 	/**
 	 * Constructor.
@@ -36,7 +41,7 @@ public class ExtensionClassLoader extends URLClassLoader {
 				return true;
 			}
 		} catch (IOException e) {
-			QuPathGUI.logger.error("Unable to add file to classpath", e);
+			logger.error("Unable to add file to classpath", e);
 		}
 		return false;
 	}
@@ -47,11 +52,11 @@ public class ExtensionClassLoader extends URLClassLoader {
 	void refresh() {
 		File dirExtensions = QuPathGUI.getExtensionDirectory();
 		if (dirExtensions == null) {
-			QuPathGUI.logger.debug("Extensions directory is null - no extensions will be loaded");
+			logger.debug("Extensions directory is null - no extensions will be loaded");
 			return;
 		}
 		if (!dirExtensions.isDirectory()) {
-			QuPathGUI.logger.error("Invalid extensions directory! '{}' is not a directory.", dirExtensions);
+			logger.error("Invalid extensions directory! '{}' is not a directory.", dirExtensions);
 			return;
 		}
 		refreshExtensions(dirExtensions);
@@ -62,7 +67,7 @@ public class ExtensionClassLoader extends URLClassLoader {
 					try {
 						dir = Files.readSymbolicLink(dirPath).toFile();
 					} catch (IOException e) {
-						QuPathGUI.logger.error("Error refreshing extensions", e);
+						logger.error("Error refreshing extensions", e);
 					}
 				refreshExtensions(dir);
 			}
@@ -76,20 +81,20 @@ public class ExtensionClassLoader extends URLClassLoader {
 	 */
 	private void refreshExtensions(final File dirExtensions) {
 		if (dirExtensions == null) {
-			QuPathGUI.logger.debug("No extensions directory specified");				
+			logger.debug("No extensions directory specified");				
 			return;
 		} else if (!dirExtensions.isDirectory()) {
-			QuPathGUI.logger.warn("Cannot load extensions from " + dirExtensions + " - not a valid directory");	
+			logger.warn("Cannot load extensions from " + dirExtensions + " - not a valid directory");	
 			return;
 		}
-		QuPathGUI.logger.info("Refreshing extensions in " + dirExtensions);				
+		logger.info("Refreshing extensions in " + dirExtensions);				
 		for (File file : dirExtensions.listFiles()) {
 			if (file.getName().toLowerCase().endsWith(".jar")) {
 				try {
 					addURL(file.toURI().toURL());
-					QuPathGUI.logger.info("Added extension: " + file.getAbsolutePath());
+					logger.info("Added extension: " + file.getAbsolutePath());
 				} catch (MalformedURLException e) {
-					QuPathGUI.logger.debug("Error adding {} to classpath", file, e);
+					logger.debug("Error adding {} to classpath", file, e);
 				}
 			}
 		}

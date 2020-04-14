@@ -126,6 +126,11 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	private final static Logger logger = LoggerFactory.getLogger(ClassifierBuilderPanel.class);
 
 	private QuPathGUI qupath;
+	
+	/**
+	 * File extension for (legacy) classifiers
+	 */
+	static String extPathClassifier = ".qpclassifier";
 
 	private VBox panelClassifier = new VBox();
 
@@ -242,7 +247,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			}
 
 			// Get a classifier file
-			File fileClassifier = QuPathGUI.getDialogHelper(btnSaveClassifier.getScene().getWindow()).promptToSaveFile("Save classifier", null, null, "Classifier", PathPrefs.getClassifierExtension());
+			File fileClassifier = QuPathGUI.getDialogHelper(btnSaveClassifier.getScene().getWindow()).promptToSaveFile("Save classifier", null, null, "Classifier", extPathClassifier);
 			if (fileClassifier == null)
 				return;
 			if (fileClassifier.exists()) {

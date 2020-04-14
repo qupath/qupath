@@ -216,7 +216,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	// This can be useful when rapidly changing view, for example
 	private boolean doFasterRepaint = false;
 	
-	private Color background = ColorToolsAwt.getCachedColor(PathPrefs.getViewerBackgroundColor());
+	private Color background = ColorToolsAwt.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get());
 
 	// Keep a record of when the spacebar is pressed, to help with dragging to pan
 	private boolean spaceDown = false;
@@ -573,7 +573,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private InvalidationListener repainterEntire = new InvalidationListener() {
 		@Override
 		public void invalidated(Observable observable) {
-			background = ColorToolsAwt.getCachedColor(PathPrefs.getViewerBackgroundColor());
+			background = ColorToolsAwt.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get());
 			repaintEntireImage();
 		}
 	};
@@ -583,7 +583,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		@Override
 		public void invalidated(Observable observable) {
 			forceOverlayUpdate();
-			background = ColorToolsAwt.getCachedColor(PathPrefs.getViewerBackgroundColor());
+			background = ColorToolsAwt.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get());
 			repaint();
 		}
 	};
@@ -715,7 +715,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		setOverlayOptions(overlayOptions);
 		
 		// We need a simple repaint for color changes & simple (thick) line changes
-		manager.attachListener(PathPrefs.strokeThickThicknessProperty(), repainter);
+		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
 		
 		manager.attachListener(PathPrefs.viewerGammaProperty(), repainterEntire);
 		manager.attachListener(PathPrefs.viewerInterpolateBilinearProperty(), repainterEntire);
@@ -735,10 +735,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
 		manager.attachListener(PathPrefs.gridStartXProperty(), repainter);
 		manager.attachListener(PathPrefs.gridStartYProperty(), repainter);
-		manager.attachListener(PathPrefs.gridScaleMicrons(), repainter);
+		manager.attachListener(PathPrefs.gridScaleMicronsProperty(), repainter);
 
 		// We need to repaint everything if detection line thickness changes - including any cached regions
-		manager.attachListener(PathPrefs.strokeThinThicknessProperty(), repainterOverlay);		
+		manager.attachListener(PathPrefs.detectionStrokeThicknessProperty(), repainterOverlay);		
 
 		// Can be used to debug graphics
 		//		setDoubleBuffered(false);
@@ -1457,7 +1457,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		long startTime = System.currentTimeMillis();
 		if (imageDisplay != null) {
-			imageDisplay.setImageData(imageDataNew, PathPrefs.getKeepDisplaySettings());
+			imageDisplay.setImageData(imageDataNew, PathPrefs.keepDisplaySettingsProperty().get());
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Setting ImageData time: {} ms", endTime - startTime);
@@ -1737,7 +1737,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		Composite previousComposite = g2d.getComposite();
 		boolean paintCompletely = thumbnailIsFullImage || !doFasterRepaint;
 //		var regionBounds = AwtTools.getImageRegion(clip, getZPosition(), getTPosition());
-		if (opacity > 0 || PathPrefs.getAlwaysPaintSelectedObjects()) {
+		if (opacity > 0 || PathPrefs.alwaysPaintSelectedObjectsProperty().get()) {
 			if (opacity < 1) {
 				AlphaComposite composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity);
 				g2d.setComposite(composite);			
@@ -1761,6 +1761,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		PathObjectHierarchy hierarchy = getHierarchy();
 		PathObject mainSelectedObject = getSelectedObject();
 		Rectangle2D boundsRect = null;
+		boolean useSelectedColor = PathPrefs.useSelectedColorProperty().get();
+		boolean paintSelectedBounds = PathPrefs.paintSelectedBoundsProperty().get();
 		for (PathObject selectedObject : hierarchy.getSelectionModel().getSelectedObjects().toArray(new PathObject[0])) {
 			// TODO: Simplify this...
 			if (selectedObject != null && selectedObject.hasROI() && selectedObject.getROI().getZ() == getZPosition() && selectedObject.getROI().getT() == getTPosition()) {
@@ -1776,7 +1778,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				
 				ROI pathROI = selectedObject.getROI();
 //				if ((PathPrefs.getPaintSelectedBounds() || (selectedObject.isDetection() && !PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI)) {
-				if (pathROI != null && (PathPrefs.getPaintSelectedBounds() || (!PathPrefs.getUseSelectedColor())) && !(pathROI instanceof RectangleROI) && !pathROI.isEmpty()) {
+				if (pathROI != null && (paintSelectedBounds || (!useSelectedColor)) && !(pathROI instanceof RectangleROI) && !pathROI.isEmpty()) {
 					Shape boundsShape = null;
 					if (pathROI.isPoint()) {
 						var hull = pathROI.getConvexHull();
@@ -1803,12 +1805,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				// Avoid double-painting of annotations (which looks odd if they are filled in)
 				// However do always paint detections, since they are otherwise painted (unselected) 
 				// in a cached way
-				if ((selectedObject.isDetection() && PathPrefs.getUseSelectedColor()) || !PathObjectTools.hierarchyContainsObject(hierarchy, selectedObject))
+				if ((selectedObject.isDetection() && PathPrefs.useSelectedColorProperty().get()) || !PathObjectTools.hierarchyContainsObject(hierarchy, selectedObject))
 					PathHierarchyPaintingHelper.paintObject(selectedObject, false, g2d, boundsDisplayed, overlayOptions, getHierarchy().getSelectionModel(), downsample);
 				// Paint ROI handles, if required
 				if (selectedObject == mainSelectedObject && roiEditor.hasROI()) {
-					Stroke strokeThick = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.getThickStrokeThickness() * downsample);
-					Color color = PathPrefs.getUseSelectedColor() ? ColorToolsAwt.getCachedColor(PathPrefs.getSelectedObjectColor()) : null;
+					Stroke strokeThick = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsample);
+					Color color = useSelectedColor ? ColorToolsAwt.getCachedColor(PathPrefs.colorSelectedObjectProperty().get()) : null;
 					if (color == null)
 						color = ColorToolsAwt.getCachedColor(ColorToolsFX.getDisplayedColorARGB(selectedObject));
 					g2d.setStroke(strokeThick);
@@ -1830,7 +1832,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	
 	
 	public double getMaxROIHandleSize() {
-		return PathPrefs.getThickStrokeThickness() * getDownsampleFactor() * 4.0;
+		return PathPrefs.annotationStrokeThicknessProperty().get() * getDownsampleFactor() * 4.0;
 	}
 
 	
@@ -1898,7 +1900,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		boolean overBoundary = shapeBounds.x < 0 || shapeBounds.y < 0 || shapeBounds.x + shapeBounds.width >= serverWidth || shapeBounds.y + shapeBounds.height >= serverHeight;
 
 		// Reset interpolation - this roughly halves repaint times
-		if (!doFasterRepaint && PathPrefs.getViewerInterpolationBilinear())
+		if (!doFasterRepaint && PathPrefs.viewerInterpolateBilinearProperty().get())
 			gBuffered.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 		else
 			gBuffered.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
@@ -2039,8 +2041,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 	
 	void ensureGammaUpdated() {
-		if (gamma != PathPrefs.getViewerGamma()) {
-			setGamma(PathPrefs.getViewerGamma());
+		var gammaProperty = PathPrefs.viewerGammaProperty().get();
+		if (gamma != gammaProperty) {
+			setGamma(gammaProperty);
 			imageUpdated = true;
 		}
 	}
@@ -2096,7 +2099,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Try to show which TMA core is selected - if we have a TMA image
 		PathObjectHierarchy hierarchy = getHierarchy();
 		TMAGrid tmaGrid = hierarchy == null ? null : hierarchy.getTMAGrid();
-		if (PathPrefs.showTMAToolTips() && tmaGrid != null) {
+		if (tmaGrid != null) {
 			Point2D p = componentPointToImagePoint(x, y, null, false);
 //						double xx = componentXtoImageX(x);
 //						double yy = componentYtoImageY(y);

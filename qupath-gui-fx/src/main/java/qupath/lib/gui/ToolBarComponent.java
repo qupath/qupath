@@ -89,7 +89,7 @@ class ToolBarComponent {
 						
 			nodes.add(new Separator(Orientation.VERTICAL));
 			
-			nodes.add(ActionTools.createToggleButton(actionManager.SELECTION_MODE, true, null, PathPrefs.isSelectionMode()));			
+			nodes.add(ActionTools.createToggleButton(actionManager.SELECTION_MODE, true, null, PathPrefs.selectionModeProperty().get()));			
 			
 			nodes.add(new Separator(Orientation.VERTICAL));
 

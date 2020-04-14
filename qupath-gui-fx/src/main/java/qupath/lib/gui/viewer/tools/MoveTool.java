@@ -60,6 +60,8 @@ public class MoveTool extends AbstractPathTool {
 	
 	final static private Logger logger = LoggerFactory.getLogger(MoveTool.class);
 
+	private static boolean requestDynamicDragging = true;
+	
 	private Point2D pDragging;
 	private double dx, dy; // Last dragging displacements
 	private long lastDragTimestamp; // Used to determine if the user has stopped dragging (but may not yet have release the mouse button)
@@ -94,7 +96,7 @@ public class MoveTool extends AbstractPathTool {
 				selected = tryToSelect(xx, yy, e.getClickCount()-2, false);
 			e.consume();
 			pDragging = null;
-			if (!selected && PathPrefs.getDoubleClickToZoom()) {
+			if (!selected && PathPrefs.doubleClickToZoomProperty().get()) {
 				double downsample = viewer.getDownsampleFactor();
 				if (e.isAltDown() || e.isShortcutDown())
 					downsample *= 2;
@@ -144,7 +146,7 @@ public class MoveTool extends AbstractPathTool {
 				if (!e.isConsumed() && canAdjust(currentObject) &&
 						(RoiTools.areaContains(currentROI, xx, yy) || getSelectableObjectList(xx, yy).contains(currentObject))) {
 					// If we have a translatable ROI, try starting translation
-					if (editor.startTranslation(xx, yy, PathPrefs.usePixelSnapping() && currentROI.isArea()))
+					if (editor.startTranslation(xx, yy, PathPrefs.usePixelSnappingProperty().get() && currentROI.isArea()))
 						e.consume();
 				}
 				if (e.isConsumed()) {
@@ -187,7 +189,7 @@ public class MoveTool extends AbstractPathTool {
 			if (editor != null && editor.hasActiveHandle()) {
 				double x = p.getX();
 				double y = p.getY();
-				if (PathPrefs.usePixelSnapping() && editor.getROI() != null && editor.getROI().isArea()) {
+				if (PathPrefs.usePixelSnappingProperty().get() && editor.getROI() != null && editor.getROI().isArea()) {
 					x = (int)x;
 					y = (int)y;
 				}
@@ -298,7 +300,7 @@ public class MoveTool extends AbstractPathTool {
 						
 //						PathObject parentPrevious = pathObject.getParent();
 						hierarchy.removeObjectWithoutUpdate(pathObject, true);
-						if (getCurrentParent() == null || !PathPrefs.getClipROIsForHierarchy() || e.isShiftDown())
+						if (getCurrentParent() == null || !PathPrefs.clipROIsForHierarchyProperty().get() || e.isShiftDown())
 							hierarchy.addPathObject(pathObject);
 						else
 							hierarchy.addPathObjectBelowParent(getCurrentParent(), pathObject, true);
@@ -315,7 +317,7 @@ public class MoveTool extends AbstractPathTool {
 		
 		
 		// Optionally continue a dragging movement until the canvas comes to a standstill
-		if (pDragging != null && PathPrefs.requestDynamicDragging() && System.currentTimeMillis() - lastDragTimestamp < 100 && (dx*dx + dy*dy > viewer.getDownsampleFactor())) {
+		if (pDragging != null && requestDynamicDragging && System.currentTimeMillis() - lastDragTimestamp < 100 && (dx*dx + dy*dy > viewer.getDownsampleFactor())) {
 			mover = new ViewerMover(viewer);
 			mover.startMoving(dx, dy, false);
 		} else

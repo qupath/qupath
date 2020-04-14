@@ -397,7 +397,7 @@ class InputDisplayDialog implements EventHandler<InputEvent> {
 					scrollRight.set(false);
 					return;
 				}
-				double direction = PathPrefs.getInvertScrolling() ? -1 : 1;
+				double direction = PathPrefs.invertScrollingProperty().get() ? -1 : 1;
 				scrollUp.set((event.getDeltaY() * direction) < -0.001);
 				scrollDown.set((event.getDeltaY() * direction) > 0.001);
 				scrollLeft.set((event.getDeltaX() * direction) < -0.001);

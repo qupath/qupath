@@ -50,6 +50,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 
@@ -63,11 +64,9 @@ public class PreferencePanel {
 
 	final private static Logger logger = LoggerFactory.getLogger(PreferencePanel.class);
 
-//	private QuPathGUI qupath;
 	private PropertySheet propSheet = new PropertySheet();
 
-	public PreferencePanel(final QuPathGUI qupath) {
-//		this.qupath = qupath;
+	public PreferencePanel() {
 		setupPanel();
 	}
 
@@ -103,16 +102,6 @@ public class PreferencePanel {
 		 */
 		category = "General";
 		
-//		if (PathPrefs.hasJavaPreferences()) {
-//			addPropertyPreference(PathPrefs.maxMemoryMBProperty(), Integer.class,
-//					"Max memory (MB)",
-//					category,
-//					"Maxmimum memory (in MB) available for QuPath.\n" +
-//								"Note: changing this value only has an effect after restarting QuPath.\n" +
-//								"Set to a value <= 0 to reset to default."
-//							);
-//		}
-		
 		addPropertyPreference(PathPrefs.useSystemMenubarProperty(), Boolean.class,
 				"Use system menubar",
 				category,
@@ -124,7 +113,7 @@ public class PreferencePanel {
 				category,
 				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
 		
-		addPropertyPreference(PathPrefs.tileCacheProportionProperty(),
+		addPropertyPreference(PathPrefs.tileCachePercentageProperty(),
 				Double.class,
 				"Percentage memory for tile caching",
 				category,
@@ -163,7 +152,7 @@ public class PreferencePanel {
 						"\nEstimating can be handy, but be aware it might not always be correct - and you should always check!" + 
 						"\nThe image type influences some available commands, e.g. how stains are separated for display or cell detections.");
 
-		addPropertyPreference(PathPrefs.commandBarDisplayProperty(), CommandBarDisplay.class,
+		addPropertyPreference(CommandFinderTools.commandBarDisplayProperty(), CommandBarDisplay.class,
 				"Command bar display mode",
 				category,
 				"Mode used to display command finder text field on top of the viewer");
@@ -189,13 +178,8 @@ public class PreferencePanel {
 		 */
 		category = "Input/Output";
 		
-		addPropertyPreference(PathPrefs.useProjectImageCacheProperty(), Boolean.class,
-			"Use project image cache",
-			category,
-			"Store image tiles for hosted images of each project in a local cache.\nThis avoids requiring lengthy HTTP requests every time an image is (re)analysed or viewed, at the cost of needing more local storage space.");
-		
 		addPropertyPreference(PathPrefs.minPyramidDimensionProperty(), Integer.class,
-				"Minimize image dimension for pyramidizing",
+				"Minimize image dimension for pyramidalizing",
 				category,
 				"Allow an image pyramid to be calculated for a single-resolution image if either the width or height is greater than this size");
 
@@ -292,26 +276,11 @@ public class PreferencePanel {
 				category,
 				"Vertical grid spacing when displaying a grid on the viewer");
 
-		addPropertyPreference(PathPrefs.gridScaleMicrons(), Boolean.class,
+		addPropertyPreference(PathPrefs.gridScaleMicronsProperty(), Boolean.class,
 				"Grid spacing in " + GeneralTools.micrometerSymbol(),
 				category,
 				"Use " + GeneralTools.micrometerSymbol() + " units where possible when defining grid spacing");
 
-		
-//		// Add support for 3D mice only if required class if available
-//		// (Ideally this wouldn't be hard-coded... should switch to being a proper extension)
-//		try {
-//			Class<?> cls = Class.forName("qupath.lib.gui.input.AdvancedControllerActionFactory");
-//			if (cls != null) {
-//				PropertySheet.Item itAdvancedControllers = new PropertyItem<>(PathPrefs.requestAdvancedControllersProperty(), Boolean.class)
-//						.name("3D mouse support")
-//						.category(category)
-//						.description("Try to add support for 3D mice - requires QuPath to be restarted to have an effect");
-//				propSheet.getItems().add(itAdvancedControllers);
-//			}
-//		} catch (ClassNotFoundException e) {
-//			logger.debug("No 3D mouse support available.");
-//		}
 		
 
 		/*
@@ -373,7 +342,7 @@ public class PreferencePanel {
 				category,
 				"With the Counting tool, add points to an existing object if possible");
 
-		addPropertyPreference(PathPrefs.defaultPointRadiusProperty(), Integer.class,
+		addPropertyPreference(PathPrefs.pointRadiusProperty(), Integer.class,
 				"Point radius",
 				category,
 				"Set the default point radius");
@@ -384,12 +353,12 @@ public class PreferencePanel {
 		 */
 		category = "Objects";
 
-		addPropertyPreference(PathPrefs.strokeThickThicknessProperty(), Float.class,
+		addPropertyPreference(PathPrefs.annotationStrokeThicknessProperty(), Float.class,
 				"Annotation line thickness",
 				category,
 				"Thickness (in display pixels) for annotation/TMA core object outlines (default = 2)");
 
-		addPropertyPreference(PathPrefs.strokeThinThicknessProperty(), Float.class,
+		addPropertyPreference(PathPrefs.detectionStrokeThicknessProperty(), Float.class,
 				"Detection line thickness",
 				category,
 				"Thickness (in image pixels) for detection object outlines (default = 2)");
@@ -582,19 +551,6 @@ public class PreferencePanel {
 
 		private Property<String> prop;
 		private ObservableValue<File> fileValue;
-		
-//		private ObjectProperty<File> fileValue;
-//
-//		DirectoryPropertyItem(final Property<String> prop) {
-//			this.prop = prop;
-//			fileValue = new SimpleObjectProperty<>();
-//			updateFileProperty();
-//			prop.addListener((v, o, n) -> updateFileProperty());
-//		}
-//		
-//		private void updateFileProperty() {
-//			fileValue.set(prop.getValue() == null ? null : new File(prop.getValue()));
-//		}
 
 		DirectoryPropertyItem(final Property<String> prop) {
 			this.prop = prop;
@@ -730,34 +686,6 @@ public class PreferencePanel {
 		}
 
 	}
-	
-	
-//	static class DoubleEditor extends AbstractPropertyEditor<Number, TextField> {
-//		
-//		private DoubleProperty value = new SimpleDoubleProperty();
-//
-//		public DoubleEditor(Item property, TextField control, boolean isEditable) {
-//			super(property, control, isEditable);
-//			control.textProperty().addListener((v, o, n) -> {
-//				try {
-//					value.set(Double.parseDouble(n));
-//				} catch (Exception e) {}
-//			});
-//			if (property.getDescription() != null)
-//				control.setTooltip(new Tooltip(property.getDescription()));
-//		}
-//
-//		@Override
-//		public void setValue(Number value) {
-//			getEditor().setText(value.toString());
-//		}
-//
-//		@Override
-//		protected ObservableValue<Number> getObservableValue() {
-//			return value;
-//		}
-//		
-//	}
 
 
 	static class PropertyEditorFactory extends DefaultPropertyEditorFactory {
@@ -770,10 +698,6 @@ public class PreferencePanel {
 			if (item instanceof ChoicePropertyItem) {
 				return Editors.createChoiceEditor(item, ((ChoicePropertyItem<?>)item).getChoices());
 			}
-//			// This doesn't work...
-//			if (item.getType() == Double.class) {
-//				return new DoubleEditor(item, new TextField(), true);
-//			}
 			return super.call(item);
 		}
 	}

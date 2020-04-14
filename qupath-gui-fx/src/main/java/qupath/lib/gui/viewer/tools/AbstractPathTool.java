@@ -99,7 +99,7 @@ abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 	 * @return
 	 */
 	protected boolean requestPixelSnapping() {
-		return PathPrefs.usePixelSnapping();
+		return PathPrefs.usePixelSnappingProperty().get();
 	}
 	
 	protected QuPathViewer getViewer() {
@@ -125,7 +125,7 @@ abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 	 * @return
 	 */
 	boolean requestParentClipping(MouseEvent e) {
-		return PathPrefs.getClipROIsForHierarchy() != (e.isShiftDown() && e.isShortcutDown());
+		return PathPrefs.clipROIsForHierarchyProperty().get() != (e.isShiftDown() && e.isShortcutDown());
 	}
 	
 	

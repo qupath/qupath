@@ -410,9 +410,9 @@ public class PathClassPane {
 			pathClass = getSelectedPathClass();
 		}
 		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified())
-			PathPrefs.setAutoSetAnnotationClass(null);
+			PathPrefs.autoSetAnnotationClassProperty().set(null);
 		else
-			PathPrefs.setAutoSetAnnotationClass(pathClass);
+			PathPrefs.autoSetAnnotationClassProperty().set(pathClass);
 	}
 	
 	private PathObjectHierarchy getHierarchy() {
@@ -646,7 +646,7 @@ public class PathClassPane {
 
 		if (defaultColor) {
 			name = "Default object color";
-			color = ColorToolsFX.getCachedColor(PathPrefs.getColorDefaultObjects());
+			color = ColorToolsFX.getCachedColor(PathPrefs.colorDefaultObjectsProperty().get());
 			//			textField.setEditable(false);
 			//			textField.setEnabled(false);
 			Label label = new Label(name);
@@ -681,9 +681,9 @@ public class PathClassPane {
 		Integer colorValue = newColor.isOpaque() ? ColorToolsFX.getRGB(newColor) : ColorToolsFX.getARGB(newColor);
 		if (defaultColor) {
 			if (newColor.isOpaque())
-				PathPrefs.setColorDefaultObjects(colorValue);
+				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
 			else
-				PathPrefs.setColorDefaultObjects(colorValue);
+				PathPrefs.colorDefaultObjectsProperty().set(colorValue);
 		}
 		else {
 			//				if (!name.equals(pathClass.getName()) && PathClassFactory.pathClassExists(newName)) {

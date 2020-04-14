@@ -200,6 +200,7 @@ import qupath.lib.gui.panels.WorkflowPanel;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
@@ -255,7 +256,7 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
  */
 public class QuPathGUI {
 	
-	static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
+	private final static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
 	
 	private static QuPathGUI instance;
 	
@@ -597,9 +598,9 @@ public class QuPathGUI {
 		long startTime = System.currentTimeMillis();
 		
 		// Set up cache
-		imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(PathPrefs.getTileCacheSizeBytes());
+		imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(QuPathGUI.getTileCacheSizeBytes());
 		
-		PathPrefs.tileCacheProportionProperty().addListener((v, o, n) -> {
+		PathPrefs.tileCachePercentageProperty().addListener((v, o, n) -> {
 			imageRegionStore.getCache().clear();
 		});
 		
@@ -627,7 +628,7 @@ public class QuPathGUI {
 		// Prepare for image name masking
 		projectProperty.addListener((v, o, n) -> {
 			if (n != null)
-				n.setMaskImageNames(PathPrefs.getMaskImageNames());
+				n.setMaskImageNames(PathPrefs.maskImageNamesProperty().get());
 			refreshTitle();
 		});
 		PathPrefs.maskImageNamesProperty().addListener(((v, o, n) -> {
@@ -638,11 +639,11 @@ public class QuPathGUI {
 		}));
 		
 		// Create preferences panel
-		prefsPanel = new PreferencePanel(this);
+		prefsPanel = new PreferencePanel();
 		
 		// Set the number of threads at an early stage...
-		AbstractPluginRunner.setNumThreadsRequested(PathPrefs.getNumCommandThreads());
-		PathPrefs.numCommandThreadsProperty().addListener(o -> AbstractPluginRunner.setNumThreadsRequested(PathPrefs.getNumCommandThreads()));
+		AbstractPluginRunner.setNumThreadsRequested(PathPrefs.numCommandThreadsProperty().get());
+		PathPrefs.numCommandThreadsProperty().addListener(o -> AbstractPluginRunner.setNumThreadsRequested(PathPrefs.numCommandThreadsProperty().get()));
 		
 		// Activate the log at an early stage
 		// TODO: NEED TO TURN ON LOG!
@@ -885,12 +886,6 @@ public class QuPathGUI {
 					);
 		}
 		
-		// Update action states
-		updateProjectActionStates();
-		
-		// Listen for cache request changes
-		PathPrefs.useProjectImageCacheProperty().addListener(v -> updateProjectActionStates());
-		
 		// Menus should now be complete - try binding visibility
 		initializingMenus.set(false);
 		try {
@@ -1120,7 +1115,7 @@ public class QuPathGUI {
 	void checkForUpdate(final boolean isAutoCheck) {
 		
 		// Confirm if the user wants us to check for updates
-		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheck();
+		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheckProperty().get();
 		if (isAutoCheck && !doAutoUpdateCheck)
 			return;
 
@@ -1258,7 +1253,7 @@ public class QuPathGUI {
 				Dialogs.showErrorNotification("Download", "Unable to open " + url);
 			}
 		} else if (result.get().equals(btDoNotRemind)) {
-			PathPrefs.setDoAutoUpdateCheck(false);
+			PathPrefs.doAutoUpdateCheckProperty().set(false);
 		}
 	}
 	
@@ -1372,14 +1367,14 @@ public class QuPathGUI {
 					Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
 					return;
 				}
-				PathPrefs.setUserPath(dirDefault.getAbsolutePath());
+				PathPrefs.userPathProperty().set(dirDefault.getAbsolutePath());
 			} else {
 				File dirUser = getDialogHelper().promptForDirectory(dirDefault);
 				if (dirUser == null) {
 					logger.info("No QuPath user directory set - extensions not installed");
 					return;
 				}
-				PathPrefs.setUserPath(dirUser.getAbsolutePath());
+				PathPrefs.userPathProperty().set(dirUser.getAbsolutePath());
 			}
 			// Now get the extensions directory (within the user directory)
 			dir = getExtensionDirectory();
@@ -1541,7 +1536,7 @@ public class QuPathGUI {
 				.addChoiceParameter("localeFormatting", "Numbers & dates", Locale.getDefault(Category.FORMAT).getDisplayName(), localeList, "Choose region settings used to format numbers and dates")
 				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
 				.addTitleParameter("Updates")
-				.addBooleanParameter("checkForUpdates", "Check for updates on startup (recommended)", PathPrefs.doAutoUpdateCheck(), "Specify whether to automatically prompt to download the latest QuPath on startup (required internet connection)")	
+				.addBooleanParameter("checkForUpdates", "Check for updates on startup (recommended)", PathPrefs.doAutoUpdateCheckProperty().get(), "Specify whether to automatically prompt to download the latest QuPath on startup (required internet connection)")	
 				;
 
 		ParameterPanelFX parameterPanel = new ParameterPanelFX(paramsSetup);
@@ -1566,10 +1561,10 @@ public class QuPathGUI {
 		Locale localeFormatting = localeMap.get(paramsSetup.getChoiceParameterValue("localeFormatting"));
 		Locale localeDisplay = localeMap.get(paramsSetup.getChoiceParameterValue("localeDisplay"));
 		
-		PathPrefs.setDefaultLocale(Category.FORMAT, localeFormatting);
-		PathPrefs.setDefaultLocale(Category.DISPLAY, localeDisplay);
+		PathPrefs.defaultLocaleFormatProperty().set(localeFormatting);
+		PathPrefs.defaultLocaleDisplayProperty().set(localeDisplay);
 		
-		PathPrefs.setDoAutoUpdateCheck(paramsSetup.getBooleanParameterValue("checkForUpdates"));
+		PathPrefs.doAutoUpdateCheckProperty().set(paramsSetup.getBooleanParameterValue("checkForUpdates"));
 		
 		if (PathPrefs.hasJavaPreferences()) {
 			int maxMemorySpecifiedMB = (int)(Math.round(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024));
@@ -1662,7 +1657,7 @@ public class QuPathGUI {
 		
 //		paneCommands.setRight(cbPin);
 		
-		Node paneViewer = CommandFinderTools.createCommandFinderPane(this, viewerManager.getNode(), PathPrefs.commandBarDisplayProperty());
+		Node paneViewer = CommandFinderTools.createCommandFinderPane(this, viewerManager.getNode(), CommandFinderTools.commandBarDisplayProperty());
 //		paneViewer.setTop(tfCommands);
 //		paneViewer.setCenter(viewerManager.getNode());
 		splitPane.getItems().addAll(analysisPanel, paneViewer);
@@ -1852,7 +1847,7 @@ public class QuPathGUI {
 				if (e.isInertia())
 					return;
 				
-				if (PathPrefs.getInvertScrolling())
+				if (PathPrefs.invertScrollingProperty().get())
 					scrollUnits = -scrollUnits;
 				double newDownsampleFactor = viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits);
 				newDownsampleFactor = Math.min(viewer.getMaxDownsample(), Math.max(newDownsampleFactor, viewer.getMinDownsample()));
@@ -1862,7 +1857,7 @@ public class QuPathGUI {
 		
 		
 		viewer.getView().addEventFilter(RotateEvent.ANY, e -> {
-			if (!PathPrefs.getUseRotateGestures())
+			if (!PathPrefs.useRotateGesturesProperty().get())
 				return;
 //			logger.debug("Rotating: " + e.getAngle());
 			viewer.setRotation(viewer.getRotation() + Math.toRadians(e.getAngle()));
@@ -1870,7 +1865,7 @@ public class QuPathGUI {
 		});
 
 		viewer.getView().addEventFilter(ZoomEvent.ANY, e -> {
-			if (!PathPrefs.getUseZoomGestures())
+			if (!PathPrefs.useZoomGesturesProperty().get())
 				return;
 			double zoomFactor = e.getZoomFactor();
 			if (Double.isNaN(zoomFactor))
@@ -1927,7 +1922,7 @@ public class QuPathGUI {
 		@Override
 		public void handle(ScrollEvent e) {
 			// Check if we'd rather be using scroll to do something else (e.g. zoom, adjust opacity)
-			boolean wouldRatherDoSomethingElse = e.getTouchCount() == 0 && (!PathPrefs.getUseScrollGestures() || e.isShiftDown() || e.isShortcutDown());
+			boolean wouldRatherDoSomethingElse = e.getTouchCount() == 0 && (!PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown());
 			if (wouldRatherDoSomethingElse) {
 				return;
 			}
@@ -1941,7 +1936,7 @@ public class QuPathGUI {
 			// Return if we aren't using a touchscreen, and we don't want to handle scroll gestures - 
 			// but don't consume the event so that it can be handled elsewhere
 			lastTouchEvent = e.getTouchCount() != 0;
-			if (!lastTouchEvent && !PathPrefs.getUseScrollGestures() || e.isShiftDown() || e.isShortcutDown()) {
+			if (!lastTouchEvent && !PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown()) {
 				return;
 			}
 			// Swallow the event if we're using a touch screen without the move tool selected - we want to draw instead
@@ -1971,7 +1966,7 @@ public class QuPathGUI {
 //			System.err.println(String.format("dx=%.1f, dy=%.1f %s", e.getDeltaX(), e.getDeltaY(), (e.isInertia() ? "-Inertia" : "")));
 			
 			// Flip scrolling direction if necessary
-			if (PathPrefs.getInvertScrolling()) {
+			if (PathPrefs.invertScrollingProperty().get()) {
 				dx = -dx;
 				dy = -dy;
 			}
@@ -2388,12 +2383,13 @@ public class QuPathGUI {
 			viewer.setImageData(imageData);
 //			setInitialLocationAndMagnification(viewer);
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
-				if (PathPrefs.getAutoEstimateImageType()) {
+				var setType = PathPrefs.imageTypeSettingProperty().get();
+				if (setType == ImageTypeSetting.AUTO_ESTIMATE) {
 					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
 					logger.info("Image type estimated to be {}", type);
 					imageData.setImageType(type);
 					imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
-				} else if (PathPrefs.getPromptForImageType()) {
+				} else if (setType == ImageTypeSetting.PROMPT) {
 					PathImageDetailsPanel.promptToSetImageType(imageData);
 				}
 			}
@@ -2599,7 +2595,7 @@ public class QuPathGUI {
 				}
 				ImageData<BufferedImage> imageData = null;
 				if (serverNew != null) {
-					int minSize = PathPrefs.getMinPyramidDimension();
+					int minSize = PathPrefs.minPyramidDimensionProperty().get();
 					if (serverNew.nResolutions() == 1 && Math.max(serverNew.getWidth(), serverNew.getHeight()) > minSize) {
 						// Check if we have any hope at all with the current settings
 						long estimatedBytes = (long)serverNew.getWidth() * (long)serverNew.getHeight() * (long)serverNew.nChannels() * (long)serverNew.getPixelType().getBytesPerPixel();
@@ -2632,7 +2628,7 @@ public class QuPathGUI {
 				viewer.setImageData(imageData);
 //				setInitialLocationAndMagnification(viewer);
 
-				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.getPromptForImageType())
+				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT)
 					PathImageDetailsPanel.promptToSetImageType(imageData);
 
 //				// Reset the object hierarchy to clear any ROIs etc.
@@ -2808,7 +2804,7 @@ public class QuPathGUI {
 	 * @return
 	 */
 	private ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server) {
-		return createNewImageData(server, PathPrefs.getAutoEstimateImageType());
+		return createNewImageData(server, PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.AUTO_ESTIMATE);
 	}
 	
 	/**
@@ -3607,12 +3603,12 @@ public class QuPathGUI {
 		var project = getProject();
 		var entry = project == null ? null : project.getEntry(imageData);
 		if (entry == null) {
-			if (PathPrefs.getMaskImageNames())
+			if (PathPrefs.maskImageNamesProperty().get())
 				return "(Name masked)";
 			return ServerTools.getDisplayableImageName(imageData.getServer());
 		} else {
 			// Make sure that the status of name masking has been set in the project (in case it hasn't been triggered yet...)
-			project.setMaskImageNames(PathPrefs.getMaskImageNames());
+			project.setMaskImageNames(PathPrefs.maskImageNamesProperty().get());
 			return entry.getImageName();
 		}
 	}
@@ -3634,7 +3630,7 @@ public class QuPathGUI {
 					if (versionString != null)
 						name = name + " (" + versionString + ")";
 					var imageData = imageDataProperty.get();
-					if (imageData == null || !PathPrefs.showImageNameInTitle())
+					if (imageData == null || !PathPrefs.showImageNameInTitleProperty().get())
 						return name;
 					return name + " - " + getDisplayedImageName(imageData);
 				},
@@ -3734,9 +3730,6 @@ public class QuPathGUI {
 			this.projectBrowser.setProject(null);
 		}
 		
-		// Enable disable actions
-		updateProjectActionStates();
-		
 		// Update the PathClass list, if necessary
 		if (project != null) {
 			List<PathClass> pathClasses = project.getPathClasses();
@@ -3758,31 +3751,6 @@ public class QuPathGUI {
 //		getProjectScriptsDirectory(true);
 		
 		logger.info("Project set to {}", project);
-	}
-	
-	
-	private void updateProjectActionStates() {
-		Project<?> project = getProject();		
-		// Ensure the URLHelpers status is appropriately set
-		File dirBase = Projects.getBaseDirectory(project);
-		if (dirBase != null && PathPrefs.useProjectImageCache()) {
-			File cache = new File(dirBase, "cache");
-			if (!cache.exists())
-				cache.mkdirs();
-			try {
-				// Works for zip files - but these aren't flushed until closing the cache, so result in memory leak (and horribly shutdown performance)
-//				cache = new File(cache, "QuPath image cache.zip");
-//				URI cachePath = URI.create("jar:" + new File(cache, "/!/tiles").toURI().toString());
-//				fileSystem = FileSystems.newFileSystem(cachePath, Collections.singletonMap("create", "true"));
-//				fileSystemRoot = "";
-				FileSystem fileSystem = FileSystems.getDefault();
-				String fileSystemRoot = cache.getAbsolutePath();
-				logger.debug("File system: {}", fileSystem);
-				logger.debug("File system root: {}", fileSystemRoot);
-			} catch (Exception e) {
-				logger.error("Error creating file system", e);
-			}
-		}
 	}
 	
 	
@@ -3957,6 +3925,33 @@ public class QuPathGUI {
 	
 	
 	
+	/**
+	 * Calculate the appropriate tile cache size based upon the user preferences.
+	 * @return tile cache size in bytes
+	 */
+	private static long getTileCacheSizeBytes() {
+		// Try to compute a sensible value...
+		Runtime rt = Runtime.getRuntime();
+		long maxAvailable = rt.maxMemory(); // Max available memory
+		if (maxAvailable == Long.MAX_VALUE) {
+			logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
+			maxAvailable = 64L * 1024L * 1024L * 1024L;
+		}
+		double percentage = PathPrefs.tileCachePercentageProperty().get();
+		if (percentage < 10) {
+			logger.warn("At least 10% of available memory needs to be used for tile caching (you requested {}%)", percentage);
+			percentage = 10;
+		} else if (percentage > 90) {
+			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
+			percentage = 00;			
+		}
+		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
+		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
+		return tileCacheSize;
+	}
+
+
+
 	class MultiviewManager implements QuPathViewerListener {
 		
 		private List<QuPathViewerPlus> viewers = new ArrayList<>();

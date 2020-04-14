@@ -89,7 +89,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	private ImageRegion lastRegion;
 	private BufferedImage buffer;
 	
-	private int lastPointRadius = PathPrefs.getDefaultPointRadius();
+	private int lastPointRadius = PathPrefs.pointRadiusProperty().get();
 	
 	private Font font = new Font("SansSerif", Font.BOLD, 10);
 	
@@ -141,7 +141,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		
 		OverlayOptions overlayOptions = getOverlayOptions();
 		long timestamp = overlayOptions.lastChangeTimestamp().get();
-		int pointRadius = PathPrefs.getDefaultPointRadius();
+		int pointRadius = PathPrefs.pointRadiusProperty().get();
 		BufferedImage bufferLocal = buffer;
 		if (overlayOptionsTimestamp != timestamp || pointRadius != lastPointRadius) {
 			lastPointRadius = pointRadius;

@@ -149,7 +149,7 @@ class MemoryMonitorDialog {
 		// This is handy to scale back memory use when running things like cell detection
 		var runtime = Runtime.getRuntime();
 		var labThreads = new Label("Parallel threads");
-		var tfThreads = new TextField(Integer.toString(PathPrefs.getNumCommandThreads()));
+		var tfThreads = new TextField(Integer.toString(PathPrefs.numCommandThreadsProperty().get()));
 		PathPrefs.numCommandThreadsProperty().addListener((v, o, n) -> {
 			var text = n.toString();
 			if (!text.trim().equals(tfThreads.getText().trim()));
@@ -158,7 +158,7 @@ class MemoryMonitorDialog {
 		tfThreads.setPrefColumnCount(4);
 		tfThreads.textProperty().addListener((v, o, n) -> {
 			try {
-				PathPrefs.setNumCommandThreads(Integer.parseInt(n.trim()));
+				PathPrefs.numCommandThreadsProperty().set(Integer.parseInt(n.trim()));
 			} catch (Exception e) {}
 		});
 		labThreads.setLabelFor(tfThreads);

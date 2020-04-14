@@ -1803,7 +1803,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	Action createOpenAction(final String name) {
 		Action action = new Action(name, e -> {
 			
-			String dirPath = PathPrefs.getScriptsPath();
+			String dirPath = PathPrefs.scriptsPathProperty().get();
 			File dir = null;
 			if (dirPath != null)
 				dir = new File(dirPath);
@@ -1813,7 +1813,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				return;
 			try {
 				addScript(file, true);
-				PathPrefs.setScriptsPath(file.getParent());
+				PathPrefs.scriptsPathProperty().set(file.getParent());
 			} catch (Exception ex) {
 				logger.error("Unable to open script file: {}", ex);
 				ex.printStackTrace();

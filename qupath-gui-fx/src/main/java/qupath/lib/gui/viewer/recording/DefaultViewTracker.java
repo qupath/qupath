@@ -66,6 +66,8 @@ class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	protected static final String LOG_DELIMITER = "\t";
 
 	transient private QuPathViewer viewer;
+	
+	private static BooleanProperty trackCursorPosition = PathPrefs.createPersistentPreference("trackCursorPosition", true);
 
 	private BooleanProperty recording = new SimpleBooleanProperty(false);
 
@@ -120,7 +122,7 @@ class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		ImageServer<BufferedImage> server = viewer.getServer();
 		initializeRecording(server.getPath(), server.getWidth(), server.getHeight());
 		viewer.addViewerListener(this);
-		doCursorTracking = PathPrefs.getTrackCursorPosition();
+		doCursorTracking = trackCursorPosition.get();
 		if (doCursorTracking) {
 			viewer.getView().addEventHandler(MouseEvent.MOUSE_MOVED, mouseHandler);
 			viewer.getView().addEventHandler(MouseEvent.MOUSE_DRAGGED, mouseHandler);
@@ -257,7 +259,7 @@ class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	@Override
 	public String getSummaryString() {
 		StringBuffer sb = new StringBuffer();
-		String delimiter = PathPrefs.getTableDelimiter();
+		String delimiter = PathPrefs.tableDelimiterProperty().get();
 		sb.append(ViewTrackers.getLogHeadings(delimiter, doCursorTracking, hasEyeTrackingData));
 		sb.append("\n");
 		for (ViewRecordingFrame frame : frames) {

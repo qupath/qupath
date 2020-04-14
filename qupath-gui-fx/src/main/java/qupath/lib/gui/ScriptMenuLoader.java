@@ -90,7 +90,7 @@ class ScriptMenuLoader {
 					scriptFile.createNewFile();
 				} catch (Exception e1) {
 					Dialogs.showErrorMessage("New script error", "Unable to create new script!");
-					QuPathGUI.logger.error("Create script error", e1);
+					logger.error("Create script error", e1);
 				}
 			}
 			if (scriptEditor != null)
@@ -163,7 +163,7 @@ class ScriptMenuLoader {
 			try {
 				Files.list(path).forEach(p -> addMenuItemsForPath(addDirectly ? menu : subMenu, p, false));
 			} catch (IOException e) {
-				QuPathGUI.logger.debug("Error adding menu item for {}", path);
+				logger.debug("Error adding menu item for {}", path);
 			}
 			// Don't add anything if the submenu is empty
 			if (subMenu.getItems().isEmpty())

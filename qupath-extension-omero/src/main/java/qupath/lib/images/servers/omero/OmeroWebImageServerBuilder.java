@@ -356,8 +356,9 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			connection.setRequestMethod("GET");
 			connection.setDoInput(true);
 			try (InputStream stream = connection.getInputStream()) {
-				Scanner s = new Scanner(stream).useDelimiter("\\A");
-				return s.hasNext() ? s.next() : "";
+				try (var s = new Scanner(stream).useDelimiter("\\A")) {
+					return s.hasNext() ? s.next() : "";
+				}
 			}
 		}
 

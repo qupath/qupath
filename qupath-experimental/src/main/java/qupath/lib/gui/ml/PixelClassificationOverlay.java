@@ -96,7 +96,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     
     
     public static PixelClassificationOverlay createPixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
-        int nThreads = Math.max(1, PathPrefs.getNumCommandThreads());
+        int nThreads = Math.max(1, PathPrefs.numCommandThreadsProperty().get());
     	return new PixelClassificationOverlay(viewer, nThreads, new ClassifierServerFunction(classifier));
     }
     

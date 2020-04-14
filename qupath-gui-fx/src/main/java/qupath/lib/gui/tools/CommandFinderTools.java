@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -73,6 +74,7 @@ import javafx.stage.Stage;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 
 
 /**
@@ -116,7 +118,33 @@ public class CommandFinderTools {
 		}
 		
 	};
+	
+	private static BooleanProperty autoCloseCommandListProperty = PathPrefs.createPersistentPreference("autoCloseCommandList", true); // Return to the pan tool after drawing a ROI
+	
 
+	
+	private static ObjectProperty<CommandBarDisplay> commandBarDisplay;
+	
+	/**
+	 * Property specifying where the command bar should be displayed relative to the main viewer window.
+	 * @return
+	 */
+	public synchronized static ObjectProperty<CommandBarDisplay> commandBarDisplayProperty() {
+		if (commandBarDisplay == null) {
+			String name = PathPrefs.getUserPreferences().get("commandFinderDisplayMode", CommandBarDisplay.NEVER.name());
+			CommandBarDisplay display = CommandBarDisplay.valueOf(name);
+			if (display == null)
+				display = CommandBarDisplay.HOVER;
+			commandBarDisplay = new SimpleObjectProperty<>(display);
+			commandBarDisplay.addListener((v, o, n) -> {
+				PathPrefs.getUserPreferences().put("commandFinderDisplayMode", n.name());
+			});			
+		}
+		return commandBarDisplay;
+	}
+	
+	
+	
 	/**
 	 * Create a component that contains a {@link TextField} for entering menu commands to run quickly.
 	 * 
@@ -225,7 +253,7 @@ public class CommandFinderTools {
 		stage.setTitle("Command List");
 		
 		CheckBox cbAutoClose = new CheckBox("Auto close");
-		cbAutoClose.selectedProperty().bindBidirectional(PathPrefs.autoCloseCommandListProperty());
+		cbAutoClose.selectedProperty().bindBidirectional(autoCloseCommandListProperty);
 		cbAutoClose.setPadding(new Insets(2, 2, 2, 2));
 
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());

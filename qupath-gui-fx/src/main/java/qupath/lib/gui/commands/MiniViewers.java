@@ -107,7 +107,7 @@ public class MiniViewers {
 	 * Style binding to use the same background color as the main viewer.
 	 */
 	private static ObservableStringValue style = Bindings.createStringBinding(() -> {
-		int rgb = PathPrefs.getViewerBackgroundColor();
+		int rgb = PathPrefs.viewerBackgroundColorProperty().get();
 		return String.format("-fx-background-color: rgb(%d, %d, %d)", ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
 	}, PathPrefs.viewerBackgroundColorProperty());
 
@@ -512,7 +512,7 @@ public class MiniViewers {
 				
 				Graphics2D g2d = img.createGraphics();
 				// Fill background
-				g2d.setColor(ColorToolsAwt.getCachedColor(PathPrefs.getViewerBackgroundColor()));
+				g2d.setColor(ColorToolsAwt.getCachedColor(PathPrefs.viewerBackgroundColorProperty().get()));
 				g2d.fillRect(0, 0, w, h);
 				
 				g2d.setClip(0, 0, w, h);

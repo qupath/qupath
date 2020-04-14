@@ -972,7 +972,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			
 			@Override
 			public String getName() {
-				double minPercentage = PathPrefs.getAllredMinPercentagePositive();
+				double minPercentage = PathPrefs.allredMinPercentagePositiveProperty().get();
 				String name;
 				if (minPercentage > 0)
 					name = String.format("Allred intensity (min %.1f%%)", minPercentage);
@@ -998,7 +998,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			
 			@Override
 			public String getName() {
-				double minPercentage = PathPrefs.getAllredMinPercentagePositive();
+				double minPercentage = PathPrefs.allredMinPercentagePositiveProperty().get();
 				String name;
 				if (minPercentage > 0)
 					name = String.format("Allred proportion (min %.1f%%)", minPercentage);
@@ -1024,7 +1024,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			
 			@Override
 			public String getName() {
-				double minPercentage = PathPrefs.getAllredMinPercentagePositive();
+				double minPercentage = PathPrefs.allredMinPercentagePositiveProperty().get();
 				String name;
 				if (minPercentage > 0)
 					name = String.format("Allred score (min %.1f%%)", minPercentage);

@@ -616,7 +616,7 @@ public class QPEx extends QP {
 	public static void saveMeasurements(final ImageData<?> imageData, final Class<? extends PathObject> type, final String path, final String... includeColumns) {
 		File fileOutput = new File(resolvePath(path));
 		if (fileOutput.isDirectory()) {
-			String ext = ",".equals(PathPrefs.getTableDelimiter()) ? ".csv" : ".txt";
+			String ext = ",".equals(PathPrefs.tableDelimiterProperty().get()) ? ".csv" : ".txt";
 			fileOutput = new File(fileOutput, ServerTools.getDisplayableImageName(imageData.getServer()) + " " + PathObjectTools.getSuitableName(type, true) + ext);
 		}
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
@@ -629,7 +629,7 @@ public class QPEx extends QP {
 				excludeColumns = new LinkedHashSet<>(model.getAllNames());
 				excludeColumns.removeAll(Arrays.asList(includeColumns));
 			}
-			for (String row : SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.getTableDelimiter(), excludeColumns))
+			for (String row : SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.tableDelimiterProperty().get(), excludeColumns))
 				writer.println(row);
 			writer.close();
 		} catch (IOException e) {

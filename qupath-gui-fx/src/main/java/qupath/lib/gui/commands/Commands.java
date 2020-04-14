@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -48,7 +49,6 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panels.MeasurementMapPanel;
 import qupath.lib.gui.panels.PathClassPane;
-import qupath.lib.gui.panels.PreferencePanel;
 import qupath.lib.gui.panels.WorkflowCommandLogView;
 import qupath.lib.gui.panels.classify.PathClassifierPanel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -571,7 +571,7 @@ public class Commands {
 	 */
 	public static void showPreferencesDialog(QuPathGUI qupath) {
 		
-		var panel = new PreferencePanel(qupath);
+		var panel = qupath.getPreferencePanel();
 		
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
@@ -816,6 +816,11 @@ public class Commands {
 		}
 	}
 	
+	
+	// TODO: Make the extension modifiable
+	private static StringProperty defaultScreenshotExtension = PathPrefs.createPersistentPreference("defaultScreenshotExtension", "png");
+	
+	
 	/**
 	 * Save an image snapshot, prompting the user to select the output file.
 	 * @param qupath the {@link QuPathGUI} instance to snapshot
@@ -825,7 +830,7 @@ public class Commands {
 	public static boolean saveSnapshot(QuPathGUI qupath, GuiTools.SnapshotType type) {
 		BufferedImage img = GuiTools.makeSnapshot(qupath, type);			
 		
-		String ext = PathPrefs.getDefaultScreenshotExtension();
+		String ext = defaultScreenshotExtension.get();
 		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(BufferedImage.class, ext);
 		if (compatibleWriters.isEmpty()) {
 			logger.error("No compatible image writers found for extension: " + ext);

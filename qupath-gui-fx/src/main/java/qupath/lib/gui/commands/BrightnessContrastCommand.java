@@ -280,9 +280,10 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 //					return;
 ////				setSliders((float)histogram.getEdgeMin(), (float)histogram.getEdgeMax());
 				ChannelDisplayInfo info = getCurrentInfo();
-				imageDisplay.autoSetDisplayRange(info, PathPrefs.getAutoBrightnessContrastSaturationPercent()/100.0);
+				double saturation = PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0;
+				imageDisplay.autoSetDisplayRange(info, saturation);
 				for (ChannelDisplayInfo info2 : table.getSelectionModel().getSelectedItems()) {
-					imageDisplay.autoSetDisplayRange(info2, PathPrefs.getAutoBrightnessContrastSaturationPercent()/100.0);
+					imageDisplay.autoSetDisplayRange(info2, saturation);
 				}
 				updateSliders();
 				handleSliderChange();

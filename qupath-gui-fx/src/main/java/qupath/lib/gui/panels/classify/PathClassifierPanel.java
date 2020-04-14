@@ -77,7 +77,7 @@ public class PathClassifierPanel {
 		this.viewerValue = viewerValue;
 
 		btnLoad.setOnAction(e -> {
-			File file = QuPathGUI.getDialogHelper(btnLoad.getScene().getWindow()).promptForFile("Load classifier", null, "Classifiers", new String[]{PathPrefs.getClassifierExtension()});
+			File file = QuPathGUI.getDialogHelper(btnLoad.getScene().getWindow()).promptForFile("Load classifier", null, "Classifiers", new String[]{ClassifierBuilderPanel.extPathClassifier});
 			if (file == null)
 				return;
 

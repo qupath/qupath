@@ -361,9 +361,9 @@ class TMADataImporter {
 				return;
 			}
 			if (item.isMissing())
-				setTextFill(ColorToolsFX.getCachedColor(PathPrefs.getTMACoreMissingColor()));
+				setTextFill(ColorToolsFX.getCachedColor(PathPrefs.colorTMAMissingProperty().get()));
 			else
-				setTextFill(ColorToolsFX.getCachedColor(PathPrefs.getTMACoreColor()));
+				setTextFill(ColorToolsFX.getCachedColor(PathPrefs.colorTMAProperty().get()));
 			
 			setAlignment(Pos.CENTER);
 			setTextAlignment(TextAlignment.CENTER);

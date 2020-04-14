@@ -126,7 +126,7 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 		var composite = getAlphaComposite();
 		if (composite != null)
 			gCopy.setComposite(composite);
-		if (PathPrefs.getViewerInterpolationBilinear())
+		if (PathPrefs.viewerInterpolateBilinearProperty().get())
 			gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 		else
 			gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);

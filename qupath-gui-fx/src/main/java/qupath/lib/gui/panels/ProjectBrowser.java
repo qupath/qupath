@@ -1163,7 +1163,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			rebuildModel();
 			
 			// If we are masking the image names, we should also shuffle the entries
-			boolean maskNames = PathPrefs.getMaskImageNames();
+			boolean maskNames = PathPrefs.maskImageNamesProperty().get();
 			
 			TreeItem<Object> root = new TreeItem<>(getRoot());
 			List<TreeItem<Object>> items = root.getChildren();

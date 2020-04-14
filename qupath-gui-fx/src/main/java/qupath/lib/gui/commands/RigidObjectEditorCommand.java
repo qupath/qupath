@@ -175,7 +175,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 		overlay = new AffineEditOverlay(viewer.getOverlayOptions());
 		viewer.getCustomOverlayLayers().add(overlay);
 		
-		PathPrefs.setPaintSelectedBounds(false);
+		PathPrefs.paintSelectedBoundsProperty().set(false);
 		// Create & show temporary object
 		for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
 			((PathROIObject)entry.getKey()).setROI(transformer.getTransformedROI(entry.getValue(), false));
@@ -275,7 +275,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			if (transformer == null)
 				return;
 			
-			Stroke stroke = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.getThickStrokeThickness() * downsampleFactor);
+			Stroke stroke = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsampleFactor);
 			
 			// Paint bounding box to show rotation
 			Color color = ColorToolsAwt.getCachedColor(0, 0, 0, 96);

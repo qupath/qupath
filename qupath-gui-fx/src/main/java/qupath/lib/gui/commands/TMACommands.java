@@ -141,7 +141,7 @@ public class TMACommands {
 		if (file != null) {
 			if (!file.getName().endsWith(".qptma"))
 				file = new File(file.getParentFile(), file.getName() + ".qptma");
-			double downsample = PathPrefs.getTMAExportDownsample();
+			double downsample = PathPrefs.tmaExportDownsampleProperty().get();
 			TMADataIO.writeTMAData(file, imageData, overlayOptions, downsample);
 			WorkflowStep step = new DefaultScriptableWorkflowStep("Export TMA data", "exportTMAData(\"" + GeneralTools.escapeFilePath(file.getParentFile().getAbsolutePath()) + "\", " + downsample + ")");
 			imageData.getHistoryWorkflow().addStep(step);

@@ -58,7 +58,7 @@ public abstract class AbstractPolyROITool extends AbstractPathROITool {
 		if (isFreehandPolyROI) {
 			if (isPolyROI(currentROI) && currentROI.isEmpty()) {
 				isFreehandPolyROI = false;
-			} else if (PathPrefs.enableFreehandTools()) {
+			} else if (PathPrefs.enableFreehandToolsProperty().get()) {
 				RoiEditor editor = viewer.getROIEditor();
 				Point2D p2 = mouseLocationToImage(e, true, requestPixelSnapping());
 				ROI roiUpdated = editor.setActiveHandlePosition(p2.getX(), p2.getY(), viewer.getDownsampleFactor(), e.isShiftDown());

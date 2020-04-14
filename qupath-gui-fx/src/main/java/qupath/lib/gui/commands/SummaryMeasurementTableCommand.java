@@ -765,7 +765,7 @@ public class SummaryMeasurementTableCommand {
 			logger.warn("No table available to copy!");
 			return;
 		}
-		String string = getTableModelString(model, PathPrefs.getTableDelimiter(), excludeColumns);
+		String string = getTableModelString(model, PathPrefs.tableDelimiterProperty().get(), excludeColumns);
 		Clipboard clipboard = Clipboard.getSystemClipboard();
 		ClipboardContent content = new ClipboardContent();
 		content.putString(string);
@@ -774,7 +774,7 @@ public class SummaryMeasurementTableCommand {
 	
 	
 	private static File promptForOutputFile() {
-		String ext = ",".equals(PathPrefs.getTableDelimiter()) ? "csv" : "txt";
+		String ext = ",".equals(PathPrefs.tableDelimiterProperty().get()) ? "csv" : "txt";
 		return QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "Results data", ext);
 	}
 	
@@ -792,7 +792,7 @@ public class SummaryMeasurementTableCommand {
 				return false;
 		}
 		try (PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8)) {
-			for (String row : getTableModelStrings(tableModel, PathPrefs.getTableDelimiter(), excludeColumns))
+			for (String row : getTableModelStrings(tableModel, PathPrefs.tableDelimiterProperty().get(), excludeColumns))
 				writer.println(row);
 			writer.close();
 			return true;
