@@ -49,6 +49,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.prefs.PathPrefs;
 
@@ -125,7 +126,7 @@ public class LogViewerCommand implements Runnable {
 		MenuItem miSave = new MenuItem("Save log");
 		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCodeCombination.SHORTCUT_DOWN));
 		miSave.setOnAction(e -> {
-			File fileOutput = QuPathGUI.getDialogHelper(dialog).promptToSaveFile("Save log", null, "log.txt", "Log files", ".txt");
+			File fileOutput = Dialogs.getChooser(dialog).promptToSaveFile("Save log", null, "log.txt", "Log files", ".txt");
 			if (fileOutput == null)
 				return;
 			try {

@@ -41,7 +41,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
-import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -76,7 +76,7 @@ public class PathClassifierPanel {
 		this.viewerValue = viewerValue;
 
 		btnLoad.setOnAction(e -> {
-			File file = QuPathGUI.getDialogHelper(btnLoad.getScene().getWindow()).promptForFile("Load classifier", null, "Classifiers", new String[]{ClassifierBuilderPanel.extPathClassifier});
+			File file = Dialogs.getChooser(btnLoad.getScene().getWindow()).promptForFile("Load classifier", null, "Classifiers", new String[]{ClassifierBuilderPanel.extPathClassifier});
 			if (file == null)
 				return;
 

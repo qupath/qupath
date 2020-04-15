@@ -218,7 +218,7 @@ public class SplitProjectTrainingCommand implements Runnable {
 				if ("file".equals(project.getURI().getScheme()))
 					fileOrig = new File(project.getURI());
 				else {
-					fileOrig = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Project file", null, null, "QuPath project", ext);
+					fileOrig = Dialogs.promptToSaveFile("Project file", null, null, "QuPath project", ext);
 					if (fileOrig == null) {
 						// Save the main project
 						ProjectBrowser.syncProject(project);

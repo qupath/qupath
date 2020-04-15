@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
@@ -105,8 +106,7 @@ public class TMADataIO {
 		final ImageServer<BufferedImage> server = imageData.getServer();
 		String coreExt = imageData.getServer().isRGB() ? ".jpg" : ".tif";
 		if (file == null) {
-			//			dir = PathPrefs.getDialogHelper().promptForDirectory(null);
-			file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save TMA data", null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
+			file = Dialogs.promptToSaveFile("Save TMA data", null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
 			if (file == null)
 				return;
 		} else if (file.isDirectory() || (!file.exists() && file.getAbsolutePath().endsWith(File.pathSeparator))) {

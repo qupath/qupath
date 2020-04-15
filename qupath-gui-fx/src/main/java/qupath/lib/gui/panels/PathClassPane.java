@@ -528,7 +528,7 @@ public class PathClassPane {
 	 * @return true if the class list was changed, false otherwise.
 	 */
 	boolean promptToImportClasses() {
-		File file = QuPathGUI.getSharedDialogHelper().promptForFile("Import classifications", null, "QuPath project", ProjectIO.getProjectExtension());
+		File file = Dialogs.promptForFile("Import classifications", null, "QuPath project", ProjectIO.getProjectExtension());
 		if (file == null)
 			return false;
 		if (!file.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())) {

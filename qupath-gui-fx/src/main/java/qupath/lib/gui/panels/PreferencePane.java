@@ -45,7 +45,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
@@ -654,7 +654,7 @@ public class PreferencePane {
 			control.setOnMouseClicked(e -> {
 				if (e.getClickCount() > 1) {
 					e.consume();
-					File dirNew = QuPathGUI.getDialogHelperForParent(control).promptForDirectory(getValue());
+					File dirNew = Dialogs.getChooser(control.getScene().getWindow()).promptForDirectory(getValue());
 					if (dirNew != null)
 						setValue(dirNew);
 				}

@@ -209,7 +209,7 @@ class TMADataImporter {
 	
 	private static boolean handleImportDataFromFile(final TMAGrid infoGrid) {
 		logger.trace("Importing TMA data from file...");
-		File file = QuPathGUI.getSharedDialogHelper().promptForFile(null, null, "Text file", new String[]{"csv", "txt"});
+		File file = Dialogs.promptForFile(null, null, "Text file", new String[]{"csv", "txt"});
 		if (file == null)
 			return false;
 		try {
@@ -265,7 +265,7 @@ class TMADataImporter {
 	 */
 	private static boolean handleLoadGridFromFile(final TMAGrid infoGrid) {
 		logger.trace("Importing TMA grid from file...");
-		File file = QuPathGUI.getSharedDialogHelper().promptForFile(null, null, "Text file", new String[]{"csv", "txt"});
+		File file = Dialogs.promptForFile(null, null, "Text file", new String[]{"csv", "txt"});
 		if (file == null)
 			return false;
 		Scanner scanner;

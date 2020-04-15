@@ -448,7 +448,7 @@ class ProjectImportImagesCommand {
 	
 	
 	static boolean loadFromFileChooser(final List<String> list) {
-		List<File> files = QuPathGUI.getSharedDialogHelper().promptForMultipleFiles(commandName, null, null);
+		List<File> files = Dialogs.promptForMultipleFiles(commandName, null, null);
 		if (files == null)
 			return false;
 		boolean changes = false;
@@ -465,7 +465,7 @@ class ProjectImportImagesCommand {
 	
 	
 	static boolean loadFromSingleURL(final List<String> list) {
-		String path = QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL("Choose image path", null, null, null);
+		String path = Dialogs.promptForFilePathOrURL("Choose image path", null, null, null);
 		if (path == null)
 			return false;
 		if (list.contains(path)) {
@@ -478,7 +478,7 @@ class ProjectImportImagesCommand {
 	
 
 	static int loadFromTextFile(final List<String> list) {
-		File file = QuPathGUI.getSharedDialogHelper().promptForFile(commandName, null, "Text file", new String[]{"txt", "csv"});
+		File file = Dialogs.promptForFile(commandName, null, "Text file", new String[]{"txt", "csv"});
 		if (file == null)
 			return 0;
 		if (file.length() / 1024 / 1024 > 5) {

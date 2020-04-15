@@ -500,7 +500,6 @@ class Menus {
 		@ActionAccelerator("shortcut+l")
 		public final Action COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createCommandFinderDialog(qupath));
 
-		
 		public final Action SEP_0 = ActionTools.createSeparator();
 		public final Action BRIGHTNESS_CONTRAST = actionManager.BRIGHTNESS_CONTRAST;
 		public final Action SEP_1 = ActionTools.createSeparator();
@@ -571,6 +570,7 @@ class Menus {
 		
 		@ActionMenu("Show viewer tracking panel")
 		public final Action VIEW_TRACKER = qupath.createImageDataAction(imageData -> Commands.showViewTracker(qupath));
+		@ActionMenu("Show slide label")
 		public final Action SLIDE_LABEL = createSelectableCommandAction(qupath.slideLabelView.showingProperty());
 
 		public final Action SEP_7 = ActionTools.createSeparator();

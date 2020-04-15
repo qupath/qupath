@@ -60,7 +60,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.Optional;
 import java.util.Locale.Category;
 import java.util.concurrent.ExecutorCompletionService;
@@ -96,7 +95,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
@@ -158,7 +156,6 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
@@ -172,8 +169,6 @@ import qupath.lib.gui.commands.CountingPanelCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.lib.gui.dialogs.DialogHelper;
-import qupath.lib.gui.dialogs.DialogHelperFX;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -326,9 +321,6 @@ public class QuPathGUI {
 	
 	private Stage stage;
 	
-	private static DialogHelper standaloneDialogHelper = new DialogHelperFX(null); // When there is no parent Window available
-	private static Map<Window, DialogHelper> dialogHelpers = new WeakHashMap<>();
-
 	private boolean isStandalone = false;
 	private ScriptMenuLoader sharedScriptMenuLoader;
 	
@@ -378,7 +370,7 @@ public class QuPathGUI {
 	 * @param command the command to run
 	 * @return an {@link Action} with appropriate properties set
 	 */
-	public Action createViewerAction(Consumer<QuPathViewer> command) {
+	Action createViewerAction(Consumer<QuPathViewer> command) {
 		var action = new Action(e -> {
 			var viewer = getViewer();
 			if (viewer == null)
@@ -1079,7 +1071,7 @@ public class QuPathGUI {
 	}
 	
 	
-	void showStarupMesssage() {
+	private void showStarupMesssage() {
 		File fileStartup = new File("STARTUP.md");
 		if (!fileStartup.exists()) {
 			fileStartup = new File("app", fileStartup.getName());
@@ -1503,7 +1495,7 @@ public class QuPathGUI {
 				}
 				PathPrefs.userPathProperty().set(dirDefault.getAbsolutePath());
 			} else {
-				File dirUser = getDialogHelper().promptForDirectory(dirDefault);
+				File dirUser = Dialogs.promptForDirectory(dirDefault);
 				if (dirUser == null) {
 					logger.info("No QuPath user directory set - extensions not installed");
 					return;
@@ -1839,7 +1831,7 @@ public class QuPathGUI {
 	 * 
 	 * @return
 	 */
-	List<Image> loadIconList() {
+	private List<Image> loadIconList() {
 		try {
 			List<Image> icons = new ArrayList<>();
 			for (int i : new int[]{16, 32, 48, 64, 128, 256, 512}) {
@@ -1915,7 +1907,7 @@ public class QuPathGUI {
 	}
 	
 	
-	void deactivateTools(final QuPathViewerPlus viewer) {
+	private void deactivateTools(final QuPathViewerPlus viewer) {
 		viewer.setActiveTool(null);
 	}
 	
@@ -2134,12 +2126,6 @@ public class QuPathGUI {
 			deltaY = dy;
 			lastTimestamp = System.currentTimeMillis();
 			
-//			if (deltaX == 0 && deltaY == 0) {
-//				viewer.requestStopMoving();
-//			} else {
-//				viewer.requestStartMoving(deltaX, deltaY);
-//				viewer.requestDecelerate();				
-//			}
 			e.consume();
 		}
 		
@@ -2575,7 +2561,7 @@ public class QuPathGUI {
 				File lastFile = lastPath == null ? null : new File(lastPath);
 				File dirBase = lastFile == null ? null : lastFile.getParentFile();
 				String defaultName = lastFile == null ? null : lastFile.getName();
-				File file = getDialogHelper().promptToSaveFile("Save data", dirBase, defaultName, "QuPath data files", PathPrefs.getSerializationExtension());
+				File file = Dialogs.promptToSaveFile("Save data", dirBase, defaultName, "QuPath data files", PathPrefs.getSerializationExtension());
 				if (file == null)
 					return false;
 				PathIO.writeImageData(file, imageData);
@@ -2659,23 +2645,16 @@ public class QuPathGUI {
 		File fileNew = null;
 		if (pathNew == null) {
 			if (includeURLs) {
-				pathNew = getDialogHelper().promptForFilePathOrURL("Choose path", pathOld, fileBase, null);
+				pathNew = Dialogs.promptForFilePathOrURL("Choose path", pathOld, fileBase, null);
 				if (pathNew == null)
 					return false;
 				fileNew = new File(pathNew);
 			} else {
-				fileNew = getDialogHelper().promptForFile(null, fileBase, null);
+				fileNew = Dialogs.promptForFile(null, fileBase, null);
 				if (fileNew == null)
 					return false;
 				pathNew = fileNew.getAbsolutePath();
 			}
-//			if (includeURLs)
-//				pathNew = PathPrefs.getDialogHelper().promptForFilePathOrURL(pathOld, fileBase, "Image files", PathPrefs.getKnownImageExtensions());
-//			else {
-//				File file = PathPrefs.getDialogHelper().promptForFile(null, fileBase, "Image files", PathPrefs.getKnownImageExtensions());
-//				if (file != null)
-//					pathNew = file.getAbsolutePath();
-//			}
 		} else
 			fileNew = new File(pathNew);
 		
@@ -2957,8 +2936,7 @@ public class QuPathGUI {
 			if (server == null) {
 //				boolean pathValid = new File(serverPath).isFile() || URLHelpers.checkURL(serverPath);
 //				if (!pathValid) {
-					serverPath = getDialogHelper().promptForFilePathOrURL("Set path to missing file", serverPath, new File(serverPath).getParentFile(), null);
-//					fileImage = getDialogHelper().promptForFile("Set image location (" + fileImage.getName() + ")",fileImage.getParentFile(), null, null);
+					serverPath = Dialogs.promptForFilePathOrURL("Set path to missing file", serverPath, new File(serverPath).getParentFile(), null);
 					if (serverPath == null)
 						return false;
 					server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
@@ -2993,32 +2971,6 @@ public class QuPathGUI {
 		}
 		
 		return true;
-	}
-	
-	
-	
-	static class ImageDataLoader extends Task<ImageData<BufferedImage>> {
-		
-		private File file;
-		private ImageData<BufferedImage> imageData;
-		private ImageServer<BufferedImage> server;
-		
-		ImageDataLoader(final File file, final ImageData<BufferedImage> imageData, final ImageServer<BufferedImage> server) {
-			this.file = file;
-			this.imageData = imageData;
-			this.server = server;
-		}
-
-		@Override
-		protected ImageData<BufferedImage> call() throws Exception {
-			imageData = PathIO.readImageData(file, imageData, server, BufferedImage.class);
-			return imageData;
-		}
-		
-		ImageData<BufferedImage> getImageData() {
-			return imageData;
-		}
-		
 	}
 	
 	
@@ -3430,7 +3382,7 @@ public class QuPathGUI {
 	/**
 	 * Set the cursor for all the viewers.
 	 */
-	protected void updateCursor() {
+	void updateCursor() {
 		if (stage == null || stage.getScene() == null)
 			return;
 		var mode = getSelectedTool();
@@ -3445,7 +3397,7 @@ public class QuPathGUI {
 	 * 
 	 * @param cursor
 	 */
-	protected void updateCursor(final Cursor cursor) {
+	void updateCursor(final Cursor cursor) {
 		for (QuPathViewer viewer : getViewers())
 			viewer.getView().setCursor(cursor);
 	}
@@ -3799,63 +3751,6 @@ public class QuPathGUI {
 	public Project<BufferedImage> getProject() {
 		return projectProperty.get();
 	}
-
-	/**
-	 * Get a shared {@link DialogHelper}.
-	 * 
-	 * Generally it's better to use getDialogHelper where a {@link QuPathGUI} instance is available, since it will have
-	 * its parent window set.
-	 * 
-	 * @return
-	 */
-	public static DialogHelper getSharedDialogHelper() {
-		if (getInstance() == null)
-			return getDialogHelper(null);
-		else
-			return getDialogHelper(getInstance().getStage());
-	}
-	
-	/**
-	 * Get a DialogHelper with a specified {@link Window} as a parent.
-	 * 
-	 * This will return a different {@link DialogHelper} for each different Window parent,
-	 * but the same DialogHelper for the same Windows.
-	 * 
-	 * @param parent
-	 * @return
-	 */
-	public static DialogHelper getDialogHelper(final Window parent) {
-		if (parent == null)
-			return standaloneDialogHelper;
-		DialogHelper helper = dialogHelpers.get(parent);
-		if (helper == null) {
-			helper = new DialogHelperFX(parent);
-			dialogHelpers.put(parent, helper);
-		}
-		return helper;
-	}
-	
-	/**
-	 * Call getDialogHelper for the Window containing a specified Node.
-	 * 
-	 * This is a convenience method when a dialog is related to a Node,
-	 * so there isn't a need to get a reference to its parent {@link Window} manually.
-	 * 
-	 * @param node
-	 * @return
-	 */
-	public static DialogHelper getDialogHelperForParent(final Node node) {
-		Window window = null;
-		if (node != null && node.getScene() != null)
-			window = node.getScene().getWindow();
-		return getDialogHelper(window);
-	}
-	
-	
-	public DialogHelper getDialogHelper() {
-		return getDialogHelper(getStage());
-	}
-	
 	
 	
 	static class ShowAnalysisPaneSelectable {
@@ -3948,7 +3843,7 @@ public class QuPathGUI {
 			return false;
 		if (response == DialogButton.YES) {
 			if (filePrevious == null && entry == null) {
-				filePrevious = getDialogHelper().promptToSaveFile("Save image data", filePrevious, ServerTools.getDisplayableImageName(imageData.getServer()), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+				filePrevious = Dialogs.promptToSaveFile("Save image data", filePrevious, ServerTools.getDisplayableImageName(imageData.getServer()), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 				if (filePrevious == null)
 					return false;
 			}

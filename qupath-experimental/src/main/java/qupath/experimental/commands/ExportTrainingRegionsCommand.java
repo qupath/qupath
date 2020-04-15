@@ -607,7 +607,7 @@ public class ExportTrainingRegionsCommand implements Runnable {
 			if (dirExport == null && project != null) {
 				dirExport = Projects.getBaseDirectory(project);
 			}
-			File dirSelected = QuPathGUI.getDialogHelper(pane.getScene().getWindow()).promptForDirectory(dirExport);
+			File dirSelected = Dialogs.getChooser(pane.getScene().getWindow()).promptForDirectory(dirExport);
 			if (dirSelected == null)
 				return null;
 			dirExport = dirSelected;

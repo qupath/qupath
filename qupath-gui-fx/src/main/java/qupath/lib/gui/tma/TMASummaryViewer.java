@@ -292,7 +292,7 @@ public class TMASummaryViewer {
 		MenuItem miOpen = new MenuItem("Open...");
 		miOpen.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
 		miOpen.setOnAction(e -> {
-			File file = QuPathGUI.getDialogHelper(stage).promptForFile(null, null, "TMA data files", new String[]{"qptma"});
+			File file = Dialogs.getChooser(stage).promptForFile(null, null, "TMA data files", new String[]{"qptma"});
 			if (file == null)
 				return;
 			setInputFile(file);

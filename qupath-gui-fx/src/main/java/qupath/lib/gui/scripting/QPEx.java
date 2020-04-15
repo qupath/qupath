@@ -344,7 +344,7 @@ public class QPEx extends QP {
 		String filterDescription = extensions == null || extensions.length == 0 ? null : "Valid files";
 		if (extensions != null && extensions.length == 0)
 			extensions = null;
-		return QuPathGUI.getSharedDialogHelper().promptForFile(null, null, filterDescription, extensions);
+		return Dialogs.promptForFile(null, null, filterDescription, extensions);
 	}
 	
 	/**

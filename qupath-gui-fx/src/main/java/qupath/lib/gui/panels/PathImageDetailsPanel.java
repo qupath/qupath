@@ -266,7 +266,7 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 				miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
 				miSave.setOnAction(e -> {
 					BufferedImage img = imageData.getServer().getAssociatedImage(name);
-					File fileOutput = QuPathGUI.getDialogHelper(dialog).promptToSaveFile("Save image", null, name, "PNG", ".png");
+					File fileOutput = Dialogs.getChooser(dialog).promptToSaveFile("Save image", null, name, "PNG", ".png");
 					if (fileOutput != null) {
 						try {
 							ImageIO.write(img, "PNG", fileOutput);

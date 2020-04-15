@@ -818,7 +818,7 @@ public class ObjectClassifierCommand implements Runnable {
 							logger.info("Classifier saved to project as {}", classifierName);
 						}
 					} else {
-						var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save object classifier", null, null, "Object classifier", ".obj.json");
+						var file = Dialogs.promptToSaveFile("Save object classifier", null, null, "Object classifier", ".obj.json");
 						if (file != null) {
 							ObjectClassifiers.writeClassifier(classifier, file.toPath());
 						}

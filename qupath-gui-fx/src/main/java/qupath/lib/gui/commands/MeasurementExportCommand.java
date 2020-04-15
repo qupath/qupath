@@ -141,7 +141,7 @@ public class MeasurementExportCommand implements Runnable {
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Output file", null, "measurements" + ext, extDesc, ext);
+			File pathOut = Dialogs.promptToSaveFile("Output file", null, "measurements" + ext, extDesc, ext);
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
 					pathOut = new File(pathOut.getAbsolutePath() + "/export" + ext);

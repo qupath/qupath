@@ -216,7 +216,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 		
 		
 		// Prompt for file
-		File fileOutput = qupath.getDialogHelper().promptToSaveFile("Write pyramid", null, null, "OME TIFF pyramid", ".ome.tif");
+		File fileOutput = Dialogs.promptToSaveFile("Write pyramid", null, null, "OME TIFF pyramid", ".ome.tif");
 		if (fileOutput == null)
 			return;
 		String name = fileOutput.getName();

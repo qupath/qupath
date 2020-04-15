@@ -40,7 +40,7 @@ import java.util.List;
  * @author Pete Bankhead
  *
  */
-public interface DialogHelper {
+public interface QuPathChooser {
 
 	/**
 	 * Set the last directory, which will be used as the base directory in future file choosers.
@@ -105,7 +105,7 @@ public interface DialogHelper {
 	 * @param dirBase the base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param defaultName default file name
 	 * @param filterName description to show for the file name filter (may be null if no filter should be used)
-	 * @param ext extension that should be used for the saved file (may be null if not specified)
+	 * @param ext extension that should be used for the saved file (may be empty or null if not specified)
 	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext);

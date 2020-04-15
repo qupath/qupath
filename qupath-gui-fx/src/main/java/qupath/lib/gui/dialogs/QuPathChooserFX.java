@@ -44,20 +44,20 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.DialogHelper;
+import qupath.lib.gui.dialogs.QuPathChooser;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import javafx.stage.Window;
 
 /**
- * Implementation of DialogHelper using JavaFX.
+ * Implementation of {@link QuPathChooser} using JavaFX.
  * 
  * @author Pete Bankhead
  *
  */
-public class DialogHelperFX implements DialogHelper {
+public class QuPathChooserFX implements QuPathChooser {
 	
-	private static final Logger logger = LoggerFactory.getLogger(DialogHelperFX.class);
+	private static final Logger logger = LoggerFactory.getLogger(QuPathChooserFX.class);
 	
 	private Window ownerWindow = null;
 	private FileChooser fileChooser = new FileChooser();
@@ -68,10 +68,10 @@ public class DialogHelperFX implements DialogHelper {
 	protected File lastDir;
 	
 	/**
-	 * Create a {@link DialogHelper} using JavaFX.
+	 * Create a {@link QuPathChooser} using JavaFX.
 	 * @param ownerWindow
 	 */
-	public DialogHelperFX(final Window ownerWindow) {
+	public QuPathChooserFX(final Window ownerWindow) {
 		this.ownerWindow = ownerWindow;
 	}
 	

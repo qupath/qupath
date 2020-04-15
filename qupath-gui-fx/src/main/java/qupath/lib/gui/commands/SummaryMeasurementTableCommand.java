@@ -775,7 +775,7 @@ public class SummaryMeasurementTableCommand {
 	
 	private static File promptForOutputFile() {
 		String ext = ",".equals(PathPrefs.tableDelimiterProperty().get()) ? "csv" : "txt";
-		return QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "Results data", ext);
+		return Dialogs.promptToSaveFile(null, null, null, "Results data", ext);
 	}
 	
 	/**

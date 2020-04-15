@@ -113,7 +113,7 @@ class ScriptMenuLoader {
 		if (scriptDirectory instanceof StringProperty) {
 			miSetPath.setOnAction(e -> {
 				File dirBase = scriptDirectory.get() == null ? null : new File(scriptDirectory.get());
-				File dir = QuPathGUI.getSharedDialogHelper().promptForDirectory(dirBase);
+				File dir = Dialogs.promptForDirectory(dirBase);
 				if (dir != null)
 					((StringProperty)scriptDirectory).set(dir.getAbsolutePath());
 			});

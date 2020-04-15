@@ -403,7 +403,7 @@ public class Commands {
 					GeneralTools.formatNumber(request.getDownsample(), 2),
 					request.getX(), request.getY(), request.getWidth(), request.getHeight());
 		}
-		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Export image region", null, defaultName, writerName, ext);
+		File fileOutput = Dialogs.promptToSaveFile("Export image region", null, defaultName, writerName, ext);
 		if (fileOutput == null)
 			return;
 		
@@ -619,7 +619,7 @@ public class Commands {
 	}
 
 	private static boolean exportPreferences(Stage parent) {
-		var file = QuPathGUI.getDialogHelper(parent).promptToSaveFile(
+		var file = Dialogs.getChooser(parent).promptToSaveFile(
 				"Export preferences", null, null, "Preferences file", "xml");
 		if (file != null) {
 			try (var stream = Files.newOutputStream(file.toPath())) {
@@ -634,7 +634,7 @@ public class Commands {
 	}
 	
 	private static boolean importPreferences(Stage parent) {
-		var file = QuPathGUI.getDialogHelper(parent).promptForFile(
+		var file = Dialogs.getChooser(parent).promptForFile(
 				"Import preferences", null, "Preferences file", "xml");
 		if (file != null) {
 			try (var stream = Files.newInputStream(file.toPath())) {
@@ -795,7 +795,7 @@ public class Commands {
 						file = new File(lastSavedPath);
 					if (file == null || !file.isFile()) {
 						File fileDefault = new File(lastSavedPath);
-						file = qupath.getDialogHelper().promptToSaveFile(null, fileDefault.getParentFile(), fileDefault.getName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+						file = Dialogs.promptToSaveFile(null, fileDefault.getParentFile(), fileDefault.getName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 					}
 				}
 				else {
@@ -806,7 +806,7 @@ public class Commands {
 							name = GeneralTools.getNameWithoutExtension(new File(name));
 						} catch (Exception e) {}
 					}
-					file = qupath.getDialogHelper().promptToSaveFile(null, null, name, "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+					file = Dialogs.promptToSaveFile(null, null, name, "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 				}
 				if (file == null)
 					return false;
@@ -840,7 +840,7 @@ public class Commands {
 			return false;
 		}
 		
-		File fileOutput = qupath.getDialogHelper().promptToSaveFile(null, null, null, ext, ext);
+		File fileOutput = Dialogs.promptToSaveFile(null, null, null, ext, ext);
 		if (fileOutput == null)
 			return false;
 		
@@ -1183,7 +1183,7 @@ public class Commands {
 	 * @return true if a project was created, false otherwise (e.g. the user cancelled).
 	 */
 	public static boolean promptToCreateProject(QuPathGUI qupath) {
-		File dir = qupath.getDialogHelper().promptForDirectory(null);
+		File dir = Dialogs.promptForDirectory(null);
 		if (dir == null)
 			return false;
 		if (!dir.isDirectory()) {
@@ -1208,7 +1208,7 @@ public class Commands {
 	 */
 
 	public static boolean promptToOpenProject(QuPathGUI qupath) {
-		File fileProject = qupath.getDialogHelper().promptForFile("Choose project file", null, "QuPath projects", new String[]{ProjectIO.getProjectExtension()});
+		File fileProject = Dialogs.promptForFile("Choose project file", null, "QuPath projects", new String[]{ProjectIO.getProjectExtension()});
 		if (fileProject != null) {
 			try {
 				Project<BufferedImage> project = ProjectIO.loadProject(fileProject, BufferedImage.class);

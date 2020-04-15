@@ -137,7 +137,7 @@ public class TMACommands {
 		var overlayOptions = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).map(v -> v.getOverlayOptions()).findFirst().orElse(qupath.getOverlayOptions());
 
 		String defaultName = ServerTools.getDisplayableImageName(imageData.getServer());
-		File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "TMA data", ".qptma");
+		File file = Dialogs.promptToSaveFile(null, null, defaultName, "TMA data", ".qptma");
 		if (file != null) {
 			if (!file.getName().endsWith(".qptma"))
 				file = new File(file.getParentFile(), file.getName() + ".qptma");

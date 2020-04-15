@@ -145,7 +145,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		btnLoad.setOnAction(event -> {
 				if (hierarchy == null)
 					return;
-				File file = qupath.getDialogHelper().promptForFile(null, null, "TSV (Tab delimited)", new String[]{"tsv"});
+				File file = Dialogs.promptForFile(null, null, "TSV (Tab delimited)", new String[]{"tsv"});
 				if (file == null)
 					return;
 				try {
@@ -196,7 +196,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 				} catch (Exception e) {
 					// Ignore...
 				};
-				File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "TSV (Tab delimited)", "tsv");
+				File file = Dialogs.promptToSaveFile(null, null, defaultName, "TSV (Tab delimited)", "tsv");
 				if (file == null)
 					return;
 				try {

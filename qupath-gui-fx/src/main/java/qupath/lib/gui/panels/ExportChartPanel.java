@@ -80,7 +80,6 @@ import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ChartTools;
@@ -273,7 +272,7 @@ public class ExportChartPanel {
 		btnSave.setOnAction(e -> {
 			Image img = getChartImage();
 			String title = chart.getTitle() == null || chart.getTitle().isEmpty() ? null : chart.getTitle();
-			File fileOutput = QuPathGUI.getDialogHelperForParent(chart).promptToSaveFile("Save chart", null, title, "PNG", ".png");
+			File fileOutput = Dialogs.getChooser(chart.getScene() == null ? null : chart.getScene().getWindow()).promptToSaveFile("Save chart", null, title, "PNG", ".png");
 			if (fileOutput != null) {
 				try {
 					ImageIO.write(SwingFXUtils.fromFXImage(img, null), "png", fileOutput);

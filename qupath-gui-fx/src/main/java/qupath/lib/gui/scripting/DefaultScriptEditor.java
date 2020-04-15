@@ -948,7 +948,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						logger.warn("Problem trying to find project scripts directory: {}", e.getLocalizedMessage());
 					}
 				}
-				File file = QuPathGUI.getDialogHelper(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
+				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
 				if (file == null)
 					return false;
 				tab.saveToFile(file);
@@ -1807,8 +1807,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			File dir = null;
 			if (dirPath != null)
 				dir = new File(dirPath);
-//			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Choose script file", dir, "Known script files", SCRIPT_EXTENSIONS);
-			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Choose script file", dir, "Groovy script", ".groovy");
+//			File file = Dialogs.promptForFile("Choose script file", dir, "Known script files", SCRIPT_EXTENSIONS);
+			File file = Dialogs.promptForFile("Choose script file", dir, "Groovy script", ".groovy");
 			if (file == null)
 				return;
 			try {

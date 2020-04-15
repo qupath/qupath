@@ -76,7 +76,7 @@ public class ProjectCommands {
 		File dirBase = Projects.getBaseDirectory(project);
 		
 		// Prompt for where to save
-		File fileOutput = QuPathGUI.getSharedDialogHelper().promptToSaveFile(title, dirBase, null, "Text files", ".txt");
+		File fileOutput = Dialogs.promptToSaveFile(title, dirBase, null, "Text files", ".txt");
 		if (fileOutput == null)
 			return;
 		

@@ -246,7 +246,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			}
 
 			// Get a classifier file
-			File fileClassifier = QuPathGUI.getDialogHelper(btnSaveClassifier.getScene().getWindow()).promptToSaveFile("Save classifier", null, null, "Classifier", extPathClassifier);
+			File fileClassifier = Dialogs.getChooser(btnSaveClassifier.getScene().getWindow()).promptToSaveFile("Save classifier", null, null, "Classifier", extPathClassifier);
 			if (fileClassifier == null)
 				return;
 			if (fileClassifier.exists()) {
@@ -988,7 +988,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		final String trainingExtension = "qptrain";
 
 		miLoadTrainingObjects.setOnAction(e -> {
-			File fileTraining = qupath.getDialogHelper().promptForFile("Load objects", null, trainingExtension, new String[]{trainingExtension});
+			File fileTraining = Dialogs.promptForFile("Load objects", null, trainingExtension, new String[]{trainingExtension});
 			if (fileTraining == null)
 				return;
 			if (!loadRetainedObjects(fileTraining)) {
@@ -998,7 +998,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		//		btnSaveTrainingObjects.setTooltip(new Tooltip("Load training objects saved in a previous session"));
 
 		miSaveTrainingObjects.setOnAction(e -> {
-			File fileTraining = qupath.getDialogHelper().promptToSaveFile("Save objects", null, null, trainingExtension, trainingExtension);
+			File fileTraining = Dialogs.promptToSaveFile("Save objects", null, null, trainingExtension, trainingExtension);
 			if (fileTraining == null)
 				return;
 			if (!saveRetainedObjects(fileTraining)) {
@@ -1009,7 +1009,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 
 		miExportTrainingFeatures.setOnAction(e -> {
-			File fileTraining = qupath.getDialogHelper().promptToSaveFile("Export features", null, null, "Text file", "txt");
+			File fileTraining = Dialogs.promptToSaveFile("Export features", null, null, "Text file", "txt");
 			if (fileTraining == null)
 				return;
 			if (!exportTrainingFeatures(fileTraining)) {
