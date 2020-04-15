@@ -110,11 +110,12 @@ public class Commands {
 	 * <p>
 	 * This causes smaller 'completely-contained' annotations to be positioned below larger containing annotations, 
 	 * and detections to be assigned to other annotations based on centroid location.
-	 * @param hierarchy the hierarchy to process
+	 * @param imageData the image data containing the hierarchy
 	 */
-	public static void insertSelectedObjectsInHierarchy(PathObjectHierarchy hierarchy) {
-		if (hierarchy == null)
+	public static void insertSelectedObjectsInHierarchy(ImageData<?> imageData) {
+		if (imageData == null)
 			return;
+		var hierarchy = imageData.getHierarchy();
 		hierarchy.insertPathObjects(hierarchy.getSelectionModel().getSelectedObjects());
 	}
 	
@@ -573,7 +574,7 @@ public class Commands {
 	 */
 	public static void showPreferencesDialog(QuPathGUI qupath) {
 		
-		var panel = qupath.getPreferencePanel();
+		var panel = qupath.getPreferencePane();
 		
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());

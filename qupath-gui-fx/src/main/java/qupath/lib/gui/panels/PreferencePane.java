@@ -60,13 +60,13 @@ import qupath.lib.gui.prefs.QuPathStyleManager;
  * @author Pete Bankhead
  *
  */
-public class PreferencePanel {
+public class PreferencePane {
 
-	final private static Logger logger = LoggerFactory.getLogger(PreferencePanel.class);
+	final private static Logger logger = LoggerFactory.getLogger(PreferencePane.class);
 
 	private PropertySheet propSheet = new PropertySheet();
 
-	public PreferencePanel() {
+	public PreferencePane() {
 		setupPanel();
 	}
 

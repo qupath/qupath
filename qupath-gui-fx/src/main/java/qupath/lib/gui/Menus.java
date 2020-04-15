@@ -19,7 +19,7 @@ import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
-import qupath.lib.gui.QuPathGUI.ActionManager;
+import qupath.lib.gui.QuPathGUI.DefaultActions;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -56,7 +56,7 @@ class Menus {
 
 	
 	private QuPathGUI qupath;
-	private ActionManager actionManager;
+	private DefaultActions actionManager;
 	
 	private List<?> managers;
 	
@@ -66,7 +66,7 @@ class Menus {
 	
 	public synchronized Collection<Action> getActions() {
 		if (managers == null) {
-			this.actionManager = qupath.getActionManager();
+			this.actionManager = qupath.getDefaultActions();
 			managers = Arrays.asList(
 					new FileMenuManager(),
 					new EditMenuManager(),
@@ -96,7 +96,7 @@ class Menus {
 	@ActionMenu("Tools")
 	public class ToolsMenuManager {
 		
-		public final Action[] TOOLS = qupath.getAvailableTools().stream().map(a -> qupath.getToolAction(a, null)).toArray(Action[]::new);
+		public final Action[] TOOLS = qupath.getAvailableTools().stream().map(a -> qupath.getToolAction(a)).toArray(Action[]::new);
 		
 		public final Action SEP_0 = ActionTools.createSeparator();
 		
@@ -412,7 +412,7 @@ class Menus {
 		
 		@ActionMenu("Annotations...>Insert into hierarchy")
 		@ActionAccelerator("shortcut+shift+i")
-		public final Action INSERT_INTO_HIERARCHY = qupath.createHierarchyAction(h -> Commands.insertSelectedObjectsInHierarchy(h));
+		public final Action INSERT_INTO_HIERARCHY = qupath.createImageDataAction(imageData -> Commands.insertSelectedObjectsInHierarchy(imageData));
 		@ActionMenu("Annotations...>Resolve hierarchy")
 		@ActionAccelerator("shortcut+shift+r")
 		public final Action RESOLVE_HIERARCHY = qupath.createImageDataAction(imageData -> Commands.promptToResolveHierarchy(imageData));
@@ -494,7 +494,7 @@ class Menus {
 		
 		@ActionMenu("Show analysis pane")
 		@ActionAccelerator("shift+a")
-		public final Action SHOW_ANALYSIS_PANEL = actionManager.SHOW_ANALYSIS_PANEL;
+		public final Action SHOW_ANALYSIS_PANEL = actionManager.SHOW_ANALYSIS_PANE;
 		
 		@ActionMenu("Show command list")
 		@ActionAccelerator("shortcut+l")

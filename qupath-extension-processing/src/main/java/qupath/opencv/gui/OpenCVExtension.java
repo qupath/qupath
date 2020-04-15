@@ -82,11 +82,13 @@ public class OpenCVExtension implements QuPathExtension {
 				);
 
 		var classifierCommand = new OpenCvClassifierCommand(qupath);
+		var classifierAction = qupath.createImageDataAction(imageData -> classifierCommand.run());
+		classifierAction.setText("Create detection classifier");
 		Menu menuClassify = qupath.getMenu("Classify>Object classification>Older classifiers", true);
 		MenuTools.addMenuItems(
 				menuClassify,
 				null,
-				qupath.createImageDataAction(imageData -> classifierCommand.run(), "Create detection classifier"));
+				classifierAction);
 		
 	}
 

@@ -438,7 +438,7 @@ public class IJExtension implements QuPathExtension {
 	public static void addQuPathCommands(final QuPathGUI qupath) {
 		
 		// Add a preference to set the ImageJ path
-		qupath.getPreferencePanel().addDirectoryPropertyPreference(
+		qupath.getPreferencePane().addDirectoryPropertyPreference(
 				imageJPath, "ImageJ plugins directory", "ImageJ",
 				"Set the path to the 'plugins' directory of an existing ImageJ installation");
 		

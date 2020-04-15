@@ -74,8 +74,8 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		this.viewerProperty = qupath.viewerProperty();
 		this.viewerProperty.addListener(this);
 		
-		qupath.getPreferencePanel().addPropertyPreference(maxUndoLevels, Integer.class, "Max undo levels", "Undo/Redo", "Maximum number of 'undo' levels");
-		qupath.getPreferencePanel().addPropertyPreference(maxUndoHierarchySize, Integer.class, "Max undo hierarchy size", "Undo/Redo", "Maximum number of objects in hierarchy before 'undo' switches off (for performance)");
+		qupath.getPreferencePane().addPropertyPreference(maxUndoLevels, Integer.class, "Max undo levels", "Undo/Redo", "Maximum number of 'undo' levels");
+		qupath.getPreferencePane().addPropertyPreference(maxUndoHierarchySize, Integer.class, "Max undo hierarchy size", "Undo/Redo", "Maximum number of objects in hierarchy before 'undo' switches off (for performance)");
 		
 		changed(this.viewerProperty, null, this.viewerProperty.get());
 		

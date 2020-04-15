@@ -38,7 +38,7 @@ import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.panels.PreferencePanel;
+import qupath.lib.gui.panels.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
@@ -113,7 +113,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		skipExtensions.addListener((v, o, n) -> fillCollectionWithTokens(n, options.getSkipAlwaysExtensions()));
 		
 		// Add preferences to QuPath GUI
-		PreferencePanel prefs = QuPathGUI.getInstance().getPreferencePanel();
+		PreferencePane prefs = QuPathGUI.getInstance().getPreferencePane();
 		prefs.addPropertyPreference(enableBioformats, Boolean.class, "Enable Bio-Formats", "Bio-Formats", "Allow QuPath to use Bio-Formats for image reading");
 		prefs.addPropertyPreference(useParallelization, Boolean.class, "Enable Bio-Formats tile parallelization", "Bio-Formats", "Enable reading image tiles in parallel when using Bio-Formats");
 //		prefs.addPropertyPreference(parallelizeMultichannel, Boolean.class, "Enable Bio-Formats channel parallelization (experimental)", "Bio-Formats", "Request multiple image channels in parallel, even if parallelization of tiles is turned off - "

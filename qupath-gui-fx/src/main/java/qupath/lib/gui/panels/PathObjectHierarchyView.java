@@ -98,7 +98,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 			"hierarchyTreeDetectionDisplay", TreeDetectionDisplay.WITH_ICONS, TreeDetectionDisplay.class);
 	
 	static {
-		QuPathGUI.getInstance().getPreferencePanel().addPropertyPreference(detectionDisplay, TreeDetectionDisplay.class, "Hierarchy detection display", "General",
+		QuPathGUI.getInstance().getPreferencePane().addPropertyPreference(detectionDisplay, TreeDetectionDisplay.class, "Hierarchy detection display", "General",
 				"Choose how to display detections in the hierarchy tree view - choose 'None' for the best performance");
 	}
 	

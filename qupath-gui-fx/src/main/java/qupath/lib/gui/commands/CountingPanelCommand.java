@@ -101,7 +101,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		if (qupath == null)
 			return null;
 		
-		var actionManager = qupath.getActionManager();
+		var actionManager = qupath.getDefaultActions();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
 				ActionTools.createToggleButton(qupath.getToolAction(PathTools.MOVE), true),
@@ -212,21 +212,10 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 				btnSave
 				);
 		
-////		GridPane panelLoadSave = new GridPane();
-//		HBox panelLoadSave = new HBox();
-////		TilePane panelLoadSave = new TilePane(Orientation.HORIZONTAL);
-////		btnLoad.setMaxWidth(Double.MAX_VALUE);
-////		btnSave.setMaxWidth(Double.MAX_VALUE);
-//		panelLoadSave.getChildren().addAll(btnLoad, btnSave);
-		
-//		panelLoadSave.addRow(0, btnLoad, btnSave);
-//		ColumnConstraints constraints = new ColumnConstraints();
-//		constraints.setPercentWidth(50);
-//		panelLoadSave.getColumnConstraints().addAll(constraints);
-		
 		var actionConvexPoints = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
 		var actionSelectedColor = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
-		var actionDetectionsToPoints = qupath.createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true), "Convert detections to points");
+		var actionDetectionsToPoints = qupath.createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true));
+		actionDetectionsToPoints.setText("Convert detections to points");
 		
 		var btnConvert = ActionTools.createButton(actionDetectionsToPoints, false);
 		var convertPane = new Pane(btnConvert);

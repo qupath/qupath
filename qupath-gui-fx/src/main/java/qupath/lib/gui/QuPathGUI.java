@@ -90,10 +90,8 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
@@ -112,7 +110,6 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
@@ -130,8 +127,6 @@ import javafx.scene.control.SplitPane;
 import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
@@ -139,7 +134,6 @@ import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
-import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.TreeView;
 import javafx.scene.effect.DropShadow;
@@ -170,6 +164,8 @@ import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.ActionTools.ActionAccelerator;
+import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
@@ -182,7 +178,6 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.icons.IconFactory;
 import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
@@ -190,7 +185,7 @@ import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.panels.PathAnnotationPanel;
 import qupath.lib.gui.panels.PathImageDetailsPanel;
 import qupath.lib.gui.panels.PathObjectHierarchyView;
-import qupath.lib.gui.panels.PreferencePanel;
+import qupath.lib.gui.panels.PreferencePane;
 import qupath.lib.gui.panels.ProjectBrowser;
 import qupath.lib.gui.panels.SelectedMeasurementTableView;
 import qupath.lib.gui.panels.SlideLabelView;
@@ -219,6 +214,8 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
@@ -302,7 +299,7 @@ public class QuPathGUI {
 	/**
 	 * Preference panel, which may be used by extensions to add in their on preferences if needed
 	 */
-	private PreferencePanel prefsPanel;
+	private PreferencePane prefsPane;
 	
 	/**
 	 * The current ImageData in the current QuPathViewer
@@ -334,8 +331,6 @@ public class QuPathGUI {
 
 	private boolean isStandalone = false;
 	private ScriptMenuLoader sharedScriptMenuLoader;
-	
-	private ImageServer<BufferedImage> selectedSeries = null;
 	
 	private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
 	
@@ -396,24 +391,12 @@ public class QuPathGUI {
 	}
 	
 	// TODO: Remove this command whenever annotations can be applied more easily
-	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
+	private Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
 		var action = createImageDataAction(command);
 		action.setText(name);
 		return action;
 	}
 	
-	public Action createHierarchyAction(Consumer<PathObjectHierarchy> command) {
-		var action = new Action(e -> {
-			var imageData = getImageData();
-			var hierarchy = imageData == null ? null : imageData.getHierarchy();
-			if (hierarchy == null)
-				Dialogs.showNoImageError("No image");
-			else
-				command.accept(hierarchy);
-		});
-		action.disabledProperty().bind(noImageData);
-		return action;
-	}
 	
 	Action createProjectAction(Consumer<Project<BufferedImage>> command) {
 		var action = new Action(e -> {
@@ -425,10 +408,6 @@ public class QuPathGUI {
 		});
 		action.disabledProperty().bind(noProject);
 		return action;
-	}
-	
-	static Action createRunnableAction(Runnable runnable) {
-		return new Action(e -> runnable.run());
 	}
 	
 	private void installActions(Collection<? extends Action> actions) {
@@ -466,78 +445,239 @@ public class QuPathGUI {
 	}
 	
 	
-	
-	public class ActionManager {
+	/**
+	 * Default actions associated with a specific QuPath instance.
+	 * These are useful for generating toolbars and context menus, ensuring that the same actions are used consistently.
+	 */
+	public class DefaultActions {
 		
 		// Zoom actions
-		Action ZOOM_TO_FIT = createSelectableCommandAction(zoomToFit, "Zoom to fit", IconFactory.PathIcons.ZOOM_TO_FIT, null);
+		/**
+		 * Apply 'zoom-to-fit' setting to all viewers
+		 */
+		@ActionIcon(PathIcons.ZOOM_TO_FIT)
+		public final Action ZOOM_TO_FIT = ActionTools.createSelectableAction(zoomToFit, "Zoom to fit");
 		
 		// Tool actions
-		private Action MOVE_TOOL = getToolAction(PathTools.MOVE, new KeyCodeCombination(KeyCode.M));
-		private Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE, new KeyCodeCombination(KeyCode.R));
-		private Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE, new KeyCodeCombination(KeyCode.O));
-		private Action POLYGON_TOOL = getToolAction(PathTools.POLYGON, new KeyCodeCombination(KeyCode.P));
-		private Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE, new KeyCodeCombination(KeyCode.V));
-		private Action BRUSH_TOOL = getToolAction(PathTools.BRUSH, new KeyCodeCombination(KeyCode.B));
-		private Action LINE_TOOL = getToolAction(PathTools.LINE, new KeyCodeCombination(KeyCode.L));
-		private Action POINTS_TOOL = getToolAction(PathTools.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
-//		Action WAND_TOOL = getToolAction(PathTools.WAND, new KeyCodeCombination(KeyCode.W));
-		Action SELECTION_MODE = createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", IconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
+		/**
+		 * Move tool action
+		 */
+		@ActionAccelerator("m")
+		public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
+		/**
+		 * Rectangle tool action
+		 */
+		@ActionAccelerator("r")
+		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
+		/**
+		 * Ellipse tool action
+		 */
+		@ActionAccelerator("o")
+		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
+		/**
+		 * Polygon tool action
+		 */
+		@ActionAccelerator("p")
+		public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
+		/**
+		 * Polyline tool action
+		 */
+		@ActionAccelerator("v")
+		public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
+		/**
+		 * Brush tool action
+		 */
+		@ActionAccelerator("b")
+		public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
+		/**
+		 * Line tool action
+		 */
+		@ActionAccelerator("l")
+		public final Action LINE_TOOL = getToolAction(PathTools.LINE);
+		/**
+		 * Points/counting tool action
+		 */
+		@ActionAccelerator(".")
+		public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
+		
+		/**
+		 * Toggle 'selection mode' on/off for all drawing tools.
+		 */
+		@ActionAccelerator("shortcut+alt+s")
+		@ActionIcon(PathIcons.SELECTION_MODE)
+		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
 		
 		// Toolbar actions
-		Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, IconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
-		Action SHOW_OVERVIEW = createSelectableCommandAction(viewerDisplayOptions.showOverviewProperty(), "Show slide overview", IconFactory.PathIcons.OVERVIEW, null);
-		Action SHOW_LOCATION = createSelectableCommandAction(viewerDisplayOptions.showLocationProperty(), "Show cursor location", IconFactory.PathIcons.LOCATION, null);
-		Action SHOW_SCALEBAR = createSelectableCommandAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar", IconFactory.PathIcons.SHOW_SCALEBAR, null);
-		public Action SHOW_GRID = createSelectableCommandAction(overlayOptions.showGridProperty(), "Show grid", IconFactory.PathIcons.GRID, new KeyCodeCombination(KeyCode.G, KeyCombination.SHIFT_DOWN));
+		/**
+		 * Show the brightness/contrast dialog.
+		 */
+		@ActionIcon(PathIcons.CONTRAST)
+		@ActionAccelerator("shift+c")
+		public final Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast");
+		
+		/**
+		 * Toggle the image overview display on the viewers.
+		 */
+		@ActionIcon(PathIcons.OVERVIEW)
+		public final Action SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerDisplayOptions.showOverviewProperty(), "Show slide overview");
+		/**
+		 * Toggle the cursor location display on the viewers.
+		 */
+		@ActionIcon(PathIcons.LOCATION)
+		public final Action SHOW_LOCATION = ActionTools.createSelectableAction(viewerDisplayOptions.showLocationProperty(), "Show cursor location");
+		/**
+		 * Toggle the scalebar display on the viewers.
+		 */
+		@ActionIcon(PathIcons.SHOW_SCALEBAR)
+		public final Action SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar");
+		/**
+		 * Toggle the counting grid display on the viewers.
+		 */
+		@ActionIcon(PathIcons.GRID)
+		@ActionAccelerator("shift+g")
+		public final Action SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty(), "Show grid");
+		/**
+		 * Prompt to set the spacing for the counting grid.
+		 */
+		public final Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), "Set grid spacing");
+		
+		/**
+		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
+		 */
+		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
 
-		Action SHOW_PIXEL_CLASSIFICATION = createSelectableCommandAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification", IconFactory.PathIcons.PIXEL_CLASSIFICATION, new KeyCodeCombination(KeyCode.C));
-		Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), "Set grid spacing");
-		private Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
+		/**
+		 * Toggle the pixel classification overlay visibility on the viewers.
+		 */
+		@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
+		@ActionAccelerator("c")
+		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification");
 			
 		// TMA actions
-		private Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
+		/**
+		 * Add a note to any selected TMA core.
+		 */
+		private final Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
 		
 		// Overlay options actions
-		Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_ONLY), null);
-		Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_NULCEI_BOTH), null);
-		Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.NUCLEI_ONLY), null);
-		Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only", IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CENTROIDS_ONLY), null);
-		public Action SHOW_ANNOTATIONS = createSelectableCommandAction(overlayOptions.showAnnotationsProperty(), "Show annotations", IconFactory.PathIcons.ANNOTATIONS, new KeyCodeCombination(KeyCode.A));
-		Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show labels", (Node)null, new KeyCodeCombination(KeyCode.N));
-		Action FILL_ANNOTATIONS = createSelectableCommandAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations", IconFactory.PathIcons.ANNOTATIONS_FILL, new KeyCodeCombination(KeyCode.F, KeyCombination.SHIFT_DOWN));	
-		Action SHOW_TMA_GRID = createSelectableCommandAction(overlayOptions.showTMAGridProperty(), "Show TMA grid", IconFactory.PathIcons.TMA_GRID, new KeyCodeCombination(KeyCode.G));
-		Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
-		Action SHOW_DETECTIONS = createSelectableCommandAction(overlayOptions.showDetectionsProperty(), "Show detections", IconFactory.PathIcons.DETECTIONS, new KeyCodeCombination(KeyCode.D));
-		public Action FILL_DETECTIONS = createSelectableCommandAction(overlayOptions.fillDetectionsProperty(), "Fill detections", IconFactory.PathIcons.DETECTIONS_FILL, new KeyCodeCombination(KeyCode.F));	
-		private Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
+		/**
+		 * Request that cells are displayed using their boundary ROI only.
+		 */
+		@ActionIcon(PathIcons.CELL_ONLY)
+		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
+		/**
+		 * Request that cells are displayed using their boundary ROI only.
+		 */
+		@ActionIcon(PathIcons.NUCLEI_ONLY)
+		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
+		/**
+		 * Request that cells are displayed using both cell and nucleus ROIs.
+		 */
+		@ActionIcon(PathIcons.CELL_NULCEI_BOTH)
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
+		/**
+		 * Request that cells are displayed using their centroids only.
+		 */
+		@ActionIcon(PathIcons.CENTROIDS_ONLY)
+		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
+
+		/**
+		 * Toggle the display of annotations.
+		 */
+		@ActionIcon(PathIcons.ANNOTATIONS)
+		@ActionAccelerator("a")
+		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.showAnnotationsProperty(), "Show annotations");
+		
+		/**
+		 * Toggle the display of annotation names.
+		 */
+		@ActionAccelerator("n")
+		public final Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show names");
+		
+		/**
+		 * Display annotations filled in.
+		 */
+		@ActionIcon(PathIcons.ANNOTATIONS_FILL)
+		@ActionAccelerator("shift+f")
+		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations");	
+		
+		/**
+		 * Toggle the display of TMA cores.
+		 */
+		@ActionIcon(PathIcons.TMA_GRID)
+		@ActionAccelerator("g")
+		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), "Show TMA grid");
+		/**
+		 * Toggle the display of TMA grid lables.
+		 */
+		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
+		
+		/**
+		 * Toggle the display of detections.
+		 */
+		@ActionIcon(PathIcons.DETECTIONS)
+		@ActionAccelerator("d")
+		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.showDetectionsProperty(), "Show detections");
+		
+		/**
+		 * Display detections filled in.
+		 */
+		@ActionIcon(PathIcons.DETECTIONS_FILL)
+		@ActionAccelerator("f")
+		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.fillDetectionsProperty(), "Fill detections");	
+		/**
+		 * Display the convex hull of point ROIs.
+		 */
+		public final Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
 		
 		// Viewer actions
-		Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
-		Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
+		/**
+		 * Toggle the synchronization of multiple viewers.
+		 */
+		@ActionAccelerator("shortcut+alt+s")
+		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
+		/**
+		 * Match the resolution of all open viewers.
+		 */
+		public final Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
 		
-		// General GUI actions
-		Action SHOW_LOG = ActionTools.createAction(new LogViewerCommand(QuPathGUI.this), "Show log", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
+		/**
+		 * Show the main log window.
+		 */
+		@ActionAccelerator("shortcut+shift+l")
+		public final Action SHOW_LOG = ActionTools.createAction(new LogViewerCommand(QuPathGUI.this), "Show log");
 
-		Action SHOW_ANALYSIS_PANEL = createShowAnalysisPaneAction();
+		/**
+		 * Toggle the visibility of the 'Analysis pane' in the main viewer.
+		 */
+		@ActionIcon(PathIcons.MEASURE)
+		@ActionAccelerator("shift+a")
+		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
+		
+		private DefaultActions() {
+			// This has the effect of applying the annotations
+			ActionTools.getAnnotatedActions(this);
+		}
 		
 	}
 	
-	private ActionManager actionManager;
+	private DefaultActions defaultActions;
 	
 	
-	public synchronized ActionManager getActionManager() {
-		if (actionManager == null)
-			actionManager = new ActionManager();
-		return actionManager;
+	/**
+	 * Get the default actions associated with this QuPath instance.
+	 * @return
+	 */
+	public synchronized DefaultActions getDefaultActions() {
+		if (defaultActions == null)
+			defaultActions = new DefaultActions();
+		return defaultActions;
 	}
 	
 	
 	private Action createShowAnalysisPaneAction() {
 		ShowAnalysisPaneSelectable temp = new ShowAnalysisPaneSelectable(pane, splitPane, analysisPanel, viewerManager, true);
-		var action = createSelectableCommandAction(temp.showPaneProperty(), "Show analysis panel", IconFactory.PathIcons.MEASURE, new KeyCodeCombination(KeyCode.A, KeyCombination.SHIFT_DOWN));
-//		action.selectedProperty().addListener((e, f, g) -> temp.setAnalysisPanelVisible(g));
-		return action;
+		return ActionTools.createSelectableAction(temp.showPaneProperty(), "Show analysis panel");
 	}
 	
 	/**
@@ -633,7 +773,7 @@ public class QuPathGUI {
 		}));
 		
 		// Create preferences panel
-		prefsPanel = new PreferencePanel();
+		prefsPane = new PreferencePane();
 		
 		// Set the number of threads at an early stage...
 		AbstractPluginRunner.setNumThreadsRequested(PathPrefs.numCommandThreadsProperty().get());
@@ -666,8 +806,8 @@ public class QuPathGUI {
 			@Override
 			public void uncaughtException(Thread t, Throwable e) {
 				Dialogs.showErrorNotification("QuPath exception", e);
-				if (actionManager.SHOW_LOG != null)
-					actionManager.SHOW_LOG.handle(null);
+				if (defaultActions.SHOW_LOG != null)
+					defaultActions.SHOW_LOG.handle(null);
 				// Try to reclaim any memory we can
 				if (e instanceof OutOfMemoryError) {
 					getViewer().getImageRegionStore().clearCache(false, false);
@@ -814,9 +954,9 @@ public class QuPathGUI {
 			
 			// Generic 'hiding'
 			if (new KeyCodeCombination(KeyCode.H).match(e)) {
-				var action = actionManager.SHOW_DETECTIONS;
+				var action = defaultActions.SHOW_DETECTIONS;
 				action.setSelected(!action.isSelected());
-				action = actionManager.SHOW_PIXEL_CLASSIFICATION;
+				action = defaultActions.SHOW_PIXEL_CLASSIFICATION;
 				action.setSelected(!action.isSelected());
 				e.consume();
 			}
@@ -1681,7 +1821,7 @@ public class QuPathGUI {
 			activateTools(getViewer());
 			
 			if (n == PathTools.POINTS)
-				actionManager.COUNTING_PANEL.handle(null);
+				defaultActions.COUNTING_PANEL.handle(null);
 			
 			updateCursor();			
 		});
@@ -1741,14 +1881,20 @@ public class QuPathGUI {
 		return isStandalone;
 	}
 	
-	
+	/**
+	 * Get an unmodifiable list of all viewers.
+	 * @return
+	 */
 	public List<QuPathViewerPlus> getViewers() {
 		if (viewerManager == null)
 			return Collections.emptyList();
 		return viewerManager.getViewers();
 	}
 	
-	
+	/**
+	 * Get the currently active viewer.
+	 * @return
+	 */
 	public QuPathViewerPlus getViewer() {
 		return viewerManager == null ? null : viewerManager.getActiveViewer();
 	}
@@ -1882,7 +2028,7 @@ public class QuPathGUI {
 				if (pathObject.isTMACore()) {
 					TMACoreObject core = (TMACoreObject)pathObject;
 					if (e.getCode() == KeyCode.ENTER) {
-						actionManager.TMA_ADD_NOTE.handle(new ActionEvent(e.getSource(), e.getTarget()));
+						defaultActions.TMA_ADD_NOTE.handle(new ActionEvent(e.getSource(), e.getTarget()));
 						e.consume();
 					} else if (e.getCode() == KeyCode.BACK_SPACE) {
 						core.setMissing(!core.isMissing());
@@ -2027,8 +2173,8 @@ public class QuPathGUI {
 		miResizeGrid.setOnAction(e -> {
 				viewerManager.resetGridSize();
 		});
-		MenuItem miToggleSync = ActionTools.createCheckMenuItem(actionManager.TOGGLE_SYNCHRONIZE_VIEWERS, null);
-		MenuItem miMatchResolutions = ActionTools.createMenuItem(actionManager.MATCH_VIEWER_RESOLUTIONS);
+		MenuItem miToggleSync = ActionTools.createCheckMenuItem(defaultActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
+		MenuItem miMatchResolutions = ActionTools.createMenuItem(defaultActions.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = MenuTools.createMenu(
 				"Multi-view",
 				miToggleSync,
@@ -2049,8 +2195,8 @@ public class QuPathGUI {
 		logger.warn("ADD ZOOM IN/OUT BUTTONS!");
 		Menu menuView = MenuTools.createMenu(
 				"Display",
-				ActionTools.createCheckMenuItem(actionManager.SHOW_ANALYSIS_PANEL, null),
-				actionManager.BRIGHTNESS_CONTRAST,
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_ANALYSIS_PANE, null),
+				defaultActions.BRIGHTNESS_CONTRAST,
 				null,
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 0.25), "400%"),
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 1), "100%"),
@@ -2061,20 +2207,20 @@ public class QuPathGUI {
 				// TODO: ADD ZOOM COMMANDS AGAIN
 //				actionManager.ZOOM_IN,
 //				actionManager.ZOOM_OUT,
-				ActionTools.createCheckMenuItem(actionManager.ZOOM_TO_FIT, null)
+				ActionTools.createCheckMenuItem(defaultActions.ZOOM_TO_FIT, null)
 				);
 		
 		ToggleGroup groupTools = new ToggleGroup();
 		Menu menuTools = MenuTools.createMenu(
 				"Set tool",
-				ActionTools.createCheckMenuItem(actionManager.MOVE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(actionManager.RECTANGLE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(actionManager.ELLIPSE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(actionManager.LINE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(actionManager.POLYGON_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(actionManager.POLYLINE_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(actionManager.BRUSH_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(actionManager.POINTS_TOOL, groupTools)
+				ActionTools.createCheckMenuItem(defaultActions.MOVE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.RECTANGLE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.ELLIPSE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.LINE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.POLYGON_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.POLYLINE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.BRUSH_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.POINTS_TOOL, groupTools)
 //				ActionTools.getActionCheckBoxMenuItem(actionManager.WAND_TOOL, groupTools)
 				);
 
@@ -2091,7 +2237,7 @@ public class QuPathGUI {
 				miTMAValid,
 				miTMAMissing,
 				null,
-				actionManager.TMA_ADD_NOTE,
+				defaultActions.TMA_ADD_NOTE,
 				null,
 				MenuTools.createMenu(
 						"Add",
@@ -2120,10 +2266,10 @@ public class QuPathGUI {
 		
 		Menu menuCells = MenuTools.createMenu(
 				"Cells",
-				ActionTools.createCheckMenuItem(actionManager.SHOW_CELL_BOUNDARIES_AND_NUCLEI, null),
-				ActionTools.createCheckMenuItem(actionManager.SHOW_CELL_NUCLEI, null),
-				ActionTools.createCheckMenuItem(actionManager.SHOW_CELL_BOUNDARIES, null),
-				ActionTools.createCheckMenuItem(actionManager.SHOW_CELL_CENTROIDS, null)
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI, null),
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_NUCLEI, null),
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_BOUNDARIES, null),
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_CENTROIDS, null)
 				);
 
 		
@@ -2565,24 +2711,26 @@ public class QuPathGUI {
 			}
 			ImageServer<BufferedImage> serverNew = null;
 
-			List<ImageServer<BufferedImage>> serverList = ImageServerProvider.getServerList(pathNew, BufferedImage.class);
+			UriImageSupport<BufferedImage> support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, pathNew);
+			List<ServerBuilder<BufferedImage>> builders = support == null ? Collections.emptyList() : support.getBuilders();
+//			List<ImageServer<BufferedImage>> serverList = ImageServerProvider.getServerList(pathNew, BufferedImage.class);
 			
-			if (serverList.size() == 0) {
+			if (builders.isEmpty()) {
 				String message = "Unable to build ImageServer for " + pathNew + ".\nSee View > Show log for more details";
 				Dialogs.showErrorMessage("Unable to build server", message);
 				return false;
 			}
-			else if (serverList.size() == 1) {
-				serverNew = serverList.get(0);
+			else if (builders.size() == 1) {
+				try {
+					serverNew = builders.get(0).build();
+				} catch (Exception e) {	
+					logger.error("Error building server: " + e.getLocalizedMessage(), e);
+				}
 			} else {
-				ObservableList<ImageServer<BufferedImage>> serverObservableList = FXCollections.observableArrayList();
-				for (ImageServer<BufferedImage> imageServer: serverList)
-					serverObservableList.add(imageServer);
-				List<ImageServer<BufferedImage>> serverImagesToOpen = promptSeriesSelector(this, serverObservableList);
-				
-				// Only allows one image to be opened
-				if (!serverImagesToOpen.isEmpty()) serverNew = serverImagesToOpen.get(0);
-				else return false;
+				var selector = new ServerSelector(builders);
+				serverNew = selector.promptToSelectServer();
+				if (serverNew == null)
+					return false;
 			}
 
 			if (serverNew != null) {
@@ -2642,159 +2790,8 @@ public class QuPathGUI {
 		return false;
 	}
 	
-	private ObservableValue<String> getSeriesQuickInfo(ImageServer<BufferedImage> imageServer, int index) {
-		String filePath = imageServer.getURIs().iterator().next().toString();
-		String serverType = imageServer.getServerType();
-		String width = "" + imageServer.getWidth() + " px";
-		String height = "" + imageServer.getHeight() + " px";
-		double pixelWidthTemp = imageServer.getPixelCalibration().getPixelWidth().doubleValue();
-		String pixelWidth = GeneralTools.formatNumber(pixelWidthTemp, 4) + " " + imageServer.getPixelCalibration().getPixelWidthUnit();
-		double pixelHeightTemp = imageServer.getPixelCalibration().getPixelHeight().doubleValue();
-		String pixelHeight = GeneralTools.formatNumber(pixelHeightTemp, 4) + " " + imageServer.getPixelCalibration().getPixelHeightUnit();
-		String pixelType = imageServer.getPixelType().toString();
-		String nChannels = String.valueOf(imageServer.nChannels());
-		String nResolutions = String.valueOf(imageServer.nResolutions());
-		String[] outString = new String[] {filePath, serverType, width, height, pixelWidth, pixelHeight, pixelType, nChannels, nResolutions};
-		ObservableValue<String> out = new ReadOnlyObjectWrapper<String>(outString[index]);
-		return out;
-	}
 
 	
-	@SuppressWarnings("unchecked")
-	public List<ImageServer<BufferedImage>> promptSeriesSelector(QuPathGUI qupath, ObservableList<ImageServer<BufferedImage>> serverList) {			
-		// Get thumbnails in separate thread
-		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
-
-		ListView<ImageServer<BufferedImage>> listSeries = new ListView<>();
-		listSeries.setPrefWidth(480);
-		listSeries.setMinHeight(100);
-		
-		// thumbnailBank is the map for storing thumbnails
-		Map<String, BufferedImage> thumbnailBank = new HashMap<String, BufferedImage>();
-		for (ImageServer<BufferedImage> server: serverList) {
-			executor.submit(() -> {
-				try {
-					thumbnailBank.put(server.getMetadata().getName(), ProjectCommands.getThumbnailRGB(server));
-					Platform.runLater( () -> listSeries.refresh());
-				} catch (IOException e) {
-					logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
-				}
-			});
-		};
-		
-		double thumbnailSize = 80;
-		listSeries.setCellFactory(v -> new ImageAndNameListCell(thumbnailBank, thumbnailSize, thumbnailSize));
-		listSeries.getItems().setAll(serverList);
-
-		
-		// Info table - Changes according to selected series
-		String[] attributes = new String[] {"Full Path", "Server Type", "Width", "Height", "Pixel Width", "Pixel Height", "Pixel Type", "Number of Channels", "Number of Resolutions"};
-		Integer[] indices = new Integer[9];
-		for (int index = 0; index < 9; index++) indices[index] = index;
-		ObservableList<Integer> indexList = FXCollections.observableArrayList(indices);
-		
-		TableView<Integer> tableInfo = new TableView<>();
-		tableInfo.setMinHeight(200);
-		tableInfo.setMinWidth(500);
-		
-		// First column (attribute names)
-		TableColumn<Integer, String> attributeCol = new TableColumn<Integer, String>("Attribute");
-		attributeCol.setMinWidth(242);
-		attributeCol.setResizable(false);
-		attributeCol.setCellValueFactory(cellData -> {
-			return new ReadOnlyObjectWrapper<String>(attributes[cellData.getValue()]);
-		});
-		
-		// Second column (attribute values)
-		TableColumn<Integer, String> valueCol = new TableColumn<Integer, String>("Value");
-		valueCol.setMinWidth(242);
-		valueCol.setResizable(false);
-		valueCol.setCellValueFactory(cellData -> {
-			if (selectedSeries != null) return getSeriesQuickInfo(selectedSeries, cellData.getValue());
-			else return null;
-		});
-		
-		
-		// Adding the values on hover over the info table
-		tableInfo.setRowFactory(tableView -> {
-            final TableRow<Integer> row = new TableRow<>();
-            row.hoverProperty().addListener((observable) -> {
-                final var element = row.getItem();
-                if (row.isHover() && selectedSeries != null) {
-                	ObservableValue<String> value = getSeriesQuickInfo(selectedSeries, element);
-                	Tooltip tooltip = new Tooltip(value.getValue());
-                	Tooltip.install(row, tooltip);
-                }
-            });
-            return row;
-		});
-		
-		// Set items to info table
-		tableInfo.setItems(indexList);
-		tableInfo.getColumns().addAll(attributeCol, valueCol);
-		
-
-		// Pane structure
-		BorderPane paneSelector = new BorderPane();
-		BorderPane paneSeries = new BorderPane(listSeries);
-		BorderPane paneInfo = new BorderPane(tableInfo);
-		paneInfo.setMaxHeight(100);
-		paneSelector.setCenter(paneSeries);
-		paneSelector.setBottom(paneInfo);
-
-		BorderPane pane = new BorderPane();
-		pane.setCenter(paneSelector);
-		
-		
-		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.setTitle("Open image");
-		ButtonType typeImport = new ButtonType("Open", ButtonData.OK_DONE);
-		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
-		dialog.getDialogPane().setContent(pane);
-		
-		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
-		    if (selectedRow != null) {
-		    	selectedSeries = selectedRow;
-		    	indexList.removeAll(indexList);
-		    	indexList.addAll(indices);
-		    }
-		});
-		
-		listSeries.setOnMouseClicked(new EventHandler<MouseEvent>() {
-
-		    @Override
-		    public void handle(MouseEvent click) {
-		    	ImageServer<BufferedImage> selectedItem = listSeries.getSelectionModel().getSelectedItem();
-
-		        if (click.getClickCount() == 2 && selectedItem != null) {
-		        	Button okButton = (Button) dialog.getDialogPane().lookupButton(typeImport);
-		        	okButton.fire();
-		        }
-		    }
-		});
-		
-		Optional<ButtonType> result = dialog.showAndWait();
-		
-		try {
-			executor.shutdownNow();
-		} catch (Exception e) {
-			logger.warn(e.getLocalizedMessage(), e);
-		} finally {
-			selectedSeries = null;
-			try {
-				for (ImageServer<BufferedImage> server: serverList)
-					server.close();
-			} catch (Exception e) {
-				logger.debug(e.getLocalizedMessage(), e);
-			}
-		}		
-		
-		if (!result.isPresent() || result.get() != typeImport || result.get() == ButtonType.CANCEL)
-			return Collections.emptyList();
-		
-		return listSeries.getSelectionModel().getSelectedItems();
-	}
-
 	/**
 	 * Create a new {@link ImageData} from the specified server.
 	 * @param server
@@ -3026,14 +3023,14 @@ public class QuPathGUI {
 	
 	
 	/**
-	 * Get a reference to the {@link PreferencePanel}.
+	 * Get a reference to the {@link PreferencePane}.
 	 * 
-	 * This can be useful for extensions to be able to add in their own preferences.
+	 * This can be used by extensions to add in their own preferences.
 	 * 
 	 * @return
 	 */
-	public PreferencePanel getPreferencePanel() {
-		return prefsPanel;
+	public PreferencePane getPreferencePane() {
+		return prefsPane;
 	}
 	
 	
@@ -3139,20 +3136,17 @@ public class QuPathGUI {
 	
 	
 	
-	
-	
+	/**
+	 * Create an action for a plugin to be run through this QuPath instance.
+	 * @param name name of the plugin
+	 * @param pluginClass class of the plugin
+	 * @param arg optional argument (may be required by some plugins)
+	 * @return
+	 */
 	public Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final String arg) {
 		return createPluginAction(name, pluginClass, this, arg);
 	}
 
-	
-	/**
-	 * Refresh the project, updating the display if required.
-	 * This can be called whenever the project has changed (e.g. by adding or removing items).
-	 */
-	public void refreshProject() {
-		projectBrowser.refreshProject();
-	}
 	
 	/**
 	 * Create an Action to call the specified plugin for the current image.
@@ -3213,7 +3207,7 @@ public class QuPathGUI {
 	 * @param arg
 	 * @return
 	 */
-	public static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
+	private static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
 		try {
 			var action = new Action(name, event -> {
 				PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
@@ -3276,25 +3270,22 @@ public class QuPathGUI {
 	}
 	
 
-	private Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final IconFactory.PathIcons icon, final KeyCombination accelerator) {
-		return ActionTools.createSelectableAction(property, name, IconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, icon), accelerator);
-	}
-	
+	/**
+	 * Get the action that corresponds to a specific {@link PathTool}, creating a new action if one does not already exist.
+	 * @param tool
+	 * @return
+	 */
 	public Action getToolAction(PathTool tool) {
-		return getToolAction(tool, null);
-	}
-	
-	Action getToolAction(PathTool tool, KeyCombination accelerator) {
 		var action = toolActions.get(tool);
 		if (action == null) {
-			action = createToolAction(tool, accelerator);
+			action = createToolAction(tool);
 			toolActions.put(tool, action);
 		}
 		return action;
 	}
 	
-	private Action createToolAction(final PathTool tool, final KeyCombination accelerator) {
-		  var action = createSelectableCommandAction(new SelectionManager<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), accelerator);
+	private Action createToolAction(final PathTool tool) {
+		  var action = createSelectableCommandAction(new SelectionManager<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), null);
 		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || selectedToolLocked.get(), selectedToolLocked, tools));
 		  return action;
 	}
@@ -3308,6 +3299,10 @@ public class QuPathGUI {
 				.graphic(icon)
 				.build();
 		return action;
+	}
+	
+	private static <T> Action createSelectableCommandAction(final SelectionManager<T> command, final String name) {
+		return createSelectableCommandAction(command, name, null, null);
 	}
 
 	/**
@@ -3343,32 +3338,50 @@ public class QuPathGUI {
 		return undoRedoManager;
 	}
 	
+	/**
+	 * Toggle whether the user is permitted to switch to a new active {@link PathTool}.
+	 * This can be used to lock a tool temporarily.
+	 * @param enabled
+	 */
 	public void setToolSwitchingEnabled(final boolean enabled) {
 		selectedToolLocked.set(!enabled);
-//		for (Action action : modeActions.values())
-//			action.setDisabled(!enabled);
 	}
 	
+	/**
+	 * Returns true if the user is able to activate another {@link PathTool}, false otherwise.
+	 * @return
+	 */
 	public boolean isToolSwitchingEnabled() {
 		return !selectedToolLocked.get();
 	}
 	
 	
 	/**
-	 * Get a read-only list of the current available tools.
+	 * Get a list of the current available tools.
+	 * Tools may be removed from this list, but {@link #installTool(PathTool, KeyCodeCombination)} is the preferred way 
+	 * to add a new tool, to ensure that any accelerator is properly managed.
 	 * @return
 	 */
 	public ObservableList<PathTool> getAvailableTools() {
-		return FXCollections.unmodifiableObservableList(tools);
+		return tools;
 	}
 	
+	/**
+	 * Install a new tool for interacting with viewers.
+	 * @param tool the tool to add
+	 * @param accelerator an optional accelerator (may be null)
+	 * @return true if the tool was added, false otherwise (e.g. if the tool had already been added)
+	 */
 	public boolean installTool(PathTool tool, KeyCodeCombination accelerator) {
 		if (tool == null || tools.contains(tool))
 			return false;
 		// Keep the points tool last
 		if (accelerator != null) {
-			var action = getToolAction(tool, accelerator);
-			comboMap.put(accelerator, action);
+			var action = getToolAction(tool);
+			if (accelerator != null) {
+				action.setAccelerator(accelerator);
+				registerAccelerator(action);
+			}
 		}
 		int ind = tools.indexOf(PathTools.POINTS);
 		if (ind < 0)
@@ -3378,17 +3391,21 @@ public class QuPathGUI {
 		return true;
 	}
 	
-	
-	public void setSelectedTool(PathTool mode) {
+	/**
+	 * Programmatically select the active {@link PathTool}.
+	 * This may fail if {@link #isToolSwitchingEnabled()} returns false.
+	 * @param tool
+	 */
+	public void setSelectedTool(PathTool tool) {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> setSelectedTool(mode));
+			Platform.runLater(() -> setSelectedTool(tool));
 			return;
 		}
 		if (!isToolSwitchingEnabled()) {
-			logger.warn("Mode switching currently disabled - cannot change to {}", mode);
+			logger.warn("Mode switching currently disabled - cannot change to {}", tool);
 			return;
 		}
-		this.selectedToolProperty.set(mode);
+		this.selectedToolProperty.set(tool);
 	}
 	
 	
@@ -3435,7 +3452,7 @@ public class QuPathGUI {
 
 	
 	/**
-	 * Get a reference to the current ScriptEditor (which may or may not be open at the moment).
+	 * Get a reference to the current {@link ScriptEditor} (which may or may not be open at the moment).
 	 * 
 	 * @return
 	 */
@@ -3466,11 +3483,18 @@ public class QuPathGUI {
 		viewerManager.repaintViewers();
 	}
 	
-
+	/**
+	 * Get the value of {@link #selectedToolProperty()}.
+	 * @return
+	 */
 	public PathTool getSelectedTool() {
-		return selectedToolProperty.get();
+		return selectedToolProperty().get();
 	}
 	
+	/**
+	 * Property containing the currently-selected {@link PathTool}.
+	 * @return
+	 */
 	public ObjectProperty<PathTool> selectedToolProperty() {
 		return selectedToolProperty;
 	}
@@ -3640,7 +3664,11 @@ public class QuPathGUI {
 		return buildString;
 	}
 	
-	
+	/**
+	 * Read-only property containing the image open within the currently-active viewer.
+	 * To change the open image data, you should do so directly within the viewer.
+	 * @return
+	 */
 	public ReadOnlyObjectProperty<ImageData<BufferedImage>> imageDataProperty() {
 		return imageDataProperty;
 	}
@@ -3748,10 +3776,26 @@ public class QuPathGUI {
 	}
 	
 	
+	/**
+	 * Refresh the project, updating the display if required.
+	 * This can be called whenever the project has changed (e.g. by adding or removing items).
+	 */
+	public void refreshProject() {
+		projectBrowser.refreshProject();
+	}
+	
+	/**
+	 * Read-only property representing the currently-open project.
+	 * @return
+	 */
 	public ReadOnlyObjectProperty<Project<BufferedImage>> projectProperty() {
 		return projectProperty;
 	}
 	
+	/**
+	 * Get the value of {@link #projectProperty()}.
+	 * @return
+	 */
 	public Project<BufferedImage> getProject() {
 		return projectProperty.get();
 	}
@@ -3807,6 +3851,7 @@ public class QuPathGUI {
 		return getDialogHelper(window);
 	}
 	
+	
 	public DialogHelper getDialogHelper() {
 		return getDialogHelper(getStage());
 	}
@@ -3857,9 +3902,12 @@ public class QuPathGUI {
 		
 	}
 
-	
+	/**
+	 * Get the value of {@link #imageDataProperty()}.
+	 * @return
+	 */
 	public ImageData<BufferedImage> getImageData() {
-		return imageDataProperty.get();
+		return imageDataProperty().get();
 	}
 	
 	

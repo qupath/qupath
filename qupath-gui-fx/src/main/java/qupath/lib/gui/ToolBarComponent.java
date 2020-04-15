@@ -52,8 +52,6 @@ class ToolBarComponent {
 		private int toolIdx;
 		
 		
-		private final String KEY_TOOLS = "tools";
-		
 		private ToolBar toolbar = new ToolBar();
 		
 		ToolBarComponent(final QuPathGUI qupath) {
@@ -62,7 +60,7 @@ class ToolBarComponent {
 			availableTools = qupath.getAvailableTools();
 			availableTools.addListener((Change<? extends PathTool> v) -> updateToolbar());
 			
-			var actionManager = qupath.getActionManager();
+			var actionManager = qupath.getDefaultActions();
 			
 			labelMag.setTooltip(tooltipMag);
 			labelMag.setPrefWidth(60);
@@ -79,7 +77,7 @@ class ToolBarComponent {
 			
 			// Show analysis panel
 			List<Node> nodes = new ArrayList<>();
-			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_ANALYSIS_PANEL, true, null, true));
+			nodes.add(ActionTools.createToggleButton(actionManager.SHOW_ANALYSIS_PANE, true, null, true));
 			nodes.add(new Separator(Orientation.VERTICAL));
 			
 			// Record index where tools start
@@ -199,10 +197,10 @@ class ToolBarComponent {
 			int ind = toolIdx;
 			
 			for (var tool : tools) {
-				var action = qupath.getToolAction(tool, null);
+				var action = qupath.getToolAction(tool);
 				var btnTool = toolMap.get(tool);
 				if (btnTool == null) {
-					btnTool = ActionTools.createToggleButton(action, true);
+					btnTool = ActionTools.createToggleButton(action, action.getGraphic() != null);
 					toolMap.put(tool, btnTool);
 				}
 				nodes.add(ind++, btnTool);

@@ -804,7 +804,7 @@ public class GuiTools {
 		});
 		
 		
-		var actionInsertInHierarchy = qupath.createHierarchyAction(h -> Commands.insertSelectedObjectsInHierarchy(h));
+		var actionInsertInHierarchy = qupath.createImageDataAction(imageData -> Commands.insertSelectedObjectsInHierarchy(imageData));
 		actionInsertInHierarchy.setText("Insert in hierarchy");
 		var miInsertHierarchy = ActionTools.createMenuItem(actionInsertInHierarchy);
 		
@@ -828,7 +828,7 @@ public class GuiTools {
 		Menu menuEdit = MenuTools.createMenu(
 				"Edit single",
 				actionInverse,
-				QuPathGUI.createPluginAction("Split", SplitAnnotationsPlugin.class, qupath, null)
+				qupath.createPluginAction("Split", SplitAnnotationsPlugin.class, null)
 				);
 		
 //		Menu menuPoints = MenuTools.createMenu(

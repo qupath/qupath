@@ -249,7 +249,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		paneButtons.setPadding(new Insets(5, 5, 5, 5));
 		panel.setTop(paneButtons);
 		
-		qupath.getPreferencePanel().addChoicePropertyPreference(
+		qupath.getPreferencePane().addChoicePropertyPreference(
 				thumbnailSize, FXCollections.observableArrayList(ProjectThumbnailSize.values()), ProjectThumbnailSize.class,
 				"Project thumbnails size", "Appearance", "Choose thumbnail size for the project pane");
 		

@@ -247,22 +247,22 @@ public class WandToolCV extends BrushTool {
 			return;
 		}
 		// Add preference to adjust Wand tool behavior
-		qupath.getPreferencePanel().addPropertyPreference(wandTypeProperty(), WandType.class,
+		qupath.getPreferencePane().addPropertyPreference(wandTypeProperty(), WandType.class,
 				"Wand color type",
 				"Drawing tools",
 				"Specify colorspace when using the wand; if 'gray' then the wand uses 'darkness' without reference to the specific color");
 		
-		qupath.getPreferencePanel().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
+		qupath.getPreferencePane().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
 				"Wand smoothing",
 				"Drawing tools",
 				"Set the smoothing used by the wand tool - higher values lead to larger, smoother regions (default = 4.0)");
 		
-		qupath.getPreferencePanel().addPropertyPreference(wandSensitivityProperty(), Double.class,
+		qupath.getPreferencePane().addPropertyPreference(wandSensitivityProperty(), Double.class,
 				"Wand sensitivity",
 				"Drawing tools",
 				"Set the sensitivity of the wand tool - lower values make it pay less attention to local intensities, and act more like the brush tool (default = 2.0)");
 
-		qupath.getPreferencePanel().addPropertyPreference(wandUseOverlaysProperty(), Boolean.class,
+		qupath.getPreferencePane().addPropertyPreference(wandUseOverlaysProperty(), Boolean.class,
 				"Wand use overlays",
 				"Drawing tools",
 				"Use image overlay information to influence the regions created with the wand tool");

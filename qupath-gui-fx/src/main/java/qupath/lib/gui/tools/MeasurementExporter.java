@@ -49,12 +49,14 @@ public class MeasurementExporter {
 	
 	private List<ProjectImageEntry<BufferedImage>> imageList;
 	
+	@SuppressWarnings("javadoc")
 	public MeasurementExporter() {}
 	
 	/**
 	 * Specify what type of object should be exported. 
 	 * Default: image (root object).
 	 * @param type
+	 * @return this exporter
 	 */
 	public MeasurementExporter exportType(Class<? extends PathObject> type) {
 		this.type = type;
@@ -65,6 +67,7 @@ public class MeasurementExporter {
 	 * Specify the columns that will be included in the export.
 	 * The column names are case sensitive.
 	 * @param includeOnlyColumns
+	 * @return this exporter
 	 */
 	public MeasurementExporter includeOnlyColumns(String... includeOnlyColumns) {
 		this.includeOnlyColumns = Arrays.asList(includeOnlyColumns);
@@ -75,6 +78,7 @@ public class MeasurementExporter {
 	 * Specify the columns that will be excluded during the export.
 	 * The column names are case sensitive.
 	 * @param excludeColumns
+	 * @return this exporter
 	 */
 	public MeasurementExporter excludeColumns(String... excludeColumns) {
 		this.excludeColumns = Arrays.asList(excludeColumns);
@@ -87,6 +91,7 @@ public class MeasurementExporter {
 	 * use either tab ({@code \t}), comma ({@code ,}) or 
 	 * semicolon ({@code ;}).
 	 * @param sep
+	 * @return this exporter
 	 */
 	public MeasurementExporter separator(String sep) {
 		this.separator = sep;
@@ -96,6 +101,7 @@ public class MeasurementExporter {
 	/**
 	 * Specify the list of images ({@code ProjectImageEntry}) to export.
 	 * @param imageList
+	 * @return this exporter
 	 */
 	public MeasurementExporter imageList(List<ProjectImageEntry<BufferedImage>> imageList) {
 		this.imageList = imageList;
