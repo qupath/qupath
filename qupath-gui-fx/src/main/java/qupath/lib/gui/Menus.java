@@ -71,7 +71,6 @@ class Menus {
 					new FileMenuManager(),
 					new EditMenuManager(),
 					new ObjectsMenuManager(),
-					new ToolsMenuManager(),
 					new ViewMenuManager(),
 					new MeasureMenuManager(),
 					new AutomateMenuManager(),
@@ -92,39 +91,6 @@ class Menus {
 		return ActionTools.createSelectableAction(observable, null);
 	}
 	
-	
-	@ActionMenu("Tools")
-	public class ToolsMenuManager {
-		
-		public final Action[] TOOLS = qupath.getAvailableTools().stream().map(a -> qupath.getToolAction(a)).toArray(Action[]::new);
-		
-		public final Action SEP_0 = ActionTools.createSeparator();
-		
-		@ActionMenu("Multi-touch gestures>Turn on all gestures")
-		public final Action GESTURES_ALL = createAction(() -> {
-			PathPrefs.useScrollGesturesProperty().set(true);
-			PathPrefs.useZoomGesturesProperty().set(true);
-			PathPrefs.useRotateGesturesProperty().set(true);
-		});
-		
-		@ActionMenu("Multi-touch gestures>Turn off all gestures")
-		public final Action GESTURES_NONE = createAction(() -> {
-			PathPrefs.useScrollGesturesProperty().set(false);
-			PathPrefs.useZoomGesturesProperty().set(false);
-			PathPrefs.useRotateGesturesProperty().set(false);
-		});
-
-		@ActionMenu("Multi-touch gestures>")
-		public final Action SEP_1 = ActionTools.createSeparator();
-		
-		@ActionMenu("Multi-touch gestures>Use scroll gestures")
-		public final Action GESTURES_SCROLL = createSelectableCommandAction(PathPrefs.useScrollGesturesProperty());
-		@ActionMenu("Multi-touch gestures>Use zoom gestures")
-		public final Action GESTURES_ZOOM = createSelectableCommandAction(PathPrefs.useZoomGesturesProperty());
-		@ActionMenu("Multi-touch gestures>Use rotate gestures")
-		public final Action GESTURES_ROTATE = createSelectableCommandAction(PathPrefs.useRotateGesturesProperty());
-
-	}
 	
 	
 	@ActionMenu("Edit")
@@ -525,7 +491,7 @@ class Menus {
 		public final Action SEP_3 = ActionTools.createSeparator();
 		@ActionMenu("Zoom...>Zoom in")
 		@ActionIcon(PathIcons.ZOOM_IN)
-		@ActionAccelerator("+")
+		@ActionAccelerator("ignore shift+plus")
 		public final Action ZOOM_IN = createAction(ZoomCommand.createZoomInCommand(qupath.viewerProperty()));
 		@ActionMenu("Zoom...>Zoom out")
 		@ActionIcon(PathIcons.ZOOM_OUT)
@@ -584,6 +550,34 @@ class Menus {
 		@ActionMenu("Show log")
 		public final Action SHOW_LOG = actionManager.SHOW_LOG;
 		
+		
+		public final Action SEP_8 = ActionTools.createSeparator();
+
+		@ActionMenu("Multi-touch gestures>Turn on all gestures")
+		public final Action GESTURES_ALL = createAction(() -> {
+			PathPrefs.useScrollGesturesProperty().set(true);
+			PathPrefs.useZoomGesturesProperty().set(true);
+			PathPrefs.useRotateGesturesProperty().set(true);
+		});
+		
+		@ActionMenu("Multi-touch gestures>Turn off all gestures")
+		public final Action GESTURES_NONE = createAction(() -> {
+			PathPrefs.useScrollGesturesProperty().set(false);
+			PathPrefs.useZoomGesturesProperty().set(false);
+			PathPrefs.useRotateGesturesProperty().set(false);
+		});
+		
+		@ActionMenu("Multi-touch gestures>")
+		public final Action SEP_9 = ActionTools.createSeparator();
+		
+		@ActionMenu("Multi-touch gestures>Use scroll gestures")
+		public final Action GESTURES_SCROLL = createSelectableCommandAction(PathPrefs.useScrollGesturesProperty());
+		@ActionMenu("Multi-touch gestures>Use zoom gestures")
+		public final Action GESTURES_ZOOM = createSelectableCommandAction(PathPrefs.useZoomGesturesProperty());
+		@ActionMenu("Multi-touch gestures>Use rotate gestures")
+		public final Action GESTURES_ROTATE = createSelectableCommandAction(PathPrefs.useRotateGesturesProperty());
+
+		
 	}
 	
 	
@@ -602,17 +596,11 @@ class Menus {
 		@ActionMenu("")
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		@ActionMenu("Show TMA measurements")		
-		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
-		public final Action TMA = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(qupath, imageData));
+		public final Action TMA = qupath.getDefaultActions().MEASURE_TMA;
 		
-		@ActionMenu("Show annotation measurements")		
-		@ActionDescription("Show summary measurements for annotation objects")
-		public final Action ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(qupath, imageData));
+		public final Action ANNOTATIONS = qupath.getDefaultActions().MEASURE_ANNOTATIONS;
 		
-		@ActionMenu("Show detection measurements")		
-		@ActionDescription("Show summary measurements for detection objects")
-		public final Action DETECTIONS = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(qupath, imageData));
+		public final Action DETECTIONS = qupath.getDefaultActions().MEASURE_DETECTIONS;
 		
 		public final Action SEP_2 = ActionTools.createSeparator();
 

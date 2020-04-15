@@ -120,14 +120,11 @@ class ToolBarComponent {
 			btnMeasure.setTooltip(new Tooltip("Show measurements table"));
 			ContextMenu popupMeasurements = new ContextMenu();
 			
-			// TODO: ADD SUMMARY MEASUREMENTS AGAIN!
-			logger.warn("REMEMBER TO REINSTATE SUMMARY MEASUREMENT COMMANDS PROPERLY");
-//			popupMeasurements.getItems().addAll(
-//					ActionTools.getActionMenuItem(qupath.measureManager.TMA),
-//					ActionTools.getActionMenuItem(qupath.measureManager.ANNOTATIONS),
-//					ActionTools.getActionMenuItem(qupath.measureManager.DETECTIONS),
-//					ActionTools.getActionMenuItem(qupath.measureManager.EXPORT)
-//					);
+			popupMeasurements.getItems().addAll(
+					ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_TMA),
+					ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_ANNOTATIONS),
+					ActionTools.createMenuItem(qupath.getDefaultActions().MEASURE_DETECTIONS)
+					);
 			btnMeasure.setOnMouseClicked(e -> {
 				popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());
 			});

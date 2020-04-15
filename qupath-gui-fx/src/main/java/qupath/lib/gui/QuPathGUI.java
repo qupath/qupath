@@ -162,6 +162,7 @@ import jfxtras.scene.menu.CirclePopupMenu;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
+import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
@@ -646,6 +647,24 @@ public class QuPathGUI {
 		@ActionAccelerator("shift+a")
 		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
 		
+		/**
+		 * Show summary measurement table for TMA cores.
+		 */
+		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
+		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
+		
+		/**
+		 * Show summary measurement table for annotations.
+		 */
+		@ActionDescription("Show summary measurements for annotation objects")
+		public final Action MEASURE_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(QuPathGUI.this, imageData), "Show annotation measurements");
+		
+		/**
+		 * Show summary measurement table for detections.
+		 */
+		@ActionDescription("Show summary measurements for detection objects")
+		public final Action MEASURE_DETECTIONS = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show detection measurements");
+		
 		private DefaultActions() {
 			// This has the effect of applying the annotations
 			ActionTools.getAnnotatedActions(this);
@@ -739,6 +758,7 @@ public class QuPathGUI {
 				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Measure", "Automate", "Analyze", "Classify", "Extensions", "Help")
 				.stream().map(Menu::new).toArray(Menu[]::new)
 				);
+		
 		actions.addListener((ListChangeListener.Change<? extends Action> c) -> {
 			while (c.next()) {
 				if (c.wasPermutated()) {
@@ -750,6 +770,7 @@ public class QuPathGUI {
 				}
 			}
 		});
+		setupToolsMenu(getMenu("Tools", true));
 		
 		// Prepare for image name masking
 		projectProperty.addListener((v, o, n) -> {
@@ -1068,6 +1089,19 @@ public class QuPathGUI {
 			return fileLog;
 		}
 		return null;
+	}
+	
+	
+	/**
+	 * Set up the tools menu to listen to the available tools.
+	 * @param menu
+	 */
+	private void setupToolsMenu(Menu menu) {
+		tools.addListener((Change<? extends PathTool> c) -> refreshToolsMenu(tools, menu));
+	}
+	
+	private void refreshToolsMenu(List<PathTool> tools, Menu menu) {
+		menu.getItems().setAll(tools.stream().map(t -> ActionTools.createCheckMenuItem(getToolAction(t))).collect(Collectors.toList()));
 	}
 	
 	
@@ -2178,7 +2212,6 @@ public class QuPathGUI {
 				miRemoveColumn
 				);
 		
-		logger.warn("ADD ZOOM IN/OUT BUTTONS!");
 		Menu menuView = MenuTools.createMenu(
 				"Display",
 				ActionTools.createCheckMenuItem(defaultActions.SHOW_ANALYSIS_PANE, null),
@@ -2188,12 +2221,7 @@ public class QuPathGUI {
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 1), "100%"),
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 2), "50%"),
 				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 10), "10%"),
-				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 100), "1%"),
-				null,
-				// TODO: ADD ZOOM COMMANDS AGAIN
-//				actionManager.ZOOM_IN,
-//				actionManager.ZOOM_OUT,
-				ActionTools.createCheckMenuItem(defaultActions.ZOOM_TO_FIT, null)
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 100), "1%")
 				);
 		
 		ToggleGroup groupTools = new ToggleGroup();
