@@ -39,6 +39,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
@@ -58,6 +59,7 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.recording.ViewTrackerControlPanel;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
@@ -910,7 +912,11 @@ public class Commands {
 						"duplicateSelectedAnnotations()"));
 	}
 
-
+	/**
+	 * Make an inverse annotation for the selected objects, storing the command in the history workflow.
+	 * @param imageData
+	 * @see QP#makeInverseAnnotation(ImageData)
+	 */
 	public static void makeInverseAnnotation(ImageData<?> imageData) {
 		if (imageData == null)
 			return;
@@ -921,6 +927,26 @@ public class Commands {
 	}
 	
 	
+	/**
+	 * Show a dialog to track the viewed region of an image.
+	 * @param qupath
+	 */
+	public static void showViewTracker(QuPathGUI qupath) {
+		var dialog = new Stage();
+		dialog.initOwner(qupath.getStage());
+		dialog.setTitle("Tracking");
+		final ViewTrackerControlPanel panel = new ViewTrackerControlPanel(qupath.getViewer());
+		StackPane pane = new StackPane(panel.getNode());
+		dialog.setScene(new Scene(pane));
+		dialog.setResizable(false);
+		dialog.setAlwaysOnTop(true);
+		dialog.setOnHidden(e -> {
+			if (panel != null && panel.getViewTracker() != null)
+				panel.getViewTracker().setRecording(false);
+		});
+		dialog.show();
+	}
+
 	
 	
 //	/**
@@ -1375,11 +1401,18 @@ public class Commands {
 	}
 
 
-	public static void promptToSimplifyShape(ImageData<?> imageData, double altitudeThreshold) {
+	/**
+	 * Show a prompt to selected annotations in a hierarchy.
+	 * @param imageData the current image data
+	 * @param altitudeThreshold default altitude value for simplification
+	 */
+	public static void promptToSimplifySelectedAnnotations(ImageData<?> imageData, double altitudeThreshold) {
 			PathObjectHierarchy hierarchy = imageData.getHierarchy();
-			PathObject pathObject = hierarchy.getSelectionModel().getSelectedObject();
-			if (!(pathObject instanceof PathAnnotationObject) || pathObject.hasChildren() || !RoiTools.isShapeROI(pathObject.getROI())) {
-				logger.error("Only annotations without child objects can be simplified");
+			List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
+					.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
+					.collect(Collectors.toList());
+			if (pathObjects.isEmpty()) {
+				Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
 				return;
 			}
 	
@@ -1396,23 +1429,19 @@ public class Commands {
 			}
 			
 			long startTime = System.currentTimeMillis();
-			ROI pathROI = pathObject.getROI();
-			PathObject pathObjectNew = null;
-			if (pathROI instanceof PolygonROI) {
-				PolygonROI polygonROI = (PolygonROI)pathROI;
-				polygonROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
-				pathObjectNew = PathObjects.createAnnotationObject(polygonROI, pathObject.getPathClass(), pathObject.getMeasurementList());
-			} else {
-				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
-				pathObjectNew = PathObjects.createAnnotationObject(pathROI, pathObject.getPathClass(), pathObject.getMeasurementList());			
+			for (var pathObject : pathObjects) {
+				ROI pathROI = pathObject.getROI();
+				if (pathROI instanceof PolygonROI) {
+					PolygonROI polygonROI = (PolygonROI)pathROI;
+					polygonROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
+				} else {
+					pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
+				}
+				((PathAnnotationObject)pathObject).setROI(pathROI);
 			}
 			long endTime = System.currentTimeMillis();
-	//		logger.debug("Polygon simplified in " + (endTime - startTime)/1000. + " seconds");
-			logger.debug("Shape simplified in " + (endTime - startTime) + " ms");
-			hierarchy.removeObject(pathObject, true);
-			hierarchy.addPathObject(pathObjectNew);
-			hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
-	//		viewer.setSelectedObject(pathObjectNew);
+			logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
+			hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
 		}
 
 
@@ -1559,6 +1588,11 @@ public class Commands {
 			scriptEditor.showEditor();
 	}
 
+	/**
+	 * Create a dialog to monitor memory usage.
+	 * @param qupath
+	 * @return
+	 */
 	public static Stage createMemoryMonitorDialog(QuPathGUI qupath) {
 		return new MemoryMonitorDialog(qupath).getStage();
 	}

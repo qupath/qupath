@@ -93,24 +93,28 @@ public class OpenCVExtension implements QuPathExtension {
 
 	@Override
 	public void installExtension(QuPathGUI qupath) {
-    	// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
-    	if (!GeneralTools.isWindows()) {
-    		openblas.blas_set_num_threads(1);
-    	}
 
     	// Add most commands
 		addQuPathCommands(qupath);
 		
-		// Install the Wand tool
-		Loader.load(opencv_core.class);
-		var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand tool",
-				IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
-		logger.debug("Installing wand tool");
-		Platform.runLater(() -> {
-			qupath.installTool(wandTool, new KeyCodeCombination(KeyCode.W));
+		var t = new Thread(() -> {
+	    	// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
+	    	if (!GeneralTools.isWindows()) {
+	    		openblas.blas_set_num_threads(1);
+	    	}
+	    	
+			// Install the Wand tool
+			Loader.load(opencv_core.class);
+			var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand tool",
+					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
+			logger.debug("Installing wand tool");
+			Platform.runLater(() -> {
+				qupath.installTool(wandTool, new KeyCodeCombination(KeyCode.W));
+			});
+			
+			logger.debug("Loading OpenCV classes");
 		});
-		
-		logger.debug("Loading OpenCV classes");
+		t.start();
 	}
 	
 	@Override

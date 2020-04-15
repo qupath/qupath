@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels.survival;
+package qupath.lib.gui.tma;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -101,7 +101,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  * @author Pete Bankhead
  *
  */
-public class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchyListener {
+class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchyListener {
 
 	final private static Logger logger = LoggerFactory.getLogger(KaplanMeierDisplay.class);
 

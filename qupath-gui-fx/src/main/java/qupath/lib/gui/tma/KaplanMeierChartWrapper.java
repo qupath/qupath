@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels.survival;
+package qupath.lib.gui.tma;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,7 +80,7 @@ import qupath.lib.gui.tools.ChartTools;
  * @author Pete Bankhead
  *
  */
-public class KaplanMeierChartWrapper {
+class KaplanMeierChartWrapper {
 	
 	final private static Logger logger = LoggerFactory.getLogger(KaplanMeierChartWrapper.class);
 

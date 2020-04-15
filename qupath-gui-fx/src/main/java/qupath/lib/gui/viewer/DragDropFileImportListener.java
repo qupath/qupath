@@ -69,6 +69,10 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 	
 	private List<FileDropHandler> fileDropHandlers = new ArrayList<>();
 
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 */
 	public DragDropFileImportListener(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -314,13 +318,22 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
     
     
     /**
-     * Interface to define a new file handler for a particular extension.
+     * Interface to define a new file drop handler for a particular kind of file.
      * 
      * @author Pete Bankhead
      *
      */
     public static interface FileDropHandler {
     	
+    	/**
+    	 * Handle file drop onto a viewer.
+    	 * This makes it possible to drop images (for example) onto a specific viewer to open them in that viewer, 
+    	 * irrespective of whether the viewer is active currently.
+    	 * 
+    	 * @param viewer the active viewer, or the viewer only which the files were dropped
+    	 * @param list the dropped files
+    	 * @return true if the handler processed the file drop event
+    	 */
     	public boolean handleFileDrop(final QuPathViewer viewer, final List<File> list);
     	
     }

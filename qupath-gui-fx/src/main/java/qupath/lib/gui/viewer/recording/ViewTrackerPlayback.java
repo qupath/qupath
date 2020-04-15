@@ -24,7 +24,6 @@
 package qupath.lib.gui.viewer.recording;
 
 import java.awt.Dimension;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
 
@@ -117,10 +116,10 @@ class ViewTrackerPlayback {
 	
 	
 	static void resizeViewer(QuPathViewer viewer, Dimension newSize) {
-		if (viewer.getSize().equals(newSize))
+		if (DefaultViewTracker.getSize(viewer).equals(newSize))
 			return;
-		int dw = newSize.width - viewer.getWidth();
-		int dh = newSize.height - viewer.getHeight();
+		double dw = newSize.width - viewer.getView().getWidth();
+		double dh = newSize.height - viewer.getView().getHeight();
 //		System.out.println("DW: " + dw);
 		Window window = viewer.getView().getScene().getWindow();
 		window.setWidth(window.getWidth() + dw);
@@ -199,17 +198,17 @@ class ViewTrackerPlayback {
 		viewer.setCenterPixelLocation(imageBounds.x + imageBounds.width * .5, imageBounds.y + imageBounds.height * .5);
 		
 		
-		if (frame.hasCursorPosition()) {
-			Point2D p2d = viewer.imagePointToComponentPoint(frame.getCursorPosition(), null, false);
-			Point p = new Point((int)(p2d.getX() + .5), (int)(p2d.getY() + .5));
-			
-//			// TODO: Check displaying cursor position?
-//			SwingUtilities.convertPointToScreen(p, viewer);
-//			robot.mouseMove(p.x, p.y);
-			
-			// Drawing the cursor does not really work, because the viewer overrides it
-//			viewer.setCursor(Cursor.getPredefinedCursor(frame.getCursorType()));
-		}
+//		if (frame.hasCursorPosition()) {
+//			Point2D p2d = viewer.imagePointToComponentPoint(frame.getCursorPosition(), null, false);
+//			Point p = new Point((int)(p2d.getX() + .5), (int)(p2d.getY() + .5));
+//			
+////			// TODO: Check displaying cursor position?
+////			SwingUtilities.convertPointToScreen(p, viewer);
+////			robot.mouseMove(p.x, p.y);
+//			
+//			// Drawing the cursor does not really work, because the viewer overrides it
+////			viewer.setCursor(Cursor.getPredefinedCursor(frame.getCursorType()));
+//		}
 		
 		if (frame.hasEyePosition()) {
 			Point2D p2d = frame.getEyePosition();

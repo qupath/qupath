@@ -68,11 +68,8 @@ import qupath.lib.regions.RegionRequest;
 
 
 /**
- * An overlay capable of painting a PathObjectHierarchy, *except* for any 
- * TMA grid (which is handled by TMAGridOverlay).
- * <p>
- * TODO: Reconsider separation of hierarchy-drawing overlays whenever a more complete 
- * 'layer' system is in place.
+ * An overlay capable of painting a {@link PathObjectHierarchy}, <i>except</i> for any 
+ * TMA grid (which is handled by {@link TMAGridOverlay}).
  * 
  * @author Pete Bankhead
  *
@@ -95,6 +92,12 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	
 	transient private DetectionComparator comparator = new DetectionComparator();
 
+	/**
+	 * Constructor.
+	 * @param regionStore region store to cache image tiles
+	 * @param overlayOptions overlay options to control display
+	 * @param imageData current image data
+	 */
 	public HierarchyOverlay(final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
 		super(overlayOptions, imageData);
 		this.regionStore = regionStore;

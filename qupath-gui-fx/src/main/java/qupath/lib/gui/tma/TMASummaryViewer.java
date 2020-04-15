@@ -142,7 +142,6 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
-import qupath.lib.gui.panels.survival.KaplanMeierDisplay;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.entries.DefaultTMAEntry;
 import qupath.lib.gui.tma.entries.TMAEntry;

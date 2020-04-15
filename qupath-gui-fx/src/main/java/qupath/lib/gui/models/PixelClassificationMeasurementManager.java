@@ -47,7 +47,7 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  * @author Pete Bankhead
  */
-public class PixelClassificationMeasurementManager {
+class PixelClassificationMeasurementManager {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationMeasurementManager.class);
 	

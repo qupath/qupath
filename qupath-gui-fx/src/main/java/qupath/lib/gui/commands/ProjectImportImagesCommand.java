@@ -312,7 +312,6 @@ class ProjectImportImagesCommand {
 					else
 						updateMessage("Importing " + projectImages.size() + " images from existing projects");
 					for (var temp : projectImages) {
-						ProjectImageEntry<BufferedImage> attempted = null;
 						try {
 							project.addDuplicate(temp, true);
 						} catch (Exception e) {
@@ -598,6 +597,7 @@ class ProjectImportImagesCommand {
 			entry.setThumbnail(img);
 			
 			// Pyramidalize this if we need to
+			@SuppressWarnings("resource")
 			ImageServer<BufferedImage> server2 = server;
 			int minPyramidDimension = PathPrefs.minPyramidDimensionProperty().get();
 			if (pyramidizeSingleResolution && server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > minPyramidDimension) {

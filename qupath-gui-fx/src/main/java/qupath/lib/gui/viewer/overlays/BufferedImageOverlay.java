@@ -47,7 +47,7 @@ import qupath.lib.regions.ImageRegion;
 
 /**
  * An overlay used to display one or more {@code BufferedImage} objects on top of a primary image shown in a viewer.
- * 
+ * <p>
  * The scaling for the {@code BufferedImage} is determined by an associated {@code ImageRegion}.
  * 
  * @author Pete Bankhead

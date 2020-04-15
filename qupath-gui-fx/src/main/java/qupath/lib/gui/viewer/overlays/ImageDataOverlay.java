@@ -28,7 +28,7 @@ import java.awt.image.BufferedImage;
 import qupath.lib.images.ImageData;
 
 /**
- * A PathOverlay that makes use of an ImageData for its display.
+ * A {@link PathOverlay} that makes use of an {@link ImageData} for its display.
  * 
  * @author Pete Bankhead
  *
@@ -36,19 +36,15 @@ import qupath.lib.images.ImageData;
 public interface ImageDataOverlay extends PathOverlay {
 
 	/**
-	 * Notify the overlay that any associated ImageData has changed.  The overlay may or may not
+	 * Notify the overlay that any associated {@link ImageData} has changed.  The overlay may or may not
 	 * care about this.
-	 * <p>
-	 * Note: This 
-	 * <p>
-	 * TODO: Consider whether overlays should take care of their own ImageData changes.
 	 * @param imageData
 	 */
 	public void setImageData(ImageData<BufferedImage> imageData);
 	
 	/**
-	 * Check if an ImageData change is supported.  Some overlays only make sense with specific
-	 * ImageDatas (e.g. if connected to a specific set of detected objects), and should be
+	 * Check if an {@link ImageData} change is supported.  Some overlays only make sense with specific
+	 * image data objects (e.g. if connected to a specific set of detected objects), and should be
 	 * removed if this changes.
 	 * @return
 	 */

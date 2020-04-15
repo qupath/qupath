@@ -36,34 +36,74 @@ import qupath.lib.gui.prefs.PathPrefs;
  */
 public class GridLines {
 	
+	/**
+	 * Starting x coordinate for any counting grid (usually 0).
+	 * @return
+	 * @see PathPrefs#gridStartXProperty()
+	 */
 	public double getStartX() {
 		return PathPrefs.gridStartXProperty().get();
 	}
 
+	/**
+	 * Starting y coordinate for any counting grid (usually 0).
+	 * @return
+	 * @see PathPrefs#gridStartYProperty()
+	 */
 	public double getStartY() {
 		return PathPrefs.gridStartYProperty().get();
 	}
 
+	/**
+	 * Horizontal spacing between lines for any counting grid.
+	 * @return
+	 * @see PathPrefs#gridSpacingXProperty()
+	 */
 	public double getSpaceX() {
 		return PathPrefs.gridSpacingXProperty().get();
 	}
-
+	
+	/**
+	 * Vertical spacing between lines for any counting grid.
+	 * @return
+	 * @see PathPrefs#gridSpacingYProperty()
+	 */
 	public double getSpaceY() {
 		return PathPrefs.gridSpacingYProperty().get();
 	}
 	
+	/**
+	 * Set the horizontal spacing between lines for any counting grid.
+	 * @param spaceX
+	 * @see PathPrefs#gridSpacingXProperty()
+	 */
 	public void setSpaceX(double spaceX) {
 		PathPrefs.gridSpacingXProperty().set(spaceX);
 	}
 
+	/**
+	 * Set the vertical spacing between lines for any counting grid.
+	 * @param spaceY
+	 * @see PathPrefs#gridSpacingYProperty()
+	 */
 	public void setSpaceY(double spaceY) {
 		PathPrefs.gridSpacingYProperty().set(spaceY);
 	}
 	
+	/**
+	 * Query whether to use calibrated units when calculating coordinates for any counting grid.
+	 * @return
+	 * @see PathPrefs#gridScaleMicronsProperty()
+	 */
 	public boolean useMicrons() {
 		return PathPrefs.gridScaleMicronsProperty().get();
 	}
 	
+	/**
+	 * Specify whether to use calibrated units when calculating coordinates for any counting grid.
+	 * @param useMicrons
+	 * @see PathPrefs#gridScaleMicronsProperty()
+	 */
 	public void setUseMicrons(boolean useMicrons) {
 		PathPrefs.gridScaleMicronsProperty().set(useMicrons);
 	}

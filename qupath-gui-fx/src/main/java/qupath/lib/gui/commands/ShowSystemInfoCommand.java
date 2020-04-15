@@ -133,6 +133,8 @@ class ShowSystemInfoCommand {
 		for (String p : System.getProperty("java.class.path").split(File.pathSeparator))
 			sb.append("\n      ").append(p);
 		
+		logger.trace("Creating system info string:\n{}", sb);
+		
 		return sb.toString();
 	}
 	

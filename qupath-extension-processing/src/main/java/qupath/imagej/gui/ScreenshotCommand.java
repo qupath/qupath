@@ -36,6 +36,7 @@ import javax.swing.SwingUtilities;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ServerTools;
 
 /**
@@ -74,8 +75,8 @@ class ScreenshotCommand implements Runnable {
 		if (viewer.getServer() != null)
 			name = WindowManager.getUniqueName("Screenshot - " + ServerTools.getDisplayableImageName(viewer.getServer()));
 		ImagePlus imp = new ImagePlus(name, img);
-		double pixelWidth = viewer.getDisplayedPixelWidthMicrons();
-		double pixelHeight = viewer.getDisplayedPixelHeightMicrons();
+		double pixelWidth = getDisplayedPixelWidthMicrons(viewer);
+		double pixelHeight = getDisplayedPixelHeightMicrons(viewer);
 		if (!Double.isNaN(pixelWidth + pixelHeight)) {
 			Calibration cal = imp.getCalibration();
 			cal.pixelWidth = pixelWidth;
@@ -89,6 +90,21 @@ class ScreenshotCommand implements Runnable {
 		Interpreter.batchMode = false; // Make sure we aren't in batch mode, so that image will display
 		
 		SwingUtilities.invokeLater(() -> imp.show());
+	}
+	
+	
+	private double getDisplayedPixelWidthMicrons(QuPathViewer viewer) {
+		ImageServer<BufferedImage> server = viewer.getServer();
+		if (server == null)
+			return Double.NaN;
+		return server.getPixelCalibration().getPixelWidthMicrons() * viewer.getDownsampleFactor();
+	}
+
+	private double getDisplayedPixelHeightMicrons(QuPathViewer viewer) {
+		ImageServer<BufferedImage> server = viewer.getServer();
+		if (server == null)
+			return Double.NaN;
+		return server.getPixelCalibration().getPixelHeightMicrons() * viewer.getDownsampleFactor();
 	}
 	
 }

@@ -65,9 +65,9 @@ import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Command to enable editing of project metadata.
- * 
+ * <p>
  * TODO: Support copying and pasting tables, to allow better editing within a spreadsheet application.
- * 
+ * <p>
  * TODO: Support adding/removing metadata columns.
  * 
  * @author Pete Bankhead
@@ -78,12 +78,7 @@ class ProjectMetadataEditorCommand {
 	private final static Logger logger = LoggerFactory.getLogger(ProjectMetadataEditorCommand.class);
 
 	private final static String IMAGE_NAME = "Image name";
-	
-	private QuPathGUI qupath;
-	
-	public ProjectMetadataEditorCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
+
 	
 	public static void showProjectMetadataEditor(QuPathGUI qupath) {
 		Project<?> project = qupath.getProject();
@@ -130,7 +125,7 @@ class ProjectMetadataEditorCommand {
 		// Handle deleting entries
 		table.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
 			if (e.getCode() == KeyCode.BACK_SPACE || e.getCode() == KeyCode.DELETE) {
-				List<TablePosition> positions = table.getSelectionModel().getSelectedCells().stream().filter(
+				var positions = table.getSelectionModel().getSelectedCells().stream().filter(
 						p -> !IMAGE_NAME.equals(p.getTableColumn().getText())).collect(Collectors.toList());
 				if (positions.isEmpty())
 					return;
@@ -226,7 +221,7 @@ class ProjectMetadataEditorCommand {
 	 * @param warnIfDiscontinuous If true, a warning is shown if a discontinous selection is made.
 	 */
 	private static void copySelectedCellsToClipboard(final TableView<?> table, final boolean warnIfDiscontinuous) {
-		List<TablePosition> positions = table.getSelectionModel().getSelectedCells();
+		var positions = table.getSelectionModel().getSelectedCells();
 		if (positions.isEmpty())
 			return;
 		
@@ -251,7 +246,7 @@ class ProjectMetadataEditorCommand {
 	 * 
 	 * @param table
 	 */
-	private static void copyEntireTableToClipboard(final TableView<?> table) {
+	private static <T> void copyEntireTableToClipboard(final TableView<T> table) {
 		List<TablePosition> positions = new ArrayList<>();
 		for (TableColumn<?, ?> column : table.getColumns()) {
 			for (int row = 0; row < table.getItems().size(); row++) {
@@ -300,7 +295,7 @@ class ProjectMetadataEditorCommand {
 			return;
 		}
 		
-		List<TablePosition> positions = table.getSelectionModel().getSelectedCells();
+		var positions = table.getSelectionModel().getSelectedCells();
 		if (positions.isEmpty()) {
 			logger.warn("No table cells selected");
 			return;

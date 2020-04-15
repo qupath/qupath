@@ -97,7 +97,6 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				String username = lastUsername;
 				char[] password = null;
 				List<String> cleanedArgs = new ArrayList<>();
-				String authenticationFile = null;
 				int i = 0;
 				while (i < args.length-1) {
 					String name = args[i++];
@@ -340,7 +339,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			return token;
 		}
 
-		private Map getMapJSON(String base, String... query)
+		private Map<?, ?> getMapJSON(String base, String... query)
 				throws JsonSyntaxException, MalformedURLException, IOException {
 			return parseJSON(Map.class, base, query);
 		}
@@ -389,6 +388,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 
 	private class OmeroAPIVersion {
 
+		@SuppressWarnings("unused")
 		private String version;
 
 		@SerializedName("url:base")

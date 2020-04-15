@@ -356,12 +356,15 @@ class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	@Override
 	public void visibleRegionChanged(final QuPathViewer viewer, final Shape shape) {
 		// If the image has been updated, then it could be because a change of view that we want to track
-		if (lastFrame != null && lastFrame.getImageShape().equals(shape) && lastFrame.getSize().equals(viewer.getSize()))
+		if (lastFrame != null && lastFrame.getImageShape().equals(shape) && lastFrame.getSize().equals(getSize(viewer)))
 			return;
 
-		addFrame(System.currentTimeMillis(), shape, viewer.getSize(), getMousePointIfRequired(), null, null);
+		addFrame(System.currentTimeMillis(), shape, getSize(viewer), getMousePointIfRequired(), null, null);
 	}
 
+	static Dimension getSize(QuPathViewer viewer) {
+		return new Dimension((int)Math.round(viewer.getView().getWidth()), (int)Math.round(viewer.getView().getHeight()));
+	}
 
 	protected Point2D getMousePointIfRequired() {
 		// Get the mouse position, if required
@@ -399,7 +402,7 @@ class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		@Override
 		public void handle(MouseEvent event) {
 			Point2D p = viewer.componentPointToImagePoint(event.getX(), event.getY(), null, false);
-			addFrame(System.currentTimeMillis(), viewer.getDisplayedRegionShape(), viewer.getSize(), p, null, null);
+			addFrame(System.currentTimeMillis(), viewer.getDisplayedRegionShape(), getSize(viewer), p, null, null);
 		}		
 		
 	}

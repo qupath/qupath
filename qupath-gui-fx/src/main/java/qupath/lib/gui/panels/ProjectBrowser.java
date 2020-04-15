@@ -974,27 +974,6 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	
 	/**
-	 * Select the TreeItem where TreeItem.getValue() == object after searching recursively from the specified item.
-	 * 
-	 * @param tree
-	 * @param item
-	 * @param object
-	 * @return Tree if a tree item was found and selected, false otherwise.
-	 */
-	private static <T> boolean recursiveSelectObject(final TreeView<T> tree, final TreeItem<T> item, final T object) {
-		if (item.getValue() == object) {
-			tree.getSelectionModel().select(item);
-			return true;
-		}
-		for (TreeItem<T> item2 : item.getChildren()) {
-			if (recursiveSelectObject(tree, item2, object))
-				return true;
-		}
-		return false;
-	}
-	
-	
-	/**
 	 * The the name for a specified ProjectImageEntry.
 	 * 
 	 * This works hard to do its job... including renaming any data files accordingly.

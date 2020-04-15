@@ -1,5 +1,6 @@
 package qupath.lib.gui;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,6 +27,7 @@ import qupath.lib.gui.commands.SparseImageServerCommand;
 import qupath.lib.gui.commands.SpecifyAnnotationCommand;
 import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.commands.ZoomCommand;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.CommandFinderTools;
@@ -44,6 +46,14 @@ import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 
 class Menus {
+	
+	private final static String URL_DOCS       = "https://qupath.readthedocs.io";
+	private final static String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
+	private final static String URL_CITATION   = "https://qupath.readthedocs.io/en/latest/docs/intro/citing.html";
+	private final static String URL_BUGS       = "https://github.com/qupath/qupath/issues";
+	private final static String URL_FORUM      = "https://forum.image.sc/tags/qupath";
+	private final static String URL_SOURCE     = "https://github.com/qupath/qupath";
+
 	
 	private QuPathGUI qupath;
 	private ActionManager actionManager;
@@ -282,7 +292,13 @@ class Menus {
 		public final Action METADATA = qupath.createProjectAction(project -> ProjectCommands.showProjectMetadataEditor(qupath));
 		
 		@ActionMenu("Project...>Check project URIs")
-		public final Action CHECK_URIS = qupath.createProjectAction(project -> ProjectCommands.promptToCheckURIs(project, false));
+		public final Action CHECK_URIS = qupath.createProjectAction(project -> {
+			try {
+				ProjectCommands.promptToCheckURIs(project, false);
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Check project URIs", e);
+			}
+		});
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
@@ -435,7 +451,7 @@ class Menus {
 		@ActionMenu("Annotations...>Merge selected")
 		public final Action MERGE_SELECTED = qupath.createImageDataAction(imageData -> Commands.mergeSelectedAnnotations(imageData));
 		@ActionMenu("Annotations...>Simplify shape")
-		public final Action SIMPLIFY_SHAPE = qupath.createImageDataAction(imageData -> Commands.promptToSimplifyShape(imageData, 1.0));
+		public final Action SIMPLIFY_SHAPE = qupath.createImageDataAction(imageData -> Commands.promptToSimplifySelectedAnnotations(imageData, 1.0));
 
 	}
 	
@@ -553,7 +569,8 @@ class Menus {
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 		
-		public final Action VIEW_TRACKER = actionManager.VIEW_TRACKER;
+		@ActionMenu("Show viewer tracking panel")
+		public final Action VIEW_TRACKER = qupath.createImageDataAction(imageData -> Commands.showViewTracker(qupath));
 		public final Action SLIDE_LABEL = createSelectableCommandAction(qupath.slideLabelView.showingProperty());
 
 		public final Action SEP_7 = ActionTools.createSeparator();
@@ -616,10 +633,10 @@ class Menus {
 		public final Action SEP_1 = ActionTools.createSeparator();
 
 		@ActionMenu("Documentation (web)")
-		public final Action DOCS = createAction(() -> QuPathGUI.launchBrowserWindow(QuPathGUI.URL_DOCS));
+		public final Action DOCS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_DOCS));
 		
 		@ActionMenu("Demo videos (web)")
-		public final Action DEMOS = createAction(() -> QuPathGUI.launchBrowserWindow(QuPathGUI.URL_VIDEOS));
+		public final Action DEMOS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_VIDEOS));
 
 		@ActionMenu("Check for updates (web)")
 		public final Action UPDATE = createAction(() -> qupath.checkForUpdate(false));
@@ -627,16 +644,16 @@ class Menus {
 		public final Action SEP_2 = ActionTools.createSeparator();
 		
 		@ActionMenu("Cite QuPath (web)")
-		public final Action CITE = createAction(() -> QuPathGUI.launchBrowserWindow(QuPathGUI.URL_CITATION));
+		public final Action CITE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_CITATION));
 		
 		@ActionMenu("Report bug (web)")
-		public final Action BUGS = createAction(() -> QuPathGUI.launchBrowserWindow(QuPathGUI.URL_BUGS));
+		public final Action BUGS = createAction(() -> QuPathGUI.launchBrowserWindow(URL_BUGS));
 		
 		@ActionMenu("View user forum (web)")
-		public final Action FORUM = createAction(() -> QuPathGUI.launchBrowserWindow(QuPathGUI.URL_FORUM));
+		public final Action FORUM = createAction(() -> QuPathGUI.launchBrowserWindow(URL_FORUM));
 		
 		@ActionMenu("View source code (web)")
-		public final Action SOURCE = createAction(() -> QuPathGUI.launchBrowserWindow(QuPathGUI.URL_SOURCE));
+		public final Action SOURCE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_SOURCE));
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 

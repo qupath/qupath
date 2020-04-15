@@ -51,7 +51,7 @@ import qupath.lib.objects.PathObject;
  * @author Pete Bankhead
  *
  */
-public class Scalebar implements QuPathViewerListener {
+class Scalebar implements QuPathViewerListener {
 	
 	private QuPathViewer viewer;
 	private double preferredLength;

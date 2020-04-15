@@ -24,27 +24,30 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 
+/**
+ * Helper class implementing simple 'single-method' commands related to projects.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 public class ProjectCommands {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProjectCommands.class);
-	
-	public static boolean promptToCheckURIs(Project<?> project, boolean onlyIfMissing) {
-		try {
-			return checkURIs(project, onlyIfMissing);
-		} catch (IOException e) {
-			Dialogs.showErrorMessage("Check project URIs", e);
-			return false;
-		}
-	}
 
-	public static boolean checkURIs(Project<?> project, boolean onlyIfMissing) throws IOException {
+	/**
+	 * Check the URIs within a project, prompting the user to correct any broken links if required.
+	 * @param project the project containing URIs to check
+	 * @param onlyIfMissing if true, only display a prompt if some links are broken
+	 * @return true if the dialog was shown and closed successfully, false if it was cancelled
+	 * @throws IOException
+	 */
+	public static boolean promptToCheckURIs(Project<?> project, boolean onlyIfMissing) throws IOException {
 		var manager = new ProjectCheckUris.ProjectUriManager(project);
 		if (!onlyIfMissing || manager.countOriginalItems(ProjectCheckUris.UriStatus.MISSING) > 0) {
 			return manager.showDialog();
 		}
 		return true;
 	}
-	
 	
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
 		return ProjectImportImagesCommand.promptToImportImages(qupath);

@@ -53,7 +53,6 @@ public class ViewTrackerControlPanel {
 	private static final Node iconPlay = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY);
 	private static final Node iconPlayStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY_STOP);
 	
-	private QuPathGUI qupath;
 	private ViewTracker tracker;
 	
 	private ToolBar toolbar = new ToolBar();
@@ -62,9 +61,8 @@ public class ViewTrackerControlPanel {
 	 * Constructor.
 	 * @param viewer the viewer to track
 	 */
-	public ViewTrackerControlPanel(final QuPathGUI qupath, final QuPathViewer viewer) {
+	public ViewTrackerControlPanel(final QuPathViewer viewer) {
 		this(viewer, ViewTrackers.createViewTracker(viewer));
-		this.qupath = qupath;
 	}
 
 	/**

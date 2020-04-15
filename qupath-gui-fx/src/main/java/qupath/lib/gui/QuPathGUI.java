@@ -42,8 +42,6 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -104,6 +102,7 @@ import javafx.concurrent.Task;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -177,7 +176,6 @@ import qupath.lib.gui.commands.CountingPanelCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.lib.gui.commands.ViewTrackerCommand;
 import qupath.lib.gui.dialogs.DialogHelper;
 import qupath.lib.gui.dialogs.DialogHelperFX;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -512,12 +510,9 @@ public class QuPathGUI {
 		Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
 		Action SHOW_DETECTIONS = createSelectableCommandAction(overlayOptions.showDetectionsProperty(), "Show detections", IconFactory.PathIcons.DETECTIONS, new KeyCodeCombination(KeyCode.D));
 		public Action FILL_DETECTIONS = createSelectableCommandAction(overlayOptions.fillDetectionsProperty(), "Fill detections", IconFactory.PathIcons.DETECTIONS_FILL, new KeyCodeCombination(KeyCode.F));	
-		public Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
-		
-		public Action DETECTIONS_TO_POINTS = createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true), "Convert detections to points");
+		private Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
 		
 		// Viewer actions
-		Action VIEW_TRACKER = ActionTools.createAction(new ViewTrackerCommand(QuPathGUI.this), "Show tracking panel", null, new KeyCodeCombination(KeyCode.T, KeyCombination.SHIFT_DOWN)); // TODO: Note: this only works with the original viewer
 		Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
 		Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
 		
@@ -525,7 +520,6 @@ public class QuPathGUI {
 		Action SHOW_LOG = ActionTools.createAction(new LogViewerCommand(QuPathGUI.this), "Show log", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
 
 		Action SHOW_ANALYSIS_PANEL = createShowAnalysisPaneAction();
-		public Action USE_SELECTED_COLOR = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
 		
 	}
 	
@@ -1645,6 +1639,9 @@ public class QuPathGUI {
 		
 		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
 		actions.addAll(new Menus(this).getActions());
+		
+		// Add a recent projects menu
+		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
 
 //		analysisPanel = createAnalysisPanel();
 		initializeAnalysisPanel();
@@ -1799,7 +1796,7 @@ public class QuPathGUI {
 	
 	void setupViewer(final QuPathViewerPlus viewer) {
 		
-		viewer.setFocusable(true);
+		viewer.getView().setFocusTraversable(true);
 		
 		// Update active viewer as required
 		viewer.getView().focusedProperty().addListener((e, f, nowFocussed) -> {
@@ -3101,24 +3098,13 @@ public class QuPathGUI {
 	}
 	
 	
-	final static String URL_DOCS       = "https://qupath.readthedocs.io";
-	final static String URL_VIDEOS     = "https://www.youtube.com/c/QuPath";
-	final static String URL_CITATION   = "https://qupath.readthedocs.io/en/latest/docs/intro/citing.html";
-	final static String URL_BUGS       = "https://github.com/qupath/qupath/issues";
-	final static String URL_FORUM      = "https://forum.image.sc/tags/qupath";
-	final static String URL_SOURCE     = "https://github.com/qupath/qupath";
-
-	
-	
-	
 	private Menu createRecentProjectsMenu() {
 		
-		// Create a recent projects list
+		// Create a recent projects list in the File menu
 		ObservableList<URI> recentProjects = PathPrefs.getRecentProjectList();
-		// TODO: ADD RECENT ITEMS!!!
 		Menu menuRecent = MenuTools.createMenu("Recent projects...");
 		
-		menuRecent.setOnMenuValidation(e -> {
+		EventHandler<Event> validationHandler = e -> {
 			menuRecent.getItems().clear();
 			for (URI uri : recentProjects) {
 				if (uri == null)
@@ -3138,6 +3124,14 @@ public class QuPathGUI {
 				});
 				menuRecent.getItems().add(item);
 			}
+		};
+		
+		// Ensure the menu is populated
+		menuRecent.parentMenuProperty().addListener((v, o, n) -> {
+			if (o != null && o.getOnMenuValidation() == validationHandler)
+				o.setOnMenuValidation(null);
+			if (n != null)
+				n.setOnMenuValidation(validationHandler);
 		});
 		
 		return menuRecent;
@@ -3703,7 +3697,7 @@ public class QuPathGUI {
 		if (project != null) {
 			try {
 				// Show URI manager dialog if we have any missing URIs
-				if (!ProjectCommands.checkURIs(project, true))
+				if (!ProjectCommands.promptToCheckURIs(project, true))
 					return;
 			} catch (IOException e) {
 				Dialogs.showErrorMessage("Update URIs", e);

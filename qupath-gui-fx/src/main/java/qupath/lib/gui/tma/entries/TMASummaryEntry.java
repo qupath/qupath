@@ -34,13 +34,15 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.scene.image.Image;
-import qupath.lib.gui.tma.TMASummaryViewer;
 import qupath.lib.objects.TMACoreObject;
 
 
@@ -52,6 +54,8 @@ import qupath.lib.objects.TMACoreObject;
  *
  */
 public class TMASummaryEntry implements TMAEntry {
+	
+	private final static Logger logger = LoggerFactory.getLogger(TMASummaryEntry.class);
 	
 	public static Set<String> survivalSet = new HashSet<>(
 			Arrays.asList(
@@ -173,7 +177,7 @@ public class TMASummaryEntry implements TMAEntry {
 			double min = getMinMeasurement(entries, name, skipMissing.get());
 			if (max == min || (Double.isNaN(max) && Double.isNaN(min)))
 				return max;
-			TMASummaryViewer.logger.warn("Measurement {} for {} has different values!", name, this);
+			logger.warn("Measurement {} for {} has different values!", name, this);
 			return Double.NaN;
 		}
 		return method.getValue().calculate(entries, name, skipMissing.get());

@@ -15,7 +15,7 @@ import qupath.lib.roi.PolylineROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
 
-public abstract class AbstractPolyROITool extends AbstractPathROITool {
+abstract class AbstractPolyROITool extends AbstractPathROITool {
 	
 	private final static Logger logger = LoggerFactory.getLogger(AbstractPolyROITool.class);
 

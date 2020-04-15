@@ -52,7 +52,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 /**
  * QuPath command to display key-presses and mouse movement logged when interacting
  * with the main Window.
- * 
+ * <p>
  * This is useful for demos and tutorials where shortcut keys are used.
  *
  * @author Pete Bankhead
@@ -96,6 +96,8 @@ class InputDisplayDialog implements EventHandler<InputEvent> {
 	}
 
 	private Stage createStage() {
+		
+		logger.trace("Creating stage for input display");
 
 		double keyPaneWidth = 225.0;
 		double mousePaneWidth = 100;
@@ -419,12 +421,10 @@ class InputDisplayDialog implements EventHandler<InputEvent> {
 	 */
 	static class MoveablePaneHandler {
 
-		private Stage stage;
 		private double xOffset = 0;
 		private double yOffset = 0;
 
 		MoveablePaneHandler(Stage stage) {
-			this.stage = stage;
 			var scene = stage.getScene();
 			if (scene == null)
 				throw new IllegalArgumentException("Scene must be set on the stage!");

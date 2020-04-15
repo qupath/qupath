@@ -23,6 +23,7 @@
 
 package qupath.lib.projects;
 
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -80,19 +81,23 @@ public class ProjectIO {
 	 * @return
 	 * @throws IOException 
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T> Project<T> loadProject(final File fileProject, final Class<T> cls) throws IOException {
-		logger.debug("Loading project from {}", fileProject);
-		try (Reader fileReader = new BufferedReader(new FileReader(fileProject))){
-			Gson gson = new Gson();
-			JsonObject element = gson.fromJson(fileReader, JsonObject.class);
-			// Didn't have the foresight to add a version number from the start...
-			String version = element.has("version") ? element.get("version").getAsString() : null;
-			if (version == null || Arrays.asList("v0.2.0-m2", "v0.2.0-m1").contains(version)) {
-				throw new IllegalArgumentException("Older-style project is not compatible with QuPath " + GeneralTools.getVersion());
-//				return LegacyProject.readFromFile(fileProject, cls);
+		if (cls.equals(BufferedImage.class)) {
+			logger.debug("Loading project from {}", fileProject);
+			try (Reader fileReader = new BufferedReader(new FileReader(fileProject))){
+				Gson gson = new Gson();
+				JsonObject element = gson.fromJson(fileReader, JsonObject.class);
+				// Didn't have the foresight to add a version number from the start...
+				String version = element.has("version") ? element.get("version").getAsString() : null;
+				if (version == null || Arrays.asList("v0.2.0-m2", "v0.2.0-m1").contains(version)) {
+					throw new IllegalArgumentException("Older-style project is not compatible with QuPath " + GeneralTools.getVersion());
+	//				return LegacyProject.readFromFile(fileProject, cls);
+				}
+				return (Project<T>)DefaultProject.loadFromFile(fileProject);
 			}
-			return (Project<T>)DefaultProject.loadFromFile(fileProject);
-		}
+		} else
+			throw new IllegalArgumentException("Cannot load project with generic class " + cls);
 	}
 	
 

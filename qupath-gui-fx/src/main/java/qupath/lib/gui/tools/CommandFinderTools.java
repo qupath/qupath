@@ -74,7 +74,6 @@ import javafx.stage.Stage;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.CommandFinderTools.CommandBarDisplay;
 
 
 /**
@@ -259,7 +258,15 @@ public class CommandFinderTools {
 		FilteredList<CommandEntry> commands = new FilteredList<>(menuManager.getCommands());
 		TableView<CommandEntry> table = createCommandTable(commands);
 		TextField textField = createTextField(table, commands, false, stage, cbAutoClose.selectedProperty());
-		
+
+		// Control focus of the text field
+		stage.focusedProperty().addListener((v, o, n) -> {
+			if (n)
+				textField.requestFocus();
+		});
+		// Make it possible to type immediately (alternative would be to reset text when hiding)
+		stage.setOnShown(e -> textField.selectAll());
+
 		BorderPane panelSearch = new BorderPane();
 		panelSearch.setCenter(textField);
 		panelSearch.setRight(cbAutoClose);		

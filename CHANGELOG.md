@@ -16,7 +16,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Optionally sort project entries by URI (e.g. to group images read from the same file)
 * Improved support for profiling with VisualVM
 * Improved support for large, non-pyramidal images
-* New DelaunayTools class to help query spatial relationships
+* 'Simplify shape' command can now be applied to all selected annotations
 * Bug fixes, including:
   * Gap between tiles when calculating superpixels for large regions (https://github.com/qupath/qupath/issues/345)
   * Cannot create objects when loading simple thresholding classifier (https://github.com/qupath/qupath/issues/403)

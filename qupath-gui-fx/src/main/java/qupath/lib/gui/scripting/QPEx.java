@@ -692,7 +692,7 @@ public class QPEx extends QP {
 			files = Arrays.asList((File[])o);
 		else if (o instanceof Collection) {
 			files = new ArrayList<>();
-			for (var something : (Collection)o) {
+			for (var something : (Collection<?>)o) {
 				if (something instanceof File)
 					files.add((File)something);
 			}

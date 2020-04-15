@@ -86,6 +86,10 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 	
 	private String savingOption = "Selected points";
 	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance.
+	 */
 	public CountingPanelCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		qupath.imageDataProperty().addListener(this);
@@ -110,6 +114,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 	}
 	
 	
+	@SuppressWarnings("deprecation")
 	private Pane makeButtonPanel() {
 		if (qupath == null)
 			return null;
@@ -219,14 +224,16 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 //		constraints.setPercentWidth(50);
 //		panelLoadSave.getColumnConstraints().addAll(constraints);
 		
-		var actionManager = qupath.getActionManager();
+		var actionConvexPoints = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
+		var actionSelectedColor = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
+		var actionDetectionsToPoints = qupath.createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true), "Convert detections to points");
 		
-		Button btnConvert = ActionTools.createButton(actionManager.DETECTIONS_TO_POINTS, false);
-		Pane convertPane = new Pane(btnConvert);
+		var btnConvert = ActionTools.createButton(actionDetectionsToPoints, false);
+		var convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
 		
-		var cbConvex = ActionTools.createCheckBox(actionManager.CONVEX_POINTS);
-		var cbSelected = ActionTools.createCheckBox(actionManager.USE_SELECTED_COLOR);
+		var cbConvex = ActionTools.createCheckBox(actionConvexPoints);
+		var cbSelected = ActionTools.createCheckBox(actionSelectedColor);
 //		panel.setSpacing(5);
 		panel.getChildren().addAll(
 				cbConvex,

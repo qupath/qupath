@@ -33,6 +33,9 @@ public class ChannelTransformFeatureServer extends TransformingImageServer<Buffe
 
 	ChannelTransformFeatureServer(ImageServer<BufferedImage> server, List<ColorTransforms.ColorTransform> transforms) {
 		super(server);
+		
+		logger.trace("Creating server for {} and color transforms {}", server, transforms);
+		
 		this.transforms = new ArrayList<>(transforms);
 		
 		List<ImageChannel> channels = new ArrayList<>();

@@ -29,6 +29,7 @@ import java.awt.image.BufferedImage;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -56,6 +57,10 @@ public class QuPathViewerPlus extends QuPathViewer {
 
 	private ViewerPlusDisplayOptions viewerDisplayOptions;
 	
+	private ChangeListener<Boolean> locationListener = (v, o, n) -> setLocationVisible(n);
+	private ChangeListener<Boolean> overviewListener = (v, o, n) -> setOverviewVisible(n);
+	private ChangeListener<Boolean> scalebarListener = (v, o, n) -> setScalebarVisible(n);
+
 	private AnchorPane basePane = new AnchorPane();
 	
 	private ImageOverview overview = new ImageOverview(this);
@@ -70,7 +75,15 @@ public class QuPathViewerPlus extends QuPathViewer {
 	private int padding = 10;
 	
 	
-	public QuPathViewerPlus(final ImageData<BufferedImage> imageData, final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions, final ViewerPlusDisplayOptions viewerDisplayOptions) {
+	/**
+	 * Create a new viewer.
+	 * @param imageData image data to show within the viewer
+	 * @param regionStore store used to tile caching
+	 * @param overlayOptions overlay options to control the viewer display
+	 * @param viewerDisplayOptions viewer options to control additional panes and labels
+	 */
+	public QuPathViewerPlus(final ImageData<BufferedImage> imageData, final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions,
+			final ViewerPlusDisplayOptions viewerDisplayOptions) {
 		super(imageData, regionStore, overlayOptions);
 		
 		
@@ -156,9 +169,9 @@ public class QuPathViewerPlus extends QuPathViewer {
 		setOverviewVisible(viewerDisplayOptions.getShowOverview());
 		setScalebarVisible(viewerDisplayOptions.getShowScalebar());
 		
-		viewerDisplayOptions.showLocationProperty().addListener((e, o, n) -> setLocationVisible(n));
-		viewerDisplayOptions.showOverviewProperty().addListener((e, o, n) -> setOverviewVisible(n));
-		viewerDisplayOptions.showScalebarProperty().addListener((e, o, n) -> setScalebarVisible(n));
+		viewerDisplayOptions.showLocationProperty().addListener(locationListener);
+		viewerDisplayOptions.showOverviewProperty().addListener(overviewListener);
+		viewerDisplayOptions.showScalebarProperty().addListener(scalebarListener);
 	}
 	
 	
@@ -211,6 +224,10 @@ public class QuPathViewerPlus extends QuPathViewer {
 		panelLocation.setVisible(showLocation);
 	}
 
+	/**
+	 * Returns true if the cursor location is visible, false otherwise.
+	 * @return
+	 */
 	public boolean isLocationVisible() {
 		return panelLocation.isVisible();
 	}
@@ -219,6 +236,10 @@ public class QuPathViewerPlus extends QuPathViewer {
 		scalebar.setVisible(scalebarVisible);
 	}
 
+	/**
+	 * Returns true if the scalebar is visible, false otherwise.
+	 * @return
+	 */
 	public boolean isScalebarVisible() {
 		return scalebar.isVisible();
 	}
@@ -227,10 +248,21 @@ public class QuPathViewerPlus extends QuPathViewer {
 		overview.setVisible(overviewVisible);
 	}
 
+	/**
+	 * Returns true if the image overview is visible, false otherwise.
+	 * @return
+	 */
 	public boolean isOverviewVisible() {
 		return overview.isVisible();
 	}
-
+	
+	@Override
+	public void closeViewer() {
+		super.closeViewer();
+		viewerDisplayOptions.showLocationProperty().removeListener(locationListener);
+		viewerDisplayOptions.showOverviewProperty().removeListener(overviewListener);
+		viewerDisplayOptions.showScalebarProperty().removeListener(scalebarListener);
+	}
 
 	// TODO: Make location string protected?
 	void updateLocationString() {
@@ -247,7 +279,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 	}
 
 	
-	public boolean useCalibratedLocationString() {
+	private boolean useCalibratedLocationString() {
 		return useCalibratedLocationString.get();
 	}
 
@@ -260,7 +292,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		// Ensure the scalebar color is set, if required
 		Bounds boundsFX = scalebar.getNode().getBoundsInParent();
 		Rectangle2D bounds = new Rectangle2D.Double(boundsFX.getMinX(), boundsFX.getMinY(), boundsFX.getMaxX(), boundsFX.getMaxY());
-		if (autoRecolorGridAndScalebar && imageWasUpdated) {
+		if (imageWasUpdated) {
 			if (getDisplayedClipShape(bounds).intersects(0, 0, getServerWidth(), getServerHeight())) {
 				scalebar.setTextColor(getSuggestedOverlayColorFX());
 			}
@@ -269,12 +301,6 @@ public class QuPathViewerPlus extends QuPathViewer {
 			}
 		}
 	}
-		
-	
-	public ViewerPlusDisplayOptions getViewerDisplayOptions() {
-		return viewerDisplayOptions;
-	}
-	
 
 	@Override
 	public void setDownsampleFactor(double downsampleFactor, double cx, double cy) {

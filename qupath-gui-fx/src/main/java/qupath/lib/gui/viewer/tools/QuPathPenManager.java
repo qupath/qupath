@@ -3,6 +3,11 @@ package qupath.lib.gui.viewer.tools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Helper class for managing pressure-sensitive input.
+ * 
+ * @author Pete Bankhead
+ */
 public class QuPathPenManager {
 	
 	private static Logger logger = LoggerFactory.getLogger(QuPathPenManager.class);

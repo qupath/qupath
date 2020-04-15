@@ -161,7 +161,7 @@ public class MoveTool extends AbstractPathTool {
 //        viewer.setDoFasterRepaint(true); // Turn on if dragging is too slow
 	}
 	
-	public static boolean canAdjust(PathObject pathObject) {
+	private static boolean canAdjust(PathObject pathObject) {
 		return (pathObject != null && pathObject.isEditable());
 //		return (pathObject != null && !(pathObject instanceof PathDetectionObject) && pathObject.hasROI() && !GeneralHelpers.containsClass(pathObject.getPathObjectList(), PathDetectionObject.class));
 	}
@@ -374,7 +374,9 @@ public class MoveTool extends AbstractPathTool {
 	
 	
 	
-	
+	/**
+	 * Helper class for panning a {@link QuPathViewer} (reasonably) smoothly.
+	 */
 	public static class ViewerMover {
 		
 		private QuPathViewer viewer;
@@ -386,7 +388,10 @@ public class MoveTool extends AbstractPathTool {
 		private double dx, dy; // Last dragging displacements
 		private boolean constantVelocity = false;
 		
-		
+		/**
+		 * Constructor.
+		 * @param viewer the viewer that will be controlled by this object
+		 */
 		public ViewerMover(final QuPathViewer viewer) {
 			this.viewer = viewer;
 		}
@@ -445,12 +450,16 @@ public class MoveTool extends AbstractPathTool {
 			timer.playFromStart();
 		}
 		
-		
+		/**
+		 * Stop moving, by smoothly decelerating.
+		 */
 		public void decelerate() {
 			constantVelocity = false;
 		}
 		
-
+		/**
+		 * Stop moving immediately.
+		 */
 		public void stopMoving() {
 			if (timer != null && timer.getStatus() == Status.RUNNING) {
 				timestamp = -1;
