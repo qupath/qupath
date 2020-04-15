@@ -30,6 +30,10 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
+/**
+ * Helper class for displaying elements relating to whole project.
+ *
+ */
 public class ProjectDialogs {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProjectDialogs.class);
@@ -51,7 +55,7 @@ public class ProjectDialogs {
 								boolean doSave) {
 		
 		listSelectionView.getSourceItems().setAll(project.getImageList());
-		if (previousImages != null && listSelectionView.getSourceItems().containsAll(previousImages)) {
+		if (previousImages != null && !previousImages.isEmpty() && listSelectionView.getSourceItems().containsAll(previousImages)) {
 			listSelectionView.getSourceItems().removeAll(previousImages);
 			listSelectionView.getTargetItems().addAll(previousImages);
 		}
