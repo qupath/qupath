@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.io.File;
 import java.util.Optional;
@@ -66,6 +66,7 @@ public class PreferencePane {
 
 	private PropertySheet propSheet = new PropertySheet();
 
+	@SuppressWarnings("javadoc")
 	public PreferencePane() {
 		setupPanel();
 	}
@@ -390,8 +391,12 @@ public class PreferencePane {
 
 	}
 
-
-	public Node getNode() {
+	/**
+	 * Get the property sheet for this {@link PreferencePane}.
+	 * This is a {@link Node} that may be added to a scene for display.
+	 * @return
+	 */
+	public PropertySheet getPropertySheet() {
 		return propSheet;
 	}
 

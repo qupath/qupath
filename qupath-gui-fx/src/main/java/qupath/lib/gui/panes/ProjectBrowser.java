@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.Desktop;
 import java.awt.Graphics2D;
@@ -150,6 +150,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	private static final String URI = "URI";
 	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 */
 	public ProjectBrowser(final QuPathGUI qupath) {
 		this.project = qupath.getProject();
 		this.qupath = qupath;

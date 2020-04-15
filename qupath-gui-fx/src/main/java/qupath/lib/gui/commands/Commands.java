@@ -48,10 +48,10 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
-import qupath.lib.gui.panels.MeasurementMapPanel;
-import qupath.lib.gui.panels.PathClassPane;
-import qupath.lib.gui.panels.WorkflowCommandLogView;
-import qupath.lib.gui.panels.classify.PathClassifierPanel;
+import qupath.lib.gui.panes.MeasurementMapPane;
+import qupath.lib.gui.panes.PathClassPane;
+import qupath.lib.gui.panes.WorkflowCommandLogView;
+import qupath.lib.gui.panes.classify.PathClassifierPanel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
 import qupath.lib.gui.tools.GuiTools;
@@ -500,7 +500,7 @@ public class Commands {
 			dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Measurement maps");
 		
-		var panel = new MeasurementMapPanel(qupath);
+		var panel = new MeasurementMapPane(qupath);
 		BorderPane pane = new BorderPane();
 		pane.setCenter(panel.getPane());
 		
@@ -604,7 +604,7 @@ public class Commands {
 //			});
 		
 		BorderPane pane = new BorderPane();
-		pane.setCenter(panel.getNode());
+		pane.setCenter(panel.getPropertySheet());
 		pane.setBottom(paneImportExport);
 		if (qupath != null && qupath.getStage() != null) {
 			pane.setPrefHeight(Math.round(Math.max(300, qupath.getStage().getHeight()*0.75)));

@@ -54,7 +54,7 @@ import javafx.stage.Stage;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.panels.CountingPanel;
+import qupath.lib.gui.panes.CountingPane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.tools.PathTools;
@@ -77,7 +77,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 	
 	private QuPathGUI qupath;
 	private PathObjectHierarchy hierarchy;
-	private CountingPanel countingPanel = null;
+	private CountingPane countingPanel = null;
 	
 	private Stage dialog;
 	
@@ -272,7 +272,7 @@ public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<
 		dialog = new Stage();
 		dialog.setTitle("Counting");
 		
-		countingPanel = new CountingPanel(qupath, hierarchy);
+		countingPanel = new CountingPane(qupath, hierarchy);
 //		countingPanel.setSize(countingPanel.getPreferredSize());
 		BorderPane pane = new BorderPane();
 		

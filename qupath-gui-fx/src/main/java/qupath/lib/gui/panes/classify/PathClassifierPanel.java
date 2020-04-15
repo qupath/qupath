@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels.classify;
+package qupath.lib.gui.panes.classify;
 
 import java.awt.image.BufferedImage;
 import java.io.File;

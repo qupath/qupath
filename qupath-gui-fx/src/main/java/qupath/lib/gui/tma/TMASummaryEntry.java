@@ -22,12 +22,11 @@
  */
 
 
-package qupath.lib.gui.tma.entries;
+package qupath.lib.gui.tma;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +42,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.scene.image.Image;
+import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.objects.TMACoreObject;
 
 
@@ -53,69 +53,16 @@ import qupath.lib.objects.TMACoreObject;
  * @author Pete Bankhead
  *
  */
-public class TMASummaryEntry implements TMAEntry {
+class TMASummaryEntry implements TMAEntry {
 	
 	private final static Logger logger = LoggerFactory.getLogger(TMASummaryEntry.class);
 	
-	public static Set<String> survivalSet = new HashSet<>(
-			Arrays.asList(
-				TMACoreObject.KEY_OVERALL_SURVIVAL,
-				TMACoreObject.KEY_OS_CENSORED,
-				TMACoreObject.KEY_RECURRENCE_FREE_SURVIVAL,
-				TMACoreObject.KEY_RFS_CENSORED,
-				"Censored"
-				)
-			);
-
-	/**
-	 * Methods that may be used to combine measurements when multiple cores are available.
-	 */
-	public static enum MeasurementCombinationMethod {
-		MEAN, MEDIAN, MIN, MAX, RANGE;
-
-		public double calculate(final List<TMAEntry> entries, final String measurementName, final boolean skipMissing) {
-			switch (this) {
-			case MAX:
-				return getMaxMeasurement(entries, measurementName, skipMissing);
-			case MEAN:
-				return getMeanMeasurement(entries, measurementName, skipMissing);
-			case MEDIAN:
-				return getMedianMeasurement(entries, measurementName, skipMissing);
-			case MIN:
-				return getMinMeasurement(entries, measurementName, skipMissing);
-			case RANGE:
-				return getRangeMeasurement(entries, measurementName, skipMissing);
-			default:
-				return Double.NaN;
-			}
-		}
-
-		@Override
-		public String toString() {
-			switch (this) {
-			case MAX:
-				return "Maximum";
-			case MEAN:
-				return "Mean";
-			case MEDIAN:
-				return "Median";
-			case MIN:
-				return "Minimum";
-			case RANGE:
-				return "Range";
-			default:
-				return null;
-			}
-		}
-
-	};
-
-	private ObservableValue<MeasurementCombinationMethod> method;
+	private ObservableValue<TMAEntries.MeasurementCombinationMethod> method;
 	private ObservableBooleanValue skipMissing;
 	private ObservableList<TMAEntry> entriesBase = FXCollections.observableArrayList();
 	private FilteredList<TMAEntry> entries = new FilteredList<>(entriesBase);
 
-	public TMASummaryEntry(final ObservableValue<MeasurementCombinationMethod> method, final ObservableBooleanValue skipMissing, final ObservableValue<Predicate<TMAEntry>> predicate) {
+	public TMASummaryEntry(final ObservableValue<TMAEntries.MeasurementCombinationMethod> method, final ObservableBooleanValue skipMissing, final ObservableValue<Predicate<TMAEntry>> predicate) {
 		// Use the same predicate as elsewhere
 		this.method = method;
 		this.skipMissing = skipMissing;
@@ -298,7 +245,7 @@ public class TMASummaryEntry implements TMAEntry {
 	 * @return
 	 */
 	public static boolean isSurvivalColumn(final String name) {
-		return survivalSet.contains(name);
+		return TMAEntries.survivalSet.contains(name);
 	}
 
 	public static double getMeanMeasurement(final List<TMAEntry> entries, final String measurement, final boolean skipMissing) {

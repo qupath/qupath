@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
 import java.util.Collection;
@@ -75,10 +75,9 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * @author Pete Bankhead
  *
  */
-// TODO: Revise MeasurementMapPanel whenever multiple viewers are present
-public class MeasurementMapPanel {
+public class MeasurementMapPane {
 	
-	private final static Logger logger = LoggerFactory.getLogger(MeasurementMapPanel.class);
+	private final static Logger logger = LoggerFactory.getLogger(MeasurementMapPane.class);
 	
 	private QuPathGUI qupath;
 	
@@ -113,9 +112,14 @@ public class MeasurementMapPanel {
 	
 	private static StringProperty preferredMapperName = PathPrefs.createPersistentPreference("measurementMapperLUT", "viridis");
 	
-		
-	public MeasurementMapPanel(final QuPathGUI qupath) {
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 */
+	public MeasurementMapPane(final QuPathGUI qupath) {
 		this.qupath = qupath;
+		
+		logger.trace("Creating Measurement Map Pane");
 		
 		updateMeasurements();
 		

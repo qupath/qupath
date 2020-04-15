@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
@@ -36,7 +36,6 @@ import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 
 import javafx.application.Platform;
-import javafx.collections.ObservableList;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -74,7 +73,7 @@ import qupath.lib.roi.ROIs;
  * @author Pete Bankhead
  *
  */
-public class CountingPanel implements PathObjectSelectionListener, PathObjectHierarchyListener {
+public class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyListener {
 
 	private QuPathGUI qupath;
 	
@@ -83,7 +82,6 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	private PathObjectHierarchy hierarchy;
 	
 	private ListView<PathObject> listCounts;
-	private ObservableList<PathClass> availableClasses;
 	
 	private Action btnAdd = new Action("Add", e -> {
 		PathObject pathObjectCounts = PathObjects.createAnnotationObject(ROIs.createPointsROI(ImagePlane.getDefaultPlane()));
@@ -120,7 +118,7 @@ public class CountingPanel implements PathObjectSelectionListener, PathObjectHie
 	});
 	
 	
-	public CountingPanel(final QuPathGUI qupath, final PathObjectHierarchy hierarchy) {
+	public CountingPane(final QuPathGUI qupath, final PathObjectHierarchy hierarchy) {
 		
 		this.qupath = qupath;
 		listCounts = new ListView<>();

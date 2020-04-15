@@ -143,11 +143,9 @@ import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tma.entries.DefaultTMAEntry;
-import qupath.lib.gui.tma.entries.TMAEntry;
-import qupath.lib.gui.tma.entries.TMAObjectEntry;
-import qupath.lib.gui.tma.entries.TMASummaryEntry;
-import qupath.lib.gui.tma.entries.TMASummaryEntry.MeasurementCombinationMethod;
+import qupath.lib.gui.tma.TMAEntries.MeasurementCombinationMethod;
+import qupath.lib.gui.tma.TMAEntries.TMAEntry;
+import qupath.lib.gui.tma.TMAEntries.TMAObjectEntry;
 import qupath.lib.gui.tools.ChartTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -225,8 +223,8 @@ public class TMASummaryViewer {
 	 * 
 	 * Options include min, max, mean & median.
 	 */
-	private ComboBox<MeasurementCombinationMethod> comboMeasurementMethod = new ComboBox<>();
-	private ReadOnlyObjectProperty<MeasurementCombinationMethod> selectedMeasurementCombinationProperty = comboMeasurementMethod.getSelectionModel().selectedItemProperty();
+	private ComboBox<TMAEntries.MeasurementCombinationMethod> comboMeasurementMethod = new ComboBox<>();
+	private ReadOnlyObjectProperty<TMAEntries.MeasurementCombinationMethod> selectedMeasurementCombinationProperty = comboMeasurementMethod.getSelectionModel().selectedItemProperty();
 	
 	
 	private TreeTableView<TMAEntry> table = new TreeTableView<>();
@@ -258,12 +256,17 @@ public class TMASummaryViewer {
 	private ObservableValue<Predicate<TMAEntry>> combinedPredicate;
 
 	
-
+	/**
+	 * Constructor.
+	 * @param stage stage that should be used for this TMA summary viewer. If null, a new stage will be created.
+	 */
 	public TMASummaryViewer(final Stage stage) {
 		if (stage == null)
 			this.stage = new Stage();
 		else
 			this.stage = stage;
+		
+		logger.trace("Creating TMA summary viewer");
 		
 		combinedPredicate = Bindings.createObjectBinding(() -> {
 			Predicate<TMAEntry> thisPredicate = predicateHideMissing.getValue();
@@ -458,8 +461,8 @@ public class TMASummaryViewer {
 				new Separator(Orientation.VERTICAL),
 				cbSkipMissing
 				);
-		comboMeasurementMethod.getItems().addAll(MeasurementCombinationMethod.values());
-		comboMeasurementMethod.getSelectionModel().select(MeasurementCombinationMethod.MEDIAN);
+		comboMeasurementMethod.getItems().addAll(TMAEntries.MeasurementCombinationMethod.values());
+		comboMeasurementMethod.getSelectionModel().select(TMAEntries.MeasurementCombinationMethod.MEDIAN);
 		selectedMeasurementCombinationProperty.addListener((v, o, n) -> table.refresh());
 
 		
@@ -1147,7 +1150,7 @@ public class TMASummaryViewer {
 		ObservableMeasurementTableData data = new ObservableMeasurementTableData();
 		data.setImageData(imageData, imageData.getHierarchy().getTMAGrid().getTMACoreList());
 		for (TMACoreObject core : imageData.getHierarchy().getTMAGrid().getTMACoreList()) {
-			entriesNew.add(new TMAObjectEntry(imageData, data, core));
+			entriesNew.add(TMAEntries.createTMAObjectEntry(imageData, data, core));
 		}
 		return entriesNew;
 	}
@@ -1629,7 +1632,7 @@ public class TMASummaryViewer {
 				File fileOverlayImage = new File(dirData, name + "-overlay.jpg");
 				if (!fileOverlayImage.exists())
 					fileOverlayImage = new File(dirData, name + "-overlay.png");
-				TMAEntry entry = new DefaultTMAEntry(serverPath, fileImage.getAbsolutePath(), fileOverlayImage.getAbsolutePath(), name, missing);
+				TMAEntry entry = TMAEntries.createDefaultTMAEntry(serverPath, fileImage.getAbsolutePath(), fileOverlayImage.getAbsolutePath(), name, missing);
 				for (Entry<String, List<String>> temp : metadataColumns.entrySet()) {
 					entry.putMetadata(temp.getKey(), temp.getValue().get(i));
 				}

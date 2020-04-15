@@ -30,7 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javafx.scene.image.Image;
-import qupath.lib.gui.tma.entries.TMAEntry;
+import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 
 /**
  * Image cache for storing images related to TMAEntries.

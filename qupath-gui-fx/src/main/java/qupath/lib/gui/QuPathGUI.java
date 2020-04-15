@@ -178,14 +178,14 @@ import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LoggingAppender;
-import qupath.lib.gui.panels.PathAnnotationPanel;
-import qupath.lib.gui.panels.PathImageDetailsPanel;
-import qupath.lib.gui.panels.PathObjectHierarchyView;
-import qupath.lib.gui.panels.PreferencePane;
-import qupath.lib.gui.panels.ProjectBrowser;
-import qupath.lib.gui.panels.SelectedMeasurementTableView;
-import qupath.lib.gui.panels.SlideLabelView;
-import qupath.lib.gui.panels.WorkflowPanel;
+import qupath.lib.gui.panes.AnnotationPane;
+import qupath.lib.gui.panes.PathImageDetailsPanel;
+import qupath.lib.gui.panes.PathObjectHierarchyView;
+import qupath.lib.gui.panes.PreferencePane;
+import qupath.lib.gui.panes.ProjectBrowser;
+import qupath.lib.gui.panes.SelectedMeasurementTableView;
+import qupath.lib.gui.panes.SlideLabelView;
+import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -3522,7 +3522,7 @@ public class QuPathGUI {
 		PathImageDetailsPanel pathImageDetailsPanel = new PathImageDetailsPanel(this);
 		analysisPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getContainer()));
 
-		final PathAnnotationPanel panelAnnotations = new PathAnnotationPanel(this);
+		final AnnotationPane panelAnnotations = new AnnotationPane(this);
 		SplitPane splitAnnotations = new SplitPane();
 		splitAnnotations.setOrientation(Orientation.VERTICAL);
 		splitAnnotations.getItems().addAll(
@@ -3543,8 +3543,10 @@ public class QuPathGUI {
 				splitHierarchy.getDividers().get(0).positionProperty()
 				);
 
-		WorkflowPanel workflowPanel = new WorkflowPanel(this);
-		analysisPanel.getTabs().add(new Tab("Workflow", workflowPanel.getPane()));
+		var commandLogView = new WorkflowCommandLogView(this);
+		TitledPane titledLog = new TitledPane("Command history", commandLogView.getPane());
+		var pane = new BorderPane(titledLog);
+		analysisPanel.getTabs().add(new Tab("Workflow", pane));
 	}
 	
 	

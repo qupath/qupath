@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels.classify;
+package qupath.lib.gui.panes.classify;
 
 import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
@@ -91,7 +91,7 @@ import qupath.lib.classifiers.PathObjectClassifier;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
-import qupath.lib.gui.panels.classify.PathClassificationLabellingHelper.SplitType;
+import qupath.lib.gui.panes.classify.PathClassificationLabellingHelper.SplitType;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;

@@ -1,4 +1,4 @@
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
 import java.io.File;

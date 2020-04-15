@@ -41,8 +41,7 @@ import org.slf4j.LoggerFactory;
 import javafx.stage.Stage;
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.tma.entries.DefaultTMAEntry;
-import qupath.lib.gui.tma.entries.TMAEntry;
+import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.measurements.MeasurementList;
@@ -71,6 +70,10 @@ public class TMAExplorer implements Runnable {
 	
 	private List<TMAEntry> entries = new ArrayList<>();
 	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 */
 	public TMAExplorer(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
@@ -142,7 +145,7 @@ public class TMAExplorer implements Runnable {
 						}
 					}
 
-					DefaultTMAEntry entry = new DefaultTMAEntry(
+					var entry = TMAEntries.createDefaultTMAEntry(
 							imageEntry.getImageName(),
 							fileOutput.getAbsolutePath(),
 							null,

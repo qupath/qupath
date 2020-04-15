@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
 import java.util.*;
@@ -38,12 +38,10 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.icons.IconFactory;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
@@ -73,12 +71,23 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	
 	/**
 	 * Control how detections are displayed in this tree view.
-	 * 
+	 * <p>
 	 * Showing all detections can be a bad idea, since there may be serious performance issues 
 	 * (especially when selecting/deselecting objects on an expanded tree).
 	 */
 	public static enum TreeDetectionDisplay {
-		NONE, WITHOUT_ICONS, WITH_ICONS;
+		/**
+		 * Do not show detections
+		 */
+		NONE,
+		/**
+		 * Show detections without ROI icons
+		 */
+		WITHOUT_ICONS,
+		/**
+		 * Show detections with ROI icons
+		 */
+		WITH_ICONS;
 			@Override
 			public String toString() {
 				switch(this) {
@@ -107,6 +116,10 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	private TreeView<PathObject> treeView;
 	private BorderPane treeViewPane = new BorderPane();
 	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 */
 	public PathObjectHierarchyView(final QuPathGUI qupath) {
 		
 		// Handle display changes
@@ -379,12 +392,10 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	}
 	
 	
-	
-//	public TreeView<PathObject> getTreeView() {
-//		return treeView;
-//	}
-	
-	
+	/**
+	 * Get the pane for display.
+	 * @return
+	 */
 	public Pane getPane() {
 		return treeViewPane;
 	}
@@ -407,7 +418,6 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 				if (item.hasROI() && (!item.isDetection() || detectionDisplay.get() == TreeDetectionDisplay.WITH_ICONS)) {
 					// It consumes too many resources to create enough icons to represent every detection this way...
 					// consider reintroducing in the future with a more efficient implementation, e.g. reusing images & canvases
-					Color color = ColorToolsFX.getDisplayedColor(item);
 					setGraphic(IconFactory.createPathObjectIcon(item, 16, 16));
 				} else
 					setGraphic(null);
@@ -448,17 +458,10 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 //			Platform.runLater(() -> synchronizeTreeToSelectionModel(pathObjectSelected, allSelected));
 	}
 	
-	public ImageData<?> getImageData() {
-		return imageData;
-	}
-	
-	
 	@Override
 	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		setImageData(imageDataNew);
 	}
-	
-	
 	
 	
 	static TreeItem<PathObject> createNode(final PathObject pathObject) {

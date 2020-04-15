@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
@@ -68,7 +68,10 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private ObservableMeasurementTableData tableModel = new ObservableMeasurementTableData();
 	
-	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 */
 	public SelectedMeasurementTableView(final QuPathGUI qupath) {
 		qupath.imageDataProperty().addListener(this);
 	}

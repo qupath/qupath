@@ -1,4 +1,4 @@
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.util.function.Function;
 
@@ -11,7 +11,7 @@ import qupath.lib.objects.PathObject;
 /**
  * A {@link ListCell} for displaying {@linkplain PathObject PathObjects}, including ROI icons.
  */
-public class PathObjectListCell extends ListCell<PathObject> {
+class PathObjectListCell extends ListCell<PathObject> {
 
 	private Tooltip tooltip;
 	private Function<PathObject, String> fun;

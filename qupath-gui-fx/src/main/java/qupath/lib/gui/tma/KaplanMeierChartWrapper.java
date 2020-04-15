@@ -71,7 +71,7 @@ import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.panels.ExportChartPanel;
+import qupath.lib.gui.panes.ExportChartPane;
 import qupath.lib.gui.tools.ChartTools;
 
 /**
@@ -585,7 +585,7 @@ class KaplanMeierChartWrapper {
 				chart2 = kmPlotter2.chart;
 				
 //				chart2 = ExportChartPanel.copyChart(kmPlotter.chart);
-				ExportChartPanel exportPane = new ExportChartPanel(chart2);
+				ExportChartPane exportPane = new ExportChartPane(chart2);
 				Pane pane = exportPane.getPane();
 				Stage stage = new Stage();
 				stage.initOwner(kmPlotter.chart.getScene().getWindow());

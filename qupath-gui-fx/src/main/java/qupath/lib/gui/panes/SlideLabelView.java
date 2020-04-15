@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
 
@@ -59,6 +59,10 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 	private BooleanProperty showing = PathPrefs.createPersistentPreference("showSlideLabel", false);
 	private BorderPane pane = new BorderPane();
 	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 */
 	public SlideLabelView(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		createDialog();

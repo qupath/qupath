@@ -43,7 +43,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
-import qupath.lib.gui.panels.ExportChartPanel;
+import qupath.lib.gui.panes.ExportChartPane;
 
 /**
  * Collection of static methods to help when working with JavaFX charts, 
@@ -186,7 +186,7 @@ public class ChartTools {
 	 */
 	public static void addChartExportMenu(final XYChart<Number, Number> chart, final ContextMenu menu) {
 		MenuItem menuItem = new MenuItem("Export chart");
-		menuItem.setOnAction(e -> ExportChartPanel.showExportChartPanel(chart));
+		menuItem.setOnAction(e -> ExportChartPane.showExportChartDialog(chart));
 		if (menu == null) {
 			ContextMenu menu2 = new ContextMenu();
 			menu2.getItems().add(menuItem);

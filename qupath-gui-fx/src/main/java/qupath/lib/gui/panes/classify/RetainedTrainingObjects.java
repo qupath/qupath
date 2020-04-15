@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels.classify;
+package qupath.lib.gui.panes.classify;
 
 import java.io.Externalizable;
 import java.io.IOException;

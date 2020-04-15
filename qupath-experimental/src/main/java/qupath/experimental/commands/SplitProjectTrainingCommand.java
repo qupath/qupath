@@ -16,7 +16,7 @@ import javafx.scene.layout.Pane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
-import qupath.lib.gui.panels.ProjectBrowser;
+import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;

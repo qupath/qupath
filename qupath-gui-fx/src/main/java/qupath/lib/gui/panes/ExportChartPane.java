@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -94,9 +94,9 @@ import qupath.lib.gui.tools.PaneTools;
  * @author Pete Bankhead
  *
  */
-public class ExportChartPanel {
+public class ExportChartPane {
 
-	private final static Logger logger = LoggerFactory.getLogger(ExportChartPanel.class);
+	private final static Logger logger = LoggerFactory.getLogger(ExportChartPane.class);
 
 	public static enum ChartStyle {
 		COLOR("Color"), GRAY("Gray"), BLACK("Black");
@@ -252,7 +252,7 @@ public class ExportChartPanel {
 
 	private static BooleanProperty useSolidLines = new SimpleBooleanProperty(persistentSolidLinesProperty.get());
 
-	public ExportChartPanel(final Chart chart) {
+	public ExportChartPane(final Chart chart) {
 		this.chart = chart;
 
 		//				Node node = chart2.lookup(".chart-legend");
@@ -421,8 +421,8 @@ public class ExportChartPanel {
 	 * @param duplicator A duplicator (optional) to create a duplicate chart, rather than using the original.
 	 * @return
 	 */
-	public static ExportChartPanel showExportChartPanel(final Chart chart, final Callback<Chart, Chart> duplicator) {
-		ExportChartPanel panel = new ExportChartPanel(duplicator == null ? chart : duplicator.call(chart));
+	public static ExportChartPane showExportChartDialog(final Chart chart, final Callback<Chart, Chart> duplicator) {
+		ExportChartPane panel = new ExportChartPane(duplicator == null ? chart : duplicator.call(chart));
 		Scene scene = new Scene(panel.getPane());
 		Stage stage = new Stage();
 		stage.setTitle("Export chart");
@@ -439,10 +439,11 @@ public class ExportChartPanel {
 	 * 
 	 * @param chart
 	 */
-	public static void showExportChartPanel(final XYChart<Number, Number> chart) {
+	public static void showExportChartDialog
+	(final XYChart<Number, Number> chart) {
 		try {
 			XYChart<Number, Number> chart2 = copyChart(chart);
-			showExportChartPanel(chart2, null);
+			showExportChartDialog(chart2, null);
 		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
 				| NoSuchMethodException | SecurityException e) {
 			Dialogs.showErrorNotification("Export chart display error", "Unable to duplicate chart");

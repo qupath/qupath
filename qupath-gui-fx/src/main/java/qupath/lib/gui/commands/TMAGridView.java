@@ -391,6 +391,11 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
 		paneTop.getItems().add(cbAnimation);
 		paneTop.setPadding(new Insets(10, 10, 10, 10));
+		for (var item : paneTop.getItems()) {
+			if (item instanceof Label) {
+				((Label) item).setMinWidth(Label.USE_PREF_SIZE);
+			}
+		}
 //		paneTop.setHgap(5);
 //		paneTop.setVgap(5);
 		
@@ -516,13 +521,29 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 
 	}
 
+	
+	private boolean requestUpdate = false;
+	
+	private void requestUpdate(ImageData<BufferedImage> imageData) {
+		requestUpdate = true;
+		Platform.runLater(() -> processUpdateRequest(imageData));
+	}
+	
+	private void processUpdateRequest(ImageData<BufferedImage> imageData) {
+		if (!requestUpdate)
+			return;
+		Platform.runLater(() -> {
+			requestUpdate = false;
+			initializeData(imageData);
+		});
+	}
 
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
 		if (!event.isChanging() && imageData != null && imageData.getHierarchy() == event.getHierarchy() && stage != null && stage.isShowing()) {
 			// This is some fairly aggressive updating...
-			initializeData(imageData);
+			requestUpdate(imageData);
 		}
 	}
 	

@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
@@ -90,7 +90,7 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
-import qupath.lib.gui.panels.PathImageDetailsPanel.PathImageDetailsTableModel.ROW_TYPE;
+import qupath.lib.gui.panes.PathImageDetailsPanel.PathImageDetailsTableModel.ROW_TYPE;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;

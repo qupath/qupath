@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panels;
+package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -60,6 +60,7 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -72,14 +73,14 @@ import qupath.lib.roi.interfaces.ROI;
 /**
  * Component for displaying annotations within the active image.
  * <p>
- * Also shows the PathClass list.
+ * Also shows the {@link PathClass} list.
  * 
  * @author Pete Bankhead
  *
  */
-public class PathAnnotationPanel implements PathObjectSelectionListener, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
+public class AnnotationPane implements PathObjectSelectionListener, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 
-	private final static Logger logger = LoggerFactory.getLogger(PathAnnotationPanel.class);
+	private final static Logger logger = LoggerFactory.getLogger(AnnotationPane.class);
 
 	private QuPathGUI qupath;
 	private ImageData<BufferedImage> imageData;
@@ -107,8 +108,11 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ChangeL
 	private boolean suppressSelectionChanges = false;
 	
 	
-	
-	public PathAnnotationPanel(final QuPathGUI qupath) {
+	/**
+	 * Constructor.
+	 * @param qupath current QuPath instance.
+	 */
+	public AnnotationPane(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		
 		pathClassPane = new PathClassPane(qupath);
@@ -209,47 +213,11 @@ public class PathAnnotationPanel implements PathObjectSelectionListener, ChangeL
 		hierarchy.getSelectionModel().setSelectedObjects(selectedSet, selectedObject);
 		suppressSelectionChanges = false;
 	}
-	
-	
-	
-//	void promptToDeleteAnnotations() {
-//		Action action = new Action("Delete", e -> {
-//			if (hierarchy == null)
-//				return;
-//			// TODO: Consider reusing selected object deletion code within viewer
-//			// Remove all the selected ROIs
-//			List<PathObject> pathObjectsToRemove = new ArrayList<>(listAnnotations.getSelectionModel().getSelectedItems());
-//			if (pathObjectsToRemove == null || pathObjectsToRemove.isEmpty())
-//				return;
-//			int nObjects = pathObjectsToRemove.size();
-//			if (!Dialogs.showYesNoDialog("Delete annotations",
-//					String.format("Delete %d %s?", nObjects, nObjects == 1 ? "annotation" : "annotations")))
-//				return;
-//			// Check for descendant objects
-//			List<PathObject> descendantList = new ArrayList<>();
-//			for (PathObject parent : pathObjectsToRemove)
-//				PathObjectTools.getFlattenedObjectList(parent, descendantList, false);
-//			descendantList.removeAll(pathObjectsToRemove);
-//			int nDescendants = descendantList.size();
-//			boolean keepChildren = true;
-//			if (nDescendants > 0) {
-//				DialogButton result = Dialogs.showYesNoCancelDialog("Delete annotations",
-//						String.format("Keep %d descendant %s?", nDescendants, nDescendants == 1 ? "object" : "objects"));
-//				if (result == DialogButton.CANCEL)
-//					return;
-//				else if (result == DialogButton.YES)
-//					keepChildren = true;
-//				else
-//					keepChildren = false;
-//			}
-//			hierarchy.getSelectionModel().clearSelection();
-//			hierarchy.removeObjects(pathObjectsToRemove, keepChildren);
-//		});
-//		action.setLongText("Delete the currently-selected annotations");
-//		return action;
-//	}
 
-
+	/**
+	 * Get the pane for display.
+	 * @return
+	 */
 	public Pane getPane() {
 		return pane;
 	}
