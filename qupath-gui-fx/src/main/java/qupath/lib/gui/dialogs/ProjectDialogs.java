@@ -54,7 +54,7 @@ public class ProjectDialogs {
 								boolean doSave) {
 		
 		listSelectionView.getSourceItems().setAll(project.getImageList());
-		if (previousImages != null && listSelectionView.getSourceItems().containsAll(previousImages)) {
+		if (previousImages != null && !previousImages.isEmpty() && listSelectionView.getSourceItems().containsAll(previousImages)) {
 			listSelectionView.getSourceItems().removeAll(previousImages);
 			listSelectionView.getTargetItems().addAll(previousImages);
 		}

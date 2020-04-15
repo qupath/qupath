@@ -1,10 +1,14 @@
 package qupath.lib.gui.ml;
 
 import java.awt.image.BufferedImage;
+import java.text.NumberFormat;
+import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.function.UnaryOperator;
+
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +23,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.layout.GridPane;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
@@ -300,6 +305,26 @@ abstract class FeatureCalculatorBuilder {
 			var labelNormalizeScale = new Label("Local normalization scale");
 			var spinnerNormalize = new Spinner<Double>(0.0, 32.0, 8.0, 1.0);
 			normalizationSigma = spinnerNormalize.valueProperty();
+			spinnerNormalize.setEditable(true);
+			
+			NumberFormat format = NumberFormat.getNumberInstance();
+			UnaryOperator<TextFormatter.Change> filter = c -> {
+			    if (c.isContentChange()) {
+			    	String newText = c.getControlNewText();
+			        ParsePosition parsePosition = new ParsePosition(0);
+			        format.parse(newText, parsePosition);
+			        if (parsePosition.getIndex() < c.getControlNewText().length()) {
+			            return null;
+			        }
+			    }
+			    return c;
+			};
+			TextFormatter<Integer> normalizeFormatter = new TextFormatter<Integer>(filter);
+			spinnerNormalize.getEditor().setTextFormatter(normalizeFormatter);
+			spinnerNormalize.focusedProperty().addListener((v, o, n) -> {
+					if (spinnerNormalize.getEditor().getText().equals(""))
+						spinnerNormalize.getValueFactory().valueProperty().set(0.0);
+			});
 
 			var cb3D = new CheckBox("Use 3D filters");
 			do3D = cb3D.selectedProperty();
