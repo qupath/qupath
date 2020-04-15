@@ -32,6 +32,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.plugins.ParallelTileObject;
 
 /**
  * Helper class to add undo/redo support to QuPath.
@@ -452,7 +453,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
 		// Try to avoid calling too often
-		if (undoingOrRedoing || event.isChanging() || maxUndoHierarchySize.get() <= 0)
+		if (undoingOrRedoing || event.isChanging() || maxUndoHierarchySize.get() <= 0 || event.getChangedObjects().stream().allMatch(p -> p instanceof ParallelTileObject))
 			return;
 		
 		// *Potentially* we might have the same hierarchy in multiple viewers
