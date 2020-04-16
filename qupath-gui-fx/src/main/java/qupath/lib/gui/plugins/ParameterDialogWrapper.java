@@ -42,7 +42,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.images.ImageData;
@@ -333,7 +333,7 @@ public class ParameterDialogWrapper<T> {
 		
 		String choiceString = (String)paramsParents.getChoiceParameterValue(KEY_REGIONS);
 		if (!"Selected objects".equals(choiceString))
-			SelectObjectsByClassCommand.selectObjectsByClass(imageData, choices.get(choiceString));
+			Commands.selectObjectsByClass(imageData, choices.get(choiceString));
 		//			QP.selectObjectsByClass(hierarchy, choices.get(paramsParents.getChoiceParameterValue(InteractivePluginTools.KEY_REGIONS)));
 
 		// Success!  Probably...

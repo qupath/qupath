@@ -54,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.tools.IJTools;
+import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
@@ -75,7 +76,6 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.CellTools;
-import qupath.lib.objects.DelaunayTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -1058,12 +1058,23 @@ public class QP {
 	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
 	 */
 	public static void createSelectAllObject(final boolean setSelected) {
+		createSelectAllObject(setSelected, 0, 0);
+	}
+	
+	/**
+	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
+	 * 
+	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
+	 * @param z z-slice index for the annotation
+	 * @param t timepoint index for the annotation
+	 */
+	public static void createSelectAllObject(final boolean setSelected, int z, int t) {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null)
 			return;
 		ImageServer<?> server = imageData.getServer();
 		PathObject pathObject = PathObjects.createAnnotationObject(
-				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane())
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
 				);
 		imageData.getHierarchy().addPathObject(pathObject);
 		if (setSelected)

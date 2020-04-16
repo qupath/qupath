@@ -23,9 +23,7 @@
 
 package qupath.lib.gui.viewer.tools;
 
-import java.awt.Shape;
 import java.awt.geom.Point2D;
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,15 +36,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.geom.Point2;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -62,12 +59,11 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
+abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 	
 	private final static Logger logger = LoggerFactory.getLogger(AbstractPathTool.class);
 
-	QuPathViewer viewer;
-	ModeWrapper modes;
+//	private QuPathViewer viewer;
 	
 	/**
 	 * Parent object that may be used to constrain ROIs, if required.
@@ -87,16 +83,9 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 */
 	private Point2 constrainedStartPoint;
 	
-	/**
-	 * Constructor.
-	 * @param modes property storing the current selected Mode within QuPath.
-	 */
-	AbstractPathTool(ModeWrapper modes) {
-		this.modes = modes;
-	}
-	
 	void ensureCursorType(Cursor cursor) {
 		// We don't want to change a waiting cursor unnecessarily
+		var viewer = getViewer();
 		Cursor currentCursor = viewer.getCursor();
 		if (currentCursor == null || currentCursor == Cursor.WAIT)
 			return;
@@ -110,14 +99,16 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	protected boolean requestPixelSnapping() {
-		return PathPrefs.usePixelSnapping();
+		return PathPrefs.usePixelSnappingProperty().get();
 	}
 	
 	protected QuPathViewer getViewer() {
-		return viewer;
+		return QuPathGUI.getInstance().getViewer();
+//		return viewer;
 	}
 	
 	protected Point2D mouseLocationToImage(MouseEvent e, boolean constrainToBounds, boolean snapToPixel) {
+		var viewer = getViewer();
 		var p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, constrainToBounds);
 		if (snapToPixel)
 			p.setLocation(Math.floor(p.getX()), Math.floor(p.getY()));
@@ -134,7 +125,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	boolean requestParentClipping(MouseEvent e) {
-		return PathPrefs.getClipROIsForHierarchy() != (e.isShiftDown() && e.isShortcutDown());
+		return PathPrefs.clipROIsForHierarchyProperty().get() != (e.isShiftDown() && e.isShortcutDown());
 	}
 	
 	
@@ -323,6 +314,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	}
 	
 	boolean tryToSelect(double x, double y, int searchCount, boolean addToSelection, boolean toggleSelection) {
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return false;
@@ -363,6 +355,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	List<PathObject> getSelectableObjectList(double x, double y) {
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
@@ -404,12 +397,6 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 				e.consume();
 			}
 		}
-//		// Ensure we can focus this component
-//		Component component = e.getComponent();
-//		if (!component.isFocusable()) {
-//			component.setFocusable(true);
-//		}
-//		component.requestFocus();
 	}
 
 	public void mouseReleased(MouseEvent e) {
@@ -418,78 +405,25 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 			return;
 		}
 	}
-	
-	
+
 	@Override
-	public void registerTool(QuPathViewer viewer) {
-		// Disassociate from any previous viewer
-		if (this.viewer != null)
-			deregisterTool(this.viewer);
-		
-		// Associate with new viewer
-		this.viewer = viewer;
-		if (viewer != null) {
-			logger.trace("Registering {} to viewer {}", this, viewer);
-			Node canvas = viewer.getView();
-			
-			canvas.setOnMouseDragged(e -> mouseDragged(e));
-			canvas.setOnMouseDragReleased(e -> mouseDragged(e));
-			
-			canvas.setOnMouseMoved(e -> mouseMoved(e));
-
-			canvas.setOnMouseClicked(e -> mouseClicked(e));
-			canvas.setOnMousePressed(e -> mousePressed(e));
-			canvas.setOnMouseReleased(e -> mouseReleased(e));
-			
-			canvas.setOnMouseEntered(e -> mouseEntered(e));
-			canvas.setOnMouseExited(e -> mouseExited(e));
-
-			viewer.addViewerListener(this);
-		}
+	public void handle(MouseEvent event) {
+		var type = event.getEventType();
+		if (type == MouseEvent.DRAG_DETECTED || type == MouseEvent.MOUSE_DRAGGED)
+			mouseDragged(event);
+		else if (type == MouseEvent.MOUSE_CLICKED)
+			mouseClicked(event);
+		else if (type == MouseEvent.MOUSE_MOVED)
+			mouseMoved(event);
+		else if (type == MouseEvent.MOUSE_PRESSED)
+			mousePressed(event);
+		else if (type == MouseEvent.MOUSE_RELEASED)
+			mouseReleased(event);
+		else if (type == MouseEvent.MOUSE_ENTERED)
+			mouseEntered(event);
+		else if (type == MouseEvent.MOUSE_EXITED)
+			mouseExited(event);
 	}
-
-	@Override
-	public void deregisterTool(QuPathViewer viewer) {
-		if (this.viewer == viewer) {
-			
-			logger.trace("Deregistering {} from viewer {}", this, viewer);
-
-			this.viewer = null;
-			
-			Node canvas = viewer.getView();
-			canvas.setOnMouseDragged(null);
-			canvas.setOnMouseDragReleased(null);
-			
-			canvas.setOnMouseMoved(null);
-
-			canvas.setOnMouseClicked(null);
-			canvas.setOnMousePressed(null);
-			canvas.setOnMouseReleased(null);
-			
-			canvas.setOnMouseEntered(null);
-			canvas.setOnMouseExited(null);
-			
-			viewer.removeViewerListener(this);
-		}
-	}
-	
-	
-	
-	@Override
-	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
-			ImageData<BufferedImage> imageDataNew) {}
-
-
-	@Override
-	public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {}
-
-
-	@Override
-	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
-
-
-	@Override
-	public void viewerClosed(QuPathViewer viewer) {}
 	
 	
 }

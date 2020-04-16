@@ -17,7 +17,6 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -37,7 +36,7 @@ import qupath.lib.roi.ROIs;
  * @author Pete Bankhead
  *
  */
-public class CreateRegionAnnotationsCommand implements PathCommand {
+public class CreateRegionAnnotationsCommand implements Runnable {
 	
 	private final QuPathGUI qupath;
 	private Stage stage;

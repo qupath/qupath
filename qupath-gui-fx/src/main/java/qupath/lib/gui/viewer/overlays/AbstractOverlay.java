@@ -44,10 +44,10 @@ public abstract class AbstractOverlay implements PathOverlay {
 	private AlphaComposite composite = null;
 	private boolean visible = true;
 
-	public AbstractOverlay() {
-		super();
-	}
-
+	/**
+	 * Get the overlay options, which may influence the display of this overlay.
+	 * @return
+	 */
 	public OverlayOptions getOverlayOptions() {
 		return overlayOptions;
 	}

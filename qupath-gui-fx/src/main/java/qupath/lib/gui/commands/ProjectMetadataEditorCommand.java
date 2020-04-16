@@ -57,38 +57,30 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.panels.ProjectBrowser;
+import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Command to enable editing of project metadata.
- * 
+ * <p>
  * TODO: Support copying and pasting tables, to allow better editing within a spreadsheet application.
- * 
+ * <p>
  * TODO: Support adding/removing metadata columns.
  * 
  * @author Pete Bankhead
  *
  */
-public class ProjectMetadataEditorCommand implements PathCommand {
+class ProjectMetadataEditorCommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProjectMetadataEditorCommand.class);
 
 	private final static String IMAGE_NAME = "Image name";
+
 	
-	private QuPathGUI qupath;
-	
-	public ProjectMetadataEditorCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-	
-	@Override
-	public void run() {
-		
+	public static void showProjectMetadataEditor(QuPathGUI qupath) {
 		Project<?> project = qupath.getProject();
 		if (project == null) {
 			logger.warn("No project available!");
@@ -133,7 +125,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 		// Handle deleting entries
 		table.addEventHandler(KeyEvent.KEY_RELEASED, e -> {
 			if (e.getCode() == KeyCode.BACK_SPACE || e.getCode() == KeyCode.DELETE) {
-				List<TablePosition> positions = table.getSelectionModel().getSelectedCells().stream().filter(
+				var positions = table.getSelectionModel().getSelectedCells().stream().filter(
 						p -> !IMAGE_NAME.equals(p.getTableColumn().getText())).collect(Collectors.toList());
 				if (positions.isEmpty())
 					return;
@@ -229,7 +221,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 	 * @param warnIfDiscontinuous If true, a warning is shown if a discontinous selection is made.
 	 */
 	private static void copySelectedCellsToClipboard(final TableView<?> table, final boolean warnIfDiscontinuous) {
-		List<TablePosition> positions = table.getSelectionModel().getSelectedCells();
+		var positions = table.getSelectionModel().getSelectedCells();
 		if (positions.isEmpty())
 			return;
 		
@@ -254,7 +246,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 	 * 
 	 * @param table
 	 */
-	private static void copyEntireTableToClipboard(final TableView<?> table) {
+	private static <T> void copyEntireTableToClipboard(final TableView<T> table) {
 		List<TablePosition> positions = new ArrayList<>();
 		for (TableColumn<?, ?> column : table.getColumns()) {
 			for (int row = 0; row < table.getItems().size(); row++) {
@@ -303,7 +295,7 @@ public class ProjectMetadataEditorCommand implements PathCommand {
 			return;
 		}
 		
-		List<TablePosition> positions = table.getSelectionModel().getSelectedCells();
+		var positions = table.getSelectionModel().getSelectedCells();
 		if (positions.isEmpty()) {
 			logger.warn("No table cells selected");
 			return;

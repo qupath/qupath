@@ -38,12 +38,12 @@ import qupath.lib.gui.dialogs.Dialogs;
 
 
 /**
- * Drag 'n drop support for main QuPath application, which supports a range of different supported file types.
+ * Drag and drop support for QuPath TMA summary viewer.
  * 
  * @author Pete Bankhead
  *
  */
-public class DragDropTMADataImportListener implements EventHandler<DragEvent> {
+class DragDropTMADataImportListener implements EventHandler<DragEvent> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(DragDropTMADataImportListener.class);
 
@@ -80,7 +80,7 @@ public class DragDropTMADataImportListener implements EventHandler<DragEvent> {
     
     
     
-    public void handleFileDrop(final TMASummaryViewer tmaViewer, final List<File> list) {
+    void handleFileDrop(final TMASummaryViewer tmaViewer, final List<File> list) {
     	if (list.isEmpty()) {
     		logger.warn("No files selected for import");
     		return; // Shouldn't happen...

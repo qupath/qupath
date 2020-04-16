@@ -97,6 +97,13 @@ public class QPEx extends QP {
 
 	final private static Logger logger = LoggerFactory.getLogger(QPEx.class);
 	
+	/**
+	 * Placeholder for the path to the current project.
+	 * May be used as follows:
+	 * <pre>
+	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
+	 * </pref>
+	 */
 	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
 	
 	
@@ -168,16 +175,6 @@ public class QPEx extends QP {
 		return imageData;
 	}
 	
-	
-	
-	public static void writeTMAData(final String path) {
-		writeTMAData(path, true);
-	}
-	
-	@Deprecated
-	public static void writeTMAData(final String path, final boolean includeImages) {
-		writeTMAData((ImageData<BufferedImage>)getCurrentImageData(), resolvePath(path), includeImages);
-	}
 
 	public static void exportTMAData(final String path, final double downsampleFactor) {
 		exportTMAData((ImageData<BufferedImage>)getCurrentImageData(), resolvePath(path), downsampleFactor);
@@ -192,16 +189,7 @@ public class QPEx extends QP {
 		return
 			path;
 	}
-	
-	public static void writeTMAData(final ImageData<BufferedImage> imageData, final String path) {
-		writeTMAData(imageData, path, true);
-	}
-	
-	@Deprecated
-	public static void writeTMAData(final ImageData<BufferedImage> imageData, final String path, final boolean includeImages) {
-		double downsample = includeImages ? Double.NaN : -1;
-		exportTMAData(imageData, path, downsample);
-	}
+
 	
 	public static void exportTMAData(final ImageData<BufferedImage> imageData, final String path, final double downsampleFactor) {
 		if (imageData == null)
@@ -356,7 +344,7 @@ public class QPEx extends QP {
 		String filterDescription = extensions == null || extensions.length == 0 ? null : "Valid files";
 		if (extensions != null && extensions.length == 0)
 			extensions = null;
-		return QuPathGUI.getSharedDialogHelper().promptForFile(null, null, filterDescription, extensions);
+		return Dialogs.promptForFile(null, null, filterDescription, extensions);
 	}
 	
 	/**
@@ -628,7 +616,7 @@ public class QPEx extends QP {
 	public static void saveMeasurements(final ImageData<?> imageData, final Class<? extends PathObject> type, final String path, final String... includeColumns) {
 		File fileOutput = new File(resolvePath(path));
 		if (fileOutput.isDirectory()) {
-			String ext = ",".equals(PathPrefs.getTableDelimiter()) ? ".csv" : ".txt";
+			String ext = ",".equals(PathPrefs.tableDelimiterProperty().get()) ? ".csv" : ".txt";
 			fileOutput = new File(fileOutput, ServerTools.getDisplayableImageName(imageData.getServer()) + " " + PathObjectTools.getSuitableName(type, true) + ext);
 		}
 		ObservableMeasurementTableData model = new ObservableMeasurementTableData();
@@ -641,7 +629,7 @@ public class QPEx extends QP {
 				excludeColumns = new LinkedHashSet<>(model.getAllNames());
 				excludeColumns.removeAll(Arrays.asList(includeColumns));
 			}
-			for (String row : SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.getTableDelimiter(), excludeColumns))
+			for (String row : SummaryMeasurementTableCommand.getTableModelStrings(model, PathPrefs.tableDelimiterProperty().get(), excludeColumns))
 				writer.println(row);
 			writer.close();
 		} catch (IOException e) {
@@ -704,7 +692,7 @@ public class QPEx extends QP {
 			files = Arrays.asList((File[])o);
 		else if (o instanceof Collection) {
 			files = new ArrayList<>();
-			for (var something : (Collection)o) {
+			for (var something : (Collection<?>)o) {
 				if (something instanceof File)
 					files.add((File)something);
 			}

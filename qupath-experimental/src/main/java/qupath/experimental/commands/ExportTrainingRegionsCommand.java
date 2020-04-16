@@ -61,7 +61,6 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -90,7 +89,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class ExportTrainingRegionsCommand implements PathCommand {
+public class ExportTrainingRegionsCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ExportTrainingRegionsCommand.class);
 	
@@ -608,7 +607,7 @@ public class ExportTrainingRegionsCommand implements PathCommand {
 			if (dirExport == null && project != null) {
 				dirExport = Projects.getBaseDirectory(project);
 			}
-			File dirSelected = QuPathGUI.getDialogHelper(pane.getScene().getWindow()).promptForDirectory(dirExport);
+			File dirSelected = Dialogs.getChooser(pane.getScene().getWindow()).promptForDirectory(dirExport);
 			if (dirSelected == null)
 				return null;
 			dirExport = dirSelected;

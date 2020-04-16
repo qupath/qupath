@@ -16,6 +16,7 @@ import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.roi.GeometryTools;
 
 /**

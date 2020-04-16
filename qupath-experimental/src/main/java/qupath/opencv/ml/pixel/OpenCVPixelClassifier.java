@@ -87,8 +87,8 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         var idxInput = matRawInput.createIndexer();
         var idxOutput = matProbabilities.createIndexer();
         long[] inds = new long[2];
-        long rows = idxInput.rows();
-        long cols = idxOutput.cols();
+		long rows = idxInput.size(0); // previously .rows()
+		long cols = idxOutput.size(1); // previously .cols()
         double[] vals = new double[(int)cols];
         for (long r = 0; r < rows; r++) {
         	inds[0] = r;

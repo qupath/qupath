@@ -25,6 +25,9 @@ package qupath.lib.gui.tools;
 
 import java.util.function.Function;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.Node;
@@ -40,8 +43,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
-import qupath.lib.gui.panels.ExportChartPanel;
-import qupath.lib.gui.tma.TMASummaryViewer;
+import qupath.lib.gui.panes.ExportChartPane;
 
 /**
  * Collection of static methods to help when working with JavaFX charts, 
@@ -51,6 +53,8 @@ import qupath.lib.gui.tma.TMASummaryViewer;
  *
  */
 public class ChartTools {
+	
+	private final static Logger logger = LoggerFactory.getLogger(ChartTools.class);
 
 	/**
 	 * Get a string representation of chart data, in such a way that it could be pasted into a spreadsheet.
@@ -147,7 +151,7 @@ public class ChartTools {
 			Point2D p = convertChartPoint.apply(e);
 			rect.setWidth(p.getX() - rect.getX());
 			rect.setHeight(p.getY() - rect.getY());
-			TMASummaryViewer.logger.debug("Rectangle drawn on chart: {}", rect);
+			logger.debug("Rectangle drawn on chart: {}", rect);
 			if (rect.getWidth() != 0 && rect.getHeight() != 0) {
 				double x1 = rect.getX();
 				double y1 = rect.getY();
@@ -182,7 +186,7 @@ public class ChartTools {
 	 */
 	public static void addChartExportMenu(final XYChart<Number, Number> chart, final ContextMenu menu) {
 		MenuItem menuItem = new MenuItem("Export chart");
-		menuItem.setOnAction(e -> ExportChartPanel.showExportChartPanel(chart));
+		menuItem.setOnAction(e -> ExportChartPane.showExportChartDialog(chart));
 		if (menu == null) {
 			ContextMenu menu2 = new ContextMenu();
 			menu2.getItems().add(menuItem);

@@ -26,7 +26,6 @@ import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierPane;
@@ -55,7 +54,7 @@ import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
  * @author Pete Bankhead
  *
  */
-public class SimpleThresholdCommand implements PathCommand {
+public class SimpleThresholdCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	

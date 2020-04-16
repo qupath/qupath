@@ -31,8 +31,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
- * Helper class for displaying elements relating to whole project.
- *
+ * Dialogs specifically related to managing projects.
  */
 public class ProjectDialogs {
 	
@@ -176,8 +175,9 @@ public class ProjectDialogs {
 		try {
 			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
 			var method = skin.getClass().getMethod("getTargetListView");
-			var view = (ListView<?>)method.invoke(skin);
-			return (ObservableList<T>)view.getItems();
+			@SuppressWarnings("unchecked")
+			var view = (ListView<T>)method.invoke(skin);
+			return view.getItems();
 		} catch (Exception e) {
 			logger.warn("Unable to access target list by reflection, sorry", e);
 			return listSelectionView.getTargetItems();
@@ -196,8 +196,9 @@ public class ProjectDialogs {
 		try {
 			logger.debug("Attempting to access target list by reflection (required for controls-fx 11.0.0)");
 			var method = skin.getClass().getMethod("getSourceListView");
-			var view = (ListView<?>)method.invoke(skin);
-			return (ObservableList<T>)view.getItems();
+			@SuppressWarnings("unchecked")
+			var view = (ListView<T>)method.invoke(skin);
+			return view.getItems();
 		} catch (Exception e) {
 			logger.warn("Unable to access target list by reflection, sorry", e);
 			return listSelectionView.getSourceItems();

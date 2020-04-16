@@ -231,7 +231,7 @@ public class OverlayOptions {
      * @return preferred stroke thickness to use
      */
     public float getThickStrokeWidth(double downsample) {
-    	return (float)(PathPrefs.getThickStrokeThickness() * Math.max(1, downsample));
+    	return (float)(PathPrefs.annotationStrokeThicknessProperty().get() * Math.max(1, downsample));
     }
     
     

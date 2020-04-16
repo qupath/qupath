@@ -39,14 +39,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Writer;
 import java.lang.Thread.UncaughtExceptionHandler;
-import java.lang.reflect.Constructor;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -65,15 +60,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.Optional;
 import java.util.Locale.Category;
-import java.util.Map.Entry;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.jar.Attributes;
-import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
@@ -84,8 +77,6 @@ import javax.script.ScriptException;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
-import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
-import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,21 +87,18 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.Property;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
-import javafx.concurrent.Task;
 import javafx.embed.swing.JFXPanel;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -120,10 +108,8 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
@@ -134,24 +120,18 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
-import javafx.scene.control.Separator;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.Slider;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableRow;
 import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TitledPane;
-import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
-import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.TreeView;
 import javafx.scene.effect.DropShadow;
@@ -174,119 +154,42 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
-import qupath.lib.algorithms.IntensityFeaturesPlugin;
-import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.ActionTools.ActionAccelerator;
+import qupath.lib.gui.ActionTools.ActionDescription;
+import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
-import qupath.lib.gui.commands.CommandListDisplayCommand;
-import qupath.lib.gui.commands.CopyViewToClipboardCommand;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
-import qupath.lib.gui.commands.DetectionCentroidDistancesCommand;
-import qupath.lib.gui.commands.DistanceToAnnotationsCommand;
-import qupath.lib.gui.commands.EstimateStainVectorsCommand;
-import qupath.lib.gui.commands.LoadClassifierCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
-import qupath.lib.gui.commands.MeasurementExportCommand;
-import qupath.lib.gui.commands.MeasurementManager;
-import qupath.lib.gui.commands.MeasurementMapCommand;
-import qupath.lib.gui.commands.MemoryMonitorCommand;
-import qupath.lib.gui.commands.MiniViewerCommand;
-import qupath.lib.gui.commands.OpenCommand;
-import qupath.lib.gui.commands.PreferencesCommand;
-import qupath.lib.gui.commands.ProjectCheckUrisCommand;
-import qupath.lib.gui.commands.ProjectCloseCommand;
-import qupath.lib.gui.commands.ProjectCreateCommand;
-import qupath.lib.gui.commands.ProjectExportImageListCommand;
-import qupath.lib.gui.commands.ProjectImportImagesCommand;
-import qupath.lib.gui.commands.ProjectMetadataEditorCommand;
-import qupath.lib.gui.commands.ProjectOpenCommand;
-import qupath.lib.gui.commands.ProjectSaveCommand;
-import qupath.lib.gui.commands.QuPathSetupCommand;
-import qupath.lib.gui.commands.ResetPreferencesCommand;
-import qupath.lib.gui.commands.ResolveHierarchyCommand;
-import qupath.lib.gui.commands.ReloadDataCommand;
-import qupath.lib.gui.commands.RigidObjectEditorCommand;
-import qupath.lib.gui.commands.RotateImageCommand;
-import qupath.lib.gui.commands.SampleScriptLoader;
-import qupath.lib.gui.commands.ExportImageRegionCommand;
-import qupath.lib.gui.commands.HierarchyInsertCommand;
-import qupath.lib.gui.commands.SaveViewCommand;
-import qupath.lib.gui.commands.ScriptInterpreterCommand;
-import qupath.lib.gui.commands.SerializeImageDataCommand;
-import qupath.lib.gui.commands.SetGridSpacingCommand;
-import qupath.lib.gui.commands.OpenWebpageCommand;
-import qupath.lib.gui.commands.ShowInstalledExtensionsCommand;
-import qupath.lib.gui.commands.ShowInputDisplayCommand;
-import qupath.lib.gui.commands.ShowLicensesCommand;
-import qupath.lib.gui.commands.ShowScriptEditorCommand;
-import qupath.lib.gui.commands.ShowSystemInfoCommand;
-import qupath.lib.gui.commands.TMAGridView;
-import qupath.lib.gui.commands.SingleFeatureClassifierCommand;
-import qupath.lib.gui.commands.SparseImageServerCommand;
-import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.commands.TMAAddNote;
-import qupath.lib.gui.commands.TMAViewerCommand;
-import qupath.lib.gui.commands.TMAGridAdd;
-import qupath.lib.gui.commands.TMAGridAdd.TMAAddType;
-import qupath.lib.gui.commands.TMAGridRemove.TMARemoveType;
-import qupath.lib.gui.commands.TMAGridReset;
-import qupath.lib.gui.commands.TMAGridRemove;
-import qupath.lib.gui.commands.TMAExporterCommand;
-import qupath.lib.gui.commands.TMAScoreImportCommand;
-import qupath.lib.gui.commands.ViewTrackerCommand;
-import qupath.lib.gui.commands.ViewerSetDownsampleCommand;
-import qupath.lib.gui.commands.WorkflowDisplayCommand;
-import qupath.lib.gui.commands.ZoomCommand;
-import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.commands.interfaces.PathSelectableCommand;
-import qupath.lib.gui.commands.scriptable.DeleteObjectsCommand;
-import qupath.lib.gui.commands.scriptable.DeleteSelectedObjectsCommand;
-import qupath.lib.gui.commands.scriptable.DetectionsToPointsCommand;
-import qupath.lib.gui.commands.scriptable.DuplicateAnnotationCommand;
-import qupath.lib.gui.commands.scriptable.InverseObjectCommand;
-import qupath.lib.gui.commands.scriptable.MergeSelectedAnnotationsCommand;
-import qupath.lib.gui.commands.scriptable.ResetClassificationsCommand;
-import qupath.lib.gui.commands.scriptable.ResetSelectionCommand;
-import qupath.lib.gui.commands.scriptable.SelectAllAnnotationCommand;
-import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
-import qupath.lib.gui.commands.scriptable.SelectObjectsByClassificationCommand;
-import qupath.lib.gui.commands.scriptable.SelectObjectsByMeasurementCommand;
-import qupath.lib.gui.commands.scriptable.ShapeSimplifierCommand;
-import qupath.lib.gui.commands.scriptable.SpecifyAnnotationCommand;
-import qupath.lib.gui.commands.scriptable.TMAGridRelabel;
-import qupath.lib.gui.commands.selectable.CellDisplaySelectable;
-import qupath.lib.gui.commands.selectable.ToolSelectable;
-import qupath.lib.gui.dialogs.DialogHelper;
-import qupath.lib.gui.dialogs.DialogHelperFX;
+import qupath.lib.gui.commands.ProjectCommands;
+import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.icons.PathIconFactory;
-import qupath.lib.gui.icons.PathIconFactory.PathIcons;
+import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LoggingAppender;
-import qupath.lib.gui.panels.PathAnnotationPanel;
-import qupath.lib.gui.panels.PathImageDetailsPanel;
-import qupath.lib.gui.panels.PathObjectHierarchyView;
-import qupath.lib.gui.panels.PreferencePanel;
-import qupath.lib.gui.panels.ProjectBrowser;
-import qupath.lib.gui.panels.SelectedMeasurementTableView;
-import qupath.lib.gui.panels.SlideLabelView;
-import qupath.lib.gui.panels.WorkflowPanel;
-import qupath.lib.gui.panels.classify.RandomTrainingRegionSelector;
+import qupath.lib.gui.panes.AnnotationPane;
+import qupath.lib.gui.panes.PathImageDetailsPanel;
+import qupath.lib.gui.panes.PathObjectHierarchyView;
+import qupath.lib.gui.panes.PreferencePane;
+import qupath.lib.gui.panes.ProjectBrowser;
+import qupath.lib.gui.panes.SelectedMeasurementTableView;
+import qupath.lib.gui.panes.SlideLabelView;
+import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
@@ -295,37 +198,28 @@ import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.viewer.DragDropFileImportListener;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.ViewerPlusDisplayOptions;
 import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
-import qupath.lib.gui.viewer.tools.BrushTool;
-import qupath.lib.gui.viewer.tools.EllipseTool;
-import qupath.lib.gui.viewer.tools.LineTool;
-import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
-import qupath.lib.gui.viewer.tools.PointsTool;
-import qupath.lib.gui.viewer.tools.PolygonTool;
-import qupath.lib.gui.viewer.tools.PolylineTool;
-import qupath.lib.gui.viewer.tools.RectangleTool;
+import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathCellObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
-import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -334,14 +228,6 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.AbstractPluginRunner;
 import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.objects.DilateAnnotationPlugin;
-import qupath.lib.plugins.objects.FillAnnotationHolesPlugin;
-import qupath.lib.plugins.objects.FindConvexHullDetectionsPlugin;
-import qupath.lib.plugins.objects.RefineAnnotationsPlugin;
-import qupath.lib.plugins.objects.ShapeFeaturesPlugin;
-import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
-import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
-import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -359,13 +245,11 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
  * @author Pete Bankhead
  *
  */
-public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, ViewerManager<QuPathViewerPlus> {
+public class QuPathGUI {
 	
-	static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
+	private final static Logger logger = LoggerFactory.getLogger(QuPathGUI.class);
 	
 	private static QuPathGUI instance;
-	
-	private List<ImageDataChangeListener<BufferedImage>> listeners = Collections.synchronizedList(new ArrayList<>());
 	
 	private ScriptEditor scriptEditor = null;
 	
@@ -383,66 +267,35 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private static ExtensionClassLoader extensionClassLoader = new ExtensionClassLoader();
 	private ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class, extensionClassLoader);
-//	private static ServiceLoader<QuPathExtension> extensionLoader = ServiceLoader.load(QuPathExtension.class);
 	
-	public enum GUIActions { OPEN_IMAGE, OPEN_IMAGE_OR_URL, TMA_EXPORT_DATA, SAVE_DATA, SAVE_DATA_AS,
-								COPY_VIEW, COPY_FULL_SCREENSHOT, COPY_WINDOW_SCREENSHOT, COPY_WINDOW, ZOOM_IN, ZOOM_OUT, ZOOM_TO_FIT,
-								MOVE_TOOL, RECTANGLE_TOOL, ELLIPSE_TOOL, POLYGON_TOOL, POLYLINE_TOOL, BRUSH_TOOL, LINE_TOOL, POINTS_TOOL, WAND_TOOL,
-								SELECTION_MODE,
-								BRIGHTNESS_CONTRAST,
-								SHOW_OVERVIEW, SHOW_LOCATION, SHOW_SCALEBAR, SHOW_GRID, SHOW_ANALYSIS_PANEL,
-								SHOW_ANNOTATIONS, SHOW_NAMES, FILL_ANNOTATIONS, SHOW_TMA_GRID, SHOW_TMA_GRID_LABELS, SHOW_DETECTIONS, FILL_DETECTIONS, SHOW_PIXEL_CLASSIFICATION,
-								SPECIFY_ANNOTATION, ANNOTATION_DUPLICATE, GRID_SPACING,
-								COUNTING_PANEL, CONVEX_POINTS, USE_SELECTED_COLOR, DETECTIONS_TO_POINTS,
-								ROTATE_IMAGE, MINI_VIEWER, CHANNEL_VIEWER,
-								RIGID_OBJECT_EDITOR, SHOW_COMMAND_LIST,
-								TMA_SCORE_IMPORTER, TMA_ADD_NOTE, COLOR_DECONVOLUTION_REFINE, SHOW_LOG, TMA_RELABEL,
-								SHOW_CELL_BOUNDARIES, SHOW_CELL_NUCLEI, SHOW_CELL_BOUNDARIES_AND_NUCLEI, SHOW_CELL_CENTROIDS,
-								SUMMARY_TMA, SUMMARY_ANNOTATIONS, SUMMARY_DETECTIONS, EXPORT_MEASUREMENTS,
-								VIEW_TRACKER, MEASUREMENT_MAP, WORKFLOW_DISPLAY,
-								DELETE_SELECTED_OBJECTS, CLEAR_HIERARCHY, CLEAR_DETECTIONS, CLEAR_TMA_CORES, CLEAR_ANNOTATIONS,
-								PROJECT_NEW, PROJECT_OPEN, PROJECT_CLOSE, PROJECT_SAVE, PROJECT_IMPORT_IMAGES, PROJECT_EXPORT_IMAGE_LIST, PROJECT_METADATA,
-								PREFERENCES, QUPATH_SETUP,
-								TRANSFER_ANNOTATION, SELECT_ALL_ANNOTATION, TOGGLE_SYNCHRONIZE_VIEWERS, MATCH_VIEWER_RESOLUTIONS,
-								UNDO, REDO
-								};
+	private ObjectProperty<PathTool> selectedToolProperty = new SimpleObjectProperty<>(PathTools.MOVE);
+	private ObservableList<PathTool> tools = FXCollections.observableArrayList(
+			PathTools.MOVE, PathTools.RECTANGLE, PathTools.ELLIPSE, PathTools.LINE, PathTools.POLYGON, PathTools.POLYLINE, PathTools.BRUSH, PathTools.POINTS
+			);
 	
-	/**
-	 * Marker interface for a viewer input Mode, used to determine active input tool.
-	 */
-	public static interface Mode {}
-	
-	/**
-	 * Modes that correspond to default drawing tools.
-	 */
-	public enum DefaultMode implements Mode { MOVE, RECTANGLE, ELLIPSE, LINE, POLYGON, POLYLINE, BRUSH, POINTS, WAND }; //, TMA };
-	private BooleanProperty modeLocked = new SimpleBooleanProperty(false);
-	private Mode mode = DefaultMode.MOVE;
+	private BooleanProperty selectedToolLocked = new SimpleBooleanProperty(false);
 	
 	// ExecutorServices for single & multiple threads
 	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
-//	private Set<ExecutorService> managedThreadPools = new HashSet<>();
 	private ExecutorService poolMultipleThreads = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()), ThreadTools.createThreadFactory("qupath-shared-", false));	
 	
-	private Map<KeyCombination, Action> mapActions = new HashMap<>();
+	private Map<PathTool, Action> toolActions = new HashMap<>();
 	
-	private Map<Mode, Action> modeActions = new HashMap<>();
-
 	/**
 	 * Preferred size for toolbar icons.
 	 */
 	final public static int TOOLBAR_ICON_SIZE = 16;
 
-	private MultiviewManager viewerManager;
+	MultiviewManager viewerManager;
 	
-	private ObjectProperty<Project<BufferedImage>> project = new SimpleObjectProperty<>();
+	private ObjectProperty<Project<BufferedImage>> projectProperty = new SimpleObjectProperty<>();
 	
 	private ProjectBrowser projectBrowser;
 	
 	/**
 	 * Preference panel, which may be used by extensions to add in their on preferences if needed
 	 */
-	private PreferencePanel prefsPanel;
+	private PreferencePane prefsPane;
 	
 	/**
 	 * The current ImageData in the current QuPathViewer
@@ -455,7 +308,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 	
 	private BorderPane pane; // Main component, to hold toolbar & splitpane
-	private Control analysisPanel;
+	private TabPane analysisPanel = new TabPane();
 	
 	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
 	private OverlayOptions overlayOptions = new OverlayOptions();
@@ -466,25 +319,395 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	private SplitPane splitPane = new SplitPane(); // Main component
 
 	private ObservableList<PathClass> availablePathClasses = null;
-
-	protected HashMap<GUIActions, Action> actionMap = new HashMap<>();
 	
 	private Stage stage;
 	
-	private static DialogHelper standaloneDialogHelper = new DialogHelperFX(null); // When there is no parent Window available
-	private static Map<Window, DialogHelper> dialogHelpers = new WeakHashMap<>();
-
 	private boolean isStandalone = false;
 	private ScriptMenuLoader sharedScriptMenuLoader;
-//	private ScriptMenuLoader projectScriptMenuLoader;
-	
-	private ImageServer<BufferedImage> selectedSeries = null;
 	
 	private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
 	
 	private UndoRedoManager undoRedoManager;
 	
 	private HostServices hostServices;
+	
+	SlideLabelView slideLabelView = new SlideLabelView(this);
+	
+	/**
+	 * Keystrokes can be lost on macOS... so ensure these are handled
+	 */
+	private Map<KeyCombination, Action> comboMap = new HashMap<>();
+	
+	
+	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
+	
+	private BooleanBinding noProject = projectProperty.isNull();
+	private BooleanBinding noViewer = viewerProperty.isNull();
+	private BooleanBinding noImageData = imageDataProperty.isNull();
+	
+	/**
+	 * Create an {@link Action} that depends upon an {@link ImageData}.
+	 * When the action is invoked, it will be passed the current {@link ImageData} as a parameter.
+	 * The action will also be disabled if no image data is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createImageDataAction(Consumer<ImageData<BufferedImage>> command) {
+		var action = new Action(e -> {
+			var imageData = getImageData();
+			if (imageData == null)
+				Dialogs.showNoImageError("No image");
+			else
+				command.accept(imageData);
+		});
+		action.disabledProperty().bind(noImageData);
+		return action;
+	}
+	
+	/**
+	 * Create an {@link Action} that depends upon an {@link QuPathViewer}.
+	 * When the action is invoked, it will be passed the current {@link QuPathViewer} as a parameter.
+	 * The action will also be disabled if no viewer is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	Action createViewerAction(Consumer<QuPathViewer> command) {
+		var action = new Action(e -> {
+			var viewer = getViewer();
+			if (viewer == null)
+				Dialogs.showErrorMessage("No viewer", "This command required an active viewer!");
+			else
+				command.accept(viewer);
+		});
+		action.disabledProperty().bind(noViewer);
+		return action;
+	}
+	
+	// TODO: Remove this command whenever annotations can be applied more easily
+	private Action createImageDataAction(Consumer<ImageData<BufferedImage>> command, String name) {
+		var action = createImageDataAction(command);
+		action.setText(name);
+		return action;
+	}
+	
+	
+	Action createProjectAction(Consumer<Project<BufferedImage>> command) {
+		var action = new Action(e -> {
+			var project = getProject();
+			if (project == null)
+				Dialogs.showNoProjectError("No project");
+			else
+				command.accept(project);
+		});
+		action.disabledProperty().bind(noProject);
+		return action;
+	}
+	
+	private void installActions(Collection<? extends Action> actions) {
+		installActions(getMenuBar().getMenus(), actions);
+		actions.stream().forEach(a -> registerAccelerator(a));
+	}
+	
+	private static void installActions(List<Menu> menus, Collection<? extends Action> actions) {
+		
+		var menuMap = new HashMap<String, Menu>();
+		
+		for (var action : actions) {
+			var menuString = action.getProperties().get("MENU");
+			if (menuString instanceof String) {
+				var menu = menuMap.computeIfAbsent((String)menuString, s -> MenuTools.getMenu(menus, s, true));
+				var items = menu.getItems();
+				var name = action.getText();
+				var newItem = ActionTools.createMenuItem(action);
+				if (!(newItem instanceof SeparatorMenuItem)) {
+					var existing = items.stream().filter(m -> m.getText() != null && m.getText().equals(name)).findFirst().orElse(null);
+					if (existing != null) {
+						logger.warn("Existing menu item found with name '{}' - this will be replaced", name);
+						items.set(items.indexOf(existing), newItem);
+						continue;
+					}
+				} else if (items.isEmpty()) {
+					// Don't add a separator if there is nothing to separate
+					continue;
+				}
+				items.add(newItem);
+			} else {
+				logger.debug("Found command without associated menu: {}", action);
+			}
+		}
+	}
+	
+	
+	/**
+	 * Default actions associated with a specific QuPath instance.
+	 * These are useful for generating toolbars and context menus, ensuring that the same actions are used consistently.
+	 */
+	public class DefaultActions {
+		
+		// Zoom actions
+		/**
+		 * Apply 'zoom-to-fit' setting to all viewers
+		 */
+		@ActionIcon(PathIcons.ZOOM_TO_FIT)
+		public final Action ZOOM_TO_FIT = ActionTools.createSelectableAction(zoomToFit, "Zoom to fit");
+		
+		// Tool actions
+		/**
+		 * Move tool action
+		 */
+		@ActionAccelerator("m")
+		public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
+		/**
+		 * Rectangle tool action
+		 */
+		@ActionAccelerator("r")
+		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
+		/**
+		 * Ellipse tool action
+		 */
+		@ActionAccelerator("o")
+		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
+		/**
+		 * Polygon tool action
+		 */
+		@ActionAccelerator("p")
+		public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
+		/**
+		 * Polyline tool action
+		 */
+		@ActionAccelerator("v")
+		public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
+		/**
+		 * Brush tool action
+		 */
+		@ActionAccelerator("b")
+		public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
+		/**
+		 * Line tool action
+		 */
+		@ActionAccelerator("l")
+		public final Action LINE_TOOL = getToolAction(PathTools.LINE);
+		/**
+		 * Points/counting tool action
+		 */
+		@ActionAccelerator(".")
+		public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
+		
+		/**
+		 * Toggle 'selection mode' on/off for all drawing tools.
+		 */
+		@ActionAccelerator("shortcut+alt+s")
+		@ActionIcon(PathIcons.SELECTION_MODE)
+		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
+		
+		// Toolbar actions
+		/**
+		 * Show the brightness/contrast dialog.
+		 */
+		@ActionIcon(PathIcons.CONTRAST)
+		@ActionAccelerator("shift+c")
+		public final Action BRIGHTNESS_CONTRAST = ActionTools.createAction(new BrightnessContrastCommand(QuPathGUI.this), "Brightness/Contrast");
+		
+		/**
+		 * Toggle the image overview display on the viewers.
+		 */
+		@ActionIcon(PathIcons.OVERVIEW)
+		public final Action SHOW_OVERVIEW = ActionTools.createSelectableAction(viewerDisplayOptions.showOverviewProperty(), "Show slide overview");
+		/**
+		 * Toggle the cursor location display on the viewers.
+		 */
+		@ActionIcon(PathIcons.LOCATION)
+		public final Action SHOW_LOCATION = ActionTools.createSelectableAction(viewerDisplayOptions.showLocationProperty(), "Show cursor location");
+		/**
+		 * Toggle the scalebar display on the viewers.
+		 */
+		@ActionIcon(PathIcons.SHOW_SCALEBAR)
+		public final Action SHOW_SCALEBAR = ActionTools.createSelectableAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar");
+		/**
+		 * Toggle the counting grid display on the viewers.
+		 */
+		@ActionIcon(PathIcons.GRID)
+		@ActionAccelerator("shift+g")
+		public final Action SHOW_GRID = ActionTools.createSelectableAction(overlayOptions.showGridProperty(), "Show grid");
+		/**
+		 * Prompt to set the spacing for the counting grid.
+		 */
+		public final Action GRID_SPACING = ActionTools.createAction(() -> Commands.promptToSetGridLineSpacing(overlayOptions), "Set grid spacing");
+		
+		/**
+		 * Show the counting tool dialog. By default, this is connected to setting the points tool to active.
+		 */
+		public final Action COUNTING_PANEL = ActionTools.createAction(new CountingPanelCommand(QuPathGUI.this), "Counting tool", PathTools.POINTS.getIcon(), null);
+
+		/**
+		 * Toggle the pixel classification overlay visibility on the viewers.
+		 */
+		@ActionIcon(PathIcons.PIXEL_CLASSIFICATION)
+		@ActionAccelerator("c")
+		public final Action SHOW_PIXEL_CLASSIFICATION = ActionTools.createSelectableAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification");
+			
+		// TMA actions
+		/**
+		 * Add a note to any selected TMA core.
+		 */
+		private final Action TMA_ADD_NOTE = createImageDataAction(imageData -> TMACommands.promptToAddNoteToSelectedCores(imageData), "Add TMA note");
+		
+		// Overlay options actions
+		/**
+		 * Request that cells are displayed using their boundary ROI only.
+		 */
+		@ActionIcon(PathIcons.CELL_ONLY)
+		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
+		/**
+		 * Request that cells are displayed using their boundary ROI only.
+		 */
+		@ActionIcon(PathIcons.NUCLEI_ONLY)
+		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
+		/**
+		 * Request that cells are displayed using both cell and nucleus ROIs.
+		 */
+		@ActionIcon(PathIcons.CELL_NULCEI_BOTH)
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
+		/**
+		 * Request that cells are displayed using their centroids only.
+		 */
+		@ActionIcon(PathIcons.CENTROIDS_ONLY)
+		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
+
+		/**
+		 * Toggle the display of annotations.
+		 */
+		@ActionIcon(PathIcons.ANNOTATIONS)
+		@ActionAccelerator("a")
+		public final Action SHOW_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.showAnnotationsProperty(), "Show annotations");
+		
+		/**
+		 * Toggle the display of annotation names.
+		 */
+		@ActionAccelerator("n")
+		public final Action SHOW_NAMES = ActionTools.createSelectableAction(overlayOptions.showNamesProperty(), "Show names");
+		
+		/**
+		 * Display annotations filled in.
+		 */
+		@ActionIcon(PathIcons.ANNOTATIONS_FILL)
+		@ActionAccelerator("shift+f")
+		public final Action FILL_ANNOTATIONS = ActionTools.createSelectableAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations");	
+		
+		/**
+		 * Toggle the display of TMA cores.
+		 */
+		@ActionIcon(PathIcons.TMA_GRID)
+		@ActionAccelerator("g")
+		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), "Show TMA grid");
+		/**
+		 * Toggle the display of TMA grid lables.
+		 */
+		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
+		
+		/**
+		 * Toggle the display of detections.
+		 */
+		@ActionIcon(PathIcons.DETECTIONS)
+		@ActionAccelerator("d")
+		public final Action SHOW_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.showDetectionsProperty(), "Show detections");
+		
+		/**
+		 * Display detections filled in.
+		 */
+		@ActionIcon(PathIcons.DETECTIONS_FILL)
+		@ActionAccelerator("f")
+		public final Action FILL_DETECTIONS = ActionTools.createSelectableAction(overlayOptions.fillDetectionsProperty(), "Fill detections");	
+		/**
+		 * Display the convex hull of point ROIs.
+		 */
+		public final Action CONVEX_POINTS = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
+		
+		// Viewer actions
+		/**
+		 * Toggle the synchronization of multiple viewers.
+		 */
+		@ActionAccelerator("shortcut+alt+s")
+		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = ActionTools.createSelectableAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers");
+		/**
+		 * Match the resolution of all open viewers.
+		 */
+		public final Action MATCH_VIEWER_RESOLUTIONS = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
+		
+		/**
+		 * Show the main log window.
+		 */
+		@ActionAccelerator("shortcut+shift+l")
+		public final Action SHOW_LOG = ActionTools.createAction(new LogViewerCommand(QuPathGUI.this), "Show log");
+
+		/**
+		 * Toggle the visibility of the 'Analysis pane' in the main viewer.
+		 */
+		@ActionIcon(PathIcons.MEASURE)
+		@ActionAccelerator("shift+a")
+		public final Action SHOW_ANALYSIS_PANE = createShowAnalysisPaneAction();
+		
+		/**
+		 * Show summary measurement table for TMA cores.
+		 */
+		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
+		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
+		
+		/**
+		 * Show summary measurement table for annotations.
+		 */
+		@ActionDescription("Show summary measurements for annotation objects")
+		public final Action MEASURE_ANNOTATIONS = createImageDataAction(imageData -> Commands.showAnnotationMeasurementTable(QuPathGUI.this, imageData), "Show annotation measurements");
+		
+		/**
+		 * Show summary measurement table for detections.
+		 */
+		@ActionDescription("Show summary measurements for detection objects")
+		public final Action MEASURE_DETECTIONS = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show detection measurements");
+		
+		private DefaultActions() {
+			// This has the effect of applying the annotations
+			ActionTools.getAnnotatedActions(this);
+		}
+		
+	}
+	
+	private DefaultActions defaultActions;
+	
+	
+	/**
+	 * Get the default actions associated with this QuPath instance.
+	 * @return
+	 */
+	public synchronized DefaultActions getDefaultActions() {
+		if (defaultActions == null)
+			defaultActions = new DefaultActions();
+		return defaultActions;
+	}
+	
+	
+	private Action createShowAnalysisPaneAction() {
+		ShowAnalysisPaneSelectable temp = new ShowAnalysisPaneSelectable(pane, splitPane, analysisPanel, viewerManager, true);
+		return ActionTools.createSelectableAction(temp.showPaneProperty(), "Show analysis panel");
+	}
+	
+	/**
+	 * A list of all actions currently registered for this GUI.
+	 */
+	private ObservableList<Action> actions = FXCollections.observableArrayList();
+	
+	/**
+	 * Search for an action based upon its text (name) property.
+	 * @param text the text to search for
+	 * @return the action, if found, or null otherwise
+	 */
+	public Action lookupActionByText(String text) {
+		var found = actions.stream().filter(p -> text.equals(p.getText())).findFirst().orElse(null);
+		if (found == null)
+			logger.warn("No action called '{}' could be found!", text);
+		return found;
+	}
+	
 	
 	/**
 	 * Create a QuPath instance, optionally initializing it with a path to open.
@@ -500,7 +723,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param path path of an image, project or data file to open (may be null)
 	 * @param isStandalone true if QuPath should be run as a standalone application
 	 */
-	public QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone) {
+	QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone) {
 		super();
 		
 		this.hostServices = services;
@@ -520,9 +743,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		long startTime = System.currentTimeMillis();
 		
 		// Set up cache
-		imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(PathPrefs.getTileCacheSizeBytes());
+		imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(QuPathGUI.getTileCacheSizeBytes());
 		
-		PathPrefs.tileCacheProportionProperty().addListener((v, o, n) -> {
+		PathPrefs.tileCachePercentageProperty().addListener((v, o, n) -> {
 			imageRegionStore.getCache().clear();
 		});
 		
@@ -531,13 +754,29 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		this.stage = stage;
 		this.isStandalone = isStandalone;
 		
-		menuBar = new MenuBar();
+		menuBar = new MenuBar(
+				Arrays.asList("File", "Edit", "Tools", "View", "Objects", "TMA", "Measure", "Automate", "Analyze", "Classify", "Extensions", "Help")
+				.stream().map(Menu::new).toArray(Menu[]::new)
+				);
+		
+		actions.addListener((ListChangeListener.Change<? extends Action> c) -> {
+			while (c.next()) {
+				if (c.wasPermutated()) {
+					logger.warn("Menu permutations not supported!");
+				} else if (c.wasRemoved() ) {
+					logger.warn("Menu item removal not supported!");					
+				} else if (c.wasAdded() ) {
+					installActions(c.getAddedSubList());					
+				}
+			}
+		});
+		setupToolsMenu(getMenu("Tools", true));
 		
 		// Prepare for image name masking
-		project.addListener((v, o, n) -> {
+		projectProperty.addListener((v, o, n) -> {
 			if (n != null)
-				n.setMaskImageNames(PathPrefs.getMaskImageNames());
-			updateTitle();
+				n.setMaskImageNames(PathPrefs.maskImageNamesProperty().get());
+			refreshTitle();
 		});
 		PathPrefs.maskImageNamesProperty().addListener(((v, o, n) -> {
 			var currentProject = getProject();
@@ -547,14 +786,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		}));
 		
 		// Create preferences panel
-		prefsPanel = new PreferencePanel(this);
+		prefsPane = new PreferencePane();
 		
 		// Set the number of threads at an early stage...
-		AbstractPluginRunner.setNumThreadsRequested(PathPrefs.getNumCommandThreads());
-		PathPrefs.numCommandThreadsProperty().addListener(o -> AbstractPluginRunner.setNumThreadsRequested(PathPrefs.getNumCommandThreads()));
+		AbstractPluginRunner.setNumThreadsRequested(PathPrefs.numCommandThreadsProperty().get());
+		PathPrefs.numCommandThreadsProperty().addListener(o -> AbstractPluginRunner.setNumThreadsRequested(PathPrefs.numCommandThreadsProperty().get()));
 		
 		// Activate the log at an early stage
-		Action actionLog = getAction(GUIActions.SHOW_LOG);
+		// TODO: NEED TO TURN ON LOG!
+//		Action actionLog = createAction(GUIActions.SHOW_LOG);
 		
 		// Turn off the use of ImageIODiskCache (it causes some trouble)
 		ImageIO.setUseCache(false);
@@ -565,7 +805,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		logger.trace("Time to tools: {} ms", (System.currentTimeMillis() - startTime));
 		
 		// Initialize all tools
-		initializeTools();
+//		initializeTools();
 
 		// Initialize main GUI
 //		initializeMainComponent();
@@ -579,8 +819,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			@Override
 			public void uncaughtException(Thread t, Throwable e) {
 				Dialogs.showErrorNotification("QuPath exception", e);
-				if (actionLog != null)
-					actionLog.handle(null);
+				if (defaultActions.SHOW_LOG != null)
+					defaultActions.SHOW_LOG.handle(null);
 				// Try to reclaim any memory we can
 				if (e instanceof OutOfMemoryError) {
 					getViewer().getImageRegionStore().clearCache(false, false);
@@ -596,11 +836,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		logger.trace("Time to menu: {} ms", (System.currentTimeMillis() - startTime));
 		
-		undoRedoManager = new UndoRedoManager(this);
-
 		initializingMenus.set(true);
 		menuBar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());
-		createMenuBar();
 		pane.setTop(menuBar);
 		
 		Scene scene;
@@ -620,6 +857,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 
 		// Remove this to only accept drag-and-drop into a viewer
 		dragAndDrop.setupTarget(scene);
+		TMACommands.installDragAndDropHandler(this);
 		
 		stage.setOnCloseRequest(e -> {
 			
@@ -710,15 +948,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		});
 		
 		stage.getScene().setOnKeyReleased(e -> {
-			// We only seem to need this to mop up shortcuts if the system menu bar is in use (at least on OSX)
-			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
+			// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
+			if (e.isConsumed() || e.getTarget() instanceof TextInputControl || !PathPrefs.useSystemMenubarProperty().get()) {
 				return;
 			}
 			
-			for (Entry<KeyCombination, Action> entry : mapActions.entrySet()) {
+			for (var entry : comboMap.entrySet()) {
 				if (entry.getKey().match(e)) {
-					Action action = entry.getValue();
-					if (Boolean.TRUE.equals(action.getProperties().get("Selectable")))
+					var action = entry.getValue();
+					if (ActionTools.isSelectable(action))
 						action.setSelected(!action.isSelected());
 					else
 						action.handle(new ActionEvent(e.getSource(), e.getTarget()));
@@ -726,12 +964,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					return;
 				}
 			}
+			
 			// Generic 'hiding'
 			if (new KeyCodeCombination(KeyCode.H).match(e)) {
-				var action = getAction(GUIActions.SHOW_DETECTIONS);
+				var action = defaultActions.SHOW_DETECTIONS;
 				action.setSelected(!action.isSelected());
-				action = getAction(GUIActions.SHOW_PIXEL_CLASSIFICATION);
+				action = defaultActions.SHOW_PIXEL_CLASSIFICATION;
 				action.setSelected(!action.isSelected());
+				e.consume();
 			}
 			
 		});
@@ -762,10 +1002,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return null;
 			return new File(dir, "scripts").getAbsolutePath();
 //			return getProjectScriptsDirectory(false).getAbsolutePath();
-		}, project);
+		}, projectProperty);
 		var projectScriptMenuLoader = new ScriptMenuLoader("Project scripts...", projectScriptsPath, (DefaultScriptEditor)editor);
 		projectScriptMenuLoader.getMenu().visibleProperty().bind(
-				project.isNotNull().and(initializingMenus.not())
+				projectProperty.isNotNull().and(initializingMenus.not())
 				);
 		
 		StringBinding userScriptsPath = Bindings.createStringBinding(() -> {
@@ -787,18 +1027,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			MenuTools.addMenuItems(
 					menuAutomate,
 					null,
-					createCommandAction(new SampleScriptLoader(this), "Open sample scripts"),
 					sharedScriptMenuLoader.getMenu(),
 					userScriptMenuLoader.getMenu(),
 					projectScriptMenuLoader.getMenu()
 					);
 		}
-		
-		// Update action states
-		updateProjectActionStates();
-		
-		// Listen for cache request changes
-		PathPrefs.useProjectImageCacheProperty().addListener(v -> updateProjectActionStates());
 		
 		// Menus should now be complete - try binding visibility
 		initializingMenus.set(false);
@@ -814,6 +1047,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		// Update the title
 		stage.titleProperty().bind(titleBinding);
+		
+		// Register all the accelerators
 		
 		// Update display
 		// Requesting the style should be enough to make sure it is called...
@@ -857,7 +1092,20 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	void showStarupMesssage() {
+	/**
+	 * Set up the tools menu to listen to the available tools.
+	 * @param menu
+	 */
+	private void setupToolsMenu(Menu menu) {
+		tools.addListener((Change<? extends PathTool> c) -> refreshToolsMenu(tools, menu));
+	}
+	
+	private void refreshToolsMenu(List<PathTool> tools, Menu menu) {
+		menu.getItems().setAll(tools.stream().map(t -> ActionTools.createCheckMenuItem(getToolAction(t))).collect(Collectors.toList()));
+	}
+	
+	
+	private void showStarupMesssage() {
 		File fileStartup = new File("STARTUP.md");
 		if (!fileStartup.exists()) {
 			fileStartup = new File("app", fileStartup.getName());
@@ -952,11 +1200,9 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	/**
 	 * Try to launch a browser window for a specified URL.
-	 * <p>
-	 * Returns true if this was (as far as we know...) successful, and false otherwise.
 	 * 
-	 * @param url
-	 * @return
+	 * @param url the URL to open in the browser
+	 * @return true if this was (as far as we know...) successful, and false otherwise
 	 */
 	public static boolean launchBrowserWindow(final String url) {
 		var instance = getInstance();
@@ -978,28 +1224,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return false;
 		}
 	}
-	
-	
-	
-//	/**
-//	 * Directory containing extensions.
-//	 * 
-//	 * This can contain any jars - all will be added to the search path when starting QuPath.
-//	 * 
-//	 * @return
-//	 */
-//	public File getExtensionDirectory() {
-//		// Original version... saved with QuPath, but could lead to permissions woes
-//		File currentFile;
-//		try {
-//			currentFile = new File(QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-//			File dirExtensions = new File(currentFile.getParentFile().getParentFile(), "extensions");
-//			return dirExtensions;
-//		} catch (URISyntaxException e) {
-//			logger.error("Unable to find extensions directory!", e);
-//		}
-//		return null;
-//	}
 	
 	
 	/**
@@ -1040,30 +1264,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 */
 	public boolean canInstallExtensions() {
 		return true;
-//		return isRunningJar();
 	}
-	
-//	private boolean isRunningJar() {
-//		try {
-//			File currentFile = new File(QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-//			return currentFile.getName().toLowerCase().endsWith(".jar");
-//		} catch (URISyntaxException e) {
-//			logger.error("Error determining whether jar running!", e);
-//		}
-//		return false;
-//	}
-	
-	
+		
 	/**
 	 * Check for any updates, showing the new changelog if any updates found.
 	 * 
 	 * @param isAutoCheck If true, the check will only be performed if the auto-update preferences allow it, 
 	 * 					  and the user won't be prompted if no update is available.
 	 */
-	private void checkForUpdate(final boolean isAutoCheck) {
+	void checkForUpdate(final boolean isAutoCheck) {
 		
 		// Confirm if the user wants us to check for updates
-		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheck();
+		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheckProperty().get();
 		if (isAutoCheck && !doAutoUpdateCheck)
 			return;
 
@@ -1115,15 +1327,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (compareChangelogHeaders(changeLogCurrent, changeLogOnline)) {
 					// If not isAutoCheck, inform user even if there are no updated at this time
 					if (!isAutoCheck) {
-						Platform.runLater(() -> {
-//							Dialog<Void> dialog = new Dialog<>();
-//							dialog.setTitle("Update check");
-//							dialog.initOwner(getStage());
-//							dialog.getDialogPane().setHeaderText("QuPath is up-to-date!");
-//							dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-//							dialog.showAndWait();
-							Dialogs.showMessageDialog("Update check", "QuPath is up-to-date!");
-						});
+						Platform.runLater(() -> Dialogs.showMessageDialog("Update check", "QuPath is up-to-date!"));
 					}
 					return;
 				}
@@ -1209,7 +1413,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				Dialogs.showErrorNotification("Download", "Unable to open " + url);
 			}
 		} else if (result.get().equals(btDoNotRemind)) {
-			PathPrefs.setDoAutoUpdateCheck(false);
+			PathPrefs.doAutoUpdateCheckProperty().set(false);
 		}
 	}
 	
@@ -1323,14 +1527,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					Dialogs.showErrorMessage("Extension error", "Unable to create directory at \n" + dirDefault.getAbsolutePath());
 					return;
 				}
-				PathPrefs.setUserPath(dirDefault.getAbsolutePath());
+				PathPrefs.userPathProperty().set(dirDefault.getAbsolutePath());
 			} else {
-				File dirUser = getDialogHelper().promptForDirectory(dirDefault);
+				File dirUser = Dialogs.promptForDirectory(dirDefault);
 				if (dirUser == null) {
 					logger.info("No QuPath user directory set - extensions not installed");
 					return;
 				}
-				PathPrefs.setUserPath(dirUser.getAbsolutePath());
+				PathPrefs.userPathProperty().set(dirUser.getAbsolutePath());
 			}
 			// Now get the extensions directory (within the user directory)
 			dir = getExtensionDirectory();
@@ -1395,16 +1599,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @return true if changes were mad to the available classes, false otherwise
 	 */
 	public boolean resetAvailablePathClasses() {
-		List<PathClass> pathClasses = new ArrayList<>(); 
-		pathClasses.add(PathClassFactory.getPathClassUnclassified());
-		
-		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.TUMOR));
-		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.STROMA));
-		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMMUNE_CELLS));
-		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NECROSIS));
-		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.OTHER));
-		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION));
-		pathClasses.add(PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE));
+		List<PathClass> pathClasses = Arrays.asList(
+				PathClassFactory.getPathClassUnclassified(),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.TUMOR),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.STROMA),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMMUNE_CELLS),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NECROSIS),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.OTHER),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE)
+				);
 		
 		if (availablePathClasses == null) {
 			availablePathClasses = FXCollections.observableArrayList(pathClasses);
@@ -1492,7 +1696,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				.addChoiceParameter("localeFormatting", "Numbers & dates", Locale.getDefault(Category.FORMAT).getDisplayName(), localeList, "Choose region settings used to format numbers and dates")
 				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
 				.addTitleParameter("Updates")
-				.addBooleanParameter("checkForUpdates", "Check for updates on startup (recommended)", PathPrefs.doAutoUpdateCheck(), "Specify whether to automatically prompt to download the latest QuPath on startup (required internet connection)")	
+				.addBooleanParameter("checkForUpdates", "Check for updates on startup (recommended)", PathPrefs.doAutoUpdateCheckProperty().get(), "Specify whether to automatically prompt to download the latest QuPath on startup (required internet connection)")	
 				;
 
 		ParameterPanelFX parameterPanel = new ParameterPanelFX(paramsSetup);
@@ -1517,10 +1721,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		Locale localeFormatting = localeMap.get(paramsSetup.getChoiceParameterValue("localeFormatting"));
 		Locale localeDisplay = localeMap.get(paramsSetup.getChoiceParameterValue("localeDisplay"));
 		
-		PathPrefs.setDefaultLocale(Category.FORMAT, localeFormatting);
-		PathPrefs.setDefaultLocale(Category.DISPLAY, localeDisplay);
+		PathPrefs.defaultLocaleFormatProperty().set(localeFormatting);
+		PathPrefs.defaultLocaleDisplayProperty().set(localeDisplay);
 		
-		PathPrefs.setDoAutoUpdateCheck(paramsSetup.getBooleanParameterValue("checkForUpdates"));
+		PathPrefs.doAutoUpdateCheckProperty().set(paramsSetup.getBooleanParameterValue("checkForUpdates"));
 		
 		if (PathPrefs.hasJavaPreferences()) {
 			int maxMemorySpecifiedMB = (int)(Math.round(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024));
@@ -1552,13 +1756,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return;
 		for (Node child : parent.getChildrenUnmodifiable()) {
 			if (child instanceof TreeView<?>)
-				((TreeView)child).refresh();
+				((TreeView<?>)child).refresh();
 			else if (child instanceof ListView<?>)
-				((ListView)child).refresh();
+				((ListView<?>)child).refresh();
 			else if (child instanceof TableView<?>)
-				((TableView)child).refresh();
+				((TableView<?>)child).refresh();
 			else if (child instanceof TreeTableView<?>)
-				((TreeTableView)child).refresh();
+				((TreeTableView<?>)child).refresh();
 			else if (child instanceof Parent)
 				updateListsAndTables((Parent)child);
 		}
@@ -1585,37 +1789,47 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	private BorderPane initializeMainComponent() {
 		
+		pane = new BorderPane();
+		
 		// Create a reasonably-sized viewer
 		QuPathViewerPlus viewer = new QuPathViewerPlus(null, imageRegionStore, overlayOptions, viewerDisplayOptions);
-//		viewer.setBorder(BorderFactory.createLineBorder(Color.BLACK));
 		
-//		Dimension viewerSize = Toolkit.getDefaultToolkit().getScreenSize();
-//		viewerSize.width = (int)Math.max(viewerSize.width * 0.5, viewer.getPreferredSize().width);
-//		viewerSize.height = (int)Math.max(viewerSize.height * 0.5, viewer.getPreferredSize().height);
-//		viewer.setPreferredSize(viewerSize);
+		
 
 		// Add analysis panel & viewer to split pane
 		viewerManager = new MultiviewManager(viewer);
-		analysisPanel = createAnalysisPanel();
+		
+		// Now that we have a viewer, we can create an undo/redo manager
+		undoRedoManager = new UndoRedoManager(this);
+
+		
+		// TODO: MOVE INITIALIZING MANAGERS ELSEWHERE
+		actions.addAll(new Menus(this).getActions());
+		
+		// Add a recent projects menu
+		getMenu("File", true).getItems().add(1, createRecentProjectsMenu());
+
+//		analysisPanel = createAnalysisPanel();
+		initializeAnalysisPanel();
 		analysisPanel.setMinWidth(300);
 		analysisPanel.setPrefWidth(400);
 		splitPane.setMinWidth(analysisPanel.getMinWidth() + 200);
 		splitPane.setPrefWidth(analysisPanel.getPrefWidth() + 200);
-		SplitPane.setResizableWithParent(analysisPanel, Boolean.FALSE);
+		SplitPane.setResizableWithParent(analysisPanel, Boolean.FALSE);		
+
 		
 //		paneCommands.setRight(cbPin);
 		
-		Node paneViewer = CommandFinderTools.createCommandFinderPane(this, viewerManager.getNode(), PathPrefs.commandBarDisplayProperty());
+		Node paneViewer = CommandFinderTools.createCommandFinderPane(this, viewerManager.getNode(), CommandFinderTools.commandBarDisplayProperty());
 //		paneViewer.setTop(tfCommands);
 //		paneViewer.setCenter(viewerManager.getNode());
 		splitPane.getItems().addAll(analysisPanel, paneViewer);
 //		splitPane.getItems().addAll(viewerManager.getComponent());
 		SplitPane.setResizableWithParent(viewerManager.getNode(), Boolean.TRUE);
 		
-		pane = new BorderPane();
 		pane.setCenter(splitPane);
 		toolbar = new ToolBarComponent(this);
-		pane.setTop(toolbar.getComponent());
+		pane.setTop(toolbar.getToolBar());
 		
 //		setInitialLocationAndMagnification(getViewer());
 
@@ -1623,11 +1837,27 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		setupViewer(viewerManager.getActiveViewer());
 
 		// Ensure the mode is set
-		setMode(getMode());
-		
+
+		// Ensure actions are set appropriately
+		selectedToolProperty.addListener((v, o, n) -> {
+			Action action = toolActions.get(n);
+			if (action != null)
+				action.setSelected(true);
+			
+			activateTools(getViewer());
+			
+			if (n == PathTools.POINTS)
+				defaultActions.COUNTING_PANEL.handle(null);
+			
+			updateCursor();			
+		});
+		setSelectedTool(getSelectedTool());
 		
 		return pane;
 	}
+	
+	
+	
 
 	
 	/**
@@ -1635,7 +1865,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @return
 	 */
-	List<Image> loadIconList() {
+	private List<Image> loadIconList() {
 		try {
 			List<Image> icons = new ArrayList<>();
 			for (int i : new int[]{16, 32, 48, 64, 128, 256, 512}) {
@@ -1667,29 +1897,38 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	/**
-	 * Returns true if this is a standalone QuPathGUI instance, as flagged during startup.
+	 * Query whether this is a standalone QuPathGUI instance, as flagged during startup.
+	 * It can be important to know this so as to avoid calling System.exit(0) or similar, 
+	 * and bringing down some other application entirely.
 	 * 
-	 * @return
+	 * @return true if this is a standalone QuPathGUI instance, false otherwise
 	 */
 	public boolean isStandalone() {
 		return isStandalone;
 	}
 	
-	
-	@Override
+	/**
+	 * Get an unmodifiable list of all viewers.
+	 * @return
+	 */
 	public List<QuPathViewerPlus> getViewers() {
 		if (viewerManager == null)
 			return Collections.emptyList();
 		return viewerManager.getViewers();
 	}
 	
-	
-	@Override
+	/**
+	 * Get the currently active viewer.
+	 * @return
+	 */
 	public QuPathViewerPlus getViewer() {
 		return viewerManager == null ? null : viewerManager.getActiveViewer();
 	}
 	
-	
+	/**
+	 * Get the static instance of the current QuPath GUI.
+	 * @return
+	 */
 	public static QuPathGUI getInstance() {
 		return instance;
 	}
@@ -1697,17 +1936,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	void activateTools(final QuPathViewerPlus viewer) {
 		if (viewer != null)
-			viewer.setMode(getMode());		
+			viewer.setActiveTool(getSelectedTool());		
 //		logger.debug("Tools activated for {}", viewer);
 	}
 	
 	
-	void deactivateTools(final QuPathViewerPlus viewer) {
-		viewer.setMode(null);
-//		// Deregister tools
-//		for (Entry<Modes, PathTool> entry : tools.entrySet())
-//			entry.getValue().deregisterTool(viewer);
-//		logger.debug("Tools deactivated for {}", viewer);
+	private void deactivateTools(final QuPathViewerPlus viewer) {
+		viewer.setActiveTool(null);
 	}
 	
 	
@@ -1733,7 +1968,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	void setupViewer(final QuPathViewerPlus viewer) {
 		
-		viewer.setFocusable(true);
+		viewer.getView().setFocusTraversable(true);
 		
 		// Update active viewer as required
 		viewer.getView().focusedProperty().addListener((e, f, nowFocussed) -> {
@@ -1745,15 +1980,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		viewer.getView().addEventFilter(MouseEvent.MOUSE_PRESSED, e -> viewer.getView().requestFocus());
 
 		viewer.zoomToFitProperty().bind(zoomToFit);
-		
-//		viewer.getCanvas().focusedProperty().addListener((e, f, nowFocussed) -> {
-//			if (nowFocussed)
-//				viewerManager.setActiveViewer(viewer);
-//		});
-		
-		
-		// Register tools
-		viewer.registerTools(tools);
 		
 		// Create popup menu
 		setViewerPopupMenu(viewer);
@@ -1767,13 +1993,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (viewer.getZoomToFit())
 				updateMagnificationString();
 		});
-		
-//		viewer.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(new KeyCodeCombination('+'), "zoomIn");
-//		viewer.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(new KeyCodeCombination('='), "zoomIn");
-//		viewer.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(new KeyCodeCombination('-'), "zoomOut");
-//		viewer.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(new KeyCodeCombination('_'), "zoomOut");
-//		viewer.getActionMap().put("zoomIn", getAction(GUIActions.ZOOM_IN));
-//		viewer.getActionMap().put("zoomOut", getAction(GUIActions.ZOOM_OUT));
 		
 		// Enable drag and drop
 		dragAndDrop.setupTarget(viewer.getView());
@@ -1797,7 +2016,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (e.isInertia())
 					return;
 				
-				if (PathPrefs.getInvertScrolling())
+				if (PathPrefs.invertScrollingProperty().get())
 					scrollUnits = -scrollUnits;
 				double newDownsampleFactor = viewer.getDownsampleFactor() * Math.pow(viewer.getDefaultZoomFactor(), scrollUnits);
 				newDownsampleFactor = Math.min(viewer.getMaxDownsample(), Math.max(newDownsampleFactor, viewer.getMinDownsample()));
@@ -1807,7 +2026,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		
 		viewer.getView().addEventFilter(RotateEvent.ANY, e -> {
-			if (!PathPrefs.getUseRotateGestures())
+			if (!PathPrefs.useRotateGesturesProperty().get())
 				return;
 //			logger.debug("Rotating: " + e.getAngle());
 			viewer.setRotation(viewer.getRotation() + Math.toRadians(e.getAngle()));
@@ -1815,7 +2034,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		});
 
 		viewer.getView().addEventFilter(ZoomEvent.ANY, e -> {
-			if (!PathPrefs.getUseZoomGestures())
+			if (!PathPrefs.useZoomGesturesProperty().get())
 				return;
 			double zoomFactor = e.getZoomFactor();
 			if (Double.isNaN(zoomFactor))
@@ -1835,7 +2054,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				if (pathObject.isTMACore()) {
 					TMACoreObject core = (TMACoreObject)pathObject;
 					if (e.getCode() == KeyCode.ENTER) {
-						getAction(GUIActions.TMA_ADD_NOTE).handle(new ActionEvent(e.getSource(), e.getTarget()));
+						defaultActions.TMA_ADD_NOTE.handle(new ActionEvent(e.getSource(), e.getTarget()));
 						e.consume();
 					} else if (e.getCode() == KeyCode.BACK_SPACE) {
 						core.setMissing(!core.isMissing());
@@ -1872,7 +2091,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		@Override
 		public void handle(ScrollEvent e) {
 			// Check if we'd rather be using scroll to do something else (e.g. zoom, adjust opacity)
-			boolean wouldRatherDoSomethingElse = e.getTouchCount() == 0 && (!PathPrefs.getUseScrollGestures() || e.isShiftDown() || e.isShortcutDown());
+			boolean wouldRatherDoSomethingElse = e.getTouchCount() == 0 && (!PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown());
 			if (wouldRatherDoSomethingElse) {
 				return;
 			}
@@ -1886,11 +2105,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			// Return if we aren't using a touchscreen, and we don't want to handle scroll gestures - 
 			// but don't consume the event so that it can be handled elsewhere
 			lastTouchEvent = e.getTouchCount() != 0;
-			if (!lastTouchEvent && !PathPrefs.getUseScrollGestures() || e.isShiftDown() || e.isShortcutDown()) {
+			if (!lastTouchEvent && !PathPrefs.useScrollGesturesProperty().get() || e.isShiftDown() || e.isShortcutDown()) {
 				return;
 			}
 			// Swallow the event if we're using a touch screen without the move tool selected - we want to draw instead
-			if (lastTouchEvent && viewer.getMode() != DefaultMode.MOVE) {
+			if (lastTouchEvent && viewer.getActiveTool() != PathTools.MOVE) {
 				e.consume();
 				return;
 			}
@@ -1916,7 +2135,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 //			System.err.println(String.format("dx=%.1f, dy=%.1f %s", e.getDeltaX(), e.getDeltaY(), (e.isInertia() ? "-Inertia" : "")));
 			
 			// Flip scrolling direction if necessary
-			if (PathPrefs.getInvertScrolling()) {
+			if (PathPrefs.invertScrollingProperty().get()) {
 				dx = -dx;
 				dy = -dy;
 			}
@@ -1941,12 +2160,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			deltaY = dy;
 			lastTimestamp = System.currentTimeMillis();
 			
-//			if (deltaX == 0 && deltaY == 0) {
-//				viewer.requestStopMoving();
-//			} else {
-//				viewer.requestStartMoving(deltaX, deltaY);
-//				viewer.requestDecelerate();				
-//			}
 			e.consume();
 		}
 		
@@ -1980,8 +2193,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		miResizeGrid.setOnAction(e -> {
 				viewerManager.resetGridSize();
 		});
-		MenuItem miToggleSync = getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
-		MenuItem miMatchResolutions = getActionMenuItem(GUIActions.MATCH_VIEWER_RESOLUTIONS);
+		MenuItem miToggleSync = ActionTools.createCheckMenuItem(defaultActions.TOGGLE_SYNCHRONIZE_VIEWERS, null);
+		MenuItem miMatchResolutions = ActionTools.createMenuItem(defaultActions.MATCH_VIEWER_RESOLUTIONS);
 		Menu menuMultiview = MenuTools.createMenu(
 				"Multi-view",
 				miToggleSync,
@@ -2001,32 +2214,28 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		Menu menuView = MenuTools.createMenu(
 				"Display",
-				getActionCheckBoxMenuItem(GUIActions.SHOW_ANALYSIS_PANEL, null),
-				getAction(GUIActions.BRIGHTNESS_CONTRAST),
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_ANALYSIS_PANE, null),
+				defaultActions.BRIGHTNESS_CONTRAST,
 				null,
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 0.25), "400%"),
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 1), "100%"),
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 2), "50%"),
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 10), "10%"),
-				createCommandAction(new ViewerSetDownsampleCommand(viewer, 100), "1%"),
-				null,
-				getAction(GUIActions.ZOOM_IN),
-				getAction(GUIActions.ZOOM_OUT),
-				getActionCheckBoxMenuItem(GUIActions.ZOOM_TO_FIT, null)
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 0.25), "400%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 1), "100%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 2), "50%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 10), "10%"),
+				ActionTools.createAction(() -> Commands.setViewerDownsample(viewer, 100), "1%")
 				);
 		
 		ToggleGroup groupTools = new ToggleGroup();
 		Menu menuTools = MenuTools.createMenu(
 				"Set tool",
-				getActionCheckBoxMenuItem(GUIActions.MOVE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.RECTANGLE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.ELLIPSE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.LINE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.POLYGON_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.POLYLINE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.BRUSH_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, groupTools)
+				ActionTools.createCheckMenuItem(defaultActions.MOVE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.RECTANGLE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.ELLIPSE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.LINE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.POLYGON_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.POLYLINE_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.BRUSH_TOOL, groupTools),
+				ActionTools.createCheckMenuItem(defaultActions.POINTS_TOOL, groupTools)
+//				ActionTools.getActionCheckBoxMenuItem(actionManager.WAND_TOOL, groupTools)
 				);
 
 		
@@ -2042,21 +2251,20 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				miTMAValid,
 				miTMAMissing,
 				null,
-				getAction(GUIActions.TMA_ADD_NOTE),
+				defaultActions.TMA_ADD_NOTE,
 				null,
 				MenuTools.createMenu(
 						"Add",
-					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_BEFORE), "Add TMA row before"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_AFTER), "Add TMA row after"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_BEFORE), "Add TMA column before"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_AFTER), "Add TMA column after")
+					createImageDataAction(imageData -> TMACommands.promptToAddRowBeforeSelected(imageData), "Add TMA row before"),
+					createImageDataAction(imageData -> TMACommands.promptToAddRowAfterSelected(imageData), "Add TMA row after"),
+					createImageDataAction(imageData -> TMACommands.promptToAddColumnBeforeSelected(imageData), "Add TMA column before"),
+					createImageDataAction(imageData -> TMACommands.promptToAddColumnAfterSelected(imageData), "Add TMA column after")
 					),
 				MenuTools.createMenu(
 						"Remove",
-					createCommandAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
-					createCommandAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
-					),
-				createCommandAction(new TMAGridRelabel(this), "Relabel TMA grid")
+					createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridRow(imageData), "Remove TMA row"),
+					createImageDataAction(imageData -> TMACommands.promptToDeleteTMAGridColumn(imageData), "column")
+					)
 				);
 		
 		
@@ -2072,10 +2280,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		
 		Menu menuCells = MenuTools.createMenu(
 				"Cells",
-				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI), null),
-				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_NUCLEI), null),
-				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_BOUNDARIES), null),
-				MenuTools.createRadioMenuItem(getAction(GUIActions.SHOW_CELL_CENTROIDS), null)
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI, null),
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_NUCLEI, null),
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_BOUNDARIES, null),
+				ActionTools.createCheckMenuItem(defaultActions.SHOW_CELL_CENTROIDS, null)
 				);
 
 		
@@ -2332,12 +2540,13 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			viewer.setImageData(imageData);
 //			setInitialLocationAndMagnification(viewer);
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
-				if (PathPrefs.getAutoEstimateImageType()) {
+				var setType = PathPrefs.imageTypeSettingProperty().get();
+				if (setType == ImageTypeSetting.AUTO_ESTIMATE) {
 					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
 					logger.info("Image type estimated to be {}", type);
 					imageData.setImageType(type);
 					imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
-				} else if (PathPrefs.getPromptForImageType()) {
+				} else if (setType == ImageTypeSetting.PROMPT) {
 					PathImageDetailsPanel.promptToSetImageType(imageData);
 				}
 			}
@@ -2380,7 +2589,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				File lastFile = lastPath == null ? null : new File(lastPath);
 				File dirBase = lastFile == null ? null : lastFile.getParentFile();
 				String defaultName = lastFile == null ? null : lastFile.getName();
-				File file = getDialogHelper().promptToSaveFile("Save data", dirBase, defaultName, "QuPath data files", PathPrefs.getSerializationExtension());
+				File file = Dialogs.promptToSaveFile("Save data", dirBase, defaultName, "QuPath data files", PathPrefs.getSerializationExtension());
 				if (file == null)
 					return false;
 				PathIO.writeImageData(file, imageData);
@@ -2464,23 +2673,16 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		File fileNew = null;
 		if (pathNew == null) {
 			if (includeURLs) {
-				pathNew = getDialogHelper().promptForFilePathOrURL("Choose path", pathOld, fileBase, null);
+				pathNew = Dialogs.promptForFilePathOrURL("Choose path", pathOld, fileBase, null);
 				if (pathNew == null)
 					return false;
 				fileNew = new File(pathNew);
 			} else {
-				fileNew = getDialogHelper().promptForFile(null, fileBase, null);
+				fileNew = Dialogs.promptForFile(null, fileBase, null);
 				if (fileNew == null)
 					return false;
 				pathNew = fileNew.getAbsolutePath();
 			}
-//			if (includeURLs)
-//				pathNew = PathPrefs.getDialogHelper().promptForFilePathOrURL(pathOld, fileBase, "Image files", PathPrefs.getKnownImageExtensions());
-//			else {
-//				File file = PathPrefs.getDialogHelper().promptForFile(null, fileBase, "Image files", PathPrefs.getKnownImageExtensions());
-//				if (file != null)
-//					pathNew = file.getAbsolutePath();
-//			}
 		} else
 			fileNew = new File(pathNew);
 		
@@ -2509,31 +2711,33 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (!pathNew.equals(pathOld)) {
 			// If we have a project, show the import dialog
 			if (getProject() != null) {
-				List<ProjectImageEntry<BufferedImage>> entries = ProjectImportImagesCommand.promptToImportImages(this, pathNew);
+				List<ProjectImageEntry<BufferedImage>> entries = ProjectCommands.promptToImportImages(this, pathNew);
 				if (entries.isEmpty())
 					return false;
 				return openImageEntry(entries.get(0));
 			}
 			ImageServer<BufferedImage> serverNew = null;
 
-			List<ImageServer<BufferedImage>> serverList = ImageServerProvider.getServerList(pathNew, BufferedImage.class);
+			UriImageSupport<BufferedImage> support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, pathNew);
+			List<ServerBuilder<BufferedImage>> builders = support == null ? Collections.emptyList() : support.getBuilders();
+//			List<ImageServer<BufferedImage>> serverList = ImageServerProvider.getServerList(pathNew, BufferedImage.class);
 			
-			if (serverList.size() == 0) {
+			if (builders.isEmpty()) {
 				String message = "Unable to build ImageServer for " + pathNew + ".\nSee View > Show log for more details";
 				Dialogs.showErrorMessage("Unable to build server", message);
 				return false;
 			}
-			else if (serverList.size() == 1) {
-				serverNew = serverList.get(0);
+			else if (builders.size() == 1) {
+				try {
+					serverNew = builders.get(0).build();
+				} catch (Exception e) {	
+					logger.error("Error building server: " + e.getLocalizedMessage(), e);
+				}
 			} else {
-				ObservableList<ImageServer<BufferedImage>> serverObservableList = FXCollections.observableArrayList();
-				for (ImageServer<BufferedImage> imageServer: serverList)
-					serverObservableList.add(imageServer);
-				List<ImageServer<BufferedImage>> serverImagesToOpen = promptSeriesSelector(this, serverObservableList);
-				
-				// Only allows one image to be opened
-				if (!serverImagesToOpen.isEmpty()) serverNew = serverImagesToOpen.get(0);
-				else return false;
+				var selector = new ServerSelector(builders);
+				serverNew = selector.promptToSelectServer();
+				if (serverNew == null)
+					return false;
 			}
 
 			if (serverNew != null) {
@@ -2543,7 +2747,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				}
 				ImageData<BufferedImage> imageData = null;
 				if (serverNew != null) {
-					int minSize = PathPrefs.getMinPyramidDimension();
+					int minSize = PathPrefs.minPyramidDimensionProperty().get();
 					if (serverNew.nResolutions() == 1 && Math.max(serverNew.getWidth(), serverNew.getHeight()) > minSize) {
 						// Check if we have any hope at all with the current settings
 						long estimatedBytes = (long)serverNew.getWidth() * (long)serverNew.getHeight() * (long)serverNew.nChannels() * (long)serverNew.getPixelType().getBytesPerPixel();
@@ -2576,7 +2780,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				viewer.setImageData(imageData);
 //				setInitialLocationAndMagnification(viewer);
 
-				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.getPromptForImageType())
+				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT)
 					PathImageDetailsPanel.promptToSetImageType(imageData);
 
 //				// Reset the object hierarchy to clear any ROIs etc.
@@ -2593,161 +2797,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return false;
 	}
 	
-	private ObservableValue<String> getSeriesQuickInfo(ImageServer<BufferedImage> imageServer, int index) {
-		String filePath = imageServer.getURIs().iterator().next().toString();
-		String serverType = imageServer.getServerType();
-		String width = "" + imageServer.getWidth() + " px";
-		String height = "" + imageServer.getHeight() + " px";
-		double pixelWidthTemp = imageServer.getPixelCalibration().getPixelWidth().doubleValue();
-		String pixelWidth = GeneralTools.formatNumber(pixelWidthTemp, 4) + " " + imageServer.getPixelCalibration().getPixelWidthUnit();
-		double pixelHeightTemp = imageServer.getPixelCalibration().getPixelHeight().doubleValue();
-		String pixelHeight = GeneralTools.formatNumber(pixelHeightTemp, 4) + " " + imageServer.getPixelCalibration().getPixelHeightUnit();
-		String pixelType = imageServer.getPixelType().toString();
-		String nChannels = String.valueOf(imageServer.nChannels());
-		String nResolutions = String.valueOf(imageServer.nResolutions());
-		String[] outString = new String[] {filePath, serverType, width, height, pixelWidth, pixelHeight, pixelType, nChannels, nResolutions};
-		ObservableValue<String> out = new ReadOnlyObjectWrapper<String>(outString[index]);
-		return out;
-	}
 
 	
-	@SuppressWarnings("unchecked")
-	public List<ImageServer<BufferedImage>> promptSeriesSelector(QuPathGUI qupath, ObservableList<ImageServer<BufferedImage>> serverList) {			
-		// Get thumbnails in separate thread
-		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
-
-		ListView<ImageServer<BufferedImage>> listSeries = new ListView<>();
-		listSeries.setPrefWidth(480);
-		listSeries.setMinHeight(100);
-		
-		// thumbnailBank is the map for storing thumbnails
-		Map<String, BufferedImage> thumbnailBank = new HashMap<String, BufferedImage>();
-		for (ImageServer<BufferedImage> server: serverList) {
-			executor.submit(() -> {
-				try {
-					thumbnailBank.put(server.getMetadata().getName(), ProjectImportImagesCommand.getThumbnailRGB(server, null));
-					Platform.runLater( () -> listSeries.refresh());
-				} catch (IOException e) {
-					logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
-				}
-			});
-		};
-		
-		double thumbnailSize = 80;
-		listSeries.setCellFactory(v -> new ImageAndNameListCell(thumbnailBank, thumbnailSize, thumbnailSize));
-		listSeries.getItems().setAll(serverList);
-
-		
-		// Info table - Changes according to selected series
-		String[] attributes = new String[] {"Full Path", "Server Type", "Width", "Height", "Pixel Width", "Pixel Height", "Pixel Type", "Number of Channels", "Number of Resolutions"};
-		Integer[] indices = new Integer[9];
-		for (int index = 0; index < 9; index++) indices[index] = index;
-		ObservableList<Integer> indexList = FXCollections.observableArrayList(indices);
-		
-		TableView<Integer> tableInfo = new TableView<>();
-		tableInfo.setMinHeight(200);
-		tableInfo.setMinWidth(500);
-		
-		// First column (attribute names)
-		TableColumn<Integer, String> attributeCol = new TableColumn<Integer, String>("Attribute");
-		attributeCol.setMinWidth(242);
-		attributeCol.setResizable(false);
-		attributeCol.setCellValueFactory(cellData -> {
-			return new ReadOnlyObjectWrapper<String>(attributes[cellData.getValue()]);
-		});
-		
-		// Second column (attribute values)
-		TableColumn<Integer, String> valueCol = new TableColumn<Integer, String>("Value");
-		valueCol.setMinWidth(242);
-		valueCol.setResizable(false);
-		valueCol.setCellValueFactory(cellData -> {
-			if (selectedSeries != null) return getSeriesQuickInfo(selectedSeries, cellData.getValue());
-			else return null;
-		});
-		
-		
-		// Adding the values on hover over the info table
-		tableInfo.setRowFactory(tableView -> {
-            final TableRow<Integer> row = new TableRow<>();
-            row.hoverProperty().addListener((observable) -> {
-                final var element = row.getItem();
-                if (row.isHover() && selectedSeries != null) {
-                	ObservableValue<String> value = getSeriesQuickInfo(selectedSeries, element);
-                	Tooltip tooltip = new Tooltip(value.getValue());
-                	Tooltip.install(row, tooltip);
-                }
-            });
-            return row;
-		});
-		
-		// Set items to info table
-		tableInfo.setItems(indexList);
-		tableInfo.getColumns().addAll(attributeCol, valueCol);
-		
-
-		// Pane structure
-		BorderPane paneSelector = new BorderPane();
-		BorderPane paneSeries = new BorderPane(listSeries);
-		BorderPane paneInfo = new BorderPane(tableInfo);
-		paneInfo.setMaxHeight(100);
-		paneSelector.setCenter(paneSeries);
-		paneSelector.setBottom(paneInfo);
-
-		BorderPane pane = new BorderPane();
-		pane.setCenter(paneSelector);
-		
-		
-		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.setTitle("Open image");
-		ButtonType typeImport = new ButtonType("Open", ButtonData.OK_DONE);
-		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
-		dialog.getDialogPane().setContent(pane);
-		
-		listSeries.getSelectionModel().selectedItemProperty().addListener((obs, previousSelectedRow, selectedRow) -> {
-		    if (selectedRow != null) {
-		    	selectedSeries = selectedRow;
-		    	indexList.removeAll(indexList);
-		    	indexList.addAll(indices);
-		    }
-		});
-		
-		listSeries.setOnMouseClicked(new EventHandler<MouseEvent>() {
-
-		    @Override
-		    public void handle(MouseEvent click) {
-		    	ImageServer<BufferedImage> selectedItem = listSeries.getSelectionModel().getSelectedItem();
-
-		        if (click.getClickCount() == 2 && selectedItem != null) {
-		        	Button okButton = (Button) dialog.getDialogPane().lookupButton(typeImport);
-		        	okButton.fire();
-		        }
-		    }
-		});
-		
-		Optional<ButtonType> result = dialog.showAndWait();
-		
-		try {
-			executor.shutdownNow();
-		} catch (Exception e) {
-			logger.warn(e.getLocalizedMessage(), e);
-		} finally {
-			selectedSeries = null;
-			try {
-				for (ImageServer<BufferedImage> server: serverList)
-					server.close();
-			} catch (Exception e) {
-				logger.debug(e.getLocalizedMessage(), e);
-			}
-		}		
-		
-		if (!result.isPresent() || result.get() != typeImport || result.get() == ButtonType.CANCEL)
-			return Collections.emptyList();
-		
-		return listSeries.getSelectionModel().getSelectedItems();
-	}
-
-	public ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server) {
-		return createNewImageData(server, PathPrefs.getAutoEstimateImageType());
+	/**
+	 * Create a new {@link ImageData} from the specified server.
+	 * @param server
+	 * @return
+	 */
+	private ImageData<BufferedImage> createNewImageData(final ImageServer<BufferedImage> server) {
+		return createNewImageData(server, PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.AUTO_ESTIMATE);
 	}
 	
 	/**
@@ -2906,8 +2964,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (server == null) {
 //				boolean pathValid = new File(serverPath).isFile() || URLHelpers.checkURL(serverPath);
 //				if (!pathValid) {
-					serverPath = getDialogHelper().promptForFilePathOrURL("Set path to missing file", serverPath, new File(serverPath).getParentFile(), null);
-//					fileImage = getDialogHelper().promptForFile("Set image location (" + fileImage.getName() + ")",fileImage.getParentFile(), null, null);
+					serverPath = Dialogs.promptForFilePathOrURL("Set path to missing file", serverPath, new File(serverPath).getParentFile(), null);
 					if (serverPath == null)
 						return false;
 					server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
@@ -2930,29 +2987,12 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (promptToSaveChanges && imageData != null && imageData.isChanged()) {
 			if (!promptToSaveChangesOrCancel("Save changes", imageData))
 				return false;
-//			if (!DisplayHelpers.showYesNoDialog("Discard changes", "Discard changes for " + imageData.getServer().getShortServerName() + " without saving?"))
-//				return false;			
-//		} else if (imageData != null && imageData.isChanged()) {
-//			if (!DisplayHelpers.showYesNoDialog("Replace open image", "Close " + imageData.getServer().getShortServerName() + " without saving?"))
-//				return false;			
 		}
-		
-//		ImageDataLoader task = new ImageDataLoader(file, imageData, server);
-//		ProgressDialog dialog = new ProgressDialog(task);
-//		dialog.initOwner(getStage());
-////		dialog.show
-//		createSingleThreadExecutor(this).submit(task);
-//		dialog.showAndWait();
-//		
-//		ImageData<BufferedImage> imageData2 = task.getImageData();
 		
 		try {
 			ImageData<BufferedImage> imageData2 = PathIO.readImageData(file, imageData, server, BufferedImage.class);
 			if (imageData2 != imageData) {
 				viewer.setImageData(imageData2);
-//				// If we just have a single viewer, no harm in centering this
-//				if (viewerManager.getViewers().size() == 1 || !viewerManager.synchronizeViewersProperty().get())
-//					setInitialLocationAndMagnification(viewer);
 			}
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Read image data", e);
@@ -2962,60 +3002,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	
-	static class ImageDataLoader extends Task<ImageData<BufferedImage>> {
-		
-		private File file;
-		private ImageData<BufferedImage> imageData;
-		private ImageServer<BufferedImage> server;
-		
-		ImageDataLoader(final File file, final ImageData<BufferedImage> imageData, final ImageServer<BufferedImage> server) {
-			this.file = file;
-			this.imageData = imageData;
-			this.server = server;
-		}
-
-		@Override
-		protected ImageData<BufferedImage> call() throws Exception {
-			imageData = PathIO.readImageData(file, imageData, server, BufferedImage.class);
-			return imageData;
-		}
-		
-		ImageData<BufferedImage> getImageData() {
-			return imageData;
-		}
-		
-	}
-	
-	
-	
-//	public static void addMenuItem(final JMenuBar menuBar, final Action action, final String... menuPath) {
-//		
-//		// Find (or create) the required menu
-//		for (int i = 0; i < menuBar.getMenuCount(); i++) {
-//			JMenu menu = menuBar.getMenu(i);
-//			if (name.equals(menu.getText()))
-//				return menu;
-//		}
-//		if (createMenu) {
-//			JMenu menu = new JMenu(name);
-//			menuBar.add(menu);
-//			return menu;
-//		}
-//		return null;
-//		
-//	}
-	
-	
 	/**
-	 * Get a reference to the PreferencePanel.
+	 * Get a reference to the {@link PreferencePane}.
 	 * 
-	 * This can be useful for extensions to be able to add in their own preferences.
+	 * This can be used by extensions to add in their own preferences.
 	 * 
 	 * @return
 	 */
-	public PreferencePanel getPreferencePanel() {
-		return prefsPanel;
+	public PreferencePane getPreferencePane() {
+		return prefsPane;
 	}
 	
 	
@@ -3080,81 +3075,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	private final static String URL_DOCS       = "https://qupath.readthedocs.io";
-	private final static String URL_VIDEOS     = "https://www.youtube.com/channel/UCk5fn7cjMZFsQKKdy-YWOFQ";
-	private final static String URL_CITATION   = "https://qupath.readthedocs.io/en/latest/docs/intro/citing.html";
-//	private final static String URL_EXTENSIONS = "https://github.com/qupath/qupath/wiki/Extensions";
-	private final static String URL_BUGS       = "https://github.com/qupath/qupath/issues";
-	private final static String URL_FORUM      = "https://forum.image.sc/tags/qupath";
-	private final static String URL_SOURCE     = "https://github.com/qupath/qupath";
-
-	
-	
-	private MenuBar createMenuBar() {
+	private Menu createRecentProjectsMenu() {
 		
-		// Create a recent projects list
+		// Create a recent projects list in the File menu
 		ObservableList<URI> recentProjects = PathPrefs.getRecentProjectList();
 		Menu menuRecent = MenuTools.createMenu("Recent projects...");
 		
-		
-		// Create a File menu
-		Action actionQuit = new Action("Quit", e -> tryToQuit());
-//		actionQuit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCodeCombination.SHORTCUT_DOWN));
-		Menu menuFile = MenuTools.createMenu(
-				"File",
-				MenuTools.createMenu(
-						"Project...",
-						getActionMenuItem(GUIActions.PROJECT_NEW),
-						getActionMenuItem(GUIActions.PROJECT_OPEN),
-						getActionMenuItem(GUIActions.PROJECT_CLOSE),
-						null,
-						getActionMenuItem(GUIActions.PROJECT_IMPORT_IMAGES),
-						getActionMenuItem(GUIActions.PROJECT_EXPORT_IMAGE_LIST),
-						null,
-						getActionMenuItem(GUIActions.PROJECT_METADATA),
-						createCommandAction(new ProjectCheckUrisCommand(this), "Check project URIs")
-						),
-				menuRecent,
-				null,
-				getActionMenuItem(GUIActions.OPEN_IMAGE),
-				getActionMenuItem(GUIActions.OPEN_IMAGE_OR_URL),
-				createCommandAction(new ReloadDataCommand(this), "Reload data", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN)),
-				null,
-				getActionMenuItem(GUIActions.SAVE_DATA_AS),
-				getActionMenuItem(GUIActions.SAVE_DATA),
-				null,
-				MenuTools.createMenu(
-						"Export images...",
-						createCommandAction(new ExportImageRegionCommand(this, false), "Original pixels"),
-						createCommandAction(new ExportImageRegionCommand(this, true), "Rendered RGB (with overlays)")
-						),
-				MenuTools.createMenu(
-						"Export snapshot...",
-						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot"),
-						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.MAIN_SCENE), "Main window content"),
-						createCommandAction(new SaveViewCommand(this, GuiTools.SnapshotType.VIEWER), "Current viewer content")
-						),
-				null,
-				MenuTools.createMenu(
-						"TMA data...",
-						getActionMenuItem(GUIActions.TMA_SCORE_IMPORTER),
-						getActionMenuItem(GUIActions.TMA_EXPORT_DATA),
-						createCommandAction(new TMAViewerCommand(), "Launch TMA data viewer")
-						),
-				null,
-				actionQuit
-				);
-		
-		
-		menuFile.setOnMenuValidation(e -> {
+		EventHandler<Event> validationHandler = e -> {
 			menuRecent.getItems().clear();
 			for (URI uri : recentProjects) {
 				if (uri == null)
 					continue;
-//				String name = fileProject.getAbsolutePath();
-//				int maxLength = 40;
-//				if (name.length() > maxLength)
-//					name = "..." + name.substring(name.length() - maxLength);
 				String name = Project.getNameFromURI(uri);
 				name = ".../" + name;
 				MenuItem item = new MenuItem(name);
@@ -3170,381 +3101,51 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				});
 				menuRecent.getItems().add(item);
 			}
+		};
+		
+		// Ensure the menu is populated
+		menuRecent.parentMenuProperty().addListener((v, o, n) -> {
+			if (o != null && o.getOnMenuValidation() == validationHandler)
+				o.setOnMenuValidation(null);
+			if (n != null)
+				n.setOnMenuValidation(validationHandler);
 		});
 		
-		
-		// Create Edit menu
-		Menu menuEdit = MenuTools.createMenu(
-				"Edit",
-				getActionMenuItem(GUIActions.UNDO),
-				getActionMenuItem(GUIActions.REDO),
-				null,
-				MenuTools.createMenu("Copy to clipboard...",
-					getActionMenuItem(GUIActions.COPY_VIEW),
-					getActionMenuItem(GUIActions.COPY_WINDOW),
-					getActionMenuItem(GUIActions.COPY_WINDOW_SCREENSHOT),
-					getActionMenuItem(GUIActions.COPY_FULL_SCREENSHOT)
-					),
-				null,
-				getActionMenuItem(GUIActions.PREFERENCES),
-				createCommandAction(new ResetPreferencesCommand(), "Reset preferences")
-				);
-
-		// Create Tools menu
-		ToggleGroup groupTools = new ToggleGroup();
-		Menu menuTools = MenuTools.createMenu(
-				"Tools",
-				getActionCheckBoxMenuItem(GUIActions.MOVE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.RECTANGLE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.ELLIPSE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.LINE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.POLYGON_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.POLYLINE_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.BRUSH_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.WAND_TOOL, groupTools),
-				getActionCheckBoxMenuItem(GUIActions.POINTS_TOOL, groupTools)
-				);
-		
-		Menu menuGestures = MenuTools.createMenu("Multi-touch gestures");
-		MenuTools.addMenuItems(
-				menuGestures,
-				ActionUtils.createMenuItem(new Action("Turn on all gestures", e -> {
-					PathPrefs.setUseScrollGestures(true);
-					PathPrefs.setUseZoomGestures(true);
-					PathPrefs.setUseRotateGestures(true);
-				})),
-				ActionUtils.createMenuItem(new Action("Turn off all gestures", e -> {
-					PathPrefs.setUseScrollGestures(false);
-					PathPrefs.setUseZoomGestures(false);
-					PathPrefs.setUseRotateGestures(false);
-				})),
-				null,
-				ActionUtils.createCheckMenuItem(createSelectableCommandAction(PathPrefs.useScrollGesturesProperty(), "Use scroll gestures")),
-				ActionUtils.createCheckMenuItem(createSelectableCommandAction(PathPrefs.useZoomGesturesProperty(), "Use zoom gestures")),
-				ActionUtils.createCheckMenuItem(createSelectableCommandAction(PathPrefs.useRotateGesturesProperty(), "Use rotate gestures"))
-				);
-		MenuTools.addMenuItems(
-				menuTools,
-				null,
-				menuGestures);
-		
-//		if (PathPrefs.getRequestAdvancedControllers()) {
-//			try {
-//				// If we have an advanced input controller, try turning it on.
-//				// Previously, we had a menu item... but here, we assume that if a controller is plugged in, then it's wanted.
-//				// However, note that it doesn't like it if a controller is unplugged... in which case it won't work, even if it's plugged back in.
-//				Class<?> cAdvancedController = getClassLoader().loadClass("qupath.lib.gui.input.AdvancedControllerActionFactory");
-//				Method method = cAdvancedController.getMethod("tryToTurnOnAdvancedController", QuPathGUI.class);
-//				if (Boolean.TRUE.equals(method.invoke(null, this))) {
-//					logger.info("Advanced controllers turned ON");
-//				} else
-//					logger.debug("No advanced controllers found");
-//			} catch (Exception e) {
-//				logger.error("Unable to load advanced controller support");
-//				logger.debug("{}", e);
-//			}
-//		}
-		
-		// Create View menu
-		SlideLabelView slideLabelView = new SlideLabelView(this);
-		ToggleGroup groupCellDisplay = new ToggleGroup();
-		Menu menuView = MenuTools.createMenu(
-				"View",
-				getActionCheckBoxMenuItem(GUIActions.SHOW_ANALYSIS_PANEL),
-				getActionMenuItem(GUIActions.SHOW_COMMAND_LIST),
-//				createSelectableCommandAction(pinCommandList, "Pin command list", (Node)null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN)),
-				null,
-				getActionMenuItem(GUIActions.BRIGHTNESS_CONTRAST),
-				null,
-				getActionCheckBoxMenuItem(GUIActions.TOGGLE_SYNCHRONIZE_VIEWERS),
-				getActionCheckBoxMenuItem(GUIActions.MATCH_VIEWER_RESOLUTIONS),
-				MenuTools.createMenu(
-						"Mini viewers",
-						getActionMenuItem(GUIActions.CHANNEL_VIEWER),
-						getActionMenuItem(GUIActions.MINI_VIEWER)
-						),
-				null,
-				MenuTools.createMenu(
-						"Zoom",
-						createCommandAction(new ViewerSetDownsampleCommand(this, 0.25), "400%"),
-						createCommandAction(new ViewerSetDownsampleCommand(this, 1), "100%"),
-						createCommandAction(new ViewerSetDownsampleCommand(this, 2), "50%"),
-						createCommandAction(new ViewerSetDownsampleCommand(this, 10), "10%"),
-						createCommandAction(new ViewerSetDownsampleCommand(this, 100), "1%"),
-						null,
-						getActionMenuItem(GUIActions.ZOOM_IN),
-						getActionMenuItem(GUIActions.ZOOM_OUT),
-						MenuTools.createCheckMenuItem(getAction(GUIActions.ZOOM_TO_FIT))
-						),
-				getActionMenuItem(GUIActions.ROTATE_IMAGE),
-				null,
-				MenuTools.createMenu(
-						"Cell display",
-						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_BOUNDARIES, groupCellDisplay),
-						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_NUCLEI, groupCellDisplay),
-						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_BOUNDARIES_AND_NUCLEI, groupCellDisplay),
-						getActionCheckBoxMenuItem(GUIActions.SHOW_CELL_CENTROIDS, groupCellDisplay)
-						),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_ANNOTATIONS),
-				getActionCheckBoxMenuItem(GUIActions.FILL_ANNOTATIONS),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_NAMES),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_TMA_GRID),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_TMA_GRID_LABELS),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_DETECTIONS),
-				getActionCheckBoxMenuItem(GUIActions.FILL_DETECTIONS),
-				MenuTools.createCheckMenuItem(createSelectableCommandAction(overlayOptions.showConnectionsProperty(), "Show object connections")),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_PIXEL_CLASSIFICATION),
-				null,
-				getActionCheckBoxMenuItem(GUIActions.SHOW_OVERVIEW),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_LOCATION),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_SCALEBAR),
-				getActionCheckBoxMenuItem(GUIActions.SHOW_GRID),
-				getActionMenuItem(GUIActions.GRID_SPACING),
-				null,
-				getActionMenuItem(GUIActions.VIEW_TRACKER),
-				MenuTools.createCheckMenuItem(createSelectableCommandAction(slideLabelView.showingProperty(), "Show slide label")),				
-				null,
-				createCommandAction(new ShowInputDisplayCommand(this), "Show input on screen"),
-				createCommandAction(new MemoryMonitorCommand(this), "Show memory monitor"),
-				getActionMenuItem(GUIActions.SHOW_LOG)
-			);
-		
-		
-		Menu menuObjects = MenuTools.createMenu(
-				"Objects",
-				MenuTools.createMenu(
-						"Delete...",
-						getActionMenuItem(GUIActions.DELETE_SELECTED_OBJECTS),
-						null,
-						getActionMenuItem(GUIActions.CLEAR_HIERARCHY),
-						getActionMenuItem(GUIActions.CLEAR_ANNOTATIONS),
-						getActionMenuItem(GUIActions.CLEAR_DETECTIONS)
-						),
-				MenuTools.createMenu(
-						"Select...",
-						createCommandAction(new ResetSelectionCommand(this), "Reset selection", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						null,
-						createCommandAction(new SelectObjectsByClassCommand(this, TMACoreObject.class), "Select TMA cores", null, new KeyCodeCombination(KeyCode.T, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						createCommandAction(new SelectObjectsByClassCommand(this, PathAnnotationObject.class), "Select annotations", null, new KeyCodeCombination(KeyCode.A, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-						MenuTools.createMenu(
-								"Select detections...",
-							createCommandAction(new SelectObjectsByClassCommand(this, PathDetectionObject.class), "Select all detections", null, new KeyCodeCombination(KeyCode.D, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-							createCommandAction(new SelectObjectsByClassCommand(this, PathCellObject.class), "Select cells", null, new KeyCodeCombination(KeyCode.C, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.ALT_DOWN)),
-							createCommandAction(new SelectObjectsByClassCommand(this, PathTileObject.class), "Select tiles", null, null)
-							),
-						null,
-						createCommandAction(new SelectObjectsByClassificationCommand(this), "Select objects by classification"),
-						createCommandAction(new SelectObjectsByMeasurementCommand(this), "Select objects by measurements (legacy)")
-						),
-				null,
-				MenuTools.createMenu("Annotations...",
-					getActionMenuItem(GUIActions.SPECIFY_ANNOTATION),
-					getActionMenuItem(GUIActions.SELECT_ALL_ANNOTATION),
-					null,					
-					createCommandAction(new HierarchyInsertCommand(this), "Insert into hierarchy", null, new KeyCodeCombination(KeyCode.I, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
-					createCommandAction(new ResolveHierarchyCommand(this), "Resolve hierarchy", null, new KeyCodeCombination(KeyCode.R, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN)),
-					null,					
-					getActionMenuItem(GUIActions.RIGID_OBJECT_EDITOR),
-					getActionMenuItem(GUIActions.ANNOTATION_DUPLICATE),
-					getActionMenuItem(GUIActions.TRANSFER_ANNOTATION),
-					null,
-					createPluginAction("Expand annotations", DilateAnnotationPlugin.class, null),
-					createPluginAction("Split annotations", SplitAnnotationsPlugin.class, null),
-					createPluginAction("Remove fragments", RefineAnnotationsPlugin.class, null),
-					createPluginAction("Fill holes", FillAnnotationHolesPlugin.class, null),
-					null,
-					createCommandAction(new InverseObjectCommand(this), "Make inverse"),
-					createCommandAction(new MergeSelectedAnnotationsCommand(this), "Merge selected"),
-					createCommandAction(new ShapeSimplifierCommand(this), "Simplify shape")
-				)
-				);
-
-		
-		Menu menuTMA = MenuTools.createMenu(
-				"TMA",
-				MenuTools.createMenu(
-					"Add...",
-					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_BEFORE), "Add TMA row before"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.ROW_AFTER), "Add TMA row after"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_BEFORE), "Add TMA column before"),
-					createCommandAction(new TMAGridAdd(this, TMAAddType.COLUMN_AFTER), "Add TMA column after")
-					),
-				MenuTools.createMenu(
-						"Remove...",
-						createCommandAction(new TMAGridRemove(this, TMARemoveType.ROW), "Remove TMA row"),
-						createCommandAction(new TMAGridRemove(this, TMARemoveType.COLUMN), "Remove TMA column")
-						),
-				getActionMenuItem(GUIActions.TMA_RELABEL),
-				createCommandAction(new TMAGridReset(this), "Reset TMA metadata"),
-				getActionMenuItem(GUIActions.CLEAR_TMA_CORES),
-				createCommandAction(new TMAGridView(this), "TMA grid summary view"),
-//				createCommandAction(new TMAExplorer(this), "TMA explorer (experimental)"),
-				null,
-				createPluginAction("Find convex hull detections (TMA)", FindConvexHullDetectionsPlugin.class, this, null)
-				);
-		
-		
-		Menu menuMeasure = MenuTools.createMenu(
-				"Measure",
-				getActionMenuItem(GUIActions.MEASUREMENT_MAP),
-				createCommandAction(new MeasurementManager(this), "Show measurement manager"),
-				null,
-				getActionMenuItem(GUIActions.SUMMARY_TMA),
-				getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),
-				getActionMenuItem(GUIActions.SUMMARY_DETECTIONS),
-				null,
-				getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS)
-//				null,
-//				createCommandAction(new TMADescendantsMeasurementCommand(this), "Add core summary measurement (TMA)"),
-//				null,
-//				getActionMenuItem(GUIActions.KAPLAN_MEIER_TMA)
-				);
-		
-		
-		// Try to load a script editor
-		Action actionScriptEditor = createCommandAction(new ShowScriptEditorCommand(this, false), "Show script editor");
-		actionScriptEditor.setAccelerator(new KeyCodeCombination(KeyCode.OPEN_BRACKET, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_ANY));
-		Menu menuAutomate = MenuTools.createMenu(
-				"Automate",
-				actionScriptEditor,
-				createCommandAction(new ScriptInterpreterCommand(this), "Script interpreter"),
-				null,
-				getActionMenuItem(GUIActions.WORKFLOW_DISPLAY),
-				createCommandAction(new ShowScriptEditorCommand(this, true), "Create command history script")
-				);
-		
-		// Add some plugins
-		Menu menuAnalysis = MenuTools.createMenu(
-				"Analyze",
-				MenuTools.createMenu(
-						"Preprocessing",
-						getActionMenuItem(GUIActions.COLOR_DECONVOLUTION_REFINE)
-						),
-				MenuTools.createMenu(
-						"Region identification",
-						MenuTools.createMenu(
-								"Tiles & superpixels",
-								createPluginAction("Create tiles", TilerPlugin.class, this, null)
-								)
-						),
-				MenuTools.createMenu(
-						"Cell detection"
-						),
-				MenuTools.createMenu(
-						"Calculate features",
-//						new PathPluginAction("Create tiles", TilerPlugin.class, this),
-						createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, this, null),
-						createPluginAction("Add Shape features (experimental)", ShapeFeaturesPlugin.class, this, null),
-						createPluginAction("Add Intensity features (experimental)", IntensityFeaturesPlugin.class, this, null)
-//						createPluginAction("Add Haralick texture features (legacy)", HaralickFeaturesPlugin.class, this, null),
-//						createPluginAction("Add Haralick texture features (feature test version)", HaralickFeaturesPluginTesting.class, this, imageRegionStore, null),
-//						createPluginAction("Add Coherence texture feature (experimental)", CoherenceFeaturePlugin.class, this, null),
-//						null,
-//						createPluginAction("Add Local Binary Pattern features (experimental)", LocalBinaryPatternsPlugin.class, this, null)
-						),
-				MenuTools.createMenu(
-						"Spatial analysis",
-						createCommandAction(new DistanceToAnnotationsCommand(this), "Distance to annotations 2D (experimental)"),
-						createCommandAction(new DetectionCentroidDistancesCommand(this), "Detection centroid distances 2D (experimental)")
-						)
-				);
-
-		// Try to load classifiers
-		Menu menuClassifiers = MenuTools.createMenu("Classify");
-
-		Menu menuObjectClassifiers = MenuTools.createMenu("Object classification");
-		Menu menuPixelClassifiers = MenuTools.createMenu("Pixel classification");
-		MenuTools.addMenuItems(menuClassifiers, menuObjectClassifiers, menuPixelClassifiers);
-		
-		MenuTools.addMenuItems(
-				menuObjectClassifiers,
-				MenuTools.createMenu("Older classifiers", 
-					createCommandAction(new LoadClassifierCommand(this), "Load detection classifier"),
-					null,
-					createCommandAction(new RandomTrainingRegionSelector(this, getAvailablePathClasses()), "Choose random training samples"),
-					createCommandAction(new SingleFeatureClassifierCommand(this, PathDetectionObject.class), "Classify by specific feature")
-					),
-				null,
-				createCommandAction(new ResetClassificationsCommand(this, PathDetectionObject.class), "Reset detection classifications")
-				);
-				
-		MenuTools.addMenuItems(
-				menuClassifiers,
-				null,
-				MenuTools.createMenu("Extras",
-						createCommandAction(new SparseImageServerCommand(this), "Create combined training image")
-						)
-			);
-		
-		Action actionUpdateCheck = new Action("Check for updates (web)", e -> {
-			checkForUpdate(false);
-		});
-		
-		Menu menuHelp = MenuTools.createMenu(
-				"Help",
-//				createCommandAction(new HelpCommand(this), "Documentation"),
-				getAction(GUIActions.QUPATH_SETUP),
-				null,
-				createCommandAction(new OpenWebpageCommand(this, URL_DOCS), "Documentation (web)"),
-				createCommandAction(new OpenWebpageCommand(this, URL_VIDEOS), "Demo videos (web)"),
-//				createCommandAction(new OpenWebpageCommand(this, "http://go.qub.ac.uk/qupath-latest"), "Get latest version (web)"),
-				actionUpdateCheck,
-				null,
-				createCommandAction(new OpenWebpageCommand(this, URL_CITATION), "Cite QuPath (web)"),
-//				createCommandAction(new OpenWebpageCommand(this, URL_EXTENSIONS), "Add extensions (web)"),
-				createCommandAction(new OpenWebpageCommand(this, URL_BUGS), "Report bug (web)"),
-				createCommandAction(new OpenWebpageCommand(this, URL_FORUM), "View user forum (web)"),
-				createCommandAction(new OpenWebpageCommand(this, URL_SOURCE), "View source code (web)"),
-				null,
-				createCommandAction(new ShowLicensesCommand(this), "License"),
-				createCommandAction(new ShowSystemInfoCommand(this), "System info"),
-				createCommandAction(new ShowInstalledExtensionsCommand(this), "Installed extensions")
-				);
-		
-		// Add all to menubar
-		return addToMenuBar(
-				getMenuBar(),
-				menuFile,
-				menuEdit,
-				menuTools,
-				menuView,
-				menuObjects,
-				menuTMA,
-				menuMeasure,
-				menuAutomate,
-				menuAnalysis,
-				menuClassifiers,
-				menuHelp
-				);
+		return menuRecent;
 	}
 	
 	
+	
+	/**
+	 * Create an action for a plugin to be run through this QuPath instance.
+	 * @param name name of the plugin
+	 * @param pluginClass class of the plugin
+	 * @param arg optional argument (may be required by some plugins)
+	 * @return
+	 */
 	public Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final String arg) {
 		return createPluginAction(name, pluginClass, this, arg);
 	}
 
 	
-	
-	public Action createPluginAction(final String name, final String pluginClassName, final boolean includeRegionStore, final String arg) throws ClassNotFoundException {
-		Class<PathPlugin> cls = (Class<PathPlugin>)getExtensionClassLoader().loadClass(pluginClassName);
-		return createPluginAction(name, cls, this, arg);
-	}
-	
-	
 	/**
-	 * Update project display.
+	 * Create an Action to call the specified plugin for the current image.
+	 * @param name plugin name
+	 * @param plugin the plugin to call
+	 * @param arg any argument required by the plugin
+	 * @return an action that may be called to run the plugin
 	 */
-	public void refreshProject() {
-		projectBrowser.refreshProject();
-	}
-	
-	
 	public Action createPluginAction(final String name, final PathPlugin<BufferedImage> plugin, final String arg) {
-		Action action = new Action(name, event -> {
+		var action = new Action(name, event -> {
 			try {
 				if (plugin instanceof PathInteractivePlugin) {
+					var imageData = getImageData();
+					if (imageData == null) {
+						Dialogs.showNoImageError(name);
+						return;
+					}
 					PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
-					ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, pluginInteractive.getDefaultParameterList(getImageData()), new PluginRunnerFX(this));
+					ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, pluginInteractive.getDefaultParameterList(imageData), new PluginRunnerFX(this));
 					dialog.showDialog();
 //					((PathInteractivePlugin<BufferedImage>)plugin).runInteractive(new PluginRunnerFX(this, false), arg);
 				}
@@ -3555,6 +3156,8 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				Dialogs.showErrorMessage("Error", "Error running " + plugin.getName());
 			}
 		});
+		// We assume that plugins require image data
+		action.disabledProperty().bind(noImageData);
 		return action;
 	}
 	
@@ -3584,17 +3187,17 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param arg
 	 * @return
 	 */
-	public static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
+	private static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
 		try {
-			Action action = new Action(name, event -> {
+			var action = new Action(name, event -> {
 				PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
 				qupath.runPlugin(plugin, arg, true);
 			});
+			action.disabledProperty().bind(qupath.noImageData);
 			return action;
 		} catch (Exception e) {
 			logger.error("Unable to initialize class " + pluginClass, e);
 		}
-
 		return null;
 	}
 	
@@ -3646,406 +3249,143 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return plugin;
 	}
 	
-	
-	public static Action createCommandAction(final PathCommand command, final String name, final Node icon, final KeyCombination accelerator) {
-		Action action = new Action(name, e -> command.run());
-		action.setAccelerator(accelerator);
-		action.setGraphic(icon);
-		return action;
-	}
 
-	public Action createCommandAction(final String className, final String name, final Object... arguments) {
-		try {
-			Class<? extends PathCommand> cls = (Class<PathCommand>)getExtensionClassLoader().loadClass(className);
-			Class<?>[] classes = new Class<?>[arguments.length];
-			for (int i = 0; i < arguments.length; i++)
-				classes[i] = arguments[i].getClass();
-			Constructor<? extends PathCommand> constructor = cls.getConstructor(classes);
-			PathCommand pathCommand = constructor.newInstance(arguments);
-			return createCommandAction(pathCommand, name);
-		} catch (Exception e) {
-			logger.error("Unable to construct command: {}", e);
+	/**
+	 * Get the action that corresponds to a specific {@link PathTool}, creating a new action if one does not already exist.
+	 * @param tool
+	 * @return
+	 */
+	public Action getToolAction(PathTool tool) {
+		var action = toolActions.get(tool);
+		if (action == null) {
+			action = createToolAction(tool);
+			toolActions.put(tool, action);
 		}
-		return null;
-	}
-	
-	public static Action createCommandAction(final PathCommand command, final String name) {
-		return createCommandAction(command, name, (Node)null, null);
-	}
-	
-	public static Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name) {
-		return createSelectableCommandAction(property, name, (Node)null, null);
-	}
-
-	public static Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final Node icon, final KeyCombination accelerator) {
-//		Action action = new Action(name, e -> property.set(!property.get()));
-		Action action = new Action(name);
-		if (property instanceof Property)
-			action.selectedProperty().bindBidirectional((Property<Boolean>)property);			
-		else
-			action.selectedProperty().bind(property);
-		action.getProperties().put("Selectable", Boolean.TRUE);
-		action.setAccelerator(accelerator);
-		action.setGraphic(icon);
-		return action;
-//		return new PathSelectableAction(command, name, node, accelerator);
-	}
-	
-	private static Action createSelectableCommandAction(final ObservableValue<Boolean> property, final String name, final PathIconFactory.PathIcons icon, final KeyCombination accelerator) {
-		return createSelectableCommandAction(property, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, icon), accelerator);
-	}
-
-	private static Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final Node icon, final KeyCombination accelerator) {
-		Action action = new Action(name, e -> command.setSelected(true));
-		action.selectedProperty().addListener(e -> {
-			command.setSelected(action.isSelected());
-		});
-		action.getProperties().put("Selectable", Boolean.TRUE);
-		action.setAccelerator(accelerator);
-		action.setGraphic(icon);
-		return action;
-//		return new PathSelectableAction(command, name, node, accelerator);
-	}
-
-	private Action createSelectableCommandAction(final PathSelectableCommand command, final String name, final DefaultMode mode, final KeyCombination accelerator) {
-		Action action = createSelectableCommandAction(command, name, PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, mode), accelerator);
-		// Register in the map
-		if (mode != null)
-			modeActions.put(mode, action);
 		return action;
 	}
 	
-	
-	
-	public void addToolbarSeparator() {
-		toolbar.toolbar.getItems().add(new Separator(Orientation.VERTICAL));
+	private Action createToolAction(final PathTool tool) {
+		  var action = createSelectableCommandAction(new SelectionManager<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), null);
+		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || selectedToolLocked.get(), selectedToolLocked, tools));
+		  return action;
 	}
-	
-	public void addToolbarCommand(final String name, final PathCommand command, final Node icon) {
-		toolbar.toolbar.getItems().add(getActionButton(createCommandAction(command, name, icon, null), icon != null));
-	}
-	
-	public void addToolbarButton(final Button button) {
-		toolbar.toolbar.getItems().add(button);
-	}
-	
 
+	private static <T> Action createSelectableCommandAction(final SelectionManager<T> command, final String name, final Node icon, final KeyCombination accelerator) {
+		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
+				.text(name)
+				.accelerator(accelerator)
+				.selectable(true)
+				.selected(command.selectedProperty())
+				.graphic(icon)
+				.build();
+		return action;
+	}
 	
-	
-	private Action createAction(GUIActions actionType) {
-//		QuPathViewerPlus viewer = viewerManager.getActiveViewer();
-		Action action;
-		switch (actionType) {
-		case BRIGHTNESS_CONTRAST:
-			return createCommandAction(new BrightnessContrastCommand(this), "Brightness/Contrast", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.CONTRAST), new KeyCodeCombination(KeyCode.C, KeyCombination.SHIFT_DOWN));
-		case LINE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.LINE), "Line tool", DefaultMode.LINE, new KeyCodeCombination(KeyCode.L));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.LINE) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case ELLIPSE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.ELLIPSE), "Ellipse tool", DefaultMode.ELLIPSE, new KeyCodeCombination(KeyCode.O));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.ELLIPSE) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case MOVE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.MOVE), "Move tool", DefaultMode.MOVE, new KeyCodeCombination(KeyCode.M));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.MOVE) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case POINTS_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POINTS), "Points tool", DefaultMode.POINTS, new KeyCodeCombination(KeyCode.PERIOD));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POINTS) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case POLYGON_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POLYGON), "Polygon tool", DefaultMode.POLYGON, new KeyCodeCombination(KeyCode.P));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POLYGON) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case POLYLINE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.POLYLINE), "Polyline tool", DefaultMode.POLYLINE, new KeyCodeCombination(KeyCode.V));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.POLYLINE) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case BRUSH_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.BRUSH), "Brush tool", DefaultMode.BRUSH, new KeyCodeCombination(KeyCode.B));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.BRUSH) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case RECTANGLE_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.RECTANGLE), "Rectangle tool", DefaultMode.RECTANGLE, new KeyCodeCombination(KeyCode.R));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.RECTANGLE) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case WAND_TOOL:
-			action = createSelectableCommandAction(new ToolSelectable(this, DefaultMode.WAND), "Wand tool", DefaultMode.WAND, new KeyCodeCombination(KeyCode.W));
-			action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.containsKey(DefaultMode.WAND) || modeLocked.get(), modeLocked, tools));
-			return action;
-		case SELECTION_MODE:
-			return createSelectableCommandAction(PathPrefs.selectionModeProperty(), "Selection mode", PathIconFactory.PathIcons.SELECTION_MODE, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN));
-		case SHOW_GRID:
-			return createSelectableCommandAction(overlayOptions.showGridProperty(), "Show grid", PathIconFactory.PathIcons.GRID, new KeyCodeCombination(KeyCode.G, KeyCombination.SHIFT_DOWN));
-		case SHOW_LOCATION:
-			return createSelectableCommandAction(viewerDisplayOptions.showLocationProperty(), "Show cursor location", PathIconFactory.PathIcons.LOCATION, null);
-		case SHOW_OVERVIEW:
-			return createSelectableCommandAction(viewerDisplayOptions.showOverviewProperty(), "Show slide overview", PathIconFactory.PathIcons.OVERVIEW, null);
-		case SHOW_SCALEBAR:
-			return createSelectableCommandAction(viewerDisplayOptions.showScalebarProperty(), "Show scalebar", PathIconFactory.PathIcons.SHOW_SCALEBAR, null);
-		case SHOW_ANALYSIS_PANEL:
-			// I don't understand why registering a listener within the ShowAnalysisPanelSelectable constructor didn't work... but it didn't
-			ShowAnalysisPanelSelectable temp = new ShowAnalysisPanelSelectable(pane, splitPane, analysisPanel, viewerManager, true);
-			action = createSelectableCommandAction(temp.showPanelProperty(), "Show analysis panel", PathIconFactory.PathIcons.MEASURE, new KeyCodeCombination(KeyCode.A, KeyCombination.SHIFT_DOWN));
-			action.selectedProperty().addListener((e, f, g) -> temp.setAnalysisPanelVisible(g));
-			return action;
-		case ZOOM_TO_FIT:
-			return createSelectableCommandAction(zoomToFit, "Zoom to fit", PathIconFactory.PathIcons.ZOOM_TO_FIT, null);
-		case ZOOM_IN:
-			return createCommandAction(new ZoomCommand.ZoomIn(this), "Zoom in", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.ZOOM_IN), new KeyCodeCombination(KeyCode.PLUS));
-		case ZOOM_OUT:
-			return createCommandAction(new ZoomCommand.ZoomOut(this), "Zoom out", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.ZOOM_OUT), new KeyCodeCombination(KeyCode.MINUS));
-		case COPY_FULL_SCREENSHOT:
-			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.FULL_SCREENSHOT), "Full screenshot");			
-		case COPY_WINDOW_SCREENSHOT:
-			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.MAIN_WINDOW_SCREENSHOT), "Main window screenshot");			
-		case COPY_VIEW:
-			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.VIEWER), "Current viewer", null, new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN));
-		case COPY_WINDOW:
-			return createCommandAction(new CopyViewToClipboardCommand(this, GuiTools.SnapshotType.MAIN_SCENE), "Main window content");
-		case OPEN_IMAGE:
-			return createCommandAction(new OpenCommand(this), "Open...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
-		case OPEN_IMAGE_OR_URL:
-			return createCommandAction(new OpenCommand(this, true), "Open URI...", null, new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-		case SAVE_DATA_AS:
-			return createCommandAction(new SerializeImageDataCommand(this, false), "Save As", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));			
-		case SAVE_DATA:
-			return createCommandAction(new SerializeImageDataCommand(this, true), "Save", null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
-		case SHOW_PIXEL_CLASSIFICATION:
-			return createSelectableCommandAction(overlayOptions.showPixelClassificationProperty(), "Show pixel classification", PathIconFactory.PathIcons.PIXEL_CLASSIFICATION, new KeyCodeCombination(KeyCode.C));
-		case SHOW_NAMES:
-			return createSelectableCommandAction(overlayOptions.showNamesProperty(), "Show labels", (Node)null, new KeyCodeCombination(KeyCode.N));
-		case SHOW_ANNOTATIONS:
-			return createSelectableCommandAction(overlayOptions.showAnnotationsProperty(), "Show annotations", PathIconFactory.PathIcons.ANNOTATIONS, new KeyCodeCombination(KeyCode.A));
-		case FILL_ANNOTATIONS:
-			return createSelectableCommandAction(overlayOptions.fillAnnotationsProperty(), "Fill annotations", PathIconFactory.PathIcons.ANNOTATIONS_FILL, new KeyCodeCombination(KeyCode.F, KeyCombination.SHIFT_DOWN));	
-		case SHOW_TMA_GRID:
-			return createSelectableCommandAction(overlayOptions.showTMAGridProperty(), "Show TMA grid", PathIconFactory.PathIcons.TMA_GRID, new KeyCodeCombination(KeyCode.G));
-		case SHOW_TMA_GRID_LABELS:
-			return createSelectableCommandAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
-		case SHOW_DETECTIONS:
-			return createSelectableCommandAction(overlayOptions.showDetectionsProperty(), "Show detections", PathIconFactory.PathIcons.DETECTIONS, new KeyCodeCombination(KeyCode.D));
-		case FILL_DETECTIONS:
-			return createSelectableCommandAction(overlayOptions.fillDetectionsProperty(), "Fill detections", PathIconFactory.PathIcons.DETECTIONS_FILL, new KeyCodeCombination(KeyCode.F));	
-		case SPECIFY_ANNOTATION:
-			return createCommandAction(new SpecifyAnnotationCommand(this), "Specify annotation");
-		case ANNOTATION_DUPLICATE:
-			return createCommandAction(new DuplicateAnnotationCommand(this), "Duplicate annotation", null, new KeyCodeCombination(KeyCode.D, KeyCombination.SHIFT_DOWN));
-		case GRID_SPACING:
-			return createCommandAction(new SetGridSpacingCommand(overlayOptions), "Set grid spacing");
-		case COUNTING_PANEL:
-			return createCommandAction(new CountingPanelCommand(this), "Counting tool", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, DefaultMode.POINTS), null);
-		case CONVEX_POINTS:
-			PathPrefs.showPointHullsProperty().addListener(e -> {
-				for (QuPathViewer v : getViewers())
-					v.repaint();
-			});
-			var actionHulls = createSelectableCommandAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
-			actionHulls.setLongText("Show filled convex hull for points (helpful to spot outliers)");
-			return actionHulls;
-		case USE_SELECTED_COLOR:
-			PathPrefs.useSelectedColorProperty().addListener(e -> {
-				for (QuPathViewer v : getViewers())
-					v.repaint();
-			});
-			var actionSelectedColor = createSelectableCommandAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
-			actionSelectedColor.setLongText("Show selected objects highlighted by color (turn off to always see 'true' classification colors)");
-			return actionSelectedColor;
-		case DETECTIONS_TO_POINTS:
-			return createCommandAction(new DetectionsToPointsCommand(this), "Convert detections to points");
-		case ROTATE_IMAGE:
-			return createCommandAction(new RotateImageCommand(this), "Rotate image");
-		case CHANNEL_VIEWER:
-			return createCommandAction(new MiniViewerCommand(this, true), "Show channel viewer");
-		case MINI_VIEWER:
-			return createCommandAction(new MiniViewerCommand(this, false), "Show mini viewer");
-		case TMA_SCORE_IMPORTER:
-			return createCommandAction(new TMAScoreImportCommand(this), "Import TMA map");
-		case TMA_RELABEL:
-			return createCommandAction(new TMAGridRelabel(this), "Relabel TMA grid");
-//		case OVERLAY_OPACITY:
-//			return new OpacityAction(this, overlayOptions);
-		case COLOR_DECONVOLUTION_REFINE:
-			return createCommandAction(new EstimateStainVectorsCommand(this), "Estimate stain vectors");
-//			return createCommandAction(new ColorDeconvolutionRefineAction(this), "Refine color deconvolution stains");
-		
-		case SHOW_COMMAND_LIST:
-			return createCommandAction(new CommandListDisplayCommand(this), "Show command list", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN));
+	private static <T> Action createSelectableCommandAction(final SelectionManager<T> command, final String name) {
+		return createSelectableCommandAction(command, name, null, null);
+	}
 
-		case SHOW_CELL_BOUNDARIES:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_ONLY), null);
-		case SHOW_CELL_NUCLEI:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CELL_NULCEI_BOTH), null);
-		case SHOW_CELL_BOUNDARIES_AND_NUCLEI:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.NUCLEI_ONLY), null);
-		case SHOW_CELL_CENTROIDS:
-			return createSelectableCommandAction(new CellDisplaySelectable(overlayOptions, DetectionDisplayMode.CENTROIDS), "Centroids only", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.CENTROIDS_ONLY), null);
-		
-		case RIGID_OBJECT_EDITOR:
-			return createCommandAction(new RigidObjectEditorCommand(this), "Rotate annotation", null, new KeyCodeCombination(KeyCode.R, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
-			
-		case SUMMARY_TMA:
-			return createCommandAction(new SummaryMeasurementTableCommand(this, TMACoreObject.class), "Show TMA measurements");
-//			return createCommandAction(new SummaryTableCommand(this, TMACoreObject.class), "Show TMA core measurements");
-		case SUMMARY_DETECTIONS:
-			return createCommandAction(new SummaryMeasurementTableCommand(this, PathDetectionObject.class), "Show detection measurements");
-//			return createCommandAction(new SummaryTableCommand(this, PathDetectionObject.class), "Show detection measurements");
-		case SUMMARY_ANNOTATIONS:
-			return createCommandAction(new SummaryMeasurementTableCommand(this, PathAnnotationObject.class), "Show annotation measurements");
-		case EXPORT_MEASUREMENTS:
-			return createCommandAction(new MeasurementExportCommand(this), "Export measurements");
-		
-		case VIEW_TRACKER:
-			return createCommandAction(new ViewTrackerCommand(this), "Show tracking panel", null, new KeyCodeCombination(KeyCode.T, KeyCombination.SHIFT_DOWN)); // TODO: Note: this only works with the original viewer
-		case MEASUREMENT_MAP:
-			return createCommandAction(new MeasurementMapCommand(this), "Show measurement maps", null, new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-		case WORKFLOW_DISPLAY:
-			return createCommandAction(new WorkflowDisplayCommand(this), "Show workflow command history", null, new KeyCodeCombination(KeyCode.W, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
-		case TMA_EXPORT_DATA:
-			return createCommandAction(new TMAExporterCommand(this), "Export TMA data");
-			
-		case SHOW_LOG:
-			return createCommandAction(new LogViewerCommand(this), "Show log", null, new KeyCodeCombination(KeyCode.L, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
-			
-		
-		case DELETE_SELECTED_OBJECTS:
-			return createCommandAction(new DeleteSelectedObjectsCommand(this), "Delete selected objects");
-//			return createCommandAction(new DeleteSelectedObjectsCommand(this), "Delete selected objects", null, new KeyCodeCombination(KeyCode.BACK_SPACE));
-		case CLEAR_HIERARCHY:
-			return createCommandAction(new DeleteObjectsCommand(this, null), "Delete all objects");
-		case CLEAR_DETECTIONS:
-			return createCommandAction(new DeleteObjectsCommand(this, PathDetectionObject.class), "Delete all detections");
-		case CLEAR_TMA_CORES:
-			return createCommandAction(new DeleteObjectsCommand(this, TMACoreObject.class), "Delete TMA grid");
-		case CLEAR_ANNOTATIONS:
-			return createCommandAction(new DeleteObjectsCommand(this, PathAnnotationObject.class), "Delete all annotations");
-			
-			
-		case PROJECT_NEW:
-			return createCommandAction(new ProjectCreateCommand(this), "Create project");
-		case PROJECT_OPEN:
-			return createCommandAction(new ProjectOpenCommand(this), "Open project");
-		case PROJECT_CLOSE:
-			return createCommandAction(new ProjectCloseCommand(this), "Close project");
-		case PROJECT_SAVE:
-			return createCommandAction(new ProjectSaveCommand(this), "Save project");
-		case PROJECT_IMPORT_IMAGES:
-			return createCommandAction(new ProjectImportImagesCommand(this), "Add images");
-		case PROJECT_EXPORT_IMAGE_LIST:
-			return createCommandAction(new ProjectExportImageListCommand(this), "Export image list");			
-		case PROJECT_METADATA:
-			return createCommandAction(new ProjectMetadataEditorCommand(this), "Edit project metadata");
-			
-		case PREFERENCES:
-			return createCommandAction(new PreferencesCommand(this, prefsPanel), "Preferences...", PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.COG), new KeyCodeCombination(KeyCode.COMMA, KeyCombination.SHORTCUT_DOWN));
-		
-		case QUPATH_SETUP:
-			return createCommandAction(new QuPathSetupCommand(this), "Show setup options");
-			
-		case TMA_ADD_NOTE:
-			return createCommandAction(new TMAAddNote(this), "Add TMA note");
-			
-		case TRANSFER_ANNOTATION:
-			return createCommandAction(new TransferAnnotationCommand(this), "Transfer last annotation", null, new KeyCodeCombination(KeyCode.E, KeyCombination.SHIFT_DOWN));
-		case SELECT_ALL_ANNOTATION:
-			return createCommandAction(new SelectAllAnnotationCommand(this), "Create full image annotation", null, new KeyCodeCombination(KeyCode.A, KeyCombination.SHIFT_DOWN, KeyCombination.SHORTCUT_DOWN));
-		
-		case TOGGLE_SYNCHRONIZE_VIEWERS:
-			return createSelectableCommandAction(viewerManager.synchronizeViewersProperty(), "Synchronize viewers", (Node)null, new KeyCodeCombination(KeyCode.S, KeyCombination.SHIFT_DOWN, KeyCombination.ALT_DOWN, KeyCombination.SHORTCUT_DOWN));
-			
-		case MATCH_VIEWER_RESOLUTIONS:
-			Action actionMatchResolutions = new Action("Match viewer resolutions", e -> viewerManager.matchResolutions());
-			return actionMatchResolutions;
-			
-		case UNDO:
-			Action actionUndo = new Action("Undo", e -> undoRedoManager.undoOnce());
-			actionUndo.disabledProperty().bind(undoRedoManager.canUndo().not());
-			actionUndo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCodeCombination.SHORTCUT_DOWN));
-			return actionUndo;
-		case REDO:
-			Action actionRedo = new Action("Redo", e -> undoRedoManager.redoOnce());
-			actionRedo.disabledProperty().bind(undoRedoManager.canRedo().not());
-			actionRedo.setAccelerator(new KeyCodeCombination(KeyCode.Z, KeyCodeCombination.SHORTCUT_DOWN, KeyCodeCombination.SHIFT_DOWN));
-			return actionRedo;
-			
-		default:
-			return null;
-		}
+	/**
+	 * Register the accelerator so we can still trigger the event if it is not otherwise called (e.g. if it doesn't require a 
+	 * shortcut key, and macOS drops it).
+	 * @param action the action to register; nothing will be done if it has no accelerator set
+	 * @return the same action as provided as a parameter
+	 */
+	private Action registerAccelerator(Action action) {
+		var accelerator = action.getAccelerator();
+		if (accelerator == null)
+			return action;
+		var previous = comboMap.put(accelerator, action);
+		if (previous != null && previous != action)
+			logger.warn("Multiple actions registered for {}, will keep {} and drop {}", accelerator, action.getText(), previous.getText());
+		return action;
 	}
 	
 	/**
-	 * Get the UndoRedoManager, which can be useful if needing to clear it in cases where available memory is low.
+	 * Get the main toolbar.
+	 * @return
+	 */
+	public ToolBar getToolBar() {
+		return toolbar.getToolBar();
+	}
+	
+	
+	/**
+	 * Get the {@link UndoRedoManager}, which can be useful if needing to clear it in cases where available memory is low.
 	 * @return
 	 */
 	public UndoRedoManager getUndoRedoManager() {
 		return undoRedoManager;
 	}
 	
-	public void setModeSwitchingEnabled(final boolean enabled) {
-		modeLocked.set(!enabled);
-//		for (Action action : modeActions.values())
-//			action.setDisabled(!enabled);
+	/**
+	 * Toggle whether the user is permitted to switch to a new active {@link PathTool}.
+	 * This can be used to lock a tool temporarily.
+	 * @param enabled
+	 */
+	public void setToolSwitchingEnabled(final boolean enabled) {
+		selectedToolLocked.set(!enabled);
 	}
 	
-	public boolean isModeSwitchingEnabled() {
-		return !modeLocked.get();
-	}
-
-	
-	private void initializeTools() {
-		// Create tools
-		putToolForMode(DefaultMode.MOVE, new MoveTool(this));
-		putToolForMode(DefaultMode.RECTANGLE, new RectangleTool(this));
-		putToolForMode(DefaultMode.ELLIPSE, new EllipseTool(this));
-		putToolForMode(DefaultMode.LINE, new LineTool(this));
-		putToolForMode(DefaultMode.POINTS, new PointsTool(this));
-		putToolForMode(DefaultMode.POLYGON, new PolygonTool(this));
-		putToolForMode(DefaultMode.POLYLINE, new PolylineTool(this));
-		putToolForMode(DefaultMode.BRUSH, new BrushTool(this));
+	/**
+	 * Returns true if the user is able to activate another {@link PathTool}, false otherwise.
+	 * @return
+	 */
+	public boolean isToolSwitchingEnabled() {
+		return !selectedToolLocked.get();
 	}
 	
 	
 	/**
-	 * Set a PathTool for use with a specified Mode.
-	 * 
-	 * This will replace the default tool for that mode.  The purpose of this method is to allow 
-	 * 'better' implementations of the tools to be implemented elsewhere (e.g. in extensions that 
-	 * require optional dependencies).
-	 * 
-	 * @param mode
-	 * @param tool
+	 * Get a list of the current available tools.
+	 * Tools may be removed from this list, but {@link #installTool(PathTool, KeyCodeCombination)} is the preferred way 
+	 * to add a new tool, to ensure that any accelerator is properly managed.
+	 * @return
 	 */
-	public void putToolForMode(final Mode mode, final PathTool tool) {
-		tools.put(mode, tool);
+	public ObservableList<PathTool> getAvailableTools() {
+		return tools;
 	}
 	
+	/**
+	 * Install a new tool for interacting with viewers.
+	 * @param tool the tool to add
+	 * @param accelerator an optional accelerator (may be null)
+	 * @return true if the tool was added, false otherwise (e.g. if the tool had already been added)
+	 */
+	public boolean installTool(PathTool tool, KeyCodeCombination accelerator) {
+		if (tool == null || tools.contains(tool))
+			return false;
+		// Keep the points tool last
+		if (accelerator != null) {
+			var action = getToolAction(tool);
+			if (accelerator != null) {
+				action.setAccelerator(accelerator);
+				registerAccelerator(action);
+			}
+		}
+		int ind = tools.indexOf(PathTools.POINTS);
+		if (ind < 0)
+			tools.add(tool);
+		else
+			tools.add(ind, tool);
+		return true;
+	}
 	
-	@Override
-	public void setMode(Mode mode) {
+	/**
+	 * Programmatically select the active {@link PathTool}.
+	 * This may fail if {@link #isToolSwitchingEnabled()} returns false.
+	 * @param tool
+	 */
+	public void setSelectedTool(PathTool tool) {
 		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> setMode(mode));
+			Platform.runLater(() -> setSelectedTool(tool));
 			return;
 		}
-		if (!isModeSwitchingEnabled()) {
-			logger.warn("Mode switching currently disabled - cannot change to {}", mode);
+		if (!isToolSwitchingEnabled()) {
+			logger.warn("Mode switching currently disabled - cannot change to {}", tool);
 			return;
 		}
-		this.mode = mode;
-		// Ensure actions are set appropriately
-		Action action = modeActions.get(mode);
-		if (action != null)
-			action.setSelected(true);
-		
-		activateTools(getViewer());
-		
-		if (mode == DefaultMode.POINTS)
-			getAction(GUIActions.COUNTING_PANEL).handle(null);
-		
-//		for (QuPathViewerPlus viewer : viewerManager.getViewers())
-//			viewer.setMode(mode);
-//		getViewer().setMode(mode);
-		updateCursor();
+		this.selectedToolProperty.set(tool);
 	}
 	
 	
@@ -4070,11 +3410,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	/**
 	 * Set the cursor for all the viewers.
 	 */
-	protected void updateCursor() {
+	void updateCursor() {
 		if (stage == null || stage.getScene() == null)
 			return;
-		var mode = getMode();
-		if (mode == DefaultMode.MOVE)
+		var mode = getSelectedTool();
+		if (mode == PathTools.MOVE)
 			updateCursor(Cursor.HAND);
 		else
 			updateCursor(Cursor.DEFAULT);
@@ -4085,14 +3425,14 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * 
 	 * @param cursor
 	 */
-	protected void updateCursor(final Cursor cursor) {
+	void updateCursor(final Cursor cursor) {
 		for (QuPathViewer viewer : getViewers())
 			viewer.getView().setCursor(cursor);
 	}
 
 	
 	/**
-	 * Get a reference to the current ScriptEditor (which may or may not be open at the moment).
+	 * Get a reference to the current {@link ScriptEditor} (which may or may not be open at the moment).
 	 * 
 	 * @return
 	 */
@@ -4123,19 +3463,21 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		viewerManager.repaintViewers();
 	}
 	
-
-	@Override
-	public Mode getMode() {
-		return mode;
+	/**
+	 * Get the value of {@link #selectedToolProperty()}.
+	 * @return
+	 */
+	public PathTool getSelectedTool() {
+		return selectedToolProperty().get();
 	}
 	
-	public MenuItem getActionMenuItem(GUIActions actionType) {
-		Action action = getAction(actionType);
-		return MenuTools.createMenuItem(action);
+	/**
+	 * Property containing the currently-selected {@link PathTool}.
+	 * @return
+	 */
+	public ObjectProperty<PathTool> selectedToolProperty() {
+		return selectedToolProperty;
 	}
-	
-	
-	
 	
 	/**
 	 * Flag to indicate that menus are being initialized.
@@ -4163,117 +3505,30 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return menuItem;
 	}
 	
-	
-	
-	private MenuItem getActionCheckBoxMenuItem(GUIActions actionType, ToggleGroup group) {
-		Action action = getAction(actionType);
-		if (group != null)
-			return MenuTools.createRadioMenuItem(action, group);
-		else
-			return MenuTools.createCheckMenuItem(action);
-	}
-	
-	private MenuItem getActionCheckBoxMenuItem(GUIActions actionType) {
-		return getActionCheckBoxMenuItem(actionType, null);
-	}
-	
-	public CheckBox getActionCheckBox(GUIActions actionType, boolean hideActionText) {
-		// Not sure why we have to bind?
-		Action action = getAction(actionType);
-		CheckBox button = ActionUtils.createCheckBox(action);
-		button.selectedProperty().bindBidirectional(action.selectedProperty());
-		if (hideActionText) {
-			button.setTooltip(new Tooltip(button.getText()));
-			button.setText("");
-		}
-		return button;
-	}
-	
-	private ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, ToggleGroup group) {
-		Action action = getAction(actionType);
-		ToggleButton button = ActionUtils.createToggleButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
-		if (hideActionText && action.getText() != null) {
-			Tooltip.install(button, new Tooltip(action.getText()));
-//			button.setTooltip(new Tooltip(action.getText()));
-////			button.setText(null);
-		}
-		
-		// Internally, ControlsFX duplicates graphics (or gives up) because Nodes can't appear multiple times the scene graph
-		// Consequently, we need to bind changes to the text fill here so that they filter through
-		if (button.getGraphic() instanceof Glyph) {
-			((Glyph)button.getGraphic()).textFillProperty().bind(((Glyph)action.getGraphic()).textFillProperty());
-		}
-		
-		if (group != null)
-			button.setToggleGroup(group);
-		return button;
-	}
-
-	public ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText) {
-		return getActionToggleButton(actionType, hideActionText, null);
-	}
-	
-	public ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, ToggleGroup group, boolean isSelected) {
-		ToggleButton button = getActionToggleButton(actionType, hideActionText, group);
-		return button;
-	}
-
-	private ToggleButton getActionToggleButton(GUIActions actionType, boolean hideActionText, boolean isSelected) {
-		return getActionToggleButton(actionType, hideActionText, null, isSelected);
-	}
-	
-	public Button getActionButton(GUIActions actionType, boolean hideActionText) {
-		return getActionButton(getAction(actionType), hideActionText);
-	}
-	
-	public Button getActionButton(Action action, boolean hideActionText) {
-		Button button = ActionUtils.createButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
-		if (hideActionText && action.getText() != null) {
-			Tooltip.install(button, new Tooltip(action.getText()));
-		}
-		return button;
-	}
-	
 	/**
-	 * Get an Action associated by this GUI.
-	 * It can be useful if associated buttons etc. or an alternative layout are being created elsewhere.
-	 * 
-	 * @param actionType
+	 * Return the global {@link OverlayOptions} instance, used to control display within viewers by default.
 	 * @return
 	 */
-	public Action getAction(GUIActions actionType) {
-		Action action = actionMap.get(actionType);
-		if (action == null) {
-			action = createAction(actionType);
-			
-			if (action.getAccelerator() != null)
-				mapActions.put(action.getAccelerator(), action);
-			
-			actionMap.put(actionType, action);
-		}
-		return action;
+	public OverlayOptions getOverlayOptions() {
+		return overlayOptions;
 	}
 
 	
-	private ObservableMap<Mode, PathTool> tools = FXCollections.observableMap(new HashMap<>());
-	
-	
-	private Control createAnalysisPanel() {
-		TabPane tabbedPanel = new TabPane();
-		tabbedPanel.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
+	private void initializeAnalysisPanel() {
+		analysisPanel.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		projectBrowser = new ProjectBrowser(this);
 
-		tabbedPanel.getTabs().add(new Tab("Project", projectBrowser.getPane()));
+		analysisPanel.getTabs().add(new Tab("Project", projectBrowser.getPane()));
 		PathImageDetailsPanel pathImageDetailsPanel = new PathImageDetailsPanel(this);
-		tabbedPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getContainer()));
+		analysisPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getContainer()));
 
-		final PathAnnotationPanel panelAnnotations = new PathAnnotationPanel(this);
+		final AnnotationPane panelAnnotations = new AnnotationPane(this);
 		SplitPane splitAnnotations = new SplitPane();
 		splitAnnotations.setOrientation(Orientation.VERTICAL);
 		splitAnnotations.getItems().addAll(
 				panelAnnotations.getPane(),
 				new SelectedMeasurementTableView(this).getTable());
-		tabbedPanel.getTabs().add(new Tab("Annotations", splitAnnotations));
+		analysisPanel.getTabs().add(new Tab("Annotations", splitAnnotations));
 
 		final PathObjectHierarchyView paneHierarchy = new PathObjectHierarchyView(this);
 		SplitPane splitHierarchy = new SplitPane();
@@ -4281,24 +3536,18 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		splitHierarchy.getItems().addAll(
 				paneHierarchy.getPane(),
 				new SelectedMeasurementTableView(this).getTable());
-		tabbedPanel.getTabs().add(new Tab("Hierarchy", splitHierarchy));
+		analysisPanel.getTabs().add(new Tab("Hierarchy", splitHierarchy));
 		
 		// Bind the split pane dividers to create a more consistent appearance
 		splitAnnotations.getDividers().get(0).positionProperty().bindBidirectional(
 				splitHierarchy.getDividers().get(0).positionProperty()
 				);
 
-		WorkflowPanel workflowPanel = new WorkflowPanel(this);
-		tabbedPanel.getTabs().add(new Tab("Workflow", workflowPanel.getPane()));
-		
-//		PathObjectHierarchyPanel pathObjectHierarchyPanel = new PathObjectHierarchyPanel(this);
-//		tabbedPanel.getTabs().add(new Tab("Hierarchy", pathObjectHierarchyPanel.getPane()));
-		
-		return tabbedPanel;
+		var commandLogView = new WorkflowCommandLogView(this);
+		TitledPane titledLog = new TitledPane("Command history", commandLogView.getPane());
+		var pane = new BorderPane(titledLog);
+		analysisPanel.getTabs().add(new Tab("Workflow", pane));
 	}
-	
-	
-	
 	
 	
 	/**
@@ -4310,20 +3559,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return availablePathClasses;
 	}
 	
-	
-//	protected void setInitialLocationAndMagnification(final QuPathViewer viewer) {
-//		if (viewer == null || viewer.getServer() == null)
-//			return;
-//		// Set to the highest magnification that contains the full image to start
-//		int serverWidth = viewer.getServer().getWidth();
-//		int serverHeight = viewer.getServer().getHeight();
-//		int w = viewer.getWidth() - 20;
-//		int h = viewer.getHeight() - 20;
-//		double xScale = (double)serverWidth / w;
-//		double yScale = (double)serverHeight / h;
-//		viewer.setDownsampleFactor(Math.max(1, Math.max(xScale, yScale)));
-//		viewer.centerImage();
-//	}
 	
 	/**
 	 * Get the menubar for the main QuPath application.
@@ -4355,233 +3590,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return stage;
 	}
 	
-	class ToolBarComponent {
-		
-		private double lastMagnification = Double.NaN;
-		
-		private Label labelMag = new Label("1x");
-		private Tooltip tooltipMag = new Tooltip("Current magnification - double-click to set");
-		private ToolBar toolbar = new ToolBar();
-		
-		ToolBarComponent(final QuPathGUI qupath) {
-			
-			labelMag.setTooltip(tooltipMag);
-			labelMag.setPrefWidth(60);
-			labelMag.setMinWidth(60);
-			labelMag.setMaxWidth(60);
-			labelMag.setTextAlignment(TextAlignment.CENTER);
-			
-			labelMag.setOnMouseEntered(e -> refreshMagnificationTooltip());
-			
-			labelMag.setOnMouseClicked(e -> {
-
-					QuPathViewer viewer = qupath.getViewer();
-					if (viewer == null || e.getClickCount() != 2 || !viewer.hasServer())
-						return;
-					double fullMagnification = viewer.getServer().getMetadata().getMagnification();
-					boolean hasMagnification = !Double.isNaN(fullMagnification);
-					ParameterList params = new ParameterList();
-					if (hasMagnification) {
-						double defaultValue = Math.rint(viewer.getMagnification() * 1000) / 1000;
-						params.addDoubleParameter("magnification", "Enter magnification", defaultValue);
-					} else {
-						double defaultValue = Math.rint(viewer.getDownsampleFactor() * 1000) / 1000;
-						params.addDoubleParameter("downsample", "Enter downsample factor", defaultValue);			
-					}
-//					ParameterPanelFX panel = new ParameterPanelFX(params);
-//					panel.getPane().setPadding(new Insets(10, 10, 10, 10));
-					
-					if (!Dialogs.showParameterDialog("Set magnification", params))
-						return;
-					
-					if (hasMagnification) {
-						double mag = params.getDoubleParameterValue("magnification");
-						if (!Double.isNaN(mag))
-							viewer.setMagnification(mag);
-					} else {
-						double downsample = params.getDoubleParameterValue("downsample");
-						if (!Double.isNaN(downsample))
-							viewer.setDownsampleFactor(downsample);
-					}
-				
-			});
-			
-			// Show analysis panel
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_ANALYSIS_PANEL, true, null, true));
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-//			GlyphFont fontAwesome = GlyphFontRegistry.font("FontAwesome");
-//			toolbar.getItems().add(new Button("", fontAwesome.create(FontAwesome.Glyph.ARROWS).color(Color.GRAY)));
-//			toolbar.getItems().add(new Button("", fontAwesome.create(FontAwesome.Glyph.MAGIC).color(Color.GRAY)));
-//			toolbar.getItems().add(new Button("", fontAwesome.create(FontAwesome.Glyph.ANGLE_DOUBLE_LEFT).color(Color.GRAY)));
-			
-			ToggleGroup groupTools = new ToggleGroup();
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.MOVE_TOOL, true, groupTools, true));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.RECTANGLE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.ELLIPSE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.LINE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.POLYGON_TOOL, true, groupTools, false));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.POLYLINE_TOOL, true, groupTools, false));
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			ToggleButton btnBrush = qupath.getActionToggleButton(GUIActions.BRUSH_TOOL, true, groupTools, false);
-			toolbar.getItems().add(btnBrush);
-			btnBrush.setOnMouseClicked(e -> {
-				if (e.isPopupTrigger() || e.getClickCount() < 2)
-					return;
-
-				final ParameterList params = new ParameterList()
-						.addDoubleParameter("brushSize", "Brush diameter", PathPrefs.getBrushDiameter(), "pixels", "Enter the default brush diameter, in pixels")
-						.addBooleanParameter("brushScaleMag", "Scale brush size by magnification", PathPrefs.getBrushScaleByMag())
-						.addBooleanParameter("brushCreateNew", "Create new objects when painting", PathPrefs.getBrushCreateNewObjects());
-				final ParameterPanelFX panel = new ParameterPanelFX(params);
-				panel.addParameterChangeListener(new ParameterChangeListener() {
-
-					@Override
-					public void parameterChanged(ParameterList parameterList, String key, boolean isAdjusting) {
-						if ("brushSize".equals(key)) {
-							double radius = params.getDoubleParameterValue("brushSize");
-							if (!Double.isNaN(radius)) {
-								PathPrefs.setBrushDiameter((int)Math.round(Math.max(1, radius)));
-							}
-						} else if ("brushCreateNew".equals(key))
-							PathPrefs.setBrushCreateNewObjects(params.getBooleanParameterValue("brushCreateNew"));
-						else if ("brushScaleMag".equals(key))
-							PathPrefs.setBrushScaleByMag(params.getBooleanParameterValue("brushScaleMag"));
-					}
-
-				});
-				
-				Dialogs.showConfirmDialog("Brush tool options", panel.getPane());
-				
-//				dialog = new JDialog(qupath.getFrame(), "Brush tool options");
-//				dialog.add(panel);
-//				panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
-//				dialog.pack();
-//				dialog.setLocationRelativeTo(null);
-//				dialog.setAlwaysOnTop(true);
-//				dialog.setModal(false);
-//				dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-//				dialog.setVisible(true);
-			});
-//			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			ToggleButton toggleWand = qupath.getActionToggleButton(GUIActions.WAND_TOOL, true, groupTools, false);
-//			toggleWand.visibleProperty().bind(Bindings.not(qupath.getAction(GUIActions.WAND_TOOL).disabledProperty()));
-			toolbar.getItems().add(toggleWand);
-//			if (qupath.tools.containsKey(Modes.WAND))
-//				toolbar.getItems().add(toggleWand);
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.POINTS_TOOL, true, groupTools, false));
-//			toolbar.getItems().add(getActionToggleButton(GUIActions.POINTS_TOOL, true, groupTools, false));
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SELECTION_MODE, true, null, PathPrefs.isSelectionMode()));			
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-
-//			toolbar.getItems().add(getActionToggleButton(GUIActions.USE_COLOR_LUT, true, false));
-			toolbar.getItems().add(qupath.getActionButton(GUIActions.BRIGHTNESS_CONTRAST, true));
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "1%", 100), false, false));
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "10%", 10), false, false));
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "50%", 2), false, false));
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "100%", 1), false, false));
-//			toolbar.getItems().add(getActionButton(new SetDownsampleAction(viewer, "400%", 0.25), false, false));
-	// //		toolbar.getItems().add(sliderMag);
-			toolbar.getItems().add(labelMag);
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.ZOOM_TO_FIT, true, false));
-
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			OverlayOptions overlayOptions = qupath.overlayOptions;
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_ANNOTATIONS, true, overlayOptions.getShowAnnotations()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_TMA_GRID, true, overlayOptions.getShowTMAGrid()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_DETECTIONS, true, overlayOptions.getShowDetections()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.FILL_DETECTIONS, true, overlayOptions.getFillDetections()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_PIXEL_CLASSIFICATION, true, overlayOptions.getShowPixelClassification()));
-
-			final Slider sliderOpacity = new Slider(0, 1, 1);
-			sliderOpacity.valueProperty().bindBidirectional(overlayOptions.opacityProperty());
-			sliderOpacity.setTooltip(new Tooltip("Overlay opacity"));
-			toolbar.getItems().add(sliderOpacity);
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			
-			Button btnMeasure = new Button();
-			btnMeasure.setGraphic(PathIconFactory.createNode(TOOLBAR_ICON_SIZE, TOOLBAR_ICON_SIZE, PathIcons.TABLE));
-			btnMeasure.setTooltip(new Tooltip("Show measurements table"));
-			ContextMenu popupMeasurements = new ContextMenu();
-			popupMeasurements.getItems().addAll(
-					qupath.getActionMenuItem(GUIActions.SUMMARY_TMA),
-					qupath.getActionMenuItem(GUIActions.SUMMARY_ANNOTATIONS),
-					qupath.getActionMenuItem(GUIActions.SUMMARY_DETECTIONS),
-					qupath.getActionMenuItem(GUIActions.EXPORT_MEASUREMENTS)
-					);
-			btnMeasure.setOnMouseClicked(e -> {
-				popupMeasurements.show(btnMeasure, e.getScreenX(), e.getScreenY());
-			});
-			
-			toolbar.getItems().add(btnMeasure);
-			
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			
-			// TODO: Check if viewer really needed...
-			QuPathViewerPlus viewer = qupath.getViewer();
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_OVERVIEW, true, viewer.isOverviewVisible()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_LOCATION, true, viewer.isLocationVisible()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_SCALEBAR, true, viewer.isScalebarVisible()));
-			toolbar.getItems().add(qupath.getActionToggleButton(GUIActions.SHOW_GRID, true, overlayOptions.getShowGrid()));
-			
-			// Add preferences button
-			toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-			toolbar.getItems().add(qupath.getActionButton(GUIActions.PREFERENCES, true));
-		}
-		
-		void refreshMagnificationTooltip() {
-			// Ensure we have the right tooltip for magnification
-			if (tooltipMag == null)
-				return;
-			var imageData = getImageData();
-			var mag = imageData == null ? null : imageData.getServer().getMetadata().getMagnification();
-			if (imageData == null)
-				tooltipMag.setText("Magnification");
-			else if (mag != null && !Double.isNaN(mag))
-				tooltipMag.setText("Display magnification - double-click to edit");
-			else
-				tooltipMag.setText("Display scale value - double-click to edit");
-		}
-		
-		public void updateMagnificationDisplay(final QuPathViewer viewer) {
-			if (viewer == null || labelMag == null)
-				return;
-			// Update magnification info
-			double mag = viewer.getMagnification();
-			if (Math.abs(mag - lastMagnification) / mag < 0.0001)
-				return;
-			lastMagnification = mag;
-			Platform.runLater(() -> {
-				labelMag.setText(GuiTools.getMagnificationString(viewer));
-//				labelMag.setTextAlignment(TextAlignment.CENTER);
-			});
-		}
-		
-		public Node getComponent() {
-			return toolbar;
-		}
-		
-		
-	}
-	
-	
-		
-	
-	
 	private void updateMagnificationString() {
 		if (toolbar == null)
 			return;
@@ -4595,21 +3603,24 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		var project = getProject();
 		var entry = project == null ? null : project.getEntry(imageData);
 		if (entry == null) {
-			if (PathPrefs.getMaskImageNames())
+			if (PathPrefs.maskImageNamesProperty().get())
 				return "(Name masked)";
 			return ServerTools.getDisplayableImageName(imageData.getServer());
 		} else {
 			// Make sure that the status of name masking has been set in the project (in case it hasn't been triggered yet...)
-			project.setMaskImageNames(PathPrefs.getMaskImageNames());
+			project.setMaskImageNames(PathPrefs.maskImageNamesProperty().get());
 			return entry.getImageName();
 		}
 	}
 	
-	public void updateTitle() {
+	/**
+	 * Refresh the title bar in the main QuPath window.
+	 */
+	public void refreshTitle() {
 		if (Platform.isFxApplicationThread())
 			titleBinding.invalidate();
 		else
-			Platform.runLater(() -> updateTitle());
+			Platform.runLater(() -> refreshTitle());
 	}
 	
 	
@@ -4619,11 +3630,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 					if (versionString != null)
 						name = name + " (" + versionString + ")";
 					var imageData = imageDataProperty.get();
-					if (imageData == null || !PathPrefs.showImageNameInTitle())
+					if (imageData == null || !PathPrefs.showImageNameInTitleProperty().get())
 						return name;
 					return name + " - " + getDisplayedImageName(imageData);
 				},
-				project, imageDataProperty, PathPrefs.showImageNameInTitleProperty(), PathPrefs.maskImageNamesProperty());
+				projectProperty, imageDataProperty, PathPrefs.showImageNameInTitleProperty(), PathPrefs.maskImageNamesProperty());
 	
 	
 	/**
@@ -4635,6 +3646,15 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		return buildString;
 	}
 	
+	/**
+	 * Read-only property containing the image open within the currently-active viewer.
+	 * To change the open image data, you should do so directly within the viewer.
+	 * @return
+	 */
+	public ReadOnlyObjectProperty<ImageData<BufferedImage>> imageDataProperty() {
+		return imageDataProperty;
+	}
+	
 	
 	private void fireImageDataChangedEvent(final ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {		
 		
@@ -4643,12 +3663,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		// A bit awkward, this... but make sure the extended scripting helper static class knows what's happened
 		QPEx.setBatchImageData(imageDataNew);
 		
-		// Notify listeners
-		for (ImageDataChangeListener<BufferedImage> listener : listeners) {
-			listener.imageDataChanged(this, imageDataOld, imageDataNew);
-		}
-		
-//		refreshMagnificationTooltip();
 	}
 	
 	
@@ -4658,7 +3672,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	 * @param project
 	 */
 	public void setProject(final Project<BufferedImage> project) {
-		var currentProject = this.project.get();
+		var currentProject = this.projectProperty.get();
 		if (currentProject == project)
 			return;
 		
@@ -4693,7 +3707,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 		if (project != null) {
 			try {
 				// Show URI manager dialog if we have any missing URIs
-				if (!ProjectCheckUrisCommand.checkURIs(project, true))
+				if (!ProjectCommands.promptToCheckURIs(project, true))
 					return;
 			} catch (IOException e) {
 				Dialogs.showErrorMessage("Update URIs", e);
@@ -4714,14 +3728,11 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				list.add(0, uri);
 		}
 		
-		this.project.set(project);
+		this.projectProperty.set(project);
 		if (!this.projectBrowser.setProject(project)) {
-			this.project.set(null);
+			this.projectProperty.set(null);
 			this.projectBrowser.setProject(null);
 		}
-		
-		// Enable disable actions
-		updateProjectActionStates();
 		
 		// Update the PathClass list, if necessary
 		if (project != null) {
@@ -4747,131 +3758,55 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	}
 	
 	
-	private void updateProjectActionStates() {
-		Project<?> project = getProject();
-		getAction(GUIActions.PROJECT_CLOSE).setDisabled(project == null);
-		getAction(GUIActions.PROJECT_IMPORT_IMAGES).setDisabled(project == null);
-		getAction(GUIActions.PROJECT_EXPORT_IMAGE_LIST).setDisabled(project == null);
-		getAction(GUIActions.PROJECT_METADATA).setDisabled(project == null);
-		
-		// Ensure the URLHelpers status is appropriately set
-		File dirBase = Projects.getBaseDirectory(project);
-		if (dirBase != null && PathPrefs.useProjectImageCache()) {
-			File cache = new File(dirBase, "cache");
-			if (!cache.exists())
-				cache.mkdirs();
-			try {
-				// Works for zip files - but these aren't flushed until closing the cache, so result in memory leak (and horribly shutdown performance)
-//				cache = new File(cache, "QuPath image cache.zip");
-//				URI cachePath = URI.create("jar:" + new File(cache, "/!/tiles").toURI().toString());
-//				fileSystem = FileSystems.newFileSystem(cachePath, Collections.singletonMap("create", "true"));
-//				fileSystemRoot = "";
-				FileSystem fileSystem = FileSystems.getDefault();
-				String fileSystemRoot = cache.getAbsolutePath();
-				logger.debug("File system: {}", fileSystem);
-				logger.debug("File system root: {}", fileSystemRoot);
-			} catch (Exception e) {
-				logger.error("Error creating file system", e);
-			}
-		}
+	/**
+	 * Refresh the project, updating the display if required.
+	 * This can be called whenever the project has changed (e.g. by adding or removing items).
+	 */
+	public void refreshProject() {
+		projectBrowser.refreshProject();
 	}
 	
-	
+	/**
+	 * Read-only property representing the currently-open project.
+	 * @return
+	 */
 	public ReadOnlyObjectProperty<Project<BufferedImage>> projectProperty() {
-		return project;
+		return projectProperty;
 	}
 	
+	/**
+	 * Get the value of {@link #projectProperty()}.
+	 * @return
+	 */
 	public Project<BufferedImage> getProject() {
-		return project.get();
-	}
-
-	/**
-	 * Get a shared DialogHelper.
-	 * 
-	 * Generally it's better to use getDialogHelper where a QuPathGUI instance is available, since it will have
-	 * its parent window set.
-	 * 
-	 * @return
-	 */
-	public static DialogHelper getSharedDialogHelper() {
-		if (getInstance() == null)
-			return getDialogHelper(null);
-		else
-			return getDialogHelper(getInstance().getStage());
-	}
-	
-	/**
-	 * Get a DialogHelper with a specified Window as a parent.
-	 * 
-	 * This will return a different DialogHelper for each different Window parent,
-	 * but the same DialogHelper for the same Windows.
-	 * 
-	 * @param parent
-	 * @return
-	 */
-	public static DialogHelper getDialogHelper(final Window parent) {
-		if (parent == null)
-			return standaloneDialogHelper;
-		DialogHelper helper = dialogHelpers.get(parent);
-		if (helper == null) {
-			helper = new DialogHelperFX(parent);
-			dialogHelpers.put(parent, helper);
-		}
-		return helper;
-	}
-	
-	/**
-	 * Call getDialogHelper for the Window containing a specified Node.
-	 * 
-	 * This is a convenience method when a dialog is related to a Node,
-	 * so there isn't a need to get a reference to its parent Window manually.
-	 * 
-	 * @param node
-	 * @return
-	 */
-	public static DialogHelper getDialogHelperForParent(final Node node) {
-		Window window = null;
-		if (node != null && node.getScene() != null)
-			window = node.getScene().getWindow();
-		return getDialogHelper(window);
-	}
-	
-	public DialogHelper getDialogHelper() {
-		return getDialogHelper(getStage());
+		return projectProperty.get();
 	}
 	
 	
-	
-	static class ShowAnalysisPanelSelectable {
+	static class ShowAnalysisPaneSelectable {
 		
 		private BorderPane parent;
 		private SplitPane splitPane;
-		private Control analysisPanel;
+		private Control analysisPane;
 		private MultiviewManager manager;
 		protected double lastDividerLocation;
 		
-		private BooleanProperty showPanel = new SimpleBooleanProperty();
+		private BooleanProperty showPane = new SimpleBooleanProperty();
 		
-		public ShowAnalysisPanelSelectable(final BorderPane parent, final SplitPane splitPane, final Control analysisPanel, final MultiviewManager manager, final boolean defaultVisible) {
+		ShowAnalysisPaneSelectable(final BorderPane parent, final SplitPane splitPane, final Control analysisPane, final MultiviewManager manager, final boolean defaultVisible) {
 			this.parent = parent;
 			this.splitPane = splitPane;
-			this.analysisPanel = analysisPanel;
+			this.analysisPane = analysisPane;
 			this.manager = manager;
-			
-			showPanel.setValue(parent.getCenter() == splitPane);
-			
-//			// This didn't get fired when it was used...
-//			showPanel.addListener((v, o, n) -> {
-//				System.err.println("Property changes");
-//				setAnalysisPanelVisible(n);
-//			});
+			showPane = analysisPane.visibleProperty();
+			showPane.addListener((v, o, n) -> setAnalysisPanelVisible(n));
 		}
 		
-		void setAnalysisPanelVisible(boolean visible) {
+		private void setAnalysisPanelVisible(boolean visible) {
 			if (visible) {
 				if (analysisPanelVisible())
 					return;
-				splitPane.getItems().setAll(analysisPanel, manager.getNode());
+				splitPane.getItems().setAll(analysisPane, manager.getNode());
 				splitPane.setDividerPosition(0, lastDividerLocation);
 				parent.setCenter(splitPane);
 			} else {
@@ -4882,32 +3817,22 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			}
 		}
 			
-		public boolean analysisPanelVisible() {
+		private boolean analysisPanelVisible() {
 			return parent.getCenter() == splitPane;
 		}
-
-//		public void setShowPanel(boolean selected) {
-//			System.err.println("Property changes instead");
-//			this.showPanel.setValue(selected);
-//		}
-//		
-//		public boolean getShowPanel() {
-//			System.err.println("Property value requested");
-//			return showPanel.get();
-//		}
 		
-		public BooleanProperty showPanelProperty() {
-			return showPanel;
-		}
-		
+		public BooleanProperty showPaneProperty() {
+			return showPane;
+		}	
 		
 	}
 
-
-
-	@Override
+	/**
+	 * Get the value of {@link #imageDataProperty()}.
+	 * @return
+	 */
 	public ImageData<BufferedImage> getImageData() {
-		return getViewer() == null ? null : getViewer().getImageData();
+		return imageDataProperty().get();
 	}
 	
 	
@@ -4948,7 +3873,7 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return false;
 		if (response == DialogButton.YES) {
 			if (filePrevious == null && entry == null) {
-				filePrevious = getDialogHelper().promptToSaveFile("Save image data", filePrevious, ServerTools.getDisplayableImageName(imageData.getServer()), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
+				filePrevious = Dialogs.promptToSaveFile("Save image data", filePrevious, ServerTools.getDisplayableImageName(imageData.getServer()), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
 				if (filePrevious == null)
 					return false;
 			}
@@ -4967,7 +3892,34 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 	
 	
 	
-	class MultiviewManager implements QuPathViewerListener, ViewerManager<QuPathViewerPlus> {
+	/**
+	 * Calculate the appropriate tile cache size based upon the user preferences.
+	 * @return tile cache size in bytes
+	 */
+	private static long getTileCacheSizeBytes() {
+		// Try to compute a sensible value...
+		Runtime rt = Runtime.getRuntime();
+		long maxAvailable = rt.maxMemory(); // Max available memory
+		if (maxAvailable == Long.MAX_VALUE) {
+			logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
+			maxAvailable = 64L * 1024L * 1024L * 1024L;
+		}
+		double percentage = PathPrefs.tileCachePercentageProperty().get();
+		if (percentage < 10) {
+			logger.warn("At least 10% of available memory needs to be used for tile caching (you requested {}%)", percentage);
+			percentage = 10;
+		} else if (percentage > 90) {
+			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
+			percentage = 00;			
+		}
+		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
+		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
+		return tileCacheSize;
+	}
+
+
+
+	class MultiviewManager implements QuPathViewerListener {
 		
 		private List<QuPathViewerPlus> viewers = new ArrayList<>();
 		private SimpleObjectProperty<QuPathViewerPlus> activeViewerProperty = new SimpleObjectProperty<>();
@@ -4999,7 +3951,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			splitPaneGrid = new SplitPaneGrid(defaultViewer.getView());
 		}
 		
-		@Override
 		public List<QuPathViewerPlus> getViewers() {
 			return Collections.unmodifiableList(viewers);
 		}
@@ -5351,57 +4302,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			return synchronizeViewers;
 		}
 		
-		
-		/**
-		 * Convert the viewers to quadrants, using new split panes appropriately.
-		 * Warning: this will throw a RuntimeException if > viewers are open.
-		 */
-		public void setupQuadrants() {
-			// TODO: REINSTATE QUADRANTS!!!!
-//			if (viewers.size() > 4)
-//				throw new RuntimeException("Cannot set up quadrants while > 4 viewers are open");
-//			
-//			JSplitPane splitTop = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true);
-//			splitTop.setResizeWeight(0.5);
-//			splitTop.setOneTouchExpandable(true);
-//
-//			JSplitPane splitBottom = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true);
-//			splitBottom.setResizeWeight(0.5);
-//			splitBottom.setOneTouchExpandable(true);
-//			
-//			// Add the available viewers, and any extra ones that are needed
-//			if (viewers.size() > 0)
-//				splitTop.setLeftComponent(viewers.get(0));
-//			else
-//				splitTop.setLeftComponent(viewerManager.createViewer());
-//			if (viewers.size() > 1)
-//				splitTop.setRightComponent(viewers.get(1));
-//			else
-//				splitTop.setRightComponent(viewerManager.createViewer());
-//			if (viewers.size() > 2)
-//				splitBottom.setLeftComponent(viewers.get(2));
-//			else
-//				splitBottom.setLeftComponent(viewerManager.createViewer());
-//			if (viewers.size() > 3)
-//				splitBottom.setRightComponent(viewers.get(3));
-//			else
-//				splitBottom.setRightComponent(viewerManager.createViewer());
-//			
-//			JSplitPane splitMain = new JSplitPane(JSplitPane.VERTICAL_SPLIT, true, splitTop, splitBottom);
-//			splitMain.setResizeWeight(0.5);
-//			splitMain.setOneTouchExpandable(true);
-//			
-//			panel.removeAll();
-//			panel.add(splitMain, BorderLayout.CENTER);
-//			
-//			// Need synchronous validation for the divider locations to work (i.e. not revalidate())
-//			panel.invalidate();
-//			panel.validate();
-//			splitMain.setDividerLocation(0.5);
-//			splitTop.setDividerLocation(0.5);
-//			splitBottom.setDividerLocation(0.5);
-		}
-		
 
 		@Override
 		public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {
@@ -5415,9 +4315,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			if (viewer != getActiveViewer()) {
 				return;
 			}
-			
-//			logger.info("SELECTED OBJECT CHANGED");
-
 			
 			// Synchronize TMA cores
 			if (!(pathObjectSelected instanceof TMACoreObject))
@@ -5522,7 +4419,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			removeViewer(viewer); // May be avoidable...?
 		}
 
-		@Override
 		public QuPathViewerPlus getViewer() {
 			return getActiveViewer();
 		}
@@ -5537,8 +4433,6 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 			
 			private SplitPane splitPaneMain = new SplitPane();
 			private List<SplitPane> splitPaneRows = new ArrayList<>();
-			
-//			private Map<Node, QuPathViewer> viewerMap = new WeakHashMap<>();
 			
 			SplitPaneGrid(final Node node) {
 				splitPaneMain.setOrientation(Orientation.VERTICAL);
@@ -5711,127 +4605,10 @@ public class QuPathGUI implements ModeWrapper, ImageDataWrapper<BufferedImage>, 
 				return splitPaneRows.get(0).getDividers().size() + 1;
 			}
 			
-//			public int nCols(final int row) {
-//				return splitPaneRows.get(row).getDividers().size();
-//			}
-
 		}
 		
 		
 	}
-	
-	
-	
-	
-	
-	static class TransferAnnotationCommand implements PathCommand {
-		
-		final private QuPathGUI qupath;
-		
-		public TransferAnnotationCommand(final QuPathGUI qupath) {
-			super();
-			this.qupath = qupath;
-		}
 
-		@Override
-		public void run() {
-			qupath.viewerManager.applyLastAnnotationToActiveViewer();
-		}
-		
-	}
-	
-	
-	@Override
-	public void addImageDataChangeListener(ImageDataChangeListener<BufferedImage> listener) {
-		listeners.add(listener);
-	}
-
-
-	@Override
-	public void removeImageDataChangeListener(ImageDataChangeListener<BufferedImage> listener) {
-		listeners.remove(listener);
-	}
-	
-	
-	public static class ExtensionClassLoader extends URLClassLoader {
-
-		public ExtensionClassLoader() {
-			super(new URL[0], QuPathGUI.class.getClassLoader());
-//			refresh();
-		}
-		
-		/**
-		 * Request that a specified JAR file be added to the classpath.
-		 * 
-		 * @param file
-		 * @return
-		 */
-		private boolean addJAR(final File file) {
-			try (JarFile jar = new JarFile(file)) {
-				if (jar.entries().hasMoreElements()) {
-					addURL(file.toURI().toURL());
-					return true;
-				}
-			} catch (IOException e) {
-				logger.error("Unable to add file to classpath", e);
-			}
-			return false;
-		}
-		
-		/**
-		 * Ensure all Jars in the extensions directory (and one subdirectory down) are available
-		 */
-		public void refresh() {
-			File dirExtensions = getExtensionDirectory();
-			if (dirExtensions == null) {
-				logger.debug("Extensions directory is null - no extensions will be loaded");
-				return;
-			}
-			if (!dirExtensions.isDirectory()) {
-				logger.error("Invalid extensions directory! '{}' is not a directory.", dirExtensions);
-				return;
-			}
-			refreshExtensions(dirExtensions);
-			for (File dir : dirExtensions.listFiles()) {
-				if (!dir.isHidden() && dir.isDirectory()) {
-					Path dirPath = dir.toPath();
-					if (Files.isSymbolicLink(dirPath))
-						try {
-							dir = Files.readSymbolicLink(dirPath).toFile();
-						} catch (IOException e) {
-							logger.error("Error refreshing extensions", e);
-						}
-					refreshExtensions(dir);
-				}
-			}
-		}
-		
-		/**
-		 * Ensure all Jars from the specified directory are available.
-		 * 
-		 * @param dirExtensions
-		 */
-		private void refreshExtensions(final File dirExtensions) {
-			if (dirExtensions == null) {
-				logger.debug("No extensions directory specified");				
-				return;
-			} else if (!dirExtensions.isDirectory()) {
-				logger.warn("Cannot load extensions from " + dirExtensions + " - not a valid directory");	
-				return;
-			}
-			logger.info("Refreshing extensions in " + dirExtensions);				
-			for (File file : dirExtensions.listFiles()) {
-				if (file.getName().toLowerCase().endsWith(".jar")) {
-					try {
-						addURL(file.toURI().toURL());
-						logger.info("Added extension: " + file.getAbsolutePath());
-					} catch (MalformedURLException e) {
-						logger.debug("Error adding {} to classpath", file, e);
-					}
-				}
-			}
-		}
-		
-	}
 	
 }

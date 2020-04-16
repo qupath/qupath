@@ -53,8 +53,6 @@ public class PolygonROI extends AbstractPathROI implements Serializable {
 	
 	private Vertices vertices;
 	
-	transient private ROI convexHull = null;
-
 	transient private ClosedShapeStatistics stats = null;
 	
 

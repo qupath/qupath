@@ -186,7 +186,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	@Override
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		RegionRequest request = tileRequest.getRegionRequest();
-		long startTime = System.currentTimeMillis();
+//		long startTime = System.currentTimeMillis();
 		
 		// Get connections
 		Object o = options.getShowConnections() ? imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS) : null;

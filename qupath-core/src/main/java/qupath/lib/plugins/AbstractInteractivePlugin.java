@@ -70,6 +70,7 @@ public abstract class AbstractInteractivePlugin<T> extends AbstractPlugin<T> imp
 	 * modify the internal ParameterList that will actually be used, while getDefaultParameterList is useful
 	 * when creating GUIs and ensuring that there is always a sensible starting point.
 	 * 
+	 * @param imageData image data for which the parameters should be generated. This may influence which parameters are shown.
 	 * @return
 	 */
 	protected ParameterList getParameterList(final ImageData<T> imageData) {

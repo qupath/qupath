@@ -78,7 +78,13 @@ public class MeasurementMapper {
 	private boolean valid = false;
 	private boolean excludeOutsideRange;
 
-	public MeasurementMapper(ColorMapper mapper, String measurement, Collection<PathObject> pathObjects) {
+	/**
+	 * Constructor.
+	 * @param mapper color mapper (lookup table)
+	 * @param measurement the measurement to colorize
+	 * @param pathObjects an initial collection of objects used to determine display ranges (i.e. find the min/max values of the specified measurement)
+	 */
+	public MeasurementMapper(ColorMapper mapper, String measurement, Collection<? extends PathObject> pathObjects) {
 		this.colorMapper = mapper;
 		this.measurement = measurement;
 		isClassProbability = measurement.toLowerCase().trim().equals("class probability");
@@ -228,10 +234,20 @@ public class MeasurementMapper {
 		this.excludeOutsideRange = excludeOutsideRange;
 	}
 
+	/**
+	 * Query if the mapper is valid. This returns true if the mapper has been initialized with objects to 
+	 * determine an appropriate display range.
+	 * @return
+	 */
 	public boolean isValid() {
 		return valid;
 	}
 
+	/**
+	 * Get the display color for a specified object, according to the settings of this mapper.
+	 * @param pathObject
+	 * @return
+	 */
 	public Integer getColorForObject(PathObject pathObject) {
 
 //		if (!(colorMapper instanceof RedAlphaColorMapper6))
@@ -276,48 +292,87 @@ public class MeasurementMapper {
 		return value;
 	}
 
+	/**
+	 * Get the color mapper, which is effectively a lookup table.
+	 * @return
+	 */
 	public ColorMapper getColorMapper() {
 		return colorMapper;
 	}
 
+	/**
+	 * Get the minimum measurement value from the objects passed to the constructor of this mapper.
+	 * @return
+	 */
 	public double getDataMinValue() {
 		return minValueData;
 	}
 
+	/**
+	 * Get the maximum measurement value from the objects passed to the constructor of this mapper.
+	 * @return
+	 */
 	public double getDataMaxValue() {
 		return maxValueData;
 	}
 
+	/**
+	 * Set the measurement value that maps to the first color in the color mapper.
+	 * @param minValue
+	 */
 	public void setDisplayMinValue(double minValue) {
 		this.minValue = minValue;
 	}
 
+	/**
+	 * Set the measurement value that maps to the last color in the color mapper.
+	 * @param maxValue
+	 */
 	public void setDisplayMaxValue(double maxValue) {
 		this.maxValue = maxValue;
 	}
 
+	/**
+	 * Get the measurement value that maps to the first color in the color mapper.
+	 * @return
+	 */
 	public double getDisplayMinValue() {
 		return minValue;
 	}
 
+	/**
+	 * Get the measurement value that maps to the last color in the color mapper.
+	 * @return
+	 */
 	public double getDisplayMaxValue() {
 		return maxValue;
 	}
 
 
-
-
-
-
-
+	/**
+	 * Color mapper, which acts as the lookup table for a {@link MeasurementMapper}.
+	 */
 	public static interface ColorMapper {
 		
+		/**
+		 * Get the name of the color mapper.
+		 * @return
+		 */
 		public String getName();
 
+		/**
+		 * Returns true if the mapper uses alpha values within its colors.
+		 * @return
+		 */
 		public boolean hasAlpha();
 
-		public Integer getColor(int ind);
-
+		/**
+		 * Get a packed ARGB representation of the (interpolated) color at the specified value,.
+		 * @param value value that should be colorized
+		 * @param minValue minimum display value, corresponding to the first color in the lookup table of this mapper
+		 * @param maxValue maximum display value, corresponding to the first last in the lookup table of this mapper
+		 * @return
+		 */
 		public Integer getColor(double value, double minValue, double maxValue);
 
 	}
@@ -378,7 +433,6 @@ public class MeasurementMapper {
 			return getName();
 		}
 
-		@Override
 		public Integer getColor(int ind) {
 			Integer color = colors[ind];
 			if (color == null) {
@@ -447,7 +501,6 @@ public class MeasurementMapper {
 			return "Jet";
 		}
 
-		@Override
 		public Integer getColor(int ind) {
 			Integer color = colors[ind];
 			if (color == null) {

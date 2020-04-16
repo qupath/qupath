@@ -421,6 +421,7 @@ public class PointsROI extends AbstractPathROI implements Serializable {
 		
 		private final float[] x;
 		private final float[] y;
+		@SuppressWarnings("unused")
 		private final String name;
 		private final int c, z, t;
 		

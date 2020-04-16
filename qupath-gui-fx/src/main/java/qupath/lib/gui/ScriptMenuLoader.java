@@ -51,7 +51,7 @@ import qupath.lib.gui.tools.MenuTools;
  * @author Pete Bankhead
  *
  */
-public class ScriptMenuLoader {
+class ScriptMenuLoader {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ScriptMenuLoader.class);
 	
@@ -90,7 +90,7 @@ public class ScriptMenuLoader {
 					scriptFile.createNewFile();
 				} catch (Exception e1) {
 					Dialogs.showErrorMessage("New script error", "Unable to create new script!");
-					QuPathGUI.logger.error("Create script error", e1);
+					logger.error("Create script error", e1);
 				}
 			}
 			if (scriptEditor != null)
@@ -113,7 +113,7 @@ public class ScriptMenuLoader {
 		if (scriptDirectory instanceof StringProperty) {
 			miSetPath.setOnAction(e -> {
 				File dirBase = scriptDirectory.get() == null ? null : new File(scriptDirectory.get());
-				File dir = QuPathGUI.getSharedDialogHelper().promptForDirectory(dirBase);
+				File dir = Dialogs.promptForDirectory(dirBase);
 				if (dir != null)
 					((StringProperty)scriptDirectory).set(dir.getAbsolutePath());
 			});
@@ -163,7 +163,7 @@ public class ScriptMenuLoader {
 			try {
 				Files.list(path).forEach(p -> addMenuItemsForPath(addDirectly ? menu : subMenu, p, false));
 			} catch (IOException e) {
-				QuPathGUI.logger.debug("Error adding menu item for {}", path);
+				logger.debug("Error adding menu item for {}", path);
 			}
 			// Don't add anything if the submenu is empty
 			if (subMenu.getItems().isEmpty())

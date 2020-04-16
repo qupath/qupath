@@ -32,8 +32,9 @@ import javafx.beans.property.BooleanProperty;
 import javafx.scene.Node;
 import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.icons.PathIconFactory;
+import qupath.lib.gui.icons.IconFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**
@@ -47,10 +48,10 @@ public class ViewTrackerControlPanel {
 
 //	private final static Logger logger = LoggerFactory.getLogger(ViewTrackerPanel.class);
 	
-	private static final Node iconRecord = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_RECORD);
-	private static final Node iconRecordStop = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_RECORD_STOP);
-	private static final Node iconPlay = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_PLAY);
-	private static final Node iconPlayStop = PathIconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIconFactory.PathIcons.PLAYBACK_PLAY_STOP);
+	private static final Node iconRecord = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_RECORD);
+	private static final Node iconRecordStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_RECORD_STOP);
+	private static final Node iconPlay = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY);
+	private static final Node iconPlayStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY_STOP);
 	
 	private ViewTracker tracker;
 	
@@ -75,8 +76,8 @@ public class ViewTrackerControlPanel {
 //		ToolBar toolbar = new ToolBar();
 		ViewTrackerPlayback playback = new ViewTrackerPlayback(tracker, viewer);
 		
-		Action actionRecord = QuPathGUI.createSelectableCommandAction(tracker.recordingProperty(), "Record", iconRecord, null);
-		Action actionPlayback = QuPathGUI.createSelectableCommandAction(playback.playingProperty(), "Play", iconPlay, null);
+		Action actionRecord = ActionTools.createSelectableAction(tracker.recordingProperty(), "Record", iconRecord, null);
+		Action actionPlayback = ActionTools.createSelectableAction(playback.playingProperty(), "Play", iconPlay, null);
 		actionPlayback.setDisabled(tracker.isEmpty());
 		
 		// Can't select one while the other is selected
@@ -113,7 +114,7 @@ public class ViewTrackerControlPanel {
 				ActionUtils.createToggleButton(actionRecord, ActionTextBehavior.HIDE),
 				ActionUtils.createToggleButton(actionPlayback, ActionTextBehavior.HIDE),
 				new Separator(),
-				ActionUtils.createButton(QuPathGUI.createCommandAction(new ViewTrackerExportCommand(viewer, tracker), "More..."))
+				ActionUtils.createButton(ActionTools.createAction(new ViewTrackerExportCommand(viewer, tracker), "More..."))
 				);
 		
 //		pane.getChildren().addAll(toolbar);

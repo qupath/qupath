@@ -31,7 +31,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 /**
- * Abstract implementation of an ImageDataOverlay.
+ * Abstract implementation of an {@link ImageDataOverlay}.
  * 
  * @author Pete Bankhead
  *
@@ -40,7 +40,13 @@ public abstract class AbstractImageDataOverlay extends AbstractOverlay implement
 
 	private ImageData<BufferedImage> imageData;
 	
+	/**
+	 * Constructor.
+	 * @param overlayOptions overlay options to control the display of this overlay.
+	 * @param imageData the current image data
+	 */
 	public AbstractImageDataOverlay(final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
+		super();
 		this.overlayOptions = overlayOptions;
 		this.imageData = imageData;
 	}

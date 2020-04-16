@@ -24,7 +24,6 @@
 package qupath.lib.gui.viewer.tools;
 
 import javafx.scene.input.MouseEvent;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -36,10 +35,6 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class LineTool extends AbstractPathDraggingROITool {
-
-	public LineTool(ModeWrapper modes) {
-		super(modes);
-	}
 	
 	/**
 	 * Returns false (no pixel snapping for the line tool).

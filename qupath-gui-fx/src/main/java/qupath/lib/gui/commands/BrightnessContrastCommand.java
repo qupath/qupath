@@ -47,6 +47,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.transformation.FilteredList;
@@ -93,10 +94,7 @@ import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.plots.HistogramPanelFX.HistogramData;
@@ -116,7 +114,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
  * @author Pete Bankhead
  *
  */
-public class BrightnessContrastCommand implements PathCommand, ImageDataChangeListener<BufferedImage>, PropertyChangeListener {
+public class BrightnessContrastCommand implements Runnable, ChangeListener<ImageData<BufferedImage>>, PropertyChangeListener {
 	
 	private static Logger logger = LoggerFactory.getLogger(BrightnessContrastCommand.class);
 	
@@ -156,9 +154,13 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	
 	private BrightnessContrastKeyListener keyListener = new BrightnessContrastKeyListener();
 	
+	/**
+	 * Constructor.
+	 * @param qupath
+	 */
 	public BrightnessContrastCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.qupath.addImageDataChangeListener(this);
+		this.qupath.imageDataProperty().addListener(this);
 		
 		// Add 'pure' red, green & blue to the available colors
 		picker.getCustomColors().addAll(
@@ -189,7 +191,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		
 		initializePopup();
 		
-		imageDataChanged(null, null, qupath.getImageData());
+		changed(null, null, qupath.getImageData());
 		
 		BorderPane pane = new BorderPane();
 		
@@ -230,7 +232,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		
 		// In the absence of a better way, make it possible to enter display range values 
 		// manually by double-clicking on the corresponding label
-		// TODO: Consider a better way to do this; 
 		labelMinValue.setOnMouseClicked(e -> {
 			if (e.getClickCount() == 2) {
 				ChannelDisplayInfo infoVisible = getCurrentInfo();
@@ -279,9 +280,10 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 //					return;
 ////				setSliders((float)histogram.getEdgeMin(), (float)histogram.getEdgeMax());
 				ChannelDisplayInfo info = getCurrentInfo();
-				imageDisplay.autoSetDisplayRange(info, PathPrefs.getAutoBrightnessContrastSaturationPercent()/100.0);
+				double saturation = PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0;
+				imageDisplay.autoSetDisplayRange(info, saturation);
 				for (ChannelDisplayInfo info2 : table.getSelectionModel().getSelectedItems()) {
-					imageDisplay.autoSetDisplayRange(info2, PathPrefs.getAutoBrightnessContrastSaturationPercent()/100.0);
+					imageDisplay.autoSetDisplayRange(info2, saturation);
 				}
 				updateSliders();
 				handleSliderChange();
@@ -307,39 +309,10 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		table.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-//			boolean alreadySelected = rowIndex == table.getSelectedRow();
-//	        super.changeSelection(rowIndex, columnIndex, toggle, extend);
-//	        ChannelDisplayInfo info = getCurrentInfo();
-//	        if (alreadySelected)
-//				toggleDisplay(info);
-//	        else
-//	        	updateDisplay(info, true);
 	        updateHistogram();
 			updateSliders();
 		});
-		// TODO: Consider reinstating code that tries to intercept selections & push them into a valid state
-//		{
-//			
-//			private static final long serialVersionUID = -162279729611434398L;
-//
-//			public void changeSelection(int rowIndex, int columnIndex, boolean toggle, boolean extend) {
-////		        ChannelDisplayInfo infoPrevious = tableModel.getChannelForRow(rowIndex);
-//				boolean alreadySelected = rowIndex == table.getSelectedRow();
-//		        super.changeSelection(rowIndex, columnIndex, toggle, extend);
-//		        ChannelDisplayInfo info = getCurrentInfo();
-////				infoVisible = info;
-////				if (info != null && infoPrevious == info && info.isAdditive()) {
-//		        if (alreadySelected)
-//					toggleDisplay(info);
-//		        else
-//		        	updateDisplay(info, true);
-////				else
-////					updateDisplay(info, alreadySelected);
-//		        updateHistogram();
-//				updateSliders();
-//		    }
-//			
-//		};
+
 		TableColumn<ChannelDisplayInfo, ChannelDisplayInfo> col1 = new TableColumn<>("Color");
 		col1.setCellValueFactory(new Callback<CellDataFeatures<ChannelDisplayInfo, ChannelDisplayInfo>, ObservableValue<ChannelDisplayInfo>>() {
 		     @Override
@@ -655,15 +628,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		pane.setHgap(4);
 		pane.setVgap(2);
 		int r = 0;
-		// TODO: Show min & max somewhere - but beware of the need to stay updated!
-//		if (infoSelected != null) {
-//			pane.add(new Label("Min display"), 0, r);
-//			pane.add(new Label(df.format(infoSelected.getMinDisplay())), 1, r);
-//			r++;
-//			pane.add(new Label("Max display"), 0, r);
-//			pane.add(new Label(df.format(infoSelected.getMaxDisplay())), 1, r);
-//			r++;
-//		}
 		if (histogram != null) {
 			pane.add(new Label("Min"), 0, r);
 			pane.add(new Label(df.format(histogram.getMinValue())), 1, r);
@@ -685,14 +649,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		else
 			Tooltip.install(histogramPanel.getChart(), chartTooltip);
 		
-////	case 0: return columnIndex == 0 ? "Min display" : df.format(channel.getMinDisplay());
-////	case 1: return columnIndex == 0 ? "Max display" : df.format(channel.getMaxDisplay());
-////	case 2: return columnIndex == 0 ? "Min" : df.format(histogram.getMinValue());
-////	case 3: return columnIndex == 0 ? "Max" : df.format(histogram.getMaxValue());
-////	case 4: return columnIndex == 0 ? "Mean" : df.format(histogram.getMeanValue());
-////	case 5: return columnIndex == 0 ? "Std.dev" : df.format(histogram.getStdDev());
-//		
-//		histogramTableModel.setHistogram(infoSelected, histogram);
 	}
 	
 	
@@ -707,20 +663,8 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		// If the table isn't null, we are displaying something
 		if (table != null) {
 			updateHistogram();
-	
-//			// Update current min & max
-//			ChannelDisplayInfo info = getCurrentInfo();
-//			if (info != null) {
-//				Histogram histogram = imageDisplay.getHistogram(info);
-//				if (histogram != null) {
-//					float minCurrent = (float)Math.min(info.getMinAllowed(), histogram.getEdgeMin());
-//					float maxCurrent = (float)Math.max(info.getMaxAllowed(), histogram.getEdgeMax());
-//					info.setMinMaxAllowed(minCurrent, maxCurrent);
-//				}
-//			}
 			table.refresh();
 		}
-//		viewer.updateThumbnail();
 		viewer.repaintEntireImage();
 	}
 	
@@ -866,7 +810,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 	private void setTableSelectedChannels(boolean showChannels) {
 		if (!isInitialized())
 			return;
-		var selected = table.getSelectionModel().getSelectedItems();
 		for (ChannelDisplayInfo info : table.getSelectionModel().getSelectedItems()) {
 			imageDisplay.setChannelSelected(info, showChannels);
 		}
@@ -898,7 +841,6 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		}
 	}
 	
-	@SuppressWarnings("unchecked")
 	private void updatePredicate() {
 		var items = table.getItems();
 		if (items instanceof FilteredList) {
@@ -906,7 +848,7 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 		}
 	}
 	
-	public void updateTable() {
+	void updateTable() {
 		if (!isInitialized())
 			return;
 
@@ -930,7 +872,8 @@ public class BrightnessContrastCommand implements PathCommand, ImageDataChangeLi
 
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source,
+			ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		// TODO: Consider different viewers but same ImageData
 		if (imageDataOld == imageDataNew)
 			return;

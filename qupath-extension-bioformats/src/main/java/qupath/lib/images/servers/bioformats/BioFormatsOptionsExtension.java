@@ -34,10 +34,11 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.panels.PreferencePanel;
+import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.writers.ome.OMEPyramidWriterCommand;
@@ -67,10 +68,11 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 			logger.info("Bio-Formats version {}", bfVersion);
 		}
 		
-		
+		var actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF");
+		actionWriter.disabledProperty().bind(qupath.imageDataProperty().isNull());
 		MenuTools.addMenuItems(
 				qupath.getMenu("File>Export images...", true),
-				QuPathGUI.createCommandAction(new OMEPyramidWriterCommand(qupath), "OME TIFF"));
+				actionWriter);
 		
 		
 		
@@ -111,7 +113,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		skipExtensions.addListener((v, o, n) -> fillCollectionWithTokens(n, options.getSkipAlwaysExtensions()));
 		
 		// Add preferences to QuPath GUI
-		PreferencePanel prefs = QuPathGUI.getInstance().getPreferencePanel();
+		PreferencePane prefs = QuPathGUI.getInstance().getPreferencePane();
 		prefs.addPropertyPreference(enableBioformats, Boolean.class, "Enable Bio-Formats", "Bio-Formats", "Allow QuPath to use Bio-Formats for image reading");
 		prefs.addPropertyPreference(useParallelization, Boolean.class, "Enable Bio-Formats tile parallelization", "Bio-Formats", "Enable reading image tiles in parallel when using Bio-Formats");
 //		prefs.addPropertyPreference(parallelizeMultichannel, Boolean.class, "Enable Bio-Formats channel parallelization (experimental)", "Bio-Formats", "Request multiple image channels in parallel, even if parallelization of tiles is turned off - "

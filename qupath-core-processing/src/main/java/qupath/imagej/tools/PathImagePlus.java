@@ -59,6 +59,7 @@ class PathImagePlus implements PathImage<ImagePlus> {
 	PathImagePlus(RegionRequest request, ImagePlus imp) {
 		this.request = request;		
 		this.imp = imp;
+		logger.trace("Creating PathImage for {} and request {}", imp, request);
 	}
 	
 //	protected void setImagePlusOrigin(ImagePlus imp) {

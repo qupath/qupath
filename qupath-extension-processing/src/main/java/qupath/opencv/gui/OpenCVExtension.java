@@ -23,20 +23,27 @@
 
 package qupath.opencv.gui;
 
+import org.bytedeco.javacpp.Loader;
+import org.bytedeco.openblas.global.openblas;
+import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.scene.control.Menu;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.DefaultMode;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.icons.IconFactory;
+import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.DetectCytokeratinCV;
 import qupath.opencv.features.DelaunayClusteringPlugin;
-import qupath.opencv.gui.classify.OpenCvClassifierCommand;
 import qupath.opencv.tools.WandToolCV;
 
 /**
@@ -52,12 +59,6 @@ public class OpenCVExtension implements QuPathExtension {
 	static void addQuPathCommands(final QuPathGUI qupath) {
 		
 		logger.debug("Installing " + OpenCVExtension.class);
-
-//		Menu menuTMA = qupath.getMenu("TMA", true);
-//		QuPathGUI.addMenuItems(
-//				menuTMA,
-//				QuPathGUI.createCommandAction(new AlignCoreAnnotationsCV(qupath), "Align annotations within TMA core (TMA, experimental)")
-//				);
 		
 		Menu menuFeatures = qupath.getMenu("Analyze>Spatial analysis", true);
 		MenuTools.addMenuItems(
@@ -80,57 +81,42 @@ public class OpenCVExtension implements QuPathExtension {
 				qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null)
 				);
 
+		var classifierCommand = new OpenCvClassifierCommand(qupath);
+		var classifierAction = qupath.createImageDataAction(imageData -> classifierCommand.run());
+		classifierAction.setText("Create detection classifier");
 		Menu menuClassify = qupath.getMenu("Classify>Object classification>Older classifiers", true);
 		MenuTools.addMenuItems(
 				menuClassify,
 				null,
-				QuPathGUI.createCommandAction(new OpenCvClassifierCommand(qupath), "Create detection classifier"));
+				classifierAction);
 		
-		
-//		// Add the Wand tool
-//		logger.debug("Installing wand tool");
-//		Platform.runLater(() -> {
-//			WandToolCV wandTool = new WandToolCV(qupath);
-//			qupath.putToolForMode(Modes.WAND, wandTool);
-//		});
-	}
-	
-	private static void ensureClassesLoaded() {
-		logger.debug("Ensuring OpenCV classes are loaded");
-		try (var scope = new org.bytedeco.javacpp.PointerScope()) {
-			var mat = new org.bytedeco.opencv.opencv_core.Mat();
-			var matvec = new org.bytedeco.opencv.opencv_core.MatVector();
-			var rect = new org.bytedeco.opencv.opencv_core.Rect();
-			org.bytedeco.opencv.opencv_core.Scalar.all(1.0);
-			org.bytedeco.opencv.opencv_ml.RTrees.create();
-			org.bytedeco.opencv.opencv_ml.ANN_MLP.create();
-			org.bytedeco.opencv.opencv_ml.KNearest.create();
-			org.bytedeco.opencv.opencv_ml.DTrees.create();
-			mat.close();
-			matvec.close();
-			rect.close();
-		}
 	}
 
 
 	@Override
 	public void installExtension(QuPathGUI qupath) {
-		// Can be annoying waiting a few seconds while classes are loaded later on
+
+    	// Add most commands
+		addQuPathCommands(qupath);
+		
 		var t = new Thread(() -> {
-			// Add the Wand tool in a background thread (as it is rather slow to load)
-			WandToolCV wandTool = new WandToolCV(qupath);
+	    	// TODO: Check if openblas multithreading continues to have trouble with Mac/Linux
+	    	if (!GeneralTools.isWindows()) {
+	    		openblas.blas_set_num_threads(1);
+	    	}
+	    	
+			// Install the Wand tool
+			Loader.load(opencv_core.class);
+			var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand tool",
+					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {
-				qupath.putToolForMode(DefaultMode.WAND, wandTool);
+				qupath.installTool(wandTool, new KeyCodeCombination(KeyCode.W));
 			});
+			
 			logger.debug("Loading OpenCV classes");
-			ensureClassesLoaded();
 		});
-		t.setDaemon(true);
 		t.start();
-
-		
-		addQuPathCommands(qupath);
 	}
 	
 	@Override

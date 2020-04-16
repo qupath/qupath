@@ -49,9 +49,8 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LoggingAppender;
-import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -63,7 +62,7 @@ import qupath.lib.gui.prefs.PathPrefs;
  * @author Pete Bankhead
  *
  */
-public class LogViewerCommand implements PathCommand {
+public class LogViewerCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(LogViewerCommand.class);
 	
@@ -73,13 +72,7 @@ public class LogViewerCommand implements PathCommand {
 	
 	public LogViewerCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		TextAppendable appendable = new TextAppendable() {
-			@Override
-			public void appendText(String text) {
-				textPane.appendText(text);
-			}
-		};
-		LoggingAppender.getInstance().addTextComponent(appendable);
+		LoggingAppender.getInstance().addTextAppendableFX(text -> textPane.appendText(text));
 	}
 
 	@Override
@@ -133,7 +126,7 @@ public class LogViewerCommand implements PathCommand {
 		MenuItem miSave = new MenuItem("Save log");
 		miSave.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCodeCombination.SHORTCUT_DOWN));
 		miSave.setOnAction(e -> {
-			File fileOutput = QuPathGUI.getDialogHelper(dialog).promptToSaveFile("Save log", null, "log.txt", "Log files", ".txt");
+			File fileOutput = Dialogs.getChooser(dialog).promptToSaveFile("Save log", null, "log.txt", "Log files", ".txt");
 			if (fileOutput == null)
 				return;
 			try {

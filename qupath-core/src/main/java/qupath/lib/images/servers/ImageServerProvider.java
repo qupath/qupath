@@ -40,7 +40,6 @@ import java.util.ServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.regions.RegionRequest;
 
@@ -247,58 +246,6 @@ public class ImageServerProvider {
 		if (!message.isBlank())
 			message = " (" + message + ")";
 		throw new IOException("Unable to build a whole slide server for " + path + message, firstException);
-	}
-	
-	/**
-	 * Attempt to create {@code List<ImageServer<T>>} from the specified path and arguments.
-	 * 
-	 * @param path path to an image - typically a URI
-	 * @param cls desired generic type for the ImageServer, e.g. BufferedImage.class
-	 * @param args optional arguments, which may be used by some builders
-	 * @return list of {@code ImageServer} objects
-	 * @throws IOException 
-	 */
-	public static <T> List<ImageServer<T>> getServerList(final String path, final Class<T> cls, String... args) throws IOException {
-		List<UriImageSupport<T>> supports = getServerBuilders(cls, path, args);
-
-		if (!supports.isEmpty()) {
-			List<ImageServer<T>> list = new ArrayList<>();
-			for (UriImageSupport<T> support: supports) {
-				boolean noException = true;
-				try {
-					if (!support.getBuilders().isEmpty()) {
-						List<ServerBuilder<T>> builders = support.getBuilders();
-						noException = true;
-						for (ServerBuilder<T> builder: builders) {
-							var server = builder.build();
-//							boolean duplicate = list.parallelStream().anyMatch(s -> s.getOriginalMetadata().equals(server.getOriginalMetadata()));
-//							if (duplicate)
-//								continue;
-//							else
-							server = checkServerSize(server);
-							if (server != null)
-								list.add(checkServerSize(server));
-							else
-								logger.warn("Unable to open {}", server);
-						}
-						if (noException)
-							return list;
-					}
-				} catch (Exception e) {
-					noException = false;
-					logger.warn("Unable to build server: {}", e.getLocalizedMessage());
-					logger.debug(e.getLocalizedMessage(), e);
-					continue;
-				}
-			}
-			return list;
-		}
-		
-		if (supports.isEmpty()) {
-			logger.error("Unable to build whole slide server - check your classpath for a suitable library (e.g. OpenSlide, BioFormats)\n\t");
-			logger.error(System.getProperty("java.class.path"));
-		}
-		throw new IOException("Unable to build a whole slide server for " + path);
 	}
 	
 	

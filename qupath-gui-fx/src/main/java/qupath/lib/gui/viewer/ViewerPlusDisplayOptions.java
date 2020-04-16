@@ -38,38 +38,74 @@ public class ViewerPlusDisplayOptions {
 	private BooleanProperty showLocation = new SimpleBooleanProperty(true);
 	private BooleanProperty showScalebar = new SimpleBooleanProperty(true);
 	
+	/**
+	 * Show the overview image.
+	 * @return
+	 */
 	public BooleanProperty showOverviewProperty() {
 		return showOverview;
 	}
 	
+	/**
+	 * Show the cursor location.
+	 * @return
+	 */
 	public BooleanProperty showLocationProperty() {
 		return showLocation;
 	}
 	
+	/**
+	 * Show the scalebar.
+	 * @return
+	 */
 	public BooleanProperty showScalebarProperty() {
 		return showScalebar;
 	}
 	
+	/**
+	 * Get the value of {@link #showOverviewProperty()}.
+	 * @return
+	 */
 	public boolean getShowOverview() {
 		return showOverview.get();
 	}
 
+	/**
+	 * Get the value of {@link #showLocationProperty()}.
+	 * @return
+	 */
 	public boolean getShowLocation() {
 		return showLocation.get();
 	}
 	
+	/**
+	 * Get the value of {@link #showScalebarProperty()}.
+	 * @return
+	 */
 	public boolean getShowScalebar() {
 		return showScalebar.get();
 	}
 
+	/**
+	 * Set the value of {@link #showOverviewProperty()}.
+	 * @param show
+	 */
 	public void setShowOverview(final boolean show) {
 		showOverview.set(show);
 	}
 
+	/**
+	 * Set the value of {@link #showLocationProperty()}.
+	 * @param show
+	 */
 	public void setShowLocation(final boolean show) {
 		showLocation.set(show);
 	}
 	
+	/**
+	 * Set the value of {@link #showScalebarProperty()}.
+	 * @param show
+	 */
 	public void setShowScalebar(final boolean show) {
 		showScalebar.set(show);
 	}
