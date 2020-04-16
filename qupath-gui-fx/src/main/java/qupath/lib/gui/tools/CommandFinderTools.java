@@ -31,6 +31,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.controlsfx.control.HiddenSidesPane;
+import org.controlsfx.control.PopOver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,13 +49,16 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.event.EventHandler;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
@@ -62,13 +66,16 @@ import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Popup;
 import javafx.stage.Stage;
 import qupath.lib.gui.ActionTools;
@@ -185,7 +192,7 @@ public class CommandFinderTools {
 		
 
 		table.setOnMouseClicked(e -> {
-			if (e.getClickCount() > 1) {
+			if (!e.isConsumed() && e.getClickCount() > 1) {
 				runSelectedCommand(table.getSelectionModel().getSelectedItem());
 				textField.clear();
 			}
@@ -329,6 +336,57 @@ public class CommandFinderTools {
 	}
 	
 	
+	static class HelpCellFactory<S> extends TableCell<S, String> implements EventHandler<MouseEvent> {
+		
+		private Label label = new Label();
+		private PopOver popover = new PopOver(label);
+		
+		public HelpCellFactory() {
+			super();
+			addEventHandler(MouseEvent.MOUSE_ENTERED, this);
+			addEventHandler(MouseEvent.MOUSE_EXITED, this);
+			setAlignment(Pos.CENTER);
+			popover.setAnimated(true);
+			label.setWrapText(true);
+			label.setMaxWidth(240);
+			label.setPadding(new Insets(10.0));
+			label.setTextAlignment(TextAlignment.CENTER);
+		}
+		
+		@Override
+		public void updateItem(String item, boolean empty) {
+			super.updateItem(item, empty);
+			setGraphic(null);
+			if (!empty && item != null && !item.isEmpty()) {
+				setText("?");
+				label.setText(item);
+			} else {
+				setText("");
+				label.setText(item);
+			}
+		}
+		
+		void maybeShowPopover() {
+			var text = label.getText();
+			if (text != null && !text.isBlank())
+				popover.show(this);
+		}
+
+		@Override
+		public void handle(MouseEvent event) {
+			if (event.getEventType() == MouseEvent.MOUSE_EXITED) {
+				if (popover.isShowing())
+					popover.hide();
+				event.consume();
+			} else if (event.getEventType() == MouseEvent.MOUSE_ENTERED) {
+				maybeShowPopover();
+				event.consume();				
+			}
+		}
+	
+	}
+	
+	
 	
 	private static TextField createTextField(final TableView<CommandEntry> table, final FilteredList<CommandEntry> commands, final boolean clearTextOnRun, final Stage dialog, final ObservableBooleanValue hideDialogOnRun) {
 		TextField textField = new TextField();
@@ -396,21 +454,41 @@ public class CommandFinderTools {
 		col1.setCellValueFactory(new PropertyValueFactory<>("text"));
 		TableColumn<CommandEntry, String> col2 = new TableColumn<>("Menu Path");
 		col2.setCellValueFactory(new PropertyValueFactory<>("menuPath"));
-		TableColumn<CommandEntry, String> col3 = new TableColumn<>("Accelerator");
+		TableColumn<CommandEntry, String> col3 = new TableColumn<>("Keys");
 		col3.setCellValueFactory(new PropertyValueFactory<>("acceleratorText"));
+		TableColumn<CommandEntry, String> col4 = new TableColumn<>("Help");
+		col4.setCellValueFactory(new PropertyValueFactory<>("longText"));
 		
 		Function<CommandEntry, String> tipExtractor = entry -> entry == null ? null : entry.getLongText();
 		col1.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
 		col2.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
 		col3.setCellFactory(v -> new TooltipCellFactory<CommandEntry, String>(tipExtractor));
+		col4.setCellFactory(v -> new HelpCellFactory<CommandEntry>());
+		
+		// Indicate if an item is enabled or not
+		table.setRowFactory(e -> {
+			return new TableRow<>() {
+				@Override
+				public void updateItem(CommandEntry entry, boolean empty) {
+					super.updateItem(entry, empty);
+					if (entry == null || empty || !entry.item.get().isDisable()) {
+						setStyle("-fx-opacity: 1.0;");
+					} else
+						setStyle("-fx-opacity: 0.5;");
+				}
+			};
+		});
 		
 		col1.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
 		col2.prefWidthProperty().bind(table.widthProperty().multiply(0.4).subtract(6));
-		col3.prefWidthProperty().bind(table.widthProperty().multiply(0.2).subtract(6));
+		col3.prefWidthProperty().bind(table.widthProperty().multiply(0.1).subtract(6));
+		col4.prefWidthProperty().bind(table.widthProperty().multiply(0.1).subtract(6));
 		
 		table.getColumns().add(col1);
 		table.getColumns().add(col2);
 		table.getColumns().add(col3);
+		table.getColumns().add(col4);
+		
 		table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 		table.setFocusTraversable(false);
 		return table;
@@ -500,6 +578,7 @@ public class CommandFinderTools {
 		private ObjectProperty<MenuItem> item = new SimpleObjectProperty<>();
 		private StringProperty text = new SimpleStringProperty();
 		private StringProperty acceleratorText = new SimpleStringProperty();
+		private StringProperty longText = new SimpleStringProperty();
 		
 		CommandEntry(final MenuItem item, final String menuPath) {
 			this.item.set(item);
@@ -512,6 +591,12 @@ public class CommandFinderTools {
 				var temp = this.item.get();
 				return temp == null ? null : temp.getAccelerator();
 			}, this.item);
+			
+			var action = item == null ? null : ActionTools.getActionProperty(item);
+			if (action != null) {
+				longText = action.longTextProperty();
+			}
+
 			this.acceleratorText.bind(Bindings.createStringBinding(() -> {
 				var temp = accelerator.get();
 				return temp == null ? null : temp.getDisplayText();
@@ -548,9 +633,7 @@ public class CommandFinderTools {
 		 * @return the long text for the command, or null if no such text is available
 		 */
 		public String getLongText() {
-			var item = this.item.get();
-			var action = item == null ? null : ActionTools.getActionProperty(item);
-			return action == null ? null : action.getLongText();
+			return longTextProperty().get();
 		}
 		
 		/**
@@ -583,6 +666,14 @@ public class CommandFinderTools {
 		 */
 		public ReadOnlyStringProperty textProperty() {
 			return text;
+		}
+		
+		/**
+		 * Property corresponding to {@link #getLongText()}
+		 * @return
+		 */
+		public ReadOnlyStringProperty longTextProperty() {
+			return longText;
 		}
 		
 		/**

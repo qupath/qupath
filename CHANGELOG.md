@@ -1,8 +1,10 @@
 ## Version 0.2.0-m10
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
 * Updated to use Java 14
-* Code revised and cleaned up
+  * Easier to build from source
+* Code extensively revised and cleaned up
   * Commands are activated/deactivated according to status (e.g. if an image or project is opened)
+  * Help text available for most commands via the 'Command list'
 * Scripting improvements
   * Updated to Groovy 3 - scripts now support more recent Java syntax (e.g. lambdas, try-with-resources)
   * Pasting files results in them being converted to absolute paths

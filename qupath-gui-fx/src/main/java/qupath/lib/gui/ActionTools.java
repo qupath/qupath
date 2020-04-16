@@ -352,6 +352,16 @@ public class ActionTools {
 		parseDescription(action, element.getAnnotation(ActionDescription.class));
 		parseAccelerator(action, element.getAnnotation(ActionAccelerator.class));
 		parseIcon(action, element.getAnnotation(ActionIcon.class));
+		parseDeprecated(action, element.getAnnotation(Deprecated.class));
+	}
+	
+	private static void parseDeprecated(Action action, Deprecated annotation) {
+ 		if (annotation != null) {
+ 			action.getProperties().put("DEPRECATED", Boolean.TRUE);
+ 			var text = action.getText();
+ 			if (text != null && !text.isEmpty() && !text.contains("(") && !action.textProperty().isBound())
+ 				action.setText(action.getText() + " (deprecated)");
+ 		}
 	}
 	
 	private static void parseMenu(Action action, ActionMenu annotation, String baseMenu) {
