@@ -16,7 +16,11 @@ public class SvgExtension implements QuPathExtension {
     	
     	var actionExport = ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.SELECTED_REGION), "Rendered SVG");
     	actionExport.disabledProperty().bind(qupath.imageDataProperty().isNull());
+    	actionExport.setLongText("Export the current selected region as a rendered (RGB) SVG image. "
+    			+ "Any annotations and ROIs will be stored as vectors, which can later be adjusted in other software.");
     	var actionSnapshot = ActionTools.createAction(new SvgExportCommand(qupath, SvgExportType.VIEWER_SNAPSHOT), "Current viewer content (SVG)");
+    	actionSnapshot.setLongText("Export an RGB snapshot of the current viewer content as an SVG image. "
+    			+ "Any annotations and ROIs will be stored as vectors, which can later be adjusted in other software.");
     	
     	MenuTools.addMenuItems(
                 qupath.getMenu("File>Export images...", true),

@@ -44,7 +44,8 @@ class ConfusionMatrix<T> {
 	/**
 	 * Set up confusion matrix considering the specific classes.
 	 * 
-	 * @param pathClasses
+	 * @param classes a collection of classes, whatever they may be
+	 * @param stringFun a function that can convert a class into a string representation
 	 */
 	ConfusionMatrix(final Collection<T> classes, Function<T, String> stringFun) {
 		this.classes.addAll(classes);

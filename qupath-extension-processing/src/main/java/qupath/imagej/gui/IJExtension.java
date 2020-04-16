@@ -446,9 +446,11 @@ public class IJExtension implements QuPathExtension {
 		ExtractRegionCommand commandExtractRegionCustom = new ExtractRegionCommand(qupath);
 		var actionExtractRegion = ActionTools.createAction(commandExtractRegionCustom, "Send region to ImageJ", IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.EXTRACT_REGION), null);
 		actionExtractRegion.disabledProperty().bind(qupath.imageDataProperty().isNull());
+		actionExtractRegion.setLongText("Extract the selected image region and send it to ImageJ.");
 
 		var screenshotCommand = new ScreenshotCommand(qupath);
 		var actionSnapshot = ActionTools.createAction(screenshotCommand, "Send snapshot to ImageJ", IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.SCREENSHOT), null);
+		actionSnapshot.setLongText("Create a rendered (RGB) snapshot and send it to ImageJ.");
 		
 		// Add buttons to toolbar
 		var toolbar = qupath.getToolBar();

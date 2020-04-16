@@ -1049,7 +1049,8 @@ public class GuiTools {
 		
 		/**
 		 * Constructor.
-		 * @param fun function capable of generating a String representation of an object.
+		 * @param funString function capable of generating a String representation of an object.
+		 * @param funGraphic function capable of generating a Graphic representation of an object.
 		 */
 		private CustomListCell(Function<T, String> funString, Function<T, Node> funGraphic) {
 			super();
