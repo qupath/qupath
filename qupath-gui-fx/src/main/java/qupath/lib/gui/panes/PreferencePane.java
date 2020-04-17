@@ -103,17 +103,21 @@ public class PreferencePane {
 		 */
 		category = "General";
 		
-		addPropertyPreference(PathPrefs.useSystemMenubarProperty(), Boolean.class,
-				"Use system menubar",
-				category,
-				"Use the system menubar, rather than custom application menubars (default is true).");
-		
-		
 		addPropertyPreference(PathPrefs.doAutoUpdateCheckProperty(), Boolean.class,
 				"Check for updates on startup",
 				category,
 				"Automatically check for updated when QuPath is started, and show a message if a new version is available.");
-		
+
+		addPropertyPreference(PathPrefs.runStartupScriptProperty(), Boolean.class,
+				"Run startup script (if available)",
+				category,
+				"If a script is added to the user directory called 'startup.groovy', try to execute this script whenever QuPath is launched.");
+
+		addPropertyPreference(PathPrefs.useSystemMenubarProperty(), Boolean.class,
+				"Use system menubar",
+				category,
+				"Use the system menubar, rather than custom application menubars (default is true).");
+				
 		addPropertyPreference(PathPrefs.tileCachePercentageProperty(),
 				Double.class,
 				"Percentage memory for tile caching",

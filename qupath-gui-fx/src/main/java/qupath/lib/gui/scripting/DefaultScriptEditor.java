@@ -733,6 +733,56 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 	}
 
+	
+	
+	private static ScriptContext createDefaultContext() {
+		ScriptContext context = new SimpleScriptContext();
+		context.setWriter(new LoggerInfoWriter());
+		context.setErrorWriter(new LoggerErrorWriter());
+		return context;
+	}
+	
+	
+	private static abstract class LoggerWriter extends Writer {
+
+		@Override
+		public void write(char[] cbuf, int off, int len) throws IOException {
+			// Don't need to log newlines
+			if (len == 1 && cbuf[off] == '\n')
+				return;
+			String s = String.valueOf(cbuf, off, len);
+			// Skip newlines on Windows too...
+			if (s.equals(System.lineSeparator()))
+				return;
+			log(s);
+		}
+		
+		protected abstract void log(String s);
+
+		@Override
+		public void flush() throws IOException {}
+		
+		@Override
+		public void close() throws IOException {
+			flush();
+		}
+	}
+	
+	private static class LoggerInfoWriter extends LoggerWriter {
+
+		protected void log(String s) {
+			logger.info(s);
+		}
+	}
+	
+	private static class LoggerErrorWriter extends LoggerWriter {
+
+		protected void log(String s) {
+			logger.error(s);
+		}
+	}
+	
+	
 	/**
 	 * Execute a script using an appropriate ScriptEngine for a specified scripting language.
 	 * 
@@ -811,7 +861,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		try {
-			result = engine.eval(script2, context == null ? new SimpleScriptContext() : context);
+			result = engine.eval(script2, context == null ? createDefaultContext() : context);
 		} catch (ScriptException e) {
 			try {
 				int line = e.getLineNumber();

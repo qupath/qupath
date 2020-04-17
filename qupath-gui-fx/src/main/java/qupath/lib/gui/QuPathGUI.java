@@ -32,12 +32,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.Writer;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -72,8 +70,6 @@ import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 import org.controlsfx.control.action.Action;
@@ -196,6 +192,7 @@ import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -710,6 +707,21 @@ public class QuPathGUI {
 		if (found == null)
 			logger.warn("No action called '{}' could be found!", text);
 		return found;
+	}
+	
+	/**
+	 * Search for a menu item based upon its path.
+	 * @param menuPath path to the menu item, in the form {@code "Main menu>Submenu>Name}
+	 * @return the menu item corresponding to this path, or null if no menu item is found
+	 */
+	public MenuItem lookupMenuItem(String menuPath) {
+		var menu = parseMenu(menuPath, "", false);
+		if (menu == null)
+			return null;
+		var name = parseName(menuPath);
+		if (name.isEmpty())
+			return menu;
+		return menu.getItems().stream().filter(m -> name.equals(m.getText())).findFirst().orElse(null);
 	}
 	
 	
@@ -2851,37 +2863,157 @@ public class QuPathGUI {
 		String pathUsers = PathPrefs.getUserPath();
 		File fileScript = pathUsers == null ? null : new File(pathUsers, "startup.groovy");
 		if (fileScript != null && fileScript.exists()) {
-			ScriptEngine engine = new ScriptEngineManager(getExtensionClassLoader()).getEngineByName("groovy");
-			engine.getContext().setWriter(new Writer() {
-				
-				@Override
-				public void write(char[] cbuf, int off, int len) throws IOException {
-					logger.info(String.valueOf(cbuf, off, len));
+			logger.info("Startup script found at {}", fileScript.getAbsolutePath());
+			if (PathPrefs.runStartupScriptProperty().get()) {
+				logger.info("Running startup script (you can turn this setting off in the preferences panel)");
+				try {
+					runScript(fileScript, null);
+				} catch (Exception e) {
+					logger.error("Error running startup.groovy: " + e.getLocalizedMessage(), e);
 				}
-				
-				@Override
-				public void flush() throws IOException {}
-				
-				@Override
-				public void close() throws IOException {}
-			});
-			engine.getContext().setErrorWriter(new Writer() {
-				
-				@Override
-				public void write(char[] cbuf, int off, int len) throws IOException {
-					logger.error(String.valueOf(cbuf, off, len));
-				}
-				
-				@Override
-				public void flush() throws IOException {}
-				
-				@Override
-				public void close() throws IOException {}
-			});
-			engine.eval(new FileReader(fileScript));
+			} else {
+				logger.warn("You need to enable the startup script in the Preferences if you want to run it");
+			}
 		} else {
 			logger.debug("No startup script found");
 		}
+	}
+	
+	
+	/**
+	 * Install a Groovy script as a new command in QuPath.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
+	 *                 If a menu item already exists for the given path, it will be removed.
+	 * @param file the Groovy script to run; note that this will be reloaded each time it is required
+	 * @return the {@link MenuItem} for the command
+	 * @see #installGroovyCommand(String, String)
+	 */
+	public MenuItem installGroovyCommand(String menuPath, final File file) {
+		return installCommand(menuPath, () -> {
+			try {
+				runScript(file, getImageData());
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Script error", e);
+			}
+		});
+	}
+	
+	/**
+	 * Install a Groovy script as a new command in QuPath.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
+	 *                 If a menu item already exists for the given path, it will be removed.
+	 * @param script the Groovy script to run
+	 * @return the {@link MenuItem} for the command
+	 * @see #installGroovyCommand(String, File)
+	 */
+	public MenuItem installGroovyCommand(String menuPath, final String script) {
+		return installCommand(menuPath, () -> runScript(script, getImageData()));
+	}
+	
+	/**
+	 * Install a new command in QuPath that takes the current {@link ImageData} as input.
+	 * The command will only be enabled when an image is available.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
+	 *                 If a menu item already exists for the given path, it will be removed.
+	 * @param command the command to run
+	 * @return the {@link MenuItem} for the command
+	 * @see #installCommand(String, Runnable)
+	 */
+	public MenuItem installImageDataCommand(String menuPath, final Consumer<ImageData<BufferedImage>> command) {
+		if (!Platform.isFxApplicationThread()) {
+			return GuiTools.callOnApplicationThread(() -> installImageDataCommand(menuPath, command));
+		}
+		Menu menu = parseMenu(menuPath, "Extensions", true);
+		String name = parseName(menuPath);
+		var action = createImageDataAction(command, name);
+		var item = ActionTools.createMenuItem(action);
+		addOrReplaceItem(menu.getItems(), item);
+		return item;
+	}
+	
+	/**
+	 * Install a new command in QuPath.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
+	 *                 If a menu item already exists for the given path, it will be removed.
+	 * @param runnable the command to run
+	 * @return the {@link MenuItem} for the command. This can be further customized if needed.
+	 */
+	public MenuItem installCommand(String menuPath, Runnable runnable) {
+		if (!Platform.isFxApplicationThread()) {
+			return GuiTools.callOnApplicationThread(() -> installCommand(menuPath, runnable));
+		}
+		Menu menu = parseMenu(menuPath, "Extensions", true);
+		String name = parseName(menuPath);
+		var action = ActionTools.createAction(runnable, name);
+		var item = ActionTools.createMenuItem(action);
+		addOrReplaceItem(menu.getItems(), item);
+		return item;
+	}
+	
+	private void addOrReplaceItem(List<MenuItem> items, MenuItem item) {
+		String name = item.getText();
+		if (name != null) {
+			for (int i = 0; i < items.size(); i++) {
+				if (name.equals(items.get(i).getText())) {
+					items.set(i, item);
+					return;
+				}
+			}
+		}
+		items.add(item);
+	}
+	
+	/**
+	 * Identify a menu by parsing a menu path.
+	 * @param menuPath the path to the menu, separated by {@code >}
+	 * @param defaultMenu the default menu to use, if no other menu can be found
+	 * @param create if true, create the menu if it does not already exist.
+	 * @return
+	 */
+	private Menu parseMenu(String menuPath, String defaultMenu, boolean create) {
+		int separator = menuPath.lastIndexOf(">");
+		if (separator < 0) {
+			return getMenu(defaultMenu, create);
+		} else {
+			return getMenu(menuPath.substring(0, separator), create);
+		}
+	}
+	
+	private String parseName(String menuPath) {
+		int separator = menuPath.lastIndexOf(">");
+		if (separator < 0) {
+			return menuPath;
+		} else {
+			return menuPath.substring(separator+1);
+		}
+	}
+		
+	
+	/**
+	 * Convenience method to execute a Groovy script.
+	 * @param script the script to run
+	 * @param imageData an {@link ImageData} object for the current image (may be null)
+	 * @return result of the script execution
+	 */
+	private Object runScript(final String script, final ImageData<BufferedImage> imageData) {
+		return DefaultScriptEditor.executeScript(Language.GROOVY, script, imageData, true, null);
+	}
+	
+	/**
+	 * Convenience method to execute a Groovy from a file.
+	 * The file will be reloaded each time it is required.
+	 * @param file File containing the script to run
+	 * @param imageData an {@link ImageData} object for the current image (may be null)
+	 * @return result of the script execution
+	 * @throws IOException 
+	 */
+	private Object runScript(final File file, final ImageData<BufferedImage> imageData) throws IOException {
+		var script = GeneralTools.readFileAsString(file.getAbsolutePath());
+		return runScript(script, imageData);
 	}
 	
 	
@@ -3244,12 +3376,15 @@ public class QuPathGUI {
 			action = createToolAction(tool);
 			toolActions.put(tool, action);
 		}
+		// Make sure the accelerator is registered
+		registerAccelerator(action);
 		return action;
 	}
 	
 	private Action createToolAction(final PathTool tool) {
 		  var action = createSelectableCommandAction(new SelectionManager<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), null);
 		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || selectedToolLocked.get(), selectedToolLocked, tools));
+		  registerAccelerator(action);
 		  return action;
 	}
 
