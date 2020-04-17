@@ -1336,7 +1336,7 @@ public class OMEPyramidWriter {
 	 * 
 	 * @author Melvin Gelbard
 	 */
-	@Command(name = "convert", description = "Converts an input image to OME-TIFF.", footer = "\nCopyright(c) 2020", mixinStandardHelpOptions = true)
+	@Command(name = "convert-ome", description = "Converts an input image to OME-TIFF.", footer = "\nCopyright(c) 2020")
 	public static class ConvertCommand implements Runnable {
 		
 		final private static Logger logger = LoggerFactory.getLogger(ConvertCommand.class);

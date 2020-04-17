@@ -27,6 +27,9 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 import javax.script.Bindings;
@@ -45,6 +48,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.HelpCommand;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.ParseResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.QuPathGUI;
@@ -68,15 +72,25 @@ import qupath.lib.scripting.QP;
  *
  */
 @Command(name = "qupath", subcommands = {HelpCommand.class, OMEPyramidWriter.ConvertCommand.class, ScriptCommand.class}, footer = "\nCopyright(c) 2020", mixinStandardHelpOptions = true, version = "qupath v0.2.0")
-public class QuPath implements Callable {
+public class QuPath {
 	
 	private final static Logger logger = LoggerFactory.getLogger(QuPath.class);
 	
-	@Option(names = {"-t", "--tma"}, description = "Launch standalone viewer for looking at TMA summary results.")
-	boolean tma;
+	@Option(names = {"-r", "--reset"}, description = "Reset all preferences.")
+	static boolean reset;
 	
-	@Parameters()
-	String[] unmatched;
+	@Option(names = {"-k", "--skip-setup"}, description = "Skip setup.")
+	static boolean skipSetup;
+	
+	@Option(names = {"-p", "--project"}, description = "Launch QuPath and open given project.")
+	static String project;
+	
+	@Option(names = {"-i", "--image"}, description = "Launch QuPath and open given image.")
+	static String image;
+	
+	@Option(names = {"-t", "--tma"}, description = "Launch standalone viewer for looking at TMA summary results.")
+	static boolean tma;
+	
 	
 	/**
 	 * Main class to launch QuPath.
@@ -84,66 +98,108 @@ public class QuPath implements Callable {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		logger.info("Launching QuPath with args: {}", String.join(", ", args));
-		int exitCode = new CommandLine(new QuPath()).execute(args);
-		System.exit(exitCode);
-	}
-	
-	@Override
-	public Object call() throws Exception {
-		if (tma)
-			QuPathTMAViewer.launch(QuPathTMAViewer.class, unmatched);
-		else
-			QuPathApp.launch(QuPathApp.class, unmatched);
-		return null;
-	}
+		CommandLine cmd = new CommandLine(new QuPath());
+		cmd.setCaseInsensitiveEnumValuesAllowed(true);
+		cmd.setUnmatchedArgumentsAllowed(false);
+		cmd.setStopAtPositional(true);
+		cmd.setExpandAtFiles(false);
+		ParseResult pr;
+		try {
+			pr = cmd.parseArgs(args);
+		} catch (Exception e) {
+			logger.error("An error has occured, please type -h to display help message.\n" + e.getLocalizedMessage());
+			return;
+		}
+		
+		// Catch -h/--help and -V/--version
+		if (cmd.isUsageHelpRequested()) {
+			   cmd.usage(System.out);
+			   return;
+			} else if (cmd.isVersionHelpRequested()) {
+			   cmd.printVersionHelp(System.out);
+			   return;
+			}
+		
+		// Catch -t/--tma
+		if (tma) {
+			QuPathTMAViewer.launch(QuPathTMAViewer.class);
+			return;
+		}
+		
+		// Catch all possible Options, then launch QuPath
+		if (!pr.hasSubcommand()) {
+			// If no subcommand, parse the arguments and launch QuPathApp.
+			List<String> CLIArgs = new ArrayList<String>();
+			if (reset)
+				PathPrefs.resetPreferences();
+			
+			if (skipSetup)
+				CLIArgs.add("skip-setup");
+		
+			if (project != null && !project.equals("") && project.endsWith(ProjectIO.getProjectExtension()))
+				CLIArgs.addAll(Arrays.asList("project", project));
+		
+			if (image != null && !image.equals("") && !CLIArgs.contains("project"))
+				CLIArgs.addAll(Arrays.asList("image", image));
 
+			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
+
+		} else {
+			// Parse and execute subcommand with args
+			int exitCode = cmd.execute(args);
+			System.exit(exitCode);
+		}
+	
+		return;
+	}
 }
 
 
 // TODO: should script only end with .groovy or can it end with something else?
-@Command(name = "script", description = "Runs script for a given image or project.", footer = "\nCopyright(c) 2020", mixinStandardHelpOptions = true)
+@Command(name = "script", description = "Runs script for a given image or project.", footer = "\nCopyright(c) 2020")
 class ScriptCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ScriptCommand.class);
 	
-	@Parameters(index = "0", description = "Path to the input file (image/project).", paramLabel = "input")
-	private String inputFile;
-	
-	@Parameters(index = "1", description = "Path to the script file (.groovy).", paramLabel = "script")
+	@Parameters(index = "0", description = "Path to the script file (.groovy).", paramLabel = "script")
 	private String scriptFile;
-
+	
+	@Option(names = {"-i", "--image"}, description = "Path to an image file.", paramLabel = "image")
+	private String imagePath;
+	
+	@Option(names = {"-p", "--project"}, description = "Path to a project file (.qpproj).", paramLabel = "project")
+	private String projectPath;
+	
+	@Option(names = {"-s", "-save"}, description = "Flag to save the data after running script for entire project.", paramLabel = "save")
+	boolean save;
+	
 	@Override
 	public void run() {
 		try {
-			if (inputFile == null)
-				throw new IOException("File must be a valid image/project file: " + inputFile);
+			if (projectPath != null && !projectPath.toLowerCase().endsWith(ProjectIO.getProjectExtension()))
+				throw new IOException("Project file must end with '.qpproj'");
 			if (scriptFile == null || scriptFile.equals("") || !scriptFile.endsWith(".groovy"))
 				throw new IOException("File must be a valid script file (.groovy): " + scriptFile);
 			
 			ImageData<BufferedImage> imageData;
 			
-			if (inputFile.toLowerCase().endsWith(ProjectIO.getProjectExtension())) {
-				Project<BufferedImage> project = ProjectIO.loadProject(new File(inputFile), null);
+			if (projectPath != null && !projectPath.equals("")) {
+				Project<BufferedImage> project = ProjectIO.loadProject(new File(projectPath), null);
 				for (var entry: project.getImageList()) {
 					ImageServer<BufferedImage> server = entry.getServerBuilder().build();
-					imageData = new ImageData<>(server);
 					
 					try {
-						System.out.println(runScript(imageData));
+						System.out.println(runScript(entry.readImageData()));
 					} catch (Exception e) {
-						logger.error("Error running script for image:", entry.getImageName(),":", e);
+						logger.error("Error running script for image:", entry.getImageName(),": ", e);
 					}
 					server.close();
 				}
-			} else if (inputFile.toLowerCase().endsWith(PathPrefs.getSerializationExtension())) {
-				imageData = PathIO.readImageData(new File(inputFile), null, null, BufferedImage.class);
+			} else if (imagePath != null && !imagePath.equals("")) {
+				imageData = PathIO.readImageData(new File(imagePath), null, null, BufferedImage.class);
 				System.out.println(runScript(imageData));
 			} else {
-				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(inputFile, BufferedImage.class);
-				imageData = new ImageData<>(server);
-				System.out.println(runScript(imageData));
-				server.close();
+				System.out.println(runScript(null));
 			}
 			
 		} catch (Exception e) {
@@ -174,6 +230,7 @@ class ScriptCommand implements Runnable {
 		context.setErrorWriter(errWriter);
 		
 		// Create bindings, if necessary
+		// TODO: Check if it crashes in case imageData == null (i.e. if script command is ran without image/project)
 		Bindings bindings = new SimpleBindings();
 		bindings.put("imageData", imageData);
 		
@@ -182,7 +239,7 @@ class ScriptCommand implements Runnable {
 		QPEx.setBatchImageData(imageData);
 
 		// Evaluate the script
-		// TODO: discover why it sometimes print "null" at the end of the result
+		// TODO: find out why it sometimes print "null" at the end of the result
 		result = DefaultScriptEditor.executeScript(engine, script, imageData, true, context);
 		
 		// Ensure writers are flushed

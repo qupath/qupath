@@ -23,6 +23,7 @@
 
 package qupath.lib.gui;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +34,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.projects.ProjectIO;
 
 /**
  * Launcher application to start QuPathGUI.
@@ -48,27 +50,22 @@ public class QuPathApp extends Application {
 	public void start(Stage stage) throws Exception {
 		// Handle any resets needed
 		List<String> args = new ArrayList<>(getParameters().getRaw());
-		if (args.contains("reset")) {
-			PathPrefs.resetPreferences();
-			logger.info("Preferences have been reset");
-			args.remove("reset");
-		}
-		boolean skipSetup = false;
-		if (args.contains("skip-setup")) {
-			skipSetup = true;
-			args.remove("skip-setup");
-		}
 		
 		// Create main GUI
 		QuPathGUI gui = new QuPathGUI(getHostServices(), stage, null, true);
 		logger.info("Starting QuPath with parameters: " + args);
 		
-		// Try to open an image, if required
-		if (args != null && !args.isEmpty()) {
-			String path = args.get(0);
-			gui.openImage(path, false, false);
-//			if (path != null && !path.isEmpty())
+		// Try to open a project/image, if required
+		if (args != null) {
+			if (args.contains("project")) {
+				String path = args.get(args.indexOf("project") + 1);
+				gui.setProject(ProjectIO.loadProject(new File(path), null));
+			} else if (args.contains("image")) {
+				String path = args.get(args.indexOf("image") + 1);
+				gui.openImage(path, false, false);
+//				if (path != null && !path.isEmpty())
 //				Platform.runLater(() -> gui.openImage(path, false, false, false));
+			}
 		}
 		
 		gui.updateCursor();
@@ -76,7 +73,8 @@ public class QuPathApp extends Application {
 		// Show setup if required, and if we haven't an argument specifying to skip
 		// Store a value indicating the setup version... this means we can enforce running 
 		// setup at a later date with a later version if new and necessary options are added
-		int currentSetup = 1; 
+		int currentSetup = 1;
+		boolean skipSetup = args.contains("skip-setup") ? true : false;
 		int lastSetup = PathPrefs.getUserPreferences().getInt("qupathSetupValue", -1);
 		if (!skipSetup && lastSetup != currentSetup) {
 			Platform.runLater(() -> {
