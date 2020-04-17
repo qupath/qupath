@@ -38,6 +38,11 @@ public class Version implements Comparable<Version> {
 	private int patch;
 	private String suffix;
 	
+	/**
+	 * Constant representing any unknown version.
+	 */
+	public static final Version UNKNOWN = new Version(-1, -1, -1, "UNKNOWN.VERSION");
+	
 	
 	private Version(int major, int minor, int patch, String suffix) {
 		this.major = major;
@@ -114,16 +119,35 @@ public class Version implements Comparable<Version> {
 		if (s2.isEmpty())
 			return -1;
 		
+		// If one string is longer, and contains the former, it is 'earlier'
+		// For example m1-SNAPSHOT is earlier than m1
+		if (s1.length() > s2.length() && s1.startsWith(s2))
+			return -1;
+		else if (s2.length() > s1.length() && s2.startsWith(s1))
+			return 1;
+		
 		return COMPARATOR_SUFFIX.compare(s1, s2);
 	}
 	
 	/**
 	 * Parse a {@link Version} object representing a semantic version number from a String.
-	 * @param versionString
-	 * @return
+	 * <p>
+	 * The version should be in the form {@code x.y.z} or {@code x.y.z-additional}, where {@code additional} 
+	 * should be a dot-separated patch version identifier. In the case that it is hyphen-separated, the hyphens will 
+	 * be replaced by dots.
+	 * 
+	 * @param versionString the version String to be parsed
+	 * @return a Version parsed from this string
+	 * @throws IllegalArgumentException if no version could be parsed from the String
 	 */
-	public static Version parse(String versionString) {
-		var matcher = PATTERN.matcher(versionString);
+	public static Version parse(String versionString) throws IllegalArgumentException {
+		if (versionString.toLowerCase().startsWith("v"))
+			versionString = versionString.substring(1);
+		int ind = versionString.indexOf("-");
+		if (ind >= 0 && ind < versionString.length()-1) {
+			versionString = versionString.substring(0, ind+1) + versionString.substring(ind+1).replaceAll("-", ".");
+		}
+		var matcher = PATTERN.matcher(versionString.strip());
 		if (matcher.matches()) {
 			int major = Integer.parseInt(matcher.group(1));
 			int minor = Integer.parseInt(matcher.group(2));
@@ -139,6 +163,40 @@ public class Version implements Comparable<Version> {
 	@Override
 	public int compareTo(Version o) {
 		return COMPARATOR_FULL.compare(this, o);
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + major;
+		result = prime * result + minor;
+		result = prime * result + patch;
+		result = prime * result + ((suffix == null) ? 0 : suffix.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Version other = (Version) obj;
+		if (major != other.major)
+			return false;
+		if (minor != other.minor)
+			return false;
+		if (patch != other.patch)
+			return false;
+		if (suffix == null) {
+			if (other.suffix != null)
+				return false;
+		} else if (!suffix.equals(other.suffix))
+			return false;
+		return true;
 	}
 
 }

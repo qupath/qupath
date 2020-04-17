@@ -603,6 +603,14 @@ public class Dialogs {
 		return getChooser(stage);
 	}
 	
+	/**
+	 * Create a new builder to generate a custom dialog.
+	 * @return
+	 */
+	public static Builder builder() {
+		return new Builder();
+	}
+	
 
 	/**
 	 * Builder class to create a custom {@link Dialog}.

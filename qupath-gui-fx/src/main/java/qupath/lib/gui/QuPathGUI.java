@@ -111,6 +111,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
@@ -135,6 +136,7 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.TreeView;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -256,6 +258,7 @@ public class QuPathGUI {
 	
 	private String buildString = null;
 	private String versionString = null;
+	private Version version;
 	
 	/**
 	 * Variable, possibly stored in the manifest, indicating the latest commit tag.
@@ -1299,160 +1302,103 @@ public class QuPathGUI {
 		}
 	}
 	
+	/**
+	 * Do an update check.
+	 * @param isAutoCheck if true, avoid prompting the user unless an update is available. If false, the update has been explicitly 
+	 *                    requested and so the user should be notified of the outcome, regardless of whether an update is found.
+	 */
+	private synchronized void doUpdateCheck(boolean isAutoCheck) {
+		
+		var currentVersion = getVersion();
+		String updateMessage = null;
+		boolean isError = false;
+		if (currentVersion == null || currentVersion == Version.UNKNOWN) {
+			updateMessage = "I can't tell which version of QuPath you are running!";
+			if (isAutoCheck) {
+				logger.warn("Cannot check for updates - " + updateMessage);
+				return;
+			}
+		} else {
+			String title = "Update check";
+			Version version = null;
+			try {
+				logger.info("Performing update check...");
+				version = UpdateChecker.checkForUpdate();
+				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
+			} catch (Exception e) {
+				logger.error("Unable to check for update: {}", e.getLocalizedMessage());
+				logger.debug(e.getLocalizedMessage(), e);
+			}
+			// If we couldn't determine the version, tell the user only if this isn't the automatic check
+			if (version == null) {
+				if (isAutoCheck)
+					return;
+				else {
+					updateMessage = "Sorry, I can't check for updates at this time.";
+					isError = true;
+				}
+			}
+			if (version.compareTo(currentVersion) > 0) {
+				updateMessage = "QuPath " + version.toString() + " is available, you are running " + currentVersion.toString();
+			} else {
+				logger.info("Current version {}, latest stable release {} - nothing to update", currentVersion, version);
+				if (!isAutoCheck)
+					Dialogs.showMessageDialog(title, "QuPath " + currentVersion + " is up to date!");
+				return;
+			}
+		}
+		
+		var label = new Label(updateMessage + "\n\nDo you want to open the QuPath website (https://qupath.github.io)?");
+		label.setPadding(new Insets(0, 0, 20, 0));
+		var pane = new BorderPane(label);
+		var checkbox = new CheckBox("Automatically check for updates on startup");
+		checkbox.setSelected(PathPrefs.doAutoUpdateCheckProperty().get());
+		checkbox.setMaxWidth(Double.MAX_VALUE);
+		pane.setBottom(checkbox);
+		
+		var dialog = Dialogs.builder()
+				.title("Update check")
+				.content(pane)
+				.alertType(isError ? AlertType.ERROR : AlertType.INFORMATION)
+				.buttons(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
+		var response = dialog.showAndWait().orElse(ButtonType.CANCEL);
+		if (response != ButtonType.CANCEL)
+			PathPrefs.doAutoUpdateCheckProperty().set(checkbox.isSelected());
+		if (response == ButtonType.YES) {
+			launchBrowserWindow("https://qupath.github.io");
+		}
+	}
+	
+	
 	
 	/**
-	 * Check for any updates, showing the new changelog if any updates found.
+	 * Check for any updates.
 	 * 
-	 * @param isAutoCheck If true, the check will only be performed if the auto-update preferences allow it, 
+	 * @param isAutoCheck if true, the check will only be performed if the auto-update preferences allow it, 
 	 * 					  and the user won't be prompted if no update is available.
 	 */
 	void checkForUpdate(final boolean isAutoCheck) {
 		
-		// Confirm if the user wants us to check for updates
-		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheckProperty().get();
-		if (isAutoCheck && !doAutoUpdateCheck)
-			return;
+		if (isAutoCheck) {
+			// Don't run auto check if the user doesn't want it
+			boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheckProperty().get();
+			if (!doAutoUpdateCheck)
+				return;
 
-		logger.info("Performing update check...");
-
-		// Calculate when we last looked for an update
-		long currentTime = System.currentTimeMillis();
-		long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
-
-		// Don't check run auto-update check again if we already checked within the last hour
-		double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
-		if (isAutoCheck && diffHours < 1)
-			return;
-		
-		// See if we can read the current ChangeLog
-		File fileChanges = new File("CHANGELOG.md");
-		if (!fileChanges.exists()) {
-			logger.warn("No changelog found - will not check for updates");
-			if (!isAutoCheck) {
-				Dialogs.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
+			// Don't run auto-update check again if we already checked within the last hour
+			long currentTime = System.currentTimeMillis();
+			long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
+			double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
+			if (diffHours < 1) {
+				logger.trace("Skipping update check (I already checked recently)");
+				return;
 			}
-			return;
 		}
-		String changeLog = null;
-		try {
-			changeLog = GeneralTools.readFileAsString(fileChanges.getAbsolutePath());
-		} catch (IOException e1) {
-			if (!isAutoCheck) {
-				Dialogs.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
-			}
-			logger.error("Error reading changelog", e1);
-			return;
-		}
-		// Output changelog, if we're tracing...
-		logger.trace("Changelog contents:\n{}", changeLog);
-		String changeLogCurrent = changeLog;
-
 		// Run the check in a background thread
-		createSingleThreadExecutor(this).execute(() -> {
-			try {
-				// Try to download latest changelog
-				URL url = new URL("https://raw.githubusercontent.com/qupath/qupath/master/CHANGELOG.md");
-				String changeLogOnline = GeneralTools.readURLAsString(url, 2000);
-				
-				// Store last update check time
-				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
-				
-				// Compare the current and online changelogs
-				if (compareChangelogHeaders(changeLogCurrent, changeLogOnline)) {
-					// If not isAutoCheck, inform user even if there are no updated at this time
-					if (!isAutoCheck) {
-						Platform.runLater(() -> Dialogs.showMessageDialog("Update check", "QuPath is up-to-date!"));
-					}
-					return;
-				}
-				
-				// If changelogs are different, notify the user
-				showChangelogForUpdate(changeLogOnline);
-			} catch (Exception e) {
-				// Notify the user if we couldn't read the log
-				if (!isAutoCheck) {
-					Dialogs.showMessageDialog("Update check", "Unable to check for updates at this time, sorry");
-					return;
-				}
-				logger.debug("Unable to check for updates - {}", e.getLocalizedMessage());
-			}
-		});
+		createSingleThreadExecutor(this).execute(() -> doUpdateCheck(isAutoCheck));
 	}
 	
-	
-	/**
-	 * Compare two changelogs.
-	 * 
-	 * In truth, this only checks if they have the same first line.
-	 * 
-	 * @param changelogOld
-	 * @param changelogNew
-	 * @return True if the changelogs contain the same first line.
-	 */
-	private static boolean compareChangelogHeaders(final String changelogOld, final String changelogNew) {
-		String[] changesOld = GeneralTools.splitLines(changelogOld.trim());
-		String[] changesNew = GeneralTools.splitLines(changelogNew.trim());
-		if (changesOld[0].equals(changesNew[0]))
-			return true;
 		
-		// Could try to parse version numbers... but is there any need?
-//		Pattern.compile("(\\d+\\.)?(\\d+\\.)?(\\*|\\d+)").matcher(changelogOld);
-		
-		return false;
-	}
-	
-	
-	
-	private void showChangelogForUpdate(final String changelog) {
-		if (!Platform.isFxApplicationThread()) {
-			// Need to be on FX thread
-			Platform.runLater(() -> showChangelogForUpdate(changelog));
-			return;
-		}
-		// Show changelog with option to download, or not now
-		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.setTitle("Update QuPath");
-		dialog.initOwner(getStage());
-		dialog.setResizable(true);
-		ButtonType btDownload = new ButtonType("Download update");
-		ButtonType btNotNow = new ButtonType("Not now");
-		// Not actually included (for space reasons)
-		ButtonType btDoNotRemind = new ButtonType("Do not remind me again");
-		
-		dialog.getDialogPane().getButtonTypes().addAll(
-				btDownload,
-				btNotNow
-//				btDoNotRemind
-				);
-		dialog.setHeaderText("A new version of QuPath is available!");
-		
-		TextArea textArea = new TextArea(changelog);
-		textArea.setWrapText(true);
-		textArea.setEditable(false);
-		
-//		BorderPane pane = new BorderPane();
-		TitledPane paneChanges = new TitledPane("Changes", textArea);
-		paneChanges.setCollapsible(false);
-		
-		dialog.getDialogPane().setContent(paneChanges);
-		Optional<ButtonType> result = dialog.showAndWait();
-		if (!result.isPresent())
-			return;
-		
-		if (result.get().equals(btDownload)) {
-			String url = "https://qupath.github.io";
-			try {
-				GuiTools.browseURI(new URI(url));
-			} catch (URISyntaxException e) {
-				Dialogs.showErrorNotification("Download", "Unable to open " + url);
-			}
-		} else if (result.get().equals(btDoNotRemind)) {
-			PathPrefs.doAutoUpdateCheckProperty().set(false);
-		}
-	}
-	
-	
-	
 	/**
 	 * Keep a record of loaded extensions, both for display and to avoid loading them twice.
 	 */
@@ -2861,7 +2807,7 @@ public class QuPathGUI {
 	 * 
 	 * @return
 	 */
-	public boolean updateBuildString() {
+	private boolean updateBuildString() {
 		try {
 			for (URL url : Collections.list(getClass().getClassLoader().getResources("META-INF/MANIFEST.MF"))) {
 				if (url == null)
@@ -2880,9 +2826,12 @@ public class QuPathGUI {
 					if (latestCommitTag != null)
 						buildString += "\n" + "Latest commit tag: " + latestCommitTag;
 					versionString = version;
+					this.version = Version.parse(versionString);
 					return true;
 				} catch (IOException e) {
 					logger.error("Error reading manifest", e);
+				} catch (IllegalArgumentException e) {
+					logger.error("Error determining version: " + e.getLocalizedMessage(), e);					
 				}
 			}
 		} catch (IOException e) {
@@ -3678,6 +3627,14 @@ public class QuPathGUI {
 	 */
 	public String getBuildString() {
 		return buildString;
+	}
+	
+	/**
+	 * Get the current QuPath version.
+	 * @return
+	 */
+	public Version getVersion() {
+		return version;
 	}
 	
 	/**
