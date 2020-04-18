@@ -250,40 +250,83 @@ public class ActionTools {
 		
 	}
 	
-	
+	/**
+	 * Annotation indicating the menu path where an action should be installed.
+	 * This may be used by QuPath to be able to assign the action automatically to the correct place, 
+	 * in the absence of further information.
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
 	public @interface ActionMenu {
+		/**
+		 * Menu path, in the form "Menu>Submenu>Command name".
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Annotation indicating that a method should be converted to an {@link Action} if possible.
+	 * Currently, only methods taking zero parameters may be converted automatically.
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.METHOD})
 	public @interface ActionMethod {}
 	
+	/**
+	 * Annotation used to specify a preferred accelerator for an an action.
+	 * Examples include {@code "m"} (Move tool) or {@code "shortcut+c"} (Copy).
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.METHOD, ElementType.FIELD})
+	@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
 	public @interface ActionAccelerator {
+		/**
+		 * String form of an accelerator, compatible with {@link KeyCombination#valueOf(String)}.
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Description of an action.
+	 * This can be used for help text, and is currently passed to the action as {@link Action#longTextProperty()}.
+	 * In QuPath it is shown through the "Command list" table.
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
-	@Target({ElementType.METHOD, ElementType.FIELD})
+	@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE})
 	public @interface ActionDescription {
+		/**
+		 * Text description of the action.
+		 * @return
+		 */
 		String value();
 	}
 	
+	/**
+	 * Default icon for an action.
+	 */
 	@Documented
 	@Retention(RetentionPolicy.RUNTIME)
 	@Target({ElementType.METHOD, ElementType.FIELD})
 	public @interface ActionIcon {
+		/**
+		 * Icon to associate with the action's graphic property.
+		 * @return
+		 */
 		IconFactory.PathIcons value();
 	}
 	
+	/**
+	 * Actions can be parsed from the accessible (usually public) fields of any object, as well as methods annotated with {@link ActionMethod}.
+	 * Any annotations associated with the actions will be parsed.
+	 * 
+	 * @param obj the object containing the action fields or methods
+	 * @return a list of parsed and configured actions
+	 */
 	public static List<Action> getAnnotatedActions(Object obj) {
 		List<Action> actions = new ArrayList<>();
 		
@@ -484,18 +527,39 @@ public class ActionTools {
 		return new Action(null, null);
 	}
 	
+	/**
+	 * Create an {@link ActionBuilder} with the specified text and event handler.
+	 * @param text
+	 * @param handler
+	 * @return a new {@link ActionBuilder}
+	 */
 	public static ActionBuilder actionBuilder(String text, Consumer<ActionEvent> handler) {
 		return new ActionBuilder(text, handler);
 	}
 	
+	/**
+	 * Create an {@link ActionBuilder} with no properties set.
+	 * @return a new {@link ActionBuilder}
+	 */
 	public static ActionBuilder actionBuilder() {
 		return new ActionBuilder();
 	}
 	
+	/**
+	 * Create an {@link ActionBuilder} with the specified event handler.
+	 * @param handler
+	 * @return a new {@link ActionBuilder}
+	 */
 	public static ActionBuilder actionBuilder(Consumer<ActionEvent> handler) {
 		return new ActionBuilder(handler);
 	}
 	
+	/**
+	 * Create a menu item from an action.
+	 * This stores a reference to the action as a property of the menu item.
+	 * @param action the action from which to construct the menu item
+	 * @return a new {@link MenuItem} configured according to the action.
+	 */
 	public static MenuItem createMenuItem(Action action) {
 		if (action.getText() == null || action == ActionUtils.ACTION_SEPARATOR) {
 			return new SeparatorMenuItem();
@@ -508,6 +572,13 @@ public class ActionTools {
 		return includeAction(item, action);
 	}
 	
+	/**
+	 * Create a menu item from an action that makes use of a selected property.
+	 * This stores a reference to the action as a property of the menu item.
+	 * @param action the action from which to construct the menu item
+	 * @param group a toggle group to associate with the action; if present, a radio menu item will be returned
+	 * @return a new {@link MenuItem} configured according to the action.
+	 */
 	public static MenuItem createCheckMenuItem(Action action, ToggleGroup group) {
 		MenuItem item;
 		if (group != null) {
@@ -519,10 +590,22 @@ public class ActionTools {
 		return includeAction(item, action);
 	}
 	
+	/**
+	 * Create a menu item from an action that makes use of a selected property.
+	 * This stores a reference to the action as a property of the menu item.
+	 * @param action the action from which to construct the menu item
+	 * @return a new {@link MenuItem} configured according to the action.
+	 */
 	public static MenuItem createCheckMenuItem(Action action) {
 		return createCheckMenuItem(action, null);
 	}
 	
+	/**
+	 * Create a checkbox from an action.
+	 * This stores a reference to the action as a property of the checkbox.
+	 * @param action the action from which to construct the checkbox
+	 * @return a new {@link CheckBox} configured according to the action.
+	 */
 	public static CheckBox createCheckBox(Action action) {
 		// Not sure why we have to bind?
 		CheckBox button = ActionUtils.createCheckBox(action);
@@ -540,6 +623,13 @@ public class ActionTools {
 		return includeAction(button, action);
 	}
 
+	/**
+	 * Create a toggle button from an action.
+	 * This stores a reference to the action as a property of the toggle button.
+	 * @param action the action from which to construct the toggle button
+	 * @param hideActionText if true, the text of the action will be suppressed (and only the graphic used)
+	 * @return a new {@link ToggleButton} configured according to the action.
+	 */
 	public static ToggleButton createToggleButton(Action action, boolean hideActionText) {
 		return getActionToggleButton(action, hideActionText, null);
 	}
@@ -553,11 +643,15 @@ public class ActionTools {
 		return createToggleButton(action, hideActionText, null, isSelected);
 	}
 	
+	/**
+	 * Create a button from an action.
+	 * This stores a reference to the action as a property of the button.
+	 * @param action the action from which to construct the button
+	 * @param hideActionText if true, the text of the action will be suppressed (and only the graphic used)
+	 * @return a new {@link Button} configured according to the action.
+	 */
 	public static Button createButton(Action action, boolean hideActionText) {
 		Button button = ActionUtils.createButton(action, hideActionText ? ActionTextBehavior.HIDE : ActionTextBehavior.SHOW);
-//		if (hideActionText && action.getText() != null) {
-//			Tooltip.install(button, new Tooltip(action.getText()));
-//		}
 		return includeAction(button, action);
 	}
 
@@ -576,7 +670,7 @@ public class ActionTools {
 		return createSelectableAction(property, name, (Node)null, null);
 	}
 
-	public static Action createAction(final Runnable command, final String name, final Node icon, final KeyCombination accelerator) {
+	static Action createAction(final Runnable command, final String name, final Node icon, final KeyCombination accelerator) {
 		var action = actionBuilder(name, e -> command.run())
 				.accelerator(accelerator)
 				.graphic(icon)
@@ -586,6 +680,10 @@ public class ActionTools {
 
 	public static Action createAction(final Runnable command, final String name) {
 		return createAction(command, name, (Node)null, null);
+	}
+	
+	public static Action createAction(final Runnable command) {
+		return createAction(command, null, (Node)null, null);
 	}
 
 }

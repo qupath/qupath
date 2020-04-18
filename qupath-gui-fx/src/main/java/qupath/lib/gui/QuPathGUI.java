@@ -183,7 +183,6 @@ import qupath.lib.gui.panes.PathObjectHierarchyView;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.SelectedMeasurementTableView;
-import qupath.lib.gui.panes.SlideLabelView;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.gui.plugins.PluginRunnerFX;
@@ -332,8 +331,6 @@ public class QuPathGUI {
 	
 	private HostServices hostServices;
 	
-	SlideLabelView slideLabelView = new SlideLabelView(this);
-	
 	/**
 	 * Keystrokes can be lost on macOS... so ensure these are handled
 	 */
@@ -391,8 +388,14 @@ public class QuPathGUI {
 		return action;
 	}
 	
-	
-	Action createProjectAction(Consumer<Project<BufferedImage>> command) {
+	/**
+	 * Create an {@link Action} that depends upon a {@link Project}.
+	 * When the action is invoked, it will be passed the current {@link Project} as a parameter.
+	 * The action will also be disabled if no image data is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createProjectAction(Consumer<Project<BufferedImage>> command) {
 		var action = new Action(e -> {
 			var project = getProject();
 			if (project == null)
@@ -404,7 +407,12 @@ public class QuPathGUI {
 		return action;
 	}
 	
-	private void installActions(Collection<? extends Action> actions) {
+	/**
+	 * Install the specified actions. It is assumed that these have been configured via {@link ActionTools}, 
+	 * and therefore have sufficient information associated with them (including a menu path).
+	 * @param actions
+	 */
+	public void installActions(Collection<? extends Action> actions) {
 		installActions(getMenuBar().getMenus(), actions);
 		actions.stream().forEach(a -> registerAccelerator(a));
 	}
@@ -457,41 +465,50 @@ public class QuPathGUI {
 		 * Move tool action
 		 */
 		@ActionAccelerator("m")
+		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation)")
 		public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
 		/**
 		 * Rectangle tool action
 		 */
 		@ActionAccelerator("r")
+		@ActionDescription("Click and drag to raw a rectangle annotation. Hold down 'Shift' to contrain shape to be a square.")
 		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
 		/**
 		 * Ellipse tool action
 		 */
 		@ActionAccelerator("o")
+		@ActionDescription("Click and drag to raw an ellipse annotation. Hold down 'Shift' to contrain shape to be a circle.")
 		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
 		/**
 		 * Polygon tool action
 		 */
 		@ActionAccelerator("p")
+		@ActionDescription("Create a closed polygon annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
 		public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
 		/**
 		 * Polyline tool action
 		 */
 		@ActionAccelerator("v")
+		@ActionDescription("Create a polyline annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
 		public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
 		/**
 		 * Brush tool action
 		 */
 		@ActionAccelerator("b")
+		@ActionDescription("Click and drag to paint with a brush. "
+				+ "By default, the size of the region being drawn depends upon the zoom level in the viewer.")
 		public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
 		/**
 		 * Line tool action
 		 */
 		@ActionAccelerator("l")
+		@ActionDescription("Click and drag to draw a line annotation.")
 		public final Action LINE_TOOL = getToolAction(PathTools.LINE);
 		/**
 		 * Points/counting tool action
 		 */
 		@ActionAccelerator(".")
+		@ActionDescription("Click to add points to an annotation.")
 		public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
 		
 		/**
@@ -3309,6 +3326,7 @@ public class QuPathGUI {
 				qupath.runPlugin(plugin, arg, true);
 			});
 			action.disabledProperty().bind(qupath.noImageData);
+			ActionTools.parseAnnotations(action, pluginClass);
 			return action;
 		} catch (Exception e) {
 			logger.error("Unable to initialize class " + pluginClass, e);

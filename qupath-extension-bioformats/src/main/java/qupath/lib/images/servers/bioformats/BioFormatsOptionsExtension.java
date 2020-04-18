@@ -69,6 +69,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		}
 		
 		var actionWriter = ActionTools.createAction(new OMEPyramidWriterCommand(qupath), "OME TIFF");
+		actionWriter.setLongText("Write regions as OME-TIFF images. This supports writing image pyramids.");
 		actionWriter.disabledProperty().bind(qupath.imageDataProperty().isNull());
 		MenuTools.addMenuItems(
 				qupath.getMenu("File>Export images...", true),

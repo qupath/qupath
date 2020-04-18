@@ -193,8 +193,8 @@ public class CommandFinderTools {
 
 		table.setOnMouseClicked(e -> {
 			if (!e.isConsumed() && e.getClickCount() > 1) {
-				runSelectedCommand(table.getSelectionModel().getSelectedItem());
-				textField.clear();
+				if (runSelectedCommand(table.getSelectionModel().getSelectedItem()))
+					textField.clear();
 			}
 		});
 		table.prefWidthProperty().bind(textField.widthProperty());
@@ -292,9 +292,10 @@ public class CommandFinderTools {
 
 		table.setOnMouseClicked(e -> {
 			if (e.getClickCount() > 1) {
-				runSelectedCommand(table.getSelectionModel().getSelectedItem());
-				if (cbAutoClose.isSelected()) {
-					stage.hide();
+				if (runSelectedCommand(table.getSelectionModel().getSelectedItem())) {
+					if (cbAutoClose.isSelected()) {
+						stage.hide();
+					}
 				}
 			}
 		});
@@ -399,7 +400,9 @@ public class CommandFinderTools {
 		
 		textField.setOnKeyReleased(e -> {
 			if (e.getCode() == KeyCode.ENTER) {
-				runSelectedCommand(table.getSelectionModel().getSelectedItem());
+				if (!runSelectedCommand(table.getSelectionModel().getSelectedItem()))
+					return;
+				
 				if (clearTextOnRun)
 					textField.clear();
 				if (hideDialogOnRun != null && hideDialogOnRun.get() && dialog != null)
@@ -507,11 +510,12 @@ public class CommandFinderTools {
 	
 	
 	
-	static void runSelectedCommand(final CommandEntry entry) {
+	static boolean runSelectedCommand(final CommandEntry entry) {
 		if (entry != null) {
 			MenuItem item = entry.getMenuItem();
-			MenuManager.fireMenuItem(item);
+			return MenuManager.fireMenuItem(item);
 		}
+		return false;
 	}
 	
 	
@@ -545,10 +549,10 @@ public class CommandFinderTools {
 			return commandsBase;
 		}
 		
-		static void fireMenuItem(final MenuItem menuItem) {
+		static boolean fireMenuItem(final MenuItem menuItem) {
 			if (menuItem.isDisable()) {
 				logger.error("'{}' command is not currently available!", menuItem.getText());
-				return;
+				return false;
 			}
 			if (menuItem instanceof CheckMenuItem)
 				fireMenuItem((CheckMenuItem)menuItem);
@@ -556,6 +560,7 @@ public class CommandFinderTools {
 				fireMenuItem((RadioMenuItem)menuItem);
 			else
 				menuItem.fire();
+			return true;
 		}
 		
 		static void fireMenuItem(final CheckMenuItem menuItem) {
