@@ -166,6 +166,7 @@ wrapper {
  * Define managed dependencies for use within sub-projects
  */
 allprojects {
+  apply plugin: 'java-library'
 
   group = 'qupath'
   version = qupathVersion
@@ -191,7 +192,7 @@ allprojects {
     
     // Additional versions
     logbackVersion     = '1.2.3'
-    junitVersion       = '4.13'
+    junitVersion       = '5.6.2'
   }
 
   configurations {
@@ -212,9 +213,7 @@ allprojects {
     guava
     picocli
     jfreesvg
-
-	// Quite possible this shouldn't be here
-	implementation
+	junit
   }
 
   dependencies {
@@ -281,6 +280,8 @@ allprojects {
     picocli "info.picocli:picocli:${picocliVersion}"
     
     jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
+    
+    junit "org.junit.jupiter:junit-jupiter:${junitVersion}"
   }
 
 }
@@ -290,12 +291,12 @@ allprojects {
  */
 project(':qupath-core-processing') {
   dependencies {
-	  implementation project(':qupath-core')
+	  api project(':qupath-core')
   }
 }
 project(':qupath-gui-fx') {
   dependencies {
-	  implementation project(':qupath-core'), project(':qupath-core-processing')
+	  api project(':qupath-core'), project(':qupath-core-processing')
   }
 }
 /*
@@ -354,8 +355,8 @@ subprojects {
             doFirst {
                 options.compilerArgs = [
                         '--module-path', classpath.asPath,
-                        '--add-modules', 'junit',
-                        '--add-reads', "$moduleName=junit",
+//                        '--add-modules', 'junit',
+//                        '--add-reads', "$moduleName=junit",
                         '--patch-module', "$moduleName=" + files(sourceSets.test.java.srcDirs).asPath,
                 ]
                 classpath = files()
@@ -363,6 +364,8 @@ subprojects {
         }
 
         test {
+	        useJUnitPlatform()
+	        
             if (moduleExclusionFilter(moduleName))
                 return
 
@@ -371,7 +374,7 @@ subprojects {
                 jvmArgs = [
                         '--module-path', classpath.asPath,
                         '--add-modules', 'ALL-MODULE-PATH',
-                        '--add-reads', "$moduleName=junit",
+//                        '--add-reads', "$moduleName=junit",
                         '--patch-module', "$moduleName=" + files(sourceSets.test.java.outputDir).asPath,
                 ]
                 classpath = files()
@@ -384,7 +387,7 @@ subprojects {
  * Build all projects
  */
 allprojects {
-  apply plugin: 'java-library'
+
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
 
@@ -414,9 +417,12 @@ allprojects {
 //    withJavadocJar()
 //  }
 
+  configurations {
+  	testImplementation.extendsFrom junit
+  }
+
   dependencies {
     implementation "ch.qos.logback:logback-classic:${logbackVersion}"
-    testImplementation "junit:junit:${junitVersion}"
   }
 }
 

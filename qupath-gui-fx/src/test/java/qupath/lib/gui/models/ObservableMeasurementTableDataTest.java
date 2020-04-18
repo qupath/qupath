@@ -23,12 +23,12 @@
 
 package qupath.lib.gui.models;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.image.BufferedImage;
 import java.util.Collections;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;

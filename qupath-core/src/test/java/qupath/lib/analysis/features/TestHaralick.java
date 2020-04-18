@@ -24,7 +24,7 @@
 package qupath.lib.analysis.features;
 
 import java.io.IOException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 // TODO: Implement Haralick tests... this file is kept only to provide a starting point!
 @SuppressWarnings("javadoc")

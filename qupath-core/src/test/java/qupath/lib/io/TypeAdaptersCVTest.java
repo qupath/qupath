@@ -1,6 +1,6 @@
 package qupath.lib.io;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
@@ -9,10 +9,11 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.SparseMat;
 import org.bytedeco.opencv.opencv_ml.EM;
 import org.bytedeco.opencv.opencv_ml.StatModel;
+import org.junit.jupiter.api.Test;
 import org.bytedeco.opencv.opencv_core.TermCriteria;
-import org.junit.Test;
 
 import com.google.gson.GsonBuilder;
+
 
 @SuppressWarnings("javadoc")
 public class TypeAdaptersCVTest {
