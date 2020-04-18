@@ -29,6 +29,7 @@ import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.commands.ZoomCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.icons.IconFactory.PathIcons;
+import qupath.lib.gui.panes.SlideLabelView;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -487,7 +488,7 @@ class Menus {
 		@ActionMenu("Annotations...>")
 		public final Action SEP_6 = ActionTools.createSeparator();
 
-		@ActionDescription("Interatively rotate the current selected annotation.")
+		@ActionDescription("Interactively rotate the current selected annotation.")
 		@ActionMenu("Annotations...>Rotate annotation")
 		@ActionAccelerator("shortcut+shift+alt+r")
 		public final Action RIGID_OBJECT_EDITOR = qupath.createImageDataAction(imageData -> Commands.editSelectedAnnotation(qupath));
@@ -694,8 +695,12 @@ class Menus {
 		public final Action FILL_DETECTIONS = actionManager.FILL_DETECTIONS;
 
 		@ActionMenu("Show object connections")
+		@ActionDescription("Show connections between objects, if available. "
+				+ "This can be used alongside some spatial commands, such as to display a Delaunay triangulation as an overlay.")
 		public final Action SHOW_CONNECTIONS = createSelectableCommandAction(qupath.getOverlayOptions().showConnectionsProperty());
 
+		@ActionDescription("Toggle pixel classification overlays in the viewer. "
+				+ "This only has an effect if there is actually a pixel classification available.")
 		public final Action SHOW_PIXEL_CLASSIFICATION = actionManager.SHOW_PIXEL_CLASSIFICATION;
 		
 		public final Action SEP_5 = ActionTools.createSeparator();
@@ -719,7 +724,7 @@ class Menus {
 
 		@ActionDescription("Show the slide label associated with the image in the active viewer (if available).")
 		@ActionMenu("Show slide label")
-		public final Action SLIDE_LABEL = createSelectableCommandAction(qupath.slideLabelView.showingProperty());
+		public final Action SLIDE_LABEL = createSelectableCommandAction(new SlideLabelView(qupath).showingProperty());
 
 		public final Action SEP_7 = ActionTools.createSeparator();
 		
@@ -732,7 +737,8 @@ class Menus {
 		@ActionMenu("Show memory monitor")
 		public final Action MEMORY_MONITORY = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
 		
-		@ActionDescription("Show the log. This can be very helpful for tracing the source of any errors or bugs.")
+		@ActionDescription("Show the log. This is very helpful for identifying and debugging errors. "
+				+ "\n\nIf you wish to report a problem using QuPath, please check the log for relevant information to provide.")
 		@ActionMenu("Show log")
 		public final Action SHOW_LOG = actionManager.SHOW_LOG;
 		
@@ -833,7 +839,7 @@ class Menus {
 		public final Action SEP_2 = ActionTools.createSeparator();
 		
 		@ActionDescription("Please cite the QuPath publication if you use the software! " +
-				"This command opens a web page to show how.")
+				"\nThis command opens a web page to show how.")
 		@ActionMenu("Cite QuPath (web)")
 		public final Action CITE = createAction(() -> QuPathGUI.launchBrowserWindow(URL_CITATION));
 		

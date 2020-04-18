@@ -57,9 +57,9 @@ class ScriptMenuLoader {
 	
 	private ObservableStringValue scriptDirectory;
 	private Menu menu;
-	private MenuItem miSetPath = new MenuItem("Set script directory...");
-	private MenuItem miCreateScript = new MenuItem("New script...");
-	private MenuItem miOpenDirectory = new MenuItem("Open script directory");
+	private MenuItem miSetPath;
+	private MenuItem miCreateScript;
+	private MenuItem miOpenDirectory;
 	
 	private DefaultScriptEditor scriptEditor;
 	
@@ -69,7 +69,7 @@ class ScriptMenuLoader {
 		this.scriptEditor = editor;
 		scriptDirectory.addListener((v) -> updateMenu()); // Rebuild the script menu next time
 		
-		this.miCreateScript.setOnAction(e -> {
+		var actionCreateScript = ActionTools.actionBuilder("New script...", e -> {
 			String dir = scriptDirectory.get();
 			if (dir == null) {
 				Dialogs.showErrorMessage("New script error", "No script directory set!");
@@ -97,27 +97,40 @@ class ScriptMenuLoader {
 				scriptEditor.showScript(scriptFile);
 			else
 				QuPathGUI.getInstance().getScriptEditor().showScript(scriptFile);
-		});
+		})
+				.longText("Create a new script.")
+				.build();
 		
 		// Command to open directory
-		miOpenDirectory.disableProperty().bind(Bindings.isNotNull(scriptDirectory).not());
-		miOpenDirectory.setOnAction(e -> {
-			// Try to reveal directory in Finder/Windows Explorer etc.
-			File dir = new File(scriptDirectory.get());
-			if (!dir.exists()) {
-				dir.mkdir();
-			}
-			GuiTools.openFile(dir);
-		});
+		var actionOpenDirectory = ActionTools.actionBuilder("Open script directory",
+				e -> {
+					// Try to reveal directory in Finder/Windows Explorer etc.
+					File dir = new File(scriptDirectory.get());
+					if (!dir.exists()) {
+						dir.mkdir();
+					}
+					GuiTools.openFile(dir);
+				}
+				)
+				.disabled(Bindings.isNotNull(scriptDirectory).not())
+				.longText("Open the script directory outside QuPath.")
+				.build();
+		
 		
 		if (scriptDirectory instanceof StringProperty) {
-			miSetPath.setOnAction(e -> {
+			var actionSetPath = ActionTools.actionBuilder("Set script directory...", e -> {
 				File dirBase = scriptDirectory.get() == null ? null : new File(scriptDirectory.get());
 				File dir = Dialogs.promptForDirectory(dirBase);
 				if (dir != null)
 					((StringProperty)scriptDirectory).set(dir.getAbsolutePath());
-			});
+			})
+					.longText("Set the directory containing scripts that should be shown in this menu.")
+					.build();
+			
+			miSetPath = ActionTools.createMenuItem(actionSetPath);
 		}
+		miCreateScript = ActionTools.createMenuItem(actionCreateScript);
+		miOpenDirectory = ActionTools.createMenuItem(actionOpenDirectory);
 	}
 	
 	/**
@@ -129,14 +142,14 @@ class ScriptMenuLoader {
 			if (scriptDir != null) {
 				Path path = Paths.get(scriptDir);
 				// Can only set script directory if we have a property, not just any observable string
-				if (scriptDirectory instanceof StringProperty)
+				if (miSetPath != null)
 					menu.getItems().setAll(miSetPath, miOpenDirectory, miCreateScript, new SeparatorMenuItem());
 				else
 					menu.getItems().setAll(miOpenDirectory, miCreateScript, new SeparatorMenuItem());
 				if (path != null && path.getFileName() != null) {
 					addMenuItemsForPath(menu, path, true);
 				}
-			} else if (scriptDirectory instanceof StringProperty)
+			} else if (miSetPath != null)
 				menu.getItems().setAll(miSetPath);
 			else
 				menu.getItems().clear();

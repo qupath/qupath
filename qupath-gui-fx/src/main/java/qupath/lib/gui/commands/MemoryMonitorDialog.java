@@ -1,15 +1,13 @@
 package qupath.lib.gui.commands;
 
-import java.util.Timer;
-import java.util.TimerTask;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.concurrent.ScheduledService;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
@@ -19,10 +17,13 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 
@@ -49,7 +50,6 @@ import qupath.lib.gui.prefs.PathPrefs;
  */
 class MemoryMonitorDialog {
 
-
 	private final static Logger logger = LoggerFactory.getLogger(MemoryMonitorDialog.class);
 
 	private QuPathGUI qupath;
@@ -58,6 +58,10 @@ class MemoryMonitorDialog {
 
 	private XYChart.Series<Number, Number> seriesTotal = new XYChart.Series<>();
 	private XYChart.Series<Number, Number> seriesUsed = new XYChart.Series<>();
+
+	// Store time
+	private long startTimeMillis;
+	private LongProperty timeMillis = new SimpleLongProperty();
 
 	// Observable properties to store memory values
 	private LongProperty maxMemory = new SimpleLongProperty();
@@ -71,18 +75,15 @@ class MemoryMonitorDialog {
 	// Let's sometimes scale to MB, sometimes to GB
 	private final static double scaleMB = 1.0/1024.0/1024.0;
 	private final static double scaleGB = scaleMB/1024.0;
-
-	private long sampleFrequency = 1000L;
-
+	
+	private final MemoryService service = new MemoryService();
+	
 	MemoryMonitorDialog(QuPathGUI qupath) {
 		this.qupath = qupath;
 
-		// Create a timer to poll for memory status once per second
-		var timer = new Timer("QuPath memory monitor", true);
-
 		// Create a chart to show how memory use evolves over time
 		var xAxis = new NumberAxis();
-		xAxis.setLabel("Time (samples)");
+		xAxis.setLabel("Time (seconds)");
 		var yAxis = new NumberAxis();
 		yAxis.setLabel("Memory (GB)");
 		var chart = new AreaChart<Number, Number>(xAxis, yAxis);
@@ -90,7 +91,10 @@ class MemoryMonitorDialog {
 		yAxis.setLowerBound(0.0);
 		yAxis.setTickUnit(1.0);
 		yAxis.setUpperBound(Math.ceil(Runtime.getRuntime().maxMemory() * scaleGB));
-		xAxis.setAutoRanging(true);
+		xAxis.setAutoRanging(false);
+		xAxis.upperBoundProperty().bind(Bindings.createLongBinding(() -> {
+			return Math.max(10L, (timeMillis.get() - startTimeMillis) / 1000);
+		}, timeMillis));
 		// Bind the series names to the latest values, in MB
 		seriesTotal.nameProperty().bind(Bindings.createStringBinding(
 				() -> String.format("Total memory (%.1f MB)", totalMemory.get() * scaleMB), totalMemory));
@@ -144,6 +148,33 @@ class MemoryMonitorDialog {
 		btnGarbageCollector.setTooltip(new Tooltip("Request all available memory be reclaimed (this helps give a more accurate graph)"));
 		btnGarbageCollector.setOnAction(e -> System.gc());
 		btnGarbageCollector.setMaxWidth(Double.MAX_VALUE);
+				
+		var btnToggleMonitoring = new ToggleButton();
+		btnToggleMonitoring.textProperty().bind(Bindings.createStringBinding(() -> {
+			if (btnToggleMonitoring.isSelected())
+				return "Stop monitoring";
+			else
+				return "Start monitoring";
+		}, btnToggleMonitoring.selectedProperty()));
+		btnToggleMonitoring.setMaxWidth(Double.MAX_VALUE);
+		btnToggleMonitoring.selectedProperty().addListener((v, o, n) -> {
+			if (n) {
+				if (!service.isRunning())
+					service.restart();
+			} else {
+				if (service.isRunning()) {
+					service.cancel();
+					service.reset();
+				}
+			}
+		});
+		var btnReset = new Button("Reset monitor");
+		btnReset.setOnAction(e -> {
+			startTimeMillis = 0L;
+			seriesUsed.getData().clear();
+			seriesTotal.getData().clear();
+		});
+		btnReset.setMaxWidth(Double.MAX_VALUE);
 
 		// Add a text field to adjust the number of parallel threads
 		// This is handy to scale back memory use when running things like cell detection
@@ -164,34 +195,70 @@ class MemoryMonitorDialog {
 		labThreads.setLabelFor(tfThreads);
 
 		// Create a pane to show it all
-		var paneBottom = new GridPane();
+		var paneRight = new GridPane();
 		int col = 0;
 		int row = 0;
-		paneBottom.add(new Label("Available processors: " + runtime.availableProcessors()), col, row++, 1, 1);
-		paneBottom.add(labThreads, col, row, 1, 1);
-		paneBottom.add(tfThreads, col+1, row++, 1, 1);
-		paneBottom.add(labelClearCache, col, row++, 2, 1);
-		paneBottom.add(btnClearCache, col, row++, 2, 1);
+		paneRight.add(new Label("Available processors: " + runtime.availableProcessors()), col, row++, 1, 1);
+		paneRight.add(labThreads, col, row, 1, 1);
+		paneRight.add(tfThreads, col+1, row++, 1, 1);
+		paneRight.add(labelClearCache, col, row++, 2, 1);
+		paneRight.add(btnClearCache, col, row++, 2, 1);
 
-		paneBottom.add(labelUndoRedo, col, row++, 2, 1);
-		paneBottom.add(btnClearUndoRedo, col, row++, 2, 1);
-		paneBottom.add(btnGarbageCollector, col, row++, 2, 1);
-		paneBottom.setPadding(new Insets(10));
-		paneBottom.setVgap(5);
+		paneRight.add(labelUndoRedo, col, row++, 2, 1);
+		paneRight.add(btnClearUndoRedo, col, row++, 2, 1);
+		paneRight.add(btnGarbageCollector, col, row++, 2, 1);
+		
+		var padding = new BorderPane();
+		paneRight.add(padding, col, row++, 2, 1);
+		padding.setMaxHeight(Double.MAX_VALUE);
+		GridPane.setFillHeight(padding, Boolean.TRUE);
+		GridPane.setVgrow(padding, Priority.ALWAYS);
+
+		paneRight.add(btnToggleMonitoring, col, row++, 2, 1);
+		paneRight.add(btnReset, col, row++, 2, 1);
+
+//		GridPane.setMargin(btnToggleMonitoring, new Insets(10, 0, 0, 0));
+		paneRight.setPadding(new Insets(10));
+		paneRight.setVgap(5);
 		var pane = new BorderPane(chart);
-		pane.setRight(paneBottom);
+		pane.setRight(paneRight);
 
 		// Create a timer that will snapshot the current memory usage & update the chart
-		timer.schedule(new MemoryTimerTask(), 0L, sampleFrequency);
+		service.setPeriod(Duration.seconds(1.0));
+		service.lastValueProperty().addListener((v, o, n) -> {
+			if (n == null)
+				return;
+			if (startTimeMillis <= 0)
+				startTimeMillis = n.timeMillis;
+			timeMillis.set(n.timeMillis);
+			maxMemory.set(n.maxMemory);
+			totalMemory.set(n.totalMemory);
+			usedMemory.set(n.usedMemory);
+			undoRedoSizeBytes.set(n.undoRedoSizeBytes);
+			cachedTiles.set(n.cachedTiles);
+			
+			long time = (timeMillis.get() - startTimeMillis) / 1000;
+			seriesUsed.getData().add(new XYChart.Data<Number, Number>(time, usedMemory.get()*scaleGB));
+			seriesTotal.getData().add(new XYChart.Data<Number, Number>(time, totalMemory.get()*scaleGB));
+		});
 
 		// Show the GUI
 		stage = new Stage();
 		stage.initOwner(qupath.getStage());
 		stage.setScene(new Scene(pane));
 		stage.setTitle("Memory monitor");
-		stage.setOnHiding(e -> timer.cancel());
+		
+		stage.setOnShowing(e -> {
+			btnToggleMonitoring.setSelected(true);
+		});
+		
+		stage.setOnHiding(e -> {
+			btnToggleMonitoring.setSelected(false);
+			btnReset.fire();
+		});
 	}
-
+	
+	
 	public Stage getStage() {
 		return stage;
 	}
@@ -204,23 +271,41 @@ class MemoryMonitorDialog {
 		seriesUsed.getData().add(new XYChart.Data<Number, Number>(time, usedMemory.get()*scaleGB));
 		seriesTotal.getData().add(new XYChart.Data<Number, Number>(time, totalMemory.get()*scaleGB));
 	}
-
-	class MemoryTimerTask extends TimerTask {
-
-		private Runtime runtime = Runtime.getRuntime();
+	
+	
+	class MemoryService extends ScheduledService<MemorySnapshot> {
 
 		@Override
-		public void run() {
-			Platform.runLater(() -> {
-				totalMemory.set(runtime.totalMemory());
-				maxMemory.set(runtime.maxMemory());
-				usedMemory.set(runtime.totalMemory() - runtime.freeMemory());
-				undoRedoSizeBytes.set(qupath.getUndoRedoManager().totalBytes());
-				cachedTiles.set(qupath.getViewer().getImageRegionStore().getCache().size());
-				snapshot();
-			});
+		protected Task<MemorySnapshot> createTask() {
+			return new Task<MemoryMonitorDialog.MemorySnapshot>() {
+				@Override
+				protected MemorySnapshot call() {
+					return new MemorySnapshot(qupath, Runtime.getRuntime());
+				}
+			};
 		}
-
+		
+	}
+	
+	
+	static class MemorySnapshot {
+		
+		private long timeMillis;
+		private long totalMemory;
+		private long maxMemory;
+		private long usedMemory;
+		private long undoRedoSizeBytes;
+		private long cachedTiles;
+		
+		MemorySnapshot(QuPathGUI qupath, Runtime runtime) {
+			this.timeMillis = System.currentTimeMillis();
+			this.totalMemory = runtime.totalMemory();
+			this.maxMemory = runtime.maxMemory();
+			this.usedMemory = totalMemory - runtime.freeMemory();
+			this.undoRedoSizeBytes = qupath.getUndoRedoManager().totalBytes();
+			this.cachedTiles = qupath.getViewer().getImageRegionStore().getCache().size();
+		}
+		
 	}
 
 

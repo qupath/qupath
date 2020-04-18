@@ -34,9 +34,13 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Scene;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
@@ -65,7 +69,6 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 	 */
 	public SlideLabelView(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		createDialog();
 		qupath.imageDataProperty().addListener(this);
 	}
 	
@@ -98,7 +101,13 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 		}
 	}
 	
+	/**
+	 * Property indicating whether the label is showing on screen or not.
+	 * @return
+	 */
 	public BooleanProperty showingProperty() {
+		if (dialog == null)
+			createDialog();
 		return showing;
 	}
 
@@ -133,11 +142,31 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 		if (imgLabel == null)
 			pane.setCenter(new Label("No label available"));
 		else {
+			
+			ContextMenu popup = new ContextMenu();
+			MenuItem copyItem = new MenuItem("Copy");
+			var content = new ClipboardContent();
+			content.putImage(imgLabel);
+			copyItem.setOnAction(e -> {
+				Clipboard.getSystemClipboard().setContent(content);
+			});
+			popup.getItems().add(copyItem);
+			
 			ImageView view = new ImageView(imgLabel);
 			view.setPreserveRatio(true);
 			view.fitWidthProperty().bind(pane.widthProperty());
 			view.fitHeightProperty().bind(pane.heightProperty());
 			pane.setCenter(view);
+			
+			view.setOnMousePressed(e -> {
+				if (e.isPopupTrigger())
+					popup.show(view, e.getScreenX(), e.getScreenY());
+			});
+			view.setOnMouseReleased(e -> {
+				if (e.isPopupTrigger())
+					popup.show(view, e.getScreenX(), e.getScreenY());
+			});
+			
 		}
 	}
 

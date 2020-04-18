@@ -32,18 +32,17 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.Writer;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -71,8 +70,6 @@ import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 import org.controlsfx.control.action.Action;
@@ -110,6 +107,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Control;
@@ -134,6 +132,7 @@ import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.TreeView;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -184,7 +183,6 @@ import qupath.lib.gui.panes.PathObjectHierarchyView;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.SelectedMeasurementTableView;
-import qupath.lib.gui.panes.SlideLabelView;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
 import qupath.lib.gui.plugins.ParameterDialogWrapper;
 import qupath.lib.gui.plugins.PluginRunnerFX;
@@ -193,6 +191,7 @@ import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
+import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
@@ -255,6 +254,7 @@ public class QuPathGUI {
 	
 	private String buildString = null;
 	private String versionString = null;
+	private Version version;
 	
 	/**
 	 * Variable, possibly stored in the manifest, indicating the latest commit tag.
@@ -331,13 +331,10 @@ public class QuPathGUI {
 	
 	private HostServices hostServices;
 	
-	SlideLabelView slideLabelView = new SlideLabelView(this);
-	
 	/**
 	 * Keystrokes can be lost on macOS... so ensure these are handled
 	 */
 	private Map<KeyCombination, Action> comboMap = new HashMap<>();
-	
 	
 	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
 	
@@ -390,8 +387,14 @@ public class QuPathGUI {
 		return action;
 	}
 	
-	
-	Action createProjectAction(Consumer<Project<BufferedImage>> command) {
+	/**
+	 * Create an {@link Action} that depends upon a {@link Project}.
+	 * When the action is invoked, it will be passed the current {@link Project} as a parameter.
+	 * The action will also be disabled if no image data is present.
+	 * @param command the command to run
+	 * @return an {@link Action} with appropriate properties set
+	 */
+	public Action createProjectAction(Consumer<Project<BufferedImage>> command) {
 		var action = new Action(e -> {
 			var project = getProject();
 			if (project == null)
@@ -403,7 +406,12 @@ public class QuPathGUI {
 		return action;
 	}
 	
-	private void installActions(Collection<? extends Action> actions) {
+	/**
+	 * Install the specified actions. It is assumed that these have been configured via {@link ActionTools}, 
+	 * and therefore have sufficient information associated with them (including a menu path).
+	 * @param actions
+	 */
+	public void installActions(Collection<? extends Action> actions) {
 		installActions(getMenuBar().getMenus(), actions);
 		actions.stream().forEach(a -> registerAccelerator(a));
 	}
@@ -456,41 +464,50 @@ public class QuPathGUI {
 		 * Move tool action
 		 */
 		@ActionAccelerator("m")
+		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation)")
 		public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
 		/**
 		 * Rectangle tool action
 		 */
 		@ActionAccelerator("r")
+		@ActionDescription("Click and drag to raw a rectangle annotation. Hold down 'Shift' to contrain shape to be a square.")
 		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
 		/**
 		 * Ellipse tool action
 		 */
 		@ActionAccelerator("o")
+		@ActionDescription("Click and drag to raw an ellipse annotation. Hold down 'Shift' to contrain shape to be a circle.")
 		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
 		/**
 		 * Polygon tool action
 		 */
 		@ActionAccelerator("p")
+		@ActionDescription("Create a closed polygon annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
 		public final Action POLYGON_TOOL = getToolAction(PathTools.POLYGON);
 		/**
 		 * Polyline tool action
 		 */
 		@ActionAccelerator("v")
+		@ActionDescription("Create a polyline annotation, either by clicking individual points (with double-click to end) or clicking and dragging.")
 		public final Action POLYLINE_TOOL = getToolAction(PathTools.POLYLINE);
 		/**
 		 * Brush tool action
 		 */
 		@ActionAccelerator("b")
+		@ActionDescription("Click and drag to paint with a brush. "
+				+ "By default, the size of the region being drawn depends upon the zoom level in the viewer.")
 		public final Action BRUSH_TOOL = getToolAction(PathTools.BRUSH);
 		/**
 		 * Line tool action
 		 */
 		@ActionAccelerator("l")
+		@ActionDescription("Click and drag to draw a line annotation.")
 		public final Action LINE_TOOL = getToolAction(PathTools.LINE);
 		/**
 		 * Points/counting tool action
 		 */
 		@ActionAccelerator(".")
+		@ActionDescription("Click to add points to an annotation.")
 		public final Action POINTS_TOOL = getToolAction(PathTools.POINTS);
 		
 		/**
@@ -706,6 +723,21 @@ public class QuPathGUI {
 		if (found == null)
 			logger.warn("No action called '{}' could be found!", text);
 		return found;
+	}
+	
+	/**
+	 * Search for a menu item based upon its path.
+	 * @param menuPath path to the menu item, in the form {@code "Main menu>Submenu>Name}
+	 * @return the menu item corresponding to this path, or null if no menu item is found
+	 */
+	public MenuItem lookupMenuItem(String menuPath) {
+		var menu = parseMenu(menuPath, "", false);
+		if (menu == null)
+			return null;
+		var name = parseName(menuPath);
+		if (name.isEmpty())
+			return menu;
+		return menu.getItems().stream().filter(m -> name.equals(m.getText())).findFirst().orElse(null);
 	}
 	
 	
@@ -1267,158 +1299,134 @@ public class QuPathGUI {
 	}
 		
 	/**
-	 * Check for any updates, showing the new changelog if any updates found.
+	 * Get the directory containing the QuPath code
+	 * @return {@link File} object representing the code directory, or null if this cannot be determined
+	 */
+	File getCodeDirectory() {
+		URI uri = null;
+		try {
+			if (hostServices != null) {
+				String code = hostServices.getCodeBase();
+				if (code == null || code.isBlank())
+					code = hostServices.getDocumentBase();
+				if (code != null && code.isBlank()) {
+					uri = GeneralTools.toURI(code);
+					return new File(uri);
+				}
+			}
+		} catch (URISyntaxException e) {
+			logger.debug("Exception converting to URI: " + e.getLocalizedMessage(), e);
+		}
+		try {
+			return Paths.get(
+					QuPathGUI.class
+					.getProtectionDomain()
+					.getCodeSource()
+					.getLocation()
+					.toURI()).getParent().toFile();
+		} catch (Exception e) {
+			logger.error("Error identifying code directory: " + e.getLocalizedMessage(), e);
+			return null;
+		}
+	}
+	
+	/**
+	 * Do an update check.
+	 * @param isAutoCheck if true, avoid prompting the user unless an update is available. If false, the update has been explicitly 
+	 *                    requested and so the user should be notified of the outcome, regardless of whether an update is found.
+	 */
+	private synchronized void doUpdateCheck(boolean isAutoCheck) {
+		
+		var currentVersion = getVersion();
+		String updateMessage = null;
+		boolean isError = false;
+		if (currentVersion == null || currentVersion == Version.UNKNOWN) {
+			updateMessage = "I can't tell which version of QuPath you are running!";
+			if (isAutoCheck) {
+				logger.warn("Cannot check for updates - " + updateMessage);
+				return;
+			}
+		} else {
+			String title = "Update check";
+			Version version = null;
+			try {
+				logger.info("Performing update check...");
+				version = UpdateChecker.checkForUpdate();
+				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
+			} catch (Exception e) {
+				logger.error("Unable to check for update: {}", e.getLocalizedMessage());
+				logger.debug(e.getLocalizedMessage(), e);
+			}
+			// If we couldn't determine the version, tell the user only if this isn't the automatic check
+			if (version == null) {
+				if (isAutoCheck)
+					return;
+				else {
+					updateMessage = "Sorry, I can't check for updates at this time.";
+					isError = true;
+				}
+			}
+			if (version.compareTo(currentVersion) > 0) {
+				updateMessage = "QuPath " + version.toString() + " is available, you are running " + currentVersion.toString();
+			} else {
+				logger.info("Current version {}, latest stable release {} - nothing to update", currentVersion, version);
+				if (!isAutoCheck)
+					Dialogs.showMessageDialog(title, "QuPath " + currentVersion + " is up to date!");
+				return;
+			}
+		}
+		
+		var label = new Label(updateMessage + "\n\nDo you want to open the QuPath website (https://qupath.github.io)?");
+		label.setPadding(new Insets(0, 0, 20, 0));
+		var pane = new BorderPane(label);
+		var checkbox = new CheckBox("Automatically check for updates on startup");
+		checkbox.setSelected(PathPrefs.doAutoUpdateCheckProperty().get());
+		checkbox.setMaxWidth(Double.MAX_VALUE);
+		pane.setBottom(checkbox);
+		
+		var dialog = Dialogs.builder()
+				.title("Update check")
+				.content(pane)
+				.alertType(isError ? AlertType.ERROR : AlertType.INFORMATION)
+				.buttons(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
+		var response = dialog.showAndWait().orElse(ButtonType.CANCEL);
+		if (response != ButtonType.CANCEL)
+			PathPrefs.doAutoUpdateCheckProperty().set(checkbox.isSelected());
+		if (response == ButtonType.YES) {
+			launchBrowserWindow("https://qupath.github.io");
+		}
+	}
+	
+	
+	
+	/**
+	 * Check for any updates.
 	 * 
-	 * @param isAutoCheck If true, the check will only be performed if the auto-update preferences allow it, 
+	 * @param isAutoCheck if true, the check will only be performed if the auto-update preferences allow it, 
 	 * 					  and the user won't be prompted if no update is available.
 	 */
 	void checkForUpdate(final boolean isAutoCheck) {
 		
-		// Confirm if the user wants us to check for updates
-		boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheckProperty().get();
-		if (isAutoCheck && !doAutoUpdateCheck)
-			return;
+		if (isAutoCheck) {
+			// Don't run auto check if the user doesn't want it
+			boolean doAutoUpdateCheck = PathPrefs.doAutoUpdateCheckProperty().get();
+			if (!doAutoUpdateCheck)
+				return;
 
-		logger.info("Performing update check...");
-
-		// Calculate when we last looked for an update
-		long currentTime = System.currentTimeMillis();
-		long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
-
-		// Don't check run auto-update check again if we already checked within the last hour
-		double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
-		if (isAutoCheck && diffHours < 1)
-			return;
-		
-		// See if we can read the current ChangeLog
-		File fileChanges = new File("CHANGELOG.md");
-		if (!fileChanges.exists()) {
-			logger.warn("No changelog found - will not check for updates");
-			if (!isAutoCheck) {
-				Dialogs.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
+			// Don't run auto-update check again if we already checked within the last hour
+			long currentTime = System.currentTimeMillis();
+			long lastUpdateCheck = PathPrefs.getUserPreferences().getLong("lastUpdateCheck", 0);
+			double diffHours = (double)(currentTime - lastUpdateCheck) / (60L * 60L * 1000L);
+			if (diffHours < 1) {
+				logger.trace("Skipping update check (I already checked recently)");
+				return;
 			}
-			return;
 		}
-		String changeLog = null;
-		try {
-			changeLog = GeneralTools.readFileAsString(fileChanges.getAbsolutePath());
-		} catch (IOException e1) {
-			if (!isAutoCheck) {
-				Dialogs.showErrorMessage("Update check", "Cannot check for updates at this time, sorry");
-			}
-			logger.error("Error reading changelog", e1);
-			return;
-		}
-		// Output changelog, if we're tracing...
-		logger.trace("Changelog contents:\n{}", changeLog);
-		String changeLogCurrent = changeLog;
-
 		// Run the check in a background thread
-		createSingleThreadExecutor(this).execute(() -> {
-			try {
-				// Try to download latest changelog
-				URL url = new URL("https://raw.githubusercontent.com/qupath/qupath/master/CHANGELOG.md");
-				String changeLogOnline = GeneralTools.readURLAsString(url, 2000);
-				
-				// Store last update check time
-				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
-				
-				// Compare the current and online changelogs
-				if (compareChangelogHeaders(changeLogCurrent, changeLogOnline)) {
-					// If not isAutoCheck, inform user even if there are no updated at this time
-					if (!isAutoCheck) {
-						Platform.runLater(() -> Dialogs.showMessageDialog("Update check", "QuPath is up-to-date!"));
-					}
-					return;
-				}
-				
-				// If changelogs are different, notify the user
-				showChangelogForUpdate(changeLogOnline);
-			} catch (Exception e) {
-				// Notify the user if we couldn't read the log
-				if (!isAutoCheck) {
-					Dialogs.showMessageDialog("Update check", "Unable to check for updates at this time, sorry");
-					return;
-				}
-				logger.debug("Unable to check for updates - {}", e.getLocalizedMessage());
-			}
-		});
+		createSingleThreadExecutor(this).execute(() -> doUpdateCheck(isAutoCheck));
 	}
 	
-	
-	/**
-	 * Compare two changelogs.
-	 * 
-	 * In truth, this only checks if they have the same first line.
-	 * 
-	 * @param changelogOld
-	 * @param changelogNew
-	 * @return True if the changelogs contain the same first line.
-	 */
-	private static boolean compareChangelogHeaders(final String changelogOld, final String changelogNew) {
-		String[] changesOld = GeneralTools.splitLines(changelogOld.trim());
-		String[] changesNew = GeneralTools.splitLines(changelogNew.trim());
-		if (changesOld[0].equals(changesNew[0]))
-			return true;
 		
-		// Could try to parse version numbers... but is there any need?
-//		Pattern.compile("(\\d+\\.)?(\\d+\\.)?(\\*|\\d+)").matcher(changelogOld);
-		
-		return false;
-	}
-	
-	
-	
-	private void showChangelogForUpdate(final String changelog) {
-		if (!Platform.isFxApplicationThread()) {
-			// Need to be on FX thread
-			Platform.runLater(() -> showChangelogForUpdate(changelog));
-			return;
-		}
-		// Show changelog with option to download, or not now
-		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.setTitle("Update QuPath");
-		dialog.initOwner(getStage());
-		dialog.setResizable(true);
-		ButtonType btDownload = new ButtonType("Download update");
-		ButtonType btNotNow = new ButtonType("Not now");
-		// Not actually included (for space reasons)
-		ButtonType btDoNotRemind = new ButtonType("Do not remind me again");
-		
-		dialog.getDialogPane().getButtonTypes().addAll(
-				btDownload,
-				btNotNow
-//				btDoNotRemind
-				);
-		dialog.setHeaderText("A new version of QuPath is available!");
-		
-		TextArea textArea = new TextArea(changelog);
-		textArea.setWrapText(true);
-		textArea.setEditable(false);
-		
-//		BorderPane pane = new BorderPane();
-		TitledPane paneChanges = new TitledPane("Changes", textArea);
-		paneChanges.setCollapsible(false);
-		
-		dialog.getDialogPane().setContent(paneChanges);
-		Optional<ButtonType> result = dialog.showAndWait();
-		if (!result.isPresent())
-			return;
-		
-		if (result.get().equals(btDownload)) {
-			String url = "https://qupath.github.io";
-			try {
-				GuiTools.browseURI(new URI(url));
-			} catch (URISyntaxException e) {
-				Dialogs.showErrorNotification("Download", "Unable to open " + url);
-			}
-		} else if (result.get().equals(btDoNotRemind)) {
-			PathPrefs.doAutoUpdateCheckProperty().set(false);
-		}
-	}
-	
-	
-	
 	/**
 	 * Keep a record of loaded extensions, both for display and to avoid loading them twice.
 	 */
@@ -1798,6 +1806,8 @@ public class QuPathGUI {
 
 		// Add analysis panel & viewer to split pane
 		viewerManager = new MultiviewManager(viewer);
+		
+		viewerProperty.bind(viewerManager.activeViewerProperty());
 		
 		// Now that we have a viewer, we can create an undo/redo manager
 		undoRedoManager = new UndoRedoManager(this);
@@ -2827,7 +2837,7 @@ public class QuPathGUI {
 	 * 
 	 * @return
 	 */
-	public boolean updateBuildString() {
+	private boolean updateBuildString() {
 		try {
 			for (URL url : Collections.list(getClass().getClassLoader().getResources("META-INF/MANIFEST.MF"))) {
 				if (url == null)
@@ -2846,9 +2856,12 @@ public class QuPathGUI {
 					if (latestCommitTag != null)
 						buildString += "\n" + "Latest commit tag: " + latestCommitTag;
 					versionString = version;
+					this.version = Version.parse(versionString);
 					return true;
 				} catch (IOException e) {
 					logger.error("Error reading manifest", e);
+				} catch (IllegalArgumentException e) {
+					logger.error("Error determining version: " + e.getLocalizedMessage(), e);					
 				}
 			}
 		} catch (IOException e) {
@@ -2868,37 +2881,157 @@ public class QuPathGUI {
 		String pathUsers = PathPrefs.getUserPath();
 		File fileScript = pathUsers == null ? null : new File(pathUsers, "startup.groovy");
 		if (fileScript != null && fileScript.exists()) {
-			ScriptEngine engine = new ScriptEngineManager(getExtensionClassLoader()).getEngineByName("groovy");
-			engine.getContext().setWriter(new Writer() {
-				
-				@Override
-				public void write(char[] cbuf, int off, int len) throws IOException {
-					logger.info(String.valueOf(cbuf, off, len));
+			logger.info("Startup script found at {}", fileScript.getAbsolutePath());
+			if (PathPrefs.runStartupScriptProperty().get()) {
+				logger.info("Running startup script (you can turn this setting off in the preferences panel)");
+				try {
+					runScript(fileScript, null);
+				} catch (Exception e) {
+					logger.error("Error running startup.groovy: " + e.getLocalizedMessage(), e);
 				}
-				
-				@Override
-				public void flush() throws IOException {}
-				
-				@Override
-				public void close() throws IOException {}
-			});
-			engine.getContext().setErrorWriter(new Writer() {
-				
-				@Override
-				public void write(char[] cbuf, int off, int len) throws IOException {
-					logger.error(String.valueOf(cbuf, off, len));
-				}
-				
-				@Override
-				public void flush() throws IOException {}
-				
-				@Override
-				public void close() throws IOException {}
-			});
-			engine.eval(new FileReader(fileScript));
+			} else {
+				logger.warn("You need to enable the startup script in the Preferences if you want to run it");
+			}
 		} else {
 			logger.debug("No startup script found");
 		}
+	}
+	
+	
+	/**
+	 * Install a Groovy script as a new command in QuPath.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
+	 *                 If a menu item already exists for the given path, it will be removed.
+	 * @param file the Groovy script to run; note that this will be reloaded each time it is required
+	 * @return the {@link MenuItem} for the command
+	 * @see #installGroovyCommand(String, String)
+	 */
+	public MenuItem installGroovyCommand(String menuPath, final File file) {
+		return installCommand(menuPath, () -> {
+			try {
+				runScript(file, getImageData());
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Script error", e);
+			}
+		});
+	}
+	
+	/**
+	 * Install a Groovy script as a new command in QuPath.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
+	 *                 If a menu item already exists for the given path, it will be removed.
+	 * @param script the Groovy script to run
+	 * @return the {@link MenuItem} for the command
+	 * @see #installGroovyCommand(String, File)
+	 */
+	public MenuItem installGroovyCommand(String menuPath, final String script) {
+		return installCommand(menuPath, () -> runScript(script, getImageData()));
+	}
+	
+	/**
+	 * Install a new command in QuPath that takes the current {@link ImageData} as input.
+	 * The command will only be enabled when an image is available.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
+	 *                 If a menu item already exists for the given path, it will be removed.
+	 * @param command the command to run
+	 * @return the {@link MenuItem} for the command
+	 * @see #installCommand(String, Runnable)
+	 */
+	public MenuItem installImageDataCommand(String menuPath, final Consumer<ImageData<BufferedImage>> command) {
+		if (!Platform.isFxApplicationThread()) {
+			return GuiTools.callOnApplicationThread(() -> installImageDataCommand(menuPath, command));
+		}
+		Menu menu = parseMenu(menuPath, "Extensions", true);
+		String name = parseName(menuPath);
+		var action = createImageDataAction(command, name);
+		var item = ActionTools.createMenuItem(action);
+		addOrReplaceItem(menu.getItems(), item);
+		return item;
+	}
+	
+	/**
+	 * Install a new command in QuPath.
+	 * @param menuPath menu where the command should be installed; see {@link #lookupMenuItem(String)} for the specification.
+	 *                 If only a name is provided, the command will be added to the "Extensions" menu.
+	 *                 If a menu item already exists for the given path, it will be removed.
+	 * @param runnable the command to run
+	 * @return the {@link MenuItem} for the command. This can be further customized if needed.
+	 */
+	public MenuItem installCommand(String menuPath, Runnable runnable) {
+		if (!Platform.isFxApplicationThread()) {
+			return GuiTools.callOnApplicationThread(() -> installCommand(menuPath, runnable));
+		}
+		Menu menu = parseMenu(menuPath, "Extensions", true);
+		String name = parseName(menuPath);
+		var action = ActionTools.createAction(runnable, name);
+		var item = ActionTools.createMenuItem(action);
+		addOrReplaceItem(menu.getItems(), item);
+		return item;
+	}
+	
+	private void addOrReplaceItem(List<MenuItem> items, MenuItem item) {
+		String name = item.getText();
+		if (name != null) {
+			for (int i = 0; i < items.size(); i++) {
+				if (name.equals(items.get(i).getText())) {
+					items.set(i, item);
+					return;
+				}
+			}
+		}
+		items.add(item);
+	}
+	
+	/**
+	 * Identify a menu by parsing a menu path.
+	 * @param menuPath the path to the menu, separated by {@code >}
+	 * @param defaultMenu the default menu to use, if no other menu can be found
+	 * @param create if true, create the menu if it does not already exist.
+	 * @return
+	 */
+	private Menu parseMenu(String menuPath, String defaultMenu, boolean create) {
+		int separator = menuPath.lastIndexOf(">");
+		if (separator < 0) {
+			return getMenu(defaultMenu, create);
+		} else {
+			return getMenu(menuPath.substring(0, separator), create);
+		}
+	}
+	
+	private String parseName(String menuPath) {
+		int separator = menuPath.lastIndexOf(">");
+		if (separator < 0) {
+			return menuPath;
+		} else {
+			return menuPath.substring(separator+1);
+		}
+	}
+		
+	
+	/**
+	 * Convenience method to execute a Groovy script.
+	 * @param script the script to run
+	 * @param imageData an {@link ImageData} object for the current image (may be null)
+	 * @return result of the script execution
+	 */
+	private Object runScript(final String script, final ImageData<BufferedImage> imageData) {
+		return DefaultScriptEditor.executeScript(Language.GROOVY, script, imageData, true, null);
+	}
+	
+	/**
+	 * Convenience method to execute a Groovy from a file.
+	 * The file will be reloaded each time it is required.
+	 * @param file File containing the script to run
+	 * @param imageData an {@link ImageData} object for the current image (may be null)
+	 * @return result of the script execution
+	 * @throws IOException 
+	 */
+	private Object runScript(final File file, final ImageData<BufferedImage> imageData) throws IOException {
+		var script = GeneralTools.readFileAsString(file.getAbsolutePath());
+		return runScript(script, imageData);
 	}
 	
 	
@@ -3194,6 +3327,7 @@ public class QuPathGUI {
 				qupath.runPlugin(plugin, arg, true);
 			});
 			action.disabledProperty().bind(qupath.noImageData);
+			ActionTools.parseAnnotations(action, pluginClass);
 			return action;
 		} catch (Exception e) {
 			logger.error("Unable to initialize class " + pluginClass, e);
@@ -3261,12 +3395,15 @@ public class QuPathGUI {
 			action = createToolAction(tool);
 			toolActions.put(tool, action);
 		}
+		// Make sure the accelerator is registered
+		registerAccelerator(action);
 		return action;
 	}
 	
 	private Action createToolAction(final PathTool tool) {
 		  var action = createSelectableCommandAction(new SelectionManager<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), null);
 		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || selectedToolLocked.get(), selectedToolLocked, tools));
+		  registerAccelerator(action);
 		  return action;
 	}
 
@@ -3644,6 +3781,14 @@ public class QuPathGUI {
 	 */
 	public String getBuildString() {
 		return buildString;
+	}
+	
+	/**
+	 * Get the current QuPath version.
+	 * @return
+	 */
+	public Version getVersion() {
+		return version;
 	}
 	
 	/**

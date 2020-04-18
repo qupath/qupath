@@ -55,7 +55,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '14'
+def jfxVersion = '14.0.1'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -509,7 +509,7 @@ import java.nio.file.Paths
 
 licenseReport {
   print("LICENSE PATH: " + new File(projectDir, 'license-unknown.txt').getAbsolutePath())
-  filters = [new LicenseBundleNormalizer()]
+//  filters = [new LicenseBundleNormalizer()] // May introduce errors
   renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
                new CsvReportRenderer(),
                new InventoryHtmlReportRenderer('index.html', 'Third party licenses',
