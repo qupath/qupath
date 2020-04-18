@@ -336,7 +336,6 @@ public class QuPathGUI {
 	 */
 	private Map<KeyCombination, Action> comboMap = new HashMap<>();
 	
-	
 	private ObjectProperty<QuPathViewer> viewerProperty = new SimpleObjectProperty<>();
 	
 	private BooleanBinding noProject = projectProperty.isNull();
@@ -1807,6 +1806,8 @@ public class QuPathGUI {
 
 		// Add analysis panel & viewer to split pane
 		viewerManager = new MultiviewManager(viewer);
+		
+		viewerProperty.bind(viewerManager.activeViewerProperty());
 		
 		// Now that we have a viewer, we can create an undo/redo manager
 		undoRedoManager = new UndoRedoManager(this);

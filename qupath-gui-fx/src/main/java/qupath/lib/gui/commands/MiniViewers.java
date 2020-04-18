@@ -393,8 +393,9 @@ public class MiniViewers {
 		}
 		
 		void requestUpdate() {
-			if (requestUpdate)
-				return;
+//			if (requestUpdate)
+//				return;
+			// TODO: Look to improve the performance of this & discard requests appropriately
 			requestUpdate = true;
 			updateViewers();
 		}

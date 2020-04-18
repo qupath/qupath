@@ -1605,7 +1605,7 @@ public class Commands {
 	public static void showMiniViewer(QuPathViewer viewer) {
 		if (viewer == null)
 			return;
-		MiniViewers.createDialog(viewer, false);
+		MiniViewers.createDialog(viewer, false).show();
 	}
 
 	/**
@@ -1615,7 +1615,7 @@ public class Commands {
 	public static void showChannelViewer(QuPathViewer viewer) {
 		if (viewer == null)
 			return;
-		MiniViewers.createDialog(viewer, true);
+		MiniViewers.createDialog(viewer, true).show();
 	}
 	
 	
