@@ -38,7 +38,7 @@ import qupath.opencv.tools.LocalNormalization.SmoothingScale;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 /**
- * Helper class capable of building (or returning) a FeatureCalculator.
+ * Helper class capable of building (or returning) a {@link FeatureCalculator}.
  * 
  * @author Pete Bankhead
  */

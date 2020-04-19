@@ -54,7 +54,7 @@ import qupath.lib.gui.viewer.tools.QuPathPenManager.PenInputManager;
 
 /**
  * QuPath extension to make the Brush tool pressure-sensitive when used with a graphics tablet,
- * by using JPen - http://jpen.sourceforge.net/html-home/
+ * by using JPen - http://jpen.sourceforge.net/
  * 
  * @author Pete Bankhead
  *

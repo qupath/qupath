@@ -6,6 +6,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -386,10 +387,22 @@ public class ActionTools {
 		return actions;
 	}
 
+	/**
+	 * Parse annotations relating to an action, updating the properties of the action.
+	 * @param action
+	 * @param element
+	 */
 	public static void parseAnnotations(Action action, AnnotatedElement element) {
 		parseAnnotations(action, element, "");
 	}
 	
+	/**
+	 * Parse annotations relating to an action, updating the properties of the action with an optional base menu.
+	 * @param action the action to update
+	 * @param element the annotated element (often a {@link Field}).
+	 * @param baseMenu prepended to any {@link ActionMenu} actions. This makes it easier to insert items in sub-menus 
+	 *                 without needing to specify the full menu path every time.
+	 */
 	public static void parseAnnotations(Action action, AnnotatedElement element, String baseMenu) {
 		parseMenu(action, element.getAnnotation(ActionMenu.class), baseMenu);
 		parseDescription(action, element.getAnnotation(ActionDescription.class));
@@ -655,6 +668,14 @@ public class ActionTools {
 		return includeAction(button, action);
 	}
 
+	/**
+	 * Create an action with its {@link Action#selectedProperty()} bound to a specified property, with optional graphic and accelerator.
+	 * @param property the property to which the selected property of the action should be bound. The binding will be bidirectional if possible.
+	 * @param name the name of the action (set as the text property)
+	 * @param icon an icon for the icon (set as the graphic property)
+	 * @param accelerator an accelerator for the action
+	 * @return a new {@link Action} initialized according to the provided parameters
+	 */
 	public static Action createSelectableAction(final ObservableValue<Boolean> property, final String name, final Node icon, final KeyCombination accelerator) {
 		var action = actionBuilder()
 			.text(name)
@@ -666,6 +687,12 @@ public class ActionTools {
 		return action;
 	}
 
+	/**
+	 * Create an action with its {@link Action#selectedProperty()} bound to a specified property.
+	 * @param property the property to which the selected property of the action should be bound. The binding will be bidirectional if possible.
+	 * @param name the name of the action (set as the text property)
+	 * @return a new {@link Action} initialized according to the provided parameters
+	 */
 	public static Action createSelectableAction(final ObservableValue<Boolean> property, final String name) {
 		return createSelectableAction(property, name, (Node)null, null);
 	}
@@ -678,10 +705,21 @@ public class ActionTools {
 		return action;
 	}
 
+	/**
+	 * Create an action whose event handler calls a runnable, with a specified name.
+	 * @param command the runnable to call
+	 * @param name the name of the action, set as the text property
+	 * @return a new {@link Action}
+	 */
 	public static Action createAction(final Runnable command, final String name) {
 		return createAction(command, name, (Node)null, null);
 	}
 	
+	/**
+	 * Create an action whose event handler calls a runnable.
+	 * @param command the runnable to call
+	 * @return a new {@link Action}
+	 */
 	public static Action createAction(final Runnable command) {
 		return createAction(command, null, (Node)null, null);
 	}

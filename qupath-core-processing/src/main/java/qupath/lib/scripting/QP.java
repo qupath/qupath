@@ -2193,6 +2193,11 @@ public class QP {
 		return PathObjectTools.duplicateSelectedAnnotations(getCurrentHierarchy());
 	}
 	
+	/**
+	 * Merge annotations for the current hierarchy.
+	 * @param annotations the annotations to merge
+	 * @return true if changes were made the hierarchy, false otherwise
+	 */
 	public static boolean mergeAnnotations(final Collection<PathObject> annotations) {
 		return mergeAnnotations(getCurrentHierarchy(), annotations);
 	}
