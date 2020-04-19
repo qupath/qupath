@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.opencv.tools;
+package qupath.opencv.gui;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;

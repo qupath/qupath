@@ -260,7 +260,7 @@ public class ActionTools {
 	@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
 	public @interface ActionMenu {
 		/**
-		 * Menu path, in the form "Menu>Submenu>Command name".
+		 * Menu path, in the form {@code "Menu>Submenu>Command name"}.
 		 * @return
 		 */
 		String value();

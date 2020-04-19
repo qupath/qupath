@@ -44,7 +44,6 @@ import qupath.lib.gui.icons.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.features.DelaunayClusteringPlugin;
-import qupath.opencv.tools.WandToolCV;
 
 /**
  * QuPath extension to add commands dependent on OpenCV.

@@ -102,7 +102,7 @@ public class QPEx extends QP {
 	 * May be used as follows:
 	 * <pre>
 	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
-	 * </pref>
+	 * </pre>
 	 */
 	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
 	

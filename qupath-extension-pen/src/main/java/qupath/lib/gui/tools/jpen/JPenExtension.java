@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.tools;
+package qupath.lib.gui.tools.jpen;
 
 import java.awt.Point;
 import java.awt.geom.Point2D.Float;
