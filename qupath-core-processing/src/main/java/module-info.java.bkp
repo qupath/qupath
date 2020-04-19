@@ -1,0 +1,37 @@
+module qupath.core.processing {
+	
+    requires java.base;
+    requires java.desktop;
+    
+    requires transitive qupath.core;
+
+    requires slf4j.api;
+    requires transitive ij;
+    requires transitive org.bytedeco.opencv;
+    
+    exports qupath.imagej.detect.cells;
+    exports qupath.imagej.detect.dearray;
+    exports qupath.imagej.detect.tissue;
+    exports qupath.imagej.images.servers;
+    exports qupath.imagej.images.writers;
+    exports qupath.imagej.processing;
+    exports qupath.imagej.superpixels;
+    exports qupath.imagej.tools;
+    exports qupath.lib.algorithms;
+    exports qupath.lib.analysis.algorithms;
+    exports qupath.lib.analysis.features;
+    exports qupath.lib.plugins.objects;
+    exports qupath.lib.scripting;
+    exports qupath.opencv;
+    exports qupath.opencv.classify;
+    exports qupath.opencv.features;
+    exports qupath.opencv.tools;
+    
+    provides qupath.lib.images.writers.ImageWriter with
+    	qupath.imagej.images.writers.TiffWriterIJ,
+    	qupath.imagej.images.writers.ZipWriterIJ;
+    
+    provides qupath.lib.images.servers.ImageServerBuilder with
+    	qupath.imagej.images.servers.ImageJServerBuilder;
+
+}

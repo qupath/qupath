@@ -4,8 +4,8 @@ module qupath.openslide {
 	
     requires qupath.core;
 
-    requires openslide;
     requires slf4j.api;
-    requires gson;
+    requires com.google.gson;
+	requires openslide;
 
 }

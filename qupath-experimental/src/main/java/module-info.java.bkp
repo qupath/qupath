@@ -1,0 +1,17 @@
+module qupath.extension.experimental {
+	
+    requires java.base;
+    requires java.desktop;
+
+	requires javafx.swing;
+	
+    requires qupath.gui.fx;
+
+    requires slf4j.api;
+    requires jfxtras.common;
+    requires ij;
+    requires org.bytedeco.opencv;
+	requires commons.math3;
+	requires qupath.extension.processing;
+	
+}

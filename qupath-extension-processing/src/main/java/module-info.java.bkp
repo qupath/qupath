@@ -10,15 +10,13 @@ module qupath.extension.processing {
     requires qupath.gui.fx;
 
     requires slf4j.api;
-    requires ij;
     requires org.bytedeco.opencv;
-//    requires javacpp;
 	requires org.controlsfx.controls;
+	requires org.locationtech.jts;
 	
 	exports qupath.imagej.gui;
-	exports qupath.imagej.gui.commands;
-	exports qupath.imagej.plugins;
-	exports qupath.opencv.gui;
-	exports qupath.opencv.tools;
-
+	
+	provides qupath.lib.gui.extensions.QuPathExtension with 
+		qupath.imagej.gui.IJExtension, qupath.opencv.gui.OpenCVExtension;
+	
 }

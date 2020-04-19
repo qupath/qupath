@@ -15,7 +15,7 @@ buildscript {
 
   dependencies {
     classpath 'com.github.jk1:gradle-license-report:1.13'
-//      classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
+    classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
   }
 
   repositories {
@@ -35,6 +35,7 @@ buildscript {
  */
 plugins {
   id 'java-library'
+  id 'org.javamodularity.moduleplugin' version '1.6.0' apply false
 }
 
 /*
@@ -63,8 +64,16 @@ def jfxVersion = '14.0.1'
 def useGPU = false
 
 /*
- * Modules not yet supported (because of some dependency troubles).
- * This disables code that would otherwise try to move in a modular direction.
+ * Modules not yet supported because of various dependency troubles.
+ * Specifially:
+ *  - ImageJ contains MacAdapter outside of any package, this must be removed 
+ *    (jarjar-gradle can do the job, but it seems to confuse eclipse)
+ *  - RuntimeTypeAdapterFactory needs to be in a valid package
+ *  - JPen's automatic module name is invalid (jpen.2)
+ *  - Bio-Formats is not module-friendly
+ *  - OpenSlide also seems module-unfriendly (at least within eclipse)
+ * Setting the flag to false disables code that would otherwise try to move in a modular direction, 
+ * while making it a bit easier to return to this later.
  */
 def doModular = false
 
@@ -160,18 +169,28 @@ wrapper {
  *
  * Only required if building modules. Currently all instances commented out.
  */
-//apply plugin: 'org.anarres.jarjar'
+if (doModular) {
+  apply plugin: 'org.anarres.jarjar'
+}
 
 /*
  * Define managed dependencies for use within sub-projects
  */
 allprojects {
   apply plugin: 'java-library'
+  
+  if (doModular) {
+	  apply plugin: 'org.javamodularity.moduleplugin'
+  }
 
   group = 'qupath'
   version = qupathVersion
 
   ext {
+    // Java compatibility version
+    javaVersion = 11
+  
+    // Dependency versions
     bioformatsVersion  = '6.4.0'
     commonsMathVersion = '3.6.1'
     commonsTextVersion = '1.8'
@@ -188,11 +207,22 @@ allprojects {
     picocliVersion     = '4.2.0'
     jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    opencvVersion      = '4.3.0-1.5.3'
+    javacppVersion     = '1.5.3'
+    opencvVersion      = "4.3.0-${javacppVersion}"
     
     // Additional versions
     logbackVersion     = '1.2.3'
-    junitVersion       = '5.6.2'
+    slf4jVersion       = '1.3.0'
+    junitVersion       = '5.4.2'
+    
+    // External javadocs for key dependencies
+    externalJavadocs = [
+			"https://docs.oracle.com/en/java/javase/11/docs/api/",
+			"https://imagej.nih.gov/ij/developer/api/",
+			"https://locationtech.github.io/jts/javadoc/",
+			"https://javadoc.io/doc/com.google.code.gson/gson/latest/com.google.gson/",
+			"https://javadoc.io/doc/org.bytedeco/javacpp/latest/"
+			]
   }
 
   configurations {
@@ -214,6 +244,7 @@ allprojects {
     picocli
     jfreesvg
 	junit
+	logback
   }
 
   dependencies {
@@ -259,11 +290,13 @@ allprojects {
     if (nativesClassifier != null)
       jpen "net.sourceforge.jpen:jpen:${jpenVersion}:${nativesClassifier}"
 
-    imagej "net.imagej:ij:${imagejVersion}"
-//    imagej jarjar.repackage {
-//    	from "net.imagej:ij:${imagejVersion}"
-//    	classDelete 'MacAdapter'
-//	}
+    if (doModular) {
+	    imagej jarjar.repackage {
+	    	from "net.imagej:ij:${imagejVersion}"
+	    	classDelete 'MacAdapter'
+		}
+	} else
+	    imagej "net.imagej:ij:${imagejVersion}"
 
     openslide "org.openslide:openslide:${openslideVersion}"
     if (nativesClassifier != null)
@@ -281,8 +314,31 @@ allprojects {
     
     jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
     
-    junit "org.junit.jupiter:junit-jupiter:${junitVersion}"
+    junit "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
+    junit "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
+    
+    logback "ch.qos.logback:logback-classic:${logbackVersion}"
+    
+    logback "org.slf4j:slf4j-api:${slf4jVersion}"
+    
   }
+  
+  javadoc {
+  
+  	def strictJavadoc = findProperty('strictJavadoc')
+	if (!strictJavadoc) {
+		options.addBooleanOption 'Xdoclint:none', true
+	}
+	
+	options {
+		links += externalJavadocs
+	}
+  
+    def docPath = "${rootProject.buildDir}/docs/${project.name}"
+  	destinationDir = file(docPath)
+  	
+  }
+  
 
 }
 
@@ -309,19 +365,14 @@ configure( subprojects.findAll {it.name.contains('-extension') || it.name.contai
 }
 
 
-/*
- * Not everybody is ready to be a module yet... 
- */
-def moduleExclusionFilter = {String moduleName -> !doModular || moduleName.contains('bioformats') || moduleName.contains('jpen')}
-
 subprojects {
+
 
     afterEvaluate {
 
-        compileJava {
-            if (moduleExclusionFilter(moduleName))
-                return
 
+        compileJava {
+/*
             inputs.property("moduleName", moduleName)
             doFirst {
                 options.compilerArgs = [
@@ -329,7 +380,10 @@ subprojects {
                 ]
                 classpath = files()
             }
+            */
         }
+
+
 
         jar {
         	// Important to set version so this can be queried within QuPath
@@ -347,38 +401,9 @@ subprojects {
             }
         }
 
-        compileTestJava {
-            if (moduleExclusionFilter(moduleName))
-                return
-
-            inputs.property("moduleName", moduleName)
-            doFirst {
-                options.compilerArgs = [
-                        '--module-path', classpath.asPath,
-//                        '--add-modules', 'junit',
-//                        '--add-reads', "$moduleName=junit",
-                        '--patch-module', "$moduleName=" + files(sourceSets.test.java.srcDirs).asPath,
-                ]
-                classpath = files()
-            }
-        }
 
         test {
 	        useJUnitPlatform()
-	        
-            if (moduleExclusionFilter(moduleName))
-                return
-
-            inputs.property("moduleName", moduleName)
-            doFirst {
-                jvmArgs = [
-                        '--module-path', classpath.asPath,
-                        '--add-modules', 'ALL-MODULE-PATH',
-//                        '--add-reads', "$moduleName=junit",
-                        '--patch-module', "$moduleName=" + files(sourceSets.test.java.outputDir).asPath,
-                ]
-                classpath = files()
-            }
         }
     }
 }
@@ -388,8 +413,8 @@ subprojects {
  */
 allprojects {
 
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+  sourceCompatibility = javaVersion
+  targetCompatibility = javaVersion
 
   repositories {
     mavenLocal()
@@ -418,12 +443,10 @@ allprojects {
 //  }
 
   configurations {
+    implementation.extendsFrom logback
   	testImplementation.extendsFrom junit
   }
 
-  dependencies {
-    implementation "ch.qos.logback:logback-classic:${logbackVersion}"
-  }
 }
 
 
@@ -439,6 +462,8 @@ repositories {
   maven { url "./maven/repo" }
 }
 
+
+  
 /*
  * I suspect there may be a cleaner way to specify subprojects...
  */
@@ -570,13 +595,21 @@ task mergedJavadocs(type: Javadoc) {
 	if (!strictJavadoc) {
 		options.addBooleanOption 'Xdoclint:none', true
 	}
+	
     source subprojects.collect { project ->
-        project.sourceSets.main.allJava
+        project.sourceSets.main.allJava.filter {it.name != 'module-info.java'}
     }
+    
+    options {
+    	links += rootProject.ext.externalJavadocs
+    }
+    
     destinationDir = new File(buildDir, 'merged-docs')
+    
     classpath = files(subprojects.collect { project ->
         project.sourceSets.main.compileClasspath
     })
+    
 }
 
 
