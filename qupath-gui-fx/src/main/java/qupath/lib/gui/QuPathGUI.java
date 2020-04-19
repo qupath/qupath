@@ -178,7 +178,7 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LoggingAppender;
 import qupath.lib.gui.panes.AnnotationPane;
-import qupath.lib.gui.panes.PathImageDetailsPanel;
+import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.PathObjectHierarchyView;
 import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.panes.ProjectBrowser;
@@ -2557,7 +2557,7 @@ public class QuPathGUI {
 					imageData.setImageType(type);
 					imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
 				} else if (setType == ImageTypeSetting.PROMPT) {
-					PathImageDetailsPanel.promptToSetImageType(imageData);
+					ImageDetailsPane.promptToSetImageType(imageData);
 				}
 			}
 			return true;
@@ -2791,7 +2791,7 @@ public class QuPathGUI {
 //				setInitialLocationAndMagnification(viewer);
 
 				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT)
-					PathImageDetailsPanel.promptToSetImageType(imageData);
+					ImageDetailsPane.promptToSetImageType(imageData);
 
 //				// Reset the object hierarchy to clear any ROIs etc.
 //				hierarchy.clearAll();
@@ -3656,8 +3656,8 @@ public class QuPathGUI {
 		projectBrowser = new ProjectBrowser(this);
 
 		analysisPanel.getTabs().add(new Tab("Project", projectBrowser.getPane()));
-		PathImageDetailsPanel pathImageDetailsPanel = new PathImageDetailsPanel(this);
-		analysisPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getContainer()));
+		ImageDetailsPane pathImageDetailsPanel = new ImageDetailsPane(this);
+		analysisPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getPane()));
 
 		final AnnotationPane panelAnnotations = new AnnotationPane(this);
 		SplitPane splitAnnotations = new SplitPane();

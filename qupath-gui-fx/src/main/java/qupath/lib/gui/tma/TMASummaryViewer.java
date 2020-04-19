@@ -143,7 +143,6 @@ import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tma.TMAEntries.MeasurementCombinationMethod;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.gui.tma.TMAEntries.TMAObjectEntry;
 import qupath.lib.gui.tools.ChartTools;

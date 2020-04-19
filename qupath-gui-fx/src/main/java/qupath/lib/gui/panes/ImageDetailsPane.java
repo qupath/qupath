@@ -34,6 +34,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
@@ -47,13 +48,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
+import javafx.scene.control.Label;
 import javafx.scene.Scene;
+import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -62,7 +65,6 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
@@ -90,7 +92,6 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
-import qupath.lib.gui.panes.PathImageDetailsPanel.PathImageDetailsTableModel.ROW_TYPE;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
@@ -113,28 +114,41 @@ import qupath.lib.scripting.QP;
  * @author Pete Bankhead
  *
  */
-public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedImage>>, PropertyChangeListener {
+public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>>, PropertyChangeListener {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathImageDetailsPanel.class);
+	final private static Logger logger = LoggerFactory.getLogger(ImageDetailsPane.class);
 	
 	private QuPathGUI qupath;
 	
-//	private BorderPane pane = new BorderPane();
 	private StackPane pane = new StackPane();
-	
-	// TODO: Remove the Swing throwback...
-	private PathImageDetailsTableModel model = new PathImageDetailsTableModel(null);
-	
-	private TableView<TableEntry> table = new TableView<>();
+		
+	private TableView<ImageDetailRow> table = new TableView<>();
 	private ListView<String> listAssociatedImages = new ListView<>();
 
-//	private TitledPane panelTable = new TitledPane("Properties", new StackPane(table));
-//	private TitledPane panelAssociatedImages = new TitledPane("Associated images", new StackPane(listAssociatedImages));
+	private enum ImageDetailRow {
+		NAME, URI, PIXEL_TYPE, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS,
+		PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID,
+		METADATA_CHANGED, IMAGE_TYPE,
+		STAIN_1, STAIN_2, STAIN_3, BACKGROUND;
+	};
+	
+	private static List<ImageDetailRow> brightfieldRows = Arrays.asList(ImageDetailRow.values());
+	private static List<ImageDetailRow> otherRows = new ArrayList<>(brightfieldRows);
+	static {
+		otherRows.remove(ImageDetailRow.STAIN_1);
+		otherRows.remove(ImageDetailRow.STAIN_2);
+		otherRows.remove(ImageDetailRow.STAIN_3);
+		otherRows.remove(ImageDetailRow.BACKGROUND);
+	}
+
 	
 	private ImageData<BufferedImage> imageData;
 
-	
-	public PathImageDetailsPanel(final QuPathGUI qupath) {
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance
+	 */
+	public ImageDetailsPane(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		qupath.imageDataProperty().addListener(this);
 		
@@ -143,19 +157,19 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 		table.setPrefHeight(250);
 		table.setMaxHeight(Double.MAX_VALUE);
 		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-		TableColumn<TableEntry, String> columnName = new TableColumn<>("Name");
-		columnName.setCellValueFactory(new PropertyValueFactory<>("name"));
+		TableColumn<ImageDetailRow, String> columnName = new TableColumn<>("Name");
+		columnName.setCellValueFactory(v -> new ReadOnlyStringWrapper(getName(v.getValue())));
 		columnName.setEditable(false);
 		columnName.setPrefWidth(150);
-		TableColumn<TableEntry, Object> columnValue = new TableColumn<>("Value");
-		columnValue.setCellValueFactory(new PropertyValueFactory<>("value"));
+		TableColumn<ImageDetailRow, Object> columnValue = new TableColumn<>("Value");
+		columnValue.setCellValueFactory(v -> new ReadOnlyObjectWrapper<>(getValue(v.getValue())));
 		columnValue.setEditable(false);
 		columnValue.setPrefWidth(200);
-		columnValue.setCellFactory(new Callback<TableColumn<TableEntry, Object>, TableCell<TableEntry, Object>>() {
+		columnValue.setCellFactory(new Callback<TableColumn<ImageDetailRow, Object>, TableCell<ImageDetailRow, Object>>() {
 
 			@Override
-			public TableCell<TableEntry, Object> call(TableColumn<TableEntry, Object> param) {
-				TableCell<TableEntry, Object> cell = new TableCell<TableEntry, Object>() {
+			public TableCell<ImageDetailRow, Object> call(TableColumn<ImageDetailRow, Object> param) {
+				TableCell<ImageDetailRow, Object> cell = new TableCell<ImageDetailRow, Object>() {
 					@Override
 					protected void updateItem(Object item, boolean empty) {
 						super.updateItem(item, empty);
@@ -176,25 +190,18 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 							style = String.format("-fx-text-fill: rgb(%d, %d, %d);", ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color));
 							tooltipText = "Double-click to set stain color (either type values or use a small rectangle ROI in the image)";
 						} else {
-							var type = model.getRowType(getIndex());
+							var type = getTableRow().getItem();
 							if (type != null) {
-								if (type.equals(ROW_TYPE.PIXEL_WIDTH) || type.equals(ROW_TYPE.PIXEL_HEIGHT)) {
+								if (type.equals(ImageDetailRow.PIXEL_WIDTH) || type.equals(ImageDetailRow.PIXEL_HEIGHT)) {
 									if ("Unknown".equals(item))
 										style = "-fx-text-fill: red;";
 									tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
-								} else if (type.equals(ROW_TYPE.METADATA_CHANGED))
+								} else if (type.equals(ImageDetailRow.METADATA_CHANGED))
 									tooltipText = "Double-click to reset original metadata";
-								else if (type.equals(ROW_TYPE.UNCOMPRESSED_SIZE))
+								else if (type.equals(ImageDetailRow.UNCOMPRESSED_SIZE))
 									tooltipText = "Approximate memory required to store all pixels in the image uncompressed";
 							}
 						}
-						
-						//			             if (item instanceof ImageType) {
-						//			            	 ComboBox<ImageType> combo = new ComboBox<>();
-						//			            	 combo.getItems().addAll(ImageType.values());
-						//			            	 combo.getSelectionModel().select((ImageType)item);
-						//			            	 getChildren().add(combo);
-						//			             } else
 						setStyle(style);
 						setText(text);
 						setTooltip(new Tooltip(tooltipText));
@@ -204,7 +211,7 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 				cell.setOnMouseClicked(event -> {
 					if (event.getClickCount() < 2)
 						return;
-					TableCell<TableEntry, Object> c = (TableCell<TableEntry, Object>)event.getSource();
+					TableCell<ImageDetailRow, Object> c = (TableCell<ImageDetailRow, Object>)event.getSource();
 					Object value = c.getItem();
 					if (value instanceof StainVector || value instanceof double[])
 						editStainVector(value);
@@ -212,14 +219,14 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 						promptToSetImageType(imageData);
 					} else {
 						// TODO: Support z-spacing
-						var type = model.getRowType(c.getIndex());
+						var type = c.getTableRow().getItem();
 						boolean metadataChanged = false;
-						if (type == ROW_TYPE.PIXEL_WIDTH ||
-								type == ROW_TYPE.PIXEL_HEIGHT) {
+						if (type == ImageDetailRow.PIXEL_WIDTH ||
+								type == ImageDetailRow.PIXEL_HEIGHT) {
 							metadataChanged = promptToSetPixelSize(imageData, false);
-						} else if (type == ROW_TYPE.MAGNIFICATION) {
+						} else if (type == ImageDetailRow.MAGNIFICATION) {
 							metadataChanged = promptToSetMagnification(imageData);
-						} else if (type == ROW_TYPE.METADATA_CHANGED) {
+						} else if (type == ImageDetailRow.METADATA_CHANGED) {
 							if (!hasOriginalMetadata(imageData.getServer())) {
 								metadataChanged = promptToResetServerMetadata(imageData);
 							}
@@ -234,7 +241,8 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 				return cell;
 			}
 		});
-		table.getColumns().addAll(columnName, columnValue);
+		table.getColumns().add(columnName);
+		table.getColumns().add(columnValue);
 		
 		setImageData(qupath.getImageData());
 
@@ -465,7 +473,7 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 	
 	
 	/**
-	 * Prompt the user to set the ImageType for the image.
+	 * Prompt the user to set the {@link ImageType} for the image.
 	 * @param imageData
 	 * @return
 	 */
@@ -478,7 +486,25 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 			values.remove(ImageType.BRIGHTFIELD_OTHER);
 		}
 		
-		ImageType type = (ImageType)Dialogs.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
+		var dialog = new ChoiceDialog<>(imageData.getImageType(), values);
+		dialog.setTitle("Image type");
+		if (QuPathGUI.getInstance() != null)
+			dialog.initOwner(QuPathGUI.getInstance().getStage());
+		dialog.getDialogPane().setHeaderText(null);
+		dialog.getDialogPane().setContentText("Set image type");
+		dialog.getDialogPane().setPrefWidth(400);
+		
+		var labelExplain = new Label("The image type influences some commands (e.g. cell detection) and should be set for every image. "
+				+ "\n\nUse the 'Set image type' item in the preferences to control prompts for the type to be set when opening an image.");
+		labelExplain.setWrapText(true);
+		labelExplain.setPrefWidth(400);
+		labelExplain.setMinHeight(Label.USE_PREF_SIZE);
+		dialog.getDialogPane().setExpandableContent(labelExplain);
+		
+		var result = dialog.showAndWait();
+		ImageType type = result.orElse(null);
+		
+//		ImageType type = (ImageType)Dialogs.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
 		if (type != null && type != imageData.getImageType()) {
 			imageData.setImageType(type);
 			return true;
@@ -537,7 +563,14 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 					}
 					int rgb = ColorDeconvolutionHelper.getMedianRGB(img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()));
 					if (num >= 0) {
-						value = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+						StainVector vectorValue = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels(name, img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth()), stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
+						if (!Double.isFinite(vectorValue.getRed() + vectorValue.getGreen() + vectorValue.getBlue())) {
+							Dialogs.showErrorMessage("Set stain vector",
+									"Cannot set stains for the current ROI!\n"
+									+ "It might be too close to the background color.");
+							return;
+						}
+						value = vectorValue;
 					} else {
 						// Update the background
 						value = new double[] {ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb)};
@@ -555,7 +588,12 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 		String nameBefore = null;
 		String valuesBefore = null;
 		String collectiveNameBefore = stains.getName();
-		params.addStringParameter("collectiveName", "Collective name", collectiveNameBefore, "Enter collective name for all 3 stains (e.g. H-DAB Scanner A, H&E Scanner B)");
+		String suggestedName;
+		if (collectiveNameBefore.endsWith("default"))
+			suggestedName = collectiveNameBefore.substring(0, collectiveNameBefore.lastIndexOf("default")) + "modified";
+		else
+			suggestedName = collectiveNameBefore;
+		params.addStringParameter("collectiveName", "Collective name", suggestedName, "Enter collective name for all 3 stains (e.g. H-DAB Scanner A, H&E Scanner B)");
 		if (value instanceof StainVector) {
 			nameBefore = ((StainVector)value).getName();
 			valuesBefore = ((StainVector)value).arrayAsString(Locale.getDefault(Category.FORMAT));
@@ -612,39 +650,15 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 		
 		qupath.getViewer().repaintEntireImage();
 	}
-
-
-
-	public static Color getColorFX(final int rgb) {
-		return Color.rgb(ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
-	}
 	
 	
-	
-	public Pane getContainer() {
+	/**
+	 * Get the {@link Pane} component for addition to a scene.
+	 * @return
+	 */
+	public Pane getPane() {
 		return pane;
 	}
-	
-	
-	
-	public class TableEntry {
-		
-		private final int ind;
-		
-		public TableEntry(final int ind) {
-			this.ind = ind;
-		}
-		
-		public String getName() {
-			return (String)model.getName(ind);
-		}
-		
-		public Object getValue() {
-			return model.getValue(ind);
-		}
-		
-	}
-	
 	
 	private void setImageData(ImageData<BufferedImage> imageData) {
 		if (this.imageData != null)
@@ -652,45 +666,26 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 		
 		this.imageData = imageData;
 		ImageServer<BufferedImage> server = null;
-		if (imageData == null) {
-			model.setImageData(null);
-		} else {
+		if (imageData != null) {
 			imageData.addPropertyChangeListener(this);
 			server = imageData.getServer();
 		}
-		model.setImageData(imageData);
 		
-		ObservableList<TableEntry> list = FXCollections.observableArrayList();
-		for (int i = 0; i < model.getRowCount(); i++)
-			list.add(new TableEntry(i));
-		table.setItems(list);
+		table.getItems().setAll(getRows());
+		table.refresh();
 		
 		if (listAssociatedImages != null) {
 			if (server == null)
 				listAssociatedImages.getItems().clear();
 			else
 				listAssociatedImages.getItems().setAll(server.getAssociatedImageList());
-			
-			int nAssociated = listAssociatedImages.getItems().size();
-//			if (nAssociated == 0)
-//				panelAssociatedImages.setText("Associated images (empty)");
-//			else
-//				panelAssociatedImages.setText("Associated images (" + nAssociated + ")");
-//			panelAssociatedImages.setText("Associated images (" + nAssociated + ")");
 		}
-
-//		panelRelated.revalidate();
-			
-//		// TODO: Deal with line breaks
-//		labelPath.setText("<html><body style='width:100%'>" + server.getServerPath().replace("%20", " "));
 	}
 
 
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
 		setImageData(imageData);
-//		table.refresh();
-//		table.repaint();
 	}
 
 
@@ -698,192 +693,155 @@ public class PathImageDetailsPanel implements ChangeListener<ImageData<BufferedI
 	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		setImageData(imageDataNew);
 	}
-		
-	
-	static class PathImageDetailsTableModel {
-		
-		private ImageData<BufferedImage> imageData;
-		
-		protected enum ROW_TYPE {NAME, URI, PIXEL_TYPE, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS, PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID, METADATA_CHANGED, IMAGE_TYPE};
 
-//		protected enum ROW_TYPE {PATH, IMAGE_TYPE, MAGNIFICATION, WIDTH, HEIGHT, PIXEL_WIDTH, PIXEL_HEIGHT,
-//				CHANNEL_1, CHANNEL_1_STAIN, CHANNEL_2, CHANNEL_2_STAIN, CHANNEL_3, CHANNEL_3_STAIN
-//		};
-		
-		private PathImageDetailsTableModel(ImageData<BufferedImage> imageData) {
-			super();
-			setImageData(imageData);
-		}
-		
-		private void setImageData(ImageData<BufferedImage> imageData) {
-			if (this.imageData == null || !this.imageData.equals(imageData)) {
-				this.imageData = imageData;
-			}
-		}
-		
-		private int getNDetailRows() {
-			return ROW_TYPE.values().length;
-		}
 
-		private int getRowCount() {
-			if (imageData == null || imageData.getServer() == null)
-				return 0;
-			if (imageData.isBrightfield())
-				return getNDetailRows() + 4; // Additional space is for color deconvolution values
-			else
-				return getNDetailRows();
-		}
-		
-		private ROW_TYPE getRowType(int row) {
-			ROW_TYPE[] types = ROW_TYPE.values();
-			if (row < types.length)
-				return (types[row]);
+	private List<ImageDetailRow> getRows() {
+		if (imageData == null || imageData.getServer() == null)
+			return Collections.emptyList();
+		if (imageData.isBrightfield())
+			return brightfieldRows;
+		else
+			return otherRows;
+	}
+
+	private String getName(ImageDetailRow row) {
+		switch (row) {
+		case NAME:
+			return "Name";
+		case URI:
+			if (imageData != null && imageData.getServer().getURIs().size() == 1)
+				return "URI";
+			return "URIs";
+		case IMAGE_TYPE:
+			return "Image type";
+		case METADATA_CHANGED:
+			return "Metadata changed";
+		case PIXEL_TYPE:
+			return "Pixel type";
+		case MAGNIFICATION:
+			return "Magnification";
+		case WIDTH:
+			return "Width";
+		case HEIGHT:
+			return "Height";
+		case DIMENSIONS:
+			return "Dimensions (CZT)";
+		case PIXEL_WIDTH:
+			return "Pixel width";
+		case PIXEL_HEIGHT:
+			return "Pixel height";
+		case UNCOMPRESSED_SIZE:
+			return "Uncompressed size";
+		case SERVER_TYPE:
+			return "Server type";
+		case PYRAMID:
+			return "Pyramid";
+		case STAIN_1:
+			return "Stain 1";
+		case STAIN_2:
+			return "Stain 2";
+		case STAIN_3:
+			return "Stain 3";
+		case BACKGROUND:
+			return "Background";
+		default:
 			return null;
 		}
-		
-		private Object getName(int row) {
-			ROW_TYPE rowType = getRowType(row);
-			if (rowType == null) {
-				row -= getNDetailRows();
-				if (row < 3)
-					return String.format("Stain %d", row+1);
-				else if (row == 3)
-					return "Background";
-				else
-					return null;
-			}
-			switch (rowType) {
-			case NAME:
-				return "Name";
-			case URI:
-				if (imageData != null && imageData.getServer().getURIs().size() == 1)
-					return "URI";
-				return "URIs";
-			case IMAGE_TYPE:
-				return "Image type";
-			case METADATA_CHANGED:
-				return "Metadata changed";
-			case PIXEL_TYPE:
-				return "Pixel type";
-			case MAGNIFICATION:
-				return "Magnification";
-			case WIDTH:
-				return "Width";
-			case HEIGHT:
-				return "Height";
-			case DIMENSIONS:
-				return "Dimensions (CZT)";
-			case PIXEL_WIDTH:
-				return "Pixel width";
-			case PIXEL_HEIGHT:
-				return "Pixel height";
-			case UNCOMPRESSED_SIZE:
-				return "Uncompressed size";
-			case SERVER_TYPE:
-				return "Server type";
-			case PYRAMID:
-				return "Pyramid";
-			default:
-				return null;
-			}
+	}
+
+	static String decodeURI(URI uri) {
+		try {
+			return URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
+		} catch (Exception e) {
+			return uri.toString();
 		}
-		
-		static String decodeURI(URI uri) {
-			try {
-				return URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
-			} catch (Exception e) {
-				return uri.toString();
+	}
+
+	private Object getValue(ImageDetailRow rowType) {
+		if (imageData == null)
+			return null;
+		ImageServer<BufferedImage> server = imageData.getServer();
+		PixelCalibration cal = server.getPixelCalibration();
+		switch (rowType) {
+		case NAME:
+			var project = QuPathGUI.getInstance().getProject();
+			var entry = project == null ? null : project.getEntry(imageData);
+			if (entry == null)
+				return ServerTools.getDisplayableImageName(server);
+			else
+				return entry.getImageName();
+		case URI:
+			Collection<URI> uris = server.getURIs();
+			if (uris.isEmpty())
+				return "Not available";
+			if (uris.size() == 1)
+				return decodeURI(uris.iterator().next());
+			return "[" + String.join(", ", uris.stream().map(ImageDetailsPane::decodeURI).collect(Collectors.toList())) + "]";
+		case IMAGE_TYPE:
+			return imageData.getImageType();
+		case METADATA_CHANGED:
+			return hasOriginalMetadata(imageData.getServer()) ? "No" : "Yes";
+		case PIXEL_TYPE:
+			String type = server.getPixelType().toString().toLowerCase();
+			if (server.isRGB())
+				type += " (rgb)";
+			return type;
+		case MAGNIFICATION:
+			double mag = server.getMetadata().getMagnification();
+			if (Double.isNaN(mag))
+				return "Unknown";
+			return mag;
+		case WIDTH:
+			if (cal.hasPixelSizeMicrons())
+				return String.format("%s px (%.2f %s)", server.getWidth(), server.getWidth() * cal.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
+			else
+				return String.format("%s px", server.getWidth());
+		case HEIGHT:
+			if (cal.hasPixelSizeMicrons())
+				return String.format("%s px (%.2f %s)", server.getHeight(), server.getHeight() * cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
+			else
+				return String.format("%s px", server.getHeight());
+		case DIMENSIONS:
+			return String.format("%d x %d x %d", server.nChannels(), server.nZSlices(), server.nTimepoints());
+		case PIXEL_WIDTH:
+			if (cal.hasPixelSizeMicrons())
+				return String.format("%.4f %s", cal.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
+			else
+				return "Unknown";
+		case PIXEL_HEIGHT:
+			if (cal.hasPixelSizeMicrons())
+				return String.format("%.4f %s", cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
+			else
+				return "Unknown";
+		case UNCOMPRESSED_SIZE:
+			double size =
+			server.getWidth()/1024.0 * server.getHeight()/1024.0 * 
+			server.getPixelType().getBytesPerPixel() * server.nChannels() *
+			server.nZSlices() * server.nTimepoints();
+			String units = " MB";
+			if (size > 1000) {
+				size /= 1024.0;
+				units = " GB";
 			}
-		}
-		
-		private Object getValue(int row) {
-			ROW_TYPE rowType = getRowType(row);
-			if (rowType == null) {
-				row -= getNDetailRows();
-				if (row < 3)
-					return imageData.getColorDeconvolutionStains().getStain(row+1);
-				else if (row == 3) {
-					ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
-					double[] whitespace = new double[]{stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()};
-					return whitespace;
-				} else
-					return null;
-			}
-			ImageServer<BufferedImage> server = imageData.getServer();
-			PixelCalibration cal = server.getPixelCalibration();
-			switch (rowType) {
-			case NAME:
-				var project = QuPathGUI.getInstance().getProject();
-				var entry = project == null ? null : project.getEntry(imageData);
-				if (entry == null)
-					return ServerTools.getDisplayableImageName(server);
-				else
-					return entry.getImageName();
-			case URI:
-				Collection<URI> uris = server.getURIs();
-				if (uris.isEmpty())
-					return "Not available";
-				if (uris.size() == 1)
-					return decodeURI(uris.iterator().next());
-				return "[" + String.join(", ", uris.stream().map(PathImageDetailsTableModel::decodeURI).collect(Collectors.toList())) + "]";
-			case IMAGE_TYPE:
-				return imageData.getImageType();
-			case METADATA_CHANGED:
-				return hasOriginalMetadata(imageData.getServer()) ? "No" : "Yes";
-			case PIXEL_TYPE:
-				String type = server.getPixelType().toString().toLowerCase();
-				if (server.isRGB())
-					type += " (rgb)";
-				return type;
-			case MAGNIFICATION:
-				double mag = server.getMetadata().getMagnification();
-				if (Double.isNaN(mag))
-					return "Unknown";
-				return mag;
-			case WIDTH:
-				if (cal.hasPixelSizeMicrons())
-					return String.format("%s px (%.2f %s)", server.getWidth(), server.getWidth() * cal.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
-				else
-					return String.format("%s px", server.getWidth());
-			case HEIGHT:
-				if (cal.hasPixelSizeMicrons())
-					return String.format("%s px (%.2f %s)", server.getHeight(), server.getHeight() * cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
-				else
-					return String.format("%s px", server.getHeight());
-			case DIMENSIONS:
-				return String.format("%d x %d x %d", server.nChannels(), server.nZSlices(), server.nTimepoints());
-			case PIXEL_WIDTH:
-				if (cal.hasPixelSizeMicrons())
-					return String.format("%.4f %s", cal.getPixelWidthMicrons(), GeneralTools.micrometerSymbol());
-				else
-					return "Unknown";
-			case PIXEL_HEIGHT:
-				if (cal.hasPixelSizeMicrons())
-					return String.format("%.4f %s", cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
-				else
-					return "Unknown";
-			case UNCOMPRESSED_SIZE:
-				double size =
-						server.getWidth()/1024.0 * server.getHeight()/1024.0 * 
-						server.getPixelType().getBytesPerPixel() * server.nChannels() *
-						server.nZSlices() * server.nTimepoints();
-				String units = " MB";
-				if (size > 1000) {
-					size /= 1024.0;
-					units = " GB";
-				}
-				return GeneralTools.formatNumber(size, 1) + units;
-			case SERVER_TYPE:
-				return server.getServerType();
-			case PYRAMID:
-				if (server.nResolutions() == 1)
-					return "No";
-				return GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 1);
-//			case TMA_GRID:
-//				return new Boolean(details.hasTMAGrid());
-			default:
-				return null;
-			}
+			return GeneralTools.formatNumber(size, 1) + units;
+		case SERVER_TYPE:
+			return server.getServerType();
+		case PYRAMID:
+			if (server.nResolutions() == 1)
+				return "No";
+			return GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 1);
+		case STAIN_1:
+			return imageData.getColorDeconvolutionStains().getStain(1);
+		case STAIN_2:
+			return imageData.getColorDeconvolutionStains().getStain(2);
+		case STAIN_3:
+			return imageData.getColorDeconvolutionStains().getStain(3);
+		case BACKGROUND:
+			ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
+			double[] whitespace = new double[]{stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()};
+			return whitespace;
+		default:
+			return null;
 		}
 
 	}
