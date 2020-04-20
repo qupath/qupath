@@ -57,8 +57,8 @@ import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.writers.ome.OMEPyramidWriter;
-import qupath.lib.io.PathIO;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.scripting.QP;
@@ -196,8 +196,10 @@ class ScriptCommand implements Runnable {
 					imageData.getServer().close();
 				}
 			} else if (imagePath != null && !imagePath.equals("")) {
-				imageData = PathIO.readImageData(new File(imagePath), null, null, BufferedImage.class);
+				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(imagePath, BufferedImage.class);
+				imageData = new ImageData<>(server);
 				System.out.println(runScript(imageData));
+				server.close();
 			} else {
 				System.out.println(runScript(null));
 			}
