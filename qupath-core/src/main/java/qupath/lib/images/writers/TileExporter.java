@@ -19,6 +19,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.TransformedServerBuilder;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -57,7 +58,7 @@ public class TileExporter  {
 	/**
 	 * Define the tile size in pixel units at the export resolution.
 	 * @param tileSize
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter tileSize(int tileSize) {
 		return tileSize(tileSize, tileSize);
@@ -67,7 +68,7 @@ public class TileExporter  {
 	 * Define the horizontal and vertical tile size in pixel units at the export resolution.
 	 * @param tileWidth
 	 * @param tileHeight
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter tileSize(int tileWidth, int tileHeight) {
 		this.tileWidth = tileWidth;
@@ -78,7 +79,7 @@ public class TileExporter  {
 	/**
 	 * Export only specified channels.
 	 * @param channels channels to export (0-based indexing)
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter channels(int... channels) {
 		this.server = new TransformedServerBuilder(this.server)
@@ -90,7 +91,7 @@ public class TileExporter  {
 	/**
 	 * Export only specified channels, identified by name.
 	 * @param channelNames channels to export
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter channels(String... channelNames) {
 		this.server = new TransformedServerBuilder(this.server)
@@ -102,7 +103,7 @@ public class TileExporter  {
 	/**
 	 * Define tile overlap (both x and y) in pixel units at the export resolution.
 	 * @param overlap
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter overlap(int overlap) {
 		return overlap(overlap, overlap);
@@ -112,7 +113,7 @@ public class TileExporter  {
 	 * Define tile overlap (x and y separately) in pixel units at the export resolution.
 	 * @param overlapX
 	 * @param overlapY
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter overlap(int overlapX, int overlapY) {
 		this.overlapX = overlapX;
@@ -123,7 +124,7 @@ public class TileExporter  {
 	/**
 	 * Define resolution as a downsample value.
 	 * @param downsample
-	 * @return
+	 * @return this exporter
 	 * @see #requestedPixelSize(double)
 	 */
 	public TileExporter downsample(double downsample) {
@@ -134,7 +135,7 @@ public class TileExporter  {
 	/**
 	 * Define resolution as a pixel size in calibrated units. The actual units depend upon those stored within the server.
 	 * @param pixelSize
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter requestedPixelSize(double pixelSize) {
 		this.downsample = server.getPixelCalibration().getAveragedPixelSize().doubleValue() / pixelSize;
@@ -144,7 +145,7 @@ public class TileExporter  {
 	/**
 	 * Specify whether incomplete tiles at image boundaries should be included. Default is false.
 	 * @param includePartialTiles
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter includePartialTiles(boolean includePartialTiles) {
 		this.includePartialTiles = includePartialTiles;
@@ -154,7 +155,7 @@ public class TileExporter  {
 	/**
 	 * Specify whether tiles without any annotations should be included. Default is false.
 	 * @param annotatedTilesOnly
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter annotatedTilesOnly(boolean annotatedTilesOnly) {
 		this.annotatedTilesOnly = annotatedTilesOnly;
@@ -164,7 +165,7 @@ public class TileExporter  {
 	/**
 	 * Specify a file extension for the original pixels, which determines the export file format.
 	 * @param ext
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter imageExtension(String ext) {
 		if (!ext.startsWith("."))
@@ -176,7 +177,7 @@ public class TileExporter  {
 	/**
 	 * Specify a file extension for the labelled image, which determines the export file format.
 	 * @param ext
-	 * @return
+	 * @return this exporter
 	 */
 	public TileExporter labeledImageExtension(String ext) {
 		if (!ext.startsWith("."))
@@ -185,12 +186,23 @@ public class TileExporter  {
 		return this;
 	}
 
+	/**
+	 * Optional server providing image labels.
+	 * These may be export as corresponding images alongside the 'original' pixels, e.g. to create 
+	 * training data for an AI algorithm.
+	 * @param server the labeled server
+	 * @return this exporter
+	 */
 	public TileExporter labeledServer(ImageServer<BufferedImage> server) {
 		this.serverLabeled = server;
 		return this;
 	}
 
-
+	/**
+	 * Export the image tiles to the specified directory.
+	 * @param dirOutput full path to th export directory
+	 * @throws IOException if an error occurs during export
+	 */
 	public void writeTiles(String dirOutput) throws IOException {
 
 		if (!new File(dirOutput).isDirectory())
@@ -229,6 +241,9 @@ public class TileExporter  {
 					taskImage = null;
 				else
 					taskLabels = new ExportTask(labeledServer, r, fileOutput.getAbsolutePath(), tileWidth, tileHeight);
+			} else if (imageData != null && annotatedTilesOnly) {
+				if (imageData.getHierarchy().getObjectsForRegion(PathAnnotationObject.class, r, null).isEmpty())
+					taskImage = null;
 			}
 
 			if (taskImage != null)

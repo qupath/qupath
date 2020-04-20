@@ -23,12 +23,11 @@
 
 package qupath.lib.analysis;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;

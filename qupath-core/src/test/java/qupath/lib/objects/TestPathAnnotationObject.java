@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import qupath.lib.measurements.MeasurementFactory;
 import qupath.lib.measurements.MeasurementList;

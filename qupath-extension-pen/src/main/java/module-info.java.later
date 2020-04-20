@@ -3,6 +3,8 @@ module qupath.extension.pen {
 	
 	requires java.desktop;
 	
+	requires slf4j.api;
+	requires jpen;
 	requires qupath.gui.fx;
 
 }

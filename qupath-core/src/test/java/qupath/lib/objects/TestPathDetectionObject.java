@@ -23,7 +23,7 @@
 
 package qupath.lib.objects;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("javadoc")
 public class TestPathDetectionObject extends PathObjectTestWrapper {

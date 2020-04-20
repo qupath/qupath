@@ -73,7 +73,7 @@ import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.MiniViewers;
@@ -731,7 +731,7 @@ public class PixelClassifierPane {
 	static class FeatureRenderer extends AbstractImageRenderer {
 		
 		private DefaultImageRegionStore store;
-		private ChannelDisplayInfo.DirectServerChannelInfo selectedChannel = null;
+		private DirectServerChannelInfo selectedChannel = null;
 		private WeakReference<ImageData<BufferedImage>> currentData;
 		
 		FeatureRenderer(DefaultImageRegionStore store) {
@@ -744,7 +744,7 @@ public class PixelClassifierPane {
 				temp = new ImageData<>(server);
 				currentData = new WeakReference<ImageData<BufferedImage>>(temp);
 			}
-			selectedChannel = new ChannelDisplayInfo.DirectServerChannelInfo(temp, channel);
+			selectedChannel = new DirectServerChannelInfo(temp, channel);
 			selectedChannel.setLUTColor(255, 255, 255);
 //			autoSetDisplayRange();
 			setRange(min, max);

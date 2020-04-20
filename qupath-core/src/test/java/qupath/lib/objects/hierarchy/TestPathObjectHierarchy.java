@@ -23,13 +23,13 @@
 
 package qupath.lib.objects.hierarchy;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;

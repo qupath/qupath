@@ -316,7 +316,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			if (path == null)
 				return;
 			if (path.getValue() instanceof ProjectImageEntry) {
-				setProjectEntryImageName((ProjectImageEntry)path.getValue());
+				setProjectEntryImageName((ProjectImageEntry<BufferedImage>)path.getValue());
 			}
 		});
 		
@@ -679,7 +679,10 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		return project;
 	}
 
-
+	/**
+	 * Get the {@link Pane} component for addition to a scene.
+	 * @return
+	 */
 	public Pane getPane() {
 		return panel;
 	}
@@ -1264,7 +1267,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	}
 	
 
-	public class ImageEntryCell extends TreeCell<Object> {
+	class ImageEntryCell extends TreeCell<Object> {
 
 		final SimpleDateFormat dateFormat = new SimpleDateFormat();
 		
