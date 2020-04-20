@@ -9,8 +9,8 @@ import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.icons.IconFactory;
-import qupath.lib.gui.icons.IconFactory.PathIcons;
+import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**

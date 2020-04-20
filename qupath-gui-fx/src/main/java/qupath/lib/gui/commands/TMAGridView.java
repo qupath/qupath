@@ -82,7 +82,7 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.models.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;

@@ -80,9 +80,9 @@ import javafx.scene.transform.Transform;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ChartTools;
 import qupath.lib.gui.tools.PaneTools;
 
 /**

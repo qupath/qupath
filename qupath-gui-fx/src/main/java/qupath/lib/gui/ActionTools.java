@@ -32,7 +32,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCombination;
-import qupath.lib.gui.icons.IconFactory;
+import qupath.lib.gui.tools.IconFactory;
 
 /**
  * Helper methods for generating and configuring {@linkplain Action Actions} and UI elements.

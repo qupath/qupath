@@ -45,7 +45,6 @@ import org.slf4j.LoggerFactory;
 
 import qupath.imagej.processing.RoiLabeling;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -647,13 +646,13 @@ public class SLICSuperpixelsPlugin extends AbstractTileableDetectionPlugin<Buffe
 	    }
 	    
 	    
-	    private double getColorDistanceStdDev() {
-	    	RunningStatistics stats = new RunningStatistics();
-	    	for (int label : getLabels()) {
-	    		stats.addValue(Math.sqrt(colorDistanceSquared(label)));
-	    	}
-	    	return stats.getStdDev();
-	    }
+//	    private double getColorDistanceStdDev() {
+//	    	RunningStatistics stats = new RunningStatistics();
+//	    	for (int label : getLabels()) {
+//	    		stats.addValue(Math.sqrt(colorDistanceSquared(label)));
+//	    	}
+//	    	return stats.getStdDev();
+//	    }
 	    
 	    
 	    private double colorDistanceSquared(final int ind) {

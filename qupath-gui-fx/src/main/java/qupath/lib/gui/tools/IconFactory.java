@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.icons;
+package qupath.lib.gui.tools;
 
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Path2D;
@@ -47,7 +47,6 @@ import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.shape.Rectangle;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.roi.EllipseROI;

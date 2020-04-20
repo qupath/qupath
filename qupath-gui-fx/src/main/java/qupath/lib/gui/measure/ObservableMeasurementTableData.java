@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.models;
+package qupath.lib.gui.measure;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -56,7 +56,7 @@ import javafx.collections.transformation.FilteredList;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.models.ObservableMeasurementTableData.ROICentroidMeasurementBuilder.CentroidType;
+import qupath.lib.gui.measure.ObservableMeasurementTableData.ROICentroidMeasurementBuilder.CentroidType;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -101,7 +101,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private DerivedMeasurementManager manager;
 	private Map<String, MeasurementBuilder<?>> builderMap = new LinkedHashMap<>();
 	
-	
+	/**
+	 * Set the {@link ImageData} and a collection of objects to measure.
+	 * @param imageData the {@link ImageData}, required to determine many dynamic measurements
+	 * @param pathObjects the objects to measure ('rows' in the table)
+	 */
 	public synchronized void setImageData(final ImageData<?> imageData, final Collection<? extends PathObject> pathObjects) {
 		this.imageData = imageData;
 		list.setAll(pathObjects);
@@ -119,7 +123,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		return imageData;
 	}
 	
-	
+	/**
+	 * Update the entire measurement list for the current objects.
+	 * @see #setImageData(ImageData, Collection)
+	 */
 	public synchronized void updateMeasurementList() {
 		
 //		PathPrefs.setAllredMinPercentagePositive(0);
@@ -229,6 +236,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			boolean anyPoints = false;
 			boolean anyAreas = false;
 			boolean anyLines = false;
+			@SuppressWarnings("unused")
 			boolean anyPolygons = false;
 			for (PathObject pathObject : pathObjectListCopy) {
 				if (!pathObject.isAnnotation())
@@ -309,19 +317,34 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 	}
 	
-	
+	/**
+	 * Set a predicate used to filter the rows of the table.
+	 * @param predicate
+	 */
 	public void setPredicate(Predicate<? super PathObject> predicate) {
 		filterList.setPredicate(predicate);
 	}
 	
-	
+	/**
+	 * Refresh the measurement values.
+	 */
 	public void refreshEntries() {
 		// Clear the cached map to force updates
 		if (manager != null)
 			manager.map.clear();
 	}
 	
-	
+	/**
+	 * Create a specific numeric measurement.
+	 * <p>
+	 * Warning! This binding is not guaranteed to update its value automatically upon changes to the 
+	 * underlying object or data.
+	 * 
+	 * @param pathObject
+	 * @param column
+	 * @return
+	 */
+	@Deprecated
 	public Binding<Number> createNumericMeasurement(final PathObject pathObject, final String column) {
 		MeasurementBuilder<?> builder = builderMap.get(column);
 		if (builder == null)
@@ -333,6 +356,17 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	
+	/**
+	 * Create a specific String measurement.
+	 * <p>
+	 * Warning! This binding is not guaranteed to update its value automatically upon changes to the 
+	 * underlying object or data.
+	 * 
+	 * @param pathObject
+	 * @param column
+	 * @return
+	 */
+	@Deprecated
 	public Binding<String> createStringMeasurement(final PathObject pathObject, final String column) {
 		MeasurementBuilder<?> builder = builderMap.get(column);
 		if (builder instanceof StringMeasurementBuilder)
@@ -341,11 +375,20 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			throw new IllegalArgumentException(column + " does not represent a String measurement!");
 	}
 
-	
+	/**
+	 * Query whether a named measurement returns a {@link String} value only.
+	 * @param name the measurement name
+	 * @return true if the measurement returns a String (only), false otherwise
+	 */
 	public boolean isStringMeasurement(final String name) {
 		return builderMap.get(name) instanceof StringMeasurementBuilder;
 	}
 	
+	/**
+	 * Query whether a named measurement returns a numeric value only.
+	 * @param name the measurement name
+	 * @return true if the measurement returns a number, false otherwise
+	 */
 	public boolean isNumericMeasurement(final String name) {
 		return !isStringMeasurement(name);
 	}
@@ -387,7 +430,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	}
 	
 	@Override
-	public ObservableList<PathObject> getEntries() {
+	public ObservableList<PathObject> getItems() {
 		return filterList;
 	}
 	

@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.models;
+package qupath.lib.gui.charts;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,9 +49,9 @@ import javafx.scene.layout.Priority;
 import javafx.util.Callback;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.charts.HistogramPanelFX.HistogramData;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
-import qupath.lib.gui.plots.HistogramPanelFX;
-import qupath.lib.gui.plots.HistogramPanelFX.HistogramData;
+import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.plugins.parameters.IntParameter;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;

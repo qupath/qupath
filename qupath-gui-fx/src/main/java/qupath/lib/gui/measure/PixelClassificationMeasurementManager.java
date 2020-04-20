@@ -1,4 +1,4 @@
-package qupath.lib.gui.models;
+package qupath.lib.gui.measure;
 
 import java.awt.BasicStroke;
 import java.awt.Color;

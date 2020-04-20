@@ -30,6 +30,7 @@ import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
 
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;

@@ -1,4 +1,4 @@
-package qupath.lib.gui.tools;
+package qupath.lib.gui.charts;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +31,8 @@ import javafx.stage.Window;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
@@ -311,7 +313,10 @@ public class Charts {
 	}
 	
 	
-	static class PieChartBuilder extends ChartBuilder<PieChartBuilder, PieChart> {
+	/**
+	 * Builder for creating pie charts.
+	 */
+	public static class PieChartBuilder extends ChartBuilder<PieChartBuilder, PieChart> {
 		
 		private Map<Object, Number> data = new LinkedHashMap<>();
 		private Map<Object, Function<Object, String>> stringFun = new LinkedHashMap<>();
@@ -534,7 +539,10 @@ public class Charts {
 	}
 	
 	
-	static class ScatterchartBuilder extends XYNumberChartBuilder<ScatterchartBuilder, ScatterChart<Number, Number>> {
+	/**
+	 * Builder for creating scatter charts.
+	 */
+	public static class ScatterchartBuilder extends XYNumberChartBuilder<ScatterchartBuilder, ScatterChart<Number, Number>> {
 	
 		private ObservableList<Series<Number, Number>> series = FXCollections.observableArrayList();
 		

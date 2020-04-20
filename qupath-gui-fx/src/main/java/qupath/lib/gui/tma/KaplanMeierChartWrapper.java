@@ -70,9 +70,9 @@ import qupath.lib.analysis.stats.survival.KaplanMeierData;
 import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panes.ExportChartPane;
-import qupath.lib.gui.tools.ChartTools;
 
 /**
  * Wrapper class for custom chart used to show Kaplan Meier survival curves.

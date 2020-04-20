@@ -203,7 +203,7 @@ allprojects {
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.4'
+    richtextVersion    = '0.10.5'
     picocliVersion     = '4.2.0'
     jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
@@ -215,14 +215,21 @@ allprojects {
     slf4jVersion       = '1.3.0'
     junitVersion       = '5.4.2'
     
-    // External javadocs for key dependencies
-    externalJavadocs = [
-			"https://docs.oracle.com/en/java/javase/11/docs/api/",
-			"https://imagej.nih.gov/ij/developer/api/",
-			"https://locationtech.github.io/jts/javadoc/",
-			"https://javadoc.io/doc/com.google.code.gson/gson/latest/com.google.gson/",
-			"https://javadoc.io/doc/org.bytedeco/javacpp/latest/"
-			]
+    /*
+     * Link to the main external Javadocs if -PlinkJavadoc=true
+     */
+    if (findProperty('linkJavadoc'))
+	    externalJavadocs = [
+				"https://docs.oracle.com/en/java/javase/11/docs/api/",
+//				"https://openjfx.io/javadoc/11/", // The fact we don't yet use modules causes trouble here; see https://bugs.openjdk.java.net/browse/JDK-8240169
+				"https://javadoc.io/doc/org.controlsfx/controlsfx/", // May not be working..?
+				"https://imagej.nih.gov/ij/developer/api/",
+				"https://locationtech.github.io/jts/javadoc/",
+				"https://javadoc.io/doc/com.google.code.gson/gson/latest",
+				"https://javadoc.io/doc/org.bytedeco/javacpp/" + javacppVersion
+				]
+	else
+		externalJavadocs = []
   }
 
   configurations {
@@ -602,6 +609,7 @@ task mergedJavadocs(type: Javadoc) {
     
     options {
     	links += rootProject.ext.externalJavadocs
+    	source = javaVersion
     }
     
     destinationDir = new File(buildDir, 'merged-docs')

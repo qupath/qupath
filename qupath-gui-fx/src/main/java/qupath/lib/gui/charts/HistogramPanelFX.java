@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.plots;
+package qupath.lib.gui.charts;
 
 import java.util.ArrayList;
 import java.util.HashMap;

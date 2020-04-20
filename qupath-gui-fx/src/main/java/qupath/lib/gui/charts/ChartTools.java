@@ -21,8 +21,16 @@
  * #L%
  */
 
-package qupath.lib.gui.tools;
+package qupath.lib.gui.charts;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -33,14 +41,17 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.chart.Chart;
 import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.chart.XYChart.Data;
 import javafx.scene.chart.XYChart.Series;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import qupath.lib.gui.panes.ExportChartPane;
@@ -55,6 +66,12 @@ import qupath.lib.gui.panes.ExportChartPane;
 public class ChartTools {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ChartTools.class);
+	
+	/**
+	 * Cache of stylesheets for pie charts, which are temp files.
+	 */
+	private static Map<String, String> piechartStyleSheets = new HashMap<>();
+
 
 	/**
 	 * Get a string representation of chart data, in such a way that it could be pasted into a spreadsheet.
@@ -255,6 +272,93 @@ public class ChartTools {
 		    }
 		}
 	}
+
+	/**
+		 * Set pie chart data from a count map.
+		 * 
+		 * @param <T> the type of the data being counted
+		 * @param chart the pie chart to update
+		 * @param counts mapping between items and their counts
+		 * @param stringFun function to extract a string from each item (may be null to use default {@code toString()} method)
+		 * @param colorFun function to extract a color from each item (may be null to use default colors)
+		 * @param convertToPercentages if true, convert counts to percentages; if false, use original values
+		 * @param includeTooltips if true, install tooltips for each 'slice' to display the numeric information
+		 */
+		public static <T> void setPieChartData(PieChart chart, Map<T, ? extends Number> counts,
+				Function<T, String> stringFun, Function<T, Color> colorFun, boolean convertToPercentages, boolean includeTooltips) {
+			
+			StringBuilder style = null;
+			if (colorFun != null)
+				style = new StringBuilder();
+	
+			double sum = counts.values().stream().mapToDouble(i -> i.doubleValue()).sum();
+			var newData = new ArrayList<PieChart.Data>();
+			int ind = 0;
+			var tooltips = new HashMap<PieChart.Data, Tooltip>();
+			for (Entry<T, ? extends Number> entry : counts.entrySet()) {
+				var item = entry.getKey();
+				String name;
+				if (stringFun != null)
+					name = stringFun.apply(item);
+				else
+					name = Objects.toString(item);
+				double value = entry.getValue().doubleValue();
+				if (convertToPercentages)
+					value = value / sum * 100.0;
+				var datum = new PieChart.Data(name, value);
+				newData.add(datum);
+	
+				if (style != null) {
+					var color = colorFun.apply(item);
+					if (color != null) {
+						String colorString;
+						// TODO: Use alpha?
+	//					if (color.isOpaque())
+							colorString = String.format("rgb(%d, %d, %d)", (int)(color.getRed()*255), (int)(color.getGreen()*255), (int)(color.getBlue()*255));
+	//					else
+	//						colorString = String.format("rgba(%f, %f, %f, %f)", color.getRed(), color.getGreen(), color.getBlue(), 1.0-color.getOpacity());
+						style.append(String.format(".default-color%d.chart-pie { -fx-pie-color: %s; }", ind, colorString)).append("\n");
+					}
+					ind++;
+				}
+	
+				if (includeTooltips) {
+					var text = String.format("%s: %.1f%%", name, value);
+					tooltips.put(datum, new Tooltip(text));
+				}
+			}
+	
+			if (style != null) {
+				var styleString = style.toString();
+				var sheet = piechartStyleSheets.get(styleString);
+				sheet = null;
+				if (sheet == null) {
+					try {
+						var file = File.createTempFile("chart", ".css");
+						file.deleteOnExit();
+						var writer = new PrintWriter(file);
+						writer.println(styleString);
+						writer.close();
+						sheet = file.toURI().toURL().toString();
+						piechartStyleSheets.put(styleString, sheet);
+					} catch (IOException e) {
+						logger.error("Error creating temporary piechart stylesheet", e);
+					}			
+				}
+				if (sheet != null)
+					chart.getStylesheets().setAll(sheet);
+			}
+	
+			chart.setAnimated(false);
+			chart.getData().setAll(newData);
+	
+			if (includeTooltips) {
+				for (var entry : tooltips.entrySet()) {
+					Tooltip.install(entry.getKey().getNode(), entry.getValue());
+				}
+			}
+	
+		}
 	
 	
 
