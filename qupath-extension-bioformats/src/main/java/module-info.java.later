@@ -11,5 +11,11 @@ module qupath.extension.bioformats {
 //    requires formats.gpl;
 
     requires slf4j.api;
+    
+    provides qupath.lib.images.servers.ImageServerBuilder with
+    	qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
+    
+    provides qupath.lib.images.writers.ImageWriter with
+    	qupath.lib.images.writers.ome.OMETiffWriter;
 	
 }

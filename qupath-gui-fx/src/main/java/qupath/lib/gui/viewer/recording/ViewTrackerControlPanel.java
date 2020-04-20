@@ -34,7 +34,7 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.ToolBar;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.icons.IconFactory;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**

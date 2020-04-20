@@ -1,7 +1,7 @@
 package qupath.lib.io;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,10 +11,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.BeforeClass;
-import org.junit.FixMethodOrder;
-import org.junit.Test;
-import org.junit.runners.MethodSorters;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
@@ -26,7 +26,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 
 @SuppressWarnings("javadoc")
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
+@TestMethodOrder(MethodOrderer.Alphanumeric.class)
 public class PointIOTest {
 
 	static Map<Integer, Double[][]> map;
@@ -42,7 +42,7 @@ public class PointIOTest {
 	 *
 	 * N.B: Each sets has its own unique color.
 	 */
-	@BeforeClass
+	@BeforeAll
 	public static void init() {
 		map = new HashMap<Integer, Double[][]>();
 

@@ -70,6 +70,10 @@ public class LogViewerCommand implements Runnable {
 	private Stage dialog = null;
 	private TextArea textPane = new TextArea();
 	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 */
 	public LogViewerCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		LoggingAppender.getInstance().addTextAppendableFX(text -> textPane.appendText(text));

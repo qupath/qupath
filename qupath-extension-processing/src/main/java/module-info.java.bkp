@@ -1,0 +1,22 @@
+module qupath.extension.processing {
+	
+	requires java.base;
+	requires java.desktop;
+	
+	requires javafx.controls;
+	
+	requires qupath.core;
+    requires qupath.core.processing;
+    requires qupath.gui.fx;
+
+    requires slf4j.api;
+    requires org.bytedeco.opencv;
+	requires org.controlsfx.controls;
+	requires org.locationtech.jts;
+	
+	exports qupath.imagej.gui;
+	
+	provides qupath.lib.gui.extensions.QuPathExtension with 
+		qupath.imagej.gui.IJExtension, qupath.opencv.gui.OpenCVExtension;
+	
+}

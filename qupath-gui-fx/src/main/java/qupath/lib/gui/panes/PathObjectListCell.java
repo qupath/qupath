@@ -4,7 +4,7 @@ import java.util.function.Function;
 
 import javafx.scene.control.ListCell;
 import javafx.scene.control.Tooltip;
-import qupath.lib.gui.icons.IconFactory;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 

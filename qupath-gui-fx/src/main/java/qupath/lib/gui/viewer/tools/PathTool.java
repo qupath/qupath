@@ -34,12 +34,31 @@ import qupath.lib.gui.viewer.QuPathViewer;
  */
 public interface PathTool {
 	
+	/**
+	 * Register the tool on the viewer. This typically means adding a mouse listener.
+	 * A tool should only be registered on one viewer at a time, and only one tool should 
+	 * be registered per viewer.
+	 * @param viewer the viewer for which this tool should be registered
+	 */
 	public void registerTool(QuPathViewer viewer);
 
+	/**
+	 * Deregister the tool from the viewer. It is essential that tools clean up properly 
+	 * and do not impact other tools that may be registered for the viewer later.
+	 * @param viewer the viewer from which this tool should be deregistered
+	 */
 	public void deregisterTool(QuPathViewer viewer);
 	
+	/**
+	 * Get the name of the tool
+	 * @return
+	 */
 	public String getName();
 	
+	/**
+	 * Get the icon of the tool.
+	 * @return
+	 */
 	public Node getIcon();
 
 }

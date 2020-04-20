@@ -137,16 +137,15 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.charts.ChartTools;
+import qupath.lib.gui.charts.HistogramDisplay;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.models.HistogramDisplay;
-import qupath.lib.gui.models.ObservableMeasurementTableData;
-import qupath.lib.gui.models.PathTableData;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.tma.TMAEntries.MeasurementCombinationMethod;
 import qupath.lib.gui.tma.TMAEntries.TMAEntry;
 import qupath.lib.gui.tma.TMAEntries.TMAObjectEntry;
-import qupath.lib.gui.tools.ChartTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
@@ -556,7 +555,7 @@ public class TMASummaryViewer {
 		
 		
 		
-		model.getEntries().addListener(new ListChangeListener<TMAEntry>() {
+		model.getItems().addListener(new ListChangeListener<TMAEntry>() {
 			@Override
 			public void onChanged(ListChangeListener.Change<? extends TMAEntry> c) {
 				if (histogramDisplay != null)
@@ -708,7 +707,7 @@ public class TMASummaryViewer {
 		colScore = comboMainMeasurement.getSelectionModel().getSelectedItem();
 		if (colID == null || colSurvival == null || colCensored == null) {// || colScore == null) {
 			// Adjust priority depending on whether we have any data at all..
-			if (!model.getEntries().isEmpty())
+			if (!model.getItems().isEmpty())
 				logger.warn("No survival data found!");
 			else
 				logger.trace("No entries or survival data available");
@@ -716,7 +715,7 @@ public class TMASummaryViewer {
 		}
 		
 		// Generate a pseudo TMA core hierarchy
-		Map<String, List<TMAEntry>> scoreMap = createScoresMap(model.getEntries(), colScore, colID);
+		Map<String, List<TMAEntry>> scoreMap = createScoresMap(model.getItems(), colScore, colID);
 		
 //		System.err.println("Score map size: " + scoreMap.size() + "\tEntries: " + model.getEntries().size());
 		
@@ -1739,7 +1738,7 @@ public class TMASummaryViewer {
 
 		@Override
 		public double[] getDoubleValues(String column) {
-			List<TMAEntry> entries = getEntries();
+			List<TMAEntry> entries = getItems();
 			double[] values = new double[entries.size()];
 			for (int i = 0; i < entries.size(); i++)
 				values[i] = getNumericValue(entries.get(i), column);
@@ -1747,7 +1746,7 @@ public class TMASummaryViewer {
 		}
 
 		@Override
-		public ObservableList<TMAEntry> getEntries() {
+		public ObservableList<TMAEntry> getItems() {
 			return list;
 //			if (useSelectedProperty.get())
 //				return Collections.unmodifiableList(table.getSelectionModel().getSelectedItems());
@@ -1843,7 +1842,7 @@ public class TMASummaryViewer {
 			double[] y = model.getDoubleValues(yMeasurement);
 			int count = 0;
 			
-			List<TMAEntry> entries = model.getEntries();
+			List<TMAEntry> entries = model.getItems();
 			ObservableList<XYChart.Data<Number, Number>> data = FXCollections.observableArrayList();
 			for (int i = 0; i < x.length; i++) {
 				double xx = x[i];

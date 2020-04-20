@@ -22,7 +22,7 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
-import qupath.lib.gui.models.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;

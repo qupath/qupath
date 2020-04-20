@@ -39,12 +39,11 @@ import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
-import qupath.lib.gui.icons.IconFactory;
-import qupath.lib.gui.icons.IconFactory.PathIcons;
+import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.features.DelaunayClusteringPlugin;
-import qupath.opencv.tools.WandToolCV;
 
 /**
  * QuPath extension to add commands dependent on OpenCV.

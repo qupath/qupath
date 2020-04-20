@@ -1,9 +1,6 @@
 package qupath.lib.roi;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -16,7 +13,7 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
 
 import qupath.lib.geom.Point2;
@@ -63,7 +60,7 @@ public class TestROIs {
 		// ROIs with holes can be troublesome, JTS may consider holes as 'positive' regions
 		ROI areaSubtracted = RoiTools.combineROIs(rectangle, ellipse, CombineOp.SUBTRACT);
 		assertEquals(areaSubtracted.getArea(), areaSubtracted.getGeometry().getArea(), delta);
-		assertNotEquals(areaSubtracted.getArea(), rectangle.getArea(), delta);
+		assertNotEquals(areaSubtracted.getArea(), rectangle.getArea());
 		checkROIMeasurements(areaSubtracted, 1, 1, delta);
 		checkROIMeasurements(areaSubtracted, pixelWidth, pixelHeight, delta);
 		assertTrue(areaSubtracted.getGeometry().isValid());

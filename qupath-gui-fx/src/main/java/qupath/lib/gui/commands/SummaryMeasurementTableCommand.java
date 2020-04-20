@@ -80,10 +80,10 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.charts.HistogramDisplay;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.models.HistogramDisplay;
-import qupath.lib.gui.models.ObservableMeasurementTableData;
-import qupath.lib.gui.models.PathTableData;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.PathTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -167,7 +167,7 @@ public class SummaryMeasurementTableCommand {
 		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
 
 		SplitPane splitPane = new SplitPane();
-		HistogramDisplay histogramDisplay = new HistogramDisplay(model);
+		HistogramDisplay histogramDisplay = new HistogramDisplay(model, true);
 
 		//		table.setTableMenuButtonVisible(true);
 		TableView<PathObject> table = new TableView<>();
@@ -259,7 +259,7 @@ public class SummaryMeasurementTableCommand {
 
 
 		// Set the PathObjects - need to deal with sorting, since a FilteredList won't handle it directly
-		SortedList<PathObject> items = new SortedList<>(model.getEntries());
+		SortedList<PathObject> items = new SortedList<>(model.getItems());
 		items.comparatorProperty().bind(table.comparatorProperty());
 		table.setItems(items);
 
@@ -705,7 +705,7 @@ public class SummaryMeasurementTableCommand {
 		rows.add(sb.toString());
 		sb.setLength(0);
 		
-		for (T object : model.getEntries()) {
+		for (T object : model.getItems()) {
 			for (int col = 0; col < nColumns; col++) {
 				String val = model.getStringValue(object, names.get(col));
 				if (val != null) {
