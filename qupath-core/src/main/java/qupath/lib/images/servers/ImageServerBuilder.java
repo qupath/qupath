@@ -268,6 +268,7 @@ public interface ImageServerBuilder<T> {
 		
 		private DefaultImageServerBuilder(String providerClassName, URI uri, String[] args, ImageServerMetadata metadata) {
 			super(metadata);
+			logger.trace("Creating default server builder for URI ", uri);
 			this.providerClassName = providerClassName;
 			this.uri = uri;
 			this.args = args;

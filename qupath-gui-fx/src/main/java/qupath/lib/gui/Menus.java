@@ -23,10 +23,7 @@ import qupath.lib.gui.QuPathGUI.DefaultActions;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.ProjectCommands;
-import qupath.lib.gui.commands.SparseImageServerCommand;
-import qupath.lib.gui.commands.SpecifyAnnotationCommand;
 import qupath.lib.gui.commands.TMACommands;
-import qupath.lib.gui.commands.ZoomCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panes.SlideLabelView;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -263,7 +260,7 @@ class Menus {
 		@ActionDescription("Create an image comprised of regions extracted from multiple images in a project. " +
 				"This can be useful for interactively training a classifier across a varied dataset.")
 		@ActionMenu("Training images>Create combined training image")
-		public final Action TRAINING_IMAGE = createAction(new SparseImageServerCommand(qupath));
+		public final Action TRAINING_IMAGE = qupath.createProjectAction(project -> Commands.promptToCreateSparseServer(qupath));
 
 	}
 	
@@ -302,7 +299,7 @@ class Menus {
 		@ActionDescription("Edit the metadata for the current project. " + 
 				"By adding key-value properties to images, they can be sorted and queried more easily.")
 		@ActionMenu("Project...>Edit project metadata")
-		public final Action METADATA = qupath.createProjectAction(project -> ProjectCommands.showProjectMetadataEditor(qupath));
+		public final Action METADATA = qupath.createProjectAction(project -> ProjectCommands.showProjectMetadataEditor(project));
 		
 		@ActionDescription("Check the 'Uniform Resource Identifiers' for images in the current project. " +
 				"This basically helps fix things whenever files have moved and images can no longer be found.")
@@ -462,7 +459,7 @@ class Menus {
 		
 		@ActionDescription("Create a rectangle or ellipse annotation with the specified properties.")
 		@ActionMenu("Annotations...>Specify annotation")
-		public final Action SPECIFY_ANNOTATION = createAction(new SpecifyAnnotationCommand(qupath));
+		public final Action SPECIFY_ANNOTATION = Commands.createSingleStageAction(() -> Commands.createSpecifyAnnotationDialog(qupath));
 		
 		@ActionDescription("Create an annotation representing the full width and height of the current image.")
 		@ActionMenu("Annotations...>Create full image annotation")
@@ -652,12 +649,12 @@ class Menus {
 		@ActionMenu("Zoom...>Zoom in")
 		@ActionIcon(PathIcons.ZOOM_IN)
 		@ActionAccelerator("ignore shift+plus")
-		public final Action ZOOM_IN = createAction(ZoomCommand.createZoomInCommand(qupath.viewerProperty()));
+		public final Action ZOOM_IN = Commands.createZoomCommand(qupath, 10);
 		@ActionDescription("Zoom out for the current viewer")
 		@ActionMenu("Zoom...>Zoom out")
 		@ActionIcon(PathIcons.ZOOM_OUT)
 		@ActionAccelerator("-")
-		public final Action ZOOM_OUT = createAction(ZoomCommand.createZoomOutCommand(qupath.viewerProperty()));
+		public final Action ZOOM_OUT = Commands.createZoomCommand(qupath, -10);
 		
 		@ActionDescription("Adjust zoom for all images to fit the entire image in the viewer")
 		@ActionMenu("Zoom...>Zoom to fit")

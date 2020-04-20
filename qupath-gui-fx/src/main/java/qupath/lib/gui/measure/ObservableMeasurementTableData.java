@@ -1785,6 +1785,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		return GeneralTools.formatNumber(val, 4);
 	}
 
+	/**
+	 * Get the names of all columns corresponding to metadata (String) values.
+	 * @return
+	 */
 	public ReadOnlyListWrapper<String> getMetadataNames() {
 		return new ReadOnlyListWrapper<>(metadataList);
 	}	

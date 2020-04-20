@@ -120,9 +120,9 @@ import qupath.lib.roi.interfaces.ROI;
  *
  * @param <T>
  */
-public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements PathObjectHierarchyListener, ChangeListener<ImageData<BufferedImage>> {
+public class ClassifierBuilderPane<T extends PathObjectClassifier> implements PathObjectHierarchyListener, ChangeListener<ImageData<BufferedImage>> {
 
-	private final static Logger logger = LoggerFactory.getLogger(ClassifierBuilderPanel.class);
+	private final static Logger logger = LoggerFactory.getLogger(ClassifierBuilderPane.class);
 
 	private QuPathGUI qupath;
 	
@@ -154,7 +154,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 
 	private T classifier; // Current classifier
 	private T lastClassifierCompleted; // Last classifier that ran to completion
-	private PathIntensityClassifierPanel panelIntensities;
+	private PathIntensityClassifierPane panelIntensities;
 
 	/**
 	 * If true, PathObjects will only be included if they have base classifications that are either null or represented within the training annotations.
@@ -165,7 +165,7 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	 */
 	//	private static boolean limitTrainingToRepresentedClasses = true;
 
-	private FeatureSelectionPanel featurePanel;
+	private FeatureSelectionPane featurePanel;
 
 	// Record whether the hierarchy has changed (indicating a need for reclassification)
 	private boolean hierarchyChanged = false;
@@ -191,7 +191,13 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 			.addBooleanParameter("limitTrainingToRepresentedClasses", "Limit to represented classes", false, "Limit classification to only objects that are unclassified, or have classifications within the training set." + 
 					"\nTurn this setting on if you want to ignore objects that have already been classified as something else, rather than reclassify them.");
 
-	public ClassifierBuilderPanel(final QuPathGUI qupath, final List<T> classifiers, final T classifierDefault) {
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance
+	 * @param classifiers available classifiers
+	 * @param classifierDefault default classifier
+	 */
+	public ClassifierBuilderPane(final QuPathGUI qupath, final List<T> classifiers, final T classifierDefault) {
 		this.qupath = qupath;
 
 		comboClassifiers.getItems().addAll(classifiers);
@@ -226,9 +232,9 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 		comboClassifiers.setButtonCell(comboClassifiers.getCellFactory().call(null));
 
 		// Awkward... but need to create before FeatureSelectionPanel
-		panelIntensities = new PathIntensityClassifierPanel(qupath);
+		panelIntensities = new PathIntensityClassifierPane(qupath);
 
-		featurePanel = new FeatureSelectionPanel(qupath, panelIntensities);
+		featurePanel = new FeatureSelectionPane(qupath, panelIntensities);
 		featurePanel.getPanel().setMinWidth(400);
 		initializeBuildPanel();
 
@@ -496,6 +502,10 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	}
 
 
+	/**
+	 * Get the current classifier.
+	 * @return
+	 */
 	public T getClassifier() {
 		return classifier;
 	}
@@ -579,7 +589,10 @@ public class ClassifierBuilderPanel<T extends PathObjectClassifier> implements P
 	}
 
 
-
+	/**
+	 * Get the pane, which can be added to a scene for display.
+	 * @return
+	 */
 	public Pane getPane() {
 		return panelClassifier;
 	}

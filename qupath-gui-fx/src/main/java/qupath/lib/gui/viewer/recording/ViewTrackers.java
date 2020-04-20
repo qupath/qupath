@@ -18,7 +18,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * @author Pete Bankhead
  *
  */
-public class ViewTrackers {
+class ViewTrackers {
 
 	/**
 	 * Create a new default ViewTracker, without any eye tracking involved.

@@ -70,8 +70,6 @@ public class HistogramPanelFX {
 	private final NumberAxis yAxis = new NumberAxis();
 	private final AreaChart<Number, Number> chart = new AreaChart<>(xAxis,yAxis);
 	
-	private boolean drawAxes = false;
-	
 	private ObservableList<HistogramData> histogramData = FXCollections.observableArrayList();
 	
 	@SuppressWarnings("javadoc")
@@ -119,7 +117,10 @@ public class HistogramPanelFX {
 		     });
 	}
 	
-	
+	/**
+	 * Get all histogram data objects.
+	 * @return
+	 */
 	public ObservableList<HistogramData> getHistogramData() {
 		return histogramData;
 	}
@@ -158,7 +159,10 @@ public class HistogramPanelFX {
 		return new HistogramData(histogram, areaPlot, color == null ? null : ColorToolsFX.getCachedColor(color));
 	}
 	
-	
+	/**
+	 * Get the {@link AreaChart} depicting the histogram.
+	 * @return
+	 */
 	public AreaChart<Number, Number> getChart() {
 		return chart;
 	}
@@ -188,18 +192,19 @@ public class HistogramPanelFX {
 ////					histogram.getCountsForBin(ind));
 //	}
 	
-	
-	public void setDrawAxes(boolean drawAxes) {
-		xAxis.setTickLabelsVisible(drawAxes);
-		yAxis.setTickLabelsVisible(drawAxes);
+	/**
+	 * Request that tick labels are visible or not for both x and y axis.
+	 * @param showTickLabels
+	 */
+	public void setShowTickLabels(boolean showTickLabels) {
+		xAxis.setTickLabelsVisible(showTickLabels);
+		yAxis.setTickLabelsVisible(showTickLabels);
 	}
 	
-	public boolean getDrawAxes() {
-		return drawAxes;
-	}
 	
-	
-	
+	/**
+	 * Helper class for representing data that may be visualized with a {@link HistogramPanelFX}.
+	 */
 	public static class HistogramData {
 		
 		private Histogram histogram;
@@ -224,23 +229,43 @@ public class HistogramPanelFX {
 			setColor(color);
 		}
 		
+		/**
+		 * Returns true if the counts are normalized for display.
+		 * @return
+		 */
 		public boolean doNormalizeCounts() {
 			return doNormalizeCounts;
 		}
 		
-		public void setDoNormalizeCounts(final boolean doNormalizeCounts) {
+		/**
+		 * Request that counts are normalized for display.
+		 * @param doNormalizeCounts
+		 */
+		public void setNormalizeCounts(final boolean doNormalizeCounts) {
 			this.doNormalizeCounts = doNormalizeCounts;
 		}
 		
+		/**
+		 * Set the histogram stroke color.
+		 * @param color
+		 */
 		private void setColor(final Color color) {
 			this.colorStroke = color;
 			this.colorFill = color == null ? null : Color.color(color.getRed(), color.getGreen(), color.getBlue(), color.getOpacity()/4);			
 		}
 		
+		/**
+		 * Get the histogram stroke color.
+		 * @return
+		 */
 		public Color getStroke() {
 			return colorStroke;
 		}
 		
+		/**
+		 * Get the histogram fill color.
+		 * @return
+		 */
 		public Color getFill() {
 			return colorFill;
 		}
@@ -327,12 +352,7 @@ public class HistogramPanelFX {
 		}
 		
 		
-		public Histogram getHistogram() {
-			return histogram;
-		}
-		
-		
-		public Series<Number,Number> getSeries() {
+		private Series<Number,Number> getSeries() {
 			if (series == null)
 				createSeries();
 			return series;
@@ -353,9 +373,14 @@ public class HistogramPanelFX {
 			createSeries();
 		}
 		
-		public void update() {
-			createSeries();
+		/**
+		 * Get the histogram.
+		 * @return
+		 */
+		public Histogram getHistogram() {
+			return histogram;
 		}
+
 		
 	}
 	
@@ -417,29 +442,47 @@ public class HistogramPanelFX {
 	        
 		}
 		
-		
+		/**
+		 * Get the pane containing the histogram, which may be added to a scene.
+		 * @return
+		 */
 		public Pane getPane() {
 			return pane;
 		}
 		
-		
-		public void setVerticalLines(double[] x, Color color) {
+		/**
+		 * Set thresholds, which are visualized as vertical lines.
+		 * @param color
+		 * @param thresholds
+		 */
+		public void setThresholds(Color color, double... thresholds) {
 			clearThresholds();
-			for (double xx : x)
+			for (double xx : thresholds)
 				addThreshold(xx, color);
 		}
 		
-		
+		/**
+		 * Get a list of all thresholds.
+		 * @return
+		 */
 		public ObservableList<ObservableNumberValue> getThresholds() {
 			return thresholds;
 		}
 		
 		
+		/**
+		 * Clear all thresholds.
+		 */
 		public void clearThresholds() {
 			this.thresholds.clear();
 		}
 		
-		public void setColor(final ObservableNumberValue val, final Color color) {
+		/**
+		 * Set the color of a specified threshold line.
+		 * @param val
+		 * @param color
+		 */
+		public void setThresholdColor(final ObservableNumberValue val, final Color color) {
 			Line line = vLines.get(val);
 			if (line == null) {
 				logger.warn("No threshold line found for {}", val);
@@ -448,15 +491,32 @@ public class HistogramPanelFX {
 			line.setStroke(color);
 		}
 		
-		
+		/**
+		 * Add a threshold value.
+		 * @param x
+		 * @return
+		 */
 		public ObservableNumberValue addThreshold(final double x) {
 			return addThreshold(x, null);
 		}
 
+		/**
+		 * Add a threshold value with its display color.
+		 * @param x
+		 * @param color
+		 * @return
+		 */
 		public ObservableNumberValue addThreshold(final double x, final Color color) {
 			return addThreshold(new SimpleDoubleProperty(x), color);
 		}
 		
+		
+		/**
+		 * Add a threshold value with its display color.
+		 * @param d
+		 * @param color
+		 * @return
+		 */
 		public ObservableNumberValue addThreshold(final ObservableNumberValue d, final Color color) {
 			Line line = new Line();
 			if (color != null)
@@ -567,26 +627,50 @@ public class HistogramPanelFX {
 			return d;
 		}
 		
+		/**
+		 * Line width property used for displaying threshold lines.
+		 * @return
+		 */
 		public DoubleProperty lineWidthProperty() {
 			return lineWidth;
 		}
 		
+		/**
+		 * Get the threshold line width.
+		 * @return
+		 */
 		public double getLineWidth() {
 			return lineWidth.get();
 		}
 		
+		/**
+		 * Set the threshold line width.
+		 * @param width
+		 */
 		public void setLineWidth(final double width) {
 			lineWidth.set(width);
 		}
 		
+		/**
+		 * Property indicating whether thresholds can be adjusted interactively.
+		 * @return
+		 */
 		public BooleanProperty isInteractiveProperty() {
 			return isInteractive;
 		}
 
+		/**
+		 * Returns the value of {@link #isInteractiveProperty()}.
+		 * @return
+		 */
 		public boolean isInteractive() {
 			return isInteractive.get();
 		}
 
+		/**
+		 * Sets the value of {@link #isInteractiveProperty()}.
+		 * @param isInteractive 
+		 */
 		public void setIsInteractive(final boolean isInteractive) {
 			this.isInteractive.set(isInteractive);
 		}

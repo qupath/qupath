@@ -56,9 +56,9 @@ import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
  *
  */
 @Deprecated
-public class PathClassifierPanel {
+public class PathClassifierPane {
 
-	private final static Logger logger = LoggerFactory.getLogger(PathClassifierPanel.class);
+	private final static Logger logger = LoggerFactory.getLogger(PathClassifierPane.class);
 
 	private BorderPane pane = new BorderPane();
 
@@ -71,12 +71,16 @@ public class PathClassifierPanel {
 	private Button btnRun = new Button("Run classifier");
 	private TextArea textClassifier = new TextArea();
 
-	public PathClassifierPanel(final ObservableValue<? extends QuPathViewer> viewerValue) {
+	/**
+	 * Constructor.
+	 * @param viewerValue observable value representing the active viewer
+	 */
+	public PathClassifierPane(final ObservableValue<? extends QuPathViewer> viewerValue) {
 
 		this.viewerValue = viewerValue;
 
 		btnLoad.setOnAction(e -> {
-			File file = Dialogs.getChooser(btnLoad.getScene().getWindow()).promptForFile("Load classifier", null, "Classifiers", new String[]{ClassifierBuilderPanel.extPathClassifier});
+			File file = Dialogs.getChooser(btnLoad.getScene().getWindow()).promptForFile("Load classifier", null, "Classifiers", new String[]{ClassifierBuilderPane.extPathClassifier});
 			if (file == null)
 				return;
 
@@ -154,7 +158,10 @@ public class PathClassifierPanel {
 		}
 	}
 
-
+	/**
+	 * Get the pane, which may be added to a scene for display.
+	 * @return
+	 */
 	public Pane getPane() {
 		return pane;
 	}

@@ -70,20 +70,20 @@ import qupath.lib.objects.PathObject;
  * @author Pete Bankhead
  *
  */
-class FeatureSelectionPanel {
+class FeatureSelectionPane {
 
 	private QuPathGUI qupath;
 
-	private PathIntensityClassifierPanel panelIntensities;
+	private PathIntensityClassifierPane panelIntensities;
 	private TableView<SelectableFeature> tableFeatures = new TableView<>();
 
 	private BorderPane pane;
 	
-	public FeatureSelectionPanel(final QuPathGUI qupath) {
+	public FeatureSelectionPane(final QuPathGUI qupath) {
 		this(qupath, null);
 	}
 
-	FeatureSelectionPanel(final QuPathGUI qupath, final PathIntensityClassifierPanel panelIntensities) {
+	FeatureSelectionPane(final QuPathGUI qupath, final PathIntensityClassifierPane panelIntensities) {
 		this.qupath = qupath;
 		this.panelIntensities = panelIntensities;
 		pane = makeFeatureSelectionPanel(qupath);

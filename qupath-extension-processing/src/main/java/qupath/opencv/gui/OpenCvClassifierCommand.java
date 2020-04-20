@@ -34,7 +34,7 @@ import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
-import qupath.lib.gui.panes.classify.ClassifierBuilderPanel;
+import qupath.lib.gui.panes.classify.ClassifierBuilderPane;
 import qupath.opencv.classify.BayesClassifier;
 import qupath.opencv.classify.BoostClassifier;
 import qupath.opencv.classify.DTreesClassifier;
@@ -59,7 +59,7 @@ class OpenCvClassifierCommand implements Runnable {
 	
 	// TODO: Check use of static dialog
 	private Stage dialog;
-	private ClassifierBuilderPanel<OpenCvClassifier<?>> panel;
+	private ClassifierBuilderPane<OpenCvClassifier<?>> panel;
 
 	/**
 	 * Constructor.
@@ -85,7 +85,7 @@ class OpenCvClassifierCommand implements Runnable {
 					defaultClassifier, new DTreesClassifier(), new BoostClassifier(), new BayesClassifier(),
 					new KNearestClassifier(), new SVMClassifier(), new NeuralNetworksClassifier());
 			Collections.sort(classifierList, (c1, c2) -> c1.getName().compareTo(c2.getName()));
-			panel = new ClassifierBuilderPanel<>(qupath, classifierList, defaultClassifier);
+			panel = new ClassifierBuilderPane<>(qupath, classifierList, defaultClassifier);
 			pane.setCenter(panel.getPane());
 			
 			ScrollPane scrollPane = new ScrollPane(pane);

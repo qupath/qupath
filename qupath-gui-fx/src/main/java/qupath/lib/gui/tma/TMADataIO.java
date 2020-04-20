@@ -250,7 +250,7 @@ public class TMADataIO {
 				return null;
 			}
 			
-			int count = 0;
+//			int count = 0;
 			List<TMACoreObject> cores = new ArrayList<>();
 			for (int i = 0; i < colX.size(); i++) {
 				double x = Double.parseDouble(colX.get(i));
@@ -287,7 +287,7 @@ public class TMADataIO {
 		
 		private double downsample;
 		private File dir;
-		private OverlayOptions options;
+//		private OverlayOptions options;
 		private String ext;
 		private ImageServer<BufferedImage> renderedServer;
 		
@@ -344,7 +344,7 @@ public class TMADataIO {
 					File fileOutput = new File(dir, parentObject.getName() + ext);
 					RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, parentObject.getROI());
 					try {
-						var img = imageData.getServer().readBufferedImage(request);
+//						var img = imageData.getServer().readBufferedImage(request);
 						ImageWriterTools.writeImageRegion(imageData.getServer(), request, fileOutput.getAbsolutePath());
 						fileOutput = new File(dir, parentObject.getName() + "-overlay.jpg");
 						// Pass in the image we have so that it will be drawn on top of

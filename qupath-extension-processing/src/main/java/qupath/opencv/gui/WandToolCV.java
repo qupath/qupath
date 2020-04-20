@@ -60,7 +60,6 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.images.stores.ImageRegionRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
@@ -285,7 +284,7 @@ public class WandToolCV extends BrushTool {
 		
 		double downsample = Math.max(1, Math.round(viewer.getDownsampleFactor() * 4)) / 4.0;
 		
-		ImageRegionRenderer regionStore = viewer.getImageRegionStore();
+		var regionStore = viewer.getImageRegionStore();
 		
 		// Paint the image as it is currently being viewed
 		var type = wandType.get();

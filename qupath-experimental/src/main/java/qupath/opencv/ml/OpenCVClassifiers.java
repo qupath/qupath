@@ -672,7 +672,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link DTrees}.
+	 */
 	public static class DTreesClassifier extends AbstractTreeClassifier<DTrees> {
 
 		DTreesClassifier() {
@@ -695,7 +697,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link RTrees}.
+	 */
 	public static class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
 		
 		private double[] featureImportance;
@@ -862,7 +866,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link Boost}.
+	 */
 	public static class BoostClassifier extends AbstractTreeClassifier<Boost> {
 		
 		BoostClassifier() {
@@ -911,7 +917,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link LogisticRegression}.
+	 */
 	public static class LogisticRegressionClassifier extends AbstractOpenCVClassifierML<LogisticRegression> {
 		
 		static enum Regularization {
@@ -1008,7 +1016,9 @@ public class OpenCVClassifiers {
 	}
 	
 	
-	
+	/**
+	 * Classifier based on {@link NormalBayesClassifier}.
+	 */
 	public static class NormalBayesClassifierCV extends AbstractOpenCVClassifierML<NormalBayesClassifier> {
 
 		NormalBayesClassifierCV() {
@@ -1048,7 +1058,9 @@ public class OpenCVClassifiers {
 		}
 	}
 	
-	
+	/**
+	 * Clusterer based on {@link EM}.
+	 */
 	public static class EMClusterer extends AbstractOpenCVClassifierML<EM> {
 		
 		EMClusterer() {
@@ -1087,6 +1099,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
+	/**
+	 * Classifier based on {@link SVM}.
+	 */
 	public static class SVMClassifierCV extends AbstractOpenCVClassifierML<SVM> {
 
 		SVMClassifierCV() {
@@ -1125,7 +1140,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link SVMSGD}.
+	 */
 	public static class SVMSGDClassifierCV extends AbstractOpenCVClassifierML<SVMSGD> {
 
 		SVMSGDClassifierCV() {
@@ -1164,7 +1181,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link KNearest}.
+	 */
 	static class KNearestClassifierCV extends AbstractOpenCVClassifierML<KNearest> {
 
 		KNearestClassifierCV() {
@@ -1202,7 +1221,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link ANN_MLP}.
+	 */
 	static class ANNClassifierCV extends AbstractOpenCVClassifierML<ANN_MLP> {
 		
 		private static Logger logger = LoggerFactory.getLogger(ANNClassifierCV.class);

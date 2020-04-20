@@ -35,7 +35,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * @author Pete Bankhead
  *
  */
-public class ZoomCommand implements Runnable {
+class ZoomCommand implements Runnable {
 	
 	private ObservableValue<? extends QuPathViewer> viewerValue;
 	private int zoomAmount;

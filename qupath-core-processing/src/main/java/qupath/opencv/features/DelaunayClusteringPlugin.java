@@ -62,7 +62,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 
-	final private static Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);
+	private final static Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);
 	
 	/**
 	 * Constructor.
@@ -129,10 +129,13 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 			return Collections.emptyList();
 		
 		List<PathObject> selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-		if (selected.isEmpty())
+		if (selected.isEmpty()) {
+			logger.trace("Creating task for the root object");
 			return Collections.singletonList(hierarchy.getRootObject());
-		else
+		} else {
+			logger.trace("Creating tasks for {} parent objects", selected.size());
 			return selected;
+		}
 	}
 
 	@Override
