@@ -44,7 +44,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * 
  * @author Pete Bankhead
  */
-public class ViewTrackerControlPanel {
+public class ViewTrackerControlPane {
 
 //	private final static Logger logger = LoggerFactory.getLogger(ViewTrackerPanel.class);
 	
@@ -61,7 +61,7 @@ public class ViewTrackerControlPanel {
 	 * Constructor.
 	 * @param viewer the viewer to track
 	 */
-	public ViewTrackerControlPanel(final QuPathViewer viewer) {
+	public ViewTrackerControlPane(final QuPathViewer viewer) {
 		this(viewer, ViewTrackers.createViewTracker(viewer));
 	}
 
@@ -70,7 +70,7 @@ public class ViewTrackerControlPanel {
 	 * @param viewer the viewer to track
 	 * @param viewTracker the tracker to use
 	 */
-	ViewTrackerControlPanel(final QuPathViewer viewer, final ViewTracker viewTracker) {
+	ViewTrackerControlPane(final QuPathViewer viewer, final ViewTracker viewTracker) {
 		this.tracker = viewTracker;
 
 //		ToolBar toolbar = new ToolBar();
@@ -129,12 +129,21 @@ public class ViewTrackerControlPanel {
 	}
 	
 	/**
-	 * Get the current ViewTracker associated with these controls.
-	 * @return
+	 * Set the recording status for the tracker.
+	 * @param record true if the tracker should start recording, false if the tracker should stop recording.
 	 */
-	public ViewTracker getViewTracker() {
-		return tracker;
+	public void setRecording(boolean record) {
+		if (tracker != null)
+			tracker.setRecording(record);
 	}
+	
+//	/**
+//	 * Get the current ViewTracker associated with these controls.
+//	 * @return
+//	 */
+//	public ViewTracker getViewTracker() {
+//		return tracker;
+//	}
 	
 
 

@@ -23,6 +23,11 @@ import qupath.lib.images.servers.ColorTransforms.ExtractChannelByName;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.regions.RegionRequest;
 
+/**
+ * A {@link TransformingImageServer} that applies color transforms to generate channels.
+ * 
+ * @author Pete Bankhead
+ */
 public class ChannelTransformFeatureServer extends TransformingImageServer<BufferedImage> {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ChannelTransformFeatureServer.class);
@@ -121,7 +126,7 @@ public class ChannelTransformFeatureServer extends TransformingImageServer<Buffe
 	}
 	
 	
-	public static WritableRaster transformRaster(ImageServer<BufferedImage> server, BufferedImage img, List<ColorTransforms.ColorTransform> transforms) {
+	static WritableRaster transformRaster(ImageServer<BufferedImage> server, BufferedImage img, List<ColorTransforms.ColorTransform> transforms) {
 		
 		int w = img.getWidth();
 		int h = img.getHeight();

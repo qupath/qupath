@@ -531,7 +531,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 //		panelMinMax.setBorder(BorderFactory.createTitledBorder("Brightness/Contrast"));
 		panelMinMax.setTop(panelSliders);
 		
-		histogramPanel.setDrawAxes(false);
+		histogramPanel.setShowTickLabels(false);
 		histogramPanel.getChart().setAnimated(false);
 //		histogramPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 //		panelMinMax.setCenter(histogramPanel.getChart());
@@ -585,7 +585,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 				histogramPanel.getHistogramData().get(0).setHistogram(histogram, color);
 			} else {
 				HistogramData histogramData = HistogramPanelFX.createHistogramData(histogram, true, infoSelected.getColor());
-				histogramData.setDoNormalizeCounts(true);
+				histogramData.setNormalizeCounts(true);
 				histogramPanel.getHistogramData().setAll(histogramData);
 			}
 		}

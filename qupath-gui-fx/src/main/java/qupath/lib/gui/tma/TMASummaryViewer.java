@@ -169,7 +169,7 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 public class TMASummaryViewer {
 	
-	public final static Logger logger = LoggerFactory.getLogger(TMASummaryViewer.class);
+	private final static Logger logger = LoggerFactory.getLogger(TMASummaryViewer.class);
 	
 	private IntegerProperty maxSmallWidth = new SimpleIntegerProperty(150);
 	
@@ -637,7 +637,10 @@ public class TMASummaryViewer {
 	}
 	
 	
-	
+	/**
+	 * Get the stage for display.
+	 * @return
+	 */
 	public Stage getStage() {
 		return stage;
 	}
@@ -1166,6 +1169,10 @@ public class TMASummaryViewer {
 	}
 	
 
+	/**
+	 * Set the input file for the summary viewer.
+	 * @param file
+	 */
 	public void setInputFile(File file) {
 		if (file == null)
 			return;

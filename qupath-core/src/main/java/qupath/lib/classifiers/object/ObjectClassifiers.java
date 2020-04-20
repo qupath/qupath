@@ -31,9 +31,12 @@ import qupath.lib.objects.classes.PathClassFactory;
  */
 public class ObjectClassifiers {
 	
+	/**
+	 * {@link TypeAdapterFactory} to help with serializing {@linkplain ObjectClassifier ObjectClassifiers} to and from JSON.
+	 */
 	public static class ObjectClassifierTypeAdapterFactory implements TypeAdapterFactory {
 
-		public ObjectClassifierTypeAdapterFactory() {}
+		private ObjectClassifierTypeAdapterFactory() {}
 		
 		private static String typeName = "object_classifier_type";
 		
@@ -48,6 +51,10 @@ public class ObjectClassifiers {
 				RuntimeTypeAdapterFactory.of(Function.class, "classifier_fun")
 					.registerSubtype(ClassifyByMeasurementFunction.class);
 		
+		/**
+		 * Register a new {@link ObjectClassifier} subtype for compatibility with Gson serialization.
+		 * @param cls
+		 */
 		public static void registerSubtype(Class<? extends ObjectClassifier> cls) {
 			objectClassifierTypeAdapter.registerSubtype(cls);
 		}
@@ -64,6 +71,10 @@ public class ObjectClassifiers {
 	
 	private final static TypeAdapterFactory factory = new ObjectClassifierTypeAdapterFactory();
 	
+	/**
+	 * Get a {@link TypeAdapterFactory} to handle {@link ObjectClassifier} instances.
+	 * @return
+	 */
 	public static TypeAdapterFactory getTypeAdapterFactory() {
 		return factory;
 	}

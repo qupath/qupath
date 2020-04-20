@@ -14,7 +14,7 @@ import java.awt.geom.Point2D;
  * @author Pete Bankhead
  *
  */
-public interface ViewRecordingFrame {
+interface ViewRecordingFrame {
 
 	long getTimestamp();
 

@@ -7,20 +7,28 @@ import javafx.scene.control.Tooltip;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
- * A {@link ListCell} for displaying {@linkplain PathObject PathObjects}, including ROI icons.
+ * A {@link ListCell} for displaying {@linkplain PathObject PathObjects}, including {@link ROI} icons.
  */
-class PathObjectListCell extends ListCell<PathObject> {
+public class PathObjectListCell extends ListCell<PathObject> {
 
 	private Tooltip tooltip;
 	private Function<PathObject, String> fun;
 	
-	PathObjectListCell() {
+	/**
+	 * Constructor, using default {@link PathObject#toString()} method to generate the String representation.
+	 */
+	public PathObjectListCell() {
 		this(PathObject::toString);
 	}
 	
-	PathObjectListCell(Function<PathObject, String> stringExtractor) {
+	/**
+	 * Constructor using a custom string extraction function.
+	 * @param stringExtractor function to generate a String representation of the object.
+	 */
+	public PathObjectListCell(Function<PathObject, String> stringExtractor) {
 		this.fun = stringExtractor;
 	}
 

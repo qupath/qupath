@@ -50,7 +50,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * @author Pete Bankhead
  *
  */
-public class ViewTrackerExportCommand implements Runnable {
+class ViewTrackerExportCommand implements Runnable {
 	
 	private QuPathViewer viewer;
 	private ViewTracker tracker;

@@ -54,7 +54,6 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
@@ -131,7 +130,10 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	}
 	
 	
-
+	/**
+	 * Get the pane to add to a scene.
+	 * @return
+	 */
 	public Pane getPane() {
 		if (pane == null)
 			pane = createPane();
@@ -143,10 +145,11 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	protected BorderPane createPane() {
 		BorderPane pane = new BorderPane();
 		TableColumn<KeyValue<Object>, String> col1 = new TableColumn<>("Parameter");
-		col1.setCellValueFactory(new PropertyValueFactory<>("key"));
-		TableColumn<KeyValue<Object>, String> col2 = new TableColumn<>("Value");
-		col2.setCellValueFactory(new PropertyValueFactory<>("value"));
-		table.getColumns().addAll(col1, col2);
+		col1.setCellValueFactory(c -> c.getValue().keyProperty());
+		TableColumn<KeyValue<Object>, Object> col2 = new TableColumn<>("Value");
+		col2.setCellValueFactory(c -> c.getValue().valueProperty());
+		table.getColumns().add(col1);
+		table.getColumns().add(col2);
 		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 		
 		SplitPane splitPane = new SplitPane();
@@ -369,6 +372,11 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		showScript(qupath.getScriptEditor(), workflow);
 	}
 	
+	/**
+	 * Show a script in the script editor based on the specified workflow.
+	 * @param scriptEditor
+	 * @param workflow
+	 */
 	public static void showScript(final ScriptEditor scriptEditor, final Workflow workflow) {
 		if (workflow == null)
 			return;
@@ -392,7 +400,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	}
 	
 	
-	public static class KeyValue<T> {
+	private static class KeyValue<T> {
 		
 		private final StringProperty key = new SimpleStringProperty();
 		private final ObjectProperty<T> value = new SimpleObjectProperty<>();
@@ -408,14 +416,6 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 
 		public ObjectProperty<T> valueProperty() {
 			return value;
-		}
-		
-		public String getKey() {
-			return key.get();
-		}
-		
-		public T getValue() {
-			return value.get();
 		}
 
 	}

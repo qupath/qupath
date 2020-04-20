@@ -80,8 +80,7 @@ class ProjectMetadataEditorCommand {
 	private final static String IMAGE_NAME = "Image name";
 
 	
-	public static void showProjectMetadataEditor(QuPathGUI qupath) {
-		Project<?> project = qupath.getProject();
+	public static void showProjectMetadataEditor(Project<?> project) {
 		if (project == null) {
 			logger.warn("No project available!");
 			return;
@@ -180,7 +179,9 @@ class ProjectMetadataEditorCommand {
 		menubar.useSystemMenuBarProperty().bindBidirectional(PathPrefs.useSystemMenubarProperty());		
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
-		dialog.initOwner(qupath.getStage());
+		var qupath = QuPathGUI.getInstance();
+		if (qupath != null)
+			dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Project metadata");
 		dialog.setHeaderText(null);
 		dialog.setResizable(true);

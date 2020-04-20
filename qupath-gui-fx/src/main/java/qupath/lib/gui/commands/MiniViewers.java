@@ -213,7 +213,9 @@ public class MiniViewers {
 	
 	
 	
-	
+	/**
+	 * A manager for one or more mini-viewers, where the 'more' means a separate viewer per channel.
+	 */
 	public static class MiniViewerManager implements EventHandler<MouseEvent> {
 		
 		private GridPane pane = new GridPane();
@@ -269,10 +271,16 @@ public class MiniViewers {
 			
 		};
 		
-		public int nChannels() {
+		
+		private int nChannels() {
 			return nChannels;
 		}
 		
+		/**
+		 * Constructor specifying a primary viewer and number of channels.
+		 * @param mainViewer the viewer that the mini viewers relate to (i.e. tracking the cursor location)
+		 * @param nChannels the number of channels to include
+		 */
 		public MiniViewerManager(final QuPathViewer mainViewer, final int nChannels) {
 			this.mainViewer = mainViewer;
 			setChannels(nChannels);
@@ -371,14 +379,26 @@ public class MiniViewers {
 			return tempPane;
 		}
 		
+		/**
+		 * Get the downsample used within the mini viewers.
+		 * @return
+		 */
 		public double getDownsample() {
 			return downsample.get();
 		}
 
+		/**
+		 * Set the downsample to use within the mini viewers.
+		 * @param downsample
+		 */
 		public void setDownsample(final double downsample) {
 			this.downsample.set(downsample);
 		}
 
+		/**
+		 * Get the pane containing all mini viewers, which can be added to a scene for display.
+		 * @return
+		 */
 		public GridPane getPane() {
 			return pane;
 		}

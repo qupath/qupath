@@ -7,7 +7,15 @@ package qupath.lib.gui.viewer;
  */
 public enum ImageInterpolation {
 	
-	NEAREST, BILINEAR;
+	/**
+	 * Nearest neighbor interpolation.
+	 */
+	NEAREST,
+	
+	/**
+	 * Bilinear interpolation.
+	 */
+	BILINEAR;
 	
 	@Override
 	public String toString() {

@@ -43,7 +43,12 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	
 	private ColorModel colorModel;
 	
-	
+	/**
+	 * Create an {@link ImageServer} for which the channels are created dynamically from a list of {@linkplain ChannelDisplayInfo ChannelDisplayInfos}.
+	 * @param server the server providing the underlying data
+	 * @param channels {@link ChannelDisplayInfo} objects defining how the pixels from the wrapped server should be converted to channels in the new server
+	 * @return
+	 */
 	public static ImageServer<BufferedImage> createColorTransformServer(ImageServer<BufferedImage> server, List<ChannelDisplayInfo> channels) {
 		return new ChannelDisplayTransformServer(server, channels);
 	}

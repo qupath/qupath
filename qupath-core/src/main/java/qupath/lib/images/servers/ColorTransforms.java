@@ -50,6 +50,9 @@ public class ColorTransforms {
 		
 	}
 	
+	/**
+	 * {@link TypeAdapter} to support serializing a {@link ColorTransform}.
+	 */
 	public static class ColorTransformTypeAdapter extends TypeAdapter<ColorTransform> {
 		
 		private static Gson gson = new GsonBuilder().setLenient().create();

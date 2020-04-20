@@ -279,16 +279,16 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			
 			// Paint bounding box to show rotation
 			Color color = ColorToolsAwt.getCachedColor(0, 0, 0, 96);
-			PathHierarchyPaintingHelper.paintShape(GeometryTools.geometryToShape(transformer.getTransformedBounds()), g2d, color, stroke, null, downsampleFactor);
+			PathHierarchyPaintingHelper.paintShape(GeometryTools.geometryToShape(transformer.getTransformedBounds()), g2d, color, stroke, null);
 			
 			// Paint line to rotation handle
 			Line2D line = transformer.getRotationHandleLine(downsampleFactor);
-			PathHierarchyPaintingHelper.paintShape(line, g2d, color, stroke, null, downsampleFactor);
+			PathHierarchyPaintingHelper.paintShape(line, g2d, color, stroke, null);
 			
 			// Paint rotation handle
 			Shape ellipse = transformer.getRotationHandle(downsampleFactor);
 			Color color2 = ColorToolsAwt.getCachedColor(255, 255, 255, 96);
-			PathHierarchyPaintingHelper.paintShape(ellipse, g2d, color, stroke, color2, downsampleFactor);
+			PathHierarchyPaintingHelper.paintShape(ellipse, g2d, color, stroke, color2);
 			
 			// Ensure objects are all painted
 			for (PathObject pathObject : originalObjectROIs.keySet()) {

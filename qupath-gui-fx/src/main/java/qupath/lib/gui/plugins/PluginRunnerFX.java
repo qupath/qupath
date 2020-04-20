@@ -63,7 +63,7 @@ import qupath.lib.regions.ImageRegion;
  */
 public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 
-	final private static Logger logger = LoggerFactory.getLogger(PluginRunnerFX.class);
+	private final static Logger logger = LoggerFactory.getLogger(PluginRunnerFX.class);
 	
 	// Time to delay QuPath viewer repaints when running plugin tasks
 	private static long repaintDelayMillis = 2000;
@@ -71,6 +71,10 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 	private QuPathGUI qupath;
 	//		private ImageData<BufferedImage> imageData; // Consider reinstating - at least as an option
 
+	/**
+	 * Constructor.
+	 * @param qupath the QuPath instance
+	 */
 	public PluginRunnerFX(final QuPathGUI qupath) {
 		super();
 		this.qupath = qupath;

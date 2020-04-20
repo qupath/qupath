@@ -1525,12 +1525,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		return action;
 	}
-	
-	
-	
-	public String getTabString() {
-		return tabString;
-	}
 
 	
 	/**

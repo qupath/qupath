@@ -37,7 +37,7 @@ import javafx.beans.property.BooleanProperty;
  * @author Pete Bankhead
  *
  */
-public interface ViewTracker {
+interface ViewTracker {
 
 	public BooleanProperty recordingProperty();
 	

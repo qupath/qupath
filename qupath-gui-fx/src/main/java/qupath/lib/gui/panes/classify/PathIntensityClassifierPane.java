@@ -76,9 +76,9 @@ import qupath.lib.plugins.parameters.ParameterList;
  * @author Pete Bankhead
  *
  */
-public class PathIntensityClassifierPanel implements PathObjectSelectionListener {
+class PathIntensityClassifierPane implements PathObjectSelectionListener {
 	
-	final private static Logger logger = LoggerFactory.getLogger(PathIntensityClassifierPanel.class);
+	final private static Logger logger = LoggerFactory.getLogger(PathIntensityClassifierPane.class);
 	
 	private GridPane pane = new GridPane();
 	
@@ -94,7 +94,11 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 	private HistogramPanelFX panelHistogram;
 	private ThresholdedChartWrapper thresholdWrapper;
 	
-	public PathIntensityClassifierPanel(final QuPathGUI qupath) {
+	/**
+	 * Constructor.
+	 * @param qupath QuPath instance.
+	 */
+	public PathIntensityClassifierPane(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		initialize();
 		setFilter(s -> {
@@ -111,7 +115,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 	}
 
 	
-	public void updateIntensityHistogram() {
+	private void updateIntensityHistogram() {
 		String selected = comboIntensities.getSelectionModel().getSelectedItem();
 		PathObjectHierarchy hierarchy = getHierarchy();
 //		if (!"None".equals(selected) || hierarchy == null)
@@ -175,14 +179,14 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 				paramsIntensity.getDoubleParameterValue("threshold_1"),
 				paramsIntensity.getDoubleParameterValue("threshold_2"),
 				paramsIntensity.getDoubleParameterValue("threshold_3")};
-		thresholdWrapper.setVerticalLines(x, Color.rgb(0, 0, 0, 0.25));
+		thresholdWrapper.setThresholds(Color.rgb(0, 0, 0, 0.25), x);
 //		panelHistogram.setVerticalLines(x, null);
 	}
 	
 	
 	private void initialize() {
 		panelHistogram = new HistogramPanelFX();
-		panelHistogram.setDrawAxes(false);
+		panelHistogram.setShowTickLabels(false);
 		panelHistogram.getChart().getXAxis().setVisible(false);
 		panelHistogram.getChart().getXAxis().setTickMarkVisible(false);
 		panelHistogram.getChart().getYAxis().setVisible(false);
@@ -251,7 +255,7 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 	}
 	
 	
-	public Pane getPane() {
+	Pane getPane() {
 		return pane;
 	}
 	
@@ -286,15 +290,15 @@ public class PathIntensityClassifierPanel implements PathObjectSelectionListener
 	}
 	
 	
-	public void addThresholdParameterChangeListener(final ParameterChangeListener listener) {
+	void addThresholdParameterChangeListener(final ParameterChangeListener listener) {
 		this.panelParameters.addParameterChangeListener(listener);
 	}
 
-	public void removeThresholdParameterChangeListener(final ParameterChangeListener listener) {
+	void removeThresholdParameterChangeListener(final ParameterChangeListener listener) {
 		this.panelParameters.removeParameterChangeListener(listener);
 	}
 	
-	public ReadOnlyObjectProperty<String> intensityFeatureProperty() {
+	ReadOnlyObjectProperty<String> intensityFeatureProperty() {
 		return comboIntensities.getSelectionModel().selectedItemProperty();
 	}
 	

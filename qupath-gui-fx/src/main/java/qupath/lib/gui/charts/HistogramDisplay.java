@@ -156,7 +156,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			setHistogram(model, n);
 		});
 
-		panelHistogram.setDrawAxes(params.getBooleanParameterValue("drawAxes"));
+		panelHistogram.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
 
 
 		panelParams = new ParameterPanelFX(params);
@@ -246,7 +246,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 //			histogram.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 
 			HistogramData histogramData = HistogramPanelFX.createHistogramData(histogram, false, (Integer)null);
-			histogramData.setDoNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
+			histogramData.setNormalizeCounts(params.getBooleanParameterValue("normalizeCounts"));
 			panelHistogram.getHistogramData().setAll(histogramData);
 
 
@@ -304,7 +304,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			// but the reason is that the animations are poor when the data is updated in-place
 			List<HistogramData> list = new ArrayList<>();
 			for (HistogramData histogramData : panelHistogram.getHistogramData()) {
-				histogramData.setDoNormalizeCounts(doNormalize);
+				histogramData.setNormalizeCounts(doNormalize);
 				list.add(new HistogramData(histogramData.getHistogram(), false, histogramData.getStroke()));
 				//					histogramData.update();
 			}
@@ -315,7 +315,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 			panelHistogram.getChart().setVerticalGridLinesVisible(params.getBooleanParameterValue("drawGrid"));
 			return;
 		} else if ("drawAxes".equals(key)) {
-			panelHistogram.setDrawAxes(params.getBooleanParameterValue("drawAxes"));
+			panelHistogram.setShowTickLabels(params.getBooleanParameterValue("drawAxes"));
 			return;
 		} else if ("nBins".equals(key)) {
 			setHistogram(model, comboName.getSelectionModel().getSelectedItem());

@@ -21,7 +21,7 @@
  * #L%
  */
 
-package qupath.lib.gui.panes;
+package qupath.lib.gui.commands;
 
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
@@ -49,6 +49,7 @@ import javafx.scene.shape.Rectangle;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.panes.PathObjectListCell;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -73,7 +74,7 @@ import qupath.lib.roi.ROIs;
  * @author Pete Bankhead
  *
  */
-public class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyListener {
+class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyListener {
 
 	private QuPathGUI qupath;
 	
