@@ -77,9 +77,9 @@ abstract class AbstractOpenCVPixelClassifier implements PixelClassifier {
     	// occur & needs handled as a special case.
     	logger.debug("Applying softmax");
     	var indexer = mat.createIndexer();
-    	int rows = (int)indexer.rows();
-    	int cols = (int)indexer.cols();
-    	int channels = (int)indexer.channels();
+		long rows = indexer.size(0); // previously .rows()
+		long cols = indexer.size(1); // previously .cols()
+    	int channels = (int)indexer.size(2); // Previously .channels()
     	double[] values = new double[channels];
     	long[] inds = new long[3];
     	for (int r = 0; r < rows; r++) {

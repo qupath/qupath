@@ -47,7 +47,11 @@ import qupath.lib.regions.ImageRegion;
  */
 public class GridOverlay extends AbstractImageDataOverlay {
 
-	
+	/**
+	 * Constructor.
+	 * @param overlayOptions overlay options to control the grid display
+	 * @param imageData current image data
+	 */
 	public GridOverlay(final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
 		super(overlayOptions, imageData);
 	}

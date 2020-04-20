@@ -46,7 +46,11 @@ import qupath.lib.regions.ImageRegion;
  */
 public class TMAGridOverlay extends AbstractImageDataOverlay {
 
-
+	/**
+	 * Constructor.
+	 * @param overlayOptions overlay options to control the display of this overlay.
+	 * @param imageData the current image data
+	 */
 	public TMAGridOverlay(final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
 		super(overlayOptions, imageData);
 	}

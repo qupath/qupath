@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +73,6 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -82,8 +80,7 @@ import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.GUIActions;
-import qupath.lib.gui.commands.interfaces.PathCommand;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.models.HistogramDisplay;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
 import qupath.lib.gui.models.PathTableData;
@@ -116,12 +113,11 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  * @author Pete Bankhead
  */
-public class SummaryMeasurementTableCommand implements PathCommand {
+public class SummaryMeasurementTableCommand {
 
 	final private static Logger logger = LoggerFactory.getLogger(SummaryMeasurementTableCommand.class);
 
 	private QuPathGUI qupath;
-	private Class<? extends PathObject> type;
 	
 	/**
 	 * Max thumbnails to store in cache
@@ -148,19 +144,22 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	/**
 	 * Command to show a summary measurement table, for PathObjects of a specified type (e.g. annotation, detection).
 	 * @param qupath
-	 * @param type
 	 */
-	public SummaryMeasurementTableCommand(final QuPathGUI qupath, final Class<? extends PathObject> type) {
+	public SummaryMeasurementTableCommand(final QuPathGUI qupath) {
 		super();
 		this.qupath = qupath;
-		this.type = type;
 	}
 
-	@Override
-	public void run() {
-		final ImageData<BufferedImage> imageData = qupath.getViewer().getImageData();
-		if (imageData == null)
+	/**
+	 * Show a measurement table for the specified image data.
+	 * @param imageData the image data
+	 * @param type the object type to show
+	 */
+	public void showTable(ImageData<BufferedImage> imageData, Class<? extends PathObject> type) {
+		if (imageData == null) {
+			Dialogs.showNoImageError("Show measurement table");
 			return;
+		}
 
 		final PathObjectHierarchy hierarchy = imageData.getHierarchy();
 
@@ -434,35 +433,6 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 		Scene scene = new Scene(pane, 600, 500);
 		frame.setScene(scene);
 		frame.show();
-
-
-		// I accept this is a terrible hack... I would greatly appreciate someone telling me the proper way to get the accelerator keys to work
-		final Action actionShowTMAction = qupath.getAction(GUIActions.SHOW_TMA_GRID);
-		final Action actionShowAnnotations = qupath.getAction(GUIActions.SHOW_ANNOTATIONS);
-		final Action actionShowObjects = qupath.getAction(GUIActions.SHOW_DETECTIONS);
-		final Action actionFillObjects = qupath.getAction(GUIActions.FILL_DETECTIONS);
-		final KeyCombination showTMAKeyStroke = actionShowTMAction.getAccelerator();
-		final KeyCombination showAnnotationsKeystroke = actionShowAnnotations.getAccelerator();
-		final KeyCombination showObjectsKeystroke = actionShowObjects.getAccelerator();
-		final KeyCombination fillObjectsKeystroke = actionFillObjects.getAccelerator();
-		scene.setOnKeyPressed(e -> {
-			Action action = null;
-			if (showObjectsKeystroke.match(e))
-				action = actionShowObjects;
-			else if (fillObjectsKeystroke.match(e))
-				action = actionFillObjects;
-			else if (showAnnotationsKeystroke.match(e))
-				action = actionShowAnnotations;
-			else if (showTMAKeyStroke.match(e))
-				action = actionShowTMAction;
-
-			if (action != null) {
-				action.setSelected(!action.isSelected());
-			}
-
-		});
-
-		
 		
 		
 		// Add ability to remove entries from table
@@ -495,15 +465,6 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				menuLimitClasses.getItems().add(miClass);
 			}
 		});
-//		miLimitClasses.setOnAction(e -> {
-//			List<PathObject> selected = table.getSelectionModel().getSelectedItems();
-//			table.getSelectionModel().clearSelection();
-//			model.setPredicate(p -> p.getPathClass() != null && p.getPathClass().getBaseClass() == PathClassFactory.getDefaultPathClass(PathClasses.TUMOR));
-//			model.getEntries().removeAll(selected);
-//			table.getItems().removeAll(selected);
-//			table.refresh();
-//			histogramDisplay.refreshHistogram();
-//		});
 		
 		if (type != TMACoreObject.class) {
 			menu.getItems().add(menuLimitClasses);
@@ -804,7 +765,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 			logger.warn("No table available to copy!");
 			return;
 		}
-		String string = getTableModelString(model, PathPrefs.getTableDelimiter(), excludeColumns);
+		String string = getTableModelString(model, PathPrefs.tableDelimiterProperty().get(), excludeColumns);
 		Clipboard clipboard = Clipboard.getSystemClipboard();
 		ClipboardContent content = new ClipboardContent();
 		content.putString(string);
@@ -813,8 +774,8 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 	
 	
 	private static File promptForOutputFile() {
-		String ext = ",".equals(PathPrefs.getTableDelimiter()) ? "csv" : "txt";
-		return QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "Results data", ext);
+		String ext = ",".equals(PathPrefs.tableDelimiterProperty().get()) ? "csv" : "txt";
+		return Dialogs.promptToSaveFile(null, null, null, "Results data", ext);
 	}
 	
 	/**
@@ -831,7 +792,7 @@ public class SummaryMeasurementTableCommand implements PathCommand {
 				return false;
 		}
 		try (PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8)) {
-			for (String row : getTableModelStrings(tableModel, PathPrefs.getTableDelimiter(), excludeColumns))
+			for (String row : getTableModelStrings(tableModel, PathPrefs.tableDelimiterProperty().get(), excludeColumns))
 				writer.println(row);
 			writer.close();
 			return true;

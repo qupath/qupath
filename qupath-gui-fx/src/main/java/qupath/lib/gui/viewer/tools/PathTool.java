@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.viewer.tools;
 
+import javafx.scene.Node;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**
@@ -36,5 +37,9 @@ public interface PathTool {
 	public void registerTool(QuPathViewer viewer);
 
 	public void deregisterTool(QuPathViewer viewer);
+	
+	public String getName();
+	
+	public Node getIcon();
 
 }

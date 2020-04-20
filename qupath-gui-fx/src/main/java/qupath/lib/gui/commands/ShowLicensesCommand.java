@@ -49,7 +49,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tools.GuiTools;
 
 /**
@@ -58,20 +57,11 @@ import qupath.lib.gui.tools.GuiTools;
  * @author Pete Bankhead
  *
  */
-public class ShowLicensesCommand implements PathCommand {
+class ShowLicensesCommand {
 
 	final private static Logger logger = LoggerFactory.getLogger(ShowLicensesCommand.class);
 
-	private QuPathGUI qupath;
-
-	public ShowLicensesCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-
-	@Override
-	public void run() {
-
-		logger.trace("Running 'Show licenses' command");
+	public static Stage createLicensesDialog(QuPathGUI qupath) {
 
 		// Create a suitable String to show for QuPath generally
 		StringBuilder sbQuPath = new StringBuilder();
@@ -140,7 +130,7 @@ public class ShowLicensesCommand implements PathCommand {
 		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.setTitle("Licenses");
 		dialog.setScene(new Scene(tabPane));
-		dialog.show();
+		return dialog;
 	}
 
 
@@ -162,7 +152,7 @@ public class ShowLicensesCommand implements PathCommand {
 	 * @param dirBase
 	 * @return
 	 */
-	private Pane createLicenseTreePane(final File dirBase) {
+	private static Pane createLicenseTreePane(final File dirBase) {
 		TreeView<File> tree = new TreeView<>();
 		tree.setRoot(new LicenseFileTreeItem(dirBase));
 		tree.setShowRoot(false);

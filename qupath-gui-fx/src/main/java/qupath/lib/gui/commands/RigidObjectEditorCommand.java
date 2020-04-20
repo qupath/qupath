@@ -43,13 +43,12 @@ import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -78,7 +77,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeListener<BufferedImage>, QuPathViewerListener {
+class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<BufferedImage>>, QuPathViewerListener {
 
 	private final static Logger logger = LoggerFactory.getLogger(RigidObjectEditorCommand.class);
 	
@@ -96,7 +95,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 
 	public RigidObjectEditorCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.qupath.addImageDataChangeListener(this);
+		this.qupath.imageDataProperty().addListener(this);
 	}
 	
 	
@@ -161,8 +160,8 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		this.originalObject = pathObject;
 		
 		
-		viewer.setMode(null);
-		qupath.setModeSwitchingEnabled(false);
+		viewer.setActiveTool(null);
+		qupath.setToolSwitchingEnabled(false);
 		viewer.addViewerListener(this);
 		viewer.getView().addEventHandler(MouseEvent.ANY, mouseListener);
 		
@@ -176,7 +175,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		overlay = new AffineEditOverlay(viewer.getOverlayOptions());
 		viewer.getCustomOverlayLayers().add(overlay);
 		
-		PathPrefs.setPaintSelectedBounds(false);
+		PathPrefs.paintSelectedBoundsProperty().set(false);
 		// Create & show temporary object
 		for (Entry<PathObject, ROI> entry : originalObjectROIs.entrySet())
 			((PathROIObject)entry.getKey()).setROI(transformer.getTransformedROI(entry.getValue(), false));
@@ -226,9 +225,9 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 		}
 
 		// Update the mode if the viewer is still active
-		qupath.setModeSwitchingEnabled(true);
+		qupath.setToolSwitchingEnabled(true);
 		if (viewer == qupath.getViewer())
-			viewer.setMode(qupath.getMode());
+			viewer.setActiveTool(qupath.getSelectedTool());
 		
 		viewer.getView().removeEventHandler(MouseEvent.ANY, mouseListener);
 		viewer.getCustomOverlayLayers().remove(overlay);
@@ -256,7 +255,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 	
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		commitChanges(false);
 	}
 	
@@ -276,7 +275,7 @@ public class RigidObjectEditorCommand implements PathCommand, ImageDataChangeLis
 			if (transformer == null)
 				return;
 			
-			Stroke stroke = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.getThickStrokeThickness() * downsampleFactor);
+			Stroke stroke = PathHierarchyPaintingHelper.getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsampleFactor);
 			
 			// Paint bounding box to show rotation
 			Color color = ColorToolsAwt.getCachedColor(0, 0, 0, 96);

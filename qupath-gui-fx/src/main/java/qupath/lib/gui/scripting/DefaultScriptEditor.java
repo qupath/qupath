@@ -109,8 +109,8 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.dialogs.ProjectDialogs;
@@ -495,7 +495,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createSaveAction("Save As...", true),
 				null,
 				createRevertAction("Revert/Refresh"),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoRefreshFiles, "Auto refresh files")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoRefreshFiles, "Auto refresh files")),
 				null,
 				createCloseAction("Close script")
 //				null,
@@ -576,10 +576,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 				null,
 				createKillRunningScriptAction("Kill running script"),
 				null,
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(useDefaultBindings, "Include default imports")),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(sendLogToConsole, "Send output to log")),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(outputScriptStartTime, "Log script time")),
-				MenuTools.createCheckMenuItem(QuPathGUI.createSelectableCommandAction(autoClearConsole, "Auto clear console"))
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Send output to log")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console"))
 				);
 		menubar.getMenus().add(menuRun);
 
@@ -717,7 +717,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		context.setWriter(new ScriptConsoleWriter(console, false));
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
 		
-		LoggingAppender.getInstance().addTextComponent(console);
+		LoggingAppender.getInstance().addTextAppendableFX(console);
 		long startTime = System.currentTimeMillis();
 		if (outputScriptStartTime.get())
 			logger.info("Starting script at {}", new Date(startTime));
@@ -729,10 +729,60 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (outputScriptStartTime.get())
 				logger.info(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
 		} finally {
-			Platform.runLater(() -> LoggingAppender.getInstance().removeTextComponent(console));	
+			Platform.runLater(() -> LoggingAppender.getInstance().removeTextAppendableFX(console));	
 		}
 	}
 
+	
+	
+	private static ScriptContext createDefaultContext() {
+		ScriptContext context = new SimpleScriptContext();
+		context.setWriter(new LoggerInfoWriter());
+		context.setErrorWriter(new LoggerErrorWriter());
+		return context;
+	}
+	
+	
+	private static abstract class LoggerWriter extends Writer {
+
+		@Override
+		public void write(char[] cbuf, int off, int len) throws IOException {
+			// Don't need to log newlines
+			if (len == 1 && cbuf[off] == '\n')
+				return;
+			String s = String.valueOf(cbuf, off, len);
+			// Skip newlines on Windows too...
+			if (s.equals(System.lineSeparator()))
+				return;
+			log(s);
+		}
+		
+		protected abstract void log(String s);
+
+		@Override
+		public void flush() throws IOException {}
+		
+		@Override
+		public void close() throws IOException {
+			flush();
+		}
+	}
+	
+	private static class LoggerInfoWriter extends LoggerWriter {
+
+		protected void log(String s) {
+			logger.info(s);
+		}
+	}
+	
+	private static class LoggerErrorWriter extends LoggerWriter {
+
+		protected void log(String s) {
+			logger.error(s);
+		}
+	}
+	
+	
 	/**
 	 * Execute a script using an appropriate ScriptEngine for a specified scripting language.
 	 * 
@@ -811,7 +861,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		try {
-			result = engine.eval(script2, context == null ? new SimpleScriptContext() : context);
+			result = engine.eval(script2, context == null ? createDefaultContext() : context);
 		} catch (ScriptException e) {
 			try {
 				int line = e.getLineNumber();
@@ -948,7 +998,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						logger.warn("Problem trying to find project scripts directory: {}", e.getLocalizedMessage());
 					}
 				}
-				File file = QuPathGUI.getDialogHelper(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
+				File file = Dialogs.getChooser(dialog).promptToSaveFile("Save script file", dir, tab.getName(), "Script file", tab.getRequestedExtension());
 				if (file == null)
 					return false;
 				tab.saveToFile(file);
@@ -1803,17 +1853,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 	Action createOpenAction(final String name) {
 		Action action = new Action(name, e -> {
 			
-			String dirPath = PathPrefs.getScriptsPath();
+			String dirPath = PathPrefs.scriptsPathProperty().get();
 			File dir = null;
 			if (dirPath != null)
 				dir = new File(dirPath);
-//			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Choose script file", dir, "Known script files", SCRIPT_EXTENSIONS);
-			File file = QuPathGUI.getSharedDialogHelper().promptForFile("Choose script file", dir, "Groovy script", ".groovy");
+//			File file = Dialogs.promptForFile("Choose script file", dir, "Known script files", SCRIPT_EXTENSIONS);
+			File file = Dialogs.promptForFile("Choose script file", dir, "Groovy script", ".groovy");
 			if (file == null)
 				return;
 			try {
 				addScript(file, true);
-				PathPrefs.setScriptsPath(file.getParent());
+				PathPrefs.scriptsPathProperty().set(file.getParent());
 			} catch (Exception ex) {
 				logger.error("Unable to open script file: {}", ex);
 				ex.printStackTrace();
@@ -2122,7 +2172,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	
-	class ScriptFindCommand implements PathCommand {
+	class ScriptFindCommand implements Runnable {
 		
 		private Dialog<Void> dialog;
 		private TextField tfFind = new TextField();

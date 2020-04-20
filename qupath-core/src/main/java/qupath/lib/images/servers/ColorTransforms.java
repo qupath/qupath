@@ -264,12 +264,15 @@ public class ColorTransforms {
 		
 	}
 	
-	
+	/**
+	 * Store the {@link CombineType}. This is really to add deserialization from JSON.
+	 */
 	private static enum CombineType {MEAN, MINIMUM, MAXIMUM}
 	
 	
 	static class AverageChannels extends CombineChannels {
 		
+		@SuppressWarnings("unused")
 		private CombineType combineType = CombineType.MEAN;
 		
 		@Override
@@ -290,6 +293,7 @@ public class ColorTransforms {
 	
 	static class MaxChannels extends CombineChannels {
 		
+		@SuppressWarnings("unused")
 		private CombineType combineType = CombineType.MAXIMUM;
 		
 		@Override
@@ -314,6 +318,7 @@ public class ColorTransforms {
 	
 	static class MinChannels extends CombineChannels {
 		
+		@SuppressWarnings("unused")
 		private CombineType combineType = CombineType.MINIMUM;
 		
 		@Override

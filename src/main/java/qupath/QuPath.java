@@ -30,7 +30,6 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Callable;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -50,15 +49,14 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ParseResult;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.writers.ome.OMEPyramidWriter;
 import qupath.lib.io.PathIO;
 import qupath.lib.projects.Project;
@@ -210,7 +208,7 @@ class ScriptCommand implements Runnable {
 	private Object runScript(ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		Object result = null;
 		
-		ClassLoader classLoader = new QuPathGUI.ExtensionClassLoader();
+		ClassLoader classLoader = new ExtensionClassLoader();
 		ScriptEngineManager manager = new ScriptEngineManager(classLoader);
 		
 		String ext = scriptFile.substring(scriptFile.lastIndexOf(".")+1);

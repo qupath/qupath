@@ -19,7 +19,6 @@ import javafx.beans.property.ObjectProperty;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -40,7 +39,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class OMEPyramidWriterCommand implements PathCommand {
+public class OMEPyramidWriterCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(OMEPyramidWriterCommand.class);
 	
@@ -217,7 +216,7 @@ public class OMEPyramidWriterCommand implements PathCommand {
 		
 		
 		// Prompt for file
-		File fileOutput = qupath.getDialogHelper().promptToSaveFile("Write pyramid", null, null, "OME TIFF pyramid", ".ome.tif");
+		File fileOutput = Dialogs.promptToSaveFile("Write pyramid", null, null, "OME TIFF pyramid", ".ome.tif");
 		if (fileOutput == null)
 			return;
 		String name = fileOutput.getName();

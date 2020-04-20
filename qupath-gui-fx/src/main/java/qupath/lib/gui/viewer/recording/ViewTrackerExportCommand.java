@@ -41,7 +41,6 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 
@@ -51,7 +50,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * @author Pete Bankhead
  *
  */
-public class ViewTrackerExportCommand implements PathCommand {
+public class ViewTrackerExportCommand implements Runnable {
 	
 	private QuPathViewer viewer;
 	private ViewTracker tracker;

@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -57,7 +56,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathAnnotationObject;
@@ -70,11 +68,8 @@ import qupath.lib.regions.RegionRequest;
 
 
 /**
- * An overlay capable of painting a PathObjectHierarchy, *except* for any 
- * TMA grid (which is handled by TMAGridOverlay).
- * <p>
- * TODO: Reconsider separation of hierarchy-drawing overlays whenever a more complete 
- * 'layer' system is in place.
+ * An overlay capable of painting a {@link PathObjectHierarchy}, <i>except</i> for any 
+ * TMA grid (which is handled by {@link TMAGridOverlay}).
  * 
  * @author Pete Bankhead
  *
@@ -86,19 +81,23 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	private PathHierarchyImageServer overlayServer = null;
 
 	private DefaultImageRegionStore regionStore = null;
-	private boolean smallImage = false; // If the image is small enough, objects should be drawn directly
 	
-	private Collection<PathObject> selectedObjects = new LinkedHashSet<>();
 	private long overlayOptionsTimestamp;
 	private ImageRegion lastRegion;
 	private BufferedImage buffer;
 	
-	private int lastPointRadius = PathPrefs.getDefaultPointRadius();
+	private int lastPointRadius = PathPrefs.pointRadiusProperty().get();
 	
 	private Font font = new Font("SansSerif", Font.BOLD, 10);
 	
 	transient private DetectionComparator comparator = new DetectionComparator();
 
+	/**
+	 * Constructor.
+	 * @param regionStore region store to cache image tiles
+	 * @param overlayOptions overlay options to control display
+	 * @param imageData current image data
+	 */
 	public HierarchyOverlay(final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
 		super(overlayOptions, imageData);
 		this.regionStore = regionStore;
@@ -120,11 +119,8 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		if (getImageData() == null)
 			overlayServer = null;
 		else {
-			ImageServer<BufferedImage> server = getImageData().getServer();
 			// If the image is small, don't really need a server at all...
 			overlayServer = new PathHierarchyImageServer(getImageData(), getOverlayOptions());
-//			overlayServer = new PathHierarchyImageServer(server, getHierarchy(), getOverlayOptions());
-			smallImage = server.getWidth() < PathPrefs.getMinWholeSlideDimension() && server.getHeight() < PathPrefs.getMinWholeSlideDimension();
 		}
 	}
 
@@ -148,7 +144,7 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		
 		OverlayOptions overlayOptions = getOverlayOptions();
 		long timestamp = overlayOptions.lastChangeTimestamp().get();
-		int pointRadius = PathPrefs.getDefaultPointRadius();
+		int pointRadius = PathPrefs.pointRadiusProperty().get();
 		BufferedImage bufferLocal = buffer;
 		if (overlayOptionsTimestamp != timestamp || pointRadius != lastPointRadius) {
 			lastPointRadius = pointRadius;
@@ -352,24 +348,32 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 		
 	}
 
-
+	/**
+	 * Reset the buffer, indicating that a full repaint will be required.
+	 */
 	public void resetBuffer() {
 		lastRegion = null;
 		buffer = null;		
 	}
 	
+	/**
+	 * Clear previously-cached tiles for this overlay.
+	 */
 	public void clearCachedOverlay() {
 		if (regionStore != null && overlayServer != null)
 			regionStore.clearCacheForServer(overlayServer);
 		resetBuffer();
 	}
 	
-	
-	public void clearCachedOverlayForRegion(ImageRegion request) {
+	/**
+	 * Clear previously-cached tiles for a specified region of this overlay.
+	 * @param region the region for which tiles should be removed
+	 */
+	public void clearCachedOverlayForRegion(ImageRegion region) {
 		lastRegion = null;
 		buffer = null;
 		if (regionStore != null && overlayServer != null)
-			regionStore.clearCacheForRequestOverlap(RegionRequest.createInstance(overlayServer.getPath(), 1, request));
+			regionStore.clearCacheForRequestOverlap(RegionRequest.createInstance(overlayServer.getPath(), 1, region));
 		resetBuffer();
 	}
 	

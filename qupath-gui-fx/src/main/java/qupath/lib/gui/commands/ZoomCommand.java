@@ -25,10 +25,8 @@ package qupath.lib.gui.commands;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.beans.value.ObservableValue;
 import javafx.util.Duration;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.ViewerManager;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 /**
@@ -37,13 +35,13 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * @author Pete Bankhead
  *
  */
-public class ZoomCommand implements PathCommand {
+public class ZoomCommand implements Runnable {
 	
-	private ViewerManager<?> qupath;
+	private ObservableValue<? extends QuPathViewer> viewerValue;
 	private int zoomAmount;
 
-	public ZoomCommand(final ViewerManager<?> qupath, final int zoomAmount) {
-		this.qupath = qupath;
+	public ZoomCommand(final ObservableValue<? extends QuPathViewer> viewerValue, final int zoomAmount) {
+		this.viewerValue = viewerValue;
 		this.zoomAmount = zoomAmount;
 	}
 
@@ -51,7 +49,7 @@ public class ZoomCommand implements PathCommand {
 	
 	@Override
 	public void run() {
-		QuPathViewer viewer = qupath.getViewer();
+		QuPathViewer viewer = viewerValue.getValue();
 		if (viewer != null) {
 			if (timer != null)
 				timer.stop();
@@ -67,24 +65,15 @@ public class ZoomCommand implements PathCommand {
 			timer.setCycleCount(15);
 			timer.playFromStart();
 		}
-//			viewer.zoomIn(zoomAmount);
 	}
 	
 	
-	public static class ZoomIn extends ZoomCommand {
-
-		public ZoomIn(final QuPathGUI qupath) {
-			super(qupath, -10);
-		}
-				
+	public static ZoomCommand createZoomInCommand(final ObservableValue<? extends QuPathViewer> viewerValue) {
+		return new ZoomCommand(viewerValue, -10);
 	}
 
-	public static class ZoomOut extends ZoomCommand {
-
-		public ZoomOut(final QuPathGUI qupath) {
-			super(qupath, 10);
-		}
-				
+	public static ZoomCommand createZoomOutCommand(final ObservableValue<? extends QuPathViewer> viewerValue) {
+		return new ZoomCommand(viewerValue, 10);
 	}
-	
+
 }

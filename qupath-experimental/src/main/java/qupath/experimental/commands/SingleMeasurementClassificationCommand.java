@@ -41,7 +41,6 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.plots.HistogramPanelFX;
 import qupath.lib.gui.tools.GuiTools;
@@ -58,7 +57,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * 
  * @author Pete Bankhead
  */
-public class SingleMeasurementClassificationCommand implements PathCommand {
+public class SingleMeasurementClassificationCommand implements Runnable {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SingleMeasurementClassificationCommand.class);
 	

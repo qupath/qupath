@@ -38,7 +38,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
@@ -61,34 +60,26 @@ public class MoveTool extends AbstractPathTool {
 	
 	final static private Logger logger = LoggerFactory.getLogger(MoveTool.class);
 
+	private static boolean requestDynamicDragging = true;
+	
 	private Point2D pDragging;
 	private double dx, dy; // Last dragging displacements
 	private long lastDragTimestamp; // Used to determine if the user has stopped dragging (but may not yet have release the mouse button)
 	
-	private ViewerMover mover;
-	
-	
-	public MoveTool(final ModeWrapper modes) {
-		super(modes);
-	}
-
-	
-	@Override
-	public void registerTool(final QuPathViewer viewer) {
-		super.registerTool(viewer);
-		mover = new ViewerMover(viewer);
-	}
-	
+	private ViewerMover mover;	
 	
 	@Override
 	public void mousePressed(MouseEvent e) {
 		
-		mover.stopMoving();
+		if (mover != null)
+			mover.stopMoving();
 		
 		super.mousePressed(e);
 		
 		if (!e.isPrimaryButtonDown() || e.isConsumed())
             return;
+		
+		var viewer = getViewer();
 		
 		boolean snapping = false;
 		Point2D p = mouseLocationToImage(e, false, snapping);
@@ -105,7 +96,7 @@ public class MoveTool extends AbstractPathTool {
 				selected = tryToSelect(xx, yy, e.getClickCount()-2, false);
 			e.consume();
 			pDragging = null;
-			if (!selected && PathPrefs.getDoubleClickToZoom()) {
+			if (!selected && PathPrefs.doubleClickToZoomProperty().get()) {
 				double downsample = viewer.getDownsampleFactor();
 				if (e.isAltDown() || e.isShortcutDown())
 					downsample *= 2;
@@ -155,7 +146,7 @@ public class MoveTool extends AbstractPathTool {
 				if (!e.isConsumed() && canAdjust(currentObject) &&
 						(RoiTools.areaContains(currentROI, xx, yy) || getSelectableObjectList(xx, yy).contains(currentObject))) {
 					// If we have a translatable ROI, try starting translation
-					if (editor.startTranslation(xx, yy, PathPrefs.usePixelSnapping() && currentROI.isArea()))
+					if (editor.startTranslation(xx, yy, PathPrefs.usePixelSnappingProperty().get() && currentROI.isArea()))
 						e.consume();
 				}
 				if (e.isConsumed()) {
@@ -170,7 +161,7 @@ public class MoveTool extends AbstractPathTool {
 //        viewer.setDoFasterRepaint(true); // Turn on if dragging is too slow
 	}
 	
-	public static boolean canAdjust(PathObject pathObject) {
+	private static boolean canAdjust(PathObject pathObject) {
 		return (pathObject != null && pathObject.isEditable());
 //		return (pathObject != null && !(pathObject instanceof PathDetectionObject) && pathObject.hasROI() && !GeneralHelpers.containsClass(pathObject.getPathObjectList(), PathDetectionObject.class));
 	}
@@ -179,7 +170,8 @@ public class MoveTool extends AbstractPathTool {
 	@Override
 	public void mouseDragged(MouseEvent e) {
 		
-		mover.stopMoving();
+		if (mover != null)
+			mover.stopMoving();
 		
 		super.mouseDragged(e);
 		
@@ -187,6 +179,7 @@ public class MoveTool extends AbstractPathTool {
             return;
 
 		// Handle ROIs if the spacebar isn't down
+		var viewer = getViewer();
 		if (!viewer.isSpaceDown()) {
 			
 			RoiEditor editor = viewer.getROIEditor();
@@ -196,7 +189,7 @@ public class MoveTool extends AbstractPathTool {
 			if (editor != null && editor.hasActiveHandle()) {
 				double x = p.getX();
 				double y = p.getY();
-				if (PathPrefs.usePixelSnapping() && editor.getROI() != null && editor.getROI().isArea()) {
+				if (PathPrefs.usePixelSnappingProperty().get() && editor.getROI() != null && editor.getROI().isArea()) {
 					x = (int)x;
 					y = (int)y;
 				}
@@ -275,6 +268,7 @@ public class MoveTool extends AbstractPathTool {
 		if (e.isConsumed())
 			return;
 		
+		var viewer = getViewer();
 		RoiEditor editor = viewer.getROIEditor();
 		if (editor != null && (editor.hasActiveHandle() || editor.isTranslating())) {
 			boolean roiChanged = (editor.isTranslating() && editor.finishTranslation()) || editor.hasActiveHandle();
@@ -306,7 +300,7 @@ public class MoveTool extends AbstractPathTool {
 						
 //						PathObject parentPrevious = pathObject.getParent();
 						hierarchy.removeObjectWithoutUpdate(pathObject, true);
-						if (getCurrentParent() == null || !PathPrefs.getClipROIsForHierarchy() || e.isShiftDown())
+						if (getCurrentParent() == null || !PathPrefs.clipROIsForHierarchyProperty().get() || e.isShiftDown())
 							hierarchy.addPathObject(pathObject);
 						else
 							hierarchy.addPathObjectBelowParent(getCurrentParent(), pathObject, true);
@@ -323,7 +317,8 @@ public class MoveTool extends AbstractPathTool {
 		
 		
 		// Optionally continue a dragging movement until the canvas comes to a standstill
-		if (pDragging != null && PathPrefs.requestDynamicDragging() && System.currentTimeMillis() - lastDragTimestamp < 100 && (dx*dx + dy*dy > viewer.getDownsampleFactor())) {
+		if (pDragging != null && requestDynamicDragging && System.currentTimeMillis() - lastDragTimestamp < 100 && (dx*dx + dy*dy > viewer.getDownsampleFactor())) {
+			mover = new ViewerMover(viewer);
 			mover.startMoving(dx, dy, false);
 		} else
 	        viewer.setDoFasterRepaint(false);
@@ -348,6 +343,7 @@ public class MoveTool extends AbstractPathTool {
 		super.mouseMoved(e);
 		
 		// We don't want to change a waiting cursor unnecessarily
+		var viewer = getViewer();
 		Cursor cursorType = viewer.getCursor();
 		if (cursorType == Cursor.WAIT)
 			return;
@@ -378,7 +374,9 @@ public class MoveTool extends AbstractPathTool {
 	
 	
 	
-	
+	/**
+	 * Helper class for panning a {@link QuPathViewer} (reasonably) smoothly.
+	 */
 	public static class ViewerMover {
 		
 		private QuPathViewer viewer;
@@ -390,7 +388,10 @@ public class MoveTool extends AbstractPathTool {
 		private double dx, dy; // Last dragging displacements
 		private boolean constantVelocity = false;
 		
-		
+		/**
+		 * Constructor.
+		 * @param viewer the viewer that will be controlled by this object
+		 */
 		public ViewerMover(final QuPathViewer viewer) {
 			this.viewer = viewer;
 		}
@@ -449,12 +450,16 @@ public class MoveTool extends AbstractPathTool {
 			timer.playFromStart();
 		}
 		
-		
+		/**
+		 * Stop moving, by smoothly decelerating.
+		 */
 		public void decelerate() {
 			constantVelocity = false;
 		}
 		
-
+		/**
+		 * Stop moving immediately.
+		 */
 		public void stopMoving() {
 			if (timer != null && timer.getStatus() == Status.RUNNING) {
 				timestamp = -1;

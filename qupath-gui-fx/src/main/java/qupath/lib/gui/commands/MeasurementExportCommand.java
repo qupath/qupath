@@ -49,7 +49,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.models.ObservableMeasurementTableData;
@@ -75,7 +74,7 @@ import qupath.lib.projects.ProjectImageEntry;
  */
 
 // TODO: Save current image(s)?
-public class MeasurementExportCommand implements PathCommand {
+public class MeasurementExportCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	private final static Logger logger = LoggerFactory.getLogger(MeasurementExportCommand.class);
@@ -85,7 +84,7 @@ public class MeasurementExportCommand implements PathCommand {
 	private Project<BufferedImage> project;
 	private ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView;
 	private List<ProjectImageEntry<BufferedImage>> previousImages = new ArrayList<>();
-	private String defSep = PathPrefs.getTableDelimiter();
+	private String defSep = PathPrefs.tableDelimiterProperty().get();
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("columnName-loader", true));
 	private Class<? extends PathObject> type = PathRootObject.class;
 	
@@ -142,7 +141,7 @@ public class MeasurementExportCommand implements PathCommand {
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Output file", null, "measurements" + ext, extDesc, ext);
+			File pathOut = Dialogs.promptToSaveFile("Output file", null, "measurements" + ext, extDesc, ext);
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
 					pathOut = new File(pathOut.getAbsolutePath() + "/export" + ext);

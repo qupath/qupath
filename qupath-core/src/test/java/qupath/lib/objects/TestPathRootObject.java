@@ -38,7 +38,6 @@ import qupath.lib.objects.classes.PathClassFactory;
 @SuppressWarnings("javadoc")
 public class TestPathRootObject extends PathObjectTestWrapper {
 	private final ByteArrayOutputStream errContent = new ByteArrayOutputStream();
-	private final String unclassErrMsg = "Attempted to set class for unclasifiable object - will be ignored\r\n";
 	private final Integer nPO = 10;
 	PathRootObject myPO = new PathRootObject();
 	

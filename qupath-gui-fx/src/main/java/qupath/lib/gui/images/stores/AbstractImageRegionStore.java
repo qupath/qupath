@@ -341,6 +341,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	 * 	- null, if this is the value stored in the TiledImageCache (i.e. the tile has previously been fetched, and there is no image corresponding to the request)
 	 * @param server
 	 * @param request
+	 * @param cache 
+	 * @param ensureTileReturned 
 	 * @return
 	 */
 	protected synchronized Object requestImageTile(final ImageServer<T> server, final RegionRequest request, final Map<RegionRequest, T> cache, final boolean ensureTileReturned) {
@@ -661,7 +663,7 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			this.zPosition = zPosition;
 			this.tPosition = tPosition;
 			this.zSeparation = 0;
-			this.maxZSeparation = Math.min(server.nZSlices()-1, maxZSeparation); // Used for requests that go along z dimension
+			this.maxZSeparation = server == null ? 0 : Math.min(server.nZSlices()-1, maxZSeparation); // Used for requests that go along z dimension
 			updateRequests();
 		}
 		
@@ -679,6 +681,8 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 		void updateRequestsForZ(final int z, final double downsample, final boolean stopBeforeDownsample) {
 //			System.out.println("REQUESTING: " + z + ", " + clipShape);
 			// Add tile requests in ascending order of resolutions, to support (faster) progressive image display
+			if (server == null)
+				return;
 			boolean firstLoop = true;
 			double[] downsamples = server.getPreferredDownsamples();
 			Arrays.sort(downsamples);

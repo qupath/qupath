@@ -161,6 +161,7 @@ public class RectangleROI extends AbstractPathBoundedROI implements Serializable
 		private static final long serialVersionUID = 1L;
 		
 		private final double x, x2, y, y2;
+		@SuppressWarnings("unused")
 		private final String name;
 		private final int c, z, t;
 		

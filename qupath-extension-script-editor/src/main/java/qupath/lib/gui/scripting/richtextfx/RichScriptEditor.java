@@ -253,6 +253,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			CodeAreaControl control = new CodeAreaControl(codeArea);
 			
+			@SuppressWarnings("unused")
 			var cleanup = codeArea
 					.multiPlainChanges()
 					.successionEnds(Duration.ofMillis(delayMillis))
@@ -435,16 +436,16 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		return task;
 	}
 	
-	private Task<StyleSpans<Collection<String>>> computeConsoleHighlightingAsync(final String text) {
-		var task = new Task<StyleSpans<Collection<String>>>() {
-			@Override
-			protected StyleSpans<Collection<String>> call() {
-				return computeConsoleHighlighting(text);
-			}
-		};
-		executor.execute(task);
-		return task;
-	}
+//	private Task<StyleSpans<Collection<String>>> computeConsoleHighlightingAsync(final String text) {
+//		var task = new Task<StyleSpans<Collection<String>>>() {
+//			@Override
+//			protected StyleSpans<Collection<String>> call() {
+//				return computeConsoleHighlighting(text);
+//			}
+//		};
+//		executor.execute(task);
+//		return task;
+//	}
 	
 	private static StyleSpans<Collection<String>> computeHighlighting(final String text) {
         Matcher matcher = PATTERN.matcher(text);

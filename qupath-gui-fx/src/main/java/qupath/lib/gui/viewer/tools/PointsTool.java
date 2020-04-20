@@ -32,7 +32,6 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -53,13 +52,8 @@ import qupath.lib.roi.interfaces.ROI;
  */
 public class PointsTool extends AbstractPathTool {
 
-	
-	public PointsTool(ModeWrapper modes) {
-		super(modes);
-	}
-
-
 	private PointsROI getCurrentPoints() {
+		var viewer = getViewer();
 		PathObject currentObject = viewer.getSelectedObject();
 		if (currentObject == null)
 			return null;
@@ -86,6 +80,7 @@ public class PointsTool extends AbstractPathTool {
 		if (points == null)
 			return;
 
+		var viewer = getViewer();
 		RoiEditor editor = viewer.getROIEditor();
 		editor.resetActiveHandle();
 		
@@ -107,6 +102,7 @@ public class PointsTool extends AbstractPathTool {
             return;
         }
 		
+		var viewer = getViewer();
 		RoiEditor editor = viewer.getROIEditor();
 		if (!(editor.getROI() instanceof PointsROI) || !editor.hasActiveHandle())
 			return;
@@ -115,7 +111,7 @@ public class PointsTool extends AbstractPathTool {
 		
 		// Find out the coordinates in the image domain & update the adjustment
 		Point2D pAdjusting = mouseLocationToImage(e, true, requestPixelSnapping());
-//		double radius = PointsROI.getDefaultPointRadius();
+//		double radius = PointsROI.defaultPointRadiusProperty().get();
 		PointsROI points2 = (PointsROI)editor.setActiveHandlePosition(pAdjusting.getX(), pAdjusting.getY(), 0.25, e.isShiftDown());
 		if (points2 == points)
 			return;
@@ -156,8 +152,9 @@ public class PointsTool extends AbstractPathTool {
 	 * @return
 	 */
 	private boolean handleAltClick(double x, double y, PathObject currentObject) {
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
-		double distance = PathPrefs.getDefaultPointRadius();
+		double distance = PathPrefs.pointRadiusProperty().get();
 		// Remove a point if the current selection has one
 		if (currentObject != null && PathObjectTools.hasPointROI(currentObject)) {
 			PointsROI points = (PointsROI)currentObject.getROI();
@@ -197,6 +194,7 @@ public class PointsTool extends AbstractPathTool {
         }
 		
 		// Get a server, if we can
+		var viewer = getViewer();
 		ImageServer<?> server = viewer.getServer();
 		if (server == null)
 			return;
@@ -218,7 +216,7 @@ public class PointsTool extends AbstractPathTool {
 		ROI currentROI = currentObject == null ? null : currentObject.getROI();
 		
 		RoiEditor editor = viewer.getROIEditor();
-		double radius = PathPrefs.getDefaultPointRadius();
+		double radius = PathPrefs.pointRadiusProperty().get();
 		
 		ROI points = (currentROI != null && currentROI.isPoint()) ? currentROI : null;
 		// If Alt is pressed, try to delete a point
@@ -226,12 +224,12 @@ public class PointsTool extends AbstractPathTool {
 			handleAltClick(xx, yy, currentObject);
 		} 
 		// Create a new ROI if we've got Alt & Shift pressed - or we just don't have a point ROI
-		else if (points == null || (!PathPrefs.getMultipointTool() && !editor.grabHandle(xx, yy, radius, e.isShiftDown()))
+		else if (points == null || (!PathPrefs.multipointToolProperty().get() && !editor.grabHandle(xx, yy, radius, e.isShiftDown()))
 				|| (e.isShiftDown() && e.getClickCount() > 1)) {
 			// PathPoints is effectively ready from the start - don't need to finalize
 			points = ROIs.createPointsROI(xx, yy, ImagePlane.getDefaultPlane());
 			
-			currentObject = (PathROIObject)PathObjects.createAnnotationObject(points, PathPrefs.getAutoSetAnnotationClass());
+			currentObject = (PathROIObject)PathObjects.createAnnotationObject(points,  PathPrefs.autoSetAnnotationClassProperty().get());
 			viewer.getHierarchy().addPathObject(currentObject);
 			viewer.setSelectedObject(currentObject);
 			

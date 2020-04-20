@@ -94,7 +94,7 @@ public class WandToolCV extends BrushTool {
 		 */
 		RGB,
 		/**
-		 * Color image converted to CIELAB, euclidean distance calculated
+		 * Color image converted to CIELAB, Euclidean distance calculated
 		 */
 		LAB_DISTANCE
 	};
@@ -237,7 +237,6 @@ public class WandToolCV extends BrushTool {
 	 * @param qupath
 	 */
 	public WandToolCV(QuPathGUI qupath) {
-		super(qupath);
 		addProperties(qupath);
 	}
 	
@@ -248,22 +247,22 @@ public class WandToolCV extends BrushTool {
 			return;
 		}
 		// Add preference to adjust Wand tool behavior
-		qupath.getPreferencePanel().addPropertyPreference(wandTypeProperty(), WandType.class,
+		qupath.getPreferencePane().addPropertyPreference(wandTypeProperty(), WandType.class,
 				"Wand color type",
 				"Drawing tools",
 				"Specify colorspace when using the wand; if 'gray' then the wand uses 'darkness' without reference to the specific color");
 		
-		qupath.getPreferencePanel().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
+		qupath.getPreferencePane().addPropertyPreference(wandSigmaPixelsProperty(), Double.class,
 				"Wand smoothing",
 				"Drawing tools",
 				"Set the smoothing used by the wand tool - higher values lead to larger, smoother regions (default = 4.0)");
 		
-		qupath.getPreferencePanel().addPropertyPreference(wandSensitivityProperty(), Double.class,
+		qupath.getPreferencePane().addPropertyPreference(wandSensitivityProperty(), Double.class,
 				"Wand sensitivity",
 				"Drawing tools",
 				"Set the sensitivity of the wand tool - lower values make it pay less attention to local intensities, and act more like the brush tool (default = 2.0)");
 
-		qupath.getPreferencePanel().addPropertyPreference(wandUseOverlaysProperty(), Boolean.class,
+		qupath.getPreferencePane().addPropertyPreference(wandUseOverlaysProperty(), Boolean.class,
 				"Wand use overlays",
 				"Drawing tools",
 				"Use image overlay information to influence the regions created with the wand tool");
@@ -451,7 +450,7 @@ public class WandToolCV extends BrushTool {
 			
 			// Create a polygon geometry
 			IntIndexer idxrContours = contour.createIndexer();
-			for (long r = 0; r < idxrContours.rows(); r++) {
+			for (long r = 0; r < idxrContours.size(0); r++) {
 				int px = idxrContours.get(r, 0L, 0L);
 				int py = idxrContours.get(r, 0L, 1L);
 				double xx = (px - w/2-1);// * downsample + x;

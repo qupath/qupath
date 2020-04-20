@@ -56,8 +56,6 @@ import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.StainVector;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -78,13 +76,13 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class EstimateStainVectorsCommand implements PathCommand {
+class EstimateStainVectorsCommand {
 	
 	final private static Logger logger = LoggerFactory.getLogger(EstimateStainVectorsCommand.class);
 	
-	final private QuPathGUI qupath;
-	
 	static int MAX_PIXELS = 4000*4000;
+	
+	private static final String TITLE = "Estimate stain vectors";
 	
 	
 	private enum AxisColor {RED, GREEN, BLUE;
@@ -98,27 +96,20 @@ public class EstimateStainVectorsCommand implements PathCommand {
 			}
 		}
 	};
-	
 
-	public EstimateStainVectorsCommand(final QuPathGUI qupath) {
-		super();
-		this.qupath = qupath;
-	}
 
-	
-	@Override
-	public void run() {
-		
-		ImageData<BufferedImage> imageData = qupath.getImageData();
+	public static void promptToEstimateStainVectors(ImageData<BufferedImage> imageData) {
+		if (imageData == null) {
+			Dialogs.showNoImageError(TITLE);
+			return;
+		}
 		if (imageData == null || !imageData.isBrightfield() || imageData.getServer() == null || !imageData.getServer().isRGB()) {
-			Dialogs.showErrorMessage("Estimate stain vectors", "No brightfield, RGB image selected!");
-//			JOptionPane.showMessageDialog(qupath.getFrame(), "No brightfield, RGB image selected!", "Estimate stain vectors", JOptionPane.ERROR_MESSAGE, null);
+			Dialogs.showErrorMessage(TITLE, "No brightfield, RGB image selected!");
 			return;
 		}
 		ColorDeconvolutionStains stains = imageData.getColorDeconvolutionStains();
 		if (stains == null || !stains.getStain(3).isResidual()) {
-			Dialogs.showErrorMessage("Estimate stain vectors", "Sorry, stain editing is only possible for brightfield, RGB images with 2 stains");
-//			JOptionPane.showMessageDialog(qupath.getFrame(), "Sorry, stain editing is only possible for brightfield, RGB images with 2 stains", "Estimate stain vectors", JOptionPane.ERROR_MESSAGE, null);
+			Dialogs.showErrorMessage(TITLE, "Sorry, stain editing is only possible for brightfield, RGB images with 2 stains");
 			return;
 		}
 		
@@ -151,7 +142,7 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		// Check if the background values may need to be changed
 		if (rMax != stains.getMaxRed() || gMax != stains.getMaxGreen() || bMax != stains.getMaxBlue()) {
 			DialogButton response =
-					Dialogs.showYesNoCancelDialog("Estimate stain vectors",
+					Dialogs.showYesNoCancelDialog(TITLE,
 							String.format("Modal RGB values %d, %d, %d do not match current background values - do you want to use the modal values?", rMax, gMax, bMax));
 			if (response == DialogButton.CANCEL)
 				return;
@@ -167,14 +158,14 @@ public class EstimateStainVectorsCommand implements PathCommand {
 		try {
 			stainsUpdated = showStainEditor(img, stains);
 		} catch (Exception e) {
-			Dialogs.showErrorMessage("Estimate stain vectors", "Error with stain estimation: " + e.getLocalizedMessage());
+			Dialogs.showErrorMessage(TITLE, "Error with stain estimation: " + e.getLocalizedMessage());
 			logger.error("{}", e.getLocalizedMessage(), e);
 //			JOptionPane.showMessageDialog(qupath.getFrame(), "Error with stain estimation: " + e.getLocalizedMessage(), "Estimate stain vectors", JOptionPane.ERROR_MESSAGE, null);
 			return;
 		}
 		if (!stains.equals(stainsUpdated)) {
 			String name = stainsUpdated.getName();
-			String newName = Dialogs.showInputDialog("Estimate stain vectors", "Set name for stain vectors", name);
+			String newName = Dialogs.showInputDialog(TITLE, "Set name for stain vectors", name);
 			if (newName == null)
 				return;
 			if (!name.equals(newName) && !newName.trim().isEmpty())

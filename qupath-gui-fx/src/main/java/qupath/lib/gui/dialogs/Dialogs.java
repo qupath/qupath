@@ -29,7 +29,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.WeakHashMap;
 
 import org.controlsfx.control.Notifications;
 import org.slf4j.Logger;
@@ -285,7 +287,6 @@ public class Dialogs {
 	 * @param defaultChoice initial selected option
 	 * @return chosen option, or {@code null} if the user cancels the dialog
 	 */
-	@SuppressWarnings("unchecked")
 	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
@@ -504,7 +505,7 @@ public class Dialogs {
 		dialog.setScene(new Scene(textArea));
 		dialog.show();
 	}
-
+	
 	/**
 	 * Prompt to open a list of files.
 	 * 
@@ -515,7 +516,7 @@ public class Dialogs {
 	 * @return
 	 */
 	public static List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String... exts) {
-		return QuPathGUI.getSharedDialogHelper().promptForMultipleFiles(title, dirBase, filterDescription, exts);
+		return getSharedChooser().promptForMultipleFiles(title, dirBase, filterDescription, exts);
 	}
 
 	/**
@@ -525,7 +526,7 @@ public class Dialogs {
 	 * @return selected directory, or null if no directory was selected
 	 */
 	public static File promptForDirectory(File dirBase) {
-		return QuPathGUI.getSharedDialogHelper().promptForDirectory(dirBase);
+		return getSharedChooser().promptForDirectory(dirBase);
 	}
 
 	/**
@@ -538,7 +539,7 @@ public class Dialogs {
 	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public static File promptForFile(String title, File dirBase, String filterDescription, String... exts) {
-		return QuPathGUI.getSharedDialogHelper().promptForFile(title, dirBase, filterDescription, exts);
+		return getSharedChooser().promptForFile(title, dirBase, filterDescription, exts);
 	}
 
 	/**
@@ -548,7 +549,7 @@ public class Dialogs {
 	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public static File promptForFile(File dirBase) {
-		return QuPathGUI.getSharedDialogHelper().promptForFile(dirBase);
+		return getSharedChooser().promptForFile(dirBase);
 	}
 
 	/**
@@ -558,17 +559,17 @@ public class Dialogs {
 	 * @param dirBase the base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param defaultName default file name
 	 * @param filterName description to show for the file name filter (may be null if no filter should be used)
-	 * @param ext extension that should be used for the saved file (may be null if not specified)
+	 * @param ext extension that should be used for the saved file (may be empty or null if not specified)
 	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public static File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
-		return QuPathGUI.getSharedDialogHelper().promptToSaveFile(title, dirBase, defaultName, filterName, ext);
+		return getSharedChooser().promptToSaveFile(title, dirBase, defaultName, filterName, ext);
 	}
 
 	/**
 	 * Prompt user to select a file or input a URL.
-
-	 * @param title the title to display for the dialog (may be null)
+	 * 
+	 * @param title dialog title
 	 * @param defaultPath default path to display - may be null
 	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
@@ -577,7 +578,37 @@ public class Dialogs {
 	 */
 	public static String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription,
 			String... exts) {
-		return QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts);
+		return getSharedChooser().promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts);
+	}
+	
+	private static QuPathChooser defaultFileChooser = new QuPathChooserFX(null);
+	private static Map<Window, QuPathChooser> fileChooserMap = new WeakHashMap<>();
+
+	/**
+	 * Get a {@link QuPathChooser} instance linked to a specific window.
+	 * This may both influence the display of the chooser (by setting the parent window) and the starting directory 
+	 * (by remembering the last known directory for the chooser).
+	 * @param window
+	 * @return a {@link QuPathChooser} associated with the specified window.
+	 */
+	public static QuPathChooser getChooser(Window window) {
+		if (window == null)
+			return defaultFileChooser;
+		return fileChooserMap.computeIfAbsent(window, w -> new QuPathChooserFX(w));
+	}
+
+	private static QuPathChooser getSharedChooser() {
+		var qupath = QuPathGUI.getInstance();
+		var stage = qupath == null ? null : qupath.getStage();
+		return getChooser(stage);
+	}
+	
+	/**
+	 * Create a new builder to generate a custom dialog.
+	 * @return
+	 */
+	public static Builder builder() {
+		return new Builder();
 	}
 	
 

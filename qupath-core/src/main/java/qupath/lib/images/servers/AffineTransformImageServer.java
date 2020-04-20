@@ -38,6 +38,8 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 	protected AffineTransformImageServer(final ImageServer<BufferedImage> server, AffineTransform transform) throws NoninvertibleTransformException {
 		super(server);
 		
+		logger.trace("Creating server for {} and Affine transform {}", server, transform);
+		
 		this.transform = new AffineTransform(transform);
 		this.transformInverse = transform.createInverse();
 		

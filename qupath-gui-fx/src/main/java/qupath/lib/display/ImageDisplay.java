@@ -670,11 +670,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 	void autoSetDisplayRange(ChannelDisplayInfo info, boolean fireUpdate) {
-		autoSetDisplayRange(info, getHistogram(info), PathPrefs.getAutoBrightnessContrastSaturationPercent()/100.0, fireUpdate);
+		autoSetDisplayRange(info, getHistogram(info), PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0, fireUpdate);
 	}
 
 	public void autoSetDisplayRange(ChannelDisplayInfo info) {
-		autoSetDisplayRange(info, getHistogram(info), PathPrefs.getAutoBrightnessContrastSaturationPercent()/100.0, true);
+		autoSetDisplayRange(info, getHistogram(info), PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0, true);
 	}
 	
 	public void autoSetDisplayRange(ChannelDisplayInfo info, double saturation) {

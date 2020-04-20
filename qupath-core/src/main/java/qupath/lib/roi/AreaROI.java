@@ -317,6 +317,7 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 		
 		private final float[][] x;
 		private final float[][] y;
+		@SuppressWarnings("unused")
 		private final String name;
 		private final int c, z, t;
 		
@@ -358,6 +359,7 @@ public class AreaROI extends AbstractPathROI implements Serializable {
 		return geometry;
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public Shape getShape() {
 		return new AWTAreaROI(this).getShape();

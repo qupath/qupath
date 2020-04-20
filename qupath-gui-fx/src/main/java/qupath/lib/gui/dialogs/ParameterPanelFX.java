@@ -135,6 +135,7 @@ public class ParameterPanelFX {
 		return pane;
 	}
 	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void initialize() {
 //		for (Parameter<?> p : params.getParameterList()) {
 		for (Entry<String, Parameter<?>> entry : params.getParameters().entrySet()) {

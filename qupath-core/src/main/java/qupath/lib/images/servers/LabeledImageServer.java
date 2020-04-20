@@ -581,7 +581,6 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			for (var entry : params.boundaryLabels.entrySet()) {
 				if (entry.getValue() != label)
 					continue;
-				var pathClass = entry.getKey();
 				for (var pathObject : pathObjects) {
 					if (params.labels.containsKey(pathObject.getPathClass()) && !PathClassTools.isIgnoredClass(pathObject.getPathClass())) {
 //					if (pathObject.getPathClass() == pathClass) {
@@ -655,7 +654,6 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				}
 			}
 			for (var entry : params.boundaryLabels.entrySet()) {
-				var pathClass = entry.getKey();
 				int c = entry.getValue();
 				color = ColorToolsAwt.getCachedColor(c, c, c);
 				for (var pathObject : pathObjects) {

@@ -65,6 +65,8 @@ public class SparseImageServer extends AbstractTileableImageServer {
 	private SparseImageServer(SparseImageServerManager manager, String path) throws IOException {
 		super();
 		
+		logger.trace("Creating SparseImageServer with path {}", path);
+		
 		this.manager = manager;
 		
 		ImageServerMetadata metadata = null;

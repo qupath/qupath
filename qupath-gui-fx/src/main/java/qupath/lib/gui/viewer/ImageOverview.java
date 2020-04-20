@@ -52,7 +52,7 @@ import qupath.lib.objects.PathObject;
  * @author Pete Bankhead
  *
  */
-public class ImageOverview implements QuPathViewerListener {
+class ImageOverview implements QuPathViewerListener {
 
 	final static private Logger logger = LoggerFactory.getLogger(ImageOverview.class);
 
