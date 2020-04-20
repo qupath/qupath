@@ -53,7 +53,7 @@ import javafx.stage.Window;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
+import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.Charts;

@@ -92,7 +92,7 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.display.ChannelDisplayInfo;
-import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
+import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramPanelFX;
@@ -393,8 +393,8 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 				if (e.getClickCount() == 2) {
 					ChannelDisplayInfo info = row.getItem();
 					var imageData = viewer.getImageData();
-					if (info instanceof ChannelDisplayInfo.DirectServerChannelInfo && imageData != null) {
-						ChannelDisplayInfo.DirectServerChannelInfo multiInfo = (ChannelDisplayInfo.DirectServerChannelInfo)info;
+					if (info instanceof DirectServerChannelInfo && imageData != null) {
+						DirectServerChannelInfo multiInfo = (DirectServerChannelInfo)info;
 						int c = multiInfo.getChannel();
 						var channel = imageData.getServer().getMetadata().getChannel(c);
 						
@@ -921,7 +921,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		// Update display - we might have changed stain vectors or server metadata in some major way
 		if (evt.getPropertyName().equals("serverMetadata") || 
 				!((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("stains")))
-			imageDisplay.updateChannelOptions(false);
+			imageDisplay.refreshChannelOptions();
 		
 		updateTable();
 
