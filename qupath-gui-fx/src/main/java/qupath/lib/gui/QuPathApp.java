@@ -23,6 +23,7 @@
 
 package qupath.lib.gui;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +60,7 @@ public class QuPathApp extends Application {
 		if (args != null) {
 			if (args.contains("project")) {
 				String path = args.get(args.indexOf("project") + 1);
-				gui.setProject(ProjectIO.loadProject(new File(path), null));
+				gui.setProject(ProjectIO.loadProject(new File(path), BufferedImage.class));
 			} else if (args.contains("image")) {
 				String path = args.get(args.indexOf("image") + 1);
 				gui.openImage(path, false, false);

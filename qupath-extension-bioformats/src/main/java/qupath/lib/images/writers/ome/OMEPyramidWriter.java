@@ -1369,7 +1369,7 @@ public class OMEPyramidWriter {
 		@Option(names = {"-z"}, description = "Request that all z-slices are exported.", paramLabel = "z-slices")
 		private boolean allZ;
 		
-		@Option(names = {"-t"}, description = "Request that all timepoints of a time series will be written.", paramLabel = "timepoints")
+		@Option(names = {"-t"}, description = "Request that all timepoints of a time series are exported.", paramLabel = "timepoints")
 		private boolean allT;
 		
 		@Option(names = {"-p", "--paralellize"}, description = "Specify if tile export should be parallelized if possible.", paramLabel = "parallelization")

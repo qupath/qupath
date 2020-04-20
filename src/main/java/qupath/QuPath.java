@@ -154,7 +154,7 @@ public class QuPath {
 
 
 // TODO: should script only end with .groovy or can it end with something else?
-@Command(name = "script", description = "Runs script for a given image or project.", footer = "\nCopyright(c) 2020")
+@Command(name = "script", description = "Runs script for a given image or project (without saving).", footer = "\nCopyright(c) 2020")
 class ScriptCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ScriptCommand.class);
@@ -182,16 +182,18 @@ class ScriptCommand implements Runnable {
 			ImageData<BufferedImage> imageData;
 			
 			if (projectPath != null && !projectPath.equals("")) {
-				Project<BufferedImage> project = ProjectIO.loadProject(new File(projectPath), null);
+				Project<BufferedImage> project = ProjectIO.loadProject(new File(projectPath), BufferedImage.class);
 				for (var entry: project.getImageList()) {
-					ImageServer<BufferedImage> server = entry.getServerBuilder().build();
-					
+					imageData = entry.readImageData();
 					try {
+						
 						System.out.println(runScript(entry.readImageData()));
+						if (save)
+							entry.saveImageData(imageData);
 					} catch (Exception e) {
 						logger.error("Error running script for image:", entry.getImageName(),": ", e);
 					}
-					server.close();
+					imageData.getServer().close();
 				}
 			} else if (imagePath != null && !imagePath.equals("")) {
 				imageData = PathIO.readImageData(new File(imagePath), null, null, BufferedImage.class);
