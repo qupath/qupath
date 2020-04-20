@@ -416,7 +416,7 @@ public class PreferencePane {
 	 * @param description
 	 */
 	public <T> void addPropertyPreference(final Property<T> prop, final Class<? extends T> cls, final String name, final String category, final String description) {
-		PropertySheet.Item item = new PropertyItem<>(prop, cls)
+		PropertySheet.Item item = new DefaultPropertyItem<>(prop, cls)
 				.name(name)
 				.category(category)
 				.description(description);
@@ -477,26 +477,53 @@ public class PreferencePane {
 		propSheet.getItems().add(item);
 	}
 	
+	/**
+	 * Create a default {@link Item} for a generic property.
+	 * @param <T> type of the property
+	 * @param property the property
+	 * @param cls the property type
+	 * @return a new {@link PropertyItem}
+	 */
+	public static <T> PropertyItem createPropertySheetItem(Property<T> property, Class<? extends T> cls) {
+		return new DefaultPropertyItem<>(property, cls);
+	}
 	
-
-
-	static abstract class AbstractPropertyItem implements PropertySheet.Item {
+	
+	/**
+	 * Base implementation of {@link Item}.
+	 */
+	public static abstract class PropertyItem implements PropertySheet.Item {
 
 		private String name;
 		private String category;
 		private String description;
 
-		public AbstractPropertyItem category(final String category) {
+		/**
+		 * Support fluent interface to define a category.
+		 * @param category
+		 * @return
+		 */
+		public PropertyItem category(final String category) {
 			this.category = category;
 			return this;
 		}
 
-		public AbstractPropertyItem description(final String description) {
+		/**
+		 * Support fluent interface to set the description.
+		 * @param description
+		 * @return
+		 */
+		public PropertyItem description(final String description) {
 			this.description = description;
 			return this;
 		}
 
-		public AbstractPropertyItem name(final String name) {
+		/**
+		 * Support fluent interface to set the name.
+		 * @param name
+		 * @return
+		 */
+		public PropertyItem name(final String name) {
 			this.name = name;
 			return this;
 		}
@@ -519,12 +546,12 @@ public class PreferencePane {
 	}
 
 
-	static class PropertyItem<T> extends AbstractPropertyItem {
+	static class DefaultPropertyItem<T> extends PropertyItem {
 
 		private Property<T> prop;
 		private Class<? extends T> cls;
 
-		PropertyItem(final Property<T> prop, final Class<? extends T> cls) {
+		DefaultPropertyItem(final Property<T> prop, final Class<? extends T> cls) {
 			this.prop = prop;
 			this.cls = cls;
 		}
@@ -556,7 +583,7 @@ public class PreferencePane {
 	/**
 	 * Create a property item that handles directories based on String paths.
 	 */
-	static class DirectoryPropertyItem extends AbstractPropertyItem {
+	static class DirectoryPropertyItem extends PropertyItem {
 
 		private Property<String> prop;
 		private ObservableValue<File> fileValue;
@@ -596,7 +623,7 @@ public class PreferencePane {
 	}
 
 
-	static class ColorPropertyItem extends AbstractPropertyItem {
+	static class ColorPropertyItem extends PropertyItem {
 
 		private IntegerProperty prop;
 		private ObservableValue<Color> value;
@@ -632,7 +659,7 @@ public class PreferencePane {
 	}
 	
 	
-	static class ChoicePropertyItem<T> extends PropertyItem<T> {
+	static class ChoicePropertyItem<T> extends DefaultPropertyItem<T> {
 
 		private final ObservableList<T> choices;
 
@@ -696,8 +723,10 @@ public class PreferencePane {
 
 	}
 
-
-	static class PropertyEditorFactory extends DefaultPropertyEditorFactory {
+	/**
+	 * Extends {@link DefaultPropertyEditorFactory} to handle setting directories and creating choice editors.
+	 */
+	public static class PropertyEditorFactory extends DefaultPropertyEditorFactory {
 
 		@Override
 		public PropertyEditor<?> call(Item item) {

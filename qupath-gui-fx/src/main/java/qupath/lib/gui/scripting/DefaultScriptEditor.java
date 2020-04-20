@@ -134,6 +134,8 @@ import qupath.lib.scripting.QP;
  * Default multilingual script editor.
  * <p>
  * Lacks syntax highlighting and other pleasant features, unfortunately.
+ * <p>
+ * Warning: This is likely to be replaced by a monolingual editor, supporting Groovy only.
  * 
  * @author Pete Bankhead
  *
@@ -142,13 +144,26 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	final static private Logger logger = LoggerFactory.getLogger(DefaultScriptEditor.class);
 	
+	/**
+	 * Enum representing languages supported by this script editor.
+	 * <p>
+	 * Warning: This is likely to be removed in the future, in favor of stronger support for Groovy only.
+	 */
 	public enum Language {
-//		JAVA("Java", ".java"),
+		/**
+		 * Javascript support (will cease to be part of the JDK)
+		 */
+		@Deprecated
 		JAVASCRIPT("JavaScript", ".js", "//"),
+		/**
+		 * Jython support
+		 */
+		@Deprecated
 		JYTHON("Jython", ".py", "#"),
-//		CPYTHON("CPython", ".py", "#"),
+		/**
+		 * Groovy support (default and preferred scripting language for QuPath)
+		 */
 		GROOVY("Groovy", ".groovy", "//");
-//		RUBY("Ruby", ".rb");
 		
 		private final String name;
 		private final String ext;
@@ -160,6 +175,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 			this.lineComment = lineComment;
 		}
 		
+		/**
+		 * Get the file extension for the specified language
+		 * @return
+		 */
 		public String getExtension() {
 			return ext;
 		}
@@ -278,7 +297,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		CONFUSED_CLASSES = Collections.unmodifiableMap(CONFUSED_CLASSES);
 	}
 
-
+	/**
+	 * Constructor.
+	 * @param qupath current QuPath instance.
+	 */
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		initializeActions();
@@ -302,7 +324,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 		findAction = createFindAction("Find");
 	}
 	
-	
+	/**
+	 * Query whether a file represents a supported script.
+	 * Currently, this test looks at the file extension only.
+	 * @param file the file to test
+	 * @return true if the file is likely to contain a supported script, false otherwise
+	 */
 	public boolean supportsFile(final File file) {
 		if (file == null || !file.isFile())
 			return false;
@@ -323,12 +350,20 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 	}
 	
-
-	public Stage getDialog() {
+	/**
+	 * Get the stage for this script editor.
+	 * @return
+	 */
+	public Stage getStage() {
 		return dialog;
 	}
 	
-	
+	/**
+	 * Create a new script in the specified language.
+	 * @param script text of the script to add
+	 * @param language language of the script
+	 * @param doSelect if true, select the script when it is added
+	 */
 	public void addNewScript(final String script, final Language language, final boolean doSelect) {
 		ScriptTab tab = new ScriptTab(script, language);
 		listScripts.getItems().add(tab);
@@ -387,12 +422,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		selectedScript.set(tab);
-	}
-	
-	
-	
-	public Font getMainFont() {
-		return fontMain;
 	}
 
 
@@ -1299,14 +1328,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	class ProjectTask extends Task<Void> {
 		
-		private Project<BufferedImage> project;
+//		private Project<BufferedImage> project;
 		private Collection<ProjectImageEntry<BufferedImage>> imagesToProcess;
 		private ScriptTab tab;
 		private boolean quietCancel = false;
 		private boolean doSave = false;
 		
 		ProjectTask(final Project<BufferedImage> project, final Collection<ProjectImageEntry<BufferedImage>> imagesToProcess, final ScriptTab tab, final boolean doSave) {
-			this.project = project;
+//			this.project = project;
 			this.imagesToProcess = imagesToProcess;
 			this.tab = tab;
 			this.doSave = doSave;
@@ -1990,54 +2019,145 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
-	
+	/**
+	 * Basic script editor control.
+	 * The reason for its existence is to enable custom script editors to be implemented that provide additional functionality 
+	 * (e.g. syntax highlighting), but do not rely upon subclassing any specific JavaFX control.
+	 * <p>
+	 * Note: This is rather cumbersome, and may be removed in the future if the script editor design is revised.
+	 */
 	public static interface ScriptEditorControl extends TextAppendable {
 		
+		/**
+		 * Text currently in the editor control.
+		 * @return
+		 */
 		public StringProperty textProperty();
 		
+		/**
+		 * Set all the text in the editor.
+		 * @param text
+		 */
 		public void setText(final String text);
 
+		/**
+		 * Get all the text in the editor;
+		 * @return
+		 */
 		public String getText();
 		
+		/**
+		 * Deselect any currently-selected text.
+		 */
 		public void deselect();
 		
+		/**
+		 * Get the range of the currently-selected text.
+		 * @return
+		 */
 		public IndexRange getSelection();
 
+		/**
+		 * Set the range of the selected text.
+		 * @param anchor
+		 * @param caretPosition
+		 */
 		public void selectRange(int anchor, int caretPosition);
 
+		/**
+		 * Text currently selected in the editor control.
+		 * @return
+		 */
 		public ObservableValue<String> selectedTextProperty();
 		
+		/**
+		 * Get the value of {@link #selectedTextProperty()}.
+		 * @return
+		 */
 		public String getSelectedText();
 		
+		/**
+		 * Returns true if 'undo' can be applied to the control.
+		 * @return
+		 */
 		public boolean isUndoable();
 		
+		/**
+		 * Returns true if 'redo' can be applied to the control.
+		 * @return
+		 */
 		public boolean isRedoable();
 		
+		/**
+		 * Get the region representing this control, so it may be added to a scene.
+		 * @return
+		 */
 		public Region getControl();
 		
+		/**
+		 * Set the popup menu for this control.
+		 * @param menu
+		 */
 		public void setPopup(ContextMenu menu);
 		
+		/**
+		 * Request undo.
+		 */
 		public void undo();
 		
+		/**
+		 * Request redo.
+		 */
 		public void redo();
 		
+		/**
+		 * Request copy the current selection.
+		 */
 		public void copy();
 		
+		/**
+		 * Request cut the current selection.
+		 */
 		public void cut();
 		
+		/**
+		 * Request paste the specified text.
+		 * @param text 
+		 */
 		public void paste(String text);
 		
 		@Override
 		public void appendText(final String text);
 		
+		/**
+		 * Request clear the contents of the control.
+		 */
 		public void clear();
 		
+		/**
+		 * Get the current caret position.
+		 * @return
+		 */
 		public int getCaretPosition();
 		
+		/**
+		 * Request inserting the specified text.
+		 * @param pos position to insert the text
+		 * @param text the text to insert
+		 */
 		public void insertText(int pos, String text);
 
+		/**
+		 * Request deleting the text within the specified range.
+		 * @param startIdx
+		 * @param endIdx
+		 */
 		public void deleteText(int startIdx, int endIdx);
 
+		/**
+		 * Focused property of the control.
+		 * @return
+		 */
 		public ReadOnlyBooleanProperty focusedProperty();
 
 	}

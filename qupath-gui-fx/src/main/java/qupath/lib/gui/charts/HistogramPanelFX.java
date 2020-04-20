@@ -74,7 +74,7 @@ public class HistogramPanelFX {
 	
 	private ObservableList<HistogramData> histogramData = FXCollections.observableArrayList();
 	
-	
+	@SuppressWarnings("javadoc")
 	public HistogramPanelFX() {
 		super();
 		

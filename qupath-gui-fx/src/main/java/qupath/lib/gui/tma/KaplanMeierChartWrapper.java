@@ -38,7 +38,6 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Side;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.SnapshotParameters;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
@@ -52,7 +51,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
-import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
@@ -64,15 +62,12 @@ import javafx.scene.layout.TilePane;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.transform.Transform;
-import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import qupath.lib.analysis.stats.survival.KaplanMeierData;
 import qupath.lib.analysis.stats.survival.LogRankTest;
 import qupath.lib.analysis.stats.survival.LogRankTest.LogRankResult;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.ChartTools;
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.panes.ExportChartPane;
 
 /**
  * Wrapper class for custom chart used to show Kaplan Meier survival curves.
@@ -308,15 +303,15 @@ class KaplanMeierChartWrapper {
 			}
 		});
 
-		MenuItem miShowPlot = new MenuItem("Show plot window");
-		miShowPlot.setOnAction(e -> showKaplanMeierPlotWindow(this));
+//		MenuItem miShowPlot = new MenuItem("Show plot window");
+//		miShowPlot.setOnAction(e -> showKaplanMeierPlotWindow(this));
 
 		menu.getItems().addAll(
 				menuLegendSide,
 				menuCopy,
-				miPrint,
-				new SeparatorMenuItem(),
-				miShowPlot
+				miPrint
+//				new SeparatorMenuItem(),
+//				miShowPlot
 				);
 		chart.setOnContextMenuRequested(e -> menu.show(chart, e.getScreenX(), e.getScreenY()));
 
@@ -556,6 +551,10 @@ class KaplanMeierChartWrapper {
 	}
 	
 	
+	/*
+	 * Removed in QuPath v0.2.0 because of refactoring to make ExportChartPane less visible.
+	 * Can be reinstated if it turns out to be useful.
+	 * 
 	// Attempt to show a separate survival plot window (not yet stable)
 		static void showKaplanMeierPlotWindow(final KaplanMeierChartWrapper kmPlotter) {
 			
@@ -598,7 +597,7 @@ class KaplanMeierChartWrapper {
 				logger.error("Survival curve copy error", e);
 			}
 		}
-	
+	*/
 	
 
 }

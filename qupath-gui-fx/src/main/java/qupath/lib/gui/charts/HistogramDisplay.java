@@ -57,8 +57,8 @@ import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
 
 /**
- * Wrapper close to enable the generation and display of histograms relating to 
- * a data table.
+ * Wrapper close to enable the generation and display of histograms relating to a data table.
+ * Other UI controls are provided to enable selection of specific data columns for display in the histogram.
  * 
  * @author Pete Bankhead
  *
@@ -86,10 +86,11 @@ public class HistogramDisplay implements ParameterChangeListener {
 			.addBooleanParameter("animate", "Animate changes", false, "Animate changes");
 	private TableView<Property<Number>> table = new TableView<>();
 
-	public HistogramDisplay(final PathTableData<?> model) {
-		this(model, true);
-	}
-	
+	/**
+	 * Constructor.
+	 * @param model the table data for histogramming
+	 * @param showTable if true, include a measurement summary table along with the histogram
+	 */
 	public HistogramDisplay(final PathTableData<?> model, final boolean showTable) {
 		String selectColumn = null;
 		this.model = model;
@@ -187,7 +188,9 @@ public class HistogramDisplay implements ParameterChangeListener {
 		setHistogram(model, comboName.getSelectionModel().getSelectedItem());
 	}
 	
-	
+	/**
+	 * Refresh the available measurements.
+	 */
 	public void refreshCombo() {
 		String selected = comboName.getSelectionModel().getSelectedItem();
 		if (!model.getAllNames().equals(comboName.getItems())) {
@@ -196,7 +199,10 @@ public class HistogramDisplay implements ParameterChangeListener {
 		}
 	}
 	
-
+	/**
+	 * Set the number of bins for the histogram.
+	 * @param nBins the number of bins to use
+	 */
 	public void setNumBins(final int nBins) {
 		if (panelParams != null)
 			panelParams.setNumericParameterValue("nBins", nBins);
@@ -204,10 +210,18 @@ public class HistogramDisplay implements ParameterChangeListener {
 			((IntParameter)params.getParameters().get("nBins")).setValue(nBins);
 	}
 
-	public int getNumBins(final int nBins) {
+	/**
+	 * Get the requested number of bins used for the histogram.
+	 * @return
+	 */
+	public int getNumBins() {
 		return params.getIntParameterValue("nBins");
 	}
 
+	/**
+	 * Get the pane containing the histogram and associated UI components, for addition to a scene.
+	 * @return
+	 */
 	public Pane getPane() {
 		return pane;
 	}
@@ -269,7 +283,10 @@ public class HistogramDisplay implements ParameterChangeListener {
 	}
 
 
-
+	/**
+	 * Show the histogram for a specified data column.
+	 * @param column the name of the column to show
+	 */
 	public void showHistogram(final String column) {
 		if (comboName.getItems().contains(column))
 			comboName.getSelectionModel().select(column);

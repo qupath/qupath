@@ -84,6 +84,7 @@ import qupath.lib.plugins.PluginRunner;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
 
 /**
@@ -175,7 +176,11 @@ public class QPEx extends QP {
 		return imageData;
 	}
 	
-
+	/**
+	 * Export TMA summary data for the current image.
+	 * @param path path to the export directory
+	 * @param downsampleFactor downsample applied to each TMA core image
+	 */
 	public static void exportTMAData(final String path, final double downsampleFactor) {
 		exportTMAData((ImageData<BufferedImage>)getCurrentImageData(), resolvePath(path), downsampleFactor);
 	}
@@ -191,24 +196,44 @@ public class QPEx extends QP {
 	}
 
 	
+	/**
+	 * Export TMA summary data for the specified image.
+	 * @param imageData the image containing TMA data to export
+	 * @param path path to the export directory
+	 * @param downsampleFactor downsample applied to each TMA core image
+	 */
 	public static void exportTMAData(final ImageData<BufferedImage> imageData, final String path, final double downsampleFactor) {
 		if (imageData == null)
 			return;
 		TMADataIO.writeTMAData(new File(resolvePath(path)), imageData, null, downsampleFactor);
 	}
 	
-	
+	/**
+	 * Get the current QuPath instance.
+	 * @return
+	 */
 	public static QuPathGUI getQuPath() {
 		return QuPathGUI.getInstance();
 	}
 	
-	
+	/**
+	 * Get the active viewer in the current QuPath instance.
+	 * @return an active viewer, or null if no viewer is active in QuPath currently
+	 */
 	public static QuPathViewer getCurrentViewer() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		return qupath == null ? null : qupath.getViewer();
 	}
 	
-	
+	/**
+	 * Build a file path from multiple components.
+	 * A common use of this is
+	 * <pre>
+	 *   String path = buildFilePath(PROJECT_BASE_DIR, "export")
+	 * </pre>
+	 * @param path
+	 * @return
+	 */
 	public static String buildFilePath(String...path) {
 		File file = new File(resolvePath(path[0]));
 		for (int i = 1; i < path.length; i++)
@@ -216,7 +241,11 @@ public class QPEx extends QP {
 		return file.getAbsolutePath();
 	}
 	
-	
+	/**
+	 * Ensure directories exist for the specified path, calling {@code file.mkdirs()} if not.
+	 * @param path the directory path
+	 * @return true if a directory was created, false otherwise
+	 */
 	public static boolean mkdirs(String path) {
 		File file = new File(resolvePath(path));
 		if (!file.exists())
@@ -224,10 +253,20 @@ public class QPEx extends QP {
 		return false;
 	}
 	
+	/**
+	 * Query if a file exists.
+	 * @param path full file path
+	 * @return true if the file exists, false otherwise
+	 */
 	public static boolean fileExists(String path) {
 		return new File(resolvePath(path)).exists();
 	}
 
+	/**
+	 * Query if a file path corresponds to a directory.
+	 * @param path full file path
+	 * @return true if the file exists and is a directory, false otherwise
+	 */
 	public static boolean isDirectory(String path) {
 		return new File(resolvePath(path)).isDirectory();
 	}
@@ -339,8 +378,12 @@ public class QPEx extends QP {
 	}
 	
 	
-	
-	public static File promptForFile(String[] extensions) {
+	/**
+	 * Prompt the user to select a file from a file chooser.
+	 * @param extensions valid file extensions, or null if any file may be chosen.
+	 * @return the file chosen by the user, or null if the dialog was cancelled
+	 */
+	public static File promptForFile(String... extensions) {
 		String filterDescription = extensions == null || extensions.length == 0 ? null : "Valid files";
 		if (extensions != null && extensions.length == 0)
 			extensions = null;
@@ -355,8 +398,7 @@ public class QPEx extends QP {
 	 * @see #writeRenderedImage(QuPathViewer, String)
 	 */
 	public static void writeRenderedImage(ImageData<BufferedImage> imageData, String path) throws IOException {
-		var renderedServer = new RenderedImageServer.Builder(imageData).build();
-		ImageWriterTools.writeImage(renderedServer, path);
+		writeRenderedImageRegion(imageData, null, path);
 	}
 	
 	/**
@@ -367,8 +409,39 @@ public class QPEx extends QP {
 	 * @see #writeRenderedImage(ImageData, String)
 	 */
 	public static void writeRenderedImage(QuPathViewer viewer, String path) throws IOException {
+		writeRenderedImageRegion(viewer, null, path);
+	}
+	
+	/**
+	 * Write a rendered image region to the specified path. No overlay layers will be included.
+	 * @param imageData
+	 * @param request
+	 * @param path
+	 * @throws IOException
+	 * @see #writeRenderedImage(QuPathViewer, String)
+	 */
+	public static void writeRenderedImageRegion(ImageData<BufferedImage> imageData, RegionRequest request, String path) throws IOException {
+		var renderedServer = new RenderedImageServer.Builder(imageData).build();
+		if (request == null)
+			ImageWriterTools.writeImage(renderedServer, path);
+		else
+			ImageWriterTools.writeImageRegion(renderedServer, request, path);
+	}
+	
+	/**
+	 * Write a rendered image region for the current viewer to the specified path.
+	 * @param viewer
+	 * @param request
+	 * @param path
+	 * @throws IOException
+	 * @see #writeRenderedImage(ImageData, String)
+	 */
+	public static void writeRenderedImageRegion(QuPathViewer viewer, RegionRequest request, String path) throws IOException {
 		var renderedServer = RenderedImageServer.createRenderedServer(viewer);
-		ImageWriterTools.writeImage(renderedServer, path);
+		if (request == null)
+			ImageWriterTools.writeImage(renderedServer, path);
+		else
+			ImageWriterTools.writeImageRegion(renderedServer, request, path);
 	}
 	
 	/**
@@ -577,42 +650,99 @@ public class QPEx extends QP {
 	}
 	
 	
+	/**
+	 * Save annotation measurements for the current image.
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveAnnotationMeasurements(final String path, final String... includeColumns) {
 		saveMeasurements(getCurrentImageData(), PathAnnotationObject.class, path, includeColumns);
 	}
 	
+	/**
+	 * Save TMA measurements for the current image.
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveTMAMeasurements(final String path, final String... includeColumns) {
 		saveMeasurements(getCurrentImageData(), TMACoreObject.class, path, includeColumns);
 	}
 	
+	/**
+	 * Save detection measurements for the current image.
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveDetectionMeasurements(final String path, final String... includeColumns) {
 		saveMeasurements(getCurrentImageData(), PathDetectionObject.class, path, includeColumns);
 	}
 	
+	/**
+	 * Save whole image measurements for the current image.
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveImageMeasurements(final String path, final String... includeColumns) {
 		saveMeasurements(getCurrentImageData(), PathRootObject.class, path, includeColumns);
 	}
 	
+	/**
+	 * Save whole image measurements for the specified image.
+	 * @param imageData the image data
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveImageMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
 		saveMeasurements(imageData, PathRootObject.class, path, includeColumns);
 	}
 	
+	/**
+	 * Save annotation measurements for the specified image.
+	 * @param imageData the image data
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveAnnotationMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
 		saveMeasurements(imageData, PathAnnotationObject.class, path, includeColumns);
 	}
 	
+	/**
+	 * Save TMA measurements for the specified image.
+	 * @param imageData the image data
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveTMAMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
 		saveMeasurements(imageData, TMACoreObject.class, path, includeColumns);
 	}
 	
+	/**
+	 * Save detection measurements for the specified image.
+	 * @param imageData the image data
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveDetectionMeasurements(final ImageData<?> imageData, final String path, final String... includeColumns) {
 		saveMeasurements(imageData, PathDetectionObject.class, path, includeColumns);
 	}
 
+	/**
+	 * Save measurements for the current image for objects of a fixed type.
+	 * @param type the type of objects to measure
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveMeasurements(final Class<? extends PathObject> type, final String path, final String... includeColumns) {
 		saveMeasurements(getCurrentImageData(), type, path, includeColumns);
 	}
 	
+	/**
+	 * Save measurements for the specified image for objects of a fixed type.
+	 * @param imageData the image data
+	 * @param type the type of objects to measure
+	 * @param path file path describing where to write the results
+	 * @param includeColumns specific columns to include, or empty to indicate that all measurements should be exported
+	 */
 	public static void saveMeasurements(final ImageData<?> imageData, final Class<? extends PathObject> type, final String path, final String... includeColumns) {
 		File fileOutput = new File(resolvePath(path));
 		if (fileOutput.isDirectory()) {

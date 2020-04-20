@@ -167,7 +167,7 @@ public class SummaryMeasurementTableCommand {
 		model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
 
 		SplitPane splitPane = new SplitPane();
-		HistogramDisplay histogramDisplay = new HistogramDisplay(model);
+		HistogramDisplay histogramDisplay = new HistogramDisplay(model, true);
 
 		//		table.setTableMenuButtonVisible(true);
 		TableView<PathObject> table = new TableView<>();

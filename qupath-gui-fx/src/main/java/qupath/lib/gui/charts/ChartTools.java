@@ -54,7 +54,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
-import qupath.lib.gui.panes.ExportChartPane;
 
 /**
  * Collection of static methods to help when working with JavaFX charts, 
