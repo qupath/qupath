@@ -31,6 +31,7 @@ import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.gui.ml.PixelClassifierPane.ClassificationResolution;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -142,6 +143,7 @@ public class SimpleThresholdCommand implements Runnable {
 		labelSigma.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
+		GuiTools.restrictSpinnerInputToNumber(sigmaSpinner, true);
 		PaneTools.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
 
 		label = new Label("Threshold");
@@ -150,6 +152,7 @@ public class SimpleThresholdCommand implements Runnable {
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
+		GuiTools.restrictSpinnerInputToNumber(spinner, true);
 		PaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
 
 		Label labelAbove = new Label("Above threshold");
