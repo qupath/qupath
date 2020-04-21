@@ -1,5 +1,7 @@
 ## Version 0.2.0-m10
+
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
+
 * Updated to use Java 14
   * Easier to build from source
 * Code *extensively* revised and cleaned up
