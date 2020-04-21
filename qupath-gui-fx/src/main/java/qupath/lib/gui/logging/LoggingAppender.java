@@ -39,6 +39,7 @@ import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.FileAppender;
 import javafx.application.Platform;
+import qupath.lib.gui.logging.LogManager.LogLevel;
 
 
 /**
@@ -47,7 +48,7 @@ import javafx.application.Platform;
  * @author Pete Bankhead
  *
  */
-public class LoggingAppender extends AppenderBase<ILoggingEvent> {
+class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(LoggingAppender.class);
 
@@ -58,16 +59,63 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 
 	private LoggingAppender() {
 		super();
-		if (LoggerFactory.getILoggerFactory() instanceof LoggerContext) {
-			LoggerContext context = (LoggerContext)LoggerFactory.getILoggerFactory();
+		var context = getLoggerContext();
+		if (context == null)
+			logger.warn("Cannot append logging info without logback!");
+		else {
 			setName("GUI");
 			setContext(context);
 			start();
-			context.getLogger(Logger.ROOT_LOGGER_NAME).addAppender(this);
-		} else
-			logger.warn("Cannot append logging info without logback!");
+			getRootLogger().addAppender(this);
+		}
+	}
+	
+	static Level getLevel(LogLevel logLevel) {
+		switch(logLevel) {
+		case DEBUG:
+			return Level.DEBUG;
+		case ERROR:
+			return Level.ERROR;
+		case INFO:
+			return Level.INFO;
+		case ALL:
+			return Level.ALL;
+		case OFF:
+			return Level.OFF;
+		case TRACE:
+			return Level.TRACE;
+		case WARN:
+			return Level.WARN;
+		default:
+			return Level.INFO;
+		}
 	}
 
+	/**
+	 * Set the root log level.
+	 * @param logLevel
+	 */
+	void setRootLogLevel(LogLevel logLevel) {
+		var root = getRootLogger();
+		minLevel = getLevel(logLevel);
+		if (root != null)
+			root.setLevel(minLevel);
+		else
+			logger.warn("Cannot get root logger!");
+	}
+	
+	static LoggerContext getLoggerContext() {
+		if (LoggerFactory.getILoggerFactory() instanceof LoggerContext) {
+			return (LoggerContext)LoggerFactory.getILoggerFactory();
+		} else
+			return null;
+	}
+	
+	static ch.qos.logback.classic.Logger getRootLogger() {
+		var context = getLoggerContext();
+		return context == null ? null : context.getLogger(Logger.ROOT_LOGGER_NAME);
+	}
+	
 	
 	/**
 	 * Send logging messages to the specified file.
@@ -75,8 +123,8 @@ public class LoggingAppender extends AppenderBase<ILoggingEvent> {
 	 * @param file
 	 */
 	public void addFileAppender(File file) {
-		if (LoggerFactory.getILoggerFactory() instanceof LoggerContext) {
-			LoggerContext context = (LoggerContext)LoggerFactory.getILoggerFactory();
+		var context = getLoggerContext();
+		if (context != null) {
 			FileAppender<ILoggingEvent> appender = new FileAppender<>();
 			
 			PatternLayoutEncoder encoder = new PatternLayoutEncoder();

@@ -39,7 +39,6 @@ import java.io.ObjectOutputStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -65,8 +64,6 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.jar.Attributes;
-import java.util.jar.Manifest;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -175,7 +172,7 @@ import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
-import qupath.lib.gui.logging.LoggingAppender;
+import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.panes.AnnotationPane;
 import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.PathObjectHierarchyView;
@@ -251,16 +248,6 @@ public class QuPathGUI {
 	private static QuPathGUI instance;
 	
 	private ScriptEditor scriptEditor = null;
-	
-	private String buildString = null;
-	private String versionString = null;
-	private Version version;
-	
-	/**
-	 * Variable, possibly stored in the manifest, indicating the latest commit tag.
-	 * This can be used to give some form of automated versioning.
-	 */
-	private String latestCommitTag = null;
 	
 	// For development... don't run update check if running from a directory (rather than a Jar)
 	private boolean disableAutoUpdateCheck = new File(qupath.lib.gui.QuPathGUI.class.getProtectionDomain().getCodeSource().getLocation().getFile()).isDirectory();
@@ -754,8 +741,9 @@ public class QuPathGUI {
 	 * @param stage a stage to use for the main QuPath window (may be null)
 	 * @param path path of an image, project or data file to open (may be null)
 	 * @param isStandalone true if QuPath should be run as a standalone application
+	 * @param startupQuietly true if QuPath should start up without showing any messages or dialogs
 	 */
-	QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone) {
+	QuPathGUI(final HostServices services, final Stage stage, final String path, final boolean isStandalone, final boolean startupQuietly) {
 		super();
 		
 		this.hostServices = services;
@@ -769,8 +757,14 @@ public class QuPathGUI {
 			}
 		}
 		
-		updateBuildString();
-		logger.info("QuPath build: {}", buildString);
+		var buildString = BuildInfo.getInstance().getBuildString();
+		var version = BuildInfo.getInstance().getVersion();
+		if (buildString != null)
+			logger.info("QuPath build: {}", buildString);
+		else if (version != null) {
+			logger.info("QuPath version: {}", version);			
+		} else
+			logger.warn("QuPath version unknown!");						
 		
 		long startTime = System.currentTimeMillis();
 		
@@ -1090,11 +1084,12 @@ public class QuPathGUI {
 		logger.debug("Startup time: {} ms", (endTime - startTime));
 		
 		// Do auto-update check
-		if (!disableAutoUpdateCheck)
+		if (!disableAutoUpdateCheck && !startupQuietly)
 			checkForUpdate(true);
 		
 		// Show a startup message, if we have one
-		showStarupMesssage();
+		if (!startupQuietly)
+			showStarupMesssage();
 		
 		// Run startup script, if we can
 		try {
@@ -1117,7 +1112,7 @@ public class QuPathGUI {
 			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
 			String name = "qupath-" + dateFormat.format(new Date()) + ".log";
 			File fileLog = new File(pathLogging, name);
-			LoggingAppender.getInstance().addFileAppender(fileLog);
+			LogManager.logToFile(fileLog);
 			return fileLog;
 		}
 		return null;
@@ -1214,7 +1209,7 @@ public class QuPathGUI {
 				System.out.println("Launching new QuPath instance...");
 				logger.info("Launching new QuPath instance...");
 				Stage stage = new Stage();
-				QuPathGUI qupath = new QuPathGUI(hostServices, stage, (String)null, false);
+				QuPathGUI qupath = new QuPathGUI(hostServices, stage, (String)null, false, false);
 				qupath.getStage().show();
 				System.out.println("Done!");
 			} else {
@@ -2829,47 +2824,6 @@ public class QuPathGUI {
 		return new ImageData<BufferedImage>(server, estimateImageType ? GuiTools.estimateImageType(server, imageRegionStore.getThumbnail(server, 0, 0, true)) : ImageData.ImageType.UNSET);
 	}
 	
-		
-	/**
-	 * Attempt to update the build string, providing some basic version info.
-	 * 
-	 * This only works when running from a Jar.
-	 * 
-	 * @return
-	 */
-	private boolean updateBuildString() {
-		try {
-			for (URL url : Collections.list(getClass().getClassLoader().getResources("META-INF/MANIFEST.MF"))) {
-				if (url == null)
-					continue;
-				try (InputStream stream = url.openStream()) {
-					Manifest manifest = new Manifest(url.openStream());
-					Attributes attributes = manifest.getMainAttributes();
-					String version = attributes.getValue("Implementation-Version");
-					String buildTime = attributes.getValue("QuPath-build-time");
-					String latestCommit = attributes.getValue("QuPath-latest-commit");
-					if (latestCommit != null)
-						latestCommitTag = latestCommit;
-					if (version == null || buildTime == null)
-						continue;
-					buildString = "Version: " + version + "\n" + "Build time: " + buildTime;
-					if (latestCommitTag != null)
-						buildString += "\n" + "Latest commit tag: " + latestCommitTag;
-					versionString = version;
-					this.version = Version.parse(versionString);
-					return true;
-				} catch (IOException e) {
-					logger.error("Error reading manifest", e);
-				} catch (IllegalArgumentException e) {
-					logger.error("Error determining version: " + e.getLocalizedMessage(), e);					
-				}
-			}
-		} catch (IOException e) {
-			logger.error("Error searching for build string", e);
-		}
-		return false;
-	}
-	
 	
 	
 	/**
@@ -3764,6 +3718,7 @@ public class QuPathGUI {
 	private StringBinding titleBinding = Bindings.createStringBinding(
 				() -> {
 					String name = "QuPath";
+					var versionString = getVersionString();
 					if (versionString != null)
 						name = name + " (" + versionString + ")";
 					var imageData = imageDataProperty.get();
@@ -3779,16 +3734,20 @@ public class QuPathGUI {
 	 * 
 	 * @return
 	 */
-	public String getBuildString() {
-		return buildString;
+	public static String getBuildString() {
+		return BuildInfo.getInstance().getBuildString();
+	}
+	
+	private static String getVersionString() {
+		return BuildInfo.getInstance().getVersionString();
 	}
 	
 	/**
 	 * Get the current QuPath version.
 	 * @return
 	 */
-	public Version getVersion() {
-		return version;
+	public static Version getVersion() {
+		return BuildInfo.getInstance().getVersion();
 	}
 	
 	/**

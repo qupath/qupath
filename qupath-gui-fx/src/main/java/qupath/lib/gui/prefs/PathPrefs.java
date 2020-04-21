@@ -1269,7 +1269,7 @@ public class PathPrefs {
 //					System.err.println("Default for " + category + " is set to: " + currentValue);
 					Locale.setDefault(category, locale);
 					property.set(locale);
-					logger.info("Locale {} set to {}", category, locale);
+					logger.debug("Locale {} set to {}", category, locale);
 					localeFound = true;
 					break;
 				}

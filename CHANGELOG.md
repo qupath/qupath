@@ -6,10 +6,14 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Commands are activated/deactivated according to status (e.g. if an image or project is opened)
   * Help text available for most commands via the 'Command list'
   * Lots more javadocs and a (somewhat) more logical arrangement
+* All-new command line interface
+  * Customize QuPath's launch, call scripts
+  * Convert images to OME-TIFF
 * Scripting improvements
   * Updated to Groovy 3 - scripts now support more recent Java syntax (e.g. lambdas, try-with-resources)
   * Pasting files results in them being converted to absolute paths
   * New 'Paste & escape' command to automatically escape characters for Java Strings
+  * Set logging level with LogManager class
 * New 'Measure -> Export measurements' command to export measurements for multiple images within a project
 * Scriptable 'Select objects by classification' command
 * Optionally show/hide annotation names in the viewer (shortcut key 'N')

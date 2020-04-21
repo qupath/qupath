@@ -422,7 +422,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Write an OME-TIFF pyramidal image to the given file.
 		 * 
-		 * @param path file path for outpu
+		 * @param path file path for output
 		 * @throws FormatException
 		 * @throws IOException
 		 */
@@ -435,7 +435,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Append an image as a specific series.
 		 * 
-		 * @param writer the current writter; it should already be innitialized, with metadata and ID set
+		 * @param writer the current writer; it should already be initialized, with metadata and ID set
 		 * @param meta the metadata, which should already have been initialized and set in the writer before writing any pixels
 		 * @param series number of series to be written (starting with 0; assumes previous series already written)
 		 * @throws FormatException
