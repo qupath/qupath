@@ -40,6 +40,7 @@ import javax.script.SimpleScriptContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import picocli.AutoComplete.GenerateCompletion;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.HelpCommand;
@@ -72,8 +73,7 @@ import qupath.lib.scripting.QP;
  * @author Pete Bankhead
  *
  */
-@Command(name = "qupath", subcommands = {HelpCommand.class, ScriptCommand.class}, 
-	descriptionHeading = "QuPath command line",
+@Command(name = "QuPath", subcommands = {HelpCommand.class, ScriptCommand.class, GenerateCompletion.class},
 	footer = {"",
 			"Copyright(c) The Queen's University Belfast (2014-2016)",
 			"Copyright(c) QuPath developers (2017-2020)",
@@ -114,6 +114,7 @@ public class QuPath {
 		cmd.setUnmatchedArgumentsAllowed(false);
 		cmd.setStopAtPositional(true);
 		cmd.setExpandAtFiles(false);
+		cmd.getSubcommands().get("generate-completion").getCommandSpec().usageMessage().hidden(true);
 		// Check for subcommands loaded in extensions
 		for (var subcommand : ServiceLoader.load(Subcommand.class)) {
 			cmd.addSubcommand(subcommand);
@@ -211,8 +212,7 @@ public class QuPath {
 // TODO: should script only end with .groovy or can it end with something else?
 @Command(name = "script", description = {
 		"Runs script for a given image or project.",
-		"By default, this will not save changes to any data files."},
-		footer = "\nCopyright(c) 2020")
+		"By default, this will not save changes to any data files."})
 class ScriptCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ScriptCommand.class);

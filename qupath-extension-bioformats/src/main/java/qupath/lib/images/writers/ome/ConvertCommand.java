@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
@@ -23,7 +25,7 @@ import qupath.lib.regions.RegionRequest;
  * 
  * @author Melvin Gelbard
  */
-@Command(name = "convert-ome", description = "Converts an input image to OME-TIFF.")
+@Command(name = "convert-ome", description = "Converts an input image to OME-TIFF.", sortOptions = false)
 public class ConvertCommand implements Runnable, Subcommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ConvertCommand.class);
@@ -34,39 +36,50 @@ public class ConvertCommand implements Runnable, Subcommand {
 	@Parameters(index = "1", description="Path of the output file.", paramLabel = "output")
 	private File outputFile;
 	
-	@Option(names = {"-d", "--downsample"}, defaultValue = "1.0", description = "Downsample the input image by the given factor.")
+	@Option(names = {"-r", "--crop"}, defaultValue = "", description = {"Bounding box to crop the input image.",
+			"Defined in terms of full-resolution pixel coordinates in the form x,y,w,h. ",
+			"If empty (default), the full image will be exported."})
+	private String crop;
+
+	@Option(names = {"-z", "--zslices"}, defaultValue = "all", description = {"Request which z-slice(s) will be exported.",
+			"Value may be \"all\" (the default), a single number (e.g. \"1\") or a range (e.g. \"1-5\"). Indices and 1-based and ranges are inclusive."})
+	private String zSlices;
+
+	@Option(names = {"-t", "--timepoints"}, defaultValue = "all", description = {"Request which timepoints will be exported.",
+			"Value may be \"all\" (the default), a single number (e.g. \"1\") or a range (e.g. \"1-5\"). Indices and 1-based and ranges are inclusive."})
+	private String timepoints;
+	
+	@Option(names = {"-d", "--downsample"}, defaultValue = "1.0", description = "Downsample the input image by the given factor (default=1).")
 	private double downsample;
 	
-	@Option(names = {"-c", "--compression"}, defaultValue = "default", description = "Type of compression to use for conversion.")
-	private String compression;
-	
-	// TODO
-	//@Option(names = {"-r", "--crop"}, defaultValue = "(0, 0)", description = "Crop the input image to fit the given size. (To do!)")
-	//private String crop;
+	@Option(names = {"-y", "--pyramid-scale"}, defaultValue = "1.0", description = {"Scale factor for pyramidal images.",
+			"Each pyramidal level is scaled down by the specified factor (> 1)."})
+	private double pyramid;
 	
 	@Option(names = {"--tile-size"}, defaultValue = "-1", description = "Set the tile size (of equal height and width).")
 	private int tileSize;
 	
-	@Option(names = {"--tile-width"}, defaultValue = "256", description = "Set the tile width.")
+	@Option(names = {"--tile-width"}, defaultValue = "512", description = "Set the tile width.")
 	private int tileWidth;
 	
-	@Option(names = {"--tile-height"}, defaultValue = "256", description = "Set the tile height.")
+	@Option(names = {"--tile-height"}, defaultValue = "512", description = "Set the tile height.")
 	private int tileHeight;
 	
-	@Option(names = {"-z"}, arity = "1..2", description = {"Request which z-slice(s) is/are exported. ",
-															"Default will export all z-slices.",
-															"If specifying one value, the specified z-slice will be exported.",
-															"If specifying two values, all the z-slices between them (inclusive) will be exported."})
-	private int[] zSlices;
+	@Option(names = {"-c", "--compression"}, defaultValue = "DEFAULT", description = {"Type of compression to use for conversion.",
+																				"Options: ${COMPLETION-CANDIDATES}"})
+	private CompressionType compression;
 	
-	@Option(names = {"-t"}, arity = "1..2", description = {"Request which timepoints of a time series are exported.",
-															"Default will export all timepoints.",
-															"If specifying one value, the specified timepoints will be exported.",
-															"If specifying two values, all the timepoints between them (inclusive) will be exported."})
-	private int[] timepoints;
-	
-	@Option(names = {"-p", "--paralellize"}, description = "Specify if tile export should be parallelized if possible.", paramLabel = "parallelization")
+	@Option(names = {"-p", "--paralellize"}, defaultValue = "false", description = "Parallelize tile export if possible.", paramLabel = "parallelization")
 	private boolean parallelize;
+	
+	@Option(names = {"--overwrite"}, defaultValue = "false", description = "Overwrite any existing file with the same name as the output.")
+	private boolean overwrite = false;
+	
+	@Option(names = {"--series"}, defaultValue = "0", description = "Series number. This applies only to images opened using Bio-Formats.")
+	private int series = 0;
+	
+	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
+	private boolean usageHelpRequested;
 	
 	
 	@Override
@@ -80,18 +93,33 @@ public class ConvertCommand implements Runnable, Subcommand {
 		}
 		
 		// Change name if not ending with .ome.tif
-		if (outputFile.getPath().endsWith(".tif") && !outputFile.getPath().endsWith(".ome.tif"))
-			outputFile = new File(outputFile.getParentFile(), outputFile.getPath().substring(0, outputFile.getPath().length()-4) + ".ome.tif");
-
+		if (!outputFile.getAbsolutePath().toLowerCase().endsWith(".ome.tif"))
+			outputFile = new File(outputFile.getParentFile(), GeneralTools.getNameWithoutExtension(outputFile) + ".ome.tif");
+		if (outputFile.exists() && !overwrite) {
+			logger.error("Output file " + outputFile + " exists!");
+			return;
+		}
+		if (inputFile.equals(outputFile)) {
+			logger.error("Input and output files are the same!");
+			return;
+		}
 		
-		try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(inputFile.getPath(), BufferedImage.class)) {
+		String[] args;
+		if (series > 0)
+			args = new String[]{"--series", Integer.toString(series)};
+		else
+			args = new String[0];
+		
+		try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(inputFile.getPath(), BufferedImage.class, args)) {
 			
 			// Get compression from user (or CompressionType.DEFAULT)
-			CompressionType compressionType = stringToCompressionType(compression);
+//			CompressionType compressionType = stringToCompressionType(compression);
+			CompressionType compressionType = compression;
 
 			// Check that compression is compatible with image
-			if (!Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).anyMatch(c -> c == compressionType))
-				throw new Exception("Compression chosen: " + compressionType.toString() + " is not compatible with image.");
+			if (!Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).anyMatch(c -> c == compressionType)) {
+				logger.error("Chosen compression " + compressionType.toString() + " is not compatible with the input image.");
+			}
 			
 			// Check if output will be a single tile
 			boolean singleTile = server.getTileRequestManager().getTileRequests(RegionRequest.createInstance(server)).size() == 1;
@@ -109,28 +137,75 @@ public class ConvertCommand implements Runnable, Subcommand {
 					.tileSize(tileWidth, tileHeight)
 					.parallelize(parallelize);
 			
-			int width = server.getWidth();
-			int height = server.getHeight();
-			if (downsample <= 1 || Math.max(width, height)/server.getDownsampleForResolution(0) < 4096)
-				builder.downsamples(server.getDownsampleForResolution(0));
+			// Make pyramidal, if requested
+			if (downsample < 1)
+				downsample = server.getDownsampleForResolution(0);
+			
+			if (pyramid > 1)
+				builder.scaledDownsampling(downsample, pyramid);
 			else
-				builder.scaledDownsampling(server.getDownsampleForResolution(0), downsample);
+				builder.downsamples(downsample);
 			
+			String patternRange = "(\\d+)-(\\d+)";
+			String patternInteger = "\\d+";
 			
-			if (zSlices != null) {
-				if (zSlices.length == 1)
-					builder.zSlice(zSlices[0]);
-				else if (zSlices.length == 2)
-					builder.zSlices(zSlices[0], zSlices[1]);
+			// Parse z-slices, remembering to convert from 1-based (inclusive) to 0-based (upper value exclusive) indexing
+			if (zSlices == null || zSlices.isBlank() || "all".equals(zSlices)) {
+				builder.allZSlices();
+			} else if (zSlices.matches(patternRange)) {
+				int zStart = Integer.parseInt(zSlices.substring(0, zSlices.indexOf("-")));
+				int zEnd = Integer.parseInt(zSlices.substring(zSlices.indexOf("-")+1));
+				if (zEnd == zStart)
+					builder.zSlice(zStart-1);
+				else if (zStart > zEnd) {
+					logger.error("Invalid range of --zslices (must be ascending): " + zSlices);
+					return;
+				} else
+					builder.zSlices(zStart-1, zEnd);
+			} else if (zSlices.matches(patternInteger)) {
+				int z = Integer.parseInt(zSlices);
+				builder.zSlice(z-1);
+			} else {
+				logger.error("Unknown value for --zslices: " + zSlices);
+				return;
 			}
 			
-			if (timepoints != null) {
-				if (timepoints.length == 1)
-					builder.timePoint(timepoints[0]);
-				else if (timepoints.length == 2)
-					builder.timePoints(timepoints[0], timepoints[1]);
+			// Parse timepoints, remembering to convert from 1-based (inclusive) to 0-based (upper value exclusive) indexing
+			if ("all".equals(timepoints)) {
+				builder.allTimePoints();
+			} else if (timepoints.matches(patternRange)) {
+				int tStart = Integer.parseInt(timepoints.substring(0, timepoints.indexOf("-")));
+				int tEnd = Integer.parseInt(timepoints.substring(timepoints.indexOf("-")+1));
+				if (tStart == tEnd)
+					builder.timePoint(tStart-1);
+				else if (tStart > tEnd) {
+					logger.error("Invalid range of --timepoints (must be ascending): " + timepoints);
+					return;
+				} else
+					builder.timePoints(tStart-1, tEnd);
+			} else if (timepoints.matches(patternInteger)) {
+				int t = Integer.parseInt(timepoints);
+				builder.timePoint(t-1);
+			} else {
+				logger.error("Unknown value for --timepoints: " + timepoints);
+				return;
 			}
 			
+			// Parse the bounding box, if required
+			if (crop != null && !crop.isBlank()) {
+				var matcher = Pattern.compile("(\\d+),(\\d+),(\\d+),(\\d+)").matcher(crop);
+				if (matcher.matches()) {
+					int x = Integer.parseInt(matcher.group(1));
+					int y = Integer.parseInt(matcher.group(2));
+					int w = Integer.parseInt(matcher.group(3));
+					int h = Integer.parseInt(matcher.group(4));
+					builder.region(x, y, w, h);
+				} else {
+					logger.error("Unknown value for --crop: " + crop);					
+					return;
+				}
+			}
+						
 			builder.build().writePyramid(outputFile.getPath());
 
 		} catch (Exception e) {
@@ -139,35 +214,35 @@ public class ConvertCommand implements Runnable, Subcommand {
 	}
 	
 	
-	private CompressionType stringToCompressionType(String compressionParam) {
-		switch (compressionParam.toLowerCase()) {
-		case "default":
-			return CompressionType.DEFAULT;
-		
-		case "jpeg-2000":
-		case "jpeg2000":
-		case "j2k":
-			return CompressionType.J2K;
-		
-		case "jpeg-2000-lossy":
-		case "jpeg2000lossy":
-		case "j2k-lossy":
-			return CompressionType.J2K_LOSSY;
-		
-		case "jpeg":
-			return CompressionType.JPEG;
-		
-		case "lzw":
-			return CompressionType.LZW;
-			
-		case "uncompressed":
-			return CompressionType.UNCOMPRESSED;
-			
-		case "zlib":
-			return CompressionType.ZLIB;
-			
-		default:
-			return CompressionType.DEFAULT;
-		}
-	}
+//	private CompressionType stringToCompressionType(String compressionParam) {
+//		switch (compressionParam.toLowerCase()) {
+//		case "default":
+//			return CompressionType.DEFAULT;
+//		
+//		case "jpeg-2000":
+//		case "jpeg2000":
+//		case "j2k":
+//			return CompressionType.J2K;
+//		
+//		case "jpeg-2000-lossy":
+//		case "jpeg2000lossy":
+//		case "j2k-lossy":
+//			return CompressionType.J2K_LOSSY;
+//		
+//		case "jpeg":
+//			return CompressionType.JPEG;
+//		
+//		case "lzw":
+//			return CompressionType.LZW;
+//			
+//		case "uncompressed":
+//			return CompressionType.UNCOMPRESSED;
+//			
+//		case "zlib":
+//			return CompressionType.ZLIB;
+//			
+//		default:
+//			return CompressionType.DEFAULT;
+//		}
+//	}
 }

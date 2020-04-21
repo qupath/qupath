@@ -156,8 +156,11 @@ public class OMEPyramidWriter {
 			}
 		}
 		
-		@Override
-		public String toString() {
+		/**
+		 * Get a friendlier string representation
+		 * @return
+		 */
+		public String toFriendlyString() {
 			switch(this) {
 			case DEFAULT:
 				return "Default (lossless or lossy)";
