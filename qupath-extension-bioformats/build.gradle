@@ -4,7 +4,7 @@ description = 'qupath-extension-bioformats'
 
 configurations {
   // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately
-//  implementation.extendsFrom bioformats
+  implementation.extendsFrom bioformats
   implementation.extendsFrom controlsfx
   implementation.extendsFrom picocli
 //  testImplementation.extendsFrom bioformats
@@ -19,10 +19,5 @@ dependencies {
 //  }
 //  testImplementation("ome:bioformats_package:${bioformatsVersion}")
 
-  // 
-  implementation("ome:formats-gpl:${bioformatsVersion}") {
-  	exclude group: 'xalan', module: 'serializer'
-  	exclude group: 'xalan', module: 'xalan'
-  }
   testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")
 }

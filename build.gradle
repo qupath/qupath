@@ -244,6 +244,7 @@ allprojects {
     opencv
     jpen
     imagej
+    bioformats
     openslide
     javafx
     nativeloader
@@ -304,6 +305,17 @@ allprojects {
 		}
 	} else
 	    imagej "net.imagej:ij:${imagejVersion}"
+
+	bioformats "ome:formats-gpl:${bioformatsVersion}", {
+	  	exclude group: 'xalan', module: 'serializer'
+	  	exclude group: 'xalan', module: 'xalan'
+	  	exclude group: 'io.minio', module: 'minio'
+	  	exclude group: 'commons-codec', module: 'commons-codec'
+        exclude group: 'commons-logging', module: 'commons-logging'
+//        exclude group: 'edu.ucar', module: 'cdm'
+        exclude group: 'com.google.code.findbugs', module: 'jsr305'
+        exclude group: 'com.google.code.findbugs', module: 'annotations'
+	 }
 
     openslide "org.openslide:openslide:${openslideVersion}"
     if (nativesClassifier != null)

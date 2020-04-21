@@ -70,7 +70,7 @@ public class RefineAnnotationsPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	public String getName() {
-		return "Remove fragments";
+		return "Remove fragments & holes";
 	}
 
 	@Override

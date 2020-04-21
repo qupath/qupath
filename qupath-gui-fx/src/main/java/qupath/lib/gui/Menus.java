@@ -515,8 +515,8 @@ class Menus {
 		public final Action SPLIT_ANNOTATIONS = qupath.createPluginAction("Split annotations", SplitAnnotationsPlugin.class, null);
 		
 		@ActionDescription("Remove small fragments of annotations that contain disconnected pieces.")
-		@ActionMenu("Annotations...>Remove fragments")
-		public final Action REMOVE_FRAGMENTS = qupath.createPluginAction("Remove annotations", RefineAnnotationsPlugin.class, null);
+		@ActionMenu("Annotations...>Remove fragments & holes")
+		public final Action REMOVE_FRAGMENTS = qupath.createPluginAction("Remove fragments & holes", RefineAnnotationsPlugin.class, null);
 		
 		@ActionDescription("Fill holes occurring inside annotations.")
 		@ActionMenu("Annotations...>Fill holes")
