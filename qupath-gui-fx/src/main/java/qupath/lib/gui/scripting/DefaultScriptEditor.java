@@ -114,7 +114,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.dialogs.ProjectDialogs;
-import qupath.lib.gui.logging.LoggingAppender;
+import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
@@ -746,7 +746,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		context.setWriter(new ScriptConsoleWriter(console, false));
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
 		
-		LoggingAppender.getInstance().addTextAppendableFX(console);
+		LogManager.addTextAppendableFX(console);
 		long startTime = System.currentTimeMillis();
 		if (outputScriptStartTime.get())
 			logger.info("Starting script at {}", new Date(startTime));
@@ -758,7 +758,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (outputScriptStartTime.get())
 				logger.info(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
 		} finally {
-			Platform.runLater(() -> LoggingAppender.getInstance().removeTextAppendableFX(console));	
+			Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
 		}
 	}
 

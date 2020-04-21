@@ -60,6 +60,7 @@ import qupath.lib.gui.charts.Charts;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
+import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -116,6 +117,8 @@ public class QPEx extends QP {
 			Charts.class,
 			MenuTools.class,
 			PaneTools.class,
+			
+			LogManager.class,
 			
 			// JavaFX classes
 			Platform.class

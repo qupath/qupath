@@ -50,7 +50,7 @@ import javafx.stage.Stage;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.logging.LoggingAppender;
+import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -76,7 +76,7 @@ public class LogViewerCommand implements Runnable {
 	 */
 	public LogViewerCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		LoggingAppender.getInstance().addTextAppendableFX(text -> textPane.appendText(text));
+		LogManager.addTextAppendableFX(text -> textPane.appendText(text));
 	}
 
 	@Override
