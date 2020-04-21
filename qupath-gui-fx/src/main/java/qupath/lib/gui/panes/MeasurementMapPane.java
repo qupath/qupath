@@ -291,7 +291,10 @@ public class MeasurementMapPane {
 		}
 	}
 	
-	
+	/**
+	 * Get the pane, which can be added to a scene for display.
+	 * @return
+	 */
 	public Pane getPane() {
 		return pane;
 	}
@@ -304,7 +307,7 @@ public class MeasurementMapPane {
 			hideMap();
 	}
 	
-	public void showMap() {
+	private void showMap() {
 		String measurement = listMeasurements.getSelectionModel().getSelectedItem();
 		QuPathViewer viewer = qupath.getViewer();
 		if (viewer == null || measurement == null)
@@ -356,7 +359,7 @@ public class MeasurementMapPane {
 	}
 	
 	
-	public void updateMapperBrightnessContrast() {
+	private void updateMapperBrightnessContrast() {
 		if (mapper == null || updatingSliders)
 			return;
 		
@@ -373,7 +376,7 @@ public class MeasurementMapPane {
 	
 	
 	
-	public void hideMap() {
+	private void hideMap() {
 		QuPathViewer viewer = qupath.getViewer();
 		if (viewer != null) {
 			OverlayOptions overlayOptions = viewer.getOverlayOptions();
@@ -384,7 +387,7 @@ public class MeasurementMapPane {
 	}
 	
 	
-	public void updateMeasurements() {
+	private void updateMeasurements() {
 //		this.measurements.clear();
 //		this.measurements.addAll(measurements);
 		
@@ -410,7 +413,7 @@ public class MeasurementMapPane {
 	
 	
 	
-	public void updateDisplay() {
+	private void updateDisplay() {
 		updateMapperBrightnessContrast();
 		for (var viewer : qupath.getViewers())
 			viewer.forceOverlayUpdate();
@@ -419,7 +422,7 @@ public class MeasurementMapPane {
 	
 	
 	
-	static Image createPanelKey(final ColorMapper colorMapper) {
+	private static Image createPanelKey(final ColorMapper colorMapper) {
 		BufferedImage imgKey = new BufferedImage(255, 10, BufferedImage.TYPE_INT_ARGB);
 		if (colorMapper != null) {
 			for (int i = 0; i < imgKey.getWidth(); i++) {

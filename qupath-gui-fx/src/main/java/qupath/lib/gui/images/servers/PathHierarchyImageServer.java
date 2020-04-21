@@ -67,7 +67,12 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	
 //	public static String DEFAULT_PREFIX = "OVERLAY::";
 	static long counter = 0;
-	public static String DEFAULT_PREFIX = "OVERLAY";
+	
+	/**
+	 * Prefix used for the path of all instances of this class.
+	 * This can be used to help with caching (and in particular with clearing caches selectively).
+	 */
+	public static String DEFAULT_PREFIX = "OVERLAY::";
 	
 	private ImageServerMetadata originalMetadata;
 	
@@ -77,6 +82,11 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 	private OverlayOptions options;
 	private PathObjectHierarchy hierarchy;
 	
+	/**
+	 * Constructor.
+	 * @param imageData the image data
+	 * @param options options defining how objects will be painted
+	 */
 	public PathHierarchyImageServer(final ImageData<BufferedImage> imageData, final OverlayOptions options) {
 		this(DEFAULT_PREFIX + " " + counter + "::", imageData, options);
 	}
@@ -84,6 +94,7 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 //	public PathHierarchyImageServer(final ImageServer<BufferedImage> server, final PathObjectHierarchy hierarchy, final OverlayOptions options) {
 //		this(DEFAULT_PREFIX + " " + counter + "::", server, hierarchy, options);
 //	}
+	
 	
 	private PathHierarchyImageServer(final String prefix, final ImageData<BufferedImage> imageData, final OverlayOptions options) {
 		super();

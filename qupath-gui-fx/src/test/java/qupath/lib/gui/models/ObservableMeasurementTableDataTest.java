@@ -53,6 +53,7 @@ public class ObservableMeasurementTableDataTest {
 	private static final double EPSILON = 1e-15;
 	
 	
+	@SuppressWarnings("javadoc")
 	@Test
 	public void test() {
 		

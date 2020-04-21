@@ -24,7 +24,6 @@
 package qupath.lib.gui;
 
 import java.awt.image.BufferedImage;
-import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -52,10 +51,10 @@ public class QuPathApp extends Application {
 		// Handle params
 		Parameters params = getParameters();
 		Map<String, String> namedParams = params.getNamed();
-		List<String> unnamedParams = params.getUnnamed();
+//		List<String> unnamedParams = params.getUnnamed();
 		
 		// Create main GUI
-		boolean quiet = unnamedParams.contains("quiet") ? true : false;
+		boolean quiet = Boolean.valueOf(namedParams.getOrDefault("quiet", null));
 		QuPathGUI gui = new QuPathGUI(getHostServices(), stage, null, true, quiet);
 		logger.info("Starting QuPath with parameters: " + params.getRaw());
 		

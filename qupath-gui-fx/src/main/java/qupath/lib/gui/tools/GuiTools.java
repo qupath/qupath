@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
 import java.text.NumberFormat;
+import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import org.controlsfx.control.CheckComboBox;
@@ -41,8 +43,10 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
@@ -653,6 +657,35 @@ public class GuiTools {
 		} else
 			Platform.runLater(() -> refreshList(listView));
 	}
+	
+	
+	/**
+	 * Restrict the possible spinner input to integer (or double) format.
+	 * @param spinner
+	 * @param allowDecimals
+	 */
+	public static void restrictSpinnerInputToNumber(Spinner<? extends Number> spinner, boolean allowDecimals) {
+		NumberFormat format;
+		if (allowDecimals)
+			format = NumberFormat.getNumberInstance();
+		else
+			format = NumberFormat.getIntegerInstance();
+		
+		UnaryOperator<TextFormatter.Change> filter = c -> {
+		    if (c.isContentChange()) {
+		    	String newText = c.getControlNewText();
+		        ParsePosition parsePosition = new ParsePosition(0);
+		        format.parse(newText, parsePosition);
+		        if (parsePosition.getIndex() < c.getControlNewText().length()) {
+		            return null;
+		        }
+		    }
+		    return c;
+		};
+		TextFormatter<Integer> normalizeFormatter = new TextFormatter<Integer>(filter);
+		spinner.getEditor().setTextFormatter(normalizeFormatter);		
+	}
+	
 
 	/**
 	 * Prompt the user to set properties for the currently-selected annotation(s).

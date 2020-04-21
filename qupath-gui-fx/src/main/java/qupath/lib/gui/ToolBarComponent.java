@@ -57,6 +57,8 @@ class ToolBarComponent {
 		ToolBarComponent(final QuPathGUI qupath) {
 			this.qupath = qupath;
 			
+			logger.trace("Initializing toolbar");
+			
 			availableTools = qupath.getAvailableTools();
 			availableTools.addListener((Change<? extends PathTool> v) -> updateToolbar());
 			

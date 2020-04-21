@@ -49,23 +49,49 @@ public class ProjectCommands {
 		return true;
 	}
 	
+	/**
+	 * Show prompt for the user to select images to import into the current project in QuPath.
+	 * @param qupath the QuPath instance
+	 * @param defaultPaths image paths to include when the dialog is shown (useful when the dialog is shown with some paths already known)
+	 * @return a list of project entries for all images that were successfully added to the project
+	 */
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
 		return ProjectImportImagesCommand.promptToImportImages(qupath);
 	}
 	
+	/**
+	 * Add a single image to a project.
+	 * @param project the project
+	 * @param server the image to add
+	 * @param type optional image type, if known
+	 * @return an entry corresponding to the image that was added
+	 */
 	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
 		return ProjectImportImagesCommand.addSingleImageToProject(project, server, type);
 	}
 	
+	/**
+	 * Get an RGB thumbnail for an image server, suitable for showing as a project thumbnail.
+	 * @param server
+	 * @return an RGB thumbnail for server
+	 * @throws IOException
+	 */
 	public static BufferedImage getThumbnailRGB(ImageServer<BufferedImage> server) throws IOException {
 		return ProjectImportImagesCommand.getThumbnailRGB(server, null);
 	}
 	
-	public static void showProjectMetadataEditor(QuPathGUI qupath) {
-		ProjectMetadataEditorCommand.showProjectMetadataEditor(qupath);
+	/**
+	 * Show the metadata editor for the specified project.
+	 * @param project
+	 */
+	public static void showProjectMetadataEditor(Project<?> project) {
+		ProjectMetadataEditorCommand.showProjectMetadataEditor(project);
 	}
 	
-	
+	/**
+	 * Prompt to export a text file containing a list of image paths for a project.
+	 * @param project
+	 */
 	public static void promptToExportImageList(Project<?> project) {
 		var title = "Export image list";
 		if (project == null) {

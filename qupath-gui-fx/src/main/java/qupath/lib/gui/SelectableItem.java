@@ -35,16 +35,21 @@ import javafx.scene.control.ToggleGroup;
  * 
  * @param <T>
  */
-public class SelectionManager<T> {
+public class SelectableItem<T> {
 
 	final private ObjectProperty<T> selected;
 	final private BooleanProperty itemSelected = new SimpleBooleanProperty();
 	final private T item;
 	
-	final ChangeListener<T> selectedListener;
-	final ChangeListener<Boolean> itemSelectedListener;
+	final private ChangeListener<T> selectedListener;
+	final private ChangeListener<Boolean> itemSelectedListener;
 	
-	public SelectionManager(final ObjectProperty<T> selected, final T item) {
+	/**
+	 * Constructor.
+	 * @param selected the property that identifies which item is currently selected
+	 * @param item the current item to be wrapped within this class, and which may or may not be selected
+	 */
+	public SelectableItem(final ObjectProperty<T> selected, final T item) {
 		this.selected = selected;
 		this.item = item;
 		selectedListener = ((v, o, n) -> {
@@ -58,19 +63,35 @@ public class SelectionManager<T> {
 		this.itemSelected.addListener(itemSelectedListener);
 	}
 
+	/**
+	 * Returns true if the value of the selected property equals {@link #getItem()}.
+	 * @return
+	 */
 	public boolean isSelected() {
 		return selected.get() == item;
 	}
 
+	/**
+	 * Set the item to be selected.
+	 * @param selected
+	 */
 	public void setSelected(boolean selected) {
 		if (selected)
 			this.selected.set(item);
 	}
 	
+	/**
+	 * Property representing the item that has been selected (which may or may not be the same as {@link #getItem()}).
+	 * @return
+	 */
 	public BooleanProperty selectedProperty() {
 		return itemSelected;
 	}
 	
+	/**
+	 * Get the current item.
+	 * @return
+	 */
 	public T getItem() {
 		return this.item;
 	}

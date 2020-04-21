@@ -101,7 +101,16 @@ public class PathHierarchyPaintingHelper {
 	
 	private PathHierarchyPaintingHelper() {}
 	
-	
+	/**
+	 * Paint the specified objects.
+	 * 
+	 * @param g2d the graphics object on which the objects should be painted
+	 * @param boundsDisplayed the displayable bounds, which can be used to filter out objects beyond the visible region
+	 * @param pathObjects the objects to paint
+	 * @param overlayOptions the overlay options defining how objects should be painted
+	 * @param selectionModel the selection model used to determine the selection status of each object
+	 * @param downsample the downsample factor; this should already be applied to the graphics object, but is needed to determine some line thicknesses
+	 */
 	public static void paintSpecifiedObjects(Graphics2D g2d, Rectangle boundsDisplayed, Collection<? extends PathObject> pathObjects, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
 		//		System.out.println("MY CLIP: " + g2d.getClipBounds());
 		// Paint objects, if required
@@ -115,15 +124,23 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 	
-	
-	public static void paintTMAGrid(Graphics2D g2d, TMAGrid tmaGrid, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsampleFactor) {
+	/**
+	 * Paint the specified tissue microarray grid.
+	 * 
+	 * @param g2d the graphics object on which the objects should be painted
+	 * @param tmaGrid the TMA grid
+	 * @param overlayOptions the overlay options defining how objects should be painted
+	 * @param selectionModel the selection model used to determine the selection status of each object
+	 * @param downsample the downsample factor; this should already be applied to the graphics object, but is needed to determine some line thicknesses
+	 */
+	public static void paintTMAGrid(Graphics2D g2d, TMAGrid tmaGrid, OverlayOptions overlayOptions, PathObjectSelectionModel selectionModel, double downsample) {
 		if (tmaGrid == null)
 			return;
 		Rectangle boundsDisplayed = g2d.getClipBounds();
 		// Paint the TMA grid, if required
 		if (!overlayOptions.getShowTMAGrid())
 			return;
-		Stroke strokeThick = getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsampleFactor);
+		Stroke strokeThick = getCachedStroke(PathPrefs.annotationStrokeThicknessProperty().get() * downsample);
 		g2d.setStroke(strokeThick);
 		// Paint the TMA grid
 		Color colorGrid = ColorToolsAwt.getCachedColor(PathPrefs.colorTMAProperty().get());
@@ -141,7 +158,7 @@ public class PathHierarchyPaintingHelper {
 					Rectangle2D boundsNext = AwtTools.getBounds2D(tmaGrid.getTMACore(gy+1, gx).getROI());
 					g2d.drawLine((int)bounds.getCenterX(), (int)bounds.getMaxY(), (int)boundsNext.getCenterX(), (int)boundsNext.getMinY());
 				}
-				PathHierarchyPaintingHelper.paintObject(core, false, g2d, boundsDisplayed, overlayOptions, selectionModel, downsampleFactor);
+				PathHierarchyPaintingHelper.paintObject(core, false, g2d, boundsDisplayed, overlayOptions, selectionModel, downsample);
 			}
 		}
 		
@@ -157,7 +174,7 @@ public class PathHierarchyPaintingHelper {
 				if (core.getName() == null)
 					continue;
 				int width = fm.stringWidth(core.getName());
-				if (width < core.getROI().getBoundsWidth() / downsampleFactor)
+				if (width < core.getROI().getBoundsWidth() / downsample)
 					fitCount++;
 				totalCount++;
 			}
@@ -394,7 +411,7 @@ public class PathHierarchyPaintingHelper {
 								shape = cross;
 								break;
 							}
-							paintShape(shape, g, colorStroke, stroke, colorFill, downsample);
+							paintShape(shape, g, colorStroke, stroke, colorFill);
 						} else if (pathObject instanceof PathCellObject) {
 							PathCellObject cell = (PathCellObject)pathObject;
 							if (overlayOptions.getShowCellBoundaries())
@@ -430,8 +447,8 @@ public class PathHierarchyPaintingHelper {
 	}
 	
 	
-	
-	public static void paintROI(ROI pathROI, Graphics2D g, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
+
+	private static void paintROI(ROI pathROI, Graphics2D g, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
 		if (pathROI == null)
 			return;
 //		pathROI.draw(g, colorStroke, colorFill);
@@ -446,9 +463,9 @@ public class PathHierarchyPaintingHelper {
 //			Shape shape = PathROIToolsAwt.getShape(pathROI);
 			// Only pass the colorFill if we have an area (i.e. not a line/polyline)
 			if (pathROI.isArea())
-				paintShape(shape, g, colorStroke, stroke, colorFill, downsample);
+				paintShape(shape, g, colorStroke, stroke, colorFill);
 			else if (pathROI.isLine())
-				paintShape(shape, g, colorStroke, stroke, null, downsample);
+				paintShape(shape, g, colorStroke, stroke, null);
 		} else if (pathROI.isPoint()) {
 			paintPoints(pathROI, g2d, PathPrefs.pointRadiusProperty().get(), colorStroke, stroke, colorFill, downsample);
 		}
@@ -607,8 +624,15 @@ public class PathHierarchyPaintingHelper {
 		
 	}
 	
-	
-	public static void paintShape(Shape shape, Graphics2D g2d, Color colorStroke, Stroke stroke, Color colorFill, double downsample) {
+	/**
+	 * Paint the specified shape with specified stroke and fill colors.
+	 * @param shape shape to paint
+	 * @param g2d graphics object
+	 * @param colorStroke stroke color (may be null)
+	 * @param stroke stroke (may be null)
+	 * @param colorFill fill color (may be null)
+	 */
+	public static void paintShape(Shape shape, Graphics2D g2d, Color colorStroke, Stroke stroke, Color colorFill) {
 		if (colorFill != null) {
 			g2d.setColor(colorFill);
 			g2d.fill(shape); 
@@ -630,7 +654,7 @@ public class PathHierarchyPaintingHelper {
 				Color colorHull = colorFill != null ? colorFill : colorStroke;
 				colorHull = ColorToolsAwt.getColorWithOpacity(colorHull, 0.1);
 				if (colorHull != null)
-					paintShape(RoiTools.getShape(convexHull), g2d, null, null, colorHull, downsample);
+					paintShape(RoiTools.getShape(convexHull), g2d, null, null, colorHull);
 //					getConvexHull().draw(g, null, colorHull);
 			}
 		}

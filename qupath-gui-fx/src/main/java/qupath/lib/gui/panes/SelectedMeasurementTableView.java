@@ -127,6 +127,10 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		return tableModel.getStringValue(selected, name, nDecimalPlaces);
 	}
 	
+	/**
+	 * Get the {@link TableView}.
+	 * @return
+	 */
 	public TableView<String> getTable() {
 		if (tableMeasurements == null)
 			tableMeasurements = createMeasurementTable();

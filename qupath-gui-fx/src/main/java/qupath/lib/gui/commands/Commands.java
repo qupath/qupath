@@ -45,13 +45,14 @@ import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.PathClassPane;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
-import qupath.lib.gui.panes.classify.PathClassifierPanel;
+import qupath.lib.gui.panes.classify.PathClassifierPane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
 import qupath.lib.gui.tools.GuiTools;
@@ -59,7 +60,7 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.recording.ViewTrackerControlPanel;
+import qupath.lib.gui.viewer.recording.ViewTrackerControlPane;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServers;
@@ -145,6 +146,19 @@ public class Commands {
 				"resolveHierarchy()"));
 	}
 
+	
+	/**
+	 * Prompt the user to create a sparse image server composed of annotated regions from images within the current QuPath project.
+	 * @param qupath the current QuPath instance
+	 */
+	public static void promptToCreateSparseServer(QuPathGUI qupath) {
+		var project = qupath.getProject();
+		var entry = SparseImageServerCommand.promptToCreateServer(project, qupath.getAvailablePathClasses());
+		qupath.refreshProject();
+		if (entry != null) {
+			qupath.openImageEntry(entry);
+		}
+	}
 	
 	
 	/**
@@ -758,10 +772,39 @@ public class Commands {
 		dialog.setTitle("Load detection classifier");
 		dialog.initOwner(qupath.getStage());
 		BorderPane pane = new BorderPane();
-		pane.setCenter(new PathClassifierPanel(qupath.viewerProperty()).getPane());
+		pane.setCenter(new PathClassifierPane(qupath.viewerProperty()).getPane());
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		dialog.setScene(new Scene(pane, 300, 400));
 		return dialog;
+	}
+	
+	
+	/**
+	 * Create a zoom in/out command action.
+	 * @param qupath QuPath instance
+	 * @param zoomAmount relative amount to zoom in (positive) or out (negative). Suggested value is +/-10.
+	 * @return
+	 */
+	public static Action createZoomCommand(QuPathGUI qupath, int zoomAmount) {
+		var command = new ZoomCommand(qupath.viewerProperty(), zoomAmount);
+		return ActionTools.createAction(command);
+	}
+	
+	
+	/**
+	 * Create a stage to prompt the user to specify an annotation to add.
+	 * @param qupath
+	 * @return 
+	 */
+	public static Stage createSpecifyAnnotationDialog(QuPathGUI qupath) {
+		SpecifyAnnotationCommand pane = new SpecifyAnnotationCommand(qupath);
+		var stage = new Stage();
+		var scene = new Scene(pane.getPane());
+		stage.setScene(scene);
+		stage.setWidth(300);
+		stage.setTitle("Specify annotation");
+		stage.initOwner(qupath.getStage());
+		return stage;
 	}
 	
 	
@@ -936,14 +979,14 @@ public class Commands {
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Tracking");
-		final ViewTrackerControlPanel panel = new ViewTrackerControlPanel(qupath.getViewer());
+		final ViewTrackerControlPane panel = new ViewTrackerControlPane(qupath.getViewer());
 		StackPane pane = new StackPane(panel.getNode());
 		dialog.setScene(new Scene(pane));
 		dialog.setResizable(false);
 		dialog.setAlwaysOnTop(true);
 		dialog.setOnHidden(e -> {
-			if (panel != null && panel.getViewTracker() != null)
-				panel.getViewTracker().setRecording(false);
+			if (panel != null)
+				panel.setRecording(false);
 		});
 		dialog.show();
 	}

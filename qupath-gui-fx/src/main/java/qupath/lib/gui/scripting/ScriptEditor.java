@@ -33,10 +33,22 @@ import java.io.File;
  */
 public interface ScriptEditor {
 	
+	/**
+	 * Show the script editor.
+	 */
 	public void showEditor();
 	
+	/**
+	 * Show the script editor, including a new script with the specified name.
+	 * @param name name of the script to show
+	 * @param script content of the script
+	 */
 	public void showScript(String name, String script);
 	
+	/**
+	 * Show the script editor, opening an existing script file.
+	 * @param file the script file
+	 */
 	public void showScript(File file);
 	
 }

@@ -1823,7 +1823,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //							Math.round(boundsShape.getHeight()/downsampleFactor)*downsampleFactor+2*downsampleFactor);
 					
 //					boundsShape.setFrame(boundsShape.getX()-downsampleFactor, boundsShape.getY()-downsampleFactor, boundsShape.getWidth()+2*downsampleFactor, boundsShape.getHeight()+2*downsampleFactor);
-					PathHierarchyPaintingHelper.paintShape(boundsShape, g2d, getSuggestedOverlayColor(), PathHierarchyPaintingHelper.getCachedStroke(Math.max(downsample, 1)*2), null, downsample);
+					PathHierarchyPaintingHelper.paintShape(boundsShape, g2d, getSuggestedOverlayColor(), PathHierarchyPaintingHelper.getCachedStroke(Math.max(downsample, 1)*2), null);
 //					boundsShape.setFrame(boundsShape.getX()+downsampleFactor, boundsShape.getY()-downsampleFactor, boundsShape.getWidth(), boundsShape.getHeight());
 //					PathHierarchyPaintingHelper.paintShape(boundsShape, g2d, new Color(1f, 1f, 1f, 0.75f), PathHierarchyPaintingHelper.getCachedStroke(Math.max(downsampleFactor, 1)*2), null, downsampleFactor);
 				}

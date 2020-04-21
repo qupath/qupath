@@ -561,22 +561,22 @@ public class QuPathGUI {
 		 * Request that cells are displayed using their boundary ROI only.
 		 */
 		@ActionIcon(PathIcons.CELL_ONLY)
-		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
+		public final Action SHOW_CELL_BOUNDARIES = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.BOUNDARIES_ONLY), "Cell boundaries only");
 		/**
 		 * Request that cells are displayed using their boundary ROI only.
 		 */
 		@ActionIcon(PathIcons.NUCLEI_ONLY)
-		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
+		public final Action SHOW_CELL_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_ONLY), "Nuclei only");
 		/**
 		 * Request that cells are displayed using both cell and nucleus ROIs.
 		 */
 		@ActionIcon(PathIcons.CELL_NULCEI_BOTH)
-		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
+		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
 		/**
 		 * Request that cells are displayed using their centroids only.
 		 */
 		@ActionIcon(PathIcons.CENTROIDS_ONLY)
-		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectionManager<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
+		public final Action SHOW_CELL_CENTROIDS = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.CENTROIDS), "Centroids only");
 
 		/**
 		 * Toggle the display of annotations.
@@ -975,7 +975,7 @@ public class QuPathGUI {
 		
 		stage.getScene().setOnKeyReleased(e -> {
 			// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
-			if (e.isConsumed() || e.getTarget() instanceof TextInputControl || !PathPrefs.useSystemMenubarProperty().get()) {
+			if (e.isConsumed() || e.getTarget() instanceof TextInputControl || !PathPrefs.useSystemMenubarProperty().get() || e.isShortcutDown()) {
 				return;
 			}
 			
@@ -3355,13 +3355,13 @@ public class QuPathGUI {
 	}
 	
 	private Action createToolAction(final PathTool tool) {
-		  var action = createSelectableCommandAction(new SelectionManager<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), null);
+		  var action = createSelectableCommandAction(new SelectableItem<>(selectedToolProperty, tool), tool.getName(), tool.getIcon(), null);
 		  action.disabledProperty().bind(Bindings.createBooleanBinding(() -> !tools.contains(tool) || selectedToolLocked.get(), selectedToolLocked, tools));
 		  registerAccelerator(action);
 		  return action;
 	}
 
-	private static <T> Action createSelectableCommandAction(final SelectionManager<T> command, final String name, final Node icon, final KeyCombination accelerator) {
+	private static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final String name, final Node icon, final KeyCombination accelerator) {
 		var action = ActionTools.actionBuilder(e -> command.setSelected(true))
 				.text(name)
 				.accelerator(accelerator)
@@ -3372,7 +3372,7 @@ public class QuPathGUI {
 		return action;
 	}
 	
-	private static <T> Action createSelectableCommandAction(final SelectionManager<T> command, final String name) {
+	private static <T> Action createSelectableCommandAction(final SelectableItem<T> command, final String name) {
 		return createSelectableCommandAction(command, name, null, null);
 	}
 
@@ -3636,6 +3636,8 @@ public class QuPathGUI {
 
 		var commandLogView = new WorkflowCommandLogView(this);
 		TitledPane titledLog = new TitledPane("Command history", commandLogView.getPane());
+		titledLog.setCollapsible(false);
+		titledLog.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		var pane = new BorderPane(titledLog);
 		analysisPanel.getTabs().add(new Tab("Workflow", pane));
 	}

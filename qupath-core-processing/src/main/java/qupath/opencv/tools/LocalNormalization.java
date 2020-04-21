@@ -21,15 +21,36 @@ import qupath.lib.images.servers.PixelCalibration;
  */
 public class LocalNormalization {
 	
+	/**
+	 * Local normalization type.
+	 */
 	public static enum NormalizationType {
+		/**
+		 * No local normalization
+		 */
 		NONE,
+		/**
+		 * Subtract Gaussian-filtered image
+		 */
 		GAUSSIAN_MEAN_ONLY,
+		/**
+		 * Subtract Gaussian-filtered image, then divide by a weighted estimate of the local standard deviation
+		 */
 		GAUSSIAN_MEAN_VARIANCE
 	}
 	
+	/**
+	 * Helper class to store local normalization parameters.
+	 */
 	public static class LocalNormalizationType {
 		
+		/**
+		 * Smoothing scale for Gaussian subtraction.
+		 */
 		final public SmoothingScale scale;
+		/**
+		 * Smoothing scale for Gaussian-weighted standard deviation estimate.
+		 */
 		final public SmoothingScale scaleVariance;
 		
 //		final private boolean subtractOnly;
@@ -51,6 +72,13 @@ public class LocalNormalization {
 			return new LocalNormalizationType(scale, scaleVariance);
 		}
 		
+		/**
+		 * Get an object containing the parameters necessary for normalization.
+		 * 
+		 * @param scale Gaussian sigma value used for initial filters (mean subtraction)
+		 * @param varianceScaleRatio multiplicative factor applied to scale to determine the variance estimation scale
+		 * @return
+		 */
 		public static LocalNormalizationType getInstance(SmoothingScale scale, double varianceScaleRatio) {
 			Objects.nonNull(scale);
 			if (varianceScaleRatio <= 0)
@@ -79,7 +107,9 @@ public class LocalNormalization {
 		SCALE_3D_ISOTROPIC
 	}
 	
-	
+	/**
+	 * 2D or 3D Gaussian scale. See {@link #getSigmaZ(PixelCalibration)} for the key distinctions.
+	 */
 	public static class SmoothingScale {
 		
 		final private double sigma;
@@ -90,14 +120,29 @@ public class LocalNormalization {
 			this.scaleType = scaleType;
 		}
 		
+		/**
+		 * Get a 2D Gaussian scale.
+		 * @param sigma sigma value for x and y
+		 * @return
+		 */
 		public static SmoothingScale get2D(double sigma) {
 			return getInstance(ScaleType.SCALE_2D, sigma);
 		}
 		
+		/**
+		 * Get a 3D anisotropic Gaussian scale.
+		 * @param sigma sigma value for x, y and z
+		 * @return
+		 */
 		public static SmoothingScale get3DAnisotropic(double sigma) {
 			return getInstance(ScaleType.SCALE_3D, sigma);
 		}
 		
+		/**
+		 * Get a 3D isotropic Gaussian scale.
+		 * @param sigma sigma value for x, y and z
+		 * @return
+		 */
 		public static SmoothingScale get3DIsotropic(double sigma) {
 			return getInstance(ScaleType.SCALE_3D_ISOTROPIC, sigma);
 		}
@@ -110,10 +155,26 @@ public class LocalNormalization {
 //			return scaleType;
 //		}
 		
+		/**
+		 * Get the sigma value.
+		 * @return
+		 */
 		public double getSigma() {
 			return sigma;
 		}
 		
+		/**
+		 * Get the sigma value for the z dimension.
+		 * This is interpreted depending upon the scale type:
+		 * <ul>
+		 *   <li>if 2D, the result is 0</li>
+		 *   <li>if 3D anisotropic, the result is equivalent to {@link #getSigma()}</li>
+		 *   <li>if 3D anisotropic, the result is equivalent to {@link #getSigma()} scaled for isotropic according to the pixel calibration information</li>
+		 * </ul>
+		 * 
+		 * @param cal pixel calibration; this is only relevant is the scale type is 3D isotropic.
+		 * @return
+		 */
 		public double getSigmaZ(PixelCalibration cal) {
 			switch (scaleType) {
 			case SCALE_2D:
