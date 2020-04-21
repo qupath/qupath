@@ -53,11 +53,17 @@ public class ConvertCommand implements Runnable, Subcommand {
 	@Option(names = {"--tile-height"}, defaultValue = "256", description = "Set the tile height.")
 	private int tileHeight;
 	
-	@Option(names = {"-z"}, description = "Request that all z-slices are exported.", paramLabel = "z-slices")
-	private boolean allZ;
+	@Option(names = {"-z"}, arity = "1..2", description = {"Request which z-slice(s) is/are exported. ",
+															"Default will export all z-slices.",
+															"If specifying one value, the specified z-slice will be exported.",
+															"If specifying two values, all the z-slices between them (inclusive) will be exported."})
+	private int[] zSlices;
 	
-	@Option(names = {"-t"}, description = "Request that all timepoints of a time series are exported.", paramLabel = "timepoints")
-	private boolean allT;
+	@Option(names = {"-t"}, arity = "1..2", description = {"Request which timepoints of a time series are exported.",
+															"Default will export all timepoints.",
+															"If specifying one value, the specified timepoints will be exported.",
+															"If specifying two values, all the timepoints between them (inclusive) will be exported."})
+	private int[] timepoints;
 	
 	@Option(names = {"-p", "--paralellize"}, description = "Specify if tile export should be parallelized if possible.", paramLabel = "parallelization")
 	private boolean parallelize;
@@ -110,13 +116,23 @@ public class ConvertCommand implements Runnable, Subcommand {
 			else
 				builder.scaledDownsampling(server.getDownsampleForResolution(0), downsample);
 			
-			if (allZ)
-				builder.allZSlices();
-			if (allT)
-				builder.allTimePoints();
+			
+			if (zSlices != null) {
+				if (zSlices.length == 1)
+					builder.zSlice(zSlices[0]);
+				else if (zSlices.length == 2)
+					builder.zSlices(zSlices[0], zSlices[1]);
+			}
+			
+			if (timepoints != null) {
+				if (timepoints.length == 1)
+					builder.timePoint(timepoints[0]);
+				else if (timepoints.length == 2)
+					builder.timePoints(timepoints[0], timepoints[1]);
+			}
 			
 			builder.build().writePyramid(outputFile.getPath());
-			
+
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage());
 		}

@@ -315,7 +315,6 @@ class ScriptCommand implements Runnable {
 		QPEx.setBatchImageData(imageData);
 
 		// Evaluate the script
-		// TODO: find out why it sometimes print "null" at the end of the result
 		result = DefaultScriptEditor.executeScript(engine, script, imageData, true, context);
 		
 		// Ensure writers are flushed
