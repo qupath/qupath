@@ -62,6 +62,9 @@ public class ConvertCommand implements Runnable, Subcommand {
 	@Option(names = {"-p", "--paralellize"}, description = "Specify if tile export should be parallelized if possible.", paramLabel = "parallelization")
 	private boolean parallelize;
 	
+	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
+	boolean usageHelpRequested;
+	
 	
 	@Override
 	public void run() {
