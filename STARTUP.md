@@ -3,20 +3,15 @@ QuPath v0.2.0-m10
 
 Welcome to QuPath v0.2.0-m10!
 
-You can read more about what is different at https://qupath.github.io/
+This is *almost* the stable version of v0.2.0, but not quite.
 
-## Things you should know:
-* This is a milestone release, not a finished version!
-* You can use milestone releases to try out new features - but be aware that *the software is changing!*
-* Data files and projects saved with this version might not be compatible with older versions (e.g. QuPath v0.1.2). It is *not* a good idea to mix them.
-* Bio-Formats is included now by default - the old separate extension isn't needed (and isn't compatible).
-* You can double-click this message to close it.
+To find out what's new, see https://github.com/qupath/qupath/blob/master/CHANGELOG.md
 
-The final tip is a reward for people who read this message.
+Or register at http://neubiasacademy.org and join the QuPath webinar on 29 April 2020.
 
 
 ### Useful links
-* To get started with QuPath: https://github.com/qupath/qupath/wiki/Getting-started
+* To get started with QuPath: http://qupath.readthedocs.io
 * For help & most user questions: https://forum.image.sc/tags/qupath
 * To report bugs: https://github.com/qupath/qupath/issues
 * To follow on Twitter: https://twitter.com/qupath
