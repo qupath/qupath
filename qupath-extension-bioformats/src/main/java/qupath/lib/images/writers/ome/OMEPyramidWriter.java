@@ -975,6 +975,14 @@ public class OMEPyramidWriter {
 		 * @return this builder
 		 */
 		public Builder zSlices(int zStart, int zEnd) {
+			if (zStart < series.zStart) {
+				logger.warn("First z-slice (" + zStart + ") is out of bounds. Will use " + series.zStart + " instead.");
+				zStart = series.zStart;
+			}
+			if (zEnd > series.zEnd) {
+				logger.warn("Last z-slice (" + zEnd + ") is out of bounds. Will use " + series.zEnd + " instead.");
+				zEnd = series.zEnd;
+			}
 			series.zStart = zStart;
 			series.zEnd = zEnd;
 			return this;
@@ -1003,7 +1011,15 @@ public class OMEPyramidWriter {
 		 * @param tEnd last timepoint (exclusive)
 		 * @return this builder
 		 */
-		private Builder timePoints(int tStart, int tEnd) {
+		public Builder timePoints(int tStart, int tEnd) {
+			if (tStart < series.tStart) {
+				logger.warn("First timepoint (" + tStart + ") is out of bounds. Will use " + series.tStart + " instead.");
+				tStart = series.tStart;
+			}
+			if (tEnd > series.tEnd) {
+				logger.warn("Last timepoint (" + tEnd + ") is out of bounds. Will use " + series.tEnd + " instead.");
+				tEnd = series.tEnd;
+			}
 			series.tStart = tStart;
 			series.tEnd = tEnd;
 			return this;

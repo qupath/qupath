@@ -60,8 +60,8 @@ public class QuPathApp extends Application {
 		logger.info("Starting QuPath with parameters: " + params.getRaw());
 		
 		// Try to open a project and/or image, if possible
-		String projectPath = namedParams.getOrDefault("--project", null);
-		String imagePath = namedParams.getOrDefault("--image", null);
+		String projectPath = namedParams.getOrDefault("project", null);
+		String imagePath = namedParams.getOrDefault("image", null);
 		if (projectPath != null) {
 			var uri = GeneralTools.toURI(projectPath);
 			var project = ProjectIO.loadProject(uri, BufferedImage.class);

@@ -161,11 +161,11 @@ public class QuPath {
 				CLIArgs.add("quiet");
 		
 			if (project != null && !project.equals("") && project.endsWith(ProjectIO.getProjectExtension()))
-				CLIArgs.addAll(Arrays.asList("--project", project));
+				CLIArgs.addAll(Arrays.asList("--project=" + project));
 		
 			if (image != null && !image.equals(""))
-				CLIArgs.addAll(Arrays.asList("--image", image));
-			
+				CLIArgs.addAll(Arrays.asList("--image=" + image));
+
 			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
 
 		} else {
@@ -316,7 +316,6 @@ class ScriptCommand implements Runnable {
 		QPEx.setBatchImageData(imageData);
 
 		// Evaluate the script
-		// TODO: find out why it sometimes print "null" at the end of the result
 		result = DefaultScriptEditor.executeScript(engine, script, imageData, true, context);
 		
 		// Ensure writers are flushed
