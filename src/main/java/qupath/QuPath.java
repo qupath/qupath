@@ -28,7 +28,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.ServiceLoader;
 
@@ -158,13 +157,13 @@ public class QuPath {
 			List<String> CLIArgs = new ArrayList<String>();
 			
 			if (quiet)
-				CLIArgs.add("quiet");
+				CLIArgs.add("--quiet=true");
 		
 			if (project != null && !project.equals("") && project.endsWith(ProjectIO.getProjectExtension()))
-				CLIArgs.addAll(Arrays.asList("--project", project));
+				CLIArgs.add("--project=" + project);
 		
 			if (image != null && !image.equals(""))
-				CLIArgs.addAll(Arrays.asList("--image", image));
+				CLIArgs.add("--image=" + image);
 			
 			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
 
