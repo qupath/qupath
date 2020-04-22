@@ -56,7 +56,7 @@ public class ProjectCommands {
 	 * @return a list of project entries for all images that were successfully added to the project
 	 */
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
-		return ProjectImportImagesCommand.promptToImportImages(qupath);
+		return ProjectImportImagesCommand.promptToImportImages(qupath, defaultPaths);
 	}
 	
 	/**

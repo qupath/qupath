@@ -4,6 +4,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 
 * Fixed bugs
   * Save & Save As are swapped (https://github.com/qupath/qupath/issues/451)
+  * Reinstate adding images to projects via drag & drop (https://github.com/qupath/qupath/issues/450)
 
 
 ## Version 0.2.0-m10
