@@ -1,3 +1,11 @@
+## Version 0.2.0-m11
+
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+
+* Fixed bugs
+  * Save & Save As are swapped (https://github.com/qupath/qupath/issues/451)
+
+
 ## Version 0.2.0-m10
 
 This is a *milestone* (i.e. still in development) version made available to try out new features early.

@@ -1,7 +1,7 @@
-QuPath v0.2.0-m10
+QuPath v0.2.0-m11
 =================
 
-Welcome to QuPath v0.2.0-m10!
+Welcome to QuPath v0.2.0-m11!
 
 This is *almost* the stable version of v0.2.0, but not quite.
 

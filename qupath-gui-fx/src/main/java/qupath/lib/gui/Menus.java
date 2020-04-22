@@ -339,12 +339,12 @@ class Menus {
 		@ActionDescription("Save a .qpdata file for this image, specifying the file path. " +
 				"Warning! It is usually much better to use projects instead, and allow QuPath to decide where to store your data files.")
 		@ActionMenu("Save As")
-		@ActionAccelerator("shortcut+s")
+		@ActionAccelerator("shortcut+shift+s")
 		public final Action SAVE_DATA_AS = qupath.createImageDataAction(imageData -> Commands.promptToSaveImageData(qupath, imageData, false));
 
 		@ActionDescription("Save a .qpdata file for this image. This command is best used within projects, where QuPath will choose the location to save the file.")
 		@ActionMenu("Save")
-		@ActionAccelerator("shortcut+shift+s")
+		@ActionAccelerator("shortcut+s")
 		public final Action SAVE_DATA = qupath.createImageDataAction(imageData -> Commands.promptToSaveImageData(qupath, imageData, true));
 		
 		public final Action SEP_5 = ActionTools.createSeparator();
