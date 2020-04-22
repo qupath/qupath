@@ -57,7 +57,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
@@ -78,24 +77,17 @@ import qupath.lib.scripting.QP;
  * @author Pete Bankhead
  *
  */
-public class MeasurementManager implements PathCommand {
+class MeasurementManager {
 	
-	private QuPathGUI qupath;
 	
-	public MeasurementManager(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-
-	@Override
-	public void run() {
-		createAndShowDialog();
-	}
-	
-	private void createAndShowDialog() {
-		
-		ImageData<?> imageData = qupath.getImageData();
+	/**
+	 * Show a simple dialog for viewing (and optionally removing) detection measurements.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void showDetectionMeasurementManager(QuPathGUI qupath, ImageData<?> imageData) {
 		if (imageData == null) {
-			Dialogs.showErrorMessage("Measurement Manager", "No image selected!");
+			Dialogs.showNoImageError("Measurement Manager");
 			return;
 		}
 		

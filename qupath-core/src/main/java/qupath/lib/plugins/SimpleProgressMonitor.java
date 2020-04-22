@@ -45,6 +45,7 @@ public interface SimpleProgressMonitor {
 	 * 
 	 * @param message The message to display
 	 * @param maxProgress The progress value considered complete.
+	 * @param mayCancel 
 	 */
 	public void startMonitoring(String message, int maxProgress, boolean mayCancel);
 	

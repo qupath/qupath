@@ -3,6 +3,8 @@ package qupath.lib.roi;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
@@ -120,6 +122,11 @@ public class GeometryTools {
     /**
 	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
 	 * @param geometry
+     * @param minX 
+     * @param minY 
+     * @param maxX 
+     * @param maxY 
+     * @return 
 	 */
 	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
 		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
@@ -135,6 +142,7 @@ public class GeometryTools {
 	/**
 	 * Round coordinates in a Geometry to integer values.
 	 * @param geometry the updated Geometry
+	 * @return 
 	 */
 	public static Geometry roundCoordinates(Geometry geometry) {
 		// Warning! This can result in polygons containing holes to lose some holes...
@@ -148,6 +156,11 @@ public class GeometryTools {
 	 * Compute the intersection of a Geometry and a specified bounding box.
 	 * The original Geometry <i>may</i> be returned unchanged if no changes are required to fit within the bounds.
 	 * @param geometry the updated Geometry
+	 * @param x 
+	 * @param y 
+	 * @param width 
+	 * @param height 
+	 * @return 
 	 */
 	public static Geometry constrainToBounds(Geometry geometry, double x, double y, double width, double height) {
 		var env = geometry.getEnvelopeInternal();
@@ -178,6 +191,7 @@ public class GeometryTools {
     /**
      * Convert a JTS Geometry to a QuPath ROI.
      * @param geometry
+     * @param plane 
      * @return
      */
     public static ROI geometryToROI(Geometry geometry, ImagePlane plane) {
@@ -245,8 +259,9 @@ public class GeometryTools {
     		double areaSum = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
     		var union = DEFAULT_INSTANCE.factory.createGeometryCollection(geometryArray).buffer(0);
     		double areaUnion = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
-    		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001))
+    		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001)) {
     			return union;
+    		}
     		logger.warn("Fast union failed with different areas ({} before vs {} after)", areaSum, areaUnion);
     	}
     	try {
@@ -271,6 +286,8 @@ public class GeometryTools {
     public static Geometry ensurePolygonal(Geometry geometry) {
     	if (geometry instanceof Polygonal)
     		return geometry;
+    	
+    	// Create an empty polygon if we have something else (e.g. points, lines)
     	if (!(geometry instanceof GeometryCollection))
     		return geometry.getFactory().createPolygon();
     		
@@ -300,7 +317,7 @@ public class GeometryTools {
     	}
     	boolean hasPolygons = false;
     	boolean hasLines = false;
-    	boolean hasPoints = false;
+//    	boolean hasPoints = false;
     	List<Geometry> collection = new ArrayList<>();
     	for (int i = 0; i < geometry.getNumGeometries(); i++) {
     		var geom = homogenizeGeometryCollection(geometry.getGeometryN(i));
@@ -320,7 +337,7 @@ public class GeometryTools {
     			if (hasPolygons || hasLines)
     				continue;
     			collection.add(geom);
-    			hasPoints = true;
+//    			hasPoints = true;
     		}
     	}
     	if (collection.size() == geometry.getNumGeometries())
@@ -393,7 +410,9 @@ public class GeometryTools {
 	}
 	
 
-    
+    /**
+     * Converter to help switch from a {@link ROI} to a {@link Geometry}.
+     */
     public static class GeometryConverter {
     	
         private GeometryFactory factory;
@@ -480,7 +499,27 @@ public class GeometryTools {
 	    	if (shape instanceof Area)
 	    		return areaToGeometry((Area)shape);
 	    	PathIterator iterator = shape.getPathIterator(transform, flatness);
+	    	if ((shape instanceof Path2D || shape instanceof GeneralPath) && containsClosedSegments(iterator)) {
+	    		// Arbitrary paths that correspond to an area can fail with JTS ShapeReader, so convert to areas instead
+	    		return shapeToGeometry(new Area(shape));
+	    	} else
+	    		iterator = shape.getPathIterator(transform, flatness);
         	return getShapeReader().read(iterator);
+	    }
+	    
+	    /**
+	     * Test of an iterator contains closed segments, indicating the iterator relates to an area.
+	     * @param iterator
+	     * @return true if any SEG_CLOSE segments are found
+	     */
+	    private static boolean containsClosedSegments(PathIterator iterator) {
+	    	double[] coords = new double[6];
+	    	while (!iterator.isDone()) {
+	    		iterator.next();
+	    		if (iterator.currentSegment(coords) == PathIterator.SEG_CLOSE)
+	    			return true;
+	    	}
+	    	return false;
 	    }
 	    
 	    private Geometry areaToGeometry(Area shape) {
@@ -496,6 +535,64 @@ public class GeometryTools {
 //	    	System.err.println(geometry.getArea());
 ////	    	geometry = GeometrySnapper.snapToSelf(geometry, GeometryS, cleanResult)
 //	    	return VWSimplifier.simplify(geometry, 0);    		
+	    }
+	    
+	    /**
+	     * Test a polygon for validity, attempting to fix TopologyValidationErrors if possible.
+	     * This attempts a range of tricks (starting with Geometry.buffer(0)), although none
+	     * are guaranteed to work. The first that largely preserves the polygon's area is returned.
+	     * <p>
+	     * The result is guaranteed to be valid, but not necessarily to be a close match to the 
+	     * original polygon; in particular, if everything failed the result will be empty.
+	     * <p>
+	     * Code that calls this method can test if the output is equal to the input to determine 
+	     * if any changes were made.
+	     * 
+	     * @param polygon input (possibly-invalid) polygon
+	     * @return the input polygon (if valid), an adjusted polygon (if attempted fixes helped),
+	     *         or an empty polygon if the situation could not be resolved
+	     */
+	    static Geometry tryToFixPolygon(Polygon polygon) {
+	    	TopologyValidationError error = new IsValidOp(polygon).getValidationError();
+	    	if (error == null)
+	    		return polygon;
+	    	
+			logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
+			
+			// Area calculations seem to be reliable... even if the topology is invalid
+			double areaBefore = polygon.getArea();
+			
+			double tol = 0.0001;
+
+			// Try fast buffer trick to make valid (but sometimes this can 'break', e.g. with bow-tie shapes)
+			Geometry geomBuffered = polygon.buffer(0);
+			double areaBuffered = geomBuffered.getArea();
+			if (geomBuffered.isValid() && GeneralTools.almostTheSame(areaBefore, areaBuffered, tol))
+				return geomBuffered;
+			
+			// If the buffer trick gave us an exceedingly small area, try removing this and see if that resolves things
+			if (!geomBuffered.isEmpty() && areaBuffered < areaBefore * 0.001) {
+				try {
+					Geometry geomDifference = polygon.difference(geomBuffered);
+					if (geomDifference.isValid())
+						return geomDifference;
+				} catch (Exception e) {
+					logger.debug("Attempting to fix by difference failed: " + e.getLocalizedMessage(), e);
+				}
+			}
+			
+			// Resort to the slow method of fixing polygons if we have to
+			logger.debug("Unable to fix Geometry with buffer(0) - will try snapToSelf instead");
+			double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
+			Geometry geomSnapped = GeometrySnapper.snapToSelf(polygon,
+					distance,
+					true);
+			
+			if (geomSnapped.isValid())
+				return geomSnapped;
+			
+			// If everything failed, return an empty polygon (which will at least be valid...)
+			return polygon.getFactory().createPolygon();
 	    }
 	    
 	    
@@ -580,72 +677,51 @@ public class GeometryTools {
 				areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
 				// Add polygon if it has just been closed
 				if (closed && points.size() == 1) {
-					logger.warn("Cannot create polygon from cordinate array of length 1!");
+					logger.debug("Error when converting area to Geometry: cannot create polygon from cordinate array of length 1!");
 				} else if (closed) {
 					points.closeRing();
+					if (points.size() <= 3) {
+						logger.debug("Discarding small 'ring' segment during area conversion (only 3 coordinates)");
+						x0 = x1;
+						y0 = y1;
+						iter.next();
+						continue;
+					}
+					
 					Coordinate[] coords = points.toCoordinateArray();
-	//				for (Coordinate c : coords)
-	//					model.makePrecise(c);
 					
 					// Need to ensure polygons are valid at this point
 					// Sometimes, self-intersections can thwart validity
 					Geometry polygon = factory.createPolygon(coords);
-					TopologyValidationError error = new IsValidOp(polygon).getValidationError();
-					if (error != null) {
-						logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
-						
+					Geometry geomValid = tryToFixPolygon((Polygon)polygon);
+					if (polygon != geomValid) {
 						double areaBefore = polygon.getArea();
-
-//						// Faster method of fixing polygons... main disadvantage is that it doesn't always work
-//						var polygonizer = new Polygonizer();
-//						var union = factory.createLineString(coords).union(factory.createPoint(coords[0]));
-//						polygonizer.add(union);
-//						var polygons = polygonizer.getPolygons();
-//						var iter2 = polygons.iterator();
-//						Geometry geom = (Geometry)iter2.next();
-//						while (iter2.hasNext())
-//							geom = geom.symDifference((Geometry)iter2.next());
-////						factory.buildGeometry(polygons);
-						
-						// Try fast buffer trick to make valid (but sometimes this can 'break', e.g. with bow-tie shapes)
-						Geometry geom = polygon.buffer(0);
-						double areaAfter = geom.getArea();
-						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001)) {
-							// Resort to the slow method of fixing polygons if we have to
-							logger.debug("Unable to fix Geometry with buffer(0) - will try snapToSelf instead");
-							double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
-							geom = GeometrySnapper.snapToSelf(polygon,
-									distance,
-									true);
-							areaAfter = geom.getArea();
-						}
-						
-						// Sanity check & warning if something went wrong
-						if (!GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001)) {
-							logger.warn("Unable to fix geometry (area before: {}, area after: {})", areaBefore, areaAfter);
-							logger.trace("Original geometry: {}", polygon);
-							logger.trace("Will attempt to proceed using {}", geom);
-						} else {
-							logger.debug("Geometry fix looks ok (area before: {}, area after: {})", areaBefore, areaAfter);
-						}
-						polygon = geom;
+						double areaAfter = geomValid.getArea();
+						if (GeneralTools.almostTheSame(areaBefore, areaAfter, 0.0001))
+							logger.debug("Invalid polygon detected and fixed! Original area: {}, Area after fix: {}", areaBefore, areaAfter);
+						else
+							logger.warn("Invalid polygon detected! Beware of changes. Original area: {}, Area after attempted fix: {}", areaBefore, areaAfter);
+						polygon = geomValid;
 						errorCount++;
 					}
-					totalCount++;
-					if (areaTempSigned < 0) {
-						areaNegative += areaTempSigned;
-						for (int i = 0; i < polygon.getNumGeometries(); i++) {
-							Polygon p = (Polygon)polygon.getGeometryN(i);
-							negative.add(p);
-						}
-					} else if (areaTempSigned > 0) {
-						areaPositive += areaTempSigned;
-						for (int i = 0; i < polygon.getNumGeometries(); i++) {
-							Polygon p = (Polygon)polygon.getGeometryN(i);
-							positive.add(p);
+					if (!polygon.isEmpty()) {
+						totalCount++;
+						if (areaTempSigned < 0) {
+							areaNegative += areaTempSigned;
+							for (int i = 0; i < polygon.getNumGeometries(); i++) {
+								Polygon p = (Polygon)polygon.getGeometryN(i);
+								if (!p.isEmpty())
+									negative.add(p);
+							}
+						} else if (areaTempSigned > 0) {
+							areaPositive += areaTempSigned;
+							for (int i = 0; i < polygon.getNumGeometries(); i++) {
+								Polygon p = (Polygon)polygon.getGeometryN(i);
+								if (!p.isEmpty())
+									positive.add(p);
+							}
 						}
 					}
-					// Zero indicates the shape is empty...
 				}
 				// Update the coordinates
 				x0 = x1;
@@ -657,7 +733,9 @@ public class GeometryTools {
 			areaCached += areaTempSigned;
 			List<Geometry> outer;
 			List<Geometry> holes;
+			@SuppressWarnings("unused")
 			double areaOuter;
+			@SuppressWarnings("unused")
 			double areaHoles;
 			if (areaCached < 0) {
 				areaOuter = -areaNegative;
@@ -705,8 +783,9 @@ public class GeometryTools {
 					// We assume a single point inside is sufficient because polygons should be non-overlapping
 					var point = tempHole.getCoordinate();
 					var iterOuter = outer.iterator();
+					@SuppressWarnings("unused")
 					int count = 0;
-					while (iterOuter.hasNext()) {
+					while (point != null && iterOuter.hasNext()) {
 						var tempOuter = iterOuter.next();
 						if (holeArea > areaMap.get(tempOuter)) {
 							continue;
@@ -736,36 +815,6 @@ public class GeometryTools {
 				}
 				geometry = union(fixedGeometries);
 				geometryOuter = geometry;
-				
-				
-//				var comparator = Comparator.comparingDouble(g -> areaMap.get(g)).reversed();
-//				outer.sort(comparator);
-//				holes.sort(comparator);
-//				for (var tempHole : holes) {
-//					double holeArea = areaMap.get(tempHole);
-//					// We assume a single point inside is sufficient because polygons should be non-overlapping
-//					var point = tempHole.getCoordinate();
-//					var iterOuter = outer.iterator();
-//					while (iterOuter.hasNext()) {
-//						var tempOuter = iterOuter.next();
-//						if (holeArea > areaMap.get(tempOuter)) {
-//							logger.warn("No polygons found containing hole!");
-//							break;
-//						}
-//						if (SimplePointInAreaLocator.isContained(point, tempOuter)) {
-//							iterOuter.remove();
-//							var temp = tempOuter.difference(tempHole);
-//							areaMap.put(temp, temp.getArea());
-//							outer.add(temp);
-//							outer.sort(comparator);
-//							break;
-//						}
-//						if (!iterOuter.hasNext())
-//							logger.warn("No polygons found containing hole!");
-//					}
-//				}
-//				geometry = union(outer);
-//				geometryOuter = geometry;
 			}
 			
 			// Perform a sanity check using areas
@@ -773,25 +822,6 @@ public class GeometryTools {
 			double geometryArea = geometry.getArea();
 			if (!GeneralTools.almostTheSame(computedArea, geometryArea, 0.01)) {
 				logger.debug("{}/{} geometries had topology validation errors", errorCount, totalCount);
-//				try {
-//					double geometryAreaSum = 0;
-//					for (var g : outer)
-//						geometryAreaSum += g.getArea();
-//					double geometryHoleAreaSum = 0;
-//					for (var g : holes)
-//						geometryHoleAreaSum += g.getArea();
-//					System.err.println("Positive area: " + areaOuter + ", Geometry: " + geometryOuter.getArea() + ", summed Geometry area: " + geometryAreaSum);
-//					System.err.println("Holes area: " + areaHoles + ", Geometry: " + (geometryHoles == null ? 0 : geometryHoles.getArea()) + ", summed Geometry area: " + geometryHoleAreaSum);
-//					String dirTemp = "";
-//					ImageIO.write(BufferedImageTools.createROIMask(area, 1), "PNG", new File(dirTemp, "Shape mask.png"));
-//					ImageIO.write(BufferedImageTools.createROIMask(GeometryTools.geometryToShape(geometry), 1), "PNG", new File(dirTemp, "Geometry mask.png"));
-//					ImageIO.write(BufferedImageTools.createROIMask(GeometryTools.geometryToShape(geometryOuter), 1), "PNG", new File(dirTemp, "Geometry outer mask.png"));
-//					if (!holes.isEmpty())
-//						ImageIO.write(BufferedImageTools.createROIMask(GeometryTools.geometryToShape(union(holes)), 1), "PNG", new File(dirTemp, "Geometry holes mask.png"));
-//				} catch (IOException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
 				double percent = Math.abs(computedArea - geometryArea) / (computedArea/2.0 + geometryArea/2.0) * 100.0;
 				logger.warn("Difference in area after JTS conversion! Computed area: {}, Geometry area: {} ({} %%)", Math.abs(areaCached), geometry.getArea(),
 						GeneralTools.formatNumber(percent, 3));
@@ -843,7 +873,7 @@ public class GeometryTools {
 	    	// Make sure out Geometry is all of the same type
 	    	var geometry2 = homogenizeGeometryCollection(geometry);
 	    	if (geometry2 != geometry) {
-	    		logger.warn("Geometries must all be of the same type! Converted {} to {}.", geometry.getGeometryType(), geometry2.getGeometryType());
+	    		logger.warn("Geometries must all be of the same type when converting to a ROI! Converted {} to {}.", geometry.getGeometryType(), geometry2.getGeometryType());
 	    		geometry = geometry2;
 	    	}
 	    	if (geometry instanceof Point) {

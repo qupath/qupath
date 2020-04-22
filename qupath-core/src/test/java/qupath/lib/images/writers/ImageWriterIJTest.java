@@ -1,5 +1,5 @@
 package qupath.lib.images.writers;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -11,11 +11,7 @@ import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 
-import org.junit.Test;
-
-import qupath.lib.images.writers.ImageWriter;
-import qupath.lib.images.writers.JpegWriter;
-import qupath.lib.images.writers.PngWriter;
+import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("javadoc")
 public class ImageWriterIJTest {

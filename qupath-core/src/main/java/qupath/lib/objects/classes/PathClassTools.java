@@ -163,6 +163,7 @@ public class PathClassTools {
 	 * and where the name order is unimportant.
 	 * 
 	 * @param pathClass the input {@link PathClass}
+	 * @param comparator 
 	 * @return a {@link PathClass} representing the same names sorted
 	 * @see #sortNames(PathClass)
 	 */
@@ -176,6 +177,7 @@ public class PathClassTools {
 	 * Create a {@link PathClass} with specific name elements removed (if present) from an existing classification.
 	 * 
 	 * @param pathClass the input {@link PathClass}
+	 * @param namesToRemove 
 	 * @return a {@link PathClass} representing the classification with the required names removed
 	 * @see #removeNames(PathClass, String... )
 	 */
@@ -190,6 +192,7 @@ public class PathClassTools {
 	 * Create a {@link PathClass} with specific name elements removed (if present) from an existing classification.
 	 * 
 	 * @param pathClass the input {@link PathClass}
+	 * @param namesToRemove 
 	 * @return a {@link PathClass} representing the classification with the required names removed
 	 * @see #removeNames(PathClass, Collection)
 	 */

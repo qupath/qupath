@@ -24,10 +24,10 @@
 
 package qupath.lib.common;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.util.Arrays;
@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.regex.Pattern;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +75,7 @@ public class TestGeneralTools {
 		for (String ext : Arrays.asList(".ext (here)", ".tif-not-valid", ".tif?")) {
 			File file = new File(baseName + ext);
 			String parsed = GeneralTools.getExtension(file).orElse(null);
-			assertNull(ext, parsed);
+			assertNull(parsed);
 		}
 		
 		assertTrue(GeneralTools.isMultipartExtension(".ome.tif"));

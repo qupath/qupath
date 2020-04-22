@@ -1,3 +1,42 @@
+## Version 0.2.0-m10
+
+This is a *milestone* (i.e. still in development) version made available to try out new features early.
+
+* Updated to use Java 14
+  * Easier to build from source
+* Code *extensively* revised and cleaned up
+  * Commands are activated/deactivated according to status (e.g. if an image or project is opened)
+  * Help text available for most commands via the 'Command list'
+  * Lots more javadocs and a (somewhat) more logical arrangement
+* All-new command line interface
+  * Customize QuPath's launch, call scripts
+  * Convert images to OME-TIFF
+* Scripting improvements
+  * Updated to Groovy 3 - scripts now support more recent Java syntax (e.g. lambdas, try-with-resources)
+  * Pasting files results in them being converted to absolute paths
+  * New 'Paste & escape' command to automatically escape characters for Java Strings
+  * Set logging level with LogManager class
+* New 'Measure -> Export measurements' command to export measurements for multiple images within a project
+* Scriptable 'Select objects by classification' command
+* Optionally show/hide annotation names in the viewer (shortcut key 'N')
+* Updated methods to save/load points within the counting tool
+  * Use TSV files to improve portability
+  * Support including classifications and other annotation properties
+* Optionally sort project entries by URI (e.g. to group images read from the same file)
+* Improved support for profiling with VisualVM
+* Improved support for large, non-pyramidal images
+* 'Simplify shape' command can now be applied to all selected annotations
+* Bug fixes, including:
+  * Gap between tiles when calculating superpixels for large regions (https://github.com/qupath/qupath/issues/345)
+  * Cannot create objects when loading simple thresholding classifier (https://github.com/qupath/qupath/issues/403)
+  * Consistency in Measurement Map display (https://github.com/qupath/qupath/issues/295)
+  * Poor performance when working with many annotations (regression in m9)
+  * Freeze when launching ImageJ from Mac under some circumstances
+  * Use default channel names if Bio-Formats returns an empty String
+  * Log meaningful warning if pixel classifier uses duplicated channel names
+* Update dependencies: JavaFX, OpenCV, Bio-Formats, JFreeSVG, ImageJ, Guava, RichTextFX
+
+
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early. Changes include:
 

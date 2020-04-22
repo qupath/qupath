@@ -1,0 +1,46 @@
+module qupath.core {
+	
+    requires java.base;
+    requires java.desktop;
+    requires java.scripting;
+	
+    requires slf4j.api;
+    requires transitive org.locationtech.jts;
+    requires transitive com.google.gson;
+    requires commons.math3;
+    requires org.bytedeco.opencv;
+
+    exports qupath.lib.analysis;
+    exports qupath.lib.analysis.images;
+    exports qupath.lib.analysis.stats;
+    exports qupath.lib.analysis.stats.survival;
+    exports qupath.lib.awt.common;
+    exports qupath.lib.classifiers;
+    exports qupath.lib.classifiers.object;
+    exports qupath.lib.classifiers.pixel;
+    exports qupath.lib.color;
+    exports qupath.lib.common;
+    exports qupath.lib.geom;
+    exports qupath.lib.images;
+    exports qupath.lib.images.servers;
+    exports qupath.lib.images.writers;
+    exports qupath.lib.io;
+    exports qupath.lib.measurements;
+    exports qupath.lib.objects;
+    exports qupath.lib.objects.classes;
+    exports qupath.lib.objects.hierarchy;
+    exports qupath.lib.objects.hierarchy.events;
+    exports qupath.lib.plugins;
+    exports qupath.lib.plugins.parameters;
+    exports qupath.lib.plugins.workflow;
+    exports qupath.lib.projects;
+    exports qupath.lib.regions;
+    exports qupath.lib.roi;
+    exports qupath.lib.roi.interfaces;
+    
+    exports qupath.lib.gson to qupath.extension.experimental;
+    
+    uses qupath.lib.images.servers.ImageServerBuilder;
+    uses qupath.lib.images.writers.ImageWriter;
+
+}

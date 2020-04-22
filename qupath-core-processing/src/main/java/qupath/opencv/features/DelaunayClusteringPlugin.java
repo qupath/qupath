@@ -57,11 +57,12 @@ import qupath.lib.plugins.parameters.ParameterList;
  * Warning! Because the implementation will have to change in the future, it is best not to rely on this class!
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 
-	final private static Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);
+	private final static Logger logger = LoggerFactory.getLogger(DelaunayClusteringPlugin.class);
 	
 	/**
 	 * Constructor.
@@ -128,17 +129,13 @@ public class DelaunayClusteringPlugin<T> extends AbstractInteractivePlugin<T> {
 			return Collections.emptyList();
 		
 		List<PathObject> selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-		if (selected.isEmpty())
+		if (selected.isEmpty()) {
+			logger.trace("Creating task for the root object");
 			return Collections.singletonList(hierarchy.getRootObject());
-		else
+		} else {
+			logger.trace("Creating tasks for {} parent objects", selected.size());
 			return selected;
-//		List<PathObject> selected = runner.getHierarchy().getSelectionModel().getSelectedObjects().stream().filter(p -> p.isTMACore()).collect(Collectors.toList());
-//		if (selected.isEmpty()) {
-//			if (runner.getHierarchy().getTMAGrid() != null)
-//				return PathObjectTools.getTMACoreObjects(runner.getHierarchy(), false);
-//			return Collections.singletonList(runner.getHierarchy().getRootObject());
-//		} else
-//			return selected;
+		}
 	}
 
 	@Override

@@ -24,7 +24,6 @@ import javafx.stage.Stage;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
@@ -35,7 +34,7 @@ import qupath.lib.projects.Project;
  * @author Pete Bankhead
  *
  */
-public class ObjectClassifierLoadCommand implements PathCommand {
+public class ObjectClassifierLoadCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	

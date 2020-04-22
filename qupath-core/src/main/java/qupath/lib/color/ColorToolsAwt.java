@@ -263,6 +263,7 @@ public class ColorToolsAwt {
 	 * The alpha value is preserved unchanged.
 	 * 
 	 * @param color
+	 * @param factor 
 	 * @return
 	 */
 	public static Color scaleColor(Color color, double factor) {

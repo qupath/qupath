@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.SingleChannelDisplayInfo;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -42,7 +43,12 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	
 	private ColorModel colorModel;
 	
-	
+	/**
+	 * Create an {@link ImageServer} for which the channels are created dynamically from a list of {@linkplain ChannelDisplayInfo ChannelDisplayInfos}.
+	 * @param server the server providing the underlying data
+	 * @param channels {@link ChannelDisplayInfo} objects defining how the pixels from the wrapped server should be converted to channels in the new server
+	 * @return
+	 */
 	public static ImageServer<BufferedImage> createColorTransformServer(ImageServer<BufferedImage> server, List<ChannelDisplayInfo> channels) {
 		return new ChannelDisplayTransformServer(server, channels);
 	}
@@ -82,13 +88,13 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 		float[] pxFloat = null;
 		int b = 0;
 		for (ChannelDisplayInfo channel : channels) {
-			if (channel instanceof ChannelDisplayInfo.SingleChannelDisplayInfo) {
+			if (channel instanceof SingleChannelDisplayInfo) {
 				if (raster == null) {
 					SampleModel model = new BandedSampleModel(DataBuffer.TYPE_FLOAT, width, height, nChannels());
 					raster = Raster.createWritableRaster(model, null);
 				}
 				if (raster.getTransferType() == DataBuffer.TYPE_FLOAT) {
-					pxFloat = ((ChannelDisplayInfo.SingleChannelDisplayInfo)channel).getValues(img, 0, 0, width, height, pxFloat);
+					pxFloat = ((SingleChannelDisplayInfo)channel).getValues(img, 0, 0, width, height, pxFloat);
 					raster.setSamples(0, 0, width, height, b, pxFloat);
 					b++;
 				} else {

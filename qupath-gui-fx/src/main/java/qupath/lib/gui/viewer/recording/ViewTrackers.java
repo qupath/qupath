@@ -10,7 +10,6 @@ import java.io.PrintWriter;
 import java.util.Scanner;
 
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 
@@ -19,7 +18,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * @author Pete Bankhead
  *
  */
-public class ViewTrackers {
+class ViewTrackers {
 
 	/**
 	 * Create a new default ViewTracker, without any eye tracking involved.
@@ -220,7 +219,7 @@ public class ViewTrackers {
 			Dialogs.showErrorMessage("Tracking export", "Tracker is empty - nothing to export!");
 			return;
 		}
-		File fileExport = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, null, "QuPath tracking data (csv)", "csv");
+		File fileExport = Dialogs.promptToSaveFile(null, null, null, "QuPath tracking data (csv)", "csv");
 		if (fileExport == null)
 			return;
 		
@@ -237,7 +236,7 @@ public class ViewTrackers {
 	}
 
 	static boolean handleImport(final ViewTracker tracker) {
-		File fileImport = QuPathGUI.getSharedDialogHelper().promptForFile(null, null, "QuPath tracking data (csv)", new String[]{"csv"});
+		File fileImport = Dialogs.promptForFile(null, null, "QuPath tracking data (csv)", new String[]{"csv"});
 		if (fileImport == null)
 			return false;
 		

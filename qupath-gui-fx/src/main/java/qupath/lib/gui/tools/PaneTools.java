@@ -32,6 +32,7 @@ public class PaneTools {
 	 * @param pane
 	 * @param row
 	 * @param col
+	 * @param tooltipText 
 	 * @param nodes
 	 */
 	public static void addGridRow(GridPane pane, int row, int col, String tooltipText, Node... nodes) {
@@ -47,6 +48,7 @@ public class PaneTools {
 					GridPane.setColumnSpan(n, span + 1);
 			} else {
 				pane.add(n, col, row);
+				GridPane.setColumnSpan(n, 1);
 				if (tooltip != null) {
 					installTooltipRecursive(tooltip, n);
 				}

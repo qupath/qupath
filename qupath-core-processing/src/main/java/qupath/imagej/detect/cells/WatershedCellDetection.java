@@ -496,7 +496,7 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 
 	@Override
 	public String getName() {
-		return "Watershed cell detection";
+		return "Cell detection";
 	}
 
 	

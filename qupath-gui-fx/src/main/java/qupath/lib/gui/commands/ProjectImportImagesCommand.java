@@ -71,9 +71,8 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.panels.ProjectBrowser;
+import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
@@ -97,31 +96,19 @@ import qupath.lib.projects.ProjectImageEntry;
  * 
  * @author Pete Bankhead
  */
-public class ProjectImportImagesCommand implements PathCommand {
+class ProjectImportImagesCommand {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ProjectImportImagesCommand.class);
-	
-	private static final String commandName = "Project: Import images";
+		
+	private final static String commandName = "Import images";
 
-	private QuPathGUI qupath;
-	
-	public ProjectImportImagesCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-	
-	@Override
-	public void run() {
-		promptToImportImages(qupath);
-	}
-	
-	
 	
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
-		if (qupath.getProject() == null) {
-			Dialogs.showErrorMessage(commandName, "No project open!");
+		var project = qupath.getProject();
+		if (project == null) {
+			Dialogs.showNoProjectError(commandName);
 			return Collections.emptyList();
 		}
-		
 		
 		ListView<String> listView = new ListView<>();
 		listView.setPrefWidth(480);
@@ -276,7 +263,6 @@ public class ProjectImportImagesCommand implements PathCommand {
 		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
-		var project = qupath.getProject();
 		List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
 		Task<Collection<ProjectImageEntry<BufferedImage>>> worker = new Task<>() {
 			@Override
@@ -326,7 +312,6 @@ public class ProjectImportImagesCommand implements PathCommand {
 					else
 						updateMessage("Importing " + projectImages.size() + " images from existing projects");
 					for (var temp : projectImages) {
-						ProjectImageEntry<BufferedImage> attempted = null;
 						try {
 							project.addDuplicate(temp, true);
 						} catch (Exception e) {
@@ -463,7 +448,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	static boolean loadFromFileChooser(final List<String> list) {
-		List<File> files = QuPathGUI.getSharedDialogHelper().promptForMultipleFiles(commandName, null, null);
+		List<File> files = Dialogs.promptForMultipleFiles(commandName, null, null);
 		if (files == null)
 			return false;
 		boolean changes = false;
@@ -480,7 +465,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 	
 	static boolean loadFromSingleURL(final List<String> list) {
-		String path = QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL("Choose image path", null, null, null);
+		String path = Dialogs.promptForFilePathOrURL("Choose image path", null, null, null);
 		if (path == null)
 			return false;
 		if (list.contains(path)) {
@@ -493,7 +478,7 @@ public class ProjectImportImagesCommand implements PathCommand {
 	
 
 	static int loadFromTextFile(final List<String> list) {
-		File file = QuPathGUI.getSharedDialogHelper().promptForFile(commandName, null, "Text file", new String[]{"txt", "csv"});
+		File file = Dialogs.promptForFile(commandName, null, "Text file", new String[]{"txt", "csv"});
 		if (file == null)
 			return 0;
 		if (file.length() / 1024 / 1024 > 5) {
@@ -612,8 +597,9 @@ public class ProjectImportImagesCommand implements PathCommand {
 			entry.setThumbnail(img);
 			
 			// Pyramidalize this if we need to
+			@SuppressWarnings("resource")
 			ImageServer<BufferedImage> server2 = server;
-			int minPyramidDimension = PathPrefs.getMinPyramidDimension();
+			int minPyramidDimension = PathPrefs.minPyramidDimensionProperty().get();
 			if (pyramidizeSingleResolution && server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > minPyramidDimension) {
 				var serverTemp = ImageServers.pyramidalize(server);
 				if (serverTemp.nResolutions() > 1) {

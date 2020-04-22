@@ -48,7 +48,6 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -116,7 +115,6 @@ public class PositivePixelCounterIJ extends AbstractDetectionPlugin<BufferedImag
 			double gaussianSigma = gaussianSigmaMicrons / pixelSize;
 			
 			// Read the image, if necessary
-			ImageServer<BufferedImage> server = imageData.getServer();
 			RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, pathROI);
 			PathImage<ImagePlus> pathImage = IJTools.convertToImagePlus(imageData.getServer(), request);
 			ImagePlus imp = pathImage.getImage();

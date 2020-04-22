@@ -2,7 +2,10 @@ package qupath.lib.gui.ml;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,14 +18,14 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
@@ -31,11 +34,13 @@ import qupath.opencv.tools.LocalNormalization.SmoothingScale;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 /**
- * Helper class capable of building (or returning) a FeatureCalculator.
+ * Helper class capable of building (or returning) a {@link FeatureCalculator}.
  * 
  * @author Pete Bankhead
  */
 abstract class FeatureCalculatorBuilder {
+	
+	private final static Logger logger = LoggerFactory.getLogger(FeatureCalculatorBuilder.class);
 
 	public abstract FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
 
@@ -56,16 +61,22 @@ abstract class FeatureCalculatorBuilder {
 
 
 	/**
-	 * Add a context menu to a CheckComboBox to quickly select all items, or clear selection.
-	 * @param combo
+	 * Create a collection representing available unique channel names, logging a warning if a channel name is duplicated
+	 * @param server server containing channels
+	 * @return set of channel names
 	 */
-	static void installSelectAllOrNoneMenu(CheckComboBox<?> combo) {
-		var miAll = new MenuItem("Select all");
-		var miNone = new MenuItem("Select none");
-		miAll.setOnAction(e -> combo.getCheckModel().checkAll());
-		miNone.setOnAction(e -> combo.getCheckModel().clearChecks());
-		var menu = new ContextMenu(miAll, miNone);
-		combo.setContextMenu(menu);
+	static Collection<String> getAvailableUniqueChannelNames(ImageServer<?> server) {
+		var set = new LinkedHashSet<String>();
+		int i = 1;
+		for (var c : server.getMetadata().getChannels()) {
+			var name = c.getName();
+			if (!set.contains(name))
+				set.add(name);
+			else
+				logger.warn("Found duplicate channel name! Will skip channel " + i + " (name '" + name + "')");
+			i++;
+		}
+		return set;
 	}
 	
 
@@ -90,13 +101,12 @@ abstract class FeatureCalculatorBuilder {
 
 			var labelChannels = new Label("Channels");
 			comboChannels = new CheckComboBox<String>();
-			installSelectAllOrNoneMenu(comboChannels);
+			GuiTools.installSelectAllOrNoneMenu(comboChannels);
 
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				for (var c : server.getMetadata().getChannels())
-					comboChannels.getItems().add(c.getName());
+				comboChannels.getItems().setAll(getAvailableUniqueChannelNames(server));
 				comboChannels.getCheckModel().checkAll();
 			}
 			
@@ -157,9 +167,7 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				List<String> channels = new ArrayList<>();
-				for (var c : server.getMetadata().getChannels())
-					channels.add(c.getName());		
+				List<String> channels = new ArrayList<>(getAvailableUniqueChannelNames(server));
 				if (!comboChannels.getItems().equals(channels)) {
 					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
 					comboChannels.getCheckModel().clearChecks();
@@ -236,14 +244,13 @@ abstract class FeatureCalculatorBuilder {
 
 			var labelChannels = new Label("Channels");
 			comboChannels = new CheckComboBox<String>();
-			installSelectAllOrNoneMenu(comboChannels);
+			GuiTools.installSelectAllOrNoneMenu(comboChannels);
 			//			var btnChannels = new Button("Select");
 			//			btnChannels.setOnAction(e -> selectChannels());
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				for (var c : server.getMetadata().getChannels())
-					comboChannels.getItems().add(c.getName());
+				comboChannels.getItems().setAll(getAvailableUniqueChannelNames(server));
 				comboChannels.getCheckModel().checkAll();
 			}
 			
@@ -258,7 +265,7 @@ abstract class FeatureCalculatorBuilder {
 
 
 			var comboScales = new CheckComboBox<Double>();
-			installSelectAllOrNoneMenu(comboScales);
+			GuiTools.installSelectAllOrNoneMenu(comboScales);
 			var labelScales = new Label("Scales");
 			comboScales.getItems().addAll(0.5, 1.0, 2.0, 4.0, 8.0);
 			comboScales.getCheckModel().check(1);
@@ -269,7 +276,7 @@ abstract class FeatureCalculatorBuilder {
 
 
 			var comboFeatures = new CheckComboBox<MultiscaleFeature>();
-			installSelectAllOrNoneMenu(comboFeatures);
+			GuiTools.installSelectAllOrNoneMenu(comboFeatures);
 			var labelFeatures = new Label("Features");
 			comboFeatures.getItems().addAll(MultiscaleFeature.values());
 			comboFeatures.getCheckModel().check(MultiscaleFeature.GAUSSIAN);
@@ -294,7 +301,13 @@ abstract class FeatureCalculatorBuilder {
 			var labelNormalizeScale = new Label("Local normalization scale");
 			var spinnerNormalize = new Spinner<Double>(0.0, 32.0, 8.0, 1.0);
 			normalizationSigma = spinnerNormalize.valueProperty();
-
+			spinnerNormalize.setEditable(true);
+			GuiTools.restrictSpinnerInputToNumber(spinnerNormalize, true);
+			spinnerNormalize.focusedProperty().addListener((v, o, n) -> {
+				if (spinnerNormalize.getEditor().getText().equals(""))
+					spinnerNormalize.getValueFactory().valueProperty().set(0.0);
+			});
+			
 			var cb3D = new CheckBox("Use 3D filters");
 			do3D = cb3D.selectedProperty();
 
@@ -406,9 +419,7 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				List<String> channels = new ArrayList<>();
-				for (var c : server.getMetadata().getChannels())
-					channels.add(c.getName());			
+				List<String> channels = new ArrayList<>(getAvailableUniqueChannelNames(server));
 				if (!comboChannels.getItems().equals(channels)) {
 					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
 					comboChannels.getCheckModel().clearChecks();

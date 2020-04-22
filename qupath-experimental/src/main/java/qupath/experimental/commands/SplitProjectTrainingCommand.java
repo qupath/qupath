@@ -14,10 +14,9 @@ import javafx.scene.control.Dialog;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
-import qupath.lib.gui.panels.ProjectBrowser;
+import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -29,7 +28,7 @@ import qupath.lib.projects.ProjectImageEntry;
  * @author Pete Bankhead
  *
  */
-public class SplitProjectTrainingCommand implements PathCommand {
+public class SplitProjectTrainingCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(SplitProjectTrainingCommand.class);
 	
@@ -219,7 +218,7 @@ public class SplitProjectTrainingCommand implements PathCommand {
 				if ("file".equals(project.getURI().getScheme()))
 					fileOrig = new File(project.getURI());
 				else {
-					fileOrig = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Project file", null, null, "QuPath project", ext);
+					fileOrig = Dialogs.promptToSaveFile("Project file", null, null, "QuPath project", ext);
 					if (fileOrig == null) {
 						// Save the main project
 						ProjectBrowser.syncProject(project);

@@ -20,17 +20,18 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
 import qupath.lib.gui.ml.PixelClassifierPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.gui.ml.PixelClassifierPane.ClassificationResolution;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
@@ -54,7 +55,7 @@ import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
  * @author Pete Bankhead
  *
  */
-public class SimpleThresholdCommand implements PathCommand {
+public class SimpleThresholdCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	
@@ -72,6 +73,7 @@ public class SimpleThresholdCommand implements PathCommand {
 	public void run() {
 		if (qupath.getImageData() == null) {
 			Dialogs.showNoImageError("Simple threshold");
+			return;
 		}
 		if (stage == null || !stage.isShowing())
 			showGUI();
@@ -141,6 +143,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		labelSigma.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
+		GuiTools.restrictSpinnerInputToNumber(sigmaSpinner, true);
 		PaneTools.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
 
 		label = new Label("Threshold");
@@ -149,6 +152,7 @@ public class SimpleThresholdCommand implements PathCommand {
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
+		GuiTools.restrictSpinnerInputToNumber(spinner, true);
 		PaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
 
 		Label labelAbove = new Label("Above threshold");
@@ -234,9 +238,9 @@ public class SimpleThresholdCommand implements PathCommand {
 		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsEqual, classificationsBelow,
 				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
-//		PaneToolsFX.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
-//				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsEqual, classificationsBelow,
-//				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
+				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsEqual, classificationsBelow,
+				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
 		
 		updateGUI();
 		
@@ -247,17 +251,19 @@ public class SimpleThresholdCommand implements PathCommand {
 		stage.setTitle("Simple threshold");
 		stage.initOwner(qupath.getStage());
 		stage.setScene(new Scene(pane));
-		stage.setAlwaysOnTop(true);
+//		stage.setAlwaysOnTop(true);
 		stage.sizeToScene();
 		stage.setResizable(false);
 		stage.show();
 		
-		stage.sizeToScene();
+//		stage.sizeToScene();
 		
 		stage.setOnHiding(e -> {
 			for (var entry : map.entrySet()) {
 				if (entry.getKey().getCustomPixelLayerOverlay() == entry.getValue()) {
-					PixelClassificationImageServer.setPixelLayer(entry.getKey().getImageData(), null);
+					var imageData = entry.getKey().getImageData();
+					if (imageData != null)
+						PixelClassificationImageServer.setPixelLayer(entry.getKey().getImageData(), null);
 					selectedOverlay.set(null);
 					entry.getKey().resetCustomPixelLayerOverlay();
 				}

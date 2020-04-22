@@ -273,6 +273,8 @@ public class MultiscaleFeatureCalculator implements FeatureCalculator<BufferedIm
 		
 		/**
 		 * Returns the larger sigma value for the z dimension.
+		 * @param cal 
+		 * @param downsample 
 		 * @return
 		 */
 		public double getMaxSigmaZ(PixelCalibration cal, double downsample) {

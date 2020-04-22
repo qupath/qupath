@@ -1,0 +1,47 @@
+module qupath.gui.fx {
+
+    requires java.base;
+    requires java.desktop;
+	requires java.datatransfer;
+	requires java.prefs;
+	requires java.scripting;
+	requires java.net.http;
+	
+	requires transitive javafx.base;
+	requires transitive javafx.controls;
+	requires transitive javafx.graphics;
+	requires javafx.swing;
+	requires javafx.web;
+	
+	requires transitive qupath.core.processing;
+	
+	requires transitive org.controlsfx.controls;
+	requires jfxtras.menu;
+	requires slf4j.api;
+
+	exports qupath.lib.display;
+	exports qupath.lib.gui;
+	exports qupath.lib.gui.commands;
+	exports qupath.lib.gui.dialogs;
+	exports qupath.lib.gui.extensions;
+	exports qupath.lib.gui.icons;
+	exports qupath.lib.gui.images.servers;
+	exports qupath.lib.gui.images.stores;
+	exports qupath.lib.gui.logging;
+	exports qupath.lib.gui.models;
+	exports qupath.lib.gui.panes;
+	exports qupath.lib.gui.panes.classify;
+	exports qupath.lib.gui.plots;
+	exports qupath.lib.gui.prefs;
+	exports qupath.lib.gui.plugins;
+	exports qupath.lib.gui.scripting;
+	exports qupath.lib.gui.tma;
+	exports qupath.lib.gui.tools;
+	exports qupath.lib.gui.viewer;
+	exports qupath.lib.gui.viewer.tools;
+	exports qupath.lib.gui.viewer.recording;
+	exports qupath.lib.gui.viewer.overlays;
+	
+	uses qupath.lib.gui.extensions.QuPathExtension;
+	
+}

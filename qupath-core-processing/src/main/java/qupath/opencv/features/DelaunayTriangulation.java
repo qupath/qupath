@@ -70,7 +70,10 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	 * Compute Delaunay triangulation - optionally omitting links above a fixed distance.
 	 * 
 	 * @param pathObjects
+	 * @param pixelWidth 
+	 * @param pixelHeight 
 	 * @param distanceThresholdPixels - Note, this is in *pixels* (and not scaled according to pixelWidth &amp; pixelHeight)
+	 * @param limitByClass 
 	 */
 	public DelaunayTriangulation(final List<PathObject> pathObjects, final double pixelWidth, final double pixelHeight, final double distanceThresholdPixels, final boolean limitByClass) {
 		this.distanceThreshold = distanceThresholdPixels;
@@ -303,6 +306,7 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 	 * (although get(i+1) doesn't necessarily link to get(i+2)...)
 	 * 
 	 * @param pathObjects
+	 * @param connections 
 	 * @return
 	 */
 	@Deprecated

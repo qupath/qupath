@@ -1,0 +1,16 @@
+module qupath.extension.scripteditor {
+	
+    requires javafx.controls;
+
+    requires qupath.gui.fx;
+
+    requires org.fxmisc.richtext;
+    requires slf4j.api;
+	requires flowless;
+	requires qupath.core.processing;
+	requires qupath.core;
+
+	provides qupath.lib.gui.extensions.QuPathExtension with 
+		qupath.lib.gui.scripting.richtextfx.RichScriptEditorExtension;
+	
+}

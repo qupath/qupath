@@ -245,6 +245,7 @@ public class OpenCVClassifiers {
 		 * @param samples
 		 * @param targets
 		 * @param weights optional weights
+		 * @param doMulticlass 
 		 * @return
 		 * @see #train(TrainData)
 		 */
@@ -671,7 +672,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link DTrees}.
+	 */
 	public static class DTreesClassifier extends AbstractTreeClassifier<DTrees> {
 
 		DTreesClassifier() {
@@ -694,7 +697,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link RTrees}.
+	 */
 	public static class RTreesClassifier extends AbstractTreeClassifier<RTrees> {
 		
 		private double[] featureImportance;
@@ -741,7 +746,7 @@ public class OpenCVClassifiers {
 //				synchronized (this) {
 					var importance = trees.getVarImportance();
 					var indexer = importance.createIndexer();
-					int nFeatures = (int)indexer.rows();
+					int nFeatures = (int)indexer.size(0);
 					featureImportance = new double[nFeatures];
 					for (int r = 0; r < nFeatures; r++) {
 						featureImportance[r] = indexer.getDouble(r);
@@ -861,7 +866,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link Boost}.
+	 */
 	public static class BoostClassifier extends AbstractTreeClassifier<Boost> {
 		
 		BoostClassifier() {
@@ -910,7 +917,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link LogisticRegression}.
+	 */
 	public static class LogisticRegressionClassifier extends AbstractOpenCVClassifierML<LogisticRegression> {
 		
 		static enum Regularization {
@@ -1007,7 +1016,9 @@ public class OpenCVClassifiers {
 	}
 	
 	
-	
+	/**
+	 * Classifier based on {@link NormalBayesClassifier}.
+	 */
 	public static class NormalBayesClassifierCV extends AbstractOpenCVClassifierML<NormalBayesClassifier> {
 
 		NormalBayesClassifierCV() {
@@ -1047,7 +1058,9 @@ public class OpenCVClassifiers {
 		}
 	}
 	
-	
+	/**
+	 * Clusterer based on {@link EM}.
+	 */
 	public static class EMClusterer extends AbstractOpenCVClassifierML<EM> {
 		
 		EMClusterer() {
@@ -1086,6 +1099,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
+	/**
+	 * Classifier based on {@link SVM}.
+	 */
 	public static class SVMClassifierCV extends AbstractOpenCVClassifierML<SVM> {
 
 		SVMClassifierCV() {
@@ -1124,7 +1140,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link SVMSGD}.
+	 */
 	public static class SVMSGDClassifierCV extends AbstractOpenCVClassifierML<SVMSGD> {
 
 		SVMSGDClassifierCV() {
@@ -1163,7 +1181,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link KNearest}.
+	 */
 	static class KNearestClassifierCV extends AbstractOpenCVClassifierML<KNearest> {
 
 		KNearestClassifierCV() {
@@ -1201,7 +1221,9 @@ public class OpenCVClassifiers {
 		
 	}
 	
-	
+	/**
+	 * Classifier based on {@link ANN_MLP}.
+	 */
 	static class ANNClassifierCV extends AbstractOpenCVClassifierML<ANN_MLP> {
 		
 		private static Logger logger = LoggerFactory.getLogger(ANNClassifierCV.class);
@@ -1430,8 +1452,8 @@ public class OpenCVClassifiers {
 						
 				var indexer = probabilities.createIndexer();
 				long[] inds = new long[2];
-				long rows = indexer.rows();
-				long cols = indexer.cols();
+				long rows = indexer.size(0); // previously .rows()
+				long cols = indexer.size(1); // previously .cols()
 				double scale = 0.5 / beta;
 				double offset = 0.5;
 						

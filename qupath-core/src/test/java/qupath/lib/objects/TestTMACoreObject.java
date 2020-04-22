@@ -23,10 +23,9 @@
 
 package qupath.lib.objects;
 
-import static org.junit.Assert.*;
-import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import qupath.lib.roi.EllipseROI;
 
@@ -43,12 +42,12 @@ public class TestTMACoreObject {
 	
 	@Test
 	public void test_BasicPO() {
-		assertThat(myPO, instanceOf(TMACoreObject.class));
+		assertTrue(myPO instanceof TMACoreObject);
 		assertFalse(myPO.isMissing());
 		myPO.setMissing(Boolean.TRUE);
 		assertTrue(myPO.isMissing());
 		assertTrue(myPO2.isMissing());
-		assertThat(myPO2.getROI(), instanceOf(EllipseROI.class));
+		assertTrue(myPO2.getROI() instanceof EllipseROI);
 		assertEquals(myPO2.getROI().getBoundsX(), xcenter-diameter/2, epsilon);
 		assertEquals(myPO2.getROI().getBoundsY(), ycenter-diameter/2, epsilon);
 		assertEquals(myPO2.toString(), name);

@@ -5,14 +5,18 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
 import java.text.NumberFormat;
+import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
+import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +27,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -32,13 +37,16 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
@@ -55,10 +63,9 @@ import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains
 import qupath.lib.color.StainVector;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.AnnotationCombineCommand;
-import qupath.lib.gui.commands.HierarchyInsertCommand;
-import qupath.lib.gui.commands.scriptable.InverseObjectCommand;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -71,7 +78,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.roi.PointsROI;
-import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.RoiTools.CombineOp;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -232,92 +239,92 @@ public class GuiTools {
 	
 
 	/**
-		 * Make a semi-educated guess at the image type of a PathImageServer.
-		 * 
-		 * @param server
-		 * @param imgThumbnail Thumbnail for the image. This is now a required parameter (previously &lt;= 0.1.2 it was optional).
-		 * 
-		 * @return
-		 */
-		public static ImageData.ImageType estimateImageType(final ImageServer<BufferedImage> server, final BufferedImage imgThumbnail) {
-			
-	//		logger.warn("Image type will be automatically estimated");
-			
-			if (!server.isRGB())
-				return ImageData.ImageType.FLUORESCENCE;
-			
-			BufferedImage img = imgThumbnail;
-	//		BufferedImage img;
-	//		if (imgThumbnail == null)
-	//			img = server.getBufferedThumbnail(220, 220, 0);
-	//		else {
-	//			img = imgThumbnail;
-	//			// Rescale if necessary
-	//			if (img.getWidth() * img.getHeight() > 400*400) {
-	//				imgThumbnail.getS
-	//			}
-	//		}
-			int w = img.getWidth();
-			int h = img.getHeight();
-			int[] rgb = img.getRGB(0, 0, w, h, null, 0, w);
-			long rSum = 0;
-			long gSum = 0;
-			long bSum = 0;
-			int nDark = 0;
-			int nLight = 0;
-			int n = 0;
-			int darkThreshold = 25;
-			int lightThreshold = 220;
-			for (int v : rgb) {
-				int r = ColorTools.red(v);
-				int g = ColorTools.green(v);
-				int b = ColorTools.blue(v);
-				if (r < darkThreshold & g < darkThreshold && b < darkThreshold)
-					nDark++;
-				else if (r > lightThreshold & g > lightThreshold && b > lightThreshold)
-					nLight++;
-				else {
-					n++;
-					rSum += r;
-					gSum += g;
-					bSum += b;
-				}
-			}
-			if (nDark == 0 && nLight == 0)
-				return ImageData.ImageType.UNSET;
-			// If we have more dark than light pixels, assume fluorescence
-			if (nDark >= nLight)
-				return ImageData.ImageType.FLUORESCENCE;
-			
-	//		Color color = new Color(
-	//				(int)(rSum/n + .5),
-	//				(int)(gSum/n + .5),
-	//				(int)(bSum/n + .5));
-	//		logger.debug("Color: " + color.toString());
-	
-			// Compare optical density vector angles with the defaults for hematoxylin, eosin & DAB
-			ColorDeconvolutionStains stainsH_E = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_E);
-			double rOD = ColorDeconvolutionHelper.makeOD(rSum/n, stainsH_E.getMaxRed());
-			double gOD = ColorDeconvolutionHelper.makeOD(gSum/n, stainsH_E.getMaxGreen());
-			double bOD = ColorDeconvolutionHelper.makeOD(bSum/n, stainsH_E.getMaxBlue());
-			StainVector stainMean = StainVector.createStainVector("Mean Stain", rOD, gOD, bOD);
-			double angleH = StainVector.computeAngle(stainMean, stainsH_E.getStain(1));
-			double angleE = StainVector.computeAngle(stainMean, stainsH_E.getStain(2));
-			ColorDeconvolutionStains stainsH_DAB = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_DAB);
-			double angleDAB = StainVector.computeAngle(stainMean, stainsH_DAB.getStain(2));
+	 * Make a semi-educated guess at the image type of a PathImageServer.
+	 * 
+	 * @param server
+	 * @param imgThumbnail Thumbnail for the image. This is now a required parameter (previously &lt;= 0.1.2 it was optional).
+	 * 
+	 * @return
+	 */
+	public static ImageData.ImageType estimateImageType(final ImageServer<BufferedImage> server, final BufferedImage imgThumbnail) {
 		
-			// For H&E staining, eosin is expected to predominate... if it doesn't, assume H-DAB
-			logger.debug("Angle hematoxylin: " + angleH);
-			logger.debug("Angle eosin: " + angleE);
-			logger.debug("Angle DAB: " + angleDAB);
-			if (angleDAB < angleE || angleH < angleE) {
-				logger.info("Estimating H-DAB staining");
-				return ImageData.ImageType.BRIGHTFIELD_H_DAB;
-			} else {
-				logger.info("Estimating H & E staining");
-				return ImageData.ImageType.BRIGHTFIELD_H_E;
+//		logger.warn("Image type will be automatically estimated");
+		
+		if (!server.isRGB())
+			return ImageData.ImageType.FLUORESCENCE;
+		
+		BufferedImage img = imgThumbnail;
+//		BufferedImage img;
+//		if (imgThumbnail == null)
+//			img = server.getBufferedThumbnail(220, 220, 0);
+//		else {
+//			img = imgThumbnail;
+//			// Rescale if necessary
+//			if (img.getWidth() * img.getHeight() > 400*400) {
+//				imgThumbnail.getS
+//			}
+//		}
+		int w = img.getWidth();
+		int h = img.getHeight();
+		int[] rgb = img.getRGB(0, 0, w, h, null, 0, w);
+		long rSum = 0;
+		long gSum = 0;
+		long bSum = 0;
+		int nDark = 0;
+		int nLight = 0;
+		int n = 0;
+		int darkThreshold = 25;
+		int lightThreshold = 220;
+		for (int v : rgb) {
+			int r = ColorTools.red(v);
+			int g = ColorTools.green(v);
+			int b = ColorTools.blue(v);
+			if (r < darkThreshold & g < darkThreshold && b < darkThreshold)
+				nDark++;
+			else if (r > lightThreshold & g > lightThreshold && b > lightThreshold)
+				nLight++;
+			else {
+				n++;
+				rSum += r;
+				gSum += g;
+				bSum += b;
 			}
 		}
+		if (nDark == 0 && nLight == 0)
+			return ImageData.ImageType.UNSET;
+		// If we have more dark than light pixels, assume fluorescence
+		if (nDark >= nLight)
+			return ImageData.ImageType.FLUORESCENCE;
+		
+//		Color color = new Color(
+//				(int)(rSum/n + .5),
+//				(int)(gSum/n + .5),
+//				(int)(bSum/n + .5));
+//		logger.debug("Color: " + color.toString());
+
+		// Compare optical density vector angles with the defaults for hematoxylin, eosin & DAB
+		ColorDeconvolutionStains stainsH_E = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_E);
+		double rOD = ColorDeconvolutionHelper.makeOD(rSum/n, stainsH_E.getMaxRed());
+		double gOD = ColorDeconvolutionHelper.makeOD(gSum/n, stainsH_E.getMaxGreen());
+		double bOD = ColorDeconvolutionHelper.makeOD(bSum/n, stainsH_E.getMaxBlue());
+		StainVector stainMean = StainVector.createStainVector("Mean Stain", rOD, gOD, bOD);
+		double angleH = StainVector.computeAngle(stainMean, stainsH_E.getStain(1));
+		double angleE = StainVector.computeAngle(stainMean, stainsH_E.getStain(2));
+		ColorDeconvolutionStains stainsH_DAB = ColorDeconvolutionStains.makeDefaultColorDeconvolutionStains(DefaultColorDeconvolutionStains.H_DAB);
+		double angleDAB = StainVector.computeAngle(stainMean, stainsH_DAB.getStain(2));
+	
+		// For H&E staining, eosin is expected to predominate... if it doesn't, assume H-DAB
+		logger.debug("Angle hematoxylin: " + angleH);
+		logger.debug("Angle eosin: " + angleE);
+		logger.debug("Angle DAB: " + angleDAB);
+		if (angleDAB < angleE || angleH < angleE) {
+			logger.info("Estimating H-DAB staining");
+			return ImageData.ImageType.BRIGHTFIELD_H_DAB;
+		} else {
+			logger.info("Estimating H & E staining");
+			return ImageData.ImageType.BRIGHTFIELD_H_E;
+		}
+	}
 
 	/**
 	 * Make a snapshot as a JavaFX {@link Image}, using the current viewer if a viewer is required.
@@ -650,6 +657,35 @@ public class GuiTools {
 		} else
 			Platform.runLater(() -> refreshList(listView));
 	}
+	
+	
+	/**
+	 * Restrict the possible spinner input to integer (or double) format.
+	 * @param spinner
+	 * @param allowDecimals
+	 */
+	public static void restrictSpinnerInputToNumber(Spinner<? extends Number> spinner, boolean allowDecimals) {
+		NumberFormat format;
+		if (allowDecimals)
+			format = NumberFormat.getNumberInstance();
+		else
+			format = NumberFormat.getIntegerInstance();
+		
+		UnaryOperator<TextFormatter.Change> filter = c -> {
+		    if (c.isContentChange()) {
+		    	String newText = c.getControlNewText();
+		        ParsePosition parsePosition = new ParsePosition(0);
+		        format.parse(newText, parsePosition);
+		        if (parsePosition.getIndex() < c.getControlNewText().length()) {
+		            return null;
+		        }
+		    }
+		    return c;
+		};
+		TextFormatter<Integer> normalizeFormatter = new TextFormatter<Integer>(filter);
+		spinner.getEditor().setTextFormatter(normalizeFormatter);		
+	}
+	
 
 	/**
 	 * Prompt the user to set properties for the currently-selected annotation(s).
@@ -800,20 +836,32 @@ public class GuiTools {
 				GuiTools.promptToSetActiveAnnotationProperties(hierarchy);
 		});
 		
-		MenuItem miInsertHierarchy = MenuTools.createMenuItem(
-				QuPathGUI.createCommandAction(new HierarchyInsertCommand(qupath), "Insert in hierarchy"));
+		
+		var actionInsertInHierarchy = qupath.createImageDataAction(imageData -> Commands.insertSelectedObjectsInHierarchy(imageData));
+		actionInsertInHierarchy.setText("Insert in hierarchy");
+		var miInsertHierarchy = ActionTools.createMenuItem(actionInsertInHierarchy);
+		
+		var actionMerge = qupath.createImageDataAction(imageData -> Commands.mergeSelectedAnnotations(imageData));
+		actionMerge.setText("Merge selected");
+		var actionSubtract = qupath.createImageDataAction(imageData -> Commands.combineSelectedAnnotations(imageData, CombineOp.SUBTRACT));
+		actionSubtract.setText("Subtract selected");
+		var actionIntersect = qupath.createImageDataAction(imageData -> Commands.combineSelectedAnnotations(imageData, CombineOp.INTERSECT));
+		actionIntersect.setText("Intersect selected");
+		
+		var actionInverse = qupath.createImageDataAction(imageData -> Commands.makeInverseAnnotation(imageData));
+		actionInverse.setText("Make inverse");
 		
 		Menu menuCombine = MenuTools.createMenu(
 				"Edit multiple",
-				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.ADD), "Merge selected"),
-				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.SUBTRACT), "Subtract selected"), // TODO: Make this less ambiguous!
-				QuPathGUI.createCommandAction(new AnnotationCombineCommand(qupath, RoiTools.CombineOp.INTERSECT), "Intersect selected")
+				actionMerge,
+				actionSubtract, // TODO: Make this less ambiguous!
+				actionIntersect
 				);
 		
 		Menu menuEdit = MenuTools.createMenu(
 				"Edit single",
-				QuPathGUI.createCommandAction(new InverseObjectCommand(qupath), "Make inverse"),
-				QuPathGUI.createPluginAction("Split", SplitAnnotationsPlugin.class, qupath, null)
+				actionInverse,
+				qupath.createPluginAction("Split", SplitAnnotationsPlugin.class, null)
 				);
 		
 //		Menu menuPoints = MenuTools.createMenu(
@@ -986,21 +1034,76 @@ public class GuiTools {
 			text.set(s);
 			synchronizingText = false;
 		}
-		
-		static void setTextFieldFromNumber(TextField text, double value) {
-			String s;
-			if (Double.isNaN(value))
-				s = "";
-			else if (Double.isFinite(value)) {
-				double log10 = Math.round(Math.log10(value));
-				int ndp = (int)Math.max(4, -log10 + 2);
-				s = GeneralTools.formatNumber(value, ndp);
-			} else
-				s = Double.toString(value);
-			text.setText(s);
-		}
 
 		
 	}
+
+
+	/**
+	 * Add a context menu to a CheckComboBox to quickly select all items, or clear selection.
+	 * @param combo
+	 */
+	public static void installSelectAllOrNoneMenu(CheckComboBox<?> combo) {
+		var miAll = new MenuItem("Select all");
+		var miNone = new MenuItem("Select none");
+		miAll.setOnAction(e -> combo.getCheckModel().checkAll());
+		miNone.setOnAction(e -> combo.getCheckModel().clearChecks());
+		var menu = new ContextMenu(miAll, miNone);
+		combo.setContextMenu(menu);
+	}
+	
+	
+	/**
+	 * Create a {@link ListCell} with custom methods to derive text and a graphic for a specific object.
+	 * @param <T>
+	 * @param stringFun function to extract a string
+	 * @param graphicFun function to extract a graphic
+	 * @return a new list cell
+	 */
+	public static <T> ListCell<T> createCustomListCell(Function<T, String> stringFun, Function<T, Node> graphicFun) {
+		return new CustomListCell<>(stringFun, graphicFun);
+	}
+	
+	/**
+	 * Create a {@link ListCell} with custom methods to derive text for a specific object.
+	 * @param <T>
+	 * @param stringFun function to extract a string
+	 * @return a new list cell
+	 */
+	public static <T> ListCell<T> createCustomListCell(Function<T, String> stringFun) {
+		return createCustomListCell(stringFun, t -> null);
+	}
+	
+	
+	private static class CustomListCell<T> extends ListCell<T> {
+		
+		private Function<T, String> funString;
+		private Function<T, Node> funGraphic;
+		
+		/**
+		 * Constructor.
+		 * @param funString function capable of generating a String representation of an object.
+		 * @param funGraphic function capable of generating a Graphic representation of an object.
+		 */
+		private CustomListCell(Function<T, String> funString, Function<T, Node> funGraphic) {
+			super();
+			this.funString = funString;
+			this.funGraphic = funGraphic;
+		}
+		
+		@Override
+		protected void updateItem(T item, boolean empty) {
+			super.updateItem(item, empty);
+			if (empty) {
+				setText(null);
+				setGraphic(null);
+			} else {
+				setText(funString.apply(item));
+				setGraphic(funGraphic.apply(item));
+			}
+		}
+		
+	}
+	
 	
 }

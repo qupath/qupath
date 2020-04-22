@@ -51,7 +51,7 @@ public class QuPathStyleManager {
 	
 	private static JavaFXStylesheet DEFAULT_STYLE = new JavaFXStylesheet("Modena Light", Application.STYLESHEET_MODENA);
 
-	private static ObservableList<StylesheetOption> styles = FXCollections.observableArrayList(
+	private static ObservableList<StyleOption> styles = FXCollections.observableArrayList(
 			DEFAULT_STYLE,
 //			new JavaFXStylesheet("Caspian", Application.STYLESHEET_CASPIAN),
 //			new CustomStylesheet("Modena (Helvetica)", "JavaFX Modena stylesheet with Helvetica", "css/helvetica.css"),
@@ -59,10 +59,24 @@ public class QuPathStyleManager {
 //			new CustomStylesheet("Modena Dark (Helvetica)", "Darker version of JavaFX Modena stylesheet with Helvetica", "css/dark.css", "css/helvetica.css")
 			);
 	
-	private static ObjectProperty<StylesheetOption> selectedStyle = new SimpleObjectProperty<>();
+	private static ObjectProperty<StyleOption> selectedStyle = new SimpleObjectProperty<>();
 
+	/**
+	 * Available font families.
+	 */
 	public static enum Fonts {
-		DEFAULT, SANS_SERIF, SERIF;
+		/**
+		 * JavaFX default. May not look great on macOS.
+		 */
+		DEFAULT,
+		/**
+		 * Preferred sans-serif font.
+		 */
+		SANS_SERIF,
+		/**
+		 * Preferred serif font.
+		 */
+		SERIF;
 		
 		private String getURL() {
 			switch(this) {
@@ -104,7 +118,7 @@ public class QuPathStyleManager {
 		Platform.runLater(() -> {
 			String stylesheetName = PathPrefs.getUserPreferences().get("qupathStylesheet", null);
 			if (stylesheetName != null) {
-				for (StylesheetOption option : styles) {
+				for (StyleOption option : styles) {
 					if (stylesheetName.equals(option.getName())) {
 						selectedStyle.set(option);
 					}
@@ -116,10 +130,10 @@ public class QuPathStyleManager {
 	}
 	
 	static void updateStyle() {
-		StylesheetOption n = selectedStyle.get();
+		StyleOption n = selectedStyle.get();
 		if (n != null) {
 			PathPrefs.getUserPreferences().put("qupathStylesheet", n.getName());
-			n.setStylesheet();
+			n.setStyle();
 		} else {
 			// Default
 			PathPrefs.getUserPreferences().remove("qupathStylesheet");
@@ -134,39 +148,72 @@ public class QuPathStyleManager {
 		}
 	}
 	
+	/**
+	 * Check if the default JavaFX style is used.
+	 * @return true if the default style is used, false otherwise.
+	 */
 	public static boolean isDefaultStyle() {
 		return DEFAULT_STYLE.equals(selectedStyle.get());
 	}
 	
-	public static ObservableList<StylesheetOption> stylesProperty() {
+	/**
+	 * Get the current available styles.
+	 * @return
+	 */
+	public static ObservableList<StyleOption> availableStylesProperty() {
 		return styles;
 	}
-
-	public static ObjectProperty<StylesheetOption> selectedStyleProperty() {
+	
+	/**
+	 * Get the current selected style.
+	 * @return
+	 */
+	public static ObjectProperty<StyleOption> selectedStyleProperty() {
 		return selectedStyle;
 	}
 	
+	/**
+	 * Get a list of available fonts.
+	 * @return list of available fonts
+	 */
 	public static ObservableList<Fonts> availableFontsProperty() {
 		return availableFonts;
 	}
 	
+	/**
+	 * Get the current selected font.
+	 * @return
+	 */
 	public static ObjectProperty<Fonts> fontProperty() {
 		return selectedFont;
 	}
 
-	
-	public static interface StylesheetOption {
+	/**
+	 * Interface defining a style that may be applied to QuPath.
+	 */
+	public static interface StyleOption {
 		
-		public void setStylesheet();
+		/**
+		 * Set the style for the QuPath application.
+		 */
+		public void setStyle();
 		
+		/**
+		 * Get a user-friendly description of the style.
+		 * @return
+		 */
 		public String getDescription();
 		
+		/**
+		 * Get a user-friendly name for the style.
+		 * @return
+		 */
 		public String getName();
 		
 	}
 	
 	
-	static class JavaFXStylesheet implements StylesheetOption {
+	static class JavaFXStylesheet implements StyleOption {
 		
 		private String name;
 		private String cssName;
@@ -177,7 +224,7 @@ public class QuPathStyleManager {
 		}
 
 		@Override
-		public void setStylesheet() {
+		public void setStyle() {
 			Application.setUserAgentStylesheet(cssName);
 		}
 
@@ -199,7 +246,7 @@ public class QuPathStyleManager {
 	}
 	
 	
-	static class CustomStylesheet implements StylesheetOption {
+	static class CustomStylesheet implements StyleOption {
 		
 		private String name;
 		private String description;
@@ -212,7 +259,7 @@ public class QuPathStyleManager {
 		}
 
 		@Override
-		public void setStylesheet() {
+		public void setStyle() {
 			setStyleSheets(urls);
 		}
 

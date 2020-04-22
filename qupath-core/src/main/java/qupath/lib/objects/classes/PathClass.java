@@ -47,6 +47,11 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	private final PathClass parentClass;
 	private final String name;
 	private Integer colorRGB;
+	
+	/**
+	 * Cached String representation
+	 */
+	private transient String stringRep = null;
 
 	PathClass() {
 		parentClass = null;
@@ -179,12 +184,15 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	
 	@Override
 	public String toString() {
-		if (name == null)
-			return defaultName;
-		if (isDerivedClass())
-			return derivedClassToString(parentClass, name);
-		else
-			return name;
+		if (stringRep == null) {
+			if (name == null)
+				stringRep = defaultName;
+			else if (isDerivedClass())
+				stringRep = derivedClassToString(parentClass, name);
+			else
+				stringRep = name;
+		}
+		return stringRep;
 	}
 	
 	/**

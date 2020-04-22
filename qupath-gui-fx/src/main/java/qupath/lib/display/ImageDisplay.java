@@ -46,7 +46,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
-import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -57,9 +56,6 @@ import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
 import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
-import qupath.lib.display.ChannelDisplayInfo.DirectServerChannelInfo;
-import qupath.lib.display.ChannelDisplayInfo.RGBDirectChannelInfo;
-import qupath.lib.display.ChannelDisplayInfo.SingleChannelDisplayInfo;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
@@ -68,10 +64,10 @@ import qupath.lib.images.servers.ImageServer;
 /**
  * Class used to look after the color transforms that may be applied to an image,
  * including brightness/contrast settings.
- * 
+ * <p>
+ * Warning! This implementation is likely to change in a future version.
  * 
  * @author Pete Bankhead
- *
  */
 public class ImageDisplay extends AbstractImageRenderer {
 
@@ -84,14 +80,13 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	// Lists to store the different kinds of channels we might need
 	private RGBDirectChannelInfo rgbDirectChannelInfo;
-	private ChannelDisplayInfo.RGBNormalizedChannelInfo rgbNormalizedChannelInfo;
+	private RGBNormalizedChannelInfo rgbNormalizedChannelInfo;
 	private List<ChannelDisplayInfo> rgbBasicChannels = new ArrayList<>();
 	private List<ChannelDisplayInfo> rgbBrightfieldChannels = new ArrayList<>();
 	private List<ChannelDisplayInfo> rgbChromaticityChannels = new ArrayList<>();
 
 	// Image & color transform-related variables
 	private BooleanProperty useGrayscaleLuts = new SimpleBooleanProperty();
-	private BooleanBinding useColorLUTs = useGrayscaleLuts.not();
 
 	private ImageData<BufferedImage> imageData;
 	private ObservableList<ChannelDisplayInfo> channelOptions = FXCollections.observableArrayList();
@@ -106,7 +101,10 @@ public class ImageDisplay extends AbstractImageRenderer {
 	
 	private static BooleanProperty showAllRGBTransforms = PathPrefs.createPersistentPreference("showAllRGBTransforms", true);
 
-
+	/**
+	 * Constructor.
+	 * @param imageData image data that should be displayed
+	 */
 	public ImageDisplay(final ImageData<BufferedImage> imageData) {
 		setImageData(imageData, false);
 		useGrayscaleLuts.addListener((v, o, n) -> {
@@ -117,6 +115,12 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 	
 
+	/**
+	 * Set the {@link ImageData} to a new value
+	 * @param imageData image data that should how be displayed
+	 * @param retainDisplaySettings if true, retain the same display settings as for the previous image if possible 
+	 *                              (i.e. the images have similar channels)
+	 */
 	public void setImageData(ImageData<BufferedImage> imageData, boolean retainDisplaySettings) {
 		if (this.imageData == imageData)
 			return;
@@ -152,25 +156,44 @@ public class ImageDisplay extends AbstractImageRenderer {
 		changeTimestamp.set(System.currentTimeMillis());
 	}
 	
-
+	/**
+	 * Get the current image data
+	 * @return
+	 */
 	public ImageData<BufferedImage> getImageData() {
 		return imageData;
 	}
 	
+	/**
+	 * Property that specifies whether grayscale lookup tables should be preferred to color lookup tables
+	 * @return
+	 */
 	public BooleanProperty useGrayscaleLutProperty() {
 		return useGrayscaleLuts;
 	}
 	
+	/**
+	 * Get the value of {@link #useGrayscaleLutProperty()}
+	 * @return
+	 */
 	public boolean useGrayscaleLuts() {
 		return useGrayscaleLuts.get();
 	}
 
+	/**
+	 * Set the value of {@link #useGrayscaleLutProperty()}
+	 * @param useGrayscaleLuts
+	 */
 	public void setUseGrayscaleLuts(boolean useGrayscaleLuts) {
 		this.useGrayscaleLuts.set(useGrayscaleLuts);
 	}
 	
+	/**
+	 * The opposite of {@link #useGrayscaleLuts()}
+	 * @return
+	 */
 	public boolean useColorLUTs() {
-		return useColorLUTs.get();
+		return !useGrayscaleLuts();
 	}
 
 
@@ -210,31 +233,40 @@ public class ImageDisplay extends AbstractImageRenderer {
 			return;
 		
 		rgbDirectChannelInfo = new RGBDirectChannelInfo(imageData);
-		rgbNormalizedChannelInfo = new ChannelDisplayInfo.RGBNormalizedChannelInfo(imageData);
+		rgbNormalizedChannelInfo = new RGBNormalizedChannelInfo(imageData);
 
 		// Add simple channel separation
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
+		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Red, false));
+		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Green, false));
+		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformMethod.Blue, false));
 //		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Red", 8, 0, 255, 0, 0));
 //		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Green", 8, 1, 0, 255, 0));
 //		rgbBasicChannels.add(new ChannelDisplayInfo.MultiChannelInfo("Blue", 8, 2, 0, 0, 255));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
-		rgbBasicChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
+		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Hue, false));
+		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Saturation, false));
+		rgbBasicChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.RGB_mean, false));
 
 		// Add optical density & color deconvolution options for brightfield images
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_1));
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_2));
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_3));
-		rgbBrightfieldChannels.add(new ChannelDisplayInfo.RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Optical_density_sum));
+		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_1));
+		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_2));
+		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformMethod.Stain_3));
+		rgbBrightfieldChannels.add(new RBGColorDeconvolutionInfo(imageData, ColorTransformer.ColorTransformMethod.Optical_density_sum));
 
-		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Red_chromaticity, false));		
-		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Green_chromaticity, false));		
-		rgbChromaticityChannels.add(new ChannelDisplayInfo.RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Blue_chromaticity, false));		
+		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Red_chromaticity, false));		
+		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Green_chromaticity, false));		
+		rgbChromaticityChannels.add(new RBGColorTransformInfo(imageData, ColorTransformer.ColorTransformMethod.Blue_chromaticity, false));		
 	}
 
-	public void updateChannelOptions(boolean serverChanged) {
+	/**
+	 * Refresh the channel options. This may be used if an underlying property of the image has changed, such 
+	 * as the channel names or lookup tables.
+	 */
+	public void refreshChannelOptions() {
+		updateChannelOptions(false);
+		
+	}
+
+	private void updateChannelOptions(boolean serverChanged) {
 		// If the server has changed, reset the RGB channels that we have cached
 		if (serverChanged) {
 			createRGBChannels(null);
@@ -268,11 +300,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 				tempSelectedChannels.add(tempChannelOptions.get(0));
 		} else if (serverChanged) {
 			if (server.nChannels() == 1) {
-				tempChannelOptions.add(new ChannelDisplayInfo.DirectServerChannelInfo(imageData, 0));
+				tempChannelOptions.add(new DirectServerChannelInfo(imageData, 0));
 			}
 			else {
 				for (int c = 0; c < server.nChannels(); c++) {
-					tempChannelOptions.add(new ChannelDisplayInfo.DirectServerChannelInfo(imageData, c));
+					tempChannelOptions.add(new DirectServerChannelInfo(imageData, c));
 				}
 			}
 		} else {
@@ -391,12 +423,22 @@ public class ImageDisplay extends AbstractImageRenderer {
 
 	private ObservableList<ChannelDisplayInfo> selectedChannelsReadOnly = FXCollections.unmodifiableObservableList(selectedChannels);	
 	
+	/**
+	 * {@link ObservableList} containing the channels currently selected for display.
+	 * @return
+	 * @see #availableChannels()
+	 */
 	public ObservableList<ChannelDisplayInfo> selectedChannels() {
 		return selectedChannelsReadOnly;
 	}
 	
 	private ObservableList<ChannelDisplayInfo> availableChannels = FXCollections.unmodifiableObservableList(channelOptions);
 	
+	/**
+	 * {@link ObservableList} containing the channels currently available for display.
+	 * @return
+	 * @see #selectedChannels()
+	 */
 	public ObservableList<ChannelDisplayInfo> availableChannels() {
 		return availableChannels;
 	}
@@ -468,8 +510,16 @@ public class ImageDisplay extends AbstractImageRenderer {
 		return imgResult;
 	}
 	
-	
-	public static BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput, List<ChannelDisplayInfo> selectedChannels, boolean useGrayscaleLuts) {
+	/**
+	 * Convert an image too RGB by applying the specified {@linkplain ChannelDisplayInfo ChannelDisplayInfos}.
+	 * 
+	 * @param imgInput the input image to transform
+	 * @param imgOutput optional output image (must be the same size as the input image, and RGB)
+	 * @param selectedChannels the channels to use
+	 * @param useGrayscaleLuts if true, prefer grayscale lookup tables rather than color
+	 * @return an RGB image determined by transforming the input image using the specified channels
+	 */
+	public static BufferedImage applyTransforms(BufferedImage imgInput, BufferedImage imgOutput, List<? extends ChannelDisplayInfo> selectedChannels, boolean useGrayscaleLuts) {
 		int width = imgInput.getWidth();
 		int height = imgInput.getHeight();
 
@@ -533,6 +583,13 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 
+	/**
+	 * Get a string representation of a transformed pixel value, using the currently-selected channels.
+	 * @param img image providing the value
+	 * @param x x-coordinate of the pixel
+	 * @param y y-coordinate of the pixels
+	 * @return a String representation of the pixel's transformed value
+	 */
 	public String getTransformedValueAsString(BufferedImage img, int x, int y) {
 		if (selectedChannels == null || selectedChannels.isEmpty() || selectedChannels.get(0) == null)
 			return "";
@@ -670,13 +727,22 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 	void autoSetDisplayRange(ChannelDisplayInfo info, boolean fireUpdate) {
-		autoSetDisplayRange(info, getHistogram(info), PathPrefs.getAutoBrightnessContrastSaturationPercent()/100.0, fireUpdate);
+		autoSetDisplayRange(info, getHistogram(info), PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0, fireUpdate);
 	}
 
+	/**
+	 * Automatically set the display range for a channel, using the default saturation defined in {@link PathPrefs#autoBrightnessContrastSaturationPercentProperty()}.
+	 * @param info channel to update
+	 */
 	public void autoSetDisplayRange(ChannelDisplayInfo info) {
-		autoSetDisplayRange(info, getHistogram(info), PathPrefs.getAutoBrightnessContrastSaturationPercent()/100.0, true);
+		autoSetDisplayRange(info, getHistogram(info), PathPrefs.autoBrightnessContrastSaturationPercentProperty().get()/100.0, true);
 	}
 	
+	/**
+	 * Automatically set the display range for a channel.
+	 * @param info channel to update
+	 * @param saturation proportion of pixels that may be saturated, i.e. have the max/min display values (between 0.0 and 1.0)
+	 */
 	public void autoSetDisplayRange(ChannelDisplayInfo info, double saturation) {
 		autoSetDisplayRange(info, getHistogram(info), saturation, true);
 	}
@@ -712,6 +778,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	/**
 	 * Create a JSON representation of the main components of the current display.
 	 * 
+	 * @param prettyPrint 
 	 * @return
 	 */
 	public String toJSON(final boolean prettyPrint) {

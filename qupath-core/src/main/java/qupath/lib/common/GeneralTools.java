@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -42,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -49,7 +51,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.Locale.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -603,6 +607,7 @@ public class GeneralTools {
 	 * @param url
 	 * @param timeoutMillis
 	 * @return
+	 * @throws IOException 
 	 */
 	public static String readURLAsString(final URL url, final int timeoutMillis) throws IOException {
 		StringBuilder response = new StringBuilder();
@@ -706,6 +711,107 @@ public class GeneralTools {
 	public static long estimateUsedMemory() {
 		var runtime = Runtime.getRuntime();
 		return runtime.totalMemory() - runtime.freeMemory();
+	}
+	
+	/**
+	 * Smart-sort a collection using the {@link Object#toString()} method applied to each element.
+	 * See {@link #smartStringSort(Collection, Function)} for more details.
+	 * @param <T>
+	 * @param collection collection to be sorted (results are retained in-place)
+	 * @see #smartStringSort(Collection, Function)
+	 */
+	public static <T> void smartStringSort(Collection<T> collection) {
+		smartStringSort(collection, T::toString);
+	}
+	
+	/**
+	 * Smart-sort a collection after extracting a String representation of each element.
+	 * This differs from a 'normal' sort by splitting the String into lists of numeric and non-numeric parts,
+	 * and comparing corresponding elements separately.
+	 * This can sometimes give more intuitive results than a simple String sort, which would treat "10" as 
+	 * 'less than' "2".
+	 * <p>
+	 * For example, applying a simple sort to the list {@code ["a1", "a2", "a10"]} will result in 
+	 * {@code ["a1", "a10", "a2]}. Smart-sorting would leave the list unchanged.
+	 * <p>
+	 * Note: Currently this method considers only positive integer values, treating characters such as 
+	 * '+', '-', ',', '.' and 'e' as distinct elements of text.
+	 * @param <T>
+	 * @param collection collection to be sorted (results are retained in-place)
+	 * @param extractor function used to convert each element of the collection to a String representation
+	 */
+	public static <T> void smartStringSort(Collection<T> collection, Function<T, String> extractor) {
+		for (var temp : collection)
+			System.err.println(new StringPartsSorter<T>(temp, temp.toString()));
+		var list = collection.stream().map(c -> new StringPartsSorter<>(c, extractor.apply(c))).sorted().map(s -> s.obj).collect(Collectors.toList());
+		collection.clear();
+		collection.addAll(list);
+	}
+	
+	/**
+	 * Comparator for smart String sorting.
+	 * Note: This comparator is very inefficient. Where possible {@link #smartStringSort(Collection, Function)} should 
+	 * be used instead.
+	 * @return a String comparator that parses integers from within the String so they may be compared by value
+	 */
+	public static Comparator<String> smartStringComparator() {
+		return (String s1, String s2) -> new StringPartsSorter<>(s1, s1).compareTo(new StringPartsSorter<>(s2, s2));
+	}
+	
+	/**
+	 * Helper class for smart-sorting.
+	 * @param <T>
+	 */
+	private static class StringPartsSorter<T> implements Comparable<StringPartsSorter<T>> {
+		
+		private final static Pattern PATTERN = Pattern.compile("(\\d+)");
+		
+		private T obj;
+		private List<Object> parts;
+		
+		StringPartsSorter(T obj, String s) {
+			this.obj = obj;
+			if (s == null)
+				s = Objects.toString(obj);
+			// Break the string into numeric & non-numeric parts
+			var matcher = PATTERN.matcher(s);
+			parts = new ArrayList<>();
+			int next = 0;
+			while (matcher.find()) {
+				int s1 = matcher.start();
+				if (s1 > next) {
+					parts.add(s.substring(next, s1));
+				}
+				parts.add(new BigDecimal(matcher.group()));
+				next = matcher.end();
+			}
+			if (next < s.length())
+				parts.add(s.substring(next));
+		}
+
+		@Override
+		public int compareTo(StringPartsSorter<T> s2) {
+			int n = Math.min(parts.size(), s2.parts.size());
+			for (int i = 0; i < n; i++) {
+				var p1 = parts.get(i);
+				var p2 = s2.parts.get(i);
+				int comp = 0;
+				if (p1 instanceof BigDecimal && p2 instanceof BigDecimal) {
+					comp = ((BigDecimal)p1).compareTo((BigDecimal)p2);
+				} else {
+					comp = p1.toString().compareTo(p2.toString());					
+				}
+				if (comp != 0)
+					return comp;
+			}
+			return Integer.compare(parts.size(), s2.parts.size());
+		}
+		
+		@Override
+		public String toString() {
+			return "[" + parts.stream().map(p -> p.toString()).collect(Collectors.joining(", ")) + "]";
+		}
+		
 	}
 	
 

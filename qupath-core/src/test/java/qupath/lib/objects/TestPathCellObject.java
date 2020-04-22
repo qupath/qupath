@@ -23,10 +23,9 @@
 
 package qupath.lib.objects;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -46,8 +45,8 @@ public class TestPathCellObject {
 	
 	@Test
 	public void test_BasicPO() {
-		assertThat(myPO, instanceOf(PathCellObject.class));
-		assertThat(myPO, instanceOf(PathDetectionObject.class));
+		assertTrue(myPO instanceof PathCellObject);
+		assertTrue(myPO instanceof PathDetectionObject);
 		assertFalse(myPO.hasNucleus());
 		assertTrue(myPO2.hasNucleus());
 		assertEquals(myPO2.getNucleusROI(), myNROI);

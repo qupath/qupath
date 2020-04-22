@@ -1,0 +1,8 @@
+ext.moduleName = 'qupath.extension.svg'
+
+description = 'qupath-extension-svg'
+
+configurations {
+  implementation.extendsFrom controlsfx
+  implementation.extendsFrom jfreesvg
+}

@@ -79,6 +79,8 @@ public class EllipseROI extends AbstractPathBoundedROI implements Serializable {
 	
 	/**
 	 * Query if the width and height of the ellipse bounding box are the same, optionally using 'non-square' pixels.
+	 * @param pixelWidth 
+	 * @param pixelHeight 
 	 * @return
 	 */
 	public boolean isCircle(double pixelWidth, double pixelHeight) {

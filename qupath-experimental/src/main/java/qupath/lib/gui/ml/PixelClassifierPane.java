@@ -73,10 +73,10 @@ import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.display.ChannelDisplayInfo;
+import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.MiniViewerCommand;
+import qupath.lib.gui.commands.MiniViewers;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
@@ -151,7 +151,7 @@ public class PixelClassifierPane {
 	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
 
 	
-	private MiniViewerCommand.MiniViewerManager miniViewer;
+	private MiniViewers.MiniViewerManager miniViewer;
 	
 	private BooleanProperty livePrediction = new SimpleBooleanProperty(false);
 	
@@ -391,7 +391,7 @@ public class PixelClassifierPane {
 		
 		
 		
-		miniViewer = new MiniViewerCommand.MiniViewerManager(viewer, 0);
+		miniViewer = new MiniViewers.MiniViewerManager(viewer, 0);
 		var viewerPane = miniViewer.getPane();
 //		GridPane.setFillWidth(viewerPane, Boolean.TRUE);
 //		GridPane.setFillHeight(viewerPane, Boolean.TRUE);
@@ -463,8 +463,10 @@ public class PixelClassifierPane {
 		btnFeatureAuto.setMaxHeight(Double.MAX_VALUE);
 		spinFeatureMin.disableProperty().bind(featureDisableBinding);
 		spinFeatureMin.setEditable(true);
+		GuiTools.restrictSpinnerInputToNumber(spinFeatureMin, true);
 		spinFeatureMax.disableProperty().bind(featureDisableBinding);
 		spinFeatureMax.setEditable(true);
+		GuiTools.restrictSpinnerInputToNumber(spinFeatureMax, true);
 		var paneFeatures = new GridPane();
 		comboDisplayFeatures.setTooltip(new Tooltip("Choose classification result or feature overlay to display (Warning: This requires a lot of memory & computation!)"));
 		spinFeatureMin.setTooltip(new Tooltip("Min display value for feature overlay"));
@@ -576,6 +578,7 @@ public class PixelClassifierPane {
 	 * This provides a mechanism to install additional feature calculators.
 	 * <p>
 	 * Note that the builder will only be added if it is not already present.
+	 * @param builder the builder to be installed
 	 * 
 	 * @return true if the builder was added, false otherwise.
 	 */
@@ -730,7 +733,7 @@ public class PixelClassifierPane {
 	static class FeatureRenderer extends AbstractImageRenderer {
 		
 		private DefaultImageRegionStore store;
-		private ChannelDisplayInfo.DirectServerChannelInfo selectedChannel = null;
+		private DirectServerChannelInfo selectedChannel = null;
 		private WeakReference<ImageData<BufferedImage>> currentData;
 		
 		FeatureRenderer(DefaultImageRegionStore store) {
@@ -743,7 +746,7 @@ public class PixelClassifierPane {
 				temp = new ImageData<>(server);
 				currentData = new WeakReference<ImageData<BufferedImage>>(temp);
 			}
-			selectedChannel = new ChannelDisplayInfo.DirectServerChannelInfo(temp, channel);
+			selectedChannel = new DirectServerChannelInfo(temp, channel);
 			selectedChannel.setLUTColor(255, 255, 255);
 //			autoSetDisplayRange();
 			setRange(min, max);

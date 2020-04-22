@@ -38,6 +38,7 @@ public interface PathTask extends Runnable {
 	 * When processing a collection of tasks with a {@link PluginRunner}, this method 
 	 * should be called on the same thread. The choice of thread depends on the runner, but 
 	 * may be the Event Dispatch Thread when using Swing or Application thread for JavaFX.
+	 * @param wasCancelled 
 	 */
 	public default void taskComplete(boolean wasCancelled) {}
 	

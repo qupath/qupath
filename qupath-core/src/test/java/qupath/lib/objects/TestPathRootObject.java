@@ -29,24 +29,24 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import qupath.lib.objects.classes.PathClassFactory;
+
 
 @SuppressWarnings("javadoc")
 public class TestPathRootObject extends PathObjectTestWrapper {
 	private final ByteArrayOutputStream errContent = new ByteArrayOutputStream();
-	private final String unclassErrMsg = "Attempted to set class for unclasifiable object - will be ignored\r\n";
 	private final Integer nPO = 10;
 	PathRootObject myPO = new PathRootObject();
 	
-	@Before
+	@BeforeEach
 	public void setUpStreams() {
 	    System.setErr(new PrintStream(errContent));
 	}
-	@After
+	@AfterEach
 	public void cleanUpStreams() {
 	    System.setErr(null);
 	}

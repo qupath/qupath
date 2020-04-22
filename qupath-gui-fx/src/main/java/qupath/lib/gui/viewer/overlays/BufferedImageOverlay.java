@@ -47,7 +47,7 @@ import qupath.lib.regions.ImageRegion;
 
 /**
  * An overlay used to display one or more {@code BufferedImage} objects on top of a primary image shown in a viewer.
- * 
+ * <p>
  * The scaling for the {@code BufferedImage} is determined by an associated {@code ImageRegion}.
  * 
  * @author Pete Bankhead
@@ -123,6 +123,7 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
 
     /**
      * Get the preferred method of interpolation to use for display.
+     * @return 
      */
     public ImageInterpolation getInterpolation() {
 		return interpolation.get();
@@ -130,6 +131,7 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
 
     /**
      * The preferred method of interpolation to use for display.
+     * @return 
      */
     public ObjectProperty<ImageInterpolation> interpolationProperty() {
     		return interpolation;

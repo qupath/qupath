@@ -679,6 +679,7 @@ public class RoiLabeling {
 	 * 
 	 * @param ip
 	 * @param roi
+	 * @param value 
 	 */
 	public static void fillOutside(ImageProcessor ip, Roi roi, double value) {
 		// Check we don't have a full rectangle

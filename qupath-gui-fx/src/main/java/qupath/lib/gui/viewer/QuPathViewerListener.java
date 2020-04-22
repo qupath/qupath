@@ -40,12 +40,33 @@ import qupath.lib.objects.PathObject;
  */
 public interface QuPathViewerListener extends EventListener {
 	
+	/**
+	 * Called with the image data within a viewer has changed.
+	 * @param viewer the viewer whose image has changed
+	 * @param imageDataOld the image previously open in the viewer
+	 * @param imageDataNew the image now open in the viewer
+	 */
 	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew);	
 
+	/**
+	 * Called when the visible region has changed in a viewer.
+	 * @param viewer the viewer whose visible region hs changed.
+	 * @param shape shape representing the new visible region (in image pixel coordinates).
+	 *              This is rectangular, but may also be rotated.
+	 */
 	public void visibleRegionChanged(QuPathViewer viewer, Shape shape);	
 
+	/**
+	 * Called when the primary selected object has changed in a viewer.
+	 * @param viewer the viewer
+	 * @param pathObjectSelected
+	 */
 	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected);
 	
+	/**
+	 * Called when a viewer is closed.
+	 * @param viewer the viewer that has been closed.
+	 */
 	public void viewerClosed(QuPathViewer viewer);
 
 }

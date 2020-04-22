@@ -27,10 +27,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.WeakHashMap;
 
 import org.slf4j.Logger;
@@ -300,37 +298,6 @@ class NumericMeasurementList {
 			sb.append("]");
 			return sb.toString();
 		}
-
-		
-		private class MeasurementIterator implements Iterator<Measurement> {
-			
-	        /**
-	         * Index of element to be returned by subsequent call to next.
-	         */
-	        private int cursor = 0;
-
-	        @Override
-			public boolean hasNext() {
-	            return cursor != size();
-	        }
-
-	        @Override
-			public Measurement next() {
-	            try {
-	            	Measurement next = MeasurementFactory.createMeasurement(names.get(cursor), getMeasurementValue(cursor));
-	                cursor++;
-	                return next;
-	            } catch (IndexOutOfBoundsException e) {
-	                throw new NoSuchElementException();
-	            }
-	        }
-
-	        @Override
-			public void remove() {
-	        	throw new UnsupportedOperationException("Measurements cannot be removed from this MeasurementList using an iterator");
-	        }
-	        	        
-	    }		
 		
 	}
 

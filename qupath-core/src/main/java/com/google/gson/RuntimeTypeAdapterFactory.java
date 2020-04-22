@@ -20,12 +20,6 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.internal.Streams;
 import com.google.gson.reflect.TypeToken;
@@ -93,7 +87,7 @@ import com.google.gson.stream.JsonWriter;
  * Both the type field name ({@code "type"}) and the type labels ({@code
  * "Rectangle"}) are configurable.
  *
- * <h3>Registering Types</h3>
+ * <h2>Registering Types</h2>
  * Create a {@code RuntimeTypeAdapterFactory} by passing the base type and type field
  * name to the {@link #of} factory method. If you don't supply an explicit type
  * field name, {@code "type"} will be used. <pre>   {@code
@@ -120,7 +114,9 @@ import com.google.gson.stream.JsonWriter;
  *       .registerSubtype(Circle.class)
  *       .registerSubtype(Diamond.class);
  * }</pre>
+ * 
  */
+@SuppressWarnings("javadoc")
 public final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory {
   private final Class<?> baseType;
   private final String typeFieldName;

@@ -237,14 +237,14 @@ public class ColorToolsFX {
 			return color;
 	
 		if (pathObject instanceof PathTileObject)
-			return PathPrefs.getTileColor();
+			return PathPrefs.colorTileProperty().getValue();
 		if (pathObject instanceof TMACoreObject) {
 			if (((TMACoreObject)pathObject).isMissing())
-				return PathPrefs.getTMACoreMissingColor();
+				return PathPrefs.colorTMAMissingProperty().getValue();
 			else
-				return PathPrefs.getTMACoreColor();
+				return PathPrefs.colorTMAProperty().getValue();
 		}
-		return PathPrefs.getColorDefaultObjects();
+		return PathPrefs.colorDefaultObjectsProperty().getValue();
 	}
 	
 

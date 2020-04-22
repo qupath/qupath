@@ -110,9 +110,11 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 	 * @param downsample
 	 * @param asDetection
 	 * @param includeMeasurements
+	 * @param plane 
 	 * @return
 	 */
-	public static List<PathObject> createPathObjectsFromROIs(final ImagePlus imp, final Roi[] rois, final ImageServer<?> server, final double downsample, final boolean asDetection, final boolean includeMeasurements, final ImagePlane plane) {
+	public static List<PathObject> createPathObjectsFromROIs(final ImagePlus imp, final Roi[] rois, final ImageServer<?> server, 
+			final double downsample, final boolean asDetection, final boolean includeMeasurements, final ImagePlane plane) {
 		List<PathObject> pathObjects = new ArrayList<>();
 		ResultsTable rt = new ResultsTable();
 		Analyzer analyzer = new Analyzer(imp, Analyzer.getMeasurements(), rt);

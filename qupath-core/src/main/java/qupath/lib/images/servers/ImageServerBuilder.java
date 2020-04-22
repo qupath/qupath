@@ -33,10 +33,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Helper class for creating ImageServers from a given URI and optional argument list.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public interface ImageServerBuilder<T> {
@@ -57,6 +61,7 @@ public interface ImageServerBuilder<T> {
 	 * @param uri
 	 * @param args optional String arguments that may be used by the builder.
 	 * @return
+	 * @throws Exception 
 	 */
 	public ImageServer<T> buildServer(URI uri, String... args) throws Exception;
 	
@@ -255,12 +260,15 @@ public interface ImageServerBuilder<T> {
 	 */
 	public static class DefaultImageServerBuilder<T> extends AbstractServerBuilder<T> {
 		
+		private static final Logger logger = LoggerFactory.getLogger(DefaultImageServerBuilder.class);
+		
 		private String providerClassName;
 		private URI uri;
 		private String[] args;
 		
 		private DefaultImageServerBuilder(String providerClassName, URI uri, String[] args, ImageServerMetadata metadata) {
 			super(metadata);
+			logger.trace("Creating default server builder for URI ", uri);
 			this.providerClassName = providerClassName;
 			this.uri = uri;
 			this.args = args;
@@ -320,7 +328,10 @@ public interface ImageServerBuilder<T> {
 						return server;
 				}
 			}
-			throw new IOException("Unable to build ImageServer for " + uri + " (args=" + Arrays.asList(args) + ")");
+			String msg = "Unable to build ImageServer for " + uri + " (args=" + Arrays.asList(args) + ")";
+			if (providerClassName != null)
+				msg = msg + ". I can't find " + providerClassName;
+			throw new IOException(msg);
 		}
 		
 		@Override

@@ -151,8 +151,9 @@ public class BufferedImageTools {
 	 * <p>
 	 * Images that already have the same type are returned unchanged.
 	 * 
-	 * @param img
-	 * @return
+	 * @param img the input image
+	 * @param requestedType the type to which the image should be converted
+	 * @return the (possibly-new) output image
 	 * @see #is8bitColorType(int)
 	 */
 	public static BufferedImage ensureBufferedImageType(final BufferedImage img, int requestedType) {
@@ -403,6 +404,7 @@ public class BufferedImageTools {
 	 * Count the number of above-threshold pixels in a specified band of a raster, with optional mask.
 	 * 
 	 * @param raster the multi-band raster containing values to check
+	 * @param band the band (channel) to consider
 	 * @param threshold threshold value; pixels with values &gt; threshold this will be counted
 	 * @param rasterMask optional single-channel mask; if not null, corresponding pixels with 0 values in the mask will be skipped
 	 * @return

@@ -26,37 +26,37 @@ package qupath.lib.gui.commands;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToolBar;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.QuPathGUI.DefaultMode;
-import qupath.lib.gui.QuPathGUI.GUIActions;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.panels.CountingPanel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.PointIO;
@@ -70,42 +70,50 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
  * @author Pete Bankhead
  *
  */
-public class CountingPanelCommand implements PathCommand, ImageDataChangeListener<BufferedImage> {
+public class CountingPanelCommand implements Runnable, ChangeListener<ImageData<BufferedImage>> {
 
 	final private static Logger logger = LoggerFactory.getLogger(CountingPanelCommand.class);
 	
 	private QuPathGUI qupath;
 	private PathObjectHierarchy hierarchy;
-	private CountingPanel countingPanel = null;
+	private CountingPane countingPanel = null;
 	
 	private Stage dialog;
 	
 	private Slider sliderRadius;
 	private Button btnLoad, btnSave;
 	
+	private String savingOption = "Selected points";
+	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance.
+	 */
 	public CountingPanelCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		qupath.addImageDataChangeListener(this);
+		qupath.imageDataProperty().addListener(this);
 //		viewer.addViewerListener(this);
-		imageDataChanged(null, null, qupath.getImageData());
+		changed(qupath.imageDataProperty(), null, qupath.getImageData());
 	}
 	
 	private ToolBar makeToolbarButtons() {
 		if (qupath == null)
 			return null;
 		
+		var actionManager = qupath.getDefaultActions();
 		ToolBar toolbar = new ToolBar();
 		toolbar.getItems().addAll(
-				qupath.getActionToggleButton(GUIActions.MOVE_TOOL, true),
-				qupath.getActionToggleButton(GUIActions.POINTS_TOOL, true),
+				ActionTools.createToggleButton(qupath.getToolAction(PathTools.MOVE), true),
+				ActionTools.createToggleButton(qupath.getToolAction(PathTools.POINTS), true),
 				new Separator(Orientation.VERTICAL),
-				qupath.getActionToggleButton(GUIActions.SHOW_ANNOTATIONS, true),
-				qupath.getActionToggleButton(GUIActions.FILL_DETECTIONS, true),
-				qupath.getActionToggleButton(GUIActions.SHOW_GRID, true));
+				ActionTools.createToggleButton(actionManager.SHOW_ANNOTATIONS, true),
+				ActionTools.createToggleButton(actionManager.FILL_DETECTIONS, true),
+				ActionTools.createToggleButton(actionManager.SHOW_GRID, true));
 		return toolbar;
 	}
 	
 	
+	@SuppressWarnings("deprecation")
 	private Pane makeButtonPanel() {
 		if (qupath == null)
 			return null;
@@ -115,9 +123,9 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 //		TilePane panel = new TilePane(Orientation.VERTICAL);
 //		panel.setBorder(BorderFactory.createEmptyBorder(5, 10, 10, 10));
 		
-		sliderRadius = new Slider(1, 100, PathPrefs.getDefaultPointRadius());
+		sliderRadius = new Slider(1, 100, PathPrefs.pointRadiusProperty().get());
 		sliderRadius.valueProperty().addListener(event -> {
-			PathPrefs.setDefaultPointRadius((int)sliderRadius.getValue());
+			PathPrefs.pointRadiusProperty().set((int)sliderRadius.getValue());
 //			PathPrefs.setMinPointSeparation(sliderRadius.getValue());
 			qupath.getViewer().repaint();
 			}
@@ -136,11 +144,17 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		btnLoad.setOnAction(event -> {
 				if (hierarchy == null)
 					return;
-				File file = qupath.getDialogHelper().promptForFile(null, null, "zip files", new String[]{"zip"});
+				File file = Dialogs.promptForFile(null, null, "TSV (Tab delimited)", new String[]{"tsv"});
 				if (file == null)
 					return;
 				try {
-					List<PathObject> pointsList = PointIO.readPointsObjectList(file);
+					List<PathObject> pointsList = null;
+					if (file.toPath().toString().endsWith(".zip"))
+						pointsList = PointIO.readPointsObjectList(file);
+					
+					else if (file.toPath().toString().endsWith(".tsv"))
+						pointsList = PointIO.readPoints(file);
+					
 					if (pointsList != null) {
 						for (PathObject points : pointsList)
 							hierarchy.addPathObject(points);
@@ -154,22 +168,38 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		btnSave.setOnAction(event -> {
 				if (countingPanel == null)
 					return;
+				
+				// Prompt the user with choice over which annotations to save
+				ListView<PathObject> listView = countingPanel.getListView();
+				var selection = listView.getSelectionModel().getSelectedItems();
 				List<PathObject> pointsList = countingPanel.getPathObjects();
+				if (!selection.isEmpty()) {
+					ArrayList<String> choiceList = new ArrayList<>();
+					choiceList.addAll(Arrays.asList("All point annotations", "Selected objects"));
+					
+					var choice = Dialogs.showChoiceDialog("Save points", "Choose point annotations to save", Arrays.asList("All points", "Selected points"), savingOption);
+					if (choice == null)
+						return;
+					if (choice.equals("Selected points"))
+						pointsList = selection;
+					savingOption = choice;
+				}
+
 				if (pointsList.isEmpty()) {
 					Dialogs.showErrorMessage("Save points", "No points available!");
 					return;
 				}
 				String defaultName = null;
 				try {
-					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.zip"; // Sorry, this is lazy...
+					defaultName = ServerTools.getDisplayableImageName(qupath.getViewer().getServer()) + "-points.tsv"; // Sorry, this is lazy...
 				} catch (Exception e) {
 					// Ignore...
 				};
-				File file = QuPathGUI.getSharedDialogHelper().promptToSaveFile(null, null, defaultName, "zip files", "zip");
+				File file = Dialogs.promptToSaveFile(null, null, defaultName, "TSV (Tab delimited)", "tsv");
 				if (file == null)
 					return;
 				try {
-					PointIO.writePointsObjectsList(file, pointsList, PathPrefs.getColorDefaultObjects());
+					PointIO.writePoints(file, pointsList);
 				} catch (IOException e) {
 					Dialogs.showErrorMessage("Save points error", e);
 				}
@@ -181,25 +211,17 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 				btnSave
 				);
 		
-////		GridPane panelLoadSave = new GridPane();
-//		HBox panelLoadSave = new HBox();
-////		TilePane panelLoadSave = new TilePane(Orientation.HORIZONTAL);
-////		btnLoad.setMaxWidth(Double.MAX_VALUE);
-////		btnSave.setMaxWidth(Double.MAX_VALUE);
-//		panelLoadSave.getChildren().addAll(btnLoad, btnSave);
+		var actionConvexPoints = ActionTools.createSelectableAction(PathPrefs.showPointHullsProperty(), "Show point convex hull");
+		var actionSelectedColor = ActionTools.createSelectableAction(PathPrefs.useSelectedColorProperty(), "Highlight selected objects by color");
+		var actionDetectionsToPoints = qupath.createImageDataAction(imageData -> Commands.convertDetectionsToPoints(imageData, true));
+		actionDetectionsToPoints.setText("Convert detections to points");
 		
-//		panelLoadSave.addRow(0, btnLoad, btnSave);
-//		ColumnConstraints constraints = new ColumnConstraints();
-//		constraints.setPercentWidth(50);
-//		panelLoadSave.getColumnConstraints().addAll(constraints);
-		
-		
-		Button btnConvert = qupath.getActionButton(GUIActions.DETECTIONS_TO_POINTS, false);
-		Pane convertPane = new Pane(btnConvert);
+		var btnConvert = ActionTools.createButton(actionDetectionsToPoints, false);
+		var convertPane = new Pane(btnConvert);
 		btnConvert.prefWidthProperty().bind(convertPane.widthProperty());
 		
-		var cbConvex = qupath.getActionCheckBox(GUIActions.CONVEX_POINTS, false);
-		var cbSelected = qupath.getActionCheckBox(GUIActions.USE_SELECTED_COLOR, false);
+		var cbConvex = ActionTools.createCheckBox(actionConvexPoints);
+		var cbSelected = ActionTools.createCheckBox(actionSelectedColor);
 //		panel.setSpacing(5);
 		panel.getChildren().addAll(
 				cbConvex,
@@ -238,8 +260,8 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		}
 		
 		if (dialog != null) {
-			if (qupath.getMode() != DefaultMode.POINTS)
-				qupath.setMode(DefaultMode.POINTS);
+			if (qupath.getSelectedTool() != PathTools.POINTS)
+				qupath.setSelectedTool(PathTools.POINTS);
 			attemptToSelectPoints();
 			if (!dialog.isShowing())
 				dialog.show();
@@ -249,7 +271,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		dialog = new Stage();
 		dialog.setTitle("Counting");
 		
-		countingPanel = new CountingPanel(qupath, hierarchy);
+		countingPanel = new CountingPane(qupath, hierarchy);
 //		countingPanel.setSize(countingPanel.getPreferredSize());
 		BorderPane pane = new BorderPane();
 		
@@ -266,15 +288,15 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 		pane.setPadding(new Insets(10, 10, 10, 10));
 		Scene scene = new Scene(pane, 300, 450);
 		dialog.setScene(scene);
-		dialog.setOnCloseRequest(e -> qupath.setMode(DefaultMode.MOVE));
+		dialog.setOnCloseRequest(e -> qupath.setSelectedTool(PathTools.MOVE));
 		
 //		dialog.getDialogPane().setMinSize(220, 350);
 //		dialog.getDialogPane().setPrefSize(300, 450);
 //		dialog.getDialogPane().setMaxSize(400, 800);
 		
 //		dialog.setAlwaysOnTop(true);
-		if (qupath.getMode() != DefaultMode.POINTS)
-			qupath.setMode(DefaultMode.POINTS);
+		if (qupath.getSelectedTool() != PathTools.POINTS)
+			qupath.setSelectedTool(PathTools.POINTS);
 		attemptToSelectPoints();
 		
 		dialog.initModality(Modality.NONE);
@@ -285,7 +307,7 @@ public class CountingPanelCommand implements PathCommand, ImageDataChangeListene
 	}
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> manager, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> manager, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {
 		this.hierarchy = imageDataNew == null ? null : imageDataNew.getHierarchy();
 		if (countingPanel != null) {
 			countingPanel.setHierarchy(this.hierarchy);

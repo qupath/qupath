@@ -65,6 +65,7 @@ import org.slf4j.LoggerFactory;
  * if the training algorithm has changed then there may be a different result.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 public abstract class OpenCvClassifier<T extends StatModel> implements PathObjectClassifier, Externalizable {

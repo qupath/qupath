@@ -557,7 +557,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 						else
 							channelColor = ImageChannel.getDefaultChannelColor(c);
 					}
-					if (channelName == null)
+					if (channelName == null || channelName.isBlank())
 						channelName = "Channel " + (c + 1);
 					channels.add(ImageChannel.getInstance(channelName, channelColor));
 				}
@@ -1128,6 +1128,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * 
 		 * @param options
 		 * @param path
+		 * @param readerOptions 
 		 * @return
 		 * @throws DependencyException
 		 * @throws ServiceException

@@ -32,6 +32,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.plugins.ParallelTileObject;
 
 /**
  * Helper class to add undo/redo support to QuPath.
@@ -74,8 +75,8 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		this.viewerProperty = qupath.viewerProperty();
 		this.viewerProperty.addListener(this);
 		
-		qupath.getPreferencePanel().addPropertyPreference(maxUndoLevels, Integer.class, "Max undo levels", "Undo/Redo", "Maximum number of 'undo' levels");
-		qupath.getPreferencePanel().addPropertyPreference(maxUndoHierarchySize, Integer.class, "Max undo hierarchy size", "Undo/Redo", "Maximum number of objects in hierarchy before 'undo' switches off (for performance)");
+		qupath.getPreferencePane().addPropertyPreference(maxUndoLevels, Integer.class, "Max undo levels", "Undo/Redo", "Maximum number of 'undo' levels");
+		qupath.getPreferencePane().addPropertyPreference(maxUndoHierarchySize, Integer.class, "Max undo hierarchy size", "Undo/Redo", "Maximum number of objects in hierarchy before 'undo' switches off (for performance)");
 		
 		changed(this.viewerProperty, null, this.viewerProperty.get());
 		
@@ -112,6 +113,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	
 	/**
 	 * The total number of bytes used for all viewers.
+	 * @return 
 	 */
 	public long totalBytes() {
 		long total = 0L;
@@ -451,7 +453,7 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
 		// Try to avoid calling too often
-		if (undoingOrRedoing || event.isChanging() || maxUndoHierarchySize.get() <= 0)
+		if (undoingOrRedoing || event.isChanging() || maxUndoHierarchySize.get() <= 0 || event.getChangedObjects().stream().allMatch(p -> p instanceof ParallelTileObject))
 			return;
 		
 		// *Potentially* we might have the same hierarchy in multiple viewers
@@ -462,9 +464,15 @@ public class UndoRedoManager implements ChangeListener<QuPathViewerPlus>, QuPath
 		boolean sizeOK = hierarchy.nObjects() <= maxSize;
 		for (QuPathViewer viewer : viewers) {
 			if (viewer.getHierarchy() == hierarchy) {
+				
 				SerializableUndoRedoStack<PathObjectHierarchy> undoRedo = map.get(viewer);
 				// If the size is ok, register the change for potential undo-ing
 				if (sizeOK) {
+					// Consider trying to reduce these calls
+//					if (event.getEventType() == HierarchyEventType.CHANGE_MEASUREMENTS && 
+//							!event.getChangedObjects().stream().anyMatch(p -> p.isDetection()))
+//						continue;
+					
 					if (undoRedo == null)
 						map.put(viewer, new SerializableUndoRedoStack<>(hierarchy));
 					else

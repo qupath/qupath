@@ -1,6 +1,6 @@
 package qupath.opencv.tools;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
@@ -8,7 +8,7 @@ import java.util.Random;
 import java.util.stream.IntStream;
 
 import org.bytedeco.javacpp.PointerScope;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorModelFactory;

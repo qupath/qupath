@@ -102,6 +102,7 @@ public class OMEPyramidWriter {
 		
 		/**
 		 * Get the String representation understood by OMETiffWriter.
+		 * @param server server that may be used if the type is {@link CompressionType#DEFAULT}
 		 * @return
 		 */
 		public String getOMEString(ImageServer<?> server) {
@@ -155,8 +156,11 @@ public class OMEPyramidWriter {
 			}
 		}
 		
-		@Override
-		public String toString() {
+		/**
+		 * Get a friendlier string representation
+		 * @return
+		 */
+		public String toFriendlyString() {
 			switch(this) {
 			case DEFAULT:
 				return "Default (lossless or lossy)";
@@ -421,7 +425,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Write an OME-TIFF pyramidal image to the given file.
 		 * 
-		 * @param path file path for outpu
+		 * @param path file path for output
 		 * @throws FormatException
 		 * @throws IOException
 		 */
@@ -434,7 +438,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Append an image as a specific series.
 		 * 
-		 * @param writer the current writter; it should already be innitialized, with metadata and ID set
+		 * @param writer the current writer; it should already be initialized, with metadata and ID set
 		 * @param meta the metadata, which should already have been initialized and set in the writer before writing any pixels
 		 * @param series number of series to be written (starting with 0; assumes previous series already written)
 		 * @throws FormatException
@@ -857,7 +861,7 @@ public class OMEPyramidWriter {
 		
 		/**
 		 * Request that channels are written as separate image planes.
-		 * @return
+		 * @return this builder
 		 */
 		public Builder channelsPlanar() {
 			series.channelExportType = ChannelExportType.PLANAR;
@@ -866,7 +870,7 @@ public class OMEPyramidWriter {
 
 		/**
 		 * Request that channels are written interleaved within a single image plane.
-		 * @return
+		 * @return this builder
 		 */
 		public Builder channelsInterleaved() {
 			series.channelExportType = ChannelExportType.INTERLEAVED;
@@ -875,7 +879,7 @@ public class OMEPyramidWriter {
 
 		/**
 		 * Request that channels are written as separate images.
-		 * @return
+		 * @return this builder
 		 */
 		public Builder channelsImages() {
 			series.channelExportType = ChannelExportType.IMAGES;
@@ -884,7 +888,7 @@ public class OMEPyramidWriter {
 
 		/**
 		 * Request that the image is written in BigTIFF format.
-		 * @return
+		 * @return this builder
 		 */
 		public Builder bigTiff() {
 			series.bigTiff = Boolean.TRUE;
@@ -893,7 +897,8 @@ public class OMEPyramidWriter {
 
 		/**
 		 * Specify whether the image should be written in BigTIFF format.
-		 * @return
+		 * @param doBigTiff if true, request that big-tiff is written
+		 * @return this builder
 		 */
 		public Builder bigTiff(boolean doBigTiff) {
 			series.bigTiff = doBigTiff;
@@ -903,7 +908,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Request the output compression type.
 		 * @param compression
-		 * @return
+		 * @return this builder
 		 */
 		public Builder compression(final CompressionType compression) {
 			series.compression = compression;
@@ -913,7 +918,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Request the default lossy compression method. Not all servers support lossy compression 
 		 * (e.g. non-RGB servers).
-		 * @return
+		 * @return this builder
 		 */
 		public Builder lossyCompression() {
 			series.compression = getDefaultLossyCompressionType(series.server);
@@ -932,7 +937,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Parallelize tile export, if possible.
 		 * 
-		 * @return
+		 * @return this builder
 		 */
 		public Builder parallelize() {
 			return parallelize(true);
@@ -951,7 +956,7 @@ public class OMEPyramidWriter {
 
 		/**
 		 * Request that all z-slices are exported.
-		 * @return
+		 * @return this builder
 		 */
 		public Builder allZSlices() {
 			return this.zSlices(0, series.server.nZSlices());
@@ -960,7 +965,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Specify the z-slice to export.
 		 * @param z
-		 * @return
+		 * @return this builder
 		 */
 		public Builder zSlice(int z) {
 			return this.zSlices(z, z+1);
@@ -970,9 +975,17 @@ public class OMEPyramidWriter {
 		 * Specify the start (inclusive) and end (exclusive) z-slices.
 		 * @param zStart
 		 * @param zEnd
-		 * @return
+		 * @return this builder
 		 */
 		public Builder zSlices(int zStart, int zEnd) {
+			if (zStart < series.zStart) {
+				logger.warn("First z-slice (" + zStart + ") is out of bounds. Will use " + series.zStart + " instead.");
+				zStart = series.zStart;
+			}
+			if (zEnd > series.zEnd) {
+				logger.warn("Last z-slice (" + zEnd + ") is out of bounds. Will use " + series.zEnd + " instead.");
+				zEnd = series.zEnd;
+			}
 			series.zStart = zStart;
 			series.zEnd = zEnd;
 			return this;
@@ -981,7 +994,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Specify a single timepoint to be written from a time series.
 		 * @param t the index identifying the requested timepoint
-		 * @return
+		 * @return this builder
 		 */
 		public Builder timePoint(int t) {
 			return this.timePoints(t, t+1);
@@ -989,7 +1002,7 @@ public class OMEPyramidWriter {
 		
 		/**
 		 * Request that all timepoints of a time series will be written.
-		 * @return
+		 * @return this builder
 		 */
 		public Builder allTimePoints() {
 			return this.timePoints(0, series.server.nTimepoints());
@@ -999,9 +1012,17 @@ public class OMEPyramidWriter {
 		 * Specify a range of timepoints to be written from a time series.
 		 * @param tStart first timepoint (inclusive)
 		 * @param tEnd last timepoint (exclusive)
-		 * @return
+		 * @return this builder
 		 */
-		private Builder timePoints(int tStart, int tEnd) {
+		public Builder timePoints(int tStart, int tEnd) {
+			if (tStart < series.tStart) {
+				logger.warn("First timepoint (" + tStart + ") is out of bounds. Will use " + series.tStart + " instead.");
+				tStart = series.tStart;
+			}
+			if (tEnd > series.tEnd) {
+				logger.warn("Last timepoint (" + tEnd + ") is out of bounds. Will use " + series.tEnd + " instead.");
+				tEnd = series.tEnd;
+			}
 			series.tStart = tStart;
 			series.tEnd = tEnd;
 			return this;
@@ -1010,7 +1031,7 @@ public class OMEPyramidWriter {
 		/**
 		 * Specify a series name
 		 * @param name
-		 * @return
+		 * @return this builder
 		 */
 		public Builder name(String name) {
 			series.name = name;
@@ -1024,7 +1045,7 @@ public class OMEPyramidWriter {
 		 * @param y
 		 * @param width
 		 * @param height
-		 * @return
+		 * @return this builder
 		 */
 		public Builder region(int x, int y, int width, int height) {
 			series.x = x;
@@ -1038,7 +1059,7 @@ public class OMEPyramidWriter {
 		 * Define the region to export, including the z-slice and time point.
 		 * 
 		 * @param region
-		 * @return
+		 * @return this builder
 		 * 
 		 * @see #region(int, int, int, int)
 		 * @see #timePoint(int)
@@ -1055,7 +1076,7 @@ public class OMEPyramidWriter {
 		 * This is only a suggestion, and the OME reader may override it if the value is unsupported.
 		 * 
 		 * @param tileSize
-		 * @return
+		 * @return this builder
 		 */
 		public Builder tileSize(int tileSize) {
 			return this.tileSize(tileSize, tileSize);
@@ -1068,7 +1089,7 @@ public class OMEPyramidWriter {
 		 * 
 		 * @param tileWidth
 		 * @param tileHeight
-		 * @return
+		 * @return this builder
 		 */
 		public Builder tileSize(int tileWidth, int tileHeight) {
 			series.tileWidth = tileWidth;
@@ -1081,7 +1102,7 @@ public class OMEPyramidWriter {
 		 * <p>
 		 * Note that the downsample values provided will be sorted in ascending order.
 		 * @param downsamples
-		 * @return
+		 * @return this builder
 		 */
 		public Builder downsamples(double... downsamples) {
 			series.downsamples = downsamples;
@@ -1094,7 +1115,7 @@ public class OMEPyramidWriter {
 		 * Note that the highest downsample value will depend on the tile size, 
 		 * so the tile size should be set first.
 		 * 
-		 * @return
+		 * @return this builder
 		 * @see #scaledDownsampling(double)
 		 */
 		public Builder dyadicDownsampling() {
@@ -1106,8 +1127,9 @@ public class OMEPyramidWriter {
 		 * <p>
 		 * Note that the highest downsample value will depend on the tile size, 
 		 * so the tile size should be set first.
+		 * @param scale 
 		 * 
-		 * @return
+		 * @return this builder
 		 * @see #scaledDownsampling(double)
 		 */
 		public Builder scaledDownsampling(double scale) {
@@ -1121,7 +1143,9 @@ public class OMEPyramidWriter {
 		 * Note that the highest downsample value will depend on the tile size, 
 		 * so the tile size should be set first.
 		 * 
-		 * @return
+		 * @param minDownsample the starting downsample, defining the highest-resolution image (usually 1.0)
+		 * @param scale the scale used to define successive downsamples
+		 * @return this builder
 		 * @see #scaledDownsampling(double)
 		 */
 		public Builder scaledDownsampling(double minDownsample, double scale) {
@@ -1142,7 +1166,7 @@ public class OMEPyramidWriter {
 		 * Override default of writing all channels in their original order to be able to specify which 
 		 * channels are output, and in which order.
 		 * @param channels zero-based channel indices for all channels that should be exported, in the desired export order.
-		 * @return
+		 * @return this builder
 		 */
 		public Builder channels(int... channels) {
 			series.channels = channels;
@@ -1150,8 +1174,8 @@ public class OMEPyramidWriter {
 		}
 
 		/**
-		 * Create an OMEPyramidWriter to write the OME-TIFF.
-		 * @return
+		 * Create an {@link OMEPyramidSeries} to write the OME-TIFF.
+		 * @return the series
 		 */
 		public OMEPyramidSeries build() {
 			// Sanity check downsamples, and remove those that are too much

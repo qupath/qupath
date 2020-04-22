@@ -42,7 +42,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.scriptable.SelectObjectsByClassCommand;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.images.ImageData;
@@ -68,14 +68,23 @@ public class ParameterDialogWrapper<T> {
 
 	final private static String KEY_REGIONS = "processRegions";
 
-	Stage dialog;
+	private Stage dialog;
 	private ParameterPanelFX panel;
 	private WorkflowStep lastWorkflowStep;
 
+	/**
+	 * Constructor.
+	 * @param plugin plugin for which this dialog should be shown
+	 * @param params parameters to display
+	 * @param pluginRunner the {@link PluginRunner} that may be used to run this plugin if necessary
+	 */
 	public ParameterDialogWrapper(final PathInteractivePlugin<T> plugin, final ParameterList params, final PluginRunner<T> pluginRunner) {
 		dialog = createDialog(plugin, params, pluginRunner);
 	}
 
+	/**
+	 * Show the dialog. This method returns immediately, allow the dialog to remain open without blocking.
+	 */
 	public void showDialog() {
 		// If we have no parameters, there is nothing to show... yet somehow we need to trigger the run button
 		// (I realize this is exceedingly awkward...)
@@ -102,12 +111,12 @@ public class ParameterDialogWrapper<T> {
 		Platform.runLater(() -> dialog.requestFocus());
 	}
 
+	/**
+	 * Get the {@link ParameterList} corresponding to the displayed parameters.
+	 * @return
+	 */
 	public ParameterList getParameterList() {
 		return panel.getParameters();
-	}
-	
-	public Stage getDialog() {
-		return dialog;
 	}
 
 	private Stage createDialog(final PathInteractivePlugin<T> plugin, final ParameterList params, final PluginRunner<T> pluginRunner) {
@@ -333,7 +342,7 @@ public class ParameterDialogWrapper<T> {
 		
 		String choiceString = (String)paramsParents.getChoiceParameterValue(KEY_REGIONS);
 		if (!"Selected objects".equals(choiceString))
-			SelectObjectsByClassCommand.selectObjectsByClass(imageData, choices.get(choiceString));
+			Commands.selectObjectsByClass(imageData, choices.get(choiceString));
 		//			QP.selectObjectsByClass(hierarchy, choices.get(paramsParents.getChoiceParameterValue(InteractivePluginTools.KEY_REGIONS)));
 
 		// Success!  Probably...

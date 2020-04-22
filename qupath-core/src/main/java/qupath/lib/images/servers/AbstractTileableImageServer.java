@@ -42,6 +42,9 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	private transient Set<TileRequest> emptyTiles = new HashSet<>();
 	
 	private final static Long ZERO = Long.valueOf(0L);
+	
+	// Maintain a record of tiles that could not be cached, so we warn for each only once
+	private transient Set<RegionRequest> failedCacheTiles = new HashSet<>();
 		
 	protected AbstractTileableImageServer() {
 		super(BufferedImage.class);
@@ -128,6 +131,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * 
 	 * @param tileRequest
 	 * @return
+	 * @throws IOException 
 	 */
 	protected abstract BufferedImage readTile(final TileRequest tileRequest) throws IOException;
 	
@@ -138,6 +142,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	 * 
 	 * @param tileRequest
 	 * @return
+	 * @throws IOException 
 	 */
 	protected BufferedImage getTile(final TileRequest tileRequest) throws IOException {
 		// Try to get tile from one of the caches
@@ -163,6 +168,9 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				emptyTiles.add(tileRequest);
 			} else if (cache != null) {
 				cache.put(request, imgCached);
+				// Check if we were able to cache the tile; sometimes we can't if it is too big
+				if (!cache.containsKey(request) && failedCacheTiles.add(request))
+					logger.warn("Unable to add {} to cache.\nYou might need to give QuPath more memory, or to increase the 'Percentage memory for tile caching' preference.", request);
 			}
 		}
 		return imgCached;

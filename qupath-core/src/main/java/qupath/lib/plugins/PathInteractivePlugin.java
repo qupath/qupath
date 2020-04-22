@@ -45,7 +45,8 @@ public interface PathInteractivePlugin<T> extends PathPlugin<T> {
 	 * This should return a default ParameterList.
 	 * 
 	 * Each time the method is invoked, a new ParameterList should be created.
-	 * 
+
+	 * @param imageData 
 	 * @return
 	 */
 	public abstract ParameterList getDefaultParameterList(final ImageData<T> imageData);

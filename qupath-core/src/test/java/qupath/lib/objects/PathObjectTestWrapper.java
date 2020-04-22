@@ -23,9 +23,8 @@
 
 package qupath.lib.objects;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
@@ -57,7 +56,7 @@ public class PathObjectTestWrapper {
 	//@Test
 	public void test_getMeasurementList(PathObject myPO) {
 		MeasurementList myPOML = myPO.getMeasurementList();
-		assertThat(myPOML, instanceOf(MeasurementList.class));
+		assertTrue(myPOML instanceof MeasurementList);
 	}
 	//@Test
 	public void test_getMeasurementList(PathObject myPO, MeasurementList ML) {

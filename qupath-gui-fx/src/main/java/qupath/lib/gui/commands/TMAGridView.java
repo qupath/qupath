@@ -49,6 +49,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -68,7 +69,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Separator;
-import javafx.scene.control.TableView;
 import javafx.scene.control.ToolBar;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.DropShadow;
@@ -81,11 +81,8 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ImageDataChangeListener;
-import qupath.lib.gui.ImageDataWrapper;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
-import qupath.lib.gui.models.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -98,13 +95,13 @@ import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Grid display of TMA cores.
- * 
- * Requires cores in memory, so won't scale wonderfully... but quite useful for individual slides.
+ * <p>
+ * This requires cores in memory, so does not scale wonderfully... but it can be quite useful for individual slides.
  * 
  * @author Pete Bankhead
  *
  */
-public class TMAGridView implements PathCommand, ImageDataChangeListener<BufferedImage>, PathObjectHierarchyListener {
+class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 	
 	final private static Logger logger = LoggerFactory.getLogger(TMAGridView.class);
 	
@@ -170,7 +167,7 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 
 	public TMAGridView(final QuPathGUI qupath) {
 		this.qupath = qupath;
-		this.qupath.addImageDataChangeListener(this);
+		this.qupath.imageDataProperty().addListener(this);
 	}
 
 	@Override
@@ -180,7 +177,6 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 		else if (!stage.isShowing())
 			stage.show();
 		initializeData(qupath.getImageData());
-		new TableView<>().refresh();;
 	}
 	
 	private static void sortCores(final ObservableList<TMACoreObject> cores, final ObservableMeasurementTableData model, final String measurementName, final boolean doDescending) {
@@ -210,7 +206,7 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 	
 
 	@Override
-	public void imageDataChanged(ImageDataWrapper<BufferedImage> source, ImageData<BufferedImage> imageDataOld,
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
 			ImageData<BufferedImage> imageDataNew) {
 		
 		if (this.imageData != null) {
@@ -395,6 +391,11 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 		paneTop.getItems().add(new Separator(Orientation.VERTICAL));
 		paneTop.getItems().add(cbAnimation);
 		paneTop.setPadding(new Insets(10, 10, 10, 10));
+		for (var item : paneTop.getItems()) {
+			if (item instanceof Label) {
+				((Label) item).setMinWidth(Label.USE_PREF_SIZE);
+			}
+		}
 //		paneTop.setHgap(5);
 //		paneTop.setVgap(5);
 		
@@ -520,13 +521,29 @@ public class TMAGridView implements PathCommand, ImageDataChangeListener<Buffere
 
 	}
 
+	
+	private boolean requestUpdate = false;
+	
+	private void requestUpdate(ImageData<BufferedImage> imageData) {
+		requestUpdate = true;
+		Platform.runLater(() -> processUpdateRequest(imageData));
+	}
+	
+	private void processUpdateRequest(ImageData<BufferedImage> imageData) {
+		if (!requestUpdate)
+			return;
+		Platform.runLater(() -> {
+			requestUpdate = false;
+			initializeData(imageData);
+		});
+	}
 
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
 		if (!event.isChanging() && imageData != null && imageData.getHierarchy() == event.getHierarchy() && stage != null && stage.isShowing()) {
 			// This is some fairly aggressive updating...
-			initializeData(imageData);
+			requestUpdate(imageData);
 		}
 	}
 	

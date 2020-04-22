@@ -2,6 +2,7 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -13,8 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.concurrent.Task;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.interfaces.PathCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
@@ -36,36 +35,29 @@ import qupath.lib.roi.RectangleROI;
  * 
  * @author Pete Bankhead
  */
-public class SparseImageServerCommand implements PathCommand {
+class SparseImageServerCommand {
 	
 	private static Logger logger = LoggerFactory.getLogger(SparseImageServerCommand.class);
 	
 	private static String NAME = "Create training image";
 
-	private QuPathGUI qupath;
+	private static PathClass pathClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
+	private static int maxWidth = 50000;
+	private static boolean doZ = false;
+	private static boolean rectanglesOnly = false;
 	
-	private PathClass pathClass = PathClassFactory.getPathClass(StandardPathClasses.REGION);
-	private int maxWidth = 50000;
-	private boolean doZ = false;
-	private boolean rectanglesOnly = false;
 
-	public SparseImageServerCommand(final QuPathGUI qupath) {
-		this.qupath = qupath;
-	}
-
-	@Override
-	public void run() {
-		var project = qupath.getProject();
+	public static ProjectImageEntry<BufferedImage> promptToCreateServer(Project<BufferedImage> project, List<PathClass> availableClasses) {
 		if (project == null) {
 			Dialogs.showErrorMessage(NAME, "You need a project!");
-			return;
+			return null;
 		}
-		List<PathClass> pathClasses = qupath.getAvailablePathClasses();
-		if (pathClasses.isEmpty()) {
+		if (availableClasses.isEmpty()) {
 			Dialogs.showErrorMessage(NAME, "Please ensure classifications are available in QuPath!");
-			return;			
+			return null;			
 		}
 		
+		List<PathClass> pathClasses = new ArrayList<>(availableClasses);
 		if (!pathClasses.contains(pathClass))
 			pathClass = pathClasses.get(0);
 		
@@ -81,7 +73,7 @@ public class SparseImageServerCommand implements PathCommand {
 				;
 		
 		if (!Dialogs.showParameterDialog(NAME, params))
-			return;
+			return null;
 		
 		pathClass = (PathClass)params.getChoiceParameterValue("pathClass");
 		maxWidth = params.getIntParameterValue("maxWidth");
@@ -109,20 +101,16 @@ public class SparseImageServerCommand implements PathCommand {
 //			var server = createSparseServer(project, pathClass, maxWidth, doZ, rectanglesOnly);
 			if (server == null || server.getManager().getRegions().isEmpty()) {
 				Dialogs.showErrorMessage("Sparse image server", "No suitable annotations found in the current project!");
-				return;			
+				return null;			
 			}
 			
 			var entry = ProjectImportImagesCommand.addSingleImageToProject(project, server, null);
 			server.close();
-			
-			qupath.refreshProject();
-			if (entry != null) {
-				project.syncChanges();
-				qupath.openImageEntry(entry);
-			}
-			
+			project.syncChanges();
+			return entry;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Sparse image server", e);
+			return null;
 		}
 	}
 

@@ -3,9 +3,9 @@
  * <p>
  * To create a complete build including associated license files, try the following:
  * <p>
- * ./gradlew clean build createPackage -Ppackager=/full/path/to/jpackage
+ * ./gradlew clean build createPackage
  * or on Windows
- * gradlew.bat clean build createPackage -Ppackager=/full/path/to/jpackage.exe
+ * gradlew.bat clean build createPackage
  */
 
 /**
@@ -14,8 +14,8 @@
 buildscript {
 
   dependencies {
-    classpath 'com.github.jk1:gradle-license-report:1.11'
-//      classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
+    classpath 'com.github.jk1:gradle-license-report:1.13'
+    classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
   }
 
   repositories {
@@ -30,11 +30,12 @@ buildscript {
 /*
  * Using java-library rather than java enables us to define api dependencies,
  * i.e. dependencies exported from the API of QuPath.
- * An example if JTS, since QuPath ROIs can be converted to JTS Geometries and this 
+ * An example is JTS, since QuPath ROIs can be converted to JTS Geometries and this 
  * should be accessible throughout the software.
  */
 plugins {
   id 'java-library'
+  id 'org.javamodularity.moduleplugin' version '1.6.0' apply false
 }
 
 /*
@@ -55,7 +56,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '13.0.2'
+def jfxVersion = '14.0.1'
 
 /*
  * Include OpenCV binaries with GPU support (quite big, may not be used?)
@@ -63,8 +64,16 @@ def jfxVersion = '13.0.2'
 def useGPU = false
 
 /*
- * Modules not yet supported (because of some dependency troubles).
- * This disables code that would otherwise try to move in a modular direction.
+ * Modules not yet supported because of various dependency troubles.
+ * Specifially:
+ *  - ImageJ contains MacAdapter outside of any package, this must be removed 
+ *    (jarjar-gradle can do the job, but it seems to confuse eclipse)
+ *  - RuntimeTypeAdapterFactory needs to be in a valid package
+ *  - JPen's automatic module name is invalid (jpen.2)
+ *  - Bio-Formats is not module-friendly
+ *  - OpenSlide also seems module-unfriendly (at least within eclipse)
+ * Setting the flag to false disables code that would otherwise try to move in a modular direction, 
+ * while making it a bit easier to return to this later.
  */
 def doModular = false
 
@@ -97,7 +106,7 @@ if (requestLatestCommit) {
     latestGitCommit = stdout.toString().trim()
     println 'Latest commit: ' + latestGitCommit
   } catch (Exception e) {
-    println 'Unable to get latest commit: ' + e.getLocalizedMessage()
+    logger.warn('Unable to get latest commit: ' + e.getLocalizedMessage())
     latestGitCommit = 'Unknown (is Git installed?)'
   }
 } else {
@@ -127,14 +136,14 @@ if (OperatingSystem.current().isMacOsX()) {
 } else if (OperatingSystem.current().isWindows()) {
   nativesClassifier = 'natives-windows'
   if (System.properties['sun.arch.data.model'] == '32') {
-	println "WARNING: You appear to be using a 32-bit JDK - If I can't find a 32-bit version of JavaFX, this will fail! Probably at the 'test' stage."
+	logger.warn("You appear to be using a 32-bit JDK - If I can't find a 32-bit version of JavaFX, this will fail! Probably at the 'test' stage.")
 	nativesCPP = 'windows-x86'
   } else
 	nativesCPP = 'windows-x86_64'
   platform = 'win'
   iconName = 'windows/QuPath.ico'
 } else {
-  println 'Unknown operating system!'
+  logger.warn('Unknown operating system!')
 }
 
 /*
@@ -160,33 +169,67 @@ wrapper {
  *
  * Only required if building modules. Currently all instances commented out.
  */
-//apply plugin: 'org.anarres.jarjar'
+if (doModular) {
+  apply plugin: 'org.anarres.jarjar'
+}
 
 /*
  * Define managed dependencies for use within sub-projects
  */
 allprojects {
+  apply plugin: 'java-library'
+  
+  if (doModular) {
+	  apply plugin: 'org.javamodularity.moduleplugin'
+  }
 
   group = 'qupath'
   version = qupathVersion
 
   ext {
-    bioformatsVersion  = '6.3.1'
+    // Java compatibility version
+    javaVersion = 11
+  
+    // Dependency versions
+    bioformatsVersion  = '6.4.0'
     commonsMathVersion = '3.6.1'
+    commonsTextVersion = '1.8'
     controlsfxVersion  = '11.0.1'
-    groovyVersion      = '2.5.9'
+    groovyVersion      = '3.0.3'
     gsonVersion        = '2.8.6'
-    guavaVersion       = '28.2-jre'
-    imagejVersion      = '1.52s'
+    guavaVersion       = '29.0-jre'
+    imagejVersion      = '1.52u'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.3'
-    picocliVersion     = '4.1.4'
-    jfreesvgVersion    = '3.4'
+    richtextVersion    = '0.10.5'
+    picocliVersion     = '4.2.0'
+    jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    opencvVersion      = '4.1.2-1.5.2'
+    javacppVersion     = '1.5.3'
+    opencvVersion      = "4.3.0-${javacppVersion}"
+    
+    // Additional versions
+    logbackVersion     = '1.2.3'
+    slf4jVersion       = '1.3.0'
+    junitVersion       = '5.4.2'
+    
+    /*
+     * Link to the main external Javadocs if -PlinkJavadoc=true
+     */
+    if (findProperty('linkJavadoc'))
+	    externalJavadocs = [
+				"https://docs.oracle.com/en/java/javase/11/docs/api/",
+//				"https://openjfx.io/javadoc/11/", // The fact we don't yet use modules causes trouble here; see https://bugs.openjdk.java.net/browse/JDK-8240169
+				"https://javadoc.io/doc/org.controlsfx/controlsfx/", // May not be working..?
+				"https://imagej.nih.gov/ij/developer/api/",
+				"https://locationtech.github.io/jts/javadoc/",
+				"https://javadoc.io/doc/com.google.code.gson/gson/latest",
+				"https://javadoc.io/doc/org.bytedeco/javacpp/" + javacppVersion
+				]
+	else
+		externalJavadocs = []
   }
 
   configurations {
@@ -194,21 +237,22 @@ allprojects {
     groovy
     richtextfx
     commonsmath
+    commonstext
     gson
     controlsfx
     jfxtras
     opencv
     jpen
     imagej
+    bioformats
     openslide
     javafx
     nativeloader
     guava
     picocli
     jfreesvg
-
-	// Quite possible this shouldn't be here
-	implementation
+	junit
+	logback
   }
 
   dependencies {
@@ -229,6 +273,8 @@ allprojects {
     richtextfx "org.fxmisc.richtext:richtextfx:${richtextVersion}"
 
     commonsmath "org.apache.commons:commons-math3:${commonsMathVersion}"
+    
+    commonstext "org.apache.commons:commons-text:${commonsTextVersion}"
 
     gson "com.google.code.gson:gson:${gsonVersion}"
 
@@ -252,11 +298,24 @@ allprojects {
     if (nativesClassifier != null)
       jpen "net.sourceforge.jpen:jpen:${jpenVersion}:${nativesClassifier}"
 
-    imagej "net.imagej:ij:${imagejVersion}"
-//    imagej jarjar.repackage {
-//    	from "net.imagej:ij:${imagejVersion}"
-//    	classDelete 'MacAdapter'
-//	}
+    if (doModular) {
+	    imagej jarjar.repackage {
+	    	from "net.imagej:ij:${imagejVersion}"
+	    	classDelete 'MacAdapter'
+		}
+	} else
+	    imagej "net.imagej:ij:${imagejVersion}"
+
+	bioformats "ome:formats-gpl:${bioformatsVersion}", {
+	  	exclude group: 'xalan', module: 'serializer'
+	  	exclude group: 'xalan', module: 'xalan'
+	  	exclude group: 'io.minio', module: 'minio'
+	  	exclude group: 'commons-codec', module: 'commons-codec'
+        exclude group: 'commons-logging', module: 'commons-logging'
+//        exclude group: 'edu.ucar', module: 'cdm'
+        exclude group: 'com.google.code.findbugs', module: 'jsr305'
+        exclude group: 'com.google.code.findbugs', module: 'annotations'
+	 }
 
     openslide "org.openslide:openslide:${openslideVersion}"
     if (nativesClassifier != null)
@@ -272,8 +331,33 @@ allprojects {
     
     picocli "info.picocli:picocli:${picocliVersion}"
     
-    jfreesvg "org.jfree:jfreesvg:${jfreesvgVersion}"
+    jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
+    
+    junit "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
+    junit "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
+    
+    logback "ch.qos.logback:logback-classic:${logbackVersion}"
+    
+    logback "org.slf4j:slf4j-api:${slf4jVersion}"
+    
   }
+  
+  javadoc {
+  
+  	def strictJavadoc = findProperty('strictJavadoc')
+	if (!strictJavadoc) {
+		options.addBooleanOption 'Xdoclint:none', true
+	}
+	
+	options {
+		links += externalJavadocs
+	}
+  
+    def docPath = "${rootProject.buildDir}/docs/${project.name}"
+  	destinationDir = file(docPath)
+  	
+  }
+  
 
 }
 
@@ -282,12 +366,12 @@ allprojects {
  */
 project(':qupath-core-processing') {
   dependencies {
-	  implementation project(':qupath-core')
+	  api project(':qupath-core')
   }
 }
 project(':qupath-gui-fx') {
   dependencies {
-	  implementation project(':qupath-core'), project(':qupath-core-processing')
+	  api project(':qupath-core'), project(':qupath-core-processing')
   }
 }
 /*
@@ -300,19 +384,14 @@ configure( subprojects.findAll {it.name.contains('-extension') || it.name.contai
 }
 
 
-/*
- * Not everybody is ready to be a module yet... 
- */
-def moduleExclusionFilter = {String moduleName -> !doModular || moduleName.contains('bioformats') || moduleName.contains('jpen')}
-
 subprojects {
+
 
     afterEvaluate {
 
-        compileJava {
-            if (moduleExclusionFilter(moduleName))
-                return
 
+        compileJava {
+/*
             inputs.property("moduleName", moduleName)
             doFirst {
                 options.compilerArgs = [
@@ -320,7 +399,10 @@ subprojects {
                 ]
                 classpath = files()
             }
+            */
         }
+
+
 
         jar {
         	// Important to set version so this can be queried within QuPath
@@ -338,36 +420,9 @@ subprojects {
             }
         }
 
-        compileTestJava {
-            if (moduleExclusionFilter(moduleName))
-                return
-
-            inputs.property("moduleName", moduleName)
-            doFirst {
-                options.compilerArgs = [
-                        '--module-path', classpath.asPath,
-                        '--add-modules', 'junit',
-                        '--add-reads', "$moduleName=junit",
-                        '--patch-module', "$moduleName=" + files(sourceSets.test.java.srcDirs).asPath,
-                ]
-                classpath = files()
-            }
-        }
 
         test {
-            if (moduleExclusionFilter(moduleName))
-                return
-
-            inputs.property("moduleName", moduleName)
-            doFirst {
-                jvmArgs = [
-                        '--module-path', classpath.asPath,
-                        '--add-modules', 'ALL-MODULE-PATH',
-                        '--add-reads', "$moduleName=junit",
-                        '--patch-module', "$moduleName=" + files(sourceSets.test.java.outputDir).asPath,
-                ]
-                classpath = files()
-            }
+	        useJUnitPlatform()
         }
     }
 }
@@ -376,24 +431,28 @@ subprojects {
  * Build all projects
  */
 allprojects {
-  apply plugin: 'java-library'
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+
+  sourceCompatibility = javaVersion
+  targetCompatibility = javaVersion
 
   repositories {
     mavenLocal()
     mavenCentral()
 
+    // May be required for snapshot ImageJ2 jars
+    maven { url 'https://maven.imagej.net/content/groups/public' }
+
+	// Required for Bio-Formats
     maven {
       name 'Unidata'
       url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
     }
-    maven {
-      url 'https://artifacts.openmicroscopy.org/artifactory/maven/'
-    }
-    maven {
-      url 'https://oss.sonatype.org/content/repositories/snapshots'
-    }
+    maven { url 'https://artifacts.openmicroscopy.org/artifactory/maven/' }
+    
+    // May be required for snapshot JavaCPP jars
+    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    
+    // Currently required for OpenSlide
     maven { url "../maven/repo" }
   }
 
@@ -402,10 +461,11 @@ allprojects {
 //    withJavadocJar()
 //  }
 
-  dependencies {
-    implementation group: 'ch.qos.logback', name: 'logback-classic', version:'1.2.3'
-    testImplementation group: 'junit', name: 'junit', version:'4.12'
+  configurations {
+    implementation.extendsFrom logback
+  	testImplementation.extendsFrom junit
   }
+
 }
 
 
@@ -419,6 +479,10 @@ repositories {
   mavenLocal()
   mavenCentral()
   maven { url "./maven/repo" }
+}
+
+configurations {
+    implementation.extendsFrom picocli
 }
 
 /*
@@ -497,7 +561,7 @@ import java.nio.file.Paths
 
 licenseReport {
   print("LICENSE PATH: " + new File(projectDir, 'license-unknown.txt').getAbsolutePath())
-  filters = [new LicenseBundleNormalizer()]
+//  filters = [new LicenseBundleNormalizer()] // May introduce errors
   renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
                new CsvReportRenderer(),
                new InventoryHtmlReportRenderer('index.html', 'Third party licenses',
@@ -552,21 +616,35 @@ task mergedJavadocs(type: Javadoc) {
 	if (!strictJavadoc) {
 		options.addBooleanOption 'Xdoclint:none', true
 	}
+	
     source subprojects.collect { project ->
-        project.sourceSets.main.allJava
+        project.sourceSets.main.allJava.filter {it.name != 'module-info.java'}
     }
+    
+    options {
+    	links += rootProject.ext.externalJavadocs
+    	source = javaVersion
+    }
+    
     destinationDir = new File(buildDir, 'merged-docs')
+    
     classpath = files(subprojects.collect { project ->
         project.sourceSets.main.compileClasspath
     })
+    
 }
 
 
 
 /*
- * Create a custom runtime.  Mostly to avoid using the same one as jpackager for now.
+ * Create a custom runtime
  */
 task createRuntime(dependsOn:build, type:Exec) {
+
+  String jreModules = findProperty('jreModules')
+  if (!jreModules) {
+    jreModules = 'default'
+  }
 	
   def outputDir = new File(rootProject.buildDir, 'jre')
 
@@ -574,19 +652,51 @@ task createRuntime(dependsOn:build, type:Exec) {
   onlyIf { !outputDir.exists() }
 
   doFirst {
-
-   def params = ["${System.properties['java.home']}/bin/jlink"]
-	
+  
+  	// Indispensible modules
+    def requiredModules = [
+        'java.desktop',
+    	'java.xml',
+    	'java.scripting',
+    	'java.sql',
+    	'java.naming',
+    	'jdk.unsupported',
+    	'jdk.zipfs',           // Needed for zip filesystem support
+    ]
+    
+    def usefulModules = [
+        'java.net.http',       // Add HttpClient support (may be used by scripts)
+    	'java.management',     // Useful to check memory usage
+    	'jdk.management.agent' // Enables VisualVM to connect and sample CPU use
+    ]
+  
+    def addModules
+    if (jreModules == 'all') {
+      println 'Creating Java runtime using all modules'
+      addModules = 'ALL-MODULE-PATH'
+    } else if (jreModules == 'minimum') {
+      println 'Creating minimal Java runtime (this may exclude some useful modules)'
+      addModules = String.join(',', requiredModules)
+    } else {
+      if (jreModules != 'default')
+      	logger.warn("Unsupported jreModules property '${jreModules}', will use 'default' instead")
+      println 'Creating default Java runtime'
+      addModules = String.join(',', requiredModules + usefulModules)
+    }
+    
+    def params = ["${System.properties['java.home']}/bin/jlink"]
+   
     params << '--output' << outputDir.getAbsolutePath()
-    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported,jdk.zipfs'
+    params << '--add-modules' << addModules
+    
+    if (jreModules == 'default')
+	    params << '--bind-services'
 
     params << '--strip-debug'
     params << '--no-header-files'
     params << '--no-man-pages'
     params << '--strip-native-commands'
     params << '--compress=2'
-
-//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
 
     print String.join(' ', params)
     
@@ -596,39 +706,26 @@ task createRuntime(dependsOn:build, type:Exec) {
 }
 
 /*
- * If we have a packager (somewhere), use it.
- *
- * To call this:
- *   gradlew createPackage -Ppackager=/path/to/jpackager
- *
- * Or to make an installer:
- *   gradlew createPackage -Ppackager=/path/to/jpackager -Ptype=installer}
+ * Create a native package. This requires jpackage, first included within JDK 14.
  */
 task createPackage(dependsOn:createRuntime, type:Exec) {
 
   doFirst {
-
-    def packager = findProperty('packager')
-    if (packager == null || !new File(packager).exists()) {
-      println '-------'
-      println 'Please specify where I can find a suitable packager!  Something like this:'
-      if (OperatingSystem.current().isWindows())
-	      println 'gradlew.bat createPackage -Ppackager=/full/path/to/jpackage.exe'
-	  else
-	      println 'gradlew createPackage -Ppackager=/full/path/to/jpackage'
-      println 'Current value of -Ppackager is ' + packager
-      println 'Note: You can also specify this in a gradle.properties file'
-      println '-------'
-      throw new GradleException('Please specify where I can find a suitable jpackage!')
-    }
-    println 'Using packager: ' + packager
-
+  
+  	if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_14)) {
+  		throw new GradleException("Creating a package requires jpackage in JDK 14, but the current JDK version is ${JavaVersion.current()}.")
+  	}
+  
 	// Versioning rules can be strict on some platforms - may need to further change this
   	def appVersion = qupathVersion.replace('-SNAPSHOT', '')
 
     def packageType = findProperty('type')
+    if (!packageType) {
+    	packageType = 'app-image'
+    	logger.info("No package type specified, using default ${packageType}")
+   	}
 
-    def params = [packager]
+    def params = ["${System.properties['java.home']}/bin/jpackage"]
 
     params << '--input' << new File(rootProject.buildDir, rootProject.libsDirName).getAbsolutePath()
     params << '--dest' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
@@ -636,7 +733,6 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     params << '--main-jar' << jar.archiveName
     
     params << '--name' << 'QuPath-' + qupathVersion
-//    params << '--class' << 'qupath.QuPath'
 
     // Default to using 50% available memory
 	params << '--java-options' << '-XX:MaxRAMPercentage=50'
@@ -645,9 +741,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		params << '--mac-package-name' << 'QuPath'
 		params << '--mac-package-identifier' << 'QuPath'
 		if (packageType == 'installer') {
-			params << '--type' << 'dmg'
+			params << '--type' << 'pkg'
 		} else {
-			params << '--type' << 'app-image'
+			params << '--type' << packageType
 		}
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
@@ -660,10 +756,10 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 			int lastDash = appVersion.lastIndexOf('-')
 			if (lastDash > 0) {
 				appVersion = appVersion.substring(0, lastDash)
-				println "Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility" 
+				logger.info("Simplifying QuPath version ${qupathVersion} to ${appVersion} for compatibility")
 			}
 		} else
-			params << '--type' << 'app-image'
+			params << '--type' << packageType
 		// Create a separate launcher with a console - this can help with debugging
 		def fileTemp = File.createTempFile('qupath-building', '.properties')
 		def consoleLauncherName = "QuPath-${qupathVersion} (debug)"
@@ -672,7 +768,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 //		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'
 		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
 	} else
-		params << '--type' << 'app-image'
+		params << '--type' << packageType
 
     // Store the app version (typically a simplified version of the full format)
     params << '--app-version' << appVersion
@@ -685,9 +781,6 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     params << '--icon' << pathIcon
 
 	params << '--runtime-image' << new File(rootProject.buildDir, 'jre').getAbsolutePath()
-//    params << '--add-modules' << 'java.desktop,java.xml,java.scripting,java.sql,java.naming,jdk.unsupported'
-
-//	params << '--module-path' << System.properties.'java.home' + '/jmods' 
 
     println String.join(' ', params)
     

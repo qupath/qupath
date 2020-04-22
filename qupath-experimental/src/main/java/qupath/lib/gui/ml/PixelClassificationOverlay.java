@@ -15,6 +15,7 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
@@ -95,7 +96,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     
     
     public static PixelClassificationOverlay createPixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
-        int nThreads = Math.max(1, PathPrefs.getNumCommandThreads());
+        int nThreads = Math.max(1, PathPrefs.numCommandThreadsProperty().get());
     	return new PixelClassificationOverlay(viewer, nThreads, new ClassifierServerFunction(classifier));
     }
     
@@ -300,8 +301,8 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
         			continue;
         	}
         	
-        	// Try to get an RGB image, supplying a cached probably tile (if we have one)
-            BufferedImage imgRGB = getCachedRGBImage(request, server.getCachedTile(tile));
+        	// Try to get an RGB image, supplying a server that can be queried for a corresponding non-RGB cached tile if needed
+            BufferedImage imgRGB = getCachedTileRGB(tile, server);
             if (imgRGB != null) {
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
             	gCopy.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
@@ -335,17 +336,20 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     }
     
     /**
-     * Get a cached RGB image if we have one.  If we don't, optionally supply an original image 
-     * that will be painted to create a new RGB image (which will then be cached).
+     * Get a cached RGB image if we have one.  If we don't, optionally supply a server that may be 
+     * queried for the corresponding (possibly-non-RGB) cached tile.
      * 
      * @param request
-     * @param img
+     * @param server
      * @return
      */
-    synchronized BufferedImage getCachedRGBImage(RegionRequest request, BufferedImage img) {
-    	var imgRGB = cacheRGB.get(request);
-        // If we don't have an RGB version, create one
-        if (imgRGB == null && img != null) {
+     BufferedImage getCachedTileRGB(TileRequest request, ImageServer<BufferedImage> server) {
+    	var imgRGB = cacheRGB.get(request.getRegionRequest());
+    	if (imgRGB != null || server == null)
+    		return imgRGB;
+        // If we have a tile that isn't RGB, then create the RGB version we need
+    	var img = server.getCachedTile(request);
+        if (img != null) {
             if (img.getType() == BufferedImage.TYPE_INT_ARGB ||
             		img.getType() == BufferedImage.TYPE_INT_RGB ||
             		img.getType() == BufferedImage.TYPE_BYTE_INDEXED ||
@@ -363,7 +367,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             		logger.error("Exception rendering image", e);
             	}
             }
-            cacheRGB.put(request, imgRGB);
+            cacheRGB.put(request.getRegionRequest(), imgRGB);
         }
         return imgRGB;
     }
@@ -410,27 +414,32 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             	if (!pendingRequests.contains(tile)) {
             		return;
             	}
+            	var changed = new ArrayList<PathObject>();
+                var imageData = getImageData();
+                var hierarchy = imageData == null ? null : imageData.getHierarchy();
                 try {
                 	classifierServer.readBufferedImage(tile.getRegionRequest());
                     viewer.repaint();
                     var channelType = classifierServer.getMetadata().getChannelType();
                     if (channelType == ChannelType.CLASSIFICATION || channelType == ChannelType.PROBABILITY || channelType == ChannelType.MULTICLASS_PROBABILITY) {
-		                var imageData = getImageData();
-		                var hierarchy = imageData == null ? null : imageData.getHierarchy();
 		                if (hierarchy != null) {
-		                	var changed = new ArrayList<PathObject>();
-		                	changed.add(hierarchy.getRootObject());
-		                	changed.addAll(hierarchy.getAnnotationObjects());
-		                	Platform.runLater(() -> {
-		                		hierarchy.fireObjectMeasurementsChangedEvent(this, changed);
-		                	});
+//		                	if (pendingRequests.size() <= 1)
+//		                		changed.add(hierarchy.getRootObject());
+	                		changed.add(hierarchy.getRootObject());
+		                	hierarchy.getObjectsForRegion(PathAnnotationObject.class, tile.getRegionRequest(), changed);
+//		                	changed.addAll(hierarchy.getAnnotationObjects());
 		                }
                     }
                 } catch (Exception e) {
-                   logger.error("Error requesting tile classification: {}", e.getLocalizedMessage());
-                   logger.debug("", e);
+                   logger.error("Error requesting tile classification: ", e.getLocalizedMessage(), e);
                 } finally {
                     pendingRequests.remove(tile);
+                    if (hierarchy != null && !changed.isEmpty()) {
+	                	Platform.runLater(() -> {
+	                		// TODO: We don't want to fire a load of 'heavy' events, so we state that isChanging = true (beware this may need revised!)
+	                		hierarchy.fireObjectMeasurementsChangedEvent(this, changed, true); //!pendingRequests.isEmpty());
+	                	});
+                    }
                 }
             });
         }

@@ -40,10 +40,10 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
-import qupath.lib.gui.models.ObservableMeasurementTableData;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.plugins.PluginRunnerFX;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
@@ -76,7 +76,10 @@ public class TMADataIO {
 
 	final private static Logger logger = LoggerFactory.getLogger(TMADataIO.class);
 
+	@SuppressWarnings("javadoc")
 	final public static String TMA_DEARRAYING_DATA_EXTENSION = ".qptma";
+	
+	private static double preferredExportPixelSizeMicrons = 1.0;
 	
 	/**
 	 * Write TMA summary data, without any image export.
@@ -93,6 +96,7 @@ public class TMADataIO {
 	 * 
 	 * @param file
 	 * @param imageData
+	 * @param overlayOptions 
 	 * @param downsampleFactor The downsample factor used for the TMA cores. If NaN, an automatic downsample value will be selected (&gt;= 1).  If &lt;= 0, no cores are exported.
 	 */
 	public static void writeTMAData(File file, final ImageData<BufferedImage> imageData, OverlayOptions overlayOptions, final double downsampleFactor) {
@@ -103,8 +107,7 @@ public class TMADataIO {
 		final ImageServer<BufferedImage> server = imageData.getServer();
 		String coreExt = imageData.getServer().isRGB() ? ".jpg" : ".tif";
 		if (file == null) {
-			//			dir = PathPrefs.getDialogHelper().promptForDirectory(null);
-			file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save TMA data", null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
+			file = Dialogs.promptToSaveFile("Save TMA data", null, ServerTools.getDisplayableImageName(server), "TMA data", "qptma");
 			if (file == null)
 				return;
 		} else if (file.isDirectory() || (!file.exists() && file.getAbsolutePath().endsWith(File.pathSeparator))) {
@@ -187,7 +190,7 @@ public class TMADataIO {
 				logger.warn("Unable to write image overview", e);
 			}
 
-			final double downsample = Double.isNaN(downsampleFactor) ? (server.getPixelCalibration().hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, PathPrefs.getPreferredTMAExportPixelSizeMicrons()) : 1) : downsampleFactor;
+			final double downsample = Double.isNaN(downsampleFactor) ? (server.getPixelCalibration().hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, preferredExportPixelSizeMicrons) : 1) : downsampleFactor;
 			
 			// Creating a plugin makes it possible to parallelize & show progress easily
 			var renderedImageServer = new RenderedImageServer.Builder(imageData)
@@ -247,7 +250,7 @@ public class TMADataIO {
 				return null;
 			}
 			
-			int count = 0;
+//			int count = 0;
 			List<TMACoreObject> cores = new ArrayList<>();
 			for (int i = 0; i < colX.size(); i++) {
 				double x = Double.parseDouble(colX.get(i));
@@ -284,7 +287,7 @@ public class TMADataIO {
 		
 		private double downsample;
 		private File dir;
-		private OverlayOptions options;
+//		private OverlayOptions options;
 		private String ext;
 		private ImageServer<BufferedImage> renderedServer;
 		
@@ -341,7 +344,7 @@ public class TMADataIO {
 					File fileOutput = new File(dir, parentObject.getName() + ext);
 					RegionRequest request = RegionRequest.createInstance(imageData.getServerPath(), downsample, parentObject.getROI());
 					try {
-						var img = imageData.getServer().readBufferedImage(request);
+//						var img = imageData.getServer().readBufferedImage(request);
 						ImageWriterTools.writeImageRegion(imageData.getServer(), request, fileOutput.getAbsolutePath());
 						fileOutput = new File(dir, parentObject.getName() + "-overlay.jpg");
 						// Pass in the image we have so that it will be drawn on top of

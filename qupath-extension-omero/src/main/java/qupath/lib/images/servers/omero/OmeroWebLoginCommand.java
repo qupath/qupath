@@ -1,13 +1,11 @@
 package qupath.lib.images.servers.omero;
 
-import qupath.lib.gui.commands.interfaces.PathCommand;
-
 /**
  * Not yet implemented.
  * 
  * @author Pete Bankhead
  */
-public class OmeroWebLoginCommand implements PathCommand {
+public class OmeroWebLoginCommand implements Runnable {
 
 	@Override
 	public void run() {

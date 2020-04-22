@@ -1,17 +1,16 @@
 package qupath.lib.roi;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import java.awt.geom.AffineTransform;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.util.AffineTransformation;
 
 /**
  * Test {@link GeometryTools}. Note that most of the relevant tests for ROI conversion are in {@link TestROIs}.
  */
-@SuppressWarnings("javadoc")
 public class TestGeometryTools {
 	
 	/**

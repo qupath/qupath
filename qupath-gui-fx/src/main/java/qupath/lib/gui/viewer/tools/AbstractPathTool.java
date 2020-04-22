@@ -23,27 +23,27 @@
 
 package qupath.lib.gui.viewer.tools;
 
-import java.awt.Shape;
 import java.awt.geom.Point2D;
-import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
+import qupath.lib.geom.Point2;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.viewer.ModeWrapper;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerListener;
-import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -59,27 +59,33 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
+abstract class AbstractPathTool implements EventHandler<MouseEvent> {
 	
 	private final static Logger logger = LoggerFactory.getLogger(AbstractPathTool.class);
 
-	QuPathViewer viewer;
-	ModeWrapper modes;
-	
-	private PathObject constrainedAreaParent;
-	private Geometry constrainedAreaBounds;
-	private Geometry constrainedAreaToRemove;
+//	private QuPathViewer viewer;
 	
 	/**
-	 * Constructor.
-	 * @param modes property storing the current selected Mode within QuPath.
+	 * Parent object that may be used to constrain ROIs, if required.
 	 */
-	AbstractPathTool(ModeWrapper modes) {
-		this.modes = modes;
-	}
+	private PathObject constrainedParentObject;
+	/**
+	 * Geometry of the parent object ROI used to constrain ROIs, if required.
+	 */
+	private Geometry constrainedParentGeometry;
+	/**
+	 * Collection of Geometry objects that may be subtracted if drawing a constrained ROI.
+	 */
+	private Collection<Geometry> constrainedRemoveGeometries;
+	/**
+	 * The starting point for a ROI drawn in 'constrained' mode.
+	 * ROIs containing this point should not be used for 'subtraction'.
+	 */
+	private Point2 constrainedStartPoint;
 	
 	void ensureCursorType(Cursor cursor) {
 		// We don't want to change a waiting cursor unnecessarily
+		var viewer = getViewer();
 		Cursor currentCursor = viewer.getCursor();
 		if (currentCursor == null || currentCursor == Cursor.WAIT)
 			return;
@@ -93,14 +99,16 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	protected boolean requestPixelSnapping() {
-		return PathPrefs.usePixelSnapping();
+		return PathPrefs.usePixelSnappingProperty().get();
 	}
 	
 	protected QuPathViewer getViewer() {
-		return viewer;
+		return QuPathGUI.getInstance().getViewer();
+//		return viewer;
 	}
 	
 	protected Point2D mouseLocationToImage(MouseEvent e, boolean constrainToBounds, boolean snapToPixel) {
+		var viewer = getViewer();
 		var p = viewer.componentPointToImagePoint(e.getX(), e.getY(), null, constrainToBounds);
 		if (snapToPixel)
 			p.setLocation(Math.floor(p.getX()), Math.floor(p.getY()));
@@ -117,7 +125,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	boolean requestParentClipping(MouseEvent e) {
-		return PathPrefs.getClipROIsForHierarchy() != (e.isShiftDown() && e.isShortcutDown());
+		return PathPrefs.clipROIsForHierarchyProperty().get() != (e.isShiftDown() && e.isShortcutDown());
 	}
 	
 	
@@ -148,10 +156,23 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	
 	private Geometry refineGeometryByParent(Geometry geometry, boolean tryAgain) {
 		try {
-			if (constrainedAreaBounds != null)
-				geometry = geometry.intersection(constrainedAreaBounds);
-			if (constrainedAreaToRemove != null)
-				geometry = geometry.difference(constrainedAreaToRemove);
+			if (constrainedParentGeometry != null)
+				geometry = geometry.intersection(constrainedParentGeometry);
+			int count = 0;
+			var constrainedRemoveGeometries = getConstrainedRemoveGeometries();
+			if (!constrainedRemoveGeometries.isEmpty()) {
+				var envelope = geometry.getEnvelopeInternal();
+				for (var temp : constrainedRemoveGeometries) {
+					// Note: the relate operation tests for interior intersections, but can be very slow
+					// Ideally, we would reduce these tests
+					if (envelope.intersects(temp.getEnvelopeInternal()) && geometry.relate(temp, "T********")) {
+						geometry = geometry.difference(temp);
+						envelope = geometry.getEnvelopeInternal();
+						count++;
+					}
+				}
+			}
+			logger.debug("Clipped ROI with {} geometries", count);
 		} catch (Exception e) {
 			if (tryAgain) {
 				logger.warn("First Error refining ROI, will retry after buffer(0): {}", e.getLocalizedMessage());
@@ -172,14 +193,16 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @param yy y-coordinate in the image space of the starting point for the new object
 	 * @param exclusions objects not to consider (e.g. the new ROI being created)
 	 */
-	synchronized void setConstrainedAreaParent(final PathObjectHierarchy hierarchy, double xx, double yy, Collection<PathObject> exclusions) {
-		
+	void setConstrainedAreaParent(final PathObjectHierarchy hierarchy, double xx, double yy, Collection<PathObject> exclusions) {
+		if (!Platform.isFxApplicationThread())
+			throw new IllegalStateException("Not on the FxApplication thread!");
+
 		// Reset parent area & its descendant annotation areas
-		constrainedAreaBounds = null;
-		constrainedAreaToRemove = null;
+		constrainedParentGeometry = null;
+		constrainedRemoveGeometries = null;
 		
 		// Identify the smallest area annotation that contains the specified point
-		constrainedAreaParent = getSelectableObjectList(xx, yy)
+		constrainedParentObject = getSelectableObjectList(xx, yy)
 				.stream()
 				.filter(p -> !p.isDetection() && p.hasROI() && p.getROI().isArea() && !exclusions.contains(p))
 				.sorted(Comparator.comparing(p -> p.getROI().getArea()))
@@ -190,50 +213,73 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 //			return;
 		
 		// Check the parent is a valid potential parent
-		boolean fullImage = false;
-		if (constrainedAreaParent == null || !(constrainedAreaParent.hasROI() && constrainedAreaParent.getROI().isArea())) {
-			constrainedAreaParent = hierarchy.getRootObject();
-			fullImage = true;
+		if (constrainedParentObject == null || !(constrainedParentObject.hasROI() && constrainedParentObject.getROI().isArea())) {
+			constrainedParentObject = hierarchy.getRootObject();
 		}
 		
 		// Get the parent Geometry
-		if (constrainedAreaParent.hasROI() && constrainedAreaParent.getROI().isArea())
-			constrainedAreaBounds = constrainedAreaParent.getROI().getGeometry();
+		if (constrainedParentObject.hasROI() && constrainedParentObject.getROI().isArea())
+			constrainedParentGeometry = constrainedParentObject.getROI().getGeometry();
 		
-		// Figure out what needs to be subtracted
-		Collection<PathObject> toRemove;
-		if (fullImage)
-			toRemove = hierarchy.getAnnotationObjects();
-		else
-			toRemove = hierarchy.getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(constrainedAreaParent.getROI()), null);
-			
-		for (PathObject child : toRemove) {
-			if (child.isDetection() || child == constrainedAreaParent|| !child.hasROI() || 
-					!child.getROI().isArea() || child.getROI().contains(xx, yy))
-				continue;
-			Geometry childArea = child.getROI().getGeometry();
-			if (constrainedAreaBounds != null &&
-					(!constrainedAreaBounds.intersects(childArea) || constrainedAreaBounds.coveredBy(childArea)))
-				continue;
-			if (constrainedAreaToRemove == null)
-				constrainedAreaToRemove = childArea;
-			else
-				constrainedAreaToRemove = constrainedAreaToRemove.union(childArea);
-		}
-		if (constrainedAreaToRemove != null)
-			constrainedAreaToRemove = GeometryTools.ensurePolygonal(constrainedAreaToRemove);
+		constrainedStartPoint = new Point2(xx, yy);
 	}
 	
 	
+	Collection<Geometry> getConstrainedRemoveGeometries() {
+		if (!Platform.isFxApplicationThread())
+			throw new IllegalStateException("Not on the FxApplication thread!");
+		
+		if (constrainedRemoveGeometries == null) {
+			
+			var viewer = getViewer();
+			if (viewer == null)
+				return Collections.emptyList();
+			
+			var hierarchy = viewer.getHierarchy();			
+			if (hierarchy == null || constrainedParentObject == null)
+				return Collections.emptyList();
+			
+			var selected = viewer.getSelectedObject();
+			
+			// Figure out what needs to be subtracted
+			boolean fullImage = hierarchy.getRootObject() == constrainedParentObject;
+			Collection<PathObject> toRemove;
+			if (fullImage)
+				toRemove = hierarchy.getAnnotationObjects();
+			else
+				toRemove = hierarchy.getObjectsForRegion(PathAnnotationObject.class, ImageRegion.createInstance(constrainedParentObject.getROI()), null);
+			
+			logger.debug("Constrained ROI drawing: identifying objects to remove");
+	
+			Envelope boundsEnvelope = constrainedParentGeometry == null ? null : constrainedParentGeometry.getEnvelopeInternal();
+			constrainedRemoveGeometries = new ArrayList<>();
+			for (PathObject child : toRemove) {
+				if (child.isDetection() || child == constrainedParentObject|| !child.hasROI() || 
+						!child.getROI().isArea() || child == selected ||
+						(constrainedStartPoint != null && child.getROI().contains(constrainedStartPoint.getX(), constrainedStartPoint.getY())))
+					continue;
+				Geometry childArea = child.getROI().getGeometry();
+				Envelope childEnvelope = childArea.getEnvelopeInternal();
+				// Quickly filter out objects that don't intersect with the bounds, or which entirely cover it
+				if (constrainedParentGeometry != null &&
+						(!boundsEnvelope.intersects(childEnvelope) || 
+								(childEnvelope.covers(boundsEnvelope) && childArea.covers(constrainedParentGeometry))))
+					continue;
+				constrainedRemoveGeometries.add(childArea);
+			}
+		}
+		return constrainedRemoveGeometries;
+	}
+	
 	synchronized void resetConstrainedAreaParent() {
-		this.constrainedAreaParent = null;
-		this.constrainedAreaBounds = null;
-		this.constrainedAreaToRemove = null;
+		this.constrainedParentObject = null;
+		this.constrainedParentGeometry = null;
+		this.constrainedRemoveGeometries = null;
 	}
 	
 	
 	synchronized PathObject getCurrentParent() {
-		return constrainedAreaParent;
+		return constrainedParentObject;
 	}
 	
 	/**
@@ -241,16 +287,16 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	synchronized Geometry getConstrainedAreaBounds() {
-		return constrainedAreaBounds;
+		return constrainedParentGeometry;
 	}
 	
-	/**
-	 * When drawing a constrained ROI, get a Geometry defining the inner area that should be 'subtracted'.
-	 * @return
-	 */
-	synchronized Geometry getConstrainedAreaToSubtract() {
-		return constrainedAreaToRemove;
-	}
+//	/**
+//	 * When drawing a constrained ROI, get a Geometry defining the inner area that should be 'subtracted'.
+//	 * @return
+//	 */
+//	synchronized Geometry getConstrainedAreaToSubtract() {
+//		return constrainedAreaToRemove;
+//	}
 	
 	
 	
@@ -268,6 +314,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	}
 	
 	boolean tryToSelect(double x, double y, int searchCount, boolean addToSelection, boolean toggleSelection) {
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return false;
@@ -308,6 +355,7 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 	 * @return
 	 */
 	List<PathObject> getSelectableObjectList(double x, double y) {
+		var viewer = getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null)
 			return Collections.emptyList();
@@ -349,12 +397,6 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 				e.consume();
 			}
 		}
-//		// Ensure we can focus this component
-//		Component component = e.getComponent();
-//		if (!component.isFocusable()) {
-//			component.setFocusable(true);
-//		}
-//		component.requestFocus();
 	}
 
 	public void mouseReleased(MouseEvent e) {
@@ -363,78 +405,25 @@ abstract class AbstractPathTool implements PathTool, QuPathViewerListener {
 			return;
 		}
 	}
-	
-	
+
 	@Override
-	public void registerTool(QuPathViewer viewer) {
-		// Disassociate from any previous viewer
-		if (this.viewer != null)
-			deregisterTool(this.viewer);
-		
-		// Associate with new viewer
-		this.viewer = viewer;
-		if (viewer != null) {
-			logger.trace("Registering {} to viewer {}", this, viewer);
-			Node canvas = viewer.getView();
-			
-			canvas.setOnMouseDragged(e -> mouseDragged(e));
-			canvas.setOnMouseDragReleased(e -> mouseDragged(e));
-			
-			canvas.setOnMouseMoved(e -> mouseMoved(e));
-
-			canvas.setOnMouseClicked(e -> mouseClicked(e));
-			canvas.setOnMousePressed(e -> mousePressed(e));
-			canvas.setOnMouseReleased(e -> mouseReleased(e));
-			
-			canvas.setOnMouseEntered(e -> mouseEntered(e));
-			canvas.setOnMouseExited(e -> mouseExited(e));
-
-			viewer.addViewerListener(this);
-		}
+	public void handle(MouseEvent event) {
+		var type = event.getEventType();
+		if (type == MouseEvent.DRAG_DETECTED || type == MouseEvent.MOUSE_DRAGGED)
+			mouseDragged(event);
+		else if (type == MouseEvent.MOUSE_CLICKED)
+			mouseClicked(event);
+		else if (type == MouseEvent.MOUSE_MOVED)
+			mouseMoved(event);
+		else if (type == MouseEvent.MOUSE_PRESSED)
+			mousePressed(event);
+		else if (type == MouseEvent.MOUSE_RELEASED)
+			mouseReleased(event);
+		else if (type == MouseEvent.MOUSE_ENTERED)
+			mouseEntered(event);
+		else if (type == MouseEvent.MOUSE_EXITED)
+			mouseExited(event);
 	}
-
-	@Override
-	public void deregisterTool(QuPathViewer viewer) {
-		if (this.viewer == viewer) {
-			
-			logger.trace("Deregistering {} from viewer {}", this, viewer);
-
-			this.viewer = null;
-			
-			Node canvas = viewer.getView();
-			canvas.setOnMouseDragged(null);
-			canvas.setOnMouseDragReleased(null);
-			
-			canvas.setOnMouseMoved(null);
-
-			canvas.setOnMouseClicked(null);
-			canvas.setOnMousePressed(null);
-			canvas.setOnMouseReleased(null);
-			
-			canvas.setOnMouseEntered(null);
-			canvas.setOnMouseExited(null);
-			
-			viewer.removeViewerListener(this);
-		}
-	}
-	
-	
-	
-	@Override
-	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
-			ImageData<BufferedImage> imageDataNew) {}
-
-
-	@Override
-	public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {}
-
-
-	@Override
-	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
-
-
-	@Override
-	public void viewerClosed(QuPathViewer viewer) {}
 	
 	
 }

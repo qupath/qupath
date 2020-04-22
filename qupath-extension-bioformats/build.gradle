@@ -4,7 +4,7 @@ description = 'qupath-extension-bioformats'
 
 configurations {
   // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately
-//  implementation.extendsFrom bioformats
+  implementation.extendsFrom bioformats
   implementation.extendsFrom controlsfx
   implementation.extendsFrom picocli
 //  testImplementation.extendsFrom bioformats
@@ -13,9 +13,11 @@ configurations {
 }
 
 dependencies {
-  implementation("ome:bioformats_package:${bioformatsVersion}") {
-  	transitive = false
-  }
-  testImplementation("ome:bioformats_package:${bioformatsVersion}")
-//  testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")
+	// This can be used to include bioformats_package.jar - however it causes warnings with SLF4J
+//  implementation("ome:bioformats_package:${bioformatsVersion}") {
+//  	transitive = false
+//  }
+//  testImplementation("ome:bioformats_package:${bioformatsVersion}")
+
+  testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")
 }

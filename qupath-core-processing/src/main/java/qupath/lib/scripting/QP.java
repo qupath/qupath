@@ -54,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.tools.IJTools;
+import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
@@ -69,9 +70,12 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.CellTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -84,6 +88,7 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
+import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
@@ -147,11 +152,12 @@ public class QP {
 	
 	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
 			// Core datastructures
-			//ImageData.class,
-			//ImageServer.class,
-			//PathObject.class,
-			//PathObjectHierarchy.class,
-			//PathClass.class,
+			ImageData.class,
+			ImageServer.class,
+			PathObject.class,
+			PathObjectHierarchy.class,
+			PathClass.class,
+			
 			ImageRegion.class,
 			RegionRequest.class,
 			ImagePlane.class,
@@ -178,6 +184,13 @@ public class QP {
 			IJTools.class,
 			OpenCVTools.class,
 			TileExporter.class,
+			
+			DelaunayTools.class,
+			CellTools.class,
+			
+			// IO classes
+			PointIO.class,
+			ProjectIO.class,
 			
 			// External classes
 			BufferedImage.class
@@ -726,6 +739,7 @@ public class QP {
 	 * by passing n values, the first n channel names will be set.
 	 * Any name that is null will be left unchanged.
 	 * 
+	 * @param imageData
 	 * @param colors
 	 * @see #setChannelNames(ImageData, String...)
 	 */
@@ -762,6 +776,7 @@ public class QP {
 	 * Also, currently it is not possible to set channels for RGB images - attempting to do so 
 	 * will throw an IllegalArgumentException.
 	 * 
+	 * @param imageData 
 	 * @param channels
 	 * @see #setChannelNames(ImageData, String...)
 	 * @see #setChannelColors(ImageData, Integer...)
@@ -811,6 +826,7 @@ public class QP {
 	 * Run the specified plugin on the specified {@code ImageData}.
 	 * 
 	 * @param className
+	 * @param imageData
 	 * @param args
 	 * @return
 	 * @throws InterruptedException
@@ -1042,12 +1058,23 @@ public class QP {
 	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
 	 */
 	public static void createSelectAllObject(final boolean setSelected) {
+		createSelectAllObject(setSelected, 0, 0);
+	}
+	
+	/**
+	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).
+	 * 
+	 * @param setSelected if true, select the object that was created after it is added to the hierarchy
+	 * @param z z-slice index for the annotation
+	 * @param t timepoint index for the annotation
+	 */
+	public static void createSelectAllObject(final boolean setSelected, int z, int t) {
 		ImageData<?> imageData = getCurrentImageData();
 		if (imageData == null)
 			return;
 		ImageServer<?> server = imageData.getServer();
 		PathObject pathObject = PathObjects.createAnnotationObject(
-				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane())
+				ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getPlane(z, t))
 				);
 		imageData.getHierarchy().addPathObject(pathObject);
 		if (setSelected)
@@ -1266,10 +1293,34 @@ public class QP {
 		if (hierarchy != null)
 			hierarchy.getSelectionModel().setSelectedObjects(pathObjects, mainSelection);
 	}
+	
+	/**
+	 * Set one or more objects to be selected within the specified hierarchy.
+	 * @param hierarchy
+	 * @param pathObjects
+	 */
+	public static void selectObjects(final PathObjectHierarchy hierarchy, final PathObject... pathObjects) {
+		if (pathObjects.length == 0)
+			return;
+		if (pathObjects.length == 1)
+			hierarchy.getSelectionModel().setSelectedObject(pathObjects[0]);
+		else
+			hierarchy.getSelectionModel().setSelectedObjects(Arrays.asList(pathObjects), null);
+	}
+	
+	/**
+	 * Set one or more objects to be selected within the current hierarchy.
+	 * @param pathObjects
+	 */
+	public static void selectObjects(final PathObject... pathObjects) {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			selectObjects(hierarchy, pathObjects);
+	}
 
 	/**
 	 * Get a list of all objects in the specified hierarchy according to a specified predicate.
-	 * 
+	 * @param hierarchy 
 	 * @param predicate
 	 * @return
 	 */
@@ -1279,7 +1330,7 @@ public class QP {
 
 	/**
 	 * Set selected objects to contain (only) all objects in the specified hierarchy according to a specified predicate.
-	 * 
+	 * @param hierarchy 
 	 * @param predicate
 	 */
 	public static void selectObjects(final PathObjectHierarchy hierarchy, final Predicate<PathObject> predicate) {
@@ -1297,7 +1348,7 @@ public class QP {
 	
 	/**
 	 * Set objects that are a subclass of a specified class.
-	 * 
+	 * @param hierarchy 
 	 * @param cls
 	 */
 	public static void selectObjectsByClass(final PathObjectHierarchy hierarchy, final Class<? extends PathObject> cls) {
@@ -1323,6 +1374,7 @@ public class QP {
 	/**
 	 * Select all TMA core objects in the specified hierarchy, optionally including missing cores.
 	 * @param hierarchy
+	 * @param includeMissing 
 	 */
 	public static void selectTMACores(final PathObjectHierarchy hierarchy, final boolean includeMissing) {
 		hierarchy.getSelectionModel().setSelectedObjects(PathObjectTools.getTMACoreObjects(hierarchy, includeMissing), null);
@@ -1362,6 +1414,7 @@ public class QP {
 	
 	/**
 	 * Select all TMA core objects in the current hierarchy, optionally including missing cores.
+	 * @param includeMissing 
 	 */
 	public static void selectTMACores(final boolean includeMissing) {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
@@ -1387,7 +1440,63 @@ public class QP {
 			selectCells(hierarchy);
 	}
 	
+	/**
+	 * Select all tile objects in the specified hierarchy.
+	 * @param hierarchy
+	 */
+	public static void selectTiles(final PathObjectHierarchy hierarchy) {
+		selectObjectsByClass(hierarchy, PathTileObject.class);
+	}
+
+	/**
+	 * Select all tile objects in the current hierarchy.
+	 */
+	public static void selectTiles() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			selectTiles(hierarchy);
+	}
 	
+	/**
+	 * Select objects for the current hierarchy that have one of the specified classifications.
+	 * @param pathClassNames one or more classification names, which may be converted to a {@link PathClass} with {@link #getPathClass(String)}
+	 */
+	public static void selectObjectsByClassification(final String... pathClassNames) {
+		var hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			selectObjectsByClassification(hierarchy, pathClassNames);
+	}
+	
+	/**
+	 * Select objects for the current hierarchy that have one of the specified {@link PathClass} classifications assigned.
+	 * @param pathClasses one or more classifications
+	 */
+	public static void selectObjectsByClassification(final PathClass... pathClasses) {
+		var hierarchy = getCurrentHierarchy();
+		if (hierarchy != null)
+			selectObjectsByClassification(hierarchy, pathClasses);
+	}
+
+	/**
+	 * Select objects for the specified hierarchy that have one of the specified classifications.
+	 * @param hierarchy the hierarchy containing objects that may be selected
+	 * @param pathClassNames one or more classification names, which may be converted to a {@link PathClass} with {@link #getPathClass(String)}
+	 */
+	public static void selectObjectsByClassification(final PathObjectHierarchy hierarchy, final String... pathClassNames) {
+		var pathClasses = Arrays.stream(pathClassNames).map(s -> getPathClass(s)).toArray(PathClass[]::new);
+		selectObjectsByClassification(hierarchy, pathClasses);
+	}
+	
+	/**
+	 * Select objects for the specified hierarchy that have one of the specified {@link PathClass} classifications assigned.
+	 * @param hierarchy the hierarchy containing objects that may be selected
+	 * @param pathClasses one or more classifications
+	 */
+	public static void selectObjectsByClassification(final PathObjectHierarchy hierarchy, final PathClass... pathClasses) {
+		var pathClassSet = Arrays.stream(pathClasses).map(p -> p == PathClassFactory.getPathClassUnclassified() ? null : p).collect(Collectors.toCollection(HashSet::new));
+		selectObjects(hierarchy, p -> pathClassSet.contains(p.getPathClass()));
+	}
+
 	
 	// TODO: Update parsePredicate to something more modern... a proper DSL
 	@Deprecated
@@ -1463,8 +1572,6 @@ public class QP {
 			scanner.close();
 		}
 	}
-
-
 
 	/**
 	 * Select objects based on a specified measurement.
@@ -2086,6 +2193,11 @@ public class QP {
 		return PathObjectTools.duplicateSelectedAnnotations(getCurrentHierarchy());
 	}
 	
+	/**
+	 * Merge annotations for the current hierarchy.
+	 * @param annotations the annotations to merge
+	 * @return true if changes were made the hierarchy, false otherwise
+	 */
 	public static boolean mergeAnnotations(final Collection<PathObject> annotations) {
 		return mergeAnnotations(getCurrentHierarchy(), annotations);
 	}

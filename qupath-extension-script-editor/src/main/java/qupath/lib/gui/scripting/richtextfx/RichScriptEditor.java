@@ -63,6 +63,7 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
+import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.scripting.QP;
 
 
@@ -109,7 +110,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
             "return", "short", "static", "strictfp", "super",
             "switch", "synchronized", "this", "throw", "throws",
             "transient", "try", "void", "volatile", "while",
-            "def", "in", "with", "trait", "true", "false" // Groovy
+            "def", "in", "with", "trait", "true", "false", "var" // Groovy
     };
 	
 	// Delay for async formatting, in milliseconds
@@ -207,22 +208,52 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-highlighting", true));
 	
+	private ContextMenu menu;
+	
 	/**
 	 * Constructor.
 	 * @param qupath the current QuPath instance.
 	 */
 	public RichScriptEditor(QuPathGUI qupath) {
 		super(qupath);
+		
+		menu = new ContextMenu();
+		MenuTools.addMenuItems(menu.getItems(),
+				MenuTools.createMenu("Run...",
+						runScriptAction,
+						runSelectedAction,
+						runProjectScriptAction,
+						runProjectScriptNoSaveAction
+						),
+				MenuTools.createMenu("Undo/Redo...",
+					undoAction,
+					redoAction
+					),
+				null,
+				copyAction,
+				pasteAction,
+				pasteAndEscapeAction
+				);
 	}
 
 	@Override
 	protected ScriptEditorControl getNewEditor() {
 		try {
-			CodeArea codeArea = new CodeArea();
+			CodeArea codeArea = new CustomCodeArea();
 			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
 			
 			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
 			
+			
+			codeArea.setOnContextMenuRequested(e -> {
+				menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY());
+//				menu.show(codeArea, e.getScreenX(), e.getScreenY());
+			});
+
+			
+			CodeAreaControl control = new CodeAreaControl(codeArea);
+			
+			@SuppressWarnings("unused")
 			var cleanup = codeArea
 					.multiPlainChanges()
 					.successionEnds(Duration.ofMillis(delayMillis))
@@ -243,9 +274,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
-			
-			CodeAreaControl control = new CodeAreaControl(codeArea);
-			
+						
 			codeArea.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 				if (e.isConsumed())
 					return;
@@ -407,16 +436,16 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		return task;
 	}
 	
-	private Task<StyleSpans<Collection<String>>> computeConsoleHighlightingAsync(final String text) {
-		var task = new Task<StyleSpans<Collection<String>>>() {
-			@Override
-			protected StyleSpans<Collection<String>> call() {
-				return computeConsoleHighlighting(text);
-			}
-		};
-		executor.execute(task);
-		return task;
-	}
+//	private Task<StyleSpans<Collection<String>>> computeConsoleHighlightingAsync(final String text) {
+//		var task = new Task<StyleSpans<Collection<String>>>() {
+//			@Override
+//			protected StyleSpans<Collection<String>> call() {
+//				return computeConsoleHighlighting(text);
+//			}
+//		};
+//		executor.execute(task);
+//		return task;
+//	}
 	
 	private static StyleSpans<Collection<String>> computeHighlighting(final String text) {
         Matcher matcher = PATTERN.matcher(text);
@@ -547,8 +576,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 
 		@Override
-		public void paste() {
-			textArea.paste();
+		public void paste(String text) {
+			if (text != null)
+				textArea.replaceSelection(text);
+//			textArea.paste();
 		}
 		
 		@Override
@@ -599,6 +630,21 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		@Override
 		public void setPopup(ContextMenu menu) {
 			textArea.setContextMenu(menu);
+		}
+		
+	}
+	
+	
+	static class CustomCodeArea extends CodeArea {
+		
+		/**
+		 * We need to override the default Paste command to handle escaping
+		 */
+		@Override
+		public void paste() {
+			var text = getClipboardText(false);
+			if (text != null)
+				replaceSelection(text);
 		}
 		
 	}

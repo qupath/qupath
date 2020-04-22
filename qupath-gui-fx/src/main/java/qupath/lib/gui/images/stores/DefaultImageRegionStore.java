@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -57,27 +56,18 @@ import qupath.lib.regions.RegionRequest;
  */
 public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedImage> implements ImageRegionRenderer {
 
-	static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
+	private static final int DEFAULT_THUMBNAIL_WIDTH = 1000;
 
-	static Logger logger = LoggerFactory.getLogger(DefaultImageRegionStore.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultImageRegionStore.class);
 	
 	private static boolean DEBUG_TILES = false;
 
-	protected DefaultImageRegionStore(int thumbnailWidth, long tileCacheSize) {
+	DefaultImageRegionStore(int thumbnailWidth, long tileCacheSize) {
 		super(new BufferedImageSizeEstimator(), thumbnailWidth, tileCacheSize);
 	}
 
-	protected DefaultImageRegionStore(long tileCacheSize) {
+	DefaultImageRegionStore(long tileCacheSize) {
 		this(DEFAULT_THUMBNAIL_WIDTH, tileCacheSize);
-	}
-
-
-	public Map<RegionRequest, BufferedImage> getThumbnailCache() {
-		return thumbnailCache;
-	}
-
-	public int getPreferredThumbnailSize() {
-		return DEFAULT_THUMBNAIL_WIDTH;
 	}
 	
 
@@ -151,7 +141,8 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 					if (worker.cancel(false)) {
 						try {
 							imgTile = server.readBufferedImage(request);
-							cache.put(request, imgTile);
+							if (imgTile != null)
+								cache.put(request, imgTile);
 						} catch (IOException e1) {
 							logger.warn("Unable to read tile for " + request, e1);
 						}
@@ -241,13 +232,13 @@ public class DefaultImageRegionStore extends AbstractImageRegionStore<BufferedIm
 
 		// If we're compositing channels, it's worthwhile to cache RGB tiles for so long as the ImageDisplay remains constant
 //		boolean useDisplayCache = imageDisplay != null && !server.isRGB() && server.nChannels() > 1;
-		boolean useDisplayCache = !server.isRGB() && server.nChannels() > 1 && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION;
+		boolean useDisplayCache = server != null && !server.isRGB() && server.nChannels() > 1 && server.getMetadata().getChannelType() != ChannelType.CLASSIFICATION;
 		long displayTimestamp = imageDisplay == null ? 0L : imageDisplay.getLastChangeTimestamp();
 		String displayCachePath = null;
 		if (useDisplayCache) {
 			if (imageDisplay == null)
 				displayCachePath = "RGB::" + server.getPath();
-			else
+			else if (server != null)
 				displayCachePath = server.getPath() + imageDisplay.getUniqueID();
 		}
 

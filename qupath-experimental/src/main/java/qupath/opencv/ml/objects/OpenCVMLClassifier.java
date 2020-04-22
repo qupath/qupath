@@ -158,7 +158,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 				if (doMulticlass && idxProbabilities != null) {
 					// Use probabilities if we require multiclass outputs
 					long row = 0;
-					int nCols = (int)idxProbabilities.cols();
+					int nCols = (int)idxProbabilities.size(2); // Previously .cols()
 					List<String> classifications = new ArrayList<>();
 					for (var pathObject : tempObjectList) {
 						classifications.clear();

@@ -23,13 +23,13 @@
 
 package qupath.lib.objects.hierarchy;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
@@ -48,7 +48,7 @@ public class TestDefaultTMAGrid {
 	TMACoreObject myPO2 = PathObjects.createTMACoreObject(xcenter, ycenter, diameter, Boolean.TRUE);
 	TMAGrid myTMAGrid;
 	
-	@Before
+	@BeforeEach
 	public void InitCores(){
 		cores.add(myPO2); // missing core
 		for (int i=0;i<ncores-1;++i) // initialize TMAGrid with 'ncores' cores, one of them missing

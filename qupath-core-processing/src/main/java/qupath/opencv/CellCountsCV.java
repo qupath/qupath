@@ -290,7 +290,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				// Create a polygon ROI
 				points.clear();
 				IntIndexer indexerContour = contour.createIndexer();
-				for (int r = 0; r < indexerContour.rows(); r++) {
+				for (int r = 0; r < indexerContour.size(0); r++) {
 					int px = indexerContour.get(r, 0L, 0L);
 					int py = indexerContour.get(r, 0L, 1L);
 					points.add(new qupath.lib.geom.Point2((px + 0.5) * scaleX + x, (py + 0.5) * scaleY + y));

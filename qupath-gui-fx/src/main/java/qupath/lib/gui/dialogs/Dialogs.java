@@ -25,10 +25,13 @@ package qupath.lib.gui.dialogs;
 
 import java.awt.GraphicsEnvironment;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.WeakHashMap;
 
 import org.controlsfx.control.Notifications;
 import org.slf4j.Logger;
@@ -41,6 +44,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
@@ -92,16 +96,7 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showConfirmDialog(String title, String text) {
-		if (Platform.isFxApplicationThread()) {
-			Alert alert = new Alert(AlertType.CONFIRMATION);
-			alert.setTitle(title);
-			alert.setHeaderText(null);
-//			alert.setContentText(text);
-			alert.getDialogPane().setContent(createContentLabel(text));
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.isPresent() && result.get() == ButtonType.OK;
-		} else
-			return GuiTools.callOnApplicationThread(() -> showConfirmDialog(title, text));
+		return showConfirmDialog(text, createContentLabel(text));
 	}
 	
 	/**
@@ -111,38 +106,24 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showMessageDialog(final String title, final Node node) {
-		if (Platform.isFxApplicationThread()) {
-			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK);
-			alert.setTitle(title);
-			alert.getDialogPane().setContent(node);
-//			if (resizable) {
-//				// Note: there is nothing to stop the dialog being shrunk to a ridiculously small size!
-//				alert.setResizable(resizable);
-//			}
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.isPresent() && result.get() == ButtonType.OK;
-		} else {
-			return GuiTools.callOnApplicationThread(() -> showMessageDialog(title, node));
-		}
+		return new Builder()
+				.alertType(AlertType.NONE)
+				.buttons(ButtonType.OK)
+				.title(title)
+				.content(node)
+				.resizable()
+				.showAndWait()
+				.orElse(ButtonType.CANCEL) == ButtonType.OK;
 	}
 	
 	/**
 	 * Show a standard message dialog.
 	 * @param title
 	 * @param message
+	 * @return 
 	 */
 	public static boolean showMessageDialog(String title, String message) {
-		logger.info("{}: {}", title, message);
-		if (Platform.isFxApplicationThread()) {
-			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK);
-			alert.setTitle(title);
-			alert.getDialogPane().setHeader(null);
-//			alert.getDialogPane().setContentText(message);
-			alert.getDialogPane().setContent(createContentLabel(message));
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.orElse(ButtonType.CANCEL) == ButtonType.OK;
-		} else
-			return GuiTools.callOnApplicationThread(() -> showMessageDialog(title, message));
+		return showMessageDialog(title, createContentLabel(message));
 	}
 	
 	/**
@@ -152,18 +133,14 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showConfirmDialog(String title, Node node) {
-		if (Platform.isFxApplicationThread()) {
-			Alert alert = new Alert(AlertType.NONE, null, ButtonType.OK, ButtonType.CANCEL);
-			if (QuPathGUI.getInstance() != null)
-				alert.initOwner(QuPathGUI.getInstance().getStage());
-			alert.setTitle(title);
-			alert.getDialogPane().setContent(node);
-			alert.setResizable(true);
-			Optional<ButtonType> result = alert.showAndWait();
-			return result.isPresent() && result.get() == ButtonType.OK;
-		} else {
-			return GuiTools.callOnApplicationThread(() -> showConfirmDialog(title, node));
-		}
+		return new Builder()
+				.alertType(AlertType.CONFIRMATION)
+				.buttons(ButtonType.OK, ButtonType.CANCEL)
+				.title(title)
+				.content(node)
+				.resizable()
+				.showAndWait()
+				.orElse(ButtonType.NO) == ButtonType.OK;
 	}
 	
 	/**
@@ -173,18 +150,13 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showYesNoDialog(String title, String text) {
-		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> showYesNoDialog(title, text));
-		}
-		Alert alert = new Alert(AlertType.NONE);
-		if (QuPathGUI.getInstance() != null)
-			alert.initOwner(QuPathGUI.getInstance().getStage());
-		alert.getButtonTypes().addAll(ButtonType.YES, ButtonType.NO);
-		alert.setTitle(title);
-		alert.getDialogPane().setContent(createContentLabel(text));
-		Optional<ButtonType> result = alert.showAndWait();
-		boolean response = result.isPresent() && result.get() == ButtonType.YES;
-		return response;
+		return new Builder()
+			.alertType(AlertType.NONE)
+			.buttons(ButtonType.YES, ButtonType.NO)
+			.title(title)
+			.content(createContentLabel(text))
+			.showAndWait()
+			.orElse(ButtonType.NO) == ButtonType.YES;
 	}
 	
 	/**
@@ -211,20 +183,15 @@ public class Dialogs {
 	 * @return a {@link DialogButton} indicating the response (YES, NO, CANCEL)
 	 */
 	public static DialogButton showYesNoCancelDialog(String title, String text) {
-		if (!Platform.isFxApplicationThread()) {
-			return GuiTools.callOnApplicationThread(() -> showYesNoCancelDialog(title, text));
-		}
-		// TODO: Check the order of buttons in Yes, No, Cancel dialog - seems weird on OSX
-		Alert alert = new Alert(AlertType.NONE);
-		alert.getButtonTypes().addAll(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
-		alert.setTitle(title);
-//			alert.setContentText(text);
-		alert.getDialogPane().setContent(createContentLabel(text));
-		Optional<ButtonType> result = alert.showAndWait();
-		if (result.isPresent())
-			return getJavaFXPaneYesNoCancel(result.get());
-		else
-			return DialogButton.CANCEL;
+		var result = new Builder()
+				.alertType(AlertType.NONE)
+				.buttons(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL)
+				.title(title)
+				.content(createContentLabel(text))
+				.resizable()
+				.showAndWait()
+				.orElse(ButtonType.CANCEL);
+		return getJavaFXPaneYesNoCancel(result);
 	}
 	
 	
@@ -283,6 +250,8 @@ public class Dialogs {
 		if (Platform.isFxApplicationThread()) {
 			TextInputDialog dialog = new TextInputDialog(initialInput);
 			dialog.setTitle(title);
+			if (QuPathGUI.getInstance() != null)
+				dialog.initOwner(QuPathGUI.getInstance().getStage());
 			dialog.setHeaderText(null);
 			dialog.setContentText(message);
 			dialog.setResizable(true);
@@ -318,11 +287,12 @@ public class Dialogs {
 	 * @param defaultChoice initial selected option
 	 * @return chosen option, or {@code null} if the user cancels the dialog
 	 */
-	@SuppressWarnings("unchecked")
 	public static <T> T showChoiceDialog(final String title, final String message, final Collection<T> choices, final T defaultChoice) {
 		if (Platform.isFxApplicationThread()) {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
 			dialog.setTitle(title);
+			if (QuPathGUI.getInstance() != null)
+				dialog.initOwner(QuPathGUI.getInstance().getStage());
 			dialog.getDialogPane().setHeaderText(null);
 			if (message != null)
 				dialog.getDialogPane().setContentText(message);
@@ -353,10 +323,6 @@ public class Dialogs {
 	 * @param e
 	 */
 	public static void showErrorNotification(final String title, final Throwable e) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showErrorNotification(title, e));
-			return;
-		}
 		String message = e.getLocalizedMessage();
 		if (message != null && !message.isBlank() && !message.equals(title))
 			logger.error(title + ": " + e.getLocalizedMessage(), e);
@@ -364,14 +330,7 @@ public class Dialogs {
 			logger.error(title , e);
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help > Report bug'.\n\n" + e;
-		if (Platform.isFxApplicationThread()) {
-			createNotifications().title(title).text(message).showError();
-		} else {
-			String finalMessage = message;
-			Platform.runLater(() -> {
-				createNotifications().title(title).text(finalMessage).showError();
-			});
-		}
+		showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
 	}
 
 	/**
@@ -380,12 +339,8 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showErrorNotification(final String title, final String message) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showErrorNotification(title, message));
-			return;
-		}
 		logger.error(title + ": " + message);
-		createNotifications().title(title).text(message).showError();
+		showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
 	}
 
 	/**
@@ -394,12 +349,8 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showWarningNotification(final String title, final String message) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showWarningNotification(title, message));
-			return;
-		}
 		logger.warn(title + ": " + message);
-		createNotifications().title(title).text(message).showWarning();
+		showNotifications(createNotifications().title(title).text(message), AlertType.WARNING);
 	}
 
 	/**
@@ -408,12 +359,8 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showInfoNotification(final String title, final String message) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showInfoNotification(title, message));
-			return;
-		}
 		logger.info(title + ": " + message);
-		createNotifications().title(title).text(message).showInformation();
+		showNotifications(createNotifications().title(title).text(message), AlertType.INFORMATION);
 	}
 
 	/**
@@ -422,13 +369,38 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showPlainNotification(final String title, final String message) {
-		if (!Platform.isFxApplicationThread()) {
-			Platform.runLater(() -> showPlainNotification(title, message));
-			return;
-		}
 		logger.info(title + ": " + message);
-		createNotifications().title(title).text(message).show();
+		showNotifications(createNotifications().title(title).text(message), AlertType.NONE);
 	}
+	
+	/**
+	 * Show notification, making sure it is on the application thread
+	 * @param notification
+	 */
+	private static void showNotifications(Notifications notification, AlertType type) {
+		if (Platform.isFxApplicationThread()) {
+			switch (type) {
+			case CONFIRMATION:
+				notification.showConfirm();
+				break;
+			case ERROR:
+				notification.showError();
+				break;
+			case INFORMATION:
+				notification.showInformation();
+				break;
+			case WARNING:
+				notification.showWarning();
+				break;
+			case NONE:
+			default:
+				notification.show();
+				break;			
+			}
+		} else
+			Platform.runLater(() -> showNotifications(notification, type));
+	}
+	
 	
 	/**
 	 * Necessary to have owner when calling notifications (bug in controlsfx?).
@@ -454,6 +426,15 @@ public class Dialogs {
 		showErrorMessage(title, "No image is available!");
 	}
 	
+	/**
+	 * Show an error message that no project is available. This is included to help 
+	 * standardize the message throughout the software.
+	 * @param title
+	 */
+	public static void showNoProjectError(String title) {
+		showErrorMessage(title, "No project is available!");
+	}
+	
 	
 	/**
 	 * Show an error message.
@@ -461,41 +442,21 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showErrorMessage(final String title, final String message) {
-		if (!GraphicsEnvironment.isHeadless()) {
-			if (Platform.isFxApplicationThread()) {
-				Alert alert = new Alert(AlertType.ERROR);
-				alert.setTitle(title);
-				alert.getDialogPane().setHeaderText(null);
-//				alert.setContentText(message);
-				alert.getDialogPane().setContent(createContentLabel(message));
-				alert.show();
-			} else {
-				Platform.runLater(() -> showErrorMessage(title, message));
-				return;
-			}
-		}
 		logger.error(title + ": " + message);
+		showErrorMessage(title, createContentLabel(message));
 	}
 	
 	/**
 	 * Show an error message, with the content defined within a {@link Node}.
 	 * @param title
-	 * @param message
+	 * @param node
 	 */
-	public static void showErrorMessage(final String title, final Node message) {
-		if (!GraphicsEnvironment.isHeadless()) {
-			if (Platform.isFxApplicationThread()) {
-				Alert alert = new Alert(AlertType.ERROR);
-				alert.setTitle(title);
-				alert.getDialogPane().setHeaderText(null);
-				alert.getDialogPane().setContent(message);
-				alert.show();
-			} else {
-				GuiTools.runOnApplicationThread(() -> showErrorMessage(title, message));
-				return;
-			}
-		}
-		logger.error(title + ": " + message);
+	public static void showErrorMessage(final String title, final Node node) {
+		new Builder()
+			.alertType(AlertType.ERROR)
+			.title(title)
+			.content(node)
+			.show();
 	}
 
 	/**
@@ -504,20 +465,12 @@ public class Dialogs {
 	 * @param message
 	 */
 	public static void showPlainMessage(final String title, final String message) {
-		if (!GraphicsEnvironment.isHeadless()) {
-			if (Platform.isFxApplicationThread()) {
-				Alert alert = new Alert(AlertType.INFORMATION);
-				alert.getDialogPane().setHeaderText(null);
-				alert.setTitle(title);
-//				alert.setContentText(message);
-				alert.getDialogPane().setContent(createContentLabel(message));
-				alert.show();
-			} else {
-				Platform.runLater(() -> showPlainMessage(title, message));
-				return;
-			}
-		}
 		logger.info(title + ": " + message);
+		new Builder()
+			.alertType(AlertType.INFORMATION)
+			.title(title)
+			.content(createContentLabel(message))
+			.show();
 	}
 	
 	/**
@@ -552,7 +505,7 @@ public class Dialogs {
 		dialog.setScene(new Scene(textArea));
 		dialog.show();
 	}
-
+	
 	/**
 	 * Prompt to open a list of files.
 	 * 
@@ -563,7 +516,7 @@ public class Dialogs {
 	 * @return
 	 */
 	public static List<File> promptForMultipleFiles(String title, File dirBase, String filterDescription, String... exts) {
-		return QuPathGUI.getSharedDialogHelper().promptForMultipleFiles(title, dirBase, filterDescription, exts);
+		return getSharedChooser().promptForMultipleFiles(title, dirBase, filterDescription, exts);
 	}
 
 	/**
@@ -573,7 +526,7 @@ public class Dialogs {
 	 * @return selected directory, or null if no directory was selected
 	 */
 	public static File promptForDirectory(File dirBase) {
-		return QuPathGUI.getSharedDialogHelper().promptForDirectory(dirBase);
+		return getSharedChooser().promptForDirectory(dirBase);
 	}
 
 	/**
@@ -586,7 +539,7 @@ public class Dialogs {
 	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public static File promptForFile(String title, File dirBase, String filterDescription, String... exts) {
-		return QuPathGUI.getSharedDialogHelper().promptForFile(title, dirBase, filterDescription, exts);
+		return getSharedChooser().promptForFile(title, dirBase, filterDescription, exts);
 	}
 
 	/**
@@ -596,7 +549,7 @@ public class Dialogs {
 	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public static File promptForFile(File dirBase) {
-		return QuPathGUI.getSharedDialogHelper().promptForFile(dirBase);
+		return getSharedChooser().promptForFile(dirBase);
 	}
 
 	/**
@@ -606,16 +559,17 @@ public class Dialogs {
 	 * @param dirBase the base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param defaultName default file name
 	 * @param filterName description to show for the file name filter (may be null if no filter should be used)
-	 * @param ext extension that should be used for the saved file (may be null if not specified)
+	 * @param ext extension that should be used for the saved file (may be empty or null if not specified)
 	 * @return the File selected by the user, or null if the dialog was cancelled
 	 */
 	public static File promptToSaveFile(String title, File dirBase, String defaultName, String filterName, String ext) {
-		return QuPathGUI.getSharedDialogHelper().promptToSaveFile(title, dirBase, defaultName, filterName, ext);
+		return getSharedChooser().promptToSaveFile(title, dirBase, defaultName, filterName, ext);
 	}
 
 	/**
 	 * Prompt user to select a file or input a URL.
 	 * 
+	 * @param title dialog title
 	 * @param defaultPath default path to display - may be null
 	 * @param dirBase base directory to display; if null or not an existing directory, the value under getLastDirectory() should be used
 	 * @param filterDescription description to (possibly) show for the file name filter (may be null if no filter should be used)
@@ -624,8 +578,329 @@ public class Dialogs {
 	 */
 	public static String promptForFilePathOrURL(String title, String defaultPath, File dirBase, String filterDescription,
 			String... exts) {
-		return QuPathGUI.getSharedDialogHelper().promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts);
+		return getSharedChooser().promptForFilePathOrURL(title, defaultPath, dirBase, filterDescription, exts);
 	}
 	
+	private static QuPathChooser defaultFileChooser = new QuPathChooserFX(null);
+	private static Map<Window, QuPathChooser> fileChooserMap = new WeakHashMap<>();
+
+	/**
+	 * Get a {@link QuPathChooser} instance linked to a specific window.
+	 * This may both influence the display of the chooser (by setting the parent window) and the starting directory 
+	 * (by remembering the last known directory for the chooser).
+	 * @param window
+	 * @return a {@link QuPathChooser} associated with the specified window.
+	 */
+	public static QuPathChooser getChooser(Window window) {
+		if (window == null)
+			return defaultFileChooser;
+		return fileChooserMap.computeIfAbsent(window, w -> new QuPathChooserFX(w));
+	}
+
+	private static QuPathChooser getSharedChooser() {
+		var qupath = QuPathGUI.getInstance();
+		var stage = qupath == null ? null : qupath.getStage();
+		return getChooser(stage);
+	}
+	
+	/**
+	 * Create a new builder to generate a custom dialog.
+	 * @return
+	 */
+	public static Builder builder() {
+		return new Builder();
+	}
+	
+
+	/**
+	 * Builder class to create a custom {@link Dialog}.
+	 */
+	public static class Builder {
+		
+		private AlertType alertType;
+		private Window owner = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
+		private String title = "";
+		private String header = null;
+		private String contentText = null;
+		private Node expandableContent = null;
+		private Node content = null;
+		private boolean resizable = false;
+		private double width = -1;
+		private double height = -1;
+		private List<ButtonType> buttons = null;
+		private Modality modality = Modality.APPLICATION_MODAL;
+		
+		/**
+		 * Specify the dialog title.
+		 * @param title dialog title
+		 * @return this builder
+		 */
+		public Builder title(String title) {
+			this.title = title;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog header text.
+		 * This is text that is displayed prominently within the dialog.
+		 * @param header dialog header
+		 * @return this builder
+		 * @see #contentText(String)
+		 */
+		public Builder headerText(String header) {
+			this.header = header;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog content text.
+		 * This is text that is displayed within the dialog.
+		 * @param content dialog content text
+		 * @return this builder
+		 * @see #headerText(String)
+		 */
+		public Builder contentText(String content) {
+			this.contentText = content;
+			return this;
+		}
+		
+		/**
+		 * Specify a {@link Node} to display within the dialog.
+		 * @param content dialog content
+		 * @return this builder
+		 * @see #contentText(String)
+		 */
+		public Builder content(Node content) {
+			this.content = content;
+			return this;
+		}
+		
+		/**
+		 * Specify a {@link Node} to display within the dialog as expandable content, not initially visible.
+		 * @param content dialog expandable content
+		 * @return this builder
+		 * @see #content(Node)
+		 */
+		public Builder expandableContent(Node content) {
+			this.expandableContent = content;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog owner.
+		 * @param owner dialog title
+		 * @return this builder
+		 */
+		public Builder owner(Window owner) {
+			this.owner = owner;
+			return this;
+		}
+		
+		/**
+		 * Make the dialog resizable (but default it is not).
+		 * @return this builder
+		 */
+		public Builder resizable() {
+			resizable = false;
+			return this;
+		}
+
+		/**
+		 * Specify that the dialog should be non-modal.
+		 * By default, most dialogs are modal (and therefore block clicks to other windows).
+		 * @return this builder
+		 */
+		public Builder nonModal() {
+			this.modality = Modality.NONE;
+			return this;
+		}
+		
+		/**
+		 * Specify the modality of the dialog.
+		 * @param modality requested modality
+		 * @return this builder
+		 */
+		public Builder modality(Modality modality) {
+			this.modality = modality;
+			return this;
+		}
+		
+		/**
+		 * Create a dialog styled as a specified alert type.
+		 * @param type 
+		 * @return this builder
+		 */
+		public Builder alertType(AlertType type) {
+			alertType = type;
+			return this;
+		}
+		
+		/**
+		 * Create a warning alert dialog.
+		 * @return this builder
+		 */
+		public Builder warning() {
+			return alertType(AlertType.WARNING);
+		}
+		
+		/**
+		 * Create an error alert dialog.
+		 * @return this builder
+		 */
+		public Builder error() {
+			return alertType(AlertType.ERROR);
+		}
+		
+		/**
+		 * Create an information alert dialog.
+		 * @return this builder
+		 */
+		public Builder information() {
+			return alertType(AlertType.INFORMATION);
+		}
+		
+		/**
+		 * Create an confirmation alert dialog.
+		 * @return this builder
+		 */
+		public Builder confirmation() {
+			return alertType(AlertType.CONFIRMATION);
+		}
+		
+		/**
+		 * Specify the buttons to display in the dialog.
+		 * @param buttonTypes buttons to use
+		 * @return this builder
+		 */
+		public Builder buttons(ButtonType... buttonTypes) {
+			this.buttons = Arrays.asList(buttonTypes);
+			return this;
+		}
+		
+		/**
+		 * Specify the buttons to display in the dialog.
+		 * @param buttonNames names of buttons to use
+		 * @return this builder
+		 */
+		public Builder buttons(String... buttonNames) {
+			var list = new ArrayList<ButtonType>();
+			for (String name : buttonNames) {
+				ButtonType type;
+				switch (name.toLowerCase()) {
+				case "ok": type = ButtonType.OK; break;
+				case "yes": type = ButtonType.YES; break;
+				case "no": type = ButtonType.NO; break;
+				case "cancel": type = ButtonType.CANCEL; break;
+				case "apply": type = ButtonType.APPLY; break;
+				case "close": type = ButtonType.CLOSE; break;
+				case "finish": type = ButtonType.FINISH; break;
+				case "next": type = ButtonType.NEXT; break;
+				case "previous": type = ButtonType.PREVIOUS; break;
+				default: type = new ButtonType(name); break;
+				}
+				list.add(type);
+			}
+			this.buttons = list;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog width.
+		 * @param width requested width
+		 * @return this builder
+		 */
+		public Builder width(double width) {
+			this.width = width;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog height.
+		 * @param height requested height
+		 * @return this builder
+		 */
+		public Builder height(double height) {
+			this.height = height;
+			return this;
+		}
+		
+		/**
+		 * Specify the dialog height.
+		 * @param width requested width
+		 * @param height requested height
+		 * @return this builder
+		 */
+		public Builder size(double width, double height) {
+			this.width = width;
+			this.height = height;
+			return this;
+		}
+		
+		/**
+		 * Build the dialog.
+		 * @return a {@link Dialog} created with the specified features.
+		 */
+		public Dialog<ButtonType> build() {
+			Dialog<ButtonType> dialog;
+			if (alertType == null)
+				dialog = new Alert(AlertType.NONE);
+			else
+				dialog = new Alert(alertType);
+			dialog.initOwner(owner);
+			dialog.setTitle(title);
+			if (header != null)
+				dialog.setHeaderText(header);
+			else
+				// The alert type can make some rather ugly header text appear
+				dialog.setHeaderText(null);
+			if (contentText != null)
+				dialog.setContentText(contentText);
+			if (content != null)
+				dialog.getDialogPane().setContent(content);
+			if (expandableContent != null)
+				dialog.getDialogPane().setExpandableContent(expandableContent);
+			if (width > 0)
+				dialog.setWidth(width);
+			if (height > 0)
+				dialog.setHeight(height);
+			if (buttons != null)
+				dialog.getDialogPane().getButtonTypes().setAll(buttons);
+			
+			// We do need to be able to close the dialog somehow
+			if (dialog.getDialogPane().getButtonTypes().isEmpty()) {
+				dialog.getDialogPane().getScene().getWindow().setOnCloseRequest(e -> dialog.hide());
+			}
+			
+			dialog.setResizable(resizable);
+			dialog.initModality(modality);
+			return dialog;
+		}
+		
+		/**
+		 * Show the dialog.
+		 * This is similar to {@code build().show()} except that it will automatically 
+		 * be called on the JavaFX application thread even if called from another thread.
+		 */
+		public void show() {
+			if (GraphicsEnvironment.isHeadless()) {
+				logger.warn("Cannot show dialog in headless mode!");
+				return;
+			}
+			GuiTools.runOnApplicationThread(() -> build().show());
+		}
+		
+		/**
+		 * Show the dialog.
+		 * This is similar to {@code build().showAndWait()} except that it will automatically 
+		 * be called on the JavaFX application thread even if called from another thread.
+		 * Callers should be cautious that this does not result in deadlock (e.g. if called from 
+		 * the Swing Event Dispatch Thread on some platforms).
+		 * @return 
+		 */
+		public Optional<ButtonType> showAndWait() {
+			return GuiTools.callOnApplicationThread(() -> build().showAndWait());
+		}
+		
+	}
 	
 }

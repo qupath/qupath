@@ -186,6 +186,7 @@ public interface ProjectImageEntry<T> {
 	 * If the full data is not needed, but rather only the objects {@link #readHierarchy()} can be much faster.
 	 * 
 	 * @return
+	 * @throws IOException 
 	 * 
 	 * @see #readHierarchy()
 	 */
@@ -193,12 +194,15 @@ public interface ProjectImageEntry<T> {
 	
 	/**
 	 * Save the {@link ImageData} for this entry using the default storage location for the project.
+	 * @param imageData 
+	 * @throws IOException 
 	 */
 	public void saveImageData(ImageData<T> imageData) throws IOException;
 	
 	/**
 	 * Read the {@link PathObjectHierarchy} for this entry, or return an empty hierarchy if none is available.
 	 * @return
+	 * @throws IOException 
 	 * 
 	 * @see #readImageData()
 	 * @see #hasImageData()
