@@ -975,7 +975,7 @@ public class QuPathGUI {
 		
 		stage.getScene().setOnKeyReleased(e -> {
 			// It seems if using the system menubar on Mac, we can sometimes need to mop up missed keypresses
-			if (e.isConsumed() || e.getTarget() instanceof TextInputControl || !PathPrefs.useSystemMenubarProperty().get() || e.isShortcutDown()) {
+			if (e.isConsumed() || e.isShortcutDown() || !(GeneralTools.isMac() && getMenuBar().isUseSystemMenuBar()) || e.getTarget() instanceof TextInputControl) {
 				return;
 			}
 			
