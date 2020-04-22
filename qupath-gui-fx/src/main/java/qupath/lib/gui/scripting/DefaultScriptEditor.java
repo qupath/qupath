@@ -799,6 +799,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	private static class LoggerInfoWriter extends LoggerWriter {
 
+		@Override
 		protected void log(String s) {
 			logger.info(s);
 		}
@@ -806,6 +807,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	private static class LoggerErrorWriter extends LoggerWriter {
 
+		@Override
 		protected void log(String s) {
 			logger.error(s);
 		}
@@ -1258,11 +1260,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		ScriptTab tab = getCurrentScriptTab();
 		if (tab == null || tab.getEditorComponent().getText().trim().length() == 0) {
-			Dialogs.showNoProjectError("Script editor");
+			Dialogs.showErrorMessage("Script editor", "No script selected!");
 			return;
 		}
 		if (tab.getLanguage() == null) {
-			Dialogs.showNoProjectError("Script editor");
+			Dialogs.showErrorMessage("Script editor", "Scripting language is unknown!");
 			return;			
 		}
 		

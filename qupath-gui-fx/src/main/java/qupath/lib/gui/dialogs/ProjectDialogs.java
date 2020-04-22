@@ -13,18 +13,20 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
-import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
@@ -58,30 +60,7 @@ public class ProjectDialogs {
 			listSelectionView.getSourceItems().removeAll(previousImages);
 			listSelectionView.getTargetItems().addAll(previousImages);
 		}
-		listSelectionView.setCellFactory(new Callback<ListView<ProjectImageEntry<BufferedImage>>, 
-	            ListCell<ProjectImageEntry<BufferedImage>>>() {
-            @Override 
-            public ListCell<ProjectImageEntry<BufferedImage>> call(ListView<ProjectImageEntry<BufferedImage>> list) {
-                return new ListCell<ProjectImageEntry<BufferedImage>>() {
-                	private Tooltip tooltip = new Tooltip();
-                	@Override
-            		protected void updateItem(ProjectImageEntry<BufferedImage> item, boolean empty) {
-                		super.updateItem(item, empty);
-                		if (item == null || empty) {
-                			setText(null);
-                			setGraphic(null);
-                			setTooltip(null);
-                			return;
-                		}
-                		setText(item.getImageName());
-                		setGraphic(null);
-                		tooltip.setText(item.toString());
-            			setTooltip(tooltip);
-                	}
-                };
-            }
-        }
-    );
+		listSelectionView.setCellFactory(c -> new ProjectEntryListCell());
 		
 		// Add a filter text field
 		TextField tfFilter = new TextField();
@@ -162,6 +141,51 @@ public class ProjectDialogs {
 		
 		return listSelectionView;
 	}
+	
+	
+	private static class ProjectEntryListCell extends ListCell<ProjectImageEntry<BufferedImage>> {
+		
+		private Tooltip tooltip = new Tooltip();
+		private ImageView imageView = new ImageView();
+	
+		private ProjectEntryListCell() {
+			super();
+			imageView.setFitWidth(250);
+			imageView.setFitHeight(250);
+			imageView.setPreserveRatio(true);
+		}
+	
+		@Override
+		protected void updateItem(ProjectImageEntry<BufferedImage> item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty) {
+				setText(null);
+				setGraphic(null);
+				setTooltip(null);
+				return;
+			}
+			setText(item.getImageName());
+			
+			Node tooltipGraphic = null;
+			BufferedImage img = null;
+			try {
+				img = (BufferedImage)item.getThumbnail();
+				if (img != null) {
+					imageView.setImage(SwingFXUtils.toFXImage(img, null));
+					tooltipGraphic = imageView;
+				}
+			} catch (Exception e) {
+				logger.debug("Unable to read thumbnail for {} ({})" + item.getImageName(), e.getLocalizedMessage());
+			}
+			tooltip.setText(item.getSummary());
+			if (tooltipGraphic != null)
+				tooltip.setGraphic(tooltipGraphic);
+			else
+				tooltip.setGraphic(null);
+			setTooltip(tooltip);
+		}
+	}
+	
 	
 	/**
 	 * We should just be able to call {@link ListSelectionView#getTargetItems()}, but in ControlsFX 11 there 
