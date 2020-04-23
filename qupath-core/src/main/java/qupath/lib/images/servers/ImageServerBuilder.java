@@ -321,16 +321,23 @@ public interface ImageServerBuilder<T> {
 
 		@Override
 		protected ImageServer<T> buildOriginal() throws Exception {
+			boolean failedWithRequestedProvider = false;
 			for (ImageServerBuilder<?> provider : ImageServerProvider.getInstalledImageServerBuilders()) {
 				if (provider.getClass().getName().equals(providerClassName)) {
 					ImageServer<T> server = (ImageServer<T>)provider.buildServer(uri, args);
 					if (server != null)
 						return server;
+					else
+						failedWithRequestedProvider = true;
 				}
 			}
 			String msg = "Unable to build ImageServer for " + uri + " (args=" + Arrays.asList(args) + ")";
-			if (providerClassName != null)
-				msg = msg + ". I can't find " + providerClassName;
+			if (providerClassName != null) {
+				if (!failedWithRequestedProvider)
+					msg += " - I couldn't find " + providerClassName;
+				else
+					msg += " with requested provider " + providerClassName;
+			}
 			throw new IOException(msg);
 		}
 		

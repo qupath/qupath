@@ -70,6 +70,7 @@ import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.PathIO;
@@ -117,6 +118,8 @@ public class QPEx extends QP {
 			Charts.class,
 			MenuTools.class,
 			PaneTools.class,
+			
+			LabeledImageServer.class,
 			
 			LogManager.class,
 			

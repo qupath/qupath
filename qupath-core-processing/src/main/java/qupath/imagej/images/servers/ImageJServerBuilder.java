@@ -71,6 +71,12 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 		if (type.isURL())
 			return 0;
 		
+		// Check if the image is too large
+		long width = type.getLargestImageWidth();
+		long height = type.getLargestImageHeight();
+		if (width > 0 && height > 0 && width * height >= Integer.MAX_VALUE)
+			return 0;
+		
 		return 1;
 	}
 	

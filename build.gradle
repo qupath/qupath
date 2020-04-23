@@ -264,6 +264,7 @@ allprojects {
 
     groovy "org.codehaus.groovy:groovy:${groovyVersion}"
     groovy "org.codehaus.groovy:groovy-jsr223:${groovyVersion}"
+    groovy "org.codehaus.groovy:groovy-xml:${groovyVersion}"
 
     for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
       javafx "org.openjfx:${fx}:${jfxVersion}"

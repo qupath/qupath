@@ -2,24 +2,33 @@ package qupath.lib.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import javax.imageio.ImageIO;
+
+import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.concurrent.Task;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.io.GsonTools;
+import qupath.lib.io.PathIO;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
@@ -56,7 +65,7 @@ public class ProjectCommands {
 	 * @return a list of project entries for all images that were successfully added to the project
 	 */
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
-		return ProjectImportImagesCommand.promptToImportImages(qupath);
+		return ProjectImportImagesCommand.promptToImportImages(qupath, defaultPaths);
 	}
 	
 	/**
@@ -158,4 +167,179 @@ public class ProjectCommands {
 		
 	}
 
+	
+	/**
+	 * Prompt the user to select a legacy project file, and then import the images into 
+	 * the current project.
+	 * <p>
+	 * In this case 'legacy' means QuPath v0.1.2 or earlier.
+	 * Such projects contain a "data" subdirectory, containing data files in the form "name.qpdata".
+	 * <p>
+	 * Note that the paths to the images need to be correct, because it is necessary to 
+	 * open each image during import.
+	 * 
+	 * @param qupath the current instance of QuPath
+	 * @return true if changes were made to the current project, false otherwise
+	 */
+	public static boolean promptToImportLegacyProject(QuPathGUI qupath) {
+		var project = qupath.getProject();
+		String title = "Import legacy project";
+		if (project == null) {
+			Dialogs.showNoProjectError(title);
+			return false;
+		}
+		
+		// Prompt for the old project
+		var file = Dialogs.promptForFile(title, null, "Project (v0.1.2)", ".qpproj");
+		if (file == null)
+		    return false;
+		
+		
+		// Read the entries
+		LegacyProject oldProject;
+		try (var reader = new FileReader(file)) {
+			oldProject = GsonTools.getInstance().fromJson(reader, LegacyProject.class);			
+		} catch (IOException e) {
+			logger.error("Error reading file: " + e.getLocalizedMessage(), e);
+			return false;
+		}
+		if (oldProject.getEntries().isEmpty()) {
+			logger.warn("No images found in project {}", file.getAbsolutePath());
+			return false;
+		}
+		
+		var dirData = new File(file.getParent(), "data");
+		if (!dirData.exists()) {
+		    Dialogs.showErrorMessage(title, "No data directory found for the legacy project!");
+		    return false;
+		}
+		
+		var task = new LegacyProjectTask(project, oldProject.getEntries(), file.getParentFile());
+		int nImages = oldProject.getEntries().size();
+		var dialog = new ProgressDialog(task);
+		dialog.setTitle(title);
+		if (nImages == 1)
+			dialog.setContentText("Importing 1 image...");
+		else
+			dialog.setContentText("Importing " + nImages + " images...");
+
+		qupath.submitShortTask(task);
+		dialog.showAndWait();
+		Integer nCompleted = task.getValue();
+		if (nCompleted == null)
+			nCompleted = 0;
+		if (nCompleted < nImages)
+			Dialogs.showWarningNotification(title, nCompleted + "/" + nImages + " imported successfully");
+		
+		try {
+			project.syncChanges();
+		} catch (Exception e) {
+			logger.error("Error syncing project: " + e.getLocalizedMessage(), e);
+		}
+		qupath.refreshProject();
+		return true;
+	}
+	
+	
+	
+	private static class LegacyProjectTask extends Task<Integer> {
+		
+		private Project<BufferedImage> project;
+		
+		private File dirLegacy;
+		private List<LegacyProjectEntry> legacyEntries;
+		
+		LegacyProjectTask(Project<BufferedImage> project, List<LegacyProjectEntry> legacyEntries, File dirLegacy) {
+			this.project = project;
+			this.legacyEntries = legacyEntries;
+			this.dirLegacy = dirLegacy;
+		}
+
+		@Override
+		protected Integer call() throws Exception {
+			var dirThumbnails = new File(dirLegacy, "thumbnails");
+			var dirData = new File(dirLegacy, "data");
+			int count = 0;
+			int max = legacyEntries.size();
+			List<LegacyProjectEntry> failed = new ArrayList<>();
+			for (var oldEntry : legacyEntries) {
+			    try {
+			        // Check for a data file
+			        var name = oldEntry.getName();
+			        var fileData = new File(dirData, name + ".qpdata");
+			        var split = oldEntry.getPath().split("::");
+			        String path = split[0];
+			        ImageServer<BufferedImage> server;
+			        if (split.length > 1)
+			        	server = ImageServerProvider.buildServer(path, BufferedImage.class, "--name", split[1]);
+			        else
+			        	server = ImageServerProvider.buildServer(path, BufferedImage.class);
+			        var entry = project.addImage(server.getBuilder());
+			        entry.setImageName(name);
+			        // Save the data if needed
+			        if (fileData.exists()) {
+			            logger.debug("Reading image data found for {}", name);
+			            var imageData = PathIO.readImageData(fileData, null, server, BufferedImage.class);
+			            entry.saveImageData(imageData);
+			        } else {
+			            logger.warn("No image data found for {}", name);
+			        }
+			        // Read or generate a thumbnail
+			        var fileThumbnail = new File(dirThumbnails, "thumbnails");
+			        BufferedImage imgThumbnail = null;
+			        if (fileThumbnail.exists())
+			            imgThumbnail = ImageIO.read(fileThumbnail);
+			        if (imgThumbnail == null)
+			            imgThumbnail = ProjectCommands.getThumbnailRGB(server);
+			        entry.setThumbnail(imgThumbnail);
+			        count++;
+			    } catch (Exception e) {
+			    	failed.add(oldEntry);
+			        logger.error("Error adding entry: {}", e.getLocalizedMessage());
+			    } finally {
+			        updateProgress(count, max);
+			    }
+			}
+			if (!failed.isEmpty()) {
+				logger.error("Unable to import the following image(s):\n  {}", 
+						failed.stream().map(LegacyProjectEntry::toString).collect(Collectors.joining("\n  "))
+						);
+			}
+			return count;
+		}
+		
+	}
+	
+	
+	private static class LegacyProject {
+
+		private List<LegacyProjectEntry> images;
+	    
+	    List<LegacyProjectEntry> getEntries() {
+	    	return images;
+	    }
+
+	}
+
+
+	private class LegacyProjectEntry {
+
+	    private String path;
+	    private String name;
+	    
+	    String getPath() {
+	    	return path;
+	    }
+	    
+	    String getName() {
+	    	return name;
+	    }
+	    
+	    @Override
+	    public String toString() {
+	    	return name + " (" + path + ")";
+	    }
+
+	}
+	
 }

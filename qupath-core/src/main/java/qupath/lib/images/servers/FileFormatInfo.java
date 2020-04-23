@@ -143,6 +143,18 @@ public class FileFormatInfo {
 		 * @return
 		 */
 		public boolean isNotRGB();
+		
+		/**
+		 * Get the width of the largest image, if known.
+		 * @return the width of the largest image, or -1 if this is not known
+		 */
+		public long getLargestImageWidth();
+
+		/**
+		 * Get the height of the largest image, if known.
+		 * @return the height of the largest image, or -1 if this is not known
+		 */
+		public long getLargestImageHeight();
 
 	}
 	
@@ -161,6 +173,9 @@ public class FileFormatInfo {
 		private int nImages = -1;
 		private int nImagesLargest = -1;
 		private String description;
+		
+		private long largestImageWidth = -1;
+		private long largestImageHeight = -1;
 		
 		DefaultFormatInfo(URI uri) {
 			String scheme = uri.getScheme();
@@ -225,13 +240,17 @@ public class FileFormatInfo {
 							long maxNumPixels = 0L;
 							boolean largestMaybeRGB = false;
 							while (i < nTestImages) {
-								long nPixels = (long)reader.getWidth(i) * (long)reader.getHeight(i);
+								long width = reader.getWidth(i);
+								long height = reader.getHeight(i);
+								long nPixels = width * height;
 								ImageTypeSpecifier specifier = reader.getRawImageType(i);
 								if (nPixels > maxNumPixels) {
 									maxNumPixels = nPixels;
 									largestCount = 1;
 									largestMaybeRGB = maybeRGB(specifier);
-								} else if (nPixels == maxNumPixels) {
+									largestImageWidth = width;
+									largestImageHeight = height;
+								} else if (width == largestImageWidth && height == largestImageHeight) {
 									largestCount++;
 									largestMaybeRGB = largestMaybeRGB && maybeRGB(specifier);
 								}
@@ -292,6 +311,16 @@ public class FileFormatInfo {
 			return notRGB;
 		}
 		
+		@Override
+		public long getLargestImageWidth() {
+			return largestImageWidth;
+		}
+
+		@Override
+		public long getLargestImageHeight() {
+			return largestImageHeight;
+		}
+
 		@Override
 		public String toString() {
 			return "DefaultFormatInfo [isURL=" + isURL + ", file=" + file + ", isTiff=" + isTiff + ", isBigTiff="

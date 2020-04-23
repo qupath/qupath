@@ -288,7 +288,7 @@ class Menus {
 				"You can also add images by dragging files onto the main QuPath window.")
 		@ActionMenu("Project...>Add images")
 		public final Action IMPORT_IMAGES = qupath.createProjectAction(project -> ProjectCommands.promptToImportImages(qupath));
-		
+
 		@ActionDescription("Export a list of the image paths for images in the current project.")
 		@ActionMenu("Project...>Export image list")
 		public final Action EXPORT_IMAGE_LIST = qupath.createProjectAction(project -> ProjectCommands.promptToExportImageList(project));	
@@ -311,6 +311,17 @@ class Menus {
 				Dialogs.showErrorMessage("Check project URIs", e);
 			}
 		});
+		
+		@ActionMenu("Project...>")
+		public final Action SEP_22= ActionTools.createSeparator();
+		
+		@ActionDescription("Import images from a legacy project (QuPath v0.1.2 or earlier)." +
+				"\n\nNote that it is generally a bad idea to mix versions of QuPath for analysis, "
+				+ "but this can be helpful to recover old data and annotations."
+				+ "\n\nThe original images will need to be available, with the paths set correctly in the project file.")
+		@ActionMenu("Project...>Import images from v0.1.2")
+		public final Action IMPORT_IMAGES_LEGACY = qupath.createProjectAction(project -> ProjectCommands.promptToImportLegacyProject(qupath));
+
 
 		public final Action SEP_3 = ActionTools.createSeparator();
 
@@ -339,12 +350,12 @@ class Menus {
 		@ActionDescription("Save a .qpdata file for this image, specifying the file path. " +
 				"Warning! It is usually much better to use projects instead, and allow QuPath to decide where to store your data files.")
 		@ActionMenu("Save As")
-		@ActionAccelerator("shortcut+s")
+		@ActionAccelerator("shortcut+shift+s")
 		public final Action SAVE_DATA_AS = qupath.createImageDataAction(imageData -> Commands.promptToSaveImageData(qupath, imageData, false));
 
 		@ActionDescription("Save a .qpdata file for this image. This command is best used within projects, where QuPath will choose the location to save the file.")
 		@ActionMenu("Save")
-		@ActionAccelerator("shortcut+shift+s")
+		@ActionAccelerator("shortcut+s")
 		public final Action SAVE_DATA = qupath.createImageDataAction(imageData -> Commands.promptToSaveImageData(qupath, imageData, true));
 		
 		public final Action SEP_5 = ActionTools.createSeparator();

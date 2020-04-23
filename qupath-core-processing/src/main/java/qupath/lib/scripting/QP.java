@@ -67,6 +67,7 @@ import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
@@ -1060,6 +1061,34 @@ public class QP {
 	public static void createSelectAllObject(final boolean setSelected) {
 		createSelectAllObject(setSelected, 0, 0);
 	}
+
+	/**
+	 * Build an {@link ImageServer} with the class {@link BufferedImage}.
+	 * 
+	 * @param path image path (usually a file path or URI)
+	 * @param args optional arguments
+	 * @param cls generic type for the server (usually BufferedImage)
+	 * @return an {@link ImageServer}, if one could be build from the supplied arguments
+	 * 
+	 * @throws IOException if unable to build the server
+	 */
+	public static <T> ImageServer<T> buildServer(String path, Class<T> cls, String... args) throws IOException {
+		return ImageServerProvider.buildServer(path, cls, args);
+	}
+	
+	/**
+	 * Build an {@link ImageServer} with the class {@link BufferedImage}.
+	 * 
+	 * @param path image path (usually a file path or URI)
+	 * @param args optional arguments
+	 * @return an {@link ImageServer}, if one could be build from the supplied arguments
+	 * 
+	 * @throws IOException if unable to build the server
+	 */
+	public static ImageServer<BufferedImage> buildServer(String path, String... args) throws IOException {
+		return buildServer(path, BufferedImage.class, args);
+	}
+	
 	
 	/**
 	 * Create an annotation for the entire width and height of the current image data, on the default plane (z-slice, time point).

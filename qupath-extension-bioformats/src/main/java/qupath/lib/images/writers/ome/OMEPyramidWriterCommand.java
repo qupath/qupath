@@ -40,7 +40,7 @@ import qupath.lib.regions.RegionRequest;
  *
  */
 public class OMEPyramidWriterCommand implements Runnable {
-	
+
 	private final static Logger logger = LoggerFactory.getLogger(OMEPyramidWriterCommand.class);
 	
 	private static ObjectProperty<CompressionType> defaultPyramidCompression = PathPrefs.createPersistentPreference(
@@ -117,6 +117,9 @@ public class OMEPyramidWriterCommand implements Runnable {
 		}
 		
 		QuPathViewer viewer = qupath.getViewer();
+		int zPos = viewer.getZPosition();
+		int tPos = viewer.getTPosition();
+		
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		if (imageData == null) {
 			Dialogs.showNoImageError("OME Pyramid writer");
@@ -190,9 +193,14 @@ public class OMEPyramidWriterCommand implements Runnable {
 		}
 
 		OMEPyramidWriter.Builder builder = new OMEPyramidWriter.Builder(server);
-		if (region != null)
+		if (region != null) {
 			builder = builder.region(region);
-		
+		} else {
+			if (server.nZSlices() > 1 && !doAllZ)
+				builder.zSlice(zPos);
+			if (server.nTimepoints() > 1 && !doAllT)
+				builder.timePoint(tPos);
+		}
 		
 		builder.compression(compression);
 		

@@ -23,10 +23,13 @@
 
 package qupath.lib.gui.tools;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -176,7 +179,7 @@ public class CommandFinderTools {
 		textField.textProperty().addListener((v, o, n) -> {
 			// Ensure the table is up to date if we are just starting
 			if (o.isEmpty() && !n.isEmpty())
-				menuManager.refresh();
+				menuManager.refresh(true);
 			
 			if (n.trim().isEmpty())
 				popup.hide();
@@ -252,7 +255,7 @@ public class CommandFinderTools {
 	public static Stage createCommandFinderDialog(final QuPathGUI qupath) {
 		// TODO: Explore updating this with the action list changes
 		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
-		menuManager.refresh();
+		menuManager.refresh(true);
 		
 		Stage stage = new Stage();
 		stage.initOwner(qupath.getStage());
@@ -287,7 +290,7 @@ public class CommandFinderTools {
 		textField.textProperty().addListener((v, o, n) -> {
 			// Ensure the table is up to date if we are just starting
 			if (o.isEmpty() && !n.isEmpty())
-				menuManager.refresh();
+				menuManager.refresh(true);
 		});
 
 		table.setOnMouseClicked(e -> {
@@ -301,6 +304,90 @@ public class CommandFinderTools {
 		});
 
 		return stage;
+	}
+	
+	
+	
+//	public static void menusToMarkdown(final QuPathGUI qupath, Writer writer) throws IOException {
+//		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
+//		menuManager.refresh(false);
+//		PrintWriter printWriter = toPrintWriter(writer);
+//		for (var item : menuManager.getCommands()) {
+//			toMarkdown(item, printWriter);
+//		}
+//		printWriter.flush();
+//	}
+	
+	/**
+	 * Create a Sphinx representation of the menus for inclusion in the documenation.
+	 * @param qupath
+	 * @param writer
+	 * @throws IOException
+	 */
+	public static void menusToSphinx(final QuPathGUI qupath, Writer writer) throws IOException {
+		MenuManager menuManager = new MenuManager(qupath.getMenuBar());
+		menuManager.refresh(false);
+		PrintWriter printWriter = toPrintWriter(writer);
+		String lastMenu = null;
+		for (var item : menuManager.getCommands()) {
+			String menuPath = item.getMenuPath();
+			if (menuPath != null) {
+				String menu = menuPath.split("\u2192")[0].strip();
+				if (!Objects.equals(menu, lastMenu)) {
+					underlineHeader(menu, "=", printWriter);
+					printWriter.println();
+					lastMenu = menu;
+				}
+			}
+			toSphinx(item, printWriter);
+		}
+		printWriter.flush();
+	}
+
+	static PrintWriter toPrintWriter(Writer writer) {
+		return writer instanceof PrintWriter ? (PrintWriter)writer : new PrintWriter(writer);
+	}
+	
+	
+//	static void toMarkdown(CommandEntry entry, PrintWriter writer) {
+//		throw new NotImplementedException();
+//	}
+	
+	static void underlineHeader(String text, String character, PrintWriter writer) {
+		writer.println(text);
+		for (int i = 0; i < text.length(); i++)
+			writer.print(character);
+		writer.println();
+	}
+	
+	static void toSphinx(CommandEntry entry, PrintWriter writer) {
+		
+		String title = entry.getText();
+		underlineHeader(title, "-", writer);
+
+		String subtitle = entry.getCommandPath();
+		writer.print("*" + subtitle + "*");
+		String accelerator = entry.getAcceleratorText();
+		if (worthwhile(accelerator)) {
+			writer.print(String.format("  - :kbd:`%s`", cleanAccelerator(accelerator)));
+		}
+		writer.println();
+		writer.println();
+		
+		String description = entry.getLongText();
+		if (worthwhile(description))
+			writer.println("" + description);
+
+		writer.println();		
+	}
+	
+	
+	static boolean worthwhile(String s) {
+		return s != null && !s.isBlank();
+	}
+	
+	static String cleanAccelerator(String accelerator) {
+		return accelerator.replace("shortcut", "Ctrl").replace("shift", "Shift").replace("alt", "Alt");
 	}
 	
 	
@@ -530,21 +617,17 @@ public class CommandFinderTools {
 			this.menubar = menubar;
 		}
 	
-		private void refresh() {
+		private void refresh(boolean doSort) {
 			// Create sorted command entry list
 			List<CommandEntry> commandsTemp = new ArrayList<>();
 			for (Menu menu : menubar.getMenus()) {
 				addMenuComponents(menu, menu.getText(), commandsTemp);
 			}
-			Collections.sort(commandsTemp, new Comparator<CommandEntry>() {
-				@Override
-				public int compare(CommandEntry o1, CommandEntry o2) {
-					return o1.getText().compareTo(o2.getText());
-				}
-			});
+			if (doSort)
+				commandsTemp.sort(Comparator.comparing(CommandEntry::getText));
 			commandsBase.setAll(commandsTemp);
 		}
-		
+				
 		public ObservableList<CommandEntry> getCommands() {
 			return commandsBase;
 		}
@@ -621,7 +704,7 @@ public class CommandFinderTools {
 		 * @return
 		 */
 		public String getCommandPath() {
-			return menuPath + getText();
+			return getMenuPath() + " \u2192 " + getText();
 		}
 		
 		/**
@@ -645,7 +728,7 @@ public class CommandFinderTools {
 		 * Get a String representation of any accelerator for the command
 		 * @return
 		 */
-		public String getAccleratorText() {
+		public String getAcceleratorText() {
 			return acceleratorTextProperty().get();
 		}
 		
@@ -658,7 +741,7 @@ public class CommandFinderTools {
 		}
 		
 		/**
-		 * Property corresponding to {@link #getAccleratorText()}
+		 * Property corresponding to {@link #getAcceleratorText()}
 		 * @return
 		 */
 		public ReadOnlyStringProperty acceleratorTextProperty() {
