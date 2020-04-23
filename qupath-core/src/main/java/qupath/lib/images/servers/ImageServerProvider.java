@@ -146,6 +146,9 @@ public class ImageServerProvider {
 					uriTemp = new URI(uriTemp.getScheme(), uriTemp.getAuthority(), uriTemp.getPath(), "name="+seriesName, null);
 				}
 			}
+			if ("file".equals(uriTemp.getScheme()) && !new File(uriTemp).exists()) {
+				throw new IOException(uriTemp.toString() + " does not exist!");
+			}
 		} catch (URISyntaxException e) {
 			throw new IOException(e.getLocalizedMessage());
 		}
