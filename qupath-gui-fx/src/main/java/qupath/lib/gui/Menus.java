@@ -318,7 +318,7 @@ class Menus {
 		@ActionDescription("Import images from a legacy project (QuPath v0.1.2 or earlier)." +
 				"\n\nNote that it is generally a bad idea to mix versions of QuPath for analysis, "
 				+ "but this can be helpful to recover old data and annotations."
-				+ "\n\nNote that the original images will need to be available, with the paths set correctly in the project file.")
+				+ "\n\nThe original images will need to be available, with the paths set correctly in the project file.")
 		@ActionMenu("Project...>Import images from v0.1.2")
 		public final Action IMPORT_IMAGES_LEGACY = qupath.createProjectAction(project -> ProjectCommands.promptToImportLegacyProject(qupath));
 
