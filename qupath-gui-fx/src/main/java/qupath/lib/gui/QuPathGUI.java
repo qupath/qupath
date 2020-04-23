@@ -39,6 +39,8 @@ import java.io.ObjectOutputStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -1460,8 +1462,19 @@ public class QuPathGUI {
 					loadedExtensions.put(extension.getClass(), extension);
 					if (showNotification)
 						Dialogs.showInfoNotification("Extension loaded",  extension.getName());
-				} catch (Exception e) {
-					logger.error("Error loading extension " + extension, e);
+				} catch (Exception | LinkageError e) {
+					if (showNotification)
+						Dialogs.showErrorNotification("Extension error", "Unable to load " + extension.getName());
+					logger.error("Error loading extension " + extension + ": " + e.getLocalizedMessage(), e);
+					try {
+						logger.error("It is recommended that you delete {} and restart QuPath",
+								URLDecoder.decode(
+										extension.getClass().getProtectionDomain().getCodeSource().getLocation().toExternalForm(),
+										StandardCharsets.UTF_8));
+					} catch (Exception e2) {
+						logger.debug("Error finding code source " + e2.getLocalizedMessage(), e2);
+					}
+					defaultActions.SHOW_LOG.handle(null);
 				}
 			}
 		}
