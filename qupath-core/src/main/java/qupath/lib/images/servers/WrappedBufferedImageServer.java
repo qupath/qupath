@@ -36,9 +36,9 @@ import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 
 /**
- * Implementation of an ImageServer that simply wraps an existing BufferedImage.
+ * Implementation of an {@link ImageServer} that simply wraps an existing {@link BufferedImage}.
  * <p>
- * This may help whenever requiring
+ * This may help whenever requiring a server, but only having a {@link BufferedImage}.
  * 
  * @author Pete Bankhead
  *
