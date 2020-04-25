@@ -23,6 +23,14 @@ public class Padding {
 	public int getY2() {
 		return y2;
 	}
+	
+	@Override
+	public String toString() {
+		return String.format(
+				"Padding (x=[%d, %d], y=[%d, %d])",
+				getX1(), getX2(), getY1(), getY2()
+				);
+	}
 
 	public int getYSum() {
 		return getY1() + getY2();
@@ -67,6 +75,8 @@ public class Padding {
 		this.x2 = x2;
 		this.y1 = y1;
 		this.y2 = y2;
+		if (x1 < 0 || x2 < 0 || y1 < 0 || y2 < 0)
+			throw new IllegalArgumentException("Padding must be >= 0! Requested " + toString());
 	}
 	
 	private Padding(int pad) {

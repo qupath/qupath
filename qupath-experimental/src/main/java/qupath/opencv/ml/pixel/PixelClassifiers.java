@@ -20,6 +20,8 @@ import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
 import qupath.opencv.ml.pixel.features.FeatureCalculators;
+import qupath.opencv.processor.Transformer;
+import qupath.opencv.processor.Transformers.ImageDataTransformer;
 
 /**
  * Static methods and classes for working with pixel classifiers.
@@ -88,29 +90,37 @@ public class PixelClassifiers {
 			GsonTools.getInstance(true).toJson(classifier, writer);
 		}
 	}
-
-	/**
-	 * Create a PixelClassifier that applies a threshold to a single image channel at a specified resolution.
-	 * 
-	 * @param transform transform to apply to input pixels
-	 * @param inputResolution resolution at which to apply the threshold
-	 * @param thresholder thresholder used to determine classifications
-	 * @return
-	 */
-	public static PixelClassifier createThresholdingClassifier(
-			ColorTransform transform,
-			PixelCalibration inputResolution,
-			ThresholdClassifier thresholder) {
-		return createThresholdingClassifier(
-				FeatureCalculators.createColorTransformFeatureCalculator(transform),
-				inputResolution, thresholder);
-	}
+	
 	
 	public static PixelClassifier createThresholdingClassifier(
-			FeatureCalculator<BufferedImage> featureCalculator,
+			ImageDataTransformer transformer,
 			PixelCalibration inputResolution,
 			ThresholdClassifier thresholder) {
-		return new SimplePixelClassifier(featureCalculator, inputResolution, thresholder);
+		return new SimplePixelClassifier(transformer, inputResolution, thresholder);
 	}
+
+//	/**
+//	 * Create a PixelClassifier that applies a threshold to a single image channel at a specified resolution.
+//	 * 
+//	 * @param transform transform to apply to input pixels
+//	 * @param inputResolution resolution at which to apply the threshold
+//	 * @param thresholder thresholder used to determine classifications
+//	 * @return
+//	 */
+//	public static PixelClassifier createThresholdingClassifier(
+//			ColorTransform transform,
+//			PixelCalibration inputResolution,
+//			ThresholdClassifier thresholder) {
+//		return createThresholdingClassifier(
+//				FeatureCalculators.createColorTransformFeatureCalculator(transform),
+//				inputResolution, thresholder);
+//	}
+//	
+//	public static PixelClassifier createThresholdingClassifier(
+//			FeatureCalculator<BufferedImage> featureCalculator,
+//			PixelCalibration inputResolution,
+//			ThresholdClassifier thresholder) {
+//		return new SimplePixelClassifier(featureCalculator, inputResolution, thresholder);
+//	}
 
 }

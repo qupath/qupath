@@ -10,6 +10,10 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+
 /**
  * Color transforms that may be used to extract single-channel images from BufferedImages.
  * These are JSON-serializable, and therefore can be used with pixel classifiers.
@@ -115,6 +119,16 @@ public class ColorTransforms {
 	}
 	
 	/**
+	 * Create a ColorTransform that applies color deconvolution.
+	 * @param stains the stains (this will be 'fixed', and not adapted for each image)
+	 * @param stainNumber number of the stain (1, 2 or 3)
+	 * @return
+	 */
+	public static ColorTransform createColorDeconvolvedChannel(ColorDeconvolutionStains stains, int stainNumber) {
+		return new ColorDeconvolvedChannel(stains, stainNumber);
+	}
+	
+	/**
 	 * Create a ColorTransform that calculates the maximum of all channels.
 	 * @return
 	 */
@@ -140,6 +154,54 @@ public class ColorTransforms {
 			return new float[n];
 		return pixels;
 	}
+	
+	
+	static class ColorDeconvolvedChannel implements ColorTransform {
+		
+		private ColorDeconvolutionStains stains;
+		private int stainNumber;
+		private transient ColorTransformMethod method;
+		
+		ColorDeconvolvedChannel(ColorDeconvolutionStains stains, int stainNumber) {
+			this.stains = stains;
+			this.stainNumber = stainNumber;
+		}
+
+		@Override
+		public float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels) {
+			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			return ColorTransformer.getTransformedPixels(rgb, getMethod(), pixels, stains);
+		}
+		
+		private ColorTransformMethod getMethod() {
+			if (method == null) {
+				switch (stainNumber) {
+				case 1: return ColorTransformMethod.Stain_1;
+				case 2: return ColorTransformMethod.Stain_2;
+				case 3: return ColorTransformMethod.Stain_3;
+				default: throw new IllegalArgumentException("Stain number is " + stainNumber + ", but must be between 1 and 3!");
+				}
+			}
+			return method;
+		}
+
+		@Override
+		public boolean supportsImage(ImageServer<BufferedImage> server) {
+			return server.isRGB() && server.getPixelType() == PixelType.UINT8;
+		}
+
+		@Override
+		public String getName() {
+			return stains.getStain(stainNumber).getName();
+		}
+		
+		@Override
+		public String toString() {
+			return getName();
+		}
+		
+	}
+	
 	
 	static class ExtractChannel implements ColorTransform {
 		

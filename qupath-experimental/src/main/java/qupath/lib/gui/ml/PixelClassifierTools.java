@@ -26,6 +26,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.processor.Padding;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
@@ -182,19 +183,24 @@ public class PixelClassifierTools {
 	 * @return
 	 * @throws IOException 
 	 */
-	public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, int padding) throws IOException {
+    public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, int padding) throws IOException {
+    	// If padding < 0, throw an exception
+    	if (padding < 0)
+    		new IllegalArgumentException("Padding must be >= 0, but here it is " + padding);
+		return getPaddedRequest(server, request, Padding.symmetric(padding));
+	}
+    
+    
+	public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, Padding padding) throws IOException {
 		// If we don't have any padding, just return directly
-		if (padding == 0)
+		if (padding.isEmpty())
 			return server.readBufferedImage(request);
-		// If padding < 0, throw an exception
-		if (padding < 0)
-			new IllegalArgumentException("Padding must be >= 0, but here it is " + padding);
 		// Get the expected bounds
 		double downsample = request.getDownsample();
-		int x = (int)Math.round(request.getX() - padding * downsample);
-		int y = (int)Math.round(request.getY() - padding * downsample);
-		int x2 = (int)Math.round((request.getX() + request.getWidth()) + padding * downsample);
-		int y2 = (int)Math.round((request.getY() + request.getHeight()) + padding * downsample);
+		int x = (int)Math.round(request.getX() - padding.getX1() * downsample);
+		int y = (int)Math.round(request.getY() - padding.getY1() * downsample);
+		int x2 = (int)Math.round((request.getX() + request.getWidth()) + padding.getX2() * downsample);
+		int y2 = (int)Math.round((request.getY() + request.getHeight()) + padding.getY2() * downsample);
 		// If we're out of range, we'll need to work a bit harder
 		int padLeft = 0, padRight = 0, padUp = 0, padDown = 0;
 		boolean outOfRange = false;

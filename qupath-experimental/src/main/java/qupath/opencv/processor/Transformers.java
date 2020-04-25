@@ -2,12 +2,16 @@ package qupath.opencv.processor;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -21,10 +25,15 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.images.servers.TransformingImageServer;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.tools.OpenCVTools;
 
@@ -46,37 +55,217 @@ public class Transformers {
 		}
 	}
 	
+	/**
+	 * Request pixels from an image, potentially applying further transforms.
+	 */
+	public static interface ImageDataTransformer {
+		
+		public Mat transform(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException;
+		
+		/**
+		 * Query whether this transform can be applied to the specified image.
+		 * Reasons why it may not be include the type or channel number being incompatible.
+		 * @param imageData
+		 * @return
+		 */
+		boolean supportsImage(ImageData<BufferedImage> imageData);
+		
+		/**
+		 * Get appropriate channels to reflect the output of this transform, given the input.
+		 * 
+		 * @param imageData 
+		 * 
+		 * @return
+		 */
+		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData);
+		
+	}
+	
+	static class DefaultImageDataTransformer implements ImageDataTransformer {
+		
+		private Transformer transformer;
+		
+		DefaultImageDataTransformer(Transformer transformer) {
+			this.transformer = transformer;
+		}
+		
+		public Mat transform(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+			BufferedImage img;
+			if (transformer == null) {
+				img = imageData.getServer().readBufferedImage(request);
+				return OpenCVTools.imageToMat(img);
+			} else {
+				var padding = transformer.getPadding();
+				img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, padding);
+				var mat = OpenCVTools.imageToMat(img);
+				mat.convertTo(mat, opencv_core.CV_32F);
+				return transformer.transform(mat);
+			}
+		}
+
+		@Override
+		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
+			return imageData.getServer().getMetadata().getChannels();
+		}
+
+
+
+		@Override
+		public boolean supportsImage(ImageData<BufferedImage> imageData) {
+			return true;
+		}
+		
+	}
+	
+	static class ChannelImageDataTransformer implements ImageDataTransformer {
+		
+		private ColorTransform[] colorTransforms;
+		private Transformer transformer;
+		
+		ChannelImageDataTransformer(Transformer transformer, ColorTransform... colorTransforms) {
+			this.colorTransforms = colorTransforms.clone();
+			this.transformer = transformer;
+		}
+		
+		@Override
+		public boolean supportsImage(ImageData<BufferedImage> imageData) {
+			for (var t : colorTransforms) {
+				if (!t.supportsImage(imageData.getServer()))
+					return false;
+			}
+			return true;
+		}
+		
+		public Mat transform(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+			BufferedImage img;
+			if (transformer == null)
+				img = imageData.getServer().readBufferedImage(request);
+			else
+				img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, transformer.getPadding());
+			
+			float[] pixels = null;
+			var server = imageData.getServer();
+			var mat = new Mat(img.getWidth(), img.getHeight(), opencv_core.CV_32FC(colorTransforms.length));
+			try (FloatIndexer idx = mat.createIndexer()) {
+				long[] inds = new long[3];
+				int i = 0;
+				for (var t : colorTransforms) {
+					pixels = t.extractChannel(server, img, pixels);
+					inds[2] = i;
+					idx.put(inds, pixels);
+					i++;
+				}
+			}
+			if (transformer != null) {
+				mat = transformer.transform(mat);
+			}
+			return mat;
+		}
+
+		@Override
+		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
+			return imageData.getServer().getMetadata().getChannels();
+		}
+		
+	}
+	
 	public static Builder builder() {
 		return new Builder();
 	}
 	
 	
-	public static class TransformedImageServer extends TransformingImageServer<BufferedImage> {
+//	public static class TransformedImageServer extends TransformingImageServer<BufferedImage> {
+//		
+//		private final static Logger logger = LoggerFactory.getLogger(TransformedImageServer.class);
+//
+//		private Transformer transformer;
+//		
+//		protected TransformedImageServer(ImageServer<BufferedImage> server, Transformer transformer) {
+//			super(server);
+//			this.transformer = transformer;
+//			
+//			// TODO: Set metadata!
+//			logger.warn("Must set metadata!");
+//		}
+//		
+//		@Override
+//		public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
+//			var padding = transformer.getPadding();
+//			var img = PixelClassifierTools.getPaddedRequest(getWrappedServer(), request, padding;
+//			var mat = OpenCVTools.imageToMat(img);
+//			mat.convertTo(mat, opencv_core.CV_32F);
+//			mat = transformer.transform(mat);
+//			return OpenCVTools.matToBufferedImage(mat);
+//		}
+//
+//		@Override
+//		public String getServerType() {
+//			return "Transformed server";
+//		}
+//
+//		@Override
+//		protected ServerBuilder<BufferedImage> createServerBuilder() {
+//			// TODO Auto-generated method stub
+//			return null;
+//		}
+//
+//		@Override
+//		protected String createID() {
+//			return UUID.randomUUID().toString();
+//		}
+//		
+//	}
+	
+	public static class TransformedTileableImageServer extends AbstractTileableImageServer {
 		
-		private final static Logger logger = LoggerFactory.getLogger(TransformedImageServer.class);
-
-		private Transformer transformer;
+		private final static Logger logger = LoggerFactory.getLogger(TransformedTileableImageServer.class);
 		
-		protected TransformedImageServer(ImageServer<BufferedImage> server, Transformer transformer) {
-			super(server);
+		private ImageData<BufferedImage> imageData;
+		private ImageDataTransformer transformer;
+		private ImageServerMetadata metadata;
+		
+		TransformedTileableImageServer(ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, ImageDataTransformer transformer) {
+			super();
+			
+			this.imageData = imageData;
 			this.transformer = transformer;
+			
+			// TODO: UPDATE PIXEL TYPE!
+			logger.warn("Using default pixel type!");
+			var pixelType = PixelType.FLOAT32;
+			
+			// Update channels according to the transformer
+			var channels = transformer.getChannels(imageData);
+						
+			metadata = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
+					.levelsFromDownsamples(downsample)
+					.preferredTileSize(tileWidth, tileHeight)
+					.pixelType(pixelType)
+					.channels(channels)
+					.rgb(false)
+					.build();
+			
 		}
-		
+
 		@Override
-		public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
-			var padding = transformer.getPadding();
-			if (!padding.isSymmetric())
-				logger.warn("Non-symmetric padding not supported!");
-			var img = PixelClassifierTools.getPaddedRequest(getWrappedServer(), request, padding.getX1());
-			var mat = OpenCVTools.imageToMat(img);
-			mat.convertTo(mat, opencv_core.CV_32F);
-			mat = transformer.transform(mat);
-			return OpenCVTools.matToBufferedImage(mat);
+		public Collection<URI> getURIs() {
+			return imageData.getServer().getURIs();
 		}
 
 		@Override
 		public String getServerType() {
-			return "Transformed server";
+			return "Transformer server";
+		}
+
+		@Override
+		public ImageServerMetadata getOriginalMetadata() {
+			return metadata;
+		}
+
+		@Override
+		protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
+			var mat = transformer.transform(imageData, tileRequest.getRegionRequest());
+			return OpenCVTools.matToBufferedImage(mat);
 		}
 
 		@Override
@@ -89,11 +278,9 @@ public class Transformers {
 		protected String createID() {
 			return UUID.randomUUID().toString();
 		}
-
-		
-		
 		
 	}
+
 	
 	
 	public static class Builder {
@@ -119,6 +306,11 @@ public class Transformers {
 			transformers.add(new Multiplier(value));
 			return this;
 		}
+		
+//		public Builder normalizeMeanStd() {
+//			transformers.add(new NormalizeMeanStd());
+//			return this;
+//		}
 		
 		public Builder normalizeMinMax(double outputMin, double outputMax) {
 			transformers.add(new NormalizeMinMax(outputMin, outputMax));
@@ -174,9 +366,17 @@ public class Transformers {
 				return transformers.get(0);
 			return new SequentialTransform(transformers);
 		}
-		
+
+		public ImageServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, ColorTransform... inputChannels) {
+			return new TransformedTileableImageServer(imageData, downsample, tileWidth, tileHeight, buildImageTransformer(inputChannels));
+		}
+
 		public ImageServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData) {
-			return new TransformedImageServer(imageData.getServer(), build());
+			return buildServer(imageData, 1.0, 512, 512);
+		}
+		
+		public ImageDataTransformer buildImageTransformer(ColorTransform... inputChannels) {
+			return inputChannels.length == 0 ? new DefaultImageDataTransformer(build()) : new ChannelImageDataTransformer(build(), inputChannels);
 		}
 		
 	}
@@ -392,6 +592,8 @@ public class Transformers {
 			int w = input.cols();
 			int h = input.rows();
 			
+			input.convertTo(input, opencv_core.CV_32F);
+			
 			var matCols = input.reshape(1, w * h);
 			double[] max = new double[] {stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue()};
 			for (int c = 0; c < 3; c++) {
@@ -425,6 +627,15 @@ public class Transformers {
 			return matInv;
 		}
 		
+		@Override
+		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+			return Arrays.asList(
+				ImageChannel.getInstance(stains.getStain(1).getName(), stains.getStain(1).getColor()),
+				ImageChannel.getInstance(stains.getStain(2).getName(), stains.getStain(2).getColor()),	
+				ImageChannel.getInstance(stains.getStain(3).getName(), stains.getStain(3).getColor())	
+				);
+		}
+		
 	}
 	
 	
@@ -441,9 +652,26 @@ public class Transformers {
 			opencv_core.split(input, matvec);
 			var matvec2 = new MatVector();
 			for (int c : channels)
-				matvec2.put(matvec.get(c));
+				matvec2.push_back(matvec.get(c));
 			opencv_core.merge(matvec2, input);
 			return input;
+		}
+		
+		@Override
+		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+			List<ImageChannel> newChannels = new ArrayList<>();
+			for (int c : this.channels)
+				newChannels.add(channels.get(c));
+			return newChannels;
+		}
+		
+		@Override
+		public String toString() {
+			if (channels == null || channels.length == 0)
+				return "No channels";
+			if (channels.length == 1)
+				return "Channel " + channels[0];
+			return "Channels [" + Arrays.stream(channels).mapToObj(c -> Integer.toString(c)).collect(Collectors.joining(",")) + "]";
 		}
 		
 	}
@@ -520,13 +748,14 @@ public class Transformers {
 
 		@Override
 		public Mat transform(Mat input) {
+//			long before = input.cols();
 			var mat = transformPadded(input);
 			var padding = getPadding();
 			if (padding.isEmpty())
 				return mat;
-			mat.put(
-					mat.apply(new Rect(padding.getX1(), padding.getX2(), mat.cols()-padding.getXSum(), mat.rows()-padding.getYSum())).clone()
-					);
+			mat.put(stripPadding(mat, getPadding()));
+//			long after = mat.cols();
+//			System.err.println(getClass().getSimpleName() + ": \tBefore " + before + ", after " + after + " - " + padding.getX1());
 			return mat;
 		}
 		
@@ -538,6 +767,16 @@ public class Transformers {
 		}
 		
 	}
+	
+	
+	static Mat stripPadding(Mat mat, Padding padding) {
+		if (padding.isEmpty())
+			return mat;
+		return mat.apply(new Rect(
+				padding.getX1(), padding.getY1(),
+				mat.cols()-padding.getXSum(), mat.rows()-padding.getYSum())).clone();
+	}
+	
 	
 	static class Filter2D extends PaddedTransformer {
 		
@@ -577,9 +816,11 @@ public class Transformers {
 			this.sigmaX = sigmaX;
 			this.sigmaY = sigmaY;
 		}
-
+		
 		@Override
 		public Mat transformPadded(Mat input) {
+			if (sigmaX == 0 && sigmaY == 0)
+				return input;
 			var matvec = new MatVector();
 			opencv_core.split(input, matvec);
 			var padding = getPadding();
@@ -657,6 +898,8 @@ public class Transformers {
 	
 	static class SequentialTransform extends PaddedTransformer {
 		
+		private final static Logger logger = LoggerFactory.getLogger(SequentialTransform.class);
+		
 		private List<Transformer> transformers;
 		
 		SequentialTransform(Collection<Transformer> transformers) {
@@ -672,10 +915,26 @@ public class Transformers {
 		}
 
 		@Override
-		protected Mat transformPadded(Mat input) {
+		public Mat transform(Mat input) {
 			for (var t : transformers)
 				input = t.transform(input);
 			return input;
+		}
+		
+		/**
+		 * Should not be called!
+		 */
+		@Override
+		protected Mat transformPadded(Mat input) {
+			logger.warn("transformPadded(Mat) should not be called directly for this class!");
+			return transform(input);
+		}
+		
+		@Override
+		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+			for (var t : transformers)
+				channels = t.getChannels(channels);
+			return channels;
 		}
 		
 	}
@@ -743,6 +1002,14 @@ public class Transformers {
 			opencv_core.merge(matvec, input);
 			return input;
 		}
+		
+		@Override
+		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+			return transformers.stream()
+					.flatMap(t -> t.getChannels(channels).stream())
+					.collect(Collectors.toList());
+		}
+
 		
 	}
 

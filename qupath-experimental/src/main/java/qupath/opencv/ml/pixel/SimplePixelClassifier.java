@@ -14,6 +14,7 @@ import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -23,6 +24,9 @@ import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
 import qupath.opencv.ml.pixel.features.FeatureCalculator;
+import qupath.opencv.processor.Transformer;
+import qupath.opencv.processor.Transformers.ImageDataTransformer;
+import qupath.opencv.tools.OpenCVTools;
 
 class SimplePixelClassifier implements PixelClassifier {
 	
@@ -32,19 +36,19 @@ class SimplePixelClassifier implements PixelClassifier {
 	private transient IndexColorModel colorModel;
 	
 	private PixelCalibration inputResolution;
-	private FeatureCalculator<BufferedImage> featureCalculator;
+	private ImageDataTransformer transformer;
 	private ThresholdClassifier thresholder;
 	
 	private transient Map<PathClass, Integer> map;
 	
 	
 	SimplePixelClassifier(
-			FeatureCalculator<BufferedImage> featureCalculator,
+			ImageDataTransformer transformer,
 			PixelCalibration inputResolution,
 			ThresholdClassifier thresholder) {
 		
 		this.inputResolution = inputResolution;
-		this.featureCalculator = featureCalculator;
+		this.transformer = transformer;
 		this.thresholder = thresholder;
 	}
 	
@@ -56,22 +60,29 @@ class SimplePixelClassifier implements PixelClassifier {
 	
 	@Override
     public boolean supportsImage(ImageData<BufferedImage> imageData) {
-		return featureCalculator.supportsImage(imageData);
+		return true; // Out on a limb here...
+//		return featureCalculator.supportsImage(imageData);
     }
 
 	@Override
 	public BufferedImage applyClassification(ImageData<BufferedImage> imageData, RegionRequest request)
 			throws IOException {
 		
-		int width, height;
-		float[] transformed;
-		var features = featureCalculator.calculateFeatures(imageData, request);
-		if (features.size() != 1)
-			logger.warn("Expected 1 features, but got {}", features.size());
-		var img = features.get(0).getFeature();
-		transformed = SimpleImages.getPixels(img, true);
-		width = img.getWidth();
-		height = img.getHeight();
+		var mat = transformer.transform(imageData, request);
+		float[] transformed = OpenCVTools.extractPixels(mat, null);
+		
+		int width = mat.cols();
+		int height = mat.rows();
+		
+//		int width, height;
+//		float[] transformed;
+//		var features = featureCalculator.calculateFeatures(imageData, request);
+//		if (features.size() != 1)
+//			logger.warn("Expected 1 features, but got {}", features.size());
+//		var img = features.get(0).getFeature();
+//		transformed = SimpleImages.getPixels(img, true);
+//		width = img.getWidth();
+//		height = img.getHeight();
 		
 		var colorModel = getColorModel();
 		var imgResult = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_INDEXED, colorModel);

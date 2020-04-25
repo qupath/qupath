@@ -3,7 +3,6 @@ package qupath.experimental.commands;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -42,7 +41,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ml.pixel.ValueToClassification;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
-import qupath.opencv.ml.pixel.features.FeatureCalculators;
+import qupath.opencv.processor.Transformers;
 import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
@@ -329,10 +328,10 @@ public class SimpleThresholdCommand implements Runnable {
 			return;
 		}
 		
-		var transform = selectedChannel.get();
+		var channel = selectedChannel.get();
 		var thresholdValue = threshold.get();
 		var resolution = selectedResolution.get();
-		if (transform == null || thresholdValue == null || resolution == null)
+		if (channel == null || thresholdValue == null || resolution == null)
 			return;
 		
 		var feature = selectedPrefilter.get();
@@ -346,25 +345,30 @@ public class SimpleThresholdCommand implements Runnable {
 				classificationsAbove.getSelectionModel().getSelectedItem()
 				);
 		
-		if (feature == null || sigmaValue <= 0) {
+		
+		var transformer = Transformers.builder()
+			.gaussianBlur(sigmaValue)
+			.buildImageTransformer(channel);
+		
+//		if (feature == null) {
 			classifier = PixelClassifiers.createThresholdingClassifier(
-					transform,
+					transformer,
 					resolution.getPixelCalibration(),
 					thresholder);
-		} else {
-			var calculator = FeatureCalculators.createMultiscaleFeatureCalculator(
-					Collections.singletonList(transform),
-					new double[] {sigmaValue},
-					null,
-					false,
-					feature
-					);
-			
-			classifier = PixelClassifiers.createThresholdingClassifier(
-					calculator,
-					resolution.getPixelCalibration(),
-					thresholder);
-		}
+//		} else {
+//			var calculator = FeatureCalculators.createMultiscaleFeatureCalculator(
+//					Collections.singletonList(transform),
+//					new double[] {sigmaValue},
+//					null,
+//					false,
+//					feature
+//					);
+//			
+//			classifier = PixelClassifiers.createThresholdingClassifier(
+//					transformer,
+//					resolution.getPixelCalibration(),
+//					thresholder);
+//		}
 		
 //		PixelClassificationImageServer server = new PixelClassificationImageServer(imageData, classifier);
 
@@ -394,6 +398,12 @@ public class SimpleThresholdCommand implements Runnable {
 		var server = imageData.getServer();
 		for (var channel : server.getMetadata().getChannels()) {
 			validChannels.add(ColorTransforms.createChannelExtractor(channel.getName()));
+		}
+		var stains = imageData.getColorDeconvolutionStains();
+		if (stains != null) {
+			validChannels.add(ColorTransforms.createColorDeconvolvedChannel(stains, 1));
+			validChannels.add(ColorTransforms.createColorDeconvolvedChannel(stains, 2));
+			validChannels.add(ColorTransforms.createColorDeconvolvedChannel(stains, 3));
 		}
 		if (server.nChannels() > 1) {
 			validChannels.add(ColorTransforms.createMeanChannelTransform());
