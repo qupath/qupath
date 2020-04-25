@@ -3,6 +3,7 @@ package qupath.experimental.commands;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -95,10 +96,10 @@ public class SimpleThresholdCommand implements Runnable {
 //	private Slider slider = new Slider();
 //	private DoubleProperty threshold = slider.valueProperty();
 	
-	private Spinner<Double> sigmaSpinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(0, 16.0, 0.0));
+	private Spinner<Double> sigmaSpinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(0, 16.0, 0.0, 0.5));
 	private ReadOnlyObjectProperty<Double> sigma = sigmaSpinner.valueProperty();
 
-	private Spinner<Double> spinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(-Double.MAX_VALUE, Double.MAX_VALUE, 0.0));
+	private Spinner<Double> spinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(-Double.MAX_VALUE, Double.MAX_VALUE, 0.0, 0.5));
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
@@ -345,10 +346,15 @@ public class SimpleThresholdCommand implements Runnable {
 				classificationsAbove.getSelectionModel().getSelectedItem()
 				);
 		
+		var builder = Transformers.builder();
+		if (feature != null && sigmaValue > 0) {
+			if (feature == MultiscaleFeature.GAUSSIAN)
+				builder.gaussianBlur(sigmaValue);
+			else
+				builder.features(Collections.singletonList(feature), sigmaValue, sigmaValue);
+		}
 		
-		var transformer = Transformers.builder()
-			.gaussianBlur(sigmaValue)
-			.buildImageTransformer(channel);
+		var transformer = builder.buildImageTransformer(channel);
 		
 //		if (feature == null) {
 			classifier = PixelClassifiers.createThresholdingClassifier(

@@ -11,7 +11,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
-import qupath.opencv.ml.Preprocessing.PCAProjector;
+import qupath.opencv.ml.objects.features.Preprocessing.PCAProjector;
 
 class PCAProjectFeatureExtractor<T> implements FeatureExtractor<T> {
 	

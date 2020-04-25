@@ -1,4 +1,4 @@
-package qupath.opencv.ml;
+package qupath.opencv.ml.objects.features;
 
 /**
  * Class to help with simple feature normalization, by adding an offset and then multiplying by a scaling factor.

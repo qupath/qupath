@@ -26,7 +26,6 @@ import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.pixel.PixelClassifiers;
-import qupath.opencv.ml.pixel.features.FeatureCalculators;
 
 /**
  * Extension to make more experimental commands present in the GUI.
@@ -38,7 +37,6 @@ public class ExperimentalExtension implements QuPathExtension {
 		
 		GsonTools.getDefaultBuilder()
 			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
-			.registerTypeAdapterFactory(FeatureCalculators.getTypeAdapterFactory())
 			.registerTypeAdapterFactory(FeatureExtractors.getTypeAdapterFactory())
 			.registerTypeAdapterFactory(ObjectClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
@@ -161,9 +159,6 @@ public class ExperimentalExtension implements QuPathExtension {
 	
     @Override
     public void installExtension(QuPathGUI qupath) {
-    	    	
-    	FeatureCalculators.initialize();
-    	
     	qupath.installActions(ActionTools.getAnnotatedActions(new PixelClassificationCommands(qupath)));
     	qupath.installActions(ActionTools.getAnnotatedActions(new ObjectClassificationCommands(qupath)));
     	qupath.installActions(ActionTools.getAnnotatedActions(new OtherCommands(qupath)));

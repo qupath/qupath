@@ -21,8 +21,9 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ml.pixel.FeatureImageServer;
-import qupath.opencv.ml.pixel.features.FeatureCalculator;
+import qupath.opencv.processor.Transformers;
+import qupath.opencv.processor.Transformers.ImageDataTransformer;
+import qupath.opencv.processor.Transformers.TransformedTileableImageServer;
 
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
@@ -30,7 +31,6 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -102,7 +102,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     
     
     public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
-    		final FeatureCalculator<BufferedImage> calculator,
+    		final ImageDataTransformer calculator,
     		PixelCalibration resolution, ImageRenderer renderer) {
     	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(calculator, resolution), renderer);
     }
@@ -124,10 +124,10 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     static class FeatureCalculatorServerFunction implements Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> {
     	
     	private ImageServer<BufferedImage> server;
-    	private FeatureCalculator<BufferedImage> calculator;
+    	private ImageDataTransformer calculator;
     	private PixelCalibration resolution;
     	
-    	private FeatureCalculatorServerFunction(FeatureCalculator<BufferedImage> calculator, PixelCalibration resolution) {
+    	private FeatureCalculatorServerFunction(ImageDataTransformer calculator, PixelCalibration resolution) {
     		this.calculator = calculator;
     		this.resolution = resolution;
     	}
@@ -142,15 +142,11 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 				server = null;
 				return null;
 			}
-			if (server != null && (server instanceof FeatureImageServer && ((FeatureImageServer)server).getImageData() != imageData))
+			if (server != null && (server instanceof TransformedTileableImageServer && ((TransformedTileableImageServer)server).getImageData() != imageData))
 				server = null;
 			if (server == null && calculator != null && calculator.supportsImage(imageData)) {
-	    		try {
-					server = new FeatureImageServer(imageData, calculator, resolution);
-				} catch (IOException e) {
-					logger.error("Error creating FeatureImageServer", e);
-				}
-	    	}
+				server = Transformers.buildServer(imageData, calculator, resolution);
+			}
 	    	return server;
 		}
     	

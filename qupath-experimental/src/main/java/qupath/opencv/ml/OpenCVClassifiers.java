@@ -21,12 +21,10 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
-import qupath.lib.classifiers.Normalization;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.plugins.parameters.ParameterList;
-import qupath.opencv.ml.Preprocessing.PCAProjector;
 
 /**
  * QuPath wrappers for OpenCV classifiers, which are instances of StatModel.
@@ -43,73 +41,6 @@ import qupath.opencv.ml.Preprocessing.PCAProjector;
 public class OpenCVClassifiers {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVClassifiers.class);
-	
-	public static class FeaturePreprocessor {
-		
-		private Normalizer normalizer;
-		private PCAProjector pca;
-		
-		public void apply(Mat mat) {
-			int rows = mat.rows();
-			int cols = mat.cols();
-			int channels = mat.channels();
-			if (channels > 1)
-				mat.put(mat.reshape(1, rows * cols));
-			if (normalizer != null)
-				Preprocessing.normalize(mat, normalizer);
-			if (pca != null)
-				pca.project(mat, mat);
-			if (channels > 1)
-				mat.put(mat.reshape((int)(mat.total()/(rows*cols)), rows));
-		}
-		
-		public static class Builder {
-			
-			private Normalization normalization = Normalization.NONE;
-			private double missingValue = Double.NaN;
-			private double pcaRetainedVariance = -1;
-			private boolean pcaNormalize = true;
-			
-			private Normalizer normalizer;
-			private PCAProjector pca;
-			
-			public Builder() {}
-			
-			public Builder normalize(Normalization normalization) {
-				this.normalization = normalization;
-				return this;
-			}
-			
-			public Builder missingValue(double missingValue) {
-				this.missingValue = missingValue;
-				return this;
-			}
-						
-			public Builder pca(double retainedVariance, boolean pcaNormalize) {
-				this.pcaRetainedVariance = retainedVariance;
-				this.pcaNormalize = pcaNormalize;
-				return this;
-			}
-			
-			public FeaturePreprocessor buildAndApply(Mat trainingData) {
-				if (normalization != Normalization.NONE || !Double.isNaN(missingValue)) {
-					this.normalizer = Preprocessing.createNormalizer(normalization, trainingData, missingValue);
-					Preprocessing.normalize(trainingData, normalizer);						
-				}
-				
-				if (pcaRetainedVariance > 0) {
-					this.pca = Preprocessing.createPCAProjector(trainingData, pcaRetainedVariance, pcaNormalize);
-					this.pca.project(trainingData, trainingData);
-				}
-				var features = new FeaturePreprocessor();
-				features.normalizer = this.normalizer;
-				features.pca = this.pca;
-				return features;
-			}
-			
-		}
-		
-	}
 	
 	
 	public static OpenCVStatModel createStatModel(Class<? extends StatModel> cls) {		

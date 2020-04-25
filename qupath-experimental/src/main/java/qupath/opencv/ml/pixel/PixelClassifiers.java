@@ -1,6 +1,5 @@
 package qupath.opencv.ml.pixel;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -15,12 +14,8 @@ import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
-import qupath.opencv.ml.pixel.features.FeatureCalculator;
-import qupath.opencv.ml.pixel.features.FeatureCalculators;
-import qupath.opencv.processor.Transformer;
 import qupath.opencv.processor.Transformers.ImageDataTransformer;
 
 /**

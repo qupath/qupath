@@ -3,21 +3,15 @@ package qupath.opencv.ml.pixel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
-import java.util.List;
-
-import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 
-import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.ml.pixel.features.FeatureCalculator;
-import qupath.opencv.ml.pixel.features.PixelFeature;
+import qupath.opencv.processor.Transformers.ImageDataTransformer;
 import qupath.opencv.tools.OpenCVTools;
 
 import org.slf4j.Logger;
@@ -29,9 +23,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
     private OpenCVStatModel model;
 	
-    private FeatureCalculator<BufferedImage> calculator;
-    
-    private FeaturePreprocessor preprocessor;
+    private ImageDataTransformer calculator;
     
     private OpenCVPixelClassifier() {
     	super(null, false);
@@ -50,11 +42,10 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 //    	this(statModel, calculator, preprocessor, metadata, false);
 //    }
 
-    OpenCVPixelClassifier(OpenCVStatModel statModel, FeatureCalculator<BufferedImage> calculator, FeaturePreprocessor preprocessor, PixelClassifierMetadata metadata, boolean do8Bit) {
+    OpenCVPixelClassifier(OpenCVStatModel statModel, ImageDataTransformer calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
         super(metadata, do8Bit);
         this.model = statModel;
         this.calculator = calculator;
-        this.preprocessor = preprocessor;
     }
     
     @Override
@@ -138,56 +129,16 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         // Get the pixels into a friendly format
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
 //    	BufferedImage imgFeatures = calculator.readBufferedImage(request);
-    	List<PixelFeature> features = calculator.calculateFeatures(imageData, request);
     	
-//    	PixelClassifierMetadata metadata = getMetadata();
-//        normalizeFeatures(matFeatures, metadata.getInputChannelMeans(), metadata.getInputChannelScales());
+    	var matFeatures = calculator.transform(imageData, request);
+    	
+//    	OpenCVTools.matToImagePlus(matFeatures, "Features").show();
 
-    	if (features.isEmpty())
-    		return null;
-    	
-        int widthFeatures = features.get(0).getFeature().getWidth();
-        int heightFeatures = features.get(0).getFeature().getHeight();
+        int widthFeatures = matFeatures.cols();
+        int heightFeatures = matFeatures.rows();
         int n = widthFeatures * heightFeatures;
-
-        // Extract features into a suitable format
-//        long startTime = System.currentTimeMillis();
         
-        // It's faster to put in row-wise and then transpose
-        int nBands = features.size();
-        Mat matFeatures = new Mat(nBands, n, opencv_core.CV_32FC1);
-        FloatIndexer idx = matFeatures.createIndexer();
-        int col = 0;
-        for (int b = 0; b < nBands; b++) {
-        	var feature = features.get(b);
-        	float[] temp = SimpleImages.getPixels(feature.getFeature(), true);
-        	idx.put(col, 0, temp);
-        	col++;
-        }
-        idx.release();
-        matFeatures.put(matFeatures.t());
-        
-//        int nBands = imgFeatures.getSampleModel().getNumBands();
-//        Mat matFeatures = new Mat(widthFeatures*heightFeatures, nBands, opencv_core.CV_32FC1);
-//        FloatIndexer idx = matFeatures.createIndexer();
-//        float[] temp = null;
-//        int col = 0;
-//        for (int b = 0; b < nBands; b++) {
-//        	temp = imgFeatures.getRaster().getSamples(0, 0, widthFeatures, heightFeatures, b, temp);
-//        	for (int row = 0; row < n; row++)
-//        		idx.put(row, col, temp[row]);
-//        	col++;
-//        }
-//        idx.release();
-
-//        long endTime = System.currentTimeMillis();
-//        System.err.println("Transfer: " + (endTime - startTime));
-        
-        
-        // Do preprocessing (e.g. PCA, normalization)
-    	if (preprocessor != null)
-    		preprocessor.apply(matFeatures);
-    	
+        matFeatures.put(matFeatures.reshape(1, n));
 
     	// Calculate predictions/probabilities
     	var matOutput = new Mat();
@@ -199,6 +150,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
         	model.predict(matFeatures, matTemp, matOutput);
         	matTemp.release();
     	}
+    	matFeatures.release();
     	
     	
     	ColorModel colorModelLocal = null;

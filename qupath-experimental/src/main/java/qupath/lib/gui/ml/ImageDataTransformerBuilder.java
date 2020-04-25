@@ -2,21 +2,20 @@ package qupath.lib.gui.ml;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
@@ -25,24 +24,27 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ColorTransforms;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.opencv.ml.pixel.features.FeatureCalculator;
-import qupath.opencv.ml.pixel.features.FeatureCalculators;
+import qupath.opencv.processor.Transformer;
+import qupath.opencv.processor.Transformers;
+import qupath.opencv.processor.Transformers.ImageDataTransformer;
 import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
 import qupath.opencv.tools.LocalNormalization.SmoothingScale;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 /**
- * Helper class capable of building (or returning) a {@link FeatureCalculator}.
+ * Helper class capable of building (or returning) a {@link ImageDataTransformer}.
  * 
  * @author Pete Bankhead
  */
-abstract class FeatureCalculatorBuilder {
+abstract class ImageDataTransformerBuilder {
 	
-	private final static Logger logger = LoggerFactory.getLogger(FeatureCalculatorBuilder.class);
+	private final static Logger logger = LoggerFactory.getLogger(ImageDataTransformerBuilder.class);
 
-	public abstract FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
+	public abstract ImageDataTransformer build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
 
 	public boolean canCustomize(ImageData<BufferedImage> imageData) {
 		return false;
@@ -52,14 +54,19 @@ abstract class FeatureCalculatorBuilder {
 		throw new UnsupportedOperationException("Cannot customize this feature calculator!");
 	}
 
-	//		public String getName() {
-	//			OpenCVFeatureCalculator calculator = build(1);
-	//			if (calculator == null)
-	//				return "No feature calculator";
-	//			return calculator.toString();
-	//		}
-
-
+	static Collection<ColorTransform> getAvailableChannels(ImageData<?> imageData) {
+		List<ColorTransform> list = new ArrayList<>();
+		for (var name : getAvailableUniqueChannelNames(imageData.getServer()))
+			list.add(ColorTransforms.createChannelExtractor(name));
+		var stains = imageData.getColorDeconvolutionStains();
+		if (stains != null) {
+			list.add(ColorTransforms.createColorDeconvolvedChannel(stains, 1));
+			list.add(ColorTransforms.createColorDeconvolvedChannel(stains, 2));
+			list.add(ColorTransforms.createColorDeconvolvedChannel(stains, 3));
+		}
+		return list;
+	}
+	
 	/**
 	 * Create a collection representing available unique channel names, logging a warning if a channel name is duplicated
 	 * @param server server containing channels
@@ -80,124 +87,124 @@ abstract class FeatureCalculatorBuilder {
 	}
 	
 
-	static class ExtractNeighborsFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
-		
-		private final static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculatorBuilder.class);
-
-		private GridPane pane;
-		private CheckComboBox<String> comboChannels;
-		
-		private ObservableList<String> selectedChannels;
-		private ObservableValue<Integer> selectedRadius;
-			
-		
-		public ExtractNeighborsFeatureCalculatorBuilder(ImageData<BufferedImage> imageData) {
-			
-			int row = 0;
-
-			pane = new GridPane();
-
-			// Selected channels
-
-			var labelChannels = new Label("Channels");
-			comboChannels = new CheckComboBox<String>();
-			GuiTools.installSelectAllOrNoneMenu(comboChannels);
-
-			@SuppressWarnings("resource")
-			var server = imageData == null ? null : imageData.getServer();
-			if (server != null) {
-				comboChannels.getItems().setAll(getAvailableUniqueChannelNames(server));
-				comboChannels.getCheckModel().checkAll();
-			}
-			
-			comboChannels.titleProperty().bind(Bindings.createStringBinding(() -> {
-				int n = comboChannels.getCheckModel().getCheckedItems().size();
-				if (n == 0)
-					return "No channels selected!";
-				if (n == 1)
-					return "1 channel selected";
-				return n + " channels selected";
-			}, comboChannels.getCheckModel().getCheckedItems()));
-
-
-			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
-
-			var comboScales = new ComboBox<Integer>();
-			var labelScales = new Label("Size");
-			comboScales.getItems().addAll(3, 5, 7, 9, 11, 13, 15);
-			comboScales.getSelectionModel().selectFirst();
-			selectedRadius = comboScales.getSelectionModel().selectedItemProperty();
-
-			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
-
-			PaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboScales);
-
-			PaneTools.addGridRow(pane, row++, 0,
-					"Choose the image channels used to calculate features",
-					labelChannels, comboChannels);		
-
-			PaneTools.addGridRow(pane, row++, 0,
-					"Choose the feature scales",
-					labelScales, comboScales);					
-
-			pane.setHgap(5);
-			pane.setVgap(6);
-
-
-			pane.setHgap(5);
-			pane.setVgap(6);
-			
-		}
-		
-		@Override
-		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
-			return FeatureCalculators.createPatchFeatureCalculator(
-					selectedRadius.getValue(),
-					selectedChannels.toArray(String[]::new));
-		}
-
-		@Override
-		public boolean canCustomize(ImageData<BufferedImage> imageData) {
-			return true;
-		}
-
-		@Override
-		public boolean doCustomize(ImageData<BufferedImage> imageData) {
-			
-			@SuppressWarnings("resource")
-			var server = imageData == null ? null : imageData.getServer();
-			if (server != null) {
-				List<String> channels = new ArrayList<>(getAvailableUniqueChannelNames(server));
-				if (!comboChannels.getItems().equals(channels)) {
-					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
-					comboChannels.getCheckModel().clearChecks();
-					comboChannels.getItems().setAll(channels);
-					comboChannels.getCheckModel().checkAll();
-				}
-			}
-
-			boolean success = Dialogs.showMessageDialog("Select features", pane);
-			if (success) {
-				if (selectedChannels == null || selectedChannels.isEmpty()) {
-					Dialogs.showErrorNotification("Pixel classifier", "No channels selected!");
-					return false;
-				}
-			}
-			return success;
-
-		}
-
-		@Override
-		public String toString() {
-			return "Extract neighbors";
-		}
-
-	}
-
-
+//	static class ExtractNeighborsFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
+//		
+//		private final static Logger logger = LoggerFactory.getLogger(ExtractNeighborsFeatureCalculatorBuilder.class);
+//
+//		private GridPane pane;
+//		private CheckComboBox<String> comboChannels;
+//		
+//		private ObservableList<String> selectedChannels;
+//		private ObservableValue<Integer> selectedRadius;
+//			
+//		
+//		public ExtractNeighborsFeatureCalculatorBuilder(ImageData<BufferedImage> imageData) {
+//			
+//			int row = 0;
+//
+//			pane = new GridPane();
+//
+//			// Selected channels
+//
+//			var labelChannels = new Label("Channels");
+//			comboChannels = new CheckComboBox<String>();
+//			GuiTools.installSelectAllOrNoneMenu(comboChannels);
+//
+//			@SuppressWarnings("resource")
+//			var server = imageData == null ? null : imageData.getServer();
+//			if (server != null) {
+//				comboChannels.getItems().setAll(getAvailableUniqueChannelNames(server));
+//				comboChannels.getCheckModel().checkAll();
+//			}
+//			
+//			comboChannels.titleProperty().bind(Bindings.createStringBinding(() -> {
+//				int n = comboChannels.getCheckModel().getCheckedItems().size();
+//				if (n == 0)
+//					return "No channels selected!";
+//				if (n == 1)
+//					return "1 channel selected";
+//				return n + " channels selected";
+//			}, comboChannels.getCheckModel().getCheckedItems()));
+//
+//
+//			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
+//
+//			var comboScales = new ComboBox<Integer>();
+//			var labelScales = new Label("Size");
+//			comboScales.getItems().addAll(3, 5, 7, 9, 11, 13, 15);
+//			comboScales.getSelectionModel().selectFirst();
+//			selectedRadius = comboScales.getSelectionModel().selectedItemProperty();
+//
+//			selectedChannels = comboChannels.getCheckModel().getCheckedItems();
+//
+//			PaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboScales);
+//
+//			PaneTools.addGridRow(pane, row++, 0,
+//					"Choose the image channels used to calculate features",
+//					labelChannels, comboChannels);		
+//
+//			PaneTools.addGridRow(pane, row++, 0,
+//					"Choose the feature scales",
+//					labelScales, comboScales);					
+//
+//			pane.setHgap(5);
+//			pane.setVgap(6);
+//
+//
+//			pane.setHgap(5);
+//			pane.setVgap(6);
+//			
+//		}
+//		
+//		@Override
+//		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
+//			return FeatureCalculators.createPatchFeatureCalculator(
+//					selectedRadius.getValue(),
+//					selectedChannels.toArray(String[]::new));
+//		}
+//
+//		@Override
+//		public boolean canCustomize(ImageData<BufferedImage> imageData) {
+//			return true;
+//		}
+//
+//		@Override
+//		public boolean doCustomize(ImageData<BufferedImage> imageData) {
+//			
+//			@SuppressWarnings("resource")
+//			var server = imageData == null ? null : imageData.getServer();
+//			if (server != null) {
+//				List<String> channels = new ArrayList<>(getAvailableUniqueChannelNames(server));
+//				if (!comboChannels.getItems().equals(channels)) {
+//					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
+//					comboChannels.getCheckModel().clearChecks();
+//					comboChannels.getItems().setAll(channels);
+//					comboChannels.getCheckModel().checkAll();
+//				}
+//			}
+//
+//			boolean success = Dialogs.showMessageDialog("Select features", pane);
+//			if (success) {
+//				if (selectedChannels == null || selectedChannels.isEmpty()) {
+//					Dialogs.showErrorNotification("Pixel classifier", "No channels selected!");
+//					return false;
+//				}
+//			}
+//			return success;
+//
+//		}
+//
+//		@Override
+//		public String toString() {
+//			return "Extract neighbors";
+//		}
+//
+//	}
 
 
-	static class DefaultFeatureCalculatorBuilder extends FeatureCalculatorBuilder {
+
+
+	static class DefaultFeatureCalculatorBuilder extends ImageDataTransformerBuilder {
 		
 		private final static Logger logger = LoggerFactory.getLogger(DefaultFeatureCalculatorBuilder.class);
 		
@@ -222,9 +229,9 @@ abstract class FeatureCalculatorBuilder {
 		}
 
 		private GridPane pane;
-		private CheckComboBox<String> comboChannels;
+		private CheckComboBox<ColorTransform> comboChannels;
 		
-		private ObservableList<String> selectedChannels;
+		private ObservableList<ColorTransform> selectedChannels;
 		private ObservableList<Double> selectedSigmas;
 		private ObservableList<MultiscaleFeature> selectedFeatures;
 		
@@ -232,7 +239,7 @@ abstract class FeatureCalculatorBuilder {
 
 		private ObservableObjectValue<NormalizationType> normalization;
 		private ObservableObjectValue<Double> normalizationSigma;
-		private ObservableBooleanValue do3D;
+//		private ObservableBooleanValue do3D;
 		
 		public DefaultFeatureCalculatorBuilder(ImageData<BufferedImage> imageData) {
 			
@@ -243,15 +250,15 @@ abstract class FeatureCalculatorBuilder {
 			// Selected channels
 
 			var labelChannels = new Label("Channels");
-			comboChannels = new CheckComboBox<String>();
+			comboChannels = new CheckComboBox<ColorTransform>();
 			GuiTools.installSelectAllOrNoneMenu(comboChannels);
 			//			var btnChannels = new Button("Select");
 			//			btnChannels.setOnAction(e -> selectChannels());
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				comboChannels.getItems().setAll(getAvailableUniqueChannelNames(server));
-				comboChannels.getCheckModel().checkAll();
+				comboChannels.getItems().setAll(getAvailableChannels(imageData));
+				comboChannels.getCheckModel().checkIndices(IntStream.range(0, imageData.getServer().nChannels()).toArray());
 			}
 			
 			comboChannels.titleProperty().bind(Bindings.createStringBinding(() -> {
@@ -308,12 +315,12 @@ abstract class FeatureCalculatorBuilder {
 					spinnerNormalize.getValueFactory().valueProperty().set(0.0);
 			});
 			
-			var cb3D = new CheckBox("Use 3D filters");
-			do3D = cb3D.selectedProperty();
+//			var cb3D = new CheckBox("Use 3D filters");
+//			do3D = cb3D.selectedProperty();
 
 
 			PaneTools.setMaxWidth(Double.MAX_VALUE, comboChannels, comboFeatures, comboScales,
-					comboNormalize, spinnerNormalize, cb3D);
+					comboNormalize, spinnerNormalize);
 
 			PaneTools.addGridRow(pane, row++, 0,
 					"Choose the image channels used to calculate features",
@@ -327,9 +334,9 @@ abstract class FeatureCalculatorBuilder {
 					"Choose the features",
 					labelFeatures, comboFeatures);		
 
-			PaneTools.addGridRow(pane, row++, 0,
-					"Use 3D filters (rather than 2D)",
-					cb3D, cb3D);	
+//			PaneTools.addGridRow(pane, row++, 0,
+//					"Use 3D filters (rather than 2D)",
+//					cb3D, cb3D);	
 
 			PaneTools.addGridRow(pane, row++, 0,
 					"Apply local intensity (Gaussian-weighted) normalization before calculating features",
@@ -353,7 +360,7 @@ abstract class FeatureCalculatorBuilder {
 
 
 		@Override
-		public FeatureCalculator<BufferedImage> build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
+		public ImageDataTransformer build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
 			
 			if (selectedFeatures == null || selectedSigmas == null)
 				throw new IllegalArgumentException("Features and scales must be selected!");
@@ -361,22 +368,22 @@ abstract class FeatureCalculatorBuilder {
 			
 			// Extract features, removing any that are incompatible
 			MultiscaleFeature[] features;
-			if (do3D.get())
-				features = selectedFeatures.stream().filter(f -> f.supports3D()).toArray(MultiscaleFeature[]::new);
-			else
+//			if (do3D.get())
+//				features = selectedFeatures.stream().filter(f -> f.supports3D()).toArray(MultiscaleFeature[]::new);
+//			else
 				features = selectedFeatures.stream().filter(f -> f.supports2D()).toArray(MultiscaleFeature[]::new);
 
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
-			String[] channels = selectedChannels.toArray(String[]::new);
+//			String[] channels = selectedChannels.toArray(String[]::new);
 			
 			LocalNormalizationType norm = null;
 			
 			double localNormalizeSigma = normalizationSigma.get();
 			double varianceScaleRatio = 1.0; // TODO: Make the variance scale ratio editable
 			SmoothingScale scale;
-			if (do3D.get())
-				scale = SmoothingScale.get3DIsotropic(localNormalizeSigma);
-			else
+//			if (do3D.get())
+//				scale = SmoothingScale.get3DIsotropic(localNormalizeSigma);
+//			else
 				scale = SmoothingScale.get2D(localNormalizeSigma);
 			
 			if (localNormalizeSigma > 0) {
@@ -399,13 +406,21 @@ abstract class FeatureCalculatorBuilder {
 //					Arrays.stream(channels).map(c -> ColorTransforms.createChannelExtractor(c)).collect(Collectors.toList()),
 //					norm);
 			
-			return FeatureCalculators.createMultiscaleFeatureCalculator(
-					channels,
-					sigmas,
-					norm,
-					do3D.get() ? true : false,
-					features
-					);
+			List<Transformer> transformers = new ArrayList<>();
+			for (var sigma : sigmas) {
+				transformers.add(Transformers.builder().features(Arrays.asList(features), sigma, sigma).build());
+			}
+			return Transformers.builder()
+				.splitMerge(transformers)
+				.buildImageTransformer(selectedChannels.toArray(ColorTransform[]::new));
+			
+//			return MultiscaleFeatureCalculator.createMultiscaleFeatureCalculator(
+//					channels,
+//					sigmas,
+//					norm,
+//					do3D.get() ? true : false,
+//					features
+//					);
 		}
 
 		@Override
@@ -419,12 +434,12 @@ abstract class FeatureCalculatorBuilder {
 			@SuppressWarnings("resource")
 			var server = imageData == null ? null : imageData.getServer();
 			if (server != null) {
-				List<String> channels = new ArrayList<>(getAvailableUniqueChannelNames(server));
+				var channels = new ArrayList<>(getAvailableChannels(imageData));
 				if (!comboChannels.getItems().equals(channels)) {
 					logger.warn("Image channels changed - will update & select all channels for the feature calculator");
 					comboChannels.getCheckModel().clearChecks();
 					comboChannels.getItems().setAll(channels);
-					comboChannels.getCheckModel().checkAll();
+					comboChannels.getCheckModel().checkIndices(IntStream.range(0, imageData.getServer().nChannels()).toArray());
 				}
 			}
 			

@@ -10,11 +10,9 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.color.ColorModelFactory;
-import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -23,8 +21,6 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
-import qupath.opencv.ml.pixel.features.FeatureCalculator;
-import qupath.opencv.processor.Transformer;
 import qupath.opencv.processor.Transformers.ImageDataTransformer;
 import qupath.opencv.tools.OpenCVTools;
 

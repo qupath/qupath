@@ -1,15 +1,12 @@
 package qupath.opencv.tools;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -18,9 +15,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatExpr;
 import org.bytedeco.opencv.opencv_core.Rect;
 
-import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Calculate pixel-based features in both 2D and 3D.
@@ -177,130 +172,8 @@ public class MultiscaleFeatures {
 	 */
 	private static final FilterBorderType BORDER_DEFAULT = FilterBorderType.REPLICATE;
 	
-	/**
-	 * Temporary(!) method to facilitate interactively testing the code from a script 
-	 * during development.
-	 * @param imageData
-	 * @throws IOException
-	 */
-	static void testMe(ImageData<BufferedImage> imageData, double... sigmas) throws IOException {
-				
-		var server = imageData.getServer();
-		var hierarchy = imageData.getHierarchy();
-		var selectedROI = hierarchy.getSelectionModel().getSelectedROI();
-		if (sigmas.length == 0)
-			sigmas = new double[] {1.0};
-		double downsample = Math.max(1.0, sigmas[0] / server.getPixelCalibration().getAveragedPixelSizeMicrons());
-		System.err.println(downsample);
-		RegionRequest request = RegionRequest.createInstance(server);
-		if (selectedROI != null)
-			request = RegionRequest.createInstance(server.getPath(), downsample, selectedROI);
-		
-//		IJTools.extractHyperstack(server, request).show();
-		
-		var stack = OpenCVTools.extractZStack(server, request);
-		
-//		int sizeZ = stack.size();
-		
-		List<Map<MultiscaleFeature, Mat>> results = Collections.synchronizedList(new ArrayList<>());
-		
-		int[] channels = new int[] {2};
-		
-		var pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-		
-		List<Future<List<Map<MultiscaleFeature, Mat>>>> futures = new ArrayList<>();
-		for (int channel : channels) {
-		
-			Mat[] mats = new Mat[stack.size()];
-			for (int i = 0; i < stack.size(); i++) {
-				Mat mat = stack.get(i);
-				Mat temp = new Mat();
-				opencv_core.extractChannel(mat, temp, channel);
-				
-				temp.convertTo(temp, opencv_core.CV_32F);
-//				temp.put(opencv_core.multiply(temp, -1.0));
-				mats[i] = temp;
-			}
-			
-			// Do local normalization
-//			double sigmaNormalizeMicrons = 5.0;		
-//			normalize3D(
-//					Arrays.asList(mats), 
-//					sigmaNormalizeMicrons/server.getPixelWidthMicrons(), 
-//					sigmaNormalizeMicrons/server.getPixelHeightMicrons(),
-//					sigmaNormalizeMicrons/server.getZSpacingMicrons());
-			
-//			OpenCVTools.matToImagePlus("Normalized", mats).show();
-			
-			for (double sigmaMicrons : sigmas) {
-				futures.add(pool.submit(() -> {
-				
-					long startTime = System.currentTimeMillis();
-			
-					List<Map<MultiscaleFeature, Mat>> resultsTemp = new MultiscaleResultsBuilder()
-						.sigmaX(sigmaMicrons)
-						.sigmaY(sigmaMicrons)
-						.sigmaZ(sigmaMicrons)
-						.pixelCalibration(server.getMetadata().getPixelCalibration(), downsample)
-//						.ind3D(3)
-						.gaussianSmoothed(true)
-						.weightedStdDev(true)
-//						.gradientMagnitude(true)
-						.laplacianOfGaussian(true)
-//						.hessianEigenvalues(true)
-						.hessianDeterminant(true)
-						.build(Arrays.asList(mats));
-					
-					long endTime = System.currentTimeMillis();
-					System.err.println("Hessian calculation time: " + (endTime - startTime) + " ms");
 
-					return resultsTemp;
-				}));
-			}
-		}
-		pool.shutdown();
-		try {
-			for (var future : futures)
-				results.addAll(future.get());
-		} catch (Exception e) {
-			e.printStackTrace();
-			return;
-		}
-		
-		List<Mat> output = new ArrayList<>();
-		int n = 0;
-		List<String> names = new ArrayList<>();
-		for (var r : results) {
-			int before = output.size();
-//			output.add(r.getSmoothed());
-//			output.add(r.getDeterminant());
-//			output.add(r.getLaplacian());
-//			for (var m : r.getEigenvalues())
-//				output.add(m);
-			
-			for (var m : r.entrySet()) {
-				names.add(m.getKey().toString());
-				output.add(m.getValue());
-			}
 
-			
-			n = output.size() - before;
-		}
-		
-		var imp = OpenCVTools.matToImagePlus("My stack", output.toArray(Mat[]::new));
-//		imp = new CompositeImage(imp);
-//		imp.setDimensions(n, sizeZ, output.size() / n / sizeZ);
-		
-		int s = 1;
-		for (String name : names) {
-			imp.getStack().setSliceLabel(name, s++);
-		}
-		
-//		imp.setDimensions(output.size() / sizeZ, sizeZ, 1);
-//		((CompositeImage)imp).resetDisplayRanges();
-		imp.show();
-	}
-	
 	
 	
 	/**
@@ -336,6 +209,46 @@ public class MultiscaleFeatures {
 		 * Default constructor.
 		 */
 		public MultiscaleResultsBuilder() {}
+		
+		/**
+		 * Constructor prepared to calculate specified features.
+		 * 
+		 * @param features
+		 */
+		public MultiscaleResultsBuilder(Collection<MultiscaleFeature> features) {
+			for (var feature : features) {
+				switch(feature) {
+				case GAUSSIAN:
+					gaussianSmoothed(true);
+					break;
+				case GRADIENT_MAGNITUDE:
+					gradientMagnitude(true);
+					break;
+				case HESSIAN_DETERMINANT:
+					hessianDeterminant(true);
+					break;
+				case HESSIAN_EIGENVALUE_MAX:
+				case HESSIAN_EIGENVALUE_MIDDLE:
+				case HESSIAN_EIGENVALUE_MIN:
+					hessianEigenvalues(true);
+					break;
+				case LAPLACIAN:
+					laplacianOfGaussian(true);
+					break;
+				case STRUCTURE_TENSOR_COHERENCE:
+				case STRUCTURE_TENSOR_EIGENVALUE_MAX:
+				case STRUCTURE_TENSOR_EIGENVALUE_MIDDLE:
+				case STRUCTURE_TENSOR_EIGENVALUE_MIN:
+					structureTensorEigenvalues(true);
+					break;
+				case WEIGHTED_STD_DEV:
+					weightedStdDev(true);
+					break;
+				default:
+					break;
+				}
+			}
+		}
 
 		MultiscaleResultsBuilder(MultiscaleResultsBuilder builder) {
 			this.pixelCalibration = builder.pixelCalibration;

@@ -49,6 +49,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
+import javafx.scene.chart.PieChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -76,11 +77,13 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.commands.MiniViewers;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -106,9 +109,9 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
-import qupath.opencv.ml.pixel.FeatureImageServer;
 import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
+import qupath.opencv.processor.Transformers;
 
 
 public class PixelClassifierPane {
@@ -133,7 +136,7 @@ public class PixelClassifierPane {
 	}
 	
 	
-	private static ObservableList<FeatureCalculatorBuilder> defaultFeatureCalculatorBuilders = FXCollections.observableArrayList();
+	private static ObservableList<ImageDataTransformerBuilder> defaultFeatureCalculatorBuilders = FXCollections.observableArrayList();
 	
 	
 	private QuPathViewer viewer;
@@ -160,13 +163,13 @@ public class PixelClassifierPane {
 
 	private ReadOnlyObjectProperty<ClassificationRegion> selectedRegion;
 	
-	private ReadOnlyObjectProperty<FeatureCalculatorBuilder> selectedFeatureCalculatorBuilder;
+	private ReadOnlyObjectProperty<ImageDataTransformerBuilder> selectedFeatureCalculatorBuilder;
 
 	private ReadOnlyObjectProperty<ImageServerMetadata.ChannelType> selectedOutputType;
 	
 	private StringProperty cursorLocation = new SimpleStringProperty();
 	
-	private ClassificationPieChart pieChart;
+	private PieChart pieChart;
 
 	private HierarchyListener hierarchyListener = new HierarchyListener();
 
@@ -236,9 +239,9 @@ public class PixelClassifierPane {
 		
 		// Features
 		var labelFeatures = new Label("Features");
-		var comboFeatures = new ComboBox<FeatureCalculatorBuilder>();
-		comboFeatures.getItems().add(new FeatureCalculatorBuilder.DefaultFeatureCalculatorBuilder(viewer.getImageData()));
-		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder(viewer.getImageData()));
+		var comboFeatures = new ComboBox<ImageDataTransformerBuilder>();
+		comboFeatures.getItems().add(new ImageDataTransformerBuilder.DefaultFeatureCalculatorBuilder(viewer.getImageData()));
+//		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder(viewer.getImageData()));
 		labelFeatures.setLabelFor(comboFeatures);
 		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
 		
@@ -336,24 +339,23 @@ public class PixelClassifierPane {
 		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
 		
 		
-		pieChart = new ClassificationPieChart();
+		pieChart = new PieChart();
 		
 //		var hierarchy = viewer.getHierarchy();
 //		Map<PathClass, List<PathObject>> map = hierarchy == null ? Collections.emptyMap() : PathClassificationLabellingHelper.getClassificationMap(hierarchy, false);
 		
-		var chart = pieChart.getChart();
-		chart.setLabelsVisible(false);
-		chart.setLegendVisible(true);
-		chart.setPrefSize(40, 40);
-		chart.setMaxSize(100, 100);
-		chart.setLegendSide(Side.RIGHT);
-		GridPane.setVgrow(chart, Priority.ALWAYS);
-		Tooltip.install(chart, new Tooltip("View training classes by proportion"));
+		pieChart.setLabelsVisible(false);
+		pieChart.setLegendVisible(true);
+		pieChart.setPrefSize(40, 40);
+		pieChart.setMaxSize(100, 100);
+		pieChart.setLegendSide(Side.RIGHT);
+		GridPane.setVgrow(pieChart, Priority.ALWAYS);
+		Tooltip.install(pieChart, new Tooltip("View training classes by proportion"));
 		
 		PaneTools.addGridRow(pane, row++, 0, 
 				null,
 //				"View information about the current classifier training",
-				chart, chart, chart);
+				pieChart, pieChart, pieChart);
 		
 		
 		// Label showing cursor location
@@ -582,7 +584,7 @@ public class PixelClassifierPane {
 	 * 
 	 * @return true if the builder was added, false otherwise.
 	 */
-	public synchronized static boolean installDefaultFeatureClassificationBuilder(FeatureCalculatorBuilder builder) {
+	public synchronized static boolean installDefaultFeatureClassificationBuilder(ImageDataTransformerBuilder builder) {
 		if (!defaultFeatureCalculatorBuilders.contains(builder)) {
 			defaultFeatureCalculatorBuilders.add(builder);
 			return true;
@@ -919,7 +921,7 @@ public class PixelClassifierPane {
 			return;
 		}
 		 if (trainData == null) {
-			 pieChart.setData(Collections.emptyMap(), false);
+			 resetPieChart();
 			 return;
 		 }
 
@@ -953,7 +955,7 @@ public class PixelClassifierPane {
 		 for (var entry : labels.entrySet()) {
 			 counts.put(entry.getValue(), rawCounts[entry.getKey()]);
 		 }
-		 pieChart.setData(counts, true);
+		 updatePieChart(counts);
 		 
 		 Mat weights = null;
 		 if (reweightSamples) {
@@ -1007,8 +1009,11 @@ public class PixelClassifierPane {
 		 trainData.close();
 
 		 var featureCalculator = helper.getFeatureCalculator();
-		 int inputWidth = featureCalculator.getInputSize().getWidth();
-		 int inputHeight = featureCalculator.getInputSize().getHeight();
+		 // TODO: CHECK IF INPut SIZE SHOULD BE DEFINED
+		 int inputWidth = 512;
+		 int inputHeight = 512;
+//		 int inputWidth = featureCalculator.getInputSize().getWidth();
+//		 int inputHeight = featureCalculator.getInputSize().getHeight();
 		 var cal = helper.getResolution();
 		 var channelType = ImageServerMetadata.ChannelType.CLASSIFICATION;
 		 if (model.supportsProbabilities()) {
@@ -1021,10 +1026,20 @@ public class PixelClassifierPane {
 				 .outputChannels(channels)
 				 .build();
 
-		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, featureCalculator, helper.getLastFeaturePreprocessor(), metadata, true);
+		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, featureCalculator, metadata, true);
 
 		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
+	}
+	
+	
+	
+	private void resetPieChart() {
+		updatePieChart(Collections.emptyMap());
+	}
+	
+	private void updatePieChart(Map<PathClass, Integer> counts) {
+		ChartTools.setPieChartData(pieChart, counts, PathClass::toString, p -> ColorToolsFX.getCachedColor(p.getColor()), true, !counts.isEmpty());
 	}
 	
 	
@@ -1485,7 +1500,7 @@ public class PixelClassifierPane {
 				featureServer = helper.getFeatureServer();
 			} else {
 				tempFeatureServer = true;
-				featureServer = new FeatureImageServer(imageData, helper.getFeatureCalculator(), helper.getResolution());
+				featureServer = Transformers.buildServer(imageData, helper.getFeatureCalculator(), helper.getResolution());
 			}
 			double downsample = featureServer.getDownsampleForResolution(0);
 			int tw = (int)(featureServer.getMetadata().getPreferredTileWidth() * downsample);

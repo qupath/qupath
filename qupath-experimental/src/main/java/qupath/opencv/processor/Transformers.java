@@ -6,6 +6,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -31,10 +32,13 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
+import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 import qupath.opencv.tools.OpenCVTools;
 
 public class Transformers {
@@ -54,6 +58,14 @@ public class Transformers {
 			}
 		}
 	}
+	
+	
+	public static interface ImageDataServer<T> extends ImageServer<T> {
+		
+		public ImageData<T> getImageData();
+		
+	}
+	
 	
 	/**
 	 * Request pixels from an image, potentially applying further transforms.
@@ -81,6 +93,16 @@ public class Transformers {
 		
 	}
 	
+	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataTransformer transformer, PixelCalibration resolution) {
+		return buildServer(imageData, transformer, resolution, 512, 512);
+	}
+	
+	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataTransformer transformer, PixelCalibration resolution, int tileWidth, int tileHeight) {
+		double downsample = resolution.getAveragedPixelSize().doubleValue() / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
+		return new TransformedTileableImageServer(imageData, downsample, tileWidth, tileHeight, transformer);
+	}
+	
+	
 	static class DefaultImageDataTransformer implements ImageDataTransformer {
 		
 		private Transformer transformer;
@@ -105,7 +127,10 @@ public class Transformers {
 
 		@Override
 		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
-			return imageData.getServer().getMetadata().getChannels();
+			if (transformer == null)
+				return imageData.getServer().getMetadata().getChannels();
+			else
+				return transformer.getChannels(imageData.getServer().getMetadata().getChannels());
 		}
 
 
@@ -145,17 +170,16 @@ public class Transformers {
 			
 			float[] pixels = null;
 			var server = imageData.getServer();
-			var mat = new Mat(img.getWidth(), img.getHeight(), opencv_core.CV_32FC(colorTransforms.length));
-			try (FloatIndexer idx = mat.createIndexer()) {
-				long[] inds = new long[3];
-				int i = 0;
-				for (var t : colorTransforms) {
-					pixels = t.extractChannel(server, img, pixels);
-					inds[2] = i;
-					idx.put(inds, pixels);
-					i++;
+			List<Mat> channels = new ArrayList<>();
+			for (var t : colorTransforms) {
+				var mat = new Mat(img.getWidth(), img.getHeight(), opencv_core.CV_32FC1);
+				pixels = t.extractChannel(server, img, pixels);
+				try (FloatIndexer idx = mat.createIndexer()) {
+					idx.put(0L, pixels);
 				}
+				channels.add(mat);
 			}
+			var mat = OpenCVTools.mergeChannels(channels, null);
 			if (transformer != null) {
 				mat = transformer.transform(mat);
 			}
@@ -164,7 +188,11 @@ public class Transformers {
 
 		@Override
 		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
-			return imageData.getServer().getMetadata().getChannels();
+			var channels = Arrays.stream(colorTransforms).map(c -> ImageChannel.getInstance(c.getName(), null)).collect(Collectors.toList());
+			if (transformer == null)
+				return channels;
+			else
+				return transformer.getChannels(channels);
 		}
 		
 	}
@@ -216,7 +244,10 @@ public class Transformers {
 //		
 //	}
 	
-	public static class TransformedTileableImageServer extends AbstractTileableImageServer {
+	
+	
+	
+	public static class TransformedTileableImageServer extends AbstractTileableImageServer implements ImageDataServer<BufferedImage> {
 		
 		private final static Logger logger = LoggerFactory.getLogger(TransformedTileableImageServer.class);
 		
@@ -245,6 +276,11 @@ public class Transformers {
 					.rgb(false)
 					.build();
 			
+		}
+		
+		@Override
+		public ImageData<BufferedImage> getImageData() {
+			return imageData;
 		}
 
 		@Override
@@ -356,9 +392,27 @@ public class Transformers {
 			return this;
 		}
 		
+		public Builder features(Collection<MultiscaleFeature> features, double sigmaX, double sigmaY) {
+			transformers.add(new FeatureTransformer(features, sigmaX, sigmaY));
+			return this;
+		}
+		
 		public Builder transformer(Transformer transformer) {
 			transformers.add(transformer);
 			return this;
+		}
+		
+		public Builder splitMerge(Transformer... transformers) {
+			if (transformers.length == 0)
+				return this;
+			if (transformers.length == 1)
+				return transformer(transformers[0]);
+			this.transformers.add(new SplitMergeTransform(transformers));
+			return this;
+		}
+		
+		public Builder splitMerge(Collection<? extends Transformer> transformers) {
+			return splitMerge(transformers.toArray(Transformer[]::new));
 		}
 		
 		public Transformer build() {
@@ -808,6 +862,71 @@ public class Transformers {
 	}
 	
 	
+	
+	static class FeatureTransformer extends PaddedTransformer {
+		
+		private List<MultiscaleFeature> features;
+		private double sigmaX, sigmaY;
+		private transient MultiscaleResultsBuilder builder;
+		
+		FeatureTransformer(Collection<MultiscaleFeature> features, double sigmaX, double sigmaY) {
+			this.features = new ArrayList<>(new LinkedHashSet<>(features));
+			this.sigmaX = sigmaX;
+			this.sigmaY = sigmaY;
+		}
+
+		@Override
+		protected Padding calculatePadding() {
+			return Padding.symmetric(padValue());
+		}
+
+		@Override
+		protected Mat transformPadded(Mat input) {
+			var builder = getBuilder();
+			var output = new ArrayList<Mat>();
+			for (var mat : OpenCVTools.splitChannels(input)) {
+				var results = builder.build(mat);
+				output.addAll(results.values());
+			}
+			return OpenCVTools.mergeChannels(output, input);
+		}
+		
+		@Override
+		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+			var list = new ArrayList<ImageChannel>();
+			for (var c : channels) {
+				var color = c.getColor();
+				var name = c.getName();
+				for (var f : features) {
+					list.add(ImageChannel.getInstance(
+							String.format("%s (%s, sigma=%.1f,%.1f)", name, f.toString(), sigmaX, sigmaY),
+							color));
+				}
+			}
+			return list;
+		}
+		
+		private int padValue() {
+			return (int)(Math.ceil(Math.max(sigmaX, sigmaY) * 4) * 2 + 1);
+		}
+		
+		private MultiscaleResultsBuilder getBuilder() {
+			if (builder == null) {
+				var b = new MultiscaleResultsBuilder(features);
+				b.sigmaX(sigmaX);
+				b.sigmaY(sigmaY);
+//				b.paddingXY(padValue());
+//				b.pixelCalibration(PixelCalibration.getDefaultInstance(), 1.0);
+				builder = b;
+			}
+			return builder;
+		}
+		
+		
+	}
+	
+	
+	
 	static class GaussianFilter extends PaddedTransformer {
 		
 		private double sigmaX, sigmaY;
@@ -967,11 +1086,10 @@ public class Transformers {
 	 * Duplicate the input {@link Mat} and apply different transformers to the duplicates, 
 	 * merging the result at the end.
 	 */
-	static class SplitMergeTransform implements Transformer {
+	static class SplitMergeTransform extends PaddedTransformer {
 		
 		private List<Transformer> transformers;
 		private boolean doParallel = false;
-		private Padding padding;
 		
 		SplitMergeTransform(Transformer...transformers) {
 			this(false, transformers);
@@ -979,16 +1097,34 @@ public class Transformers {
 		
 		SplitMergeTransform(boolean doParallel, Transformer...transformers) {
 			this.doParallel = doParallel;
-			this.padding = Padding.empty();
 			this.transformers = new ArrayList<>();
 			for (var t : transformers) {
 				this.transformers.add(t);
-				padding = padding.max(t.getPadding());
 			}
 		}
 
 		@Override
 		public Mat transform(Mat input) {
+			return transformPadded(input);
+		}
+		
+		@Override
+		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+			return transformers.stream()
+					.flatMap(t -> t.getChannels(channels).stream())
+					.collect(Collectors.toList());
+		}
+
+		@Override
+		protected Padding calculatePadding() {
+			var padding = Padding.empty();
+			for (var t : transformers)
+				padding = padding.max(t.getPadding());
+			return padding;
+		}
+
+		@Override
+		protected Mat transformPadded(Mat input) {
 			if (transformers.isEmpty())
 				return new Mat();
 			if (transformers.size() == 1)
@@ -997,17 +1133,21 @@ public class Transformers {
 			if (doParallel)
 				stream = stream.parallel();
 			// TODO: Handle non-equal padding for different transforms!
-			var mats = stream.map(t -> t.transform(input.clone())).toArray(Mat[]::new);
-			var matvec = new MatVector(mats);
-			opencv_core.merge(matvec, input);
-			return input;
-		}
-		
-		@Override
-		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
-			return transformers.stream()
-					.flatMap(t -> t.getChannels(channels).stream())
-					.collect(Collectors.toList());
+			var mats = stream.map(t -> t.transform(input.clone())).collect(Collectors.toList());
+			var padding = getPadding();
+			for (int i = 0; i < transformers.size(); i++) {
+				var t = transformers.get(i);
+				var pad = t.getPadding();
+				var padExtra = Padding.getPadding(
+						padding.getX1() - pad.getX1(),
+						padding.getX2() - pad.getX2(),
+						padding.getY1() - pad.getY1(),
+						padding.getY2() - pad.getY2()
+						);
+				if (!padExtra.isEmpty())
+					mats.get(i).put(stripPadding(mats.get(i), padExtra));
+			}
+			return OpenCVTools.mergeChannels(mats, null);
 		}
 
 		

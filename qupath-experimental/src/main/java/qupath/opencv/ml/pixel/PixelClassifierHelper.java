@@ -15,7 +15,6 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.ml.BoundaryStrategy;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -30,9 +29,9 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ml.OpenCVClassifiers;
-import qupath.opencv.ml.OpenCVClassifiers.FeaturePreprocessor;
-import qupath.opencv.ml.pixel.features.FeatureCalculator;
+import qupath.opencv.processor.Transformers;
+import qupath.opencv.processor.Transformers.ImageDataServer;
+import qupath.opencv.processor.Transformers.ImageDataTransformer;
 
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;
@@ -65,14 +64,12 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
 	private PixelCalibration resolution = PixelCalibration.getDefaultInstance();
     private ImageData<BufferedImage> imageData;
-    private FeatureCalculator<BufferedImage> featureCalculator;
-    private FeatureImageServer featureServer;
+    private ImageDataTransformer featureCalculator;
+    private ImageDataServer<BufferedImage> featureServer;
     private boolean changes = true;
 
     private Mat matTraining;
     private Mat matTargets;
-    
-    private FeaturePreprocessor preprocessor;
 
     /**
      * Create a new pixel classifier helper, to support generating training data.
@@ -80,28 +77,23 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
      * @param imageData
      * @param featureCalculator
      */
-    public PixelClassifierHelper(ImageData<BufferedImage> imageData, FeatureCalculator<BufferedImage> featureCalculator) {
+    public PixelClassifierHelper(ImageData<BufferedImage> imageData, ImageDataTransformer featureCalculator) {
         setImageData(imageData);
         this.featureCalculator = featureCalculator;
     }
     
-    public synchronized ImageServer<BufferedImage> getFeatureServer() {
+    public synchronized ImageDataServer<BufferedImage> getFeatureServer() {
     	if (featureServer == null) {
     		if (featureCalculator != null && imageData != null) {
     			if (featureCalculator.supportsImage(imageData)) {
-	    			try {
-	    				this.featureServer = new FeatureImageServer(imageData, featureCalculator, resolution);
-	    			} catch (IOException e) {
-	    				logger.error("Error initializing FeatureImageServer", e);
-	    				this.featureServer = null;
-	    			}
+	    			this.featureServer = Transformers.buildServer(imageData, featureCalculator, resolution);
     			}
     		}
     	}
     	return featureServer;
     }
     
-    public synchronized FeatureCalculator<BufferedImage> getFeatureCalculator() {
+    public synchronized ImageDataTransformer getFeatureCalculator() {
     	return featureCalculator;
     }
     
@@ -116,7 +108,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     	this.featureServer = null;
     }
 
-    public synchronized void setFeatureCalculator(FeatureCalculator<BufferedImage> featureCalculator) {
+    public synchronized void setFeatureCalculator(ImageDataTransformer featureCalculator) {
         if (Objects.equal(this.featureCalculator, featureCalculator))
             return;
         this.featureCalculator = featureCalculator;
@@ -254,11 +246,13 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
         opencv_core.vconcat(new MatVector(allTargets.toArray(Mat[]::new)), matTargets);
 
         
-        this.preprocessor = new OpenCVClassifiers.FeaturePreprocessor.Builder()
-        	.normalize(normalization)
-        	.pca(pcaRetained, pcaNormalize)
-        	.missingValue(missingValue)
-        	.buildAndApply(matTraining);
+        // TODO: REINSTATE PREPROCESSING
+        logger.warn("PREPROCESSING NOT ENABLED!");
+//        this.preprocessor = new OpenCVClassifiers.FeaturePreprocessor.Builder()
+//        	.normalize(normalization)
+//        	.pca(pcaRetained, pcaNormalize)
+//        	.missingValue(missingValue)
+//        	.buildAndApply(matTraining);
         
 
         logger.info("Training data: {} x {}, Target data: {} x {}", matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols());
@@ -392,9 +386,9 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     }
     
     
-    public FeaturePreprocessor getLastFeaturePreprocessor() {
-        return preprocessor;
-    }
+//    public FeaturePreprocessor getLastFeaturePreprocessor() {
+//        return preprocessor;
+//    }
     
     
     private synchronized void resetTrainingData() {
@@ -454,14 +448,14 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     	private static Map<RegionRequest, TileFeatures> cache = Collections.synchronizedMap(new WeakHashMap<>());
     	    	
     	private Map<PathClass, Integer> labels;
-    	private FeatureImageServer featureServer;
+    	private ImageDataServer<BufferedImage> featureServer;
     	private RegionRequest request;
     	private Map<ROI, PathClass> rois;
     	private BoundaryStrategy strategy;
     	private Mat matFeatures;
     	private Mat matTargets;
     	
-    	static TileFeatures getFeatures(RegionRequest request, FeatureImageServer featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) {
+    	static TileFeatures getFeatures(RegionRequest request, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<PathClass, Integer> labels) {
     		TileFeatures features = cache.get(request);
     		Map<ROI, PathClass> rois = null;
     		
@@ -524,7 +518,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		return features;
     	}
     	
-    	private TileFeatures(RegionRequest request, FeatureImageServer featureServer, BoundaryStrategy strategy, Map<ROI, PathClass> rois, Map<PathClass, Integer> labels) throws IOException {
+    	private TileFeatures(RegionRequest request, ImageDataServer<BufferedImage> featureServer, BoundaryStrategy strategy, Map<ROI, PathClass> rois, Map<PathClass, Integer> labels) throws IOException {
     		this.request = request;
     		this.strategy = strategy;
     		this.featureServer = featureServer;
@@ -641,79 +635,6 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     		idxTargets.release();
     		idxFeatures.release();
     	}
-    	
-//    	private void ensureFeaturesCalculated() throws IOException {
-//    		if (matFeatures != null && matTargets != null)
-//    			return;
-//    		
-//    		matFeatures = new Mat();
-//    		matTargets = new Mat();
-//    		
-//    		var features = featureServer.readBufferedImage(request);
-//    		
-//    		var map = new HashMap<PathClass, BufferedImage>();
-//    		
-//    		// TODO: Handle differing boundary thicknesses
-//    		double downsample = request.getDownsample();
-//    		double boundaryThickness = 1.0;
-//    		
-//    		int width = features.getWidth();
-//    		int height = features.getHeight();
-//    		
-//    		// Create labels one annotation at a time - we want to permit overlapping annotations for multiclass classification
-//    		for (var entry : rois.entrySet()) {
-//    			var roi = entry.getKey();
-//    			var pathClass = entry.getValue();
-//    			
-//    			// Get (or create) as mask
-//    			var imgMask = map.get(pathClass);
-//    			if (imgMask == null) {
-//    				imgMask = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-//    				map.put(pathClass, imgMask);
-//    	    	}
-//    			
-//    			boolean isArea = roi.isArea();
-//    			boolean isLine = roi.isLine();
-//    			boolean trainBoundaries = false;
-//    			
-//    			if (roi.isPoint()) {
-//    				for (var p : roi.getPolygonPoints()) {
-//        				int x = (int)Math.round((p.getX() - request.getX()) / downsample);    					
-//        				int y = (int)Math.round((p.getY() - request.getY()) / downsample); 
-//        				if (x >= 0 && y >= 0 && x < width && y < height)
-//        					imgMask.getRaster().setSample(x, y, 0, 255);
-//    				}
-//    			} else {
-//	    			var g2d = imgMask.createGraphics();
-//	    			g2d.scale(1.0/downsample, 1.0/downsample);
-//	                g2d.translate(-request.getX(), -request.getY());
-//	                g2d.setColor(Color.WHITE);
-//	                
-//	                var shape = entry.getKey().getShape();
-//	                if (isArea) {
-//	                	g2d.fill(shape);
-//	                	// Do not train on boundaries if these should be classified some other way
-//	                	if (trainBoundaries) {
-//	                        g2d.setColor(Color.BLACK);
-//	                    	g2d.setStroke(new BasicStroke((float)(downsample * boundaryThickness)));
-//	                    	g2d.draw(shape);                        		
-//	                	}
-//	                } else if (isLine) {
-//	                	g2d.setStroke(new BasicStroke((float)(downsample * boundaryThickness)));
-//	                	g2d.draw(shape);
-//	                }
-//	        		g2d.dispose();
-//    			}
-//    		}
-//    		
-//    		// Allocate buffers
-//    		int capacity = width * height * map.size();
-//    		int nFeatures = features.getRaster().getNumBands();
-//    		var extracted = FloatBuffer.allocate(capacity * nFeatures);    		
-//    		var targets = IntBuffer.allocate(capacity);
-//    		
-//    		
-//    	}
     	
     	public Mat getFeatures() {
     		return matFeatures;

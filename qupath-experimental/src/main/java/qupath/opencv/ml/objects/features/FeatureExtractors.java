@@ -11,8 +11,7 @@ import com.google.gson.reflect.TypeToken;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
-import qupath.opencv.ml.Normalizer;
-import qupath.opencv.ml.Preprocessing.PCAProjector;
+import qupath.opencv.ml.objects.features.Preprocessing.PCAProjector;
 
 /**
  * Helper class for extracting features from objects, used along with {@linkplain ObjectClassifier ObjectClassifiers}.

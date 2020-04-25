@@ -32,6 +32,7 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import static org.bytedeco.opencv.global.opencv_core.*;
 
@@ -164,6 +165,34 @@ public class OpenCVTools {
 				}
 			}
 		}
+	}
+	
+	/**
+	 * Split channels from a {@link Mat}.
+	 * May be more convenient than OpenCV's built-in approach.
+	 * 
+	 * @param mat
+	 * @return a list of {@link Mat}, containing each split channel in order
+	 */
+	public static List<Mat> splitChannels(Mat mat) {
+		var matvec = new MatVector();
+		opencv_core.split(mat, matvec);
+		return Arrays.asList(matvec.get());
+	}
+	
+	/**
+	 * Merge channels from a multichannel {@link Mat}.
+	 * May be more convenient than OpenCV's built-in approach.
+	 * 
+	 * @param channels separate channels
+	 * @param dest optional destination (may be null)
+	 * @return merged {@link Mat}, which will be the same as dest if provided
+	 */
+	public static Mat mergeChannels(Collection<? extends Mat> channels, Mat dest) {
+		if (dest == null)
+			dest = new Mat();
+		opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
+		return dest;
 	}
 	
 	private static void putPixels(WritableRaster raster, UShortIndexer indexer) {

@@ -199,6 +199,36 @@ public class ColorTransforms {
 		public String toString() {
 			return getName();
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + stainNumber;
+			result = prime * result + ((stains == null) ? 0 : stains.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ColorDeconvolvedChannel other = (ColorDeconvolvedChannel) obj;
+			if (stainNumber != other.stainNumber)
+				return false;
+			if (stains == null) {
+				if (other.stains != null)
+					return false;
+			} else if (!stains.equals(other.stains))
+				return false;
+			return true;
+		}
+		
+		
 		
 	}
 	
@@ -239,6 +269,30 @@ public class ColorTransforms {
 		public boolean supportsImage(ImageServer<BufferedImage> server) {
 			return channel < server.nChannels();
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + channel;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ExtractChannel other = (ExtractChannel) obj;
+			if (channel != other.channel)
+				return false;
+			return true;
+		}
+		
+		
 		
 	}
 	
@@ -293,6 +347,33 @@ public class ColorTransforms {
 		public boolean supportsImage(ImageServer<BufferedImage> server) {
 			return getChannelNumber(server) >= 0;
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((channelName == null) ? 0 : channelName.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ExtractChannelByName other = (ExtractChannelByName) obj;
+			if (channelName == null) {
+				if (other.channelName != null)
+					return false;
+			} else if (!channelName.equals(other.channelName))
+				return false;
+			return true;
+		}
+		
+		
 		
 	}
 	
@@ -353,6 +434,28 @@ public class ColorTransforms {
 		public String getName() {
 			return "Average channels";
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((combineType == null) ? 0 : combineType.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			AverageChannels other = (AverageChannels) obj;
+			if (combineType != other.combineType)
+				return false;
+			return true;
+		}
 		
 	}
 	
@@ -378,6 +481,29 @@ public class ColorTransforms {
 		public String getName() {
 			return "Max channels";
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((combineType == null) ? 0 : combineType.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			MaxChannels other = (MaxChannels) obj;
+			if (combineType != other.combineType)
+				return false;
+			return true;
+		}
+		
 		
 	}
 	
@@ -403,6 +529,30 @@ public class ColorTransforms {
 		public String getName() {
 			return "Min channels";
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((combineType == null) ? 0 : combineType.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			MinChannels other = (MinChannels) obj;
+			if (combineType != other.combineType)
+				return false;
+			return true;
+		}
+		
+		
 		
 	}
 	

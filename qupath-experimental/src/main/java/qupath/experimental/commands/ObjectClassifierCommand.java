@@ -75,6 +75,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
+import javafx.scene.chart.PieChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
@@ -103,8 +104,9 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.ml.ClassificationPieChart;
+import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathDetectionObject;
@@ -117,12 +119,12 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.opencv.ml.OpenCVClassifiers;
-import qupath.opencv.ml.Preprocessing;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
+import qupath.opencv.ml.objects.features.Preprocessing;
 
 
 /**
@@ -309,7 +311,7 @@ public class ObjectClassifierCommand implements Runnable {
 		/**
 		 * Visualization of the training object proportions
 		 */
-		private ClassificationPieChart pieChart;
+		private PieChart pieChart;
 		
 		private ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("object-classifier", true));
 		private FutureTask<ObjectClassifier<BufferedImage>> classifierTask;
@@ -399,14 +401,14 @@ public class ObjectClassifierCommand implements Runnable {
 			OpenCVStatModel statModel = selectedModel == null ? null : selectedModel.get();
 			if (statModel == null) {
 				logger.warn("No classifier - cannot update classifier");
-				pieChart.setData(Collections.emptyMap(), false);
+				resetPieChart();
 				return null;
 			}
 			
 			var imageData = qupath.getImageData();
 			if (imageData == null) {
 				logger.warn("No image - cannot update classifier");
-				pieChart.setData(Collections.emptyMap(), false);
+				resetPieChart();
 				return null;
 			}
 			
@@ -459,7 +461,7 @@ public class ObjectClassifierCommand implements Runnable {
 						imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, pathObjects);
 					}
 				}
-				updatePieChart(map, pieChart);
+				updatePieChart(map);
 				return classifier;
 			});
 		}
@@ -589,13 +591,17 @@ public class ObjectClassifierCommand implements Runnable {
 					.create(statModel, filter, extractor, pathClasses);
 		}
 		
-		static void updatePieChart(Map<PathClass, Set<PathObject>> map, ClassificationPieChart pieChart) {
+		
+		void resetPieChart() {
+			updatePieChart(Collections.emptyMap());
+		}
+		
+		void updatePieChart(Map<PathClass, Set<PathObject>> map) {
 			var counts = new LinkedHashMap<PathClass, Integer>();
 			for (var entry : map.entrySet()) {
 				counts.put(entry.getKey(), entry.getValue().size());
 			}
-			pieChart.setData(counts, true);
-
+			ChartTools.setPieChartData(pieChart, counts, PathClass::toString, p -> ColorToolsFX.getCachedColor(p.getColor()), true, !map.isEmpty());
 		}
 		
 		
@@ -1022,17 +1028,16 @@ public class ObjectClassifierCommand implements Runnable {
 			/*
 			 * Training proportions (pie chart)
 			 */
-			pieChart = new ClassificationPieChart();
+			pieChart = new PieChart();
 			
-			var chart = pieChart.getChart();
-			chart.setLabelsVisible(false);
-			chart.setLegendVisible(true);
-			chart.setPrefSize(40, 40);
-			chart.setMaxSize(100, 100);
-			chart.setLegendSide(Side.RIGHT);
-			chart.setMaxWidth(Double.MAX_VALUE);
-			GridPane.setVgrow(chart, Priority.ALWAYS);
-			pane.add(chart, 0, row++, pane.getColumnCount(), 1);
+			pieChart.setLabelsVisible(false);
+			pieChart.setLegendVisible(true);
+			pieChart.setPrefSize(40, 40);
+			pieChart.setMaxSize(100, 100);
+			pieChart.setLegendSide(Side.RIGHT);
+			pieChart.setMaxWidth(Double.MAX_VALUE);
+			GridPane.setVgrow(pieChart, Priority.ALWAYS);
+			pane.add(pieChart, 0, row++, pane.getColumnCount(), 1);
 			
 			// Label showing cursor location
 			var labelCursor = new Label();

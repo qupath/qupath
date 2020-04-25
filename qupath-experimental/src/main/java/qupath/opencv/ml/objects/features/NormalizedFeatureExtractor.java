@@ -6,7 +6,6 @@ import java.util.List;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
-import qupath.opencv.ml.Normalizer;
 
 class NormalizedFeatureExtractor<T> implements FeatureExtractor<T> {
 	

@@ -1,4 +1,4 @@
-package qupath.opencv.ml;
+package qupath.opencv.ml.objects.features;
 
 import java.nio.FloatBuffer;
 import java.util.Arrays;
