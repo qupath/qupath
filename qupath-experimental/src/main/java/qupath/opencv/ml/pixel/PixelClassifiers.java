@@ -16,7 +16,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
-import qupath.opencv.processor.Transformers.ImageDataTransformer;
+import qupath.opencv.operations.ImageDataOp;
 
 /**
  * Static methods and classes for working with pixel classifiers.
@@ -88,7 +88,7 @@ public class PixelClassifiers {
 	
 	
 	public static PixelClassifier createThresholdingClassifier(
-			ImageDataTransformer transformer,
+			ImageDataOp transformer,
 			PixelCalibration inputResolution,
 			ThresholdClassifier thresholder) {
 		return new SimplePixelClassifier(transformer, inputResolution, thresholder);

@@ -28,15 +28,15 @@ import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.opencv.processor.Transformer;
-import qupath.opencv.processor.Transformers;
-import qupath.opencv.processor.Transformers.ImageDataTransformer;
+import qupath.opencv.operations.ImageDataOp;
+import qupath.opencv.operations.ImageOp;
+import qupath.opencv.operations.ImageOperations;
 import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
 import qupath.opencv.tools.LocalNormalization.SmoothingScale;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 /**
- * Helper class capable of building (or returning) a {@link ImageDataTransformer}.
+ * Helper class capable of building (or returning) a {@link ImageDataOp}.
  * 
  * @author Pete Bankhead
  */
@@ -44,7 +44,7 @@ abstract class ImageDataTransformerBuilder {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ImageDataTransformerBuilder.class);
 
-	public abstract ImageDataTransformer build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
+	public abstract ImageDataOp build(ImageData<BufferedImage> imageData, PixelCalibration resolution);
 
 	public boolean canCustomize(ImageData<BufferedImage> imageData) {
 		return false;
@@ -360,7 +360,7 @@ abstract class ImageDataTransformerBuilder {
 
 
 		@Override
-		public ImageDataTransformer build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
+		public ImageDataOp build(ImageData<BufferedImage> imageData, PixelCalibration resolution) {
 			
 			if (selectedFeatures == null || selectedSigmas == null)
 				throw new IllegalArgumentException("Features and scales must be selected!");
@@ -406,13 +406,12 @@ abstract class ImageDataTransformerBuilder {
 //					Arrays.stream(channels).map(c -> ColorTransforms.createChannelExtractor(c)).collect(Collectors.toList()),
 //					norm);
 			
-			List<Transformer> transformers = new ArrayList<>();
+			List<ImageOp> ops = new ArrayList<>();
 			for (var sigma : sigmas) {
-				transformers.add(Transformers.builder().features(Arrays.asList(features), sigma, sigma).build());
+				ops.add(ImageOperations.Filters.features(Arrays.asList(features), sigma, sigma));
 			}
-			return Transformers.builder()
-				.splitMerge(transformers)
-				.buildImageTransformer(selectedChannels.toArray(ColorTransform[]::new));
+			var op = ImageOperations.Core.splitMerge(ops);
+			return ImageOperations.buildImageTransformer(selectedChannels.toArray(ColorTransform[]::new), op);
 			
 //			return MultiscaleFeatureCalculator.createMultiscaleFeatureCalculator(
 //					channels,

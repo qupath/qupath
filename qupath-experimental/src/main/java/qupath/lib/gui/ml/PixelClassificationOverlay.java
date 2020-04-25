@@ -21,9 +21,9 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processor.Transformers;
-import qupath.opencv.processor.Transformers.ImageDataTransformer;
-import qupath.opencv.processor.Transformers.TransformedTileableImageServer;
+import qupath.opencv.operations.ImageDataOp;
+import qupath.opencv.operations.ImageDataServer;
+import qupath.opencv.operations.ImageOperations;
 
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
@@ -102,7 +102,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     
     
     public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
-    		final ImageDataTransformer calculator,
+    		final ImageDataOp calculator,
     		PixelCalibration resolution, ImageRenderer renderer) {
     	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(calculator, resolution), renderer);
     }
@@ -124,10 +124,10 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     static class FeatureCalculatorServerFunction implements Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> {
     	
     	private ImageServer<BufferedImage> server;
-    	private ImageDataTransformer calculator;
+    	private ImageDataOp calculator;
     	private PixelCalibration resolution;
     	
-    	private FeatureCalculatorServerFunction(ImageDataTransformer calculator, PixelCalibration resolution) {
+    	private FeatureCalculatorServerFunction(ImageDataOp calculator, PixelCalibration resolution) {
     		this.calculator = calculator;
     		this.resolution = resolution;
     	}
@@ -142,10 +142,10 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 				server = null;
 				return null;
 			}
-			if (server != null && (server instanceof TransformedTileableImageServer && ((TransformedTileableImageServer)server).getImageData() != imageData))
+			if (server != null && (server instanceof ImageDataServer && ((ImageDataServer<?>)server).getImageData() != imageData))
 				server = null;
 			if (server == null && calculator != null && calculator.supportsImage(imageData)) {
-				server = Transformers.buildServer(imageData, calculator, resolution);
+				server = ImageOperations.buildServer(imageData, calculator, resolution);
 			}
 	    	return server;
 		}

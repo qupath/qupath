@@ -11,7 +11,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.processor.Transformers.ImageDataTransformer;
+import qupath.opencv.operations.ImageDataOp;
 import qupath.opencv.tools.OpenCVTools;
 
 import org.slf4j.Logger;
@@ -23,7 +23,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 
     private OpenCVStatModel model;
 	
-    private ImageDataTransformer calculator;
+    private ImageDataOp calculator;
     
     private OpenCVPixelClassifier() {
     	super(null, false);
@@ -42,7 +42,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 //    	this(statModel, calculator, preprocessor, metadata, false);
 //    }
 
-    OpenCVPixelClassifier(OpenCVStatModel statModel, ImageDataTransformer calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
+    OpenCVPixelClassifier(OpenCVStatModel statModel, ImageDataOp calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
         super(metadata, do8Bit);
         this.model = statModel;
         this.calculator = calculator;
@@ -130,7 +130,7 @@ class OpenCVPixelClassifier extends AbstractOpenCVPixelClassifier {
 //        Mat matInput = OpenCVTools.imageToMatRGB(img, false);
 //    	BufferedImage imgFeatures = calculator.readBufferedImage(request);
     	
-    	var matFeatures = calculator.transform(imageData, request);
+    	var matFeatures = calculator.apply(imageData, request);
     	
 //    	OpenCVTools.matToImagePlus(matFeatures, "Features").show();
 

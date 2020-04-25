@@ -111,7 +111,7 @@ import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
-import qupath.opencv.processor.Transformers;
+import qupath.opencv.operations.ImageOperations;
 
 
 public class PixelClassifierPane {
@@ -1500,7 +1500,7 @@ public class PixelClassifierPane {
 				featureServer = helper.getFeatureServer();
 			} else {
 				tempFeatureServer = true;
-				featureServer = Transformers.buildServer(imageData, helper.getFeatureCalculator(), helper.getResolution());
+				featureServer = ImageOperations.buildServer(imageData, helper.getFeatureCalculator(), helper.getResolution());
 			}
 			double downsample = featureServer.getDownsampleForResolution(0);
 			int tw = (int)(featureServer.getMetadata().getPreferredTileWidth() * downsample);

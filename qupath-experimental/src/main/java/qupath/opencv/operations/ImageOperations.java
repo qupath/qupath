@@ -1,14 +1,12 @@
-package qupath.opencv.processor;
+package qupath.opencv.operations;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
@@ -20,30 +18,31 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageChannel;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
-import qupath.lib.images.servers.TileRequest;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 import qupath.opencv.tools.OpenCVTools;
 
-public class Transformers {
+/**
+ * Create and use {@link ImageOp} and {@link ImageDataOp} objects.
+ * 
+ * @author Pete Bankhead
+ */
+public class ImageOperations {
 	
-	public static enum RGBConvert {
+	// TODO: Use or remove this
+	private static enum RGBConvert {
 		
 		RGB2HSV, RGB2CIELAB;
 		
@@ -60,58 +59,30 @@ public class Transformers {
 	}
 	
 	
-	public static interface ImageDataServer<T> extends ImageServer<T> {
-		
-		public ImageData<T> getImageData();
-		
-	}
-	
-	
-	/**
-	 * Request pixels from an image, potentially applying further transforms.
-	 */
-	public static interface ImageDataTransformer {
-		
-		public Mat transform(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException;
-		
-		/**
-		 * Query whether this transform can be applied to the specified image.
-		 * Reasons why it may not be include the type or channel number being incompatible.
-		 * @param imageData
-		 * @return
-		 */
-		boolean supportsImage(ImageData<BufferedImage> imageData);
-		
-		/**
-		 * Get appropriate channels to reflect the output of this transform, given the input.
-		 * 
-		 * @param imageData 
-		 * 
-		 * @return
-		 */
-		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData);
-		
-	}
-	
-	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataTransformer transformer, PixelCalibration resolution) {
+	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp transformer, PixelCalibration resolution) {
 		return buildServer(imageData, transformer, resolution, 512, 512);
 	}
 	
-	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataTransformer transformer, PixelCalibration resolution, int tileWidth, int tileHeight) {
+	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp transformer, PixelCalibration resolution, int tileWidth, int tileHeight) {
 		double downsample = resolution.getAveragedPixelSize().doubleValue() / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
-		return new TransformedTileableImageServer(imageData, downsample, tileWidth, tileHeight, transformer);
+		return new ImageOpServer(imageData, downsample, tileWidth, tileHeight, transformer);
 	}
 	
+	public static ImageDataOp buildImageTransformer(ColorTransform[] inputChannels, ImageOp op) {
+		return inputChannels.length == 0 ? new DefaultImageDataTransformer(op) : new ChannelImageDataTransformer(op, inputChannels);
+	}
+
 	
-	static class DefaultImageDataTransformer implements ImageDataTransformer {
+	
+	static class DefaultImageDataTransformer implements ImageDataOp {
 		
-		private Transformer transformer;
+		private ImageOp transformer;
 		
-		DefaultImageDataTransformer(Transformer transformer) {
+		DefaultImageDataTransformer(ImageOp transformer) {
 			this.transformer = transformer;
 		}
 		
-		public Mat transform(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
 			if (transformer == null) {
 				img = imageData.getServer().readBufferedImage(request);
@@ -121,7 +92,7 @@ public class Transformers {
 				img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, padding);
 				var mat = OpenCVTools.imageToMat(img);
 				mat.convertTo(mat, opencv_core.CV_32F);
-				return transformer.transform(mat);
+				return transformer.apply(mat);
 			}
 		}
 
@@ -133,8 +104,6 @@ public class Transformers {
 				return transformer.getChannels(imageData.getServer().getMetadata().getChannels());
 		}
 
-
-
 		@Override
 		public boolean supportsImage(ImageData<BufferedImage> imageData) {
 			return true;
@@ -142,12 +111,12 @@ public class Transformers {
 		
 	}
 	
-	static class ChannelImageDataTransformer implements ImageDataTransformer {
+	static class ChannelImageDataTransformer implements ImageDataOp {
 		
 		private ColorTransform[] colorTransforms;
-		private Transformer transformer;
+		private ImageOp transformer;
 		
-		ChannelImageDataTransformer(Transformer transformer, ColorTransform... colorTransforms) {
+		ChannelImageDataTransformer(ImageOp transformer, ColorTransform... colorTransforms) {
 			this.colorTransforms = colorTransforms.clone();
 			this.transformer = transformer;
 		}
@@ -161,7 +130,7 @@ public class Transformers {
 			return true;
 		}
 		
-		public Mat transform(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
+		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
 			if (transformer == null)
 				img = imageData.getServer().readBufferedImage(request);
@@ -181,7 +150,7 @@ public class Transformers {
 			}
 			var mat = OpenCVTools.mergeChannels(channels, null);
 			if (transformer != null) {
-				mat = transformer.transform(mat);
+				mat = transformer.apply(mat);
 			}
 			return mat;
 		}
@@ -197,250 +166,256 @@ public class Transformers {
 		
 	}
 	
-	public static Builder builder() {
-		return new Builder();
-	}
 	
-	
-//	public static class TransformedImageServer extends TransformingImageServer<BufferedImage> {
-//		
-//		private final static Logger logger = LoggerFactory.getLogger(TransformedImageServer.class);
-//
-//		private Transformer transformer;
-//		
-//		protected TransformedImageServer(ImageServer<BufferedImage> server, Transformer transformer) {
-//			super(server);
-//			this.transformer = transformer;
-//			
-//			// TODO: Set metadata!
-//			logger.warn("Must set metadata!");
-//		}
-//		
-//		@Override
-//		public BufferedImage readBufferedImage(final RegionRequest request) throws IOException {
-//			var padding = transformer.getPadding();
-//			var img = PixelClassifierTools.getPaddedRequest(getWrappedServer(), request, padding;
-//			var mat = OpenCVTools.imageToMat(img);
-//			mat.convertTo(mat, opencv_core.CV_32F);
-//			mat = transformer.transform(mat);
-//			return OpenCVTools.matToBufferedImage(mat);
-//		}
-//
-//		@Override
-//		public String getServerType() {
-//			return "Transformed server";
-//		}
-//
-//		@Override
-//		protected ServerBuilder<BufferedImage> createServerBuilder() {
-//			// TODO Auto-generated method stub
-//			return null;
-//		}
-//
-//		@Override
-//		protected String createID() {
-//			return UUID.randomUUID().toString();
-//		}
-//		
-//	}
-	
-	
-	
-	
-	public static class TransformedTileableImageServer extends AbstractTileableImageServer implements ImageDataServer<BufferedImage> {
+	/**
+	 * Normalization operations.
+	 */
+	public static class Normalize {
 		
-		private final static Logger logger = LoggerFactory.getLogger(TransformedTileableImageServer.class);
-		
-		private ImageData<BufferedImage> imageData;
-		private ImageDataTransformer transformer;
-		private ImageServerMetadata metadata;
-		
-		TransformedTileableImageServer(ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, ImageDataTransformer transformer) {
-			super();
-			
-			this.imageData = imageData;
-			this.transformer = transformer;
-			
-			// TODO: UPDATE PIXEL TYPE!
-			logger.warn("Using default pixel type!");
-			var pixelType = PixelType.FLOAT32;
-			
-			// Update channels according to the transformer
-			var channels = transformer.getChannels(imageData);
-						
-			metadata = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
-					.levelsFromDownsamples(downsample)
-					.preferredTileSize(tileWidth, tileHeight)
-					.pixelType(pixelType)
-					.channels(channels)
-					.rgb(false)
-					.build();
-			
+		/**
+		 * Normalize the minimum and maximum values of the image to fall into the range 'outputMin - outputMax'.
+		 * <p>
+		 * This method is applied per-channel.
+		 * @param outputMin
+		 * @param outputMax
+		 * @return
+		 */
+		public static ImageOp minMax(double outputMin, double outputMax) {
+			return new NormalizeMinMax(outputMin, outputMax);
 		}
 		
-		@Override
-		public ImageData<BufferedImage> getImageData() {
-			return imageData;
-		}
-
-		@Override
-		public Collection<URI> getURIs() {
-			return imageData.getServer().getURIs();
-		}
-
-		@Override
-		public String getServerType() {
-			return "Transformer server";
-		}
-
-		@Override
-		public ImageServerMetadata getOriginalMetadata() {
-			return metadata;
-		}
-
-		@Override
-		protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
-			var mat = transformer.transform(imageData, tileRequest.getRegionRequest());
-			return OpenCVTools.matToBufferedImage(mat);
-		}
-
-		@Override
-		protected ServerBuilder<BufferedImage> createServerBuilder() {
-			// TODO Auto-generated method stub
-			return null;
-		}
-
-		@Override
-		protected String createID() {
-			return UUID.randomUUID().toString();
+		/**
+		 * Normalize the minimum and maximum values of the image to fall into the range 0 - 1.
+		 * <p>
+		 * This method is applied per-channel.
+		 * @return
+		 */
+		public static ImageOp minMax() {
+			return minMax(0, 1);
 		}
 		
-	}
-
-	
-	
-	public static class Builder {
-		
-		private List<Transformer> transformers = new ArrayList<>();
-		
-		public Builder gaussianBlur(double sigma) {
-			transformers.add(new GaussianFilter(sigma, sigma));
-			return this;
-		}
-		
-		public Builder channels(int... channels) {
-			transformers.add(new ExtractChannels(channels));
-			return this;
-		}
-		
-		public Builder deconvolve(ColorDeconvolutionStains stains) {
-			transformers.add(new ColorDeconvolution(stains));
-			return this;
-		}
-		
-		public Builder multiply(double value) {
-			transformers.add(new Multiplier(value));
-			return this;
-		}
-		
-//		public Builder normalizeMeanStd() {
-//			transformers.add(new NormalizeMeanStd());
-//			return this;
-//		}
-		
-		public Builder normalizeMinMax(double outputMin, double outputMax) {
-			transformers.add(new NormalizeMinMax(outputMin, outputMax));
-			return this;
-		}
-		
-		public Builder normalizeMinMax() {
-			return normalizeMinMax(0.0, 1.0);
-		}
-		
-		public Builder normalizePercentile(double percentileMin, double percentileMax) {
-			transformers.add(new NormalizePercentile(percentileMin, percentileMax));
-			return this;
-		}
-		
-		public Builder statModel(OpenCVStatModel statModel, boolean requestProbabilities) {
-			transformers.add(new StatModelTransformer(statModel, requestProbabilities));
-			return this;
-		}
-		
-		public Builder threshold(double... thresholds) {
-			transformers.add(new FixedThresholder(thresholds));
-			return this;
-		}
-		
-		public Builder thresholdMeanStd(double... k) {
-			transformers.add(new MeanStdDevThresholder(k));
-			return this;
-		}
-		
-		public Builder thresholdMedianAbsDev(double... k) {
-			transformers.add(new MedianAbsDevThresholder(k));
-			return this;
-		}
-		
-		public Builder sqrt() {
-			transformers.add(new Sqrt());
-			return this;
-		}
-		
-		public Builder power(double power) {
-			transformers.add(new Power(power));
-			return this;
-		}
-		
-		public Builder features(Collection<MultiscaleFeature> features, double sigmaX, double sigmaY) {
-			transformers.add(new FeatureTransformer(features, sigmaX, sigmaY));
-			return this;
-		}
-		
-		public Builder transformer(Transformer transformer) {
-			transformers.add(transformer);
-			return this;
-		}
-		
-		public Builder splitMerge(Transformer... transformers) {
-			if (transformers.length == 0)
-				return this;
-			if (transformers.length == 1)
-				return transformer(transformers[0]);
-			this.transformers.add(new SplitMergeTransform(transformers));
-			return this;
-		}
-		
-		public Builder splitMerge(Collection<? extends Transformer> transformers) {
-			return splitMerge(transformers.toArray(Transformer[]::new));
-		}
-		
-		public Transformer build() {
-			if (transformers.size() == 1)
-				return transformers.get(0);
-			return new SequentialTransform(transformers);
-		}
-
-		public ImageServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, ColorTransform... inputChannels) {
-			return new TransformedTileableImageServer(imageData, downsample, tileWidth, tileHeight, buildImageTransformer(inputChannels));
-		}
-
-		public ImageServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData) {
-			return buildServer(imageData, 1.0, 512, 512);
-		}
-		
-		public ImageDataTransformer buildImageTransformer(ColorTransform... inputChannels) {
-			return inputChannels.length == 0 ? new DefaultImageDataTransformer(build()) : new ChannelImageDataTransformer(build(), inputChannels);
+		/**
+		 * Normalize the image similar to {@link #minMax()}, but using low and high percentiles rather than minimum and 
+		 * maximum respectively. {@code 100-percentileMin-percentileMax %} of the values then fall in the range 0-1.
+		 * <p>
+		 * This method is applied per-channel.
+		 * @param percentileMin
+		 * @param percentileMax
+		 * @return
+		 */
+		public static ImageOp percentile(double percentileMin, double percentileMax) {
+			return new NormalizePercentile(percentileMin, percentileMax);
 		}
 		
 	}
 	
+	/**
+	 * Filtering operations.
+	 */
+	public static class Filters {
+		
+		/**
+		 * Apply a (possibly anisotropic) 2D Gaussian filter.
+		 * @param sigmaX
+		 * @param sigmaY
+		 * @return
+		 */
+		public static ImageOp gaussianBlur(double sigmaX, double sigmaY) {
+			return new GaussianFilter(sigmaX, sigmaY);
+		}
+		
+		/**
+		 * Apply a 2D Gaussian filter.
+		 * @param sigma
+		 * @return
+		 */
+		public static ImageOp gaussianBlur(double sigma) {
+			return gaussianBlur(sigma, sigma);
+		}
+		
+		/**
+		 * Apply a 2D filter.
+		 * @param kernel
+		 * @return
+		 */
+		public static ImageOp filter2D(Mat kernel) {
+			return new Filter2D(kernel);
+		}
+		
+		/**
+		 * Compute one or more {@link MultiscaleFeature}s for the specified smoothing values (must be &gt; 0).
+		 * @param features
+		 * @param sigmaX
+		 * @param sigmaY
+		 * @return
+		 */
+		public static ImageOp features(Collection<MultiscaleFeature> features, double sigmaX, double sigmaY) {
+			return new FeatureTransformer(features, sigmaX, sigmaY);
+		}
+		
+	}
 	
-	static class RGBTransform implements Transformer {
+	/**
+	 * Channel and color operations.
+	 */
+	public static class Channels {
+		
+		/**
+		 * Apply the (fixed) color deconvolution stains to an image.
+		 * The input must be a 3-channel image, with values in the range 0-255. 
+		 * @param stains
+		 * @return
+		 */
+		public static ImageOp deconvolve(ColorDeconvolutionStains stains) {
+			return new ColorDeconvolution(stains);
+		}
+		
+		/**
+		 * Extract or rearrange channels by index.
+		 * @param channels
+		 * @return
+		 */
+		public static ImageOp extract(int... channels) {
+			return new ExtractChannels(channels);
+		}
+		
+	}
+	
+	/**
+	 * Thresholding operations.
+	 */
+	public static class Threshold {
+		
+		/**
+		 * Apply a fixed threshold.
+		 * @param thresholds either a single-element array (to set the same threshold everywhere), or an array with 
+		 *        one element per channel.
+		 * @return
+		 */
+		public static ImageOp threshold(double... thresholds) {
+			return new FixedThresholder(thresholds);
+		}
+		
+		/**
+		 * Threshold each channel based upon the channel mean and standard deviation.
+		 * The threshold is {@code mean + k * std.dev.}.
+		 * @param k
+		 * @return
+		 */
+		public static ImageOp thresholdMeanStd(double... k) {
+			return new  MeanStdDevThresholder(k);
+		}
+		
+		/**
+		 * Threshold each channel based upon the channel median and median absolute deviation.
+		 * The threshold is {@code median + k * MAD / 0.6750.}, where the normalizing factor enables 
+		 * k to be comparable to a scale factor applied to a standard deviation (assuming a roughly normal distribution).
+		 * @param k
+		 * @return
+		 */
+		public static ImageOp thresholdMedianAbsDev(double... k) {
+			return new MedianAbsDevThresholder(k);
+		}
+		
+	}
+	
+	/**
+	 * Core operations.
+	 */
+	public static class Core {
+		
+		/**
+		 * Multiply all values by a constant.
+		 * @param value
+		 * @return
+		 */
+		public static ImageOp multiply(double value) {
+			return new Multiplier(value);
+		}
+		
+		/**
+		 * Raise every pixel element to a power.
+		 * @param value
+		 * @return
+		 */
+		public static ImageOp power(double value) {
+			return new Power(value);
+		}
+		
+		/**
+		 * Calculate the square root of all pixel values.
+		 * @return
+		 */
+		public static ImageOp sqrt() {
+			return new Sqrt();
+		}
+		
+		/**
+		 * Apply a collection of ops sequentially, chaining the output of one op as the input for the next.
+		 * @param ops
+		 * @return an op that represents the result of chaining the other ops together
+		 */
+		public static ImageOp sequential(Collection<? extends ImageOp> ops) {
+			if (ops.size() == 1)
+				return ops.iterator().next();
+			return new SequentialTransform(ops);
+		}
+		
+		/**
+		 * Apply an array of ops sequentially, chaining the output of one op as the input for the next.
+		 * @param ops
+		 * @return an op that represents the result of chaining the other ops together
+		 */
+		public static ImageOp sequential(ImageOp...ops) {
+			return sequential(Arrays.asList(ops));
+		}
+		
+		/**
+		 * Create an op that applies all the specified ops to the input {@link Mat}, concatenating the results as channels 
+		 * of the output.
+		 * @param ops
+		 * @return a single op that combines all other ops by split and merge
+		 */
+		public static ImageOp splitMerge(Collection<? extends ImageOp> ops) {
+			return new SplitMergeTransform(ops.toArray(ImageOp[]::new));
+		}
+		
+		/**
+		 * Create an op that applies all the specified ops to the input {@link Mat}, concatenating the results as channels 
+		 * of the output.
+		 * @param ops
+		 * @return a single op that combines all other ops by split and merge
+		 */
+		public static ImageOp splitMerge(ImageOp...ops) {
+			return splitMerge(Arrays.asList(ops));
+		}
+		
+	}
+	
+	/**
+	 * Machine learning operations.
+	 */
+	public static class ML {
+		
+		/**
+		 * Apply a {@link StatModel} to pixels to generate a prediction.
+		 * @param statModel
+		 * @param requestProbabilities
+		 * @return
+		 */
+		public static ImageOp statModel(OpenCVStatModel statModel, boolean requestProbabilities) {
+			return new StatModelTransformer(statModel, requestProbabilities);
+		}
+		
+	}
+			
+	
+	
+	static class RGBTransform implements ImageOp {
 		
 		private RGBConvert conversion;
 		
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			opencv_imgproc.cvtColor(input, input, conversion.getCode());
 			return input;
 		}
@@ -448,7 +423,7 @@ public class Transformers {
 	}
 	
 	
-	static class Multiplier implements Transformer {
+	static class Multiplier implements ImageOp {
 
 		private double value;
 		
@@ -457,7 +432,7 @@ public class Transformers {
 		}
 		
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			input.put(opencv_core.multiply(input, value));
 			return input;
 		}
@@ -493,10 +468,10 @@ public class Transformers {
 //	}
 	
 	
-	static abstract class AbstractThresholder implements Transformer {
+	static abstract class AbstractThresholder implements ImageOp {
 		
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			var matvec = new MatVector();
 			opencv_core.split(input, matvec);
 			var matvec2 = new MatVector();
@@ -530,17 +505,17 @@ public class Transformers {
 		
 	}
 	
-	static class Sqrt implements Transformer {
+	static class Sqrt implements ImageOp {
 		
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			opencv_core.sqrt(input, input);
 			return input;
 		}
 		
 	}
 	
-	static class Power implements Transformer {
+	static class Power implements ImageOp {
 		
 		private double power;
 		
@@ -549,7 +524,7 @@ public class Transformers {
 		}
 		
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			opencv_core.pow(input, power, input);
 			return input;
 		}
@@ -604,7 +579,7 @@ public class Transformers {
 	}
 	
 	
-	static class StatModelTransformer implements Transformer {
+	static class StatModelTransformer implements ImageOp {
 
 		private OpenCVStatModel model;
 		private boolean requestProbabilities;
@@ -615,7 +590,7 @@ public class Transformers {
 		}
 		
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			int w = input.cols();
 			int h = input.rows();
 			input.reshape(1, w * h);
@@ -630,7 +605,7 @@ public class Transformers {
 	}
 	
 	
-	static class ColorDeconvolution implements Transformer {
+	static class ColorDeconvolution implements ImageOp {
 		
 		private ColorDeconvolutionStains stains;
 		private transient Mat matInv;
@@ -640,7 +615,7 @@ public class Transformers {
 		}
 
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			assert input.channels() == 3; // Must be RGB
 			
 			int w = input.cols();
@@ -693,7 +668,7 @@ public class Transformers {
 	}
 	
 	
-	static class ExtractChannels implements Transformer {
+	static class ExtractChannels implements ImageOp {
 		
 		private int[] channels;
 		
@@ -701,7 +676,7 @@ public class Transformers {
 			this.channels = channels.clone();
 		}
 		
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			var matvec = new MatVector();
 			opencv_core.split(input, matvec);
 			var matvec2 = new MatVector();
@@ -733,7 +708,7 @@ public class Transformers {
 	/**
 	 * Normalize by rescaling channels into a fixed range (usually 0-1) using the min/max values.
 	 */
-	static class NormalizeMinMax implements Transformer {
+	static class NormalizeMinMax implements ImageOp {
 		
 		private double outputMin = 0.0;
 		private double outputMax = 1.0;
@@ -744,7 +719,7 @@ public class Transformers {
 		}
 
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			var matvec = new MatVector();
 			opencv_core.split(input, matvec);
 			for (int i = 0; i < matvec.size(); i++) {
@@ -761,7 +736,7 @@ public class Transformers {
 	/**
 	 * Normalize by rescaling channels into a fixed range (usually 0-1) using the min/max values.
 	 */
-	static class NormalizePercentile implements Transformer {
+	static class NormalizePercentile implements ImageOp {
 		
 		private double[] percentiles;
 		
@@ -770,7 +745,7 @@ public class Transformers {
 		}
 
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			var matvec = new MatVector();
 			opencv_core.split(input, matvec);
 			for (int i = 0; i < matvec.size(); i++) {
@@ -786,7 +761,7 @@ public class Transformers {
 		
 	}
 	
-	static abstract class PaddedTransformer implements Transformer {
+	static abstract class PaddedTransformer implements ImageOp {
 		
 		private Padding padding;
 		
@@ -801,7 +776,7 @@ public class Transformers {
 		protected abstract Mat transformPadded(Mat input);
 
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 //			long before = input.cols();
 			var mat = transformPadded(input);
 			var padding = getPadding();
@@ -1019,9 +994,9 @@ public class Transformers {
 		
 		private final static Logger logger = LoggerFactory.getLogger(SequentialTransform.class);
 		
-		private List<Transformer> transformers;
+		private List<ImageOp> transformers;
 		
-		SequentialTransform(Collection<Transformer> transformers) {
+		SequentialTransform(Collection<? extends ImageOp> transformers) {
 			this.transformers = new ArrayList<>(transformers);
 		}
 
@@ -1034,9 +1009,9 @@ public class Transformers {
 		}
 
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			for (var t : transformers)
-				input = t.transform(input);
+				input = t.apply(input);
 			return input;
 		}
 		
@@ -1046,7 +1021,7 @@ public class Transformers {
 		@Override
 		protected Mat transformPadded(Mat input) {
 			logger.warn("transformPadded(Mat) should not be called directly for this class!");
-			return transform(input);
+			return apply(input);
 		}
 		
 		@Override
@@ -1088,14 +1063,14 @@ public class Transformers {
 	 */
 	static class SplitMergeTransform extends PaddedTransformer {
 		
-		private List<Transformer> transformers;
+		private List<ImageOp> transformers;
 		private boolean doParallel = false;
 		
-		SplitMergeTransform(Transformer...transformers) {
+		SplitMergeTransform(ImageOp...transformers) {
 			this(false, transformers);
 		}
 		
-		SplitMergeTransform(boolean doParallel, Transformer...transformers) {
+		SplitMergeTransform(boolean doParallel, ImageOp...transformers) {
 			this.doParallel = doParallel;
 			this.transformers = new ArrayList<>();
 			for (var t : transformers) {
@@ -1104,7 +1079,7 @@ public class Transformers {
 		}
 
 		@Override
-		public Mat transform(Mat input) {
+		public Mat apply(Mat input) {
 			return transformPadded(input);
 		}
 		
@@ -1128,12 +1103,12 @@ public class Transformers {
 			if (transformers.isEmpty())
 				return new Mat();
 			if (transformers.size() == 1)
-				return transformers.get(0).transform(input);
+				return transformers.get(0).apply(input);
 			var stream = transformers.stream();
 			if (doParallel)
 				stream = stream.parallel();
 			// TODO: Handle non-equal padding for different transforms!
-			var mats = stream.map(t -> t.transform(input.clone())).collect(Collectors.toList());
+			var mats = stream.map(t -> t.apply(input.clone())).collect(Collectors.toList());
 			var padding = getPadding();
 			for (int i = 0; i < transformers.size(); i++) {
 				var t = transformers.get(i);

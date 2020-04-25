@@ -26,7 +26,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processor.Padding;
+import qupath.opencv.operations.Padding;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;

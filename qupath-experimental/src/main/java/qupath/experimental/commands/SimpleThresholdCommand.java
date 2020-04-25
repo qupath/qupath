@@ -42,7 +42,8 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ml.pixel.ValueToClassification;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
-import qupath.opencv.processor.Transformers;
+import qupath.opencv.operations.ImageOp;
+import qupath.opencv.operations.ImageOperations;
 import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
@@ -346,15 +347,16 @@ public class SimpleThresholdCommand implements Runnable {
 				classificationsAbove.getSelectionModel().getSelectedItem()
 				);
 		
-		var builder = Transformers.builder();
+		List<ImageOp> ops = new ArrayList<>();
 		if (feature != null && sigmaValue > 0) {
 			if (feature == MultiscaleFeature.GAUSSIAN)
-				builder.gaussianBlur(sigmaValue);
+				ops.add(ImageOperations.Filters.gaussianBlur(sigmaValue));
 			else
-				builder.features(Collections.singletonList(feature), sigmaValue, sigmaValue);
+				ops.add(ImageOperations.Filters.features(Collections.singletonList(feature), sigmaValue, sigmaValue));
 		}
+		var op = ImageOperations.Core.sequential(ops);
 		
-		var transformer = builder.buildImageTransformer(channel);
+		var transformer = ImageOperations.buildImageTransformer(new ColorTransform[]{channel}, op);
 		
 //		if (feature == null) {
 			classifier = PixelClassifiers.createThresholdingClassifier(

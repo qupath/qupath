@@ -21,7 +21,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
-import qupath.opencv.processor.Transformers.ImageDataTransformer;
+import qupath.opencv.operations.ImageDataOp;
 import qupath.opencv.tools.OpenCVTools;
 
 class SimplePixelClassifier implements PixelClassifier {
@@ -32,14 +32,14 @@ class SimplePixelClassifier implements PixelClassifier {
 	private transient IndexColorModel colorModel;
 	
 	private PixelCalibration inputResolution;
-	private ImageDataTransformer transformer;
+	private ImageDataOp transformer;
 	private ThresholdClassifier thresholder;
 	
 	private transient Map<PathClass, Integer> map;
 	
 	
 	SimplePixelClassifier(
-			ImageDataTransformer transformer,
+			ImageDataOp transformer,
 			PixelCalibration inputResolution,
 			ThresholdClassifier thresholder) {
 		
@@ -64,7 +64,7 @@ class SimplePixelClassifier implements PixelClassifier {
 	public BufferedImage applyClassification(ImageData<BufferedImage> imageData, RegionRequest request)
 			throws IOException {
 		
-		var mat = transformer.transform(imageData, request);
+		var mat = transformer.apply(imageData, request);
 		float[] transformed = OpenCVTools.extractPixels(mat, null);
 		
 		int width = mat.cols();

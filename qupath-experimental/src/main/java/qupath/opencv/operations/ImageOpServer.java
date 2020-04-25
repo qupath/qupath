@@ -1,0 +1,88 @@
+package qupath.opencv.operations;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.UUID;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.opencv.tools.OpenCVTools;
+
+class ImageOpServer extends AbstractTileableImageServer implements ImageDataServer<BufferedImage> {
+	
+	private final static Logger logger = LoggerFactory.getLogger(ImageOpServer.class);
+	
+	private ImageData<BufferedImage> imageData;
+	private ImageDataOp transformer;
+	private ImageServerMetadata metadata;
+	
+	ImageOpServer(ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, ImageDataOp transformer) {
+		super();
+		
+		this.imageData = imageData;
+		this.transformer = transformer;
+		
+		// TODO: UPDATE PIXEL TYPE!
+		logger.warn("Using default pixel type!");
+		var pixelType = PixelType.FLOAT32;
+		
+		// Update channels according to the transformer
+		var channels = transformer.getChannels(imageData);
+					
+		metadata = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
+				.levelsFromDownsamples(downsample)
+				.preferredTileSize(tileWidth, tileHeight)
+				.pixelType(pixelType)
+				.channels(channels)
+				.rgb(false)
+				.build();
+		
+	}
+	
+	@Override
+	public ImageData<BufferedImage> getImageData() {
+		return imageData;
+	}
+
+	@Override
+	public Collection<URI> getURIs() {
+		return imageData.getServer().getURIs();
+	}
+
+	@Override
+	public String getServerType() {
+		return "Transformer server";
+	}
+
+	@Override
+	public ImageServerMetadata getOriginalMetadata() {
+		return metadata;
+	}
+
+	@Override
+	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
+		var mat = transformer.apply(imageData, tileRequest.getRegionRequest());
+		return OpenCVTools.matToBufferedImage(mat);
+	}
+
+	@Override
+	protected ServerBuilder<BufferedImage> createServerBuilder() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	protected String createID() {
+		return UUID.randomUUID().toString();
+	}
+	
+}

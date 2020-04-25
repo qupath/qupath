@@ -29,9 +29,9 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.processor.Transformers;
-import qupath.opencv.processor.Transformers.ImageDataServer;
-import qupath.opencv.processor.Transformers.ImageDataTransformer;
+import qupath.opencv.operations.ImageDataOp;
+import qupath.opencv.operations.ImageDataServer;
+import qupath.opencv.operations.ImageOperations;
 
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;
@@ -64,7 +64,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
 
 	private PixelCalibration resolution = PixelCalibration.getDefaultInstance();
     private ImageData<BufferedImage> imageData;
-    private ImageDataTransformer featureCalculator;
+    private ImageDataOp featureCalculator;
     private ImageDataServer<BufferedImage> featureServer;
     private boolean changes = true;
 
@@ -77,7 +77,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
      * @param imageData
      * @param featureCalculator
      */
-    public PixelClassifierHelper(ImageData<BufferedImage> imageData, ImageDataTransformer featureCalculator) {
+    public PixelClassifierHelper(ImageData<BufferedImage> imageData, ImageDataOp featureCalculator) {
         setImageData(imageData);
         this.featureCalculator = featureCalculator;
     }
@@ -86,14 +86,14 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     	if (featureServer == null) {
     		if (featureCalculator != null && imageData != null) {
     			if (featureCalculator.supportsImage(imageData)) {
-	    			this.featureServer = Transformers.buildServer(imageData, featureCalculator, resolution);
+	    			this.featureServer = ImageOperations.buildServer(imageData, featureCalculator, resolution);
     			}
     		}
     	}
     	return featureServer;
     }
     
-    public synchronized ImageDataTransformer getFeatureCalculator() {
+    public synchronized ImageDataOp getFeatureCalculator() {
     	return featureCalculator;
     }
     
@@ -108,7 +108,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     	this.featureServer = null;
     }
 
-    public synchronized void setFeatureCalculator(ImageDataTransformer featureCalculator) {
+    public synchronized void setFeatureCalculator(ImageDataOp featureCalculator) {
         if (Objects.equal(this.featureCalculator, featureCalculator))
             return;
         this.featureCalculator = featureCalculator;
