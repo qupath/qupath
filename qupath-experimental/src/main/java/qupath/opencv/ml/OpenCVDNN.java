@@ -9,9 +9,7 @@ import org.bytedeco.javacpp.IntPointer;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.SizeTPointer;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.StringVector;
-import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.opencv_dnn.MatShapeVector;
 import org.bytedeco.opencv.opencv_dnn.Net;
@@ -202,61 +200,6 @@ public class OpenCVDNN {
 		return doScaling;
 	}
 	
-	/**
-     * Apply mean subtraction and multiplication by a scaling factor to a Mat (in-place).
-     * @param mat
-     * @param model
-     */
-    public static void preprocessMat(Mat mat, OpenCVDNN model) {
-    	if (model.doMeanSubtraction()) {
-	    	var means = model.getMeans();
-	    	// If we have 1 value, subtract from all channels
-    		if (means.length == 1) {
-    			if (means[0] != 0)
-    				opencv_core.subtractPut(mat, Scalar.all(means[0]));
-    		} else if (means.length != mat.channels()) {
-    	    	// If we have more than 1 value, but it doesn't match the channel count, throw an exception
-    			throw new IllegalArgumentException("Means array of length " + means.length + " cannot be applied to image with " + mat.channels() + " channels");
-    		} else if (means.length < 4) {
-    	    	// If we can subtract a scalar that's easier
-    			var m = new Scalar();
-    			m.put(means);
-    			opencv_core.subtractPut(mat, m); 
-    			m.close();
-    		} else {
-    	    	// Subtract one channel at a time if necessary
-    			Mat temp = new Mat();
-    			Scalar s = new Scalar();
-    			for (int i = 0; i < means.length; i++) {
-    				s.put(means[i]);
-    				opencv_core.extractChannel(mat, temp, i);
-    				opencv_core.subtractPut(temp, s);
-    			}
-    			s.close();
-    			temp.close();
-    		}
-    	}
-    	
-    	if (model.doScaling()) {
-    		var scales = model.getScales();
-	    	// If we have 1 value, scale all channels
-    		if (scales.length == 1) {
-    			if (scales[0] != 0)
-    				opencv_core.multiplyPut(mat, scales[0]);
-    		} else if (scales.length != mat.channels()) {
-    	    	// If we have more than 1 value, but it doesn't match the channel count, throw an exception
-    			throw new IllegalArgumentException("Scales array of length " + scales.length + " cannot be applied to image with " + mat.channels() + " channels");
-    		} else {
-    	    	// Scale one channel at a time if necessary
-    			Mat temp = new Mat();
-    			for (int i = 0; i < scales.length; i++) {
-    				opencv_core.extractChannel(mat, temp, i);
-    				opencv_core.multiplyPut(temp, scales[i]);
-    			}
-    			temp.close();
-    		}
-        }
-    }
 	
     /**
      * Parse the layers for a Net, which allows inspection of names and sizes.

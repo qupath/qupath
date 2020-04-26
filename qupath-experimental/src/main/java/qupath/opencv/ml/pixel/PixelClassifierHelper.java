@@ -31,7 +31,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.operations.ImageDataOp;
 import qupath.opencv.operations.ImageDataServer;
-import qupath.opencv.operations.ImageOperations;
+import qupath.opencv.operations.ImageOps;
 
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;
@@ -86,7 +86,7 @@ public class PixelClassifierHelper implements PathObjectHierarchyListener {
     	if (featureServer == null) {
     		if (featureCalculator != null && imageData != null) {
     			if (featureCalculator.supportsImage(imageData)) {
-	    			this.featureServer = ImageOperations.buildServer(imageData, featureCalculator, resolution);
+	    			this.featureServer = ImageOps.buildServer(imageData, featureCalculator, resolution);
     			}
     		}
     	}

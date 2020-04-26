@@ -11,12 +11,18 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.opencv.tools.OpenCVTools;
 
+/**
+ * An {@link ImageServer} that applies an {@link ImageDataOp} to transform pixels as they are read.
+ * 
+ * @author Pete Bankhead
+ */
 class ImageOpServer extends AbstractTileableImageServer implements ImageDataServer<BufferedImage> {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ImageOpServer.class);

@@ -12,12 +12,14 @@ import java.util.stream.Collectors;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.bytedeco.opencv.opencv_dnn.Net;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +30,11 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
+import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
+import qupath.opencv.tools.LocalNormalization;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleResultsBuilder;
 import qupath.opencv.tools.OpenCVTools;
@@ -39,24 +44,9 @@ import qupath.opencv.tools.OpenCVTools;
  * 
  * @author Pete Bankhead
  */
-public class ImageOperations {
+public class ImageOps {
 	
-	// TODO: Use or remove this
-	private static enum RGBConvert {
-		
-		RGB2HSV, RGB2CIELAB;
-		
-		int getCode() {
-			switch (this) {
-			case RGB2CIELAB:
-				return opencv_imgproc.COLOR_RGB2Lab;
-			case RGB2HSV:
-				return opencv_imgproc.COLOR_RGB2HSV;
-			default:
-				throw new IllegalArgumentException("Unknown conversion " + this);
-			}
-		}
-	}
+	private final static Logger logger = LoggerFactory.getLogger(ImageOps.class);
 	
 	
 	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp transformer, PixelCalibration resolution) {
@@ -68,57 +58,79 @@ public class ImageOperations {
 		return new ImageOpServer(imageData, downsample, tileWidth, tileHeight, transformer);
 	}
 	
-	public static ImageDataOp buildImageTransformer(ColorTransform[] inputChannels, ImageOp op) {
-		return inputChannels.length == 0 ? new DefaultImageDataTransformer(op) : new ChannelImageDataTransformer(op, inputChannels);
+	public static ImageDataOp buildImageDataOp(ColorTransform... inputChannels) {
+		if (inputChannels == null || inputChannels.length == 0)
+			return new DefaultImageDataOp(null);
+		else
+			return new ChannelImageDataOp(null, inputChannels);
 	}
+	
+	public static ImageDataOp buildImageDataOp(Collection<? extends ColorTransform> inputChannels) {
+		return buildImageDataOp(inputChannels.toArray(ColorTransform[]::new));
+	}
+	
 
 	
 	
-	static class DefaultImageDataTransformer implements ImageDataOp {
+	static class DefaultImageDataOp implements ImageDataOp {
 		
-		private ImageOp transformer;
+		private ImageOp op;
 		
-		DefaultImageDataTransformer(ImageOp transformer) {
-			this.transformer = transformer;
+		DefaultImageDataOp(ImageOp op) {
+			this.op = op;
 		}
 		
+		@Override
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
-			if (transformer == null) {
+			if (op == null) {
 				img = imageData.getServer().readBufferedImage(request);
 				return OpenCVTools.imageToMat(img);
 			} else {
-				var padding = transformer.getPadding();
+				var padding = op.getPadding();
 				img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, padding);
 				var mat = OpenCVTools.imageToMat(img);
 				mat.convertTo(mat, opencv_core.CV_32F);
-				return transformer.apply(mat);
+				return op.apply(mat);
 			}
 		}
 
 		@Override
 		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
-			if (transformer == null)
+			if (op == null)
 				return imageData.getServer().getMetadata().getChannels();
 			else
-				return transformer.getChannels(imageData.getServer().getMetadata().getChannels());
+				return op.getChannels(imageData.getServer().getMetadata().getChannels());
 		}
 
 		@Override
 		public boolean supportsImage(ImageData<BufferedImage> imageData) {
 			return true;
 		}
+
+		@Override
+		public ImageDataOp appendOps(ImageOp... ops) {
+			if (ops.length == 0)
+				return this;
+			if (this.op == null)
+				return new DefaultImageDataOp(Core.sequential(ops));
+			var allOps = new ArrayList<ImageOp>();
+			allOps.add(op);
+			allOps.addAll(Arrays.asList(ops));
+			var newOp = Core.sequential(allOps);
+			return new DefaultImageDataOp(newOp);
+		}
 		
 	}
 	
-	static class ChannelImageDataTransformer implements ImageDataOp {
+	static class ChannelImageDataOp implements ImageDataOp {
 		
 		private ColorTransform[] colorTransforms;
-		private ImageOp transformer;
+		private ImageOp op;
 		
-		ChannelImageDataTransformer(ImageOp transformer, ColorTransform... colorTransforms) {
+		ChannelImageDataOp(ImageOp op, ColorTransform... colorTransforms) {
 			this.colorTransforms = colorTransforms.clone();
-			this.transformer = transformer;
+			this.op = op;
 		}
 		
 		@Override
@@ -130,12 +142,13 @@ public class ImageOperations {
 			return true;
 		}
 		
+		@Override
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
-			if (transformer == null)
+			if (op == null)
 				img = imageData.getServer().readBufferedImage(request);
 			else
-				img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, transformer.getPadding());
+				img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, op.getPadding());
 			
 			float[] pixels = null;
 			var server = imageData.getServer();
@@ -149,8 +162,8 @@ public class ImageOperations {
 				channels.add(mat);
 			}
 			var mat = OpenCVTools.mergeChannels(channels, null);
-			if (transformer != null) {
-				mat = transformer.apply(mat);
+			if (op != null) {
+				mat = op.apply(mat);
 			}
 			return mat;
 		}
@@ -158,10 +171,23 @@ public class ImageOperations {
 		@Override
 		public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
 			var channels = Arrays.stream(colorTransforms).map(c -> ImageChannel.getInstance(c.getName(), null)).collect(Collectors.toList());
-			if (transformer == null)
+			if (op == null)
 				return channels;
 			else
-				return transformer.getChannels(channels);
+				return op.getChannels(channels);
+		}
+		
+		@Override
+		public ImageDataOp appendOps(ImageOp... ops) {
+			if (ops.length == 0)
+				return this;
+			if (this.op == null)
+				return new ChannelImageDataOp(Core.sequential(ops), colorTransforms);
+			var allOps = new ArrayList<ImageOp>();
+			allOps.add(op);
+			allOps.addAll(Arrays.asList(ops));
+			var newOp = Core.sequential(allOps);
+			return new ChannelImageDataOp(newOp, colorTransforms);
 		}
 		
 	}
@@ -181,7 +207,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp minMax(double outputMin, double outputMax) {
-			return new NormalizeMinMax(outputMin, outputMax);
+			return new NormalizeMinMaxOp(outputMin, outputMax);
 		}
 		
 		/**
@@ -204,7 +230,45 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp percentile(double percentileMin, double percentileMax) {
-			return new NormalizePercentile(percentileMin, percentileMax);
+			return new NormalizePercentileOp(percentileMin, percentileMax);
+		}
+		
+		/**
+		 * Normalize channels so that they sum to the specified value.
+		 * <p>
+		 * Note: negative values in the input are clipped to 0.
+		 * NaNs may occur if the sum is zero.
+		 * 
+		 * @param maxValue usually 1.0, but may be different (e.g. if the output should be 8-bit)
+		 * @return
+		 */
+		public static ImageOp channelSum(double maxValue) {
+			return new NormalizeChannelsOp(maxValue, false);			
+		}
+		
+		/**
+		 * Apply softmax, with the specified output maxValue.
+		 * 
+		 * @param maxValue usually 1.0, but may be different (e.g. if the output should be 8-bit)
+		 * @return
+		 */
+		public static ImageOp channelSoftmax(double maxValue) {
+			return new NormalizeChannelsOp(maxValue, true);
+		}
+		
+		
+		/**
+		 * Apply local 2D normalization using Gaussian-weighted mean subtraction and (optionally) variance 
+		 * estimation.
+		 * <p>
+		 * This method is applied per-channel.
+		 * 
+		 * @param sigmaMean sigma for Gaussian filter to use for subtraction
+		 * @param sigmaVariance sigma for Gaussian filter to use for local variance estimation
+		 * @return
+		 */
+		public static ImageOp localNormalization(double sigmaMean, double sigmaVariance) {
+			return new LocalNormalizationOp(sigmaMean, sigmaVariance);
 		}
 		
 	}
@@ -221,7 +285,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp gaussianBlur(double sigmaX, double sigmaY) {
-			return new GaussianFilter(sigmaX, sigmaY);
+			return new GaussianFilterOp(sigmaX, sigmaY);
 		}
 		
 		/**
@@ -239,7 +303,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp filter2D(Mat kernel) {
-			return new Filter2D(kernel);
+			return new FilterOp(kernel);
 		}
 		
 		/**
@@ -250,7 +314,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp features(Collection<MultiscaleFeature> features, double sigmaX, double sigmaY) {
-			return new FeatureTransformer(features, sigmaX, sigmaY);
+			return new MultiscaleFeatureOp(features, sigmaX, sigmaY);
 		}
 		
 	}
@@ -267,7 +331,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp deconvolve(ColorDeconvolutionStains stains) {
-			return new ColorDeconvolution(stains);
+			return new ColorDeconvolutionOp(stains);
 		}
 		
 		/**
@@ -276,7 +340,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp extract(int... channels) {
-			return new ExtractChannels(channels);
+			return new ExtractChannelsOp(channels);
 		}
 		
 	}
@@ -293,7 +357,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp threshold(double... thresholds) {
-			return new FixedThresholder(thresholds);
+			return new FixedThresholdOp(thresholds);
 		}
 		
 		/**
@@ -303,7 +367,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp thresholdMeanStd(double... k) {
-			return new  MeanStdDevThresholder(k);
+			return new  MeanStdDevOp(k);
 		}
 		
 		/**
@@ -314,7 +378,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp thresholdMedianAbsDev(double... k) {
-			return new MedianAbsDevThresholder(k);
+			return new MedianAbsDevThresholdOp(k);
 		}
 		
 	}
@@ -325,12 +389,48 @@ public class ImageOperations {
 	public static class Core {
 		
 		/**
-		 * Multiply all values by a constant.
-		 * @param value
+		 * Convert the {@link Mat} to match a specified pixel type.
+		 * @param type the pixel type that the {@link Mat} should be converted to
 		 * @return
 		 */
-		public static ImageOp multiply(double value) {
-			return new Multiplier(value);
+		public static ImageOp ensureType(PixelType type) {
+			return new EnsureTypeOp(type);
+		}
+		
+		/**
+		 * Multiply all pixels by a constant.
+		 * @param values either a single value to apply to all channels, or an array of {@code Mat.channels()} values.
+		 * @return
+		 */
+		public static ImageOp multiply(double... values) {
+			return new MultiplyOp(values);
+		}
+		
+		/**
+		 * Divide all pixels by a constant.
+		 * @param values either a single value to apply to all channels, or an array of {@code Mat.channels()} values.
+		 * @return
+		 */
+		public static ImageOp divide(double... values) {
+			return new DivideOp(values);
+		}
+		
+		/**
+		 * Add a constant to all pixels.
+		 * @param values either a single value to apply to all channels, or an array of {@code Mat.channels()} values.
+		 * @return
+		 */
+		public static ImageOp add(double... values) {
+			return new AddOp(values);
+		}
+		
+		/**
+		 * Subtract a constant from all pixels.
+		 * @param values either a single value to apply to all channels, or an array of {@code Mat.channels()} values.
+		 * @return
+		 */
+		public static ImageOp subtract(double... values) {
+			return new SubtractOp(values);
 		}
 		
 		/**
@@ -339,7 +439,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp power(double value) {
-			return new Power(value);
+			return new PowerOp(value);
 		}
 		
 		/**
@@ -347,7 +447,7 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp sqrt() {
-			return new Sqrt();
+			return new SqrtOp();
 		}
 		
 		/**
@@ -358,7 +458,7 @@ public class ImageOperations {
 		public static ImageOp sequential(Collection<? extends ImageOp> ops) {
 			if (ops.size() == 1)
 				return ops.iterator().next();
-			return new SequentialTransform(ops);
+			return new SequentialMultiOp(ops);
 		}
 		
 		/**
@@ -377,7 +477,7 @@ public class ImageOperations {
 		 * @return a single op that combines all other ops by split and merge
 		 */
 		public static ImageOp splitMerge(Collection<? extends ImageOp> ops) {
-			return new SplitMergeTransform(ops.toArray(ImageOp[]::new));
+			return new SplitMergeOp(ops.toArray(ImageOp[]::new));
 		}
 		
 		/**
@@ -404,71 +504,154 @@ public class ImageOperations {
 		 * @return
 		 */
 		public static ImageOp statModel(OpenCVStatModel statModel, boolean requestProbabilities) {
-			return new StatModelTransformer(statModel, requestProbabilities);
+			return new StatModelOp(statModel, requestProbabilities);
+		}
+		
+		
+		/**
+		 * Apply a {@link OpenCVDNN} to pixels to generate a prediction.
+		 * @param dnn 
+		 * @param inputWidth 
+		 * @param inputHeight 
+		 * @param padding 
+		 * @return
+		 */
+		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding) {
+			return new DnnOp(dnn, inputWidth, inputHeight, padding, false);
 		}
 		
 	}
-			
 	
 	
-	static class RGBTransform implements ImageOp {
-		
-		private RGBConvert conversion;
-		
-		public Mat apply(Mat input) {
-			opencv_imgproc.cvtColor(input, input, conversion.getCode());
-			return input;
-		}
-		
-	}
-	
-	
-	static class Multiplier implements ImageOp {
+	static class EnsureTypeOp implements ImageOp {
 
-		private double value;
+		private PixelType pixelType;
 		
-		Multiplier(double value) {
-			this.value = value;
+		EnsureTypeOp(PixelType pixelType) {
+			this.pixelType = pixelType;
 		}
 		
 		@Override
 		public Mat apply(Mat input) {
-			input.put(opencv_core.multiply(input, value));
+			input.convertTo(input, OpenCVTools.getOpenCVPixelType(pixelType));
 			return input;
 		}
 		
 	}
 	
-//	static class Adder implements Transformer {
-//
-//		private double value;
-//		private transient Scalar scalar;
-//		
-//		Adder(double value) {
-//			this.value = value;
-//		}
-//		
-//		@Override
-//		public Mat transform(Mat input) {
-//			input.put(opencv_core.multiply(input, value));
-//			if (input.channels() <= 4)
-//				input.put(opencv_core.add(input, getScalar()));
-//			else {
-//				OpenCVTools.
-//			}
-//			return input;
-//		}
-//		
-//		private Scalar getScalar() {
-//			if (scalar == null)
-//				scalar = Scalar.all(value);
-//			return scalar;
-//		}
-//		
-//	}
+	
+	static class MultiplyOp implements ImageOp {
+
+		private double[] values;
+		
+		MultiplyOp(double... values) {
+			this.values = values.clone();
+		}
+		
+		@Override
+		public Mat apply(Mat input) {
+			if (values.length == 1)
+				input.put(opencv_core.multiply(input, values[0]));
+			else if (values.length == input.channels()) {
+				int i = 0;
+				var channels = OpenCVTools.splitChannels(input);
+				for (var m : channels) {
+					m.put(opencv_core.multiply(m, values[i]));
+					i++;
+				}
+				OpenCVTools.mergeChannels(channels, input);
+			} else
+				throw new IllegalArgumentException("Multiply requires " + values.length + " channels, but Mat has " + input.channels());
+			return input;
+		}
+		
+	}
+	
+	static class DivideOp implements ImageOp {
+
+		private double[] values;
+		
+		DivideOp(double... values) {
+			this.values = values.clone();
+		}
+		
+		@Override
+		public Mat apply(Mat input) {
+			if (values.length == 1)
+				input.put(opencv_core.divide(input, values[0]));
+			else if (values.length == input.channels()) {
+				int i = 0;
+				var channels = OpenCVTools.splitChannels(input);
+				for (var m : channels) {
+					m.put(opencv_core.divide(m, values[i]));
+					i++;
+				}
+				OpenCVTools.mergeChannels(channels, input);
+			} else
+				throw new IllegalArgumentException("Divide requires " + values.length + " channels, but Mat has " + input.channels());
+			return input;
+		}
+		
+	}
+	
+	static class AddOp implements ImageOp {
+
+		private double[] values;
+		
+		AddOp(double... values) {
+			this.values = values.clone();
+		}
+		
+		@Override
+		public Mat apply(Mat input) {
+			if (values.length == 1)
+				input.put(opencv_core.add(input, Scalar.all(values[0])));
+			else if (values.length == input.channels()) {
+				int i = 0;
+				var channels = OpenCVTools.splitChannels(input);
+				for (var m : channels) {
+					m.put(opencv_core.add(m, Scalar.all(values[i])));
+					i++;
+				}
+				OpenCVTools.mergeChannels(channels, input);
+			} else
+				throw new IllegalArgumentException("Add requires " + values.length + " channels, but Mat has " + input.channels());
+			return input;
+		}
+		
+		
+		
+	}
+	
+	static class SubtractOp implements ImageOp {
+
+		private double[] values;
+		
+		SubtractOp(double... values) {
+			this.values = values.clone();
+		}
+		
+		@Override
+		public Mat apply(Mat input) {
+			if (values.length == 1)
+				input.put(opencv_core.subtract(input, Scalar.all(values[0])));
+			else if (values.length == input.channels()) {
+				int i = 0;
+				var channels = OpenCVTools.splitChannels(input);
+				for (var m : channels) {
+					m.put(opencv_core.subtract(m, Scalar.all(values[i])));
+					i++;
+				}
+				OpenCVTools.mergeChannels(channels, input);
+			} else
+				throw new IllegalArgumentException("Subtract requires " + values.length + " channels, but Mat has " + input.channels());
+			return input;
+		}
+		
+	}
 	
 	
-	static abstract class AbstractThresholder implements ImageOp {
+	static abstract class AbstractThresholdOp implements ImageOp {
 		
 		@Override
 		public Mat apply(Mat input) {
@@ -490,11 +673,11 @@ public class ImageOperations {
 		
 	}
 	
-	static class FixedThresholder extends AbstractThresholder {
+	static class FixedThresholdOp extends AbstractThresholdOp {
 		
 		private double[] thresholds;
 		
-		FixedThresholder(double... thresholds) {
+		FixedThresholdOp(double... thresholds) {
 			this.thresholds = thresholds.clone();
 		}
 		
@@ -505,7 +688,7 @@ public class ImageOperations {
 		
 	}
 	
-	static class Sqrt implements ImageOp {
+	static class SqrtOp implements ImageOp {
 		
 		@Override
 		public Mat apply(Mat input) {
@@ -515,11 +698,11 @@ public class ImageOperations {
 		
 	}
 	
-	static class Power implements ImageOp {
+	static class PowerOp implements ImageOp {
 		
 		private double power;
 		
-		Power(double power) {
+		PowerOp(double power) {
 			this.power = power;
 		}
 		
@@ -534,11 +717,11 @@ public class ImageOperations {
 	/**
 	 * Set a threshold as the {@code mean + k * std.dev}.
 	 */
-	static class MeanStdDevThresholder extends AbstractThresholder {
+	static class MeanStdDevOp extends AbstractThresholdOp {
 		
 		private double[] k;
 		
-		MeanStdDevThresholder(double... k) {
+		MeanStdDevOp(double... k) {
 			this.k = k.clone();
 		}
 		
@@ -559,11 +742,11 @@ public class ImageOperations {
 	/**
 	 * Set a threshold as the {@code mean + k * std.dev}.
 	 */
-	static class MedianAbsDevThresholder extends AbstractThresholder {
+	static class MedianAbsDevThresholdOp extends AbstractThresholdOp {
 		
 		private double[] k;
 		
-		MedianAbsDevThresholder(double... k) {
+		MedianAbsDevThresholdOp(double... k) {
 			this.k = k.clone();
 		}
 		
@@ -579,12 +762,12 @@ public class ImageOperations {
 	}
 	
 	
-	static class StatModelTransformer implements ImageOp {
+	static class StatModelOp implements ImageOp {
 
 		private OpenCVStatModel model;
 		private boolean requestProbabilities;
 		
-		StatModelTransformer(OpenCVStatModel model, boolean requestProbabilities) {
+		StatModelOp(OpenCVStatModel model, boolean requestProbabilities) {
 			this.model = model;
 			this.requestProbabilities = requestProbabilities;
 		}
@@ -593,10 +776,12 @@ public class ImageOperations {
 		public Mat apply(Mat input) {
 			int w = input.cols();
 			int h = input.rows();
-			input.reshape(1, w * h);
-			if (requestProbabilities)
-				model.predict(input, null, input);
-			else
+			input.put(input.reshape(1, w * h));
+			if (requestProbabilities) {
+				var temp = new Mat();
+				model.predict(input, temp, input);
+				temp.release();
+			} else
 				model.predict(input, input, null);
 			input.put(input.reshape(input.cols(), h));
 			return input;
@@ -605,12 +790,132 @@ public class ImageOperations {
 	}
 	
 	
-	static class ColorDeconvolution implements ImageOp {
+	static class DnnOp extends PaddedOp {
+
+		private OpenCVDNN model;
+		private int inputWidth;
+		private int inputHeight;
+		
+		private boolean doParallel;
+		
+		private transient Net net;
+		private transient ThreadLocal<Net> localNet = ThreadLocal.withInitial(() -> readNet());
+		private transient Exception exception;
+		
+		/**
+		 * A DNN op.
+		 * @param model
+		 * @param inputWidth
+		 * @param inputHeight
+		 * @param padding
+		 * @param doParallel if true, load the Net for each thread so it may be applied in parallel. 
+		 *                   This is not a good idea if the net is 'heavyweight'.
+		 */
+		DnnOp(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, boolean doParallel) {
+			this.model = model;
+			this.inputWidth = inputWidth;
+			this.inputHeight = inputHeight;
+			super.padding = padding;
+			this.doParallel = doParallel;
+		}
+
+		@Override
+		protected Padding calculatePadding() {
+			return super.padding;
+		}
+		
+		/**
+		 * Try to read the {@link Net}, setting the exception if this fails
+		 * @return
+		 */
+		private Net readNet() {
+			if (exception == null) {
+				try {
+					return model.getNet();
+				} catch (IOException e) {
+					exception = e;
+				}
+			}
+			return null;
+		}
+		
+		private Net getNet() {
+			if (doParallel)
+				return localNet.get();
+			if (net == null)
+				net = readNet();
+			return net;
+		}
+
+		@Override
+		protected Mat transformPadded(Mat input) {
+			Net net = getNet();
+			if (exception == null) {
+				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
+					return doClassification(input, net);
+				else
+					return OpenCVTools.applyTiled(m -> doClassification(m, net), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
+			}
+			throw new RuntimeException(exception);
+		}
+
+	}
+	
+	
+	private static Mat doClassification(Mat mat, Net net) {
+    	// Currently we require 32-bit input
+    	mat.convertTo(mat, opencv_core.CV_32F);
+    	
+        // Net appears not to support multithreading, so we need to synchronize.
+        // We also need to extract the results we need at this point while still within the synchronized block,
+    	// since it appears that the result of calling model.forward() can become invalid later.
+    	Mat matResult = null;
+    	Mat blob = null;
+    	if (mat.channels() == 3) {
+    		blob = opencv_dnn.blobFromImage(mat);
+    	} else {
+    		// TODO: Don't have any net to test this with currently...
+    		logger.warn("Attempting to reshape an image with channels != 3 - this may not work!");
+    		int[] shape = new int[mat.dims() + 1];
+    		shape[0] = 1;
+    		for (int s = 1; s < shape.length; s++) {
+    			shape[1] = mat.size(s-1);
+    		}
+    		if (mat.isContinuous())
+    			blob = new Mat(shape, opencv_core.CV_32F, mat);
+    		else
+        		blob = new Mat(shape, opencv_core.CV_32F, mat.clone());
+    	}
+    	synchronized(net) {
+    		long startTime = System.currentTimeMillis();
+    		net.setInput(blob);
+    		try {
+    			Mat prob = net.forward();
+    			MatVector matvec = new MatVector();
+    			opencv_dnn.imagesFromBlob(prob, matvec);
+    			if (matvec.size() != 1)
+    				throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
+    			// Get the first result & clone it - otherwise can have threading woes
+    			matResult = matvec.get(0L).clone();
+    			matvec.close();
+    		} catch (Exception e2) {
+    			logger.error("Error applying classifier", e2);
+    		}
+    		long endTime = System.currentTimeMillis();
+    		logger.trace("Classification time: {} ms", endTime - startTime);
+    	}
+        
+        return matResult;
+    }
+	
+	
+	
+	static class ColorDeconvolutionOp implements ImageOp {
 		
 		private ColorDeconvolutionStains stains;
 		private transient Mat matInv;
 		
-		ColorDeconvolution(ColorDeconvolutionStains stains) {
+		ColorDeconvolutionOp(ColorDeconvolutionStains stains) {
 			this.stains = stains;
 		}
 
@@ -668,14 +973,15 @@ public class ImageOperations {
 	}
 	
 	
-	static class ExtractChannels implements ImageOp {
+	static class ExtractChannelsOp implements ImageOp {
 		
 		private int[] channels;
 		
-		ExtractChannels(int... channels) {
+		ExtractChannelsOp(int... channels) {
 			this.channels = channels.clone();
 		}
 		
+		@Override
 		public Mat apply(Mat input) {
 			var matvec = new MatVector();
 			opencv_core.split(input, matvec);
@@ -705,15 +1011,39 @@ public class ImageOperations {
 		
 	}
 	
+	static class NormalizeChannelsOp implements ImageOp {
+		
+		private double maxValue;
+		private boolean doSoftmax;
+		
+		NormalizeChannelsOp(double maxValue, boolean doSoftmax) {
+			this.maxValue = maxValue;
+			this.doSoftmax = doSoftmax;
+		}
+
+		@Override
+		public Mat apply(Mat input) {
+			int nChannels = input.channels();
+			int nRows = input.rows();
+			input.put(input.reshape(1, input.rows()*input.cols()));
+			rescaleChannelsToProbabilities(input, input, maxValue, doSoftmax);
+			input.put(input.reshape(nChannels, nRows));
+			return input;
+		}
+		
+		
+	}
+	
+	
 	/**
 	 * Normalize by rescaling channels into a fixed range (usually 0-1) using the min/max values.
 	 */
-	static class NormalizeMinMax implements ImageOp {
+	static class NormalizeMinMaxOp implements ImageOp {
 		
 		private double outputMin = 0.0;
 		private double outputMax = 1.0;
 		
-		NormalizeMinMax(double outputMin, double outputMax) {
+		NormalizeMinMaxOp(double outputMin, double outputMax) {
 			this.outputMin = outputMin;
 			this.outputMax = outputMax;
 		}
@@ -733,14 +1063,113 @@ public class ImageOperations {
 		
 	}
 	
+	
 	/**
 	 * Normalize by rescaling channels into a fixed range (usually 0-1) using the min/max values.
 	 */
-	static class NormalizePercentile implements ImageOp {
+	static class LocalNormalizationOp extends PaddedOp {
+		
+		private double sigmaMean;
+		private double sigmaStdDev;
+		
+		LocalNormalizationOp(double sigmaMean, double sigmaStdDev) {
+			this.sigmaMean = sigmaMean;
+			this.sigmaStdDev = sigmaStdDev;
+		}
+
+		@Override
+		protected Padding calculatePadding() {
+			var sigma = Math.max(sigmaMean, sigmaStdDev);
+			return getDefaultGaussianPadding(sigma, sigma);
+		}
+
+		@Override
+		protected Mat transformPadded(Mat input) {
+			var channels = OpenCVTools.splitChannels(input);
+			for (var m : channels)
+				LocalNormalization.gaussianNormalize2D(m, sigmaMean, sigmaStdDev, opencv_core.BORDER_REFLECT);
+			OpenCVTools.mergeChannels(channels, input);
+			return input;
+		}
+		
+	}
+	
+	
+	
+	/**
+     * Rescale the rows of matResult so that they sum to maxValue.
+     * <p>
+     * If matProbabilities has an integer type, then maxValue should normally reflect the largest supported value 
+     * (e.g. 255 for CV_8U).  In this case it is not guaranteed that values will sum exactly to the desired maxValue 
+     * due to rounding (e.g. consider a row with values [255.0/2, 255.0/2] or [255.0/3, 255.0/3, 255.0/3].
+     * 
+     * @param matRawInput input values; each row corresponds to a sample and each column the raw estimate for a particular class
+     * @param matProbabilities output mat; may be the same as matRawInput.
+     * @param maxValue the maximum value; this would normally be 1.0 for floating point output, or 255.0 for 8-bit output
+     * @param doSoftmax if true, {@code Math.exp(value)} will be calculated for each value in matRawInput.
+     */
+    static void rescaleChannelsToProbabilities(Mat matRawInput, Mat matProbabilities, double maxValue, boolean doSoftmax) {
+    	if (matProbabilities == null)
+    		matProbabilities = new Mat();
+    	
+    	if (matRawInput != matProbabilities && matRawInput.rows() != matProbabilities.rows() && matRawInput.cols() != matProbabilities.cols()) {
+    		if (matProbabilities.empty())
+    			matProbabilities.create(matRawInput.rows(), matRawInput.cols(), matRawInput.type());    		
+    		else
+    			matProbabilities.create(matRawInput.rows(), matRawInput.cols(), matProbabilities.type());    		
+    	}
+    	
+    	int warnNegativeValues = 0;
+        var idxInput = matRawInput.createIndexer();
+        var idxOutput = matProbabilities.createIndexer();
+        long[] inds = new long[2];
+		long rows = idxInput.size(0); // previously .rows()
+		long cols = idxOutput.size(1); // previously .cols()
+        double[] vals = new double[(int)cols];
+        for (long r = 0; r < rows; r++) {
+        	inds[0] = r;
+        	double sum = 0;
+        	for (int k = 0; k < cols; k++) {
+            	inds[1] = k;
+            	double val = idxInput.getDouble(inds);
+            	if (doSoftmax) {
+            		val = Math.exp(val);
+            	} else if (val < 0) {
+            		val = 0;
+            		warnNegativeValues++;
+            	}
+            	vals[k] = val;
+            	sum += val;
+        	}
+        	
+        	for (int k = 0; k < cols; k++) {
+        		inds[1] = k;
+        		idxOutput.putDouble(inds, vals[k] * (maxValue / sum));
+        	}
+        	// Consider if the output should be integer, could set the highest probability to be 1 - the maximum
+        	// The aim is to avoid rounding errors to result in the sum not adding up to what is expected 
+        	// (e.g. 255/3 + 255/3 + 255/3).
+        	// But as this example shows, it can result in a different interpretation of the results...
+        }
+        
+        if (warnNegativeValues > 0) {
+        	long total = rows * cols;
+        	logger.warn(
+        			String.format("Negative raw 'probability' values detected (%d/%d, %.1f%%) - " +
+        					" - these will be clipped to 0.  Should softmax be being used...?", warnNegativeValues, total, warnNegativeValues*(100.0/total)));
+        }
+    }
+	
+	
+	
+	/**
+	 * Similar to {@link NormalizeMinMaxOp}, but using percentiles rather than min/max values.
+	 */
+	static class NormalizePercentileOp implements ImageOp {
 		
 		private double[] percentiles;
 		
-		NormalizePercentile(double percentileMin, double percentileMax) {
+		NormalizePercentileOp(double percentileMin, double percentileMax) {
 			this.percentiles = new double[] {percentileMin, percentileMax};
 		}
 
@@ -761,7 +1190,7 @@ public class ImageOperations {
 		
 	}
 	
-	static abstract class PaddedTransformer implements ImageOp {
+	static abstract class PaddedOp implements ImageOp {
 		
 		private Padding padding;
 		
@@ -807,11 +1236,11 @@ public class ImageOperations {
 	}
 	
 	
-	static class Filter2D extends PaddedTransformer {
+	static class FilterOp extends PaddedOp {
 		
 		private Mat kernel;
 		
-		Filter2D(Mat kernel) {
+		FilterOp(Mat kernel) {
 			this.kernel = kernel;
 		}
 
@@ -838,13 +1267,13 @@ public class ImageOperations {
 	
 	
 	
-	static class FeatureTransformer extends PaddedTransformer {
+	static class MultiscaleFeatureOp extends PaddedOp {
 		
 		private List<MultiscaleFeature> features;
 		private double sigmaX, sigmaY;
 		private transient MultiscaleResultsBuilder builder;
 		
-		FeatureTransformer(Collection<MultiscaleFeature> features, double sigmaX, double sigmaY) {
+		MultiscaleFeatureOp(Collection<MultiscaleFeature> features, double sigmaX, double sigmaY) {
 			this.features = new ArrayList<>(new LinkedHashSet<>(features));
 			this.sigmaX = sigmaX;
 			this.sigmaY = sigmaY;
@@ -902,11 +1331,11 @@ public class ImageOperations {
 	
 	
 	
-	static class GaussianFilter extends PaddedTransformer {
+	static class GaussianFilterOp extends PaddedOp {
 		
 		private double sigmaX, sigmaY;
 		
-		GaussianFilter(double sigmaX, double sigmaY) {
+		GaussianFilterOp(double sigmaX, double sigmaY) {
 			this.sigmaX = sigmaX;
 			this.sigmaY = sigmaY;
 		}
@@ -929,29 +1358,18 @@ public class ImageOperations {
 
 		@Override
 		protected Padding calculatePadding() {
-			int padX = (int)Math.ceil(sigmaX * 3) + 1;
-			int padY = (int)Math.ceil(sigmaY * 3) + 1;
-			return Padding.getPadding(padX, padX, padY, padY);
+			return getDefaultGaussianPadding(sigmaX, sigmaY);
 		}
 		
 	}
 	
-//	static class PercentileNormalize implements Transformer {
-//		
-//		@Override
-//		public Mat transform(Mat input) {
-//			var matvec = new MatVector();
-//			opencv_core.split(input, matvec);
-//			for (int i = 0; i < matvec.size(); i++) {
-//				var mat = matvec.get(i);
-//				opencv_core.sort
-//				opencv_core.normalize(mat, mat, 0.0, 1.0, opencv_core.NORM_MINMAX, -1, null);
-//			}
-//			opencv_core.merge(matvec, input);
-//			return input;
-//		}
-//		
-//	}
+	
+	
+	static Padding getDefaultGaussianPadding(double sigmaX, double sigmaY) {
+		int padX = (int)Math.ceil(sigmaX * 3) + 1;
+		int padY = (int)Math.ceil(sigmaY * 3) + 1;
+		return Padding.getPadding(padX, padX, padY, padY);
+	}
 	
 	
 	static void normalize(Mat mat, double[] subtract, double[] scale) {
@@ -970,47 +1388,28 @@ public class ImageOperations {
 		opencv_core.merge(matvec, mat);
 	}
 	
-	static void normalize(Mat mat, double offset, double scale) {
-		if (offset == 0 && scale == 1)
-			return;
-		mat.convertTo(mat, mat.type(), scale, -offset*scale);
-//		if (offset == 0) {
-//			if (scale == 1)
-//				return;
-//			mat.put(opencv_core.multiply(mat, scale));
-//			return;
-//		} else {
-//			var expr = opencv_core.add(mat, Scalar.all(offset));
-//			if (scale == 1) {
-//				mat.put(expr);
-//			} else {
-//				mat.put(opencv_core.multiply(expr, scale));
-//			}
-//		}
-	}
 	
-	
-	static class SequentialTransform extends PaddedTransformer {
+	static class SequentialMultiOp extends PaddedOp {
 		
-		private final static Logger logger = LoggerFactory.getLogger(SequentialTransform.class);
+		private final static Logger logger = LoggerFactory.getLogger(SequentialMultiOp.class);
 		
-		private List<ImageOp> transformers;
+		private List<ImageOp> ops;
 		
-		SequentialTransform(Collection<? extends ImageOp> transformers) {
-			this.transformers = new ArrayList<>(transformers);
+		SequentialMultiOp(Collection<? extends ImageOp> ops) {
+			this.ops = new ArrayList<>(ops);
 		}
 
 		@Override
 		protected Padding calculatePadding() {
 			 var padding = Padding.empty();
-			for (var t : transformers)
+			for (var t : ops)
 				padding = padding.add(t.getPadding());
 			return padding;
 		}
 
 		@Override
 		public Mat apply(Mat input) {
-			for (var t : transformers)
+			for (var t : ops)
 				input = t.apply(input);
 			return input;
 		}
@@ -1026,7 +1425,7 @@ public class ImageOperations {
 		
 		@Override
 		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
-			for (var t : transformers)
+			for (var t : ops)
 				channels = t.getChannels(channels);
 			return channels;
 		}
@@ -1061,20 +1460,20 @@ public class ImageOperations {
 	 * Duplicate the input {@link Mat} and apply different transformers to the duplicates, 
 	 * merging the result at the end.
 	 */
-	static class SplitMergeTransform extends PaddedTransformer {
+	static class SplitMergeOp extends PaddedOp {
 		
-		private List<ImageOp> transformers;
+		private List<ImageOp> ops;
 		private boolean doParallel = false;
 		
-		SplitMergeTransform(ImageOp...transformers) {
-			this(false, transformers);
+		SplitMergeOp(ImageOp...ops) {
+			this(false, ops);
 		}
 		
-		SplitMergeTransform(boolean doParallel, ImageOp...transformers) {
+		SplitMergeOp(boolean doParallel, ImageOp...transformers) {
 			this.doParallel = doParallel;
-			this.transformers = new ArrayList<>();
+			this.ops = new ArrayList<>();
 			for (var t : transformers) {
-				this.transformers.add(t);
+				this.ops.add(t);
 			}
 		}
 
@@ -1085,7 +1484,7 @@ public class ImageOperations {
 		
 		@Override
 		public List<ImageChannel> getChannels(List<ImageChannel> channels) {
-			return transformers.stream()
+			return ops.stream()
 					.flatMap(t -> t.getChannels(channels).stream())
 					.collect(Collectors.toList());
 		}
@@ -1093,32 +1492,26 @@ public class ImageOperations {
 		@Override
 		protected Padding calculatePadding() {
 			var padding = Padding.empty();
-			for (var t : transformers)
+			for (var t : ops)
 				padding = padding.max(t.getPadding());
 			return padding;
 		}
 
 		@Override
 		protected Mat transformPadded(Mat input) {
-			if (transformers.isEmpty())
+			if (ops.isEmpty())
 				return new Mat();
-			if (transformers.size() == 1)
-				return transformers.get(0).apply(input);
-			var stream = transformers.stream();
+			if (ops.size() == 1)
+				return ops.get(0).apply(input);
+			var stream = ops.stream();
 			if (doParallel)
 				stream = stream.parallel();
-			// TODO: Handle non-equal padding for different transforms!
 			var mats = stream.map(t -> t.apply(input.clone())).collect(Collectors.toList());
+			// Remember we padded all branches the same - but some may have needed more or less than others
 			var padding = getPadding();
-			for (int i = 0; i < transformers.size(); i++) {
-				var t = transformers.get(i);
-				var pad = t.getPadding();
-				var padExtra = Padding.getPadding(
-						padding.getX1() - pad.getX1(),
-						padding.getX2() - pad.getX2(),
-						padding.getY1() - pad.getY1(),
-						padding.getY2() - pad.getY2()
-						);
+			for (int i = 0; i < ops.size(); i++) {
+				var t = ops.get(i);
+				var padExtra = padding.subtract(t.getPadding());
 				if (!padExtra.isEmpty())
 					mats.get(i).put(stripPadding(mats.get(i), padExtra));
 			}

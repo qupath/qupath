@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -40,10 +41,8 @@ import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.PixelClassifiers;
-import qupath.opencv.ml.pixel.ValueToClassification;
-import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
 import qupath.opencv.operations.ImageOp;
-import qupath.opencv.operations.ImageOperations;
+import qupath.opencv.operations.ImageOps;
 import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
@@ -90,7 +89,6 @@ public class SimpleThresholdCommand implements Runnable {
 
 	private ComboBox<PathClass> classificationsBelow = new ComboBox<>();
 	private ComboBox<PathClass> classificationsAbove = new ComboBox<>();
-	private ComboBox<PathClass> classificationsEqual = new ComboBox<>();
 	
 	private ComboBox<ColorTransform> transforms = new ComboBox<>();
 	private ReadOnlyObjectProperty<ColorTransform> selectedChannel = transforms.getSelectionModel().selectedItemProperty();
@@ -113,7 +111,6 @@ public class SimpleThresholdCommand implements Runnable {
 		var pane = new GridPane();
 
 		classificationsAbove.setItems(qupath.getAvailablePathClasses());
-		classificationsEqual.setItems(qupath.getAvailablePathClasses());
 		classificationsBelow.setItems(qupath.getAvailablePathClasses());
 		
 		int row = 0;
@@ -159,13 +156,9 @@ public class SimpleThresholdCommand implements Runnable {
 		Label labelAbove = new Label("Above threshold");
 		labelAbove.setLabelFor(classificationsAbove);
 
-		Label labelEqual = new Label("Equal to threshold");
-		labelEqual.setLabelFor(classificationsEqual);
-
 		Label labelBelow = new Label("Below threshold");
 		labelBelow.setLabelFor(classificationsBelow);
 		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold", labelAbove, classificationsAbove, classificationsAbove);
-		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels with exactly the threshold value", labelEqual, classificationsEqual, classificationsEqual);
 		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels below the threshold", labelBelow, classificationsBelow, classificationsBelow);
 
 //		var paneLabels = PaneToolsFX.createColumnGrid(labelBelow, labelEqual, labelAbove);
@@ -234,13 +227,13 @@ public class SimpleThresholdCommand implements Runnable {
 		pane.setPadding(new Insets(10.0));
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
-				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsEqual, classificationsBelow,
+				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
 		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
-				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsEqual, classificationsBelow,
+				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
 		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
-				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsEqual, classificationsBelow,
+				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
 				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
 		
 		updateGUI();
@@ -299,22 +292,6 @@ public class SimpleThresholdCommand implements Runnable {
 		if (transforms.getSelectionModel().getSelectedItem() == null)
 			transforms.getSelectionModel().selectFirst();
 		
-//		var display = viewer.getImageDisplay();
-//		var validChannels = new ArrayList<SingleChannelDisplayInfo>();
-//		for (var channel : display.availableChannels()) {
-//			if (channel instanceof SingleChannelDisplayInfo)
-//				validChannels.add((SingleChannelDisplayInfo)channel);
-//		}
-//		transforms.getItems().setAll(validChannels);
-
-//		var channel = selectedChannel.get();
-//		if (channel != null) {
-//			slider.setMin(channel.getMinAllowed());
-//			slider.setMax(channel.getMaxAllowed());
-//			slider.setValue((channel.getMinAllowed() + channel.getMaxAllowed()) / 2.0);
-//			slider.setBlockIncrement((slider.getMax()-slider.getMin()) / 100.0);
-//		}
-		
 	}
 	
 	private void updateClassification() {
@@ -340,45 +317,32 @@ public class SimpleThresholdCommand implements Runnable {
 		double sigmaValue = sigma.get();
 		
 		PixelClassifier classifier;
-		ThresholdClassifier thresholder = ValueToClassification.createThresholdClassifier(
-				threshold.get(),
-				classificationsBelow.getSelectionModel().getSelectedItem(),
-				classificationsEqual.getSelectionModel().getSelectedItem(),
-				classificationsAbove.getSelectionModel().getSelectedItem()
-				);
 		
 		List<ImageOp> ops = new ArrayList<>();
 		if (feature != null && sigmaValue > 0) {
 			if (feature == MultiscaleFeature.GAUSSIAN)
-				ops.add(ImageOperations.Filters.gaussianBlur(sigmaValue));
+				ops.add(ImageOps.Filters.gaussianBlur(sigmaValue));
 			else
-				ops.add(ImageOperations.Filters.features(Collections.singletonList(feature), sigmaValue, sigmaValue));
+				ops.add(ImageOps.Filters.features(Collections.singletonList(feature), sigmaValue, sigmaValue));
 		}
-		var op = ImageOperations.Core.sequential(ops);
 		
-		var transformer = ImageOperations.buildImageTransformer(new ColorTransform[]{channel}, op);
+		ops.add(ImageOps.Threshold.threshold(threshold.get()));
+		Map<Integer, PathClass> classifications = new LinkedHashMap<>();
+		classifications.put(0, classificationsBelow.getSelectionModel().getSelectedItem());
+		classifications.put(1, classificationsAbove.getSelectionModel().getSelectedItem());
 		
-//		if (feature == null) {
-			classifier = PixelClassifiers.createThresholdingClassifier(
-					transformer,
-					resolution.getPixelCalibration(),
-					thresholder);
-//		} else {
-//			var calculator = FeatureCalculators.createMultiscaleFeatureCalculator(
-//					Collections.singletonList(transform),
-//					new double[] {sigmaValue},
-//					null,
-//					false,
-//					feature
-//					);
-//			
-//			classifier = PixelClassifiers.createThresholdingClassifier(
-//					transformer,
-//					resolution.getPixelCalibration(),
-//					thresholder);
-//		}
+//		var classifications = Map.of(
+//				0, classificationsBelow.getSelectionModel().getSelectedItem(),
+//				1, classificationsAbove.getSelectionModel().getSelectedItem());
 		
-//		PixelClassificationImageServer server = new PixelClassificationImageServer(imageData, classifier);
+		var op = ImageOps.Core.sequential(ops);
+		
+		var transformer = ImageOps.buildImageDataOp(channel).appendOps(op);
+		
+		classifier = PixelClassifiers.createThresholdingClassifier(
+				transformer,
+				resolution.getPixelCalibration(),
+				classifications);
 
 		// Try (admittedly unsuccessfully) to reduce flicker
 		viewer.setMinimumRepaintSpacingMillis(1000L);

@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
+
 import static org.bytedeco.opencv.global.opencv_core.*;
 
 import org.bytedeco.opencv.global.opencv_core;
@@ -67,6 +69,7 @@ import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -164,6 +167,41 @@ public class OpenCVTools {
 					indexer.put(y, x, b, pixels[y*width + x]);
 				}
 			}
+		}
+	}
+	
+	
+	/**
+	 * Get the OpenCV type code corresponding to a {@link PixelType}.
+	 * <p>
+	 * Note, OpenCV has no matching type for {@link PixelType#UINT32}. In this case a signed 32-bit int 
+	 * type will be returned, and a warning logged.
+	 * 
+	 * @param pixelType the QuPath pixel type
+	 * @return the closest OpenCV pixel type
+	 * @throws IllegalArgumentException if the {@link PixelType} is unknown
+	 */
+	public static int getOpenCVPixelType(PixelType pixelType) throws IllegalArgumentException {
+		switch (pixelType) {
+		case FLOAT32:
+			return opencv_core.CV_32F;
+		case FLOAT64:
+			return opencv_core.CV_64F;
+		case INT16:
+			return opencv_core.CV_16S;
+		case INT32:
+			return opencv_core.CV_32S;
+		case INT8:
+			return opencv_core.CV_8S;
+		case UINT16:
+			return opencv_core.CV_16U;
+		case UINT32:
+			logger.warn("OpenCV does not have a uint32 pixel type! Will returned signed type instead as the closest match.");
+			return opencv_core.CV_32S;
+		case UINT8:
+			return opencv_core.CV_8U;
+		default:
+			throw new IllegalArgumentException("Unknown pixel type " + pixelType);
 		}
 	}
 	
@@ -1074,6 +1112,71 @@ public class OpenCVTools {
 	    	var temp = mat.apply(rect);
 	    	return temp.clone();
 		}
+	}
+
+
+	/**
+	 * Apply a function to a {@link Mat} that strictly requires a specific input size.
+	 * The output is expected to have the same size as the input, but may have a different number of channels.
+	 * <p>
+	 * This method can be used to:
+	 * <ul>
+	 *   <li>Split larger input into tiles of the required size, apply the function and merge the result</li>
+	 *   <li>Pad smaller input into tiles of the required size, apply the function and strip padding from the result</li>
+	 * </ul>
+	 * If the image dimensions are not an exact multiple of the requested tile sizes, both steps may be required.
+	 * 
+	 * @param fun the function to apply to the input
+	 * @param mat the input Mat
+	 * @param tileWidth the strict tile width required by the input
+	 * @param tileHeight the strict tile height required by the input
+	 * @param borderType an OpenCV border type, in case padding is needed
+	 * @return the result of applying fun to mat, having applied any necessary tiling along the way
+	 */
+	public static Mat applyTiled(Function<Mat, Mat> fun, Mat mat, int tileWidth, int tileHeight, int borderType) {
+		
+		int top = 0, bottom = 0, left = 0, right = 0;
+	    boolean doPad = false;
+		
+		if (mat.cols() > tileWidth) {
+			List<Mat> horizontal = new ArrayList<>();
+			for (int x = 0; x < mat.cols(); x += tileWidth) {
+	    		Mat matTemp = applyTiled(fun, mat.colRange(x, Math.min(x+tileWidth, mat.cols())).clone(), tileWidth, tileHeight, borderType);
+	    		horizontal.add(matTemp);
+			}
+			Mat matResult = new Mat();
+			opencv_core.hconcat(new MatVector(horizontal.toArray(new Mat[0])), matResult);
+			return matResult;
+		} else if (mat.rows() > tileHeight) {
+			List<Mat> vertical = new ArrayList<>();
+			for (int y = 0; y < mat.rows(); y += tileHeight) {
+	    		Mat matTemp = applyTiled(fun, mat.rowRange(y, Math.min(y+tileHeight, mat.rows())).clone(), tileWidth, tileHeight, borderType);
+	    		vertical.add(matTemp);
+			}
+			Mat matResult = new Mat();
+			opencv_core.vconcat(new MatVector(vertical.toArray(Mat[]::new)), matResult);
+			return matResult;
+		} else if (mat.cols() < tileWidth || mat.rows() < tileHeight) {
+	        // If the image is smaller than we can handle, add padding
+			top = (tileHeight - mat.rows()) / 2;
+			left = (tileWidth - mat.cols()) / 2;
+			bottom = tileHeight - mat.rows() - top;
+			right = tileWidth - mat.cols() - left;
+			Mat matPadded = new Mat();
+			opencv_core.copyMakeBorder(mat, matPadded, top, bottom, left, right, borderType);
+			mat = matPadded;
+			doPad = true;
+		}
+		
+		// Do the actual requested function
+		var matResult = fun.apply(mat);
+		
+		// Handle padding
+	    if (doPad) {
+	    	matResult.put(crop(matResult, left, top, tileWidth-right-left, tileHeight-top-bottom));
+	    }
+	    
+	    return matResult;
 	}
 	
 

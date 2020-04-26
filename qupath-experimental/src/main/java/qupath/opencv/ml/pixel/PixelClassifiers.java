@@ -5,6 +5,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
@@ -13,10 +15,17 @@ import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.io.GsonTools;
-import qupath.opencv.ml.pixel.ValueToClassification.ThresholdClassifier;
+import qupath.lib.objects.classes.PathClass;
+import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.operations.ImageDataOp;
+import qupath.opencv.operations.ImageOp;
+import qupath.opencv.operations.ImageOps;
 
 /**
  * Static methods and classes for working with pixel classifiers.
@@ -37,9 +46,7 @@ public class PixelClassifiers {
 		
 		private final static RuntimeTypeAdapterFactory<PixelClassifier> pixelClassifierTypeAdapter = 
 				RuntimeTypeAdapterFactory.of(PixelClassifier.class, typeName)
-				.registerSubtype(OpenCVPixelClassifier.class)
-				.registerSubtype(OpenCVPixelClassifierDNN.class)
-				.registerSubtype(SimplePixelClassifier.class);
+				.registerSubtype(OpenCVPixelClassifier.class);
 		
 		/**
 		 * Register that a specific PixelClassifier implementation can be serialized to Json.
@@ -87,35 +94,47 @@ public class PixelClassifiers {
 	}
 	
 	
+	
 	public static PixelClassifier createThresholdingClassifier(
-			ImageDataOp transformer,
+			ImageDataOp op,
 			PixelCalibration inputResolution,
-			ThresholdClassifier thresholder) {
-		return new SimplePixelClassifier(transformer, inputResolution, thresholder);
+			Map<Integer, PathClass> classifications) {
+		
+		var metadata = new PixelClassifierMetadata.Builder()
+				.inputResolution(inputResolution)
+				.classificationLabels(classifications)
+				.inputShape(512, 512)
+				.setChannelType(ImageServerMetadata.ChannelType.CLASSIFICATION)
+				.build();
+		
+		return new OpenCVPixelClassifier(op, metadata);
 	}
 
-//	/**
-//	 * Create a PixelClassifier that applies a threshold to a single image channel at a specified resolution.
-//	 * 
-//	 * @param transform transform to apply to input pixels
-//	 * @param inputResolution resolution at which to apply the threshold
-//	 * @param thresholder thresholder used to determine classifications
-//	 * @return
-//	 */
-//	public static PixelClassifier createThresholdingClassifier(
-//			ColorTransform transform,
-//			PixelCalibration inputResolution,
-//			ThresholdClassifier thresholder) {
-//		return createThresholdingClassifier(
-//				FeatureCalculators.createColorTransformFeatureCalculator(transform),
-//				inputResolution, thresholder);
-//	}
-//	
-//	public static PixelClassifier createThresholdingClassifier(
-//			FeatureCalculator<BufferedImage> featureCalculator,
-//			PixelCalibration inputResolution,
-//			ThresholdClassifier thresholder) {
-//		return new SimplePixelClassifier(featureCalculator, inputResolution, thresholder);
-//	}
+	/**
+	 * Create a PixelClassifier based on an OpenCV StatModel and feature calculator.
+	 * 
+	 * @param statModel
+	 * @param calculator
+	 * @param metadata
+	 * @param do8Bit
+	 * @return
+	 */
+	public static PixelClassifier createPixelClassifier(OpenCVStatModel statModel, ImageDataOp calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
+		var ops = new ArrayList<ImageOp>();
+		boolean outputProbability = metadata.getOutputType() == ChannelType.PROBABILITY || metadata.getOutputType() == ChannelType.MULTICLASS_PROBABILITY;
+		ops.add(ImageOps.ML.statModel(statModel, outputProbability));
+		if (metadata.getOutputType() == ChannelType.PROBABILITY) {
+			if (do8Bit)
+				ops.add(ImageOps.Normalize.channelSum(255.0));
+			else
+				ops.add(ImageOps.Normalize.channelSum(1.0));				
+		}
+		if (do8Bit) {
+			ops.add(ImageOps.Core.ensureType(PixelType.UINT8));
+		}
+		var op = calculator.appendOps(ops.toArray(ImageOp[]::new));
+		return new OpenCVPixelClassifier(op, metadata);
+	}
+	
 
 }

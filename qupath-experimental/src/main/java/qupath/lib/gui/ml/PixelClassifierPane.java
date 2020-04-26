@@ -109,9 +109,9 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
-import qupath.opencv.ml.pixel.OpenCVPixelClassifiers;
 import qupath.opencv.ml.pixel.PixelClassifierHelper;
-import qupath.opencv.operations.ImageOperations;
+import qupath.opencv.ml.pixel.PixelClassifiers;
+import qupath.opencv.operations.ImageOps;
 
 
 public class PixelClassifierPane {
@@ -1026,7 +1026,7 @@ public class PixelClassifierPane {
 				 .outputChannels(channels)
 				 .build();
 
-		 var classifier = OpenCVPixelClassifiers.createPixelClassifier(model, featureCalculator, metadata, true);
+		 var classifier = PixelClassifiers.createPixelClassifier(model, featureCalculator, metadata, true);
 
 		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
@@ -1500,7 +1500,7 @@ public class PixelClassifierPane {
 				featureServer = helper.getFeatureServer();
 			} else {
 				tempFeatureServer = true;
-				featureServer = ImageOperations.buildServer(imageData, helper.getFeatureCalculator(), helper.getResolution());
+				featureServer = ImageOps.buildServer(imageData, helper.getFeatureCalculator(), helper.getResolution());
 			}
 			double downsample = featureServer.getDownsampleForResolution(0);
 			int tw = (int)(featureServer.getMetadata().getPreferredTileWidth() * downsample);

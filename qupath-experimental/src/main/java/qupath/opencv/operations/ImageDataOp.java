@@ -31,7 +31,7 @@ public interface ImageDataOp {
 	 * @return
 	 * @throws IOException
 	 */
-	public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException;
+	Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException;
 	
 	/**
 	 * Query whether this transform can be applied to the specified image.
@@ -48,6 +48,14 @@ public interface ImageDataOp {
 	 * 
 	 * @return
 	 */
-	public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData);
+	List<ImageChannel> getChannels(ImageData<BufferedImage> imageData);
+	
+	/**
+	 * Append one or more additional {@link ImageOp}s sequentially.
+	 * This {@link ImageDataOp} is unchanged, and a new one is created with the additional op appended.
+	 * @param ops
+	 * @return
+	 */
+	ImageDataOp appendOps(ImageOp... ops);
 	
 }

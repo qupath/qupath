@@ -23,7 +23,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.operations.ImageDataOp;
 import qupath.opencv.operations.ImageDataServer;
-import qupath.opencv.operations.ImageOperations;
+import qupath.opencv.operations.ImageOps;
 
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
@@ -145,7 +145,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 			if (server != null && (server instanceof ImageDataServer && ((ImageDataServer<?>)server).getImageData() != imageData))
 				server = null;
 			if (server == null && calculator != null && calculator.supportsImage(imageData)) {
-				server = ImageOperations.buildServer(imageData, calculator, resolution);
+				server = ImageOps.buildServer(imageData, calculator, resolution);
 			}
 	    	return server;
 		}

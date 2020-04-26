@@ -30,7 +30,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.opencv.operations.ImageDataOp;
 import qupath.opencv.operations.ImageOp;
-import qupath.opencv.operations.ImageOperations;
+import qupath.opencv.operations.ImageOps;
 import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
 import qupath.opencv.tools.LocalNormalization.SmoothingScale;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
@@ -374,52 +374,47 @@ abstract class ImageDataTransformerBuilder {
 				features = selectedFeatures.stream().filter(f -> f.supports2D()).toArray(MultiscaleFeature[]::new);
 
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
-//			String[] channels = selectedChannels.toArray(String[]::new);
 			
 			LocalNormalizationType norm = null;
 			
-			double localNormalizeSigma = normalizationSigma.get();
 			double varianceScaleRatio = 1.0; // TODO: Make the variance scale ratio editable
 			SmoothingScale scale;
-//			if (do3D.get())
+			// TODO: Consider reinstating 3D
 //				scale = SmoothingScale.get3DIsotropic(localNormalizeSigma);
-//			else
-				scale = SmoothingScale.get2D(localNormalizeSigma);
+//			scale = SmoothingScale.get2D(localNormalizeSigma);
+
+			List<ImageOp> ops = new ArrayList<>();
+			for (var sigma : sigmas) {
+				ops.add(ImageOps.Filters.features(Arrays.asList(features), sigma, sigma));
+			}
+			var op = ImageOps.Core.splitMerge(ops);
 			
+			// Handle normalization if needed
+			double localNormalizeSigma = normalizationSigma.get();
+			ImageOp opNormalize = null;
 			if (localNormalizeSigma > 0) {
 				switch (normalization.get()) {
 				case GAUSSIAN_MEAN:
-					norm = LocalNormalizationType.getInstance(scale, 0.0);
+					opNormalize = ImageOps.Normalize.localNormalization(localNormalizeSigma, 0);
 					break;
 				case GAUSSIAN_MEAN_VARIANCE:
-					norm = LocalNormalizationType.getInstance(scale, varianceScaleRatio);
+					opNormalize = ImageOps.Normalize.localNormalization(localNormalizeSigma, localNormalizeSigma);
 					break;
 				case NONE:
 				default:
 					break;
 				}
 			}
+			if (opNormalize != null)
+				op = ImageOps.Core.sequential(op, opNormalize);
 
 //			SmoothingScale.getInstance(scaleType, localNormalizeSigma), varianceScaleRatio
 			
 //			return FeatureCalculators.createNormalizingFeatureCalculator(
 //					Arrays.stream(channels).map(c -> ColorTransforms.createChannelExtractor(c)).collect(Collectors.toList()),
 //					norm);
-			
-			List<ImageOp> ops = new ArrayList<>();
-			for (var sigma : sigmas) {
-				ops.add(ImageOperations.Filters.features(Arrays.asList(features), sigma, sigma));
-			}
-			var op = ImageOperations.Core.splitMerge(ops);
-			return ImageOperations.buildImageTransformer(selectedChannels.toArray(ColorTransform[]::new), op);
-			
-//			return MultiscaleFeatureCalculator.createMultiscaleFeatureCalculator(
-//					channels,
-//					sigmas,
-//					norm,
-//					do3D.get() ? true : false,
-//					features
-//					);
+						
+			return ImageOps.buildImageDataOp(selectedChannels).appendOps(op);
 		}
 
 		@Override
