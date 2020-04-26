@@ -23,9 +23,9 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
-import qupath.opencv.operations.ImageDataOp;
-import qupath.opencv.operations.ImageOp;
-import qupath.opencv.operations.ImageOps;
+import qupath.opencv.ops.ImageDataOp;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps;
 
 /**
  * Static methods and classes for working with pixel classifiers.

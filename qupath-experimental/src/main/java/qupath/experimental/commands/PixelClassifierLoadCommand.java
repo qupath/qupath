@@ -15,7 +15,6 @@ import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
-import qupath.lib.gui.ml.PixelClassifierPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.gui.tools.PaneTools;
 
@@ -110,7 +109,7 @@ public class PixelClassifierLoadCommand implements Runnable {
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
-			PixelClassifierPane.promptToCreateObjects(viewer.getImageData(), 
+			PixelClassifierTools.promptToCreateObjects(viewer.getImageData(), 
 					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
 		});
 		btnClassifyObjects.setOnAction(e -> {

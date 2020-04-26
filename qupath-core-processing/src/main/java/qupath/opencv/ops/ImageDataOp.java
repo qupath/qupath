@@ -1,4 +1,4 @@
-package qupath.opencv.operations;
+package qupath.opencv.ops;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;

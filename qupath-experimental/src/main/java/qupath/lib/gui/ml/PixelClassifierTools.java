@@ -1,43 +1,51 @@
 package qupath.lib.gui.ml;
 
-import ij.plugin.filter.ThresholdToSelection;
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
-
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.tools.IJTools;
+import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.projects.Project;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.operations.Padding;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -52,230 +60,18 @@ public class PixelClassifierTools {
     private static final Logger logger = LoggerFactory.getLogger(PixelClassifierTools.class);
 
     
-    /**
-     * Generate a QuPath ROI by thresholding an image channel image.
-     * 
-     * @param img the input image (any type)
-     * @param minThreshold minimum threshold; pixels &gt;= minThreshold will be included
-     * @param maxThreshold maximum threshold; pixels &lt;= maxThreshold will be included
-     * @param band the image band to threshold (channel)
-     * @param request a {@link RegionRequest} corresponding to this image, used to calibrate the coordinates.  If null, 
-     * 			we assume no downsampling and an origin at (0,0).
-     * @return
-     * 
-     * @see #thresholdToROI(ImageProcessor, TileRequest)
-     */
-    public static ROI thresholdToROI(BufferedImage img, double minThreshold, double maxThreshold, int band, RegionRequest request) {
-    	int w = img.getWidth();
-    	int h = img.getHeight();
-    	float[] pixels = new float[w * h];
-    	img.getRaster().getSamples(0, 0, w, h, band, pixels);
-    	var fp = new FloatProcessor(w, h, pixels);
-    	
-    	fp.setThreshold(minThreshold, maxThreshold, ImageProcessor.NO_LUT_UPDATE);
-    	return thresholdToROI(fp, request);
-    }
-    
-    /**
-     * Generate a QuPath ROI by thresholding an image channel image, deriving coordinates from a TileRequest.
-     * <p>
-     * This can give a more accurate result than depending on a RegionRequest because it is possible to avoid some loss of precision.
-     * 
-     * @param raster
-     * @param minThreshold
-     * @param maxThreshold
-     * @param band
-     * @param request
-     * @return
-     * 
-     * @see #thresholdToROI(ImageProcessor, RegionRequest)
-     */
-    public static ROI thresholdToROI(Raster raster, double minThreshold, double maxThreshold, int band, TileRequest request) {
-    	int w = raster.getWidth();
-    	int h = raster.getHeight();
-    	float[] pixels = new float[w * h];
-    	raster.getSamples(0, 0, w, h, band, pixels);
-    	var fp = new FloatProcessor(w, h, pixels);
-    	
-    	fp.setThreshold(minThreshold, maxThreshold, ImageProcessor.NO_LUT_UPDATE);
-    	return thresholdToROI(fp, request);
-    }
-    
-    
-    
-    /**
-     * Generate a QuPath ROI from an ImageProcessor.
-     * <p>
-     * It is assumed that the ImageProcessor has had its min and max threshold values set.
-     * 
-     * @param ip
-     * @param request
-     * @return
-     */
-    static ROI thresholdToROI(ImageProcessor ip, RegionRequest request) {
-    	// Need to check we have any above-threshold pixels at all
-    	int n = ip.getWidth() * ip.getHeight();
-    	boolean noPixels = true;
-    	double min = ip.getMinThreshold();
-    	double max = ip.getMaxThreshold();
-    	for (int i = 0; i < n; i++) {
-    		double val = ip.getf(i);
-    		if (val >= min && val <= max) {
-    			noPixels = false;
-    			break;
-    		}
-    	}
-    	if (noPixels)
-    		return null;
-    	    	
-    	// Generate a shape, using the RegionRequest if we can
-    	var roiIJ = new ThresholdToSelection().convert(ip);
-    	if (request == null)
-    		return IJTools.convertToROI(roiIJ, 0, 0, 1, ImagePlane.getDefaultPlane());
-    	return IJTools.convertToROI(
-    			roiIJ,
-    			-request.getX()/request.getDownsample(),
-    			-request.getY()/request.getDownsample(),
-    			request.getDownsample(), request.getPlane());
-    }
-    
-    static ROI thresholdToROI(ImageProcessor ip, TileRequest request) {
-    	// Need to check we have any above-threshold pixels at all
-    	int n = ip.getWidth() * ip.getHeight();
-    	boolean noPixels = true;
-    	double min = ip.getMinThreshold();
-    	double max = ip.getMaxThreshold();
-    	for (int i = 0; i < n; i++) {
-    		double val = ip.getf(i);
-    		if (val >= min && val <= max) {
-    			noPixels = false;
-    			break;
-    		}
-    	}
-    	if (noPixels)
-    		return null;
-    	    	
-    	// Generate a shape, using the TileRequest if we can
-    	var roiIJ = new ThresholdToSelection().convert(ip);
-    	if (request == null)
-    		return IJTools.convertToROI(roiIJ, 0, 0, 1, ImagePlane.getDefaultPlane());
-    	return IJTools.convertToROI(
-    			roiIJ,
-    			-request.getTileX(),
-    			-request.getTileY(),
-    			request.getDownsample(), request.getPlane());
-    }
-    
-    
-    /**
-	 * Get a raster, padded by the specified amount, to the left, right, above and below.
-	 * <p>
-	 * Note that the padding is defined in terms of the <i>destination</i> pixels.
-	 * <p>
-	 * In other words, a specified padding of 5 should actually result in 20 pixels being added in each dimension 
-	 * if the {@code request.getDownsample() == 4}.
-	 * <p>
-	 * Currently, zero-padding is used.
+	/**
+	 * Create detections objects via a pixel classifier.
 	 * 
-	 * @param server
-	 * @param request
-	 * @param padding
+	 * @param imageData
+	 * @param classifier
+	 * @param selectedObjects
+	 * @param minSizePixels
+	 * @param minHoleSizePixels
+	 * @param doSplit
+	 * @param clearExisting 
 	 * @return
-	 * @throws IOException 
 	 */
-    public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, int padding) throws IOException {
-    	// If padding < 0, throw an exception
-    	if (padding < 0)
-    		new IllegalArgumentException("Padding must be >= 0, but here it is " + padding);
-		return getPaddedRequest(server, request, Padding.symmetric(padding));
-	}
-    
-    
-	public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, Padding padding) throws IOException {
-		// If we don't have any padding, just return directly
-		if (padding.isEmpty())
-			return server.readBufferedImage(request);
-		// Get the expected bounds
-		double downsample = request.getDownsample();
-		int x = (int)Math.round(request.getX() - padding.getX1() * downsample);
-		int y = (int)Math.round(request.getY() - padding.getY1() * downsample);
-		int x2 = (int)Math.round((request.getX() + request.getWidth()) + padding.getX2() * downsample);
-		int y2 = (int)Math.round((request.getY() + request.getHeight()) + padding.getY2() * downsample);
-		// If we're out of range, we'll need to work a bit harder
-		int padLeft = 0, padRight = 0, padUp = 0, padDown = 0;
-		boolean outOfRange = false;
-		if (x < 0) {
-			padLeft = (int)Math.round(-x/downsample);
-			x = 0;
-			outOfRange = true;
-		}
-		if (y < 0) {
-			padUp = (int)Math.round(-y/downsample);
-			y = 0;
-			outOfRange = true;
-		}
-		if (x2 > server.getWidth()) {
-			padRight  = (int)Math.round((x2 - server.getWidth())/downsample);
-			x2 = server.getWidth();
-			outOfRange = true;
-		}
-		if (y2 > server.getHeight()) {
-			padDown  = (int)Math.round((y2 - server.getHeight())/downsample);
-			y2 = server.getHeight();
-			outOfRange = true;
-		}
-		// If everything is within range, this should be relatively straightforward
-		RegionRequest request2 = RegionRequest.createInstance(request.getPath(), downsample, x, y, x2-x, y2-y, request.getZ(), request.getT());
-		BufferedImage img = server.readBufferedImage(request2);
-		if (outOfRange) {
-			WritableRaster raster = img.getRaster();
-			WritableRaster rasterPadded = raster.createCompatibleWritableRaster(
-					raster.getWidth() + padLeft + padRight,
-					raster.getHeight() + padUp + padDown);
-			rasterPadded.setRect(padLeft, padUp, raster);
-			// Add padding above
-			if (padUp > 0) {
-				WritableRaster row = raster.createWritableChild(0, 0, raster.getWidth(), 1, 0, 0, null);
-				for (int r = 0; r < padUp; r++)
-					rasterPadded.setRect(padLeft, r, row);
-			}
-			// Add padding below
-			if (padDown > 0) {
-				WritableRaster row = raster.createWritableChild(0, raster.getHeight()-1, raster.getWidth(), 1, 0, 0, null);
-				for (int r = padUp + raster.getHeight(); r < rasterPadded.getHeight(); r++)
-					rasterPadded.setRect(padLeft, r, row);
-			}
-			// Add padding to the left
-			if (padLeft > 0) {
-				WritableRaster col = rasterPadded.createWritableChild(padLeft, 0, 1, rasterPadded.getHeight(), 0, 0, null);
-				for (int c = 0; c < padLeft; c++)
-					rasterPadded.setRect(c, 0, col);
-			}
-			// Add padding to the right
-			if (padRight > 0) {
-				WritableRaster col = rasterPadded.createWritableChild(rasterPadded.getWidth()-padRight-1, 0, 1, rasterPadded.getHeight(), 0, 0, null);
-				for (int c = padLeft + raster.getWidth(); c < rasterPadded.getWidth(); c++)
-					rasterPadded.setRect(c, 0, col);
-			}
-			// TODO: The padding seems to work - but something to be cautious with...
-			img = new BufferedImage(img.getColorModel(), rasterPadded, img.isAlphaPremultiplied(), null);
-		}
-		return img;
-	}
-
-
-	    /**
-	     * Create detections objects via a pixel classifier.
-	     * 
-	     * @param imageData
-	     * @param classifier
-	     * @param selectedObjects
-	     * @param minSizePixels
-	     * @param minHoleSizePixels
-	     * @param doSplit
-	     * @param clearExisting 
-	     * @return
-	     */
     public static boolean createDetectionsFromPixelClassifier(
 			ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> selectedObjects, 
 			double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
@@ -401,7 +197,7 @@ public class PixelClassifierTools {
 						PathClass pathClass = entry.getValue();
 						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
 							continue;
-						ROI roi = thresholdToROI(raster, c-0.5, c+0.5, 0, t);
+						ROI roi = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
 						if (roi != null)  {
 							Geometry geometry = roi.getGeometry();
@@ -525,6 +321,94 @@ public class PixelClassifierTools {
 	public static void classifyObjectsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
 		classifyObjectsByCentroid(new PixelClassificationImageServer(imageData, classifier), pathObjects, preferNucleusROI);
 	}
+
+	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> server) {
+			Objects.requireNonNull(imageData);
+			Objects.requireNonNull(server);
+			
+			var objectTypes = Arrays.asList(
+					"Annotation", "Detection"
+			);
+	//		var availableChannels = new String[] {
+	//			server.getOriginalMetadata().getC
+	//		};
+			var sizeUnits = Arrays.asList(
+					"Pixels",
+					GeneralTools.micrometerSymbol()
+			);
+			
+			var params = new ParameterList()
+					.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
+					.addDoubleParameter("minSize", "Minimum object size", 0, null, "Minimum size of a region to keep (smaller regions will be dropped)")
+					.addDoubleParameter("minHoleSize", "Minimum hole size", 0, null, "Minimum size of a hole to keep (smaller holes will be filled)")
+					.addChoiceParameter("sizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
+					.addBooleanParameter("doSplit", "Split objects", true,
+							"Split multi-part regions into separate objects")
+					.addBooleanParameter("clearExisting", "Delete existing objects", false,
+							"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)");
+			
+			PixelCalibration cal = server.getPixelCalibration();
+			params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "sizeUnits");
+			
+			if (!Dialogs.showParameterDialog("Create objects", params))
+				return false;
+			
+			Function<ROI, PathObject> creator;
+			if (params.getChoiceParameterValue("objectType").equals("Detection"))
+				creator = r -> PathObjects.createDetectionObject(r);
+			else
+				creator = r -> {
+					var annotation = PathObjects.createAnnotationObject(r);
+					((PathAnnotationObject)annotation).setLocked(true);
+					return annotation;
+				};
+			boolean doSplit = params.getBooleanParameterValue("doSplit");
+			double minSizePixels = params.getDoubleParameterValue("minSize");
+			double minHoleSizePixels = params.getDoubleParameterValue("minHoleSize");
+			if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("sizeUnits").equals("Pixels")) {
+				minSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
+				minHoleSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
+			}
+			boolean clearExisting = params.getBooleanParameterValue("clearExisting");
+			
+			Collection<PathObject> allSelected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
+			List<PathObject> selected = allSelected.stream().filter(p -> p.hasROI() && p.getROI().isArea() && 
+					(p.isAnnotation() || p.isTMACore())).collect(Collectors.toList());
+			boolean hasSelection = true;
+			if (allSelected.isEmpty()) {
+				hasSelection = false;
+				selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
+			} else if (selected.size() != allSelected.size()) {
+				Dialogs.showErrorMessage("Create objects", "All selected objects should be annotations with area ROIs or TMA cores!");
+				return false;
+			}
+			if (hasSelection && selected.size() == 1 && selected.get(0).getPathClass() != null && selected.get(0).getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
+				var btn = Dialogs.showYesNoCancelDialog("Create objects", "Create objects for selected annotation(s)?\nChoose 'no' to use the entire image.");
+				if (btn == DialogButton.CANCEL)
+					return false;
+				if (btn == DialogButton.NO)
+					selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
+			}
+			
+	//		int nChildObjects = 0;
+	//		if (selected == null)
+	//			nChildObjects = hierarchy.nObjects();
+	//		else
+	//			nChildObjects = PathObjectTools.countDescendants(selected);
+	//		if (nChildObjects > 0) {
+	//			String message = "Existing child object will be deleted - is that ok?";
+	//			if (nChildObjects > 1)
+	//				message = nChildObjects + " existing descendant object will be deleted - is that ok?";
+	//			if (!DisplayHelpers.showConfirmDialog("Create objects", message))
+	//				return false;
+	//		}
+	//		// Need to turn off live prediction so we don't start training on the results...
+	//		livePrediction.set(false);
+			
+			return createObjectsFromPixelClassifier(
+					server, imageData.getHierarchy(), selected, creator,
+					minSizePixels, minHoleSizePixels, doSplit, clearExisting);
+		}
 	
 	
 	
@@ -545,5 +429,151 @@ public class PixelClassifierTools {
 //		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
 //	}
 	
+	
+
+	/**
+	 * Get a suitable (unique) name for a pixel classifier.
+	 * 
+	 * @param project
+	 * @param classifier
+	 * @return
+	 */
+	private static String getDefaultClassifierName(Project<BufferedImage> project, PixelClassifier classifier) {
+		String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+//		String simpleName = classifier.toString();
+		String simpleName = "Pixel Model";
+		String name = String.format("%s %s", date, simpleName);
+		Collection<String> names = null;
+		try {
+			names = project.getPixelClassifiers().getNames();
+		} catch (Exception e) {}
+		if (names == null || names.isEmpty() || !names.contains(name))
+			return name;
+		int i = 1;
+		while (names.contains(name)) {
+			name = String.format("%s %s (%d)", date, simpleName, i);
+			i++;
+		}
+		return GeneralTools.stripInvalidFilenameChars(name);
+	}
+	
+	
+	
+	public static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
+		
+		String name = getDefaultClassifierName(project, classifier);
+		
+		String classifierName = GuiTools.promptForFilename("Save model", "Model name", name);
+		if (classifierName == null)
+			return null;
+		
+//		var pane = new GridPane();
+//		pane.setHgap(5);
+//		pane.setVgap(5);
+//		pane.setPadding(new Insets(10));
+//		pane.setMaxWidth(Double.MAX_VALUE);
+//		
+//		var labelGeneral = new Label("Click 'Apply' to save the prediction model & predictions in the current project.\n" +
+//				"Click 'File' if you want to save either of these elsewhere.");
+//		labelGeneral.setContentDisplay(ContentDisplay.CENTER);
+//		
+//		var label = new Label("Name");
+//		var tfName = new TextField(name);
+//		label.setLabelFor(tfName);
+//		
+//		var cbModel = new CheckBox("Save prediction model");
+//		var cbImage = new CheckBox("Save prediction image");
+//		var btnModel = new Button("File");
+//		btnModel.setTooltip(new Tooltip("Save prediction model to a file"));
+//		btnModel.setOnAction(e -> {
+//			var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save model", null, tfName.getText(), "Prediction model", ".json");
+//			if (file != null) {
+//				try (var writer = Files.newWriter(file, StandardCharsets.UTF_8)) {
+//					GsonTools.getInstance(true).toJson(classifier, writer);
+//				} catch (IOException e1) {
+//					DisplayHelpers.showErrorMessage("Save model", e1);
+//				}
+//			}
+//		});
+//		
+//		var btnImage = new Button("File");
+//		btnImage.setTooltip(new Tooltip("Save prediction image to a file"));
+//		btnImage.setOnAction(e -> {
+//			var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save image", null, tfName.getText(), "Prediction image", ".ome.tif");
+//			if (file != null) {
+//				try {
+//					ImageWriterTools.writeImageRegion(new PixelClassificationImageServer(QuPathGUI.getInstance().getImageData(), classifier), null, file.getAbsolutePath());
+//				} catch (IOException e1) {
+//					DisplayHelpers.showErrorMessage("Save image", e1);
+//				}
+//			}
+//		});
+//		
+//		int row = 0;
+//		int col = 0;
+//		GridPaneTools.addGridRow(pane, row++, col, "Input a unique classifier name", label, tfName);
+//		GridPaneTools.addGridRow(pane, row++, col, "Save the classification model (can be applied to similar images)", cbModel, cbModel, btnModel);
+//		GridPaneTools.addGridRow(pane, row++, col, "Save the prediction image", cbImage, cbImage, btnImage);
+//		GridPaneTools.addGridRow(pane, row++, col, labelGeneral.getText(), labelGeneral, labelGeneral);
+//		
+//		GridPaneTools.setHGrowPriority(Priority.ALWAYS, labelGeneral, cbModel, cbImage, tfName);
+//		GridPaneTools.setFillWidth(Boolean.TRUE, labelGeneral, cbModel, cbImage, tfName);
+//		GridPaneTools.setMaxWidth(Double.MAX_VALUE, labelGeneral, cbModel, cbImage, tfName);
+//		
+//		var dialog = new Dialog<ButtonType>();
+//		dialog.setTitle("Save");
+//		dialog.getDialogPane().setContent(pane);
+//		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
+//		if (dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL) == ButtonType.CANCEL)
+//			return null;
+////		if (!DisplayHelpers.showMessageDialog("Save & Apply", pane)) {
+////			return null;
+////		}
+//		String classifierName = tfName.getText();	
+//		
+////		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", name);
+//		if (classifierName == null || classifierName.isBlank())
+//			return null;
+//		classifierName = classifierName.strip();
+//		if (classifierName.isBlank() || classifierName.contains("\n")) {
+//			DisplayHelpers.showErrorMessage("Pixel classifier", "Classifier name must be unique, non-empty, and not contain invalid characters");
+//			return null;
+//		}
+//		
+//		// Save the classifier in the project
+//		if (cbModel.isSelected()) {
+			try {
+				saveClassifier(project, classifier, classifierName);
+			} catch (IOException e) {
+				Dialogs.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
+				logger.error("Error saving classifier", e);
+				throw e;
+			}
+//		}
+//		// Save the image
+//		if (cbImage.isSelected()) {
+//			var server = new PixelClassificationImageServer(QuPathGUI.getInstance().getImageData(), classifier);
+//			var imageData = QuPathGUI.getInstance().getImageData();
+//			var entry = project.getEntry(imageData);
+//			var path = entry.getEntryPath();
+//			ImageWriterTools.writeImageRegion(new PixelClassificationImageServer(imageData, classifier), null, file.getAbsolutePath());
+//			logger.warn("Saving image now yet supported!");
+//		}
+		
+		return classifierName;
+	}
+	
+	
+	private static void saveClassifier(Project<BufferedImage> project, PixelClassifier classifier, String classifierName) throws IOException {
+		project.getPixelClassifiers().put(classifierName, classifier);
+	}
+	
+	static boolean saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
+		String name = promptToSaveClassifier(project, classifier);
+		if (name == null)
+			return false;
+		return true;
+//		return PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
+	}
 
 }

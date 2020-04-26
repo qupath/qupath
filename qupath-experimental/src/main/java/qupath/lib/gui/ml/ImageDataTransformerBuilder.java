@@ -28,11 +28,9 @@ import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.opencv.operations.ImageDataOp;
-import qupath.opencv.operations.ImageOp;
-import qupath.opencv.operations.ImageOps;
-import qupath.opencv.tools.LocalNormalization.LocalNormalizationType;
-import qupath.opencv.tools.LocalNormalization.SmoothingScale;
+import qupath.opencv.ops.ImageDataOp;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 /**
@@ -375,11 +373,9 @@ abstract class ImageDataTransformerBuilder {
 
 			double[] sigmas = selectedSigmas.stream().mapToDouble(d -> d).toArray();
 			
-			LocalNormalizationType norm = null;
-			
 			double varianceScaleRatio = 1.0; // TODO: Make the variance scale ratio editable
-			SmoothingScale scale;
 			// TODO: Consider reinstating 3D
+//			SmoothingScale scale;
 //				scale = SmoothingScale.get3DIsotropic(localNormalizeSigma);
 //			scale = SmoothingScale.get2D(localNormalizeSigma);
 
@@ -398,7 +394,7 @@ abstract class ImageDataTransformerBuilder {
 					opNormalize = ImageOps.Normalize.localNormalization(localNormalizeSigma, 0);
 					break;
 				case GAUSSIAN_MEAN_VARIANCE:
-					opNormalize = ImageOps.Normalize.localNormalization(localNormalizeSigma, localNormalizeSigma);
+					opNormalize = ImageOps.Normalize.localNormalization(localNormalizeSigma, localNormalizeSigma * varianceScaleRatio);
 					break;
 				case NONE:
 				default:
@@ -407,12 +403,6 @@ abstract class ImageDataTransformerBuilder {
 			}
 			if (opNormalize != null)
 				op = ImageOps.Core.sequential(op, opNormalize);
-
-//			SmoothingScale.getInstance(scaleType, localNormalizeSigma), varianceScaleRatio
-			
-//			return FeatureCalculators.createNormalizingFeatureCalculator(
-//					Arrays.stream(channels).map(c -> ColorTransforms.createChannelExtractor(c)).collect(Collectors.toList()),
-//					norm);
 						
 			return ImageOps.buildImageDataOp(selectedChannels).appendOps(op);
 		}

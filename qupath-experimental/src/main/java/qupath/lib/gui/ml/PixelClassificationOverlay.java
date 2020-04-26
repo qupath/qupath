@@ -21,9 +21,9 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.operations.ImageDataOp;
-import qupath.opencv.operations.ImageDataServer;
-import qupath.opencv.operations.ImageOps;
+import qupath.opencv.ops.ImageDataOp;
+import qupath.opencv.ops.ImageDataServer;
+import qupath.opencv.ops.ImageOps;
 
 import java.awt.AlphaComposite;
 import java.awt.Graphics2D;

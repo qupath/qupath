@@ -1,10 +1,11 @@
-package qupath.opencv.operations;
+package qupath.opencv.ops;
 
 import java.util.List;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.regions.Padding;
 
 /**
  * An operation that may be applied to a {@link Mat}.

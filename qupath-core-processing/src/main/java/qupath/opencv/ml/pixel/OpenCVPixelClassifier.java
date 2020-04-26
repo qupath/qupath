@@ -10,7 +10,7 @@ import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.operations.ImageDataOp;
+import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.tools.OpenCVTools;
 
 import org.bytedeco.opencv.global.opencv_core;

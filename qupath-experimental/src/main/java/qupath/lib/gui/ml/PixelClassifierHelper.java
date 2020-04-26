@@ -1,4 +1,4 @@
-package qupath.opencv.ml.pixel;
+package qupath.lib.gui.ml;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_ml;
@@ -12,7 +12,6 @@ import com.google.common.base.Objects;
 
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.color.ColorToolsAwt;
-import qupath.lib.gui.ml.BoundaryStrategy;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelCalibration;
@@ -29,9 +28,9 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.operations.ImageDataOp;
-import qupath.opencv.operations.ImageDataServer;
-import qupath.opencv.operations.ImageOps;
+import qupath.opencv.ops.ImageDataOp;
+import qupath.opencv.ops.ImageDataServer;
+import qupath.opencv.ops.ImageOps;
 
 import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;

@@ -1,4 +1,4 @@
-package qupath.opencv.operations;
+package qupath.opencv.ops;
 
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.ImageData;

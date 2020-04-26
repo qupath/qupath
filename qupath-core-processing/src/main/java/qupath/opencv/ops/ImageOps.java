@@ -1,4 +1,4 @@
-package qupath.opencv.operations;
+package qupath.opencv.ops;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -30,13 +30,14 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.RuntimeTypeAdapterFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.gui.ml.PixelClassifierTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.GsonTools;
+import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
@@ -126,7 +127,7 @@ public class ImageOps {
 				return OpenCVTools.imageToMat(img);
 			} else {
 				var padding = op.getPadding();
-				img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, padding);
+				img = ServerTools.getPaddedRequest(imageData.getServer(), request, padding);
 				var mat = OpenCVTools.imageToMat(img);
 				mat.convertTo(mat, opencv_core.CV_32F);
 				return op.apply(mat);
@@ -187,7 +188,7 @@ public class ImageOps {
 			if (op == null)
 				img = imageData.getServer().readBufferedImage(request);
 			else
-				img = PixelClassifierTools.getPaddedRequest(imageData.getServer(), request, op.getPadding());
+				img = ServerTools.getPaddedRequest(imageData.getServer(), request, op.getPadding());
 			
 			float[] pixels = null;
 			var server = imageData.getServer();

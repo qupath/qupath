@@ -3,6 +3,7 @@ package qupath.experimental.commands;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,6 +17,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
@@ -28,10 +30,9 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.ml.ClassificationResolution;
 import qupath.lib.gui.ml.PixelClassificationOverlay;
-import qupath.lib.gui.ml.PixelClassifierPane;
 import qupath.lib.gui.ml.PixelClassifierTools;
-import qupath.lib.gui.ml.PixelClassifierPane.ClassificationResolution;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -41,16 +42,14 @@ import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.PixelClassifiers;
-import qupath.opencv.operations.ImageOp;
-import qupath.opencv.operations.ImageOps;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 
 /**
  * Apply simple thresholding to an image via the pixel classification framework to support 
  * thresholding at any resolution, optionally with visual feedback via an overlay.
- * <p>
- * TODO: This is currently unfinished!
  * 
  * @author Pete Bankhead
  *
@@ -92,19 +91,24 @@ public class SimpleThresholdCommand implements Runnable {
 	
 	private ComboBox<ColorTransform> transforms = new ComboBox<>();
 	private ReadOnlyObjectProperty<ColorTransform> selectedChannel = transforms.getSelectionModel().selectedItemProperty();
-//	private Slider slider = new Slider();
-//	private DoubleProperty threshold = slider.valueProperty();
 	
 	private Spinner<Double> sigmaSpinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(0, 16.0, 0.0, 0.5));
 	private ReadOnlyObjectProperty<Double> sigma = sigmaSpinner.valueProperty();
 
-	private Spinner<Double> spinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(-Double.MAX_VALUE, Double.MAX_VALUE, 0.0, 0.5));
+	private Map<ColorTransform, Double> availableTransforms = new LinkedHashMap<>();
+	
+	private SpinnerValueFactory.DoubleSpinnerValueFactory thresholdValueFactory = new SpinnerValueFactory.DoubleSpinnerValueFactory(-Double.MAX_VALUE, Double.MAX_VALUE, 0.0, 0.5);
+	private Spinner<Double> spinner = new Spinner<>(thresholdValueFactory);
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
+	
+	private CheckBox cbLimitToAnnotations = new CheckBox("Limit to annotations");
 	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
 	private ObjectProperty<PixelClassifier> currentClassifier = new SimpleObjectProperty<>();
 
 	private Map<QuPathViewer, PathOverlay> map = new WeakHashMap<>();
+	
+	
 	
 	private void showGUI() {
 		
@@ -113,6 +117,12 @@ public class SimpleThresholdCommand implements Runnable {
 		classificationsAbove.setItems(qupath.getAvailablePathClasses());
 		classificationsBelow.setItems(qupath.getAvailablePathClasses());
 		
+		cbLimitToAnnotations.selectedProperty().addListener((v, o, n) -> {
+			var overlay = selectedOverlay.get();
+			if (overlay != null)
+				overlay.setUseAnnotationMask(n);
+		});
+				
 		int row = 0;
 		
 		Label labelResolution = new Label("Resolution");
@@ -158,13 +168,18 @@ public class SimpleThresholdCommand implements Runnable {
 
 		Label labelBelow = new Label("Below threshold");
 		labelBelow.setLabelFor(classificationsBelow);
-		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold", labelAbove, classificationsAbove, classificationsAbove);
-		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels below the threshold", labelBelow, classificationsBelow, classificationsBelow);
+		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels above the threshold."
+				+ "\nDouble-click on labels to switch above & below.", labelAbove, classificationsAbove, classificationsAbove);
+		PaneTools.addGridRow(pane, row++, 0, "Select classification for pixels less than or equal to the threshold."
+				+ "\nDouble-click on labels to switch above & below.", labelBelow, classificationsBelow, classificationsBelow);
+		
+		labelAbove.setOnMouseClicked(e -> {
+			if (e.getClickCount() == 2)
+				switchClassifications();
+		});
+		labelBelow.setOnMouseClicked(labelAbove.getOnMouseClicked());
 
-//		var paneLabels = PaneToolsFX.createColumnGrid(labelBelow, labelEqual, labelAbove);
-//		var paneCombos = PaneToolsFX.createColumnGrid(classificationsBelow, classificationsEqual, classificationsAbove);
-//		PaneToolsFX.addGridRow(pane, row++, 0, null, paneLabels, paneLabels);
-//		PaneToolsFX.addGridRow(pane, row++, 0, null, paneCombos, paneCombos);
+		PaneTools.addGridRow(pane,  row++, 0, "Apply live prediction only to annotated regions (useful for previewing)", cbLimitToAnnotations, cbLimitToAnnotations, cbLimitToAnnotations);
 		
 		var enableButtons = qupath.viewerProperty().isNotNull().and(selectedOverlay.isNotNull()).and(currentClassifier.isNotNull());
 		
@@ -172,7 +187,7 @@ public class SimpleThresholdCommand implements Runnable {
 		btnSave.disableProperty().bind(enableButtons.not());
 		btnSave.setOnAction(e -> {
 			try {
-				PixelClassifierPane.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
+				PixelClassifierTools.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
 			} catch (IOException ex) {
 				Dialogs.showErrorMessage("Save classifier", ex);
 			}
@@ -188,7 +203,7 @@ public class SimpleThresholdCommand implements Runnable {
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
-			PixelClassifierPane.promptToCreateObjects(qupath.getImageData(), 
+			PixelClassifierTools.promptToCreateObjects(qupath.getImageData(), 
 					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
 		});
 		btnClassifyObjects.setOnAction(e -> {
@@ -196,29 +211,15 @@ public class SimpleThresholdCommand implements Runnable {
 		});
 		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		
-		
 		selectedPrefilter.addListener((v, o, n) -> updateClassification());
 		transforms.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			thresholdValueFactory.setAmountToStepBy(availableTransforms.getOrDefault(n, 0.5));
 			updateClassification();
-//			if (n != null) {
-//				slider.setMin(n.getMinAllowed());
-//				slider.setMax(n.getMaxAllowed());
-//				slider.setValue((n.getMinAllowed() + n.getMaxAllowed()) / 2.0);
-//				slider.setBlockIncrement((slider.getMax()-slider.getMin()) / 100.0);
-//			}
 		});
 		sigma.addListener((v, o, n) -> updateClassification());
 		threshold.addListener((v, o, n) -> updateClassification());
 		selectedResolution.addListener((v, o, n) -> updateClassification());
 		
-//		threshold.addListener((v, o, n) -> {
-//			if (!slider.isValueChanging())
-//				updateClassification();
-//			});
-//		slider.valueChangingProperty().addListener((v, o, n) -> {
-//			if (!n)
-//				updateClassification();
-//		});
 		classificationsAbove.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateClassification());
 		classificationsBelow.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateClassification());
 		
@@ -245,12 +246,9 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.setTitle("Simple threshold");
 		stage.initOwner(qupath.getStage());
 		stage.setScene(new Scene(pane));
-//		stage.setAlwaysOnTop(true);
 		stage.sizeToScene();
 		stage.setResizable(false);
 		stage.show();
-		
-//		stage.sizeToScene();
 		
 		stage.setOnHiding(e -> {
 			for (var entry : map.entrySet()) {
@@ -263,6 +261,16 @@ public class SimpleThresholdCommand implements Runnable {
 				}
 			}
 		});
+	}
+	
+	/**
+	 * Switch high and low classifications.
+	 */
+	private void switchClassifications() {
+		var below = classificationsBelow.getSelectionModel().getSelectedItem();
+		var above = classificationsAbove.getSelectionModel().getSelectedItem();
+		classificationsBelow.getSelectionModel().select(above);
+		classificationsAbove.getSelectionModel().select(below);
 	}
 	
 	
@@ -284,7 +292,7 @@ public class SimpleThresholdCommand implements Runnable {
 		sigmaSpinner.setEditable(true);
 		spinner.setEditable(true);
 		
-		comboResolutions.getItems().setAll(PixelClassifierPane.getDefaultResolutions(imageData, selectedResolution.get()));
+		comboResolutions.getItems().setAll(ClassificationResolution.getDefaultResolutions(imageData, selectedResolution.get()));
 		if (selectedResolution.get() == null)
 			comboResolutions.getSelectionModel().selectLast();
 		
@@ -331,10 +339,6 @@ public class SimpleThresholdCommand implements Runnable {
 		classifications.put(0, classificationsBelow.getSelectionModel().getSelectedItem());
 		classifications.put(1, classificationsAbove.getSelectionModel().getSelectedItem());
 		
-//		var classifications = Map.of(
-//				0, classificationsBelow.getSelectionModel().getSelectedItem(),
-//				1, classificationsAbove.getSelectionModel().getSelectedItem());
-		
 		var op = ImageOps.Core.sequential(ops);
 		
 		var transformer = ImageOps.buildImageDataOp(channel).appendOps(op);
@@ -350,6 +354,7 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		overlay.setLivePrediction(true);
+		overlay.setUseAnnotationMask(cbLimitToAnnotations.isSelected());
 		selectedOverlay.set(overlay);
 		this.currentClassifier.set(classifier);
 		viewer.setCustomPixelLayerOverlay(overlay);
@@ -359,30 +364,37 @@ public class SimpleThresholdCommand implements Runnable {
 		viewer.resetMinimumRepaintSpacingMillis();
 	}
 	
+	
+	
+	
 
 	/**
 	 * Get a list of relevant color transforms for a specific image.
 	 * @param imageData
 	 * @return
 	 */
-	public static List<ColorTransform> getAvailableTransforms(ImageData<BufferedImage> imageData) {
-		var validChannels = new ArrayList<ColorTransform>();
+	private Collection<ColorTransform> getAvailableTransforms(ImageData<BufferedImage> imageData) {
+		var validChannels = new LinkedHashMap<ColorTransform, Double>();
 		var server = imageData.getServer();
+		double increment = server.getPixelType().isFloatingPoint() ? 0.1 : 0.5;
+		double incrementDeconvolved = 0.05;
+
 		for (var channel : server.getMetadata().getChannels()) {
-			validChannels.add(ColorTransforms.createChannelExtractor(channel.getName()));
+			validChannels.put(ColorTransforms.createChannelExtractor(channel.getName()), increment);
 		}
 		var stains = imageData.getColorDeconvolutionStains();
 		if (stains != null) {
-			validChannels.add(ColorTransforms.createColorDeconvolvedChannel(stains, 1));
-			validChannels.add(ColorTransforms.createColorDeconvolvedChannel(stains, 2));
-			validChannels.add(ColorTransforms.createColorDeconvolvedChannel(stains, 3));
+			validChannels.put(ColorTransforms.createColorDeconvolvedChannel(stains, 1), incrementDeconvolved);
+			validChannels.put(ColorTransforms.createColorDeconvolvedChannel(stains, 2), incrementDeconvolved);
+			validChannels.put(ColorTransforms.createColorDeconvolvedChannel(stains, 3), incrementDeconvolved);
 		}
 		if (server.nChannels() > 1) {
-			validChannels.add(ColorTransforms.createMeanChannelTransform());
-			validChannels.add(ColorTransforms.createMaximumChannelTransform());
-			validChannels.add(ColorTransforms.createMinimumChannelTransform());
+			validChannels.put(ColorTransforms.createMeanChannelTransform(), increment);
+			validChannels.put(ColorTransforms.createMaximumChannelTransform(), increment);
+			validChannels.put(ColorTransforms.createMinimumChannelTransform(), increment);
 		}
-		return validChannels;
+		availableTransforms = validChannels;
+		return validChannels.keySet();
 	}
 	
 	

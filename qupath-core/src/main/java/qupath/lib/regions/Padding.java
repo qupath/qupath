@@ -1,4 +1,4 @@
-package qupath.opencv.operations;
+package qupath.lib.regions;
 
 /**
  * Requested padding for a 2D image.

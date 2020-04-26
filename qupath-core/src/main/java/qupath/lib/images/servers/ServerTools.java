@@ -23,6 +23,9 @@
 
 package qupath.lib.images.servers;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -30,6 +33,8 @@ import java.nio.file.Path;
 import java.util.stream.Collectors;
 
 import qupath.lib.common.GeneralTools;
+import qupath.lib.regions.Padding;
+import qupath.lib.regions.RegionRequest;
 
 /**
  * Static methods helpful when dealing with ImageServers.
@@ -171,5 +176,94 @@ public class ServerTools {
 			downsampleFactor = 1;
 		return downsampleFactor;
 	}
+	
+	
+	
+    /**
+	 * Get a raster, padded by the specified amount, to the left, right, above and below.
+	 * <p>
+	 * Note that the padding is defined in terms of the <i>destination</i> pixels.
+	 * <p>
+	 * In other words, a specified padding of 5 should actually result in 20 pixels being added in each dimension 
+	 * if the {@code request.getDownsample() == 4}.
+     * 
+     * @param server
+     * @param request
+     * @param padding
+     * @return
+     * @throws IOException
+     */
+	public static BufferedImage getPaddedRequest(ImageServer<BufferedImage> server, RegionRequest request, Padding padding) throws IOException {
+		// If we don't have any padding, just return directly
+		if (padding.isEmpty())
+			return server.readBufferedImage(request);
+		// Get the expected bounds
+		double downsample = request.getDownsample();
+		int x = (int)Math.round(request.getX() - padding.getX1() * downsample);
+		int y = (int)Math.round(request.getY() - padding.getY1() * downsample);
+		int x2 = (int)Math.round((request.getX() + request.getWidth()) + padding.getX2() * downsample);
+		int y2 = (int)Math.round((request.getY() + request.getHeight()) + padding.getY2() * downsample);
+		// If we're out of range, we'll need to work a bit harder
+		int padLeft = 0, padRight = 0, padUp = 0, padDown = 0;
+		boolean outOfRange = false;
+		if (x < 0) {
+			padLeft = (int)Math.round(-x/downsample);
+			x = 0;
+			outOfRange = true;
+		}
+		if (y < 0) {
+			padUp = (int)Math.round(-y/downsample);
+			y = 0;
+			outOfRange = true;
+		}
+		if (x2 > server.getWidth()) {
+			padRight  = (int)Math.round((x2 - server.getWidth())/downsample);
+			x2 = server.getWidth();
+			outOfRange = true;
+		}
+		if (y2 > server.getHeight()) {
+			padDown  = (int)Math.round((y2 - server.getHeight())/downsample);
+			y2 = server.getHeight();
+			outOfRange = true;
+		}
+		// If everything is within range, this should be relatively straightforward
+		RegionRequest request2 = RegionRequest.createInstance(request.getPath(), downsample, x, y, x2-x, y2-y, request.getZ(), request.getT());
+		BufferedImage img = server.readBufferedImage(request2);
+		if (outOfRange) {
+			WritableRaster raster = img.getRaster();
+			WritableRaster rasterPadded = raster.createCompatibleWritableRaster(
+					raster.getWidth() + padLeft + padRight,
+					raster.getHeight() + padUp + padDown);
+			rasterPadded.setRect(padLeft, padUp, raster);
+			// Add padding above
+			if (padUp > 0) {
+				WritableRaster row = raster.createWritableChild(0, 0, raster.getWidth(), 1, 0, 0, null);
+				for (int r = 0; r < padUp; r++)
+					rasterPadded.setRect(padLeft, r, row);
+			}
+			// Add padding below
+			if (padDown > 0) {
+				WritableRaster row = raster.createWritableChild(0, raster.getHeight()-1, raster.getWidth(), 1, 0, 0, null);
+				for (int r = padUp + raster.getHeight(); r < rasterPadded.getHeight(); r++)
+					rasterPadded.setRect(padLeft, r, row);
+			}
+			// Add padding to the left
+			if (padLeft > 0) {
+				WritableRaster col = rasterPadded.createWritableChild(padLeft, 0, 1, rasterPadded.getHeight(), 0, 0, null);
+				for (int c = 0; c < padLeft; c++)
+					rasterPadded.setRect(c, 0, col);
+			}
+			// Add padding to the right
+			if (padRight > 0) {
+				WritableRaster col = rasterPadded.createWritableChild(rasterPadded.getWidth()-padRight-1, 0, 1, rasterPadded.getHeight(), 0, 0, null);
+				for (int c = padLeft + raster.getWidth(); c < rasterPadded.getWidth(); c++)
+					rasterPadded.setRect(c, 0, col);
+			}
+			// TODO: The padding seems to work - but something to be cautious with...
+			img = new BufferedImage(img.getColorModel(), rasterPadded, img.isAlphaPremultiplied(), null);
+		}
+		return img;
+	}
+	
 
 }

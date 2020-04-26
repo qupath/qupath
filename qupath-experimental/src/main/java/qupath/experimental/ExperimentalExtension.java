@@ -26,7 +26,7 @@ import qupath.lib.io.GsonTools;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.pixel.PixelClassifiers;
-import qupath.opencv.operations.ImageOps;
+import qupath.opencv.ops.ImageOps;
 
 /**
  * Extension to make more experimental commands present in the GUI.
