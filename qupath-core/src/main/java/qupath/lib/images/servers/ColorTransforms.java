@@ -13,6 +13,7 @@ import com.google.gson.stream.JsonWriter;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.io.GsonTools;
 
 /**
  * Color transforms that may be used to extract single-channel images from BufferedImages.
@@ -73,6 +74,10 @@ public class ColorTransforms {
 				return new ExtractChannel(obj.get("channel").getAsInt());
 			if (obj.has("channelName"))
 				return new ExtractChannelByName(obj.get("channelName").getAsString());
+			if (obj.has("stains"))
+				return new ColorDeconvolvedChannel(
+						GsonTools.getInstance().fromJson(obj.get("stains"), ColorDeconvolutionStains.class),
+						obj.get("stainNumber").getAsInt());
 			if (obj.has("combineType")) {
 				String combine = obj.get("combineType").getAsString();
 				switch (CombineType.valueOf(combine)) {

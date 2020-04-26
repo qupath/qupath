@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static org.bytedeco.opencv.global.opencv_core.*;
@@ -231,6 +232,24 @@ public class OpenCVTools {
 			dest = new Mat();
 		opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
 		return dest;
+	}
+	
+	/**
+	 * Apply a method that modifies a {@link Mat} in-place to all 
+	 * channels of the {@link Mat}, merging the result and storing the result in-place.
+	 * @param input the (possibly-multichannel) mat
+	 * @param fun the consumer to apply
+	 */
+	public static void applyToChannels(Mat input, Consumer<Mat> fun) {
+		if (input.channels() == 1) {
+			fun.accept(input);
+			return;
+		}
+		var channels = splitChannels(input);
+		for (var c : channels) {
+			fun.accept(c);
+		}
+		mergeChannels(channels, input);
 	}
 	
 	private static void putPixels(WritableRaster raster, UShortIndexer indexer) {
