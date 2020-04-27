@@ -28,21 +28,21 @@ class ImageOpServer extends AbstractTileableImageServer implements ImageDataServ
 	private final static Logger logger = LoggerFactory.getLogger(ImageOpServer.class);
 	
 	private ImageData<BufferedImage> imageData;
-	private ImageDataOp transformer;
+	private ImageDataOp dataOp;
 	private ImageServerMetadata metadata;
 	
-	ImageOpServer(ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, ImageDataOp transformer) {
+	ImageOpServer(ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, ImageDataOp dataOp) {
 		super();
 		
 		this.imageData = imageData;
-		this.transformer = transformer;
+		this.dataOp = dataOp;
 		
 		// TODO: UPDATE PIXEL TYPE!
 		logger.warn("Using default pixel type!");
 		var pixelType = PixelType.FLOAT32;
 		
-		// Update channels according to the transformer
-		var channels = transformer.getChannels(imageData);
+		// Update channels according to the op
+		var channels = dataOp.getChannels(imageData);
 					
 		metadata = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
 				.levelsFromDownsamples(downsample)
@@ -66,7 +66,7 @@ class ImageOpServer extends AbstractTileableImageServer implements ImageDataServ
 
 	@Override
 	public String getServerType() {
-		return "Transformer server";
+		return "ImageOp server";
 	}
 
 	@Override
@@ -76,7 +76,7 @@ class ImageOpServer extends AbstractTileableImageServer implements ImageDataServ
 
 	@Override
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
-		var mat = transformer.apply(imageData, tileRequest.getRegionRequest());
+		var mat = dataOp.apply(imageData, tileRequest.getRegionRequest());
 		return OpenCVTools.matToBufferedImage(mat);
 	}
 

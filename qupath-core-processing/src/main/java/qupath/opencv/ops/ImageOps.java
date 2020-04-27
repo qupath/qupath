@@ -88,13 +88,13 @@ public class ImageOps {
 	}
 	
 	
-	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp transformer, PixelCalibration resolution) {
-		return buildServer(imageData, transformer, resolution, 512, 512);
+	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp dataOp, PixelCalibration resolution) {
+		return buildServer(imageData, dataOp, resolution, 512, 512);
 	}
 	
-	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp transformer, PixelCalibration resolution, int tileWidth, int tileHeight) {
+	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp dataOp, PixelCalibration resolution, int tileWidth, int tileHeight) {
 		double downsample = resolution.getAveragedPixelSize().doubleValue() / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
-		return new ImageOpServer(imageData, downsample, tileWidth, tileHeight, transformer);
+		return new ImageOpServer(imageData, downsample, tileWidth, tileHeight, dataOp);
 	}
 	
 	public static ImageDataOp buildImageDataOp(ColorTransform... inputChannels) {
@@ -194,7 +194,7 @@ public class ImageOps {
 			var server = imageData.getServer();
 			List<Mat> channels = new ArrayList<>();
 			for (var t : colorTransforms) {
-				var mat = new Mat(img.getWidth(), img.getHeight(), opencv_core.CV_32FC1);
+				var mat = new Mat(img.getHeight(), img.getWidth(), opencv_core.CV_32FC1);
 				pixels = t.extractChannel(server, img, pixels);
 				try (FloatIndexer idx = mat.createIndexer()) {
 					idx.put(0L, pixels);
