@@ -24,7 +24,6 @@ buildscript {
     maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
     maven { url 'https://plugins.gradle.org/m2/' }
   }
-
 }
 
 /*
@@ -173,6 +172,8 @@ if (doModular) {
   apply plugin: 'org.anarres.jarjar'
 }
 
+
+
 /*
  * Define managed dependencies for use within sub-projects
  */
@@ -215,6 +216,10 @@ allprojects {
     slf4jVersion       = '1.3.0'
     junitVersion       = '5.4.2'
     
+    // Optional versions
+    tensorflowVersion  = "1.15.2-${javacppVersion}"
+    mkldnnVersion      = "0.21.4-${javacppVersion}"
+    
     /*
      * Link to the main external Javadocs if -PlinkJavadoc=true
      */
@@ -253,6 +258,9 @@ allprojects {
     jfreesvg
 	junit
 	logback
+	
+	// Optional
+	tensorflow
   }
 
   dependencies {
@@ -338,8 +346,15 @@ allprojects {
     junit "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
     
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
-    
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
+    
+    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
+    if (findProperty('includeTensorFlowGPU'))
+	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}-gpu"
+	else
+	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}"
+    tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}"
+    tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}:${nativesCPP}"
     
   }
   
@@ -494,7 +509,7 @@ dependencies {
   implementation "org.openjfx:javafx-graphics:${jfxVersion}:${platform}"    
   subprojects {
     implementation it
-  }
+  }	
 }
 
 /*

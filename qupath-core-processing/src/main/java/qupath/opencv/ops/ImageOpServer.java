@@ -79,12 +79,13 @@ class ImageOpServer extends AbstractTileableImageServer implements ImageDataServ
 
 	@Override
 	protected ServerBuilder<BufferedImage> createServerBuilder() {
-		// TODO Auto-generated method stub
+		logger.warn("Server builder not supported!");
 		return null;
 	}
 
 	@Override
 	protected String createID() {
+		// Random, because the ImageData may well have changed - we can't retain this for long
 		return UUID.randomUUID().toString();
 	}
 	

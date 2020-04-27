@@ -151,6 +151,7 @@ public class SimpleThresholdCommand implements Runnable {
 		labelSigma.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
+		labelSigma.setMinWidth(25); // Thanks to Melvin, to stop it jumping around
 		GuiTools.restrictSpinnerInputToNumber(sigmaSpinner, true);
 		PaneTools.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
 

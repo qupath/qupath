@@ -22,6 +22,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryCombiner;
@@ -71,18 +72,28 @@ public class DelaunayTools {
 			var roi = PathObjectTools.getROI(p, preferNucleus);
 			if (roi == null || roi.isEmpty())
 				return Collections.emptyList();
+			
 			var geom = roi.getGeometry();
+			
 			if (transform != null)
 				geom = transform.transform(geom);
+			
+			// Shared boundaries can be problematic, so try to buffer away from these
+			if (geom instanceof Polygonal) {
+				double buf = densifyFactor <= 0 ? 0.4 : -densifyFactor/16;
+				geom = GeometryTools.attemptOperation(geom, g -> g.buffer(buf));
+			}
+			
 			if (densifyFactor > 0)
-				geom = Densifier.densify(geom, densifyFactor);
+				geom = GeometryTools.attemptOperation(geom, g -> Densifier.densify(g, densifyFactor));
 			
 			if (precision != null)
-				geom = GeometryPrecisionReducer.reduce(geom, precision);
+				geom = GeometryTools.attemptOperation(geom, g -> GeometryPrecisionReducer.reduce(g, precision));
 			
 			return Arrays.asList(geom.getCoordinates());
 		};
 	}
+	
 	
 	private static Function<PathObject, Collection<Coordinate>> createCentroidExtractor(PixelCalibration cal, boolean preferNucleus) {
 		PrecisionModel precision = calibrated(cal) ? null : GeometryTools.getDefaultFactory().getPrecisionModel();
@@ -327,13 +338,15 @@ public class DelaunayTools {
 			
 			var coordsTemp = geom.getCoordinates();
 			for (var c : coordsTemp) {
-				coords.put(c, pathObject);
+				var previous = coords.put(c, pathObject);
+				if (previous != null)
+					logger.warn("Previous coordinate: " + previous);
 			}
 		}
 		
 		// Attempts to call VoronoiDiagramBuilder would sometimes fail when clipping to the envelope - 
 		// Because we do our own clipping anyway, we skip that step by requesting the diagram via the subdivision instead
-		return new Subdivision(createSubdivision(coords.keySet(), 0.01), pathObjects, coords, plane);
+		return new Subdivision(createSubdivision(coords.keySet(), 0.001), pathObjects, coords, plane);
 	}
 	
 	
@@ -342,8 +355,11 @@ public class DelaunayTools {
 		var subdiv = new QuadEdgeSubdivision(envelope, tolerance);
 		var triangulator = new IncrementalDelaunayTriangulator(subdiv);
 		subdiv.setLocator(getDefaultLocator(subdiv));
+		var edgeSet = new HashSet<QuadEdge>();
 		for (var coord : prepareCoordinates(coords)) {
-			triangulator.insertSite(new Vertex(coord));
+			var edge = triangulator.insertSite(new Vertex(coord));
+			if (!edgeSet.add(edge))
+				logger.debug("Found duplicate edge!");
 		}
 		return subdiv;
 		
@@ -697,6 +713,9 @@ public class DelaunayTools {
 			
 			// Get the polygons for each object
 			for (var polygon : polygons) {
+				if (polygon.isEmpty())
+					continue;
+
 				var coord = (Coordinate)polygon.getUserData();
 				var pathObject = coordinateMap.get(coord);
 				if (pathObject == null) {
@@ -704,8 +723,12 @@ public class DelaunayTools {
 					continue;
 				}
 				
-				if (polygon.isEmpty())
+				try {
+					if (polygon.intersection(pathObject.getROI().getGeometry().getInteriorPoint()).getArea() == 1)
+						continue;
+				} catch (Exception e) {
 					continue;
+				}
 				
 				var existing = map.put(pathObject, polygon);
 				if (existing != null) {
