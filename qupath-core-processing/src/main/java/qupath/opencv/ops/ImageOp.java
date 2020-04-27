@@ -5,6 +5,7 @@ import java.util.List;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.Padding;
 
 /**
@@ -55,6 +56,17 @@ public interface ImageOp {
 	 */
 	public default List<ImageChannel> getChannels(List<ImageChannel> channels) {
 		return channels;
+	}
+	
+	/**
+	 * Get the output pixel type.
+	 * 
+	 * The default is to return the pixel type unchanged.
+	 * @param inputType the input pixel type
+	 * @return the output pixel type
+	 */
+	public default PixelType getOutputType(PixelType inputType) {
+		return inputType;
 	}
 
 }

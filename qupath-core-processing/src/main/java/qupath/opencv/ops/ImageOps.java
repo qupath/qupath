@@ -160,6 +160,13 @@ public class ImageOps {
 			return new DefaultImageDataOp(newOp);
 		}
 		
+		@Override
+		public PixelType getOutputType(PixelType inputType) {
+			if (op == null)
+				return PixelType.FLOAT32;
+			return op.getOutputType(PixelType.FLOAT32);
+		}
+		
 	}
 	
 	@OpType("channels")
@@ -228,6 +235,13 @@ public class ImageOps {
 			allOps.addAll(Arrays.asList(ops));
 			var newOp = Core.sequential(allOps);
 			return new ChannelImageDataOp(newOp, colorTransforms);
+		}
+
+		@Override
+		public PixelType getOutputType(PixelType inputType) {
+			if (op == null)
+				return inputType;
+			return op.getOutputType(inputType);
 		}
 		
 	}
@@ -1197,6 +1211,11 @@ public class ImageOps {
 				return input;
 			}
 			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return pixelType;
+			}
+			
 		}
 		
 		@OpType("multiply")
@@ -1382,11 +1401,18 @@ public class ImageOps {
 				return channels;
 			}
 			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				for (var t : ops)
+					inputType = t.getOutputType(inputType);
+				return inputType;
+			}
+			
 		}
 		
 		
 		/**
-		 * Duplicate the input {@link Mat} and apply different transformers to the duplicates, 
+		 * Duplicate the input {@link Mat} and apply different ops to the duplicates, 
 		 * merging the result at the end.
 		 */
 		@OpType("split-merge")
@@ -1399,10 +1425,10 @@ public class ImageOps {
 				this(false, ops);
 			}
 			
-			SplitMergeOp(boolean doParallel, ImageOp...transformers) {
+			SplitMergeOp(boolean doParallel, ImageOp...ops) {
 				this.doParallel = doParallel;
 				this.ops = new ArrayList<>();
-				for (var t : transformers) {
+				for (var t : ops) {
 					this.ops.add(t);
 				}
 			}
@@ -1446,6 +1472,14 @@ public class ImageOps {
 						mats.get(i).put(stripPadding(mats.get(i), padExtra));
 				}
 				return OpenCVTools.mergeChannels(mats, null);
+			}
+			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				// TODO: Handle inconsistent types!
+				for (var t : ops)
+					inputType = t.getOutputType(inputType);
+				return inputType;
 			}
 
 		}
@@ -1549,6 +1583,11 @@ public class ImageOps {
 				}
 				throw new RuntimeException(exception);
 			}
+			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return PixelType.FLOAT32;
+			}
 
 		}
 		
@@ -1576,6 +1615,11 @@ public class ImageOps {
 					model.predict(input, input, null);
 				input.put(input.reshape(input.cols(), h));
 				return input;
+			}
+			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return PixelType.FLOAT32;
 			}
 
 		}

@@ -8,6 +8,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -57,5 +58,13 @@ public interface ImageDataOp {
 	 * @return
 	 */
 	ImageDataOp appendOps(ImageOp... ops);
+	
+	/**
+	 * Get the output pixel type.
+	 * 
+	 * @param inputType the pixel type of the input image
+	 * @return the output pixel type
+	 */
+	public PixelType getOutputType(PixelType inputType);
 	
 }

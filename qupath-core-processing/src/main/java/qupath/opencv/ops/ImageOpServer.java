@@ -13,7 +13,6 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.opencv.tools.OpenCVTools;
@@ -37,9 +36,7 @@ class ImageOpServer extends AbstractTileableImageServer implements ImageDataServ
 		this.imageData = imageData;
 		this.dataOp = dataOp;
 		
-		// TODO: UPDATE PIXEL TYPE!
-		logger.warn("Using default pixel type!");
-		var pixelType = PixelType.FLOAT32;
+		var pixelType = dataOp.getOutputType(imageData.getServer().getPixelType());
 		
 		// Update channels according to the op
 		var channels = dataOp.getChannels(imageData);
