@@ -142,13 +142,13 @@ public class OMEPyramidWriterCommand implements Runnable {
 		
 		// Set compression - with a sanity check for validity, defaulting to another comparable method if necessary
 		CompressionType compression = getDefaultPyramidCompression();
-		List<CompressionType> compatibleCompression = Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).collect(Collectors.toList());
-		if (!compatibleCompression.contains(compression))
+		List<String> compatibleCompression = Arrays.stream(CompressionType.values()).filter(c -> c.supportsImage(server)).map(c -> c.toFriendlyString()).collect(Collectors.toList());
+		if (!compatibleCompression.contains(compression.toFriendlyString()))
 			compression = CompressionType.DEFAULT;
 		
 		
 		var params = new ParameterList()
-				.addChoiceParameter("compression", "Compression type", compression, compatibleCompression)
+				.addChoiceParameter("compression", "Compression type", compression.toFriendlyString(), compatibleCompression)
 				.addIntParameter("scaledDownsample", "Pyramidal downsample", scaledDownsample.get(), "", 1, 8,
 						"Amount to downsample each consecutive pyramidal level; use 1 to indicate the image should not be pyramidal")
 				.addIntParameter("tileSize", "Tile size", getDefaultTileSize(), "px", "Tile size for export (should be between 128 and 8192)")
@@ -167,7 +167,7 @@ public class OMEPyramidWriterCommand implements Runnable {
 		if (!Dialogs.showParameterDialog("Export OME-TIFF", params))
 			return;
 		
-		compression = (CompressionType)params.getChoiceParameterValue("compression");
+		compression = CompressionType.fromFriendlyString((String)params.getChoiceParameterValue("compression"));
 		defaultPyramidCompression.set(compression);
 		
 		int downsampleScale = params.getIntParameterValue("scaledDownsample");

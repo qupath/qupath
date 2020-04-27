@@ -180,6 +180,32 @@ public class OMEPyramidWriter {
 				throw new IllegalArgumentException("Unknown compression type " + this);
 			}
 		}
+
+		/**
+		 * Get the CompressionType corresponding to the given input
+		 * @param compression
+		 * @return
+		 */
+		public static CompressionType fromFriendlyString(String compression) {
+			switch(compression) {
+			case "Default (lossless or lossy)":
+				return DEFAULT;
+			case "JPEG-2000 (lossless)":
+				return J2K;
+			case "JPEG-2000 (lossy)":
+				return J2K_LOSSY;
+			case "JPEG (lossy)":
+				return JPEG;
+			case "Uncompressed":
+				return UNCOMPRESSED;
+			case "LZW (lossless)":
+				return LZW;
+			case "ZLIB (lossless)":
+				return ZLIB;
+			default:
+				throw new IllegalArgumentException("Unknown compression type " + compression);
+			}
+		}
 		
 	}
 	
