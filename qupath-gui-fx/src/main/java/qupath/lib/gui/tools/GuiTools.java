@@ -57,6 +57,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.robot.Robot;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.color.ColorDeconvolutionStains.DefaultColorDeconvolutionStains;
@@ -617,6 +618,17 @@ public class GuiTools {
 		}
 		return false;
 	}
+	
+	/**
+	 * Get the {@link Window} containing a specific {@link Node}.
+	 * @param node
+	 * @return
+	 */
+	public static Window getWindow(Node node) {
+		var scene = node.getScene();
+		return scene == null ? null : scene.getWindow();
+	}
+	
 
 	/**
 	 * Paint an image centered within a canvas, scaled to be as large as possible while maintaining its aspect ratio.
