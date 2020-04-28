@@ -94,8 +94,14 @@ public class PixelClassifiers {
 	}
 	
 	
-	
-	public static PixelClassifier createThresholdingClassifier(
+	/**
+	 * Convert an {@link ImageDataOp} into a simple classifier by adding an interpretation to the output labels.
+	 * @param op
+	 * @param inputResolution
+	 * @param classifications
+	 * @return
+	 */
+	public static PixelClassifier createClassifier(
 			ImageDataOp op,
 			PixelCalibration inputResolution,
 			Map<Integer, PathClass> classifications) {
@@ -119,7 +125,7 @@ public class PixelClassifiers {
 	 * @param do8Bit
 	 * @return
 	 */
-	public static PixelClassifier createPixelClassifier(OpenCVStatModel statModel, ImageDataOp calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
+	public static PixelClassifier createClassifier(OpenCVStatModel statModel, ImageDataOp calculator, PixelClassifierMetadata metadata, boolean do8Bit) {
 		var ops = new ArrayList<ImageOp>();
 		boolean outputProbability = metadata.getOutputType() == ChannelType.PROBABILITY || metadata.getOutputType() == ChannelType.MULTICLASS_PROBABILITY;
 		ops.add(ImageOps.ML.statModel(statModel, outputProbability));

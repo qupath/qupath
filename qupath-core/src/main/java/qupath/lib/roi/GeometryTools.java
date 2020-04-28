@@ -52,7 +52,6 @@ import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;

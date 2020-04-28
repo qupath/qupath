@@ -15,13 +15,32 @@ import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.io.OpenCVTypeAdapters;
 
+/**
+ * Helper class for preprocessing input for machine learning algorithms using OpenCV Mats.
+ * 
+ * @author Pete Bankhead
+ */
 public class Preprocessing {
 
+	/**
+	 * Create a principle components analysis projection to reduce features.
+	 * @param data input data used to create the projector
+	 * @param retainedVariance variance to retain (determines the number of output features)
+	 * @param normalize if true, normalize the output features
+	 * @return a {@link PCAProjector} that can be applied to new data
+	 */
 	public static PCAProjector createPCAProjector(Mat data, double retainedVariance, boolean normalize) {
 		return new PCAProjector(data, retainedVariance, normalize);
 	}
 
-
+	/**
+	 * Create a simple normalizer to rescale input data.
+	 * 
+	 * @param normalization the method of normalization to apply
+	 * @param samples the input samples used to determine the normalization parameter
+	 * @param missingValue an optional value that may be used to replace non-finite (i.e. missing) feature values
+	 * @return a {@link Normalizer} that may be applied to new data
+	 */
 	public static Normalizer createNormalizer(final Normalization normalization, final Mat samples, final double missingValue) {
 
 		Mat features;
@@ -73,7 +92,12 @@ public class Preprocessing {
 	}
 
 
-
+	/**
+	 * Apply a {@link Normalizer} to new training data samples.
+	 * Features may be either columns or channels.
+	 * @param samples the input data
+	 * @param normalizer the normalizer to apply
+	 */
 	public static void normalize(final Mat samples, final Normalizer normalizer) {
 		if (normalizer == null || normalizer.isIdentity()) {
 			// If we have an identify normalizer, 
@@ -123,12 +147,15 @@ public class Preprocessing {
 	}
 
 
+	/**
+	 * Helper class to apply PCA projection.
+	 */
 	@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 	public static class PCAProjector implements AutoCloseable {
 
 		private static final Logger logger = LoggerFactory.getLogger(PCAProjector.class);
 
-		public static final double DEFAULT_EPSILON = 1e-5;
+		private static final double DEFAULT_EPSILON = 1e-5;
 
 		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private Mat mean = new Mat();
@@ -142,7 +169,6 @@ public class Preprocessing {
 		@JsonAdapter(OpenCVTypeAdapters.OpenCVTypeAdaptorFactory.class)
 		private transient Mat eigenvaluesSqrt;
 
-		private double retainedVariance = -1;
 		private boolean normalize = true;
 
 
@@ -154,21 +180,25 @@ public class Preprocessing {
 		 * @param normalize applied during {@link #project(Mat, Mat)}
 		 */
 		PCAProjector(Mat data, double retainedVariance, boolean normalize) {
-			this.retainedVariance = retainedVariance;
 			this.normalize = normalize;
 			opencv_core.PCACompute2(data, mean, eigenvectors, eigenvalues, retainedVariance);
 			//			System.err.println(mean.createIndexer());
 			logger.info("Reduced dimensions from {} to {}",data.cols(), eigenvectors.rows());
 		}
 		
+		/**
+		 * Number of output components.
+		 * @return
+		 */
 		public int nComponents() {
 			return eigenvectors == null ? 0 : eigenvectors.rows();
 		}
 
-		public double getRetainedVariance() {
-			return retainedVariance;
-		}
-
+		/**
+		 * Apply the projection.
+		 * @param data input data
+		 * @param result output
+		 */
 		public void project(Mat data, Mat result) {
 			opencv_core.PCAProject(data, mean, eigenvectors, result);
 			if (normalize)

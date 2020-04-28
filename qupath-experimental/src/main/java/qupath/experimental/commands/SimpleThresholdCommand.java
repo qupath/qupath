@@ -344,7 +344,7 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		var transformer = ImageOps.buildImageDataOp(channel).appendOps(op);
 		
-		classifier = PixelClassifiers.createThresholdingClassifier(
+		classifier = PixelClassifiers.createClassifier(
 				transformer,
 				resolution.getPixelCalibration(),
 				classifications);

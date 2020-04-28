@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -21,7 +22,6 @@ import org.bytedeco.opencv.opencv_ml.ANN_MLP;
 import org.bytedeco.opencv.opencv_ml.KNearest;
 import org.bytedeco.opencv.opencv_ml.LogisticRegression;
 import org.bytedeco.opencv.opencv_ml.RTrees;
-import org.bytedeco.opencv.opencv_ml.TrainData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +64,7 @@ import javafx.util.Callback;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
+import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
@@ -71,12 +72,12 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.commands.MiniViewers;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.ml.PixelClassifierTraining.ClassifierTrainingData;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
@@ -87,10 +88,12 @@ import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
+import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.pixel.PixelClassifiers;
+import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
 
 
@@ -155,7 +158,7 @@ public class PixelClassifierPane {
 	
 	public PixelClassifierPane(final QuPathViewer viewer) {
 		this.viewer = viewer;
-		helper = new PixelClassifierHelper(viewer.getImageData(), null);
+		helper = new PixelClassifierTraining(viewer.getImageData(), null);
 		featureRenderer = new FeatureRenderer(viewer.getImageRegionStore());
 		initialize(viewer);
 	}
@@ -524,7 +527,10 @@ public class PixelClassifierPane {
 	
 	private MouseListener mouseListener = new MouseListener();
 	
-	private PixelClassifierHelper helper;
+	private PixelClassifierTraining helper;
+
+	private FeatureNormalization normalization = new FeatureNormalization();
+	private ImageOp preprocessingOp = null;
 
 		
 	private void updateAvailableResolutions() {
@@ -541,7 +547,7 @@ public class PixelClassifierPane {
 	
 	private void updateFeatureCalculator() {
 		var cal = getSelectedResolution();
-		helper.setFeatureCalculator(selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), cal));
+		helper.setFeatureOp(selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), cal));
 		var featureServer = helper.getFeatureServer();
 		if (featureServer == null) {
 			comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
@@ -655,8 +661,8 @@ public class PixelClassifierPane {
 		String PCA_NORM = "Do PCA projection + normalize output";
 		
 		String pcaChoice = PCA_NONE;
-		if (helper.getPCARetainedVariance() > 0) {
-			if (helper.doPCANormalize())
+		if (normalization.getPCARetainedVariance() > 0) {
+			if (normalization.doPCANormalize())
 				pcaChoice = PCA_NORM;
 			else
 				pcaChoice = PCA_BASIC;
@@ -669,11 +675,11 @@ public class PixelClassifierPane {
 				.addIntParameter("rngSeed", "RNG seed", rngSeed, null, "Seed for the random number generator used when training (not relevant to all classifiers)")
 				.addBooleanParameter("reweightSamples", "Reweight samples", reweightSamples, "Weight training samples according to frequency")
 				.addTitleParameter("Preprocessing")
-				.addChoiceParameter("normalization", "Feature normalization", helper.getNormalization(),
+				.addChoiceParameter("normalization", "Feature normalization", normalization.getNormalization(),
 						Arrays.asList(Normalization.values()), "Method to normalize features")
 				.addChoiceParameter("featureReduction", "Feature reduction", pcaChoice, List.of(PCA_NONE, PCA_BASIC, PCA_NORM), 
 						"Use Principal Component Analysis for feature reduction (must also specify retained variance)")
-				.addDoubleParameter("pcaRetainedVariance", "PCA retained variance", helper.getPCARetainedVariance(), "",
+				.addDoubleParameter("pcaRetainedVariance", "PCA retained variance", normalization.getPCARetainedVariance(), "",
 						"Retained variance if applying Principal Component Analysis for dimensionality reduction. Should be between 0 and 1; if <= 0 PCA will not be applied.")
 				.addTitleParameter("Annotation boundaries")
 				.addChoiceParameter("boundaryStrategy", "Boundary strategy", helper.getBoundaryStrategy(),
@@ -693,9 +699,9 @@ public class PixelClassifierPane {
 		boolean pcaNormalize = PCA_NORM.equals(pcaChoice);
 		double pcaRetainedVariance = PCA_NONE.equals(pcaChoice) ? 0 : params.getDoubleParameterValue("pcaRetainedVariance");
 		
-		helper.setNormalization((Normalization)params.getChoiceParameterValue("normalization"));
-		helper.setPCARetainedVariance(pcaRetainedVariance);
-		helper.setPCANormalize(pcaNormalize);
+		normalization.setNormalization((Normalization)params.getChoiceParameterValue("normalization"));
+		normalization.setPCARetainedVariance(pcaRetainedVariance);
+		normalization.setPCANormalize(pcaNormalize);
 		
 		var strategy = (BoundaryStrategy)params.getChoiceParameterValue("boundaryStrategy");
 		strategy = BoundaryStrategy.setThickness(strategy, params.getDoubleParameterValue("boundaryThickness"));
@@ -726,20 +732,17 @@ public class PixelClassifierPane {
 			return;
 		}
 
-		TrainData trainData = null;
+		ClassifierTrainingData trainingData;
 		try {
-			helper.updateTrainingData();
-			trainData = helper.getTrainData();
+			trainingData = helper.createTrainingData();
 		} catch (Exception e) {
 			logger.error("Error when updating training data", e);
 			return;
 		}
-		 if (trainData == null) {
+		 if (trainingData == null) {
 			 resetPieChart();
 			 return;
 		 }
-
-		 List<ImageChannel> channels = helper.getChannels();
 
 		 // TODO: Optionally limit the number of training samples we use
 		 //	     		var trainData = classifier.createTrainData(matFeatures, matTargets);
@@ -747,17 +750,26 @@ public class PixelClassifierPane {
 		 // Ensure we seed the RNG for reproducibility
 		 opencv_core.setRNGSeed(rngSeed);
 		 
-		 if (maxSamples > 0 && trainData.getNTrainSamples() > maxSamples)
-			 trainData.setTrainTestSplit(maxSamples, true);
+		 // TODO: Prevent training K nearest neighbor with a huge number of samples (very slow!)
+		 var actualMaxSamples = this.maxSamples;
+		 
+		 var trainData = trainingData.getTrainData();
+		 if (actualMaxSamples > 0 && trainData.getNTrainSamples() > actualMaxSamples)
+			 trainData.setTrainTestSplit(actualMaxSamples, true);
 		 else
 			 trainData.shuffleTrainTest();
 
 //		 System.err.println("Train: " + trainData.getTrainResponses());
 //		 System.err.println("Test: " + trainData.getTestResponses());
 		 
-		 //	        model.train(trainData, modelBuilder.getVarType());
+		 // Apply normalization, if we need to
+		 FeaturePreprocessor preprocessor = normalization.build(trainData.getTrainSamples(), false);
+		 if (preprocessor.doesSomething()) {
+			 preprocessingOp = ImageOps.ML.preprocessor(preprocessor);
+		 } else
+			 preprocessingOp = null;
 		 
-		 var labels = helper.getPathClassLabels();
+		 var labels = trainingData.getLabelMap();
 		 var targets = trainData.getTrainNormCatResponses();
 		 IntBuffer buffer = targets.createBuffer();
 		 int n = (int)targets.total();
@@ -767,7 +779,7 @@ public class PixelClassifierPane {
 		 }
 		 Map<PathClass, Integer> counts = new LinkedHashMap<>();
 		 for (var entry : labels.entrySet()) {
-			 counts.put(entry.getValue(), rawCounts[entry.getKey()]);
+			 counts.put(entry.getKey(), rawCounts[entry.getValue()]);
 		 }
 		 updatePieChart(counts);
 		 
@@ -789,16 +801,19 @@ public class PixelClassifierPane {
 		 }
 		 
 		 // Create TrainData in an appropriate format (e.g. labels or one-hot encoding)
-		 trainData = model.createTrainData(trainData.getTrainSamples(), trainData.getTrainResponses(), weights, false);
+		 var trainSamples = trainData.getTrainSamples();
+		 preprocessor.apply(trainSamples, false);
+		 trainData = model.createTrainData(trainSamples, trainData.getTrainResponses(), weights, false);
 		 model.train(trainData);
 		 
 		 // Calculate accuracy using whatever we can, as a rough guide to progress
 		 var test = trainData.getTestSamples();
 		 String testSet = "HELD-OUT TRAINING SET";
 		 if (test.empty()) {
-			 test = trainData.getTrainSamples();
+			 test = trainSamples;
 			 testSet = "TRAINING SET";
 		 } else {
+			 preprocessor.apply(test, false);
 			 buffer = trainData.getTestNormCatResponses().createBuffer();
 		 }
 		 var testResults = new Mat();
@@ -822,7 +837,11 @@ public class PixelClassifierPane {
 		 
 		 trainData.close();
 
-		 var featureCalculator = helper.getFeatureCalculator();
+		 
+		 var featureCalculator = helper.getFeatureOp();
+		 if (preprocessingOp != null)
+			 featureCalculator = featureCalculator.appendOps(preprocessingOp);
+		 
 		 // TODO: CHECK IF INPut SIZE SHOULD BE DEFINED
 		 int inputWidth = 512;
 		 int inputHeight = 512;
@@ -833,14 +852,25 @@ public class PixelClassifierPane {
 		 if (model.supportsProbabilities()) {
 			 channelType = selectedOutputType.get();
 		 }
+		 
+		 // Channels are needed for probability output (and work for classification as well)
+		 var labels2 = new TreeMap<Integer, PathClass>();
+		 for (var entry : labels.entrySet()) {
+			 var previous = labels2.put(entry.getValue(), entry.getKey());
+			 if (previous != null)
+				 logger.warn("Duplicate label found! {} matches with {} and {}, only the latter be used", entry.getValue(), previous, entry.getKey());
+		 }
+		 var channels = PathClassifierTools.classificationLabelsToChannels(labels2, false);
+		 
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputResolution(cal)
 				 .inputShape(inputWidth, inputHeight)
 				 .setChannelType(channelType)
+//				 .classificationLabels(labels2)
 				 .outputChannels(channels)
 				 .build();
 
-		 var classifier = PixelClassifiers.createPixelClassifier(model, featureCalculator, metadata, true);
+		 var classifier = PixelClassifiers.createClassifier(model, featureCalculator, metadata, true);
 
 		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
@@ -1075,14 +1105,20 @@ public class PixelClassifierPane {
 
 		try {
 			// Create a new FeatureServer if we need one
-			ImageServer<BufferedImage> featureServer ;
-			boolean tempFeatureServer = false;
-			if (helper.getImageData() == imageData) {
-				featureServer = helper.getFeatureServer();
-			} else {
-				tempFeatureServer = true;
-				featureServer = ImageOps.buildServer(imageData, helper.getFeatureCalculator(), helper.getResolution());
-			}
+			ImageServer<BufferedImage> featureServer;
+			
+			var op = helper.getFeatureOp();
+			if (preprocessingOp != null)
+				op = op.appendOps(preprocessingOp);
+			featureServer = ImageOps.buildServer(imageData, op, helper.getResolution());
+			
+//			boolean tempFeatureServer = false;
+//			if (helper.getImageData() == imageData) {
+//				featureServer = helper.getFeatureServer();
+//			} else {
+//				tempFeatureServer = true;
+//				featureServer = ImageOps.buildServer(imageData, helper.getFeatureOp(), helper.getResolution());
+//			}
 			double downsample = featureServer.getDownsampleForResolution(0);
 			int tw = (int)(featureServer.getMetadata().getPreferredTileWidth() * downsample);
 			int th = (int)(featureServer.getMetadata().getPreferredTileHeight() * downsample);
@@ -1115,7 +1151,7 @@ public class PixelClassifierPane {
 			IJExtension.getImageJInstance();
 			impComp.show();
 			
-			if (tempFeatureServer)
+//			if (tempFeatureServer)
 				featureServer.close();
 			return true;
 		} catch (Exception e) {

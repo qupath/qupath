@@ -40,7 +40,6 @@ public class OpenCVDNN {
 	private double[] means;
 	private double[] scales;
 	private boolean swapRB;
-	private boolean crop = false;
 	
 	private transient Net net;
 	private transient Boolean doMeanSubtraction;
@@ -144,14 +143,6 @@ public class OpenCVDNN {
 	 */
 	public boolean doSwapRB() {
 		return swapRB;
-	}
-	
-	/**
-	 * If true, preprocessing should involve cropping the input to the requested size.
-	 * @return
-	 */
-	public boolean doCrop() {
-		return crop;
 	}
 	
 	/**
@@ -335,9 +326,12 @@ public class OpenCVDNN {
 		
 		private double[] means = new double[] {0};
 		private double[] scales = new double[] {1.0};
-		private boolean swapRB = false;;
-		private boolean crop = false;
+		private boolean swapRB = false;
 		
+		/**
+		 * Path to the model file.
+		 * @param pathModel
+		 */
 		public Builder(String pathModel) {
 			this.pathModel = pathModel;
 			try {
@@ -347,46 +341,80 @@ public class OpenCVDNN {
 			}
 		}
 				
+		/**
+		 * Specify the framework (used to identify the appropriate loader for the model).
+		 * @param name
+		 * @return
+		 */
 		public Builder framework(String name) {
 			this.framework = name;
 			return this;
 		}
 		
+		/**
+		 * Path to config file (if required).
+		 * @param pathConfig
+		 * @return
+		 */
 		public Builder config(String pathConfig) {
 			this.pathConfig = pathConfig;
 			return this;
 		}
 		
+		/**
+		 * User-friendly name to use with this model.
+		 * @param name
+		 * @return
+		 */
 		public Builder name(String name) {
 			this.name = name;
 			return this;
 		}
 		
+		/**
+		 * Specify the name of the output layer.
+		 * @param outputLayerName
+		 * @return
+		 */
 		public Builder outputLayerName(String outputLayerName) {
 			this.outputLayerName = outputLayerName;
 			return this;
 		}
 		
+		/**
+		 * Request that red and blue channels are switch (QuPath uses RGB by default).
+		 * @return
+		 */
 		public Builder swapRB() {
 			this.swapRB = true;
 			return this;
 		}
 		
+		/**
+		 * Mean values, which should be subtracted from the image channels before input to the {@link Net}.
+		 * @param means
+		 * @return
+		 */
 		public Builder means(double...means) {
 			this.means = means;
 			return this;
 		}
 		
+		/**
+		 * Scale values, by which channels should be multiplied (after mean subtraction) before input to the {@link Net}.
+		 * @param scales
+		 * @return
+		 */
 		public Builder scales(double... scales) {
 			this.scales = scales;
 			return this;
 		}
+			
 		
-		public Builder crop() {
-			this.crop = true;
-			return this;
-		}
-		
+		/**
+		 * Build a new {@link OpenCVDNN}.
+		 * @return
+		 */
 		public OpenCVDNN build() {
 			OpenCVDNN dnn = new OpenCVDNN();
 			dnn.pathModel = pathModel;
@@ -398,7 +426,6 @@ public class OpenCVDNN {
 			dnn.means = means.clone();
 			dnn.scales = scales.clone();
 			dnn.swapRB = swapRB;
-			dnn.crop = crop;
 			return dnn;
 		}
 		

@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -30,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.RuntimeTypeAdapterFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageChannel;
@@ -40,6 +42,7 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
+import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.tools.LocalNormalization;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
@@ -1501,7 +1504,6 @@ public class ImageOps {
 			return new StatModelOp(statModel, requestProbabilities);
 		}
 		
-		
 		/**
 		 * Apply a {@link OpenCVDNN} to pixels to generate a prediction.
 		 * @param dnn 
@@ -1512,6 +1514,45 @@ public class ImageOps {
 		 */
 		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding) {
 			return new DnnOp(dnn, inputWidth, inputHeight, padding, false);
+		}
+		
+		/**
+		 * Apply a {@link FeaturePreprocessor} to pixels, considering each channel as features.
+		 * @param preprocessor
+		 * @return
+		 */
+		public static ImageOp preprocessor(FeaturePreprocessor preprocessor) {
+			return new FeaturePreprocessorOp(preprocessor);
+		}
+		
+		@OpType("feature-preprocessor")
+		static class FeaturePreprocessorOp implements ImageOp {
+			
+			private FeaturePreprocessor preprocessor;
+			
+			private FeaturePreprocessorOp(FeaturePreprocessor preprocessor) {
+				this.preprocessor = preprocessor;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				input.convertTo(input, opencv_core.CV_32F);
+				preprocessor.apply(input, true);
+				return input;
+			}
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				return IntStream.range(0, preprocessor.getOutputLength())
+						.mapToObj(i -> ImageChannel.getInstance("Feature " + i, ColorTools.WHITE))
+						.collect(Collectors.toList());
+			}
+			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return PixelType.FLOAT32;
+			}
+			
 		}
 		
 		@OpType("opencv-dnn")
@@ -1607,13 +1648,15 @@ public class ImageOps {
 				int w = input.cols();
 				int h = input.rows();
 				input.put(input.reshape(1, w * h));
+				var matResult = new Mat();
 				if (requestProbabilities) {
 					var temp = new Mat();
-					model.predict(input, temp, input);
+					model.predict(input, temp, matResult);
 					temp.release();
 				} else
-					model.predict(input, input, null);
-				input.put(input.reshape(input.cols(), h));
+					model.predict(input, matResult, null);
+				input.put(matResult.reshape(matResult.cols(), h));
+				matResult.close();
 				return input;
 			}
 			

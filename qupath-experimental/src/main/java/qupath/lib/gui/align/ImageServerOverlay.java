@@ -17,11 +17,12 @@ import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
+import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;
 
 /**
- * A PathOverlay implementation capable of painting one image on top of another, 
+ * A {@link PathOverlay} implementation capable of painting one image on top of another, 
  * including an optional affine transformation.
  * 
  * @author Pete Bankhead
@@ -70,10 +71,18 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 		updateTransform();
 	}
 	
+	/**
+	 * Get the current renderer.
+	 * @return
+	 */
 	public ImageRenderer getRenderer() {
 		return renderer;
 	}
 	
+	/**
+	 * Set the rendered, which controls conversion of the image to RGB.
+	 * @param renderer
+	 */
 	public void setRenderer(ImageRenderer renderer) {
 		this.renderer = renderer;
 	}

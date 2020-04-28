@@ -185,15 +185,20 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     	this.renderer = renderer;
     	cacheRGB.clear();
     }
-
-    private ImageRenderer getRenderer() {
-    	return renderer;
-    }
     
+    /**
+     * Query whether live prediction is turned on.
+     * @return
+     */
     public boolean getLivePrediction() {
     	return livePrediction;
     }
     
+    /**
+     * Turn on or off live prediction.
+     * This requests tile classifications as the overlay is being viewed.
+     * @param livePrediction
+     */
     public void setLivePrediction(boolean livePrediction) {
     	this.livePrediction = livePrediction;
     	if (livePrediction)
@@ -369,7 +374,9 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     }
     
     
-    
+    /**
+     * Stop the overlap, halting any pending tile requests.
+     */
     public void stop() {
     	List<Runnable> pending = this.pool.shutdownNow();
     	cacheRGB.clear();
@@ -383,18 +390,26 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     	return fun.apply(getImageData());
     }
     
-        
-    public void setUseAnnotationMask(final boolean useMask) {
-    	if (this.useAnnotationMask == useMask)
+    
+    /**
+     * Specify whether classification should be requested only within tiles that overlap with annotations.
+     * @param limitToAnnotations
+     */
+    public void setUseAnnotationMask(final boolean limitToAnnotations) {
+    	if (this.useAnnotationMask == limitToAnnotations)
     		return;
-    	this.useAnnotationMask = useMask;
+    	this.useAnnotationMask = limitToAnnotations;
     	// Cancel pending requests if we need less than previously
-    	if (useMask)
+    	if (limitToAnnotations)
     		this.pendingRequests.clear();
     	if (viewer != null)
     		viewer.repaint();
     }
     
+    /**
+     * Query whether the classification should be requested only within annotated tiles.
+     * @return
+     */
     public boolean useAnnotationMask() {
     	return useAnnotationMask;
     }
