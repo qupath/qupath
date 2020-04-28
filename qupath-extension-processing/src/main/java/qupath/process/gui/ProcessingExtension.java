@@ -93,6 +93,7 @@ public class ProcessingExtension implements QuPathExtension {
 	}
 	
 	@ActionMenu("Classify>Object classification")
+	@SuppressWarnings("javadoc")
 	public static class LegacyClassifiers {
 		
 		public final Action SEP = ActionTools.createSeparator();

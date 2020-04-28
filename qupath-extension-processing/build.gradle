@@ -4,4 +4,5 @@ description = 'qupath-extension-processing'
 
 configurations {
   implementation.extendsFrom controlsfx
+  implementation.extendsFrom commonsmath
 }

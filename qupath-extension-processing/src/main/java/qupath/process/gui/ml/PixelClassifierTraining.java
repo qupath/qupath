@@ -8,8 +8,6 @@ import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
-
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.PixelCalibration;
@@ -42,6 +40,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.WeakHashMap;
@@ -114,7 +113,7 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
      * @param cal
      */
     public synchronized void setResolution(PixelCalibration cal) {
-    	if (Objects.equal(this.resolution, cal))
+    	if (Objects.equals(this.resolution, cal))
     		return;
     	this.resolution = cal;
     	this.featureServer = null;
@@ -125,7 +124,7 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
      * @param featureOp
      */
     public synchronized void setFeatureOp(ImageDataOp featureOp) {
-        if (Objects.equal(this.featureCalculator, featureOp))
+        if (Objects.equals(this.featureCalculator, featureOp))
             return;
         this.featureCalculator = featureOp;
         this.featureServer = null;
