@@ -374,8 +374,28 @@ allprojects {
   	
   }
   
-
 }
+
+/*
+ * Handle optional subprojects
+ */
+def excludeSubprojects = ['qupath-extension-tensorflow']
+
+def includeTensorFlow = findProperty('with-tf') ?: "false"
+def includeTensorFlowGPU = findProperty('with-tf-gpu') ?: "false"
+if (includeTensorFlow != "false" || includeTensorFlowGPU != "false") {
+	println 'Requesting TensorFlow subproject'
+	excludeSubprojects.remove('qupath-extension-tensorflow')
+} else {
+	println "Use -Pwith-tf=true or -Pwith-tf-gpu=true if you wish to include experimental TensorFlow module"
+}
+if (excludeSubprojects) {
+	println 'Excluding ' + excludeSubprojects
+} else {
+	println 'Including all subprojects'
+}
+
+
 
 /*
  * Define inter-dependencies of sub-projects
@@ -508,7 +528,10 @@ dependencies {
   implementation "org.openjfx:javafx-graphics:${jfxVersion}"    
   implementation "org.openjfx:javafx-graphics:${jfxVersion}:${platform}"    
   subprojects {
-    implementation it
+    if (!excludeSubprojects.contains(it.name))
+	  	implementation it
+	 else
+	 	println 'Excluding ' + it
   }	
 }
 

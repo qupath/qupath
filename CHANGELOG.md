@@ -7,6 +7,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Now much simpler and more maintainable (using Ops)
   * Supports color deconvolution
   * Faster (possibly)
+* Added 'Import images from v0.1.2' command to recover data from old projects
 * Added groovy-xml as a dependency (https://github.com/qupath/qupath/issues/455)
 * Fixed bugs
   * Save & Save As are swapped (https://github.com/qupath/qupath/issues/451)
