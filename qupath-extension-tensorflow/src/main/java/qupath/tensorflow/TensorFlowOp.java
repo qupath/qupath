@@ -3,6 +3,7 @@ package qupath.tensorflow;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.tensorflow.RunOptions;
 import org.bytedeco.tensorflow.SavedModelBundle;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.regions.Padding;
 import qupath.opencv.ops.ImageOp;
+import qupath.opencv.tools.OpenCVTools;
 
 /**
  * {@link ImageOp} that runs
@@ -31,13 +33,17 @@ public class TensorFlowOp implements ImageOp {
 	private final static Logger logger = LoggerFactory.getLogger(TensorFlowOp.class);
 	
 	private String modelPath;
+	private int tileWidth = 512;
+	private int tileHeight = 512;
 	
 	private transient TensorFlowBundle bundle;
 	private transient Exception exception;
 
-	TensorFlowOp(String modelPath) {
+	TensorFlowOp(String modelPath, int tileWidth, int tileHeight) {
 		logger.debug("Creating op from {}", modelPath);
 		this.modelPath = modelPath;
+		this.tileWidth = tileWidth;
+		this.tileHeight = tileHeight;
 	}
 	
 	private TensorFlowBundle getBundle() {
@@ -56,7 +62,10 @@ public class TensorFlowOp implements ImageOp {
 		var bundle = getBundle();
 		if (exception != null)
 			throw new RuntimeException(exception);
-		return bundle.run(input);
+		if (tileWidth > 0 && tileHeight > 0)
+			return OpenCVTools.applyTiled(m -> bundle.run(m), input, tileWidth, tileHeight, opencv_core.BORDER_REFLECT);
+		else
+			return bundle.run(input);
 	}
 	
 	

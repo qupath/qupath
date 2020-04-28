@@ -90,19 +90,22 @@ public class TensorFlowTools {
     }
 
 	/**
-	 * Create an {@link ImageOp} to run a TensorFlow model with a single image input and output.
+	 * Create an {@link ImageOp} to run a TensorFlow model with a single image input and output, 
+	 * optionally specifying the input tile width and height.
 	 * 
 	 * @param modelPath
+	 * @param tileWidth input tile width; ignored if &le; 0
+	 * @param tileHeight input tile height; ignored if &le; 0
 	 * @return the {@link ImageOp}
 	 * @throws IllegalArgumentException if the model path is not a directory
 	 */
-	public static ImageOp createOp(String modelPath) throws IllegalArgumentException {
+	public static ImageOp createOp(String modelPath, int tileWidth, int tileHeight) throws IllegalArgumentException {
 		var file = new File(modelPath);
 		if (!file.isDirectory()) {
 			logger.error("Invalid model path, not a directory! {}", modelPath);
 			throw new IllegalArgumentException("Model path should be a directory!");
 		}
-		return new TensorFlowOp(modelPath);
+		return new TensorFlowOp(modelPath, tileWidth, tileHeight);
 	}
 
 }

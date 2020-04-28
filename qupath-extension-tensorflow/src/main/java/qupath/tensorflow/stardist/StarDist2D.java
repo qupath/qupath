@@ -240,7 +240,7 @@ public class StarDist2D {
 			var stardist = new StarDist2D();
 			
 			var mergedOps = new ArrayList<>(ops);
-			mergedOps.add(TensorFlowTools.createOp(modelPath));
+			mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight));
 			mergedOps.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 			
 			stardist.op = ImageOps.buildImageDataOp(channels)
