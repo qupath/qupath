@@ -238,13 +238,7 @@ class Menus {
 	
 	@ActionMenu("Classify")
 	public class ClassifyMenuManager {
-		
-		@ActionDescription("Load an old-style detection classifier. " + 
-				"Note that it is not a good idea to mix classifiers across different QuPath versions.")
-		@ActionMenu("Object classification>Legacy>Load detection classifier")
-		@Deprecated
-		public final Action LEGACY_DETECTION = Commands.createSingleStageAction(() -> Commands.createLegacyLoadDetectionClassifierCommand(qupath));
-		
+				
 		@ActionMenu("Object classification>")
 		public final Action SEP_1 = ActionTools.createSeparator();
 

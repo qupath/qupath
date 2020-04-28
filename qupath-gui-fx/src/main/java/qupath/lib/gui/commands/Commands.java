@@ -52,7 +52,6 @@ import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.PathClassPane;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
-import qupath.lib.gui.panes.classify.PathClassifierPane;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMASummaryViewer;
 import qupath.lib.gui.tools.GuiTools;
@@ -755,26 +754,6 @@ public class Commands {
 		Scene scene = new Scene(pane);
 		dialog.setScene(scene);
 		dialog.setResizable(false);
-		return dialog;
-	}
-	
-	
-	/**
-	 * Create a dialog to load an (old-style) detection classifier.
-	 * <p>
-	 * Note: these classifiers are deprecated and will be removed in a later version.
-	 * @param qupath the {@link QuPathGUI} instance to which the dialog relates
-	 * @return a load detection classifier dialog
-	 */
-	@Deprecated
-	public static Stage createLegacyLoadDetectionClassifierCommand(QuPathGUI qupath) {
-		var dialog = new Stage();
-		dialog.setTitle("Load detection classifier");
-		dialog.initOwner(qupath.getStage());
-		BorderPane pane = new BorderPane();
-		pane.setCenter(new PathClassifierPane(qupath.viewerProperty()).getPane());
-		pane.setPadding(new Insets(10, 10, 10, 10));
-		dialog.setScene(new Scene(pane, 300, 400));
 		return dialog;
 	}
 	
