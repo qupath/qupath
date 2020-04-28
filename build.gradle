@@ -173,6 +173,23 @@ if (doModular) {
 }
 
 
+/*
+ * Check command arguments to optional inclusions/exclusions
+ */
+def includeTensorFlowGPU = (findProperty('with-tf-gpu') ?: "false") != "false"
+def includeTensorFlow = includeTensorFlowGPU || (findProperty('with-tf-cpu') ?: "false") != "false"
+
+def excludeSubprojects = []
+if (includeTensorFlowGPU) {
+	println 'Requesting TensorFlow (GPU) subproject'	
+} else if (includeTensorFlow) {
+	println 'Requesting TensorFlow (CPU) subproject'	
+} else {
+    excludeSubprojects << 'qupath-extension-tensorflow'
+	println "Use -Pwith-tf-cpu=true or -Pwith-tf-gpu=true if you wish to include experimental TensorFlow module"
+}
+
+
 
 /*
  * Define managed dependencies for use within sub-projects
@@ -349,7 +366,7 @@ allprojects {
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
     
     tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
-    if (findProperty('includeTensorFlowGPU'))
+    if (includeTensorFlowGPU)
 	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}-gpu"
 	else
 	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}"
@@ -375,26 +392,6 @@ allprojects {
   }
   
 }
-
-/*
- * Handle optional subprojects
- */
-def excludeSubprojects = ['qupath-extension-tensorflow']
-
-def includeTensorFlow = findProperty('with-tf') ?: "false"
-def includeTensorFlowGPU = findProperty('with-tf-gpu') ?: "false"
-if (includeTensorFlow != "false" || includeTensorFlowGPU != "false") {
-	println 'Requesting TensorFlow subproject'
-	excludeSubprojects.remove('qupath-extension-tensorflow')
-} else {
-	println "Use -Pwith-tf=true or -Pwith-tf-gpu=true if you wish to include experimental TensorFlow module"
-}
-if (excludeSubprojects) {
-	println 'Excluding ' + excludeSubprojects
-} else {
-	println 'Including all subprojects'
-}
-
 
 
 /*
