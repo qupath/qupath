@@ -42,7 +42,11 @@ public class OpenCVClassifiers {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVClassifiers.class);
 	
-	
+	/**
+	 * Create an {@link OpenCVStatModel} for a specific class of {@link StatModel}.
+	 * @param cls
+	 * @return
+	 */
 	public static OpenCVStatModel createStatModel(Class<? extends StatModel> cls) {		
 		if (RTrees.class.equals(cls))
 			return new RTreesClassifier();
@@ -77,15 +81,25 @@ public class OpenCVClassifiers {
 		throw new IllegalArgumentException("Unknown StatModel class " + cls);
 	}
 	
-	public static OpenCVStatModel createMulticlassStatModel(Class<? extends StatModel> cls) {		
-		if (ANN_MLP.class.equals(cls))
-			return new MulticlassANNClassifierCV();
-		
-		throw new IllegalArgumentException("Unknown StatModel class " + cls);
-	}
+	
+//	/**
+//	 * Create a multiclass {@link StatModel}. Currently removed because it is hard to use.
+//	 * @param cls
+//	 * @return
+//	 */
+//	public static OpenCVStatModel createMulticlassStatModel(Class<? extends StatModel> cls) {		
+//		if (ANN_MLP.class.equals(cls))
+//			return new MulticlassANNClassifierCV();
+//		
+//		throw new IllegalArgumentException("Unknown StatModel class " + cls);
+//	}
 
 	
-	
+	/**
+	 * Create an {@link OpenCVStatModel} by wrapping an existing {@link StatModel}.
+	 * @param statModel
+	 * @return
+	 */
 	public static OpenCVStatModel wrapStatModel(StatModel statModel) {
 		var cls = statModel.getClass();
 		
@@ -123,6 +137,10 @@ public class OpenCVClassifiers {
 	}
 	
 
+	/**
+	 * Wrapper class for a {@link StatModel}, which standardizes how training may be performed and 
+	 * parameters can be set.
+	 */
 	@JsonAdapter(OpenCVClassifierTypeAdapter.class)
 	public static abstract class OpenCVStatModel {
 		

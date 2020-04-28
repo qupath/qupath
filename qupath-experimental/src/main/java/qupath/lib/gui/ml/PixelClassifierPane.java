@@ -66,6 +66,7 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -96,7 +97,11 @@ import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
 
-
+/**
+ * Main user interface for interactively training a {@link PixelClassifier}.
+ * 
+ * @author Pete Bankhead
+ */
 public class PixelClassifierPane {
 	
 	final static Logger logger = LoggerFactory.getLogger(PixelClassifierPane.class);
@@ -155,7 +160,10 @@ public class PixelClassifierPane {
 	
 	private Stage stage;
 	
-	
+	/**
+	 * Constructor.
+	 * @param viewer the current {@link QuPathViewer} that will be used for interactive training.
+	 */
 	public PixelClassifierPane(final QuPathViewer viewer) {
 		this.viewer = viewer;
 		helper = new PixelClassifierTraining(viewer.getImageData(), null);

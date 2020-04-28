@@ -880,7 +880,7 @@ public class ObjectClassifierCommand implements Runnable {
 			comboClassifier.getItems().addAll(
 					OpenCVClassifiers.createStatModel(RTrees.class),
 					OpenCVClassifiers.createStatModel(ANN_MLP.class),
-					OpenCVClassifiers.createMulticlassStatModel(ANN_MLP.class),
+//					OpenCVClassifiers.createMulticlassStatModel(ANN_MLP.class),
 					OpenCVClassifiers.createStatModel(KNearest.class)
 					);
 			labelClassifier.setLabelFor(comboClassifier);

@@ -21,10 +21,23 @@ public class Normalizer {
 		this.scales = scales.clone();
 	}
 	
+	/**
+	 * Create a {@link Normalizer} with the specified parameters.
+	 * @param offsets value to add to each feature
+	 * @param scales value to multiply each feature, after applying the offset
+	 * @param missingValue replacement value for non-finite features
+	 * @return a {@link Normalizer} initialized accordingly
+	 */
 	public static Normalizer createNormalizer(double[] offsets, double[] scales, double missingValue) {
 		return new Normalizer(offsets, scales, missingValue);
 	}
 	
+	/**
+	 * Normalize a single feature.
+	 * @param idx the index of the feature; this is required to identify the corresponding offset and scale
+	 * @param originalValue the original value of the feature
+	 * @return the normalized value of the feature
+	 */
 	public double normalizeFeature(int idx, double originalValue) {
 		double val = originalValue;
 		if (!isIdentity())
@@ -69,14 +82,28 @@ public class Normalizer {
 		return missingValue == null ? Double.NaN : missingValue.doubleValue();
 	}
 	
+	/**
+	 * The total number of features supported by this {@link Normalizer}
+	 * @return
+	 */
 	public int nFeatures() {
 		return scales.length;
 	}
 	
+	/**
+	 * Get the offset for the specified feature
+	 * @param ind index of the feature
+	 * @return
+	 */
 	public double getOffset(int ind) {
 		return offsets[ind];
 	}
 
+	/**
+	 * Get the scale factor for the specified feature
+	 * @param ind index of the feature
+	 * @return
+	 */
 	public double getScale(int ind) {
 		return scales[ind];
 	}

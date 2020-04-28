@@ -113,7 +113,7 @@ public class PixelClassifierLoadCommand implements Runnable {
 					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
 		});
 		btnClassifyObjects.setOnAction(e -> {
-			PixelClassifierTools.classifyDetectionsByCentroid(viewer.getImageData(), selectedClassifier.get(), true);
+			PixelClassifierTools.classifyDetectionsByCentroid(viewer.getImageData(), selectedClassifier.get());
 		});
 
 		var pane = new GridPane();

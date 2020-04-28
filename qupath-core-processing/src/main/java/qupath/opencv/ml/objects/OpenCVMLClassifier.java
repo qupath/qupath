@@ -27,9 +27,16 @@ import qupath.lib.objects.classes.Reclassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 
+/**
+ * An {@link ObjectClassifier} that uses an {@link OpenCVStatModel} for classification.
+ * 
+ * @author Pete Bankhead
+ *
+ * @param <T>
+ */
 public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(OpenCVMLClassifier.class);
+	private final static Logger logger = LoggerFactory.getLogger(OpenCVMLClassifier.class);
 	
 	/**
 	 * Extract features from objects
@@ -76,6 +83,15 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 		this.pathClasses = new ArrayList<>(pathClasses);
 	}
 	
+	/**
+	 * Create a new {@link ObjectClassifier} that uses an {@link OpenCVStatModel} for classification.
+	 * @param <T> generic type, which matches that of an {@link ImageData}
+	 * @param model the {@link OpenCVStatModel} used to apply the prediction
+	 * @param filter a filter used to select objects from a hierarchy
+	 * @param extractor a feature extractor to determine features for each object
+	 * @param pathClasses available classifications; the order is important, and relates to the classification output
+	 * @return
+	 */
 	public static <T> ObjectClassifier<T> create(OpenCVStatModel model, PathObjectFilter filter,
 			FeatureExtractor<T> extractor, List<PathClass> pathClasses) {
 		return new OpenCVMLClassifier(model, filter, extractor, pathClasses);

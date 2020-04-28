@@ -65,6 +65,11 @@ public class PixelClassifiers {
 	
 	private final static TypeAdapterFactory factory = new PixelClassifierTypeAdapterFactory();
 	
+	/**
+	 * Get the {@link TypeAdapterFactory} default used for {@link PixelClassifier} objects.
+	 * This is intended for internal use by QuPath, and should be registered with {@link GsonTools}.
+	 * @return
+	 */
 	public static TypeAdapterFactory getTypeAdapterFactory() {
 		return factory;
 	}

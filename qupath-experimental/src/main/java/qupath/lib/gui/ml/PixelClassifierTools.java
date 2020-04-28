@@ -309,19 +309,45 @@ public class PixelClassifierTools {
 		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
 	}
 	
-	
+	/**
+	 * Classify cells according to the prediction of the pixel corresponding to the cell centroid using a {@link PixelClassifier}.
+	 * @param imageData the {@link ImageData} containing the cells
+	 * @param classifier the classifier
+	 * @param preferNucleusROI whether to use the nucleus ROI (if available) rather than the cell ROI
+	 */
 	public static void classifyCellsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, boolean preferNucleusROI) {
 		classifyObjectsByCentroid(imageData, classifier, imageData.getHierarchy().getCellObjects(), preferNucleusROI);
 	}
 
-	public static void classifyDetectionsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, boolean preferNucleusROI) {
-		classifyObjectsByCentroid(imageData, classifier, imageData.getHierarchy().getDetectionObjects(), preferNucleusROI);
+	/**
+	 * Classify detections according to the prediction of the pixel corresponding to the detection centroid using a {@link PixelClassifier}.
+	 * If the detections are cells, the nucleus ROI is used where possible.
+	 * @param imageData the {@link ImageData} containing the cells
+	 * @param classifier the classifier
+	 */
+	public static void classifyDetectionsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		classifyObjectsByCentroid(imageData, classifier, imageData.getHierarchy().getDetectionObjects(), true);
 	}
 	
+	/**
+	 * Classify objects according to the prediction of the pixel corresponding to the object's ROI centroid using a {@link PixelClassifier}.
+	 * @param imageData the {@link ImageData} containing the cells
+	 * @param classifier the classifier
+	 * @param pathObjects the objects to classify
+	 * @param preferNucleusROI use the nucleus ROI in the case of cells; ignored for all other object types
+	 */
 	public static void classifyObjectsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
 		classifyObjectsByCentroid(new PixelClassificationImageServer(imageData, classifier), pathObjects, preferNucleusROI);
 	}
 
+	/**
+	 * Prompt the user to create objects directly from the pixels of an {@link ImageServer}.
+	 * Often, the {@link ImageServer} has been created by applying a {@link PixelClassifier}.
+	 * 
+	 * @param imageData the {@link ImageData} to which objects should be added
+	 * @param server the {@link ImageServer} used to generate objects
+	 * @return true if changes were made, false otherwise
+	 */
 	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> server) {
 			Objects.requireNonNull(imageData);
 			Objects.requireNonNull(server);
@@ -458,7 +484,14 @@ public class PixelClassifierTools {
 	}
 	
 	
-	
+	/**
+	 * Prompt the user to save a pixel classifier within a project.
+	 * 
+	 * @param project the project within which to save the classifier
+	 * @param classifier the classifier to save
+	 * @return the name of the saved classifier, or null if the operation was stopped
+	 * @throws IOException thrown if there was an error while attempting to save the classifier
+	 */
 	public static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
 		
 		String name = getDefaultClassifierName(project, classifier);

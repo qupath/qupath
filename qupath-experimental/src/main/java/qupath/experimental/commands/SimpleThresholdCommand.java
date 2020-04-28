@@ -208,7 +208,7 @@ public class SimpleThresholdCommand implements Runnable {
 					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
 		});
 		btnClassifyObjects.setOnAction(e -> {
-			PixelClassifierTools.classifyDetectionsByCentroid(qupath.getImageData(), currentClassifier.get(), true);
+			PixelClassifierTools.classifyDetectionsByCentroid(qupath.getImageData(), currentClassifier.get());
 		});
 		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		

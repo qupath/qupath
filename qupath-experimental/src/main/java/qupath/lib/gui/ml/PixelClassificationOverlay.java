@@ -94,19 +94,31 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
         this.viewer = viewer;
     }
     
-    
+    /**
+     * Create an overlay to display the live application of a {@link PixelClassifier} to an image.
+     * @param viewer the viewer to which the overlay should be added
+     * @param classifier the classifier
+     * @return
+     */
     public static PixelClassificationOverlay createPixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
         int nThreads = Math.max(1, PathPrefs.numCommandThreadsProperty().get());
     	return new PixelClassificationOverlay(viewer, nThreads, new ClassifierServerFunction(classifier));
     }
     
     
-    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
-    		final ImageDataOp calculator,
-    		PixelCalibration resolution, ImageRenderer renderer) {
-    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(calculator, resolution), renderer);
-    }
+//    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
+//    		final ImageDataOp calculator,
+//    		PixelCalibration resolution, ImageRenderer renderer) {
+//    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(calculator, resolution), renderer);
+//    }
     
+    /**
+     * Create an overlay to display a live image displaying the features for a {@link PixelClassifier}.
+     * @param viewer the viewer to which the overlay should be added 
+     * @param featureServer an {@link ImageServer} representing the features
+     * @param renderer a rendered used to convert the features to RGB
+     * @return
+     */
     public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
     		final ImageServer<BufferedImage> featureServer, ImageRenderer renderer) {
     	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(featureServer), renderer);
@@ -385,7 +397,10 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
     		setImageData(null);
     }
     
-    
+    /**
+     * Get an {@link ImageServer}, where pixels are determined by applying a {@link PixelClassifier} to another (wrapped) image.
+     * @return
+     */
     public synchronized ImageServer<BufferedImage> getPixelClassificationServer() {
     	return fun.apply(getImageData());
     }

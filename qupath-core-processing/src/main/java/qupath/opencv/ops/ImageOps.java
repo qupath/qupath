@@ -35,6 +35,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
@@ -90,16 +91,45 @@ public class ImageOps {
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryDataOps);
 	}
 	
-	
+	/**
+	 * Build an {@link ImageServer} that generates pixels on demand from an {@link ImageData} by applying an {@link ImageDataOp}.
+	 * <p>
+	 * Warning! Because {@link ImageData} are mutable, this can potentially result in inconsistencies if a change is made that impacts 
+	 * the behavior of the op while tiles are still being requested.
+	 * 
+	 * @param imageData the {@link ImageData} to wrap
+	 * @param dataOp the op performing pixel transformations
+	 * @param resolution the resolution at which the op should be applied
+	 * @return the {@link ImageDataServer}
+	 */
 	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp dataOp, PixelCalibration resolution) {
 		return buildServer(imageData, dataOp, resolution, 512, 512);
 	}
 	
+	/**
+	 * Build an {@link ImageServer} that generates pixels on demand from an {@link ImageData} by applying an {@link ImageDataOp}.
+	 * <p>
+	 * Warning! Because {@link ImageData} are mutable, this can potentially result in inconsistencies if a change is made that impacts 
+	 * the behavior of the op while tiles are still being requested.
+	 * 
+	 * @param imageData the {@link ImageData} to wrap
+	 * @param dataOp the op performing pixel transformations
+	 * @param resolution the resolution at which the op should be applied
+	 * @param tileWidth the tile width for the server
+	 * @param tileHeight the tile height of the server
+	 * @return the {@link ImageDataServer}
+	 */
 	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp dataOp, PixelCalibration resolution, int tileWidth, int tileHeight) {
 		double downsample = resolution.getAveragedPixelSize().doubleValue() / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
 		return new ImageOpServer(imageData, downsample, tileWidth, tileHeight, dataOp);
 	}
 	
+	/**
+	 * Create an {@link ImageDataOp}, optionally using a specified array of input channels.
+	 * @param inputChannels array of {@link ColorTransform} objects used to extract the pixels that will form the channels of the output {@link Mat}.
+	 * 						If empty, the original image channels will be used.
+	 * @return the {@link ImageDataOp}
+	 */
 	public static ImageDataOp buildImageDataOp(ColorTransform... inputChannels) {
 		if (inputChannels == null || inputChannels.length == 0)
 			return new DefaultImageDataOp(null);
@@ -107,6 +137,12 @@ public class ImageOps {
 			return new ChannelImageDataOp(null, inputChannels);
 	}
 	
+	/**
+	 * Create an {@link ImageDataOp}, optionally using a specified collection of input channels.
+	 * @param inputChannels array of {@link ColorTransform} objects used to extract the pixels that will form the channels of the output {@link Mat}.
+	 * 						If empty, the original image channels will be used.
+	 * @return the {@link ImageDataOp}
+	 */
 	public static ImageDataOp buildImageDataOp(Collection<? extends ColorTransform> inputChannels) {
 		return buildImageDataOp(inputChannels.toArray(ColorTransform[]::new));
 	}
