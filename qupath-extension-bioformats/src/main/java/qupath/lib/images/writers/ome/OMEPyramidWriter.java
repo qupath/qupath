@@ -177,11 +177,24 @@ public class OMEPyramidWriter {
 			case ZLIB:
 				return "ZLIB (lossless)";
 			default:
-				throw new IllegalArgumentException("Unknown compression type " + this);
+				throw new IllegalArgumentException("Unknown compression type: " + this);
 			}
 		}
 		
+		/**
+		 * Get the CompressionType corresponding to the given input
+		 * @param friendlyCompression
+		 * @return
+		 */
+		public static CompressionType fromFriendlyString(String friendlyCompression) {
+			for (var compression: CompressionType.values()) {
+				if (friendlyCompression.equals(compression.toFriendlyString()))
+					return compression;
+			}
+			throw new IllegalArgumentException("Unknown compression type: " + friendlyCompression);
+		}
 	}
+
 	
 	
 	private static int DEFAULT_TILE_SIZE = 512;
