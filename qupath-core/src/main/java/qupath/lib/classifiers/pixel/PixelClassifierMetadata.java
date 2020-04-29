@@ -31,9 +31,6 @@ public class PixelClassifierMetadata {
 	private int inputHeight = -1;
 	private int inputNumChannels = 3;
 	
-	private int outputWidth = -1;
-	private int outputHeight = -1;
-	
 	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
 	private List<ImageChannel> outputChannels;
 	private Map<Integer, PathClass> classificationLabels;
@@ -88,20 +85,6 @@ public class PixelClassifierMetadata {
     }
 
     /**
-     * Output image width for a specified inputWidth, or -1 if the inputWidth is not specified
-     */
-    private int getOutputWidth() {
-    	return outputWidth;
-    }
-
-    /**
-     * Output image height for a specified inputHeight, or -1 if the inputHeight is not specified
-     */
-    private int getOutputHeight() {
-    	return outputHeight;
-    }
-
-    /**
      * Type of output; default is OutputType.Probability
      * @return 
      */
@@ -145,8 +128,6 @@ public class PixelClassifierMetadata {
     	this.inputHeight = builder.inputHeight;
     	this.inputNumChannels = builder.inputNumChannels;
     	this.classificationLabels = builder.classificationLabels;
-    	this.outputWidth = builder.outputWidth;
-    	this.outputHeight = builder.outputHeight;
     	this.outputType = builder.outputType;
     	this.outputChannels = builder.outputChannels;
 //    	this.strictInputSize = builder.strictInputSize;
@@ -165,9 +146,6 @@ public class PixelClassifierMetadata {
     	private int inputWidth = -1;
     	private int inputHeight = -1;
     	private int inputNumChannels = 3;
-    	
-    	private int outputWidth = -1;
-    	private int outputHeight = -1;
     	
     	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
     	private List<ImageChannel> outputChannels = new ArrayList<>();

@@ -62,6 +62,19 @@ public class ImageChannel {
 		return channel;
 	}
 	
+	/**
+	 * Convert an array of channel names into a list of {@link ImageChannel} using default colors.
+	 * @param names the names of the channels
+	 * @return a list of {@link ImageChannel}, where channel names are taken from the input array
+	 */
+	public synchronized static List<ImageChannel> getChannelList(String... names) {
+		var list = new ArrayList<ImageChannel>();
+		int i = 0;
+		for (String name : names)
+			list.add(getInstance(name, getDefaultChannelColor(i++)));
+		return list;
+	}
+	
 	@Override
 	public String toString() {
 		if (color == null)

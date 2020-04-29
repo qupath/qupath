@@ -434,7 +434,6 @@ public class CommandFinderTools {
 			addEventHandler(MouseEvent.MOUSE_ENTERED, this);
 			addEventHandler(MouseEvent.MOUSE_EXITED, this);
 			setAlignment(Pos.CENTER);
-			popover.setAnimated(true);
 			label.setWrapText(true);
 			label.setMaxWidth(240);
 			label.setPadding(new Insets(10.0));
@@ -454,17 +453,29 @@ public class CommandFinderTools {
 			}
 		}
 		
+		/**
+		 * This popover throws an exception if it animates while a window is closing.
+		 */
+		void updateAnimated() {
+			var window = GuiTools.getWindow(this);
+			popover.setAnimated(window != null && window.isShowing());
+		}
+		
 		void maybeShowPopover() {
 			var text = label.getText();
-			if (text != null && !text.isBlank())
+			if (text != null && !text.isBlank()) {
+				updateAnimated();
 				popover.show(this);
+			}
 		}
 
 		@Override
 		public void handle(MouseEvent event) {
 			if (event.getEventType() == MouseEvent.MOUSE_EXITED) {
-				if (popover.isShowing())
+				if (popover.isShowing()) {
+					updateAnimated();
 					popover.hide();
+				}
 				event.consume();
 			} else if (event.getEventType() == MouseEvent.MOUSE_ENTERED) {
 				maybeShowPopover();

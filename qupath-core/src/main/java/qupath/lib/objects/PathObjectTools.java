@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.geom.Point2;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -601,6 +602,31 @@ public class PathObjectTools {
 		return ancestors;
 	}
 
+	/**
+	 * Swap the name and {@link PathClass} of an object.
+	 * This can be used as a simple way to preserve a classification that might be required later.
+	 * @param pathObject the object to adjust
+	 * @param includeColor optionally set the color of the object to the color of the classification
+	 */
+	public static void swapNameAndClass(PathObject pathObject, boolean includeColor) {
+		var pathClass = pathObject.getPathClass();
+		var name = pathObject.getName();
+		var color = pathObject.getColorRGB();
+		if (name == null)
+			pathObject.setPathClass(null);
+		else
+			pathObject.setPathClass(PathClassFactory.getPathClass(name, color));
+		if (pathClass == null) {
+			pathObject.setName(null);
+			if (includeColor)
+				pathObject.setColorRGB(null);
+		} else {
+			pathObject.setName(pathClass.getName());
+			if (includeColor)
+				pathObject.setColorRGB(pathClass.getColor());				
+		}
+	}
+	
 	/**
 	 * Parse a string input representing potential TMA core labels.
 	 * 

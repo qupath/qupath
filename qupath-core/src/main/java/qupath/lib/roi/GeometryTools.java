@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
@@ -37,6 +38,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.Puntal;
+import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
@@ -139,6 +141,26 @@ public class GeometryTools {
 	}
 	
 	
+	/**
+	 * Attempt to apply a function to a geometry, returning the input unchanged if there was an exception.
+	 * <p>
+	 * The purpose of this is to make it easier to apply non-essential functions that might fail (e.g. with a {@link TopologyException} 
+	 * and to recover easily.
+	 * 
+	 * @param input the input geometry
+	 * @param fun the function to (attempt) to apply
+	 * @return the new geometry if the function succeeded, otherwise the original geometry
+	 */
+	public static Geometry attemptOperation(Geometry input, Function<Geometry, Geometry> fun) {
+		try {
+			return fun.apply(input);
+		} catch (Exception e) {
+			logger.debug(e.getLocalizedMessage(), e);
+			return input;
+		}
+	}
+
+
 	/**
 	 * Round coordinates in a Geometry to integer values.
 	 * @param geometry the updated Geometry

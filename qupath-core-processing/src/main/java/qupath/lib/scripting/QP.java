@@ -68,6 +68,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
@@ -93,11 +94,13 @@ import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.OpenCVTools;
 
 /**
@@ -162,7 +165,8 @@ public class QP {
 			ImageRegion.class,
 			RegionRequest.class,
 			ImagePlane.class,
-			
+			Padding.class,
+
 			// Static constructors
 			PathObjects.class,
 			ROIs.class,
@@ -185,7 +189,9 @@ public class QP {
 			IJTools.class,
 			OpenCVTools.class,
 			TileExporter.class,
+			ServerTools.class,
 			
+			ImageOps.class,
 			DelaunayTools.class,
 			CellTools.class,
 			

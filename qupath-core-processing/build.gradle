@@ -4,6 +4,7 @@ description = 'qupath-core-processing'
 
 configurations {
   implementation.extendsFrom commonsmath
+  implementation.extendsFrom guava
   api.extendsFrom imagej
   api.extendsFrom opencv
 }

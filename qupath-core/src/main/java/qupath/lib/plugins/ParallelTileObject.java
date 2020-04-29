@@ -273,11 +273,18 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 						cache.put(secondROI, secondGeometry);
 					}
 
-					// Get the intersection
-					if (!firstGeometry.intersects(secondGeometry))
+					Geometry intersection;
+					try {
+						// Get the intersection
+						if (!firstGeometry.intersects(secondGeometry))
+							continue;
+
+						intersection = firstGeometry.intersection(secondGeometry);
+					} catch (Exception e) {
+						logger.warn("Error resolving overlaps: {}", e.getLocalizedMessage());
+						logger.debug(e.getLocalizedMessage(), e);
 						continue;
-					
-					Geometry intersection = firstGeometry.intersection(secondGeometry);
+					}
 					if (intersection.isEmpty())
 						continue;
 					

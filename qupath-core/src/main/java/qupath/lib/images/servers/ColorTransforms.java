@@ -10,6 +10,11 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.color.ColorDeconvolutionStains;
+import qupath.lib.color.ColorTransformer;
+import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.io.GsonTools;
+
 /**
  * Color transforms that may be used to extract single-channel images from BufferedImages.
  * These are JSON-serializable, and therefore can be used with pixel classifiers.
@@ -69,6 +74,10 @@ public class ColorTransforms {
 				return new ExtractChannel(obj.get("channel").getAsInt());
 			if (obj.has("channelName"))
 				return new ExtractChannelByName(obj.get("channelName").getAsString());
+			if (obj.has("stains"))
+				return new ColorDeconvolvedChannel(
+						GsonTools.getInstance().fromJson(obj.get("stains"), ColorDeconvolutionStains.class),
+						obj.get("stainNumber").getAsInt());
 			if (obj.has("combineType")) {
 				String combine = obj.get("combineType").getAsString();
 				switch (CombineType.valueOf(combine)) {
@@ -115,6 +124,16 @@ public class ColorTransforms {
 	}
 	
 	/**
+	 * Create a ColorTransform that applies color deconvolution.
+	 * @param stains the stains (this will be 'fixed', and not adapted for each image)
+	 * @param stainNumber number of the stain (1, 2 or 3)
+	 * @return
+	 */
+	public static ColorTransform createColorDeconvolvedChannel(ColorDeconvolutionStains stains, int stainNumber) {
+		return new ColorDeconvolvedChannel(stains, stainNumber);
+	}
+	
+	/**
 	 * Create a ColorTransform that calculates the maximum of all channels.
 	 * @return
 	 */
@@ -140,6 +159,84 @@ public class ColorTransforms {
 			return new float[n];
 		return pixels;
 	}
+	
+	
+	static class ColorDeconvolvedChannel implements ColorTransform {
+		
+		private ColorDeconvolutionStains stains;
+		private int stainNumber;
+		private transient ColorTransformMethod method;
+		
+		ColorDeconvolvedChannel(ColorDeconvolutionStains stains, int stainNumber) {
+			this.stains = stains;
+			this.stainNumber = stainNumber;
+		}
+
+		@Override
+		public float[] extractChannel(ImageServer<BufferedImage> server, BufferedImage img, float[] pixels) {
+			int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+			return ColorTransformer.getTransformedPixels(rgb, getMethod(), pixels, stains);
+		}
+		
+		private ColorTransformMethod getMethod() {
+			if (method == null) {
+				switch (stainNumber) {
+				case 1: return ColorTransformMethod.Stain_1;
+				case 2: return ColorTransformMethod.Stain_2;
+				case 3: return ColorTransformMethod.Stain_3;
+				default: throw new IllegalArgumentException("Stain number is " + stainNumber + ", but must be between 1 and 3!");
+				}
+			}
+			return method;
+		}
+
+		@Override
+		public boolean supportsImage(ImageServer<BufferedImage> server) {
+			return server.isRGB() && server.getPixelType() == PixelType.UINT8;
+		}
+
+		@Override
+		public String getName() {
+			return stains.getStain(stainNumber).getName();
+		}
+		
+		@Override
+		public String toString() {
+			return getName();
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + stainNumber;
+			result = prime * result + ((stains == null) ? 0 : stains.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ColorDeconvolvedChannel other = (ColorDeconvolvedChannel) obj;
+			if (stainNumber != other.stainNumber)
+				return false;
+			if (stains == null) {
+				if (other.stains != null)
+					return false;
+			} else if (!stains.equals(other.stains))
+				return false;
+			return true;
+		}
+		
+		
+		
+	}
+	
 	
 	static class ExtractChannel implements ColorTransform {
 		
@@ -177,6 +274,30 @@ public class ColorTransforms {
 		public boolean supportsImage(ImageServer<BufferedImage> server) {
 			return channel < server.nChannels();
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + channel;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ExtractChannel other = (ExtractChannel) obj;
+			if (channel != other.channel)
+				return false;
+			return true;
+		}
+		
+		
 		
 	}
 	
@@ -231,6 +352,33 @@ public class ColorTransforms {
 		public boolean supportsImage(ImageServer<BufferedImage> server) {
 			return getChannelNumber(server) >= 0;
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((channelName == null) ? 0 : channelName.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			ExtractChannelByName other = (ExtractChannelByName) obj;
+			if (channelName == null) {
+				if (other.channelName != null)
+					return false;
+			} else if (!channelName.equals(other.channelName))
+				return false;
+			return true;
+		}
+		
+		
 		
 	}
 	
@@ -291,6 +439,28 @@ public class ColorTransforms {
 		public String getName() {
 			return "Average channels";
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((combineType == null) ? 0 : combineType.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			AverageChannels other = (AverageChannels) obj;
+			if (combineType != other.combineType)
+				return false;
+			return true;
+		}
 		
 	}
 	
@@ -316,6 +486,29 @@ public class ColorTransforms {
 		public String getName() {
 			return "Max channels";
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((combineType == null) ? 0 : combineType.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			MaxChannels other = (MaxChannels) obj;
+			if (combineType != other.combineType)
+				return false;
+			return true;
+		}
+		
 		
 	}
 	
@@ -341,6 +534,30 @@ public class ColorTransforms {
 		public String getName() {
 			return "Min channels";
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((combineType == null) ? 0 : combineType.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			MinChannels other = (MinChannels) obj;
+			if (combineType != other.combineType)
+				return false;
+			return true;
+		}
+		
+		
 		
 	}
 	

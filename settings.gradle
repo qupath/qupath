@@ -10,6 +10,7 @@ include ':qupath-extension-openslide'
 include ':qupath-extension-pen'
 include ':qupath-extension-svg'
 include ':qupath-experimental'
+include ':qupath-extension-tensorflow'
 
 project(':qupath-core').projectDir = "$rootDir/qupath-core" as File
 project(':qupath-core-processing').projectDir = "$rootDir/qupath-core-processing" as File
@@ -22,3 +23,4 @@ project(':qupath-extension-openslide').projectDir = "$rootDir/qupath-extension-o
 project(':qupath-extension-pen').projectDir = "$rootDir/qupath-extension-pen" as File
 project(':qupath-extension-svg').projectDir = "$rootDir/qupath-extension-svg" as File
 project(':qupath-experimental').projectDir = "$rootDir/qupath-experimental" as File
+project(':qupath-extension-tensorflow').projectDir = "$rootDir/qupath-extension-tensorflow" as File

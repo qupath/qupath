@@ -501,27 +501,33 @@ public class QPEx extends QP {
 	/**
 	 * Apply an object classifier to the current {@link ImageData}.
 	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
-	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @param names the name of the classifier within the current project, or file path to a classifier to load from disk.
+	 * 				If more than one name is provided, a composite classifier is created.
 	 * @throws IllegalArgumentException if the classifier cannot be found
 	 */
-	public static void runObjectClassifier(String name) throws IllegalArgumentException {
-		runObjectClassifier(getCurrentImageData(), name);
+	public static void runObjectClassifier(String... names) throws IllegalArgumentException {
+		runObjectClassifier(getCurrentImageData(), names);
 	}
 	
 	/**
 	 * Apply an object classifier to the specified {@link ImageData}.
 	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
 	 * @param imageData 
-	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @param names the name of the classifier within the current project, or file path to a classifier to load from disk.
+	 * 				If more than one name is provided, a composite classifier is created.
 	 * @throws IllegalArgumentException if the classifier cannot be found
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static void runObjectClassifier(ImageData imageData, String name) throws IllegalArgumentException {
+	public static void runObjectClassifier(ImageData imageData, String... names) throws IllegalArgumentException {
+		if (names.length == 0) {
+			logger.warn("Cannot run object classifier - no names provided!");
+			return;			
+		}
 		if (imageData == null) {
 			logger.warn("Cannot run object classifier - no ImageData available!");
 			return;
 		}
-		ObjectClassifier classifier = loadObjectClassifier(name);
+		ObjectClassifier classifier = loadObjectClassifier(names);
 		
 		var pathObjects = classifier.getCompatibleObjects(imageData);
 		if (classifier.classifyObjects(imageData, pathObjects, true) > 0)
@@ -531,37 +537,44 @@ public class QPEx extends QP {
 	/**
 	 * Load an object classifier for a project or file path.
 	 * 
-	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
+	 * @param names the names of the classifier within the current project, or file paths to a classifier to load from disk.
+	 * 				If more than one name is provided, a composite classifier is created (applying each classifier in sequence).
 	 * @return the requested {@link ObjectClassifier}
 	 * @throws IllegalArgumentException if the classifier cannot be found
 	 */
-	public static ObjectClassifier loadObjectClassifier(String name) throws IllegalArgumentException {
+	public static ObjectClassifier<BufferedImage> loadObjectClassifier(String... names) throws IllegalArgumentException {
 		var project = getProject();
-		ObjectClassifier classifier = null;
-		Exception exception = null;
-		if (project != null) {
-			try {
-				if (project.getObjectClassifiers().getNames().contains(name))
-					classifier = project.getObjectClassifiers().get(name);
-			} catch (Exception e) {
-				exception = e;
-				logger.debug("Object classifier '{}' not found in project", name);
+		List<ObjectClassifier<BufferedImage>> classifiers = new ArrayList<>();
+		for (String name : names) {
+			ObjectClassifier<BufferedImage> classifier = null;
+			Exception exception = null;
+			if (project != null) {
+				try {
+					if (project.getObjectClassifiers().getNames().contains(name))
+						classifier = project.getObjectClassifiers().get(name);
+				} catch (Exception e) {
+					exception = e;
+					logger.debug("Object classifier '{}' not found in project", name);
+				}
 			}
-		}
-		if (classifier == null) {
-			try {
-				var path = Paths.get(name);
-				if (Files.exists(path))
-					classifier = ObjectClassifiers.readClassifier(path);
-			} catch (Exception e) {
-				exception = e;
-				logger.debug("Object classifier '{}' cannot be read from file", name);
+			if (classifier == null) {
+				try {
+					var path = Paths.get(name);
+					if (Files.exists(path))
+						classifier = ObjectClassifiers.readClassifier(path);
+				} catch (Exception e) {
+					exception = e;
+					logger.debug("Object classifier '{}' cannot be read from file", name);
+				}
 			}
+			if (classifier == null) {
+				throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+			} else if (names.length == 1)
+				return classifier;
+			else
+				classifiers.add(classifier);
 		}
-		if (classifier == null) {
-			throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
-		} else
-			return classifier;
+		return ObjectClassifiers.createCompositeClassifier(classifiers);
 	}
 	
 	
