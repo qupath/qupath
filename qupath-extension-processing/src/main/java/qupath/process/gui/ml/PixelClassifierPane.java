@@ -891,6 +891,10 @@ public class PixelClassifierPane {
 	}
 	
 	private void updatePieChart(Map<PathClass, Integer> counts) {
+		if (!Platform.isFxApplicationThread()) {
+			Platform.runLater(() -> updatePieChart(counts));
+			return;
+		}
 		ChartTools.setPieChartData(pieChart, counts, PathClass::toString, p -> ColorToolsFX.getCachedColor(p.getColor()), true, !counts.isEmpty());
 	}
 	

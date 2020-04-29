@@ -597,6 +597,10 @@ public class ObjectClassifierCommand implements Runnable {
 		}
 		
 		void updatePieChart(Map<PathClass, Set<PathObject>> map) {
+			if (!Platform.isFxApplicationThread()) {
+				Platform.runLater(() -> updatePieChart(map));
+				return;
+			}
 			var counts = new LinkedHashMap<PathClass, Integer>();
 			for (var entry : map.entrySet()) {
 				counts.put(entry.getKey(), entry.getValue().size());
