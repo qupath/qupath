@@ -65,6 +65,7 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 
 /**
  * Dialog box to export measurements
@@ -141,7 +142,7 @@ public class MeasurementExportCommand implements Runnable {
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = Dialogs.promptToSaveFile("Output file", null, "measurements" + ext, extDesc, ext);
+			File pathOut = Dialogs.promptToSaveFile("Output file", Projects.getBaseDirectory(project), "measurements" + ext, extDesc, ext);
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
 					pathOut = new File(pathOut.getAbsolutePath() + "/export" + ext);
@@ -266,6 +267,10 @@ public class MeasurementExportCommand implements Runnable {
 		if (!result.isPresent() || result.get() != btnExport || result.get() == ButtonType.CANCEL)
 			return;
 		
+		File outputFile = new File(outputText.getText());
+		if (outputFile.getParent() == null)
+			outputText.setText(Projects.getBaseDirectory(project) + "\\" + outputText.getText());
+				
 		var checkedItems = includeCombo.getCheckModel().getCheckedItems();
 		String[] include = checkedItems.stream().collect(Collectors.toList()).toArray(new String[checkedItems.size()]);
 		String separator = defSep;
