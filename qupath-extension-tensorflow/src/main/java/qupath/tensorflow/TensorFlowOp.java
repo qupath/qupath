@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.regions.Padding;
 import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps.PaddedOp;
 import qupath.opencv.tools.OpenCVTools;
 
 /**
@@ -28,7 +29,7 @@ import qupath.opencv.tools.OpenCVTools;
  * 
  * @author Pete Bankhead
  */
-public class TensorFlowOp implements ImageOp {
+public class TensorFlowOp extends PaddedOp {
 	
 	private final static Logger logger = LoggerFactory.getLogger(TensorFlowOp.class);
 	
@@ -36,14 +37,21 @@ public class TensorFlowOp implements ImageOp {
 	private int tileWidth = 512;
 	private int tileHeight = 512;
 	
+	private Padding padding;
+	
 	private transient TensorFlowBundle bundle;
 	private transient Exception exception;
 
-	TensorFlowOp(String modelPath, int tileWidth, int tileHeight) {
+	TensorFlowOp(String modelPath, int tileWidth, int tileHeight, Padding padding) {
+		super();
 		logger.debug("Creating op from {}", modelPath);
 		this.modelPath = modelPath;
 		this.tileWidth = tileWidth;
 		this.tileHeight = tileHeight;
+		if (padding == null)
+			this.padding = Padding.empty();
+		else
+			this.padding = padding;
 	}
 	
 	private TensorFlowBundle getBundle() {
@@ -57,8 +65,14 @@ public class TensorFlowOp implements ImageOp {
 		return bundle;
 	}
 	
+	// Not needed
 	@Override
-	public Mat apply(Mat input) {
+	protected Padding calculatePadding() {
+		return padding;
+	}
+
+	@Override
+	protected Mat transformPadded(Mat input) {
 		var bundle = getBundle();
 		if (exception != null)
 			throw new RuntimeException(exception);
@@ -175,5 +189,6 @@ public class TensorFlowOp implements ImageOp {
         }
 
     }
+
 	
 }

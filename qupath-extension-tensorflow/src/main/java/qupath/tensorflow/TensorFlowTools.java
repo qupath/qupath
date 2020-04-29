@@ -11,6 +11,7 @@ import org.bytedeco.tensorflow.global.tensorflow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.regions.Padding;
 import qupath.opencv.ops.ImageOp;
 
 /**
@@ -96,16 +97,17 @@ public class TensorFlowTools {
 	 * @param modelPath
 	 * @param tileWidth input tile width; ignored if &le; 0
 	 * @param tileHeight input tile height; ignored if &le; 0
+	 * @param padding amount of padding to add to each request
 	 * @return the {@link ImageOp}
 	 * @throws IllegalArgumentException if the model path is not a directory
 	 */
-	public static ImageOp createOp(String modelPath, int tileWidth, int tileHeight) throws IllegalArgumentException {
+	public static ImageOp createOp(String modelPath, int tileWidth, int tileHeight, Padding padding) throws IllegalArgumentException {
 		var file = new File(modelPath);
 		if (!file.isDirectory()) {
 			logger.error("Invalid model path, not a directory! {}", modelPath);
 			throw new IllegalArgumentException("Model path should be a directory!");
 		}
-		return new TensorFlowOp(modelPath, tileWidth, tileHeight);
+		return new TensorFlowOp(modelPath, tileWidth, tileHeight, padding);
 	}
 
 }

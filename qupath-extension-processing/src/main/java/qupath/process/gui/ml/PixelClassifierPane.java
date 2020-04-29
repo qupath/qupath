@@ -868,7 +868,7 @@ public class PixelClassifierPane {
 			 if (previous != null)
 				 logger.warn("Duplicate label found! {} matches with {} and {}, only the latter be used", entry.getValue(), previous, entry.getKey());
 		 }
-		 var channels = PathClassifierTools.classificationLabelsToChannels(labels2, false);
+		 var channels = PathClassifierTools.classificationLabelsToChannels(labels2, true);
 		 
 		 PixelClassifierMetadata metadata = new PixelClassifierMetadata.Builder()
 				 .inputResolution(cal)

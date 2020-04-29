@@ -643,7 +643,8 @@ public class ImageOps {
 				var output = new ArrayList<Mat>();
 				for (var mat : OpenCVTools.splitChannels(input)) {
 					var results = builder.build(mat);
-					output.addAll(results.values());
+					for (var f : features)
+						output.add(results.get(f));
 				}
 				return OpenCVTools.mergeChannels(output, input);
 			}
@@ -1579,6 +1580,9 @@ public class ImageOps {
 			
 			@Override
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				if (!preprocessor.doesFeatureTransform())
+					return channels;
+				// TODO: Preserve channel names if now applying PCA
 				return IntStream.range(0, preprocessor.getOutputLength())
 						.mapToObj(i -> ImageChannel.getInstance("Feature " + i, ColorTools.WHITE))
 						.collect(Collectors.toList());
@@ -1818,13 +1822,19 @@ public class ImageOps {
         }
     }
 	
-	
-	static abstract class PaddedOp implements ImageOp {
+	/**
+	 * Abstract {@link ImageOp} to simplify the process of handling padding.
+	 */
+	public static abstract class PaddedOp implements ImageOp {
 		
-		private Padding padding;
+		private transient Padding padding;
 		
+		/**
+		 * Calculate the required padding.
+		 * @return
+		 */
 		protected abstract Padding calculatePadding();
-
+		
 		/**
 		 * Transform, but ignoring padding.
 		 * Non-empty padding will be removed automatically elsewhere.

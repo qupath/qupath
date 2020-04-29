@@ -47,6 +47,15 @@ public class FeaturePreprocessor {
 	}
 	
 	/**
+	 * Returns true if this preprocessor transforms the features beyond a simple normalization.
+	 * In practice, for the current implementation this means PCA.
+	 * @return
+	 */
+	public boolean doesFeatureTransform() {
+		return pca != null;
+	}
+	
+	/**
 	 * Returns true if this preprocessor has any effect.
 	 * @return
 	 */

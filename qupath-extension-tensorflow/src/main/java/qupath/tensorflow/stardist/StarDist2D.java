@@ -31,6 +31,7 @@ import qupath.lib.objects.CellTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -74,6 +75,8 @@ public class StarDist2D {
 		
 		private int tileWidth = 1024;
 		private int tileHeight = 1024;
+		
+		private int pad = 32;
 		
 		private List<ImageOp> ops = new ArrayList<>();
 		
@@ -215,6 +218,16 @@ public class StarDist2D {
 			this.tileHeight = tileSize;
 			return this;
 		}
+		
+		/**
+		 * Amount to pad tiles to reduce boundary artifacts.
+		 * @param pad padding in pixels; width and height of tiles will be increased by pad x 2.
+		 * @return this builder
+		 */
+		public Builder padding(int pad) {
+			this.pad = pad;
+			return this;
+		}
 				
 		/**
 		 * Apply percentile normalization to the input image channels.
@@ -239,8 +252,9 @@ public class StarDist2D {
 		public StarDist2D build() {
 			var stardist = new StarDist2D();
 			
+			var padding = pad > 0 ? Padding.symmetric(pad) : Padding.empty();
 			var mergedOps = new ArrayList<>(ops);
-			mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight));
+			mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding));
 			mergedOps.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 			
 			stardist.op = ImageOps.buildImageDataOp(channels)
@@ -249,8 +263,8 @@ public class StarDist2D {
 			stardist.pixelSize = pixelSize;
 			stardist.cellConstrainScale = cellConstrainScale;
 			stardist.cellExpansion = cellExpansion;
-			stardist.tileWidth = tileWidth;
-			stardist.tileHeight = tileHeight;
+			stardist.tileWidth = tileWidth-pad*2;
+			stardist.tileHeight = tileHeight-pad*2;
 			stardist.includeProbability = includeProbability;
 			return stardist;
 		}
@@ -267,7 +281,6 @@ public class StarDist2D {
 	
 	private int tileWidth = 1024;
 	private int tileHeight = 1024;
-	
 	
 	/**
 	 * Detect cells within a parent object.
@@ -320,11 +333,11 @@ public class StarDist2D {
 		var mask = roi == null ? null : roi.getGeometry();
 				
 		return tiles.parallelStream()
-			.flatMap(t -> detectObjectsForTile(op, imageData, t.getRegionRequest(), threshold, includeProbability, mask).stream())
+			.flatMap(t -> detectObjectsForTile(op, imageData, t.getRegionRequest(), threshold, includeProbability, tiles.size() > 1, mask).stream())
 			.collect(Collectors.toList());
 	}
-		
-	private static List<PathObject> detectObjectsForTile(ImageDataOp op, ImageData<BufferedImage> imageData, RegionRequest request, double threshold, boolean includeProbability, Geometry mask) {
+	
+	private static List<PathObject> detectObjectsForTile(ImageDataOp op, ImageData<BufferedImage> imageData, RegionRequest request, double threshold, boolean includeProbability, boolean excludeOnBounds, Geometry mask) {
 		
 		Mat mat;
 		try {
@@ -336,6 +349,18 @@ public class StarDist2D {
 		
 		FloatIndexer indexer = mat.createIndexer();
 		var nuclei = createNuclei(indexer, threshold, request, mask);
+		
+		// Exclude anything that overlaps the right/bottom boundary of a region
+		if (excludeOnBounds) {
+			var iter = nuclei.iterator();
+			while (iter.hasNext()) {
+				var n = iter.next();
+				var env = n.geometry.getEnvelopeInternal();
+				if (env.getMaxX() >= request.getMaxX() || env.getMaxY() >= request.getMaxY())
+					iter.remove();
+			}
+		}
+		
 		return createDetections(nuclei, ImagePlane.getDefaultPlane(), includeProbability);
 	}
 	
