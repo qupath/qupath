@@ -484,6 +484,41 @@ public class DelaunayTools {
 	
 	
 	/**
+	 * Assign object classifications based upon pre-computed clusters.
+	 * @param clusters a collection of {@link PathObject} collections, each of which corresponds to a cluster of related objects.
+	 * @param pathClassFun function used to create a {@link PathClass} from a cluster number (determined by where it falls within the collection).
+	 *                     However rather than set this as the object classification, it will be used to set the name and color of the object 
+	 *                     (so as to avoid overriding an existing classification).
+	 * @return a collection of objects that have had their classifications set by this method
+	 */
+	public static Collection<PathObject> nameObjectsByCluster(Collection<Collection<? extends PathObject>> clusters, Function<Integer, PathClass> pathClassFun) {
+		int c = 0;
+		var list = new ArrayList<PathObject>();
+		for (var cluster : clusters) {
+			var pathClass = pathClassFun.apply(c);
+			String name = pathClass == null ? null : pathClass.getName();
+			Integer color = pathClass == null ? null : pathClass.getColor();
+			for (var pathObject : cluster) {
+				pathObject.setName(name);
+				pathObject.setColorRGB(color);
+				list.add(pathObject);
+			}
+			c++;
+		}
+		return list;
+	}
+	
+	/**
+	 * Assign object names based upon pre-computed clusters.
+	 * @param clusters a collection of {@link PathObject} collections, each of which corresponds to a cluster of related objects.
+	 * @return a collection of objects that have had their classifications set by this method
+	 */
+	public static Collection<PathObject> nameObjectsByCluster(Collection<Collection<? extends PathObject>> clusters) {
+		return nameObjectsByCluster(clusters, c -> PathClassFactory.getPathClass("Cluster " + (c + 1)));
+	}
+	
+	
+	/**
 	 * Helper class for extracting information from a Delaunay triangulation computed from {@linkplain PathObject PathObjects}.
 	 */
 	public static class Subdivision {
