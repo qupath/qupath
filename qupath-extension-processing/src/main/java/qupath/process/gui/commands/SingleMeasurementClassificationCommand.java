@@ -31,6 +31,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import qupath.lib.analysis.stats.Histogram;
@@ -150,7 +151,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
 			GuiTools.bindSliderAndTextField(sliderThreshold, tf);
-			tfSaveName.setPromptText("Enter name to save classifier if needed");
+			tfSaveName.setPromptText("Enter name to save classifier (required for scripting)");
 			
 			// Initialize pane
 			pane = new GridPane();
@@ -193,7 +194,8 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			tfSaveName.setMaxWidth(Double.MAX_VALUE);
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.disableProperty().bind(comboMeasurements.valueProperty().isNull().or(tfSaveName.textProperty().isEmpty()));
-			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classify and (optionally) save it for later", labelSave, tfSaveName, btnSave);
+			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
+					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
 			
 			pane.add(histogramPane.getChart(), pane.getColumnCount(), 0, 1, pane.getRowCount());
 			
@@ -293,7 +295,8 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			});
 			
 			dialog.setOnCloseRequest(e -> {
-				cleanup(ButtonType.APPLY.equals(dialog.getResult()));
+				var applyClassifier = ButtonType.APPLY.equals(dialog.getResult());
+				cleanup(applyClassifier);
 			});			
 			
 			dialog.show();
@@ -301,7 +304,10 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		}
 		
 		
-		
+		/**
+		 * Cleanup after the dialog is closed.
+		 * @param applyLastClassifier
+		 */
 		void cleanup(boolean applyLastClassifier) {
 			pool.shutdown();
 			try {
@@ -312,10 +318,18 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			if (applyLastClassifier) {
 				// Make sure we ran the last command, then log it in the workflow
 				var nextRequest = getUpdatedRequest();
-				if (nextRequest != null)
+				if (nextRequest != null) {
 					nextRequest.doClassification();
+					String name = null;
+					if (tfSaveName.getText() != null && !tfSaveName.getText().isEmpty())
+						name = tryToSave();
+					if (name == null) {
+						Dialogs.showWarningNotification("Object classifier", "Classifier was not saved, so will not appear in the command history");
+					} else {
+						nextRequest.imageData.getHistoryWorkflow().addStep(ObjectClassifierLoadCommand.createObjectClassifierStep(name));
+					}
+				}
 				// TODO: Log classification in the workflow?
-//				imageData.getHistoryWorkflow().addStep(nextRequest.toWorkflowStep());
 			} else {
 				// Restore classifications if the user cancelled
 				for (var entry : mapPrevious.entrySet())
@@ -451,31 +465,37 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			this.measurements.setAll(measurements);
 		}
 		
-		void tryToSave() {
+		/**
+		 * Try to save the classifier & return the name of the saved classifier if successful
+		 * @return
+		 */
+		String tryToSave() {
 			var project = qupath.getProject();
 			if (project == null) {
 				Dialogs.showErrorMessage(title, "You need a project to save this classifier!");
-				return;
+				return null;
 			}
 			var name = GeneralTools.stripInvalidFilenameChars(tfSaveName.getText());
 			if (name.isBlank()) {
 				Dialogs.showErrorMessage(title, "Please enter a name for the classifier!");
-				return;
+				return null;
 			}
 			var classifier = updateClassifier();
 			if (classifier == null) {
 				Dialogs.showErrorMessage(title, "Not enough information to create a classifier!");
-				return;
+				return null;
 			}
 			try {
 				if (project.getObjectClassifiers().getNames().contains(name)) {
 					if (!Dialogs.showConfirmDialog(title, "Do you want to overwrite the existing classifier '" + name + "'?"))
-						return;
+						return null;
 				}
 				project.getObjectClassifiers().put(name, classifier);
 				Dialogs.showInfoNotification(title, "Saved classifier as '" + name + "'");
+				return name;
 			} catch (Exception e) {
 				Dialogs.showErrorNotification(title, e);
+				return null;
 			}
 		}
 		

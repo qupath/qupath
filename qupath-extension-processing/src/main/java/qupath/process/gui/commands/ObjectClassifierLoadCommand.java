@@ -3,8 +3,10 @@ package qupath.process.gui.commands;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
@@ -26,6 +28,9 @@ import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.images.ImageData;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
 
 /**
@@ -118,15 +123,7 @@ public class ObjectClassifierLoadCommand implements Runnable {
 				Dialogs.showErrorMessage(title, "No image open!");
 				return;
 			}
-			ObjectClassifier<BufferedImage> classifier = null;
-			try {
-				classifier = getClassifier(project, listClassifiers.getSelectionModel().getSelectedItems());
-			} catch (IOException ex) {
-				Dialogs.showErrorMessage(title, ex);
-				return;
-			}
-			if (classifier.classifyObjects(imageData, true) > 0)
-				imageData.getHierarchy().fireHierarchyChangedEvent(classifier);
+			runClassifier(imageData, project, listClassifiers.getSelectionModel().getSelectedItems(), true);
 		});
 		
 //		var pane = new BorderPane();
@@ -190,7 +187,50 @@ public class ObjectClassifierLoadCommand implements Runnable {
 	}
 	
 	
-	ObjectClassifier<BufferedImage> getClassifier(Project<BufferedImage> project, List<String> names) throws IOException {
+	/**
+	 * Run a classifier (or composite classifier), and optionally log the fact that it was run in the workflow.
+	 * @param imageData
+	 * @param project
+	 * @param classifierNames
+	 * @param logWorkflow
+	 */
+	static void runClassifier(ImageData<BufferedImage> imageData, Project<BufferedImage> project, List<String> classifierNames, boolean logWorkflow) {
+		ObjectClassifier<BufferedImage> classifier;
+		try {
+			classifier = getClassifier(project, classifierNames);
+		} catch (IOException ex) {
+			Dialogs.showErrorMessage("Object classifier", ex);
+			return;
+		}
+		if (classifier.classifyObjects(imageData, true) > 0) {
+			imageData.getHierarchy().fireHierarchyChangedEvent(classifier);
+			if (logWorkflow) {
+				imageData.getHistoryWorkflow().addStep(createObjectClassifierStep(classifierNames));
+			}
+		}
+	}
+
+	static WorkflowStep createObjectClassifierStep(String... classifierNames) {
+		return createObjectClassifierStep(Arrays.asList(classifierNames));
+	}
+	
+	static WorkflowStep createObjectClassifierStep(List<String> classifierNames) {
+		String names = classifierNames.stream().map(n -> "\"" + n + "\"").collect(Collectors.joining(", "));
+		return new DefaultScriptableWorkflowStep("Run object classifier",
+						"runObjectClassifier(" + names + ");"
+						);
+	}
+	
+	
+	
+	/**
+	 * Load a single or composite classifier
+	 * @param project
+	 * @param names
+	 * @return
+	 * @throws IOException
+	 */
+	private static ObjectClassifier<BufferedImage> getClassifier(Project<BufferedImage> project, List<String> names) throws IOException {
 		if (project == null)
 			return null;
 		if (names.isEmpty())

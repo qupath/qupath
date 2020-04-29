@@ -820,19 +820,24 @@ public class ObjectClassifierCommand implements Runnable {
 
 				try {
 					var project = qupath.getProject();
+					String savedName = null;
 					if (project != null) {
 						String classifierName = Dialogs.showInputDialog("Object classifier", "Classifier name", defaultName);
 						if (classifierName != null) {
 							classifierName = GeneralTools.stripInvalidFilenameChars(classifierName);
 							project.getObjectClassifiers().put(classifierName, classifier);
+							savedName = classifierName;
 							logger.info("Classifier saved to project as {}", classifierName);
 						}
 					} else {
 						var file = Dialogs.promptToSaveFile("Save object classifier", null, null, "Object classifier", ".obj.json");
 						if (file != null) {
+							savedName = file.getAbsolutePath();
 							ObjectClassifiers.writeClassifier(classifier, file.toPath());
 						}
 					}
+					if (savedName != null)
+						imageData.getHistoryWorkflow().addStep(ObjectClassifierLoadCommand.createObjectClassifierStep(savedName));
 				} catch (Exception e) {
 					logger.error("Error attempting classifier serialization " + e.getLocalizedMessage(), e);
 				}

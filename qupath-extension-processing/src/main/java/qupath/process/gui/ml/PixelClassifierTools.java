@@ -111,6 +111,18 @@ public class PixelClassifierTools {
 				minSizePixels, minHoleSizePixels, doSplit, clearExisting);
 	}
 	
+	/**
+	 * Create objects from an image (usually created with a pixel classifier).
+	 * @param server the image to threshold
+	 * @param hierarchy the hierarchy to which the objects should be added
+	 * @param selectedObjects the selected objects, if the classification should be constrained to these
+	 * @param creator function to create an object of the required type
+	 * @param minSizePixels the minimum size of a connected region to retain, in pixels
+	 * @param minHoleSizePixels the minimum size of a hole to retain, in pixels
+	 * @param doSplit optionally split a multipolygon into distinct pieces
+	 * @param clearExisting remove existing objects
+	 * @return
+	 */
 	public static boolean createObjectsFromPixelClassifier(
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
 			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
