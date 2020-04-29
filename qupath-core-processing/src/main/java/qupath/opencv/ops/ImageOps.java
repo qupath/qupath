@@ -561,6 +561,16 @@ public class ImageOps {
 		public static ImageOp closing(int radius) {
 			return new MorphCloseFilterOp(radius);
 		}
+		
+		/**
+		 * Apply a 2D median filter
+		 * @param radius filter radius. 1 means a 3x3 filter, 2 means a 5x5 filter. For larger filter sizes, only uint8 input is supported.
+		 * 								For radius 1 and 2 the image may also be float32.
+		 * @return
+		 */
+		public static ImageOp median(int radius) {
+			return new MedianFilterOp(radius);
+		}
 
 		// TODO: Removed until they are tested...
 //		/**
@@ -749,6 +759,36 @@ public class ImageOps {
 				return opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_RECT, size);
 			else
 				return opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size);
+		}
+	
+		@OpType("median")
+		static class MedianFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			MedianFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+
+			@Override
+			protected Mat transformPadded(Mat input) {
+				if (radius > 2 && input.depth() != opencv_core.CV_8U) {
+					logger.warn("MedianOp requires uint8 image for radius > 2");
+				}
+				int c = input.channels();
+				if (c == 1 || c == 3 || c == 4)
+					opencv_imgproc.medianBlur(input, input, radius*2+1);
+				else
+					OpenCVTools.applyToChannels(input, m -> opencv_imgproc.medianBlur(m, m, radius*2+1));
+				return input;
+			}
+			
 		}
 		
 		@OpType("maximum")
