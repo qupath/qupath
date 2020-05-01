@@ -735,7 +735,7 @@ class Menus {
 		@ActionMenu("Show input display")
 		public final Action INPUT_DISPLAY = createAction(() -> Commands.showInputDisplay(qupath));
 
-		@ActionDescription("Show a dialog to track memory usage within QuPath, and clear the cache is required.")
+		@ActionDescription("Show a dialog to track memory usage within QuPath, and clear the cache if required.")
 		@ActionMenu("Show memory monitor")
 		public final Action MEMORY_MONITORY = Commands.createSingleStageAction(() -> Commands.createMemoryMonitorDialog(qupath));
 		
