@@ -915,7 +915,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				
 				StringBuilder sb = new StringBuilder();
 				String message = cause.getLocalizedMessage();
-				if (line < 0) {
+				if (message != null && line < 0) {
 					var lineMatcher = Pattern.compile("@ line ([\\d]+)").matcher(message);
 					if (lineMatcher.find())
 						line = Integer.parseInt(lineMatcher.group(1));

@@ -25,6 +25,7 @@ package qupath.lib.regions;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,8 +107,8 @@ public class RegionRequest extends ImageRegion {
 	}
 
 	/**
-	 * Create a request that contains the pixels of the specified ROI.
-	 * This is calculated using the ROI bounding box.
+	 * Create a request that contains the pixels of the specified {@link ROI}.
+	 * This is calculated using the {@link ROI} bounding box.
 	 * @param path
 	 * @param downsample
 	 * @param roi
@@ -115,6 +116,19 @@ public class RegionRequest extends ImageRegion {
 	 */
 	public static RegionRequest createInstance(String path, double downsample, ROI roi) {
 		return createInstance(path, downsample, ImageRegion.createInstance(roi));
+	}
+	
+	/**
+	 * Create a request that contains the pixels of the specified {@link ROI}s.
+	 * This is calculated using the {@link ROI} bounding boxes.
+	 * @param path
+	 * @param downsample
+	 * @param rois
+	 * @return
+	 * @throws IllegalArgumentException if the {@link ROI}s do not all fall on the same {@link ImagePlane}.
+	 */
+	public static RegionRequest createInstance(String path, double downsample, Collection<? extends ROI> rois) {
+		return createInstance(path, downsample, ImageRegion.createInstance(rois));
 	}
 	
 	/**

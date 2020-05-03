@@ -10,6 +10,14 @@ import java.util.Set;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.commons.math3.stat.descriptive.StatisticalSummary;
+import org.locationtech.jts.algorithm.MinimumBoundingCircle;
+import org.locationtech.jts.algorithm.MinimumDiameter;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Lineal;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.Puntal;
+import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,10 +27,12 @@ import ij.process.ImageProcessor;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Experimental class to generate cell measurements from labelled images.
@@ -33,7 +43,30 @@ import qupath.lib.regions.RegionRequest;
  */
 public class CellMeasurements {
 	
-	final private static Logger logger = LoggerFactory.getLogger(CellMeasurements.class);
+	private final static Logger logger = LoggerFactory.getLogger(CellMeasurements.class);
+	
+	/**
+	 * Requested intensity measurements.
+	 */
+	public enum Compartments {
+		/**
+		 * Nucleus only
+		 */
+		NUCLEUS,
+		/**
+		 * Full cell region, with nucleus removed
+		 */
+		CYTOPLASM,
+		/**
+		 * Full cell region
+		 */
+		CELL,
+		/**
+		 * Cell boundary, with interior removed
+		 */
+		MEMBRANE;
+		
+	}
 	
 	/**
 	 * Requested intensity measurements.
@@ -107,29 +140,122 @@ public class CellMeasurements {
 	}
 	
 	/**
-	 * Measure all channels of an image for one individual cell.
+	 * Add shape measurements for the object. If this is a cell, measurements will be made for both the 
+	 * nucleus and cell boundary where possible.
+	 * <p>
+	 * Note: This implementation is likely to change in the future, to enable specific shape measurements to be requested.
+	 * 
+	 * @param pathObject the object for which measurements should be added
+	 * @param cal pixel calibration, used to determine units and scaling
+	 */
+	public static void addShapeMeasurements(PathObject pathObject, PixelCalibration cal) {
+		if (cal == null || !cal.unitsMatch2D())
+			cal = PixelCalibration.getDefaultInstance();
+		var units = cal.getPixelWidthUnit();
+		if (pathObject instanceof PathCellObject) {
+			addCellShapeMeasurements((PathCellObject)pathObject, cal, units);
+		} else {
+			var geom = getScaledGeometry(pathObject.getROI(), cal);
+			try (var ml = pathObject.getMeasurementList()) {
+				addShapeMeasurements(ml, geom, "", units);
+			}
+		}
+	}
+	
+	private static Geometry getScaledGeometry(ROI roi, PixelCalibration cal) {
+		if (roi == null)
+			return null;
+		var geom = roi.getGeometry();
+		double pixelWidth = cal.getPixelWidth().doubleValue();
+		double pixelHeight = cal.getPixelHeight().doubleValue();
+		if (pixelWidth == 1 && pixelHeight == 1) 
+			return geom;
+		return AffineTransformation.scaleInstance(pixelWidth, pixelHeight).transform(geom);
+	}
+	
+	private static void addCellShapeMeasurements(PathCellObject cell, PixelCalibration cal, String units) {
+		var geom = getScaledGeometry(cell.getROI(), cal);
+		var geomNucleus = getScaledGeometry(cell.getNucleusROI(), cal);
+		try (MeasurementList ml = cell.getMeasurementList()) {
+			if (geomNucleus != null) {
+				addShapeMeasurements(ml, geomNucleus, "Nucleus: ", units);
+			}
+			addShapeMeasurements(ml, geom, "Cell: ", units);
+			if (geomNucleus != null) {
+				double nucleusCellAreaRatio = GeneralTools.clipValue(geomNucleus.getArea() / geom.getArea(), 0, 1);
+				ml.putMeasurement("Nucleus/Cell area ratio", nucleusCellAreaRatio);
+			}
+		}
+		
+	}
+	
+	private static void addShapeMeasurements(MeasurementList ml, Geometry geom, String baseName, String units) {
+		if (geom instanceof Puntal)
+			return;
+		
+		if (geom instanceof Lineal) {
+			ml.putMeasurement(baseName + "Length " + units, geom.getLength());
+			return;
+		}
+		
+		if (!(geom instanceof Polygonal))
+			return;
+			
+		var units2 = units + "^2";
+		if (!baseName.isEmpty() && !baseName.endsWith(" "))
+			baseName += " ";
+		
+		double area = geom.getArea();
+		double length = geom.getLength();
+		
+		ml.putMeasurement(baseName + "Area " + units2, area);
+		ml.putMeasurement(baseName + "Length " + units, length);
+		
+		if (geom instanceof Polygon) {
+			double circularity = Math.PI * 4 * area / (length * length);
+			ml.putMeasurement(baseName + "Circularity", circularity);
+		}
+		
+		double solidity = area / geom.convexHull().getArea();
+		ml.putMeasurement(baseName + "Solidity", solidity);
+		
+		double minCircleRadius = new MinimumBoundingCircle(geom).getRadius();
+		ml.putMeasurement(baseName + "Max diameter", minCircleRadius*2);
+
+		double minDiameter = new MinimumDiameter(geom).getLength();
+		ml.putMeasurement(baseName + "Min diameter", minDiameter);
+
+	}
+	
+	
+	
+	/**
+	 * Measure all channels of an image for one individual object or cell.
 	 * All compartments are measured where possible (nucleus, cytoplasm, membrane and full cell).
+	 * <p>
+	 * Note: This implementation is likely to change in the future, to enable neighboring cells to be 
+	 * measured more efficiently.
 	 * 
 	 * @param server the server containing the pixels (and channels) to be measured
-	 * @param cell the cell to measure (the {@link MeasurementList} will be updated)
+	 * @param pathObject the cell to measure (the {@link MeasurementList} will be updated)
 	 * @param downsample resolution at which to request pixels
 	 * @param measurements requested measurements to make
+	 * @param compartments the cell compartments to measure; ignored if the object is not a cell
 	 * @throws IOException
 	 */
-	public static void measureCell(
+	public static void addIntensityMeasurements(
 			ImageServer<BufferedImage> server,
-			PathCellObject cell,
+			PathObject pathObject,
 			double downsample,
-			Collection<Measurements> measurements) throws IOException {
+			Collection<Measurements> measurements,
+			Collection<Compartments> compartments) throws IOException {
 		
-		var cellROI = cell.getROI();
-		int x = (int)GeneralTools.clipValue(cellROI.getBoundsX()-downsample*2, 0, server.getWidth());
-		int y = (int)GeneralTools.clipValue(cellROI.getBoundsY()-downsample*2, 0, server.getHeight());
-		int x2 = (int)GeneralTools.clipValue(cellROI.getBoundsX()+cellROI.getBoundsWidth()+downsample*2, 0, server.getWidth());
-		int y2 = (int)GeneralTools.clipValue(cellROI.getBoundsY()+cellROI.getBoundsHeight()+downsample*2, 0, server.getHeight());
-		var request = RegionRequest.createInstance(server.getPath(), downsample,
-				x, y, x2-x, y2-y,
-				cellROI.getZ(), cellROI.getT());
+		var roi = pathObject.getROI();
+		
+		int pad = (int)Math.ceil(downsample * 2);
+		var request = RegionRequest.createInstance(server.getPath(), downsample, roi)
+				.pad2D(pad, pad)
+				.intersect2D(0, 0, server.getWidth(), server.getHeight());
 		
 		var pathImage = IJTools.convertToImagePlus(server, request);
 		var imp = pathImage.getImage();
@@ -140,20 +266,27 @@ public class CellMeasurements {
 			channels.put(serverChannels.get(i).getName(), imp.getStack().getProcessor(i+1));
 		}
 		
-		ByteProcessor bpNucleus = new ByteProcessor(imp.getWidth(), imp.getHeight());
 		ByteProcessor bpCell = new ByteProcessor(imp.getWidth(), imp.getHeight());
-		if (cell.getNucleusROI() != null) {
-			bpNucleus.setValue(1.0);
-			var roi = IJTools.convertToIJRoi(cell.getNucleusROI(), pathImage);
-			bpNucleus.fill(roi);
+		bpCell.setValue(1.0);
+		var roiIJ = IJTools.convertToIJRoi(roi, pathImage);
+		bpCell.fill(roiIJ);
+			
+		if (pathObject instanceof PathCellObject) {
+			var cell = (PathCellObject)pathObject;
+			ByteProcessor bpNucleus = new ByteProcessor(imp.getWidth(), imp.getHeight());
+			if (cell.getNucleusROI() != null) {
+				bpNucleus.setValue(1.0);
+				var roiNucleusIJ = IJTools.convertToIJRoi(cell.getNucleusROI(), pathImage);
+				bpNucleus.fill(roiNucleusIJ);
+			}
+			measureCells(bpNucleus, bpCell, Map.of(1.0, cell), channels, compartments, measurements);
+		} else {
+			var imgLabels = new PixelImageIJ(bpCell);
+			for (var entry : channels.entrySet()) {
+				var img = new PixelImageIJ(entry.getValue());				
+				measureObjects(img, imgLabels, new PathObject[] {pathObject}, entry.getKey(), measurements);
+			}
 		}
-		if (cell.getROI() != null) {
-			bpCell = new ByteProcessor(imp.getWidth(), imp.getHeight());
-			bpCell.setValue(1.0);
-			var roi = IJTools.convertToIJRoi(cell.getROI(), pathImage);
-			bpCell.fill(roi);
-		}
-		measureCells(bpNucleus, bpCell, Map.of(1.0, cell), channels, measurements);
 	}
 	
 	/**
@@ -164,12 +297,14 @@ public class CellMeasurements {
 	 * @param ipCells labelled image representing cells
 	 * @param pathObjects cell objects mapped to integer values in the labelled images
 	 * @param channels channels to measure, mapped to the name to incorporate into the measurements for that channel
+	 * @param compartments the cell compartments to measure
 	 * @param measurements requested measurements to make
 	 */
-	public static void measureCells(
+	private static void measureCells(
 			ImageProcessor ipNuclei, ImageProcessor ipCells,
-			Map<? extends Number, PathObject> pathObjects,
+			Map<? extends Number, ? extends PathObject> pathObjects,
 			Map<String, ImageProcessor> channels,
+			Collection<Compartments> compartments,
 			Collection<Measurements> measurements) {
 		
 		var array = mapToArray(pathObjects);
@@ -200,22 +335,22 @@ public class CellMeasurements {
 		var imgCytoplasm = new PixelImageIJ(ipCytoplasm);
 		var imgMembrane = new PixelImageIJ(ipMembrane);
 		
-
 		for (var entry : channels.entrySet()) {
-			
 			var img = new PixelImageIJ(entry.getValue());
-			
-			measureObjects(img, imgNuclei, array, entry.getKey().trim() + ": " + "Nucleus", measurements);
-			measureObjects(img, imgCytoplasm, array, entry.getKey().trim() + ": " + "Cytoplasm", measurements);
-			measureObjects(img, imgMembrane, array, entry.getKey().trim() + ": " + "Membrane", measurements);
-			measureObjects(img, imgCells, array, entry.getKey().trim() + ": " + "Cell", measurements);
-			
+			if (compartments.contains(Compartments.NUCLEUS))
+				measureObjects(img, imgNuclei, array, entry.getKey().trim() + ": " + "Nucleus", measurements);
+			if (compartments.contains(Compartments.CYTOPLASM))
+				measureObjects(img, imgCytoplasm, array, entry.getKey().trim() + ": " + "Cytoplasm", measurements);
+			if (compartments.contains(Compartments.MEMBRANE))
+				measureObjects(img, imgMembrane, array, entry.getKey().trim() + ": " + "Membrane", measurements);
+			if (compartments.contains(Compartments.CELL))
+				measureObjects(img, imgCells, array, entry.getKey().trim() + ": " + "Cell", measurements);
 		}
 		
 	}
 	
 	
-	private static PathObject[] mapToArray(Map<? extends Number, PathObject> pathObjects) {
+	private static PathObject[] mapToArray(Map<? extends Number, ? extends PathObject> pathObjects) {
 		Number[] labels = new Number[pathObjects.size()];
 		int n = 0;
 		long maxLabel = 0L;
@@ -243,21 +378,21 @@ public class CellMeasurements {
 		return array;
 	}
 	
-	/**
-	 * Measure objects within the specified image, adding them to the corresponding measurement lists.
-	 * @param img intensity values to measure
-	 * @param imgLabels labels corresponding to objects
-	 * @param pathObjects map between label values and objects
-	 * @param baseName base name to include when adding measurements (e.g. the channel name)
-	 * @param measurements requested measurements
-	 */
-	public static void measureObjects(
-			SimpleImage img, SimpleImage imgLabels,
-			Map<? extends Number, PathObject> pathObjects,
-			String baseName, Collection<Measurements> measurements) {
-		
-		measureObjects(img, imgLabels, mapToArray(pathObjects), baseName, measurements);
-	}
+//	/**
+//	 * Measure objects within the specified image, adding them to the corresponding measurement lists.
+//	 * @param img intensity values to measure
+//	 * @param imgLabels labels corresponding to objects
+//	 * @param pathObjects map between label values and objects
+//	 * @param baseName base name to include when adding measurements (e.g. the channel name)
+//	 * @param measurements requested measurements
+//	 */
+//	private static void measureObjects(
+//			SimpleImage img, SimpleImage imgLabels,
+//			Map<? extends Number, ? extends PathObject> pathObjects,
+//			String baseName, Collection<Measurements> measurements) {
+//		
+//		measureObjects(img, imgLabels, mapToArray(pathObjects), baseName, measurements);
+//	}
 	
 	/**
 	 * Measure objects within the specified image, adding them to the corresponding measurement lists.
@@ -267,7 +402,7 @@ public class CellMeasurements {
 	 * @param baseName base name to include when adding measurements (e.g. the channel name)
 	 * @param measurements requested measurements
 	 */
-	public static void measureObjects(
+	private static void measureObjects(
 			SimpleImage img, SimpleImage imgLabels,
 			PathObject[] pathObjects,
 			String baseName, Collection<Measurements> measurements) {

@@ -2,7 +2,6 @@ package qupath.lib.analysis;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -17,16 +16,19 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.densify.Densifier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.locationtech.jts.index.quadtree.Quadtree;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
 import org.locationtech.jts.triangulate.DelaunayTriangulationBuilder;
 import org.locationtech.jts.triangulate.IncrementalDelaunayTriangulator;
@@ -59,10 +61,10 @@ public class DelaunayTools {
 	private final static Logger logger = LoggerFactory.getLogger(DelaunayTools.class);
 	
 	private static boolean calibrated(PixelCalibration cal) {
-		return cal != null && (cal.getPixelHeight().doubleValue() != 1 || cal.getPixelWidth().doubleValue() == 1);
+		return cal != null && (cal.getPixelHeight().doubleValue() != 1 || cal.getPixelWidth().doubleValue() != 1);
 	}
 	
-	private static Function<PathObject, Collection<Coordinate>> createGeometryExtractor(PixelCalibration cal, boolean preferNucleus, double densifyFactor) {
+	private static Function<PathObject, Collection<Coordinate>> createGeometryExtractor(PixelCalibration cal, boolean preferNucleus, double densifyFactor, double erosion) {
 
 		PrecisionModel precision = calibrated(cal) ? null : GeometryTools.getDefaultFactory().getPrecisionModel();
 		AffineTransformation transform = calibrated(cal) ? 
@@ -79,18 +81,37 @@ public class DelaunayTools {
 				geom = transform.transform(geom);
 			
 			// Shared boundaries can be problematic, so try to buffer away from these
-			if (geom instanceof Polygonal) {
-				double buf = densifyFactor <= 0 ? 0.4 : -densifyFactor/16;
-				geom = GeometryTools.attemptOperation(geom, g -> g.buffer(buf));
+			double buffer = -Math.abs(erosion);
+			if (buffer < 0 && geom instanceof Polygonal) {
+				var geomBefore = geom;
+				geom = GeometryTools.attemptOperation(geom, g -> g.buffer(buffer));
+				// Do not permit Geometry to disappear
+				if (geom.isEmpty()) {
+					geom = geomBefore;
+				}
 			}
-			
-			if (densifyFactor > 0)
-				geom = GeometryTools.attemptOperation(geom, g -> Densifier.densify(g, densifyFactor));
 			
 			if (precision != null)
 				geom = GeometryTools.attemptOperation(geom, g -> GeometryPrecisionReducer.reduce(g, precision));
+
+			if (densifyFactor > 0)
+				geom = GeometryTools.attemptOperation(geom, g -> Densifier.densify(g, densifyFactor));
 			
-			return Arrays.asList(geom.getCoordinates());
+//			if (!(geom instanceof Polygon))
+//				logger.warn("Unexpected Geometry: {}", geom);
+			
+			// Making precise is essential! Otherwise there can be small artifacts occuring
+			var coords = geom.getCoordinates();
+			var output = new LinkedHashSet<Coordinate>();
+			var p2 = precision;
+			if (p2 == null)
+				p2 = GeometryTools.getDefaultFactory().getPrecisionModel();
+			for (var c : coords) {
+				p2.makePrecise(c);
+				output.add(c);
+			}
+			
+			return output;
 		};
 	}
 	
@@ -135,6 +156,8 @@ public class DelaunayTools {
 		
 		private PixelCalibration cal = PixelCalibration.getDefaultInstance();
 		private double densifyFactor = Double.NaN;
+		
+		private double erosion = 1.0;
 		
 		private ImagePlane plane = ImagePlane.getDefaultPlane();
 		private Collection<PathObject> pathObjects = new ArrayList<>();
@@ -181,7 +204,7 @@ public class DelaunayTools {
 		 * @return this builder
 		 */
 		public Builder roiBounds() {
-			return roiBounds(densifyFactor);
+			return roiBounds(densifyFactor, -2);
 		}
 		
 		/**
@@ -189,11 +212,13 @@ public class DelaunayTools {
 		 * @param densify how much to 'densify' the coordinates; recommended default value is 4.0 (assuming uncalibrated pixels).
 		 *                Decreasing the value will give a denser (and slower) triangulation; this can achieve more accuracy but 
 		 *                also lead to numerical problems. Try adjusting this value only if the default results in errors.
+		 * @param erosion amount to erode each {@link Geometry} in pixels. If non-zero, this can fix artifacts occurring at shared boundaries.
 		 * @return this builder
 		 */
-		public Builder roiBounds(double densify) {
+		public Builder roiBounds(double densify, double erosion) {
 			this.extractorType = ExtractorType.ROI;
 			this.densifyFactor = densify;
+			this.erosion = erosion;
 			return this;
 		}
 		
@@ -238,7 +263,7 @@ public class DelaunayTools {
 				extractor = createCentroidExtractor(cal, preferNucleusROI);
 				break;
 			case ROI:
-				extractor = createGeometryExtractor(cal, preferNucleusROI, densify);
+				extractor = createGeometryExtractor(cal, preferNucleusROI, densify, erosion);
 				break;
 			default:
 			case CUSTOM:
@@ -251,7 +276,7 @@ public class DelaunayTools {
 				}
 			}
 			
-			double tolerance = cal.getAveragedPixelSize().doubleValue() / 100.0;
+			double tolerance = cal.getAveragedPixelSize().doubleValue() / 1000.0;
 			return new Subdivision(createSubdivision(coords.keySet(), tolerance), pathObjects, coords, plane);
 		}
 		
@@ -734,11 +759,77 @@ public class DelaunayTools {
 		}
 		
 		
+		/*
+		 * This was an attempt to improve the robustness whenever coordinates are based upon geometry boundaries. 
+		 * It does seem to help, although the main issue was that the coordinates needed to be made 'precise'.
+		 */
+		private synchronized Map<PathObject, Geometry> calculateVoronoiFacesByLocations() {
+			
+			logger.debug("Calculating Voronoi faces for {} objects by location", getPathObjects().size());
+			
+			@SuppressWarnings("unchecked")
+			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(GeometryTools.getDefaultFactory());
+			
+			// Create a spatial cache
+			var cache = new STRtree();
+			for (var p : polygons) {
+				cache.insert(p.getEnvelopeInternal(), p);
+			}
+			
+			// 
+			var map = new HashMap<PathObject, Geometry>();
+			var mapToMerge = new HashMap<PathObject, List<Geometry>>();
+			var env = new Envelope();
+			for (var entry : coordinateMap.entrySet()) {
+				var coord = entry.getKey();
+				var pathObject = entry.getValue();
+				env.init(coord);
+				var results = (List<Polygon>)cache.query(env);
+				for (var polygon : results) {
+					if (SimplePointInAreaLocator.locate(coord, polygon) == Location.INTERIOR) {
+						var existing = map.put(pathObject, polygon);
+						if (existing != null) {
+							var list = mapToMerge.computeIfAbsent(pathObject, g -> {
+								var l = new ArrayList<Geometry>();
+								l.add(existing);
+								return l;
+							});
+							list.add(polygon);
+						}
+					}
+				}
+			}
+			
+			// Merge anything that we need to
+			for (var entry : mapToMerge.entrySet()) {
+				var pathObject = entry.getKey();
+				var list = entry.getValue();
+				Geometry geometry = null;
+				try {
+					geometry = GeometryCombiner.combine(list).buffer(0.0);
+				} catch (Exception e) {
+					logger.debug("Error doing fast geometry combine for Voronoi faces: " + e.getLocalizedMessage(), e);
+					try {
+						geometry = GeometryTools.union(list);
+					} catch (Exception e2) {
+						logger.debug("Error doing fallback geometry combine for Voronoi faces: " + e2.getLocalizedMessage(), e2);
+					}
+				}
+				map.put(pathObject, geometry);
+			}
+			
+			return map;
+		}
+
 		
 		private synchronized Map<PathObject, Geometry> calculateVoronoiFaces() {
 			
+			if (pathObjects.size() < coordinateMap.size()) {
+				return calculateVoronoiFacesByLocations();
+			}
+
 			logger.debug("Calculating Voronoi faces for {} objects", getPathObjects().size());
-			
+
 			@SuppressWarnings("unchecked")
 			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(GeometryTools.getDefaultFactory());
 //			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(new GeometryFactory());
@@ -748,20 +839,13 @@ public class DelaunayTools {
 			
 			// Get the polygons for each object
 			for (var polygon : polygons) {
-				if (polygon.isEmpty())
+				if (polygon.isEmpty() || !(polygon instanceof Polygonal))
 					continue;
 
 				var coord = (Coordinate)polygon.getUserData();
 				var pathObject = coordinateMap.get(coord);
 				if (pathObject == null) {
 					logger.warn("No detection found for {}", coord);
-					continue;
-				}
-				
-				try {
-					if (polygon.intersection(pathObject.getROI().getGeometry().getInteriorPoint()).getArea() == 1)
-						continue;
-				} catch (Exception e) {
 					continue;
 				}
 				

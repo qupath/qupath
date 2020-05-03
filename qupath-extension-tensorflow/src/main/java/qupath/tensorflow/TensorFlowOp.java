@@ -1,7 +1,9 @@
 package qupath.tensorflow;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -25,7 +27,7 @@ import qupath.opencv.ops.ImageOps.PaddedOp;
 import qupath.opencv.tools.OpenCVTools;
 
 /**
- * {@link ImageOp} that runs
+ * An {@link ImageOp} that runs a TensorFlow model for prediction.
  * 
  * @author Pete Bankhead
  */
@@ -57,7 +59,7 @@ public class TensorFlowOp extends PaddedOp {
 	private TensorFlowBundle getBundle() {
 		if (bundle == null && exception == null) {
 			try {
-				bundle = new TensorFlowBundle(modelPath);
+				bundle = loadBundle(modelPath);
 			} catch (Exception e) {
 				this.exception = e;
 			}
@@ -101,6 +103,11 @@ public class TensorFlowOp extends PaddedOp {
     
     
     
+    private static Map<String, TensorFlowBundle> cachedBundles = new HashMap<>();
+    
+    private static TensorFlowBundle loadBundle(String path) {
+    	return cachedBundles.computeIfAbsent(path, p -> new TensorFlowBundle(p));
+    }
     
     
     private static class TensorFlowBundle {
@@ -129,7 +136,7 @@ public class TensorFlowOp extends PaddedOp {
                     tags,
                     bundle
             );
-
+            
             var sigdefMap = bundle.meta_graph_def().signature_def();
             logger.debug("Size: {}", sigdefMap.size());
             var map = sigdefMap.get(sigdefMap.begin().first());
