@@ -4,6 +4,7 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 
 * Several minor fixes from v0.2.0-m11
 * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
+* Bump dependencies ImageJ, Bio-Formats
 
 
 

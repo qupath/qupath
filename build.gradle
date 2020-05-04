@@ -176,8 +176,8 @@ if (doModular) {
 /*
  * Check command arguments to optional inclusions/exclusions
  */
-def includeTensorFlowGPU = (findProperty('with-tf-gpu') ?: "false") != "false"
-def includeTensorFlow = includeTensorFlowGPU || (findProperty('with-tf-cpu') ?: "false") != "false"
+def includeTensorFlowGPU = (findProperty('tensorflow-gpu') ?: "false") != "false"
+def includeTensorFlow = includeTensorFlowGPU || (findProperty('tensorflow-cpu') ?: "false") != "false"
 
 def excludeSubprojects = []
 if (includeTensorFlowGPU) {
@@ -186,7 +186,7 @@ if (includeTensorFlowGPU) {
 	println 'Requesting TensorFlow (CPU) subproject'	
 } else {
     excludeSubprojects << 'qupath-extension-tensorflow'
-	println "Use -Pwith-tf-cpu=true or -Pwith-tf-gpu=true if you wish to include experimental TensorFlow module"
+	println "Use -Ptensorflow-cpu=true or -Ptensorflow-gpu=true if you wish to include experimental TensorFlow module"
 }
 
 
@@ -209,14 +209,14 @@ allprojects {
     javaVersion = 11
   
     // Dependency versions
-    bioformatsVersion  = '6.4.0'
+    bioformatsVersion  = '6.5.0'
     commonsMathVersion = '3.6.1'
     commonsTextVersion = '1.8'
     controlsfxVersion  = '11.0.1'
     groovyVersion      = '3.0.3'
     gsonVersion        = '2.8.6'
     guavaVersion       = '29.0-jre'
-    imagejVersion      = '1.52u'
+    imagejVersion      = '1.52v'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.16.1'
