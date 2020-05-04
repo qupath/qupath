@@ -907,6 +907,17 @@ public class QuPathGUI {
 					return;
 				}
 			}
+//			// Could uncomment this to sync the project - but we should be careful to avoid excessive synchronization
+//			// (and it may already be synchronied when saving the image data)
+//			var project = getProject();
+//			if (project != null) {
+//				try {
+//					project.syncChanges();
+//				} catch (IOException ex) {
+//					logger.error("Error syncing project: " + ex.getLocalizedMessage(), e);
+//				}
+//			}
+			
 			// Stop any painter requests
 			if (imageRegionStore != null)
 				imageRegionStore.close();
