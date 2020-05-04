@@ -273,7 +273,10 @@ class ProjectImportImagesCommand {
 
 				updateMessage("Checking for compatible image readers...");
 				
-				var pool = Executors.newCachedThreadPool(ThreadTools.createThreadFactory("project-import", true));
+				// Limit the size of the thread pool
+				// The previous use of a cached thread pool caused trouble when importing may large, non-pyramidal images
+				var pool = Executors.newFixedThreadPool(PathPrefs.numCommandThreadsProperty().get(), ThreadTools.createThreadFactory("project-import", true));
+//				var pool = Executors.newCachedThreadPool(ThreadTools.createThreadFactory("project-import", true));
 				List<Future<List<ServerBuilder<BufferedImage>>>> results = new ArrayList<>();
 				List<ProjectImageEntry<BufferedImage>> projectImages = new ArrayList<>();
 				for (var item : items) {
