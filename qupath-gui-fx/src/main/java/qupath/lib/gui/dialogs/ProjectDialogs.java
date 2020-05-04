@@ -133,9 +133,7 @@ public class ProjectDialogs {
 			labelSameImageWarning.setVisible(false);
 			PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
 			PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
-			PaneTools.addGridRow(paneSelected, 1, 0,
-					"This command will save the data file for any image that is open - you will need to reopen the image to see the changes",
-					labelSameImageWarning);
+			PaneTools.addGridRow(paneSelected, 1, 0, sameImageWarning, labelSameImageWarning);
 		}
 		listSelectionView.setTargetFooter(paneSelected);
 		
