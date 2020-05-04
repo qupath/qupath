@@ -134,11 +134,11 @@ class Menus {
 		@ActionMenu("Preferences...")
 		@ActionIcon(PathIcons.COG)
 		@ActionAccelerator("shortcut+,")
-		@ActionDescription("Set preferences to customize QuPath's appearance and behavior")
+		@ActionDescription("Set preferences to customize QuPath's appearance and behavior.")
 		public final Action PREFERENCES = Commands.createSingleStageAction(() -> Commands.createPreferencesDialog(qupath));
 		
 		@ActionMenu("Reset preferences")
-		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath")
+		@ActionDescription("Reset preferences to their default values - this can be useful if you are experiencing any newly-developed persistent problems with QuPath.")
 		public final Action RESET_PREFERENCES = createAction(() -> Commands.promptToResetPreferences());
 
 		
@@ -199,7 +199,7 @@ class Menus {
 	@ActionMenu("Analyze")
 	public class AnalyzeMenuManager {
 		
-		@ActionDescription("Estimate stain vectors for color deconvolution in brightfield images." + 
+		@ActionDescription("Estimate stain vectors for color deconvolution in brightfield images. " + 
 				"This can be used when there are precisely 2 stains (e.g. hematoxylin and eosin, hematoxylin and DAB) " +
 				"to improve stain separation.")
 		@ActionMenu("Preprocessing>Estimate stain vectors")
@@ -225,7 +225,7 @@ class Menus {
 		@Deprecated
 		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
 
-		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification." +
+		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification. " +
 				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")
 		@ActionMenu("Spatial analysis>Distance to annotations 2D")
 		public final Action DISTANCE_TO_ANNOTATIONS = qupath.createImageDataAction(imageData -> Commands.distanceToAnnotations2D(imageData));
@@ -402,7 +402,7 @@ class Menus {
 	@ActionMenu("Objects")
 	public class ObjectsMenuManager {
 		
-		@ActionDescription("Delete the currently-selected objects.")
+		@ActionDescription("Delete the currently selected objects.")
 		@ActionMenu("Delete...>Delete selected objects")
 		public final Action DELETE_SELECTED_OBJECTS = qupath.createImageDataAction(imageData -> GuiTools.promptToClearAllSelectedObjects(imageData));
 		
@@ -535,7 +535,7 @@ class Menus {
 		@ActionMenu("Annotations...>Make inverse")
 		public final Action MAKE_INVERSE = qupath.createImageDataAction(imageData -> Commands.makeInverseAnnotation(imageData));
 		
-		@ActionDescription("Merge the selected annotations to become one, single annotaiton.")
+		@ActionDescription("Merge the selected annotations to become one, single annotation.")
 		@ActionMenu("Annotations...>Merge selected")
 		public final Action MERGE_SELECTED = qupath.createImageDataAction(imageData -> Commands.mergeSelectedAnnotations(imageData));
 		
@@ -603,12 +603,12 @@ class Menus {
 	@ActionMenu("View")
 	public class ViewMenuManager {
 		
-		@ActionDescription("Show/hide the analysis pane (the one on the left)")
+		@ActionDescription("Show/hide the analysis pane (the one on the left).")
 		@ActionMenu("Show analysis pane")
 		@ActionAccelerator("shift+a")
 		public final Action SHOW_ANALYSIS_PANEL = actionManager.SHOW_ANALYSIS_PANE;
 		
-		@ActionDescription("Show the command list (much easier than navigating menus...)")
+		@ActionDescription("Show the command list (much easier than navigating menus...).")
 		@ActionMenu("Show command list")
 		@ActionAccelerator("shortcut+l")
 		public final Action COMMAND_LIST = Commands.createSingleStageAction(() -> CommandFinderTools.createCommandFinderDialog(qupath));
@@ -620,52 +620,52 @@ class Menus {
 		public final Action BRIGHTNESS_CONTRAST = actionManager.BRIGHTNESS_CONTRAST;
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		@ActionDescription("Synchronize panning and zooming when working with images open in multiple viewers")
+		@ActionDescription("Synchronize panning and zooming when working with images open in multiple viewers.")
 		public final Action TOGGLE_SYNCHRONIZE_VIEWERS = actionManager.TOGGLE_SYNCHRONIZE_VIEWERS;
 		
-		@ActionDescription("Adjust zoom factors to match the resolutions of images open in multiple viewers")
+		@ActionDescription("Adjust zoom factors to match the resolutions of images open in multiple viewers.")
 		public final Action MATCH_VIEWER_RESOLUTIONS = actionManager.MATCH_VIEWER_RESOLUTIONS;
 		
-		@ActionDescription("Open a viewer window that shows individual channels of an image size by side")
+		@ActionDescription("Open a viewer window that shows individual channels of an image size by side.")
 		@ActionMenu("Mini viewers...>Show channel viewer")
 		public final Action CHANNEL_VIEWER = qupath.createViewerAction(viewer -> Commands.showChannelViewer(viewer));
 
-		@ActionDescription("Open a viewer window that shows a view of the pixel under the cursor")
+		@ActionDescription("Open a viewer window that shows a view of the pixel under the cursor.")
 		@ActionMenu("Mini viewers...>Show mini viewer")
 		public final Action MINI_VIEWER = qupath.createViewerAction(viewer -> Commands.showMiniViewer(viewer));
 		
 		public final Action SEP_2 = ActionTools.createSeparator();
 		
-		@ActionDescription("Set the zoom factor to 400% (downsample = 0.25)")
+		@ActionDescription("Set the zoom factor to 400% (downsample = 0.25).")
 		@ActionMenu("Zoom...>400%")
 		public final Action ZOOM_400 = qupath.createViewerAction(viewer -> Commands.setViewerDownsample(viewer, 0.25));
-		@ActionDescription("Set the zoom factor to 100% (downsample = 1)")
+		@ActionDescription("Set the zoom factor to 100% (downsample = 1).")
 		@ActionMenu("Zoom...>100%")
 		public final Action ZOOM_100 = qupath.createViewerAction(viewer -> Commands.setViewerDownsample(viewer, 1));
-		@ActionDescription("Set the zoom factor to 10% (downsample = 10)")
+		@ActionDescription("Set the zoom factor to 10% (downsample = 10).")
 		@ActionMenu("Zoom...>10%")
 		public final Action ZOOM_10 = qupath.createViewerAction(viewer -> Commands.setViewerDownsample(viewer, 10));
-		@ActionDescription("Set the zoom factor to 1% (downsample = 100)")
+		@ActionDescription("Set the zoom factor to 1% (downsample = 100).")
 		@ActionMenu("Zoom...>1%")
 		public final Action ZOOM_1 = qupath.createViewerAction(viewer -> Commands.setViewerDownsample(viewer, 100));
 		
 		public final Action SEP_3 = ActionTools.createSeparator();
-		@ActionDescription("Zoom in for the current viewer")
+		@ActionDescription("Zoom in for the current viewer.")
 		@ActionMenu("Zoom...>Zoom in")
 		@ActionIcon(PathIcons.ZOOM_IN)
 		@ActionAccelerator("ignore shift+plus")
 		public final Action ZOOM_IN = Commands.createZoomCommand(qupath, 10);
-		@ActionDescription("Zoom out for the current viewer")
+		@ActionDescription("Zoom out for the current viewer.")
 		@ActionMenu("Zoom...>Zoom out")
 		@ActionIcon(PathIcons.ZOOM_OUT)
 		@ActionAccelerator("-")
 		public final Action ZOOM_OUT = Commands.createZoomCommand(qupath, -10);
 		
-		@ActionDescription("Adjust zoom for all images to fit the entire image in the viewer")
+		@ActionDescription("Adjust zoom for all images to fit the entire image in the viewer.")
 		@ActionMenu("Zoom...>Zoom to fit")
 		public final Action ZOOM_TO_FIT = actionManager.ZOOM_TO_FIT;
 				
-		@ActionDescription("Rotate the image visually (this is only for display - the coordinate system remains unchanged)")
+		@ActionDescription("Rotate the image visually (this is only for display - the coordinate system remains unchanged).")
 		@ActionMenu("Rotate image")
 		public final Action ROTATE_IMAGE = Commands.createSingleStageAction(() -> Commands.createRotateImageDialog(qupath));
 
@@ -730,7 +730,7 @@ class Menus {
 
 		public final Action SEP_7 = ActionTools.createSeparator();
 		
-		@ActionDescription("Show mouse clicks and keypresses on screen."
+		@ActionDescription("Show mouse clicks and keypresses on screen. "
 				+ "This is particularly useful for demos and tutorials.")
 		@ActionMenu("Show input display")
 		public final Action INPUT_DISPLAY = createAction(() -> Commands.showInputDisplay(qupath));
@@ -787,11 +787,11 @@ class Menus {
 		
 		@ActionMenu("Show measurement maps")
 		@ActionAccelerator("shortcut+shift+m")
-		@ActionDescription("View detection measurements in context using interactive, color-coded maps")
+		@ActionDescription("View detection measurements in context using interactive, color-coded maps.")
 		public final Action MAPS = Commands.createSingleStageAction(() -> Commands.createMeasurementMapDialog(qupath));
 		
 		@ActionMenu("Show measurement manager")
-		@ActionDescription("View and optionally delete detection measurements")
+		@ActionDescription("View and optionally delete detection measurements.")
 		public final Action MANAGER = qupath.createImageDataAction(imageData -> Commands.showDetectionMeasurementManager(qupath, imageData));
 		
 		@ActionMenu("")
@@ -809,7 +809,7 @@ class Menus {
 		public final Action SEP_2 = ActionTools.createSeparator();
 
 		@ActionMenu("Export measurements")		
-		@ActionDescription("Export summary measurements for multiple images within a project")
+		@ActionDescription("Export summary measurements for multiple images within a project.")
 		public final Action EXPORT = createAction(new MeasurementExportCommand(qupath));
 		
 	}
