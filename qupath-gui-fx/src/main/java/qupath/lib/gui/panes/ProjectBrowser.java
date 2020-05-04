@@ -316,7 +316,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			if (path == null)
 				return;
 			if (path.getValue() instanceof ProjectImageEntry) {
-				setProjectEntryImageName((ProjectImageEntry<BufferedImage>)path.getValue());
+				if (setProjectEntryImageName((ProjectImageEntry<BufferedImage>)path.getValue()) && project != null)
+					syncProject(project);
 			}
 		});
 		

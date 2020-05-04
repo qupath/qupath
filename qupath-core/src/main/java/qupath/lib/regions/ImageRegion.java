@@ -23,6 +23,8 @@
 
 package qupath.lib.regions;
 
+import java.util.Collection;
+
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -87,6 +89,38 @@ public class ImageRegion {
 		int x2 = (int)Math.ceil(pathROI.getBoundsX() + pathROI.getBoundsWidth());
 		int y2 = (int)Math.ceil(pathROI.getBoundsY() + pathROI.getBoundsHeight());
 		return ImageRegion.createInstance(x1, y1, x2-x1, y2-y1, pathROI.getZ(), pathROI.getT());
+	}
+	
+	/**
+	 * Create the smallest region that completely contains the specified ROIs.
+	 * @param rois
+	 * @return
+	 */
+	public static ImageRegion createInstance(final Collection<? extends ROI> rois) {
+		if (rois.isEmpty())
+			return new ImageRegion(0, 0, 0, 0, 0, 0);
+		if (rois.size() == 1)
+			return createInstance(rois.iterator().next());
+		double xMin = Double.POSITIVE_INFINITY;
+		double xMax = Double.NEGATIVE_INFINITY;
+		double yMin = Double.POSITIVE_INFINITY;
+		double yMax = Double.NEGATIVE_INFINITY;
+		ImagePlane plane = null;
+		for (var roi : rois) {
+			if (plane == null)
+				plane = roi.getImagePlane();
+			else if (plane.getT() != roi.getT() || plane.getZ() != roi.getZ())
+				throw new IllegalArgumentException("Failed to create ImageRegion for multiple ROIs, ImagePlanes do not match!");
+			xMin = Math.min(xMin, roi.getBoundsX());
+			yMin = Math.min(yMin, roi.getBoundsY());
+			xMax = Math.max(xMax, roi.getBoundsX() + roi.getBoundsWidth());
+			yMax = Math.max(yMax, roi.getBoundsY() + roi.getBoundsHeight());
+		}
+		int x1 = (int)Math.floor(xMin);
+		int y1 = (int)Math.floor(yMin);
+		int x2 = (int)Math.ceil(xMax);
+		int y2 = (int)Math.ceil(yMax);
+		return ImageRegion.createInstance(x1, y1, x2-x1, y2-y1, plane.getZ(), plane.getT());
 	}
 	
 	/**

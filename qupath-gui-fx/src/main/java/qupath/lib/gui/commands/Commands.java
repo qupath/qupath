@@ -530,6 +530,9 @@ public class Commands {
 				overlayOptions.resetMeasurementMapper();
 			dialog.hide();
 		});
+		dialog.setOnShowing(e -> {
+			panel.updateMeasurements();
+		});
 		return dialog;
 	}
 	
@@ -584,8 +587,9 @@ public class Commands {
 	/**
 	 * Show a dialog to adjust QuPath preferences.
 	 * @param qupath the QuPath instance
+	 * @return window to use to display preferences
 	 */
-	public static void showPreferencesDialog(QuPathGUI qupath) {
+	public static Stage createPreferencesDialog(QuPathGUI qupath) {
 		
 		var panel = qupath.getPreferencePane();
 		
@@ -628,7 +632,7 @@ public class Commands {
 		dialog.setMinWidth(300);
 		dialog.setMinHeight(300);
 		
-		dialog.show();
+		return dialog;
 	}
 
 	private static boolean exportPreferences(Stage parent) {

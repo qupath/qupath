@@ -4,9 +4,14 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -15,18 +20,25 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.locationtech.jts.algorithm.Centroid;
 import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.index.strtree.STRtree;
+import org.locationtech.jts.simplify.VWSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.imagej.tools.CellMeasurements;
+import qupath.imagej.tools.CellMeasurements.Compartments;
+import qupath.imagej.tools.CellMeasurements.Measurements;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.objects.CellTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -65,16 +77,26 @@ public class StarDist2D {
 	 */
 	public static class Builder {
 		
+		private boolean doLog;
+		
 		private String modelPath = null;
 		private ColorTransform[] channels = new ColorTransform[0];
+		
 		private double threshold = 0.5;
 		
+		private double simplifyDistance = 1.4;
 		private double cellExpansion = Double.NaN;
 		private double cellConstrainScale = Double.NaN;
+		private boolean ignoreCellOverlaps = false;
+
 		private double pixelSize = Double.NaN;
-		
+				
 		private int tileWidth = 1024;
 		private int tileHeight = 1024;
+		
+		private boolean measureShape = false;
+		private Collection<Compartments> compartments = Arrays.asList(Compartments.values());
+		private Collection<Measurements> measurements;
 		
 		private int pad = 32;
 		
@@ -106,6 +128,30 @@ public class StarDist2D {
 		public Builder preprocess(ImageOp... ops) {
 			for (var op : ops)
 				this.ops.add(op);
+			return this;
+		}
+		
+		/**
+		 * Request that progress is logged. If this is not specified, progress is only logged at the DEBUG level.
+		 * @return this builder
+		 */
+		public Builder doLog() {
+			this.doLog = true;
+			return this;
+		}
+		
+		/**
+		 * Customize the extent to which contours are simplified.
+		 * Simplification reduces the number of vertices, which in turn can reduce memory requirements and 
+		 * improve performance.
+		 * <p>
+		 * Implementation note: this currently uses the Visvalingam-Whyatt algorithm.
+		 * 
+		 * @param distance simplify distance threshold; set &le; 0 to turn off additional simplification
+		 * @return this builder
+		 */
+		public Builder simplify(double distance) {
+			this.simplifyDistance = distance;
 			return this;
 		}
 		
@@ -173,6 +219,60 @@ public class StarDist2D {
 		 */
 		public Builder cellConstrainScale(double scale) {
 			this.cellConstrainScale = scale;
+			return this;
+		}
+		
+		/**
+		 * If true, ignore overlaps when computing cell expansion.
+		 * @param ignore
+		 * @return this builder
+		 */
+		public Builder ignoreCellOverlaps(boolean ignore) {
+			this.ignoreCellOverlaps = ignore;
+			return this;
+		}
+		
+		/**
+		 * Request default intensity measurements are made for all available cell compartments.
+		 * @return this builder
+		 */
+		public Builder measureIntensity() {
+			this.measurements = Arrays.asList(
+					Measurements.MEAN,
+					Measurements.MEDIAN,
+					Measurements.MIN,
+					Measurements.MAX,
+					Measurements.STD_DEV);
+			return this;
+		}
+		
+		/**
+		 * Request specified intensity measurements are made for all available cell compartments.
+		 * @param measurements the measurements to make
+		 * @return this builder
+		 */
+		public Builder measureIntensity(Collection<Measurements> measurements) {
+			this.measurements = new ArrayList<>(measurements);
+			return this;
+		}
+		
+		/**
+		 * Request shape measurements are made for the detected cell or nucleus.
+		 * @return this builder
+		 */
+		public Builder measureShape() {
+			measureShape = true;
+			return this;
+		}
+		
+		/**
+		 * Specify the compartments within which intensity measurements are made.
+		 * Only effective if {@link #measureIntensity()} and {@link #cellExpansion(double)} have been selected.
+		 * @param compartments cell compartments for intensity measurements
+		 * @return this builder
+		 */
+		public Builder compartments(Compartments...compartments) {
+			this.compartments = Arrays.asList(compartments);
 			return this;
 		}
 		
@@ -266,21 +366,62 @@ public class StarDist2D {
 			stardist.tileWidth = tileWidth-pad*2;
 			stardist.tileHeight = tileHeight-pad*2;
 			stardist.includeProbability = includeProbability;
+			stardist.ignoreCellOverlaps = ignoreCellOverlaps;
+			stardist.measureShape = measureShape;
+			stardist.doLog = doLog;
+			stardist.simplifyDistance = simplifyDistance;
+			
+			stardist.compartments = new LinkedHashSet<>(compartments);
+			
+			if (measurements != null)
+				stardist.measurements = new LinkedHashSet<>(measurements);
+			
 			return stardist;
 		}
 		
 	}
 	
+	private boolean doLog = false;
+	
+	private double simplifyDistance = 1.4;
+	
 	private double threshold;
+	
 	private ImageDataOp op;
 	private double pixelSize;
 	private double cellExpansion;
 	private double cellConstrainScale;
+	private boolean ignoreCellOverlaps;
 	
 	private boolean includeProbability = false;
 	
 	private int tileWidth = 1024;
 	private int tileHeight = 1024;
+
+	private boolean measureShape = false;
+
+	private Collection<CellMeasurements.Compartments> compartments;
+	private Collection<CellMeasurements.Measurements> measurements;
+	
+	/**
+	 * Detect cells within one or more parent objects, firing update events upon completion.
+	 * 
+	 * @param imageData the image data containing the object
+	 * @param parents the parent objects; existing child objects will be removed, and replaced by the detected cells
+	 */
+	public void detectObjects(ImageData<BufferedImage> imageData, Collection<? extends PathObject> parents) {
+		if (parents.isEmpty())
+			return;
+		if (parents.size() == 1) {
+			detectObjects(imageData, parents.iterator().next(), true);
+			return;
+		}
+		log("Processing {} parent objects", parents.size());
+		parents.parallelStream().forEach(p -> detectObjects(imageData, p, false));
+		// Fire a globel update event
+		imageData.getHierarchy().fireHierarchyChangedEvent(imageData.getHierarchy());
+	}
+	
 	
 	/**
 	 * Detect cells within a parent object.
@@ -291,16 +432,11 @@ public class StarDist2D {
 	 */
 	public void detectObjects(ImageData<BufferedImage> imageData, PathObject parent, boolean fireUpdate) {
 		Objects.nonNull(parent);
-		var detections = detectObjects(imageData, parent.getROI());
-		
-		if (cellExpansion > 0 || cellConstrainScale > 0) {
-			double expansion = cellExpansion / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
-			detections = CellTools.detectionsToCells(detections, expansion, cellConstrainScale);			
-		}
-		
+		// Lock early, so the user doesn't make modifications
+		parent.setLocked(true);
+		var detections = detectObjects(imageData, parent.getROI());		
 		parent.clearPathObjects();
 		parent.addPathObjects(detections);
-		parent.setLocked(true);
 		if (fireUpdate)
 			imageData.getHierarchy().fireHierarchyChangedEvent(imageData.getHierarchy(), parent);
 	}
@@ -318,26 +454,135 @@ public class StarDist2D {
 			double downsample = pixelSize / resolution.getAveragedPixelSize().doubleValue();
 			resolution = resolution.createScaledInstance(downsample, downsample);
 		}
-		var server = ImageOps.buildServer(imageData, op, resolution, tileWidth, tileHeight);
+		var opServer = ImageOps.buildServer(imageData, op, resolution, tileWidth, tileHeight);
 		
 		RegionRequest request;
 		if (roi == null)
-			request = RegionRequest.createInstance(server);
+			request = RegionRequest.createInstance(opServer);
 		else
 			request = RegionRequest.createInstance(
-				server.getPath(),
-				server.getDownsampleForResolution(0),
+				opServer.getPath(),
+				opServer.getDownsampleForResolution(0),
 				roi);
 
-		var tiles = server.getTileRequestManager().getTileRequests(request);
+		var tiles = opServer.getTileRequestManager().getTileRequests(request);
 		var mask = roi == null ? null : roi.getGeometry();
 				
-		return tiles.parallelStream()
-			.flatMap(t -> detectObjectsForTile(op, imageData, t.getRegionRequest(), threshold, includeProbability, tiles.size() > 1, mask).stream())
-			.collect(Collectors.toList());
+		// Detect all potential nuclei
+		var server = imageData.getServer();
+		var cal = server.getPixelCalibration();
+		double expansion = cellExpansion / cal.getAveragedPixelSize().doubleValue();
+		var plane = roi.getImagePlane();
+//		var detections = tiles.parallelStream()
+//			.flatMap(t -> detectObjectsForTile(op, imageData, t.getRegionRequest(), tiles.size() > 1, mask).stream())
+//			.map(n -> convertToObject(n, plane, expansion, mask))
+//			.collect(Collectors.toList());
+
+		if (tiles.size() > 1)
+			log("Detecting nuclei for {} tiles", tiles.size());
+		else
+			log("Detecting nuclei");
+		var nuclei = tiles.parallelStream()
+				.flatMap(t -> detectObjectsForTile(op, imageData, t.getRegionRequest(), tiles.size() > 1, mask).stream())
+				.collect(Collectors.toList());
+		
+		// Filter nuclei again if we need to for resolving tile overlaps
+		if (tiles.size() > 1) {
+			log("Resolving nucleus overlaps");
+			nuclei = filterNuclei(nuclei);
+		}
+		
+		// Convert to detections, dilating to approximate cells if necessary
+		var detections = nuclei.parallelStream()
+				.map(n -> convertToObject(n, plane, expansion, mask))
+				.collect(Collectors.toList());
+		
+		// Resolve cell overlaps, if needed
+		if (expansion > 0 && !ignoreCellOverlaps) {
+			log("Resolving cell overlaps");
+			detections = CellTools.constrainCellOverlaps(detections);
+		}
+		
+		// Add shape measurements, if needed
+		if (measureShape)
+			detections.parallelStream().forEach(c -> CellMeasurements.addShapeMeasurements(c, cal));
+		
+		// Add intensity measurements, if needed
+		if (!detections.isEmpty() && !measurements.isEmpty()) {
+			log("Making measurements");
+			var stains = imageData.getColorDeconvolutionStains();
+			var builder = new TransformedServerBuilder(server);
+			if (stains != null) {
+				List<Integer> stainNumbers = new ArrayList<>();
+				for (int s = 1; s <= 3; s++) {
+					if (!stains.getStain(s).isResidual())
+						stainNumbers.add(s);
+				}
+				builder.deconvolveStains(stains, stainNumbers.stream().mapToInt(i -> i).toArray());
+			}
+			
+			var server2 = builder.build();
+			double downsample = resolution.getAveragedPixelSize().doubleValue() / cal.getAveragedPixelSize().doubleValue();
+			
+			detections.parallelStream().forEach(cell -> {
+				try {
+					CellMeasurements.addIntensityMeasurements(server2, cell, downsample, measurements, compartments);					
+				} catch (IOException e) {
+					log(e.getLocalizedMessage(), e);
+				}
+			});
+			
+		}
+		
+		log("Detected {} cells", detections.size());
+
+		return detections;
 	}
 	
-	private static List<PathObject> detectObjectsForTile(ImageDataOp op, ImageData<BufferedImage> imageData, RegionRequest request, double threshold, boolean includeProbability, boolean excludeOnBounds, Geometry mask) {
+	
+	
+	private void log(String message, Object... arguments) {
+		if (doLog)
+			logger.info(message, arguments);
+		else
+			logger.debug(message, arguments);			
+	}
+	
+	
+	private PathObject convertToObject(PotentialNucleus nucleus, ImagePlane plane, double cellExpansion, Geometry mask) {
+		var geomNucleus = simplify(nucleus.geometry);
+		var roiNucleus = GeometryTools.geometryToROI(geomNucleus, plane);
+		PathObject pathObject;
+		if (cellExpansion > 0) {
+			var geomCell = CellTools.estimateCellBoundary(geomNucleus, cellExpansion, cellConstrainScale);
+			if (mask != null)
+				geomCell = GeometryTools.attemptOperation(geomCell, g -> g.intersection(mask));
+			geomCell = simplify(geomCell);
+			var roiCell = GeometryTools.geometryToROI(geomCell, plane);
+			pathObject = PathObjects.createCellObject(roiCell, roiNucleus, null, null);
+		} else
+			pathObject = PathObjects.createDetectionObject(roiNucleus);
+		if (includeProbability) {
+        	try (var ml = pathObject.getMeasurementList()) {
+        		ml.putMeasurement("Detection probability", nucleus.getProbability());
+        	}
+        }
+		return pathObject;
+	}
+	
+	
+	private Geometry simplify(Geometry geom) {
+		if (simplifyDistance <= 0)
+			return geom;
+		try {
+			return VWSimplifier.simplify(geom, simplifyDistance);
+		} catch (Exception e) {
+			return geom;
+		}
+	}
+	
+	
+	private List<PotentialNucleus> detectObjectsForTile(ImageDataOp op, ImageData<BufferedImage> imageData, RegionRequest request, boolean excludeOnBounds, Geometry mask) {
 		
 		Mat mat;
 		try {
@@ -348,7 +593,7 @@ public class StarDist2D {
 		}
 		
 		FloatIndexer indexer = mat.createIndexer();
-		var nuclei = createNuclei(indexer, threshold, request, mask);
+		var nuclei = createNuclei(indexer, request, mask);
 		
 		// Exclude anything that overlaps the right/bottom boundary of a region
 		if (excludeOnBounds) {
@@ -360,8 +605,8 @@ public class StarDist2D {
 					iter.remove();
 			}
 		}
-		
-		return createDetections(nuclei, ImagePlane.getDefaultPlane(), includeProbability);
+
+		return filterNuclei(nuclei);
 	}
 	
 	/**
@@ -375,7 +620,7 @@ public class StarDist2D {
 	
 	
 	
-	private static List<PotentialNucleus> createNuclei(FloatIndexer indexer, double threshold, RegionRequest request, Geometry mask) {
+	private List<PotentialNucleus> createNuclei(FloatIndexer indexer, RegionRequest request, Geometry mask) {
 	    long[] sizes = indexer.sizes();
 	    long[] inds = new long[3];
 	    int h = (int)sizes[0];
@@ -410,58 +655,76 @@ public class StarDist2D {
 	            }
 	            coords.add(coords.get(0));
 	            var polygon = factory.createPolygon(coords.toArray(Coordinate[]::new));
-	            if (locator == null || locator.locate(new Centroid(polygon).getCentroid()) != Location.EXTERIOR)
-	            	nuclei.add(new PotentialNucleus(polygon, prob));
+	            if (locator == null || locator.locate(new Centroid(polygon).getCentroid()) != Location.EXTERIOR) {
+	            	
+	            	var geom = simplify(polygon);
+	            	
+	            	nuclei.add(new PotentialNucleus(geom, prob));
+	            }
 	        }
 	    }
-	    Collections.sort(nuclei, Comparator.comparingDouble((PotentialNucleus n) -> n.getProbability()).reversed());
 	    return nuclei;
 	}
 
 
-	private static List<PathObject> createDetections(List<PotentialNucleus> potentialNuclei, ImagePlane plane, boolean includeProbability) {
-	    var detections = new ArrayList<PathObject>();
-	    int n = potentialNuclei.size();
-	    boolean[] skipped = new boolean[n];
-	    int skipCount = 0;
+	private List<PotentialNucleus> filterNuclei(List<PotentialNucleus> potentialNuclei) {
+		
+		// Sort in descending order of probability
+		Collections.sort(potentialNuclei, Comparator.comparingDouble((PotentialNucleus n) -> n.getProbability()).reversed());
+		
+		// Create array of nuclei to keep & to skip
+	    var nuclei = new LinkedHashSet<PotentialNucleus>();
+	    var skippedNucleus = new HashSet<PotentialNucleus>();
 	    int skipErrorCount = 0;
-	    for (int i = 0; i < n; i++) {
-	        if (skipped[i])
-	            continue;
-	        var nucleus = potentialNuclei.get(i);
-	        var roi = GeometryTools.geometryToROI(nucleus.geometry, plane);
-	        var detection = PathObjects.createDetectionObject(roi);
-	        if (includeProbability) {
-	        	try (var ml = detection.getMeasurementList()) {
-	        		ml.putMeasurement("Detection probability", nucleus.getProbability());
-	        	}
-	        }
-	        detections.add(detection);
-	        for (int j = i+1; j < n; j++) {
-	            if (skipped[j])
-	                continue;
-	            var nucleus2 = potentialNuclei.get(j);
-	            // TODO: Consider simply subtracting the other area, rather than entirely removing the nucleus
-	            try {
-		            if (nucleus.geometry.intersects(nucleus2.geometry)) {
-		                var difference = nucleus2.geometry.difference(nucleus.geometry);
-		                if (difference instanceof Polygon && difference.getArea() > nucleus2.fullArea / 2.0)
-		                    nucleus2.geometry = difference;
-		                else {
-		                    skipped[j] = true;
-		                    skipCount++;
-		                }
-		            }
-	            } catch (Exception e) {
-                    skipCount++;
-                    skipErrorCount++;	            	
-	            }
-	        }
+	    
+	    // Create a spatial cache to find overlaps more quickly
+	    // (Because of later tests, we don't need to update envelopes even though geometries may be modified)
+	    Map<PotentialNucleus, Envelope> envelopes = new HashMap<>();
+	    var tree = new STRtree();
+	    for (var nuc : potentialNuclei) {
+	    	var env = nuc.geometry.getEnvelopeInternal();
+	    	envelopes.put(nuc, env);
+	    	tree.insert(env, nuc);
 	    }
-	    if (skipErrorCount > 0)
-	    	logger.warn("Skipped {} nucleus detection(s) due to error ({}% of all skipped)", 
+	    
+	    for (var nucleus : potentialNuclei) {
+	        if (skippedNucleus.contains(nucleus))
+	            continue;
+	        nuclei.add(nucleus);
+        	var envelope = envelopes.get(nucleus);
+        	
+        	@SuppressWarnings("unchecked")
+			var overlaps = (List<PotentialNucleus>)tree.query(envelope);
+        	for (var nucleus2 : overlaps) {
+        		if (nucleus2 == nucleus || skippedNucleus.contains(nucleus2) || nuclei.contains(nucleus2))
+        			continue;
+        		
+            	// If we have an overlap, retain the higher-probability nucleus only (i.e. the one we met first)
+        		// Try to refine other nuclei
+	            try {
+	            	var env = envelopes.get(nucleus2);
+	                if (envelope.intersects(env) && nucleus.geometry.intersects(nucleus2.geometry)) {
+	                	// Retain the nucleus only if it is not fragmented, or less than half its original area
+	                    var difference = nucleus2.geometry.difference(nucleus.geometry);
+	                    if (difference instanceof Polygon && difference.getArea() > nucleus2.fullArea / 2.0)
+	                        nucleus2.geometry = difference;
+	                    else {
+	                    	skippedNucleus.add(nucleus2);
+	                    }
+	                }
+	            } catch (Exception e) {
+                	skippedNucleus.add(nucleus2);
+	            	skipErrorCount++;
+	            }
+
+        	}
+	    }
+	    if (skipErrorCount > 0) {
+	    	int skipCount = skippedNucleus.size();
+	    	logger.warn("Skipped {} nucleus detection(s) due to error in resolving overlaps ({}% of all skipped)", 
 	    			skipErrorCount, GeneralTools.formatNumber(skipErrorCount*100.0/skipCount, 1));
-	    return detections;
+	    }
+	    return new ArrayList<>(nuclei);
 	}
 	
 	

@@ -11,13 +11,18 @@ import org.locationtech.jts.algorithm.distance.PointPairDistance;
 import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
 import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygonal;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryCombiner;
+import org.locationtech.jts.index.strtree.ItemBoundable;
+import org.locationtech.jts.index.strtree.ItemDistance;
+import org.locationtech.jts.index.strtree.STRtree;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +31,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.roi.GeometryTools;
 
 /**
  * Static methods for calculating distances between objects.
@@ -141,6 +147,8 @@ public class DistanceTools {
 		for (int t : timePoints) {
 			for (int z : zSlices) {
 				
+				PrecisionModel precision = null;
+				
 				List<Geometry> areaGeometries = new ArrayList<>();
 				List<Geometry> lineGeometries = new ArrayList<>();
 				List<Geometry> pointGeometries = new ArrayList<>();
@@ -148,8 +156,11 @@ public class DistanceTools {
 					var roi = annotation.getROI();
 					if (roi != null && roi.getZ() == z && roi.getT() == t) {
 						var geom = annotation.getROI().getGeometry();
-						if (transform != null)
+						if (transform != null) {
 							geom = transform.transform(geom);
+							if (precision == null)
+								precision = geom.getPrecisionModel();
+						}
 //						var geom = converter.roiToGeometry(annotation.getROI());
 						if (geom instanceof Puntal)
 							pointGeometries.add(geom);
@@ -176,6 +187,8 @@ public class DistanceTools {
 				if (areaGeometries.isEmpty() && pointGeometries.isEmpty() && lineGeometries.isEmpty())
 					continue;
 				
+				var precisionModel = precision == null ? GeometryTools.getDefaultFactory().getPrecisionModel() : precision;
+				
 				List<Coordinate> pointCoords = new ArrayList<>();
 				
 				Geometry temp = null;
@@ -188,15 +201,21 @@ public class DistanceTools {
 					temp = lineGeometries.size() == 1 ? lineGeometries.get(0) : GeometryCombiner.combine(lineGeometries);
 				Geometry lineGeometry = temp;
 				
+				// Identify points, and create an STRtree to find nearest neighbors more quickly if there are a lot of them
 				if (!pointGeometries.isEmpty()) {
 					for (var geom : pointGeometries) {
-						for (var coord : geom.getCoordinates())
+						for (var coord : geom.getCoordinates()) {
+							precisionModel.makePrecise(coord);
 							pointCoords.add(coord);
+						}
 					}
 				}
+				STRtree pointTree = pointCoords != null && pointCoords.size() > 1000 ? createCoordinateCache(pointCoords) : null;
+				CoordinateDistance coordinateDistance = new CoordinateDistance();
 				
 				int zi = z;
 				int ti = t;
+				
 				
 				var locator = shapeGeometry == null ? null : new IndexedPointInAreaLocator(shapeGeometry);
 				sourceObjects.parallelStream().forEach(p -> {
@@ -204,8 +223,9 @@ public class DistanceTools {
 					if (roi.getZ() != zi || roi.getT() != ti)
 						return;
 					Coordinate coord = new Coordinate(roi.getCentroidX() * pixelWidth, roi.getCentroidY() * pixelHeight);
+					precisionModel.makePrecise(coord);
 					
-					double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords);
+					double pointDistance = pointCoords == null ? Double.POSITIVE_INFINITY : computeCoordinateDistance(coord, pointCoords, pointTree, coordinateDistance);
 					double lineDistance = lineGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, lineGeometry, null);
 					double shapeDistance = shapeGeometry == null ? Double.POSITIVE_INFINITY : computeDistance(coord, shapeGeometry, locator);
 					double distance = Math.min(lineDistance, Math.min(pointDistance, shapeDistance));
@@ -234,8 +254,6 @@ public class DistanceTools {
 		var targetPoints = PathObjectTools.convertToPoints(targetObjects, preferNucleus);
 		centroidToBoundsDistance2D(sourceObjects, targetPoints, pixelWidth, pixelHeight, measurementName);
 	}
-		
-
 	
 	
 	/**
@@ -249,6 +267,62 @@ public class DistanceTools {
 		for (var target : targets)
 			d = Math.min(d, coord.distance(target));
 		return d;
+	}
+	
+	/**
+	 * Compute the distance to the nearest coordinate stored within an {@link STRtree}.
+	 * This assumes that all items in the tree are coordinates (and nothing else!).
+	 * @param coord the query coordinate
+	 * @param tree the {@link STRtree} containing existing coordinates
+	 * @return distance to the closest coordinate found in tree, or Double.POSITIVE_INFINITY is no coordinate is found
+	 * 
+	 * @see #createCoordinateCache(Collection)
+	 */
+	public static double computeCoordinateDistance(Coordinate coord, STRtree tree) {
+		return computeCoordinateDistance(coord, tree, new CoordinateDistance());
+	}
+	
+	/**
+	 * Create an {@link STRtree} to enable nearest neighbor searching for a collection of coordinates.
+	 * @param coords the coordinates to insert into the tree
+	 * @return the tree
+	 */
+	public static STRtree createCoordinateCache(Collection<Coordinate> coords) {
+		var tree = new STRtree();
+		for (var c : coords) {
+			tree.insert(new Envelope(c), c);							
+		}
+		return tree;
+	}
+
+	
+	private static double computeCoordinateDistance(Coordinate coord, STRtree tree, ItemDistance distance) {
+		if (tree.isEmpty())
+			return Double.POSITIVE_INFINITY;
+		var env = new Envelope(coord);
+		var nearest = (Coordinate)tree.nearestNeighbour(env, coord, new CoordinateDistance());
+		return nearest == null ? Double.POSITIVE_INFINITY : coord.distance(nearest);
+	}
+	
+	private static double computeCoordinateDistance(Coordinate coord, Collection<Coordinate> targets, STRtree tree, ItemDistance distance) {
+		if (tree != null) {
+			return computeCoordinateDistance(coord, tree, distance);
+		}
+		double d = Double.POSITIVE_INFINITY;
+		for (var target : targets)
+			d = Math.min(d, coord.distance(target));
+		return d;
+	}
+	
+	private static class CoordinateDistance implements ItemDistance {
+
+		@Override
+		public double distance(ItemBoundable item1, ItemBoundable item2) {
+			var o1 = (Coordinate)item1.getItem();
+			var o2 = (Coordinate)item2.getItem();
+			return o1.distance(o2);
+		}
+		
 	}
 	
 	/**

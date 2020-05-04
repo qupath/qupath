@@ -386,11 +386,10 @@ public class MeasurementMapPane {
 		}
 	}
 	
-	
-	private void updateMeasurements() {
-//		this.measurements.clear();
-//		this.measurements.addAll(measurements);
-		
+	/**
+	 * Update the measurements according to the current image
+	 */
+	public void updateMeasurements() {
 		QuPathViewer viewer = qupath.getViewer();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		if (hierarchy == null) {

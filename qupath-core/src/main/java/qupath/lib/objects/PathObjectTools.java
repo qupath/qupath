@@ -621,7 +621,7 @@ public class PathObjectTools {
 			if (includeColor)
 				pathObject.setColorRGB(null);
 		} else {
-			pathObject.setName(pathClass.getName());
+			pathObject.setName(pathClass.toString());
 			if (includeColor)
 				pathObject.setColorRGB(pathClass.getColor());				
 		}

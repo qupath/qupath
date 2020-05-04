@@ -948,17 +948,22 @@ class DefaultProject implements Project<BufferedImage> {
 //		}
 		builder.add("images", gson.toJsonTree(images));
 		
+		// TODO: Consider the (admittedly unexpected) case where the JSON is too long for a String
+		var jsonString = gson.toJson(builder);
 
 		// If we already have a project, back it up
 		if (fileProject.exists()) {
 			File fileBackup = new File(fileProject.getAbsolutePath() + ".backup");
 			if (fileProject.renameTo(fileBackup))
 				logger.debug("Existing project file backed up at {}", fileBackup.getAbsolutePath());
+			else
+				logger.debug("Unable to backup existing project to {}", fileBackup.getAbsolutePath());				
 		}
 
 		// Write project
+		logger.info("Writing project to {}", fileProject.getAbsolutePath());
 		try (PrintWriter writer = new PrintWriter(fileProject, StandardCharsets.UTF_8)) {
-			writer.write(gson.toJson(builder));
+			writer.write(jsonString);
 		}
 	}
 	

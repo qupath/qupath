@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -325,6 +327,21 @@ public class ColorDeconvolutionStains implements Externalizable {
 		if (n == 0)
 			logger.error("Stains are not zero-based! Do you mean you want stain 1?");
 		return null;
+	}
+	
+	/**
+	 * Get a collection of all the stains.
+	 * @param includeResidual if true, include residual stains in the list. If false, only include non-residual stains.
+	 * @return a collection of stains.
+	 */
+	public Collection<StainVector> getStains(boolean includeResidual) {
+		var list = new ArrayList<StainVector>();
+		for (int s = 1; s <= 3; s++) {
+			var stain = getStain(s);
+			if (includeResidual || !stain.isResidual())
+				list.add(stain);
+		}
+		return list;
 	}
 	
 	/**

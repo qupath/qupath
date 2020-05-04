@@ -50,7 +50,8 @@ class ConfusionMatrix<T> {
 	ConfusionMatrix(final Collection<T> classes, Function<T, String> stringFun) {
 		this.classes.addAll(classes);
 		int n = classes.size();
-		matrix = new int[n][n];
+		this.matrix = new int[n][n];
+		this.stringFun = stringFun;
 	}
 	
 	ConfusionMatrix(final Collection<T> classes) {

@@ -3,6 +3,7 @@ package qupath.lib.images.servers;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import qupath.lib.common.GeneralTools;
@@ -214,6 +215,22 @@ public class PixelCalibration {
 	 */
 	public String getPixelWidthUnit() {
 		return pixelWidth.unit;
+	}
+	
+	/**
+	 * Returns true if the units for pixel width and height are the same.
+	 * @return
+	 */
+	public boolean unitsMatch2D() {
+		return Objects.equals(getPixelHeightUnit(), getPixelHeightUnit());
+	}
+	
+	/**
+	 * Returns true if the units for pixel width, height and z-spacing are the same.
+	 * @return
+	 */
+	public boolean unitsMatch3D() {
+		return unitsMatch2D() && Objects.equals(getPixelHeightUnit(), getZSpacingUnit());
 	}
 
 	/**

@@ -1644,6 +1644,8 @@ public class ImageOps {
 			
 			private boolean doParallel;
 			
+			private Padding padding;
+			
 			private transient Net net;
 			private transient ThreadLocal<Net> localNet = ThreadLocal.withInitial(() -> readNet());
 			private transient Exception exception;
@@ -1661,13 +1663,13 @@ public class ImageOps {
 				this.model = model;
 				this.inputWidth = inputWidth;
 				this.inputHeight = inputHeight;
-				super.padding = padding;
+				this.padding = padding;
 				this.doParallel = doParallel;
 			}
 
 			@Override
 			protected Padding calculatePadding() {
-				return super.padding;
+				return padding;
 			}
 			
 			/**

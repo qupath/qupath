@@ -13,11 +13,13 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.index.strtree.STRtree;
+import org.locationtech.jts.simplify.VWSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Helper class for working with {@linkplain PathObject PathObjects} that represent cells.
@@ -95,25 +97,44 @@ public class CellTools {
 		for (var detection : detections) {
 			var roiNucleus = PathObjectTools.getROI(detection, true);
 			var geomNucleus = roiNucleus.getGeometry();
-			var geomCell = geomNucleus.buffer(distance);
-			if (nucleusScale > 1) {
-				geomNucleus = geomNucleus.convexHull();
-				var centroid = new Centroid(geomNucleus).getCentroid();
-				double x = centroid.getX();
-				double y = centroid.getY();
-				transform.setToTranslation(-x, -y);
-				transform.scale(nucleusScale, nucleusScale);
-				transform.translate(x, y);
-				var geomNucleusExpanded = transform.transform(geomNucleus);
-				if (!geomNucleusExpanded.covers(geomCell))
-					geomCell = geomCell.intersection(geomNucleusExpanded);
-				if (geomNucleus.getNumGeometries() == 1 && geomCell.getNumGeometries() == 1 && !geomCell.covers(geomNucleus))
-					geomCell = geomCell.union(geomNucleus);
-			}
+			var geomCell = estimateCellBoundary(geomNucleus, distance, nucleusScale, transform);
 			map.put(detection, geomCell);
 		}
 		return detectionsToCells(map);
 	}
+	
+	/**
+	 * Estimate a cell boundary using {@link Geometry} objects.
+	 * This avoids the need to create {@link ROI} or {@link PathObject} first.
+	 * 
+	 * @param geomNucleus {@link Geometry} representing the cell nucleus
+	 * @param distance distance to expand the nucleus, in pixels
+	 * @param nucleusScale optional maximum expansion distance defined in terms of scaling the nucleus ROI about its centroid; ignored if &le; 1
+	 * @return a {@link Geometry} providing a cell boundary estimate
+	 */
+	public static Geometry estimateCellBoundary(Geometry geomNucleus, double distance, double nucleusScale) {
+		return estimateCellBoundary(geomNucleus, distance, nucleusScale, new AffineTransformation());
+	}
+	
+	private static Geometry estimateCellBoundary(Geometry geomNucleus, double distance, double nucleusScale, AffineTransformation transform) {
+		var geomCell = geomNucleus.buffer(distance);
+		if (nucleusScale > 1) {
+			geomNucleus = geomNucleus.convexHull();
+			var centroid = new Centroid(geomNucleus).getCentroid();
+			double x = centroid.getX();
+			double y = centroid.getY();
+			transform.setToTranslation(-x, -y);
+			transform.scale(nucleusScale, nucleusScale);
+			transform.translate(x, y);
+			var geomNucleusExpanded = transform.transform(geomNucleus);
+			if (!geomNucleusExpanded.covers(geomCell))
+				geomCell = geomCell.intersection(geomNucleusExpanded);
+			if (geomNucleus.getNumGeometries() == 1 && geomCell.getNumGeometries() == 1 && !geomCell.covers(geomNucleus))
+				geomCell = geomCell.union(geomNucleus);
+		}
+		return geomCell;
+	}
+	
 	
 	/**
 	 * Convert detections to cells, using pre-computed boundary geometry estimates.
@@ -191,7 +212,7 @@ public class CellTools {
 		
 		var subdivision = DelaunayTools.newBuilder(allDetections)
 			.preferNucleus(true)
-			.roiBounds(4.0)
+			.roiBounds(2.0, 1)
 			.build();
 		
 		var cells = new ArrayList<PathObject>();
@@ -206,6 +227,7 @@ public class CellTools {
 			var geomCell = face;
 			try {
 				geomCell = GeometryTools.ensurePolygonal(face.intersection(bounds));
+				geomCell = VWSimplifier.simplify(geomCell, 1.0);
 			} catch (Exception e) {
 				if (face.getArea() > bounds.getArea()) {
 					geomCell = bounds;
@@ -217,8 +239,18 @@ public class CellTools {
 			var roiCell = roiNucleus;
 			if (geomCell.isEmpty()) {
 				logger.warn("Unable to create cell ROI for {} - I'll use the nucleus ROI instead", detection);
-			} else
+			} else {
+				var geomNucleus = roiNucleus.getGeometry();
+				if (!geomCell.covers(geomNucleus)) {
+					try {
+						geomNucleus = geomCell.intersection(geomNucleus);
+						roiNucleus = GeometryTools.geometryToROI(geomNucleus, roiNucleus.getImagePlane());
+					} catch (Exception e) {
+						logger.debug("Error constraining nucleus to cell: {}", e.getLocalizedMessage());
+					}
+				}
 				roiCell = GeometryTools.geometryToROI(geomCell, roiNucleus.getImagePlane());
+			}
 			cells.add(PathObjects.createCellObject(roiCell, roiNucleus, detection.getPathClass(), detection.getMeasurementList()));
 		}
 		return cells;
