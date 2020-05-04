@@ -701,7 +701,7 @@ public class Dialogs {
 		 * @return this builder
 		 */
 		public Builder resizable() {
-			resizable = false;
+			resizable = true;
 			return this;
 		}
 

@@ -46,13 +46,15 @@ public class ProjectDialogs {
 	 * @param project	variable used to get all images to populate the list.
 	 * @param listSelectionView	variable that will be populated.
 	 * @param previousImages	keeps track of images already used previously (can be null).
+	 * @param sameImageWarning	warning shown if image(s) to process is/are currently opened in viewer(s).
 	 * @param doSave	variable used to know whether displaying info about data saving.
 	 * @return multi-selection control
 	 */
-	public static ListSelectionView<ProjectImageEntry<BufferedImage>> createImageChoicePane(QuPathGUI qupath, 
+	public static ListSelectionView<ProjectImageEntry<BufferedImage>> createImageChoicePane(QuPathGUI qupath,
 								Project<BufferedImage> project,
-								ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, 
-								List<ProjectImageEntry<BufferedImage>> previousImages, 
+								ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView,
+								List<ProjectImageEntry<BufferedImage>> previousImages,
+								String sameImageWarning,
 								boolean doSave) {
 		
 		listSelectionView.getSourceItems().setAll(project.getImageList());
@@ -85,9 +87,7 @@ public class ProjectDialogs {
 		
 		// Create label to show number selected, with a possible warning if we have a current image open
 		List<ProjectImageEntry<BufferedImage>> currentImages = new ArrayList<>();
-		Label labelSameImageWarning = new Label(
-				"A selected image is open in the viewer!\n"
-				+ "Use 'File>Reload data' to see changes.");
+		Label labelSameImageWarning = new Label(sameImageWarning);
 		
 		Label labelSelected = new Label();
 		labelSelected.setTextAlignment(TextAlignment.CENTER);

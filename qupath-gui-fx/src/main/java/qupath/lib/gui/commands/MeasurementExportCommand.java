@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.io.Files;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -131,7 +132,8 @@ public class MeasurementExportCommand implements Runnable {
 		separatorCombo = new ComboBox<>();
 		includeCombo = new CheckComboBox<String>();
 		listSelectionView = new ListSelectionView<>();
-		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, true);
+		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting results.";
+		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, sameImageWarning, true);
 		
 
 		// BOTTOM PANE (OPTIONS)
@@ -244,15 +246,15 @@ public class MeasurementExportCommand implements Runnable {
 		PaneTools.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
 		btnPopulateColumns.setMinWidth(100);
 		btnResetColumns.setMinWidth(75);
-
 		
-		dialog = new Dialog<>();
-		dialog.getDialogPane().setMinHeight(400);
-		dialog.getDialogPane().setMinWidth(600);
-		dialog.setTitle("Export measurements");
-		dialog.getDialogPane().getButtonTypes().addAll(btnExport, ButtonType.CANCEL);
-		dialog.getDialogPane().setContent(mainPane);		
+		dialog = Dialogs.builder()
+				.title("Export measurement(s)")
+				.size(900, 900)
+				.buttons(btnExport, ButtonType.CANCEL)
+				.content(mainPane)
+				.build();
 		
+		dialog.getDialogPane().setPrefSize(600, 400);
 		imageEntryPane.setCenter(listSelectionView);
 		
 		// Set the disabledProperty according to (1) targetItems.size() > 0 and (2) outputText.isEmpty()
@@ -268,8 +270,18 @@ public class MeasurementExportCommand implements Runnable {
 			return;
 		
 		File outputFile = new File(outputText.getText());
-		if (outputFile.getParent() == null)
-			outputText.setText(Projects.getBaseDirectory(project) + "\\" + outputText.getText());
+		if (outputFile.getParent() == null) {
+			String newPath = Projects.getBaseDirectory(project) + File.separator + outputText.getText();
+			Optional<ButtonType> changePath = Dialogs.builder()
+					.title("Export measurement(s)")
+					.contentText("The ouput path is not a full path.\nWill export to the project directory instead:\n" + newPath)
+					.buttons(ButtonType.OK, ButtonType.CANCEL)
+					.showAndWait();
+			if (!changePath.isPresent() || changePath.get() == ButtonType.CANCEL)
+				return;
+			else
+				outputText.setText(Projects.getBaseDirectory(project) + File.separator + outputText.getText());
+		}
 				
 		var checkedItems = includeCombo.getCheckModel().getCheckedItems();
 		String[] include = checkedItems.stream().collect(Collectors.toList()).toArray(new String[checkedItems.size()]);
@@ -298,7 +310,7 @@ public class MeasurementExportCommand implements Runnable {
 		
 		ProgressDialog progress = new ProgressDialog(worker);
 		progress.setWidth(600);
-		//progress.initOwner(dialog.getDialogPane().getScene().getWindow());
+		progress.initOwner(qupath.getStage());
 		progress.setTitle("Export measurements...");
 		progress.getDialogPane().setHeaderText("Export measurement(s)");
 		progress.getDialogPane().setGraphic(null);
@@ -443,7 +455,6 @@ public class MeasurementExportCommand implements Runnable {
 				} catch (Exception e) {
 					logger.error(e.getLocalizedMessage(), e);
 				}
-			
 			}
 	
 			try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))){
@@ -502,6 +513,7 @@ public class MeasurementExportCommand implements Runnable {
 				time = String.format("Total processing time: %d milliseconds", timeMillis);
 			logger.info("Processed {} images", imageList.size());
 			logger.info(time);
+			logger.info("Measurement(s) exported to " + outputText.getText());
 			
 			Dialogs.showMessageDialog("Export completed", "Successful export!");
 			return null;
