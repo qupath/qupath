@@ -1,3 +1,12 @@
+## Version 0.2.0-m12
+
+This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
+
+* Several minor fixes from v0.2.0-m11
+* Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
+
+
+
 ## Version 0.2.0-m11
 
 This is a *milestone* (i.e. still in development) version made available to try out new features early.
