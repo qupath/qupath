@@ -453,19 +453,19 @@ public class QuPathGUI {
 		 * Move tool action
 		 */
 		@ActionAccelerator("m")
-		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation)")
+		@ActionDescription("Move tool, both for moving around the viewer (panning) and moving objects (translation).")
 		public final Action MOVE_TOOL = getToolAction(PathTools.MOVE);
 		/**
 		 * Rectangle tool action
 		 */
 		@ActionAccelerator("r")
-		@ActionDescription("Click and drag to raw a rectangle annotation. Hold down 'Shift' to contrain shape to be a square.")
+		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to contrain shape to be a square.")
 		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
 		/**
 		 * Ellipse tool action
 		 */
 		@ActionAccelerator("o")
-		@ActionDescription("Click and drag to raw an ellipse annotation. Hold down 'Shift' to contrain shape to be a circle.")
+		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to contrain shape to be a circle.")
 		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
 		/**
 		 * Polygon tool action
