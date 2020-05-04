@@ -522,7 +522,7 @@ public class StarDist2D {
 			}
 			
 			var server2 = builder.build();
-			double downsample = pixelSize / cal.getAveragedPixelSize().doubleValue();
+			double downsample = resolution.getAveragedPixelSize().doubleValue() / cal.getAveragedPixelSize().doubleValue();
 			
 			detections.parallelStream().forEach(cell -> {
 				try {
