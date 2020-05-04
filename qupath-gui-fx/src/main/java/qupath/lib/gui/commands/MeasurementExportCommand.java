@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.io.Files;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -65,6 +66,7 @@ import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
+import qupath.lib.projects.Projects;
 
 /**
  * Dialog box to export measurements
@@ -73,7 +75,6 @@ import qupath.lib.projects.ProjectImageEntry;
  *
  */
 
-// TODO: Save current image(s)?
 public class MeasurementExportCommand implements Runnable {
 	
 	private QuPathGUI qupath;
@@ -130,7 +131,8 @@ public class MeasurementExportCommand implements Runnable {
 		separatorCombo = new ComboBox<>();
 		includeCombo = new CheckComboBox<String>();
 		listSelectionView = new ListSelectionView<>();
-		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, true);
+		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
+		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, sameImageWarning, true);
 		
 
 		// BOTTOM PANE (OPTIONS)
@@ -141,10 +143,10 @@ public class MeasurementExportCommand implements Runnable {
 			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
 			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
 			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
-			File pathOut = Dialogs.promptToSaveFile("Output file", null, "measurements" + ext, extDesc, ext);
+			File pathOut = Dialogs.promptToSaveFile("Output file", Projects.getBaseDirectory(project), "measurements" + ext, extDesc, ext);
 			if (pathOut != null) {
 				if (pathOut.isDirectory())
-					pathOut = new File(pathOut.getAbsolutePath() + "/export" + ext);
+					pathOut = new File(pathOut.getAbsolutePath() + File.separator + "measurements" + ext);
 				outputText.setText(pathOut.getAbsolutePath());
 			}
 		});
@@ -243,15 +245,14 @@ public class MeasurementExportCommand implements Runnable {
 		PaneTools.setToExpandGridPaneWidth(outputText, pathObjectCombo, separatorCombo, includeCombo);
 		btnPopulateColumns.setMinWidth(100);
 		btnResetColumns.setMinWidth(75);
-
 		
-		dialog = new Dialog<>();
-		dialog.getDialogPane().setMinHeight(400);
-		dialog.getDialogPane().setMinWidth(600);
-		dialog.setTitle("Export measurements");
-		dialog.getDialogPane().getButtonTypes().addAll(btnExport, ButtonType.CANCEL);
-		dialog.getDialogPane().setContent(mainPane);		
+		dialog = Dialogs.builder()
+				.title("Export measurements")
+				.buttons(btnExport, ButtonType.CANCEL)
+				.content(mainPane)
+				.build();
 		
+		dialog.getDialogPane().setPrefSize(600, 400);
 		imageEntryPane.setCenter(listSelectionView);
 		
 		// Set the disabledProperty according to (1) targetItems.size() > 0 and (2) outputText.isEmpty()
@@ -265,7 +266,25 @@ public class MeasurementExportCommand implements Runnable {
 		
 		if (!result.isPresent() || result.get() != btnExport || result.get() == ButtonType.CANCEL)
 			return;
+
+		String curExt = Files.getFileExtension(outputText.getText());
+		if (curExt.equals("") || (!curExt.equals("csv") && !curExt.equals("tsv"))) {
+			curExt = curExt.length() > 1 ? "." + curExt : curExt;
+			String extSelected = separatorCombo.getSelectionModel().getSelectedItem();
+			String ext = extSelected.equals("Tab (.tsv)") ? ".tsv" : ".csv";
+			outputText.setText(outputText.getText().substring(0, outputText.getText().length() - curExt.length()) + ext);
+		}
 		
+		if (new File(outputText.getText()).getParent() == null) {
+			String ext = Files.getFileExtension(outputText.getText()).equals("tsv") ? ".tsv": ".csv";
+			String extDesc = ext.equals(".tsv") ? "TSV (Tab delimited)" : "CSV (Comma delimited)";
+			File pathOut = Dialogs.promptToSaveFile("Output file", Projects.getBaseDirectory(project), outputText.getText(), extDesc, ext);
+			if (pathOut == null)
+				return;
+			else
+				outputText.setText(pathOut.getAbsolutePath());
+		}
+				
 		var checkedItems = includeCombo.getCheckModel().getCheckedItems();
 		String[] include = checkedItems.stream().collect(Collectors.toList()).toArray(new String[checkedItems.size()]);
 		String separator = defSep;
@@ -293,9 +312,9 @@ public class MeasurementExportCommand implements Runnable {
 		
 		ProgressDialog progress = new ProgressDialog(worker);
 		progress.setWidth(600);
-		//progress.initOwner(dialog.getDialogPane().getScene().getWindow());
+		progress.initOwner(qupath.getStage());
 		progress.setTitle("Export measurements...");
-		progress.getDialogPane().setHeaderText("Export measurement(s)");
+		progress.getDialogPane().setHeaderText("Export measurements");
 		progress.getDialogPane().setGraphic(null);
 		progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
 		progress.getDialogPane().lookupButton(ButtonType.CANCEL).addEventFilter(ActionEvent.ACTION, e -> {
@@ -438,7 +457,6 @@ public class MeasurementExportCommand implements Runnable {
 				} catch (Exception e) {
 					logger.error(e.getLocalizedMessage(), e);
 				}
-			
 			}
 	
 			try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8))){
@@ -497,6 +515,7 @@ public class MeasurementExportCommand implements Runnable {
 				time = String.format("Total processing time: %d milliseconds", timeMillis);
 			logger.info("Processed {} images", imageList.size());
 			logger.info(time);
+			logger.info("Measurements exported to " + outputText.getText());
 			
 			Dialogs.showMessageDialog("Export completed", "Successful export!");
 			return null;

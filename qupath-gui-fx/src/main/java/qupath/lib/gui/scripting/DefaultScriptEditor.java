@@ -1274,8 +1274,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
 
-		
-		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, doSave);
+		String sameImageWarning = "A selected image is open in the viewer!\nUse 'File>Reload data' to see changes.";
+		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, sameImageWarning, doSave);
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());
