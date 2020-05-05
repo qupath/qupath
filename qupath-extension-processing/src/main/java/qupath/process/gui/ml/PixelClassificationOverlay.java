@@ -66,6 +66,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
 
     private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
     private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
+    private Set<TileRequest> currentRequests = Collections.synchronizedSet(new HashSet<>());
     
     private ExecutorService pool;
     
@@ -437,9 +438,10 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
             	if (pool.isShutdown())
             		return;
             	// Check we still need to make the request
-            	if (!pendingRequests.contains(tile)) {
+            	if (!pendingRequests.contains(tile) || !currentRequests.add(tile)) {
             		return;
             	}
+//            	System.err.println(tile.hashCode() + " - " + ImageRegion.createInstance(tile.getImageX(), tile.getImageY(), tile.getImageWidth(), tile.getImageHeight(), tile.getZ(), tile.getT()));
             	var changed = new ArrayList<PathObject>();
                 var imageData = getImageData();
                 var hierarchy = imageData == null ? null : imageData.getHierarchy();
@@ -459,6 +461,7 @@ public class PixelClassificationOverlay extends AbstractImageDataOverlay  {
                 } catch (Exception e) {
                    logger.error("Error requesting tile classification: ", e.getLocalizedMessage(), e);
                 } finally {
+                    currentRequests.remove(tile);
                     pendingRequests.remove(tile);
                     if (hierarchy != null && !changed.isEmpty()) {
 	                	Platform.runLater(() -> {
