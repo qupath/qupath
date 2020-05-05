@@ -651,7 +651,8 @@ public class ImageOps {
 			protected Mat transformPadded(Mat input) {
 				var builder = getBuilder();
 				var output = new ArrayList<Mat>();
-				for (var mat : OpenCVTools.splitChannels(input)) {
+				var channels = OpenCVTools.splitChannels(input);
+				for (var mat : channels) {
 					var results = builder.build(mat);
 					for (var f : features)
 						output.add(results.get(f));
@@ -1499,14 +1500,8 @@ public class ImageOps {
 		static class SplitMergeOp extends PaddedOp {
 			
 			private List<ImageOp> ops;
-			private boolean doParallel = false;
 			
 			SplitMergeOp(ImageOp...ops) {
-				this(false, ops);
-			}
-			
-			SplitMergeOp(boolean doParallel, ImageOp...ops) {
-				this.doParallel = doParallel;
 				this.ops = new ArrayList<>();
 				for (var t : ops) {
 					this.ops.add(t);
@@ -1539,10 +1534,14 @@ public class ImageOps {
 					return new Mat();
 				if (ops.size() == 1)
 					return ops.get(0).apply(input);
-				var stream = ops.stream();
-				if (doParallel)
-					stream = stream.parallel();
-				var mats = stream.map(t -> t.apply(input.clone())).collect(Collectors.toList());
+				var mats = new ArrayList<Mat>();
+				for (var op : ops) {
+					var temp = input.clone();
+					var result = op.apply(temp);
+					mats.add(result);
+					if (result != temp)
+						temp.close();
+				}
 				// Remember we padded all branches the same - but some may have needed more or less than others
 				var padding = getPadding();
 				for (int i = 0; i < ops.size(); i++) {
