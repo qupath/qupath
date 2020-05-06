@@ -76,6 +76,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
@@ -286,6 +287,11 @@ public class CommandFinderTools {
 		pane.setBottom(panelSearch);
 		
 		stage.setScene(new Scene(pane, 600, 400));
+		
+		stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+	        if (e.getCode() == KeyCode.ESCAPE)
+	            stage.hide();
+		});
 		
 		textField.textProperty().addListener((v, o, n) -> {
 			// Ensure the table is up to date if we are just starting
