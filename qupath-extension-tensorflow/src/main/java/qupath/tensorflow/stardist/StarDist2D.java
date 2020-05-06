@@ -375,6 +375,8 @@ public class StarDist2D {
 			
 			if (measurements != null)
 				stardist.measurements = new LinkedHashSet<>(measurements);
+			else
+				stardist.measurements = Collections.emptyList();
 			
 			return stardist;
 		}

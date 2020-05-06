@@ -214,9 +214,18 @@ public class OpenCVTools {
 	 * @return a list of {@link Mat}, containing each split channel in order
 	 */
 	public static List<Mat> splitChannels(Mat mat) {
-		var matvec = new MatVector();
-		opencv_core.split(mat, matvec);
-		return Arrays.asList(matvec.get());
+		var list = new ArrayList<Mat>();
+		var channels = mat.channels();
+		for (int c = 0; c < channels; c++) {
+			var temp = new Mat();
+			opencv_core.extractChannel(mat, temp, c);
+			list.add(temp);
+		}
+		return list;
+		// This code appeared to give the occasional crazy result (perhaps followed by a segfault?)
+//		var matvec = new MatVector();
+//		opencv_core.split(mat, matvec);
+//		return Arrays.asList(matvec.get());
 	}
 	
 	/**
