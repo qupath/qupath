@@ -289,8 +289,10 @@ public class CommandFinderTools {
 		stage.setScene(new Scene(pane, 600, 400));
 		
 		stage.getScene().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-	        if (e.getCode() == KeyCode.ESCAPE)
-	            stage.hide();
+	        if (e.getCode() == KeyCode.ESCAPE) {
+	        	stage.hide();
+	        	e.consume();
+	        }
 		});
 		
 		textField.textProperty().addListener((v, o, n) -> {
