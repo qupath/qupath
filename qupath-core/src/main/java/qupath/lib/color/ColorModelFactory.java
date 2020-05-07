@@ -10,6 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
@@ -25,6 +28,8 @@ import qupath.lib.objects.classes.PathClassTools;
  *
  */
 public final class ColorModelFactory {
+	
+	private final static Logger logger = LoggerFactory.getLogger(ColorModelFactory.class);
 	
 	private static Map<Map<Integer, PathClass>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
 
@@ -91,7 +96,12 @@ public final class ColorModelFactory {
         int[] cmap = new int[length];
         
         for (var entry: labelColors.entrySet()) {
-        	cmap[entry.getKey()] = entry.getValue();
+        	Integer value = entry.getValue();
+        	if (value == null) {
+        		logger.warn("No color specified for index {} - using default gray", entry.getKey());
+        		cmap[entry.getKey()] = includeAlpha ? ColorTools.makeRGBA(127, 127, 127, 127) : ColorTools.makeRGB(127, 127, 127);
+        	} else
+        		cmap[entry.getKey()] = entry.getValue();
         }
         if (cmap.length > 256)
         	throw new IllegalArgumentException("Only 256 possible classifications supported!");
