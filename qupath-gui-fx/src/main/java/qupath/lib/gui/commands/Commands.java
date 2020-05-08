@@ -1460,7 +1460,7 @@ public class Commands {
 				ROI pathROI = pathObject.getROI();
 				if (pathROI instanceof PolygonROI) {
 					PolygonROI polygonROI = (PolygonROI)pathROI;
-					polygonROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
+					pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
 				} else {
 					pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
 				}
