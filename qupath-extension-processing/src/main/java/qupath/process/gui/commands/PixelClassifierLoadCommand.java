@@ -4,9 +4,11 @@ import java.io.IOException;
 import java.util.Collection;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
@@ -20,8 +22,6 @@ import qupath.process.gui.ml.PixelClassifierTools;
 
 /**
  * Command to apply a pre-trained pixel classifier to an image.
- * <p>
- * TODO: This command is unfinished!
  * 
  * @author Pete Bankhead
  *
@@ -82,8 +82,14 @@ public class PixelClassifierLoadCommand implements Runnable {
 			return null;
 		}, comboClassifiers.getSelectionModel().selectedItemProperty());
 		
+		var limitToAnnotations = new SimpleBooleanProperty(true);
+		
 		var selectedOverlay = Bindings.createObjectBinding(() -> {
-			return selectedClassifier.get() == null ? null : PixelClassificationOverlay.createPixelClassificationOverlay(viewer, selectedClassifier.get());
+			if (selectedClassifier.get() == null)
+				return null;
+			var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), selectedClassifier.get());
+			overlay.setUseAnnotationMask(limitToAnnotations.get());
+			return overlay;
 		}, selectedClassifier);
 		
 		selectedOverlay.addListener((v, o, n) -> {
@@ -116,6 +122,15 @@ public class PixelClassifierLoadCommand implements Runnable {
 		btnClassifyObjects.setOnAction(e -> {
 			PixelClassifierTools.classifyDetectionsByCentroid(viewer.getImageData(), selectedClassifier.get());
 		});
+		
+		var cbLimitToAnnotations = new CheckBox("Limit to annotations");
+		cbLimitToAnnotations.selectedProperty().bindBidirectional(limitToAnnotations);
+		limitToAnnotations.addListener((v, o, n) -> {
+			var overlay = selectedOverlay.get();
+			if (overlay != null)
+				overlay.setUseAnnotationMask(n);
+		});
+		
 
 		var pane = new GridPane();
 		pane.setPadding(new Insets(10.0));
@@ -123,10 +138,27 @@ public class PixelClassifierLoadCommand implements Runnable {
 		pane.setVgap(10);
 		int row = 0;
 		PaneTools.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
+		PaneTools.addGridRow(pane, row++, 0, "Apply live prediction only to annotated regions (useful for previewing)", cbLimitToAnnotations, cbLimitToAnnotations, cbLimitToAnnotations);
 		PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
-				
+		
+//		var labelInfo = new Label(
+//				"Load & apply a pixel classifier to an image.\n\n" +
+//				"Note that this command is linked to a specific viewer.\n" + 
+//				"If you need to classify an image in another viewer, \n" +
+//				"select the viewer and run this command again."
+//				);
+//		labelInfo.setAlignment(Pos.CENTER);
+//		labelInfo.setWrapText(true);
+//		var stage = Dialogs.builder()
+//			.title(title)
+//			.content(pane)
+//			.owner(qupath.getStage())
+//			.expandableContent(labelInfo)
+//			.nonModal()
+//			.build();
+		
 		var stage = new Stage();
 		stage.setTitle(title);
 		stage.setScene(new Scene(pane));
@@ -140,6 +172,9 @@ public class PixelClassifierLoadCommand implements Runnable {
 			if (current != null && viewer.getCustomPixelLayerOverlay() == current) {
 				current.stop();
 				viewer.resetCustomPixelLayerOverlay();
+				var data = viewer.getImageData();
+				if (data != null)
+					PixelClassificationImageServer.setPixelLayer(data, null);
 			}
 		});
 		

@@ -106,6 +106,9 @@ public class SimpleThresholdCommand implements Runnable {
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
 	private ObjectProperty<PixelClassifier> currentClassifier = new SimpleObjectProperty<>();
 
+	/**
+	 * Map to track where we have added an overlay
+	 */
 	private Map<QuPathViewer, PathOverlay> map = new WeakHashMap<>();
 	
 	
@@ -252,18 +255,25 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.setResizable(false);
 		stage.show();
 		
-		stage.setOnHiding(e -> {
-			for (var entry : map.entrySet()) {
-				if (entry.getKey().getCustomPixelLayerOverlay() == entry.getValue()) {
-					var imageData = entry.getKey().getImageData();
-					if (imageData != null)
-						PixelClassificationImageServer.setPixelLayer(entry.getKey().getImageData(), null);
-					selectedOverlay.set(null);
-					entry.getKey().resetCustomPixelLayerOverlay();
-				}
-			}
-		});
+		stage.setOnHiding(e -> resetOverlays());
 	}
+	
+	private void resetOverlay(QuPathViewer viewer, PathOverlay overlay) {
+		if (viewer.getCustomPixelLayerOverlay() == overlay) {
+			viewer.resetCustomPixelLayerOverlay();
+			var imageData = viewer.getImageData();
+			if (imageData != null)
+				PixelClassificationImageServer.setPixelLayer(imageData, null);
+		}
+	}
+	
+	private void resetOverlays() {
+		for (var entry : map.entrySet()) {
+			resetOverlay(entry.getKey(), entry.getValue());
+		}
+		selectedOverlay.set(null);
+	}
+	
 	
 	/**
 	 * Switch high and low classifications.
@@ -306,22 +316,21 @@ public class SimpleThresholdCommand implements Runnable {
 	
 	private void updateClassification() {
 		
-		var viewer = qupath.getViewer();
-		if (viewer == null)
-			return;
-		
-		var imageData = viewer.getImageData();
-		if (imageData == null) {
-			selectedOverlay.set(null);
-			viewer.resetCustomPixelLayerOverlay();
-			return;
-		}
+//		for (var viewer : qupath.getViewers()) {
+//			var imageData = viewer.getImageData();
+//			if (imageData == null) {
+//				selectedOverlay.set(null);
+//				viewer.resetCustomPixelLayerOverlay();
+//			}			
+//		}
 		
 		var channel = selectedChannel.get();
 		var thresholdValue = threshold.get();
 		var resolution = selectedResolution.get();
-		if (channel == null || thresholdValue == null || resolution == null)
+		if (channel == null || thresholdValue == null || resolution == null) {
+			resetOverlays();
 			return;
+		}
 		
 		var feature = selectedPrefilter.get();
 		double sigmaValue = sigma.get();
@@ -350,20 +359,30 @@ public class SimpleThresholdCommand implements Runnable {
 				resolution.getPixelCalibration(),
 				classifications);
 
-		// Try (admittedly unsuccessfully) to reduce flicker
-		viewer.setMinimumRepaintSpacingMillis(1000L);
-		viewer.repaint();
-		
-		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
+		// Create classifier
+		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), classifier);
 		overlay.setLivePrediction(true);
 		overlay.setUseAnnotationMask(cbLimitToAnnotations.isSelected());
 		selectedOverlay.set(overlay);
 		this.currentClassifier.set(classifier);
-		viewer.setCustomPixelLayerOverlay(overlay);
-		map.put(viewer, overlay);
-		imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
-
-		viewer.resetMinimumRepaintSpacingMillis();
+		
+		// Try (admittedly unsuccessfully) to reduce flicker
+		for (var viewer : qupath.getViewers()) {
+			var imageData = viewer.getImageData();
+			if (imageData == null) {
+				resetOverlay(viewer, map.get(viewer));
+				continue;
+			}
+			
+			viewer.setMinimumRepaintSpacingMillis(1000L);
+			viewer.repaint();
+			
+			viewer.setCustomPixelLayerOverlay(overlay);
+			map.put(viewer, overlay);
+			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
+	
+			viewer.resetMinimumRepaintSpacingMillis();
+		}
 	}
 	
 	

@@ -99,24 +99,24 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
     /**
      * Create an overlay to display the live application of a {@link PixelClassifier} to an image, using the default number of parallel 
      * threads for classification.
-     * @param viewer the viewer to which the overlay should be added
+     * @param options the options controlling the overlay display
      * @param classifier the classifier
      * @return
      */
-    public static PixelClassificationOverlay createPixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier) {
+    public static PixelClassificationOverlay createPixelClassificationOverlay(final OverlayOptions options, final PixelClassifier classifier) {
     	int nThreads = Math.max(1, PathPrefs.numCommandThreadsProperty().get() / 2);
-    	return createPixelClassificationOverlay(viewer, classifier, nThreads);
+    	return createPixelClassificationOverlay(options, classifier, nThreads);
     }
     
     /**
      * Create an overlay to display the live application of a {@link PixelClassifier} to an image.
-     * @param viewer the viewer to which the overlay should be added
+     * @param options the options controlling the overlay display
      * @param classifier the classifier
      * @param nThreads number of parallel threads to use for classification (will be clipped to 1 or greater)
      * @return
      */
-    public static PixelClassificationOverlay createPixelClassificationOverlay(final QuPathViewer viewer, final PixelClassifier classifier, final int nThreads) {
-    	return new PixelClassificationOverlay(viewer.getOverlayOptions(), Math.max(1, nThreads), new ClassifierServerFunction(classifier));
+    public static PixelClassificationOverlay createPixelClassificationOverlay(final OverlayOptions options, final PixelClassifier classifier, final int nThreads) {
+    	return new PixelClassificationOverlay(options, Math.max(1, nThreads), new ClassifierServerFunction(classifier));
     }
     
     

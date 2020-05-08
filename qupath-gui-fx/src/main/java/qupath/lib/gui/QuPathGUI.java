@@ -300,8 +300,15 @@ public class QuPathGUI {
 	private TabPane analysisPanel = new TabPane();
 	
 	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
+	
+	/**
+	 * Default options used for viewers
+	 */
 	private OverlayOptions overlayOptions = new OverlayOptions();
 	
+	/**
+	 * Default region store used by viewers for tile caching and repainting
+	 */
 	private DefaultImageRegionStore imageRegionStore;
 
 	private ToolBarComponent toolbar; // Top component
@@ -3628,6 +3635,14 @@ public class QuPathGUI {
 		return overlayOptions;
 	}
 
+	/**
+	 * Return the global {@link DefaultImageRegionStore} instance, used to cache and paint image tiles.
+	 * @return
+	 */
+	public DefaultImageRegionStore getImageRegionStore() {
+		return imageRegionStore;
+	}
+	
 	
 	private void initializeAnalysisPanel() {
 		analysisPanel.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);

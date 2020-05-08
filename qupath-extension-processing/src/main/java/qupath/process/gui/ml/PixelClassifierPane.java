@@ -181,7 +181,7 @@ public class PixelClassifierPane {
 		this.qupath = qupath;
 //		this.viewer = qupath.getViewer();
 		helper = new PixelClassifierTraining(null);
-		featureRenderer = new FeatureRenderer(qupath.getViewer().getImageRegionStore());
+		featureRenderer = new FeatureRenderer(qupath.getImageRegionStore());
 		initialize();
 	}
 
@@ -920,8 +920,7 @@ public class PixelClassifierPane {
 
 		 var classifier = PixelClassifiers.createClassifier(model, featureCalculator, metadata, true);
 
-		 var viewer = qupath.getViewer();
-		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
+		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), classifier);
 		 replaceOverlay(overlay);
 	}
 	
