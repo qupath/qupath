@@ -38,11 +38,14 @@ import qupath.lib.gui.viewer.OverlayOptions;
  */
 public abstract class AbstractOverlay implements PathOverlay {
 
-	protected OverlayOptions overlayOptions = null;
+	private OverlayOptions overlayOptions = null;
 	private Color overlayColor = ColorToolsAwt.TRANSLUCENT_BLACK;
 	private double opacity = 1.0;
 	private AlphaComposite composite = null;
-	private boolean visible = true;
+	
+	protected AbstractOverlay(OverlayOptions options) {
+		this.overlayOptions = options;
+	}
 
 	/**
 	 * Get the overlay options, which may influence the display of this overlay.
@@ -61,42 +64,47 @@ public abstract class AbstractOverlay implements PathOverlay {
 			g2d.setComposite(composite);
 	}
 
-	@Override
+	/**
+	 * Check overlay visibility status.  If isVisible() returns {@code false},
+	 * then calls to paintOverlay() will not do anything.
+	 * @return
+	 */
 	public boolean isVisible() {
-		return visible;
-	}
-
-	@Override
-	public void setVisible(boolean visible) {
-		this.visible = visible;
+		return opacity > 0;
 	}
 
 	/**
-	 * Tests both isVisible() and whether opacity &lt;= 0, i.e. will return true if this overlay could not cause
-	 * any change in appearance.
-	 * @return
+	 * Set a preferred overlay color, which the overlay may or may not make use of.
+	 * The aim is to provide a means to suggest drawing with a light color on a dark image, 
+	 * or a dark color on a light image.
+	 * 
+	 * @param color
 	 */
-	@Override
-	public boolean isInvisible() {
-		return !isVisible() || opacity <= 0;
-	}
-
-	@Override
 	public void setPreferredOverlayColor(Color color) {
 		this.overlayColor = color;
 	}
 
-	@Override
+	/**
+	 * Return the preferred overlay color.
+	 * @return
+	 * @see #setPreferredOverlayColor(Color)
+	 */
 	public Color getPreferredOverlayColor() {
 		return overlayColor;
 	}
 
-	@Override
+	/**
+	 * Get opacity, between 0 (completely transparent) and 1 (completely opaque).
+	 * @return
+	 */
 	public double getOpacity() {
 		return opacity;
 	}
 
-	@Override
+	/**
+	 * Set opacity between 0 (completely transparent) and 1 (completely opaque).
+	 * @param opacity
+	 */
 	public void setOpacity(double opacity) {
 		opacity = Math.max(0, Math.min(opacity, 1.0));
 		if (this.opacity == opacity)
@@ -107,5 +115,5 @@ public abstract class AbstractOverlay implements PathOverlay {
 		else
 			composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float)opacity);
 	}
-
+	
 }

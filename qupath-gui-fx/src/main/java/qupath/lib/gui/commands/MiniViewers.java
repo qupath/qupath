@@ -574,8 +574,9 @@ public class MiniViewers {
 					if (opacity < 1f)
 						g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
 					ImageRegion region = AwtTools.getImageRegion(g2d.getClipBounds(), mainViewer.getZPosition(), mainViewer.getTPosition());				
-					mainViewer.getOverlayLayers().stream().forEach(o -> o.paintOverlay(
-							g2d, region, downsample, null, false));					
+					mainViewer.getOverlayLayers().stream().forEach(o -> {
+						o.paintOverlay(g2d, region, downsample, mainViewer.getImageData(), false);
+					});
 				}
 				
 				g2d.dispose();

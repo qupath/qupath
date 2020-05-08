@@ -109,8 +109,9 @@ public class PixelClassifierLoadCommand implements Runnable {
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
-			PixelClassifierTools.promptToCreateObjects(viewer.getImageData(), 
-					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
+			var data = viewer.getImageData();
+			PixelClassifierTools.promptToCreateObjects(data, 
+					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer(data));
 		});
 		btnClassifyObjects.setOnAction(e -> {
 			PixelClassifierTools.classifyDetectionsByCentroid(viewer.getImageData(), selectedClassifier.get());

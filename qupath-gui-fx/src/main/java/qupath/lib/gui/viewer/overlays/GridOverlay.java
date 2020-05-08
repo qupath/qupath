@@ -29,8 +29,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.image.ImageObserver;
-
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.images.ImageData;
@@ -45,25 +43,24 @@ import qupath.lib.regions.ImageRegion;
  * @author Pete Bankhead
  *
  */
-public class GridOverlay extends AbstractImageDataOverlay {
+public class GridOverlay extends AbstractOverlay {
 
 	/**
 	 * Constructor.
 	 * @param overlayOptions overlay options to control the grid display
-	 * @param imageData current image data
 	 */
-	public GridOverlay(final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
-		super(overlayOptions, imageData);
+	public GridOverlay(final OverlayOptions overlayOptions) {
+		super(overlayOptions);
 	}
 	
 	@Override
-	public boolean isInvisible() {
-		return super.isInvisible() || !getOverlayOptions().getShowGrid();
+	public boolean isVisible() {
+		return super.isVisible() && getOverlayOptions().getShowGrid();
 	}
 
 	@Override
-	public void paintOverlay(final Graphics2D g, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
-		if (isInvisible())
+	public void paintOverlay(final Graphics2D g, final ImageRegion imageRegion, final double downsampleFactor, final ImageData<BufferedImage> imageData, final boolean paintCompletely) {
+		if (!isVisible() || imageData == null)
 			return;
 
 		
@@ -76,15 +73,9 @@ public class GridOverlay extends AbstractImageDataOverlay {
 		
 		// Draw grid lines
 		g2d.setStroke(new BasicStroke((float)(downsampleFactor*1.5)));
-		drawGrid(getOverlayOptions().getGridLines(), g2d, getServer(), downsampleFactor, imageRegion, getPreferredOverlayColor());
+		drawGrid(getOverlayOptions().getGridLines(), g2d, imageData.getServer(), downsampleFactor, imageRegion, getPreferredOverlayColor());
 		
 		g2d.dispose();
-	}
-
-
-	@Override
-	public boolean supportsImageDataChange() {
-		return true;
 	}
 
 	private static void drawGrid(final GridLines gridLines, final Graphics g, final ImageServer<?> server, final double downsample, final ImageRegion imageRegion, final Color color) {

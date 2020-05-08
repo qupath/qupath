@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -40,6 +41,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Scene;
@@ -109,7 +111,9 @@ public class PixelClassifierPane {
 	private static ObservableList<ImageDataTransformerBuilder> defaultFeatureCalculatorBuilders = FXCollections.observableArrayList();
 	
 	
-	private QuPathViewer viewer;
+	private QuPathGUI qupath;
+//	private QuPathViewer viewer;
+	
 	private GridPane pane;
 	
 	private ObservableList<ClassificationResolution> resolutions = FXCollections.observableArrayList();
@@ -123,6 +127,10 @@ public class PixelClassifierPane {
 	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
 	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
 
+	/**
+	 * Other images from which training annotations should be used
+	 */
+	private List<ImageData<BufferedImage>> trainingImageData = new ArrayList<>();
 	
 	private MiniViewers.MiniViewerManager miniViewer;
 	
@@ -142,6 +150,11 @@ public class PixelClassifierPane {
 	private PieChart pieChart;
 
 	private HierarchyListener hierarchyListener = new HierarchyListener();
+	
+	
+	private PixelClassificationOverlay overlay;
+	private PixelClassificationOverlay featureOverlay;
+	private FeatureRenderer featureRenderer;
 
 	private ChangeListener<ImageData<BufferedImage>> imageDataListener = new ChangeListener<ImageData<BufferedImage>>() {
 
@@ -153,7 +166,7 @@ public class PixelClassifierPane {
 			if (newValue != null)
 				newValue.getHierarchy().addPathObjectListener(hierarchyListener);
 			updateTitle();
-			updateAvailableResolutions();
+			updateAvailableResolutions(newValue);
 		}
 		
 	};
@@ -162,17 +175,20 @@ public class PixelClassifierPane {
 	
 	/**
 	 * Constructor.
-	 * @param viewer the current {@link QuPathViewer} that will be used for interactive training.
+	 * @param qupath the current {@link QuPathGUI} that will be used for interactive training.
 	 */
-	public PixelClassifierPane(final QuPathViewer viewer) {
-		this.viewer = viewer;
-		helper = new PixelClassifierTraining(viewer.getImageData(), null);
-		featureRenderer = new FeatureRenderer(viewer.getImageRegionStore());
-		initialize(viewer);
+	public PixelClassifierPane(final QuPathGUI qupath) {
+		this.qupath = qupath;
+//		this.viewer = qupath.getViewer();
+		helper = new PixelClassifierTraining(null);
+		featureRenderer = new FeatureRenderer(qupath.getViewer().getImageRegionStore());
+		initialize();
 	}
 
 	
-	private void initialize(final QuPathViewer viewer) {
+	private void initialize() {
+		
+		var imageData = qupath.getImageData();
 		
 		int row = 0;
 		
@@ -208,7 +224,7 @@ public class PixelClassifierPane {
 		// Features
 		var labelFeatures = new Label("Features");
 		var comboFeatures = new ComboBox<ImageDataTransformerBuilder>();
-		comboFeatures.getItems().add(new ImageDataTransformerBuilder.DefaultFeatureCalculatorBuilder(viewer.getImageData()));
+		comboFeatures.getItems().add(new ImageDataTransformerBuilder.DefaultFeatureCalculatorBuilder(imageData));
 //		comboFeatures.getItems().add(new FeatureCalculatorBuilder.ExtractNeighborsFeatureCalculatorBuilder(viewer.getImageData()));
 		labelFeatures.setLabelFor(comboFeatures);
 		selectedFeatureCalculatorBuilder = comboFeatures.getSelectionModel().selectedItemProperty();
@@ -220,11 +236,11 @@ public class PixelClassifierPane {
 		var btnCustomizeFeatures = new Button("Edit");
 		btnCustomizeFeatures.disableProperty().bind(Bindings.createBooleanBinding(() -> {
 			var calc = selectedFeatureCalculatorBuilder.get();
-			return calc == null || !calc.canCustomize(viewer.getImageData());
+			return calc == null || !calc.canCustomize(imageData);
 		},
 				selectedFeatureCalculatorBuilder));
 		btnCustomizeFeatures.setOnAction(e -> {
-			if (selectedFeatureCalculatorBuilder.get().doCustomize(viewer.getImageData())) {
+			if (selectedFeatureCalculatorBuilder.get().doCustomize(imageData)) {
 				updateFeatureCalculator();
 			}
 		});
@@ -343,16 +359,16 @@ public class PixelClassifierPane {
 				OpenCVClassifiers.createStatModel(KNearest.class)
 				);
 		
-		comboClassifier.getSelectionModel().clearAndSelect(0);
+		comboClassifier.getSelectionModel().clearAndSelect(1);
 		
 		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboClassifier, comboFeatures);
 		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboClassifier, comboFeatures);
 		
-		miniViewer = new MiniViewers.MiniViewerManager(viewer, 0);
+		miniViewer = new MiniViewers.MiniViewerManager(qupath.getViewer(), 0);
 		var viewerPane = miniViewer.getPane();
 		Tooltip.install(viewerPane, new Tooltip("View image at classification resolution"));
 		
-		updateAvailableResolutions();	
+		updateAvailableResolutions(imageData);	
 		selectedResolution.addListener((v, o, n) -> {
 			updateResolution(n);
 			updateClassifier();
@@ -374,9 +390,9 @@ public class PixelClassifierPane {
 		btnCreateObjects.disableProperty().bind(classificationComplete);
 		btnCreateObjects.setOnAction(e -> {
 			var server = getClassificationServerOrShowError();
-			var imageData = viewer.getImageData();
-			if (imageData != null && server != null)
-				PixelClassifierTools.promptToCreateObjects(imageData, server);
+			var imageData2 = qupath.getImageData();
+			if (imageData2 != null && server != null)
+				PixelClassifierTools.promptToCreateObjects(imageData2, server);
 		});
 		
 		var btnClassifyObjects = new Button("Classify detections");
@@ -404,7 +420,7 @@ public class PixelClassifierPane {
 			}
 			if (overlay != null)
 				overlay.setOpacity(n.doubleValue());
-			viewer.repaint();
+			qupath.repaintViewers();
 		});
 
 		var btnFeatureAuto = new Button("Auto");
@@ -478,9 +494,9 @@ public class PixelClassifierPane {
 
 		stage.initOwner(QuPathGUI.getInstance().getStage());
 		
-		stage.getScene().getRoot().disableProperty().bind(
-				QuPathGUI.getInstance().viewerProperty().isNotEqualTo(viewer)
-				);
+//		stage.getScene().getRoot().disableProperty().bind(
+//				QuPathGUI.getInstance().viewerProperty().isNotEqualTo(viewer)
+//				);
 		
 		updateTitle();
 		
@@ -493,14 +509,28 @@ public class PixelClassifierPane {
 		stage.show();
 		stage.setOnCloseRequest(e -> destroy());
 		
-		viewer.getView().addEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
+		qupath.getStage().addEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
 		
-		viewer.getImageDataProperty().addListener(imageDataListener);
-		if (viewer.getImageData() != null)
-			viewer.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
+		qupath.imageDataProperty().addListener(imageDataListener);
+		if (qupath.getImageData() != null)
+			qupath.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
 		
 	}
 	
+	
+	private Collection<ImageData<BufferedImage>> getTrainingImageData() {
+		var viewers = qupath.getViewers();
+		var imageData = qupath.getImageData();
+		if (imageData == null)
+			return Collections.emptyList();
+		if (viewers.size() <= 1) {
+			return Collections.singleton(imageData);
+		}
+		var channels = imageData.getServer().getMetadata().getChannels();
+		return viewers.stream().map(v -> v.getImageData()).filter(data -> {
+			return data != null && channels.equals(data.getServer().getMetadata().getChannels());
+		}).collect(Collectors.toList());
+	}
 	
 	
 	/**
@@ -541,22 +571,29 @@ public class PixelClassifierPane {
 	private ImageOp preprocessingOp = null;
 
 		
-	private void updateAvailableResolutions() {
-		var imageData = viewer.getImageData();
+	/**
+	 * Update the available resolutions for the specified ImageData.
+	 * @param imageData
+	 */
+	private void updateAvailableResolutions(ImageData<BufferedImage> imageData) {
 		if (imageData == null) {
 			resolutions.clear();
 			return;
 		}
 		var selected = selectedResolution.get();
-		resolutions.setAll(ClassificationResolution.getDefaultResolutions(imageData, selected));
-		comboResolutions.getSelectionModel().select(selected);
+		var requestedResolutions = ClassificationResolution.getDefaultResolutions(imageData, selected);
+		if (!resolutions.equals(requestedResolutions)) {
+			resolutions.setAll(ClassificationResolution.getDefaultResolutions(imageData, selected));
+			comboResolutions.getSelectionModel().select(selected);
+		}
 	}
 	
 	
 	private void updateFeatureCalculator() {
 		var cal = getSelectedResolution();
-		helper.setFeatureOp(selectedFeatureCalculatorBuilder.get().build(viewer.getImageData(), cal));
-		var featureServer = helper.getFeatureServer();
+		var imageData = qupath.getImageData();
+		helper.setFeatureOp(selectedFeatureCalculatorBuilder.get().build(imageData, cal));
+		var featureServer = helper.getFeatureServer(imageData);
 		if (featureServer == null) {
 			comboDisplayFeatures.getItems().setAll(DEFAULT_CLASSIFICATION_OVERLAY);
 		} else {
@@ -570,8 +607,6 @@ public class PixelClassifierPane {
 		updateClassifier();
 	}
 	
-	private PixelClassificationOverlay featureOverlay = null;
-	private FeatureRenderer featureRenderer;
 	
 	private void autoFeatureContrast() {
 		var selectedChannel = featureRenderer == null ? null : featureRenderer.getSelectedChannel();
@@ -586,21 +621,26 @@ public class PixelClassifierPane {
 	
 	private void updateFeatureOverlay() {
 		if (featureOverlay != null) {
-			featureOverlay.setVisible(false);
 			featureOverlay.stop();
-			if (viewer.getCustomPixelLayerOverlay() == featureOverlay)
-				viewer.resetCustomPixelLayerOverlay();
 			featureOverlay = null;
 		}
-		var featureServer = helper.getFeatureServer();
+		
+		for (var viewer : qupath.getViewers()) {
+			if (viewer.getCustomPixelLayerOverlay() == featureOverlay)
+				viewer.resetCustomPixelLayerOverlay();
+		}
+		
+		var imageData = qupath.getImageData();
+		if (imageData == null)
+			return;
 		String featureName = comboDisplayFeatures.getSelectionModel().getSelectedItem();
 		if (DEFAULT_CLASSIFICATION_OVERLAY.equals(featureName)) {
-			if (overlay != null)
-				overlay.setImageData(viewer.getImageData());
-			viewer.setCustomPixelLayerOverlay(overlay);
+			for (var viewer : qupath.getViewers())
+				viewer.setCustomPixelLayerOverlay(overlay);
 			return;
 		}
 		int channel = -1;
+		var featureServer = helper.getFeatureServer(imageData);
 		if (featureServer != null && featureName != null) {
 			for (int c = 0; c < featureServer.nChannels(); c++) {
 				if (featureName.equals(featureServer.getChannel(c).getName())) {
@@ -610,15 +650,17 @@ public class PixelClassifierPane {
 			}
 			if (channel >= 0) {
 				featureRenderer.setChannel(featureServer, channel, spinFeatureMin.getValue(), spinFeatureMax.getValue());
-				featureOverlay = PixelClassificationOverlay.createFeatureDisplayOverlay(viewer, featureServer, featureRenderer);
+				featureOverlay = PixelClassificationOverlay.createFeatureDisplayOverlay(qupath.getViewer(), data -> helper.getFeatureServer(data), featureRenderer);
 				((PixelClassificationOverlay)featureOverlay).setLivePrediction(true);
 				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
 				featureOverlay.setLivePrediction(livePrediction.get());
 				autoFeatureContrast();
 			}
 		}
-		if (featureOverlay != null)
-			viewer.setCustomPixelLayerOverlay(featureOverlay);
+		if (featureOverlay != null) {
+			for (var viewer : qupath.getViewers())
+				viewer.setCustomPixelLayerOverlay(featureOverlay);
+		}
 	}
 	
 	
@@ -631,7 +673,7 @@ public class PixelClassifierPane {
 		if (featureRenderer == null)
 			return;
 		featureRenderer.setRange(spinFeatureMin.getValue(), spinFeatureMax.getValue());
-		viewer.repaint();
+		qupath.repaintViewers();
 	}
 	
 	private void updateClassifier() {
@@ -641,9 +683,6 @@ public class PixelClassifierPane {
 	
 	
 	private void updateClassifier(boolean doClassification) {
-				
-		helper.setImageData(viewer.getImageData());
-		
 		if (doClassification)
 			doClassification();
 		else
@@ -729,8 +768,9 @@ public class PixelClassifierPane {
 //				return;
 //			}
 //		}
-		if (helper.getFeatureServer() == null) {
-			Dialogs.showErrorNotification("Pixel classifier", "No feature calculator available!");
+		var imageData = qupath.getImageData();
+		if (imageData == null) {
+			Dialogs.showErrorNotification("Pixel classifier", "No image available!");
 			return;			
 		}
 		
@@ -742,7 +782,7 @@ public class PixelClassifierPane {
 
 		ClassifierTrainingData trainingData;
 		try {
-			trainingData = helper.createTrainingData();
+			trainingData = helper.createTrainingData(getTrainingImageData());
 		} catch (Exception e) {
 			logger.error("Error when updating training data", e);
 			return;
@@ -839,7 +879,7 @@ public class PixelClassifierPane {
 			 var trees = (RTreesClassifier)model;
 			 if (trees.hasFeatureImportance())
 				 logVariableImportance(trees,
-						 helper.getFeatureServer().getMetadata().getChannels().stream()
+						 helper.getFeatureOp().getChannels(imageData).stream()
 						 .map(c -> c.getName()).collect(Collectors.toList()));
 		 }
 		 
@@ -880,6 +920,7 @@ public class PixelClassifierPane {
 
 		 var classifier = PixelClassifiers.createClassifier(model, featureCalculator, metadata, true);
 
+		 var viewer = qupath.getViewer();
 		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
 		 replaceOverlay(overlay);
 	}
@@ -925,7 +966,6 @@ public class PixelClassifierPane {
 		}
 	}
 	
-	private PixelClassificationOverlay overlay;
 
 	/**
 	 * Replace the overlay - making sure to do this on the application thread
@@ -954,27 +994,30 @@ public class PixelClassifierPane {
 
 
 	private void destroy() {
-		if (overlay != null) {
-			var imageData = viewer.getImageData();
-			if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.getPixelClassificationServer())
-				PixelClassificationImageServer.setPixelLayer(imageData, null);
+		if (overlay != null)
 			overlay.stop();
+		
+		for (var viewer : qupath.getViewers()) {
+			var imageData = viewer.getImageData();
+			if (overlay != null) {
+				if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.getPixelClassificationServer(imageData))
+					PixelClassificationImageServer.setPixelLayer(imageData, null);
+			}
 			viewer.resetCustomPixelLayerOverlay();
-			overlay = null;
-		}
-		if (featureOverlay != null) {
-			viewer.getCustomOverlayLayers().remove(featureOverlay);
-			featureOverlay = null;
-		}
 
-		viewer.getView().removeEventFilter(MouseEvent.MOUSE_MOVED, mouseListener);
-		viewer.getImageDataProperty().removeListener(imageDataListener);
-		var hierarchy = viewer.getHierarchy();
-		if (hierarchy != null)
-			hierarchy.removePathObjectListener(hierarchyListener);
+			if (featureOverlay != null) {
+				viewer.getCustomOverlayLayers().remove(featureOverlay);
+				featureOverlay.stop();
+			}
+	
+			viewer.getImageDataProperty().removeListener(imageDataListener);
+			var hierarchy = viewer.getHierarchy();
+			if (hierarchy != null)
+				hierarchy.removePathObjectListener(hierarchyListener);
+		}
+		featureOverlay = null;
+		overlay = null;
 //		setImageData(viewer, viewer.getImageData(), null);
-		if (helper != null)
-			helper.setImageData(null);
 		if (stage != null && stage.isShowing())
 			stage.close();
 	}
@@ -1000,7 +1043,7 @@ public class PixelClassifierPane {
 		}
 			
 		try {
-			var imageData = viewer.getImageData();
+			var imageData = qupath.getImageData();
 			return PixelClassifierTools.saveAndApply(project, imageData, server.getClassifier());
 //			var resultServer = saveAndApply(project, imageData, server.getClassifier());
 //			if (resultServer != null) {
@@ -1017,10 +1060,10 @@ public class PixelClassifierPane {
 	
 	
 	private PixelClassificationImageServer getClassificationServerOrShowError() {
-		var hierarchy = viewer.getHierarchy();
-		if (hierarchy == null)
+		var imageData = qupath.getImageData();
+		if (imageData == null || overlay == null)
 			return null;
-		var server = overlay == null ? null : overlay.getPixelClassificationServer();
+		var server = overlay.getPixelClassificationServer(imageData);
 		if (server == null || !(server instanceof PixelClassificationImageServer)) {
 			Dialogs.showErrorMessage("Pixel classifier", "No classifier available!");
 			return null;
@@ -1030,9 +1073,10 @@ public class PixelClassifierPane {
 	
 	
 	private boolean classifyObjects() {
-		var hierarchy = viewer.getHierarchy();
-		if (hierarchy == null)
+		var imageData = qupath.getImageData();
+		if (imageData == null)
 			return false;
+		var hierarchy = imageData.getHierarchy();
 		var server = getClassificationServerOrShowError();
 		if (server == null) {
 			return false;
@@ -1062,7 +1106,9 @@ public class PixelClassifierPane {
 			Dialogs.showErrorMessage("Show output", "No pixel classifier has been trained yet!");
 			return false;
 		}
-		var server = overlay.getPixelClassificationServer();
+		var viewer = qupath.getViewer();
+		var imageData = viewer.getImageData();
+		var server = imageData == null ? null : overlay.getPixelClassificationServer(imageData);
 		if (server == null)
 			return false;
 		var selected = viewer.getSelectedObject();
@@ -1109,6 +1155,7 @@ public class PixelClassifierPane {
 	
 	
 	private boolean showFeatures() {
+		var viewer = qupath.getViewer();
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		double cx = viewer.getCenterPixelX();
 		double cy = viewer.getCenterPixelY();
@@ -1173,7 +1220,8 @@ public class PixelClassifierPane {
 	}
 	
 	private boolean addResolution() {
-		ImageServer<BufferedImage> server = viewer.getServer();
+		var imageData = qupath.getImageData();
+		ImageServer<BufferedImage> server = imageData == null ? null : imageData.getServer();
 		if (server == null) {
 			Dialogs.showNoImageError("Add resolution");
 			return false;
@@ -1214,9 +1262,7 @@ public class PixelClassifierPane {
 	
 	
 	private void updateResolution(ClassificationResolution resolution) {
-		ImageServer<BufferedImage> server = null;
-		if (viewer != null)
-			server = viewer.getServer();
+		ImageServer<BufferedImage> server = qupath.getImageData() == null ? null : qupath.getImageData().getServer();
 		if (server == null || miniViewer == null || resolution == null)
 			return;
 		Tooltip.install(miniViewer.getPane(), new Tooltip("Classification resolution: \n" + resolution));
@@ -1234,8 +1280,19 @@ public class PixelClassifierPane {
 		public void handle(MouseEvent event) {
 			if (overlay == null)
 				return;
-			var p = viewer.componentPointToImagePoint(event.getX(), event.getY(), null, false);
-			var server = overlay.getPixelClassificationServer();
+			for (var viewer : qupath.getViewers()) {
+				var view = viewer.getView();
+				var local = view.screenToLocal(event.getScreenX(), event.getScreenY());
+				if (view.contains(local)) {
+					updateCursorLocation(viewer, local);
+					return;
+				}
+			}
+		}
+		
+		void updateCursorLocation(QuPathViewer viewer, Point2D localPoint) {
+			var p = viewer.componentPointToImagePoint(localPoint.getX(), localPoint.getY(), null, false);
+			var server = overlay.getPixelClassificationServer(viewer.getImageData());
 			String results = null;
 			if (server != null)
 				results = getResultsString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
@@ -1243,7 +1300,9 @@ public class PixelClassifierPane {
 				cursorLocation.set("");
 			else
 				cursorLocation.set(results);
+			return;
 		}
+		
 		
 	}
 	
@@ -1301,8 +1360,9 @@ public class PixelClassifierPane {
 		@Override
 		public void hierarchyChanged(PathObjectHierarchyEvent event) {
 			if (!event.isChanging() && !event.isObjectMeasurementEvent() && (event.isStructureChangeEvent() || event.isObjectClassificationEvent() || !event.getChangedObjects().isEmpty())) {
-				if (event.isObjectClassificationEvent()  || event.getChangedObjects().stream().anyMatch(p -> p.getPathClass() != null)) {
-					if (event.getChangedObjects().stream().anyMatch(p -> p.isAnnotation()))
+				if (event.isObjectClassificationEvent() || event.getChangedObjects().stream().anyMatch(p -> p.getPathClass() != null)) {
+					if (event.getChangedObjects().stream().anyMatch(p -> p.isAnnotation()) && 
+							!(event.isAddedOrRemovedEvent() && event.getChangedObjects().stream().allMatch(p -> p.isLocked())))
 						updateClassifier();
 				}
 			}

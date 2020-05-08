@@ -34,7 +34,6 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.ImageObserver;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -74,10 +73,11 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class HierarchyOverlay extends AbstractImageDataOverlay {
+public class HierarchyOverlay extends AbstractOverlay {
 	
 	final static private Logger logger = LoggerFactory.getLogger(HierarchyOverlay.class);
 
+	private ImageData<BufferedImage> imageData;
 	private PathHierarchyImageServer overlayServer = null;
 
 	private DefaultImageRegionStore regionStore = null;
@@ -93,53 +93,45 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 	transient private DetectionComparator comparator = new DetectionComparator();
 
 	/**
-	 * Constructor.
+	 * Constructor. Note that a {@link HierarchyOverlay} cannot adapt very efficient to changes in {@link ImageData}, and therefore 
+	 * should not be reused across viewers.
 	 * @param regionStore region store to cache image tiles
 	 * @param overlayOptions overlay options to control display
 	 * @param imageData current image data
 	 */
 	public HierarchyOverlay(final DefaultImageRegionStore regionStore, final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
-		super(overlayOptions, imageData);
+		super(overlayOptions);
 		this.regionStore = regionStore;
-		updateOverlayServer();
-	}
-
-
-	@Override
-	public void setImageData(final ImageData<BufferedImage> imageData) {
-		if (getImageData() == imageData)
-			return;
-		super.setImageData(imageData);
+		this.imageData = imageData;
 		updateOverlayServer();
 	}
 	
 	
-	void updateOverlayServer() {
+	private void updateOverlayServer() {
 		clearCachedOverlay();
-		if (getImageData() == null)
+		if (imageData == null)
 			overlayServer = null;
 		else {
 			// If the image is small, don't really need a server at all...
-			overlayServer = new PathHierarchyImageServer(getImageData(), getOverlayOptions());
+			overlayServer = new PathHierarchyImageServer(imageData, getOverlayOptions());
 		}
 	}
-
-	
-	@Override
-	public boolean isInvisible() {
-		return super.isInvisible() || getImageData() == null;
-	}
 	
 
 	@Override
-	public void paintOverlay(final Graphics2D g2d, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
+	public void paintOverlay(final Graphics2D g2d, final ImageRegion imageRegion, final double downsampleFactor, final ImageData<BufferedImage> imageData, final boolean paintCompletely) {
+		
+		if (this.imageData != imageData) {
+			this.imageData = imageData;
+			updateOverlayServer();
+		}
 		
 		// Get the selection model, which can influence colours (TODO: this might not be the best way to do it!)
-		PathObjectHierarchy hierarchy = getHierarchy();
+		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy == null)
 			return;
 		
-		if (isInvisible() && hierarchy.getSelectionModel().noSelection())
+		if (!isVisible() && hierarchy.getSelectionModel().noSelection())
 			return;
 		
 		OverlayOptions overlayOptions = getOverlayOptions();
@@ -193,9 +185,9 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				
 				if (overlayOptions.getShowConnections()) {
-					Object connections = getImageData().getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
+					Object connections = imageData.getProperty(DefaultPathObjectConnectionGroup.KEY_OBJECT_CONNECTIONS);
 					if (connections instanceof PathObjectConnections)
-							PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)connections, hierarchy, g2d, getImageData().isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
+							PathHierarchyPaintingHelper.paintConnections((PathObjectConnections)connections, hierarchy, g2d, imageData.isFluorescence() ? ColorToolsAwt.TRANSLUCENT_WHITE : ColorToolsAwt.TRANSLUCENT_BLACK, downsampleFactor);
 				}
 				
 			} else {					
@@ -203,11 +195,11 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 				// On the other hand, if a large image has been updated then we may be browsing quickly - better to repaint quickly while tiles may still be loading
 				if (paintCompletely) {
 ////											System.out.println("Painting completely");
-					regionStore.paintRegionCompletely(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, observer, null, 5000);
+					regionStore.paintRegionCompletely(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, null, null, 5000);
 				}
 				else {
 ////											System.out.println("Painting PROGRESSIVELY");
-					regionStore.paintRegion(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, null, observer, null);
+					regionStore.paintRegion(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, null, null, null);
 				}
 			}
 		}
@@ -376,13 +368,6 @@ public class HierarchyOverlay extends AbstractImageDataOverlay {
 			regionStore.clearCacheForRequestOverlap(RegionRequest.createInstance(overlayServer.getPath(), 1, region));
 		resetBuffer();
 	}
-	
-	
-	@Override
-	public boolean supportsImageDataChange() {
-		return true;
-	}
-
 
 	
 	/**

@@ -233,7 +233,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		
 		
 		for (var overlay : overlayLayers) {
-			overlay.paintOverlay(g2d, region, downsample, null, true);
+			overlay.paintOverlay(g2d, region, downsample, imageData, true);
 		}
 		
 		g2d.dispose();

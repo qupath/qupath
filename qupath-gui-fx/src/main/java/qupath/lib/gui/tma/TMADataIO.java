@@ -181,7 +181,7 @@ public class TMADataIO {
 			optionsThumbnail.setShowDetections(false);
 			try {
 				var renderedServer = new RenderedImageServer.Builder(imageData)
-						.layers(new TMAGridOverlay(overlayOptions, imageData))
+						.layers(new TMAGridOverlay(overlayOptions))
 						.downsamples(downsampleThumbnail)
 						.build();
 				ImageWriterTools.writeImageRegion(renderedServer, request, fileTMAMap.getAbsolutePath());

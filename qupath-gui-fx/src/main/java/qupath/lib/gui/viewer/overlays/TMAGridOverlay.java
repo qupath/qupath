@@ -26,8 +26,6 @@ package qupath.lib.gui.viewer.overlays;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.image.ImageObserver;
-
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
 import qupath.lib.images.ImageData;
@@ -44,28 +42,27 @@ import qupath.lib.regions.ImageRegion;
  * @author Pete Bankhead
  *
  */
-public class TMAGridOverlay extends AbstractImageDataOverlay {
+public class TMAGridOverlay extends AbstractOverlay {
 
 	/**
 	 * Constructor.
 	 * @param overlayOptions overlay options to control the display of this overlay.
-	 * @param imageData the current image data
 	 */
-	public TMAGridOverlay(final OverlayOptions overlayOptions, final ImageData<BufferedImage> imageData) {
-		super(overlayOptions, imageData);
+	public TMAGridOverlay(final OverlayOptions overlayOptions) {
+		super(overlayOptions);
 	}
 
 	@Override
-	public boolean isInvisible() {
-		return super.isInvisible() || !getOverlayOptions().getShowTMAGrid();
+	public boolean isVisible() {
+		return super.isVisible() && getOverlayOptions().getShowTMAGrid();
 	}
 	
 	@Override
-	public void paintOverlay(final Graphics2D g, final ImageRegion imageRegion, final double downsampleFactor, final ImageObserver observer, final boolean paintCompletely) {
-		if (isInvisible())
+	public void paintOverlay(final Graphics2D g, final ImageRegion imageRegion, final double downsampleFactor, final ImageData<BufferedImage> imageData, final boolean paintCompletely) {
+		if (!isVisible())
 			return;
 
-		PathObjectHierarchy hierarchy = getHierarchy();
+		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy == null)
 			return;
 		
@@ -87,11 +84,6 @@ public class TMAGridOverlay extends AbstractImageDataOverlay {
 		
 		g2d.dispose();
 	}
-
-	@Override
-	public boolean supportsImageDataChange() {
-		return true;
-	}	
 
 
 }

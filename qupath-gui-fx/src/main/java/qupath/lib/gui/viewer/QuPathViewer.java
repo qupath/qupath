@@ -108,9 +108,9 @@ import qupath.lib.gui.images.stores.TileListener;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
-import qupath.lib.gui.viewer.overlays.ImageDataOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.gui.viewer.overlays.PixelLayerOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
@@ -797,8 +797,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		allOverlayLayers.addListener((Change<? extends PathOverlay> e) -> repaint());
 		
 		hierarchyOverlay = new HierarchyOverlay(this.regionStore, overlayOptions, imageData);
-		tmaGridOverlay = new TMAGridOverlay(overlayOptions, imageData);
-		gridOverlay = new GridOverlay(overlayOptions, imageData);
+		tmaGridOverlay = new TMAGridOverlay(overlayOptions);
+		gridOverlay = new GridOverlay(overlayOptions);
 		pixelLayerOverlay = new PixelLayerOverlay(this);
 		// Set up the overlay layers
 		coreOverlayLayers.setAll(
@@ -1484,21 +1484,21 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		//		featureMapWrapper = new TiledFeatureMapImageWrapper(server.getWidth(), server.getHeight());
 
-		// Notify overlays of change to ImageData
-		Iterator<PathOverlay> iter = allOverlayLayers.iterator();
-		while (iter.hasNext()) {
-			PathOverlay overlay = iter.next();
-			if (overlay instanceof ImageDataOverlay) {
-				ImageDataOverlay overlay2 = (ImageDataOverlay)overlay;
-				if (!overlay2.supportsImageDataChange()) {
-					// Remove any non-core overlay layers that don't support an ImageData change
-					if (!coreOverlayLayers.contains(overlay2))
-						iter.remove();
-					continue;
-				} else
-					overlay2.setImageData(imageDataNew);
-			}
-		}
+//		// Notify overlays of change to ImageData
+//		Iterator<PathOverlay> iter = allOverlayLayers.iterator();
+//		while (iter.hasNext()) {
+//			PathOverlay overlay = iter.next();
+//			if (overlay instanceof ImageDataOverlay) {
+//				ImageDataOverlay overlay2 = (ImageDataOverlay)overlay;
+//				if (!overlay2.supportsImageDataChange()) {
+//					// Remove any non-core overlay layers that don't support an ImageData change
+//					if (!coreOverlayLayers.contains(overlay2))
+//						iter.remove();
+//					continue;
+//				} else
+//					overlay2.setImageData(imageDataNew);
+//			}
+//		}
 		//		overlay.setImageData(imageData);
 
 		if (imageDataNew != null) {
@@ -1771,11 +1771,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 			Color color = getSuggestedOverlayColor();
 			// Paint the overlay layers
+			var imageData = this.imageDataProperty.get();
 			for (PathOverlay overlay : allOverlayLayers.toArray(PathOverlay[]::new)) {
 				logger.trace("Painting overlay: {}", overlay);
-				overlay.setPreferredOverlayColor(color);
+				if (overlay instanceof AbstractOverlay)
+					((AbstractOverlay)overlay).setPreferredOverlayColor(color);
 //				overlay.paintOverlay(g2d, regionBounds, downsample, null, paintCompletely);
-				overlay.paintOverlay(g2d, getServerBounds(), downsample, null, paintCompletely);
+				overlay.paintOverlay(g2d, getServerBounds(), downsample, imageData, paintCompletely);
 			}
 //			if (hierarchyOverlay != null) {
 //				hierarchyOverlay.setPreferredOverlayColor(color);

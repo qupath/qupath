@@ -14,6 +14,7 @@ import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.io.GsonTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.opencv.tools.OpenCVTools;
 
@@ -85,7 +86,13 @@ class ImageOpServer extends AbstractTileableImageServer implements ImageDataServ
 
 	@Override
 	protected String createID() {
-		// Random, because the ImageData may well have changed - we can't retain this for long
+		// Try to create an ID from JSON, because this allows us to cache tiles
+		// Note that because the ImageData may well have changed, we shouldn't retain this for long
+		try {
+			return getServerType() + ": " + imageData + " " + GsonTools.getInstance().toJson(dataOp);
+		} catch (Exception e) {
+			logger.debug("Unable to create ID from JSON");
+		}
 		return UUID.randomUUID().toString();
 	}
 	

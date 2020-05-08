@@ -31,7 +31,6 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.ImageObserver;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -264,13 +263,12 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 	class AffineEditOverlay extends AbstractOverlay {
 
 		AffineEditOverlay(final OverlayOptions overlayOptions) {
-			super();
-			this.overlayOptions = overlayOptions;
+			super(overlayOptions);
 		}
 		
 		@Override
 		public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor,
-				ImageObserver observer, boolean paintCompletely) {
+				ImageData<BufferedImage> imageData, boolean paintCompletely) {
 			
 			if (transformer == null)
 				return;
@@ -292,7 +290,7 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			
 			// Ensure objects are all painted
 			for (PathObject pathObject : originalObjectROIs.keySet()) {
-				PathHierarchyPaintingHelper.paintObject(pathObject, false, g2d, null, overlayOptions, viewer.getHierarchy().getSelectionModel(), downsampleFactor);
+				PathHierarchyPaintingHelper.paintObject(pathObject, false, g2d, null, getOverlayOptions(), viewer.getHierarchy().getSelectionModel(), downsampleFactor);
 			}
 			
 //			// Replicate painting of the object so it doesn't disappear immediately when unselected

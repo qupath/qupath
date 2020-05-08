@@ -204,8 +204,9 @@ public class SimpleThresholdCommand implements Runnable {
 //		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
 		
 		btnCreateObjects.setOnAction(e -> {
-			PixelClassifierTools.promptToCreateObjects(qupath.getImageData(), 
-					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
+			var data = qupath.getImageData();
+			PixelClassifierTools.promptToCreateObjects(data, 
+					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer(data));
 		});
 		btnClassifyObjects.setOnAction(e -> {
 			PixelClassifierTools.classifyDetectionsByCentroid(qupath.getImageData(), currentClassifier.get());
