@@ -274,7 +274,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				return;
 			}
 			
-			viewer.getImageDataProperty().addListener(this);
+			viewer.imageDataProperty().addListener(this);
 			
 			storeClassificationMap(imageData.getHierarchy());
 			refreshOptions();
@@ -334,7 +334,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				for (var entry : mapPrevious.entrySet())
 					resetClassifications(entry.getKey(), entry.getValue());
 			}
-			viewer.getImageDataProperty().removeListener(this);
+			viewer.imageDataProperty().removeListener(this);
 			dialog = null;
 		}
 		

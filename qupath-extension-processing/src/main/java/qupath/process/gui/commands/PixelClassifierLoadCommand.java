@@ -7,7 +7,6 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -106,29 +105,16 @@ public class PixelClassifierLoadCommand implements Runnable {
 		var label = new Label("Choose model");
 		label.setLabelFor(comboClassifiers);
 		
-		var enableButtons = qupath.viewerProperty().isNotNull().and(selectedOverlay.isNotNull());
-		var btnCreateObjects = new Button("Create objects");
-		btnCreateObjects.disableProperty().bind(enableButtons.not());
-		var btnClassifyObjects = new Button("Classify detections");
-		btnClassifyObjects.disableProperty().bind(enableButtons.not());
-		var tilePane = PaneTools.createColumnGrid(btnCreateObjects, btnClassifyObjects);
-//		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
-		
-		btnCreateObjects.setOnAction(e -> {
-			var data = viewer.getImageData();
-			PixelClassifierTools.promptToCreateObjects(data, 
-					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer(data));
-		});
-		btnClassifyObjects.setOnAction(e -> {
-			PixelClassifierTools.classifyDetectionsByCentroid(viewer.getImageData(), selectedClassifier.get());
-		});
+		var tilePane = PixelClassifierTools.createPixelClassifierButtons(viewer.imageDataProperty(), selectedClassifier);
 		
 		var cbLimitToAnnotations = new CheckBox("Limit to annotations");
 		cbLimitToAnnotations.selectedProperty().bindBidirectional(limitToAnnotations);
 		limitToAnnotations.addListener((v, o, n) -> {
 			var overlay = selectedOverlay.get();
-			if (overlay != null)
+			if (overlay != null) {
 				overlay.setUseAnnotationMask(n);
+				qupath.repaintViewers();
+			}
 		});
 		
 
@@ -141,7 +127,7 @@ public class PixelClassifierLoadCommand implements Runnable {
 		PaneTools.addGridRow(pane, row++, 0, "Apply live prediction only to annotated regions (useful for previewing)", cbLimitToAnnotations, cbLimitToAnnotations, cbLimitToAnnotations);
 		PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane);
 		
 //		var labelInfo = new Label(
 //				"Load & apply a pixel classifier to an image.\n\n" +

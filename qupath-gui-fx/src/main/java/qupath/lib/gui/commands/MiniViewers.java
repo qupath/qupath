@@ -481,7 +481,7 @@ public class MiniViewers {
 						}
 						return null;
 						},
-						mainViewer.getImageDataProperty(), mainViewer.getImageDisplay().changeTimestampProperty()));
+						mainViewer.imageDataProperty(), mainViewer.getImageDisplay().changeTimestampProperty()));
 			}
 			
 			void close() {

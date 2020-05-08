@@ -4,13 +4,20 @@ import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.ObjectExpression;
+import javafx.scene.control.Button;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.Pane;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.lib.gui.measure.PixelClassificationMeasurementManager;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -301,25 +308,88 @@ public class PixelClassifierTools {
 	/**
 	 * Apply classification from a server to a collection of objects.
 	 * 
-	 * @param server the classification server to use
-	 * @param pathObjects the objects to classify
-	 * @param preferNucleusROI if true, use the nucleus ROI (if available) for cell objects
+	 * @param classifierServer an {@link ImageServer} with output type 
+	 * @param pathObjects
+	 * @param preferNucleusROI
 	 */
-	public static void classifyObjectsByCentroid(PixelClassificationImageServer server, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
+	public static void classifyObjectsByCentroid(ImageServer<BufferedImage> classifierServer, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
+		var labels = classifierServer.getMetadata().getClassificationLabels();
 		var reclassifiers = pathObjects.parallelStream().map(p -> {
 				try {
 					var roi = PathObjectTools.getROI(p, preferNucleusROI);
 					int x = (int)roi.getCentroidX();
 					int y = (int)roi.getCentroidY();
-					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
-					return new Reclassifier(p, server.getMetadata().getClassificationLabels().get(ind), false);
+					int ind = getClassification(classifierServer, x, y, roi.getZ(), roi.getT());
+					return new Reclassifier(p, labels.get(ind), false);
 				} catch (Exception e) {
 					return new Reclassifier(p, null, false);
 				}
 			}).collect(Collectors.toList());
 		reclassifiers.parallelStream().forEach(r -> r.apply());
-		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
 	}
+	
+	
+	
+	/**
+	 * Request the classification for a specific pixel.
+	 * 
+	 * @param server
+	 * @param x
+	 * @param y
+	 * @param z
+	 * @param t
+	 * @return
+	 * @throws IOException
+	 */
+	public static int getClassification(ImageServer<BufferedImage> server, int x, int y, int z, int t) throws IOException {
+		
+		var type = server.getMetadata().getChannelType();
+		if (type != ImageServerMetadata.ChannelType.CLASSIFICATION && type != ImageServerMetadata.ChannelType.PROBABILITY)
+			return -1;
+		
+		var tile = server.getTileRequestManager().getTileRequest(0, x, y, z, t);
+		if (tile == null)
+			return -1;
+		
+		int xx = (int)Math.floor(x / tile.getDownsample() - tile.getTileX());
+		int yy = (int)Math.floor(y / tile.getDownsample() - tile.getTileY());
+		var img = server.readBufferedImage(tile.getRegionRequest());
+		
+		if (xx >= img.getWidth())
+			xx = img.getWidth() - 1;
+		if (xx < 0)
+			xx = 0;
+
+		if (yy >= img.getHeight())
+			yy = img.getHeight() - 1;
+		if (yy < 0)
+			yy = 0;
+
+		int nBands = img.getRaster().getNumBands();
+		if (nBands == 1 && type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+			try {
+				return img.getRaster().getSample(xx, yy, 0);
+			} catch (Exception e) {
+				logger.error("Error requesting classification", e);
+				return -1;
+			}
+		} else if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
+			int maxInd = -1;
+			double maxVal = Double.NEGATIVE_INFINITY;
+			var raster = img.getRaster();
+			for (int b = 0; b < nBands; b++) {
+				double temp = raster.getSampleDouble(xx, yy, b);
+				if (temp > maxVal) {
+					maxInd = b;
+					maxVal = temp;
+				}
+			}
+			return maxInd;
+		}
+		return -1;
+	}
+	
+	
 	
 	/**
 	 * Classify cells according to the prediction of the pixel corresponding to the cell centroid using a {@link PixelClassifier}.
@@ -350,6 +420,18 @@ public class PixelClassifierTools {
 	 */
 	public static void classifyObjectsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
 		classifyObjectsByCentroid(new PixelClassificationImageServer(imageData, classifier), pathObjects, preferNucleusROI);
+		imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
+	}
+	
+	/**
+	 * Prompt the user to create objects from the output of a {@link PixelClassifier}.
+	 * 
+	 * @param imageData the {@link ImageData} to which objects should be added
+	 * @param classifier the {@link PixelClassifier} used to create predictions, which will be used to create objects
+	 * @return true if changes were made, false otherwise
+	 */
+	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		return promptToCreateObjects(imageData, new PixelClassificationImageServer(imageData, classifier));
 	}
 
 	/**
@@ -447,6 +529,104 @@ public class PixelClassifierTools {
 					server, imageData.getHierarchy(), selected, creator,
 					minSizePixels, minHoleSizePixels, doSplit, clearExisting);
 		}
+	
+	/**
+	 * Prompt to add measurements to objects based upon a classification output.
+	 * @param imageData the image containing the objects to which measurements should be added
+	 * @param classifier the classifier used to determine the measurements
+	 * @return true if measurements were added, false otherwise
+	 */
+	public static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		return promptToAddMeasurements(imageData, new PixelClassificationImageServer(imageData, classifier));
+	}
+
+	
+	/**
+	 * Prompt to add measurements to objects based upon an {@link ImageServer} representing a classification output.
+	 * @param imageData the image containing the objects to which measurements should be added
+	 * @param classifierServer the {@link ImageServer} that generates corresponding classified pixels
+	 * @return true if measurements were added, false otherwise
+	 */
+	public static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> classifierServer) {
+		return promptToAddMeasurements(imageData, new PixelClassificationMeasurementManager(classifierServer));
+	}
+
+	
+	private static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassificationMeasurementManager manager) {
+		
+		if (imageData == null) {
+			Dialogs.showNoImageError("Pixel classifier");
+			return false;
+		}
+		
+		var hierarchy = imageData.getHierarchy();
+		
+		var selected = hierarchy.getSelectionModel().getSelectedObjects();
+		var annotations = hierarchy.getAnnotationObjects();
+		
+		String optionSelected = "Selected objects";
+		String optionAnnotations = "Annotations (only)";
+		String optionImage = "Full image (only)";
+		String optionAnnotationImage = "Annotations + full image";
+		List<String> options = new ArrayList<>();
+		String defaultOption = optionImage;
+		if (!annotations.isEmpty()) {
+			options.add(optionAnnotations);
+			options.add(optionAnnotationImage);
+			defaultOption = optionAnnotations;
+		}
+		if (!selected.isEmpty()) {
+			options.add(0, optionSelected);
+			defaultOption = optionSelected;
+		}
+		options.add(optionImage);
+		
+		var selectedOption = Dialogs.showChoiceDialog("Pixel classifier", "Choose objects to measure", options, defaultOption);
+		if (selectedOption == null)
+			return false;
+		
+		List<PathObject> objectsToMeasure = new ArrayList<>();
+		if (optionSelected.equals(selectedOption)) {
+			objectsToMeasure.addAll(selected);
+		} else if (optionAnnotations.equals(optionAnnotations)) {
+			objectsToMeasure.addAll(annotations);			
+		} else if (optionAnnotations.equals(optionImage)) {
+			objectsToMeasure.addAll(annotations);			
+			objectsToMeasure.add(hierarchy.getRootObject());
+		} else if (optionAnnotations.equals(optionAnnotationImage)) {
+			objectsToMeasure.addAll(annotations);		
+			objectsToMeasure.add(hierarchy.getRootObject());
+		}
+		
+		if (objectsToMeasure.isEmpty())
+			return false;
+		
+		int n = objectsToMeasure.size();
+		if (optionAnnotations.equals(optionImage))
+			logger.info("Requesting measurements for image");
+		else if (n == 1)
+			logger.info("Requesting measurements for one object");
+		else
+			logger.info("Requesting measurements for {} objects", n);
+		
+		int i = 0;
+		for (var pathObject : objectsToMeasure) {
+			i++;
+			if (n < 100 || n % 100 == 0)
+				logger.debug("Completed {}/{}", i, n);
+			try (var ml = pathObject.getMeasurementList()) {
+				for (String name : manager.getMeasurementNames()) {
+					Number value = manager.getMeasurementValue(pathObject, name, false);
+					double val = value == null ? Double.NaN : value.doubleValue();
+					ml.putMeasurement(name, val);
+				}
+			}
+			// We really want to lock objects so we don't end up with wrong measurements
+			pathObject.setLocked(true);
+		}
+		hierarchy.fireObjectMeasurementsChangedEvent(manager, objectsToMeasure);
+		return true;
+	}
 	
 	
 	
@@ -619,6 +799,44 @@ public class PixelClassifierTools {
 			return false;
 		return true;
 //		return PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
+	}
+
+	
+	/**
+	 * Create a standard button pane for pixel classifiers, to create, measure and classify objects.
+	 * @param imageData expression that provides the {@link ImageData} to which the operation should be applied
+	 * @param classifier expression that provides the {@link PixelClassifier} that will be used
+	 * @return a {@link Pane} that may be added to a scene
+	 */
+	public static Pane createPixelClassifierButtons(ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<PixelClassifier> classifier) {
+	
+		BooleanBinding disableButtons = imageData.isNull().or(classifier.isNull());
+		
+		var btnCreateObjects = new Button("Create objects");
+		btnCreateObjects.disableProperty().bind(disableButtons);
+		btnCreateObjects.setTooltip(new Tooltip("Create annotation or detection objects from the classification output"));
+		
+		var btnAddMeasurements = new Button("Measure");
+		btnAddMeasurements.disableProperty().bind(disableButtons);
+		btnAddMeasurements.setTooltip(new Tooltip("Add measurements to existing objects based upon the classification output"));
+		
+		var btnClassifyObjects = new Button("Classify");
+		btnClassifyObjects.disableProperty().bind(disableButtons);
+		btnClassifyObjects.setTooltip(new Tooltip("Classify detection based upon the prediction at the ROI centroid"));
+		
+		btnAddMeasurements.setOnAction(e -> {
+			promptToAddMeasurements(imageData.get(), classifier.get());			
+		});		
+		btnCreateObjects.setOnAction(e -> {
+			promptToCreateObjects(imageData.get(), classifier.get());
+		});
+		btnClassifyObjects.setOnAction(e -> {
+			classifyDetectionsByCentroid(imageData.get(), classifier.get());
+		});
+		
+		PaneTools.setMaxWidth(Double.MAX_VALUE, btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
+		
+		return PaneTools.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
 	}
 
 }

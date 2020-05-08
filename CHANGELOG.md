@@ -2,10 +2,14 @@
 
 This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 
-* Several minor fixes from v0.2.0-m11, including https://github.com/qupath/qupath/issues/465
+* Pixel classifiers support multiple viewers
+  * Training annotations are used from all compatible images that are currently open
+* Measurement lists are reset if an object's ROI is changed
+  * This guards against inadvertently producing invalid measurements by modifying an annotate after measuring
 * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
+* Fixed bug in 'Simplify shape' to handle polygons and rectangles properly
+* Several minor fixes from v0.2.0-m11, including https://github.com/qupath/qupath/issues/465
 * Bump dependencies ImageJ, Bio-Formats
-
 
 
 ## Version 0.2.0-m11

@@ -859,7 +859,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Property for the image data currently being displayed within this viewer.
 	 * @return
 	 */
-	public ReadOnlyObjectProperty<ImageData<BufferedImage>> getImageDataProperty() {
+	public ReadOnlyObjectProperty<ImageData<BufferedImage>> imageDataProperty() {
 		return imageDataProperty;
 	}
 	

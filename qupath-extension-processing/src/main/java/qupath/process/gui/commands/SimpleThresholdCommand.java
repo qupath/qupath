@@ -122,8 +122,10 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		cbLimitToAnnotations.selectedProperty().addListener((v, o, n) -> {
 			var overlay = selectedOverlay.get();
-			if (overlay != null)
+			if (overlay != null) {
 				overlay.setUseAnnotationMask(n);
+				qupath.repaintViewers();
+			}
 		});
 				
 		int row = 0;
@@ -185,10 +187,8 @@ public class SimpleThresholdCommand implements Runnable {
 
 		PaneTools.addGridRow(pane,  row++, 0, "Apply live prediction only to annotated regions (useful for previewing)", cbLimitToAnnotations, cbLimitToAnnotations, cbLimitToAnnotations);
 		
-		var enableButtons = qupath.viewerProperty().isNotNull().and(selectedOverlay.isNotNull()).and(currentClassifier.isNotNull());
-		
 		var btnSave = new Button("Save as pixel classifier");
-		btnSave.disableProperty().bind(enableButtons.not());
+		btnSave.disableProperty().bind(currentClassifier.isNull());
 		btnSave.setOnAction(e -> {
 			try {
 				PixelClassifierTools.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
@@ -198,22 +198,7 @@ public class SimpleThresholdCommand implements Runnable {
 		});
 		PaneTools.addGridRow(pane, row++, 0, "Save current thresholder as a pixel classifier", btnSave, btnSave, btnSave);
 
-		
-		var btnCreateObjects = new Button("Create objects");
-		btnCreateObjects.disableProperty().bind(enableButtons.not());
-		var btnClassifyObjects = new Button("Classify detections");
-		btnClassifyObjects.disableProperty().bind(enableButtons.not());
-		var tilePane = PaneTools.createColumnGrid(btnCreateObjects, btnClassifyObjects);
-//		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
-		
-		btnCreateObjects.setOnAction(e -> {
-			var data = qupath.getImageData();
-			PixelClassifierTools.promptToCreateObjects(data, 
-					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer(data));
-		});
-		btnClassifyObjects.setOnAction(e -> {
-			PixelClassifierTools.classifyDetectionsByCentroid(qupath.getImageData(), currentClassifier.get());
-		});
+		var tilePane = PixelClassifierTools.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
 		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		
 		selectedPrefilter.addListener((v, o, n) -> updateClassification());
@@ -234,13 +219,13 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
-				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
+				btnSave, tilePane);
 		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
-				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
+				btnSave, tilePane);
 		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
-				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
+				btnSave, tilePane);
 		
 		updateGUI();
 		
@@ -257,6 +242,8 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		stage.setOnHiding(e -> resetOverlays());
 	}
+	
+	
 	
 	private void resetOverlay(QuPathViewer viewer, PathOverlay overlay) {
 		if (viewer.getCustomPixelLayerOverlay() == overlay) {

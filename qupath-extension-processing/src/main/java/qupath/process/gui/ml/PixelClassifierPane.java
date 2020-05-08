@@ -30,8 +30,10 @@ import ij.CompositeImage;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
@@ -136,7 +138,6 @@ public class PixelClassifierPane {
 	
 	private BooleanProperty livePrediction = new SimpleBooleanProperty(false);
 	
-	private ObservableBooleanValue classificationComplete = new SimpleBooleanProperty(false);
 	private ReadOnlyObjectProperty<OpenCVStatModel> selectedClassifier;
 
 	private ReadOnlyObjectProperty<ClassificationRegion> selectedRegion;
@@ -151,6 +152,10 @@ public class PixelClassifierPane {
 
 	private HierarchyListener hierarchyListener = new HierarchyListener();
 	
+	/**
+	 * The last trained classifier
+	 */
+	private ObjectProperty<PixelClassifier> currentClassifier = new SimpleObjectProperty<>();
 	
 	private PixelClassificationOverlay overlay;
 	private PixelClassificationOverlay featureOverlay;
@@ -380,27 +385,7 @@ public class PixelClassifierPane {
 		pane.setHgap(5);
 		pane.setVgap(6);
 		
-//		var btnSavePrediction = new Button("Save prediction image");
-//		btnSavePrediction.setMaxWidth(Double.MAX_VALUE);
-//		btnSavePrediction.setOnAction(e -> saveAndApply());
-//		pane.add(btnSavePrediction, 0, row++, pane.getColumnCount(), 1);
-
-		var btnCreateObjects = new Button("Create objects");
-		btnCreateObjects.setTooltip(new Tooltip("Create annotations or detections from pixel classification"));
-		btnCreateObjects.disableProperty().bind(classificationComplete);
-		btnCreateObjects.setOnAction(e -> {
-			var server = getClassificationServerOrShowError();
-			var imageData2 = qupath.getImageData();
-			if (imageData2 != null && server != null)
-				PixelClassifierTools.promptToCreateObjects(imageData2, server);
-		});
-		
-		var btnClassifyObjects = new Button("Classify detections");
-		btnClassifyObjects.setTooltip(new Tooltip("Assign classifications to detection objects based on the corresponding pixel classification"));
-		btnClassifyObjects.disableProperty().bind(classificationComplete);
-		btnClassifyObjects.setOnAction(e -> classifyObjects());
-		
-		var panePostProcess = PaneTools.createColumnGridControls(btnCreateObjects, btnClassifyObjects);
+		var panePostProcess = PixelClassifierTools.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
 				
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
@@ -918,12 +903,12 @@ public class PixelClassifierPane {
 				 .outputChannels(channels)
 				 .build();
 
-		 var classifier = PixelClassifiers.createClassifier(model, featureCalculator, metadata, true);
+		 currentClassifier.set(PixelClassifiers.createClassifier(model, featureCalculator, metadata, true));
 
-		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), classifier);
+		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), currentClassifier.get());
 		 replaceOverlay(overlay);
 	}
-	
+		
 	
 	
 	private void resetPieChart() {
@@ -1009,7 +994,7 @@ public class PixelClassifierPane {
 				featureOverlay.stop();
 			}
 	
-			viewer.getImageDataProperty().removeListener(imageDataListener);
+			viewer.imageDataProperty().removeListener(imageDataListener);
 			var hierarchy = viewer.getHierarchy();
 			if (hierarchy != null)
 				hierarchy.removePathObjectListener(hierarchyListener);
@@ -1068,20 +1053,6 @@ public class PixelClassifierPane {
 			return null;
 		}
 		return (PixelClassificationImageServer)server;
-	}
-	
-	
-	private boolean classifyObjects() {
-		var imageData = qupath.getImageData();
-		if (imageData == null)
-			return false;
-		var hierarchy = imageData.getHierarchy();
-		var server = getClassificationServerOrShowError();
-		if (server == null) {
-			return false;
-		}
-		PixelClassifierTools.classifyObjectsByCentroid(server, hierarchy.getDetectionObjects(), true);
-		return true;
 	}
 	
 	
