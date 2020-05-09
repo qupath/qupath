@@ -254,8 +254,9 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 
         // If we have a filter, we might not need to do anything
     	var filter = getOverlayOptions().getPixelClassificationRegionFilter();
-    	if (!filter.test(imageData, fullRequest))
-    		return;
+    	// Avoid this check; it causes confusion when zoomed in
+//    	if (!filter.test(imageData, fullRequest))
+//    		return;
         
         if (renderer != null && rendererLastTimestamp != renderer.getLastChangeTimestamp()) {
         	cacheRGB.clear();

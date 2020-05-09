@@ -134,9 +134,12 @@ public class PixelClassifierTraining {
 	            	if (isTrainableAnnotation(annotation)) {
 	            		var pathClass = annotation.getPathClass();
 	            		pathClasses.add(pathClass);
-	            		var boundaryClass = boundaryStrategy.getBoundaryClass(pathClass);
-	            		if (boundaryClass != null)
-	            			pathClasses.add(boundaryClass);
+	            		// We only use boundary classes for areas
+	            		if (annotation.getROI().isArea()) {
+		            		var boundaryClass = boundaryStrategy.getBoundaryClass(pathClass);
+		            		if (boundaryClass != null)
+		            			pathClasses.add(boundaryClass);
+	            		}
 	            	}
 	            }
         	}

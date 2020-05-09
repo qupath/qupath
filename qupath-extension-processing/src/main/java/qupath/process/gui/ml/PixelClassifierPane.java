@@ -49,6 +49,7 @@ import javafx.scene.Scene;
 import javafx.scene.chart.PieChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -62,6 +63,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 import qupath.imagej.gui.IJExtension;
@@ -316,7 +318,6 @@ public class PixelClassifierPane {
 		btnSave.setOnAction(e -> saveAndApply());
 		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
 		
-		
 		pieChart = new PieChart();
 		
 //		var hierarchy = viewer.getHierarchy();
@@ -324,27 +325,49 @@ public class PixelClassifierPane {
 		
 		pieChart.setLabelsVisible(false);
 		pieChart.setLegendVisible(true);
-		pieChart.setPrefSize(40, 40);
-		pieChart.setMaxSize(100, 100);
+		pieChart.setMinSize(40, 40);
+		pieChart.setPrefSize(120, 120);
+//		pieChart.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		pieChart.setLegendSide(Side.RIGHT);
-		GridPane.setVgrow(pieChart, Priority.ALWAYS);
-		Tooltip.install(pieChart, new Tooltip("View training classes by proportion"));
+//		GridPane.setVgrow(pieChart, Priority.ALWAYS);
+//		Tooltip.install(pieChart, new Tooltip("View training classes by proportion"));
+		var paneChart = new BorderPane(pieChart);
+//		paneChart.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 		
-		PaneTools.addGridRow(pane, row++, 0, 
-				null,
+//		PaneTools.addGridRow(pane, row++, 0, 
+////				null,
 //				"View information about the current classifier training",
-				pieChart, pieChart, pieChart);
+//				paneChart, paneChart, paneChart);
 		
+		PaneTools.setFillWidth(Boolean.TRUE, paneChart);
+		PaneTools.setFillHeight(Boolean.TRUE, paneChart);
+		PaneTools.setVGrowPriority(Priority.ALWAYS, paneChart);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, paneChart);
+
+		pane.add(paneChart, 0, row++, pane.getColumnCount(), 1);
 		
 		// Label showing cursor location
 		var labelCursor = new Label();
 		labelCursor.textProperty().bindBidirectional(cursorLocation);
-		labelCursor.setMaxWidth(Double.MAX_VALUE);
 		labelCursor.setAlignment(Pos.CENTER);
+		labelCursor.setTextAlignment(TextAlignment.CENTER);
+		labelCursor.setContentDisplay(ContentDisplay.CENTER);
+		labelCursor.setWrapText(true);
+		labelCursor.setMaxHeight(Double.MAX_VALUE);
+		labelCursor.setMinWidth(100);
+		labelCursor.setPrefWidth(390);
+		labelCursor.setMaxWidth(390);
 		
-		PaneTools.addGridRow(pane, row++, 0, 
-				"Prediction for current cursor location",
-				labelCursor, labelCursor, labelCursor);
+		labelCursor.setTooltip(new Tooltip("Prediction for current cursor location"));
+		paneChart.setBottom(labelCursor);
+		// This tends to make it harder to read the proportions as tooltips when putting the mouse over the pie chart
+//		Tooltip.install(paneChart, new Tooltip("Relative proportion of training samples"));
+
+		paneChart.setMaxWidth(400);
+
+//		PaneTools.addGridRow(pane, row++, 0, 
+//				"Prediction for current cursor location",
+//				labelCursor, labelCursor, labelCursor);
 		
 		comboClassifier.getItems().addAll(
 				OpenCVClassifiers.createStatModel(RTrees.class),
@@ -454,7 +477,9 @@ public class PixelClassifierPane {
 		
 		var splitPane = new BorderPane(viewerBorderPane);
 		splitPane.setLeft(pane);
+		pane.setMinWidth(400);
 		pane.setPrefWidth(400);
+		pane.setMaxWidth(400);
 		
 		var fullPane = splitPane;//new StackPane(splitPane);
 		
@@ -792,7 +817,9 @@ public class PixelClassifierPane {
 			 preprocessingOp = null;
 		 
 		 var labels = trainingData.getLabelMap();
-		 var targets = trainData.getTrainNormCatResponses();
+		 // Using getTrainNormCatResponses() causes confusion if classes are not represented
+//		 var targets = trainData.getTrainNormCatResponses();
+		 var targets = trainData.getTrainResponses();
 		 IntBuffer buffer = targets.createBuffer();
 		 int n = (int)targets.total();
 		 var rawCounts = new int[labels.size()];
