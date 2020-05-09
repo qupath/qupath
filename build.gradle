@@ -231,7 +231,7 @@ allprojects {
     // Additional versions
     logbackVersion     = '1.2.3'
     slf4jVersion       = '1.3.0'
-    junitVersion       = '5.4.2'
+    junitVersion       = '5.6.2'
     
     // Optional versions
     tensorflowVersion  = "1.15.2-${javacppVersion}"
@@ -359,8 +359,8 @@ allprojects {
     
     jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
     
-    junit "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
-    junit "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
+    junit "org.junit.jupiter:junit-jupiter:${junitVersion}"
+//    junit "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
     
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
