@@ -551,6 +551,11 @@ public class MultiscaleFeatures {
 			
 //			double scaleT = sigmaX * sigmaY;
 			
+			// TODO: Consder if some calculations need to be done in 64-bit
+//			int depth = structureTensorEigenvalues || doHessian ? opencv_core.CV_64F : opencv_core.CV_32F;
+			int depth = opencv_core.CV_32F;
+
+			
 			for (Mat mat : mats) {
 				
 				Map<MultiscaleFeature, Mat> features = new LinkedHashMap<>();
@@ -559,7 +564,7 @@ public class MultiscaleFeatures {
 				if (doSmoothed) {
 					if (sigmaX > 0 || sigmaY > 0) {
 						matSmooth = new Mat();
-						opencv_imgproc.sepFilter2D(mat, matSmooth, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(mat, matSmooth, depth, kx0, ky0, null, 0.0, border);
 					} else
 						matSmooth = mat.clone();
 					
@@ -569,24 +574,24 @@ public class MultiscaleFeatures {
 					
 					if (weightedStdDev) {
 						Mat matSquaredSmoothed = mat.mul(mat).asMat();
-						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, depth, kx0, ky0, null, 0.0, border);
 						stripPadding(matSquaredSmoothed);
 						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
 						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
 						features.put(MultiscaleFeature.WEIGHTED_STD_DEV, matSquaredSmoothed);					
 					}
 				}
-				
+								
 				if (structureTensorEigenvalues) {
 					// Allow use of the same Mats as we might need for derivatives later
-					opencv_imgproc.Sobel(mat, dxx, opencv_core.CV_32F, 1, 0);
-					opencv_imgproc.Sobel(mat, dyy, opencv_core.CV_32F, 0, 1);
+					opencv_imgproc.Sobel(mat, dxx, depth, 1, 0);
+					opencv_imgproc.Sobel(mat, dyy, depth, 0, 1);
 					dxy.put(dxx.mul(dyy));
 					dxx.put(dxx.mul(dxx));
 					dyy.put(dyy.mul(dyy));
-					opencv_imgproc.sepFilter2D(dxx, dxx, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(dyy, dyy, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);					
-					opencv_imgproc.sepFilter2D(dxy, dxy, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(dxx, dxx, depth, kx0, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(dyy, dyy, depth, kx0, ky0, null, 0.0, border);					
+					opencv_imgproc.sepFilter2D(dxy, dxy, depth, kx0, ky0, null, 0.0, border);
 					
 					var temp = new EigenSymm2(dxx, dxy, dyy, false);
 					var stMax = stripPadding(temp.eigvalMax);
@@ -599,17 +604,17 @@ public class MultiscaleFeatures {
 				}
 				
 				if (gradientMagnitude) {
-					opencv_imgproc.sepFilter2D(mat, dxx, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(mat, dyy, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);					
+					opencv_imgproc.sepFilter2D(mat, dxx, depth, kx1, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(mat, dyy, depth, kx0, ky1, null, 0.0, border);					
 					Mat magnitude = new Mat();
 					opencv_core.magnitude(dxx, dyy, magnitude);
 					features.put(MultiscaleFeature.GRADIENT_MAGNITUDE, stripPadding(magnitude));
 				}
 				
 				if (doHessian) {
-					opencv_imgproc.sepFilter2D(mat, dxx, opencv_core.CV_32F, kx2, ky0, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(mat, dyy, opencv_core.CV_32F, kx0, ky2, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(mat, dxy, opencv_core.CV_32F, kx1, ky1, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(mat, dxx, depth, kx2, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(mat, dyy, depth, kx0, ky2, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(mat, dxy, depth, kx1, ky1, null, 0.0, border);
 					
 					// Strip padding now to reduce necessary calculations
 					stripPadding(dxx);
@@ -638,6 +643,13 @@ public class MultiscaleFeatures {
 						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIN, eigenvalues.get(1));
 					}
 					
+				}
+				
+				// Ensure our output is 32-bit
+				if (depth != opencv_core.CV_32F) {
+					for (var matFeature : features.values()) {
+						matFeature.convertTo(matFeature, opencv_core.CV_32F);
+					}
 				}
 				
 				results.add(features);
@@ -906,12 +918,15 @@ public class MultiscaleFeatures {
 
 		var coherence = new Mat(h, w, opencv_core.CV_32FC1);
 		FloatIndexer idxCoherence = coherence.createIndexer();
-		FloatIndexer idxMax = stMax.createIndexer();
-		FloatIndexer idxMin = stMin.createIndexer();
+		var idxMax = stMax.createIndexer();
+		var idxMin = stMin.createIndexer();
+		long[] inds = new long[2];
 		for (int r = 0; r < h; r++) {
 			for (int c = 0; c < w; c++) {
-				double max = idxMax.get(r, c);
-				double min = idxMin.get(r, c);
+				inds[0] = r;
+				inds[1] = c;
+				double max = idxMax.getDouble(inds);
+				double min = idxMin.getDouble(inds);
 				double difference = max - min;
 				double sum = max + min;
 				double co = sum == 0 ? 0 : (difference / sum) * (difference / sum);
@@ -1180,6 +1195,23 @@ public class MultiscaleFeatures {
 			
 			eigvalMin = opencv_core.subtract(t1, t2).asMat();
 			eigvalMax = opencv_core.add(t1, t2).asMat();
+			
+			// NaNs can occur! Remove these to prevent downstream problems (e.g. with any further filtering)
+			opencv_core.patchNaNs(eigvalMin, 0.0);
+			opencv_core.patchNaNs(eigvalMax, 0.0);
+			
+			// Try to debug a lot of zeros in the output (turned out normalization was applied too late)
+//			double total = eigvalMin.total();
+//			double zeroPercentMin = (total - opencv_core.countNonZero(eigvalMin))/total * 100;
+//			double zeroPercentMax = (total - opencv_core.countNonZero(eigvalMax))/total * 100;
+//			System.err.println(String.format("Zeros min: %.1f%%, max: %.1f%%", zeroPercentMin, zeroPercentMax));
+//			if (zeroPercentMax > 5 && zeroPercentMin > 5) {
+//				var imp = OpenCVTools.matToImagePlus("Temp", eigvalMin.clone(), eigvalMax.clone(), det.asMat(), trace.asMat());
+//				var imp2 = new CompositeImage(imp, CompositeImage.GRAYSCALE);
+//				imp2.setDimensions(imp.getStackSize(), 1, 1);
+//				imp2.resetDisplayRanges();
+//				imp2.show();
+//			}
 			
 			if (doEigenvectors) {
 				int width = dxx.cols();

@@ -7,9 +7,11 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 * Measurement lists are reset if an object's ROI is changed
   * This guards against inadvertently producing invalid measurements by modifying an annotate after measuring
 * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
-* Fixed bug in 'Simplify shape' to handle polygons and rectangles properly
-* Several minor fixes from v0.2.0-m11, including https://github.com/qupath/qupath/issues/465
-* Bump dependencies ImageJ, Bio-Formats
+* Bug fixes, including:
+  * Local normalization now applied before calculating other features (was applied after in m11)
+  * Fixed bug in 'Simplify shape' to handle polygons and rectangles properly
+  * Projects are automatically saved after changing the image name (https://github.com/qupath/qupath/issues/465)
+* Bump dependencies ImageJ, Bio-Formats, JUnit
 
 
 ## Version 0.2.0-m11
