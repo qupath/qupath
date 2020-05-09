@@ -429,6 +429,9 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				if (cls == null || (includeSubclasses && cls.isAssignableFrom(entry.getKey())) || cls.isInstance(entry.getKey())) {
 					if (entry.getValue() != null) {
 						var list = entry.getValue().query(envelope);
+						if (list.isEmpty())
+							continue;
+						
 						if (pathObjects == null)
 							pathObjects = new HashSet<PathObject>();
 						
@@ -469,9 +472,21 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				if (cls == null || cls.isInstance(entry.getKey()) || (includeSubclasses && cls.isAssignableFrom(entry.getKey()))) {
 					if (entry.getValue() != null) {
 						var list = (List<PathObject>)entry.getValue().query(envelope);
-						if (list.stream().anyMatch(p -> p.hasROI() && 
-								(region == null || (p.getROI().getZ() == z && p.getROI().getT() == t))))
-							return true;
+						for (var pathObject : list) {
+							var roi = pathObject.getROI();
+							if (roi == null)
+								continue;
+							if (region == null)
+								return true;
+							if (roi.getZ() != z || roi.getT() != t)
+								continue;
+							if (region.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight())) {
+								return true;
+							}
+						}
+//						if (list.stream().anyMatch(p -> p.hasROI() && 
+//								(region == null || (p.getROI().getZ() == z && p.getROI().getT() == t))))
+//							return true;
 //						if (entry.getValue().hasObjectsForRegion(region))
 //							return true;
 					}

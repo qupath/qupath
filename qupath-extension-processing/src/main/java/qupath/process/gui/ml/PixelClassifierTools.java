@@ -6,8 +6,13 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
@@ -18,6 +23,9 @@ import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.measure.PixelClassificationMeasurementManager;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.gui.viewer.RegionFilter;
+import qupath.lib.gui.viewer.RegionFilter.StandardRegionFilters;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -140,6 +148,37 @@ public class PixelClassifierTools {
 		}
 		return true;
 	}
+	
+	/**
+	 * Create a {@link ComboBox} that can be used to select the pixel classification region filter.
+	 * @param options
+	 * @return
+	 */
+	public static ComboBox<RegionFilter> createRegionFilterCombo(OverlayOptions options) {
+		var comboRegion = new ComboBox<RegionFilter>();
+		comboRegion.getItems().addAll(StandardRegionFilters.values());
+		var selected = options.getPixelClassificationRegionFilter();
+		if (!comboRegion.getItems().contains(selected))
+			comboRegion.getItems().add(selected);
+		comboRegion.getSelectionModel().select(selected);
+		comboRegion.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> options.setPixelClassificationRegionFilter(n));
+		// We need to be able to update somehow... but don't really want to listen to the OverlayOptions and risk thwarting garbage collection
+		comboRegion.focusedProperty().addListener((v, o, n) -> {
+			comboRegion.getSelectionModel().select(options.getPixelClassificationRegionFilter());
+		});
+		comboRegion.setMaxWidth(Double.MAX_VALUE);
+		return comboRegion;
+	}
+	
+//	public static Node createLimitToAnnotationsControl(OverlayOptions options) {
+//		var cb = new CheckBox("Limit to annotations");
+//		cb.setMinWidth(CheckBox.USE_PREF_SIZE);
+//		cb.setTooltip(new Tooltip("Display predictions only for image tiles that overlap with existing annotations.\n"
+//				+ "This avoids calculating predictions everywhere in an image - which can be slow."));
+//		cb.selectedProperty().bindBidirectional(options.pixelClassificationFilterProperty());
+//		return cb;
+//	}
+	
 
 	/**
 	 * Create objects and add them to an object hierarchy based on thresholding the output of a pixel classifier.

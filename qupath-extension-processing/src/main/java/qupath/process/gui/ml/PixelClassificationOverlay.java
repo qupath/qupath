@@ -19,10 +19,8 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.TMACoreObject;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageDataServer;
 import qupath.opencv.ops.ImageOps;
@@ -72,7 +70,6 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
     
     private Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun;
     
-    private boolean useAnnotationMask = false;
     private boolean livePrediction = false;
     
     private Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> cachedServers = new WeakHashMap<>();
@@ -240,16 +237,25 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 
         if (imageData == null)
             return;
-        var hierarchy = imageData.getHierarchy();
         
 //        ImageServer<BufferedImage> server = imageData.getServer();
         var server = cachedServers.computeIfAbsent(imageData, data -> getPixelClassificationServer(data));
         if (server == null)
         	return;
 
-//        viewer.getImageRegionStore().paintRegion(server, g2d, AwtTools.getBounds(imageRegion), viewer.getZPosition(), viewer.getTPosition(), downsampleFactor, null, observer, null);
-//        if (5 > 2)
-//        	return;
+        
+        // Get the displayed clip bounds for fast checking if ROIs need to be drawn
+        RegionRequest fullRequest;
+    	Shape shapeRegion = g2d.getClip();
+     	if (shapeRegion == null)
+     		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, imageRegion);
+     	else
+     		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, AwtTools.getImageRegion(shapeRegion, imageRegion.getZ(), imageRegion.getT()));
+
+        // If we have a filter, we might not need to do anything
+    	var filter = getOverlayOptions().getPixelClassificationRegionFilter();
+    	if (!filter.test(imageData, fullRequest))
+    		return;
         
         if (renderer != null && rendererLastTimestamp != renderer.getLastChangeTimestamp()) {
         	cacheRGB.clear();
@@ -275,30 +281,9 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
         		gCopy.setComposite(comp);
         }
         
-//        boolean requestingTiles = downsampleFactor <= requestedDownsample * 4.0;
-        boolean requestingTiles = true;
-
-        Collection<PathObject> objectsForOverlap = null;
-        if (requestingTiles && hierarchy.getTMAGrid() != null) {
-            objectsForOverlap = hierarchy.getObjectsForRegion(TMACoreObject.class, imageRegion, null);
-        }
-
-        // Request tiles, of the size that the classifier wants to receive
-
-     // Get the displayed clip bounds for fast checking if ROIs need to be drawn
-        RegionRequest fullRequest;
-    	Shape shapeRegion = g2d.getClip();
-     	if (shapeRegion == null)
-     		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, imageRegion);
-     	else
-     		fullRequest = RegionRequest.createInstance(server.getPath(), downsampleFactor, AwtTools.getImageRegion(shapeRegion, imageRegion.getZ(), imageRegion.getT()));
         
         Collection<TileRequest> tiles = server.getTileRequestManager().getTileRequests(fullRequest);
 
-//        requests = requests.stream().map(r -> RegionRequest.createInstance(r.getPath(), requestedDownsample, r)).collect(Collectors.toList());
-        
-        var annotations = hierarchy.getAnnotationObjects();
-        
         // Clear pending requests, since we'll insert new ones (perhaps in a different order)
     	this.pendingRequests.clear();
 
@@ -309,23 +294,8 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
         	
         	var request = tile.getRegionRequest();
         	
-        	if (useAnnotationMask) {
-        		boolean doPaint = false;
-        		for (var annotation : annotations) {
-        			var roi = annotation.getROI();
-        			if (!roi.isArea())
-        				continue;
-        			if (roi.getZ() == request.getZ() &&
-        					roi.getT() == request.getT() &&
-        					request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight())) {
-            				doPaint = true;
-//        				}
-        				break;
-        			}
-        		}
-        		if (!doPaint)
-        			continue;
-        	}
+        	if (filter != null && !filter.test(imageData, request))
+        		continue;
         	
         	// Try to get an RGB image, supplying a server that can be queried for a corresponding non-RGB cached tile if needed
             BufferedImage imgRGB = getCachedTileRGB(tile, server);
@@ -338,22 +308,6 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
                 continue;
             }
             
-            // We might not necessarily want tiles (e.g. if we are zoomed out for a particularly slow classifier)
-            if (!requestingTiles) {
-                continue;
-            }
-
-            if (objectsForOverlap != null) {
-                if (!objectsForOverlap.stream().anyMatch(pathObject -> {
-                    ROI roi = pathObject.getROI();
-                    if (!roi.isArea())
-                    	return false;
-                    return request.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
-                    }
-                ))
-                   continue;
-            }
-
             // Request a tile
             if (livePrediction)
             	requestTile(tile, imageData, server);
@@ -414,30 +368,6 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
      */
     public synchronized ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
     	return fun.apply(imageData);
-    }
-    
-    
-    /**
-     * Specify whether classification should be requested only within tiles that overlap with annotations.
-     * @param limitToAnnotations
-     */
-    public void setUseAnnotationMask(final boolean limitToAnnotations) {
-    	if (this.useAnnotationMask == limitToAnnotations)
-    		return;
-    	this.useAnnotationMask = limitToAnnotations;
-    	// Cancel pending requests if we need less than previously
-    	if (limitToAnnotations)
-    		this.pendingRequests.clear();
-//    	if (viewer != null)
-//    		viewer.repaint();
-    }
-    
-    /**
-     * Query whether the classification should be requested only within annotated tiles.
-     * @return
-     */
-    public boolean useAnnotationMask() {
-    	return useAnnotationMask;
     }
     
 

@@ -112,7 +112,6 @@ import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
-import qupath.lib.gui.viewer.overlays.PixelLayerOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
 import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -163,8 +162,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private TMAGridOverlay tmaGridOverlay;
 	// An overlay to show a regular grid (e.g. for counting)
 	private GridOverlay gridOverlay;
-	// A default overlay to show a pixel layer on top of an image
-	private PixelLayerOverlay pixelLayerOverlay = null;
+//	// A default overlay to show a pixel layer on top of an image
+//	private PixelLayerOverlay pixelLayerOverlay = null;
 	// A custom pixel overlay to use instead of the default
 	private PathOverlay customPixelLayerOverlay = null;
 	
@@ -758,31 +757,31 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		setOverlayOptions(overlayOptions);
 		
-		// We need a simple repaint for color changes & simple (thick) line changes
-		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
-		
-		manager.attachListener(PathPrefs.viewerGammaProperty(), repainterEntire);
-		manager.attachListener(PathPrefs.viewerInterpolateBilinearProperty(), repainterEntire);
-		manager.attachListener(PathPrefs.viewerBackgroundColorProperty(), repainterEntire);
-		
-		manager.attachListener(PathPrefs.showPointHullsProperty(), repainter);
-		manager.attachListener(PathPrefs.useSelectedColorProperty(), repainter);
-		manager.attachListener(PathPrefs.colorDefaultObjectsProperty(), repainterOverlay);
-		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
-		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
-		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
-		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
-		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
-		manager.attachListener(PathPrefs.viewerFontSizeProperty(), repainter);
-
-		manager.attachListener(PathPrefs.gridSpacingXProperty(), repainter);
-		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
-		manager.attachListener(PathPrefs.gridStartXProperty(), repainter);
-		manager.attachListener(PathPrefs.gridStartYProperty(), repainter);
-		manager.attachListener(PathPrefs.gridScaleMicronsProperty(), repainter);
-
-		// We need to repaint everything if detection line thickness changes - including any cached regions
-		manager.attachListener(PathPrefs.detectionStrokeThicknessProperty(), repainterOverlay);		
+//		// We need a simple repaint for color changes & simple (thick) line changes
+//		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
+//		
+//		manager.attachListener(PathPrefs.viewerGammaProperty(), repainterEntire);
+//		manager.attachListener(PathPrefs.viewerInterpolateBilinearProperty(), repainterEntire);
+//		manager.attachListener(PathPrefs.viewerBackgroundColorProperty(), repainterEntire);
+//		
+//		manager.attachListener(PathPrefs.showPointHullsProperty(), repainter);
+//		manager.attachListener(PathPrefs.useSelectedColorProperty(), repainter);
+//		manager.attachListener(PathPrefs.colorDefaultObjectsProperty(), repainterOverlay);
+//		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
+//		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
+//		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
+//		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
+//		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
+//		manager.attachListener(PathPrefs.viewerFontSizeProperty(), repainter);
+//
+//		manager.attachListener(PathPrefs.gridSpacingXProperty(), repainter);
+//		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
+//		manager.attachListener(PathPrefs.gridStartXProperty(), repainter);
+//		manager.attachListener(PathPrefs.gridStartYProperty(), repainter);
+//		manager.attachListener(PathPrefs.gridScaleMicronsProperty(), repainter);
+//
+//		// We need to repaint everything if detection line thickness changes - including any cached regions
+//		manager.attachListener(PathPrefs.detectionStrokeThicknessProperty(), repainterOverlay);		
 
 		// Can be used to debug graphics
 		//		setDoubleBuffered(false);
@@ -799,10 +798,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		hierarchyOverlay = new HierarchyOverlay(this.regionStore, overlayOptions, imageData);
 		tmaGridOverlay = new TMAGridOverlay(overlayOptions);
 		gridOverlay = new GridOverlay(overlayOptions);
-		pixelLayerOverlay = new PixelLayerOverlay(this);
+//		pixelLayerOverlay = new PixelLayerOverlay(this);
 		// Set up the overlay layers
 		coreOverlayLayers.setAll(
-				pixelLayerOverlay,
+//				pixelLayerOverlay,
 				tmaGridOverlay,
 				hierarchyOverlay,
 				gridOverlay
@@ -938,6 +937,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			overlayOptionsManager.attachListener(overlayOptions.fillAnnotationsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showDetectionsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showPixelClassificationProperty(), repainter);
+			overlayOptionsManager.attachListener(overlayOptions.pixelClassificationFilterRegionProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.gridLinesProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showTMACoreLabelsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showGridProperty(), repainter);
@@ -1179,13 +1179,26 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		var previousOverlay = getCurrentPixelLayerOverlay();
 		int ind = coreOverlayLayers.indexOf(previousOverlay);
 		this.customPixelLayerOverlay = pathOverlay;
-		if (ind < 0) {
-			logger.warn("Pixel layer overlay not found! Will try to recover...");
-			coreOverlayLayers.removeAll(pixelLayerOverlay, customPixelLayerOverlay);
-			coreOverlayLayers.add(0, getCurrentPixelLayerOverlay());
+		if (this.customPixelLayerOverlay == null) {
+			if (ind >= 0)
+				coreOverlayLayers.remove(ind);
+		} else if (ind < 0) {
+			coreOverlayLayers.add(0, this.customPixelLayerOverlay);
 		} else {
-			coreOverlayLayers.set(ind, getCurrentPixelLayerOverlay());
+			coreOverlayLayers.set(ind, this.customPixelLayerOverlay);
 		}
+				
+//		// Get existing custom overlay
+//		var previousOverlay = getCurrentPixelLayerOverlay();
+//		int ind = coreOverlayLayers.indexOf(previousOverlay);
+//		this.customPixelLayerOverlay = pathOverlay;
+//		if (ind < 0) {
+//			logger.warn("Pixel layer overlay not found! Will try to recover...");
+//			coreOverlayLayers.removeAll(pixelLayerOverlay, customPixelLayerOverlay);
+//			coreOverlayLayers.add(0, getCurrentPixelLayerOverlay());
+//		} else {
+//			coreOverlayLayers.set(ind, getCurrentPixelLayerOverlay());
+//		}
 	}
 	
 	/**
@@ -1197,7 +1210,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	
 	private PathOverlay getCurrentPixelLayerOverlay() {
-		return customPixelLayerOverlay == null ? pixelLayerOverlay : customPixelLayerOverlay;
+		return customPixelLayerOverlay;
+//		return customPixelLayerOverlay == null ? pixelLayerOverlay : customPixelLayerOverlay;
 	}
 	
 

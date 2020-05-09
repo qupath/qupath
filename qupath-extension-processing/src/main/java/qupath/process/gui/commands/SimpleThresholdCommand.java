@@ -17,7 +17,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
@@ -101,8 +100,6 @@ public class SimpleThresholdCommand implements Runnable {
 	private Spinner<Double> spinner = new Spinner<>(thresholdValueFactory);
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 	
-	private CheckBox cbLimitToAnnotations = new CheckBox("Limit to annotations");
-	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
 	private ObjectProperty<PixelClassifier> currentClassifier = new SimpleObjectProperty<>();
 
@@ -119,14 +116,6 @@ public class SimpleThresholdCommand implements Runnable {
 
 		classificationsAbove.setItems(qupath.getAvailablePathClasses());
 		classificationsBelow.setItems(qupath.getAvailablePathClasses());
-		
-		cbLimitToAnnotations.selectedProperty().addListener((v, o, n) -> {
-			var overlay = selectedOverlay.get();
-			if (overlay != null) {
-				overlay.setUseAnnotationMask(n);
-				qupath.repaintViewers();
-			}
-		});
 				
 		int row = 0;
 		
@@ -185,7 +174,14 @@ public class SimpleThresholdCommand implements Runnable {
 		});
 		labelBelow.setOnMouseClicked(labelAbove.getOnMouseClicked());
 
-		PaneTools.addGridRow(pane,  row++, 0, "Apply live prediction only to annotated regions (useful for previewing)", cbLimitToAnnotations, cbLimitToAnnotations, cbLimitToAnnotations);
+		var labelRegion = new Label("Region");
+		var comboRegionFilter = PixelClassifierTools.createRegionFilterCombo(qupath.getOverlayOptions());
+		PaneTools.addGridRow(pane,  row++, 0, "Optionally limit live classification to annotated regions",
+				labelRegion, comboRegionFilter, comboRegionFilter);
+		
+//		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
+//		PaneTools.addGridRow(pane,  row++, 0, null,
+//				nodeLimit, nodeLimit, nodeLimit);
 		
 		var btnSave = new Button("Save as pixel classifier");
 		btnSave.disableProperty().bind(currentClassifier.isNull());
@@ -349,7 +345,6 @@ public class SimpleThresholdCommand implements Runnable {
 		// Create classifier
 		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), classifier);
 		overlay.setLivePrediction(true);
-		overlay.setUseAnnotationMask(cbLimitToAnnotations.isSelected());
 		selectedOverlay.set(overlay);
 		this.currentClassifier.set(classifier);
 		

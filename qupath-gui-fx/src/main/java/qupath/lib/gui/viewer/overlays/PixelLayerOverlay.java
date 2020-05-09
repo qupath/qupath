@@ -15,10 +15,13 @@ import qupath.lib.regions.ImageRegion;
  * <p>
  * Currently, the pixel layer is stored transitively in the {@link ImageData} properties.
  * This behavior may change in a future release.
+ * <p>
+ * This has been deprecated in favor of always using the more complex pixel classification overlay that supports live prediction.
  * 
  * @author Pete Bankhead
  */
-public class PixelLayerOverlay extends AbstractOverlay {
+@Deprecated
+class PixelLayerOverlay extends AbstractOverlay {
 	
 	private DefaultImageRegionStore store;
 	

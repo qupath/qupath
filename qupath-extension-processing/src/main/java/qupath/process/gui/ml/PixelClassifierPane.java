@@ -37,7 +37,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -140,8 +139,6 @@ public class PixelClassifierPane {
 	
 	private ReadOnlyObjectProperty<OpenCVStatModel> selectedClassifier;
 
-	private ReadOnlyObjectProperty<ClassificationRegion> selectedRegion;
-	
 	private ReadOnlyObjectProperty<ImageDataTransformerBuilder> selectedFeatureCalculatorBuilder;
 
 	private ReadOnlyObjectProperty<ImageServerMetadata.ChannelType> selectedOutputType;
@@ -279,18 +276,10 @@ public class PixelClassifierPane {
 		
 		// Region
 		var labelRegion = new Label("Region");
-		var comboRegion = new ComboBox<ClassificationRegion>();
-		comboRegion.getItems().addAll(ClassificationRegion.values());
-		selectedRegion = comboRegion.getSelectionModel().selectedItemProperty();
-		selectedRegion.addListener((v, o, n) -> {
-			if (overlay != null)
-				overlay.setUseAnnotationMask(n == ClassificationRegion.ANNOTATIONS_ONLY);
-		});
-		comboRegion.getSelectionModel().clearAndSelect(0);
-		
-		PaneTools.addGridRow(pane, row++, 0, 
-				"Choose whether to apply the classifier to the whole image, or only regions containing annotations",
-				labelRegion, comboRegion, comboRegion, comboRegion);
+		var comboRegionFilter = PixelClassifierTools.createRegionFilterCombo(qupath.getOverlayOptions());
+//		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
+		PaneTools.addGridRow(pane,  row++, 0, "Optionally limit live classification to annotated regions",
+				labelRegion, comboRegionFilter, comboRegionFilter, comboRegionFilter);
 
 		
 		// Live predict
@@ -966,7 +955,6 @@ public class PixelClassifierPane {
 		}
 		overlay = newOverlay;
 		if (overlay != null) {
-			overlay.setUseAnnotationMask(selectedRegion.get() == ClassificationRegion.ANNOTATIONS_ONLY);
 			overlay.setLivePrediction(livePrediction.get());
 			overlay.setOpacity(sliderFeatureOpacity.getValue());
 		}

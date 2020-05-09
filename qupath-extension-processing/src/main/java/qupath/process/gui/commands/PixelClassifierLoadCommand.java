@@ -4,10 +4,8 @@ import java.io.IOException;
 import java.util.Collection;
 
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
@@ -81,14 +79,10 @@ public class PixelClassifierLoadCommand implements Runnable {
 			return null;
 		}, comboClassifiers.getSelectionModel().selectedItemProperty());
 		
-		var limitToAnnotations = new SimpleBooleanProperty(true);
-		
 		var selectedOverlay = Bindings.createObjectBinding(() -> {
 			if (selectedClassifier.get() == null)
 				return null;
-			var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), selectedClassifier.get());
-			overlay.setUseAnnotationMask(limitToAnnotations.get());
-			return overlay;
+			return PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), selectedClassifier.get());
 		}, selectedClassifier);
 		
 		selectedOverlay.addListener((v, o, n) -> {
@@ -106,17 +100,8 @@ public class PixelClassifierLoadCommand implements Runnable {
 		label.setLabelFor(comboClassifiers);
 		
 		var tilePane = PixelClassifierTools.createPixelClassifierButtons(viewer.imageDataProperty(), selectedClassifier);
-		
-		var cbLimitToAnnotations = new CheckBox("Limit to annotations");
-		cbLimitToAnnotations.selectedProperty().bindBidirectional(limitToAnnotations);
-		limitToAnnotations.addListener((v, o, n) -> {
-			var overlay = selectedOverlay.get();
-			if (overlay != null) {
-				overlay.setUseAnnotationMask(n);
-				qupath.repaintViewers();
-			}
-		});
-		
+		var labelRegion = new Label("Region");
+		var comboRegionFilter = PixelClassifierTools.createRegionFilterCombo(qupath.getOverlayOptions());
 
 		var pane = new GridPane();
 		pane.setPadding(new Insets(10.0));
@@ -124,7 +109,8 @@ public class PixelClassifierLoadCommand implements Runnable {
 		pane.setVgap(10);
 		int row = 0;
 		PaneTools.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
-		PaneTools.addGridRow(pane, row++, 0, "Apply live prediction only to annotated regions (useful for previewing)", cbLimitToAnnotations, cbLimitToAnnotations, cbLimitToAnnotations);
+		PaneTools.addGridRow(pane, row++, 0, "Optionally limit live classification to annotated regions",
+				labelRegion, comboRegionFilter, comboRegionFilter);
 		PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane);
