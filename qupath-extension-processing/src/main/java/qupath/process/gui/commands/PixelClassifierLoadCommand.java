@@ -15,7 +15,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.process.gui.ml.PixelClassificationOverlay;
-import qupath.process.gui.ml.PixelClassifierTools;
+import qupath.process.gui.ml.PixelClassifierUI;
 
 /**
  * Command to apply a pre-trained pixel classifier to an image.
@@ -99,9 +99,9 @@ public class PixelClassifierLoadCommand implements Runnable {
 		var label = new Label("Choose model");
 		label.setLabelFor(comboClassifiers);
 		
-		var tilePane = PixelClassifierTools.createPixelClassifierButtons(viewer.imageDataProperty(), selectedClassifier);
+		var tilePane = PixelClassifierUI.createPixelClassifierButtons(viewer.imageDataProperty(), selectedClassifier);
 		var labelRegion = new Label("Region");
-		var comboRegionFilter = PixelClassifierTools.createRegionFilterCombo(qupath.getOverlayOptions());
+		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 
 		var pane = new GridPane();
 		pane.setPadding(new Insets(10.0));

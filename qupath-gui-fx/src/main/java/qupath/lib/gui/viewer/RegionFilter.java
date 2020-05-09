@@ -42,7 +42,7 @@ public interface RegionFilter extends BiPredicate<ImageData<?>, RegionRequest> {
 			case EVERYWHERE:
 				return "Everywhere";
 			case IMAGE:
-				return "Entire image (non-empty regions)";
+				return "Image (non-empty regions)";
 			case ANY_OBJECTS:
 				return "Any objects";
 			case ANY_ANNOTATIONS:

@@ -2,8 +2,12 @@
 
 This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 
-* Pixel classifiers support multiple viewers
+* Many pixel classifier improvements
   * Training annotations are used from all compatible images that are currently open
+  * New 'Load training' button to support training using annotations from multiple images
+  * New 'Measure' button to store measurements after the classifier is closed
+  * More control over the regions where the classifier is applied in 'live' preview mode
+  * Default classifier is now ANN (often better & much faster than Random Trees)
 * Measurement lists are reset if an object's ROI is changed
   * This guards against inadvertently producing invalid measurements by modifying an annotate after measuring
 * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)

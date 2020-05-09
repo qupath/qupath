@@ -2,6 +2,7 @@ package qupath.lib.gui.dialogs;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,7 +30,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 
 /**
@@ -40,28 +40,25 @@ public class ProjectDialogs {
 	private final static Logger logger = LoggerFactory.getLogger(ProjectDialogs.class);
 	
 	/**
-	 * Populates a given ListSelectionView with all the project entries.
+	 * Populates a given {@link ListSelectionView} with all the project entries.
 	 * 
 	 * @param qupath	variable used to understand which image(s) is/are opened in viewer(s).
-	 * @param project	variable used to get all images to populate the list.
-	 * @param listSelectionView	variable that will be populated.
-	 * @param previousImages	keeps track of images already used previously (can be null).
-	 * @param sameImageWarning	warning shown if image(s) to process is/are currently opened in viewer(s).
-	 * @param doSave	variable used to know whether displaying info about data saving.
-	 * @return multi-selection control
+	 * @param availableImages	all available images
+	 * @param selectedImages	set some images to be selected initially (optional; can be null)
+	 * @param openImageWarning	warning shown if image(s) to process is/are currently opened in viewer(s).
+	 * @return a {@link ListSelectionView} suitable for selecting entries
 	 */
 	public static ListSelectionView<ProjectImageEntry<BufferedImage>> createImageChoicePane(QuPathGUI qupath,
-								Project<BufferedImage> project,
-								ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView,
-								List<ProjectImageEntry<BufferedImage>> previousImages,
-								String sameImageWarning,
-								boolean doSave) {
+								List<ProjectImageEntry<BufferedImage>> availableImages,
+								List<ProjectImageEntry<BufferedImage>> selectedImages,
+								String openImageWarning) {
 		
-		listSelectionView.getSourceItems().setAll(project.getImageList());
-		if (previousImages != null && !previousImages.isEmpty() && listSelectionView.getSourceItems().containsAll(previousImages)) {
-			listSelectionView.getSourceItems().removeAll(previousImages);
-			listSelectionView.getTargetItems().addAll(previousImages);
-		}
+		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = new ListSelectionView<>();
+		listSelectionView.getSourceItems().setAll(availableImages);
+//		if (selectedImages != null && !selectedImages.isEmpty()) {
+//			listSelectionView.getSourceItems().removeAll(selectedImages);
+//			listSelectionView.getTargetItems().addAll(selectedImages);
+//		}
 		listSelectionView.setCellFactory(c -> new ProjectEntryListCell());
 		
 		// Add a filter text field
@@ -69,8 +66,8 @@ public class ProjectDialogs {
 		CheckBox cbWithData = new CheckBox("With data file only");
 		tfFilter.setTooltip(new Tooltip("Enter text to filter image list"));
 		cbWithData.setTooltip(new Tooltip("Filter image list to only images with associated data files"));
-		tfFilter.textProperty().addListener((v, o, n) -> updateImageList(listSelectionView, project, n, cbWithData.selectedProperty().get()));
-		cbWithData.selectedProperty().addListener((v, o, n) -> updateImageList(listSelectionView, project, tfFilter.getText(), cbWithData.selectedProperty().get()));
+		tfFilter.textProperty().addListener((v, o, n) -> updateImageList(listSelectionView, availableImages, n, cbWithData.selectedProperty().get()));
+		cbWithData.selectedProperty().addListener((v, o, n) -> updateImageList(listSelectionView, availableImages, tfFilter.getText(), cbWithData.selectedProperty().get()));
 		
 		GridPane paneFooter = new GridPane();
 
@@ -86,8 +83,7 @@ public class ProjectDialogs {
 		listSelectionView.setSourceFooter(paneFooter);
 		
 		// Create label to show number selected, with a possible warning if we have a current image open
-		List<ProjectImageEntry<BufferedImage>> currentImages = new ArrayList<>();
-		Label labelSameImageWarning = new Label(sameImageWarning);
+		Label labelSameImageWarning = new Label(openImageWarning);
 		
 		Label labelSelected = new Label();
 		labelSelected.setTextAlignment(TextAlignment.CENTER);
@@ -98,6 +94,7 @@ public class ProjectDialogs {
 		Platform.runLater(() -> {
 			getTargetItems(listSelectionView).addListener((ListChangeListener.Change<? extends ProjectImageEntry<?>> e) -> {
 				labelSelected.setText(e.getList().size() + " selected");
+				var currentImages = getCurrentImages(qupath);
 				if (labelSameImageWarning != null && currentImages != null) {
 					boolean visible = false;
 					var targets = e.getList();
@@ -115,16 +112,8 @@ public class ProjectDialogs {
 		var paneSelected = new GridPane();
 		PaneTools.addGridRow(paneSelected, 0, 0, "Selected images", labelSelected);
 
-		// Get the current images that are open
-		currentImages.addAll(qupath.getViewers().stream()
-				.map(v -> {
-					var imageData = v.getImageData();
-					return imageData == null ? null : qupath.getProject().getEntry(imageData);
-				})
-				.filter(d -> d != null)
-				.collect(Collectors.toList()));
 		// Create a warning label to display if we need to
-		if (doSave && !currentImages.isEmpty()) {
+		if (openImageWarning != null) {
 			labelSameImageWarning.setTextFill(Color.RED);
 			labelSameImageWarning.setMaxWidth(Double.MAX_VALUE);
 			labelSameImageWarning.setMinHeight(Label.USE_PREF_SIZE);
@@ -133,12 +122,35 @@ public class ProjectDialogs {
 			labelSameImageWarning.setVisible(false);
 			PaneTools.setHGrowPriority(Priority.ALWAYS, labelSameImageWarning);
 			PaneTools.setFillWidth(Boolean.TRUE, labelSameImageWarning);
-			PaneTools.addGridRow(paneSelected, 1, 0, sameImageWarning, labelSameImageWarning);
+			PaneTools.addGridRow(paneSelected, 1, 0, openImageWarning, labelSameImageWarning);
 		}
 		listSelectionView.setTargetFooter(paneSelected);
 		
+		// Set now, so that the label will be triggered if needed
+		if (selectedImages != null && !selectedImages.isEmpty()) {
+			listSelectionView.getSourceItems().removeAll(selectedImages);
+			listSelectionView.getTargetItems().addAll(selectedImages);
+		}
+		
 		return listSelectionView;
 	}
+	
+	
+	/**
+	 * Get the {@link ProjectImageEntry} for each of the current images open in QuPath, if available.
+	 * @param qupath
+	 * @return a collection of currently-open project entries
+	 */
+	public static Collection<ProjectImageEntry<BufferedImage>> getCurrentImages(QuPathGUI qupath) {
+		return qupath.getViewers().stream()
+		.map(v -> {
+			var imageData = v.getImageData();
+			return imageData == null ? null : qupath.getProject().getEntry(imageData);
+		})
+		.filter(d -> d != null)
+		.collect(Collectors.toSet());
+	}
+	
 	
 	
 	private static class ProjectEntryListCell extends ListCell<ProjectImageEntry<BufferedImage>> {
@@ -227,11 +239,12 @@ public class ProjectDialogs {
 		}
 	}
 	
-	private static void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, final Project<BufferedImage> project, final String filterText, final boolean withDataOnly) {
+	private static void updateImageList(final ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView, 
+			final List<ProjectImageEntry<BufferedImage>> availableImages, final String filterText, final boolean withDataOnly) {
 		String text = filterText.trim().toLowerCase();
 		
 		// Get an update source items list
-		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(project.getImageList());
+		List<ProjectImageEntry<BufferedImage>> sourceItems = new ArrayList<>(availableImages);
 		var targetItems = getTargetItems(listSelectionView);
 		sourceItems.removeAll(targetItems);
 		// Remove those without a data file, if necessary

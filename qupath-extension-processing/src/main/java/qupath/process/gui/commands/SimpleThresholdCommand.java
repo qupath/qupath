@@ -44,7 +44,7 @@ import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.process.gui.ml.ClassificationResolution;
 import qupath.process.gui.ml.PixelClassificationOverlay;
-import qupath.process.gui.ml.PixelClassifierTools;
+import qupath.process.gui.ml.PixelClassifierUI;
 
 /**
  * Apply simple thresholding to an image via the pixel classification framework to support 
@@ -175,7 +175,7 @@ public class SimpleThresholdCommand implements Runnable {
 		labelBelow.setOnMouseClicked(labelAbove.getOnMouseClicked());
 
 		var labelRegion = new Label("Region");
-		var comboRegionFilter = PixelClassifierTools.createRegionFilterCombo(qupath.getOverlayOptions());
+		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 		PaneTools.addGridRow(pane,  row++, 0, "Optionally limit live classification to annotated regions",
 				labelRegion, comboRegionFilter, comboRegionFilter);
 		
@@ -187,14 +187,14 @@ public class SimpleThresholdCommand implements Runnable {
 		btnSave.disableProperty().bind(currentClassifier.isNull());
 		btnSave.setOnAction(e -> {
 			try {
-				PixelClassifierTools.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
+				PixelClassifierUI.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
 			} catch (IOException ex) {
 				Dialogs.showErrorMessage("Save classifier", ex);
 			}
 		});
 		PaneTools.addGridRow(pane, row++, 0, "Save current thresholder as a pixel classifier", btnSave, btnSave, btnSave);
 
-		var tilePane = PixelClassifierTools.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
+		var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
 		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		
 		selectedPrefilter.addListener((v, o, n) -> updateClassification());

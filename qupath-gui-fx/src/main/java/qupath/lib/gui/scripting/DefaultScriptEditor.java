@@ -1268,14 +1268,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 			return;			
 		}
 		
-		// Unfortunately ListSelectionView doesn't directly support filtered lists...
-		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = new ListSelectionView<>();
 		// Ensure that the previous images remain selected if the project still contains them
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
-
-		String sameImageWarning = "A selected image is open in the viewer!\nUse 'File>Reload data' to see changes.";
-		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, sameImageWarning, doSave);
+		String sameImageWarning = doSave ? "A selected image is open in the viewer!\nUse 'File>Reload data' to see changes." : null;
+		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());

@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -48,6 +49,7 @@ import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.chart.PieChart;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -78,6 +80,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.commands.MiniViewers;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -91,6 +94,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.opencv.ml.FeaturePreprocessor;
@@ -133,7 +137,10 @@ public class PixelClassifierPane {
 	/**
 	 * Other images from which training annotations should be used
 	 */
-	private List<ImageData<BufferedImage>> trainingImageData = new ArrayList<>();
+	private List<ProjectImageEntry<BufferedImage>> trainingEntries = new ArrayList<>();
+	
+	private Map<ProjectImageEntry<BufferedImage>, ImageData<BufferedImage>> trainingMap = new WeakHashMap<>();
+	
 	
 	private MiniViewers.MiniViewerManager miniViewer;
 	
@@ -277,20 +284,29 @@ public class PixelClassifierPane {
 		
 		
 		// Region
-		var labelRegion = new Label("Region");
-		var comboRegionFilter = PixelClassifierTools.createRegionFilterCombo(qupath.getOverlayOptions());
+		var labelRegion = new Label("Preview");
+		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 //		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
 		PaneTools.addGridRow(pane,  row++, 0, "Optionally limit live classification to annotated regions",
 				labelRegion, comboRegionFilter, comboRegionFilter, comboRegionFilter);
 
 		
 		// Live predict
-		var btnAdvancedOptions = new Button("Advanced options");
+		var btnAdvancedOptions = new Button("Advanced");
 		btnAdvancedOptions.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
 		btnAdvancedOptions.setOnAction(e -> {
 			if (showAdvancedOptions())
 				updateClassifier();
 		});
+		
+		// Live predict
+		var btnProject = new Button("Load training");
+		btnProject.setTooltip(new Tooltip("Train using annotations from more images in the current project"));
+		btnProject.setOnAction(e -> {
+			if (promptToLoadTrainingImages())
+				updateClassifier();
+		});
+		btnProject.disableProperty().bind(qupath.projectProperty().isNull());
 		
 		var btnLive = new ToggleButton("Live prediction");
 		btnLive.selectedProperty().bindBidirectional(livePrediction);
@@ -308,7 +324,7 @@ public class PixelClassifierPane {
 				featureOverlay.setLivePrediction(n);
 		});
 				
-		var panePredict = PaneTools.createColumnGridControls(btnAdvancedOptions, btnLive);
+		var panePredict = PaneTools.createColumnGridControls(btnProject, btnAdvancedOptions, btnLive);
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
@@ -397,7 +413,7 @@ public class PixelClassifierPane {
 		pane.setHgap(5);
 		pane.setVgap(6);
 		
-		var panePostProcess = PixelClassifierTools.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
+		var panePostProcess = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
 				
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
@@ -516,19 +532,63 @@ public class PixelClassifierPane {
 		
 	}
 	
-	
+	/**
+	 * Get all the training images currently requested.
+	 * Often this is just the current image... unless there are a) multiple viewers, and/or b) project images required.
+	 * @return
+	 */
 	private Collection<ImageData<BufferedImage>> getTrainingImageData() {
-		var viewers = qupath.getViewers();
+		// We use the current viewer to determine the image type
 		var imageData = qupath.getImageData();
-		if (imageData == null)
+		if (imageData == null) {
+			logger.warn("Cannot train classifier - a valid image needs to be open in the current viewer");
 			return Collections.emptyList();
-		if (viewers.size() <= 1) {
-			return Collections.singleton(imageData);
 		}
-		var channels = imageData.getServer().getMetadata().getChannels();
-		return viewers.stream().map(v -> v.getImageData()).filter(data -> {
-			return data != null && channels.equals(data.getServer().getMetadata().getChannels());
-		}).collect(Collectors.toList());
+		
+		// Read annotations from all compatible images (which here means same channel names)
+		List<ImageData<BufferedImage>> list = new ArrayList<>();
+		for (var viewer : qupath.getViewers()) {
+			var tempData = viewer.getImageData();
+			if (imageData == tempData || compatibleChannels(imageData.getServer(), tempData.getServer()))
+				list.add(tempData);
+		}
+		
+		// Read any other requested images for the projcet
+		if (!trainingEntries.isEmpty()) {
+			var currentEntries = ProjectDialogs.getCurrentImages(qupath);
+			for (var entry : trainingEntries) {
+				try {
+					if (currentEntries.contains(entry)) {
+						logger.debug("Will not load data for {} - will use the training annotations from the open viewer");
+						var tempData = trainingMap.remove(entry);
+						if (tempData != null)
+							tempData.getServer().close();
+					} else {
+						var tempData = trainingMap.get(entry);
+						if (tempData == null) {
+							tempData = entry.readImageData();
+							trainingMap.put(entry, tempData);
+						}
+						if (compatibleChannels(imageData.getServer(), tempData.getServer()))
+							list.add(tempData);
+					}
+				} catch (Exception e) {
+					logger.error(e.getLocalizedMessage(), e);
+				}
+			}
+		}
+		
+		return list;
+	}
+	
+	private static boolean compatibleChannels(ImageServer<?> server, ImageServer<?> server2) {
+		if (server.nChannels() != server2.nChannels())
+			return false;
+		for (int c = 0; c < server.nChannels(); c++) {
+			if (!server.getChannel(c).getName().equals(server2.getChannel(c).getName()))
+				return false;
+		}
+		return true;
 	}
 	
 	
@@ -781,7 +841,10 @@ public class PixelClassifierPane {
 
 		ClassifierTrainingData trainingData;
 		try {
-			trainingData = helper.createTrainingData(getTrainingImageData());
+			var trainingImages = getTrainingImageData();
+			if (trainingImages.size() > 1)
+				logger.info("Creating training data from {} images", trainingImages.size());
+			trainingData = helper.createTrainingData(trainingImages);
 		} catch (Exception e) {
 			logger.error("Error when updating training data", e);
 			return;
@@ -1019,6 +1082,17 @@ public class PixelClassifierPane {
 //		setImageData(viewer, viewer.getImageData(), null);
 		if (stage != null && stage.isShowing())
 			stage.close();
+		
+		// Ensure we have closed any cached images
+		for (var data : trainingMap.values()) {
+			try {
+				data.getServer().close();
+			} catch (Exception e) {
+				logger.warn("Error closing server: " + e.getLocalizedMessage(), e);
+			}
+		}
+		trainingEntries.clear();
+		trainingMap.clear();
 	}
 	
 	
@@ -1043,7 +1117,7 @@ public class PixelClassifierPane {
 			
 		try {
 			var imageData = qupath.getImageData();
-			return PixelClassifierTools.saveAndApply(project, imageData, server.getClassifier());
+			return PixelClassifierUI.saveAndApply(project, imageData, server.getClassifier());
 //			var resultServer = saveAndApply(project, imageData, server.getClassifier());
 //			if (resultServer != null) {
 //				PixelClassificationImageServer.setPixelLayer(imageData, resultServer);
@@ -1255,6 +1329,34 @@ public class PixelClassifierPane {
 		miniViewer.setDownsample(resolution.cal.getAveragedPixelSize().doubleValue()  / server.getPixelCalibration().getAveragedPixelSize().doubleValue());
 	}
 	
+	
+	
+	private boolean promptToLoadTrainingImages() {
+		var project = qupath.getProject();
+		if (project == null) {
+			Dialogs.showNoProjectError("Pixel classifier");
+			return false;
+		}
+		
+		var listView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), trainingEntries,
+				"Specified image is open!");
+		
+		var pane = new BorderPane(listView);
+		pane.setTop(new Label("Select images to use for training the pixel classifier.\n"
+				+ "Note that more images will require more memory and more processing time!"));
+		
+		if (Dialogs.builder()
+				.title("Pixel classifier training images")
+				.content(pane)
+				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+				.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.CANCEL)
+			return false;
+		
+		trainingEntries.clear();
+		trainingEntries.addAll(ProjectDialogs.getTargetItems(listView));
+		
+		return true;
+	}
 	
 	
 	

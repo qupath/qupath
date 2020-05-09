@@ -100,6 +100,7 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.OpenCVTools;
 
@@ -190,6 +191,7 @@ public class QP {
 			OpenCVTools.class,
 			TileExporter.class,
 			ServerTools.class,
+			PixelClassifierTools.class,
 			
 			ImageOps.class,
 			DelaunayTools.class,
