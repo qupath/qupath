@@ -133,7 +133,6 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -2645,6 +2644,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		repaint();
 	}
 
+	
+	/**
+	 * Center the specified ROI in the viewer
+	 * @param roi
+	 */
+	public void centerROI(ROI roi) {
+		if (roi == null)
+			return;
+		double x = roi.getCentroidX();
+		double y = roi.getCentroidY();
+		setZPosition(roi.getZ());
+		setTPosition(roi.getT());
+		setCenterPixelLocation(x, y);
+	}
 
 
 
@@ -2794,22 +2807,22 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	@Override
 	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 
-		// We only want to shift the object ROI to the center under certain conditions, otherwise the screen jerks annoyingly
-		if (!settingSelectedObject && !getZoomToFit() && pathObjectSelected != null && RoiTools.isShapeROI(pathObjectSelected.getROI())) {
-
-			// We want to center a TMA core if more than half of it is outside the window
-			boolean centerCore = false;
-			Shape shapeDisplayed = getDisplayedRegionShape();
-			ROI pathROI = pathObjectSelected.getROI();
-			if (centerCore || !shapeDisplayed.intersects(pathROI.getBoundsX(), pathROI.getBoundsY(), pathROI.getBoundsWidth(), pathROI.getBoundsHeight())) {
-				//			if (!getDisplayedRegionShape().intersects(pathObjectSelected.getROI().getBounds2D())) {
-				//			(!(pathObjectSelected instanceof PathDetectionObject && getDisplayedRegionShape().intersects(pathObjectSelected.getROI().getBounds2D())))) {
-				double cx = pathObjectSelected.getROI().getCentroidX();
-				double cy = pathObjectSelected.getROI().getCentroidY();
-				setCenterPixelLocation(cx, cy);
-				//		logger.info("Centered to " + cx + ", " + cy);
-			}
-		}
+//		// We only want to shift the object ROI to the center under certain conditions, otherwise the screen jerks annoyingly
+//		if (!settingSelectedObject && pathObjectSelected != previousObject && !getZoomToFit() && pathObjectSelected != null && RoiTools.isShapeROI(pathObjectSelected.getROI())) {
+//
+//			// We want to center a TMA core if more than half of it is outside the window
+//			boolean centerCore = false;
+//			Shape shapeDisplayed = getDisplayedRegionShape();
+//			ROI pathROI = pathObjectSelected.getROI();
+//			if (centerCore || !shapeDisplayed.intersects(pathROI.getBoundsX(), pathROI.getBoundsY(), pathROI.getBoundsWidth(), pathROI.getBoundsHeight())) {
+//				//			if (!getDisplayedRegionShape().intersects(pathObjectSelected.getROI().getBounds2D())) {
+//				//			(!(pathObjectSelected instanceof PathDetectionObject && getDisplayedRegionShape().intersects(pathObjectSelected.getROI().getBounds2D())))) {
+//				double cx = pathObjectSelected.getROI().getCentroidX();
+//				double cy = pathObjectSelected.getROI().getCentroidY();
+//				setCenterPixelLocation(cx, cy);
+//				//		logger.info("Centered to " + cx + ", " + cy);
+//			}
+//		}
 		updateRoiEditor();
 		for (QuPathViewerListener listener : new ArrayList<QuPathViewerListener>(listeners)) {
 			listener.selectedObjectChanged(this, pathObjectSelected);
@@ -2943,14 +2956,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			if (hierarchy == null)
 				return;
 
-			// Center selected object if Enter pressed ('center on enter')
-			if (event.getEventType() == KeyEvent.KEY_RELEASED && code == KeyCode.ENTER) {
-				PathObject selectedObject = getSelectedObject();
-				if (selectedObject != null && selectedObject.hasROI())
-					setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());
-				event.consume();
-				return;
-			}
+//			// Center selected object if Enter pressed ('center on enter')
+//			if (event.getEventType() == KeyEvent.KEY_RELEASED && code == KeyCode.ENTER) {
+//				PathObject selectedObject = getSelectedObject();
+//				if (selectedObject != null && selectedObject.hasROI())
+//					setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());
+//				event.consume();
+//				return;
+//			}
 
 
 			if (!(code == KeyCode.LEFT || code == KeyCode.UP || code == KeyCode.RIGHT || code == KeyCode.DOWN))
@@ -3020,8 +3033,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					PathObject selectedObject = cores.get(ind);
 					hierarchy.getSelectionModel().setSelectedObject(selectedObject);
 					if (selectedObject != null && selectedObject.hasROI())
-						setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());
-					//					setSelectedObject(tmaGrid.getTMACore(ind));
+						centerROI(selectedObject.getROI());
 				}
 				
 				event.consume();

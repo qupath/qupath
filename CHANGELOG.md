@@ -10,6 +10,12 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
   * Default classifier is now ANN (often better & much faster than Random Trees)
 * Measurement lists are reset if an object's ROI is changed
   * This guards against inadvertently producing invalid measurements by modifying an annotate after measuring
+* Viewer no longer centered on selected object when the selection changes or when typing 'Enter'
+  * Fixes some annoyances, especially when annotating across multiple viewers
+  * Center viewer by double-clicking objects in the 'Annotations' or 'Hierarchy' tab, or in a measurement table
+* LabeledImageServer improvements
+  * Supports more than 255 distinct labels
+  * New useUniqueLabels() option to support labelling by object, not only classification
 * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
 * Bug fixes, including:
   * Local normalization now applied before calculating other features (was applied after in m11)

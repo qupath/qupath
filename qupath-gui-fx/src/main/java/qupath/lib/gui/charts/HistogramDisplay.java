@@ -52,6 +52,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.HistogramPanelFX.HistogramData;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.measure.PathTableData;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.plugins.parameters.IntParameter;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -162,16 +163,19 @@ public class HistogramDisplay implements ParameterChangeListener {
 		panelParams = new ParameterPanelFX(params);
 		panelParams.addParameterChangeListener(this);
 		panelParams.getPane().setPadding(new Insets(20, 5, 5, 5));
+		panelParams.getPane().setMinWidth(Pane.USE_PREF_SIZE);
 		updateTable(null);
 
 		table.setPrefHeight(180);
 		table.setMinWidth(100);
 		table.setStyle("-fx-font-size: 0.8em");
+//		var panelSouth = PaneTools.createColumnGrid(panelParams.getPane(), table);
+		
 		GridPane panelSouth = new GridPane();
 		panelSouth.add(panelParams.getPane(), 0, 0);
 		if (showTable)	
 			panelSouth.add(table, 1, 0);
-		GridPane.setHgrow(panelParams.getPane(), Priority.ALWAYS);
+		GridPane.setHgrow(panelParams.getPane(), Priority.NEVER);
 		GridPane.setHgrow(table, Priority.ALWAYS);
 
 
@@ -291,7 +295,7 @@ public class HistogramDisplay implements ParameterChangeListener {
 		if (comboName.getItems().contains(column))
 			comboName.getSelectionModel().select(column);
 		else
-			logger.error("Unknown column requested: {}", column);
+			logger.debug("Unknown column requested: {}", column);
 	}
 
 
