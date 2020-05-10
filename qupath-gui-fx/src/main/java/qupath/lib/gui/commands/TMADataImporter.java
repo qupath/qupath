@@ -40,9 +40,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -149,14 +152,19 @@ class TMADataImporter {
 		
 		BorderPane pane = new BorderPane();
 		pane.setCenter(table);
+//		table.setPadding(new Insets(5));
 		
+//		Label label = new Label("Import TMA map or unique identifiers for TMA cores.");
+//		pane.setTop(label);
 		
 		Button btnImportData = new Button("Import data");
+		btnImportData.setTooltip(new Tooltip("Import TMA core data from a tab-delimited or .csv file"));
 		btnImportData.setOnAction(e -> {
 			if (handleImportDataFromFile(infoGrid))
 				table.refresh();
 		});
 		Button btnPasteData = new Button("Paste data");
+		btnPasteData.setTooltip(new Tooltip("Paste tab-delimited TMA core data from the clipboard"));
 		btnPasteData.setOnAction(e -> {
 			if (handleImportDataFromClipboard(infoGrid))
 				table.refresh();
@@ -164,12 +172,14 @@ class TMADataImporter {
 		
 		
 		Button btnPasteGrid = new Button("Paste grid");
+		btnPasteGrid.setTooltip(new Tooltip("Paste a tab-delimited grid containing TMA core names from the clipboard"));
 		btnPasteGrid.setOnAction(e -> {
 			if (handlePasteGrid(infoGrid)) {
 				table.refresh();
 			}
 		});
 		Button btnLoadGrid = new Button("Import grid");
+		btnLoadGrid.setTooltip(new Tooltip("Import a grid containing TMA core names from a tab-delimited or .csv file"));
 		btnLoadGrid.setOnAction(e -> {
 			if (handleLoadGridFromFile(infoGrid))
 				table.refresh();
@@ -181,9 +191,16 @@ class TMADataImporter {
 				btnLoadGrid,
 				btnPasteGrid
 				);
+		buttonPane.setHgap(10);
+		buttonPane.setPadding(new Insets(5, 0, 5, 0));
 		pane.setBottom(buttonPane);
 		
-		if (Dialogs.showConfirmDialog(TITLE, pane)) {
+		if (Dialogs.builder()
+			.title(TITLE)
+			.content(pane)
+			.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+			.showAndWait()
+			.orElse(ButtonType.CANCEL) == ButtonType.APPLY) {
 			infoGrid.synchronizeTMAGridToInfo();
 			hierarchy.fireObjectsChangedEvent(infoGrid, new ArrayList<>(grid.getTMACoreList()));
 			return;
