@@ -16,6 +16,7 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 * LabeledImageServer improvements
   * Supports more than 255 distinct labels
   * New useUniqueLabels() option to support labelling by object, not only classification
+* 'Classify -> Object classification -> Set cell intensity classification' now works for all detections, if no cells are present
 * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
 * Bug fixes, including:
   * Local normalization now applied before calculating other features (was applied after in m11)

@@ -1939,6 +1939,26 @@ public class QP {
 	}
 	
 	/**
+	 * Set the intensity classifications for detections in the specified hierarchy.
+	 * @param hierarchy 
+	 * @param measurementName measurement to threshold
+	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
+	 */
+	public static void setDetectionIntensityClassifications(final PathObjectHierarchy hierarchy, final String measurementName, final double... thresholds) {
+		setIntensityClassifications(hierarchy, PathDetectionObject.class, measurementName, thresholds);
+	}
+	
+	/**
+	 * Set the intensity classifications for detections in the current hierarchy.
+	 * 
+	 * @param measurementName measurement to threshold
+	 * @param thresholds either 1 or 3 thresholds, depending upon whether objects should be classified as Positive/Negative or Negative/1+/2+/3+
+	 */
+	public static void setDetectionIntensityClassifications(final String measurementName, final double... thresholds) {
+		setDetectionIntensityClassifications(getCurrentHierarchy(), measurementName, thresholds);
+	}
+	
+	/**
 	 * Set the intensity classifications for cells in the current hierarchy.
 	 * 
 	 * @param measurementName measurement to threshold
