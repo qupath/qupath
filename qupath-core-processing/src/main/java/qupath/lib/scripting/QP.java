@@ -1376,6 +1376,7 @@ public class QP {
 	
 	/**
 	 * Set objects that are a subclass of a specified class.
+	 * Not to be confused with {@link #selectObjectsByPathClass(PathClass...)} and {@link #selectObjectsByClassification(String...)}.
 	 * 
 	 * @param cls
 	 */
@@ -1385,6 +1386,8 @@ public class QP {
 	
 	/**
 	 * Set objects that are a subclass of a specified class.
+	 * Not to be confused with {@link #selectObjectsByPathClass(PathObjectHierarchy, PathClass...)} and {@link #selectObjectsByClassification(PathObjectHierarchy, String...)}.
+	 * 
 	 * @param hierarchy 
 	 * @param cls
 	 */
@@ -1507,21 +1510,29 @@ public class QP {
 	/**
 	 * Select objects for the current hierarchy that have one of the specified {@link PathClass} classifications assigned.
 	 * @param pathClasses one or more classifications
+	 * 
+	 * @see #selectObjectsByPathClass(PathClass...)
 	 */
-	public static void selectObjectsByClassification(final PathClass... pathClasses) {
+	public static void selectObjectsByPathClass(final PathClass... pathClasses) {
 		var hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
-			selectObjectsByClassification(hierarchy, pathClasses);
+			selectObjectsByPathClass(hierarchy, pathClasses);
 	}
 
 	/**
 	 * Select objects for the specified hierarchy that have one of the specified classifications.
 	 * @param hierarchy the hierarchy containing objects that may be selected
 	 * @param pathClassNames one or more classification names, which may be converted to a {@link PathClass} with {@link #getPathClass(String)}
+	 * 
+	 * @see #selectObjectsByPathClass(PathObjectHierarchy, PathClass...)
 	 */
 	public static void selectObjectsByClassification(final PathObjectHierarchy hierarchy, final String... pathClassNames) {
-		var pathClasses = Arrays.stream(pathClassNames).map(s -> getPathClass(s)).toArray(PathClass[]::new);
-		selectObjectsByClassification(hierarchy, pathClasses);
+		PathClass[] pathClasses;
+		if (pathClassNames == null)
+			pathClasses = new PathClass[1];
+		else
+			pathClasses = Arrays.stream(pathClassNames).map(s -> getPathClass(s)).toArray(PathClass[]::new);
+		selectObjectsByPathClass(hierarchy, pathClasses);
 	}
 	
 	/**
@@ -1529,8 +1540,12 @@ public class QP {
 	 * @param hierarchy the hierarchy containing objects that may be selected
 	 * @param pathClasses one or more classifications
 	 */
-	public static void selectObjectsByClassification(final PathObjectHierarchy hierarchy, final PathClass... pathClasses) {
-		var pathClassSet = Arrays.stream(pathClasses).map(p -> p == PathClassFactory.getPathClassUnclassified() ? null : p).collect(Collectors.toCollection(HashSet::new));
+	public static void selectObjectsByPathClass(final PathObjectHierarchy hierarchy, final PathClass... pathClasses) {
+		Set<PathClass> pathClassSet;
+		if (pathClasses == null)
+			pathClassSet = Set.of((PathClass)null);
+		else
+			pathClassSet = Arrays.stream(pathClasses).map(p -> p == PathClassFactory.getPathClassUnclassified() ? null : p).collect(Collectors.toCollection(HashSet::new));
 		selectObjects(hierarchy, p -> pathClassSet.contains(p.getPathClass()));
 	}
 
