@@ -12,12 +12,18 @@ import java.awt.image.IndexColorModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,14 +37,14 @@ import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.GeneratingImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
-import qupath.lib.objects.PathAnnotationObject;
-import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
 
 
 /**
@@ -68,6 +74,14 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	
 	private LabeledServerParameters params;
 	
+	/**
+	 * The maximum requested label; this is used to determine the output depth for indexed images.
+	 */
+	private int maxLabel;
+	
+	private Map<PathObject, PathClass> uniqueClassMap = null;
+	
+	
 	private LabeledImageServer(final ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, LabeledServerParameters params, boolean multichannelOutput) {
 		super();
 		
@@ -80,16 +94,33 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		
 		// Generate mapping for labels; it is permissible to have multiple classes for the same labels, in which case a derived class will be used
 		Map<Integer, PathClass> classificationLabels = new TreeMap<>();
-		for (var entry : params.labels.entrySet()) {
-			var pathClass = entry.getKey();
-			var label = entry.getValue();
-			var previousClass = classificationLabels.put(label, pathClass);
-			if (previousClass != null && previousClass != PathClassFactory.getPathClassUnclassified()) {
-				classificationLabels.put(label, PathClassFactory.getDerivedPathClass(previousClass, pathClass.getName(), null));
+		if (params.createUniqueLabels) {
+			var pathObjects = imageData.getHierarchy().getObjects(null, null).stream().filter(params.objectFilter).collect(Collectors.toCollection(ArrayList::new));
+			// Shuffle the objects, this helps when using grayscale lookup tables, since labels for neighboring objects are otherwise very similar
+			Collections.shuffle(pathObjects, new Random(100L));
+			Integer count = multichannelOutput ? 0 : 1;
+			uniqueClassMap = new HashMap<>();
+			for (var pathObject : pathObjects) {
+				var pathClass = PathClassFactory.getPathClass("Label " + count);
+				uniqueClassMap.put(pathObject, pathClass);
+				classificationLabels.put(count, pathClass);
+				params.labelColors.put(count, pathClass.getColor());
+				params.labels.put(pathClass, count);
+				count++;
+			}
+		} else {
+			for (var entry : params.labels.entrySet()) {
+				var pathClass = getPathClass(entry.getKey());
+				var label = entry.getValue();
+				var previousClass = classificationLabels.put(label, pathClass);
+				if (previousClass != null && previousClass != PathClassFactory.getPathClassUnclassified()) {
+					classificationLabels.put(label, PathClassFactory.getDerivedPathClass(previousClass, pathClass.getName(), null));
+				}
 			}
 		}
+		
 		for (var entry : params.boundaryLabels.entrySet()) {
-			var pathClass = entry.getKey();
+			var pathClass = getPathClass(entry.getKey());
 			var label = entry.getValue();
 			var previousClass = classificationLabels.put(label, pathClass);
 			if (previousClass != null && previousClass != PathClassFactory.getPathClassUnclassified()) {
@@ -111,12 +142,14 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		// Check the labels are valid
 		var labelStats = classificationLabels.keySet().stream().mapToInt(i -> i).summaryStatistics();
 		int minLabel = labelStats.getMin();
-		int maxLabel = labelStats.getMax();
-		if (maxLabel > 255) {
-			throw new IllegalArgumentException("Maximum possible label value is 255! Requested maximum was " + maxLabel);
-		}
+		maxLabel = labelStats.getMax();
 		if (minLabel < 0) {
 			throw new IllegalArgumentException("Minimum possible label value is 0! Requested minimum was " + maxLabel);
+		}
+		if (multichannelOutput) {
+			int nChannels = maxLabel + 1;
+			if (params.maxOutputChannelLimit > 0 && nChannels > params.maxOutputChannelLimit)
+				throw new IllegalArgumentException("You've requested " + nChannels + " output channels, but the maximum supported number is " + params.maxOutputChannelLimit);
 		}
 		
 		if (multichannelOutput) {
@@ -134,12 +167,62 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			metadataBuilder = metadataBuilder
 					.channelType(ChannelType.CLASSIFICATION)
 					.classificationLabels(classificationLabels);
-			colorModel = ColorModelFactory.createIndexedColorModel(params.labelColors, false);
+			
+			// Update the color map, ensuring we don't have null
+			var colors = new LinkedHashMap<Integer, Integer>();
+			for (var entry : params.labelColors.entrySet()) {
+				var key = entry.getKey();
+				var value = entry.getValue();
+				if (key == null) {
+					logger.debug("Missing key in label map! Will be skipped.");
+					continue;
+				}
+				if (value == null) {
+					// Flip the bits of the background color, if needed
+					logger.debug("Missing color in label map! Will be derived from the background color.");
+					var backgroundColor = params.labelColors.get(params.labels.get(params.unannotatedClass));
+					value = backgroundColor == null ? 0 : ~backgroundColor.intValue();
+				}
+				colors.put(key, value);
+			}
+			
+			if (maxLabel < 65536) {
+				colorModel = ColorModelFactory.createIndexedColorModel(colors, false);
+				if (maxLabel > 255)
+					metadataBuilder.pixelType(PixelType.UINT16);
+			} else {
+				colorModel = ColorModelFactory.getDummyColorModel(32);
+				metadataBuilder.channels(ImageChannel.getDefaultRGBChannels());
+			}
 		}
 		
 		// Set metadata, using the underlying server as a basis
 		this.originalMetadata = metadataBuilder.build();
 	}
+	
+	/**
+	 * @param pathClass
+	 * @return the input classification, or the unclassified classification if the input is null
+	 */
+	private static PathClass getPathClass(PathClass pathClass) {
+		return pathClass == null ? PathClassFactory.getPathClassUnclassified() : pathClass;
+	}
+	
+	/**
+	 * Get a standardized classification for an object. 
+	 * If unique labels are requested, this will return the unique classification associated with this object 
+	 * or null if no unique classification is available (i.e. the object should not be included).
+	 * Otherwise, it will return either the objects's classification or the unclassified class (not null).
+	 * @param pathObject
+	 * @return
+	 */
+	private PathClass getPathClass(PathObject pathObject) {
+		if (uniqueClassMap != null)
+			return uniqueClassMap.get(pathObject);
+		return getPathClass(pathObject.getPathClass());
+	}
+	
+	
 	
 	private static class LabeledServerParameters {
 		
@@ -148,7 +231,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 */
 		private PathClass unannotatedClass = PathClassFactory.getPathClass("Unannotated " + UUID.randomUUID().toString());
 		
-		private Class<? extends PathObject> objectClass = PathAnnotationObject.class;
+		private Predicate<PathObject> objectFilter = PathObjectFilter.ANNOTATIONS;
+		private Function<PathObject, ROI> roiFunction = p -> p.getROI();
+		
+		private boolean createUniqueLabels = false;
+		private int maxOutputChannelLimit = 256;
 		
 		private float lineThickness = 1.0f;
 		private Map<PathClass, Integer> labels = new LinkedHashMap<>();
@@ -163,10 +250,13 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		LabeledServerParameters(LabeledServerParameters params) {
 			this.unannotatedClass = params.unannotatedClass;
 			this.lineThickness = params.lineThickness;
-			this.objectClass = params.objectClass;
+			this.objectFilter = params.objectFilter;
 			this.labels = new LinkedHashMap<>(params.labels);
 			this.boundaryLabels = new LinkedHashMap<>(params.boundaryLabels);
 			this.labelColors = new LinkedHashMap<>(params.labelColors);
+			this.createUniqueLabels = params.createUniqueLabels;
+			this.maxOutputChannelLimit = params.maxOutputChannelLimit;
+			this.roiFunction = params.roiFunction;
 		}
 		
 	}
@@ -199,7 +289,30 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @see #useAnnotations()
 		 */
 		public Builder useDetections() {
-			params.objectClass = PathDetectionObject.class;
+			params.objectFilter = PathObjectFilter.DETECTIONS_ALL;
+			return this;
+		}
+		
+		/**
+		 * Use cells rather than annotations for labels.
+		 * The default is to use annotations.
+		 * @return
+		 * @see #useAnnotations()
+		 */
+		public Builder useCells() {
+			params.objectFilter = PathObjectFilter.CELLS;
+			return this;
+		}
+		
+		/**
+		 * Use cells rather than annotations for labels, requesting the nucleus ROI where available.
+		 * The default is to use annotations.
+		 * @return
+		 * @see #useAnnotations()
+		 */
+		public Builder useCellNuclei() {
+			params.objectFilter = PathObjectFilter.CELLS;
+			params.roiFunction = p -> PathObjectTools.getROI(p, true);
 			return this;
 		}
 		
@@ -209,7 +322,19 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @see #useDetections()
 		 */
 		public Builder useAnnotations() {
-			params.objectClass = PathAnnotationObject.class;
+			params.objectFilter = PathObjectFilter.ANNOTATIONS;
+			return this;
+		}
+		
+		/**
+		 * Use a custom method of selecting objects for inclusion.
+		 * The default is to use annotations.
+		 * @param filter the filter that determines whether an object will be included or not
+		 * @return
+		 * @see #useAnnotations()
+		 */
+		public Builder useFilter(Predicate<PathObject> filter) {
+			params.objectFilter = filter;
 			return this;
 		}
 		
@@ -255,6 +380,18 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			params.lineThickness = thickness;
 			return this;
 		}
+		
+		
+		/**
+		 * Request that unique labels are used for all objects, rather than classifications.
+		 * If this flag is set, all other label requests are ignored.
+		 * @return
+		 */
+		public Builder useUniqueLabels() {
+			params.createUniqueLabels = true;
+			return this;
+		}
+		
 		
 		/**
 		 * If true, the output image consists of multiple binary images concatenated as different channels, 
@@ -361,6 +498,28 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		}
 		
 		/**
+		 * Add a single label for objects that are unclassified, where the label represents the integer label used for 
+		 * annotations that have no classification set.
+		 * @param label the indexed image pixel value or channel number without a classification
+		 * @param color the color of the lookup table used with any indexed image
+		 * @return
+		 */
+		public Builder addUnclassifiedLabel(int label, Integer color) {
+			return addLabel(params.labels, PathClassFactory.getPathClassUnclassified(), label, color);
+		}
+		
+		/**
+		 * Add a single label for objects that are unclassified, where the label represents the integer label used for 
+		 * annotations that have no classification set.
+		 * @param label the indexed image pixel value or channel number without a classification
+		 * @return
+		 */
+		public Builder addUnclassifiedLabel(int label) {
+			return addLabel(params.labels, PathClassFactory.getPathClassUnclassified(), label, null);
+		}
+		
+		
+		/**
 		 * Set the classification and label to use for boundaries for classified areas.
 		 * @param pathClass
 		 * @param label the indexed image pixel value or channel number for the given classification
@@ -404,11 +563,24 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		}
 		
 		private Builder addLabel(Map<PathClass, Integer> map, PathClass pathClass, int label, Integer color) {
+			pathClass = getPathClass(pathClass);
 			map.put(pathClass, label);
 			if (color != null)
 				params.labelColors.put(label, color);
 			else if (!params.labelColors.containsKey(label))
 				params.labelColors.put(label, pathClass.getColor());
+			return this;
+		}
+		
+		/**
+		 * Specify the maximum number of output channels allowed before QuPath will throw an exception.
+		 * This is used to guard against inadvertently requesting a labelled image that would have an infeasibly 
+		 * large number of output channels, most commonly with {@link #useUniqueLabels()}.
+		 * @param maxChannels the maximum supported channels; set (cautiously!) &le; 0 to ignore the limit entirely.
+		 * @return
+		 */
+		public Builder maxOutputChannelLimit(int maxChannels) {
+			params.maxOutputChannelLimit = maxChannels;
 			return this;
 		}
 		
@@ -451,9 +623,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	 */
 	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
-		return !hierarchy.getObjectsForRegion(params.objectClass, request, null).stream().anyMatch( p -> {
-				return params.labels.keySet().contains(p.getPathClass()) || params.boundaryLabels.keySet().contains(p.getPathClass());
-			});
+		return !hierarchy.getObjectsForRegion(null, request, null).stream()
+				.filter(params.objectFilter)
+				.map(p -> getPathClass(p))
+				.anyMatch(p -> params.labels.containsKey(p) || params.boundaryLabels.containsKey((p)));
 	}
 	
 	@Override
@@ -489,7 +662,9 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
 		long startTime = System.currentTimeMillis();
 		
-		var pathObjects = hierarchy.getObjectsForRegion(params.objectClass, tileRequest.getRegionRequest(), null);
+		var pathObjects = hierarchy.getObjectsForRegion(null, tileRequest.getRegionRequest(), null)
+				.stream().filter(params.objectFilter)
+				.collect(Collectors.toList());
 		BufferedImage img;
 		if (multichannelOutput) {
 			img = createMultichannelTile(tileRequest, pathObjects);
@@ -556,12 +731,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			for (var entry : params.labels.entrySet()) {
 				if (entry.getValue() != label)
 					continue;
-				var pathClass = entry.getKey();
-				boolean noClass = pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified();
+				var pathClass = getPathClass(entry.getKey());
 				for (var pathObject : pathObjects) {
-					if (pathObject.getPathClass() == pathClass ||
-							(noClass && pathObject.getPathClass() == null)) {
-						var roi = pathObject.getROI();
+					if (getPathClass(pathObject) == pathClass) {
+						var roi = params.roiFunction.apply(pathObject);
 						if (roi.isArea())
 							g2d.fill(roi.getShape());
 						else if (roi.isLine())
@@ -582,9 +755,9 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				if (entry.getValue() != label)
 					continue;
 				for (var pathObject : pathObjects) {
-					if (params.labels.containsKey(pathObject.getPathClass()) && !PathClassTools.isIgnoredClass(pathObject.getPathClass())) {
-//					if (pathObject.getPathClass() == pathClass) {
-						var roi = pathObject.getROI();
+					var pathClass = getPathClass(pathObject);
+					if (params.labels.containsKey(pathClass)) { // && !PathClassTools.isIgnoredClass(pathObject.getPathClass())) {
+						var roi = params.roiFunction.apply(pathObject);
 						if (roi.isArea()) {
 							var shape = roi.getShape();
 							g2d.draw(shape);
@@ -599,6 +772,13 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	}
 	
 	
+	private static Color getColorForLabel(int label, boolean doRGB) {
+		if (doRGB)
+			return new Color(label, false);
+		return ColorToolsAwt.getCachedColor(label, label, label);
+	}
+	
+	
 	private BufferedImage createIndexedColorTile(TileRequest tileRequest, Collection<PathObject> pathObjects) {
 
 		RegionRequest request = tileRequest.getRegionRequest();
@@ -608,12 +788,14 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		// Fill in the background color
 		int width = tileRequest.getTileWidth();
 		int height = tileRequest.getTileHeight();
-		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
+		boolean doRGB = maxLabel > 255;
+		// If we have > 255 labels, we can only use Graphics2D if we pretend to have an RGB image
+		BufferedImage img = doRGB ? new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB) : new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
 		WritableRaster raster = img.getRaster();
 		
 		Graphics2D g2d = img.createGraphics();
 		int bgLabel = params.labels.get(params.unannotatedClass);
-		Color color = ColorToolsAwt.getCachedColor(bgLabel, bgLabel, bgLabel);
+		Color color = getColorForLabel(bgLabel, doRGB);
 		g2d.setColor(color);
 		g2d.fillRect(0, 0, width, height);
 
@@ -628,14 +810,12 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			
 			// We want to order consistently to avoid confusing overlaps
 			for (var entry : params.labels.entrySet()) {
-				var pathClass = entry.getKey();
-				boolean noClass = pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified();
+				var pathClass = getPathClass(entry.getKey());
 				int c = entry.getValue();
-				color = ColorToolsAwt.getCachedColor(c, c, c);
+				color = getColorForLabel(c, doRGB);
 				for (var pathObject : pathObjects) {
-					if (pathObject.getPathClass() == pathClass ||
-							(noClass && pathObject.getPathClass() == null)) {
-						var roi = pathObject.getROI();
+					if (getPathClass(pathObject) == pathClass) {
+						var roi = params.roiFunction.apply(pathObject);
 						g2d.setColor(color);
 						if (roi.isArea())
 							g2d.fill(roi.getShape());
@@ -646,7 +826,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 								int x = (int)((p.getX() - request.getX()) / downsampleFactor);
 								int y = (int)((p.getY() - request.getY()) / downsampleFactor);
 								if (x >= 0 && x < width && y >= 0 && y < height) {
-									raster.setSample(x, y, 0, c);
+									if (doRGB)
+										img.setRGB(x, y, color.getRGB());
+									else
+										raster.setSample(x, y, 0, c);
 								}
 							}
 						}
@@ -655,11 +838,12 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			}
 			for (var entry : params.boundaryLabels.entrySet()) {
 				int c = entry.getValue();
-				color = ColorToolsAwt.getCachedColor(c, c, c);
+				color = getColorForLabel(c, doRGB);
 				for (var pathObject : pathObjects) {
 //					if (pathObject.getPathClass() == pathClass) {
-					if (params.labels.containsKey(pathObject.getPathClass()) && !PathClassTools.isIgnoredClass(pathObject.getPathClass())) {
-						var roi = pathObject.getROI();
+					var pathClass = getPathClass(pathObject);
+					if (params.labels.containsKey(pathClass)) {// && !PathClassTools.isIgnoredClass(pathObject.getPathClass())) {
+						var roi = params.roiFunction.apply(pathObject);
 						if (roi.isArea()) {
 							g2d.setColor(color);
 							g2d.draw(roi.getShape());
@@ -668,9 +852,21 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				}
 			}
 		}
-
 		g2d.dispose();
-		return new BufferedImage((IndexColorModel)colorModel, img.getRaster(), false, null);
+		if (doRGB) {
+			// Resort to RGB if we have to
+			if (maxLabel >= 65536)
+				return img;			
+			// Convert to unsigned short if we can
+			var shortRaster = WritableRaster.createBandedRaster(DataBuffer.TYPE_USHORT, width, height, 1, null);
+			int[] samples = img.getRGB(0, 0, width, height, null, 0, width);
+			shortRaster.setSamples(0, 0, width, height, 0, samples);
+//			System.err.println("Before: " + Arrays.stream(samples).summaryStatistics());
+			raster = shortRaster;
+			samples = raster.getSamples(0, 0, width, height, 0, (int[])null);
+//			System.err.println("After: " + Arrays.stream(samples).summaryStatistics());
+		}
+		return new BufferedImage((IndexColorModel)colorModel, raster, false, null);
 	}
 	
 
