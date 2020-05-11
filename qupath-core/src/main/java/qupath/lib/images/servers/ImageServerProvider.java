@@ -27,6 +27,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -129,8 +132,17 @@ public class ImageServerProvider {
 	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
 		URI uriTemp;
 		try {
-			if (path.startsWith("file:") || path.startsWith("http")) {
+			if (path.startsWith("file:")) { 
 				uriTemp = new URI(path);
+			} else if (path.startsWith("http")) {
+				String urlQuery = new URL(path).getQuery();
+				if (urlQuery != null) {
+					String encodedQueryString = URLEncoder.encode(urlQuery, StandardCharsets.UTF_8.toString());
+					String encodedURL = path.replace(urlQuery, encodedQueryString);
+					uriTemp = URI.create(encodedURL);
+				} else {
+					uriTemp = URI.create(path);
+				}
 			} else {
 				// Handle legacy file paths (optionally with Bio-Formats series names included)
 				String delimiter = "::";

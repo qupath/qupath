@@ -17,6 +17,7 @@ import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +25,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -134,10 +137,21 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		return null;
 	}
 
+
 	@Override
 	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
 		float supportLevel = supportLevel(uri, args);
-		return UriImageSupport.createInstance(this.getClass(), supportLevel, DefaultImageServerBuilder.createInstance(this.getClass(), uri, args));
+		List<URI> uris = getURIs(uri);
+		Collection<ServerBuilder<BufferedImage>> builders = new ArrayList<ServerBuilder<BufferedImage>>();
+		for (var subURI: uris) {
+			try (var server = buildServer(subURI, args)) {
+				builders.add(server.getBuilder());
+			} catch (Exception e) {
+				logger.debug("Unable to create OMERO server", e);
+			}
+		}
+		
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, builders);
 	}
 	
 	private static float supportLevel(URI uri, String...args) {
@@ -181,6 +195,60 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	public Class<BufferedImage> getImageType() {
 		return BufferedImage.class;
 	}
+	
+	// TODO: need to handle projects/datasets requests --> image URIs
+	private List<URI> getURIs(URI uri) {
+		List<URI> list = new ArrayList<URI>();
+		String elemNum = "image-";
+        String query = uri.getQuery() != null ? uri.getQuery() : "";
+        String equalSign = "%3D";
+        String vertBarSign = "%7C";
+        Pattern pattern;
+        Matcher matcher;
+
+        if (uri.getPath().startsWith("/webgateway/"))                	// Old viewer format
+            pattern = Pattern.compile("webgateway/img_detail/(\\d+)");
+
+        else if (uri.getPath().equals("/iviewer/"))                 	// New viewer format
+            pattern = Pattern.compile("images=(\\d+)");
+
+        else if (uri.getPath().startsWith("/webclient/")) {				// 'Link' button format
+            if (!uri.toString().contains(vertBarSign)) {
+                if (uri.getPath().contains("/img_detail/"))				// webclient/img_detail/[img_number]
+                    pattern = Pattern.compile("/img_detail/(\\d+)");
+                else {													// webclient/?show=[type]-[img_number]
+                    var patternType = Pattern.compile("show=(\\w+-)");
+                    var matcherType = patternType.matcher(query);
+                    if (matcherType.find())
+                        elemNum = matcherType.group(1);
+                    pattern = Pattern.compile("show=" + elemNum + "(\\d+)");
+                }
+            } else {                        							// Multiple elements
+                Pattern patternType = Pattern.compile("show=(\\w+-)");
+                Matcher matcherType = patternType.matcher(query);
+                if (matcherType.find()) {
+                    String type = matcherType.group(1);
+                    var patternElem = Pattern.compile(type + "(\\d+)");
+                    var matcherElem = patternElem.matcher(query);
+                    while (matcherElem.find()) {
+                        list.add(URI.create("http://" + uri.getHost() + uri.getPath() + "?show" + equalSign + type + matcherElem.group(1)));
+                    }
+                    return list;
+                }
+                throw new UnsupportedOperationException("URI not recognized: " + uri.toString());
+            }
+        } else {
+            throw new UnsupportedOperationException("URI not recognized: " + uri.toString());
+        }
+
+        matcher = pattern.matcher(uri.getPath() + uri.getQuery());
+        if (matcher.find())
+            elemNum += matcher.group(1);
+
+        list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + "/webclient/?show" + equalSign + elemNum));
+        return list;
+	}
+	
 	
 	@SuppressWarnings("unused")
 	static class OmeroWebClient {

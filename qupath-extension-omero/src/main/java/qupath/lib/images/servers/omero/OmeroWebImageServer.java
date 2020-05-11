@@ -90,10 +90,10 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 		 *  - Id provided as only fragment after host
 		 * The second option could be removed.
 		 */
-		String uriPath = uri.getPath();
-		if (uriPath != null && uriPath.startsWith("/webclient/img_detail")) {
-			Pattern pattern = Pattern.compile("webclient/img_detail/(\\d+)");
-			Matcher matcher = pattern.matcher(uriPath);
+		String uriQuery = uri.getQuery();
+		if (uriQuery != null && uriQuery.startsWith("show=image-")) {
+			Pattern pattern = Pattern.compile("show=image-(\\d+)");
+			Matcher matcher = pattern.matcher(uriQuery);
 			if (matcher.find())
 				this.id = matcher.group(1);
 		}
@@ -218,7 +218,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		originalMetadata = builder.build();
 	}
-	
+
 	@Override
 	protected String createID() {
 		return getClass().getName() + ": " + uri.toString();
