@@ -20,7 +20,10 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 * LabeledImageServer improvements
   * Supports more than 255 distinct labels
   * New useUniqueLabels() option to support labelling by object, not only classification
-* Bug fixes, including:
+* Fixed bug/ambiguity in 'Fill holes' & 'Remove fragments and holes'
+  * Handle nested polygons/holes more reliably
+  * Changed behavior! Area thresholds now refer to total polygon/hole area ignoring any nested polygons or holes
+* Other bug fixes, including:
   * Local normalization now applied before calculating other features (was applied after in m11)
   * Fixed bug in 'Simplify shape' to handle polygons and rectangles properly
   * Projects are automatically saved after changing the image name (https://github.com/qupath/qupath/issues/465)

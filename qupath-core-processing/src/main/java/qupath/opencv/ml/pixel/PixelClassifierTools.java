@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -115,47 +116,69 @@ public class PixelClassifierTools {
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
 			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
 		
+		if (selectedObjects.isEmpty())
+			return false;
+		
+		Map<PathObject, Collection<PathObject>> map = new LinkedHashMap<>();
 		for (var pathObject : selectedObjects) {
-			if (!createObjectsFromPixelClassifier(server, hierarchy, pathObject,
-					creator, minSizePixels, minHoleSizePixels, doSplit, clearExisting))
+			var children = createObjectsFromPixelClassifier(server, pathObject.getROI(),
+					creator, minSizePixels, minHoleSizePixels, doSplit);
+			map.put(pathObject, children);
+			if (Thread.currentThread().isInterrupted())
 				return false;
 		}
+		for (var entry : map.entrySet()) {
+			var parent = entry.getKey();
+			var children = entry.getValue();
+			if (clearExisting && parent.hasChildren())
+				parent.clearPathObjects();
+			parent.addPathObjects(children);
+			parent.setLocked(true);
+		}
+		if (selectedObjects.size() == 1)
+			hierarchy.fireHierarchyChangedEvent(null, selectedObjects.iterator().next());
+		else
+			hierarchy.fireHierarchyChangedEvent(null);
 		return true;
 	}
 
 	/**
-	 * Create objects and add them to an object hierarchy based on thresholding the output of a pixel classifier.
+	 * Create objects from an {@link ImageServer}.
 	 * 
 	 * @param server
-	 * @param hierarchy
-	 * @param selectedObject
+	 * @param roi
 	 * @param creator
-	 * @param minSizePixels
-	 * @param minHoleSizePixels
+	 * @param minArea minimum area for an object fragment to retain, in calibrated units based on the pixel calibration
+	 * @param minHoleArea minimum area for a hole to fill, in calibrated units based on the pixel calibration
 	 * @param doSplit
-	 * @param clearExisting
 	 * @return
 	 */
-	public static boolean createObjectsFromPixelClassifier(
-			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, PathObject selectedObject, 
-			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels,
-			boolean doSplit, boolean clearExisting) {
+	public static Collection<PathObject> createObjectsFromPixelClassifier(
+			ImageServer<BufferedImage> server, ROI roi, 
+			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, boolean doSplit) {
 		
-		var clipArea = selectedObject == null || selectedObject.isRootObject() ? null : selectedObject.getROI().getGeometry();
+		// We need classification labels to do anything
+		var labels = server.getMetadata().getClassificationLabels();
+		if (labels == null || labels.isEmpty())
+			throw new IllegalArgumentException("Cannot create objects for server - no classification labels are available!");
+		
+		var clipArea = roi == null ? null : roi.getGeometry();
 		
 		// Identify regions for selected ROI or entire image
+		// This is a list because it might need to handle multiple z-slices or timepoints
 		List<RegionRequest> regionRequests;
-		if (selectedObject != null && !selectedObject.isRootObject()) {
-			if (selectedObject.hasROI()) {
-				var request = RegionRequest.createInstance(
-						server.getPath(), server.getDownsampleForResolution(0), 
-						selectedObject.getROI());			
-				regionRequests = Collections.singletonList(request);
-			} else
-				regionRequests = Collections.emptyList();
+		if (roi != null) {
+			var request = RegionRequest.createInstance(
+					server.getPath(), server.getDownsampleForResolution(0), 
+					roi);
+			regionRequests = Collections.singletonList(request);
 		} else {
 			regionRequests = RegionRequest.createAllRequests(server, server.getDownsampleForResolution(0));
 		}
+		
+		double pixelArea = server.getPixelCalibration().getPixelWidth().doubleValue() * server.getPixelCalibration().getPixelHeight().doubleValue();
+		double minAreaPixels = minArea / pixelArea;
+		double minHoleAreaPixels = minHoleArea / pixelArea;
 		
 		// Create output array
 		var pathObjects = new ArrayList<PathObject>();
@@ -192,20 +215,19 @@ public class PixelClassifierTools {
 						raster = WritableRaster.createPackedRaster(
 								new DataBufferByte(output, w*h), w, h, 8, null);
 					}
-					var labels = server.getMetadata().getClassificationLabels();
 					for (var entry : labels.entrySet()) {
 						int c = entry.getKey();
 						PathClass pathClass = entry.getValue();
 						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
 							continue;
-						ROI roi = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
+						ROI roiDetected = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
-						if (roi != null)  {
-							Geometry geometry = roi.getGeometry();
+						if (roiDetected != null)  {
+							Geometry geometry = roiDetected.getGeometry();
 							if (clipArea != null)
 								geometry = geometry.intersection(clipArea);
 							if (!geometry.isEmpty())
-								list.add(new GeometryWrapper(geometry, pathClass, roi.getImagePlane()));
+								list.add(new GeometryWrapper(geometry, pathClass, roiDetected.getImagePlane()));
 						}
 					}
 				} catch (Exception e) {
@@ -230,7 +252,7 @@ public class PixelClassifierTools {
 //				System.err.println("Union: " + (end - middle) + ", area = " + geometry2.getArea());
 				
 				// Apply size filters
-				geometry = GeometryTools.refineAreas(geometry, minSizePixels, minHoleSizePixels);
+				geometry = GeometryTools.refineAreas(geometry, minAreaPixels, minHoleAreaPixels);
 				if (geometry == null)
 					continue;
 				
@@ -250,24 +272,7 @@ public class PixelClassifierTools {
 				}
 			}
 		}
-	
-		// Add objects, optionally deleting existing objects first
-		if (clearExisting || (selectedObject != null && !selectedObject.hasChildren())) {
-			if (selectedObject == null) {
-				hierarchy.clearAll();
-				hierarchy.getRootObject().addPathObjects(pathObjects);
-				hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class);
-			} else {
-				selectedObject.clearPathObjects();
-				selectedObject.addPathObjects(pathObjects);
-				hierarchy.fireHierarchyChangedEvent(PixelClassifierTools.class, selectedObject);
-			}
-		} else {
-			hierarchy.addPathObjects(pathObjects);
-		}
-		if (selectedObject != null && (selectedObject.isAnnotation() || selectedObject.isTMACore()))
-			selectedObject.setLocked(true);
-		return true;
+		return pathObjects;
 	}
 	
 	
