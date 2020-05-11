@@ -2054,34 +2054,67 @@ public class QP {
 	 * Compute the distance for all detection object centroids to the closest detection with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list.
 	 * @param imageData
+	 * @param splitClassNames 
+	 * @see DistanceTools#detectionCentroidDistances(ImageData, boolean)
 	 */
-	public static void detectionCentroidDistances(ImageData<?> imageData) {
-		DistanceTools.detectionCentroidDistances(imageData);
+	public static void detectionCentroidDistances(ImageData<?> imageData, boolean splitClassNames) {
+		DistanceTools.detectionCentroidDistances(imageData, splitClassNames);
+	}
+	
+	/**
+	 * Compute the distance for all detection object centroids to the closest detection with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list for the current ImageData - without splitting class names.
+	 * 
+	 * @deprecated retained only for compatibility of v0.2.0 milestone releases; use instead #detectionCentroidDistances(boolean)
+	 * 
+	 * @see DistanceTools#detectionCentroidDistances(ImageData, boolean)
+	 */
+	@Deprecated
+	public static void detectionCentroidDistances() {
+		detectionCentroidDistances(false);
 	}
 	
 	/**
 	 * Compute the distance for all detection object centroids to the closest detection with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list for the current ImageData.
+	 * @param splitClassNames 
+	 * @see DistanceTools#detectionCentroidDistances(ImageData, boolean)
 	 */
-	public static void detectionCentroidDistances() {
-		DistanceTools.detectionCentroidDistances(getCurrentImageData());
+	public static void detectionCentroidDistances(boolean splitClassNames) {
+		detectionCentroidDistances(getCurrentImageData(), splitClassNames);
 	}
 	
 	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list.
 	 * @param imageData
+	 * @param splitClassNames 
+	 * @see DistanceTools#detectionToAnnotationDistances(ImageData, boolean)
 	 */
-	public static void detectionToAnnotationDistances(ImageData<?> imageData) {
-		DistanceTools.detectionToAnnotationDistances(imageData);
+	public static void detectionToAnnotationDistances(ImageData<?> imageData, boolean splitClassNames) {
+		DistanceTools.detectionToAnnotationDistances(imageData, splitClassNames);
+	}
+	
+	/**
+	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
+	 * the result to the detection measurement list for the current ImageData - without splitting class names.
+	 * 
+	 * @deprecated retained only for compatibility of v0.2.0 milestone releases; use instead #detectionToAnnotationDistances(boolean)
+	 * 
+	 */
+	@Deprecated
+	public static void detectionToAnnotationDistances() {
+		detectionToAnnotationDistances(false);
 	}
 	
 	/**
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list for the current ImageData.
+	 * @param splitClassNames 
+	 * @see DistanceTools#detectionToAnnotationDistances(ImageData, boolean)
 	 */
-	public static void detectionToAnnotationDistances() {
-		DistanceTools.detectionToAnnotationDistances(getCurrentImageData());
+	public static void detectionToAnnotationDistances(boolean splitClassNames) {
+		detectionToAnnotationDistances(getCurrentImageData(), splitClassNames);
 	}
 
 	/**

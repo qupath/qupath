@@ -46,8 +46,10 @@ public class DistanceTools {
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list.
 	 * @param imageData
+	 * @param splitClassNames if true, split the classification name. For example, if an image contains classifications for both "CD3: CD4" and "CD3: CD8",
+	 *                        distances will be calculated for all components (e.g. "CD3", "CD4" and "CD8").
 	 */
-	public static void detectionToAnnotationDistances(ImageData<?> imageData) {
+	public static void detectionToAnnotationDistances(ImageData<?> imageData, boolean splitClassNames) {
 		var server = imageData.getServer();
 		var hierarchy = imageData.getHierarchy();
 		var annotations = hierarchy.getAnnotationObjects();
@@ -70,11 +72,23 @@ public class DistanceTools {
 		String unit = xUnit;
 		
 		for (PathClass pathClass : pathClasses) {
-			logger.debug("Computing distances for {}", pathClass);
-			var filteredAnnotations = annotations.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
-			if (!filteredAnnotations.isEmpty()) {
-				String name = "Distance to annotation " + pathClass + " " + unit;
-				centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, name);
+			if (splitClassNames) {
+				var names = PathClassTools.splitNames(pathClass);
+				for (var name : names) {
+					logger.debug("Computing distances for {}", pathClass);
+					var filteredAnnotations = annotations.stream().filter(a -> PathClassTools.containsName(a.getPathClass(), name)).collect(Collectors.toList());
+					if (!filteredAnnotations.isEmpty()) {
+						String measurementName = "Distance to annotation with " + name + " " + unit;
+						centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, measurementName);
+					}
+				}
+			} else {
+				logger.debug("Computing distances for {}", pathClass);
+				var filteredAnnotations = annotations.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
+				if (!filteredAnnotations.isEmpty()) {
+					String name = "Distance to annotation " + pathClass + " " + unit;
+					centroidToBoundsDistance2D(detections, filteredAnnotations, pixelWidth, pixelHeight, name);
+				}
 			}
 		}
 		hierarchy.fireObjectMeasurementsChangedEvent(DistanceTools.class, detections);
@@ -84,8 +98,10 @@ public class DistanceTools {
 	 * Compute the distance for all detection object centroids to the closest annotation with each valid, not-ignored classification and add 
 	 * the result to the detection measurement list.
 	 * @param imageData
+	 * @param splitClassNames if true, split the classification name. For example, if an image contains classifications for both "CD3: CD4" and "CD3: CD8",
+	 *                        distances will be calculated for all components (e.g. "CD3", "CD4" and "CD8").
 	 */
-	public static void detectionCentroidDistances(ImageData<?> imageData) {
+	public static void detectionCentroidDistances(ImageData<?> imageData, boolean splitClassNames) {
 		var server = imageData.getServer();
 		var hierarchy = imageData.getHierarchy();
 		var detections = hierarchy.getCellObjects();
@@ -107,11 +123,23 @@ public class DistanceTools {
 		String unit = xUnit;
 		
 		for (PathClass pathClass : pathClasses) {
-			logger.debug("Computing distances for {}", pathClass);
-			var filteredDetections = detections.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
-			if (!filteredDetections.isEmpty()) {
-				String name = "Distance to detection " + pathClass + " " + unit;
-				centroidToCentroidDistance2D(detections, filteredDetections, pixelWidth, pixelHeight, name);
+			if (splitClassNames) {
+				var names = PathClassTools.splitNames(pathClass);
+				for (var name : names) {
+					logger.debug("Computing distances for {}", pathClass);
+					var filteredDetections = detections.stream().filter(a -> PathClassTools.containsName(a.getPathClass(), name)).collect(Collectors.toList());
+					if (!filteredDetections.isEmpty()) {
+						String measurementName = "Distance to detection with " + name + " " + unit;
+						centroidToCentroidDistance2D(detections, filteredDetections, pixelWidth, pixelHeight, measurementName);
+					}
+				}
+			} else {
+				logger.debug("Computing distances for {}", pathClass);
+				var filteredDetections = detections.stream().filter(a -> a.getPathClass() == pathClass).collect(Collectors.toList());
+				if (!filteredDetections.isEmpty()) {
+					String name = "Distance to detection " + pathClass + " " + unit;
+					centroidToCentroidDistance2D(detections, filteredDetections, pixelWidth, pixelHeight, name);
+				}
 			}
 		}
 		hierarchy.fireObjectMeasurementsChangedEvent(DistanceTools.class, detections);

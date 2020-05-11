@@ -13,11 +13,13 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 * Viewer no longer centered on selected object when the selection changes or when typing 'Enter'
   * Fixes some annoyances, especially when annotating across multiple viewers
   * Center viewer by double-clicking objects in the 'Annotations' or 'Hierarchy' tab, or in a measurement table
+* Improved spatial measurements
+  * Optionally split multi-part classifications (e.g. "Class 1: Class 2") for distance calculations (https://github.com/qupath/qupath/issues/405)
+  * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
+* 'Classify -> Object classification -> Set cell intensity classification' now works for all detections, if no cells are present
 * LabeledImageServer improvements
   * Supports more than 255 distinct labels
   * New useUniqueLabels() option to support labelling by object, not only classification
-* 'Classify -> Object classification -> Set cell intensity classification' now works for all detections, if no cells are present
-* Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
 * Bug fixes, including:
   * Local normalization now applied before calculating other features (was applied after in m11)
   * Fixed bug in 'Simplify shape' to handle polygons and rectangles properly
