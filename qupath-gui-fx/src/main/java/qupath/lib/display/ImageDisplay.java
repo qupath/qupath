@@ -60,6 +60,7 @@ import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.PixelType;
 
 /**
  * Class used to look after the color transforms that may be applied to an image,
@@ -628,7 +629,11 @@ public class ImageDisplay extends AbstractImageRenderer {
 			histogramManager = new HistogramManager(0L);
 //			histogramManager = new HistogramManager(server.getLastChangeTimestamp());
 			histogramManager.ensureChannels(server, channelOptions);
-			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
+			if (server.getPixelType() == PixelType.UINT8) {
+				channelOptions.parallelStream().filter(c -> !(c instanceof DirectServerChannelInfo)).forEach(channel -> autoSetDisplayRange(channel, false));								
+			} else {
+				channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));				
+			}
 			cachedHistograms.put(server.getPath(), histogramManager);
 		} else {
 			channelOptions.parallelStream().forEach(channel -> autoSetDisplayRange(channel, false));
