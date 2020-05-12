@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.Authenticator;
@@ -15,6 +16,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,6 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
@@ -45,6 +49,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.io.GsonTools;
 
 /**
  * Builder for ImageServers that make requests from the OMERO web API.
@@ -203,7 +208,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		return BufferedImage.class;
 	}
 	
-	// TODO: need to handle projects/datasets requests --> image URIs
+	// TODO: import image doesn't allow copy/pasting 'invalid' URL (containing "|")
 	private static List<URI> getURIs(URI uri) throws IOException {
 		List<URI> list = new ArrayList<>();
         String elemId = "image-";
@@ -224,34 +229,85 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         }
 
         // If no simple pattern was matched, check for the last possible one: /webclient/?show=
-        String StringLinkButton = "/webclient/show=";
-        if (shortPath.startsWith(StringLinkButton)) {
-            // Identify the type of element shown (e.g. dataset)
-            var type = "";
-            var matcherType = patternType.matcher(query);
-            if (matcherType.find())
-                type = matcherType.group(1);
-            else
-                throw new IOException("URI not recognized: " + uri.toString());
-
-            var patternElem = Pattern.compile(type + "(\\d+)");
-            var matcherElem = patternElem.matcher(shortPath);
-            if (!uri.toString().contains(vertBarSign)) {    // webclient/?show=[type]-[img_number]
-                if (matcherElem.find())
-                    elemId = matcherElem.group(1);
-                else
-                    throw new IOException("URI not recognized: " + uri.toString());
-                list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + "/webclient/?show" + equalSign + type + elemId));
-                return list;
-
-            } else {                                        // Multiple elements (separated by "|")
-                while (matcherElem.find()) {
-                    list.add(URI.create("http://" + uri.getHost() + uri.getPath() + "?show" + equalSign + type + matcherElem.group(1)));
-                }
-                return list;
+        if (shortPath.startsWith("/webclient/show=")) {
+        	URI newURI = getStandardURI(uri);
+            var patternElem = Pattern.compile("image-(\\d+)");
+            var matcherElem = patternElem.matcher(newURI.toString());
+            while (matcherElem.find()) {
+                list.add(URI.create("http://" + uri.getHost() + uri.getPath() + "?show" + equalSign + "image-" + matcherElem.group(1)));
             }
+            return list;
         }
         throw new IOException("URI not recognized: " + uri.toString());
+	}
+	
+	private static URI getStandardURI(URI uri) throws IOException {
+		List<String> ids = new ArrayList<String>();
+		String vertBarSign = "%7C";
+		// Identify the type of element shown (e.g. dataset)
+        var type = "";
+        String query = uri.getQuery() != null ? uri.getQuery() : "";
+        var matcherType = patternType.matcher(query);
+        if (matcherType.find())
+            type = matcherType.group(1);
+        else
+            throw new IOException("URI not recognized: " + uri.toString());
+        
+        var patternId= Pattern.compile(type + "(\\d+)");
+        var matcherId = patternId.matcher(query);
+        while (matcherId.find()) {
+        	ids.add(matcherId.group(1));
+        }
+		
+        // Cascading the types to get all ('leaf') images
+        StringBuilder sb = new StringBuilder("http://" + uri.getHost() + uri.getPath() + "?show=image-");
+        List<String> tempIds = new ArrayList<String>();
+        // TODO: Support screen and plates
+        switch (type) {
+        case "screen-":
+        	type = "plate-";
+        case "plate-":
+        	break;
+        case "project-":
+        	for (String id: ids) {
+        		URL request = new URL(uri.getScheme(), uri.getHost(), -1, "/api/v0/m/projects/" + id + "/datasets/");
+        		InputStreamReader reader = new InputStreamReader(request.openStream());
+        		JsonObject map = GsonTools.getInstance().fromJson(reader, JsonObject.class);
+        		reader.close();
+        		
+        		JsonArray data = map.getAsJsonArray("data");
+        		for (int i = 0; i < data.size(); i++) {
+        			tempIds.add(data.get(i).getAsJsonObject().get("@id").getAsString());
+        		}
+        	}
+        	ids =  new ArrayList<>(tempIds);
+        	tempIds.clear();
+        	type = "dataset-";
+        	
+        case "dataset-":
+        	for (String id: ids) {
+        		URL request = new URL(uri.getScheme(), uri.getHost(), -1, "/api/v0/m/datasets/" + id + "/images/");
+        		InputStreamReader reader = new InputStreamReader(request.openStream());
+        		JsonObject map = GsonTools.getInstance().fromJson(reader, JsonObject.class);
+        		reader.close();
+        		
+        		JsonArray data = map.getAsJsonArray("data");
+        		for (int i = 0; i < data.size(); i++) {
+        			tempIds.add(data.get(i).getAsJsonObject().get("@id").getAsString());
+        		}
+        	}
+        	ids = new ArrayList<>(tempIds);
+        	tempIds.clear();
+        	type="image-";
+        	
+        case "image-":
+        	for (int i = 0; i < ids.size(); i++) {
+        		String imgId = (i == ids.size()-1) ? ids.get(i) : ids.get(i) + vertBarSign + "image-";
+        		sb.append(imgId);        		
+        	}
+        }
+        
+		return URI.create(sb.toString());
 	}
 	
 	
