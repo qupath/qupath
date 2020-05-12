@@ -52,69 +52,41 @@ public class PixelClassifierTools {
 	 * 
 	 * @param imageData
 	 * @param classifier
-	 * @param selectedObjects
-	 * @param minSizePixels
-	 * @param minHoleSizePixels
+	 * @param minSize
+	 * @param minHoleSize
 	 * @param doSplit
 	 * @param clearExisting 
 	 * @return
 	 */
     public static boolean createDetectionsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> selectedObjects, 
-			double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
-		return createObjectsFromPixelClassifier(
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, 
+			double minSize, double minHoleSize, boolean doSplit, boolean clearExisting) {
+		return createObjectsFromPredictions(
 				new PixelClassificationImageServer(imageData, classifier),
 				imageData.getHierarchy(),
-				selectedObjects,
+				imageData.getHierarchy().getSelectionModel().getSelectedObjects(),
 				(var roi) -> PathObjects.createDetectionObject(roi),
-				minSizePixels, minHoleSizePixels, doSplit, clearExisting);
-	}
-
-    /**
-     * Create annotation objects via a pixel classifier.
-     * 
-     * @param imageData
-     * @param classifier
-     * @param selectedObjects
-     * @param minSizePixels
-     * @param minHoleSizePixels
-     * @param doSplit
-     * @param clearExisting 
-     * @return
-     */
-	public static boolean createAnnotationsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> selectedObjects, 
-			double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
-		
-		return createObjectsFromPixelClassifier(
-				new PixelClassificationImageServer(imageData, classifier),
-				imageData.getHierarchy(),
-				selectedObjects,
-				(var roi) -> {
-					var annotation = PathObjects.createAnnotationObject(roi);
-					annotation.setLocked(true);
-					return annotation;
-				},
-				minSizePixels, minHoleSizePixels, doSplit, clearExisting);
+				minSize, minHoleSize, doSplit, clearExisting);
 	}
 	
 	/**
-	 * Create objects from an image (usually created with a pixel classifier).
+	 * Create objects from an image (usually created with a pixel classifier) where values represent classifications or predictions.
 	 * 
 	 * @param server the image to threshold
 	 * @param hierarchy the hierarchy to which the objects should be added
 	 * @param selectedObjects the selected objects, if the classification should be constrained to these
 	 * @param creator function to create an object of the required type
-	 * @param minSizePixels the minimum size of a connected region to retain, in pixels
-	 * @param minHoleSizePixels the minimum size of a hole to retain, in pixels
+	 * @param minArea the minimum size of a connected region to retain, in calibrated units
+	 * @param minHoleArea the minimum size of a hole to retain, in calibrated units
 	 * @param doSplit optionally split a multipolygon into distinct pieces
 	 * @param clearExisting remove existing objects
 	 * 
 	 * @return true if the command ran successfully to completion, false otherwise.
+	 * @see GeometryTools#refineAreas(Geometry, double, double)
 	 */
-	public static boolean createObjectsFromPixelClassifier(
+	public static boolean createObjectsFromPredictions(
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
-			Function<ROI, ? extends PathObject> creator, double minSizePixels, double minHoleSizePixels, boolean doSplit, boolean clearExisting) {
+			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
 		
 		if (selectedObjects.isEmpty())
 			return false;
@@ -122,7 +94,7 @@ public class PixelClassifierTools {
 		Map<PathObject, Collection<PathObject>> map = new LinkedHashMap<>();
 		for (var pathObject : selectedObjects) {
 			var children = createObjectsFromPixelClassifier(server, pathObject.getROI(),
-					creator, minSizePixels, minHoleSizePixels, doSplit);
+					creator, minArea, minHoleArea, doSplit);
 			map.put(pathObject, children);
 			if (Thread.currentThread().isInterrupted())
 				return false;
@@ -141,6 +113,26 @@ public class PixelClassifierTools {
 			hierarchy.fireHierarchyChangedEvent(null);
 		return true;
 	}
+	
+	
+	
+	public static boolean createAnnotationsFromPixelClassifier(
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		return createObjectsFromPredictions(
+				new PixelClassificationImageServer(imageData, classifier),
+				imageData.getHierarchy(),
+				imageData.getHierarchy().getSelectionModel().getSelectedObjects(),
+				(var roi) -> {
+					var annotation = PathObjects.createAnnotationObject(roi);
+					annotation.setLocked(true);
+					return annotation;
+				},
+				minArea,
+				minHoleArea,
+				doSplit,
+				clearExisting);
+	}
+	
 
 	/**
 	 * Create objects from an {@link ImageServer}.
@@ -276,7 +268,7 @@ public class PixelClassifierTools {
 	}
 	
 	
-	static class GeometryWrapper {
+	private static class GeometryWrapper {
 		
 		final Geometry geometry;
 		final PathClass pathClass;
@@ -288,6 +280,58 @@ public class PixelClassifierTools {
 			this.plane = plane;
 		}
 		
+	}
+	
+	
+	public static boolean addPixelClassificationMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier, String measurementID) {
+		var manager = createMeasurementManager(imageData, classifier);
+		var hierarchy = imageData.getHierarchy();
+		var objectsToMeasure = hierarchy.getSelectionModel().getSelectedObjects();
+		if (objectsToMeasure.isEmpty())
+			objectsToMeasure = Collections.singleton(hierarchy.getRootObject());
+		addMeasurements(objectsToMeasure, manager, measurementID);
+		hierarchy.fireObjectMeasurementsChangedEvent(manager, objectsToMeasure);
+		return true;
+	}
+	
+	
+	public static PixelClassificationMeasurementManager createMeasurementManager(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		return new PixelClassificationMeasurementManager(
+				new PixelClassificationImageServer(imageData, classifier)
+				);
+	}
+	
+	public static boolean addMeasurements(Collection<? extends PathObject> objectsToMeasure, PixelClassificationMeasurementManager manager, String measurementID) {
+		
+		if (measurementID == null || measurementID.isBlank())
+			measurementID = "";
+		else {
+			measurementID = measurementID.strip();
+			if (measurementID.endsWith(":"))
+				measurementID += " ";
+			else
+				measurementID += ": ";			
+		}
+		
+		
+		int n = objectsToMeasure.size();
+		int i = 0;
+		
+		for (var pathObject : objectsToMeasure) {
+			i++;
+			if (n < 100 || n % 100 == 0)
+				logger.debug("Measured {}/{}", i, n);
+			try (var ml = pathObject.getMeasurementList()) {
+				for (String name : manager.getMeasurementNames()) {
+					Number value = manager.getMeasurementValue(pathObject, name, false);
+					double val = value == null ? Double.NaN : value.doubleValue();
+					ml.putMeasurement(measurementID + name, val);
+				}
+			}
+			// We really want to lock objects so we don't end up with wrong measurements
+			pathObject.setLocked(true);
+		}
+		return true;
 	}
 	
 

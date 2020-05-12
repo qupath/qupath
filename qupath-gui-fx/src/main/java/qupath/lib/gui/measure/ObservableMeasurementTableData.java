@@ -76,6 +76,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 
 /**
  * A table data model to supply observable measurements of PathObjects.

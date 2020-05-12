@@ -25,9 +25,9 @@ import javafx.scene.layout.Pane;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
-import qupath.lib.gui.measure.PixelClassificationMeasurementManager;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
@@ -35,15 +35,19 @@ import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.gui.viewer.RegionFilter.StandardRegionFilters;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
 
 /**
@@ -62,7 +66,8 @@ public class PixelClassifierUI {
 	 */
 	public static ComboBox<RegionFilter> createRegionFilterCombo(OverlayOptions options) {
 		var comboRegion = new ComboBox<RegionFilter>();
-		comboRegion.getItems().addAll(StandardRegionFilters.values());
+//		comboRegion.getItems().addAll(StandardRegionFilters.values());
+		comboRegion.getItems().addAll(StandardRegionFilters.EVERYWHERE, StandardRegionFilters.ANY_ANNOTATIONS);
 		var selected = options.getPixelClassificationRegionFilter();
 		if (!comboRegion.getItems().contains(selected))
 			comboRegion.getItems().add(selected);
@@ -73,6 +78,8 @@ public class PixelClassifierUI {
 			comboRegion.getSelectionModel().select(options.getPixelClassificationRegionFilter());
 		});
 		comboRegion.setMaxWidth(Double.MAX_VALUE);
+		comboRegion.setTooltip(new Tooltip("Control where the pixel classification is applied during preview.\n"
+				+ "Warning! Classifying the entire image at high resolution can be very slow and require a lot of memory."));
 		return comboRegion;
 	}
 
@@ -142,26 +149,18 @@ public class PixelClassifierUI {
 			var objectTypes = Arrays.asList(
 					"Annotation", "Detection"
 			);
-	//		var availableChannels = new String[] {
-	//			server.getOriginalMetadata().getC
-	//		};
-			var sizeUnits = Arrays.asList(
-					"Pixels",
-					GeneralTools.micrometerSymbol()
-			);
+
+			var cal = server.getPixelCalibration();
+			var units = cal.unitsMatch2D() ? cal.getPixelWidthUnit()+"^2" : cal.getPixelWidthUnit() + "x" + cal.getPixelHeightUnit();
 			
 			var params = new ParameterList()
 					.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
-					.addDoubleParameter("minSize", "Minimum object size", 0, null, "Minimum size of a region to keep (smaller regions will be dropped)")
-					.addDoubleParameter("minHoleSize", "Minimum hole size", 0, null, "Minimum size of a hole to keep (smaller holes will be filled)")
-					.addChoiceParameter("sizeUnits", "Minimum object/hole size units", "Pixels", sizeUnits)
+					.addDoubleParameter("minSize", "Minimum object size", 0, units, "Minimum size of a region to keep (smaller regions will be dropped)")
+					.addDoubleParameter("minHoleSize", "Minimum hole size", 0, units, "Minimum size of a hole to keep (smaller holes will be filled)")
 					.addBooleanParameter("doSplit", "Split objects", true,
 							"Split multi-part regions into separate objects")
 					.addBooleanParameter("clearExisting", "Delete existing objects", false,
 							"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)");
-			
-			PixelCalibration cal = server.getPixelCalibration();
-			params.setHiddenParameters(!cal.hasPixelSizeMicrons(), "sizeUnits");
 			
 			if (!Dialogs.showParameterDialog("Create objects", params))
 				return false;
@@ -176,12 +175,8 @@ public class PixelClassifierUI {
 					return annotation;
 				};
 			boolean doSplit = params.getBooleanParameterValue("doSplit");
-			double minSizePixels = params.getDoubleParameterValue("minSize");
-			double minHoleSizePixels = params.getDoubleParameterValue("minHoleSize");
-			if (cal.hasPixelSizeMicrons() && !params.getChoiceParameterValue("sizeUnits").equals("Pixels")) {
-				minSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
-				minHoleSizePixels /= (cal.getPixelWidthMicrons() * cal.getPixelHeightMicrons());
-			}
+			double minSize = params.getDoubleParameterValue("minSize");
+			double minHoleSize = params.getDoubleParameterValue("minHoleSize");
 			boolean clearExisting = params.getBooleanParameterValue("clearExisting");
 			
 			Collection<PathObject> allSelected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
@@ -203,49 +198,85 @@ public class PixelClassifierUI {
 					selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
 			}
 			
-	//		int nChildObjects = 0;
-	//		if (selected == null)
-	//			nChildObjects = hierarchy.nObjects();
-	//		else
-	//			nChildObjects = PathObjectTools.countDescendants(selected);
-	//		if (nChildObjects > 0) {
-	//			String message = "Existing child object will be deleted - is that ok?";
-	//			if (nChildObjects > 1)
-	//				message = nChildObjects + " existing descendant object will be deleted - is that ok?";
-	//			if (!DisplayHelpers.showConfirmDialog("Create objects", message))
-	//				return false;
-	//		}
-	//		// Need to turn off live prediction so we don't start training on the results...
-	//		livePrediction.set(false);
-			
-			return PixelClassifierTools.createObjectsFromPixelClassifier(
+			return PixelClassifierTools.createObjectsFromPredictions(
 					server, imageData.getHierarchy(), selected, creator,
-					minSizePixels, minHoleSizePixels, doSplit, clearExisting);
+					minSize, minHoleSize, doSplit, clearExisting);
 		}
 	
-	/**
-	 * Prompt to add measurements to objects based upon a classification output.
-	 * @param imageData the image containing the objects to which measurements should be added
-	 * @param classifier the classifier used to determine the measurements
-	 * @return true if measurements were added, false otherwise
-	 */
-	public static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		return promptToAddMeasurements(imageData, new PixelClassificationImageServer(imageData, classifier));
-	}
+//	/**
+//	 * Prompt to add measurements to objects based upon a classification output.
+//	 * @param imageData the image containing the objects to which measurements should be added
+//	 * @param classifier the classifier used to determine the measurements
+//	 * @return true if measurements were added, false otherwise
+//	 */
+//	public static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+//		return promptToAddMeasurements(imageData, new PixelClassificationImageServer(imageData, classifier));
+//	}
 
 	
-	/**
-	 * Prompt to add measurements to objects based upon an {@link ImageServer} representing a classification output.
-	 * @param imageData the image containing the objects to which measurements should be added
-	 * @param classifierServer the {@link ImageServer} that generates corresponding classified pixels
-	 * @return true if measurements were added, false otherwise
-	 */
-	public static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> classifierServer) {
-		return promptToAddMeasurements(imageData, new PixelClassificationMeasurementManager(classifierServer));
+	private static enum SelectionChoice {
+		CURRENT_SELECTION, ANNOTATIONS, DETECTIONS, CELLS, TILES, TMA, FULL_IMAGE;
+		
+		private void handleSelection(ImageData<?> imageData) {
+			switch (this) {
+			case FULL_IMAGE:
+				Commands.resetSelection(imageData);
+				break;
+			case ANNOTATIONS:
+			case CELLS:
+			case DETECTIONS:
+			case TMA:
+			case TILES:
+				Commands.selectObjectsByClass(imageData, getObjectClass());
+				break;
+			case CURRENT_SELECTION:
+			default:
+				break;
+			}
+		}
+		
+		private Class<? extends PathObject> getObjectClass() {
+			switch (this) {
+			case ANNOTATIONS:
+				return PathAnnotationObject.class;
+			case CELLS:
+				return PathCellObject.class;
+			case DETECTIONS:
+				return PathDetectionObject.class;
+			case TMA:
+				return TMACoreObject.class;
+			case TILES:
+				return PathTileObject.class;
+			default:
+				return null;
+			}
+		}
+		
+		@Override
+		public String toString() {
+			switch (this) {
+			case ANNOTATIONS:
+				return "Annotations";
+			case CELLS:
+				return "Detections (cells only)";
+			case CURRENT_SELECTION:
+				return "Current selection";
+			case DETECTIONS:
+				return "Detections (all)";
+			case TMA:
+				return "TMA cores";
+			case FULL_IMAGE:
+				return "Full image (no selection)";
+			case TILES:
+				return "Detections (tiles only)";
+			default:
+				throw new IllegalArgumentException("Unknown enum " + this);
+			}
+		}
 	}
-
 	
-	private static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassificationMeasurementManager manager) {
+	
+	private static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
 		
 		if (imageData == null) {
 			Dialogs.showNoImageError("Pixel classifier");
@@ -254,72 +285,54 @@ public class PixelClassifierUI {
 		
 		var hierarchy = imageData.getHierarchy();
 		
-		var selected = hierarchy.getSelectionModel().getSelectedObjects();
-		var annotations = hierarchy.getAnnotationObjects();
-		
-		String optionSelected = "Selected objects";
-		String optionAnnotations = "Annotations (only)";
-		String optionImage = "Full image (only)";
-		String optionAnnotationImage = "Annotations + full image";
-		List<String> options = new ArrayList<>();
-		String defaultOption = optionImage;
-		if (!annotations.isEmpty()) {
-			options.add(optionAnnotations);
-			options.add(optionAnnotationImage);
-			defaultOption = optionAnnotations;
+		List<SelectionChoice> choices = new ArrayList<>();
+		SelectionChoice defaultChoice = null;
+		if (!hierarchy.getSelectionModel().noSelection()) {
+			choices.add(SelectionChoice.CURRENT_SELECTION);
+			defaultChoice = SelectionChoice.CURRENT_SELECTION;
 		}
-		if (!selected.isEmpty()) {
-			options.add(0, optionSelected);
-			defaultOption = optionSelected;
+		choices.add(SelectionChoice.FULL_IMAGE);
+		var classes = hierarchy.getFlattenedObjectList(null).stream().map(p -> p.getClass()).collect(Collectors.toSet());
+		for (var choice : SelectionChoice.values()) {
+			if (choice.getObjectClass() != null && classes.contains(choice.getObjectClass()))
+					choices.add(choice);
 		}
-		options.add(optionImage);
+		if (defaultChoice == null) {
+			if (choices.contains(SelectionChoice.ANNOTATIONS))
+				defaultChoice = SelectionChoice.ANNOTATIONS;
+			else
+				defaultChoice = choices.get(1);
+		}
+			
+		var params = new ParameterList()
+				.addStringParameter("id", "Measurement name", "Classifier", "Choose a base name for measurements - this helps distinguish between measurements from different classifiers")
+				.addChoiceParameter("choice", "Select objects", defaultChoice, choices, "Select the objects");
 		
-		var selectedOption = Dialogs.showChoiceDialog("Pixel classifier", "Choose objects to measure", options, defaultOption);
-		if (selectedOption == null)
+		if (!Dialogs.showParameterDialog("Pixel classifier", params))
 			return false;
 		
-		List<PathObject> objectsToMeasure = new ArrayList<>();
-		if (optionSelected.equals(selectedOption)) {
-			objectsToMeasure.addAll(selected);
-		} else if (optionAnnotations.equals(optionAnnotations)) {
-			objectsToMeasure.addAll(annotations);			
-		} else if (optionAnnotations.equals(optionImage)) {
-			objectsToMeasure.addAll(annotations);			
-			objectsToMeasure.add(hierarchy.getRootObject());
-		} else if (optionAnnotations.equals(optionAnnotationImage)) {
-			objectsToMeasure.addAll(annotations);		
-			objectsToMeasure.add(hierarchy.getRootObject());
-		}
+		var measurementID = params.getStringParameterValue("id");
+		var selectionChoice = (SelectionChoice)params.getChoiceParameterValue("choice");
 		
-		if (objectsToMeasure.isEmpty())
-			return false;
+		selectionChoice.handleSelection(imageData);
 		
+		var objectsToMeasure = hierarchy.getSelectionModel().getSelectedObjects();
 		int n = objectsToMeasure.size();
-		if (optionAnnotations.equals(optionImage))
+		if (objectsToMeasure.isEmpty()) {
+			objectsToMeasure = Collections.singleton(hierarchy.getRootObject());
 			logger.info("Requesting measurements for image");
-		else if (n == 1)
+		} else if (n == 1)
 			logger.info("Requesting measurements for one object");
 		else
 			logger.info("Requesting measurements for {} objects", n);
 		
-		int i = 0;
-		for (var pathObject : objectsToMeasure) {
-			i++;
-			if (n < 100 || n % 100 == 0)
-				logger.debug("Completed {}/{}", i, n);
-			try (var ml = pathObject.getMeasurementList()) {
-				for (String name : manager.getMeasurementNames()) {
-					Number value = manager.getMeasurementValue(pathObject, name, false);
-					double val = value == null ? Double.NaN : value.doubleValue();
-					ml.putMeasurement(name, val);
-				}
-			}
-			// We really want to lock objects so we don't end up with wrong measurements
-			pathObject.setLocked(true);
+		if (PixelClassifierTools.addPixelClassificationMeasurements(imageData, classifier, measurementID)) {
+			
+			return true;
 		}
-		hierarchy.fireObjectMeasurementsChangedEvent(manager, objectsToMeasure);
-		return true;
+		return false;
 	}
+	
 	
 	
 	/**

@@ -109,7 +109,7 @@ public class PixelClassifierLoadCommand implements Runnable {
 		pane.setVgap(10);
 		int row = 0;
 		PaneTools.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
-		PaneTools.addGridRow(pane, row++, 0, "Optionally limit live classification to annotated regions",
+		PaneTools.addGridRow(pane, row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter);
 		PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		

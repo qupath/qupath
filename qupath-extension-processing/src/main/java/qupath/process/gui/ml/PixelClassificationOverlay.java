@@ -8,7 +8,6 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
@@ -123,23 +122,30 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 //    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(calculator, resolution), renderer);
 //    }
     
-    /**
-     * Create an overlay to display a live image displaying the features for a {@link PixelClassifier}.
-     * @param viewer the viewer to which the overlay should be added 
-     * @param featureServer an {@link ImageServer} representing the features
-     * @param renderer a rendered used to convert the features to RGB
-     * @return
-     */
-    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
-    		final ImageServer<BufferedImage> featureServer, ImageRenderer renderer) {
-    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(featureServer), renderer);
-    }
+//    /**
+//     * Create an overlay to display a live image displaying the features for a {@link PixelClassifier}.
+//     * @param viewer the viewer to which the overlay should be added 
+//     * @param featureServer an {@link ImageServer} representing the features
+//     * @param renderer a rendered used to convert the features to RGB
+//     * @return
+//     */
+//    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
+//    		final ImageServer<BufferedImage> featureServer, ImageRenderer renderer) {
+//    	return createFeatureDisplayOverlay(viewer, new FeatureCalculatorServerFunction(featureServer), renderer);
+//    }
     
-    public static PixelClassificationOverlay createFeatureDisplayOverlay(final QuPathViewer viewer,
+    /**
+     * Create an overlay to display a live image that can be created from an existing {@link ImageData}.
+     * 
+     * @param options options to control the overlay display
+     * @param fun function to create an {@link ImageServer} from the {@link ImageData}
+     * @param renderer rendered used to create an RGB image
+     * @return the {@link PixelClassificationOverlay}
+     */
+    public static PixelClassificationOverlay createFeatureDisplayOverlay(final OverlayOptions options,
     		final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun, ImageRenderer renderer) {
-    	var overlay = new PixelClassificationOverlay(viewer.getOverlayOptions(), 1, fun);
+    	var overlay = new PixelClassificationOverlay(options, 1, fun);
     	overlay.setRenderer(renderer);
-//    	overlay.showOverlay = viewer.getOverlayOptions().showPixelClassificationProperty().not();
     	return overlay;
     }
     
@@ -194,7 +200,7 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 			if (server != null && server.getImageData() != imageData)
 				server = null;
 			if (server == null && classifier.supportsImage(imageData)) {
-	    		server = new PixelClassificationImageServer(imageData, classifier);
+				server = new PixelClassificationImageServer(imageData, classifier);
 	    		PixelClassificationImageServer.setPixelLayer(imageData, server);
 	    	}
 	    	return server;
@@ -365,9 +371,10 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
     
     /**
      * Get an {@link ImageServer}, where pixels are determined by applying a {@link PixelClassifier} to another (wrapped) image.
+     * @param imageData 
      * @return
      */
-    public synchronized ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
+    synchronized ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
     	return fun.apply(imageData);
     }
     

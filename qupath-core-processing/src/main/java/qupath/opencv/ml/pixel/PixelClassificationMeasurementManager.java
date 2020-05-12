@@ -1,4 +1,4 @@
-package qupath.lib.gui.measure;
+package qupath.opencv.ml.pixel;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -66,6 +66,10 @@ public class PixelClassificationMeasurementManager {
 	private double pixelArea;
 	private String pixelAreaUnits;
 
+	/**
+	 * Constructor.
+	 * @param classifierServer the server for which measurements will be made.
+	 */
 	public PixelClassificationMeasurementManager(ImageServer<BufferedImage> classifierServer) {
 		this.classifierServer = classifierServer;
 		synchronized (measuredROIs) {
@@ -356,8 +360,8 @@ public class PixelClassificationMeasurementManager {
     	for (var entry : pathClassTotals.entrySet()) {
     		var pathClass = entry.getKey();
     		String name = pathClass.toString();
-			String namePercentage = "Classifier: " + name + " %";
-			String nameArea = "Classifier: " + name + " area " + pixelAreaUnits;
+			String namePercentage = name + " %";
+			String nameArea = name + " area " + pixelAreaUnits;
 			if (tempList != null) {
 				if (pathClassTotals.size() > 1)
 					tempList.add(namePercentage);
@@ -374,8 +378,8 @@ public class PixelClassificationMeasurementManager {
     	}
 
     	// Add total area (useful as a check)
-		String nameArea = "Classifier: Total annotated area " + pixelAreaUnits;
-		String nameAreaWithoutIgnored = "Classifier: Total quantified area " + pixelAreaUnits;
+		String nameArea = "Total annotated area " + pixelAreaUnits;
+		String nameAreaWithoutIgnored = "Total quantified area " + pixelAreaUnits;
 		if (counts != null && !Double.isNaN(pixelArea)) {
 			if (tempList != null) {
     			tempList.add(nameArea);

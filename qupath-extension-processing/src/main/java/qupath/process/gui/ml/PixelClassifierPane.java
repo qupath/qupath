@@ -287,7 +287,7 @@ public class PixelClassifierPane {
 		var labelRegion = new Label("Preview");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 //		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
-		PaneTools.addGridRow(pane,  row++, 0, "Optionally limit live classification to annotated regions",
+		PaneTools.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter, comboRegionFilter);
 
 		
@@ -709,7 +709,7 @@ public class PixelClassifierPane {
 			}
 			if (channel >= 0) {
 				featureRenderer.setChannel(featureServer, channel, spinFeatureMin.getValue(), spinFeatureMax.getValue());
-				featureOverlay = PixelClassificationOverlay.createFeatureDisplayOverlay(qupath.getViewer(), data -> helper.getFeatureServer(data), featureRenderer);
+				featureOverlay = PixelClassificationOverlay.createFeatureDisplayOverlay(qupath.getOverlayOptions(), data -> helper.getFeatureServer(data), featureRenderer);
 				((PixelClassificationOverlay)featureOverlay).setLivePrediction(true);
 				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
 				featureOverlay.setLivePrediction(livePrediction.get());

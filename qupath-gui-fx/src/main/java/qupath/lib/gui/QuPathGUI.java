@@ -1098,7 +1098,7 @@ public class QuPathGUI {
 		
 		// Update display
 		// Requesting the style should be enough to make sure it is called...
-		logger.info("Selected style: {}", QuPathStyleManager.selectedStyleProperty().get());
+		logger.debug("Selected style: {}", QuPathStyleManager.selectedStyleProperty().get());
 				
 		long endTime = System.currentTimeMillis();
 		logger.debug("Startup time: {} ms", (endTime - startTime));

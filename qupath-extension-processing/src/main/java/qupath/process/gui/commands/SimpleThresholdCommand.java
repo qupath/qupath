@@ -176,7 +176,7 @@ public class SimpleThresholdCommand implements Runnable {
 
 		var labelRegion = new Label("Region");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
-		PaneTools.addGridRow(pane,  row++, 0, "Optionally limit live classification to annotated regions",
+		PaneTools.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter);
 		
 //		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
