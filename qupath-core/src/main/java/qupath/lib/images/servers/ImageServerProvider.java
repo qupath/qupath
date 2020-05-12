@@ -135,13 +135,14 @@ public class ImageServerProvider {
 			if (path.startsWith("file:")) { 
 				uriTemp = new URI(path);
 			} else if (path.startsWith("http")) {
+				// URI class does not support "|", so URLEncoder is used to escape them and get valid URI syntax
 				String urlQuery = new URL(path).getQuery();
-				if (urlQuery != null) {
+				if (urlQuery != null && !urlQuery.isEmpty()) {
 					String encodedQueryString = URLEncoder.encode(urlQuery, StandardCharsets.UTF_8.toString());
-					String encodedURL = path.replace(urlQuery, encodedQueryString);
-					uriTemp = URI.create(encodedURL);
+					String encodedURL = path.substring(0, path.lastIndexOf(urlQuery)) + urlQuery.replace(urlQuery, encodedQueryString);
+					uriTemp = new URI(encodedURL);
 				} else {
-					uriTemp = URI.create(path);
+					uriTemp = new URI(path);
 				}
 			} else {
 				// Handle legacy file paths (optionally with Bio-Formats series names included)

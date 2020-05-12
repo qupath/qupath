@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -74,6 +73,14 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	 * Last username for login
 	 */
 	private String lastUsername = "";
+	
+	/**
+	 * Patterns for parsing input URIs
+	 */
+	private final static Pattern patternOldViewer = Pattern.compile("/webgateway/img_detail/(\\d+)");
+	private final static Pattern patternNewViewer = Pattern.compile("images=(\\d+)");
+	private final static Pattern patternWebViewer= Pattern.compile("/webclient/img_detail/(\\d+)");
+	private final static Pattern patternType = Pattern.compile("show=(\\w+-)");
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
@@ -139,10 +146,10 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 
 
 	@Override
-	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) throws IOException {
 		float supportLevel = supportLevel(uri, args);
 		List<URI> uris = getURIs(uri);
-		Collection<ServerBuilder<BufferedImage>> builders = new ArrayList<ServerBuilder<BufferedImage>>();
+		Collection<ServerBuilder<BufferedImage>> builders = new ArrayList<>();
 		for (var subURI: uris) {
 			try (var server = buildServer(subURI, args)) {
 				builders.add(server.getBuilder());
@@ -197,56 +204,54 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	}
 	
 	// TODO: need to handle projects/datasets requests --> image URIs
-	private List<URI> getURIs(URI uri) {
-		List<URI> list = new ArrayList<URI>();
-		String elemNum = "image-";
+	private static List<URI> getURIs(URI uri) throws IOException {
+		List<URI> list = new ArrayList<>();
+        String elemId = "image-";
         String query = uri.getQuery() != null ? uri.getQuery() : "";
+        String shortPath = uri.getPath() + query;
         String equalSign = "%3D";
         String vertBarSign = "%7C";
-        Pattern pattern;
-        Matcher matcher;
+        Pattern[] similarPatterns = new Pattern[] {patternOldViewer, patternNewViewer, patternWebViewer};
 
-        if (uri.getPath().startsWith("/webgateway/"))                	// Old viewer format
-            pattern = Pattern.compile("webgateway/img_detail/(\\d+)");
-
-        else if (uri.getPath().equals("/iviewer/"))                 	// New viewer format
-            pattern = Pattern.compile("images=(\\d+)");
-
-        else if (uri.getPath().startsWith("/webclient/")) {				// 'Link' button format
-            if (!uri.toString().contains(vertBarSign)) {
-                if (uri.getPath().contains("/img_detail/"))				// webclient/img_detail/[img_number]
-                    pattern = Pattern.compile("/img_detail/(\\d+)");
-                else {													// webclient/?show=[type]-[img_number]
-                    var patternType = Pattern.compile("show=(\\w+-)");
-                    var matcherType = patternType.matcher(query);
-                    if (matcherType.find())
-                        elemNum = matcherType.group(1);
-                    pattern = Pattern.compile("show=" + elemNum + "(\\d+)");
-                }
-            } else {                        							// Multiple elements
-                Pattern patternType = Pattern.compile("show=(\\w+-)");
-                Matcher matcherType = patternType.matcher(query);
-                if (matcherType.find()) {
-                    String type = matcherType.group(1);
-                    var patternElem = Pattern.compile(type + "(\\d+)");
-                    var matcherElem = patternElem.matcher(query);
-                    while (matcherElem.find()) {
-                        list.add(URI.create("http://" + uri.getHost() + uri.getPath() + "?show" + equalSign + type + matcherElem.group(1)));
-                    }
-                    return list;
-                }
-                throw new UnsupportedOperationException("URI not recognized: " + uri.toString());
+        // Check for simpler patterns first
+        for (int i = 0; i < similarPatterns.length; i++) {
+        	var matcher = similarPatterns[i].matcher(shortPath);
+            if (matcher.find()) {
+                elemId += matcher.group(1);
+                list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + "/webclient/?show" + equalSign + elemId));
+                return list;
             }
-        } else {
-            throw new UnsupportedOperationException("URI not recognized: " + uri.toString());
         }
 
-        matcher = pattern.matcher(uri.getPath() + uri.getQuery());
-        if (matcher.find())
-            elemNum += matcher.group(1);
+        // If no simple pattern was matched, check for the last possible one: /webclient/?show=
+        String StringLinkButton = "/webclient/show=";
+        if (shortPath.startsWith(StringLinkButton)) {
+            // Identify the type of element shown (e.g. dataset)
+            var type = "";
+            var matcherType = patternType.matcher(query);
+            if (matcherType.find())
+                type = matcherType.group(1);
+            else
+                throw new IOException("URI not recognized: " + uri.toString());
 
-        list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + "/webclient/?show" + equalSign + elemNum));
-        return list;
+            var patternElem = Pattern.compile(type + "(\\d+)");
+            var matcherElem = patternElem.matcher(shortPath);
+            if (!uri.toString().contains(vertBarSign)) {    // webclient/?show=[type]-[img_number]
+                if (matcherElem.find())
+                    elemId = matcherElem.group(1);
+                else
+                    throw new IOException("URI not recognized: " + uri.toString());
+                list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + "/webclient/?show" + equalSign + type + elemId));
+                return list;
+
+            } else {                                        // Multiple elements (separated by "|")
+                while (matcherElem.find()) {
+                    list.add(URI.create("http://" + uri.getHost() + uri.getPath() + "?show" + equalSign + type + matcherElem.group(1)));
+                }
+                return list;
+            }
+        }
+        throw new IOException("URI not recognized: " + uri.toString());
 	}
 	
 	
