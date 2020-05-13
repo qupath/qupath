@@ -52,7 +52,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.charts.HistogramPanelFX.HistogramData;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.measure.PathTableData;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.plugins.parameters.IntParameter;
 import qupath.lib.plugins.parameters.ParameterChangeListener;
 import qupath.lib.plugins.parameters.ParameterList;

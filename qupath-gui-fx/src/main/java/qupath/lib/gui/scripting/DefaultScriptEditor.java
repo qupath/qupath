@@ -52,7 +52,6 @@ import javax.script.ScriptException;
 import javax.script.SimpleScriptContext;
 
 import org.apache.commons.text.StringEscapeUtils;
-import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.dialog.ProgressDialog;
