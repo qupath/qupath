@@ -1,7 +1,6 @@
 package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -14,6 +13,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -184,18 +184,27 @@ public class SimpleThresholdCommand implements Runnable {
 //				nodeLimit, nodeLimit, nodeLimit);
 		
 		var btnSave = new Button("Save as pixel classifier");
-		btnSave.disableProperty().bind(currentClassifier.isNull());
-		btnSave.setOnAction(e -> {
-			try {
-				PixelClassifierUI.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
-			} catch (IOException ex) {
-				Dialogs.showErrorMessage("Save classifier", ex);
-			}
-		});
-		PaneTools.addGridRow(pane, row++, 0, "Save current thresholder as a pixel classifier", btnSave, btnSave, btnSave);
+//		btnSave.disableProperty().bind(currentClassifier.isNull());
+//		btnSave.setOnAction(e -> {
+//			try {
+//				PixelClassifierUI.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
+//			} catch (IOException ex) {
+//				Dialogs.showErrorMessage("Save classifier", ex);
+//			}
+//		});
+//		PaneTools.addGridRow(pane, row++, 0, "Save current thresholder as a pixel classifier", btnSave, btnSave, btnSave);
 
-		var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
+		
+		var classifierName = new SimpleStringProperty(null);
+		var tilePane = PaneTools.createRowGrid(
+				PixelClassifierUI.createSavePixelClassifierPane(qupath.projectProperty(), currentClassifier, classifierName),
+				PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier, classifierName)
+				);
+		tilePane.setVgap(5);
 		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
+		
+//		var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
+//		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		
 		selectedPrefilter.addListener((v, o, n) -> updateClassification());
 		transforms.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {

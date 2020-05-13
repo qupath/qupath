@@ -52,6 +52,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
@@ -88,6 +89,8 @@ import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
+import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifiers;
 
 /**
  * Alternative to QP offering static methods of use for scripting, 
@@ -550,8 +553,9 @@ public class QPEx extends QP {
 			Exception exception = null;
 			if (project != null) {
 				try {
-					if (project.getObjectClassifiers().getNames().contains(name))
-						classifier = project.getObjectClassifiers().get(name);
+					var objectClassifiers = project.getObjectClassifiers();
+					if (objectClassifiers.getNames().contains(name))
+						classifier = objectClassifiers.get(name);
 				} catch (Exception e) {
 					exception = e;
 					logger.debug("Object classifier '{}' not found in project", name);
@@ -576,6 +580,149 @@ public class QPEx extends QP {
 		}
 		return ObjectClassifiers.createCompositeClassifier(classifiers);
 	}
+	
+	
+	
+	
+	/**
+	 * Load a pixel classifier for a project or file path.
+	 * 
+	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk.
+	 * @return the requested {@link PixelClassifier}
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	public static PixelClassifier loadPixelClassifier(String name) throws IllegalArgumentException {
+		var project = getProject();
+		Exception exception = null;
+		if (project != null) {
+			try {
+				var pixelClassifiers = project.getPixelClassifiers();
+				if (pixelClassifiers.getNames().contains(name))
+					return pixelClassifiers.get(name);
+			} catch (Exception e) {
+				exception = e;
+				logger.debug("Pixel classifier '{}' not found in project", name);
+			}
+		}
+		try {
+			var path = Paths.get(name);
+			if (Files.exists(path))
+				return PixelClassifiers.readClassifier(path);
+		} catch (Exception e) {
+			exception = e;
+			logger.debug("Pixel classifier '{}' cannot be read from file", name);
+		}
+		throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+	}
+	
+	
+	/**
+	 * Add measurements from pixel classification to the selected objects.
+	 * @param classifierName the pixel classifier name
+	 * @param measurementID
+	 * @see #loadPixelClassifier(String)
+	 */
+	public static void addPixelClassifierMeasurements(String classifierName, String measurementID) {
+		addPixelClassifierMeasurements(loadPixelClassifier(classifierName), measurementID);
+	}
+	
+	/**
+	 * Add measurements from pixel classification to the selected objects.
+	 * @param classifier the pixel classifier
+	 * @param measurementID
+	 */
+	public static void addPixelClassifierMeasurements(PixelClassifier classifier, String measurementID) {
+		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
+		PixelClassifierTools.addMeasurementsToSelectedObjects(imageData, classifier, measurementID);
+	}
+	
+	/**
+	 * Create detection objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+	 * @param classifierName the name of the pixel classifier
+	 * @param minArea the minimum area of connected regions to retain
+	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
+	 * @param doSplit if true, split connected regions into separate objects
+	 * @param clearExisting clear existing child objects before adding the new ones
+	 * @see #loadPixelClassifier(String)
+	 */
+	public static void createDetectionsFromPixelClassifier(
+			String classifierName, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		createDetectionsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, doSplit, clearExisting);
+	}
+
+	/**
+	 * Create detection objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+	 * @param classifier the pixel classifier
+	 * @param minArea the minimum area of connected regions to retain
+	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
+	 * @param doSplit if true, split connected regions into separate objects
+	 * @param clearExisting clear existing child objects before adding the new ones
+	 */
+	public static void createDetectionsFromPixelClassifier(
+			PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
+		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, doSplit, clearExisting);
+	}
+	 
+	
+	/**
+	 * Create annotation objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+	 * @param classifierName the name of the pixel classifier
+	 * @param minArea the minimum area of connected regions to retain
+	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
+	 * @param doSplit if true, split connected regions into separate objects
+	 * @param clearExisting clear existing child objects before adding the new ones
+	 * @see #loadPixelClassifier(String)
+	 */
+	public static void createAnnotationsFromPixelClassifier(
+			String classifierName, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		createAnnotationsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, doSplit, clearExisting);
+	}
+
+	/**
+	 * Create annotation objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+	 * @param classifier the pixel classifier
+	 * @param minArea the minimum area of connected regions to retain
+	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
+	 * @param doSplit if true, split connected regions into separate objects
+	 * @param clearExisting clear existing child objects before adding the new ones
+	 */
+	public static void createAnnotationsFromPixelClassifier(
+			PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
+		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, doSplit, clearExisting);
+	}
+	
+	
+	/**
+	 * Classify detections according to the prediction of the pixel corresponding to the detection centroid using a {@link PixelClassifier}.
+	 * If the detections are cells, the nucleus ROI is used where possible.
+	 * 
+	 * @param classifier the pixel classifier
+	 */
+	public static void classifyDetectionsByCentroid(PixelClassifier classifier) {
+		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
+		PixelClassifierTools.classifyDetectionsByCentroid(imageData, classifier);
+	}
+	
+	/**
+	 * Classify detections according to the prediction of the pixel corresponding to the detection centroid using a {@link PixelClassifier}.
+	 * If the detections are cells, the nucleus ROI is used where possible.
+	 * 
+	 * @param classifierName name of the pixel classifier
+	 */
+	public static void classifyDetectionsByCentroid(String classifierName) {
+		classifyDetectionsByCentroid(loadPixelClassifier(classifierName));
+	}
+	
 	
 	
 	// TODO: Make loadPixelClassifier available whenever the code is refactored

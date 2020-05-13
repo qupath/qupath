@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Collection;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
@@ -99,7 +100,11 @@ public class PixelClassifierLoadCommand implements Runnable {
 		var label = new Label("Choose model");
 		label.setLabelFor(comboClassifiers);
 		
-		var tilePane = PixelClassifierUI.createPixelClassifierButtons(viewer.imageDataProperty(), selectedClassifier);
+		var classifierName = new SimpleStringProperty(null);
+		classifierName.bind(comboClassifiers.getSelectionModel().selectedItemProperty());
+		var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), selectedClassifier, classifierName);
+		
+//		var tilePane = PixelClassifierUI.createPixelClassifierButtons(viewer.imageDataProperty(), selectedClassifier);
 		var labelRegion = new Label("Region");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 

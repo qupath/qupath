@@ -71,6 +71,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 		var paneName = new GridPane();
 		var labelName = new Label("Classifier name");
 		var tfName = new TextField();
+		tfName.setPromptText("Enter composite classifier name");
 		labelName.setLabelFor(tfName);
 		PaneTools.setMaxWidth(Double.MAX_VALUE, tfName);
 		PaneTools.setFillWidth(Boolean.TRUE, tfName);

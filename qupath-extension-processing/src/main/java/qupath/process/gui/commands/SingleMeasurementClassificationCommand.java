@@ -150,7 +150,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
 			GuiTools.bindSliderAndTextField(sliderThreshold, tf);
-			tfSaveName.setPromptText("Enter name to save classifier (required for scripting)");
+			tfSaveName.setPromptText("Enter classifier name (required for scripting)");
 			
 			// Initialize pane
 			pane = new GridPane();

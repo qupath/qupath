@@ -2,15 +2,11 @@ package qupath.process.gui.ml;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -18,17 +14,19 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
+import javafx.beans.binding.StringExpression;
+import javafx.beans.property.StringProperty;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.dialogs.Dialogs.DialogButton;
-import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.RegionFilter;
@@ -39,15 +37,12 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
-import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
 
 /**
@@ -87,11 +82,13 @@ public class PixelClassifierUI {
 	 * Create a standard button pane for pixel classifiers, to create, measure and classify objects.
 	 * @param imageData expression that provides the {@link ImageData} to which the operation should be applied
 	 * @param classifier expression that provides the {@link PixelClassifier} that will be used
+	 * @param classifierName expression that provides the saved name of the classifier. If available, running a command will 
+	 * 					     result in it being logged to the history workflow for later scripting.
 	 * @return a {@link Pane} that may be added to a scene
 	 */
-	public static Pane createPixelClassifierButtons(ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<PixelClassifier> classifier) {
+	public static Pane createPixelClassifierButtons(ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<PixelClassifier> classifier, StringExpression classifierName) {
 	
-		BooleanBinding disableButtons = imageData.isNull().or(classifier.isNull());
+		BooleanBinding disableButtons = imageData.isNull().or(classifier.isNull()).or(classifierName.isEmpty());
 		
 		var btnCreateObjects = new Button("Create objects");
 		btnCreateObjects.disableProperty().bind(disableButtons);
@@ -106,13 +103,13 @@ public class PixelClassifierUI {
 		btnClassifyObjects.setTooltip(new Tooltip("Classify detection based upon the prediction at the ROI centroid"));
 		
 		btnAddMeasurements.setOnAction(e -> {
-			promptToAddMeasurements(imageData.get(), classifier.get());			
-		});		
+			promptToAddMeasurements(imageData.get(), classifier.get(), classifierName.get());			
+		});
 		btnCreateObjects.setOnAction(e -> {
-			promptToCreateObjects(imageData.get(), classifier.get());
+			promptToCreateObjects(imageData.get(), classifier.get(), classifierName.get());
 		});
 		btnClassifyObjects.setOnAction(e -> {
-			PixelClassifierTools.classifyDetectionsByCentroid(imageData.get(), classifier.get());
+			promptToClassifyDetectionsByCentroid(imageData.get(), classifier.get(), classifierName.get());
 		});
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
@@ -120,99 +117,199 @@ public class PixelClassifierUI {
 		return PaneTools.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
 	}
 	
-	
-	
-
 	/**
-	 * Prompt the user to create objects from the output of a {@link PixelClassifier}.
-	 * 
-	 * @param imageData the {@link ImageData} to which objects should be added
-	 * @param classifier the {@link PixelClassifier} used to create predictions, which will be used to create objects
-	 * @return true if changes were made, false otherwise
+	 * Create a pane that contains a text field and save button to allow a pixel classifier to be saved in a project.
+	 * @param project the current project, within which the classifier can be saved
+	 * @param classifier the classifier to save
+	 * @param savedName property to store the classifier name. If the user saves the classifier, this will be set to the saved name.
+	 *                  Otherwise, if classifier is changed, this will be set to null. Therefore it provides a way to determine if the  
+	 *                  current classifier has been saved and, if so, what is its name.
+	 * @return a pane that may be added to a scene 
 	 */
-	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		return promptToCreateObjects(imageData, new PixelClassificationImageServer(imageData, classifier));
+	public static Pane createSavePixelClassifierPane(ObjectExpression<Project<BufferedImage>> project, ObjectExpression<PixelClassifier> classifier, StringProperty savedName) {
+		
+		var tooltip = new Tooltip("Save classifier in the current project - this is required to use the classifier to use the classifier later (e.g. to create objects, measurements)");
+		var label = new Label("Classifier name");
+		var defaultName = savedName.get();
+		var tfClassifierName = new TextField(defaultName == null ? "" : defaultName);
+		tfClassifierName.setPromptText("Enter pixel classifier name");
+		
+		// Reset the saved name if the classifier changes
+		classifier.addListener((v, o, n) -> savedName.set(null));
+		
+		var btnSave = new Button("Save");
+		btnSave.setOnAction(e -> {
+			var name = tryToSave(project.get(), classifier.get(), tfClassifierName.getText(), false);
+			if (name != null)
+				savedName.set(name);
+		});
+		btnSave.disableProperty().bind(
+				classifier.isNull()
+					.or(project.isNull())
+					.or(tfClassifierName.textProperty().isEmpty()));
+		
+		label.setLabelFor(tfClassifierName);
+		label.setTooltip(tooltip);
+		tfClassifierName.setTooltip(tooltip);
+		btnSave.setTooltip(tooltip);
+		
+		var pane = new GridPane();
+		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
+		PaneTools.setToExpandGridPaneWidth(tfClassifierName);
+		pane.setHgap(5);
+		return pane;
+	}
+	
+	
+	private static String tryToSave(Project<?> project, PixelClassifier classifier, String name, boolean overwriteQuietly) {
+		if (project == null) {
+			Dialogs.showWarningNotification("Pixel classifier", "You need a project to be able to save the pixel classifier");
+			return null;
+		}
+		name = GeneralTools.stripInvalidFilenameChars(name);
+		if (name.isBlank()) {
+			Dialogs.showErrorMessage("Pixel classifier", "Please enter a valid classifier name!");
+			return null;
+		}
+		try {
+			var classifiers = project.getPixelClassifiers();
+			if (!overwriteQuietly && classifiers.getNames().contains(name)) {
+				if (!Dialogs.showYesNoDialog("Pixel classifier", "Overwrite existing classifier '" + name + "'?"))
+					return null;
+			}
+			classifiers.put(name, classifier);
+			return name;
+		} catch (IOException ex) {
+			Dialogs.showErrorMessage("Pixel classifier", ex);
+			return null;
+		}
+	}
+	
+	
+	private static boolean promptToClassifyDetectionsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, String  classifierName) {
+		Objects.requireNonNull(imageData);
+		Objects.requireNonNull(classifier);
+		
+		PixelClassifierTools.classifyDetectionsByCentroid(imageData, classifier);
+		if (classifierName != null) {
+			imageData.getHistoryWorkflow().addStep(
+					new DefaultScriptableWorkflowStep("Classify detections by centroid",
+							String.format("classifyDetectionsByCentroid(\"%s\")",
+									classifierName)
+					)
+			);
+		}
+		return true;
 	}
 
+	
+	private static ParameterList lastCreateObjectParams;
+	
 	/**
 	 * Prompt the user to create objects directly from the pixels of an {@link ImageServer}.
 	 * Often, the {@link ImageServer} has been created by applying a {@link PixelClassifier}.
 	 * 
 	 * @param imageData the {@link ImageData} to which objects should be added
-	 * @param server the {@link ImageServer} used to generate objects
+	 * @param classifier the {@link ImageServer} used to generate objects
+	 * @param classifierName the name of the classifier; if not null and the command runs to completion, it will be logged in the history 
+	 * 						 workflow of the {@link ImageData} for later scripting.
 	 * @return true if changes were made, false otherwise
 	 */
-	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> server) {
-			Objects.requireNonNull(imageData);
-			Objects.requireNonNull(server);
-			
-			var objectTypes = Arrays.asList(
-					"Annotation", "Detection"
-			);
+	private static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String  classifierName) {
+		Objects.requireNonNull(imageData);
+		Objects.requireNonNull(classifier);
 
-			var cal = server.getPixelCalibration();
-			var units = cal.unitsMatch2D() ? cal.getPixelWidthUnit()+"^2" : cal.getPixelWidthUnit() + "x" + cal.getPixelHeightUnit();
-			
-			var params = new ParameterList()
-					.addChoiceParameter("objectType", "Object type", "Annotation", objectTypes)
+
+		// Check what is selected
+		List<SelectionChoice> choices = buildChoiceList(imageData.getHierarchy(),
+				SelectionChoice.FULL_IMAGE, SelectionChoice.CURRENT_SELECTION, SelectionChoice.ANNOTATIONS, SelectionChoice.TMA);
+		SelectionChoice defaultChoice;
+		if (choices.contains(SelectionChoice.CURRENT_SELECTION))
+			defaultChoice = SelectionChoice.CURRENT_SELECTION;
+		else if (choices.contains(SelectionChoice.ANNOTATIONS))
+			defaultChoice = SelectionChoice.ANNOTATIONS;
+		else 
+			defaultChoice = choices.get(0);
+
+		var parentChoice = Dialogs.showChoiceDialog("Pixel classifier",
+				"Choose parent objects", choices, defaultChoice);
+		if (parentChoice == null)
+			return false;
+
+		var outputObjectTypes = Arrays.asList(
+				"Annotation", "Detection"
+				);
+
+		var cal = imageData.getServer().getPixelCalibration();
+		var units = cal.unitsMatch2D() ? cal.getPixelWidthUnit()+"^2" : cal.getPixelWidthUnit() + "x" + cal.getPixelHeightUnit();
+
+		ParameterList params;
+		if (lastCreateObjectParams != null) {
+			params = lastCreateObjectParams.duplicate();
+			params.setHiddenParameters(false, params.getKeyValueParameters(true).keySet().toArray(String[]::new));
+		} else {
+			params = new ParameterList()
+					.addChoiceParameter("objectType", "New object type", "Annotation", outputObjectTypes)
 					.addDoubleParameter("minSize", "Minimum object size", 0, units, "Minimum size of a region to keep (smaller regions will be dropped)")
 					.addDoubleParameter("minHoleSize", "Minimum hole size", 0, units, "Minimum size of a hole to keep (smaller holes will be filled)")
 					.addBooleanParameter("doSplit", "Split objects", true,
 							"Split multi-part regions into separate objects")
 					.addBooleanParameter("clearExisting", "Delete existing objects", false,
 							"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)");
-			
-			if (!Dialogs.showParameterDialog("Create objects", params))
-				return false;
-			
-			Function<ROI, PathObject> creator;
-			if (params.getChoiceParameterValue("objectType").equals("Detection"))
-				creator = r -> PathObjects.createDetectionObject(r);
-			else
-				creator = r -> {
-					var annotation = PathObjects.createAnnotationObject(r);
-					((PathAnnotationObject)annotation).setLocked(true);
-					return annotation;
-				};
-			boolean doSplit = params.getBooleanParameterValue("doSplit");
-			double minSize = params.getDoubleParameterValue("minSize");
-			double minHoleSize = params.getDoubleParameterValue("minHoleSize");
-			boolean clearExisting = params.getBooleanParameterValue("clearExisting");
-			
-			Collection<PathObject> allSelected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
-			List<PathObject> selected = allSelected.stream().filter(p -> p.hasROI() && p.getROI().isArea() && 
-					(p.isAnnotation() || p.isTMACore())).collect(Collectors.toList());
-			boolean hasSelection = true;
-			if (allSelected.isEmpty()) {
-				hasSelection = false;
-				selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
-			} else if (selected.size() != allSelected.size()) {
-				Dialogs.showErrorMessage("Create objects", "All selected objects should be annotations with area ROIs or TMA cores!");
-				return false;
-			}
-			if (hasSelection && selected.size() == 1 && selected.get(0).getPathClass() != null && selected.get(0).getPathClass() != PathClassFactory.getPathClass(StandardPathClasses.REGION)) {
-				var btn = Dialogs.showYesNoCancelDialog("Create objects", "Create objects for selected annotation(s)?\nChoose 'no' to use the entire image.");
-				if (btn == DialogButton.CANCEL)
-					return false;
-				if (btn == DialogButton.NO)
-					selected = Collections.singletonList(imageData.getHierarchy().getRootObject());
-			}
-			
-			return PixelClassifierTools.createObjectsFromPredictions(
-					server, imageData.getHierarchy(), selected, creator,
-					minSize, minHoleSize, doSplit, clearExisting);
 		}
-	
-//	/**
-//	 * Prompt to add measurements to objects based upon a classification output.
-//	 * @param imageData the image containing the objects to which measurements should be added
-//	 * @param classifier the classifier used to determine the measurements
-//	 * @return true if measurements were added, false otherwise
-//	 */
-//	public static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-//		return promptToAddMeasurements(imageData, new PixelClassificationImageServer(imageData, classifier));
-//	}
 
+		if (!Dialogs.showParameterDialog("Create objects", params))
+			return false;
+
+		boolean createDetections = params.getChoiceParameterValue("objectType").equals("Detection");
+		boolean doSplit = params.getBooleanParameterValue("doSplit");
+		double minSize = params.getDoubleParameterValue("minSize");
+		double minHoleSize = params.getDoubleParameterValue("minHoleSize");
+		boolean clearExisting = params.getBooleanParameterValue("clearExisting");
+
+		lastCreateObjectParams = params;
+
+		parentChoice.handleSelection(imageData);
+
+		if (createDetections) {
+			if (PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, doSplit, clearExisting)) {
+				if (classifierName != null) {
+					imageData.getHistoryWorkflow().addStep(
+							new DefaultScriptableWorkflowStep("Pixel classifier create detections",
+									String.format("createDetectionsFromPixelClassifier(\"%s\", %s, %s, %s, %s)",
+											classifierName,
+											minSize,
+											minHoleSize,
+											doSplit,
+											clearExisting)
+									)
+							);
+				}
+				return true;
+			}
+		} else {
+			if (PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, doSplit, clearExisting)) {
+				if (classifierName != null) {
+					imageData.getHistoryWorkflow().addStep(
+							new DefaultScriptableWorkflowStep("Pixel classifier create annotations",
+									String.format("createAnnotationsFromPixelClassifier(\"%s\", %s, %s, %s, %s)",
+											classifierName,
+											minSize,
+											minHoleSize,
+											doSplit,
+											clearExisting)
+									)
+							);
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	
+	
+	
 	
 	private static enum SelectionChoice {
 		CURRENT_SELECTION, ANNOTATIONS, DETECTIONS, CELLS, TILES, TMA, FULL_IMAGE;
@@ -256,27 +353,44 @@ public class PixelClassifierUI {
 		public String toString() {
 			switch (this) {
 			case ANNOTATIONS:
-				return "Annotations";
+				return "All annotations";
 			case CELLS:
-				return "Detections (cells only)";
+				return "All cells";
 			case CURRENT_SELECTION:
 				return "Current selection";
 			case DETECTIONS:
-				return "Detections (all)";
+				return "All detections";
 			case TMA:
 				return "TMA cores";
 			case FULL_IMAGE:
-				return "Full image (no selection)";
+				return "Full image";
 			case TILES:
-				return "Detections (tiles only)";
+				return "All tiles";
 			default:
 				throw new IllegalArgumentException("Unknown enum " + this);
 			}
 		}
 	}
 	
+
 	
-	private static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+	
+	private static List<SelectionChoice> buildChoiceList(PathObjectHierarchy hierarchy, SelectionChoice... validChoices) {
+		List<SelectionChoice> choices = new ArrayList<>();
+		if (!hierarchy.getSelectionModel().noSelection()) {
+			choices.add(SelectionChoice.CURRENT_SELECTION);
+		}
+		choices.add(SelectionChoice.FULL_IMAGE);
+		var classes = hierarchy.getFlattenedObjectList(null).stream().map(p -> p.getClass()).collect(Collectors.toSet());
+		for (var choice : validChoices) {
+			if (choice.getObjectClass() != null && classes.contains(choice.getObjectClass()))
+					choices.add(choice);
+		}
+		return choices;
+	}
+	
+	
+	private static boolean promptToAddMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		
 		if (imageData == null) {
 			Dialogs.showNoImageError("Pixel classifier");
@@ -285,27 +399,17 @@ public class PixelClassifierUI {
 		
 		var hierarchy = imageData.getHierarchy();
 		
-		List<SelectionChoice> choices = new ArrayList<>();
-		SelectionChoice defaultChoice = null;
-		if (!hierarchy.getSelectionModel().noSelection()) {
-			choices.add(SelectionChoice.CURRENT_SELECTION);
+		List<SelectionChoice> choices = buildChoiceList(imageData.getHierarchy(), SelectionChoice.values());
+		SelectionChoice defaultChoice;
+		if (choices.contains(SelectionChoice.CURRENT_SELECTION))
 			defaultChoice = SelectionChoice.CURRENT_SELECTION;
-		}
-		choices.add(SelectionChoice.FULL_IMAGE);
-		var classes = hierarchy.getFlattenedObjectList(null).stream().map(p -> p.getClass()).collect(Collectors.toSet());
-		for (var choice : SelectionChoice.values()) {
-			if (choice.getObjectClass() != null && classes.contains(choice.getObjectClass()))
-					choices.add(choice);
-		}
-		if (defaultChoice == null) {
-			if (choices.contains(SelectionChoice.ANNOTATIONS))
-				defaultChoice = SelectionChoice.ANNOTATIONS;
-			else
-				defaultChoice = choices.get(1);
-		}
+		else if (choices.contains(SelectionChoice.ANNOTATIONS))
+			defaultChoice = SelectionChoice.ANNOTATIONS;
+		else 
+			defaultChoice = choices.get(0);
 			
 		var params = new ParameterList()
-				.addStringParameter("id", "Measurement name", "Classifier", "Choose a base name for measurements - this helps distinguish between measurements from different classifiers")
+				.addStringParameter("id", "Measurement name", classifierName == null ? "Classifier" : classifierName, "Choose a base name for measurements - this helps distinguish between measurements from different classifiers")
 				.addChoiceParameter("choice", "Select objects", defaultChoice, choices, "Select the objects");
 		
 		if (!Dialogs.showParameterDialog("Pixel classifier", params))
@@ -326,164 +430,19 @@ public class PixelClassifierUI {
 		else
 			logger.info("Requesting measurements for {} objects", n);
 		
-		if (PixelClassifierTools.addPixelClassificationMeasurements(imageData, classifier, measurementID)) {
-			
+		if (PixelClassifierTools.addMeasurementsToSelectedObjects(imageData, classifier, measurementID)) {
+			if (classifierName != null) {
+				String idString = measurementID == null ? "null" : "\"" + measurementID + "\"";
+				imageData.getHistoryWorkflow().addStep(
+						new DefaultScriptableWorkflowStep("Pixel classifier measurements",
+								String.format("addPixelClassifierMeasurements(\"%s\", %s)", classifierName, idString)
+								)
+						);
+			}
 			return true;
 		}
 		return false;
 	}
 	
-	
-	
-	/**
-	 * Prompt the user to save a pixel classifier within a project.
-	 * 
-	 * @param project the project within which to save the classifier
-	 * @param classifier the classifier to save
-	 * @return the name of the saved classifier, or null if the operation was stopped
-	 * @throws IOException thrown if there was an error while attempting to save the classifier
-	 */
-	public static String promptToSaveClassifier(Project<BufferedImage> project, PixelClassifier classifier) throws IOException {
-		
-		String name = getDefaultClassifierName(project, classifier);
-		
-		String classifierName = GuiTools.promptForFilename("Save model", "Model name", name);
-		if (classifierName == null)
-			return null;
-		
-//		var pane = new GridPane();
-//		pane.setHgap(5);
-//		pane.setVgap(5);
-//		pane.setPadding(new Insets(10));
-//		pane.setMaxWidth(Double.MAX_VALUE);
-//		
-//		var labelGeneral = new Label("Click 'Apply' to save the prediction model & predictions in the current project.\n" +
-//				"Click 'File' if you want to save either of these elsewhere.");
-//		labelGeneral.setContentDisplay(ContentDisplay.CENTER);
-//		
-//		var label = new Label("Name");
-//		var tfName = new TextField(name);
-//		label.setLabelFor(tfName);
-//		
-//		var cbModel = new CheckBox("Save prediction model");
-//		var cbImage = new CheckBox("Save prediction image");
-//		var btnModel = new Button("File");
-//		btnModel.setTooltip(new Tooltip("Save prediction model to a file"));
-//		btnModel.setOnAction(e -> {
-//			var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save model", null, tfName.getText(), "Prediction model", ".json");
-//			if (file != null) {
-//				try (var writer = Files.newWriter(file, StandardCharsets.UTF_8)) {
-//					GsonTools.getInstance(true).toJson(classifier, writer);
-//				} catch (IOException e1) {
-//					DisplayHelpers.showErrorMessage("Save model", e1);
-//				}
-//			}
-//		});
-//		
-//		var btnImage = new Button("File");
-//		btnImage.setTooltip(new Tooltip("Save prediction image to a file"));
-//		btnImage.setOnAction(e -> {
-//			var file = QuPathGUI.getSharedDialogHelper().promptToSaveFile("Save image", null, tfName.getText(), "Prediction image", ".ome.tif");
-//			if (file != null) {
-//				try {
-//					ImageWriterTools.writeImageRegion(new PixelClassificationImageServer(QuPathGUI.getInstance().getImageData(), classifier), null, file.getAbsolutePath());
-//				} catch (IOException e1) {
-//					DisplayHelpers.showErrorMessage("Save image", e1);
-//				}
-//			}
-//		});
-//		
-//		int row = 0;
-//		int col = 0;
-//		GridPaneTools.addGridRow(pane, row++, col, "Input a unique classifier name", label, tfName);
-//		GridPaneTools.addGridRow(pane, row++, col, "Save the classification model (can be applied to similar images)", cbModel, cbModel, btnModel);
-//		GridPaneTools.addGridRow(pane, row++, col, "Save the prediction image", cbImage, cbImage, btnImage);
-//		GridPaneTools.addGridRow(pane, row++, col, labelGeneral.getText(), labelGeneral, labelGeneral);
-//		
-//		GridPaneTools.setHGrowPriority(Priority.ALWAYS, labelGeneral, cbModel, cbImage, tfName);
-//		GridPaneTools.setFillWidth(Boolean.TRUE, labelGeneral, cbModel, cbImage, tfName);
-//		GridPaneTools.setMaxWidth(Double.MAX_VALUE, labelGeneral, cbModel, cbImage, tfName);
-//		
-//		var dialog = new Dialog<ButtonType>();
-//		dialog.setTitle("Save");
-//		dialog.getDialogPane().setContent(pane);
-//		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.APPLY, ButtonType.CANCEL);
-//		if (dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL) == ButtonType.CANCEL)
-//			return null;
-////		if (!DisplayHelpers.showMessageDialog("Save & Apply", pane)) {
-////			return null;
-////		}
-//		String classifierName = tfName.getText();	
-//		
-////		var classifierName = DisplayHelpers.showInputDialog("Pixel classifier", "Pixel classifier name", name);
-//		if (classifierName == null || classifierName.isBlank())
-//			return null;
-//		classifierName = classifierName.strip();
-//		if (classifierName.isBlank() || classifierName.contains("\n")) {
-//			DisplayHelpers.showErrorMessage("Pixel classifier", "Classifier name must be unique, non-empty, and not contain invalid characters");
-//			return null;
-//		}
-//		
-//		// Save the classifier in the project
-//		if (cbModel.isSelected()) {
-			try {
-				saveClassifier(project, classifier, classifierName);
-			} catch (IOException e) {
-				Dialogs.showWarningNotification("Pixel classifier", "Unable to write classifier to JSON - classifier can't be reloaded later");
-				logger.error("Error saving classifier", e);
-				throw e;
-			}
-//		}
-//		// Save the image
-//		if (cbImage.isSelected()) {
-//			var server = new PixelClassificationImageServer(QuPathGUI.getInstance().getImageData(), classifier);
-//			var imageData = QuPathGUI.getInstance().getImageData();
-//			var entry = project.getEntry(imageData);
-//			var path = entry.getEntryPath();
-//			ImageWriterTools.writeImageRegion(new PixelClassificationImageServer(imageData, classifier), null, file.getAbsolutePath());
-//			logger.warn("Saving image now yet supported!");
-//		}
-		
-		return classifierName;
-	}
 
-	
-	private static void saveClassifier(Project<BufferedImage> project, PixelClassifier classifier, String classifierName) throws IOException {
-		project.getPixelClassifiers().put(classifierName, classifier);
-	}
-	
-	static boolean saveAndApply(Project<BufferedImage> project, ImageData<BufferedImage> imageData, PixelClassifier classifier) throws IOException {
-		String name = promptToSaveClassifier(project, classifier);
-		if (name == null)
-			return false;
-		return true;
-//		return PixelClassifierTools.applyClassifier(project, imageData, classifier, name);
-	}
-	
-	
-	/**
-	 * Get a suitable (unique) name for a pixel classifier.
-	 * 
-	 * @param project
-	 * @param classifier
-	 * @return
-	 */
-	private static String getDefaultClassifierName(Project<BufferedImage> project, PixelClassifier classifier) {
-		String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-//		String simpleName = classifier.toString();
-		String simpleName = "Pixel Model";
-		String name = String.format("%s %s", date, simpleName);
-		Collection<String> names = null;
-		try {
-			names = project.getPixelClassifiers().getNames();
-		} catch (Exception e) {}
-		if (names == null || names.isEmpty() || !names.contains(name))
-			return name;
-		int i = 1;
-		while (names.contains(name)) {
-			name = String.format("%s %s (%d)", date, simpleName, i);
-			i++;
-		}
-		return GeneralTools.stripInvalidFilenameChars(name);
-	}
 }

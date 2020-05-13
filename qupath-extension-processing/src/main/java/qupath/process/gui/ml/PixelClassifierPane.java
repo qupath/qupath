@@ -284,7 +284,7 @@ public class PixelClassifierPane {
 		
 		
 		// Region
-		var labelRegion = new Label("Preview");
+		var labelRegion = new Label("Region");
 		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 //		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
 		PaneTools.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
@@ -324,15 +324,16 @@ public class PixelClassifierPane {
 				featureOverlay.setLivePrediction(n);
 		});
 				
-		var panePredict = PaneTools.createColumnGridControls(btnProject, btnAdvancedOptions, btnLive);
+		var panePredict = PaneTools.createColumnGridControls(btnProject, btnAdvancedOptions);
 		pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 		
 //		addGridRow(pane, row++, 0, btnPredict, btnPredict, btnPredict);
 
-		var btnSave = new Button("Save");
-		btnSave.setMaxWidth(Double.MAX_VALUE);
-		btnSave.setOnAction(e -> saveAndApply());
-		pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
+//		var btnUpdate = new Button("Update classifier");
+//		btnUpdate.setMaxWidth(Double.MAX_VALUE);
+//		btnUpdate.setOnAction(e -> updateClassifier(true));
+//		btnUpdate.disableProperty().bind(qupath.imageDataProperty().isNull().or(btnLive.selectedProperty()));
+		pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
 		
 		pieChart = new PieChart();
 		
@@ -413,7 +414,14 @@ public class PixelClassifierPane {
 		pane.setHgap(5);
 		pane.setVgap(6);
 		
-		var panePostProcess = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
+		var classifierName = new SimpleStringProperty(null);
+		var panePostProcess = PaneTools.createRowGrid(
+				PixelClassifierUI.createSavePixelClassifierPane(qupath.projectProperty(), currentClassifier, classifierName),
+				PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier, classifierName)
+				);
+		panePostProcess.setVgap(5);
+		
+//		var panePostProcess = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
 				
 		pane.add(panePostProcess, 0, row++, pane.getColumnCount(), 1);
 
@@ -1095,41 +1103,6 @@ public class PixelClassifierPane {
 		trainingMap.clear();
 	}
 	
-	
-	
-	private boolean saveAndApply() {
-		logger.debug("Saving & applying classifier");
-		updateClassifier(true);
-		
-		PixelClassificationImageServer server = null;
-		if (overlay != null)
-			server = getClassificationServerOrShowError();
-		if (server == null) {
-			Dialogs.showErrorMessage("Pixel classifier", "Nothing to save - please train a classifier first!");
-			return false;
-		}
-		
-		var project = QuPathGUI.getInstance().getProject();
-		if (project == null) {
-			Dialogs.showErrorMessage("Pixel classifier", "Saving pixel classification requires a project!");
-			return false;
-		}
-			
-		try {
-			var imageData = qupath.getImageData();
-			return PixelClassifierUI.saveAndApply(project, imageData, server.getClassifier());
-//			var resultServer = saveAndApply(project, imageData, server.getClassifier());
-//			if (resultServer != null) {
-//				PixelClassificationImageServer.setPixelLayer(imageData, resultServer);
-//				wasApplied = true;
-//				replaceOverlay(null);
-//				return true;
-//			}
-		} catch (Exception e) {
-			Dialogs.showErrorMessage("Pixel classifier", e);
-		}
-		return false;
-	}
 	
 	
 	private PixelClassificationImageServer getClassificationServerOrShowError() {

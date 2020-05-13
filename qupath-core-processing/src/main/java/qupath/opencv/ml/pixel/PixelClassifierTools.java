@@ -48,25 +48,50 @@ public class PixelClassifierTools {
 
     
 	/**
-	 * Create detections objects via a pixel classifier.
+	 * Create detection objects based upon an {@link ImageServer} that provides classification or probability output, 
+	 * applied to selected objects. If no objects are selected, objects are created across the entire image.
 	 * 
-	 * @param imageData
-	 * @param classifier
-	 * @param minSize
-	 * @param minHoleSize
-	 * @param doSplit
-	 * @param clearExisting 
-	 * @return
+	 * 
+	 * @param hierarchy
+	 * @param classifierServer
+     * @param minArea the minimum area of connected regions to retain
+     * @param minHoleArea the minimum area of connected 'hole' regions to retain
+     * @param doSplit if true, split connected regions into separate objects
+     * @param clearExisting clear existing child objects before adding the new ones
+     * @return true if changes were made to the hierarchy, false otherwise
 	 */
     public static boolean createDetectionsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, 
-			double minSize, double minHoleSize, boolean doSplit, boolean clearExisting) {
+			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, 
+			double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		var selected = hierarchy.getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty())
+			selected = Collections.singleton(hierarchy.getRootObject());
 		return createObjectsFromPredictions(
-				new PixelClassificationImageServer(imageData, classifier),
-				imageData.getHierarchy(),
-				imageData.getHierarchy().getSelectionModel().getSelectedObjects(),
+				classifierServer,
+				hierarchy,
+				selected,
 				(var roi) -> PathObjects.createDetectionObject(roi),
-				minSize, minHoleSize, doSplit, clearExisting);
+				minArea, minHoleArea, doSplit, clearExisting);
+	}
+    
+    /**
+	 * Create detection objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+     * @param imageData the original image data, which will be the input to the pixel classifier
+     * @param classifier the pixel classifier
+     * @param minArea the minimum area of connected regions to retain
+     * @param minHoleArea the minimum area of connected 'hole' regions to retain
+     * @param doSplit if true, split connected regions into separate objects
+     * @param clearExisting clear existing child objects before adding the new ones
+     * @return true if changes were made to the hierarchy, false otherwise
+     */
+    public static boolean createDetectionsFromPixelClassifier(
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		return createDetectionsFromPixelClassifier(
+				imageData.getHierarchy(),
+				new PixelClassificationImageServer(imageData, classifier),
+				minArea, minHoleArea, doSplit, clearExisting);
 	}
 	
 	/**
@@ -92,10 +117,19 @@ public class PixelClassifierTools {
 			return false;
 		
 		Map<PathObject, Collection<PathObject>> map = new LinkedHashMap<>();
-		for (var pathObject : selectedObjects) {
+		boolean firstWarning = true;
+		var parentObjects = new ArrayList<>(selectedObjects); // In case the collection might be changed elsewhere...
+		for (var pathObject : parentObjects) {
 			var children = createObjectsFromPixelClassifier(server, pathObject.getROI(),
 					creator, minArea, minHoleArea, doSplit);
-			map.put(pathObject, children);
+			// Sanity check - don't allow non-detection objects to be added to detections
+			if (pathObject.isDetection() && children.stream().anyMatch(p -> !p.isDetection())) {
+				if (firstWarning) {
+					logger.warn("Cannot add non-detection objects to detections! Objects will be skipped...");
+					firstWarning = false;
+				}
+			} else
+				map.put(pathObject, children);
 			if (Thread.currentThread().isInterrupted())
 				return false;
 		}
@@ -105,23 +139,60 @@ public class PixelClassifierTools {
 			if (clearExisting && parent.hasChildren())
 				parent.clearPathObjects();
 			parent.addPathObjects(children);
-			parent.setLocked(true);
+			if (!parent.isRootObject())
+				parent.setLocked(true);
 		}
-		if (selectedObjects.size() == 1)
-			hierarchy.fireHierarchyChangedEvent(null, selectedObjects.iterator().next());
-		else
+		if (map.size() == 1)
+			hierarchy.fireHierarchyChangedEvent(null, map.keySet().iterator().next());
+		else if (map.size() > 1)
 			hierarchy.fireHierarchyChangedEvent(null);
 		return true;
 	}
 	
-	
-	
+
+	/**
+	 * Create annotation objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+     * @param imageData the original image data, which will be the input to the pixel classifier
+     * @param classifier the pixel classifier
+     * @param minArea the minimum area of connected regions to retain
+     * @param minHoleArea the minimum area of connected 'hole' regions to retain
+     * @param doSplit if true, split connected regions into separate objects
+     * @param clearExisting clear existing child objects before adding the new ones
+     * @return true if changes were made to the hierarchy, false otherwise
+     */
 	public static boolean createAnnotationsFromPixelClassifier(
 			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
-		return createObjectsFromPredictions(
-				new PixelClassificationImageServer(imageData, classifier),
+		return createAnnotationsFromPixelClassifier(
 				imageData.getHierarchy(),
-				imageData.getHierarchy().getSelectionModel().getSelectedObjects(),
+				new PixelClassificationImageServer(imageData, classifier),
+				minArea, minHoleArea, doSplit, clearExisting);
+	}
+	
+	
+	/**
+	 * Create annotation objects based upon an {@link ImageServer} that provides classification or probability output, 
+	 * applied to selected objects. If no objects are selected, objects are created across the entire image.
+	 * 
+	 * 
+	 * @param hierarchy
+	 * @param classifierServer
+     * @param minArea the minimum area of connected regions to retain
+     * @param minHoleArea the minimum area of connected 'hole' regions to retain
+     * @param doSplit if true, split connected regions into separate objects
+     * @param clearExisting clear existing child objects before adding the new ones
+     * @return true if changes were made to the hierarchy, false otherwise
+	 */
+	public static boolean createAnnotationsFromPixelClassifier(
+			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		var selected = hierarchy.getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty())
+			selected = Collections.singleton(hierarchy.getRootObject());
+		return createObjectsFromPredictions(
+				classifierServer,
+				hierarchy,
+				selected,
 				(var roi) -> {
 					var annotation = PathObjects.createAnnotationObject(roi);
 					annotation.setLocked(true);
@@ -135,15 +206,15 @@ public class PixelClassifierTools {
 	
 
 	/**
-	 * Create objects from an {@link ImageServer}.
+	 * Create objects based upon an {@link ImageServer} that provides classification or probability output.
 	 * 
-	 * @param server
-	 * @param roi
-	 * @param creator
+	 * @param server image server providing pixels from which objects should be created
+	 * @param roi region of interest in which objects should be created (optional; if null, the entire image is used)
+	 * @param creator function to create an object from a ROI (e.g. annotation or detection)
 	 * @param minArea minimum area for an object fragment to retain, in calibrated units based on the pixel calibration
 	 * @param minHoleArea minimum area for a hole to fill, in calibrated units based on the pixel calibration
-	 * @param doSplit
-	 * @return
+     * @param doSplit if true, split connected regions into separate objects
+	 * @return the objects created within the ROI
 	 */
 	public static Collection<PathObject> createObjectsFromPixelClassifier(
 			ImageServer<BufferedImage> server, ROI roi, 
@@ -282,8 +353,48 @@ public class PixelClassifierTools {
 		
 	}
 	
+	/**
+	 * Create an {@link ImageServer} that displays the results of applying a {@link PixelClassifier} to an image.
+	 * @param imageData the image to which the classifier should apply
+	 * @param classifier the pixel classifier
+	 * @return the classification {@link ImageServer}
+	 */
+	public static ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		return new PixelClassificationImageServer(imageData, classifier);
+	}
 	
-	public static boolean addPixelClassificationMeasurements(ImageData<BufferedImage> imageData, PixelClassifier classifier, String measurementID) {
+	
+	/**
+	 * Create a {@link PixelClassificationMeasurementManager} that can be used to generate measurements from applying a pixel classifier to an image.
+	 * @param imageData the image to which the classifier should be applied
+	 * @param classifier the pixel classifier
+	 * @return the {@link PixelClassificationMeasurementManager}
+	 */
+	public static PixelClassificationMeasurementManager createMeasurementManager(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		return createMeasurementManager(createPixelClassificationServer(imageData, classifier));
+	}
+	
+	/**
+	 * Create a {@link PixelClassificationMeasurementManager} that can be used to generate measurements from an {@link ImageServer} where pixels provide 
+	 * classification or probability information.
+	 * @param classifierServer the classification image server
+	 * @return the {@link PixelClassificationMeasurementManager}
+	 */
+	public static PixelClassificationMeasurementManager createMeasurementManager(ImageServer<BufferedImage> classifierServer) {
+		return new PixelClassificationMeasurementManager(classifierServer);
+	}
+	
+	
+	/**
+	 * Add measurements to selected objects based upon the output of a {@link PixelClassifier}.
+	 * 
+	 * @param imageData the image data, which will be input to the classifier and which contains the selected objects to measure. 
+	 *                  If no objects are selected, measurements will be applied to the entire image.
+	 * @param classifier the pixel classifier
+	 * @param measurementID identifier that is prepended to measurement names, to make these identifiable later (optional; may be null)
+	 * @return true if measurements were added, false otherwise
+	 */
+	public static boolean addMeasurementsToSelectedObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String measurementID) {
 		var manager = createMeasurementManager(imageData, classifier);
 		var hierarchy = imageData.getHierarchy();
 		var objectsToMeasure = hierarchy.getSelectionModel().getSelectedObjects();
@@ -294,13 +405,14 @@ public class PixelClassifierTools {
 		return true;
 	}
 	
-	
-	public static PixelClassificationMeasurementManager createMeasurementManager(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		return new PixelClassificationMeasurementManager(
-				new PixelClassificationImageServer(imageData, classifier)
-				);
-	}
-	
+	/**
+	 * Add measurements to specified objects from a {@link PixelClassificationMeasurementManager}.
+	 * 
+	 * @param objectsToMeasure the objects to measure.
+	 * @param manager the manager used to generate measurements
+	 * @param measurementID identifier that is prepended to measurement names, to make these identifiable later (optional; may be null)
+	 * @return true if measurements were added, false otherwise
+	 */
 	public static boolean addMeasurements(Collection<? extends PathObject> objectsToMeasure, PixelClassificationMeasurementManager manager, String measurementID) {
 		
 		if (measurementID == null || measurementID.isBlank())
