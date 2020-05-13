@@ -89,20 +89,48 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
+		if (canConnectToOmero(uri, args)) {
+			try {
+				OmeroWebClient client = clients.get(uri.getHost());
+				return new OmeroWebImageServer(uri, client, args);
+			} catch (Exception e1) {
+				logger.error("Problem connecting to OMERO web server with URI: {} - {}", uri.toString(), e1.getLocalizedMessage());
+			}
+		}
+		return null;
+	}
 
+
+	@Override
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) throws IOException {
+		float supportLevel = supportLevel(uri, args);
+		List<URI> uris = getURIs(uri, args);
+		Collection<ServerBuilder<BufferedImage>> builders = new ArrayList<>();
+		for (var subURI: uris) {
+			try (var server = buildServer(subURI, args)) {
+				builders.add(server.getBuilder());
+			} catch (Exception e) {
+				logger.debug("Unable to create OMERO server", e.getLocalizedMessage());
+			}
+		}
+		
+		return UriImageSupport.createInstance(this.getClass(), supportLevel, builders);
+	}
+	
+	private boolean canConnectToOmero(URI uri, String... args) {
 		try {
 			String host = uri.getHost();
-
+			
 			if (supportLevel(uri) <= 0) {
 				logger.debug("OMERO web server does not support {}", uri);
-				return null;
+				return false;
 			}
 			OmeroWebClient client = clients.get(host);
-
+			
 			if (!client.loggedIn()) {
 				if (client.getServers().isEmpty()) {
 					logger.warn("Could not find any servers for {}!", host);
-					return null;
+					return false;
 				}
 				if (client.getServers().size() > 1) {
 					logger.warn("Found multiple servers for {} - will take the first one", host);
@@ -131,39 +159,22 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 					authentication = new PasswordAuthentication(username, password);
 				} else 
 					authentication = OmeroAuthenticatorFX.getPasswordAuthentication(
-						"Please enter your login details for OMERO server", uri.getHost(), username);
+							"Please enter your login details for OMERO server", uri.getHost(), username);
 				if (authentication == null) {
 					logger.warn("Could not log in to {}!", host);
-					return null;
+					return false;
 				}
 				lastUsername = authentication.getUserName();
 				String result = client.login(authentication, client.getServers().get(0).id);
 				Arrays.fill(authentication.getPassword(), (char)0);
 				logger.info(result);
 			}
-
-			return new OmeroWebImageServer(uri, client, args);
+			
+			return true;
 		} catch (Exception e1) {
-			logger.error("Problem connecting to OMERO web server", e1);
+			logger.error("Problem connecting to OMERO web server with URI: {} - {}", uri.toString(), e1.getLocalizedMessage());
 		}
-		return null;
-	}
-
-
-	@Override
-	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) throws IOException {
-		float supportLevel = supportLevel(uri, args);
-		List<URI> uris = getURIs(uri);
-		Collection<ServerBuilder<BufferedImage>> builders = new ArrayList<>();
-		for (var subURI: uris) {
-			try (var server = buildServer(subURI, args)) {
-				builders.add(server.getBuilder());
-			} catch (Exception e) {
-				logger.debug("Unable to create OMERO server", e);
-			}
-		}
-		
-		return UriImageSupport.createInstance(this.getClass(), supportLevel, builders);
+		return false;
 	}
 	
 	private static float supportLevel(URI uri, String...args) {
@@ -209,13 +220,12 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	}
 	
 	// TODO: import image doesn't allow copy/pasting 'invalid' URL (containing "|")
-	private static List<URI> getURIs(URI uri) throws IOException {
+	private List<URI> getURIs(URI uri, String... args) throws IOException {
 		List<URI> list = new ArrayList<>();
         String elemId = "image-";
         String query = uri.getQuery() != null ? uri.getQuery() : "";
         String shortPath = uri.getPath() + query;
         String equalSign = "%3D";
-        String vertBarSign = "%7C";
         Pattern[] similarPatterns = new Pattern[] {patternOldViewer, patternNewViewer, patternWebViewer};
 
         // Check for simpler patterns first
@@ -234,14 +244,16 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
             var patternElem = Pattern.compile("image-(\\d+)");
             var matcherElem = patternElem.matcher(newURI.toString());
             while (matcherElem.find()) {
-                list.add(URI.create("http://" + uri.getHost() + uri.getPath() + "?show" + equalSign + "image-" + matcherElem.group(1)));
+                list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + uri.getPath() + "?show" + equalSign + "image-" + matcherElem.group(1)));
             }
             return list;
         }
         throw new IOException("URI not recognized: " + uri.toString());
 	}
 	
-	private static URI getStandardURI(URI uri) throws IOException {
+	private URI getStandardURI(URI uri, String... args) throws IOException {
+		if (!canConnectToOmero(uri, args))
+			throw new IOException("Problem connecting to OMERO web server");
 		List<String> ids = new ArrayList<String>();
 		String vertBarSign = "%7C";
 		// Identify the type of element shown (e.g. dataset)
@@ -260,7 +272,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         }
 		
         // Cascading the types to get all ('leaf') images
-        StringBuilder sb = new StringBuilder("http://" + uri.getHost() + uri.getPath() + "?show=image-");
+        StringBuilder sb = new StringBuilder(uri.getScheme() + "://" + uri.getHost() + uri.getPath() + "?show=image-");
         List<String> tempIds = new ArrayList<String>();
         // TODO: Support screen and plates
         switch (type) {

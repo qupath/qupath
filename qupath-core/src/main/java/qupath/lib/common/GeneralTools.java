@@ -29,12 +29,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -312,6 +316,35 @@ public class GeneralTools {
 		if (path.startsWith("http:") || path.startsWith("https:") || path.startsWith("file:"))
 			return new URI(path);
 		return new File(path).toURI();
+	}
+	
+	/**
+	 * Try to convert a path to an encoded URI.
+	 * <p>
+	 * URIs do not accept some characters (e.g. "|"). This method will perform a simple check for
+	 * http:/https:. It will then modify the Query (@see <a href=https://docs.oracle.com/javase/tutorial/networking/urls/urlInfo.html>Query</a>) 
+	 * to a valid Query. Finally, a reconstructed valid URI is returned.
+	 * <p>
+	 * For instance, "https://host?query=first|second" will return "https://host?query%3Dfirst%7Csecond".
+	 * 
+	 * @param path
+	 * @return encodedURI
+	 * @throws URISyntaxException
+	 * @throws UnsupportedEncodingException
+	 * @throws MalformedURLException 
+	 */
+	public static URI toEncodedURI(String path) throws URISyntaxException, UnsupportedEncodingException, MalformedURLException {
+		if (path.startsWith("http:") || path.startsWith("https:")) {
+			String urlQuery = new URL(path).getQuery();
+			if (urlQuery != null && !urlQuery.isEmpty()) {
+				String encodedQueryString = URLEncoder.encode(urlQuery, StandardCharsets.UTF_8.toString());
+				String encodedURL = path.substring(0, path.lastIndexOf(urlQuery)) + urlQuery.replace(urlQuery, encodedQueryString);
+				return new URI(encodedURL);
+			} else {
+				return new URI(path);
+			}
+		}
+		return new URI(path);			
 	}
 	
 	

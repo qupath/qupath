@@ -43,6 +43,7 @@ import java.util.ServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.regions.RegionRequest;
 
@@ -135,15 +136,8 @@ public class ImageServerProvider {
 			if (path.startsWith("file:")) { 
 				uriTemp = new URI(path);
 			} else if (path.startsWith("http")) {
-				// URI class does not support "|", so URLEncoder is used to escape them and get valid URI syntax
-				String urlQuery = new URL(path).getQuery();
-				if (urlQuery != null && !urlQuery.isEmpty()) {
-					String encodedQueryString = URLEncoder.encode(urlQuery, StandardCharsets.UTF_8.toString());
-					String encodedURL = path.substring(0, path.lastIndexOf(urlQuery)) + urlQuery.replace(urlQuery, encodedQueryString);
-					uriTemp = new URI(encodedURL);
-				} else {
-					uriTemp = new URI(path);
-				}
+				// URI class does not support "|", so we need to convert urlTemp to a valid URI
+				uriTemp = GeneralTools.toEncodedURI(path);
 			} else {
 				// Handle legacy file paths (optionally with Bio-Formats series names included)
 				String delimiter = "::";

@@ -435,8 +435,7 @@ class ProjectImportImagesCommand {
 			for (String path : pathFailed)
 				sb.append("\t" + path + "\n");
 			sb.append("\n");
-		}
-		if (!pathFailed.isEmpty()) {
+
 			TextArea textArea = new TextArea();
 			textArea.setText(sb.toString());
 			if (pathSucceeded.isEmpty())
@@ -444,6 +443,7 @@ class ProjectImportImagesCommand {
 			else
 				Dialogs.showMessageDialog(commandName, textArea);
 		}
+		// TODO: Add failed paths to pathFailed and successful paths to pathSucceeded, so the following line doesn't print empty String
 		logger.info(sb.toString());
 		return entries;
 	}
@@ -559,7 +559,7 @@ class ProjectImportImagesCommand {
 	 */
 	static boolean isPossiblePath(final String path) {
 		try {
-			var uri = GeneralTools.toURI(path);
+			var uri = GeneralTools.toEncodedURI(path);
 			if ("file".equals(uri.getScheme()))
 				return GeneralTools.toPath(uri).toFile().exists();
 			return true;
