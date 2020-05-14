@@ -222,7 +222,7 @@ allprojects {
     jtsVersion         = '1.16.1'
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.5'
-    picocliVersion     = '4.2.0'
+    picocliVersion     = '4.3.0'
     jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     javacppVersion     = '1.5.3'
@@ -760,6 +760,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     	packageType = 'app-image'
     	logger.info("No package type specified, using default ${packageType}")
    	}
+   	boolean associateFiles = packageType != 'app-image'
 
     def params = ["${System.properties['java.home']}/bin/jpackage"]
 
@@ -781,6 +782,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		} else {
 			params << '--type' << packageType
 		}
+		associateFiles = true // Should work for Mac
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
 			params << '--type' << 'msi'
@@ -816,13 +818,16 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
             iconName).toFile().getAbsolutePath()
     params << '--icon' << pathIcon
     
-    def associations = Paths.get(
-            rootProject.buildDir.getAbsolutePath(),
-            'resources', 'main', 'package', 'associations').toFile().listFiles()
-    associations.each {
-            if (it.isFile() && it.name.endsWith('.properties'))
-	 		    params << '--file-associations' << it.getAbsolutePath()
-    }
+    // Set file associations
+    if (associateFiles) {
+	    def associations = Paths.get(
+	            rootProject.buildDir.getAbsolutePath(),
+	            'resources', 'main', 'package', 'associations').toFile().listFiles()
+	    associations.each {
+	            if (it.isFile() && it.name.endsWith('.properties'))
+		 		    params << '--file-associations' << it.getAbsolutePath()
+	    }
+	}
 
 	params << '--runtime-image' << new File(rootProject.buildDir, 'jre').getAbsolutePath()
 
