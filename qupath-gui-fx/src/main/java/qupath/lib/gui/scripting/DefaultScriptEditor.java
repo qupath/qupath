@@ -26,10 +26,12 @@ package qupath.lib.gui.scripting;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -358,6 +360,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	/**
+	 * Observable value indicating whether a script is currently running or not.
+	 * This can be used (for example) to determine whether a user action should be blocked until the script has completed.
+	 * @return
+	 */
+	public ObservableValue<Boolean> scriptRunning() {
+		return runningTask.isNotNull();
+	}
+	
+	
+	/**
 	 * Create a new script in the specified language.
 	 * @param script text of the script to add
 	 * @param language language of the script
@@ -605,7 +617,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createKillRunningScriptAction("Kill running script"),
 				null,
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Send output to log")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console"))
 				);
@@ -629,7 +641,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	            }
 	        );
 		listScripts.setMinWidth(150);
-
+		runningTask.addListener((v, o, n) -> listScripts.refresh());
 
 		splitMain = new SplitPane();
 		splitMain.getItems().addAll(panelList, getCurrentScriptComponent());
@@ -742,22 +754,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptEditorControl console = tab.getConsoleComponent();
 		
 		ScriptContext context = new SimpleScriptContext();
-		context.setWriter(new ScriptConsoleWriter(console, false));
+		var writer = new ScriptConsoleWriter(console, false);
+		context.setWriter(writer);
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
+		var printWriter = new PrintWriter(writer);
 		
-		LogManager.addTextAppendableFX(console);
+		boolean attachToLog = sendLogToConsole.get();
+		if (attachToLog)
+			LogManager.addTextAppendableFX(console);
 		long startTime = System.currentTimeMillis();
 		if (outputScriptStartTime.get())
-			logger.info("Starting script at {}", new Date(startTime));
+			printWriter.println("Starting script at " + new Date(startTime).toString());
 		try {
 			Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
 			if (result != null) {
-				logger.info("Result: {}", result);
+				printWriter.println("Result: " + result);
 			}
 			if (outputScriptStartTime.get())
-				logger.info(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
+				printWriter.println(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
 		} finally {
-			Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
+			if (attachToLog)
+				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
 		}
 	}
 
@@ -970,7 +987,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 					else
 						errorWriter.append(cause.getClass().getSimpleName() + ": " + message + "\n");
 				}
-				logger.error("Script error (" + cause.getClass().getSimpleName() + ")", cause);
+				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
+						.collect(Collectors.joining("\n" + "    "));
+				if (stackTrace != null)
+					stackTrace += "\n";
+				errorWriter.append(stackTrace);
+//				logger.error("Script error (" + cause.getClass().getSimpleName() + ")", cause);
 			} catch (IOException e1) {
 				logger.error("Script IO error: {}", e1);
 			} catch (Exception e1) {
@@ -995,8 +1017,14 @@ public class DefaultScriptEditor implements ScriptEditor {
             	setTooltip(null);
              	return;
             }
-            setText(item.toString());
-            setTooltip(new Tooltip(item.toString()));
+            var text = item.toString();
+            if (item.isRunning) {
+            	text = text + " (Running)";
+            	setStyle("-fx-font-style: italic;");
+            } else
+            	setStyle(null);
+            setText(text);
+            setTooltip(new Tooltip(text));
 //            this.setOpacity(0);
         }
     }
@@ -1107,22 +1135,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		@Override
 		public synchronized void write(char[] cbuf, int off, int len) throws IOException {
-			if (sendLogToConsole.get()) {
-				// Don't need to log newlines
-				if (len == 1 && cbuf[off] == '\n')
-					return;
-				String s = String.valueOf(cbuf, off, len);
-				// Skip newlines on Windows too...
-				if (s.equals(System.lineSeparator()))
-					return;
-				if (isErrorWriter)
-					logger.error(s);
-				else
-					logger.info(s);
-			} else {
+			// If we aren't showing the log in the console, we need to handle each message
+			if (!sendLogToConsole.get()) {
 				String s = String.valueOf(cbuf, off, len);
 				sb.append(s);
+				flush();
 			}
+			// Don't need to log newlines
+			if (len == 1 && cbuf[off] == '\n')
+				return;
+			String s = String.valueOf(cbuf, off, len);
+			// Skip newlines on Windows too...
+			if (s.equals(System.lineSeparator()))
+				return;
+			if (isErrorWriter)
+				logger.error(s);
+			else
+				logger.info(s);
 		}
 
 		@Override
@@ -1212,8 +1241,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (runInPlatformThread) {
 				logger.info("Running script in Platform thread...");
 				try {
+					tab.setRunning(true);
 					executeScript(tab, script, qupath.getImageData());
 				} finally {
+					tab.setRunning(false);
 					runningTask.setValue(null);
 				}
 			} else {
@@ -1221,8 +1252,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 					@Override
 					public void run() {
 						try {
+							tab.setRunning(true);
 							executeScript(tab, script, qupath.getImageData());
 						} finally {
+							tab.setRunning(false);
 							Platform.runLater(() -> runningTask.setValue(null));
 						}
 					}
@@ -1352,6 +1385,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 			long startTime = System.currentTimeMillis();
 			
+			tab.setRunning(true);
+			
 			int counter = 0;
 			for (ProjectImageEntry<BufferedImage> entry : imagesToProcess) {
 				try {
@@ -1405,6 +1440,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		@Override
 		protected void done() {
 			super.done();
+			tab.setRunning(false);
 			// Make sure we reset the running task
 			Platform.runLater(() -> runningTask.setValue(null));
 		}
@@ -1710,6 +1746,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private ScriptEditorControl console;
 		private ScriptEditorControl editor;
 		
+		private boolean isRunning = false;
+		
 		
 		public ScriptTab(final String script, final Language language) {
 			initialize();
@@ -1807,6 +1845,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public boolean fileExists() {
 			return file != null && file.exists();
+		}
+		
+		boolean isRunning() {
+			return isRunning;
+		}
+		
+		void setRunning(boolean running) {
+			this.isRunning = running;
 		}
 		
 //		public ReadOnlyBooleanProperty isModifiedProperty() {

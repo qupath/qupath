@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -338,6 +339,10 @@ public class QuPathGUI {
 	private BooleanBinding noProject = projectProperty.isNull();
 	private BooleanBinding noViewer = viewerProperty.isNull();
 	private BooleanBinding noImageData = imageDataProperty.isNull();
+	
+	
+	private BooleanProperty scriptRunning = new SimpleBooleanProperty(false);
+	
 	
 	/**
 	 * Create an {@link Action} that depends upon an {@link ImageData}.
@@ -737,6 +742,9 @@ public class QuPathGUI {
 	}
 	
 	
+	private long lastMousePressedWarning = 0L;
+	
+	
 	/**
 	 * Create a QuPath instance, optionally initializing it with a path to open.
 	 * <p>
@@ -925,6 +933,15 @@ public class QuPathGUI {
 //				}
 //			}
 			
+			// Check if there is a script running
+			if (scriptRunning.get()) {
+				if (!Dialogs.showYesNoDialog("Quit QuPath", "A script is currently running! Quit anyway?")) {
+					logger.trace("Pressed no to quit window with script running!");
+					e.consume();
+					return;
+				}
+			}
+			
 			// Stop any painter requests
 			if (imageRegionStore != null)
 				imageRegionStore.close();
@@ -971,6 +988,22 @@ public class QuPathGUI {
 		logger.debug("Time to display: {} ms", (System.currentTimeMillis() - startTime));
 		stage.show();
 		logger.trace("Time to finish display: {} ms", (System.currentTimeMillis() - startTime));
+		var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
+		stage.getScene().addEventFilter(MouseEvent.ANY, e -> {
+			if (ignoreTypes.contains(e.getEventType()))
+				return;
+			if (scriptRunning.get()) {
+				e.consume();
+				// Show a warning if clicking (but not *too* often)
+				if (e.getEventType() == MouseEvent.MOUSE_PRESSED) {
+					long time = System.currentTimeMillis();
+					if (time - lastMousePressedWarning > 5000L) {
+						Dialogs.showWarningNotification("Script running", "Please wait until the current script has finished!");
+						lastMousePressedWarning = time;
+					}
+				}
+			}
+		});
 		
 		// Ensure spacebar presses are noted, irrespective of which component has the focus
 		stage.getScene().addEventFilter(KeyEvent.ANY, e -> {
@@ -3563,7 +3596,7 @@ public class QuPathGUI {
 	 */
 	public ScriptEditor getScriptEditor() {
 		if (scriptEditor == null) {
-			scriptEditor = new DefaultScriptEditor(this);
+			setScriptEditor(new DefaultScriptEditor(this));
 		}
 		return scriptEditor;
 	}
@@ -3576,6 +3609,12 @@ public class QuPathGUI {
 	 */
 	public void setScriptEditor(final ScriptEditor scriptEditor) {
 		this.scriptEditor = scriptEditor;
+		// Try to bind to whether a script is running or not
+		scriptRunning.unbind();
+		if (scriptEditor instanceof DefaultScriptEditor)
+			scriptRunning.bind(((DefaultScriptEditor)scriptEditor).scriptRunning());
+		else
+			scriptRunning.set(false);
 	}
 	
 	

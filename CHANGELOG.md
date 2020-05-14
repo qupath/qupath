@@ -16,16 +16,23 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 * Improved spatial measurements
   * Optionally split multi-part classifications (e.g. "Class 1: Class 2") for distance calculations (https://github.com/qupath/qupath/issues/405)
   * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
-* 'Classify -> Object classification -> Set cell intensity classification' now works for all detections, if no cells are present
+* 'Classify -> Object classification -> Set cell intensity classification' now works for all detections if no cells are present
 * LabeledImageServer improvements
   * Supports more than 255 distinct labels
   * New useUniqueLabels() option to support labelling by object, not only classification
 * Fixed bug/ambiguity in 'Fill holes' & 'Remove fragments and holes'
   * Handle nested polygons/holes more reliably
   * Changed behavior! Area thresholds now refer to total polygon/hole area ignoring any nested polygons or holes
+* Script editor improvements
+  * Display which script is currently running in the script editor
+  * Intercept mouse clicks for main window while a script is running & show a warning
+  * Show a confirm prompt if trying to quit QuPath while a script is running
+  * Adapted "Show log in console" option gives better control of script output (turn off to see less console output)
 * Other bug fixes, including:
   * Local normalization now applied before calculating other features (was applied after in m11)
   * Fixed bug in 'Simplify shape' to handle polygons and rectangles properly
+  * Fixed bug in command bar display when toggling the analysis pane visibility
+  * Fixed bug in 'Create combined training image' that failed to handle unclassified annotations
   * Projects are automatically saved after changing the image name (https://github.com/qupath/qupath/issues/465)
 * Bump dependencies ImageJ, Bio-Formats, JUnit
 
