@@ -47,7 +47,7 @@ def qupathVendor = "QuPath developers"
 println 'Building QuPath version ' + qupathVersion
 
 /*
- * Output location; once things are gathered here, they can be used as input for jpackager
+ * Output location; once things are gathered here, they can be used as input for jpackage
  */
 def qupathOutputDir = 'qupath'
 def additionalResourcesDir = "build/${qupathOutputDir}"
@@ -815,6 +815,14 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
             'resources', 'main', 'package',
             iconName).toFile().getAbsolutePath()
     params << '--icon' << pathIcon
+    
+    def associations = Paths.get(
+            rootProject.buildDir.getAbsolutePath(),
+            'resources', 'main', 'package', 'associations').toFile().listFiles()
+    associations.each {
+            if (it.isFile() && it.name.endsWith('.properties'))
+	 		    params << '--file-associations' << it.getAbsolutePath()
+    }
 
 	params << '--runtime-image' << new File(rootProject.buildDir, 'jre').getAbsolutePath()
 

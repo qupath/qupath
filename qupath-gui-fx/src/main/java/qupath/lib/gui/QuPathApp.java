@@ -23,6 +23,8 @@
 
 package qupath.lib.gui;
 
+import java.awt.Desktop;
+import java.awt.Desktop.Action;
 import java.awt.image.BufferedImage;
 import java.util.Map;
 
@@ -78,6 +80,25 @@ public class QuPathApp extends Application {
 		}
 		
 		gui.updateCursor();
+		
+		// Try to set a file handler, if supported
+		logger.debug("Setting OpenFileHandler...");
+		if (Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+			if (desktop.isSupported(Action.APP_OPEN_FILE)) {
+				Desktop.getDesktop().setOpenFileHandler(e -> {
+					logger.debug("OpenFileHandler is called! {}", e);
+					var files = e.getFiles();
+					if (files.isEmpty())
+						return;
+					if (files.size() > 1) {
+						logger.warn("Received a request to open multiple files - will ignore! {}", files);
+						return;
+					}
+					Platform.runLater(() -> gui.openImage(files.get(0).getAbsolutePath(), false, false));
+				});	
+			}
+		}
 		
 		// Show setup if required, and if we haven't an argument specifying to skip
 		// Store a value indicating the setup version... this means we can enforce running 
