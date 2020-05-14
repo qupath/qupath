@@ -1,4 +1,4 @@
-package qupath.lib.gui.measure;
+package qupath.opencv.ml.pixel;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -47,7 +47,7 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  * @author Pete Bankhead
  */
-class PixelClassificationMeasurementManager {
+public class PixelClassificationMeasurementManager {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationMeasurementManager.class);
 	
@@ -66,6 +66,10 @@ class PixelClassificationMeasurementManager {
 	private double pixelArea;
 	private String pixelAreaUnits;
 
+	/**
+	 * Constructor.
+	 * @param classifierServer the server for which measurements will be made.
+	 */
 	public PixelClassificationMeasurementManager(ImageServer<BufferedImage> classifierServer) {
 		this.classifierServer = classifierServer;
 		synchronized (measuredROIs) {
@@ -76,18 +80,24 @@ class PixelClassificationMeasurementManager {
         // Calculate area of a pixel
         requestedDownsample = classifierServer.getDownsampleForResolution(0);
         PixelCalibration cal = classifierServer.getPixelCalibration();
-        if (cal.hasPixelSizeMicrons()) {
-	        pixelArea = (cal.getPixelWidthMicrons() * requestedDownsample) * (cal.getPixelHeightMicrons() * requestedDownsample);
-	        pixelAreaUnits = GeneralTools.micrometerSymbol() + "^2";
-	//        if (!pathObject.isDetection()) {
-	        	double scale = requestedDownsample / 1000.0;
-	            pixelArea = (cal.getPixelWidthMicrons() * scale) * (cal.getPixelHeightMicrons() * scale);
-	            pixelAreaUnits = "mm^2";
-	//        }
+        if (cal.unitsMatch2D()) {
+	        pixelArea = (cal.getPixelWidth().doubleValue() * requestedDownsample) * (cal.getPixelHeight().doubleValue() * requestedDownsample);
+	        pixelAreaUnits = cal.getPixelWidthUnit() + "^2";
         } else {
         	pixelArea = requestedDownsample * requestedDownsample;
             pixelAreaUnits = "px^2";
         }
+        
+//        if (cal.hasPixelSizeMicrons()) {
+//	        pixelArea = (cal.getPixelWidthMicrons() * requestedDownsample) * (cal.getPixelHeightMicrons() * requestedDownsample);
+//	        pixelAreaUnits = GeneralTools.micrometerSymbol() + "^2";
+//	        double scale = requestedDownsample / 1000.0;
+//	        pixelArea = (cal.getPixelWidthMicrons() * scale) * (cal.getPixelHeightMicrons() * scale);
+//	        pixelAreaUnits = "mm^2";
+//        } else {
+//        	pixelArea = requestedDownsample * requestedDownsample;
+//            pixelAreaUnits = "px^2";
+//        }
 		
 		// Handle root object if we just have a single plane
 		if (classifierServer.nZSlices() == 1 || classifierServer.nTimepoints() == 1)
@@ -350,8 +360,8 @@ class PixelClassificationMeasurementManager {
     	for (var entry : pathClassTotals.entrySet()) {
     		var pathClass = entry.getKey();
     		String name = pathClass.toString();
-			String namePercentage = "Classifier: " + name + " %";
-			String nameArea = "Classifier: " + name + " area " + pixelAreaUnits;
+			String namePercentage = name + " %";
+			String nameArea = name + " area " + pixelAreaUnits;
 			if (tempList != null) {
 				if (pathClassTotals.size() > 1)
 					tempList.add(namePercentage);
@@ -368,8 +378,8 @@ class PixelClassificationMeasurementManager {
     	}
 
     	// Add total area (useful as a check)
-		String nameArea = "Classifier: Total annotated area " + pixelAreaUnits;
-		String nameAreaWithoutIgnored = "Classifier: Total quantified area " + pixelAreaUnits;
+		String nameArea = "Total annotated area " + pixelAreaUnits;
+		String nameAreaWithoutIgnored = "Total quantified area " + pixelAreaUnits;
 		if (counts != null && !Double.isNaN(pixelArea)) {
 			if (tempList != null) {
     			tempList.add(nameArea);

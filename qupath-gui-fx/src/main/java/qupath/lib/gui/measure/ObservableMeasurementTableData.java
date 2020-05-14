@@ -76,6 +76,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.pixel.PixelClassificationMeasurementManager;
 
 /**
  * A table data model to supply observable measurements of PathObjects.
@@ -292,8 +293,10 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 				if (server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION || server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.PROBABILITY) {
 					var pixelManager = new PixelClassificationMeasurementManager(server);
 					for (String name : pixelManager.getMeasurementNames()) {
-						builderMap.put(name, new PixelClassifierMeasurementBuilder(pixelManager, name));
-						features.add(name);
+//						String nameLive = name + " (live)";
+						String nameLive = "(Live) " + name;
+						builderMap.put(nameLive, new PixelClassifierMeasurementBuilder(pixelManager, name));
+						features.add(nameLive);
 					}
 				}
 			}

@@ -8,7 +8,7 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 
 /**
- * A wrapper for a RegionRequest, useful to precisely specify image tiles at a particular resolution.
+ * A wrapper for a {@link RegionRequest}, useful to precisely specify image tiles at a particular resolution.
  * <p>
  * Why?
  * <p>
@@ -24,7 +24,7 @@ public class TileRequest {
 			
 	private final int level;
 	private final ImageRegion tileRegion;
-	private transient RegionRequest request;
+	private final RegionRequest request;
 
 	/**
 	 * Request a collection of <i>all</i> tiles that this server must be capable of returning. 
@@ -76,7 +76,7 @@ public class TileRequest {
 	 * @param tileRegion
 	 * @return
 	 */
-	public static TileRequest createInstance(ImageServer<?> server, int level, ImageRegion tileRegion) {
+	private static TileRequest createInstance(ImageServer<?> server, int level, ImageRegion tileRegion) {
 		double downsample = server.getDownsampleForResolution(level);
 		return new TileRequest(
 				getRegionRequest(server.getPath(), downsample, tileRegion),
@@ -85,7 +85,7 @@ public class TileRequest {
 				);
 	}
 
-	static RegionRequest getRegionRequest(String path, double downsample, ImageRegion tileRegion) {
+	private static RegionRequest getRegionRequest(String path, double downsample, ImageRegion tileRegion) {
 		double x1 = tileRegion.getX() * downsample;
 		double y1 = tileRegion.getY() * downsample;
 		double x2 = (tileRegion.getX() + tileRegion.getWidth()) * downsample;
@@ -217,6 +217,42 @@ public class TileRequest {
 		return tileRegion.getPlane();
 	}
 	
+	
+	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + level;
+		result = prime * result + ((request == null) ? 0 : request.hashCode());
+		result = prime * result + ((tileRegion == null) ? 0 : tileRegion.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		TileRequest other = (TileRequest) obj;
+		if (level != other.level)
+			return false;
+		if (request == null) {
+			if (other.request != null)
+				return false;
+		} else if (!request.equals(other.request))
+			return false;
+		if (tileRegion == null) {
+			if (other.tileRegion != null)
+				return false;
+		} else if (!tileRegion.equals(other.tileRegion))
+			return false;
+		return true;
+	}
+
 	@Override
 	public String toString() {
 		return String.format("Tile: level=%d, bounds=(%d, %d, %d, %d), %s", level,

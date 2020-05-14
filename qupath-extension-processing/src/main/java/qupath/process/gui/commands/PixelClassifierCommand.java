@@ -14,12 +14,12 @@ public class PixelClassifierCommand implements Runnable {
 
 	@Override
 	public void run() {
-		var viewer = QuPathGUI.getInstance().getViewer();
-		var imageData = viewer == null ? null : viewer.getImageData();
+		var qupath = QuPathGUI.getInstance();
+		var imageData = qupath.getImageData();
 		if (imageData == null) {
 			Dialogs.showNoImageError("Pixel classifier");
 		} else
-			new PixelClassifierPane(viewer);
+			new PixelClassifierPane(qupath);
 	}
 
 }

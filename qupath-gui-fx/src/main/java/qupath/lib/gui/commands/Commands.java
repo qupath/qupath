@@ -48,6 +48,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.panes.MeasurementMapPane;
 import qupath.lib.gui.panes.PathClassPane;
@@ -1279,24 +1280,32 @@ public class Commands {
 	 * @param imageData the image data to process
 	 */
 	public static void distanceToAnnotations2D(ImageData<?> imageData) {
+		String title = "Distance to annotations 2D";
 		if (imageData == null) {
-			Dialogs.showNoImageError("Distance to annotations");
+			Dialogs.showNoImageError(title);
 			return;
 		}
 		
 		if (imageData.getServer().nZSlices() > 1) {
 			logger.debug("Warning user that measurements will be 2D...");
-			if (!Dialogs.showConfirmDialog("Distance to annotations 2D", 
+			if (!Dialogs.showConfirmDialog(title, 
 					"Distance to annotations command works only in 2D - distances will not be calculated for objects on different z-slices or time-points")) {
 				logger.debug("Command cancelled");
 				return;
 			}
 		}
+		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
+		boolean doSplit = false;
+		if (result == DialogButton.YES)
+			doSplit = true;
+		else if (result != DialogButton.NO)
+			return;
+
 		
-		DistanceTools.detectionToAnnotationDistances(imageData);
+		DistanceTools.detectionToAnnotationDistances(imageData, doSplit);
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
 				"Distance to annotations 2D",
-				"detectionToAnnotationDistances()"));
+				doSplit ? "detectionToAnnotationDistances(true)" : "detectionToAnnotationDistances(false)"));
 	}
 	
 	/**
@@ -1304,24 +1313,32 @@ public class Commands {
 	 * @param imageData the image data to process
 	 */
 	public static void detectionCentroidDistances2D(ImageData<?> imageData) {
+		String title = "Detection centroid distances 2D";
 		if (imageData == null) {
-			Dialogs.showNoImageError("Detection centroid distances");
+			Dialogs.showNoImageError(title);
 			return;
 		}
 		
 		if (imageData.getServer().nZSlices() > 1) {
 			logger.debug("Warning user that measurements will be 2D...");
-			if (!Dialogs.showConfirmDialog("Detection centroid distances 2D", 
+			if (!Dialogs.showConfirmDialog(title, 
 					"Detection centroid distances command works only in 2D - distances will not be calculated for objects on different z-slices or time-points")) {
 				logger.debug("Command cancelled");
 				return;
 			}
 		}
 		
-		DistanceTools.detectionCentroidDistances(imageData);
+		var result = Dialogs.showYesNoCancelDialog(title, "Split multi-part classifications?\nIf yes, each component of classifications such as \"Class1: Class2\" will be treated separately.");
+		boolean doSplit = false;
+		if (result == DialogButton.YES)
+			doSplit = true;
+		else if (result != DialogButton.NO)
+			return;
+		
+		DistanceTools.detectionCentroidDistances(imageData, doSplit);
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(
 				"Detection centroid distances 2D",
-				"detectionCentroidDistances()"));
+				doSplit ? "detectionCentroidDistances(true)" : "detectionCentroidDistances(false)"));
 	}
 	
 	
@@ -1460,7 +1477,7 @@ public class Commands {
 				ROI pathROI = pathObject.getROI();
 				if (pathROI instanceof PolygonROI) {
 					PolygonROI polygonROI = (PolygonROI)pathROI;
-					polygonROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
+					pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
 				} else {
 					pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
 				}

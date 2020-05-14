@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.function.Function;
 
 import javax.swing.SwingUtilities;
 
@@ -77,6 +78,7 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
@@ -356,32 +358,75 @@ public class IJTools {
 	}
 
 	/**
-	 * Create a QuPath annotation or detection object for a specific ImageJ Roi.
+	 * Create a {@link PathObject} for a specific ImageJ Roi.
 	 * 
 	 * @param imp
 	 * @param server
 	 * @param roi
 	 * @param downsampleFactor
-	 * @param makeDetection
+	 * @param creator
 	 * @param plane
 	 * @return
 	 */
-	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, boolean makeDetection, ImagePlane plane) {
+	public static PathObject convertToPathObject(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, Function<ROI, PathObject> creator, ImagePlane plane) {
 		Calibration cal = imp.getCalibration();
+		if (plane == null)
+			plane = getImagePlane(roi, imp);
 		ROI pathROI = IJTools.convertToROI(roi, cal, downsampleFactor, plane);
 		if (pathROI == null)
 			return null;
-		PathObject pathObject;
-		if (makeDetection && !(pathROI instanceof PointsROI))
-			pathObject = PathObjects.createDetectionObject(pathROI);
-		else
-			pathObject = PathObjects.createAnnotationObject(pathROI);
-		Color color = roi.getStrokeColor();
-		if (color != null)
-			pathObject.setColorRGB(color.getRGB());
-		if (roi.getName() != null)
-			pathObject.setName(roi.getName());
+		PathObject pathObject = creator.apply(pathROI);
+		calibrateObject(pathObject, roi);
 		return pathObject;
+	}
+	
+	
+	/**
+	 * Set the properties of a {@link PathObject} based upon an ImageJ Roi.
+	 * This attempts to extract as much useful information as is relevant, including name, color and group.
+	 * @param pathObject
+	 * @param roi
+	 */
+	public static void calibrateObject(PathObject pathObject, Roi roi) {
+		Color color = roi.getStrokeColor();
+		Integer colorRGB = color == null ? null : color.getRGB();
+		String name = roi.getName();
+		if (name != null && !name.isBlank()) {
+			pathObject.setName(name);
+		} else if (roi.getGroup() > 0) {
+			// If the group is set, use it as a classification
+			pathObject.setPathClass(PathClassFactory.getPathClass("Group " + roi.getGroup(), colorRGB));
+		}
+		if (colorRGB != null && pathObject.getPathClass() == null) {
+			pathObject.setColorRGB(colorRGB);
+		}
+	}
+	
+	
+	/**
+	 * Create an annotation object for a specific ImageJ Roi.
+	 * @param imp
+	 * @param server
+	 * @param roi
+	 * @param downsampleFactor
+	 * @param plane
+	 * @return
+	 */
+	public static PathObject convertToAnnotation(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, ImagePlane plane) {
+		return convertToPathObject(imp, server, roi, downsampleFactor, r -> PathObjects.createAnnotationObject(r), plane);
+	}
+	
+	/**
+	 * Create an detection object for a specific ImageJ Roi.
+	 * @param imp
+	 * @param server
+	 * @param roi
+	 * @param downsampleFactor
+	 * @param plane
+	 * @return
+	 */
+	public static PathObject convertToDetection(ImagePlus imp, ImageServer<?> server, Roi roi, double downsampleFactor, ImagePlane plane) {
+		return convertToPathObject(imp, server, roi, downsampleFactor, r -> PathObjects.createDetectionObject(r), plane);
 	}
 	
 	/**
@@ -736,6 +781,36 @@ public class IJTools {
 		double y = cal == null ? 0 : cal.yOrigin;
 		return IJTools.convertToROI(roi, x, y, downsampleFactor, plane);
 	}
+	
+	
+	/**
+	 * Get the {@link ImagePlane} of an ImageJ Roi, based upon its stored positions.
+	 * @param roi ImageJ roi that may have c, z, t or position properties set.
+	 * @param imp associated image; if not null, this will be used to convert the Roi's 'position' property, if non-zero
+	 * @return the {@link ImagePlane} that is the best approximation of this Roi's position.
+	 */	
+	public static ImagePlane getImagePlane(Roi roi, ImagePlus imp) {
+		int position = roi.getPosition();
+		int c = roi.getCPosition();
+		int z = roi.getZPosition();
+		int t = roi.getTPosition();
+		if (imp != null && c == 0 && z == 0 && t == 0 && position > 0) {
+			int[] pos = imp.convertIndexToPosition(position);
+			c = pos[0];
+			z = pos[1];
+			t = pos[2];
+		}
+		c = Math.max(c-1, 0);
+		z = Math.max(z-1, 0);
+		t = Math.max(t-1, 0);
+		if (c == 0 && z == 0 && t == 0)
+			return ImagePlane.getDefaultPlane();
+		if (c > 0)
+			return ImagePlane.getPlaneWithChannel(c, z, t);
+		else
+			return ImagePlane.getPlane(z, t);
+	}
+	
 
 	/**
 	 * Create a ROI from an ImageJ Roi.
@@ -814,6 +889,8 @@ public class IJTools {
 		 * @return
 		 */
 		public static ROI convertToROI(Roi roi, double xOrigin, double yOrigin, double downsampleFactor, ImagePlane plane) {
+			if (plane == null)
+				plane = getImagePlane(roi, null);
 			int c = plane.getC();
 			int z = plane.getZ();
 			int t = plane.getT();

@@ -68,7 +68,12 @@ public class CellIntensityClassificationCommand implements Runnable {
 		}
 		var hierarchy = imageData.getHierarchy();
 		
-		var detections = imageData.getHierarchy().getCellObjects();
+		// Try to operate on cells, but accept operating on all detections if necessary
+		var cells = imageData.getHierarchy().getCellObjects();
+		boolean allDetections = cells.isEmpty();
+		if (allDetections)
+			logger.debug("No cells found - will try using all detectons");
+		var detections = allDetections ? imageData.getHierarchy().getDetectionObjects() : cells;
 		if (detections.isEmpty()) {
 			Dialogs.showErrorMessage(title, "No cells found in the current image!");
 			return;
@@ -99,7 +104,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 			textFields.add(tf);
 			GuiTools.bindSliderAndTextField(slider, tf);
 			slider.valueProperty().addListener((v, o, n) -> {
-				updateClassifications(hierarchy, selectedMeasurement.get(), parseValues(sliders, singleThreshold.get()));
+				updateClassifications(hierarchy, allDetections, selectedMeasurement.get(), parseValues(sliders, singleThreshold.get()));
 			});
 			PaneTools.setToExpandGridPaneWidth(slider);
 			sliders.add(slider);
@@ -129,8 +134,8 @@ public class CellIntensityClassificationCommand implements Runnable {
 			}
 		});
 				
-		selectedMeasurement.addListener((v, o, n) -> updateClassifications(hierarchy, n, parseValues(sliders, singleThreshold.get())));
-		singleThreshold.addListener((v, o, n) -> updateClassifications(hierarchy, selectedMeasurement.get(), parseValues(sliders, singleThreshold.get())));
+		selectedMeasurement.addListener((v, o, n) -> updateClassifications(hierarchy, allDetections, n, parseValues(sliders, singleThreshold.get())));
+		singleThreshold.addListener((v, o, n) -> updateClassifications(hierarchy, allDetections, selectedMeasurement.get(), parseValues(sliders, singleThreshold.get())));
 		
 		var pane = new GridPane();
 		int row = 0;
@@ -180,7 +185,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 		
 		if (ButtonType.APPLY.equals(response)) {
 			// Make sure we ran the last command, then log it in the workflow
-			if (nextRequest.isComplete())
+			if (!nextRequest.isComplete())
 				nextRequest.doClassification();
 			imageData.getHistoryWorkflow().addStep(nextRequest.toWorkflowStep());
 		} else {
@@ -219,11 +224,11 @@ public class CellIntensityClassificationCommand implements Runnable {
 	 * @param measurement
 	 * @param thresholds
 	 */
-	void updateClassifications(PathObjectHierarchy hierarchy, String measurement, double... thresholds) {
+	void updateClassifications(PathObjectHierarchy hierarchy, boolean allDetections, String measurement, double... thresholds) {
 		var imageData = qupath.getImageData();
 		if (thresholds.length == 0 || imageData == null || measurement == null || Arrays.stream(thresholds).anyMatch(d -> Double.isNaN(d)))
 			return;
-		nextRequest = new IntensityClassificationRequest(hierarchy, measurement, thresholds);
+		nextRequest = new IntensityClassificationRequest(hierarchy, allDetections, measurement, thresholds);
 		if (pool == null || pool.isShutdown())
 			pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("intensity-classifier", true));
 		pool.execute(() -> processRequest());
@@ -244,17 +249,19 @@ public class CellIntensityClassificationCommand implements Runnable {
 		private PathObjectHierarchy hierarchy;
 		private String measurement;
 		private double[] thresholds;
+		private boolean allDetections;
 		
 		private boolean isComplete = false;
 		
-		IntensityClassificationRequest(PathObjectHierarchy hierarchy, String measurement, double[] thresholds) {
+		IntensityClassificationRequest(PathObjectHierarchy hierarchy, boolean allDetections, String measurement, double[] thresholds) {
 			this.hierarchy = hierarchy;
 			this.measurement = measurement;
 			this.thresholds = thresholds;
+			this.allDetections = allDetections;
 		}
 		
 		public void doClassification() {
-			var pathObjects = hierarchy.getCellObjects();
+			var pathObjects = allDetections ? hierarchy.getDetectionObjects() : hierarchy.getCellObjects();
 			QP.setIntensityClassifications(pathObjects, measurement, thresholds);
 			hierarchy.fireObjectClassificationsChangedEvent(this, pathObjects);
 			isComplete = true;
@@ -267,8 +274,13 @@ public class CellIntensityClassificationCommand implements Runnable {
 		public WorkflowStep toWorkflowStep() {
 			var formatter = new DecimalFormat("#.#####");
 			String thresholdString = Arrays.stream(thresholds).mapToObj(d -> formatter.format(d)).collect(Collectors.joining(", "));
-			return new DefaultScriptableWorkflowStep("Set cell intensity classifications",
+			if (allDetections) {
+				return new DefaultScriptableWorkflowStep("Set detection intensity classifications",
+						String.format("setDetectionIntensityClassifications(\"%s\", %s)", measurement, thresholdString));
+			} else {
+				return new DefaultScriptableWorkflowStep("Set cell intensity classifications",
 					String.format("setCellIntensityClassifications(\"%s\", %s)", measurement, thresholdString));
+			}
 		}
 		
 	}

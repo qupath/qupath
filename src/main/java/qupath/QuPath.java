@@ -58,14 +58,12 @@ import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
-import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
-import qupath.lib.scripting.QP;
 
 /**
  * Main QuPath launcher.
@@ -254,7 +252,7 @@ class ScriptCommand implements Runnable {
 				for (var entry: project.getImageList()) {
 					imageData = entry.readImageData();
 					try {
-						Object result = runScript(entry.readImageData());
+						Object result = runScript(project, entry.readImageData());
 						if (result != null)
 							System.out.println(result);
 						if (save)
@@ -267,12 +265,12 @@ class ScriptCommand implements Runnable {
 			} else if (imagePath != null && !imagePath.equals("")) {
 				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(imagePath, BufferedImage.class);
 				imageData = new ImageData<>(server);
-				Object result = runScript(imageData);
+				Object result = runScript(null, imageData);
 				if (result != null)
 					System.out.println(result);
 				server.close();
 			} else {
-				Object result = runScript(null);
+				Object result = runScript(null, null);
 				if (result != null)
 					System.out.println(result);
 			}
@@ -282,7 +280,7 @@ class ScriptCommand implements Runnable {
 		}
 	}
 	
-	private Object runScript(ImageData<BufferedImage> imageData) throws IOException, ScriptException {
+	private Object runScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		Object result = null;
 		
 		ClassLoader classLoader = new ExtensionClassLoader();
@@ -310,12 +308,8 @@ class ScriptCommand implements Runnable {
 		context.setWriter(outWriter);
 		context.setErrorWriter(errWriter);
 		
-		// Rather inelegant... but set batch image data for both QP classes that we know of...
-		QP.setBatchImageData(imageData);
-		QPEx.setBatchImageData(imageData);
-
 		// Evaluate the script
-		result = DefaultScriptEditor.executeScript(engine, script, imageData, true, context);
+		result = DefaultScriptEditor.executeScript(engine, script, project, imageData, true, context);
 		
 		// Ensure writers are flushed
 		outWriter.flush();

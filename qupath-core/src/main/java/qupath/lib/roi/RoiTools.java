@@ -227,6 +227,7 @@ public class RoiTools {
 	 * @param minAreaPixels the minimum size of a fragment to retain
 	 * @param minHoleAreaPixels the minimum size of a hole to retain, or -1 if all holes should be retained
 	 * @return
+	 * @see GeometryTools#refineAreas(Geometry, double, double)
 	 */
 	public static ROI removeSmallPieces(ROI roi, double minAreaPixels, double minHoleAreaPixels) {
 		if (!roi.isArea())

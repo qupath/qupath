@@ -1,7 +1,6 @@
 package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -14,10 +13,10 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
@@ -45,7 +44,7 @@ import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.process.gui.ml.ClassificationResolution;
 import qupath.process.gui.ml.PixelClassificationOverlay;
-import qupath.process.gui.ml.PixelClassifierTools;
+import qupath.process.gui.ml.PixelClassifierUI;
 
 /**
  * Apply simple thresholding to an image via the pixel classification framework to support 
@@ -101,11 +100,12 @@ public class SimpleThresholdCommand implements Runnable {
 	private Spinner<Double> spinner = new Spinner<>(thresholdValueFactory);
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 	
-	private CheckBox cbLimitToAnnotations = new CheckBox("Limit to annotations");
-	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
 	private ObjectProperty<PixelClassifier> currentClassifier = new SimpleObjectProperty<>();
 
+	/**
+	 * Map to track where we have added an overlay
+	 */
 	private Map<QuPathViewer, PathOverlay> map = new WeakHashMap<>();
 	
 	
@@ -116,12 +116,6 @@ public class SimpleThresholdCommand implements Runnable {
 
 		classificationsAbove.setItems(qupath.getAvailablePathClasses());
 		classificationsBelow.setItems(qupath.getAvailablePathClasses());
-		
-		cbLimitToAnnotations.selectedProperty().addListener((v, o, n) -> {
-			var overlay = selectedOverlay.get();
-			if (overlay != null)
-				overlay.setUseAnnotationMask(n);
-		});
 				
 		int row = 0;
 		
@@ -180,37 +174,37 @@ public class SimpleThresholdCommand implements Runnable {
 		});
 		labelBelow.setOnMouseClicked(labelAbove.getOnMouseClicked());
 
-		PaneTools.addGridRow(pane,  row++, 0, "Apply live prediction only to annotated regions (useful for previewing)", cbLimitToAnnotations, cbLimitToAnnotations, cbLimitToAnnotations);
+		var labelRegion = new Label("Region");
+		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
+		PaneTools.addGridRow(pane,  row++, 0, "Control where the pixel classification is applied during preview",
+				labelRegion, comboRegionFilter, comboRegionFilter);
 		
-		var enableButtons = qupath.viewerProperty().isNotNull().and(selectedOverlay.isNotNull()).and(currentClassifier.isNotNull());
+//		var nodeLimit = PixelClassifierTools.createLimitToAnnotationsControl(qupath.getOverlayOptions());
+//		PaneTools.addGridRow(pane,  row++, 0, null,
+//				nodeLimit, nodeLimit, nodeLimit);
 		
 		var btnSave = new Button("Save as pixel classifier");
-		btnSave.disableProperty().bind(enableButtons.not());
-		btnSave.setOnAction(e -> {
-			try {
-				PixelClassifierTools.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
-			} catch (IOException ex) {
-				Dialogs.showErrorMessage("Save classifier", ex);
-			}
-		});
-		PaneTools.addGridRow(pane, row++, 0, "Save current thresholder as a pixel classifier", btnSave, btnSave, btnSave);
+//		btnSave.disableProperty().bind(currentClassifier.isNull());
+//		btnSave.setOnAction(e -> {
+//			try {
+//				PixelClassifierUI.promptToSaveClassifier(qupath.getProject(), currentClassifier.get());
+//			} catch (IOException ex) {
+//				Dialogs.showErrorMessage("Save classifier", ex);
+//			}
+//		});
+//		PaneTools.addGridRow(pane, row++, 0, "Save current thresholder as a pixel classifier", btnSave, btnSave, btnSave);
 
 		
-		var btnCreateObjects = new Button("Create objects");
-		btnCreateObjects.disableProperty().bind(enableButtons.not());
-		var btnClassifyObjects = new Button("Classify detections");
-		btnClassifyObjects.disableProperty().bind(enableButtons.not());
-		var tilePane = PaneTools.createColumnGrid(btnCreateObjects, btnClassifyObjects);
-//		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
-		
-		btnCreateObjects.setOnAction(e -> {
-			PixelClassifierTools.promptToCreateObjects(qupath.getImageData(), 
-					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
-		});
-		btnClassifyObjects.setOnAction(e -> {
-			PixelClassifierTools.classifyDetectionsByCentroid(qupath.getImageData(), currentClassifier.get());
-		});
+		var classifierName = new SimpleStringProperty(null);
+		var tilePane = PaneTools.createRowGrid(
+				PixelClassifierUI.createSavePixelClassifierPane(qupath.projectProperty(), currentClassifier, classifierName),
+				PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier, classifierName)
+				);
+		tilePane.setVgap(5);
 		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
+		
+//		var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), currentClassifier);
+//		PaneTools.addGridRow(pane, row++, 0, null, tilePane, tilePane, tilePane);
 		
 		selectedPrefilter.addListener((v, o, n) -> updateClassification());
 		transforms.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
@@ -230,13 +224,13 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
-				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
+				btnSave, tilePane);
 		PaneTools.setFillWidth(Boolean.TRUE, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
-				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
+				btnSave, tilePane);
 		PaneTools.setHGrowPriority(Priority.ALWAYS, comboResolutions, comboPrefilter,
 				transforms, spinner, sigmaSpinner, classificationsAbove, classificationsBelow,
-				btnSave, btnClassifyObjects, btnCreateObjects, tilePane);
+				btnSave, tilePane);
 		
 		updateGUI();
 		
@@ -251,18 +245,27 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.setResizable(false);
 		stage.show();
 		
-		stage.setOnHiding(e -> {
-			for (var entry : map.entrySet()) {
-				if (entry.getKey().getCustomPixelLayerOverlay() == entry.getValue()) {
-					var imageData = entry.getKey().getImageData();
-					if (imageData != null)
-						PixelClassificationImageServer.setPixelLayer(entry.getKey().getImageData(), null);
-					selectedOverlay.set(null);
-					entry.getKey().resetCustomPixelLayerOverlay();
-				}
-			}
-		});
+		stage.setOnHiding(e -> resetOverlays());
 	}
+	
+	
+	
+	private void resetOverlay(QuPathViewer viewer, PathOverlay overlay) {
+		if (viewer.getCustomPixelLayerOverlay() == overlay) {
+			viewer.resetCustomPixelLayerOverlay();
+			var imageData = viewer.getImageData();
+			if (imageData != null)
+				PixelClassificationImageServer.setPixelLayer(imageData, null);
+		}
+	}
+	
+	private void resetOverlays() {
+		for (var entry : map.entrySet()) {
+			resetOverlay(entry.getKey(), entry.getValue());
+		}
+		selectedOverlay.set(null);
+	}
+	
 	
 	/**
 	 * Switch high and low classifications.
@@ -305,22 +308,21 @@ public class SimpleThresholdCommand implements Runnable {
 	
 	private void updateClassification() {
 		
-		var viewer = qupath.getViewer();
-		if (viewer == null)
-			return;
-		
-		var imageData = viewer.getImageData();
-		if (imageData == null) {
-			selectedOverlay.set(null);
-			viewer.resetCustomPixelLayerOverlay();
-			return;
-		}
+//		for (var viewer : qupath.getViewers()) {
+//			var imageData = viewer.getImageData();
+//			if (imageData == null) {
+//				selectedOverlay.set(null);
+//				viewer.resetCustomPixelLayerOverlay();
+//			}			
+//		}
 		
 		var channel = selectedChannel.get();
 		var thresholdValue = threshold.get();
 		var resolution = selectedResolution.get();
-		if (channel == null || thresholdValue == null || resolution == null)
+		if (channel == null || thresholdValue == null || resolution == null) {
+			resetOverlays();
 			return;
+		}
 		
 		var feature = selectedPrefilter.get();
 		double sigmaValue = sigma.get();
@@ -349,20 +351,29 @@ public class SimpleThresholdCommand implements Runnable {
 				resolution.getPixelCalibration(),
 				classifications);
 
-		// Try (admittedly unsuccessfully) to reduce flicker
-		viewer.setMinimumRepaintSpacingMillis(1000L);
-		viewer.repaint();
-		
-		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer, classifier);
+		// Create classifier
+		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), classifier);
 		overlay.setLivePrediction(true);
-		overlay.setUseAnnotationMask(cbLimitToAnnotations.isSelected());
 		selectedOverlay.set(overlay);
 		this.currentClassifier.set(classifier);
-		viewer.setCustomPixelLayerOverlay(overlay);
-		map.put(viewer, overlay);
-		imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
-
-		viewer.resetMinimumRepaintSpacingMillis();
+		
+		// Try (admittedly unsuccessfully) to reduce flicker
+		for (var viewer : qupath.getViewers()) {
+			var imageData = viewer.getImageData();
+			if (imageData == null) {
+				resetOverlay(viewer, map.get(viewer));
+				continue;
+			}
+			
+			viewer.setMinimumRepaintSpacingMillis(1000L);
+			viewer.repaint();
+			
+			viewer.setCustomPixelLayerOverlay(overlay);
+			map.put(viewer, overlay);
+			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
+	
+			viewer.resetMinimumRepaintSpacingMillis();
+		}
 	}
 	
 	

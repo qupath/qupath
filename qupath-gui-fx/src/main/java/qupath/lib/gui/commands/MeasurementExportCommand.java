@@ -130,9 +130,8 @@ public class MeasurementExportCommand implements Runnable {
 		pathObjectCombo = new ComboBox<>();
 		separatorCombo = new ComboBox<>();
 		includeCombo = new CheckComboBox<String>();
-		listSelectionView = new ListSelectionView<>();
 		String sameImageWarning = "A selected image is open in the viewer!\nData should be saved before exporting.";
-		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, sameImageWarning, true);
+		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
 		
 
 		// BOTTOM PANE (OPTIONS)

@@ -8,6 +8,8 @@ import java.awt.image.Raster;
 import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +27,8 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TransformingImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -34,7 +38,7 @@ import qupath.lib.regions.RegionRequest;
  * 
  * @author Pete Bankhead
  */
-public class ChannelDisplayTransformServer extends TransformingImageServer<BufferedImage> {
+public class ChannelDisplayTransformServer extends TransformingImageServer<BufferedImage> implements PathObjectReader {
 	
 	private static Logger logger = LoggerFactory.getLogger(ChannelDisplayTransformServer.class);
 	
@@ -128,6 +132,14 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 	@Override
 	public ImageServerMetadata getOriginalMetadata() {
 		return metadata;
+	}
+
+	@Override
+	public Collection<PathObject> readPathObjects() throws IOException {
+		var server = getWrappedServer();
+		if (server instanceof PathObjectReader)
+			return ((PathObjectReader)server).readPathObjects();
+		return Collections.emptyList();
 	}
 	
 

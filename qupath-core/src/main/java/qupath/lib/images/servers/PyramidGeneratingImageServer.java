@@ -4,8 +4,12 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
+
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -15,7 +19,7 @@ import qupath.lib.regions.RegionRequest;
  * 
  * @author Pete Bankhead
  */
-class PyramidGeneratingImageServer extends AbstractTileableImageServer {
+class PyramidGeneratingImageServer extends AbstractTileableImageServer implements PathObjectReader {
 	
 	private ImageServer<BufferedImage> server;
 	private ImageServerMetadata metadata;
@@ -100,6 +104,13 @@ class PyramidGeneratingImageServer extends AbstractTileableImageServer {
 	@Override
 	protected String createID() {
 		return getClass().getSimpleName() + ":" + server.getPath();
+	}
+
+	@Override
+	public Collection<PathObject> readPathObjects() throws IOException {
+		if (server instanceof PathObjectReader)
+			return ((PathObjectReader)server).readPathObjects();
+		return Collections.emptyList();
 	}
 
 }

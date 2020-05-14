@@ -583,6 +583,17 @@ public class PathPrefs {
 	}
 	
 	
+	private static BooleanProperty invertZSlider = createPersistentPreference("invertZSlider", false);
+	
+	/**
+	 * Invert the z-slider for the viewer. This can help if the location of the zero position seems counterintuitive.
+	 * @return
+	 */
+	public static BooleanProperty invertZSliderProperty() {
+		return invertZSlider;
+	}
+	
+	
 	private static DoubleProperty gridStartX = createPersistentPreference("gridStartX", 0.0);
 
 	private static DoubleProperty gridStartY = createPersistentPreference("gridStartY", 0.0);

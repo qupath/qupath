@@ -364,8 +364,9 @@ public class PathClassPane {
 			logger.warn("Cannot select objects by classification - no classifications selected!");
 			return false;
 		}
-		QP.selectObjectsByClassification(hierarchy, pathClasses);
-		var s = Arrays.stream(pathClasses).map(p -> "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
+		QP.selectObjectsByPathClass(hierarchy, pathClasses);
+		var s = Arrays.stream(pathClasses)
+				.map(p -> p == null || p == PathClassFactory.getPathClassUnclassified() ? "null" : "\"" + p.toString() + "\"").collect(Collectors.joining(", "));
 		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Select objects by classification",
 				"selectObjectsByClassification(" + s + ");"));
 		return true;

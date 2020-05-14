@@ -491,8 +491,14 @@ public class OMEPyramidWriter {
 			}
 			
 			// If the image represents classifications, set the color model accordingly
-			if (server.getMetadata().getChannelType() == ChannelType.CLASSIFICATION)
-				writer.setColorModel(ColorModelFactory.getIndexedClassificationColorModel(server.getMetadata().getClassificationLabels()));
+			if (server.getMetadata().getChannelType() == ChannelType.CLASSIFICATION) {
+				// Try to set color model, but continue if this fails (e.g. if there are too many classifications)
+				try {
+					writer.setColorModel(ColorModelFactory.getIndexedClassificationColorModel(server.getMetadata().getClassificationLabels()));
+				} catch (Exception e) {
+					logger.warn("Error setting classification color model: {}", e.getLocalizedMessage());
+				}
+			}
 	
 			writer.setSeries(series);
 			

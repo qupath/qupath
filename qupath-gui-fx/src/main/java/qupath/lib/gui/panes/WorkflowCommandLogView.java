@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,8 +53,10 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
@@ -148,10 +151,11 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		col1.setCellValueFactory(c -> c.getValue().keyProperty());
 		TableColumn<KeyValue<Object>, Object> col2 = new TableColumn<>("Value");
 		col2.setCellValueFactory(c -> c.getValue().valueProperty());
+		col2.setCellFactory(t -> new ParameterTableCell<>());
 		table.getColumns().add(col1);
 		table.getColumns().add(col2);
 		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-		
+				
 		SplitPane splitPane = new SplitPane();
 		splitPane.setOrientation(Orientation.VERTICAL);
 		splitPane.getItems().addAll(list, table);
@@ -307,6 +311,37 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	}
 	
 	
+	static class ParameterTableCell<S, T> extends TableCell<S, T> {
+		
+		private Tooltip tooltip = new Tooltip();
+		
+		ParameterTableCell() {
+			super();
+			setWrapText(true);
+			setMaxHeight(Double.MAX_VALUE);
+		}
+		
+		@Override
+		public void updateItem(T item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty) {
+				setText(null);
+				setTooltip(null);
+				return;
+			}
+//			String text;
+//			if (item instanceof Number)
+//				text = GeneralTools.formatNumber(((Number) item).doubleValue(), 5);
+//			else
+			String text = Objects.toString(item);
+			setText(text);
+			tooltip.setText(text);
+			setTooltip(tooltip);
+		}
+		
+	}
+	
+	
 	/**
 	 * Launch a plugin dialog for a specified WorkflowStep.
 	 * 
@@ -395,6 +430,10 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		ArrayList<KeyValue<Object>> listNew = new ArrayList<>();
 		for (Entry<String, ?> entry : step.getParameterMap().entrySet()) {
 			listNew.add(new KeyValue<>(entry.getKey(), entry.getValue()));
+		}
+		if (step instanceof ScriptableWorkflowStep) {
+			var script = ((ScriptableWorkflowStep) step).getScript();
+			listNew.add(new KeyValue<>("Script", script));
 		}
 		list.setAll(listNew);
 	}

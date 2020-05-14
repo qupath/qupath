@@ -65,7 +65,7 @@ public class QuPath_Send_ROI_to_QuPath implements PlugIn {
 		QuPathViewer viewer = gui.getViewer();
 		ImageServer<BufferedImage> server = viewer.getServer();
 		double downsample = IJTools.estimateDownsampleFactor(imp, server);
-		PathObject pathObject = IJTools.convertToPathObject(imp, server, roi, downsample, false, viewer.getImagePlane());
+		PathObject pathObject = IJTools.convertToAnnotation(imp, server, roi, downsample, viewer.getImagePlane());
 		if (pathObject == null) {
 			IJ.error("Sorry, I could not convert " + roi + " to a value QuPath object");
 			return;

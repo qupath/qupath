@@ -42,8 +42,7 @@ public final class ColorModelFactory {
 	}
 	
 	/**
-	 * Get a ColorModel suitable for showing output pixel classifications, using an 8-bit 
-	 * labeled image.
+	 * Get a ColorModel suitable for showing output pixel classifications, using an 8-bit or 16-bit labeled image.
      * A cached model may be retrieved if possible, rather than generating a new one.
 	 * 
 	 * @param channels
@@ -73,9 +72,12 @@ public final class ColorModelFactory {
             	} else
             		cmap[entry.getKey()] = entry.getValue().getColor();
             }
-            if (cmap.length > 256)
-            	throw new IllegalArgumentException("Only 256 possible classifications supported!");
-            map = new IndexColorModel(8, length, cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
+            if (cmap.length <= 256)
+                map = new IndexColorModel(8, length, cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
+            else if (cmap.length <= 65536)
+                map = new IndexColorModel(16, length, cmap, 0, true, -1, DataBuffer.TYPE_USHORT);
+            else
+            	throw new IllegalArgumentException("Only 65536 possible classifications supported!");
             classificationModels.put(new LinkedHashMap<>(channels), map);
     	}
     	return map;
@@ -103,9 +105,11 @@ public final class ColorModelFactory {
         	} else
         		cmap[entry.getKey()] = entry.getValue();
         }
-        if (cmap.length > 256)
-        	throw new IllegalArgumentException("Only 256 possible classifications supported!");
-        return new IndexColorModel(8, length, cmap, 0, includeAlpha, -1, DataBuffer.TYPE_BYTE);    		
+        if (cmap.length <= 256)
+            return new IndexColorModel(8, length, cmap, 0, includeAlpha, -1, DataBuffer.TYPE_BYTE);    		
+        if (cmap.length <= 65536)
+        	return new IndexColorModel(16, length, cmap, 0, includeAlpha, -1, DataBuffer.TYPE_USHORT);
+    	throw new IllegalArgumentException("Only 65536 possible labels supported!");
     }
     
     

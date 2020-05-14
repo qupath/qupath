@@ -402,7 +402,8 @@ abstract class ImageDataTransformerBuilder {
 				}
 			}
 			if (opNormalize != null)
-				op = ImageOps.Core.sequential(op, opNormalize);
+				op = ImageOps.Core.sequential(opNormalize, op);
+//				op = ImageOps.Core.sequential(op, opNormalize);
 						
 			return ImageOps.buildImageDataOp(selectedChannels).appendOps(op);
 		}

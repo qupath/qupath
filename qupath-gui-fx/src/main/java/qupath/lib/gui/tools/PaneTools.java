@@ -50,7 +50,7 @@ public class PaneTools {
 				pane.add(n, col, row);
 				GridPane.setColumnSpan(n, 1);
 				if (tooltip != null) {
-					installTooltipRecursive(tooltip, n);
+					installTooltipRecursive(tooltip, n, false);
 				}
 			}
 			lastNode = n;
@@ -58,14 +58,16 @@ public class PaneTools {
 		}
 	}
 	
-	static void installTooltipRecursive(Tooltip tooltip, Node node) {
-		if (node instanceof Control)
-			((Control)node).setTooltip(tooltip);
-		else {
+	static void installTooltipRecursive(Tooltip tooltip, Node node, boolean overrideExisting) {
+		if (node instanceof Control) {
+			var control = (Control)node;
+			if (overrideExisting || control.getTooltip() == null)
+				control.setTooltip(tooltip);
+		} else {
 			Tooltip.install(node, tooltip);
 			if (node instanceof Region) {
 				for (var child : ((Region)node).getChildrenUnmodifiable())
-					installTooltipRecursive(tooltip, child);
+					installTooltipRecursive(tooltip, child, overrideExisting);
 			}
 		}
 	}

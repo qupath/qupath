@@ -115,10 +115,11 @@ class SparseImageServerCommand {
 	}
 
 	static Predicate<PathObject> createPredicate(PathClass pathClass, boolean rectanglesOnly) {
+		var pathClass2 = pathClass == PathClassFactory.getPathClassUnclassified() ? null : pathClass;
 		if (rectanglesOnly)
-			return (PathObject p) -> p.isAnnotation() && p.getPathClass() == pathClass && p.getROI() instanceof RectangleROI;
+			return (PathObject p) -> p.isAnnotation() && p.getPathClass() == pathClass2 && p.getROI() instanceof RectangleROI;
 		else
-			return (PathObject p) -> p.isAnnotation() && p.getPathClass() == pathClass;
+			return (PathObject p) -> p.isAnnotation() && p.getPathClass() == pathClass2;
 	}
 	
 	
