@@ -750,7 +750,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param script
 	 * @param imageData
 	 */
-	private void executeScript(final ScriptTab tab, final String script, final ImageData<BufferedImage> imageData) {
+	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData) {
 		ScriptEditorControl console = tab.getConsoleComponent();
 		
 		ScriptContext context = new SimpleScriptContext();
@@ -766,7 +766,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		if (outputScriptStartTime.get())
 			printWriter.println("Starting script at " + new Date(startTime).toString());
 		try {
-			Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
+			Object result = executeScript(tab.getLanguage(), script, project, imageData, useDefaultBindings.get(), context);
 			if (result != null) {
 				printWriter.println("Result: " + result);
 			}
@@ -835,14 +835,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * 
 	 * @param language
 	 * @param script
+	 * @param project 
 	 * @param imageData
 	 * @param importDefaultMethods
 	 * @param context
 	 * @return
 	 */
-	public static Object executeScript(final Language language, final String script, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+	public static Object executeScript(final Language language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
 		ScriptEngine engine = manager.getEngineByName(language.toString());
-		return executeScript(engine, script, imageData, importDefaultMethods, context);
+		return executeScript(engine, script, project, imageData, importDefaultMethods, context);
 	}
 	
 	
@@ -851,15 +852,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * 
 	 * @param engine
 	 * @param script
+	 * @param project 
 	 * @param imageData
 	 * @param importDefaultMethods
 	 * @param context
 	 * @return
 	 */
-	public static Object executeScript(final ScriptEngine engine, final String script, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+	public static Object executeScript(final ScriptEngine engine, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
 		
 		// Set the current ImageData if we can
-		QP.setBatchImageData((ImageData<?>)imageData);
+		QP.setBatchProjectAndImage(project, imageData);
 		
 		// We'll actually use script2... which may or may not be the same
 		String script2 = script;
@@ -1000,7 +1002,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 //				e1.printStackTrace();
 			}
 		} finally {
-			QP.setBatchImageData(null);
+			QP.resetBatchProjectAndImage();
 		}
 		return result;
 	}
@@ -1242,7 +1244,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				logger.info("Running script in Platform thread...");
 				try {
 					tab.setRunning(true);
-					executeScript(tab, script, qupath.getImageData());
+					executeScript(tab, script, qupath.getProject(), qupath.getImageData());
 				} finally {
 					tab.setRunning(false);
 					runningTask.setValue(null);
@@ -1253,7 +1255,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					public void run() {
 						try {
 							tab.setRunning(true);
-							executeScript(tab, script, qupath.getImageData());
+							executeScript(tab, script, qupath.getProject(), qupath.getImageData());
 						} finally {
 							tab.setRunning(false);
 							Platform.runLater(() -> runningTask.setValue(null));
@@ -1359,14 +1361,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	class ProjectTask extends Task<Void> {
 		
-//		private Project<BufferedImage> project;
+		private Project<BufferedImage> project;
 		private Collection<ProjectImageEntry<BufferedImage>> imagesToProcess;
 		private ScriptTab tab;
 		private boolean quietCancel = false;
 		private boolean doSave = false;
 		
 		ProjectTask(final Project<BufferedImage> project, final Collection<ProjectImageEntry<BufferedImage>> imagesToProcess, final ScriptTab tab, final boolean doSave) {
-//			this.project = project;
+			this.project = project;
 			this.imagesToProcess = imagesToProcess;
 			this.tab = tab;
 			this.doSave = doSave;
@@ -1410,7 +1412,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						continue;
 					}
 //					QPEx.setBatchImageData(imageData);
-					executeScript(tab, tab.getEditorComponent().getText(), imageData);
+					executeScript(tab, tab.getEditorComponent().getText(), project, imageData);
 					if (doSave)
 						entry.saveImageData(imageData);
 					imageData.getServer().close();

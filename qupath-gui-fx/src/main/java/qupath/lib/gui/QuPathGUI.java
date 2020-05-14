@@ -3039,7 +3039,7 @@ public class QuPathGUI {
 	 * @return result of the script execution
 	 */
 	private Object runScript(final String script, final ImageData<BufferedImage> imageData) {
-		return DefaultScriptEditor.executeScript(Language.GROOVY, script, imageData, true, null);
+		return DefaultScriptEditor.executeScript(Language.GROOVY, script, getProject(), imageData, true, null);
 	}
 	
 	/**
@@ -3847,8 +3847,8 @@ public class QuPathGUI {
 		
 		imageDataProperty.set(imageDataNew);
 		
-		// A bit awkward, this... but make sure the extended scripting helper static class knows what's happened
-		QPEx.setBatchImageData(imageDataNew);
+//		// A bit awkward, this... but make sure the extended scripting helper static class knows what's happened
+//		QPEx.setBatchImageData(imageDataNew);
 		
 	}
 	

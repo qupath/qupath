@@ -31,6 +31,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -59,6 +61,9 @@ import qupath.lib.analysis.DistanceTools;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifier;
+import qupath.lib.classifiers.object.ObjectClassifiers;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -72,6 +77,7 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.PathIO;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -90,7 +96,9 @@ import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.workflow.RunSavedClassifierWorkflowStep;
+import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
@@ -101,6 +109,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.OpenCVTools;
 
@@ -152,8 +161,22 @@ public class QP {
 	/**
 	 * Store ImageData accessible to the script thread
 	 */
-	private static Map<Thread, ImageData<?>> batchImageData = new WeakHashMap<>();
+	private static Map<Thread, ImageData<BufferedImage>> batchImageData = new WeakHashMap<>();
+
+	/**
+	 * Store Project accessible to the script thread
+	 */
+	private static Map<Thread, Project<BufferedImage>> batchProject = new WeakHashMap<>();
 	
+	/**
+	 * Placeholder for the path to the current project.
+	 * May be used as follows:
+	 * <pre>
+	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
+	 * </pre>
+	 */
+	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
+
 	
 	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
 			// Core datastructures
@@ -307,13 +330,33 @@ public class QP {
 	
 	
 	/**
+	 * Set the {@link Project} and {@link ImageData} to use for batch processing for the current thread.
+	 * @param project
+	 * @param imageData
+	 */
+	public static void setBatchProjectAndImage(final Project<BufferedImage> project, final ImageData<BufferedImage> imageData) {
+		setBatchProject(project);
+		setBatchImageData(imageData);
+	}
+	
+	/**
+	 * Reset the {@link Project} and {@link ImageData} used for batch processing for the current thread.
+	 */
+	public static void resetBatchProjectAndImage() {
+		setBatchProject(null);
+		setBatchImageData(null);
+	}
+	
+	/**
 	 * Set the ImageData to use for batch processing.  This will be local for the current thread.
 	 * @param imageData
 	 * @return
 	 */
-	public static ImageData<?> setBatchImageData(final ImageData<?> imageData) {
+	static ImageData<BufferedImage> setBatchImageData(final ImageData<BufferedImage> imageData) {
 		Thread thread = Thread.currentThread();
 		logger.trace("Setting image data for {} to {}", thread, imageData);
+		if (imageData == null)
+			return batchImageData.remove(thread);
 		return batchImageData.put(thread, imageData);
 	}
 	
@@ -323,9 +366,53 @@ public class QP {
 	 * <p>
 	 * @return The ImageData set with setBatchImageData, or null if no ImageData has been set for the current thread.
 	 */
-	public static ImageData<?> getBatchImageData() {
+	static ImageData<BufferedImage> getBatchImageData() {
 		return batchImageData.get(Thread.currentThread());
 	}
+	
+	/**
+	 * Set the Project to use for batch processing.  This will be local for the current thread.
+	 * @param project
+	 * @return
+	 */
+	static Project<BufferedImage> setBatchProject(final Project<BufferedImage> project) {
+		Thread thread = Thread.currentThread();
+		logger.trace("Setting project for {} to {}", thread, project);
+		if (project == null)
+			return batchProject.remove(thread);
+		return batchProject.put(thread, project);
+	}
+	
+	
+	/**
+	 * Set the ImageData to use for batch processing.  This will be local for the current thread.
+	 * <p>
+	 * @return The ImageData set with setBatchImageData, or null if no ImageData has been set for the current thread.
+	 */
+	static Project<BufferedImage> getBatchProject() {
+		return batchProject.get(Thread.currentThread());
+	}
+	
+	
+	
+	/**
+	 * Load ImageData from a file.
+	 * 
+	 * @param path path to the file containing ImageData.
+	 * @param setBatchData if true, the <code>setBatchImageData(ImageData)</code> will be called if the loading is successful.
+	 * @return
+	 * @throws IOException 
+	 * 
+	 * @see #setBatchImageData
+	 */
+	@Deprecated
+	public static ImageData<BufferedImage> loadImageData(final String path, final boolean setBatchData) throws IOException {
+		ImageData<BufferedImage> imageData = PathIO.readImageData(new File(resolvePath(path)), null, null, BufferedImage.class);
+		if (setBatchData && imageData != null)
+			setBatchImageData(imageData);
+		return imageData;
+	}
+	
 	
 //	public static ImageData<?> getCurrentImageData() {
 //		// Try the batch image data first
@@ -403,15 +490,133 @@ public class QP {
 	/**
 	 * Get the path to the current {@code ImageData}.
 	 * <p>
-	 * In this implementation, it is the same as calling {@code getBatchImageData()}.
+	 * In this implementation, it is the same as calling {@link #getBatchImageData()}.
 	 * 
 	 * @return
 	 * 
 	 * @see #getBatchImageData()
 	 */
-	public static ImageData<?> getCurrentImageData() {
+	public static ImageData<BufferedImage> getCurrentImageData() {
 		return getBatchImageData();
 	}
+	
+	
+	/**
+	 * Get the current project.
+	 * <p>
+	 * In this implementation, it is the same as calling {@link #getBatchProject()}.
+	 * 
+	 * @return
+	 * 
+	 * @see #getBatchProject()
+	 */
+	public static Project<BufferedImage> getProject() {
+		return getBatchProject();
+	}
+	
+	/**
+	 * Resolve a path, replacing any placeholders. Currently, this means only {@link #PROJECT_BASE_DIR}.
+	 * @param path
+	 * @return
+	 */
+	public static String resolvePath(final String path) {
+		String base = getProjectBaseDirectory();
+		if (base != null)
+			return path.replace(PROJECT_BASE_DIR, base);
+		else if (path.contains(PROJECT_BASE_DIR))
+			throw new IllegalArgumentException("Cannot resolve path '" + path + "' - no project base directory available");
+		return
+			path;
+	}
+	
+	/**
+	 * Build a file path from multiple components.
+	 * A common use of this is
+	 * <pre>
+	 *   String path = buildFilePath(PROJECT_BASE_DIR, "export")
+	 * </pre>
+	 * @param path
+	 * @return
+	 */
+	public static String buildFilePath(String...path) {
+		File file = new File(resolvePath(path[0]));
+		for (int i = 1; i < path.length; i++)
+			file = new File(file, path[i]);
+		return file.getAbsolutePath();
+	}
+	
+	/**
+	 * Ensure directories exist for the specified path, calling {@code file.mkdirs()} if not.
+	 * @param path the directory path
+	 * @return true if a directory was created, false otherwise
+	 */
+	public static boolean mkdirs(String path) {
+		File file = new File(resolvePath(path));
+		if (!file.exists())
+			return file.mkdirs();
+		return false;
+	}
+	
+	/**
+	 * Query if a file exists.
+	 * @param path full file path
+	 * @return true if the file exists, false otherwise
+	 */
+	public static boolean fileExists(String path) {
+		return new File(resolvePath(path)).exists();
+	}
+
+	/**
+	 * Query if a file path corresponds to a directory.
+	 * @param path full file path
+	 * @return true if the file exists and is a directory, false otherwise
+	 */
+	public static boolean isDirectory(String path) {
+		return new File(resolvePath(path)).isDirectory();
+	}
+
+	
+	/**
+	 * Get the base directory for the currently-open project, or null if no project is open.
+	 * 
+	 * This can be useful for setting e.g. save directories relative to the current project.
+	 * 
+	 * @return
+	 */
+	private static String getProjectBaseDirectory() {
+		File dir = Projects.getBaseDirectory(getProject());
+		return dir == null ? null : dir.getAbsolutePath();
+	}
+	
+	/**
+	 * Get the project entry for the currently-open image within the current project, 
+	 * or null if no project/image is open.
+	 * 
+	 * @return
+	 */
+	public static ProjectImageEntry<BufferedImage> getProjectEntry() {
+		Project<BufferedImage> project = getProject();
+		var imageData = getCurrentImageData();
+		if (project == null || imageData == null)
+			return null;
+		return project.getEntry(imageData);
+	}
+	
+	
+	/**
+	 * Get the metadata value from the current project entry for the specified key, 
+	 * or null if no such metadata value exists (or no project entry is open).
+	 * 
+	 * @param key
+	 * @return
+	 */
+	public static String getProjectEntryMetadataValue(final String key) {
+		ProjectImageEntry<BufferedImage> entry = getProjectEntry();
+		if (entry == null)
+			return null;
+		return entry.getMetadataValue(key);
+	}
+	
 	
 	/**
 	 * Get the {@code PathObjectHierarchy} of the current {@code ImageData}.
@@ -2501,6 +2706,231 @@ public class QP {
 		hierarchy.fireHierarchyChangedEvent(parent);	
 		hierarchy.getSelectionModel().setSelectedObject(pathObjectNew);
 		return true;
+	}
+	
+	
+	
+	
+	/**
+	 * Apply an object classifier to the current {@link ImageData}.
+	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
+	 * @param names the name of the classifier within the current project, or file path to a classifier to load from disk.
+	 * 				If more than one name is provided, a composite classifier is created.
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	public static void runObjectClassifier(String... names) throws IllegalArgumentException {
+		runObjectClassifier(getCurrentImageData(), names);
+	}
+	
+	/**
+	 * Apply an object classifier to the specified {@link ImageData}.
+	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
+	 * @param imageData 
+	 * @param names the name of the classifier within the current project, or file path to a classifier to load from disk.
+	 * 				If more than one name is provided, a composite classifier is created.
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public static void runObjectClassifier(ImageData imageData, String... names) throws IllegalArgumentException {
+		if (names.length == 0) {
+			logger.warn("Cannot run object classifier - no names provided!");
+			return;			
+		}
+		if (imageData == null) {
+			logger.warn("Cannot run object classifier - no ImageData available!");
+			return;
+		}
+		ObjectClassifier classifier = loadObjectClassifier(names);
+		
+		var pathObjects = classifier.getCompatibleObjects(imageData);
+		if (classifier.classifyObjects(imageData, pathObjects, true) > 0)
+			imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
+	}
+	
+	/**
+	 * Load an object classifier for a project or file path.
+	 * 
+	 * @param names the names of the classifier within the current project, or file paths to a classifier to load from disk.
+	 * 				If more than one name is provided, a composite classifier is created (applying each classifier in sequence).
+	 * @return the requested {@link ObjectClassifier}
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	public static ObjectClassifier<BufferedImage> loadObjectClassifier(String... names) throws IllegalArgumentException {
+		var project = getProject();
+		List<ObjectClassifier<BufferedImage>> classifiers = new ArrayList<>();
+		for (String name : names) {
+			ObjectClassifier<BufferedImage> classifier = null;
+			Exception exception = null;
+			if (project != null) {
+				try {
+					var objectClassifiers = project.getObjectClassifiers();
+					if (objectClassifiers.getNames().contains(name))
+						classifier = objectClassifiers.get(name);
+				} catch (Exception e) {
+					exception = e;
+					logger.debug("Object classifier '{}' not found in project", name);
+				}
+			}
+			if (classifier == null) {
+				try {
+					var path = Paths.get(name);
+					if (Files.exists(path))
+						classifier = ObjectClassifiers.readClassifier(path);
+				} catch (Exception e) {
+					exception = e;
+					logger.debug("Object classifier '{}' cannot be read from file", name);
+				}
+			}
+			if (classifier == null) {
+				throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+			} else if (names.length == 1)
+				return classifier;
+			else
+				classifiers.add(classifier);
+		}
+		return ObjectClassifiers.createCompositeClassifier(classifiers);
+	}
+	
+	
+	
+	
+	/**
+	 * Load a pixel classifier for a project or file path.
+	 * 
+	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk.
+	 * @return the requested {@link PixelClassifier}
+	 * @throws IllegalArgumentException if the classifier cannot be found
+	 */
+	public static PixelClassifier loadPixelClassifier(String name) throws IllegalArgumentException {
+		var project = getProject();
+		Exception exception = null;
+		if (project != null) {
+			try {
+				var pixelClassifiers = project.getPixelClassifiers();
+				if (pixelClassifiers.getNames().contains(name))
+					return pixelClassifiers.get(name);
+			} catch (Exception e) {
+				exception = e;
+				logger.debug("Pixel classifier '{}' not found in project", name);
+			}
+		}
+		try {
+			var path = Paths.get(name);
+			if (Files.exists(path))
+				return PixelClassifiers.readClassifier(path);
+		} catch (Exception e) {
+			exception = e;
+			logger.debug("Pixel classifier '{}' cannot be read from file", name);
+		}
+		throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+	}
+	
+	
+	/**
+	 * Add measurements from pixel classification to the selected objects.
+	 * @param classifierName the pixel classifier name
+	 * @param measurementID
+	 * @see #loadPixelClassifier(String)
+	 */
+	public static void addPixelClassifierMeasurements(String classifierName, String measurementID) {
+		addPixelClassifierMeasurements(loadPixelClassifier(classifierName), measurementID);
+	}
+	
+	/**
+	 * Add measurements from pixel classification to the selected objects.
+	 * @param classifier the pixel classifier
+	 * @param measurementID
+	 */
+	public static void addPixelClassifierMeasurements(PixelClassifier classifier, String measurementID) {
+		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
+		PixelClassifierTools.addMeasurementsToSelectedObjects(imageData, classifier, measurementID);
+	}
+	
+	/**
+	 * Create detection objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+	 * @param classifierName the name of the pixel classifier
+	 * @param minArea the minimum area of connected regions to retain
+	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
+	 * @param doSplit if true, split connected regions into separate objects
+	 * @param clearExisting clear existing child objects before adding the new ones
+	 * @see #loadPixelClassifier(String)
+	 */
+	public static void createDetectionsFromPixelClassifier(
+			String classifierName, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		createDetectionsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, doSplit, clearExisting);
+	}
+
+	/**
+	 * Create detection objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+	 * @param classifier the pixel classifier
+	 * @param minArea the minimum area of connected regions to retain
+	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
+	 * @param doSplit if true, split connected regions into separate objects
+	 * @param clearExisting clear existing child objects before adding the new ones
+	 */
+	public static void createDetectionsFromPixelClassifier(
+			PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
+		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, doSplit, clearExisting);
+	}
+	 
+	
+	/**
+	 * Create annotation objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+	 * @param classifierName the name of the pixel classifier
+	 * @param minArea the minimum area of connected regions to retain
+	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
+	 * @param doSplit if true, split connected regions into separate objects
+	 * @param clearExisting clear existing child objects before adding the new ones
+	 * @see #loadPixelClassifier(String)
+	 */
+	public static void createAnnotationsFromPixelClassifier(
+			String classifierName, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		createAnnotationsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, doSplit, clearExisting);
+	}
+
+	/**
+	 * Create annotation objects based upon the output of a pixel classifier, applied to selected objects.
+	 * If no objects are selected, objects are created across the entire image.
+	 * 
+	 * @param classifier the pixel classifier
+	 * @param minArea the minimum area of connected regions to retain
+	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
+	 * @param doSplit if true, split connected regions into separate objects
+	 * @param clearExisting clear existing child objects before adding the new ones
+	 */
+	public static void createAnnotationsFromPixelClassifier(
+			PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
+		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, doSplit, clearExisting);
+	}
+	
+	
+	/**
+	 * Classify detections according to the prediction of the pixel corresponding to the detection centroid using a {@link PixelClassifier}.
+	 * If the detections are cells, the nucleus ROI is used where possible.
+	 * 
+	 * @param classifier the pixel classifier
+	 */
+	public static void classifyDetectionsByCentroid(PixelClassifier classifier) {
+		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
+		PixelClassifierTools.classifyDetectionsByCentroid(imageData, classifier);
+	}
+	
+	/**
+	 * Classify detections according to the prediction of the pixel corresponding to the detection centroid using a {@link PixelClassifier}.
+	 * If the detections are cells, the nucleus ROI is used where possible.
+	 * 
+	 * @param classifierName name of the pixel classifier
+	 */
+	public static void classifyDetectionsByCentroid(String classifierName) {
+		classifyDetectionsByCentroid(loadPixelClassifier(classifierName));
 	}
 	
 }

@@ -115,10 +115,10 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 			else
 				allowedMemory = maxMemory / 8;
 			if ((imp.getNFrames() == 1 && imp.getNSlices() == 1) || nBytes < allowedMemory) {
-				logger.info("Opening {} fully, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
+				logger.debug("Opening {} fully, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
 				imp = IJ.openImage(path);
 			} else {
-				logger.info("Opening {} as virtual stack, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
+				logger.debug("Opening {} as virtual stack, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
 			}
 		}
 		if (imp == null)

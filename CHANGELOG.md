@@ -3,9 +3,10 @@
 This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 
 * Many pixel classifier improvements
-  * Training annotations are used from all compatible images that are currently open
-  * New 'Load training' button to support training using annotations from multiple images
-  * New 'Measure' button to store measurements after the classifier is closed
+  * Finally scriptable! Scripting commands automatically recorded - requires that the classifier is saved in a project
+  * Training annotations are used from *all* compatible images that are currently open
+  * New 'Load training' button to support training using annotations from unopened images in the same project
+  * New 'Measure' button to store measurements after the classifier is closed, for any object type (including detections)
   * More control over the regions where the classifier is applied in 'live' preview mode
   * Default classifier is now ANN (often better & much faster than Random Trees)
 * Measurement lists are reset if an object's ROI is changed
@@ -25,6 +26,7 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
   * Changed behavior! Area thresholds now refer to total polygon/hole area ignoring any nested polygons or holes
 * Script editor improvements
   * Display which script is currently running in the script editor
+  * Current project now accessible in scripts run outside of the script editor (e.g. from the command line)
   * Intercept mouse clicks for main window while a script is running & show a warning
   * Show a confirm prompt if trying to quit QuPath while a script is running
   * Adapted "Show log in console" option gives better control of script output (turn off to see less console output)
