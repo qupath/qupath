@@ -223,9 +223,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	// Requested cursor - but this may be overridden temporarily
 	private Cursor requestedCursor = Cursor.DEFAULT;
 
-	// Flag to know when a selected object event is arising from this viewer
-	private boolean settingSelectedObject = false;
-
 	// The shape (coordinates in the image domain) last painted
 	// Used to determine whether the visible part of the image has been changed
 	private Shape lastVisibleShape = null;
@@ -756,31 +753,31 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		setOverlayOptions(overlayOptions);
 		
-//		// We need a simple repaint for color changes & simple (thick) line changes
-//		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
-//		
-//		manager.attachListener(PathPrefs.viewerGammaProperty(), repainterEntire);
-//		manager.attachListener(PathPrefs.viewerInterpolateBilinearProperty(), repainterEntire);
-//		manager.attachListener(PathPrefs.viewerBackgroundColorProperty(), repainterEntire);
-//		
-//		manager.attachListener(PathPrefs.showPointHullsProperty(), repainter);
-//		manager.attachListener(PathPrefs.useSelectedColorProperty(), repainter);
-//		manager.attachListener(PathPrefs.colorDefaultObjectsProperty(), repainterOverlay);
-//		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
-//		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
-//		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
-//		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
-//		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
-//		manager.attachListener(PathPrefs.viewerFontSizeProperty(), repainter);
-//
-//		manager.attachListener(PathPrefs.gridSpacingXProperty(), repainter);
-//		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
-//		manager.attachListener(PathPrefs.gridStartXProperty(), repainter);
-//		manager.attachListener(PathPrefs.gridStartYProperty(), repainter);
-//		manager.attachListener(PathPrefs.gridScaleMicronsProperty(), repainter);
-//
-//		// We need to repaint everything if detection line thickness changes - including any cached regions
-//		manager.attachListener(PathPrefs.detectionStrokeThicknessProperty(), repainterOverlay);		
+		// We need a simple repaint for color changes & simple (thick) line changes
+		manager.attachListener(PathPrefs.annotationStrokeThicknessProperty(), repainter);
+		
+		manager.attachListener(PathPrefs.viewerGammaProperty(), repainterEntire);
+		manager.attachListener(PathPrefs.viewerInterpolateBilinearProperty(), repainterEntire);
+		manager.attachListener(PathPrefs.viewerBackgroundColorProperty(), repainterEntire);
+		
+		manager.attachListener(PathPrefs.showPointHullsProperty(), repainter);
+		manager.attachListener(PathPrefs.useSelectedColorProperty(), repainter);
+		manager.attachListener(PathPrefs.colorDefaultObjectsProperty(), repainterOverlay);
+		manager.attachListener(PathPrefs.colorSelectedObjectProperty(), repainter);
+		manager.attachListener(PathPrefs.colorTileProperty(), repainter);
+		manager.attachListener(PathPrefs.colorTMAProperty(), repainter);
+		manager.attachListener(PathPrefs.colorTMAMissingProperty(), repainter);
+		manager.attachListener(PathPrefs.alwaysPaintSelectedObjectsProperty(), repainter);
+		manager.attachListener(PathPrefs.viewerFontSizeProperty(), repainter);
+
+		manager.attachListener(PathPrefs.gridSpacingXProperty(), repainter);
+		manager.attachListener(PathPrefs.gridSpacingYProperty(), repainter);
+		manager.attachListener(PathPrefs.gridStartXProperty(), repainter);
+		manager.attachListener(PathPrefs.gridStartYProperty(), repainter);
+		manager.attachListener(PathPrefs.gridScaleMicronsProperty(), repainter);
+
+		// We need to repaint everything if detection line thickness changes - including any cached regions
+		manager.attachListener(PathPrefs.detectionStrokeThicknessProperty(), repainterOverlay);		
 
 		// Can be used to debug graphics
 		//		setDoubleBuffered(false);
@@ -1252,9 +1249,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		PathObjectHierarchy hierarchy = getHierarchy();
 		if (hierarchy == null)
 			return;
-		settingSelectedObject = true;
 		hierarchy.getSelectionModel().setSelectedObject(pathObject, addToSelected);
-		settingSelectedObject = false;
 	}
 
 

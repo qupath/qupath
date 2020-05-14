@@ -140,16 +140,29 @@ public class QuPathViewerPlus extends QuPathViewer {
 		sliderZ.valueProperty().bindBidirectional(zPositionProperty());
 //		sliderZ.setOpaque(false);
 		sliderZ.setVisible(false);
-		sliderZ.setTooltip(new Tooltip("Change z-slice"));
+		var tooltipZ = new Tooltip("Change z-slice");
+		tooltipZ.textProperty().bind(Bindings.createStringBinding(() -> {
+			return "Z-slice (" + zPositionProperty().get() + ")";
+		}, zPositionProperty()));
+		sliderZ.setTooltip(tooltipZ);
+		sliderZ.rotateProperty().bind(Bindings.createDoubleBinding(() -> {
+			if (PathPrefs.invertZSliderProperty().get())
+				return 180.0;
+			return 0.0;
+		}, PathPrefs.invertZSliderProperty()));
+		
 		AnchorPane.setLeftAnchor(sliderZ, (double)padding);
 		AnchorPane.setTopAnchor(sliderZ, (double)padding*2.0);
-
 		
 		// Add the t-slider
 		sliderT.valueProperty().bindBidirectional(tPositionProperty());
 //		sliderT.setOpaque(false);
 		sliderT.setVisible(false);
-		sliderT.setTooltip(new Tooltip("Change time point"));
+		var tooltipT = new Tooltip("Change time point");
+		tooltipT.textProperty().bind(Bindings.createStringBinding(() -> {
+			return "Time point (" + tPositionProperty().get() + ")";
+		}, tPositionProperty()));
+		sliderT.setTooltip(tooltipT);
 		
 		AnchorPane.setLeftAnchor(sliderT, padding*2.0);
 		AnchorPane.setTopAnchor(sliderT, (double)padding);
@@ -184,7 +197,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 			sliderZ.setVisible(true);
 		} else
 			sliderZ.setVisible(false);	
-		
+				
 		if (server != null && server.nTimepoints() > 1) {
 			setSliderRange(sliderT, getTPosition(), 0, server.nTimepoints()-1);
 			sliderT.setVisible(true);
@@ -197,6 +210,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		slider.setMin(min);
 		slider.setMax(max);
 		slider.setMajorTickUnit(1);
+		slider.setMinorTickCount(0);
 		slider.setSnapToTicks(true);
 		slider.setShowTickMarks(false);
 		slider.setShowTickLabels(false);
@@ -262,6 +276,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 		viewerDisplayOptions.showLocationProperty().removeListener(locationListener);
 		viewerDisplayOptions.showOverviewProperty().removeListener(overviewListener);
 		viewerDisplayOptions.showScalebarProperty().removeListener(scalebarListener);
+		
 	}
 
 	// TODO: Make location string protected?
