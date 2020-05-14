@@ -3,10 +3,13 @@ package qupath.lib.images.servers;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import com.google.gson.annotations.JsonAdapter;
 
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -19,7 +22,7 @@ import qupath.lib.regions.RegionRequest;
  * @param <T>
  */
 @Deprecated
-class SimpleWrappedImageServer<T> implements ImageServer<T> {
+class SimpleWrappedImageServer<T> implements ImageServer<T>, PathObjectReader {
 	
 	@JsonAdapter(ImageServers.ImageServerTypeAdapter.class)
 	private ImageServer<T> server;
@@ -165,6 +168,13 @@ class SimpleWrappedImageServer<T> implements ImageServer<T> {
 	@Override
 	public Class<T> getImageClass() {
 		return server.getImageClass();
+	}
+
+	@Override
+	public Collection<PathObject> readPathObjects() throws IOException {
+		if (server instanceof PathObjectReader)
+			return ((PathObjectReader)server).readPathObjects();
+		return Collections.emptyList();
 	}
 
 }

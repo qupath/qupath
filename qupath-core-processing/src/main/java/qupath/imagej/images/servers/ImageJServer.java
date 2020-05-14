@@ -51,6 +51,7 @@ import ij.CompositeImage;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
+import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.plugin.Duplicator;
 import ij.plugin.ImageInfo;
@@ -69,6 +70,9 @@ import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -77,7 +81,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class ImageJServer extends AbstractImageServer<BufferedImage> {
+public class ImageJServer extends AbstractImageServer<BufferedImage> implements PathObjectReader {
 	
 	final private static Logger logger = LoggerFactory.getLogger(ImageJServer.class);
 	
@@ -239,6 +243,34 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> {
 //		if ((!isRGB() && nChannels() > 1) || getBitsPerPixel() == 32)
 //			throw new IOException("Sorry, currently only RGB & single-channel 8 & 16-bit images supported using ImageJ server");
 	}
+	
+	
+	@Override
+	public Collection<PathObject> readPathObjects() {
+		var roi = imp.getRoi();
+		var overlay = imp.getOverlay();
+		if (roi == null && (overlay == null || overlay.size() == 0))
+			return Collections.emptyList();
+		var list = new ArrayList<PathObject>();
+		if (roi != null) {
+			list.add(roiToAnnotation(roi));
+		}
+		if (overlay != null) {
+			for (var r : overlay.toArray())
+				list.add(roiToAnnotation(r));
+		}
+		return list;
+	}
+	
+	private PathObject roiToAnnotation(Roi roiIJ) {
+		// Note that because we are reading from the ImagePlus directly, we have to avoid using any calibration information
+		var roi = IJTools.convertToROI(roiIJ, 0, 0, 1, IJTools.getImagePlane(roiIJ, imp));
+		var annotation = PathObjects.createAnnotationObject(roi);
+		annotation.setLocked(true);
+		IJTools.calibrateObject(annotation, roiIJ);
+		return annotation;
+	}
+	
 	
 	/**
 	 * Get a String representing the image metadata.

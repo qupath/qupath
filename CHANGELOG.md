@@ -30,6 +30,8 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
   * Intercept mouse clicks for main window while a script is running & show a warning
   * Show a confirm prompt if trying to quit QuPath while a script is running
   * Adapted "Show log in console" option gives better control of script output (turn off to see less console output)
+* New 'Import objects' option when adding images to a project
+  * Supports importing ROIs/overlays from ImageJ TIFF images
 * New preference to optionally invert the orientation of the z-position slide for z-stacks
 * Other bug fixes, including:
   * Local normalization now applied before calculating other features (was applied after in m11)
