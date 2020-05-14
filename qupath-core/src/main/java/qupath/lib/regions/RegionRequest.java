@@ -91,7 +91,7 @@ public class RegionRequest extends ImageRegion {
 	}
 	
 	/**
-	 * Create a requests for the full width and height of an {@link ImageServer}, for all planes (z-slices and time points).
+	 * Create requests for the full width and height of an {@link ImageServer}, for all planes (z-slices and time points).
 	 * @param server
 	 * @param downsample
 	 * @return

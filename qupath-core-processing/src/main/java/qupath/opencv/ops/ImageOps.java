@@ -227,7 +227,7 @@ public class ImageOps {
 			}
 			return true;
 		}
-		
+		 
 		@Override
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
@@ -442,11 +442,23 @@ public class ImageOps {
 
 			@Override
 			protected Mat transformPadded(Mat input) {
+				int depth = input.depth();
 				var channels = OpenCVTools.splitChannels(input);
 				for (var m : channels)
 					LocalNormalization.gaussianNormalize2D(m, sigmaMean, sigmaStdDev, opencv_core.BORDER_REFLECT);
 				OpenCVTools.mergeChannels(channels, input);
+				
+				// We expect this conversion will already have happened, but should make sure in case the local normalization 
+				// implementation changes
+				if (depth != opencv_core.CV_64F)
+					depth = opencv_core.CV_32F;
+				input.convertTo(input, depth);
 				return input;
+			}
+			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return inputType == PixelType.FLOAT64 ? inputType : PixelType.FLOAT32;
 			}
 			
 		}

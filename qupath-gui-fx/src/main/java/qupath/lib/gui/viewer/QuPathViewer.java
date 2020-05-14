@@ -108,11 +108,10 @@ import qupath.lib.gui.images.stores.TileListener;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
-import qupath.lib.gui.viewer.overlays.ImageDataOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
-import qupath.lib.gui.viewer.overlays.PixelLayerOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
 import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -134,7 +133,6 @@ import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
-import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 
@@ -163,8 +161,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private TMAGridOverlay tmaGridOverlay;
 	// An overlay to show a regular grid (e.g. for counting)
 	private GridOverlay gridOverlay;
-	// A default overlay to show a pixel layer on top of an image
-	private PixelLayerOverlay pixelLayerOverlay = null;
+//	// A default overlay to show a pixel layer on top of an image
+//	private PixelLayerOverlay pixelLayerOverlay = null;
 	// A custom pixel overlay to use instead of the default
 	private PathOverlay customPixelLayerOverlay = null;
 	
@@ -224,9 +222,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	
 	// Requested cursor - but this may be overridden temporarily
 	private Cursor requestedCursor = Cursor.DEFAULT;
-
-	// Flag to know when a selected object event is arising from this viewer
-	private boolean settingSelectedObject = false;
 
 	// The shape (coordinates in the image domain) last painted
 	// Used to determine whether the visible part of the image has been changed
@@ -797,12 +792,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		allOverlayLayers.addListener((Change<? extends PathOverlay> e) -> repaint());
 		
 		hierarchyOverlay = new HierarchyOverlay(this.regionStore, overlayOptions, imageData);
-		tmaGridOverlay = new TMAGridOverlay(overlayOptions, imageData);
-		gridOverlay = new GridOverlay(overlayOptions, imageData);
-		pixelLayerOverlay = new PixelLayerOverlay(this);
+		tmaGridOverlay = new TMAGridOverlay(overlayOptions);
+		gridOverlay = new GridOverlay(overlayOptions);
+//		pixelLayerOverlay = new PixelLayerOverlay(this);
 		// Set up the overlay layers
 		coreOverlayLayers.setAll(
-				pixelLayerOverlay,
+//				pixelLayerOverlay,
 				tmaGridOverlay,
 				hierarchyOverlay,
 				gridOverlay
@@ -859,7 +854,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * Property for the image data currently being displayed within this viewer.
 	 * @return
 	 */
-	public ReadOnlyObjectProperty<ImageData<BufferedImage>> getImageDataProperty() {
+	public ReadOnlyObjectProperty<ImageData<BufferedImage>> imageDataProperty() {
 		return imageDataProperty;
 	}
 	
@@ -938,6 +933,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			overlayOptionsManager.attachListener(overlayOptions.fillAnnotationsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showDetectionsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showPixelClassificationProperty(), repainter);
+			overlayOptionsManager.attachListener(overlayOptions.pixelClassificationFilterRegionProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.gridLinesProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showTMACoreLabelsProperty(), repainter);
 			overlayOptionsManager.attachListener(overlayOptions.showGridProperty(), repainter);
@@ -964,6 +960,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		imageUpdated = true;
 
 		if (server == null) {
+			zPosition.set(0);
+			tPosition.set(0);
 			return;
 		}
 
@@ -1179,13 +1177,26 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		var previousOverlay = getCurrentPixelLayerOverlay();
 		int ind = coreOverlayLayers.indexOf(previousOverlay);
 		this.customPixelLayerOverlay = pathOverlay;
-		if (ind < 0) {
-			logger.warn("Pixel layer overlay not found! Will try to recover...");
-			coreOverlayLayers.removeAll(pixelLayerOverlay, customPixelLayerOverlay);
-			coreOverlayLayers.add(0, getCurrentPixelLayerOverlay());
+		if (this.customPixelLayerOverlay == null) {
+			if (ind >= 0)
+				coreOverlayLayers.remove(ind);
+		} else if (ind < 0) {
+			coreOverlayLayers.add(0, this.customPixelLayerOverlay);
 		} else {
-			coreOverlayLayers.set(ind, getCurrentPixelLayerOverlay());
+			coreOverlayLayers.set(ind, this.customPixelLayerOverlay);
 		}
+				
+//		// Get existing custom overlay
+//		var previousOverlay = getCurrentPixelLayerOverlay();
+//		int ind = coreOverlayLayers.indexOf(previousOverlay);
+//		this.customPixelLayerOverlay = pathOverlay;
+//		if (ind < 0) {
+//			logger.warn("Pixel layer overlay not found! Will try to recover...");
+//			coreOverlayLayers.removeAll(pixelLayerOverlay, customPixelLayerOverlay);
+//			coreOverlayLayers.add(0, getCurrentPixelLayerOverlay());
+//		} else {
+//			coreOverlayLayers.set(ind, getCurrentPixelLayerOverlay());
+//		}
 	}
 	
 	/**
@@ -1197,7 +1208,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	
 	private PathOverlay getCurrentPixelLayerOverlay() {
-		return customPixelLayerOverlay == null ? pixelLayerOverlay : customPixelLayerOverlay;
+		return customPixelLayerOverlay;
+//		return customPixelLayerOverlay == null ? pixelLayerOverlay : customPixelLayerOverlay;
 	}
 	
 
@@ -1239,9 +1251,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		PathObjectHierarchy hierarchy = getHierarchy();
 		if (hierarchy == null)
 			return;
-		settingSelectedObject = true;
 		hierarchy.getSelectionModel().setSelectedObject(pathObject, addToSelected);
-		settingSelectedObject = false;
 	}
 
 
@@ -1260,7 +1270,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		// Read a thumbnail image
 		try {
-			BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
+			int z = GeneralTools.clipValue(getZPosition(), 0, server.nZSlices()-1);
+			int t = GeneralTools.clipValue(getTPosition(), 0, server.nTimepoints()-1);
+			BufferedImage imgThumbnail = regionStore.getThumbnail(server, z, t, true);
 //			BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
 			imgThumbnailRGB = createThumbnailRGB(imgThumbnail);
 			thumbnailIsFullImage = imgThumbnailRGB.getWidth() == server.getWidth() && imgThumbnailRGB.getHeight() == server.getHeight();
@@ -1484,21 +1496,21 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		//		featureMapWrapper = new TiledFeatureMapImageWrapper(server.getWidth(), server.getHeight());
 
-		// Notify overlays of change to ImageData
-		Iterator<PathOverlay> iter = allOverlayLayers.iterator();
-		while (iter.hasNext()) {
-			PathOverlay overlay = iter.next();
-			if (overlay instanceof ImageDataOverlay) {
-				ImageDataOverlay overlay2 = (ImageDataOverlay)overlay;
-				if (!overlay2.supportsImageDataChange()) {
-					// Remove any non-core overlay layers that don't support an ImageData change
-					if (!coreOverlayLayers.contains(overlay2))
-						iter.remove();
-					continue;
-				} else
-					overlay2.setImageData(imageDataNew);
-			}
-		}
+//		// Notify overlays of change to ImageData
+//		Iterator<PathOverlay> iter = allOverlayLayers.iterator();
+//		while (iter.hasNext()) {
+//			PathOverlay overlay = iter.next();
+//			if (overlay instanceof ImageDataOverlay) {
+//				ImageDataOverlay overlay2 = (ImageDataOverlay)overlay;
+//				if (!overlay2.supportsImageDataChange()) {
+//					// Remove any non-core overlay layers that don't support an ImageData change
+//					if (!coreOverlayLayers.contains(overlay2))
+//						iter.remove();
+//					continue;
+//				} else
+//					overlay2.setImageData(imageDataNew);
+//			}
+//		}
 		//		overlay.setImageData(imageData);
 
 		if (imageDataNew != null) {
@@ -1771,11 +1783,13 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 			Color color = getSuggestedOverlayColor();
 			// Paint the overlay layers
+			var imageData = this.imageDataProperty.get();
 			for (PathOverlay overlay : allOverlayLayers.toArray(PathOverlay[]::new)) {
 				logger.trace("Painting overlay: {}", overlay);
-				overlay.setPreferredOverlayColor(color);
+				if (overlay instanceof AbstractOverlay)
+					((AbstractOverlay)overlay).setPreferredOverlayColor(color);
 //				overlay.paintOverlay(g2d, regionBounds, downsample, null, paintCompletely);
-				overlay.paintOverlay(g2d, getServerBounds(), downsample, null, paintCompletely);
+				overlay.paintOverlay(g2d, getServerBounds(), downsample, imageData, paintCompletely);
 			}
 //			if (hierarchyOverlay != null) {
 //				hierarchyOverlay.setPreferredOverlayColor(color);
@@ -2629,6 +2643,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		repaint();
 	}
 
+	
+	/**
+	 * Center the specified ROI in the viewer
+	 * @param roi
+	 */
+	public void centerROI(ROI roi) {
+		if (roi == null)
+			return;
+		double x = roi.getCentroidX();
+		double y = roi.getCentroidY();
+		setZPosition(roi.getZ());
+		setTPosition(roi.getT());
+		setCenterPixelLocation(x, y);
+	}
 
 
 
@@ -2778,22 +2806,22 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	@Override
 	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
 
-		// We only want to shift the object ROI to the center under certain conditions, otherwise the screen jerks annoyingly
-		if (!settingSelectedObject && !getZoomToFit() && pathObjectSelected != null && RoiTools.isShapeROI(pathObjectSelected.getROI())) {
-
-			// We want to center a TMA core if more than half of it is outside the window
-			boolean centerCore = false;
-			Shape shapeDisplayed = getDisplayedRegionShape();
-			ROI pathROI = pathObjectSelected.getROI();
-			if (centerCore || !shapeDisplayed.intersects(pathROI.getBoundsX(), pathROI.getBoundsY(), pathROI.getBoundsWidth(), pathROI.getBoundsHeight())) {
-				//			if (!getDisplayedRegionShape().intersects(pathObjectSelected.getROI().getBounds2D())) {
-				//			(!(pathObjectSelected instanceof PathDetectionObject && getDisplayedRegionShape().intersects(pathObjectSelected.getROI().getBounds2D())))) {
-				double cx = pathObjectSelected.getROI().getCentroidX();
-				double cy = pathObjectSelected.getROI().getCentroidY();
-				setCenterPixelLocation(cx, cy);
-				//		logger.info("Centered to " + cx + ", " + cy);
-			}
-		}
+//		// We only want to shift the object ROI to the center under certain conditions, otherwise the screen jerks annoyingly
+//		if (!settingSelectedObject && pathObjectSelected != previousObject && !getZoomToFit() && pathObjectSelected != null && RoiTools.isShapeROI(pathObjectSelected.getROI())) {
+//
+//			// We want to center a TMA core if more than half of it is outside the window
+//			boolean centerCore = false;
+//			Shape shapeDisplayed = getDisplayedRegionShape();
+//			ROI pathROI = pathObjectSelected.getROI();
+//			if (centerCore || !shapeDisplayed.intersects(pathROI.getBoundsX(), pathROI.getBoundsY(), pathROI.getBoundsWidth(), pathROI.getBoundsHeight())) {
+//				//			if (!getDisplayedRegionShape().intersects(pathObjectSelected.getROI().getBounds2D())) {
+//				//			(!(pathObjectSelected instanceof PathDetectionObject && getDisplayedRegionShape().intersects(pathObjectSelected.getROI().getBounds2D())))) {
+//				double cx = pathObjectSelected.getROI().getCentroidX();
+//				double cy = pathObjectSelected.getROI().getCentroidY();
+//				setCenterPixelLocation(cx, cy);
+//				//		logger.info("Centered to " + cx + ", " + cy);
+//			}
+//		}
 		updateRoiEditor();
 		for (QuPathViewerListener listener : new ArrayList<QuPathViewerListener>(listeners)) {
 			listener.selectedObjectChanged(this, pathObjectSelected);
@@ -2927,14 +2955,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			if (hierarchy == null)
 				return;
 
-			// Center selected object if Enter pressed ('center on enter')
-			if (event.getEventType() == KeyEvent.KEY_RELEASED && code == KeyCode.ENTER) {
-				PathObject selectedObject = getSelectedObject();
-				if (selectedObject != null && selectedObject.hasROI())
-					setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());
-				event.consume();
-				return;
-			}
+//			// Center selected object if Enter pressed ('center on enter')
+//			if (event.getEventType() == KeyEvent.KEY_RELEASED && code == KeyCode.ENTER) {
+//				PathObject selectedObject = getSelectedObject();
+//				if (selectedObject != null && selectedObject.hasROI())
+//					setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());
+//				event.consume();
+//				return;
+//			}
 
 
 			if (!(code == KeyCode.LEFT || code == KeyCode.UP || code == KeyCode.RIGHT || code == KeyCode.DOWN))
@@ -3004,8 +3032,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					PathObject selectedObject = cores.get(ind);
 					hierarchy.getSelectionModel().setSelectedObject(selectedObject);
 					if (selectedObject != null && selectedObject.hasROI())
-						setCenterPixelLocation(selectedObject.getROI().getCentroidX(), selectedObject.getROI().getCentroidY());
-					//					setSelectedObject(tmaGrid.getTMACore(ind));
+						centerROI(selectedObject.getROI());
 				}
 				
 				event.consume();

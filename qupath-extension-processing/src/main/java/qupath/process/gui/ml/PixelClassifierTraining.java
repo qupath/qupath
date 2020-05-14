@@ -19,9 +19,6 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
-import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ops.ImageDataOp;
@@ -51,20 +48,15 @@ import java.util.WeakHashMap;
  * @author Pete Bankhead
  *
  */
-public class PixelClassifierTraining implements PathObjectHierarchyListener, AutoCloseable {
+public class PixelClassifierTraining {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierTraining.class);
 	
 	private BoundaryStrategy boundaryStrategy = BoundaryStrategy.getSkipBoundaryStrategy();
 
 	private PixelCalibration resolution = PixelCalibration.getDefaultInstance();
-    private ImageData<BufferedImage> imageData;
     private ImageDataOp featureCalculator;
     
-    // TODO: Replace with an ImageDataOp only
-	private ImageDataServer<BufferedImage> featureServer;
-    private boolean changes = true;
-
     private Mat matTraining;
     private Mat matTargets;
     
@@ -72,24 +64,20 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
     /**
      * Create a new pixel classifier helper, to support generating training data.
      * 
-     * @param imageData
      * @param featureCalculator
      */
-    public PixelClassifierTraining(ImageData<BufferedImage> imageData, ImageDataOp featureCalculator) {
-        setImageData(imageData);
+    public PixelClassifierTraining(ImageDataOp featureCalculator) {
         this.featureCalculator = featureCalculator;
     }
 
     
-    synchronized ImageDataServer<BufferedImage> getFeatureServer() {
-    	if (featureServer == null) {
-    		if (featureCalculator != null && imageData != null) {
-    			if (featureCalculator.supportsImage(imageData)) {
-	    			this.featureServer = ImageOps.buildServer(imageData, featureCalculator, resolution);
-    			}
-    		}
-    	}
-    	return featureServer;
+    synchronized ImageDataServer<BufferedImage> getFeatureServer(ImageData<BufferedImage> imageData) {
+		if (featureCalculator != null && imageData != null) {
+			if (featureCalculator.supportsImage(imageData)) {
+    			return ImageOps.buildServer(imageData, featureCalculator, resolution);
+			}
+		}
+		return null;
     }
     
     /**
@@ -116,7 +104,6 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
     	if (Objects.equals(this.resolution, cal))
     		return;
     	this.resolution = cal;
-    	this.featureServer = null;
     }
 
     /**
@@ -127,63 +114,35 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
         if (Objects.equals(this.featureCalculator, featureOp))
             return;
         this.featureCalculator = featureOp;
-        this.featureServer = null;
         resetTrainingData();
     }
 
-    /**
-     * Set the current {@link ImageData} being used for interactive training.
-     * This listens to changes in the object hierarchy, and therefore {@link #close()} should be 
-     * called when this {@link PixelClassifierTraining} is no longer required to ensure that these 
-     * are stopped appropriately.
-     * @param imageData
-     */
-    public void setImageData(ImageData<BufferedImage> imageData) {
-        if (this.imageData == imageData)
-            return;
-        if (this.imageData != null) {
-            this.imageData.getHierarchy().removePathObjectListener(this);
-        }
-        this.imageData = imageData;
-        this.featureServer = null;
-        if (this.imageData != null) {
-            if (featureCalculator != null && !featureCalculator.supportsImage(imageData)) {
-            	logger.warn("Feature calculator is not compatible with {}", imageData);
-            }
-            this.imageData.getHierarchy().addPathObjectListener(this);
-        }
-        changes = true;
-    }
-
-    /**
-     * Get the current {@link ImageData} being used for interactive training.
-     * @return
-     */
-    public ImageData<BufferedImage> getImageData() {
-    	return imageData;
-    }
-
-    private synchronized ClassifierTrainingData updateTrainingData(Map<PathClass, Integer> labelMap) throws IOException {
-        if (imageData == null) {
+    private synchronized ClassifierTrainingData updateTrainingData(Map<PathClass, Integer> labelMap, Collection<ImageData<BufferedImage>> imageDataCollection) throws IOException {
+        if (imageDataCollection.isEmpty()) {
             resetTrainingData();
             return null;
         }
-        PathObjectHierarchy hierarchy = imageData.getHierarchy();
         
         Map<PathClass, Integer> labels = new LinkedHashMap<>();
+        
         if (labelMap == null) {
-        	// Get labels for all annotations
-            Collection<PathObject> annotations = hierarchy.getAnnotationObjects();
             Set<PathClass> pathClasses = new TreeSet<>((p1, p2) -> p1.toString().compareTo(p2.toString()));
-            for (var annotation : annotations) {
-            	if (isTrainableAnnotation(annotation)) {
-            		var pathClass = annotation.getPathClass();
-            		pathClasses.add(pathClass);
-            		var boundaryClass = boundaryStrategy.getBoundaryClass(pathClass);
-            		if (boundaryClass != null)
-            			pathClasses.add(boundaryClass);
-            	}
-            }
+        	for (var imageData : imageDataCollection) {
+	        	// Get labels for all annotations
+	            Collection<PathObject> annotations = imageData.getHierarchy().getAnnotationObjects();
+	            for (var annotation : annotations) {
+	            	if (isTrainableAnnotation(annotation)) {
+	            		var pathClass = annotation.getPathClass();
+	            		pathClasses.add(pathClass);
+	            		// We only use boundary classes for areas
+	            		if (annotation.getROI().isArea()) {
+		            		var boundaryClass = boundaryStrategy.getBoundaryClass(pathClass);
+		            		if (boundaryClass != null)
+		            			pathClasses.add(boundaryClass);
+	            		}
+	            	}
+	            }
+        	}
             int lab = 0;
             for (PathClass pathClass : pathClasses) {
             	Integer temp = Integer.valueOf(lab);
@@ -194,18 +153,21 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
         	labels.putAll(labelMap);
         }
         
-                
-        // Get features & targets for all the tiles that we need
-        var featureServer = getFeatureServer();
-        var tiles = featureServer.getTileRequestManager().getAllTileRequests();
+        
         List<Mat> allFeatures = new ArrayList<>();
         List<Mat> allTargets = new ArrayList<>();
-        for (var tile : tiles) {
-            var tileFeatures = getTileFeatures(tile.getRegionRequest(), featureServer, boundaryStrategy, labels);
-        	if (tileFeatures != null) {
-        		allFeatures.add(tileFeatures.getFeatures());
-        		allTargets.add(tileFeatures.getTargets());
-        	}
+
+        for (var imageData : imageDataCollection) {
+	        // Get features & targets for all the tiles that we need
+	        var featureServer = getFeatureServer(imageData);
+	        var tiles = featureServer.getTileRequestManager().getAllTileRequests();
+	        for (var tile : tiles) {
+	            var tileFeatures = getTileFeatures(tile.getRegionRequest(), featureServer, boundaryStrategy, labels);
+	        	if (tileFeatures != null) {
+	        		allFeatures.add(tileFeatures.getFeatures());
+	        		allTargets.add(tileFeatures.getTargets());
+	        	}
+	        }
         }
         
         // We need at least two classes for anything very meaningful to happen
@@ -225,7 +187,6 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
 
         logger.info("Training data: {} x {}, Target data: {} x {}", matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols());
         
-        changes = false;
         return new ClassifierTrainingData(labels, matTraining, matTargets);
     }
     
@@ -279,7 +240,6 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
         if (matTargets != null)
             matTargets.release();
         matTargets = null;
-        changes = false;
     }
 
     
@@ -320,29 +280,33 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
 
     /**
      * Create training data, using a label map automatically generated from the available classifications.
+     * @param imageData 
      * @return
      * @throws IOException
      */
-    public ClassifierTrainingData createTrainingData() throws IOException {
-    	return createTrainingDataForLabelMap(null);
+    public ClassifierTrainingData createTrainingData(ImageData<BufferedImage> imageData) throws IOException {
+    	return createTrainingDataForLabelMap(Collections.singleton(imageData), null);
+    }
+    
+    /**
+     * Create training data, using a label map automatically generated from the available classifications.
+     * @param imageData 
+     * @return
+     * @throws IOException
+     */
+    public ClassifierTrainingData createTrainingData(Collection<ImageData<BufferedImage>> imageData) throws IOException {
+    	return createTrainingDataForLabelMap(imageData, null);
     }
 
     /**
      * Get a classifier training map, using a predefined label map (which determines which classifications to use).
-     * @param labels
-     * @return
+     * @param imageData collection of {@link ImageData} used for training
+     * @param labels map linking classifications to labels in the output; may be null, in which case a label map will be generated from the data
+     * @return a {@link ClassifierTrainingData} object representing training data
      * @throws IOException
      */
-    public ClassifierTrainingData createTrainingDataForLabelMap(Map<PathClass, Integer> labels) throws IOException {
-        return updateTrainingData(labels);
-    }
-
-
-    @Override
-    public void hierarchyChanged(PathObjectHierarchyEvent event) {
-        if (event.isChanging())
-            return;
-        changes = true;
+    public ClassifierTrainingData createTrainingDataForLabelMap(Collection<ImageData<BufferedImage>> imageData, Map<PathClass, Integer> labels) throws IOException {
+        return updateTrainingData(labels, imageData);
     }
     
     
@@ -549,15 +513,6 @@ public class PixelClassifierTraining implements PathObjectHierarchyListener, Aut
     	}
 
     }
-
-    /**
-     * Clean up when done.
-     * In practice, this sets the {@link ImageData} to null, to ensure that listeners are no longer... well, listening.
-     */
-	@Override
-	public void close() {
-		setImageData(null);
-	}
     
 
 }

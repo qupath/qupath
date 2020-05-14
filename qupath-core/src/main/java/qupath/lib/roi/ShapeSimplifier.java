@@ -64,6 +64,23 @@ public class ShapeSimplifier {
 	 */
 	public static void simplifyPolygonPoints(final List<Point2> points, final double altitudeThreshold) {
 		
+		if (points.size() <= 1)
+			return;
+		
+		// Remove duplicates first
+		var iter = points.iterator();
+		Point2 lastPoint = iter.next();
+		while (iter.hasNext()) {
+			var nextPoint = iter.next();
+			if (nextPoint.equals(lastPoint))
+				iter.remove();
+			else
+				lastPoint = nextPoint;
+		}
+		if (lastPoint.equals(points.get(0)))
+			iter.remove();
+		
+		
 		if (points.size() <= 3)
 			return;
 		

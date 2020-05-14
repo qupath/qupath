@@ -204,7 +204,8 @@ class ScriptMenuLoader {
 						Language language = DefaultScriptEditor.getLanguageFromName(scriptFile.getName());		
 						try {
 							String script = GeneralTools.readFileAsString(scriptFile.getAbsolutePath());
-							DefaultScriptEditor.executeScript(language, script, QuPathGUI.getInstance().getImageData(), true, null);
+							var qupath = QuPathGUI.getInstance();
+							DefaultScriptEditor.executeScript(language, script, qupath.getProject(), qupath.getImageData(), true, null);
 						} catch (Exception e2) {
 							Dialogs.showErrorMessage("Script error", e2);
 						}

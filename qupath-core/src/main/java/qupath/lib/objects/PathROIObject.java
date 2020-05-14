@@ -82,7 +82,11 @@ public abstract class PathROIObject extends PathObject {
 	public void setROI(final ROI roi) {
 		if (roi == null)
 			throw new IllegalArgumentException("PathROIObject.setROI cannot be called with null!");
-		this.pathROI = roi;
+		if (this.pathROI != roi) {
+			this.pathROI = roi;
+			if (hasMeasurements())
+				getMeasurementList().clear();
+		}
 	}
 	
 	/**

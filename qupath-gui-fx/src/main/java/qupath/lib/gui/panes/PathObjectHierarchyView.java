@@ -28,6 +28,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import javafx.scene.control.*;
+import javafx.scene.input.MouseEvent;
+
 import org.controlsfx.control.BreadCrumbBar;
 
 import javafx.application.Platform;
@@ -36,6 +38,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.util.Callback;
@@ -111,6 +114,8 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 				"Choose how to display detections in the hierarchy tree view - choose 'None' for the best performance");
 	}
 	
+	private QuPathGUI qupath;
+	
 	private ImageData<?> imageData;
 	
 	private TreeView<PathObject> treeView;
@@ -121,6 +126,8 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	 * @param qupath the current QuPath instance
 	 */
 	public PathObjectHierarchyView(final QuPathGUI qupath) {
+		
+		this.qupath = qupath;
 		
 		// Handle display changes
 		treeView = new TreeView<>(createNode(new PathRootObject()));
@@ -401,9 +408,11 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	}
 	
 	
-	static class PathObjectCell extends TreeCell<PathObject> {
+	class PathObjectCell extends TreeCell<PathObject> implements EventHandler<MouseEvent> {
 
-		public PathObjectCell() {    }
+		public PathObjectCell() {
+			addEventHandler(MouseEvent.MOUSE_CLICKED, this);
+		}
 
 		@Override
 		protected void updateItem(PathObject item, boolean empty) {
@@ -421,6 +430,16 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 					setGraphic(IconFactory.createPathObjectIcon(item, 16, 16));
 				} else
 					setGraphic(null);
+			}
+		}
+
+		@Override
+		public void handle(MouseEvent event) {
+			if (event.getClickCount() == 2) {
+				var item = getItem();
+				if (item != null && item.hasROI()) {
+					qupath.getViewer().centerROI(item.getROI());
+				}
 			}
 		}
 

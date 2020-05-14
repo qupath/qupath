@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -109,7 +110,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -147,6 +147,7 @@ import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.BorderStroke;
 import javafx.scene.layout.BorderStrokeStyle;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Ellipse;
@@ -187,7 +188,6 @@ import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
-import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.scripting.DefaultScriptEditor.Language;
 import qupath.lib.gui.tools.ColorToolsFX;
@@ -298,10 +298,18 @@ public class QuPathGUI {
 	
 	private BorderPane pane; // Main component, to hold toolbar & splitpane
 	private TabPane analysisPanel = new TabPane();
+	private Region mainViewerPane;
 	
 	private ViewerPlusDisplayOptions viewerDisplayOptions = new ViewerPlusDisplayOptions();
+	
+	/**
+	 * Default options used for viewers
+	 */
 	private OverlayOptions overlayOptions = new OverlayOptions();
 	
+	/**
+	 * Default region store used by viewers for tile caching and repainting
+	 */
 	private DefaultImageRegionStore imageRegionStore;
 
 	private ToolBarComponent toolbar; // Top component
@@ -330,6 +338,10 @@ public class QuPathGUI {
 	private BooleanBinding noProject = projectProperty.isNull();
 	private BooleanBinding noViewer = viewerProperty.isNull();
 	private BooleanBinding noImageData = imageDataProperty.isNull();
+	
+	
+	private BooleanProperty scriptRunning = new SimpleBooleanProperty(false);
+	
 	
 	/**
 	 * Create an {@link Action} that depends upon an {@link ImageData}.
@@ -693,8 +705,7 @@ public class QuPathGUI {
 	
 	
 	private Action createShowAnalysisPaneAction() {
-		ShowAnalysisPaneSelectable temp = new ShowAnalysisPaneSelectable(pane, splitPane, analysisPanel, viewerManager, true);
-		return ActionTools.createSelectableAction(temp.showPaneProperty(), "Show analysis panel");
+		return ActionTools.createSelectableAction(showAnalysisPane, "Show analysis panel");
 	}
 	
 	/**
@@ -728,6 +739,9 @@ public class QuPathGUI {
 			return menu;
 		return menu.getItems().stream().filter(m -> name.equals(m.getText())).findFirst().orElse(null);
 	}
+	
+	
+	private long lastMousePressedWarning = 0L;
 	
 	
 	/**
@@ -918,6 +932,15 @@ public class QuPathGUI {
 //				}
 //			}
 			
+			// Check if there is a script running
+			if (scriptRunning.get()) {
+				if (!Dialogs.showYesNoDialog("Quit QuPath", "A script is currently running! Quit anyway?")) {
+					logger.trace("Pressed no to quit window with script running!");
+					e.consume();
+					return;
+				}
+			}
+			
 			// Stop any painter requests
 			if (imageRegionStore != null)
 				imageRegionStore.close();
@@ -964,6 +987,22 @@ public class QuPathGUI {
 		logger.debug("Time to display: {} ms", (System.currentTimeMillis() - startTime));
 		stage.show();
 		logger.trace("Time to finish display: {} ms", (System.currentTimeMillis() - startTime));
+		var ignoreTypes = new HashSet<>(Arrays.asList(MouseEvent.MOUSE_MOVED, MouseEvent.MOUSE_ENTERED, MouseEvent.MOUSE_ENTERED_TARGET, MouseEvent.MOUSE_EXITED, MouseEvent.MOUSE_ENTERED_TARGET));
+		stage.getScene().addEventFilter(MouseEvent.ANY, e -> {
+			if (ignoreTypes.contains(e.getEventType()))
+				return;
+			if (scriptRunning.get()) {
+				e.consume();
+				// Show a warning if clicking (but not *too* often)
+				if (e.getEventType() == MouseEvent.MOUSE_PRESSED) {
+					long time = System.currentTimeMillis();
+					if (time - lastMousePressedWarning > 5000L) {
+						Dialogs.showWarningNotification("Script running", "Please wait until the current script has finished!");
+						lastMousePressedWarning = time;
+					}
+				}
+			}
+		});
 		
 		// Ensure spacebar presses are noted, irrespective of which component has the focus
 		stage.getScene().addEventFilter(KeyEvent.ANY, e -> {
@@ -1091,7 +1130,7 @@ public class QuPathGUI {
 		
 		// Update display
 		// Requesting the style should be enough to make sure it is called...
-		logger.info("Selected style: {}", QuPathStyleManager.selectedStyleProperty().get());
+		logger.debug("Selected style: {}", QuPathStyleManager.selectedStyleProperty().get());
 				
 		long endTime = System.currentTimeMillis();
 		logger.debug("Startup time: {} ms", (endTime - startTime));
@@ -1849,16 +1888,19 @@ public class QuPathGUI {
 		
 //		paneCommands.setRight(cbPin);
 		
-		Node paneViewer = CommandFinderTools.createCommandFinderPane(this, viewerManager.getNode(), CommandFinderTools.commandBarDisplayProperty());
+		mainViewerPane = CommandFinderTools.createCommandFinderPane(this, viewerManager.getNode(), CommandFinderTools.commandBarDisplayProperty());
 //		paneViewer.setTop(tfCommands);
 //		paneViewer.setCenter(viewerManager.getNode());
-		splitPane.getItems().addAll(analysisPanel, paneViewer);
+		splitPane.getItems().addAll(analysisPanel, mainViewerPane);
 //		splitPane.getItems().addAll(viewerManager.getComponent());
 		SplitPane.setResizableWithParent(viewerManager.getNode(), Boolean.TRUE);
 		
 		pane.setCenter(splitPane);
 		toolbar = new ToolBarComponent(this);
 		pane.setTop(toolbar.getToolBar());
+		
+		setAnalysisPaneVisible(showAnalysisPane.get());
+		showAnalysisPane.addListener((v, o, n) -> setAnalysisPaneVisible(n));
 		
 //		setInitialLocationAndMagnification(getViewer());
 
@@ -2996,7 +3038,7 @@ public class QuPathGUI {
 	 * @return result of the script execution
 	 */
 	private Object runScript(final String script, final ImageData<BufferedImage> imageData) {
-		return DefaultScriptEditor.executeScript(Language.GROOVY, script, imageData, true, null);
+		return DefaultScriptEditor.executeScript(Language.GROOVY, script, getProject(), imageData, true, null);
 	}
 	
 	/**
@@ -3553,7 +3595,7 @@ public class QuPathGUI {
 	 */
 	public ScriptEditor getScriptEditor() {
 		if (scriptEditor == null) {
-			scriptEditor = new DefaultScriptEditor(this);
+			setScriptEditor(new DefaultScriptEditor(this));
 		}
 		return scriptEditor;
 	}
@@ -3566,6 +3608,12 @@ public class QuPathGUI {
 	 */
 	public void setScriptEditor(final ScriptEditor scriptEditor) {
 		this.scriptEditor = scriptEditor;
+		// Try to bind to whether a script is running or not
+		scriptRunning.unbind();
+		if (scriptEditor instanceof DefaultScriptEditor)
+			scriptRunning.bind(((DefaultScriptEditor)scriptEditor).scriptRunning());
+		else
+			scriptRunning.set(false);
 	}
 	
 	
@@ -3628,6 +3676,14 @@ public class QuPathGUI {
 		return overlayOptions;
 	}
 
+	/**
+	 * Return the global {@link DefaultImageRegionStore} instance, used to cache and paint image tiles.
+	 * @return
+	 */
+	public DefaultImageRegionStore getImageRegionStore() {
+		return imageRegionStore;
+	}
+	
 	
 	private void initializeAnalysisPanel() {
 		analysisPanel.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
@@ -3790,8 +3846,8 @@ public class QuPathGUI {
 		
 		imageDataProperty.set(imageDataNew);
 		
-		// A bit awkward, this... but make sure the extended scripting helper static class knows what's happened
-		QPEx.setBatchImageData(imageDataNew);
+//		// A bit awkward, this... but make sure the extended scripting helper static class knows what's happened
+//		QPEx.setBatchImageData(imageDataNew);
 		
 	}
 	
@@ -3913,49 +3969,29 @@ public class QuPathGUI {
 	}
 	
 	
-	static class ShowAnalysisPaneSelectable {
-		
-		private BorderPane parent;
-		private SplitPane splitPane;
-		private Control analysisPane;
-		private MultiviewManager manager;
-		protected double lastDividerLocation;
-		
-		private BooleanProperty showPane = new SimpleBooleanProperty();
-		
-		ShowAnalysisPaneSelectable(final BorderPane parent, final SplitPane splitPane, final Control analysisPane, final MultiviewManager manager, final boolean defaultVisible) {
-			this.parent = parent;
-			this.splitPane = splitPane;
-			this.analysisPane = analysisPane;
-			this.manager = manager;
-			showPane = analysisPane.visibleProperty();
-			showPane.addListener((v, o, n) -> setAnalysisPanelVisible(n));
+	private BooleanProperty showAnalysisPane = new SimpleBooleanProperty(true);
+	protected double lastDividerLocation;
+	
+	private void setAnalysisPaneVisible(boolean visible) {
+		if (visible) {
+			if (analysisPanelVisible())
+				return;
+			splitPane.getItems().setAll(analysisPanel, mainViewerPane);
+			splitPane.setDividerPosition(0, lastDividerLocation);
+			pane.setCenter(splitPane);
+		} else {
+			if (!analysisPanelVisible())
+				return;
+			lastDividerLocation = splitPane.getDividers().get(0).getPosition();
+			pane.setCenter(mainViewerPane);				
 		}
-		
-		private void setAnalysisPanelVisible(boolean visible) {
-			if (visible) {
-				if (analysisPanelVisible())
-					return;
-				splitPane.getItems().setAll(analysisPane, manager.getNode());
-				splitPane.setDividerPosition(0, lastDividerLocation);
-				parent.setCenter(splitPane);
-			} else {
-				if (!analysisPanelVisible())
-					return;
-				lastDividerLocation = splitPane.getDividers().get(0).getPosition();
-				parent.setCenter(manager.getNode());				
-			}
-		}
-			
-		private boolean analysisPanelVisible() {
-			return parent.getCenter() == splitPane;
-		}
-		
-		public BooleanProperty showPaneProperty() {
-			return showPane;
-		}	
-		
 	}
+	
+	private boolean analysisPanelVisible() {
+		return pane.getCenter() == splitPane;
+	}
+	
+	
 
 	/**
 	 * Get the value of {@link #imageDataProperty()}.

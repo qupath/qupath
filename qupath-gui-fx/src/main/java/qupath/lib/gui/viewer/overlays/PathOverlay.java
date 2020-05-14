@@ -23,10 +23,10 @@
 
 package qupath.lib.gui.viewer.overlays;
 
-import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.image.ImageObserver;
-
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import qupath.lib.images.ImageData;
 import qupath.lib.regions.ImageRegion;
 
 
@@ -45,59 +45,13 @@ public interface PathOverlay {
 	 * @param g2d Graphics2D object to which drawing should be performed. This should have any transform already applied to it.
 	 * @param imageRegion The maximum image region that should be shown.
 	 * @param downsampleFactor The downsample factor at which the overlay will be viewed.  There is no need for rescaling according to
-	 * 							this value since it has already been applied to the Graphics2D as part of its AffineTransform, however
+	 * 							this value since it has already been applied to the {@link Graphics2D} as part of its {@link AffineTransform}, however
 	 * 							it may optionally be needed within the method e.g. to correct line thicknesses.
-	 * @param observer ImageObserver for any drawImage calls; may be null.
+	 * @param imageData the {@link ImageData} associated with this overlay. If the overlay is being displayed on a viewer, this is the {@link ImageData} open 
+	 * 					within the viewer. Not all overlays require this, and it may be null.
 	 * @param paintCompletely If true, the method is permitted to return without completely painting everything, for performance reasons.
 	 */
-	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely);
+	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageData<BufferedImage> imageData, boolean paintCompletely);
 
-	/**
-	 * Check overlay visibility status.  If isVisible() returns {@code false},
-	 * then calls to paintOverlay() will not do anything.
-	 * @return
-	 */
-	public boolean isVisible();
 
-	/**
-	 * Set whether or not the overlay should paint itself when requested.  If setVisible(false) is called,
-	 * then calls to paintOverlay() will not do anything.
-	 * @param visible
-	 */
-	public void setVisible(boolean visible);
-	
-	/**
-	 * Tests both isVisible() and whether opacity &lt;= 0, i.e. will return {@code true} if this overlay could not cause
-	 * any change in appearance.
-	 * @return
-	 */
-	public boolean isInvisible();
-
-	/**
-	 * Set a preferred overlay color, which the overlay may or may not make use of.
-	 * The aim is to provide a means to suggest drawing with a light color on a dark image, 
-	 * or a dark color on a light image.
-	 * 
-	 * @param color
-	 */
-	public void setPreferredOverlayColor(Color color);
-
-	/**
-	 * @return 
-	 * @see #setPreferredOverlayColor
-	 */
-	public Color getPreferredOverlayColor();
-
-	/**
-	 * Get opacity, between 0 (completely transparent) and 1 (completely opaque).
-	 * @return
-	 */
-	public double getOpacity();
-
-	/**
-	 * Set opacity between 0 (completely transparent) and 1 (completely opaque).
-	 * @param opacity
-	 */
-	public void setOpacity(double opacity);
-	
 }

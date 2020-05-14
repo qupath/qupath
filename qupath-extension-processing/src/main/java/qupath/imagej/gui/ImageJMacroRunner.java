@@ -317,7 +317,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 				}
 				if (params.getBooleanParameterValue("getROI") && impResult.getRoi() != null) {
 					Roi roi = impResult.getRoi();
-					PathObject pathObjectNew = roi == null ? null : IJTools.convertToPathObject(impResult, imageData.getServer(), roi, downsampleFactor, false, region.getPlane());
+					PathObject pathObjectNew = roi == null ? null : IJTools.convertToAnnotation(impResult, imageData.getServer(), roi, downsampleFactor, region.getPlane());
 					if (pathObjectNew != null) {
 						// If necessary, trim any returned annotation
 						if (pathROI != null && !(pathROI instanceof RectangleROI) && pathObjectNew.isAnnotation() && RoiTools.isShapeROI(pathROI) && RoiTools.isShapeROI(pathObjectNew.getROI())) {

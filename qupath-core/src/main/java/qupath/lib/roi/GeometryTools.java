@@ -41,6 +41,7 @@ import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
@@ -367,9 +368,145 @@ public class GeometryTools {
     	return geometry.getFactory().buildGeometry(collection);
     }
     
+    private static List<Geometry> flatten(Geometry geometry, List<Geometry> list) {
+    	if (list == null) {
+    		list = new ArrayList<>();
+    	}
+    	for (int i = 0; i < geometry.getNumGeometries(); i++) {
+    		var geom = geometry.getGeometryN(i);
+    		if (geom instanceof GeometryCollection)
+    			flatten(geom, list);
+    		else
+    			list.add(geom);
+    	}
+    	return list;
+    }
     
     /**
-     * Remove small fragments and fill holes within a Geometry.
+     * Fill all interior rings for the specified geometry that have an area &lt; a specified threshold.
+     * @param geometry
+     * @param minRingArea
+     * @return
+     */
+    public static Geometry removeInteriorRings(Geometry geometry, double minRingArea) {
+    	if (minRingArea <= 0)
+    		return geometry;
+    	
+    	if (geometry instanceof Polygon)
+    		return removeInteriorRings((Polygon)geometry, minRingArea);
+    	
+    	// Quick check to see if we are filling all holes - this is rather a lot easier
+    	if (!Double.isFinite(minRingArea))
+    		return fillHoles(geometry);
+    	
+    	// Remove interior rings that are too small
+    	var list = flatten(geometry, null);
+    	var filtered = list.stream().map(g -> {
+    		if (g instanceof Polygon)
+    			return removeInteriorRings((Polygon)g, minRingArea);
+    		else
+    			return g;
+    	}).collect(Collectors.toList());
+    	
+    	if (list.equals(filtered))
+    		return geometry;
+    	// We need to use union because there may be polygons nested within holes that have been filled
+    	return GeometryTools.union(filtered);
+    }
+    
+    private static Polygon removeAllInteriorRings(Polygon polygon) {
+    	if (polygon.getNumInteriorRing() == 0)
+			return polygon;
+		else {
+			var factory = polygon.getFactory();
+			return factory.createPolygon(polygon.getExteriorRing().getCoordinateSequence());
+		}
+    }
+    
+    static double externalRingArea(Polygon polygon) {
+    	return org.locationtech.jts.algorithm.Area.ofRing(polygon.getExteriorRing().getCoordinates());
+    }
+    
+    private static Polygon removeInteriorRings(Polygon polygon, double minArea) {
+    	int nRings = polygon.getNumInteriorRing();
+    	if (nRings == 0)
+			return polygon;
+    	
+    	var holes = new ArrayList<LinearRing>();
+    	var factory = polygon.getFactory();
+    	for (int i = 0; i < nRings; i++) {
+    		var ring = polygon.getInteriorRingN(i);
+    		var coords = ring.getCoordinates();
+    		if (org.locationtech.jts.algorithm.Area.ofRing(coords) >= minArea) {
+    			holes.add(factory.createLinearRing(coords));
+    		}
+    	}
+    	
+    	if (holes.isEmpty())
+    		return removeAllInteriorRings(polygon);
+    	
+    	return polygon.getFactory().createPolygon(
+    			factory.createLinearRing(polygon.getExteriorRing().getCoordinates()),
+    			holes.toArray(LinearRing[]::new)
+    			);
+    }
+    
+    /**
+     * Fill all interior rings for the specified geometry.
+     * @param geometry
+     * @return
+     */
+    public static Geometry fillHoles(Geometry geometry) {
+    	if (geometry instanceof Polygon)
+    		return removeAllInteriorRings((Polygon)geometry);
+    	
+    	var list = flatten(geometry, null);
+    	var filtered = list.stream().map(g -> {
+    		if (g instanceof Polygon)
+    			return removeAllInteriorRings((Polygon)g);
+    		else
+    			return g;
+    	}).collect(Collectors.toList());
+    	if (list.equals(filtered))
+    		return geometry;
+    	// We need to use union because there may be polygons nested within holes that have been filled
+    	return GeometryTools.union(filtered);
+//    	return geometry.getFactory().buildGeometry(filtered);
+    }
+    
+    /**
+     * Remove fragments smaller than the specified area from a Geometry, ignoring internal rings.
+     * 
+     * @param geometry the geometry to refine
+     * @param minArea the minimum area of a fragment to retain. If &le; 0, the geometry is returned unchanged.
+     *                Otherwise, polygons will be extracted from the geometry and all that have an external ring area smaller than minArea will be removed.
+     * @return the refined Geometry, or an empty polygon if all pieces of the geometry were removed.
+     */
+    public static Geometry removeFragments(Geometry geometry, double minArea) {
+    	if (minArea <= 0)
+    		return geometry;
+    	if (geometry instanceof Polygon) {
+    		if (externalRingArea((Polygon)geometry) >= minArea)
+    			return geometry;
+    		else
+    			return geometry.getFactory().createPolygon();
+    	}
+    	@SuppressWarnings("unchecked")
+		var polygons = (List<Polygon>)PolygonExtracter.getPolygons(geometry);
+    	if (polygons.isEmpty())
+    		return null;
+    	var filtered = polygons
+    			.stream()
+    			.filter(g -> externalRingArea(g) >= minArea)
+    			.collect(Collectors.toList());
+    	if (filtered.isEmpty())
+    		return geometry.getFactory().createPolygon();
+    	return geometry.getFactory().createGeometryCollection(filtered.toArray(Geometry[]::new));
+    }
+    
+    
+    /**
+     * Remove small fragments and fill interior rings within a Geometry.
      * 
      * @param geometry
      * @param minSizePixels
@@ -377,51 +514,17 @@ public class GeometryTools {
      * @return the refined geometry (possibly the original unchanged), or null if the changes resulted in the Geometry disappearing
      */
     public static Geometry refineAreas(Geometry geometry, double minSizePixels, double minHoleSizePixels) {
-		if (geometry.isEmpty())
-			return null;
 		
-		if (minSizePixels <= 0 && minHoleSizePixels <= 0)
+    	if (minSizePixels <= 0 && minHoleSizePixels <= 0)
 			return geometry;
 		
-		if (geometry.getNumGeometries() == 1) {
-			// Check area
-			if (minSizePixels > 0 && geometry.getArea() < minSizePixels)
-				return null;
-			// Check interior holes if we have a polygon
-			if (minHoleSizePixels > 0 && geometry instanceof Polygon) {
-				var polygon = (Polygon)geometry;
-				int nHoles = polygon.getNumInteriorRing();
-				if (nHoles == 0)
-					return geometry;
-				
-				List<LinearRing> holes = new ArrayList<>();
-				for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
-					var ring = polygon.getInteriorRingN(i);
-					if (org.locationtech.jts.algorithm.Area.ofRing(ring.getCoordinateSequence()) >= minHoleSizePixels) {
-						holes.add(toLinearRing(ring));
-					}
-				}
-				if (nHoles == holes.size())
-					return geometry;
-				else
-					return geometry.getFactory().createPolygon(
-							toLinearRing(polygon.getExteriorRing()),
-							holes.toArray(LinearRing[]::new));
-			}
-			return geometry;
-		}
-		
-		List<Geometry> collection = new ArrayList<>();
-		for (int i = 0; i < geometry.getNumGeometries(); i++) {
-			var temp = refineAreas(geometry.getGeometryN(i), minSizePixels, minHoleSizePixels);
-			if (temp != null)
-				collection.add(temp);
-		}
-		if (collection.isEmpty())
-			return null;
-		if (collection.size() == 1)
-			return collection.get(0);
-		return geometry.getFactory().buildGeometry(collection);
+    	// Fill interior rings first
+    	var geom2 = removeInteriorRings(geometry, minHoleSizePixels);
+    	
+    	// Remove fragments
+    	geom2 = removeFragments(geom2, minSizePixels);
+    	
+    	return geom2;
 	}
 	
 	

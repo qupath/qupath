@@ -2,10 +2,44 @@
 
 This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 
-* Several minor fixes from v0.2.0-m11, including https://github.com/qupath/qupath/issues/465
-* Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
-* Bump dependencies ImageJ, Bio-Formats
-
+* Many pixel classifier improvements
+  * Finally scriptable! Scripting commands automatically recorded - requires that the classifier is saved in a project
+  * Training annotations are used from *all* compatible images that are currently open
+  * New 'Load training' button to support training using annotations from unopened images in the same project
+  * New 'Measure' button to store measurements after the classifier is closed, for any object type (including detections)
+  * More control over the regions where the classifier is applied in 'live' preview mode
+  * Default classifier is now ANN (often better & much faster than Random Trees)
+* Measurement lists are reset if an object's ROI is changed
+  * This guards against inadvertently producing invalid measurements by modifying an annotate after measuring
+* Viewer no longer centered on selected object when the selection changes or when typing 'Enter'
+  * Fixes some annoyances, especially when annotating across multiple viewers
+  * Center viewer by double-clicking objects in the 'Annotations' or 'Hierarchy' tab, or in a measurement table
+* Improved spatial measurements
+  * Optionally split multi-part classifications (e.g. "Class 1: Class 2") for distance calculations (https://github.com/qupath/qupath/issues/405)
+  * Major performance improvement for the 'Detect centroid distances 2D' command (by using a spatial cache)
+* 'Classify -> Object classification -> Set cell intensity classification' now works for all detections if no cells are present
+* LabeledImageServer improvements
+  * Supports more than 255 distinct labels
+  * New useUniqueLabels() option to support labelling by object, not only classification
+* Fixed bug/ambiguity in 'Fill holes' & 'Remove fragments and holes'
+  * Handle nested polygons/holes more reliably
+  * Changed behavior! Area thresholds now refer to total polygon/hole area ignoring any nested polygons or holes
+* Script editor improvements
+  * Display which script is currently running in the script editor
+  * Current project now accessible in scripts run outside of the script editor (e.g. from the command line)
+  * Intercept mouse clicks for main window while a script is running & show a warning
+  * Show a confirm prompt if trying to quit QuPath while a script is running
+  * Adapted "Show log in console" option gives better control of script output (turn off to see less console output)
+* New 'Import objects' option when adding images to a project
+  * Supports importing ROIs/overlays from ImageJ TIFF images
+* New preference to optionally invert the orientation of the z-position slide for z-stacks
+* Other bug fixes, including:
+  * Local normalization now applied before calculating other features (was applied after in m11)
+  * Fixed bug in 'Simplify shape' to handle polygons and rectangles properly
+  * Fixed bug in command bar display when toggling the analysis pane visibility
+  * Fixed bug in 'Create combined training image' that failed to handle unclassified annotations
+  * Projects are automatically saved after changing the image name (https://github.com/qupath/qupath/issues/465)
+* Bump dependencies ImageJ, Bio-Formats, JUnit
 
 
 ## Version 0.2.0-m11

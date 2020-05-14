@@ -66,6 +66,7 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TableView.TableViewSelectionModel;
 import javafx.scene.control.TextField;
@@ -185,6 +186,21 @@ public class SummaryMeasurementTableCommand {
 		else
 			name = PathObjectTools.getSuitableName(type, false) + " results - " + displayedName;
 
+		// Handle double-click as a way to center on a ROI
+//		var enter = new KeyCodeCombination(KeyCode.ENTER);
+		table.setRowFactory(params -> {
+			var row = new TableRow<PathObject>() ;
+			row.setOnMouseClicked(e -> {
+				if (e.getClickCount() == 2) {
+					maybeCenterROI(row.getItem());
+				}
+			});
+//			row.setOnKeyPressed(e -> {
+//				if (enter.match(e))
+//					maybeCenterROI(row.getItem());
+//			});
+			return row;
+		});
 
 		// Create columns according to the table model
 //		for (int i = 0; i < model.getColumnCount(); i++) {
@@ -473,6 +489,15 @@ public class SummaryMeasurementTableCommand {
 
 	}
 
+	
+	private void maybeCenterROI(PathObject pathObject) {
+		if (pathObject == null)
+			return;
+		var roi = pathObject.getROI();
+		var viewer = qupath.getViewer();
+		if (roi != null && viewer != null && viewer.getHierarchy() != null)
+			viewer.centerROI(roi);
+	}
 
 
 
@@ -597,8 +622,9 @@ public class SummaryMeasurementTableCommand {
 
 
 				setOnMouseClicked(e -> {
-					if (e.getClickCount() > 1 && histogramDisplay != null) {
+					if (e.isAltDown() && histogramDisplay != null) {
 						histogramDisplay.showHistogram(getTableColumn().getText());
+						e.consume();
 						//	            		showChart(column);
 					}
 				});

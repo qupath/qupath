@@ -57,7 +57,6 @@ import javafx.scene.layout.Priority;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -67,7 +66,6 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.objects.hierarchy.events.PathObjectSelectionListener;
-import qupath.lib.roi.interfaces.ROI;
 
 
 /**
@@ -148,15 +146,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 				PathObject pathObject = listAnnotations.getSelectionModel().getSelectedItem();
 				if (pathObject == null || !pathObject.hasROI())
 					return;
-				ROI roi = pathObject.getROI();
-				QuPathViewer viewer = qupath.getViewer();
-				if (viewer != null) {
-					if (roi.getZ() >= 0)
-						viewer.setZPosition(roi.getZ());
-					if (roi.getT() >= 0)
-						viewer.setTPosition(roi.getT());
-					viewer.setCenterPixelLocation(roi.getCentroidX(), roi.getCentroidY());
-				}
+				qupath.getViewer().centerROI(pathObject.getROI());
 			}
 		});
 

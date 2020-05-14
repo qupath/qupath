@@ -1470,7 +1470,7 @@ public class OpenCVClassifiers {
 			// Set termination criterion
 			model.setTermCriteria(updateTermCriteria(params, model.getTermCriteria()));
 			
-			logger.info("Initializing with layer sizes: " + GeneralTools.arrayToString(Locale.getDefault(), layers, 0));
+			logger.debug("Initializing ANN with layer sizes: " + GeneralTools.arrayToString(Locale.getDefault(), layers, 0));
 		}
 		
 	}

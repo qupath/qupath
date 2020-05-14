@@ -310,9 +310,9 @@ public class WandToolCV extends BrushTool {
 					(int)bounds.getX()-1, (int)bounds.getY()-1, (int)bounds.getWidth()+2, (int)bounds.getHeight()+2, viewer.getZPosition(), viewer.getTPosition());
 			if (opacity < 1)
 				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
-			for (PathOverlay overlay : viewer.getOverlayLayers().toArray(new PathOverlay[0])) {
+			for (PathOverlay overlay : viewer.getOverlayLayers().toArray(PathOverlay[]::new)) {
 				if (!(overlay instanceof HierarchyOverlay))
-					overlay.paintOverlay(g2d, region, downsample, null, true);
+					overlay.paintOverlay(g2d, region, downsample, viewer.getImageData(), true);
 			}
 		}
 		

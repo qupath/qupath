@@ -26,7 +26,6 @@ package qupath.lib.gui.viewer.overlays;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.image.ImageObserver;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -34,12 +33,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.InvalidationListener;
-import javafx.beans.Observable;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableMap;
 import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -52,15 +47,11 @@ import qupath.lib.regions.ImageRegion;
  * 
  * @author Pete Bankhead
  */
-public class BufferedImageOverlay extends AbstractImageDataOverlay {
+public class BufferedImageOverlay extends AbstractOverlay {
 	
 	private static Logger logger = LoggerFactory.getLogger(BufferedImageOverlay.class);
-
-    private InvalidationListener listener = new MapListener();
     
-    private QuPathViewer viewer;
-    
-    private ObservableMap<ImageRegion, BufferedImage> regions = FXCollections.observableMap(new LinkedHashMap<>());
+    private Map<ImageRegion, BufferedImage> regions = new LinkedHashMap<>();
     
     private ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
     
@@ -103,12 +94,9 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
      * @param regions
      */
     public BufferedImageOverlay(final QuPathViewer viewer, Map<ImageRegion, BufferedImage> regions) {
-        super(viewer.getOverlayOptions(), viewer.getImageData());
-        this.viewer = viewer;
-        this.interpolation.addListener(listener);
-        this.regions.addListener(listener);
+        super(viewer.getOverlayOptions());
         if (regions != null)
-        		this.regions.putAll(regions);
+        	this.regions.putAll(regions);
     }
     
     
@@ -134,44 +122,23 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
      * @return 
      */
     public ObjectProperty<ImageInterpolation> interpolationProperty() {
-    		return interpolation;
+    	return interpolation;
     }
     
     
     /**
-     * Get the {@code ObservableMap} containing image regions to paint on this overlay.
+     * Get the {@code Map} containing image regions to paint on this overlay.
      * 
-     * Making modifications here will trigger a repaint for the associated viewer.
+     * This map can be modified, but the modifications will not be visible unless any viewer is repainted.
      * 
      * @return
      */
-    public ObservableMap<ImageRegion, BufferedImage> getRegionMap() {
+    public Map<ImageRegion, BufferedImage> getRegionMap() {
     	return regions;
     }
 
-    /**
-     * No support for changing the underlying image - this overlay should be removed when that happens.
-     * returns {@code false}
-     */
     @Override
-    public boolean supportsImageDataChange() {
-        return false;
-    }
-
-    @Override
-    public void setImageData(final ImageData<BufferedImage> imageData) {
-        if (imageData == this.getImageData())
-            return;
-        super.setImageData(imageData);
-        // Stop painting...
-        regions.clear();
-        regions.removeListener(listener);
-        interpolation.removeListener(listener);
-        this.viewer = null;
-    }
-
-    @Override
-    public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
+    public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageData<BufferedImage> imageData, boolean paintCompletely) {
         // Don't show if objects aren't being shown
         if (!getOverlayOptions().getShowDetections())
             return;
@@ -196,20 +163,7 @@ public class BufferedImageOverlay extends AbstractImageDataOverlay {
                 continue;
             // Draw the region
             BufferedImage img = entry.getValue();
-            g2d.drawImage(img, region.getX(), region.getY(), region.getWidth(), region.getHeight(), observer);
-        }
-    }
-
-
-    /**
-     * Listener to trigger viewer repaints when regions are added/removed.
-     */
-    class MapListener implements InvalidationListener {
-
-        @Override
-		public void invalidated(Observable observable) {
-            if (viewer != null)
-                viewer.repaintEntireImage();
+            g2d.drawImage(img, region.getX(), region.getY(), region.getWidth(), region.getHeight(), null);
         }
     }
 

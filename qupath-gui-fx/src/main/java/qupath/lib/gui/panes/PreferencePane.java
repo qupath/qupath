@@ -225,6 +225,11 @@ public class PreferencePane {
 				"Gamma value (display only)", category, 
 				"Set the gamma value applied to the image in the viewer for display - recommended to leave at default value of 1");
 		
+		addPropertyPreference(PathPrefs.invertZSliderProperty(), Boolean.class,
+				"Invert z-position slider",
+				category,
+				"Invert the vertical slider used to scroll between z-slices (useful for anyone for whom the default orientation seems counterintuitive)");
+		
 		addPropertyPreference(PathPrefs.scrollSpeedProperty(), Integer.class,
 				"Scroll speed %", category, 
 				"Adjust the scrolling speed - 100% is 'normal', while lower values lead to slower scrolling");

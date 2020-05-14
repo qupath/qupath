@@ -273,6 +273,106 @@ public class LocalNormalization {
 	}
 	
 	
+//	/**
+//	 * Apply 3D normalization.
+//	 * <p>
+//	 * The algorithm works as follows:
+//	 * <ol>
+//	 *   <li>A Gaussian filter is applied to a duplicate of the image</li>
+//	 *   <li>The filtered image is subtracted from the original</li>
+//	 *   <li>The subtracted image is duplicated, squared, Gaussian filtered, and the square root taken to create a normalization image</li>
+//	 *   <li>The subtracted image is divided by the value of the normalization image</li>
+//	 * </ol>
+//	 * The resulting image can be thought of as having a local mean of approximately zero and unit variance, 
+//	 * although this is not exactly true. The approach aims to be simple, efficient and yield an image that does not 
+//	 * introduce sharp discontinuities by is reliance on Gaussian filters.
+//	 * 
+//	 * @param stack image z-stack, in which each element is a 2D (x,y) slice
+//	 * @param sigmaX horizontal Gaussian filter sigma
+//	 * @param sigmaY vertical Gaussian filter sigma
+//	 * @param sigmaZ z-dimension Gaussian filter sigma
+//	 * @param varianceSigmaX horizontal Gaussian filter sigma for variance estimation
+//	 * @param varianceSigmaY vertical Gaussian filter sigma for variance estimation
+//	 * @param varianceSigmaZ z-dimension Gaussian filter sigma for variance estimation
+//	 * @param border border padding method to use (see OpenCV for definitions)
+//	 */
+//	public static void gaussianNormalize3D(List<Mat> stack, double sigmaX, double sigmaY, double sigmaZ,
+//			double varianceSigmaX, double varianceSigmaY, double varianceSigmaZ, int border) {
+//		
+//		int inputDepth = stack.get(0).depth();
+//		int depth = opencv_core.CV_64F;
+//		
+//		Mat kx = OpenCVTools.getGaussianDerivKernel(sigmaX, 0, false);
+//		Mat ky = OpenCVTools.getGaussianDerivKernel(sigmaY, 0, true);
+//		Mat kz = OpenCVTools.getGaussianDerivKernel(sigmaZ, 0, false);
+//
+//		boolean doVariance = varianceSigmaX > 0 || varianceSigmaY > 0 || varianceSigmaZ > 0;
+//		Mat kx2 = kx;
+//		Mat ky2 = ky;
+//		Mat kz2 = kz;
+//		if (doVariance) {
+//			kx2 = OpenCVTools.getGaussianDerivKernel(varianceSigmaX, 0, false);
+//			ky2 = OpenCVTools.getGaussianDerivKernel(varianceSigmaY, 0, true);
+//			kz2 = OpenCVTools.getGaussianDerivKernel(varianceSigmaZ, 0, false);			
+//		}
+//
+//		// Convert depth
+//		for (var mat : stack)
+//			mat.convertTo(mat, depth);
+//		
+//		// Apply z-filtering if required, otherwise clone for upcoming smoothing
+//		List<Mat> stackSmoothed;
+//		if (sigmaZ > 0) {
+//			stackSmoothed = OpenCVTools.filterZ(stack, kz, -1, border);
+//		} else
+//			stackSmoothed = stack.stream().map(m -> m.clone()).collect(Collectors.toList());
+//		
+//		// Complete separable filtering & subtract from original
+//		for (int i = 0; i < stack.size(); i++) {
+//			Mat mat = stack.get(i);
+//			
+//			// Smooth the image & subtract it from the original
+//			Mat matSmooth = stackSmoothed.get(i);
+//			opencv_imgproc.sepFilter2D(matSmooth, matSmooth, depth, kx, ky, null, 0.0, border);
+//			opencv_core.subtract(mat, matSmooth, mat);
+//
+//			matSmooth.release();
+//		}
+//		
+//		
+//		if (doVariance) {
+//			// Square the subtracted images
+//			List<Mat> stackSquared = new ArrayList<>();
+//			for (Mat mat : stack) {
+//				stackSquared.add(mat.mul(mat).asMat());
+//			}
+//			// Smooth the squared images
+//			if (sigmaZ > 0) {
+//				stackSquared = OpenCVTools.filterZ(stackSquared, kz2, -1, border);
+//			}
+//			for (int i = 0; i < stack.size(); i++) {
+//				Mat mat = stack.get(i);
+//				Mat matSquared = stackSquared.get(i);
+//				opencv_imgproc.sepFilter2D(matSquared, matSquared, depth, kx2, ky2, null, 0.0, border);
+//				
+//				opencv_core.sqrt(matSquared, matSquared);
+//				opencv_core.divide(mat, matSquared, mat);
+//
+//				matSquared.release();
+//			}
+//		}
+//		
+//		// Give 32-bit output, unless the input was 64-bit
+//		if (inputDepth != opencv_core.CV_64F && depth != opencv_core.CV_32F) {
+//			for (var mat : stack) {
+//				mat.convertTo(mat, opencv_core.CV_32F);
+//			}
+//		}
+//		
+//	}
+	
+	
+	
 	/**
 	 * Apply 3D normalization.
 	 * <p>
@@ -280,11 +380,14 @@ public class LocalNormalization {
 	 * <ol>
 	 *   <li>A Gaussian filter is applied to a duplicate of the image</li>
 	 *   <li>The filtered image is subtracted from the original</li>
-	 *   <li>The subtracted image is duplicated, squared, Gaussian filtered, and the square root taken to create a normalization image</li>
+	 *   <li>A local weighted variance estimate image is generated from the original image (by squaring, Gaussian filtering, 
+	 *   subtracting the square of the smoothed image previously generated)</li>
+	 *   <li>The square root of the weighted variance image is taken to give a normalization image, approximating a local standard deviation)
 	 *   <li>The subtracted image is divided by the value of the normalization image</li>
 	 * </ol>
 	 * The resulting image can be thought of as having a local mean of approximately zero and unit variance, 
-	 * although this is not exactly true. The approach aims to be simple, efficient and yield an image that does not 
+	 * although this is not exactly true; in practice there can be substantial differences.
+	 * However, the approach aims to be simple, efficient and yield an image that does not 
 	 * introduce sharp discontinuities by is reliance on Gaussian filters.
 	 * 
 	 * @param stack image z-stack, in which each element is a 2D (x,y) slice
@@ -298,6 +401,9 @@ public class LocalNormalization {
 	 */
 	public static void gaussianNormalize3D(List<Mat> stack, double sigmaX, double sigmaY, double sigmaZ,
 			double varianceSigmaX, double varianceSigmaY, double varianceSigmaZ, int border) {
+		
+		int inputDepth = stack.get(0).depth();
+		int depth = opencv_core.CV_64F;
 		
 		Mat kx = OpenCVTools.getGaussianDerivKernel(sigmaX, 0, false);
 		Mat ky = OpenCVTools.getGaussianDerivKernel(sigmaY, 0, true);
@@ -316,7 +422,7 @@ public class LocalNormalization {
 		// Ensure we have float images & their squared versions
 		List<Mat> stackSquared = new ArrayList<>();
 		for (Mat mat : stack) {
-			mat.convertTo(mat, opencv_core.CV_32F);
+			mat.convertTo(mat, depth);
 			if (doVariance)
 				stackSquared.add(mat.mul(mat).asMat());
 		}
@@ -336,7 +442,7 @@ public class LocalNormalization {
 			
 			// Smooth the image & subtract it from the original
 			Mat matSmooth = stackSmoothed.get(i);
-			opencv_imgproc.sepFilter2D(matSmooth, matSmooth, opencv_core.CV_32F, kx, ky, null, 0.0, border);
+			opencv_imgproc.sepFilter2D(matSmooth, matSmooth, depth, kx, ky, null, 0.0, border);
 			opencv_core.subtract(mat, matSmooth, mat);
 
 			if (doVariance) {
@@ -345,7 +451,7 @@ public class LocalNormalization {
 	
 				// Smooth the squared image
 				Mat matSquaredSmooth = stackSquared.get(i);
-				opencv_imgproc.sepFilter2D(matSquaredSmooth, matSquaredSmooth, opencv_core.CV_32F, kx2, ky2, null, 0.0, border);
+				opencv_imgproc.sepFilter2D(matSquaredSmooth, matSquaredSmooth, depth, kx2, ky2, null, 0.0, border);
 				
 				opencv_core.subtract(matSquaredSmooth, matSmooth, matSmooth);
 				opencv_core.sqrt(matSmooth, matSmooth);
@@ -356,6 +462,14 @@ public class LocalNormalization {
 			}
 			matSmooth.release();
 		}
+		
+		// Give 32-bit output, unless the input was 64-bit
+		if (inputDepth != opencv_core.CV_64F && depth != opencv_core.CV_32F) {
+			for (var mat : stack) {
+				mat.convertTo(mat, opencv_core.CV_32F);
+			}
+		}
+		
 	}
 	
 

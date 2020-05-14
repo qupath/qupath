@@ -39,6 +39,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.gui.GenericDialog;
 import ij.gui.Overlay;
+import ij.gui.PointRoi;
 import ij.gui.Roi;
 import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
@@ -120,7 +121,11 @@ public class QuPath_Send_Overlay_to_QuPath implements PlugIn {
 		Analyzer analyzer = new Analyzer(imp, Analyzer.getMeasurements(), rt);
 		String[] headings = null;
 		for (Roi roi : rois) {
-			PathObject pathObject = IJTools.convertToPathObject(imp, server, roi, downsample, asDetection, plane);
+			PathObject pathObject;
+			if (asDetection && !(roi instanceof PointRoi))
+				pathObject = IJTools.convertToDetection(imp, server, roi, downsample, plane);
+			else
+				pathObject = IJTools.convertToAnnotation(imp, server, roi, downsample, plane);
 			if (pathObject == null)
 				IJ.log("Sorry, I could not convert " + roi + " to a value QuPath object");
 			else {

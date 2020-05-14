@@ -75,7 +75,6 @@ public class OverlayOptions {
 	private BooleanProperty showAnnotations = new SimpleBooleanProperty(true);
 	private BooleanProperty showNames = new SimpleBooleanProperty(true);
 	private BooleanProperty showTMAGrid = new SimpleBooleanProperty(true);
-	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(true);
 	private BooleanProperty showDetections = new SimpleBooleanProperty(true);
 	private BooleanProperty showConnections = new SimpleBooleanProperty(true);
 	private BooleanProperty fillDetections = new SimpleBooleanProperty(false);
@@ -83,7 +82,10 @@ public class OverlayOptions {
 	private BooleanProperty showTMACoreLabels = new SimpleBooleanProperty(false);
 	private BooleanProperty showGrid = new SimpleBooleanProperty(false);
 	private ObjectProperty<GridLines> gridLines = new SimpleObjectProperty<>(new GridLines());
-	
+
+	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(true);
+	private ObjectProperty<RegionFilter> pixelClassificationFilter = new SimpleObjectProperty<>(RegionFilter.StandardRegionFilters.ANY_ANNOTATIONS);
+
 	private ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
 
 	private ObjectProperty<DetectionDisplayMode> cellDisplayMode = new SimpleObjectProperty<>(DetectionDisplayMode.NUCLEI_AND_BOUNDARIES);
@@ -141,7 +143,8 @@ public class OverlayOptions {
 		this.showGrid.set(options.showGrid.get());
 		this.showPixelClassification.set(options.showPixelClassification.get());
 		this.showTMACoreLabels.set(options.showTMACoreLabels.get());
-		this.showTMAGrid.set(this.showTMAGrid.get());
+		this.showTMAGrid.set(options.showTMAGrid.get());
+		this.pixelClassificationFilter.set(options.pixelClassificationFilter.get());
 		this.timestamp.set(options.timestamp.get());
 	}
 	
@@ -534,6 +537,28 @@ public class OverlayOptions {
 	 */
 	public BooleanProperty showPixelClassificationProperty() {
 		return showPixelClassification;
+	}
+	
+	/**
+	 * @return the filter used to determine whether a pixel classification should be computed for a specified region
+	 */
+	public ObjectProperty<RegionFilter> pixelClassificationFilterRegionProperty() {
+		return pixelClassificationFilter;
+	}
+	
+	/**
+	 * Control where pixel classifications should be calculated during live prediction
+	 * @param region
+	 */
+	public void setPixelClassificationRegionFilter(RegionFilter region) {
+		pixelClassificationFilter.set(region);
+	}
+	
+	/**
+	 * @return a filter used to determine whether a pixel classification should be computed for a specified region
+	 */
+	public RegionFilter getPixelClassificationRegionFilter() {
+		return pixelClassificationFilter.get();
 	}
 
 	/**

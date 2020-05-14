@@ -46,6 +46,7 @@ import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
@@ -78,6 +79,8 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
@@ -101,6 +104,9 @@ class ProjectImportImagesCommand {
 	private final static Logger logger = LoggerFactory.getLogger(ProjectImportImagesCommand.class);
 		
 	private final static String commandName = "Import images";
+	
+	private final static BooleanProperty pyramidalizeProperty = PathPrefs.createPersistentPreference("projectImportPyramidalize", true);
+	private final static BooleanProperty importObjectsProperty = PathPrefs.createPersistentPreference("projectImportObjects", false);
 
 	
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
@@ -174,11 +180,14 @@ class ProjectImportImagesCommand {
 		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
 		
 		CheckBox cbPyramidize = new CheckBox("Auto-generate pyramids");
-		cbPyramidize.setSelected(true);
+		cbPyramidize.setSelected(pyramidalizeProperty.get());
+		
+		CheckBox cbImportObjects = new CheckBox("Import objects");
+		cbImportObjects.setSelected(importObjectsProperty.get());
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize);
-		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize, cbImportObjects);
+		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize, cbImportObjects);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize, cbImportObjects);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
@@ -189,6 +198,7 @@ class ProjectImportImagesCommand {
 		PaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
 		PaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
 		PaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
+		PaneTools.addGridRow(paneType, row++, 0, "Read and import objects (e.g. annotations) from the image file, if possible", cbImportObjects, cbImportObjects);
 		
 		paneImages.setCenter(paneList);
 		paneImages.setBottom(paneType);
@@ -258,6 +268,9 @@ class ProjectImportImagesCommand {
 		ImageType type = comboType.getValue();
 		Rotation rotation = comboRotate.getValue();
 		boolean pyramidize = cbPyramidize.isSelected();
+		boolean importObjects = cbImportObjects.isSelected();
+		pyramidalizeProperty.set(pyramidize);
+		importObjectsProperty.set(importObjects);
 		
 		ImageServerBuilder<BufferedImage> requestedBuilder = comboBuilder.getSelectionModel().getSelectedItem();
 		
@@ -354,7 +367,7 @@ class ProjectImportImagesCommand {
 					for (var entry : entries) {
 						pool.submit(() -> {
 							try {
-								initializeEntry(entry, type, pyramidize);
+								initializeEntry(entry, type, pyramidize, importObjects);
 							} catch (Exception e) {
 								failures.add(entry);
 								logger.warn("Exception adding " + entry, e);
@@ -448,6 +461,17 @@ class ProjectImportImagesCommand {
 		return entries;
 	}
 	
+	
+	
+	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
+		try {
+			var entry = project.addImage(server.getBuilder());
+			initializeEntry(entry, type, false, false);
+			return entry;
+		} catch (Exception e) {
+			return null;
+		}
+	}
 	
 	
 	static boolean loadFromFileChooser(final List<String> list) {
@@ -568,17 +592,6 @@ class ProjectImportImagesCommand {
 		}
 	}
 	
-
-	public static ProjectImageEntry<BufferedImage> addSingleImageToProject(Project<BufferedImage> project, ImageServer<BufferedImage> server, ImageType type) {
-		try {
-			var entry = project.addImage(server.getBuilder());
-			initializeEntry(entry, type, false);
-			return entry;
-		} catch (Exception e) {
-			return null;
-		}
-	}
-	
 	/**
 	 * Add a single ImageServer to a project, without considering sub-images.
 	 * <p>
@@ -587,10 +600,11 @@ class ProjectImportImagesCommand {
 	 * @param entry the entry that should be initialized
 	 * @param type the ImageType that should be set for each entry being added
 	 * @param pyramidizeSingleResolution if true, attempt to pyramidalize single-resolution image servers
+	 * @param importObjects if true, read objects from the server - if available
 	 * @return
 	 * @throws Exception 
 	 */
-	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidizeSingleResolution) throws Exception {
+	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidizeSingleResolution, boolean importObjects) throws Exception {
 		try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()) {
 			var img = getThumbnailRGB(server, null);
 			// Set the image name
@@ -613,8 +627,11 @@ class ProjectImportImagesCommand {
 			}
 			
 			// Initialize an ImageData object with a type, if required
-			if (type != null || server != server2) {
+			Collection<PathObject> pathObjects = importObjects && server2 instanceof PathObjectReader ? ((PathObjectReader)server2).readPathObjects() : Collections.emptyList();
+			if (type != null || server != server2 || !pathObjects.isEmpty()) {
 				var imageData = new ImageData<>(server2, type);
+				if (!pathObjects.isEmpty())
+					imageData.getHierarchy().addPathObjects(pathObjects);
 				entry.saveImageData(imageData);
 			}
 			if (server != server2)

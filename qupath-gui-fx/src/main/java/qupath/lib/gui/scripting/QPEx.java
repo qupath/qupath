@@ -30,8 +30,6 @@ import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -50,8 +48,6 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.stage.Stage;
 import javafx.stage.Window;
-import qupath.lib.classifiers.object.ObjectClassifier;
-import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.display.ChannelDisplayInfo;
 import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
@@ -73,7 +69,6 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
-import qupath.lib.io.PathIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
@@ -83,9 +78,6 @@ import qupath.lib.objects.TMACoreObject;
 import qupath.lib.plugins.CommandLinePluginRunner;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunner;
-import qupath.lib.projects.Project;
-import qupath.lib.projects.ProjectImageEntry;
-import qupath.lib.projects.Projects;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
 
@@ -99,15 +91,6 @@ import qupath.lib.scripting.QP;
 public class QPEx extends QP {
 
 	final private static Logger logger = LoggerFactory.getLogger(QPEx.class);
-	
-	/**
-	 * Placeholder for the path to the current project.
-	 * May be used as follows:
-	 * <pre>
-	 *   var path = buildFilePath(PROJECT_BASE_DIR, 'subdir', 'name.txt')
-	 * </pre>
-	 */
-	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
 	
 	
 	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
@@ -166,39 +149,12 @@ public class QPEx extends QP {
 	
 	
 	/**
-	 * Load ImageData from a file.
-	 * 
-	 * @param path Path to the file containing ImageData.
-	 * @param setBatchData If true, the <code>setBatchImageData(ImageData)</code> will be called if the loading is successful.
-	 * @return
-	 * @throws IOException 
-	 * 
-	 * @see #setBatchImageData
-	 */
-	public static ImageData<BufferedImage> loadImageData(final String path, final boolean setBatchData) throws IOException {
-		ImageData<BufferedImage> imageData = PathIO.readImageData(new File(resolvePath(path)), null, null, BufferedImage.class);
-		if (setBatchData && imageData != null)
-			setBatchImageData(imageData);
-		return imageData;
-	}
-	
-	/**
 	 * Export TMA summary data for the current image.
 	 * @param path path to the export directory
 	 * @param downsampleFactor downsample applied to each TMA core image
 	 */
 	public static void exportTMAData(final String path, final double downsampleFactor) {
 		exportTMAData((ImageData<BufferedImage>)getCurrentImageData(), resolvePath(path), downsampleFactor);
-	}
-	
-	private static String resolvePath(final String path) {
-		String base = getProjectBaseDirectory();
-		if (base != null)
-			return path.replace(PROJECT_BASE_DIR, base);
-		else if (path.contains(PROJECT_BASE_DIR))
-			throw new IllegalArgumentException("Cannot resolve path '" + path + "' - no project base directory available");
-		return
-			path;
 	}
 
 	
@@ -231,110 +187,8 @@ public class QPEx extends QP {
 		return qupath == null ? null : qupath.getViewer();
 	}
 	
-	/**
-	 * Build a file path from multiple components.
-	 * A common use of this is
-	 * <pre>
-	 *   String path = buildFilePath(PROJECT_BASE_DIR, "export")
-	 * </pre>
-	 * @param path
-	 * @return
-	 */
-	public static String buildFilePath(String...path) {
-		File file = new File(resolvePath(path[0]));
-		for (int i = 1; i < path.length; i++)
-			file = new File(file, path[i]);
-		return file.getAbsolutePath();
-	}
 	
-	/**
-	 * Ensure directories exist for the specified path, calling {@code file.mkdirs()} if not.
-	 * @param path the directory path
-	 * @return true if a directory was created, false otherwise
-	 */
-	public static boolean mkdirs(String path) {
-		File file = new File(resolvePath(path));
-		if (!file.exists())
-			return file.mkdirs();
-		return false;
-	}
-	
-	/**
-	 * Query if a file exists.
-	 * @param path full file path
-	 * @return true if the file exists, false otherwise
-	 */
-	public static boolean fileExists(String path) {
-		return new File(resolvePath(path)).exists();
-	}
-
-	/**
-	 * Query if a file path corresponds to a directory.
-	 * @param path full file path
-	 * @return true if the file exists and is a directory, false otherwise
-	 */
-	public static boolean isDirectory(String path) {
-		return new File(resolvePath(path)).isDirectory();
-	}
-
-	
-	/**
-	 * Get the base directory for the currently-open project, or null if no project is open.
-	 * 
-	 * This can be useful for setting e.g. save directories relative to the current project.
-	 * 
-	 * @return
-	 */
-	private static String getProjectBaseDirectory() {
-		File dir = Projects.getBaseDirectory(getProject());
-		return dir == null ? null : dir.getAbsolutePath();
-	}
-	
-	/**
-	 * Get the current project, or null if no project is open.
-	 * 
-	 * @return
-	 */
-	public static Project<BufferedImage> getProject() {
-		QuPathGUI qupath = QuPathGUI.getInstance();
-		if (qupath != null)
-			return qupath.getProject();
-		else
-			return null;
-	}
-	
-	
-	/**
-	 * Get the project entry for the currently-open image within the current project, 
-	 * or null if no project/image is open.
-	 * 
-	 * @return
-	 */
-	public static ProjectImageEntry<BufferedImage> getProjectEntry() {
-		Project project = getProject();
-		ImageData imageData = getCurrentImageData();
-		if (project == null || imageData == null)
-			return null;
-		return project.getEntry(imageData);
-	}
-	
-	
-	/**
-	 * Get the metadata value from the current project entry for the specified key, 
-	 * or null if no such metadata value exists (or no project entry is open).
-	 * 
-	 * @param key
-	 * @return
-	 */
-	public static String getProjectEntryMetadataValue(final String key) {
-		ProjectImageEntry<BufferedImage> entry = getProjectEntry();
-		if (entry == null)
-			return null;
-		return entry.getMetadataValue(key);
-	}
-	
-	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public static boolean runPlugin(final String className, final ImageData<?> imageData, final String args) throws InterruptedException {
 		if (imageData == null)
 			return false;
@@ -479,13 +333,13 @@ public class QPEx extends QP {
 	 * @param minDisplay
 	 * @param maxDisplay
 	 */
-	public static void setChannelDisplayRange(ImageData<?> imageData, int channel, double minDisplay, double maxDisplay) {
+	public static void setChannelDisplayRange(ImageData<BufferedImage> imageData, int channel, double minDisplay, double maxDisplay) {
 		// Try to get an existing display if the image is currently open
 		var viewer = getQuPath().getViewers().stream()
 				.filter(v -> v.getImageData() == imageData)
 				.findFirst()
 				.orElse(null);
-		ImageDisplay display = viewer == null ? new ImageDisplay((ImageData<BufferedImage>)imageData) : viewer.getImageDisplay();
+		ImageDisplay display = viewer == null ? new ImageDisplay(imageData) : viewer.getImageDisplay();
 		var available = display.availableChannels();
 		if (channel < 0 || channel >= available.size()) {
 			logger.warn("Channel {} is out of range ({}-{}) - cannot set display range", channel, 0, available.size()-1);
@@ -497,125 +351,6 @@ public class QPEx extends QP {
 		if (viewer != null)
 			viewer.repaintEntireImage();
 	}
-	
-	/**
-	 * Apply an object classifier to the current {@link ImageData}.
-	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
-	 * @param names the name of the classifier within the current project, or file path to a classifier to load from disk.
-	 * 				If more than one name is provided, a composite classifier is created.
-	 * @throws IllegalArgumentException if the classifier cannot be found
-	 */
-	public static void runObjectClassifier(String... names) throws IllegalArgumentException {
-		runObjectClassifier(getCurrentImageData(), names);
-	}
-	
-	/**
-	 * Apply an object classifier to the specified {@link ImageData}.
-	 * This method throws an {@link IllegalArgumentException} if the classifier cannot be found.
-	 * @param imageData 
-	 * @param names the name of the classifier within the current project, or file path to a classifier to load from disk.
-	 * 				If more than one name is provided, a composite classifier is created.
-	 * @throws IllegalArgumentException if the classifier cannot be found
-	 */
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public static void runObjectClassifier(ImageData imageData, String... names) throws IllegalArgumentException {
-		if (names.length == 0) {
-			logger.warn("Cannot run object classifier - no names provided!");
-			return;			
-		}
-		if (imageData == null) {
-			logger.warn("Cannot run object classifier - no ImageData available!");
-			return;
-		}
-		ObjectClassifier classifier = loadObjectClassifier(names);
-		
-		var pathObjects = classifier.getCompatibleObjects(imageData);
-		if (classifier.classifyObjects(imageData, pathObjects, true) > 0)
-			imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
-	}
-	
-	/**
-	 * Load an object classifier for a project or file path.
-	 * 
-	 * @param names the names of the classifier within the current project, or file paths to a classifier to load from disk.
-	 * 				If more than one name is provided, a composite classifier is created (applying each classifier in sequence).
-	 * @return the requested {@link ObjectClassifier}
-	 * @throws IllegalArgumentException if the classifier cannot be found
-	 */
-	public static ObjectClassifier<BufferedImage> loadObjectClassifier(String... names) throws IllegalArgumentException {
-		var project = getProject();
-		List<ObjectClassifier<BufferedImage>> classifiers = new ArrayList<>();
-		for (String name : names) {
-			ObjectClassifier<BufferedImage> classifier = null;
-			Exception exception = null;
-			if (project != null) {
-				try {
-					if (project.getObjectClassifiers().getNames().contains(name))
-						classifier = project.getObjectClassifiers().get(name);
-				} catch (Exception e) {
-					exception = e;
-					logger.debug("Object classifier '{}' not found in project", name);
-				}
-			}
-			if (classifier == null) {
-				try {
-					var path = Paths.get(name);
-					if (Files.exists(path))
-						classifier = ObjectClassifiers.readClassifier(path);
-				} catch (Exception e) {
-					exception = e;
-					logger.debug("Object classifier '{}' cannot be read from file", name);
-				}
-			}
-			if (classifier == null) {
-				throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
-			} else if (names.length == 1)
-				return classifier;
-			else
-				classifiers.add(classifier);
-		}
-		return ObjectClassifiers.createCompositeClassifier(classifiers);
-	}
-	
-	
-	// TODO: Make loadPixelClassifier available whenever the code is refactored
-//	/**
-//	 * Load a pixel classifier for a project or file path.
-//	 * 
-//	 * @param name the name of the classifier within the current project, or file path to a classifier to load from disk
-//	 * @return the requested {@link PixelClassifier}
-//	 * @throws IllegalArgumentException if the classifier cannot be found
-//	 */
-//	public static PixelClassifier loadPixelClassifier(String name) throws IllegalArgumentException {
-//		var project = getProject();
-//		PixelClassifier classifier = null;
-//		Exception exception = null;
-//		if (project != null) {
-//			try {
-//				if (project.getPixelClassifiers().getNames().contains(name))
-//					classifier = project.getPixelClassifiers().get(name);
-//			} catch (Exception e) {
-//				exception = e;
-//				logger.debug("Pixel classifier '{}' not found in project", name);
-//			}
-//		}
-//		if (classifier == null) {
-//			try {
-//				var path = Paths.get(name);
-//				if (Files.exists(path))
-//					classifier = PixelClassifiers.readClassifier(path);
-//			} catch (Exception e) {
-//				exception = e;
-//				logger.debug("Pixel classifier '{}' cannot be read from file", name);
-//			}
-//		}
-//		if (classifier == null) {
-//			throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
-//		} else
-//			return classifier;
-//	}
-	
-	
 	
 	/**
 	 * Set the minimum and maximum display range for the current {@link ImageData} for a channel identified by name.
@@ -634,13 +369,13 @@ public class QPEx extends QP {
 	 * @param minDisplay
 	 * @param maxDisplay
 	 */
-	public static void setChannelDisplayRange(ImageData<?> imageData, String channelName, double minDisplay, double maxDisplay) {
+	public static void setChannelDisplayRange(ImageData<BufferedImage> imageData, String channelName, double minDisplay, double maxDisplay) {
 		// Try to get an existing display if the image is currently open
 		var viewer = getQuPath().getViewers().stream()
 				.filter(v -> v.getImageData() == imageData)
 				.findFirst()
 				.orElse(null);
-		ImageDisplay display = viewer == null ? new ImageDisplay((ImageData<BufferedImage>)imageData) : viewer.getImageDisplay();
+		ImageDisplay display = viewer == null ? new ImageDisplay(imageData) : viewer.getImageDisplay();
 		var available = display.availableChannels();
 		ChannelDisplayInfo info = null;
 		var serverChannels = imageData.getServer().getMetadata().getChannels();

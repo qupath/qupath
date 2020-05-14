@@ -30,8 +30,10 @@ class OpenCVPixelClassifier implements PixelClassifier {
     private OpenCVPixelClassifier() {}
 
     OpenCVPixelClassifier(ImageDataOp op, PixelClassifierMetadata metadata) {
+    	this();
         this.op = op;
         this.metadata = metadata;
+        logger.debug("Creating OpenCV pixel classifier");
     }
     
     @Override

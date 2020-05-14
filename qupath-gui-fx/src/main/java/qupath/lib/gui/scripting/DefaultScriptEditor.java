@@ -26,10 +26,12 @@ package qupath.lib.gui.scripting;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -52,7 +54,6 @@ import javax.script.ScriptException;
 import javax.script.SimpleScriptContext;
 
 import org.apache.commons.text.StringEscapeUtils;
-import org.controlsfx.control.ListSelectionView;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.dialog.ProgressDialog;
@@ -60,6 +61,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
@@ -232,6 +234,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNull());
 	
+	// Binding to indicate it shouldn't be possible to 'Run' any script right now
+	private StringBinding title = Bindings.createStringBinding(() -> {
+		if (runningTask.get() == null)
+			return "Script Editor";
+		else
+			return "Script Editor (Running)";
+	}, runningTask);
+	
 	// Accelerators that have been assigned to actions
 	private Collection<KeyCombination> accelerators = new HashSet<>();
 	
@@ -357,6 +367,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	public Stage getStage() {
 		return dialog;
 	}
+	
+	/**
+	 * Observable value indicating whether a script is currently running or not.
+	 * This can be used (for example) to determine whether a user action should be blocked until the script has completed.
+	 * @return
+	 */
+	public ObservableValue<Boolean> scriptRunning() {
+		return runningTask.isNotNull();
+	}
+	
 	
 	/**
 	 * Create a new script in the specified language.
@@ -509,7 +529,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		dialog.setOnCloseRequest(e -> attemptToQuitScriptEditor());
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Script editor");
+		dialog.titleProperty().bind(title);
 		
 		MenuBar menubar = new MenuBar();
 
@@ -606,7 +626,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createKillRunningScriptAction("Kill running script"),
 				null,
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Send output to log")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console"))
 				);
@@ -630,7 +650,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	            }
 	        );
 		listScripts.setMinWidth(150);
-
+		runningTask.addListener((v, o, n) -> listScripts.refresh());
 
 		splitMain = new SplitPane();
 		splitMain.getItems().addAll(panelList, getCurrentScriptComponent());
@@ -739,26 +759,31 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param script
 	 * @param imageData
 	 */
-	private void executeScript(final ScriptTab tab, final String script, final ImageData<BufferedImage> imageData) {
+	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData) {
 		ScriptEditorControl console = tab.getConsoleComponent();
 		
 		ScriptContext context = new SimpleScriptContext();
-		context.setWriter(new ScriptConsoleWriter(console, false));
+		var writer = new ScriptConsoleWriter(console, false);
+		context.setWriter(writer);
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
+		var printWriter = new PrintWriter(writer);
 		
-		LogManager.addTextAppendableFX(console);
+		boolean attachToLog = sendLogToConsole.get();
+		if (attachToLog)
+			LogManager.addTextAppendableFX(console);
 		long startTime = System.currentTimeMillis();
 		if (outputScriptStartTime.get())
-			logger.info("Starting script at {}", new Date(startTime));
+			printWriter.println("Starting script at " + new Date(startTime).toString());
 		try {
-			Object result = executeScript(tab.getLanguage(), script, imageData, useDefaultBindings.get(), context);
+			Object result = executeScript(tab.getLanguage(), script, project, imageData, useDefaultBindings.get(), context);
 			if (result != null) {
-				logger.info("Result: {}", result);
+				printWriter.println("Result: " + result);
 			}
 			if (outputScriptStartTime.get())
-				logger.info(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
+				printWriter.println(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
 		} finally {
-			Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
+			if (attachToLog)
+				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
 		}
 	}
 
@@ -819,14 +844,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * 
 	 * @param language
 	 * @param script
+	 * @param project 
 	 * @param imageData
 	 * @param importDefaultMethods
 	 * @param context
 	 * @return
 	 */
-	public static Object executeScript(final Language language, final String script, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+	public static Object executeScript(final Language language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
 		ScriptEngine engine = manager.getEngineByName(language.toString());
-		return executeScript(engine, script, imageData, importDefaultMethods, context);
+		return executeScript(engine, script, project, imageData, importDefaultMethods, context);
 	}
 	
 	
@@ -835,15 +861,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * 
 	 * @param engine
 	 * @param script
+	 * @param project 
 	 * @param imageData
 	 * @param importDefaultMethods
 	 * @param context
 	 * @return
 	 */
-	public static Object executeScript(final ScriptEngine engine, final String script, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+	public static Object executeScript(final ScriptEngine engine, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
 		
 		// Set the current ImageData if we can
-		QP.setBatchImageData((ImageData<?>)imageData);
+		QP.setBatchProjectAndImage(project, imageData);
 		
 		// We'll actually use script2... which may or may not be the same
 		String script2 = script;
@@ -971,7 +998,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 					else
 						errorWriter.append(cause.getClass().getSimpleName() + ": " + message + "\n");
 				}
-				logger.error("Script error (" + cause.getClass().getSimpleName() + ")", cause);
+				var stackTrace = Arrays.stream(cause.getStackTrace()).filter(s -> s != null).map(s -> s.toString())
+						.collect(Collectors.joining("\n" + "    "));
+				if (stackTrace != null)
+					stackTrace += "\n";
+				errorWriter.append(stackTrace);
+//				logger.error("Script error (" + cause.getClass().getSimpleName() + ")", cause);
 			} catch (IOException e1) {
 				logger.error("Script IO error: {}", e1);
 			} catch (Exception e1) {
@@ -979,7 +1011,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 //				e1.printStackTrace();
 			}
 		} finally {
-			QP.setBatchImageData(null);
+			QP.resetBatchProjectAndImage();
 		}
 		return result;
 	}
@@ -996,8 +1028,14 @@ public class DefaultScriptEditor implements ScriptEditor {
             	setTooltip(null);
              	return;
             }
-            setText(item.toString());
-            setTooltip(new Tooltip(item.toString()));
+            var text = item.toString();
+            if (item.isRunning) {
+            	text = text + " (Running)";
+            	setStyle("-fx-font-style: italic;");
+            } else
+            	setStyle(null);
+            setText(text);
+            setTooltip(new Tooltip(text));
 //            this.setOpacity(0);
         }
     }
@@ -1108,22 +1146,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		@Override
 		public synchronized void write(char[] cbuf, int off, int len) throws IOException {
-			if (sendLogToConsole.get()) {
-				// Don't need to log newlines
-				if (len == 1 && cbuf[off] == '\n')
-					return;
-				String s = String.valueOf(cbuf, off, len);
-				// Skip newlines on Windows too...
-				if (s.equals(System.lineSeparator()))
-					return;
-				if (isErrorWriter)
-					logger.error(s);
-				else
-					logger.info(s);
-			} else {
+			// If we aren't showing the log in the console, we need to handle each message
+			if (!sendLogToConsole.get()) {
 				String s = String.valueOf(cbuf, off, len);
 				sb.append(s);
+				flush();
 			}
+			// Don't need to log newlines
+			if (len == 1 && cbuf[off] == '\n')
+				return;
+			String s = String.valueOf(cbuf, off, len);
+			// Skip newlines on Windows too...
+			if (s.equals(System.lineSeparator()))
+				return;
+			if (isErrorWriter)
+				logger.error(s);
+			else
+				logger.info(s);
 		}
 
 		@Override
@@ -1213,8 +1252,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (runInPlatformThread) {
 				logger.info("Running script in Platform thread...");
 				try {
-					executeScript(tab, script, qupath.getImageData());
+					tab.setRunning(true);
+					executeScript(tab, script, qupath.getProject(), qupath.getImageData());
 				} finally {
+					tab.setRunning(false);
 					runningTask.setValue(null);
 				}
 			} else {
@@ -1222,8 +1263,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 					@Override
 					public void run() {
 						try {
-							executeScript(tab, script, qupath.getImageData());
+							tab.setRunning(true);
+							executeScript(tab, script, qupath.getProject(), qupath.getImageData());
 						} finally {
+							tab.setRunning(false);
 							Platform.runLater(() -> runningTask.setValue(null));
 						}
 					}
@@ -1268,14 +1311,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 			return;			
 		}
 		
-		// Unfortunately ListSelectionView doesn't directly support filtered lists...
-		ListSelectionView<ProjectImageEntry<BufferedImage>> listSelectionView = new ListSelectionView<>();
 		// Ensure that the previous images remain selected if the project still contains them
 //		FilteredList<ProjectImageEntry<?>> sourceList = new FilteredList<>(FXCollections.observableArrayList(project.getImageList()));
 		
-
-		String sameImageWarning = "A selected image is open in the viewer!\nUse 'File>Reload data' to see changes.";
-		listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project, listSelectionView, previousImages, sameImageWarning, doSave);
+		String sameImageWarning = doSave ? "A selected image is open in the viewer!\nUse 'File>Reload data' to see changes." : null;
+		var listSelectionView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), previousImages, sameImageWarning);
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.initOwner(qupath.getStage());
@@ -1330,14 +1370,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	class ProjectTask extends Task<Void> {
 		
-//		private Project<BufferedImage> project;
+		private Project<BufferedImage> project;
 		private Collection<ProjectImageEntry<BufferedImage>> imagesToProcess;
 		private ScriptTab tab;
 		private boolean quietCancel = false;
 		private boolean doSave = false;
 		
 		ProjectTask(final Project<BufferedImage> project, final Collection<ProjectImageEntry<BufferedImage>> imagesToProcess, final ScriptTab tab, final boolean doSave) {
-//			this.project = project;
+			this.project = project;
 			this.imagesToProcess = imagesToProcess;
 			this.tab = tab;
 			this.doSave = doSave;
@@ -1355,6 +1395,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		public Void call() {
 			
 			long startTime = System.currentTimeMillis();
+			
+			tab.setRunning(true);
 			
 			int counter = 0;
 			for (ProjectImageEntry<BufferedImage> entry : imagesToProcess) {
@@ -1379,7 +1421,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						continue;
 					}
 //					QPEx.setBatchImageData(imageData);
-					executeScript(tab, tab.getEditorComponent().getText(), imageData);
+					executeScript(tab, tab.getEditorComponent().getText(), project, imageData);
 					if (doSave)
 						entry.saveImageData(imageData);
 					imageData.getServer().close();
@@ -1409,6 +1451,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		@Override
 		protected void done() {
 			super.done();
+			tab.setRunning(false);
 			// Make sure we reset the running task
 			Platform.runLater(() -> runningTask.setValue(null));
 		}
@@ -1714,6 +1757,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private ScriptEditorControl console;
 		private ScriptEditorControl editor;
 		
+		private boolean isRunning = false;
+		
 		
 		public ScriptTab(final String script, final Language language) {
 			initialize();
@@ -1811,6 +1856,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public boolean fileExists() {
 			return file != null && file.exists();
+		}
+		
+		boolean isRunning() {
+			return isRunning;
+		}
+		
+		void setRunning(boolean running) {
+			this.isRunning = running;
 		}
 		
 //		public ReadOnlyBooleanProperty isModifiedProperty() {

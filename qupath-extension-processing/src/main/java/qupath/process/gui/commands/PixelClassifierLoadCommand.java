@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.util.Collection;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
@@ -16,12 +16,10 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.process.gui.ml.PixelClassificationOverlay;
-import qupath.process.gui.ml.PixelClassifierTools;
+import qupath.process.gui.ml.PixelClassifierUI;
 
 /**
  * Command to apply a pre-trained pixel classifier to an image.
- * <p>
- * TODO: This command is unfinished!
  * 
  * @author Pete Bankhead
  *
@@ -83,7 +81,9 @@ public class PixelClassifierLoadCommand implements Runnable {
 		}, comboClassifiers.getSelectionModel().selectedItemProperty());
 		
 		var selectedOverlay = Bindings.createObjectBinding(() -> {
-			return selectedClassifier.get() == null ? null : PixelClassificationOverlay.createPixelClassificationOverlay(viewer, selectedClassifier.get());
+			if (selectedClassifier.get() == null)
+				return null;
+			return PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), selectedClassifier.get());
 		}, selectedClassifier);
 		
 		selectedOverlay.addListener((v, o, n) -> {
@@ -100,21 +100,13 @@ public class PixelClassifierLoadCommand implements Runnable {
 		var label = new Label("Choose model");
 		label.setLabelFor(comboClassifiers);
 		
-		var enableButtons = qupath.viewerProperty().isNotNull().and(selectedOverlay.isNotNull());
-		var btnCreateObjects = new Button("Create objects");
-		btnCreateObjects.disableProperty().bind(enableButtons.not());
-		var btnClassifyObjects = new Button("Classify detections");
-		btnClassifyObjects.disableProperty().bind(enableButtons.not());
-		var tilePane = PaneTools.createColumnGrid(btnCreateObjects, btnClassifyObjects);
-//		btnCreateObjects.prefWidthProperty().bind(btnClassifyObjects.widthProperty());
+		var classifierName = new SimpleStringProperty(null);
+		classifierName.bind(comboClassifiers.getSelectionModel().selectedItemProperty());
+		var tilePane = PixelClassifierUI.createPixelClassifierButtons(qupath.imageDataProperty(), selectedClassifier, classifierName);
 		
-		btnCreateObjects.setOnAction(e -> {
-			PixelClassifierTools.promptToCreateObjects(viewer.getImageData(), 
-					(PixelClassificationImageServer)selectedOverlay.get().getPixelClassificationServer());
-		});
-		btnClassifyObjects.setOnAction(e -> {
-			PixelClassifierTools.classifyDetectionsByCentroid(viewer.getImageData(), selectedClassifier.get());
-		});
+//		var tilePane = PixelClassifierUI.createPixelClassifierButtons(viewer.imageDataProperty(), selectedClassifier);
+		var labelRegion = new Label("Region");
+		var comboRegionFilter = PixelClassifierUI.createRegionFilterCombo(qupath.getOverlayOptions());
 
 		var pane = new GridPane();
 		pane.setPadding(new Insets(10.0));
@@ -122,10 +114,28 @@ public class PixelClassifierLoadCommand implements Runnable {
 		pane.setVgap(10);
 		int row = 0;
 		PaneTools.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers);
+		PaneTools.addGridRow(pane, row++, 0, "Control where the pixel classification is applied during preview",
+				labelRegion, comboRegionFilter, comboRegionFilter);
 		PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane);
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane, btnCreateObjects, btnClassifyObjects);
-				
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane);
+		
+//		var labelInfo = new Label(
+//				"Load & apply a pixel classifier to an image.\n\n" +
+//				"Note that this command is linked to a specific viewer.\n" + 
+//				"If you need to classify an image in another viewer, \n" +
+//				"select the viewer and run this command again."
+//				);
+//		labelInfo.setAlignment(Pos.CENTER);
+//		labelInfo.setWrapText(true);
+//		var stage = Dialogs.builder()
+//			.title(title)
+//			.content(pane)
+//			.owner(qupath.getStage())
+//			.expandableContent(labelInfo)
+//			.nonModal()
+//			.build();
+		
 		var stage = new Stage();
 		stage.setTitle(title);
 		stage.setScene(new Scene(pane));
@@ -139,6 +149,9 @@ public class PixelClassifierLoadCommand implements Runnable {
 			if (current != null && viewer.getCustomPixelLayerOverlay() == current) {
 				current.stop();
 				viewer.resetCustomPixelLayerOverlay();
+				var data = viewer.getImageData();
+				if (data != null)
+					PixelClassificationImageServer.setPixelLayer(data, null);
 			}
 		});
 		

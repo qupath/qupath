@@ -5,8 +5,6 @@ import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.image.BufferedImage;
-import java.awt.image.ImageObserver;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,8 +14,9 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.overlays.AbstractImageDataOverlay;
+import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;
 
@@ -27,11 +26,11 @@ import qupath.lib.regions.ImageRegion;
  * 
  * @author Pete Bankhead
  */
-public class ImageServerOverlay extends AbstractImageDataOverlay {
+public class ImageServerOverlay extends AbstractOverlay {
 	
 	private static Logger logger = LoggerFactory.getLogger(ImageServerOverlay.class);
 	
-	private QuPathViewer viewer;
+	private DefaultImageRegionStore store;
 	private ImageServer<BufferedImage> server;
 	
 	private ImageRenderer renderer;
@@ -57,8 +56,8 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 	 * @param affine Affine transform to apply to the overlaid server
 	 */
 	public ImageServerOverlay(final QuPathViewer viewer, final ImageServer<BufferedImage> server, final Affine affine) {
-		super(viewer.getOverlayOptions(), viewer.getImageData());
-		this.viewer = viewer;
+		super(viewer.getOverlayOptions());
+		this.store = viewer.getImageRegionStore();
 		this.server = server;
 		this.transform = new AffineTransform();
 		this.transformInverse = null;//transform.createInverse();
@@ -113,14 +112,8 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 	}
 
 	@Override
-	public boolean supportsImageDataChange() {
-		return false;
-	}
+	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageData<BufferedImage> imageData, boolean paintCompletely) {
 
-	@Override
-	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageObserver observer, boolean paintCompletely) {
-
-		DefaultImageRegionStore store = viewer.getImageRegionStore();
 		BufferedImage imgThumbnail = null;//store.getThumbnail(server, imageRegion.getZ(), imageRegion.getT(), true);
 			
 		// Paint the image
@@ -140,7 +133,7 @@ public class ImageServerOverlay extends AbstractImageDataOverlay {
 		else
 			gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
-		store.paintRegion(server, gCopy, gCopy.getClip(), imageRegion.getZ(), imageRegion.getT(), downsampleFactor, imgThumbnail, observer, renderer);
+		store.paintRegion(server, gCopy, gCopy.getClip(), imageRegion.getZ(), imageRegion.getT(), downsampleFactor, imgThumbnail, null, renderer);
 		gCopy.dispose();
 				
 	}

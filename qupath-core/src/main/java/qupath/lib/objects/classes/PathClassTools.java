@@ -6,9 +6,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
-
-import com.google.common.base.Objects;
 
 import qupath.lib.common.ColorTools;
 
@@ -213,7 +212,7 @@ public class PathClassTools {
 	 * @return the merged classification, or null if both input classes are null
 	 */
 	public static PathClass mergeClasses(PathClass baseClass, PathClass additionalClass) {
-		if (Objects.equal(baseClass, additionalClass))
+		if (Objects.equals(baseClass, additionalClass))
 			return baseClass;
 
 		if (baseClass == PathClassFactory.getPathClassUnclassified())
@@ -240,7 +239,7 @@ public class PathClassTools {
 	}
 	
 	static Integer averageColors(Integer rgb1, Integer rgb2) {
-		if (Objects.equal(rgb1, rgb2))
+		if (Objects.equals(rgb1, rgb2))
 			return rgb1;
 		int r = (ColorTools.red(rgb1) + ColorTools.red(rgb2)) / 2;
 		int g = (ColorTools.green(rgb1) + ColorTools.green(rgb2)) / 2;
@@ -248,7 +247,16 @@ public class PathClassTools {
 		return ColorTools.makeRGB(r, g, b);
 	}
 	
-	static boolean containsName(PathClass pathClass, String name) {
+	/**
+	 * Query whether a {@link PathClass} or any of its ancestor classes contains a specified name.
+	 * <p>
+	 * For example a class {@code "CD3: CD8"} would return true for the name "CD3" or "CD8", but not anything else.
+	 * 
+	 * @param pathClass the classification to test
+	 * @param name the name to search for
+	 * @return true if the name is found, false otherwise
+	 */
+	public static boolean containsName(PathClass pathClass, String name) {
 		if (pathClass == null)
 			return false;
 		while (pathClass != null) {
