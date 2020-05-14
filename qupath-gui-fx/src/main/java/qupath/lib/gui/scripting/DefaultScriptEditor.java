@@ -61,6 +61,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
@@ -232,6 +233,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNull());
+	
+	// Binding to indicate it shouldn't be possible to 'Run' any script right now
+	private StringBinding title = Bindings.createStringBinding(() -> {
+		if (runningTask.get() == null)
+			return "Script Editor";
+		else
+			return "Script Editor (Running)";
+	}, runningTask);
 	
 	// Accelerators that have been assigned to actions
 	private Collection<KeyCombination> accelerators = new HashSet<>();
@@ -520,7 +529,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 //		dialog.setOnCloseRequest(e -> attemptToQuitScriptEditor());
 		if (qupath != null)
 			dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Script editor");
+		dialog.titleProperty().bind(title);
 		
 		MenuBar menubar = new MenuBar();
 
