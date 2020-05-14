@@ -960,6 +960,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		imageUpdated = true;
 
 		if (server == null) {
+			zPosition.set(0);
+			tPosition.set(0);
 			return;
 		}
 
@@ -1268,7 +1270,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		// Read a thumbnail image
 		try {
-			BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
+			int z = GeneralTools.clipValue(getZPosition(), 0, server.nZSlices()-1);
+			int t = GeneralTools.clipValue(getTPosition(), 0, server.nTimepoints()-1);
+			BufferedImage imgThumbnail = regionStore.getThumbnail(server, z, t, true);
 //			BufferedImage imgThumbnail = regionStore.getThumbnail(server, getZPosition(), getTPosition(), true);
 			imgThumbnailRGB = createThumbnailRGB(imgThumbnail);
 			thumbnailIsFullImage = imgThumbnailRGB.getWidth() == server.getWidth() && imgThumbnailRGB.getHeight() == server.getHeight();
