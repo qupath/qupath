@@ -27,31 +27,27 @@ import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import javafx.collections.ListChangeListener.Change;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.ListView;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
@@ -79,6 +75,9 @@ import qupath.lib.scripting.QP;
  */
 class MeasurementManager {
 	
+	private static ObservableList<String> data;
+	private static FilteredList<String> currentList;
+	private static ListView<String> listView;
 	
 	/**
 	 * Show a simple dialog for viewing (and optionally removing) detection measurements.
@@ -90,7 +89,6 @@ class MeasurementManager {
 			Dialogs.showNoImageError("Measurement Manager");
 			return;
 		}
-		
 		
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
@@ -124,6 +122,7 @@ class MeasurementManager {
 			return;
 		}
 		
+		
 		// Get a mapping of suitable names for each class
 		Map<String, Class<? extends PathObject>> classMap = new TreeMap<>();
 		map.keySet().stream().forEach(k -> classMap.put(PathObjectTools.getSuitableName(k, true), k));
@@ -131,34 +130,28 @@ class MeasurementManager {
 		// Create a ComboBox to choose between object types
 		ComboBox<String> comboBox = new ComboBox<>();
 		comboBox.getItems().setAll(classMap.keySet());
+		comboBox.getSelectionModel().selectFirst();
 		comboBox.setMaxWidth(Double.MAX_VALUE);
 		BorderPane paneTop = new BorderPane(comboBox);
 		Tooltip.install(paneTop, new Tooltip("Select an object type to view all associated measurements"));
 		Label label = new Label("Object type: ");
 		label.setMaxHeight(Double.MAX_VALUE);
 		paneTop.setLeft(label);
+		
+		TextField tfFilter = new TextField();
+		tfFilter.setPromptText("Filter measurements");
+		tfFilter.setTooltip(new Tooltip("Type something to filter measurements"));
+		tfFilter.setMaxHeight(Double.MAX_VALUE);
+		paneTop.setBottom(tfFilter);
 		paneTop.setPadding(new Insets(0, 0, 10, 0));
-		
+
 		// Create a view to show the measurements
-		TreeView<String> tree = new TreeView<>();
-		tree.setShowRoot(false);
-		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		listView = new ListView<>();
+		listView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		var currPathObject = classMap.get(comboBox.getSelectionModel().getSelectedItem());
+		updateCurrentList(mapMeasurements, currPathObject);
 		
-		ContextMenu menu = new ContextMenu();
-		MenuItem miExpand = new MenuItem("Expand all");
-		miExpand.setOnAction(e -> setTreeItemsExpanded(tree.getRoot(), true));
-		
-		MenuItem miCollapse = new MenuItem("Collapse all");
-		miCollapse.setOnAction(e -> {
-			if (tree.getRoot() != null) {
-				setTreeItemsExpanded(tree.getRoot(), false);
-				tree.getRoot().setExpanded(true); // Need to expand the root, since it isn't visible
-			}
-		});
-		menu.getItems().addAll(miExpand, miCollapse);
-		tree.setContextMenu(menu);
-		
-		TitledPane titledMeasurements = new TitledPane("Measurements", tree);
+		TitledPane titledMeasurements = new TitledPane("Measurements", listView);
 		titledMeasurements.setCollapsible(false);
 		titledMeasurements.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
@@ -167,46 +160,48 @@ class MeasurementManager {
 		btnRemove.setMaxWidth(Double.MAX_VALUE);
 		paneMeasurements.setBottom(btnRemove);
 		btnRemove.setOnAction(e -> {
-			Set<String> toRemove = new HashSet<>();
-			for (TreeItem<String> treeItem : tree.getSelectionModel().getSelectedItems()) {
-				MeasurementItem item = (MeasurementItem)treeItem;
-				toRemove.addAll(item.getDescendantMeasurements());
-			}
-			if (toRemove.isEmpty()) {
+			var selectedItems = listView.getSelectionModel().getSelectedItems();
+			if (selectedItems.isEmpty()) {
 				Dialogs.showErrorMessage("Remove measurements", "No measurements selected!");
 				return;
 			}
-			String number = toRemove.size() == 1 ? String.format("'%s'", toRemove.iterator().next()) : toRemove.size() + " measurements";
+			String number = selectedItems.size() == 1 ? String.format("'%s'", selectedItems.iterator().next()) : selectedItems.size() + " measurements";
 			if (Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?")) {
 				Class<? extends PathObject> cls = classMap.get(comboBox.getSelectionModel().getSelectedItem());
-				QP.removeMeasurements(hierarchy, cls, toRemove.toArray(new String[toRemove.size()]));
+				QP.removeMeasurements(hierarchy, cls, selectedItems.toArray(new String[selectedItems.size()]));
 				
 				// Keep for scripting
 				WorkflowStep step = new DefaultScriptableWorkflowStep("Remove measurements",
-						String.format("removeMeasurements(%s, %s);", cls.getName(), String.join(", ", toRemove.stream().map(m -> "\"" + m + "\"").collect(Collectors.toList())))
+						String.format("removeMeasurements(%s, %s);", cls.getName(), String.join(", ", selectedItems.stream().map(m -> "\"" + m + "\"").collect(Collectors.toList())))
 						);
 				imageData.getHistoryWorkflow().addStep(step);
 				
 				// Update
-				mapMeasurements.get(cls).removeAll(toRemove);
-				tree.setRoot(new MeasurementItem(mapMeasurements.get(cls), ""));
-				setTreeItemsExpanded(tree.getRoot(), true);
+				mapMeasurements.get(cls).removeAll(selectedItems);
+				updateCurrentList(mapMeasurements, classMap.get(comboBox.getSelectionModel().getSelectedItem()));
 				titledMeasurements.setText("Measurements (" + mapMeasurements.get(cls).size() + ")");
+				tfFilter.setText("");
 			}
 		});
-		btnRemove.disableProperty().bind(tree.getSelectionModel().selectedItemProperty().isNull());
+		btnRemove.disableProperty().bind(listView.getSelectionModel().selectedItemProperty().isNull());
 		
 		// Operate on backspace too
-		tree.setOnKeyPressed(e -> {
+		listView.setOnKeyPressed(e -> {
 			if (e.getCode() == KeyCode.BACK_SPACE || e.getCode() == KeyCode.DELETE)
 				btnRemove.fire();
 		});
+		
+		
+		tfFilter.textProperty().addListener((v, o, n) -> {
+			updatePredicate(n);
+			titledMeasurements.setText("Measurements (" + currentList.size() + ")");
+		});
+		
 
 		// Listen for object type selections
 		comboBox.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			Class<? extends PathObject> cls = classMap.get(n);
-			tree.setRoot(new MeasurementItem(mapMeasurements.get(cls), ""));
-			setTreeItemsExpanded(tree.getRoot(), true);
+			updateCurrentList(mapMeasurements, classMap.get(n));
 			titledMeasurements.setText("Measurements (" + mapMeasurements.get(cls).size() + ")");
 		});
 		
@@ -223,9 +218,7 @@ class MeasurementManager {
 				break;
 			}			
 		}
-		
 
-		
 		Stage dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.initModality(Modality.APPLICATION_MODAL);
@@ -245,89 +238,37 @@ class MeasurementManager {
 		
 	}
 	
-	
-	static void setTreeItemsExpanded(final TreeItem<?> root, final boolean expand) {
-		if (root == null)
-			return;
-		root.setExpanded(expand);
-		for (TreeItem<?> item : root.getChildren()) {
-			setTreeItemsExpanded(item, expand);
-		}
+	/**
+	 * Update the keyword for filtering the (displayed) currentList
+	 * @param text
+	 */
+	static void updatePredicate(String text) {
+		if (text == null || text.isBlank())
+			currentList.setPredicate(p -> true);
+		else
+			currentList.setPredicate(p -> p.toLowerCase().contains(text.toLowerCase()));
+		refreshListView();
 	}
 	
-	
-	
-	static class MeasurementItem extends TreeItem<String> {
-		
-		private static String delimiter = ":";
-		
-        private String measurement;
-        private String name;
-
-        MeasurementItem(final String measurement, final String name) {
-        	super(measurement);
-        	this.measurement = measurement;
-        	this.name = name.replace(delimiter, "").trim();
-        	setValue(name);
-        }
-        
-        MeasurementItem(final Collection<String> measurements, final String prefix) {
-        	super();
-        	
-        	String[] splits = prefix.split(delimiter);
-        	this.name = splits.length == 0 ? prefix : splits[splits.length-1];
-        	
-        	setValue(name + " (" + measurements.size() + ")");
-        	
-        	Map<String, List<String>> map = new TreeMap<>();
-        	List<MeasurementItem> children = new ArrayList<>();
-        	
-        	for (String m : measurements) {
-        		// Strip off prefix
-        		String m2 = m.substring(prefix.length());
-        		// Get next occurrence of delimiter after prefix
-        		int ind = m2.indexOf(delimiter);
-        		if (ind < 0 || ind == m2.length()-1) {
-        			children.add(new MeasurementItem(m, m2));
-        		} else {
-        			// If we have a new prefix, record this
-        			String newPrefix = m2.substring(0, ind+1);
-        			List<String> newMeasurements = map.get(newPrefix);
-        			if (newMeasurements == null) {
-        				newMeasurements = new ArrayList<>();
-            			map.put(newPrefix, newMeasurements);
-        			}
-    				newMeasurements.add(m);
-        		}
-        	}
-        	
-        	// Create the new non-leaf children
-       		getChildren().addAll(
-       				map.entrySet().stream().map(
-       						entry -> new MeasurementItem(entry.getValue(), prefix + entry.getKey())).collect(Collectors.toList()));
-
-       		
-       		getChildren().addListener((Change<? extends TreeItem<String>> e) -> setValue(name + " (" + getChildren().size() + ")"));
-       		
-       		// Add the leaf children
-       		getChildren().addAll(children);
-        }
-        
-        
-        public String getMeasurement() {
-        	return measurement;
-        }
-        
-        public Collection<String> getDescendantMeasurements() {
-        	if (isLeaf())
-        		return Collections.singleton(measurement);
-        	Set<String> measurements = new TreeSet<>();
-        	for (TreeItem<String> child : getChildren()) {
-        		measurements.addAll(((MeasurementItem)child).getDescendantMeasurements());
-        	}
-        	return measurements;
-        }
-        
+	/**
+	 * For whenever a measurement is removed, update 
+	 * the filtered list and call refresh display
+	 * 
+	 * @param mapMeasurements
+	 * @param currPathObject
+	 */
+	static void updateCurrentList(Map<Class<? extends PathObject>, Set<String>> mapMeasurements, Class<? extends PathObject> currPathObject) {
+		data = FXCollections.observableArrayList(mapMeasurements.get(currPathObject));
+		currentList = new FilteredList<>(data, s -> true);
+		refreshListView();
 	}
-
+	
+	/**
+	 * Refresh for display
+	 */
+	static void refreshListView() {
+		listView.getItems().clear();
+		listView.getItems().addAll(currentList);
+	}
+	
 }
