@@ -33,6 +33,7 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectReader;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
@@ -47,7 +48,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class OmeroWebImageServer extends AbstractTileableImageServer {
+public class OmeroWebImageServer extends AbstractTileableImageServer implements PathObjectReader {
 
 	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServer.class);
 
@@ -247,7 +248,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	 * @return
 	 * @throws IOException
 	 */
-	public Collection<PathObject> getROIs() throws IOException {
+	public Collection<PathObject> readPathObjects() throws IOException {
 
 		//		URL urlROIs = new URL(
 		//				scheme, host, -1, "/webgateway/get_rois_json/" + id
@@ -309,26 +310,26 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 					ImagePlane plane = ImagePlane.getPlane(z, t);
 
-					String type = shapeJson.get("@type").getAsString();
-					if (type.toLowerCase().endsWith("#line")) {
-						logger.debug("FOUND A LINE: " + id);
+					String type = shapeJson.get("@type").getAsString().toLowerCase();
+					if (type.endsWith("#line")) {
+						logger.debug("Found a line: " + id);
 						ROIs.createLineROI(x, y, x2, y2, plane);
-					} else if (type.toLowerCase().endsWith("#rectangle")) {
-						logger.debug("FOUND A RECTANGLE: " + id);
+					} else if (type.endsWith("#rectangle")) {
+						logger.debug("Found a rectangle: " + id);
 						roi = ROIs.createRectangleROI(x, y, width, height, plane);
-					} else if (type.toLowerCase().endsWith("#ellipse")) {
-						logger.debug("FOUND A ELLIPSE: " + id);
+					} else if (type.endsWith("#ellipse")) {
+						logger.debug("Found an ellipse: " + id);
 						roi = ROIs.createEllipseROI(x, y, width, height, plane);
-					} else if (type.toLowerCase().endsWith("#point")) {
-						logger.debug("FOUND A POINT: " + id);
+					} else if (type.endsWith("#point")) {
+						logger.debug("Found a point: " + id);
 						roi = ROIs.createPointsROI(points, plane);
-					} else if (type.toLowerCase().endsWith("#polyline")) {
-						logger.debug("FOUND A POLYLINE: " + id);
+					} else if (type.endsWith("#polyline")) {
+						logger.debug("Found a polyline: " + id);
 						roi = ROIs.createPolylineROI(points, plane);
-					} else if (type.toLowerCase().endsWith("#polygon")) {
-						logger.debug("FOUND A POLYGON: " + id);
+					} else if (type.endsWith("#polygon")) {
+						logger.debug("Found a polygon: " + id);
 						roi = ROIs.createPolygonROI(points, plane);
-					} else if (type.toLowerCase().endsWith("#label")) {
+					} else if (type.endsWith("#label")) {
 						logger.warn("I found a label and I don't know what to do with it: " + id);
 					}
 					if (roi != null) {

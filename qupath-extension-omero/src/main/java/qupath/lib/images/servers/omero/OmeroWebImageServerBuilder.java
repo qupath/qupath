@@ -17,6 +17,9 @@ import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -219,7 +222,6 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		return BufferedImage.class;
 	}
 	
-	// TODO: import image doesn't allow copy/pasting 'invalid' URL (containing "|")
 	private List<URI> getURIs(URI uri, String... args) throws IOException {
 		List<URI> list = new ArrayList<>();
         String elemId = "image-";
@@ -402,14 +404,6 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		}
 
 		String login(final PasswordAuthentication authentication, final int serverID) throws Exception {
-			String password = new String(authentication.getPassword());
-			String result = login(authentication.getUserName(), password, serverID);
-			Arrays.fill(authentication.getPassword(), (char) 0);
-			return result;
-		}
-
-		String login(final String username, final String password, final int serverID) throws IOException {
-
 			var handler = CookieHandler.getDefault();
 			if (handler == null) {
 				handler = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
@@ -429,9 +423,21 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 
 			connection.setDoInput(true);
 			connection.setDoOutput(true);
-			String s = String.join("&", "server=" + serverID, "username=" + username, "password=" + password);
+			
+			// To avoid storing the password in a String: create ByteBuffers and concatenate them, then convert to byte[]
+			String s = String.join("&", "server=" + serverID, "username=" + authentication.getUserName(), "password=");
+			CharBuffer charBuffer = CharBuffer.wrap(authentication.getPassword());
+			ByteBuffer byteBuffer = ByteBuffer.allocate(charBuffer.length() + s.length());
+			byteBuffer.put(s.getBytes("UTF-8")).put(Charset.forName("UTF-8").encode(charBuffer)).flip();
+			byte[] out = Arrays.copyOf(byteBuffer.array(), byteBuffer.remaining());
+			
+			// Fill the traces of password with '0'
+			Arrays.fill(charBuffer.array(), (char) 0);
+			Arrays.fill(byteBuffer.array(), (byte) 0);
+			Arrays.fill(authentication.getPassword(), (char) 0);
+			
 			try (OutputStream stream = connection.getOutputStream()) {
-				stream.write(s.getBytes("UTF-8"));
+				stream.write(out);
 			}
 
 //	        var client = HttpClient.newBuilder()
@@ -448,6 +454,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 //				e.printStackTrace();
 //			}
 
+			
 			try (InputStream input = connection.getInputStream()) {
 				return GeneralTools.readInputStreamAsString(input);
 			}
@@ -602,7 +609,13 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				return null;
 
 			String userName = tfUsername.getText();
-			return new PasswordAuthentication(userName, tfPassword.getText().toCharArray());
+			int passLength = tfPassword.getCharacters().length();
+			char[] password = new char[passLength];
+			for (int i = 0; i < passLength; i++) {
+				password[i] = tfPassword.getCharacters().charAt(i);
+			}
+
+			return new PasswordAuthentication(userName, password);
 		}
 
 	}
