@@ -156,6 +156,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			} else if (temp.isRootObject())
 				containsRoot = true;
 		}
+		boolean detectionsAnywhere = imageData == null ? containsDetections : !imageData.getHierarchy().getDetectionObjects().isEmpty();
 		
 		// Include the object displayed name
 //		if (containsDetections || containsAnnotations || containsTMACores)
@@ -219,9 +220,11 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 //			builderMap.put(builderAnnotations.getName(), builderAnnotations);
 //			features.add(builderAnnotations.getName());
 			
-			var builder = new ObjectTypeCountMeasurementBuilder(PathDetectionObject.class);
-			builderMap.put(builder.getName(), builder);
-			features.add(builder.getName());
+			if (detectionsAnywhere) {
+				var builder = new ObjectTypeCountMeasurementBuilder(PathDetectionObject.class);
+				builderMap.put(builder.getName(), builder);
+				features.add(builder.getName());
+			}
 			
 			// Here, we allow TMA cores to act like annotations
 			manager = new DerivedMeasurementManager(getImageData(), containsAnnotations || containsTMACores);

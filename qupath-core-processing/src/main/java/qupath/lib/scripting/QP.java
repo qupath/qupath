@@ -2038,7 +2038,7 @@ public class QP {
 	}
 	
 	/**
-	 * Clear the measurement lists for all detections in a hierarchy.
+	 * Clear the measurement lists for all detections in a hierarchy (including sub-classes of detections).
 	 * @param hierarchy
 	 */
 	public static void clearDetectionMeasurements(PathObjectHierarchy hierarchy) {
@@ -2051,6 +2051,95 @@ public class QP {
 	 */
 	public static void clearDetectionMeasurements() {
 		clearDetectionMeasurements(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Clear the measurement lists for all TMA core objects in a hierarchy.
+	 * @param hierarchy
+	 */
+	public static void clearTMACoreMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			clearMeasurements(hierarchy, TMACoreObject.class);
+	}
+	
+	/**
+	 * Clear the measurement lists for all TMA core objects in the current hierarchy.
+	 */
+	public static void clearTMACoreMeasurements() {
+		clearTMACoreMeasurements(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Clear the measurement lists for objects of a specific class in a hierarchy (subclasses are not included!).
+	 * @param hierarchy
+	 * @param cls 
+	 */
+	public static void clearMeasurements(PathObjectHierarchy hierarchy, Class<? extends PathObject> cls) {
+		if (hierarchy != null)
+			clearMeasurements(hierarchy, hierarchy.getObjects(null, null).stream().filter(p -> p.getClass().equals(cls)).toArray(PathObject[]::new));
+	}
+	
+	/**
+	 * Clear the measurement lists for objects of a specific class in the current hierarchy (subclasses are not included!).
+	 * @param cls 
+	 */
+	public static void clearMeasurements(Class<? extends PathObject> cls) {
+		clearMeasurements(getCurrentHierarchy(), cls);
+	}
+	
+	/**
+	 * Clear the measurement lists for all detections in the current hierarchy.
+	 */
+	public static void clearMeasurements() {
+		clearDetectionMeasurements(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Clear the measurement lists for all cells in a hierarchy.
+	 * @param hierarchy
+	 */
+	public static void clearCellMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			clearMeasurements(hierarchy, hierarchy.getCellObjects());
+	}
+	
+	/**
+	 * Clear the measurement lists for all cells in the current hierarchy.
+	 */
+	public static void clearCellMeasurements() {
+		clearCellMeasurements(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Clear the measurement lists for all tiles in a hierarchy.
+	 * @param hierarchy
+	 */
+	public static void clearTileMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			clearMeasurements(hierarchy, hierarchy.getTileObjects());
+	}
+	
+	/**
+	 * Clear the measurement lists for all tiles in the current hierarchy.
+	 */
+	public static void clearTileMeasurements() {
+		clearTileMeasurements(getCurrentHierarchy());
+	}
+	
+	/**
+	 * Clear the measurement lists for the root object.
+	 * @param hierarchy
+	 */
+	public static void clearRootMeasurements(PathObjectHierarchy hierarchy) {
+		if (hierarchy != null)
+			clearMeasurements(hierarchy, hierarchy.getRootObject());
+	}
+	
+	/**
+	 * Clear the measurement lists for the root object.
+	 */
+	public static void clearRootMeasurements() {
+		clearRootMeasurements(getCurrentHierarchy());
 	}
 	
 	

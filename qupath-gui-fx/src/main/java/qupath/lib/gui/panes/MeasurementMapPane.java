@@ -218,6 +218,7 @@ public class MeasurementMapPane {
 		// Filter to reduce visible measurements
 		TextField tfFilter = new TextField();
 		tfFilter.setTooltip(new Tooltip("Enter text to filter measurement list"));
+		tfFilter.setPromptText("Filter measurement list");
 		tfFilter.textProperty().addListener((v, o, n) -> {
 			String val = n.trim().toLowerCase();			
 			filteredList.setPredicate(s -> {
