@@ -47,6 +47,7 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
@@ -633,6 +634,14 @@ public final class PathObjectHierarchy implements Serializable {
 	 */
 	public Collection<PathObject> getCellObjects() {
 		return getObjects(null, PathCellObject.class);
+	}
+	
+	/**
+	 * Get all tile objects in the hierarchy.
+	 * @return
+	 */
+	public Collection<PathObject> getTileObjects() {
+		return getObjects(null, PathTileObject.class);
 	}
 	
 	/**

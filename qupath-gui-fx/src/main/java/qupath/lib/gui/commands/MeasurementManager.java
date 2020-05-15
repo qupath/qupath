@@ -27,20 +27,26 @@ import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -50,18 +56,20 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+import javafx.scene.layout.Pane;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.scripting.QP;
@@ -75,9 +83,20 @@ import qupath.lib.scripting.QP;
  */
 class MeasurementManager {
 	
-	private static ObservableList<String> data;
-	private static FilteredList<String> currentList;
-	private static ListView<String> listView;
+	private final static Logger logger = LoggerFactory.getLogger(MeasurementManager.class);
+	
+	private ComboBox<Class<? extends PathObject>> comboBox;
+	private ListView<String> listView;
+	
+	private BorderPane pane;
+	
+	private StringProperty filterText = new SimpleStringProperty();
+	
+	private ImageData<?> imageData;
+	private Map<Class<? extends PathObject>, Set<String>> mapMeasurements;
+	
+	private ObservableList<String> measurementList = FXCollections.observableArrayList();
+	private FilteredList<String> filteredList = measurementList.filtered(p -> true);
 	
 	/**
 	 * Show a simple dialog for viewing (and optionally removing) detection measurements.
@@ -90,46 +109,63 @@ class MeasurementManager {
 			return;
 		}
 		
-		PathObjectHierarchy hierarchy = imageData.getHierarchy();
-		
-		// Get all the objects we have
-		Map<Class<? extends PathObject>, List<PathObject>> map = new HashMap<>();
-		Map<Class<? extends PathObject>, Set<String>> mapMeasurements = new HashMap<>();
-		for (PathObject p : hierarchy.getFlattenedObjectList(null)) {
-			
-			List<String> names = p.getMeasurementList().getMeasurementNames();
-			if (names.isEmpty())
-				continue;
-			
-			List<PathObject> list = map.get(p.getClass());
-			if (list == null) {
-				list = new ArrayList<>();
-				map.put(p.getClass(), list);
-			}
-			list.add(p);
-			
-			Set<String> setMeasurements = mapMeasurements.get(p.getClass());
-			if (setMeasurements == null) {
-				setMeasurements = new LinkedHashSet<>();
-				mapMeasurements.put(p.getClass(), setMeasurements);
-			}
-			setMeasurements.addAll(p.getMeasurementList().getMeasurementNames());
-		}
-		
-		// Check we have something to show
-		if (map.isEmpty()) {
-			Dialogs.showErrorMessage("Measurement Manager", "No objects found!");
+		var manager = new MeasurementManager(imageData);
+		if (!manager.hasMeasurements()) {
+			Dialogs.showErrorMessage("Measurement Manager", "No measurements found!");
 			return;
 		}
 		
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		Dialogs.builder()
+				.title("Measurement Manager")
+				.content(manager.getPane())
+				.buttons(ButtonType.CLOSE)
+				.width(Math.min(600, screenSize.getWidth()/2))
+				.resizable()
+				.showAndWait();
 		
-		// Get a mapping of suitable names for each class
-		Map<String, Class<? extends PathObject>> classMap = new TreeMap<>();
-		map.keySet().stream().forEach(k -> classMap.put(PathObjectTools.getSuitableName(k, true), k));
+	}
+	
+	private MeasurementManager(ImageData<?> imageData) {
+		this.imageData = imageData;
+		refreshMeasurements();
+	}
+	
+	Pane getPane() {
+		if (pane == null)
+			initializePane();
+		return pane;
+	}
+	
+	
+	private synchronized void refreshMeasurements() {
+		var objects = imageData.getHierarchy().getObjects(null, null);
+		Map<Class<? extends PathObject>, List<PathObject>> map = objects.stream().filter(p -> p.hasMeasurements()).collect(Collectors.groupingBy(p -> p.getClass(), Collectors.toList()));
+		mapMeasurements = new HashMap<>();
+		for (var entry : map.entrySet()) {
+			var set = new LinkedHashSet<String>();
+			for (var pathObject : entry.getValue())
+				set.addAll(pathObject.getMeasurementList().getMeasurementNames());
+			mapMeasurements.put(entry.getKey(), set);
+		}
+		if (comboBox != null) {
+			var selected = comboBox.getSelectionModel().getSelectedItem();
+			comboBox.getItems().setAll(mapMeasurements.keySet());
+			if (selected != null && mapMeasurements.containsKey(selected))
+				comboBox.getSelectionModel().select(selected);
+			else if (!mapMeasurements.isEmpty())
+				comboBox.getSelectionModel().selectFirst();
+		}
+	}
+	
+	
+	private synchronized void initializePane() {
 		
 		// Create a ComboBox to choose between object types
-		ComboBox<String> comboBox = new ComboBox<>();
-		comboBox.getItems().setAll(classMap.keySet());
+		comboBox = new ComboBox<>();
+		comboBox.setCellFactory(data -> GuiTools.createCustomListCell(c -> PathObjectTools.getSuitableName(c, true)));
+		comboBox.setButtonCell(GuiTools.createCustomListCell(c -> PathObjectTools.getSuitableName(c, true)));
+		comboBox.getItems().setAll(mapMeasurements.keySet());
 		comboBox.getSelectionModel().selectFirst();
 		comboBox.setMaxWidth(Double.MAX_VALUE);
 		BorderPane paneTop = new BorderPane(comboBox);
@@ -138,116 +174,166 @@ class MeasurementManager {
 		label.setMaxHeight(Double.MAX_VALUE);
 		paneTop.setLeft(label);
 		
-		TextField tfFilter = new TextField();
-		tfFilter.setPromptText("Filter measurements");
-		tfFilter.setTooltip(new Tooltip("Type something to filter measurements"));
-		tfFilter.setMaxHeight(Double.MAX_VALUE);
-		paneTop.setBottom(tfFilter);
 		paneTop.setPadding(new Insets(0, 0, 10, 0));
 
 		// Create a view to show the measurements
-		listView = new ListView<>();
+		listView = new ListView<>(filteredList);
 		listView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-		var currPathObject = classMap.get(comboBox.getSelectionModel().getSelectedItem());
-		updateCurrentList(mapMeasurements, currPathObject);
-		
+		updateCurrentList();
+
 		TitledPane titledMeasurements = new TitledPane("Measurements", listView);
+		titledMeasurements.textProperty().bind(Bindings.createStringBinding(() -> {
+			return "Measurements (" + measurementList.size() + ")";
+		}, measurementList));
 		titledMeasurements.setCollapsible(false);
 		titledMeasurements.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		
+		TextField tfFilter = new TextField();
+		tfFilter.setPromptText("Filter measurements");
+		tfFilter.setTooltip(new Tooltip("Enter text to filter measurements"));
+		tfFilter.setMaxHeight(Double.MAX_VALUE);
+		tfFilter.textProperty().bindBidirectional(filterText);
 
 		BorderPane paneMeasurements = new BorderPane(titledMeasurements);
 		Button btnRemove = new Button("Delete selected");
 		btnRemove.setMaxWidth(Double.MAX_VALUE);
-		paneMeasurements.setBottom(btnRemove);
-		btnRemove.setOnAction(e -> {
-			var selectedItems = listView.getSelectionModel().getSelectedItems();
-			if (selectedItems.isEmpty()) {
-				Dialogs.showErrorMessage("Remove measurements", "No measurements selected!");
-				return;
-			}
-			String number = selectedItems.size() == 1 ? String.format("'%s'", selectedItems.iterator().next()) : selectedItems.size() + " measurements";
-			if (Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?")) {
-				Class<? extends PathObject> cls = classMap.get(comboBox.getSelectionModel().getSelectedItem());
-				QP.removeMeasurements(hierarchy, cls, selectedItems.toArray(new String[selectedItems.size()]));
-				
-				// Keep for scripting
-				WorkflowStep step = new DefaultScriptableWorkflowStep("Remove measurements",
-						String.format("removeMeasurements(%s, %s);", cls.getName(), String.join(", ", selectedItems.stream().map(m -> "\"" + m + "\"").collect(Collectors.toList())))
-						);
-				imageData.getHistoryWorkflow().addStep(step);
-				
-				// Update
-				mapMeasurements.get(cls).removeAll(selectedItems);
-				updateCurrentList(mapMeasurements, classMap.get(comboBox.getSelectionModel().getSelectedItem()));
-				titledMeasurements.setText("Measurements (" + mapMeasurements.get(cls).size() + ")");
-				tfFilter.setText("");
-			}
-		});
+		btnRemove.setOnAction(e -> promptToRemoveMeasurements());
 		btnRemove.disableProperty().bind(listView.getSelectionModel().selectedItemProperty().isNull());
 		
+		Button btnRemoveAll = new Button("Delete all");
+		btnRemoveAll.setMaxWidth(Double.MAX_VALUE);
+		btnRemoveAll.setOnAction(e -> promptToRemoveAllMeasurements());
+		btnRemoveAll.disableProperty().bind(Bindings.isEmpty(listView.getItems()));
+
+		var paneButton = PaneTools.createRowGrid(tfFilter,
+				PaneTools.createColumnGrid(btnRemoveAll, btnRemove));
+		paneMeasurements.setBottom(paneButton);
+
 		// Operate on backspace too
 		listView.setOnKeyPressed(e -> {
 			if (e.getCode() == KeyCode.BACK_SPACE || e.getCode() == KeyCode.DELETE)
 				btnRemove.fire();
 		});
-		
-		
-		tfFilter.textProperty().addListener((v, o, n) -> {
-			updatePredicate(n);
-			titledMeasurements.setText("Measurements (" + currentList.size() + ")");
-		});
-		
+
+
+		filterText.addListener((v, o, n) -> updatePredicate(n));
+
 
 		// Listen for object type selections
-		comboBox.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			Class<? extends PathObject> cls = classMap.get(n);
-			updateCurrentList(mapMeasurements, classMap.get(n));
-			titledMeasurements.setText("Measurements (" + mapMeasurements.get(cls).size() + ")");
-		});
-		
-		
+		comboBox.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateCurrentList());
+
+
 		// Try to select most sensible default
-		for (String defaultName : Arrays.asList(
-				PathObjectTools.getSuitableName(PathCellObject.class, true),
-				PathObjectTools.getSuitableName(PathDetectionObject.class, true),
-				PathObjectTools.getSuitableName(PathAnnotationObject.class, true),
-				PathObjectTools.getSuitableName(TMACoreObject.class, true)
-				)) {
-			if (classMap.containsKey(defaultName)) {
-				comboBox.getSelectionModel().select(defaultName);
+		for (var defaultClass : Arrays.asList(
+				PathCellObject.class,
+				PathDetectionObject.class,
+				PathAnnotationObject.class,
+				TMACoreObject.class)
+				) {
+			if (mapMeasurements.containsKey(defaultClass)) {
+				comboBox.getSelectionModel().select(defaultClass);
 				break;
 			}			
 		}
 
-		Stage dialog = new Stage();
-		dialog.initOwner(qupath.getStage());
-		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("Measurement Manager");
-		
-		BorderPane pane = new BorderPane();
+		pane = new BorderPane();
 		pane.setTop(paneTop);
 		pane.setCenter(paneMeasurements);
 		pane.setPadding(new Insets(10, 10, 10, 10));
-		
-		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		if (screenSize != null && screenSize.getWidth() > 100)
-			dialog.setScene(new Scene(pane, Math.min(600, screenSize.getWidth()/2), -1));
-		else
-			dialog.setScene(new Scene(pane));
-		dialog.show();
-		
 	}
+	
+	
+	boolean hasMeasurements() {
+		return !mapMeasurements.isEmpty();
+	}
+	
+	private boolean promptToRemoveAllMeasurements() {
+		var selectedClass = comboBox.getSelectionModel().getSelectedItem();
+		var selectedItems = new ArrayList<>(measurementList);
+		if (selectedClass == null || selectedItems.isEmpty()) {
+			Dialogs.showErrorMessage("Remove measurements", "No measurements selected!");
+			return false;
+		}
+		String number = selectedItems.size() == 1 ? String.format("'%s'", selectedItems.iterator().next()) : selectedItems.size() + " measurements";
+		if (!Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?"))
+			return false;
+		
+		logger.info("Removing all measurements for ", PathObjectTools.getSuitableName(selectedClass, true));
+		Class<? extends PathObject> cls = comboBox.getSelectionModel().getSelectedItem();
+		String script;
+		var hierarchy = imageData.getHierarchy();
+		if (cls == PathAnnotationObject.class) {
+			script = "clearAnnotationMeasurements()";
+			QP.clearAnnotationMeasurements(hierarchy);
+		} else if (cls == PathCellObject.class) {
+			script = "clearCellMeasurements()";
+			QP.clearCellMeasurements(hierarchy);
+		} else if (cls == PathTileObject.class) {
+			script = "clearTileMeasurements()";
+			QP.clearTileMeasurements(hierarchy);
+		} else if (cls == PathRootObject.class) {
+			script = "clearRootMeasurements()";
+			QP.clearRootMeasurements(hierarchy);
+		} else if (cls == TMACoreObject.class) {
+			script = "clearTMACoreMeasurements()";
+			QP.clearTMACoreMeasurements(hierarchy);
+		} else {
+			script = "clearMeasurements(" + cls.getName() + ")";
+			QP.clearMeasurements(hierarchy, cls);
+		}
+	
+		// Keep for scripting
+		WorkflowStep step = new DefaultScriptableWorkflowStep("Clear all measurements", script);
+		imageData.getHistoryWorkflow().addStep(step);
+
+		// Update
+		refreshMeasurements();
+		updateCurrentList();
+		filterText.set("");
+		return true;
+	}
+	
+	
+	private boolean promptToRemoveMeasurements() {
+		var selectedItems = new ArrayList<>(listView.getSelectionModel().getSelectedItems());
+		if (selectedItems.isEmpty()) {
+			Dialogs.showErrorMessage("Remove measurements", "No measurements selected!");
+			return false;
+		}
+		String number = selectedItems.size() == 1 ? String.format("'%s'", selectedItems.iterator().next()) : selectedItems.size() + " measurements";
+		if (!Dialogs.showConfirmDialog("Remove measurements", "Are you sure you want to permanently remove " + number + "?"))
+			return false;
+		
+		String removeString = selectedItems.stream().map(m -> "\"" + m + "\"").collect(Collectors.joining(", "));
+		logger.info("Removing measurements: {}", removeString);
+		Class<? extends PathObject> cls = comboBox.getSelectionModel().getSelectedItem();
+		QP.removeMeasurements(imageData.getHierarchy(), cls, selectedItems.toArray(String[]::new));
+
+		// Keep for scripting
+		WorkflowStep step = new DefaultScriptableWorkflowStep("Remove measurements",
+				String.format("removeMeasurements(%s, %s);", cls.getName(), removeString)
+				);
+		imageData.getHistoryWorkflow().addStep(step);
+
+		// Update
+		refreshMeasurements();
+		updateCurrentList();
+		filterText.set("");
+		return true;
+	}
+	
 	
 	/**
 	 * Update the keyword for filtering the (displayed) currentList
 	 * @param text
 	 */
-	static void updatePredicate(String text) {
+	private void updatePredicate(String text) {
 		if (text == null || text.isBlank())
-			currentList.setPredicate(p -> true);
-		else
-			currentList.setPredicate(p -> p.toLowerCase().contains(text.toLowerCase()));
-		refreshListView();
+			filteredList.setPredicate(p -> true);
+		else {
+			String lower = text.toLowerCase();
+			filteredList.setPredicate(p -> p.toLowerCase().contains(lower));
+		}
 	}
 	
 	/**
@@ -257,18 +343,12 @@ class MeasurementManager {
 	 * @param mapMeasurements
 	 * @param currPathObject
 	 */
-	static void updateCurrentList(Map<Class<? extends PathObject>, Set<String>> mapMeasurements, Class<? extends PathObject> currPathObject) {
-		data = FXCollections.observableArrayList(mapMeasurements.get(currPathObject));
-		currentList = new FilteredList<>(data, s -> true);
-		refreshListView();
-	}
-	
-	/**
-	 * Refresh for display
-	 */
-	static void refreshListView() {
-		listView.getItems().clear();
-		listView.getItems().addAll(currentList);
+	private void updateCurrentList() {
+		var selected = comboBox == null ? null : comboBox.getSelectionModel().getSelectedItem();
+		if (selected == null)
+			measurementList.clear();
+		else
+			measurementList.setAll(mapMeasurements.getOrDefault(selected, Collections.emptySet()));
 	}
 	
 }

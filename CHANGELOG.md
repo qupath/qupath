@@ -33,8 +33,10 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
 * New 'Import objects' option when adding images to a project
   * Supports importing ROIs/overlays from ImageJ TIFF images
 * New preference to optionally invert the orientation of the z-position slide for z-stacks
+* Improved 'Measurement manager' to remove some or all measurements from objects of any type
 * Other bug fixes, including:
   * Local normalization now applied before calculating other features (was applied after in m11)
+  * Show only 'Num detections' if there are detections anywhere in the image
   * Fixed bug in 'Simplify shape' to handle polygons and rectangles properly
   * Fixed bug in command bar display when toggling the analysis pane visibility
   * Fixed bug in 'Create combined training image' that failed to handle unclassified annotations
