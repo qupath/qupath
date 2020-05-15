@@ -23,6 +23,8 @@
 
 package qupath.lib.gui;
 
+import java.awt.Desktop;
+import java.awt.Desktop.Action;
 import java.awt.image.BufferedImage;
 import java.util.Map;
 
@@ -59,8 +61,11 @@ public class QuPathApp extends Application {
 		logger.info("Starting QuPath with parameters: " + params.getRaw());
 		
 		// Try to open a project and/or image, if possible
+		// If we have an unmatched argument, and no image specified, use it as a potential image
+		String unnamed = params.getUnnamed().isEmpty() ? null : params.getUnnamed().get(0);
 		String projectPath = namedParams.getOrDefault("project", null);
-		String imagePath = namedParams.getOrDefault("image", null);
+		String imagePath = namedParams.getOrDefault("image", unnamed);
+		
 		if (projectPath != null) {
 			var uri = GeneralTools.toURI(projectPath);
 			var project = ProjectIO.loadProject(uri, BufferedImage.class);
@@ -77,6 +82,7 @@ public class QuPathApp extends Application {
 			gui.openImage(imagePath, false, false);
 		}
 		
+		registerFileHandler(gui);
 		gui.updateCursor();
 		
 		// Show setup if required, and if we haven't an argument specifying to skip
@@ -94,5 +100,37 @@ public class QuPathApp extends Application {
 		}
 		
 	}
+	
+	/**
+	 * Register a file handler. This needs to be done early, before launching the app (at least for macOS), so that 
+	 * the first event may be captured.
+	 * <p>
+	 * (Alas, here it seems to already be too late)
+	 * @param qupath
+	 * @return true if the file handler could be registered, false otherwise
+	 */
+	private static boolean registerFileHandler(QuPathGUI qupath) {
+		if (Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+			if (desktop.isSupported(Action.APP_OPEN_FILE)) {
+				logger.debug("Registering file handler");
+				Desktop.getDesktop().setOpenFileHandler(e -> {
+					logger.debug("OpenFileHandler is called! {}", e);
+					var files = e.getFiles();
+					if (files.isEmpty())
+						return;
+					if (files.size() > 1) {
+						logger.warn("Received a request to open multiple files - will ignore! {}", files);
+						return;
+					}
+					Platform.runLater(() -> qupath.openImage(files.get(0).getAbsolutePath(), false, false));
+				});	
+				return true;
+			}
+		}
+		logger.debug("Unable to register file handler - operation not supported");
+		return false;
+	}
+	
 
 }

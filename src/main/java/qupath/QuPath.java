@@ -81,25 +81,28 @@ public class QuPath {
 	
 	private final static Logger logger = LoggerFactory.getLogger(QuPath.class);
 	
+	@Parameters(arity = "0..1", description = {"Path to image or project to open"}, hidden = true)
+	private String path;
+
 	@Option(names = {"-r", "--reset"}, description = "Reset all QuPath preferences.")
-	static boolean reset;
+	private boolean reset;
 	
 	@Option(names = {"-q", "--quiet"}, description = "Launch QuPath quietly, without setup dialogs, update checks or messages.")
-	static boolean quiet;
+	private boolean quiet;
 	
 	@Option(names = {"-p", "--project"}, description = "Launch QuPath and open specified project.")
-	static String project;
+	private String project;
 	
 	@Option(names = {"-i", "--image"}, description = {"Launch QuPath and open the specified image.",
 											"This should be the image name if a project is also specified, otherwise the full image path."})
-	static String image;
+	private String image;
 	
 	@Option(names = {"-t", "--tma"}, description = "Launch standalone viewer for TMA summary results.")
-	static boolean tma;
+	private boolean tma;
 
 	@Option(names = {"-l", "--log"}, description = {"Log level (default = INFO).", "Options: ${COMPLETION-CANDIDATES}"} )
-	static LogLevel logLevel = LogLevel.INFO;
-		
+	private LogLevel logLevel = LogLevel.INFO;
+			
 	
 	/**
 	 * Main class to launch QuPath.
@@ -107,10 +110,11 @@ public class QuPath {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		CommandLine cmd = new CommandLine(new QuPath());
+		QuPath qupath = new QuPath();
+		CommandLine cmd = new CommandLine(qupath);
 		cmd.setCaseInsensitiveEnumValuesAllowed(true);
-		cmd.setUnmatchedArgumentsAllowed(false);
-		cmd.setStopAtPositional(true);
+//		cmd.setUnmatchedArgumentsAllowed(false);
+//		cmd.setStopAtPositional(true);
 		cmd.setExpandAtFiles(false);
 		cmd.getSubcommands().get("generate-completion").getCommandSpec().usageMessage().hidden(true);
 		// Check for subcommands loaded in extensions
@@ -135,19 +139,19 @@ public class QuPath {
 			}
 		
 		// Catch -t/--tma
-		if (tma) {
+		if (qupath.tma) {
 			QuPathTMAViewer.launch(QuPathTMAViewer.class);
 			return;
 		}
 		
 		// Catch -r/--reset
-		if (reset) {
+		if (qupath.reset) {
 			PathPrefs.resetPreferences();
 		}
 		
 		// Set log level
-		if (logLevel != null)
-			LogManager.setRootLogLevel(logLevel);
+		if (qupath.logLevel != null)
+			LogManager.setRootLogLevel(qupath.logLevel);
 				
 		// Catch all possible Options, then launch QuPath
 		if (!pr.hasSubcommand()) {
@@ -155,17 +159,21 @@ public class QuPath {
 			// If no subcommand, parse the arguments and launch QuPathApp.
 			List<String> CLIArgs = new ArrayList<String>();
 			
-			if (quiet)
+			if (qupath.path != null && !qupath.path.isBlank()) {
+				CLIArgs.add(qupath.path);
+			}
+			
+			if (qupath.quiet)
 				CLIArgs.add("--quiet=true");
 		
-			if (project != null && !project.equals("") && project.endsWith(ProjectIO.getProjectExtension()))
-				CLIArgs.add("--project=" + project);
+			if (qupath.project != null && !qupath.project.equals("") && qupath.project.endsWith(ProjectIO.getProjectExtension()))
+				CLIArgs.add("--project=" + qupath.project);
 		
-			if (image != null && !image.equals(""))
-				CLIArgs.add("--image=" + image);
+			if (qupath.image != null && !qupath.image.equals(""))
+				CLIArgs.add("--image=" + qupath.image);
 			
 			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
-
+			
 		} else {
 			// Parse and execute subcommand with args
 			int exitCode = cmd.execute(args);
