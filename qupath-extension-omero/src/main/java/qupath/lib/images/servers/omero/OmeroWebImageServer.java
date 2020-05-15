@@ -80,10 +80,10 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	 * 
 	 * Note that there are five URI options currently supported:
 	 * <ul>
-	 * 	<li> Copy and paste from web viewer ("/host/webclient/img_detail/id/")</li>
-	 *  <li> Copy and paste from the 'Link' button ("/host/webclient/?show=id")</li>
-	 *  <li> Copy and paste from the old viewer ("/host/webgateway/img_detail/id")</li>
-	 *  <li> Copy and paste from the new viewer ("/host/iviewer/?images=id")</li>
+	 * 	<li> Copy and paste from web viewer ("{@code /host/webclient/img_detail/id/}")</li>
+	 *  <li> Copy and paste from the 'Link' button ("{@code /host/webclient/?show=id}")</li>
+	 *  <li> Copy and paste from the old viewer ("{@code /host/webgateway/img_detail/id}")</li>
+	 *  <li> Copy and paste from the new viewer ("{@code /host/iviewer/?images=id}")</li>
 	 *  <li> Id provided as only fragment after host</li>
 	 * </ul>
 	 * The fifth option could be removed.

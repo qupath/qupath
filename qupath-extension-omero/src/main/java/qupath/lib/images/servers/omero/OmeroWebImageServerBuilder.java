@@ -96,8 +96,8 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			try {
 				OmeroWebClient client = clients.get(uri.getHost());
 				return new OmeroWebImageServer(uri, client, args);
-			} catch (Exception e1) {
-				logger.error("Problem connecting to OMERO web server with URI: {} - {}", uri.toString(), e1.getLocalizedMessage());
+			} catch (IOException e) {
+				Dialogs.showErrorNotification("OMERO web server", uri.toString() + " - " + e.getLocalizedMessage());
 			}
 		}
 		return null;
@@ -105,9 +105,15 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 
 
 	@Override
-	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) throws IOException {
+	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
 		float supportLevel = supportLevel(uri, args);
-		List<URI> uris = getURIs(uri, args);
+		List<URI> uris = new ArrayList<>();
+		try {
+			uris = getURIs(uri, args);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("OMERO web server", e.getLocalizedMessage());
+		}
+		
 		Collection<ServerBuilder<BufferedImage>> builders = new ArrayList<>();
 		for (var subURI: uris) {
 			try (var server = buildServer(subURI, args)) {
@@ -164,7 +170,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 					authentication = OmeroAuthenticatorFX.getPasswordAuthentication(
 							"Please enter your login details for OMERO server", uri.getHost(), username);
 				if (authentication == null) {
-					logger.warn("Could not log in to {}!", host);
+					logger.warn("Could not log in to {} - No authentification found!", host);
 					return false;
 				}
 				lastUsername = authentication.getUserName();
@@ -172,10 +178,9 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				Arrays.fill(authentication.getPassword(), (char)0);
 				logger.info(result);
 			}
-			
 			return true;
-		} catch (Exception e1) {
-			logger.error("Problem connecting to OMERO web server with URI: {} - {}", uri.toString(), e1.getLocalizedMessage());
+		} catch (Exception e) {
+			Dialogs.showErrorMessage("Omero web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");
 		}
 		return false;
 	}
@@ -199,7 +204,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				client = OmeroWebClient.create(host);
 			} catch (Exception e) {
 				failedHosts.add(host);
-				logger.error("Unable to connect to OMERO server", e);
+				logger.error("Unable to connect to OMERO server", e.getLocalizedMessage());
 			}
 			clients.put(host, client);
 			return 4;
@@ -222,6 +227,19 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		return BufferedImage.class;
 	}
 	
+	/**
+	 * Return a list of valid URIs from the given URI. If no valid URI can be parsed 
+	 * from it, an IOException is thrown.
+	 * 
+	 * <p>
+	 * E.g. "{@code /host/webclient/?show=image=4|image=5}" returns a list containing: 
+	 * "{@code /host/webclient/?show=image=4}" and "{@code /host/webclient/?show=image=5}".
+	 * 
+	 * @param uri
+	 * @param args
+	 * @return list
+	 * @throws IOException
+	 */
 	private List<URI> getURIs(URI uri, String... args) throws IOException {
 		List<URI> list = new ArrayList<>();
         String elemId = "image-";
@@ -248,8 +266,10 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
             while (matcherElem.find()) {
                 list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + uri.getPath() + "?show" + equalSign + "image-" + matcherElem.group(1)));
             }
-            return list;
+        	return list;
         }
+        
+        // At this point, no valid URI pattern was found
         throw new IOException("URI not recognized: " + uri.toString());
 	}
 	
@@ -315,10 +335,15 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         	type="image-";
         	
         case "image-":
+        	if (ids.isEmpty())
+        		throw new IOException("No image found in URI: " + uri.toString());
         	for (int i = 0; i < ids.size(); i++) {
         		String imgId = (i == ids.size()-1) ? ids.get(i) : ids.get(i) + vertBarSign + "image-";
         		sb.append(imgId);        		
         	}
+        	break;
+        default:
+        	throw new IOException("No image found in URI: " + uri.toString());
         }
         
 		return URI.create(sb.toString());
@@ -454,7 +479,6 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 //				e.printStackTrace();
 //			}
 
-			
 			try (InputStream input = connection.getInputStream()) {
 				return GeneralTools.readInputStreamAsString(input);
 			}
