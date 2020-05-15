@@ -82,26 +82,8 @@ public class QuPathApp extends Application {
 			gui.openImage(imagePath, false, false);
 		}
 		
+		registerFileHandler(gui);
 		gui.updateCursor();
-		
-		// Try to set a file handler, if supported
-		logger.debug("Setting OpenFileHandler...");
-		if (Desktop.isDesktopSupported()) {
-			var desktop = Desktop.getDesktop();
-			if (desktop.isSupported(Action.APP_OPEN_FILE)) {
-				Desktop.getDesktop().setOpenFileHandler(e -> {
-					logger.debug("OpenFileHandler is called! {}", e);
-					var files = e.getFiles();
-					if (files.isEmpty())
-						return;
-					if (files.size() > 1) {
-						logger.warn("Received a request to open multiple files - will ignore! {}", files);
-						return;
-					}
-					Platform.runLater(() -> gui.openImage(files.get(0).getAbsolutePath(), false, false));
-				});	
-			}
-		}
 		
 		// Show setup if required, and if we haven't an argument specifying to skip
 		// Store a value indicating the setup version... this means we can enforce running 
@@ -118,5 +100,37 @@ public class QuPathApp extends Application {
 		}
 		
 	}
+	
+	/**
+	 * Register a file handler. This needs to be done early, before launching the app (at least for macOS), so that 
+	 * the first event may be captured.
+	 * <p>
+	 * (Alas, here it seems to already be too late)
+	 * @param qupath
+	 * @return true if the file handler could be registered, false otherwise
+	 */
+	private static boolean registerFileHandler(QuPathGUI qupath) {
+		if (Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+			if (desktop.isSupported(Action.APP_OPEN_FILE)) {
+				logger.debug("Registering file handler");
+				Desktop.getDesktop().setOpenFileHandler(e -> {
+					logger.debug("OpenFileHandler is called! {}", e);
+					var files = e.getFiles();
+					if (files.isEmpty())
+						return;
+					if (files.size() > 1) {
+						logger.warn("Received a request to open multiple files - will ignore! {}", files);
+						return;
+					}
+					Platform.runLater(() -> qupath.openImage(files.get(0).getAbsolutePath(), false, false));
+				});	
+				return true;
+			}
+		}
+		logger.debug("Unable to register file handler - operation not supported");
+		return false;
+	}
+	
 
 }
