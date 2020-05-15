@@ -150,7 +150,6 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
 			GuiTools.bindSliderAndTextField(sliderThreshold, tf);
-			tfSaveName.setPromptText("Enter classifier name (required for scripting)");
 			
 			// Initialize pane
 			pane = new GridPane();
@@ -191,6 +190,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			btnSave.setOnAction(e -> tryToSave());
 			var labelSave = new Label("Classifier name");
 			tfSaveName.setMaxWidth(Double.MAX_VALUE);
+			tfSaveName.setPromptText("Enter object classifier name");
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.disableProperty().bind(comboMeasurements.valueProperty().isNull().or(tfSaveName.textProperty().isEmpty()));
 			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "

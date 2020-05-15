@@ -243,6 +243,38 @@ public class OpenCVTools {
 		return dest;
 	}
 	
+	
+	/**
+	 * Vertical concatenation for a {@link Mat}.
+	 * May be more convenient than OpenCV's built-in approach.
+	 * 
+	 * @param mats mats to concatenate
+	 * @param dest optional destination (may be null)
+	 * @return merged {@link Mat}, which will be the same as dest if provided
+	 */
+	public static Mat vConcat(Collection<? extends Mat> mats, Mat dest) {
+		if (dest == null)
+			dest = new Mat();
+		opencv_core.vconcat(new MatVector(mats.toArray(Mat[]::new)), dest);
+		return dest;
+	}
+	
+	/**
+	 * Horizontal concatenation for a {@link Mat}.
+	 * May be more convenient than OpenCV's built-in approach.
+	 * 
+	 * @param mats mats to concatenate
+	 * @param dest optional destination (may be null)
+	 * @return merged {@link Mat}, which will be the same as dest if provided
+	 */
+	public static Mat hConcat(Collection<? extends Mat> mats, Mat dest) {
+		if (dest == null)
+			dest = new Mat();
+		opencv_core.hconcat(new MatVector(mats.toArray(Mat[]::new)), dest);
+		return dest;
+	}
+	
+	
 	/**
 	 * Apply a method that modifies a {@link Mat} in-place to all 
 	 * channels of the {@link Mat}, merging the result and storing the result in-place.

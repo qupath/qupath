@@ -43,5 +43,10 @@ class NormalizedFeatureExtractor<T> implements FeatureExtractor<T> {
 			}
 		}
 	}
+	
+	@Override
+	public Collection<String> getMissingFeatures(ImageData<T> imageData, PathObject pathObject) {
+		return featureExtractor.getMissingFeatures(imageData, pathObject);
+	}
 
 }

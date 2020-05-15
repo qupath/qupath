@@ -39,4 +39,14 @@ public interface FeatureExtractor<T> {
 	 */
 	public void extractFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, FloatBuffer buffer);
 	
+	/**
+	 * Check for missing features, returning the names.
+	 * This is useful as a warning that the input for the feature extractor may not be valid.
+	 * Default implementation returns an empty list; however, implementations should attempt to provide a meaningful 
+	 * output if possible.
+	 * @param imageData image containing the objects to test
+	 * @param pathObject object to test for missing feature
+	 * @return a collection of feature names that correspond to missing features
+	 */
+	Collection<String> getMissingFeatures(ImageData<T> imageData, PathObject pathObject);
 }

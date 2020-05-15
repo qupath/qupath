@@ -384,6 +384,14 @@ public class ObjectClassifiers {
 			this.pathClassEquals = pathClassEquals == PathClassFactory.getPathClassUnclassified() ? null : pathClassEquals;
 			this.pathClassAbove = pathClassAbove == PathClassFactory.getPathClassUnclassified() ? null : pathClassAbove;
 		}
+		
+		/**
+		 * Get the name of the measurement used for classification.
+		 * @return
+		 */
+		public String getMeasurement() {
+			return measurement;
+		}
 
 		@Override
 		public PathClass apply(PathObject pathObject) {
