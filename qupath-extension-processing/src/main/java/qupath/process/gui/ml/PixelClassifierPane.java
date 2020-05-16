@@ -303,8 +303,14 @@ public class PixelClassifierPane {
 		var btnProject = new Button("Load training");
 		btnProject.setTooltip(new Tooltip("Train using annotations from more images in the current project"));
 		btnProject.setOnAction(e -> {
-			if (promptToLoadTrainingImages())
+			if (promptToLoadTrainingImages()) {
 				updateClassifier();
+				int n = trainingEntries.size();
+				if (n > 0)
+					btnProject.setText("Load training (" + n + ")");
+				else
+					btnProject.setText("Load training");
+			}
 		});
 		btnProject.disableProperty().bind(qupath.projectProperty().isNull());
 		

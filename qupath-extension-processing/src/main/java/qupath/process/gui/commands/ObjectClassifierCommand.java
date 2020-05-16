@@ -537,6 +537,12 @@ public class ObjectClassifierCommand implements Runnable {
 
 				if (training.isEmpty() || Thread.interrupted())
 					return null;
+				
+				long nTrainingObjects = training.stream().mapToLong(t -> t.map.size()).sum();
+				if (nTrainingObjects <= 1L) {
+					Dialogs.showErrorNotification("Object classifier", "You need to annotate objects with at least two classifications to train a classifier!");
+					return null;
+				}
 
 				var classifier = createClassifier(
 						training,
@@ -547,8 +553,14 @@ public class ObjectClassifierCommand implements Runnable {
 						pcaRetained,
 						multiclass
 						);
-				if (classifier == null || Thread.interrupted())
+				
+				if (Thread.interrupted())
 					return null;
+				
+				if (classifier == null) {
+					Dialogs.showErrorNotification("Object classifier", "Unable to train object classifier with the current settings!");
+					return null;
+				}
 
 				if (doClassification) {
 					for (var viewer : qupath.getViewers()) {
@@ -566,27 +578,86 @@ public class ObjectClassifierCommand implements Runnable {
 			});
 		}
 
-
-		private List<String> getRequestedMeasurements() {
-			var imageData = qupath.getImageData();
-			if (imageData == null)
+			
+		/**
+		 * Extract training annotations from a collection of images.
+		 * @param trainingImageData
+		 * @return a collection of classified annotations suitable for training
+		 */
+		private Collection<PathObject> getTrainingAnnotations(Collection<ImageData<BufferedImage>> trainingImageData) {
+			if (trainingImageData.isEmpty())
 				return Collections.emptyList();
-
-			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
-				return new ArrayList<>(selectedMeasurements);
-
-			// Extract the relevant objects
+			var annotationType = this.trainingAnnotations.get();
+			if (trainingImageData.size() == 1)
+				return getTrainingAnnotations(trainingImageData.iterator().next().getHierarchy(), annotationType);
+			
+			var trainingAnnotations = new ArrayList<PathObject>();
+			for (var imageData : trainingImageData) {
+				trainingAnnotations.addAll(getTrainingAnnotations(imageData.getHierarchy(), annotationType));
+			}
+			return trainingAnnotations;
+		}
+		
+		/**
+		 * Extract training annotations from a collection of images.
+		 * @param trainingImageData
+		 * @param includeIntersection if true, retain only measurements found in all images
+		 * @return a collection of measurement names
+		 */
+		private Collection<String> getAllMeasurements(Collection<ImageData<BufferedImage>> trainingImageData, boolean includeIntersection) {
+			if (trainingImageData.isEmpty())
+				return Collections.emptyList();
+			
 			var filter = objectFilter.get();
+			if (trainingImageData.size() == 1) {
+				return getAllMeasurements(trainingImageData.iterator().next(), filter);
+			}
+			var allMeasurements = new LinkedHashSet<String>();
+			var firstMeasurements = new LinkedHashSet<String>();
+			boolean firstChanges = false;
+			for (var imageData : trainingImageData) {
+				var newMeasurements = getAllMeasurements(imageData, filter);
+				if (includeIntersection) {
+					if (firstMeasurements.isEmpty()) {
+						firstMeasurements.addAll(newMeasurements);
+						allMeasurements.addAll(firstMeasurements);
+					} else {
+						if (allMeasurements.retainAll(newMeasurements) && firstChanges) {
+							logger.warn("Different measurements found in different training images! Available measurements will be restricted to the intersection of these.");
+						}
+					}
+				} else
+					allMeasurements.addAll(newMeasurements);
+			}
+			return allMeasurements;
+		}
+		
+		private Collection<String> getAllMeasurements(ImageData<?> imageData, PathObjectFilter filter) {
 			var detections = imageData.getHierarchy()
 					.getFlattenedObjectList(null)
 					.stream()
 					.filter(filter)
 					.collect(Collectors.toList());
+			return PathClassifierTools.getAvailableFeatures(detections);
+		}
+		
 
-			var allMeasurements = PathClassifierTools.getAvailableFeatures(detections);
+		private List<String> getRequestedMeasurements() {
+
+			var trainingImageData = getTrainingImageData();
+			if (trainingImageData.isEmpty())
+				return Collections.emptyList();
+
+			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
+				return new ArrayList<>(selectedMeasurements);
+
+			// Get all the available measurements
+			var allMeasurements = getAllMeasurements(trainingImageData, true);
+			
+			// Filter out the irrelevant measurements, if needed
 			if (trainingFeatures.get() == TrainingFeatures.FILTERED) {
+				var trainingAnnotations = getTrainingAnnotations(trainingImageData);
 				var measurements = new ArrayList<String>();
-				var trainingAnnotations = getTrainingAnnotations(imageData.getHierarchy(), this.trainingAnnotations.get());
 				var filterText = trainingAnnotations.stream().distinct().map(a -> a.getPathClass().toString().toLowerCase().trim()).collect(Collectors.toSet());
 				for (var m : allMeasurements) {
 					for (var f : filterText) {
@@ -675,6 +746,14 @@ public class ObjectClassifierCommand implements Runnable {
 				boolean doMulticlass) {
 
 			var pathClasses = getPathClasses(training);
+			
+			if (pathClasses.isEmpty()) {
+				logger.warn("No compatible training data found!");
+				return null;
+			}
+			
+			if (training.size() > 1)
+				logger.info("Creating training data from {} images", training.size());
 
 			extractor = updateFeatureExtractorAndTrainClassifier(
 					statModel,
@@ -835,6 +914,11 @@ public class ObjectClassifierCommand implements Runnable {
 				matFeaturesList.add(matFeatures);
 				matTargetsList.add(matTargets);
 			}
+			
+			if (matFeaturesList.isEmpty()) {
+				logger.warn("No features found!");
+				return null;
+			}
 
 			var matFeatures = OpenCVTools.vConcat(matFeaturesList, null);
 			var matTargets = OpenCVTools.vConcat(matTargetsList, null);
@@ -972,11 +1056,13 @@ public class ObjectClassifierCommand implements Runnable {
 				try {
 					var project = qupath.getProject();
 					if (project != null) {
-						if (!classifierName.isBlank()) {
-							classifierName = GeneralTools.stripInvalidFilenameChars(classifierName);
-							project.getObjectClassifiers().put(classifierName, classifier);
-							logger.info("Classifier saved to project as {}", classifierName);
-						}
+						var allClassifiers = project.getObjectClassifiers();
+						// TODO: Consider case matching where required!
+						if (allClassifiers.getNames().contains(classifierName) && !
+								Dialogs.showConfirmDialog("Object classifiers", "Overwrite existing classifier \"" + classifierName + "\""))
+							return false;
+						project.getObjectClassifiers().put(classifierName, classifier);
+						logger.info("Classifier saved to project as {}", classifierName);
 					} else {
 						var file = Dialogs.promptToSaveFile("Save object classifier", null, classifierName, "Object classifier", ".obj.json");
 						if (file == null)
@@ -984,6 +1070,7 @@ public class ObjectClassifierCommand implements Runnable {
 						classifierName = file.getAbsolutePath();
 						ObjectClassifiers.writeClassifier(classifier, file.toPath());
 					}
+					Dialogs.showInfoNotification("Object classifiers", "Saved classifier as \"" + classifierName + "\"");
 					// We want to now apply classifier to all images & log to workflow
 					// (might be redundant, but we do want to make sure that we are logging the classifier we applied)
 					for (var viewer : qupath.getViewers()) {
@@ -999,7 +1086,7 @@ public class ObjectClassifierCommand implements Runnable {
 					logger.error("Error attempting to save classifier " + e.getLocalizedMessage(), e);
 				}
 			}
-			logger.warn("Classifier could not be saved!");
+			Dialogs.showWarningNotification("Object classifiers", "Unable to save classifier!");
 			return false;
 		}
 
@@ -1166,8 +1253,14 @@ public class ObjectClassifierCommand implements Runnable {
 			var btnLoadTraining = new Button("Load training");
 			btnLoadTraining.setTooltip(new Tooltip("Train using annotations from more images in the current project"));
 			btnLoadTraining.setOnAction(e -> {
-				if (promptToLoadTrainingImages())
+				if (promptToLoadTrainingImages()) {
 					invalidateClassifier();
+					int n = trainingEntries.size();
+					if (n > 0)
+						btnLoadTraining.setText("Load training (" + n + ")");
+					else
+						btnLoadTraining.setText("Load training");
+				}
 			});
 			
 			var btnAdvancedOptions = new Button("Advanced options");
@@ -1253,15 +1346,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 
 		boolean promptToSelectFeatures() {
-			var imageData = qupath.getImageData();
-			if (imageData == null)
-				return false;
-			var detections = imageData.getHierarchy().getFlattenedObjectList(null)
-					.stream()
-					.filter(objectFilter.get())
-					.collect(Collectors.toList());
-
-			var measurements = PathClassifierTools.getAvailableFeatures(detections);
+			var measurements = getAllMeasurements(getTrainingImageData(), true);
 			if (measurements.isEmpty()) {
 				Dialogs.showErrorMessage("Select features", "No features available for specified objects!");
 				return false;
@@ -1269,23 +1354,38 @@ public class ObjectClassifierCommand implements Runnable {
 
 			var featuresPane = new SelectionPane<>(measurements, true);
 			featuresPane.selectItems(selectedMeasurements);
-			if (!Dialogs.showConfirmDialog("Select features", featuresPane.getPane()))
+			
+			if (Dialogs.builder()
+				.title("Select features")
+				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+				.content(featuresPane.getPane())
+				.showAndWait()
+				.orElse(ButtonType.CANCEL) != ButtonType.APPLY)
 				return false;
+			
 			selectedMeasurements.clear();
 			selectedMeasurements.addAll(featuresPane.getSelectedItems());
 			return true;
 		}
 
 		boolean promptToSelectClasses() {
-			var imageData = qupath.getImageData();
-			if (imageData == null)
+			var annotations = getTrainingAnnotations(getTrainingImageData());
+			if (annotations.isEmpty()) {
+				Dialogs.showErrorMessage("Object classifier", "No annotations found for training!");
 				return false;
-			var annotations = getTrainingAnnotations(imageData.getHierarchy(), trainingAnnotations.get());
+			}
 			var pathClasses = annotations.stream().map(p -> p.getPathClass()).collect(Collectors.toCollection(TreeSet::new));
 			var classesPane = new SelectionPane<>(pathClasses, true);
 			classesPane.selectItems(selectedClasses);
-			if (!Dialogs.showConfirmDialog("Select classes", classesPane.getPane()))
-				return false;
+			
+			if (Dialogs.builder()
+					.title("Select classes")
+					.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+					.content(classesPane.getPane())
+					.showAndWait()
+					.orElse(ButtonType.CANCEL) != ButtonType.APPLY)
+					return false;
+			
 			selectedClasses.clear();
 			selectedClasses.addAll(classesPane.getSelectedItems());
 			return true;

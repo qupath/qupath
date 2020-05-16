@@ -365,6 +365,7 @@ public class OpenCVClassifiers {
 		 */
 		public void trainWithLock(TrainData trainData) {
 			var statModel = getStatModel();
+			opencv_core.setRNGSeed(1012);
 			updateModel(statModel, getParameterList(), trainData);
 //			statModel.train(trainData);
 			statModel.train(trainData, getTrainFlags());
