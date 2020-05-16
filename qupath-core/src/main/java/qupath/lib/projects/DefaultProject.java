@@ -783,7 +783,8 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public String getSummary() {
 			StringBuilder sb = new StringBuilder();
-			sb.append(getImageName()).append("\n\n");
+			sb.append(getImageName()).append("\n");
+			sb.append("ID:\t").append(getID()).append("\n\n");
 			if (!getMetadataMap().isEmpty()) {
 				for (Entry<String, String> mapEntry : getMetadataMap().entrySet()) {
 					sb.append(mapEntry.getKey()).append(":\t").append(mapEntry.getValue()).append("\n");
