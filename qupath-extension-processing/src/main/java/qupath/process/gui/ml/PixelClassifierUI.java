@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -15,24 +17,34 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringExpression;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
+import javafx.geometry.Side;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.gui.viewer.RegionFilter.StandardRegionFilters;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.writers.ImageWriter;
+import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -91,7 +103,12 @@ public class PixelClassifierUI {
 	 */
 	public static Pane createPixelClassifierButtons(ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<PixelClassifier> classifier, StringExpression classifierName) {
 	
-		BooleanBinding disableButtons = imageData.isNull().or(classifier.isNull()).or(classifierName.isEmpty());
+		BooleanProperty allowWithoutSaving = new SimpleBooleanProperty(false);
+		
+		BooleanBinding disableButtons = imageData.isNull()
+				.or(classifier.isNull())
+				.or(classifierName.isEmpty().and(allowWithoutSaving.not()));
+		
 		
 		var btnCreateObjects = new Button("Create objects");
 		btnCreateObjects.disableProperty().bind(disableButtons);
@@ -117,7 +134,26 @@ public class PixelClassifierUI {
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
 		
-		return PaneTools.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
+		var paneMain = PaneTools.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
+		
+		// Add some more options
+		var menu = new ContextMenu();
+		var miWithoutSaving = new CheckMenuItem("Enable buttons for unsaved classifiers");
+		miWithoutSaving.selectedProperty().bindBidirectional(allowWithoutSaving);
+		var miSavePrediction = new MenuItem("Save prediction image");
+		miSavePrediction.setOnAction(e -> promptToSavePredictionImage(imageData.get(), classifier.get(), classifierName.get()));
+		miSavePrediction.disableProperty().bind(disableButtons);
+		
+		menu.getItems().addAll(
+				miSavePrediction,
+				miWithoutSaving
+				);
+		
+		var btnAdvanced = GuiTools.createMoreButton(menu, Side.RIGHT);
+		
+		var pane = new BorderPane(paneMain);
+		pane.setRight(btnAdvanced);
+		return pane;
 	}
 	
 	/**
@@ -193,7 +229,42 @@ public class PixelClassifierUI {
 	}
 	
 	
-	private static boolean promptToClassifyDetectionsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, String  classifierName) {
+	private static boolean promptToSavePredictionImage(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
+		Objects.requireNonNull(imageData);
+		Objects.requireNonNull(classifier);
+		
+		var server = PixelClassifierTools.createPixelClassificationServer(imageData, classifier);
+		ImageWriter<BufferedImage> writer;
+		var allWriters = ImageWriterTools.getCompatibleWriters(server, "ome.tif");
+		if (allWriters == null || allWriters.isEmpty()) {
+			allWriters = ImageWriterTools.getCompatibleWriters(server, null);
+		}
+		if (allWriters.isEmpty()) {
+			Dialogs.showErrorMessage("Save prediction", "Sorry, I could not find any compatible image writers!");
+			return false;
+		} else if (allWriters.size() > 1) {
+			Map<String, ImageWriter<BufferedImage>> map = new LinkedHashMap<>();
+			for (var w : allWriters)
+				map.put(w.getName(), w);
+			var choice = Dialogs.showChoiceDialog("Save prediction", "Choose image writer", map.keySet(), map.keySet().iterator().next());
+			writer = choice == null ? null : map.get(choice);
+			if (writer == null)
+				return false;
+		} else
+			writer = allWriters.iterator().next();
+
+		var file = Dialogs.promptToSaveFile("Save prediction", null, classifierName, writer.getName(), writer.getDefaultExtension());
+		try {
+			writer.writeImage(server, file.getAbsolutePath());
+		} catch (IOException e) {
+			Dialogs.showErrorMessage("Save prediction", e);
+		}
+		
+		return true;
+	}
+	
+	
+	private static boolean promptToClassifyDetectionsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(classifier);
 		
@@ -222,7 +293,7 @@ public class PixelClassifierUI {
 	 * 						 workflow of the {@link ImageData} for later scripting.
 	 * @return true if changes were made, false otherwise
 	 */
-	private static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String  classifierName) {
+	private static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(classifier);
 
