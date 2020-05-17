@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -83,6 +84,8 @@ public class PixelClassifierTools {
 				return "Include ignored";
 			case SPLIT:
 				return "Split";
+			case SELECT_NEW:
+				return "Select new";
 			default:
 				throw new IllegalArgumentException("Unknown option " + this);
     		}
@@ -167,8 +170,32 @@ public class PixelClassifierTools {
 		
 		Map<PathObject, Collection<PathObject>> map = new LinkedHashMap<>();
 		boolean firstWarning = true;
-		var parentObjects = new ArrayList<>(selectedObjects); // In case the collection might be changed elsewhere...
+		List<PathObject> parentObjects = new ArrayList<>(selectedObjects); // In case the collection might be changed elsewhere...
+		
+		// Sort in descending order of area; this is because some potential child objects might have been removed already by the time they are required
+		parentObjects = parentObjects.stream().filter(p -> p.isRootObject() || (p.hasROI() && p.getROI().isArea()))
+				.sorted(Comparator.comparing(PathObject::getROI, Comparator.nullsFirst(Comparator.comparingDouble(ROI::getArea).reversed())))
+				.collect(Collectors.toList());
+		
+		List<PathObject> completed = new ArrayList<>();
+		List<PathObject> toDeselect = new ArrayList<>();
 		for (var pathObject : parentObjects) {
+			// If we are clearing existing objects, we don't need to worry about creating objects inside others that will later be deleted
+			if (clearExisting) {
+				boolean willRemove = false;
+				for (var possibleAncestor : completed) {
+					if (PathObjectTools.isAncestor(pathObject, possibleAncestor)) {
+						willRemove = true;
+						break;
+					}
+				}
+				if (willRemove) {
+					toDeselect.add(pathObject);
+					logger.warn("Skipping {} during object creation (is descendent of an object that is already being processed)", pathObject);
+					continue;
+				}
+			}
+			
 			var children = createObjectsFromPixelClassifier(server, pathObject.getROI(),
 					creator, minArea, minHoleArea, doSplit, includeIgnored);
 			// Sanity check - don't allow non-detection objects to be added to detections
@@ -182,6 +209,7 @@ public class PixelClassifierTools {
 					toSelect.addAll(children);
 				map.put(pathObject, children);
 			}
+			completed.add(pathObject);
 			if (Thread.currentThread().isInterrupted())
 				return false;
 		}
@@ -202,6 +230,8 @@ public class PixelClassifierTools {
 		if (toSelect != null) {
 			toSelect = toSelect.stream().filter(p -> PathObjectTools.hierarchyContainsObject(hierarchy, p)).collect(Collectors.toSet());
 			hierarchy.getSelectionModel().setSelectedObjects(toSelect, null);
+		} else if (!toDeselect.isEmpty()) {
+			hierarchy.getSelectionModel().deselectObjects(toDeselect);
 		}
 		
 		return true;
@@ -281,7 +311,11 @@ public class PixelClassifierTools {
 		if (labels == null || labels.isEmpty())
 			throw new IllegalArgumentException("Cannot create objects for server - no classification labels are available!");
 		
-		var clipArea = roi == null ? null : roi.getGeometry();
+		if (roi != null && !roi.isArea()) {
+			logger.warn("Cannot create objects for non-area ROIs");
+			return Collections.emptyList();
+		}
+		Geometry clipArea = roi == null ? null : roi.getGeometry();
 		
 		// Identify regions for selected ROI or entire image
 		// This is a list because it might need to handle multiple z-slices or timepoints
@@ -347,8 +381,10 @@ public class PixelClassifierTools {
 							Geometry geometry = roiDetected.getGeometry();
 							if (clipArea != null)
 								geometry = geometry.intersection(clipArea);
-							if (!geometry.isEmpty())
+							if (!geometry.isEmpty() && geometry.getArea() > 0) {
+								// Exclude lines/points that can sometimes arise
 								list.add(new GeometryWrapper(geometry, pathClass, roiDetected.getImagePlane()));
+							}
 						}
 					}
 				} catch (Exception e) {
