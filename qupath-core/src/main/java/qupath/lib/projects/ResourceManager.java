@@ -11,11 +11,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.reflect.TypeToken;
 
@@ -28,6 +32,9 @@ import qupath.lib.io.GsonTools;
  * Examples may include pixel classifiers or scripts.
  * By using this it is possible to avoid reliance on a filesystem, for example, 
  * opening the possibility to have resources stored elsewhere.
+ * <p>
+ * Note that names may be case-insensitive, depending upon the specific backing store.
+ * This is the case for the default implementations using file storage.
  * 
  * @author Pete Bankhead
  */
@@ -76,34 +83,57 @@ public class ResourceManager {
 		 * @throws IOException
 		 */
 		public boolean remove(String name) throws IOException;
+		
+		/**
+		 * Returns true if the manager knows a resource with the specified name exists.
+		 * @param name the name to check
+		 * @return true if a resource with the name exists, false otherwise
+		 * @throws IOException
+		 */
+		default public boolean contains(String name) throws IOException {
+			var names = getNames();
+			for (var n : names) {
+				if (name.equalsIgnoreCase(n))
+					return true;
+			}
+			return false;
+		}
 			
+	}
+	
+	
+	private static Map<String, Path> getNameMap(Path path, String ext) throws IOException {
+		if (path == null || !Files.isDirectory(path))
+			return Collections.emptyMap();
+		return Files.list(path)
+				.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext))
+				.collect(Collectors.toMap(p -> nameWithoutExtension(p, ext), p -> p));
+	}
+	
+	private static Collection<String> listFilenames(Path path, String ext) throws IOException {
+		return getNameMap(path, ext).keySet();
+	}
+	
+	private static String nameWithoutExtension(Path path, String ext) {
+		String name = path.getFileName().toString();
+		if (name.endsWith(ext))
+			return name.substring(0, name.length()-ext.length());
+		return name;
+	}
+	
+	private static Path ensureDirectoryExists(Path path) throws IOException {
+		if (!Files.isDirectory(path))
+			Files.createDirectories(path);
+		return path;
 	}
 
 
 	abstract static class FileResourceManager<T> implements Manager<T> {
 		
+		private final static Logger logger = LoggerFactory.getLogger(FileResourceManager.class);
+		
 		protected String ext;
 		protected Path dir;
-		
-		private List<String> listFilenames(Path path, String ext) throws IOException {
-			if (!Files.isDirectory(path))
-				return Collections.emptyList();
-			var list = Files.list(path).filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext)).map(p -> nameWithoutExtension(p, ext)).collect(Collectors.toList());
-			return list;
-		}
-		
-		private String nameWithoutExtension(Path path, String ext) {
-			String name = path.getFileName().toString();
-			if (name.endsWith(ext))
-				return name.substring(0, name.length()-ext.length());
-			return name;
-		}
-		
-		Path ensureDirectoryExists(Path path) throws IOException {
-			if (!Files.isDirectory(path))
-				Files.createDirectories(path);
-			return path;
-		}
 		
 		FileResourceManager(Path dir, String ext) {
 			this.dir = dir;
@@ -125,13 +155,66 @@ public class ResourceManager {
 		 */
 		@Override
 		public boolean remove(String name) throws IOException {
-			var path = Paths.get(dir.toString(), name + ext);
-			if (Files.exists(path)) {
+			var path = getPathForName(name, true);
+			if (path != null && Files.exists(path)) {
+				logger.debug("Delating resource '{}' from {}", name, path);
 				GeneralTools.deleteFile(path.toFile(), true);
 				return true;
 			}
 			return false;
 		}
+		
+		protected abstract T readFromFile(Path path) throws IOException;
+		
+		protected abstract void writeToFile(Path path, T resource) throws IOException;
+		
+		@Override
+		public T get(String name) throws IOException {
+			var path = getPathForName(name, true);
+			if (path != null && Files.exists(path)) {
+				logger.debug("Reading resource '{}' from {}", name, path);
+				return readFromFile(path);
+			}
+			throw new IOException("No resource found with name '" + name + "'");
+		}
+
+		@Override
+		public void put(String name, T resource) throws IOException {
+			var path = getPathForName(name, false);
+			logger.debug("Writing resource '{}' to {}", name, path);
+			writeToFile(path, resource);
+			// Because this is case-insensitive, update the case if we need to
+			var pathRequested = Paths.get(dir.toString(), name + ext);
+			if (!path.equals(pathRequested)) {
+				logger.debug("Renaming {} to {}", path, pathRequested);
+				Files.move(path, pathRequested, StandardCopyOption.ATOMIC_MOVE);
+			}
+		}
+		
+		/**
+		 * Get the {@link Path} for a specific name.
+		 * If a file exists with the specific name (ignoring case), this will be returned.
+		 * Otherwise, a new path will be created if nullIfMissing is false.
+		 * @param name
+		 * @param nullIfMissing
+		 * @return
+		 * @throws IOException
+		 */
+		protected Path getPathForName(String name, boolean nullIfMissing) throws IOException {
+			var map = getNameMap(dir, ext);
+			var path = map.getOrDefault(name, null);
+			if (path == null) {
+				for (var entry : map.entrySet()) {
+					if (name.equalsIgnoreCase(entry.getKey()))
+						return entry.getValue();
+				}
+			}
+			if (nullIfMissing)
+				return null;
+			ensureDirectoryExists(dir);
+			return Paths.get(dir.toString(), name + ext);
+		}
+		
 		
 	}
 
@@ -149,16 +232,12 @@ public class ResourceManager {
 		}
 
 		@Override
-		public String get(String name) throws IOException {
-			var path = Paths.get(dir.toString(), name + ext);
-			if (Files.exists(path))
-				return Files.readString(path, charset);
-			throw new IOException("No script found with name '" + name + "'");
+		protected String readFromFile(Path path) throws IOException {
+			return Files.readString(path, charset);
 		}
 
 		@Override
-		public void put(String name, String resource) throws IOException {
-			var path = Paths.get(ensureDirectoryExists(dir).toString(), name + ext);
+		protected void writeToFile(Path path, String resource) throws IOException {
 			Files.writeString(path, resource, charset, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
 		}
 		
@@ -175,18 +254,17 @@ public class ResourceManager {
 		}
 
 		@Override
-		public ImageServer<T> get(String name) throws IOException {
-			var path = Paths.get(dir.toString(), name + ext);
+		protected ImageServer<T> readFromFile(Path path) throws IOException {
 			try (var reader = Files.newBufferedReader(path)) {
 				return GsonTools.getInstance().fromJson(reader, new TypeToken<ImageServer<T>>() {}.getType());
 			}
 		}
 
 		@Override
-		public void put(String name, ImageServer<T> server) throws IOException {
-			var path = Paths.get(ensureDirectoryExists(dir).toString(), name + ext);
-			var json = GsonTools.getInstance().toJson(server);
-			Files.writeString(path, json, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+		protected void writeToFile(Path path, ImageServer<T> resource) throws IOException {
+			try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+				GsonTools.getInstance().toJson(resource, writer);
+			}
 		}
 		
 	}
@@ -202,8 +280,7 @@ public class ResourceManager {
 		}
 
 		@Override
-		public T get(String name) throws IOException {
-			var path = Paths.get(dir.toString(), name + ext);
+		protected T readFromFile(Path path) throws IOException {
 			try (var stream = Files.newInputStream(path)) {
 				return cls.cast(new ObjectInputStream(new BufferedInputStream(stream)).readObject());
 			} catch (ClassNotFoundException e) {
@@ -212,8 +289,7 @@ public class ResourceManager {
 		}
 
 		@Override
-		public void put(String name, T resource) throws IOException {
-			var path = Paths.get(dir.toString(), name + ext);
+		protected void writeToFile(Path path, T resource) throws IOException {
 			try (var stream = Files.newOutputStream(path)) {
 				new ObjectOutputStream(new BufferedOutputStream(stream)).writeObject(resource);
 			}
@@ -234,24 +310,16 @@ public class ResourceManager {
 		}
 
 		@Override
-		public T get(String name) throws IOException {
-			var path = Paths.get(dir.toString(), name + ext);
+		protected T readFromFile(Path path) throws IOException {
 			try (var reader = Files.newBufferedReader(path, charset)) {
 				return GsonTools.getInstance().fromJson(reader, cls);
 			}
 		}
 
 		@Override
-		public void put(String name, T resource) throws IOException {
-			if (!Files.exists(dir))
-				Files.createDirectories(dir);
-			var path = Paths.get(dir.toString(), name + ext);
-			
+		protected void writeToFile(Path path, T resource) throws IOException {
 			try (var writer = Files.newBufferedWriter(path, charset, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
 				var gson = GsonTools.getInstance(true);
-//				String json = gson.toJson(resource, cls);
-//				writer.write(gson.toJson(resource, cls));
-//				writer.write(json);
 				gson.toJson(resource, cls, writer);
 			}
 		}

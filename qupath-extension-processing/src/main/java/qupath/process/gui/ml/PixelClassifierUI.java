@@ -62,7 +62,7 @@ public class PixelClassifierUI {
 	public static ComboBox<RegionFilter> createRegionFilterCombo(OverlayOptions options) {
 		var comboRegion = new ComboBox<RegionFilter>();
 //		comboRegion.getItems().addAll(StandardRegionFilters.values());
-		comboRegion.getItems().addAll(StandardRegionFilters.EVERYWHERE, StandardRegionFilters.ANY_ANNOTATIONS);
+		comboRegion.getItems().addAll(StandardRegionFilters.EVERYWHERE, StandardRegionFilters.ANY_OBJECTS, StandardRegionFilters.ANY_ANNOTATIONS);
 		var selected = options.getPixelClassificationRegionFilter();
 		if (!comboRegion.getItems().contains(selected))
 			comboRegion.getItems().add(selected);
@@ -157,8 +157,12 @@ public class PixelClassifierUI {
 		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
 		PaneTools.setToExpandGridPaneWidth(tfClassifierName);
 		pane.setHgap(5);
+		
+		ProjectClassifierBindings.bindPixelClassifierNameInput(tfClassifierName, project);
+		
 		return pane;
 	}
+	
 	
 	
 	private static String tryToSave(Project<?> project, PixelClassifier classifier, String name, boolean overwriteQuietly) {
@@ -173,7 +177,7 @@ public class PixelClassifierUI {
 		}
 		try {
 			var classifiers = project.getPixelClassifiers();
-			if (!overwriteQuietly && classifiers.getNames().contains(name)) {
+			if (!overwriteQuietly && classifiers.contains(name)) {
 				if (!Dialogs.showYesNoDialog("Pixel classifier", "Overwrite existing classifier '" + name + "'?"))
 					return null;
 			}
@@ -252,7 +256,7 @@ public class PixelClassifierUI {
 					.addChoiceParameter("objectType", "New object type", "Annotation", outputObjectTypes)
 					.addDoubleParameter("minSize", "Minimum object size", 0, units, "Minimum size of a region to keep (smaller regions will be dropped)")
 					.addDoubleParameter("minHoleSize", "Minimum hole size", 0, units, "Minimum size of a hole to keep (smaller holes will be filled)")
-					.addBooleanParameter("doSplit", "Split objects", true,
+					.addBooleanParameter("doSplit", "Split objects", false,
 							"Split multi-part regions into separate objects")
 					.addBooleanParameter("clearExisting", "Delete existing objects", false,
 							"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)");

@@ -1,7 +1,6 @@
 package qupath.lib.classifiers.object;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 
 import qupath.lib.images.ImageData;

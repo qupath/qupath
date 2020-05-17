@@ -26,6 +26,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
+import qupath.process.gui.ml.ProjectClassifierBindings;
 
 /**
  * Command to create a composite classifier by merging together two or more other classifiers.
@@ -71,6 +72,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 		var paneName = new GridPane();
 		var labelName = new Label("Classifier name");
 		var tfName = new TextField();
+		ProjectClassifierBindings.bindObjectClassifierNameInput(tfName, qupath.projectProperty());
 		tfName.setPromptText("Enter composite classifier name");
 		labelName.setLabelFor(tfName);
 		PaneTools.setMaxWidth(Double.MAX_VALUE, tfName);
@@ -141,7 +143,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 			
 			name = name == null ? null : GeneralTools.stripInvalidFilenameChars(name);
 			if (project != null && name != null && !name.isBlank()) {
-				if (project.getObjectClassifiers().getNames().contains(name)) {
+				if (project.getObjectClassifiers().contains(name)) {
 					if (!Dialogs.showConfirmDialog(title, "Overwrite existing classifier called '" + name + "'?"))
 						return null;
 				}

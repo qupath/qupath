@@ -129,6 +129,7 @@ import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.objects.features.Preprocessing;
 import qupath.opencv.tools.OpenCVTools;
+import qupath.process.gui.ml.ProjectClassifierBindings;
 
 
 /**
@@ -1057,8 +1058,7 @@ public class ObjectClassifierCommand implements Runnable {
 					var project = qupath.getProject();
 					if (project != null) {
 						var allClassifiers = project.getObjectClassifiers();
-						// TODO: Consider case matching where required!
-						if (allClassifiers.getNames().contains(classifierName) && !
+						if (allClassifiers.contains(name) && !
 								Dialogs.showConfirmDialog("Object classifiers", "Overwrite existing classifier \"" + classifierName + "\""))
 							return false;
 						project.getObjectClassifiers().put(classifierName, classifier);
@@ -1316,6 +1316,7 @@ public class ObjectClassifierCommand implements Runnable {
 			var tfSaveName = new TextField("");
 			tfSaveName.setMaxWidth(Double.MAX_VALUE);
 			tfSaveName.setPromptText("Enter object classifier name");
+			ProjectClassifierBindings.bindObjectClassifierNameInput(tfSaveName, qupath.projectProperty());
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.disableProperty().bind(
 					tfSaveName.textProperty().isEmpty()
