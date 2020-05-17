@@ -39,11 +39,14 @@ import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
 /**
  * Helper class for generating standardized UI components for pixel classification.
@@ -243,6 +246,12 @@ public class PixelClassifierUI {
 		var outputObjectTypes = Arrays.asList(
 				"Annotation", "Detection"
 				);
+		
+		// To avoid confusing the user unnecessary, if we *only* have ignored classes then set default for includeIgnored to true
+		boolean includeIgnored = false;
+		var labels = classifier.getMetadata().getClassificationLabels();
+		if (!labels.isEmpty() && labels.values().stream().allMatch(p -> p == null || PathClassTools.isIgnoredClass(p)))
+			includeIgnored = true;
 
 		var cal = imageData.getServer().getPixelCalibration();
 		var units = cal.unitsMatch2D() ? cal.getPixelWidthUnit()+"^2" : cal.getPixelWidthUnit() + "x" + cal.getPixelHeightUnit();
@@ -251,6 +260,7 @@ public class PixelClassifierUI {
 		if (lastCreateObjectParams != null) {
 			params = lastCreateObjectParams.duplicate();
 			params.setHiddenParameters(false, params.getKeyValueParameters(true).keySet().toArray(String[]::new));
+			((BooleanParameter)params.getParameters().get("includeIgnored")).setValue(includeIgnored);
 		} else {
 			params = new ParameterList()
 					.addChoiceParameter("objectType", "New object type", "Annotation", outputObjectTypes)
@@ -259,49 +269,66 @@ public class PixelClassifierUI {
 					.addBooleanParameter("doSplit", "Split objects", false,
 							"Split multi-part regions into separate objects")
 					.addBooleanParameter("clearExisting", "Delete existing objects", false,
-							"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)");
+							"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)")
+					.addBooleanParameter("includeIgnored", "Create objects for ignored classes", includeIgnored,
+							"Create objects for classifications that are usually ignored (e.g. \"Ignore*\", \"Region*\")")
+					.addBooleanParameter("selectNew", "Set new objects to selected", false,
+							"Set the newly-created objects to be selected");
 		}
-
+		
 		if (!Dialogs.showParameterDialog("Create objects", params))
 			return false;
 
 		boolean createDetections = params.getChoiceParameterValue("objectType").equals("Detection");
 		boolean doSplit = params.getBooleanParameterValue("doSplit");
+		includeIgnored = params.getBooleanParameterValue("includeIgnored");
 		double minSize = params.getDoubleParameterValue("minSize");
 		double minHoleSize = params.getDoubleParameterValue("minHoleSize");
 		boolean clearExisting = params.getBooleanParameterValue("clearExisting");
+		boolean selectNew = params.getBooleanParameterValue("selectNew");
 
 		lastCreateObjectParams = params;
 
 		parentChoice.handleSelection(imageData);
+		
+		List<CreateObjectOptions> options = new ArrayList<>();
+		if (doSplit)
+			options.add(CreateObjectOptions.SPLIT);
+		if (clearExisting)
+			options.add(CreateObjectOptions.DELETE_EXISTING);
+		if (includeIgnored)
+			options.add(CreateObjectOptions.INCLUDE_IGNORED);
+		if (selectNew)
+			options.add(CreateObjectOptions.SELECT_NEW);
+		
+		var optionsArray = options.toArray(CreateObjectOptions[]::new);
+		String optionsString = "";
+		if (!options.isEmpty())
+			optionsString = ", " + options.stream().map(o -> "\"" + o.name() + "\"").collect(Collectors.joining(", "));
 
 		if (createDetections) {
-			if (PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, doSplit, clearExisting)) {
+			if (PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)) {
 				if (classifierName != null) {
 					imageData.getHistoryWorkflow().addStep(
 							new DefaultScriptableWorkflowStep("Pixel classifier create detections",
-									String.format("createDetectionsFromPixelClassifier(\"%s\", %s, %s, %s, %s)",
+									String.format("createDetectionsFromPixelClassifier(\"%s\", %s, %s)",
 											classifierName,
 											minSize,
-											minHoleSize,
-											doSplit,
-											clearExisting)
+											minHoleSize + optionsString)
 									)
 							);
 				}
 				return true;
 			}
 		} else {
-			if (PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, doSplit, clearExisting)) {
+			if (PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)) {
 				if (classifierName != null) {
 					imageData.getHistoryWorkflow().addStep(
 							new DefaultScriptableWorkflowStep("Pixel classifier create annotations",
-									String.format("createAnnotationsFromPixelClassifier(\"%s\", %s, %s, %s, %s)",
+									String.format("createAnnotationsFromPixelClassifier(\"%s\", %s, %s)",
 											classifierName,
 											minSize,
-											minHoleSize,
-											doSplit,
-											clearExisting)
+											minHoleSize + optionsString)
 									)
 							);
 				}

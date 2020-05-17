@@ -109,6 +109,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.OpenCVTools;
@@ -2853,7 +2854,7 @@ public class QP {
 			if (project != null) {
 				try {
 					var objectClassifiers = project.getObjectClassifiers();
-					if (objectClassifiers.getNames().contains(name))
+					if (objectClassifiers.contains(name))
 						classifier = objectClassifiers.get(name);
 				} catch (Exception e) {
 					exception = e;
@@ -2896,7 +2897,7 @@ public class QP {
 		if (project != null) {
 			try {
 				var pixelClassifiers = project.getPixelClassifiers();
-				if (pixelClassifiers.getNames().contains(name))
+				if (pixelClassifiers.contains(name))
 					return pixelClassifiers.get(name);
 			} catch (Exception e) {
 				exception = e;
@@ -2942,13 +2943,12 @@ public class QP {
 	 * @param classifierName the name of the pixel classifier
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
-	 * @param doSplit if true, split connected regions into separate objects
-	 * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
 	 * @see #loadPixelClassifier(String)
 	 */
 	public static void createDetectionsFromPixelClassifier(
-			String classifierName, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
-		createDetectionsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, doSplit, clearExisting);
+			String classifierName, double minArea, double minHoleArea, String... options) {
+		createDetectionsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, options);
 	}
 
 	/**
@@ -2958,13 +2958,28 @@ public class QP {
 	 * @param classifier the pixel classifier
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
-	 * @param doSplit if true, split connected regions into separate objects
-	 * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
 	 */
 	public static void createDetectionsFromPixelClassifier(
-			PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			PixelClassifier classifier, double minArea, double minHoleArea, String... options) {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
-		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, doSplit, clearExisting);
+		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseCreateObjectOptions(options));
+	}
+	
+	
+	private static CreateObjectOptions[] parseCreateObjectOptions(String... names) {
+		if (names == null || names.length == 1)
+			return new CreateObjectOptions[0];
+		var objectOptions = new HashSet<CreateObjectOptions>();
+		for (var optionName : names) {
+			try {
+				var option = CreateObjectOptions.valueOf(optionName);
+				objectOptions.add(option);
+			} catch (Exception e) {
+				logger.warn("Could not parse option {}", optionName);
+			}
+		}
+		return objectOptions.toArray(CreateObjectOptions[]::new);
 	}
 	 
 	
@@ -2975,13 +2990,12 @@ public class QP {
 	 * @param classifierName the name of the pixel classifier
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
-	 * @param doSplit if true, split connected regions into separate objects
-	 * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
 	 * @see #loadPixelClassifier(String)
 	 */
 	public static void createAnnotationsFromPixelClassifier(
-			String classifierName, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
-		createAnnotationsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, doSplit, clearExisting);
+			String classifierName, double minArea, double minHoleArea, String... options) {
+		createAnnotationsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, options);
 	}
 
 	/**
@@ -2991,13 +3005,12 @@ public class QP {
 	 * @param classifier the pixel classifier
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
-	 * @param doSplit if true, split connected regions into separate objects
-	 * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
 	 */
 	public static void createAnnotationsFromPixelClassifier(
-			PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			PixelClassifier classifier, double minArea, double minHoleArea, String... options) {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
-		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, doSplit, clearExisting);
+		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseCreateObjectOptions(options));
 	}
 	
 	

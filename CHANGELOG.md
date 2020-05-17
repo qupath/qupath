@@ -7,9 +7,11 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
   * Train classifiers using annotations from unopened images in the same project ('Load training' button)
   * Better standardization of classifier training dialogs
   * Random Trees classifiers now have seeds set properly
+  * Classifier names are case-insensitive (to reduce issues if potentially overwriting files)
 * Many other pixel classifier improvements
   * Finally scriptable! Scripting commands automatically recorded - requires that the classifier is saved in a project
   * New 'Measure' button to store measurements after the classifier is closed, for any object type (including detections)
+  * More control over how objects are created
   * More control over the regions where the classifier is applied in 'live' preview mode
   * Default classifier is now ANN (often better & much faster than Random Trees)
 * 'Classify -> Object classification -> Set cell intensity classification' now works for all detections if no cells are present

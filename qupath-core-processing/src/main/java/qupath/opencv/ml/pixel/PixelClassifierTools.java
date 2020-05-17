@@ -15,6 +15,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.Reclassifier;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -28,11 +29,14 @@ import java.awt.image.DataBufferByte;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -47,6 +51,47 @@ public class PixelClassifierTools {
     private static final Logger logger = LoggerFactory.getLogger(PixelClassifierTools.class);
 
     
+    /**
+     * Options when creating objects from a pixel classifier.
+     * <p>
+     * This exists to avoid requiring numerous boolean arguments.
+     */
+    public enum CreateObjectOptions {
+    	/**
+    	 * Delete existing child objects
+    	 */
+    	DELETE_EXISTING,
+    	/**
+    	 * Split connected components
+    	 */
+    	SPLIT,
+    	/**
+    	 * Generate objects for ignored classes (default is not to)
+    	 */
+    	INCLUDE_IGNORED,
+    	/**
+    	 * Set the new objects to be selected
+    	 */
+    	SELECT_NEW;
+    	
+    	@Override
+    	public String toString() {
+    		switch(this) {
+			case DELETE_EXISTING:
+				return "Delete existing";
+			case INCLUDE_IGNORED:
+				return "Include ignored";
+			case SPLIT:
+				return "Split";
+			default:
+				throw new IllegalArgumentException("Unknown option " + this);
+    		}
+    	}
+    	
+    }
+    
+    
+    
 	/**
 	 * Create detection objects based upon an {@link ImageServer} that provides classification or probability output, 
 	 * applied to selected objects. If no objects are selected, objects are created across the entire image.
@@ -56,13 +101,12 @@ public class PixelClassifierTools {
 	 * @param classifierServer
      * @param minArea the minimum area of connected regions to retain
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
-     * @param doSplit if true, split connected regions into separate objects
-     * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
 	 */
     public static boolean createDetectionsFromPixelClassifier(
 			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, 
-			double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			double minArea, double minHoleArea, CreateObjectOptions... options) {
 		var selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty())
 			selected = Collections.singleton(hierarchy.getRootObject());
@@ -71,7 +115,7 @@ public class PixelClassifierTools {
 				hierarchy,
 				selected,
 				(var roi) -> PathObjects.createDetectionObject(roi),
-				minArea, minHoleArea, doSplit, clearExisting);
+				minArea, minHoleArea, options);
 	}
     
     /**
@@ -82,16 +126,15 @@ public class PixelClassifierTools {
      * @param classifier the pixel classifier
      * @param minArea the minimum area of connected regions to retain
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
-     * @param doSplit if true, split connected regions into separate objects
-     * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
      */
     public static boolean createDetectionsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
 		return createDetectionsFromPixelClassifier(
 				imageData.getHierarchy(),
 				new PixelClassificationImageServer(imageData, classifier),
-				minArea, minHoleArea, doSplit, clearExisting);
+				minArea, minHoleArea, options);
 	}
 	
 	/**
@@ -103,33 +146,42 @@ public class PixelClassifierTools {
 	 * @param creator function to create an object of the required type
 	 * @param minArea the minimum size of a connected region to retain, in calibrated units
 	 * @param minHoleArea the minimum size of a hole to retain, in calibrated units
-	 * @param doSplit optionally split a multipolygon into distinct pieces
-	 * @param clearExisting remove existing objects
+     * @param options additional options to control how objects are created
 	 * 
 	 * @return true if the command ran successfully to completion, false otherwise.
 	 * @see GeometryTools#refineAreas(Geometry, double, double)
 	 */
 	public static boolean createObjectsFromPredictions(
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
-			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, CreateObjectOptions... options) {
 		
 		if (selectedObjects.isEmpty())
 			return false;
+		
+		var optionSet = new HashSet<>(Arrays.asList(options));
+		boolean doSplit = optionSet.contains(CreateObjectOptions.SPLIT);
+		boolean includeIgnored = optionSet.contains(CreateObjectOptions.INCLUDE_IGNORED);
+		boolean clearExisting = optionSet.contains(CreateObjectOptions.DELETE_EXISTING);
+		
+		Set<PathObject> toSelect = optionSet.contains(CreateObjectOptions.SELECT_NEW) ? new HashSet<>() : null;
 		
 		Map<PathObject, Collection<PathObject>> map = new LinkedHashMap<>();
 		boolean firstWarning = true;
 		var parentObjects = new ArrayList<>(selectedObjects); // In case the collection might be changed elsewhere...
 		for (var pathObject : parentObjects) {
 			var children = createObjectsFromPixelClassifier(server, pathObject.getROI(),
-					creator, minArea, minHoleArea, doSplit);
+					creator, minArea, minHoleArea, doSplit, includeIgnored);
 			// Sanity check - don't allow non-detection objects to be added to detections
 			if (pathObject.isDetection() && children.stream().anyMatch(p -> !p.isDetection())) {
 				if (firstWarning) {
 					logger.warn("Cannot add non-detection objects to detections! Objects will be skipped...");
 					firstWarning = false;
 				}
-			} else
+			} else {
+				if (toSelect != null)
+					toSelect.addAll(children);
 				map.put(pathObject, children);
+			}
 			if (Thread.currentThread().isInterrupted())
 				return false;
 		}
@@ -146,6 +198,12 @@ public class PixelClassifierTools {
 			hierarchy.fireHierarchyChangedEvent(null, map.keySet().iterator().next());
 		else if (map.size() > 1)
 			hierarchy.fireHierarchyChangedEvent(null);
+		
+		if (toSelect != null) {
+			toSelect = toSelect.stream().filter(p -> PathObjectTools.hierarchyContainsObject(hierarchy, p)).collect(Collectors.toSet());
+			hierarchy.getSelectionModel().setSelectedObjects(toSelect, null);
+		}
+		
 		return true;
 	}
 	
@@ -158,16 +216,15 @@ public class PixelClassifierTools {
      * @param classifier the pixel classifier
      * @param minArea the minimum area of connected regions to retain
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
-     * @param doSplit if true, split connected regions into separate objects
-     * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
      */
 	public static boolean createAnnotationsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
 		return createAnnotationsFromPixelClassifier(
 				imageData.getHierarchy(),
 				new PixelClassificationImageServer(imageData, classifier),
-				minArea, minHoleArea, doSplit, clearExisting);
+				minArea, minHoleArea, options);
 	}
 	
 	
@@ -180,12 +237,11 @@ public class PixelClassifierTools {
 	 * @param classifierServer
      * @param minArea the minimum area of connected regions to retain
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
-     * @param doSplit if true, split connected regions into separate objects
-     * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
 	 */
 	public static boolean createAnnotationsFromPixelClassifier(
-			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, double minArea, double minHoleArea, CreateObjectOptions... options) {
 		var selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty())
 			selected = Collections.singleton(hierarchy.getRootObject());
@@ -200,8 +256,7 @@ public class PixelClassifierTools {
 				},
 				minArea,
 				minHoleArea,
-				doSplit,
-				clearExisting);
+				options);
 	}
 	
 
@@ -214,11 +269,12 @@ public class PixelClassifierTools {
 	 * @param minArea minimum area for an object fragment to retain, in calibrated units based on the pixel calibration
 	 * @param minHoleArea minimum area for a hole to fill, in calibrated units based on the pixel calibration
      * @param doSplit if true, split connected regions into separate objects
+	 * @param includeIgnored if true, create object for (non-null) classes that are normally ignored; see {@link PathClassTools#isIgnoredClass(PathClass)}
 	 * @return the objects created within the ROI
 	 */
 	public static Collection<PathObject> createObjectsFromPixelClassifier(
 			ImageServer<BufferedImage> server, ROI roi, 
-			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, boolean doSplit) {
+			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, boolean doSplit, boolean includeIgnored) {
 		
 		// We need classification labels to do anything
 		var labels = server.getMetadata().getClassificationLabels();
@@ -281,8 +337,10 @@ public class PixelClassifierTools {
 					for (var entry : labels.entrySet()) {
 						int c = entry.getKey();
 						PathClass pathClass = entry.getValue();
-						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
+						if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified() || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))
 							continue;
+//						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
+//							continue;
 						ROI roiDetected = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
 						if (roiDetected != null)  {
