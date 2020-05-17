@@ -93,7 +93,7 @@ public class PixelClassifiers {
 	 * @throws IOException
 	 */
 	public static void writeClassifier(PixelClassifier classifier, Path path) throws IOException {
-		try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
+		try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
 			GsonTools.getInstance(true).toJson(classifier, writer);
 		}
 	}

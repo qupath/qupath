@@ -291,7 +291,7 @@ public class PathPrefs {
 					}
 					logger.info("Setting JVM option to {}", memory);
 					Files.copy(config, Paths.get(config.toString() + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
-					Files.write(config, lines, StandardOpenOption.WRITE);
+					Files.write(config, lines);
 					return;
 				} catch (Exception e) {
 					logger.error("Unable to set max memory", e);

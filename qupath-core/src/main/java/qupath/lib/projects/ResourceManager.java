@@ -12,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -209,6 +208,8 @@ public class ResourceManager {
 						return entry.getValue();
 				}
 			}
+			if (path != null)
+				return path;
 			if (nullIfMissing)
 				return null;
 			ensureDirectoryExists(dir);
@@ -238,7 +239,7 @@ public class ResourceManager {
 
 		@Override
 		protected void writeToFile(Path path, String resource) throws IOException {
-			Files.writeString(path, resource, charset, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+			Files.writeString(path, resource, charset);
 		}
 		
 	}
@@ -262,7 +263,7 @@ public class ResourceManager {
 
 		@Override
 		protected void writeToFile(Path path, ImageServer<T> resource) throws IOException {
-			try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+			try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
 				GsonTools.getInstance().toJson(resource, writer);
 			}
 		}
@@ -318,7 +319,7 @@ public class ResourceManager {
 
 		@Override
 		protected void writeToFile(Path path, T resource) throws IOException {
-			try (var writer = Files.newBufferedWriter(path, charset, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+			try (var writer = Files.newBufferedWriter(path, charset)) {
 				var gson = GsonTools.getInstance(true);
 				gson.toJson(resource, cls, writer);
 			}

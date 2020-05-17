@@ -429,7 +429,7 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	public void saveScript(String name, String script) throws IOException {
 		var path = Paths.get(ensureDirectoryExists(getScriptsPath()).toString(), name + EXT_SCRIPT);
-		Files.writeString(path, script, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+		Files.writeString(path, script);
 	}
 	
 	private AtomicLong counter = new AtomicLong(0L);
@@ -757,7 +757,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			
 			var pathSummary = getDataSummaryPath();
-			try (var out = Files.newBufferedWriter(pathSummary, StandardCharsets.UTF_8, StandardOpenOption.CREATE)) {
+			try (var out = Files.newBufferedWriter(pathSummary, StandardCharsets.UTF_8)) {
 				GsonTools.getInstance().toJson(new ImageDataSummary(imageData, timestamp), out);
 			}			
 
