@@ -1322,7 +1322,11 @@ public class ObjectClassifierCommand implements Runnable {
 					tfSaveName.textProperty().isEmpty()
 					.or(qupath.projectProperty().isNull())
 					.or(qupath.imageDataProperty().isNull()));
-			btnSave.setOnAction(e -> tryToSave(tfSaveName.getText()));
+			btnSave.setOnAction(e -> {
+				tryToSave(tfSaveName.getText());
+				tfSaveName.requestFocus();
+				btnSave.requestFocus();
+			});
 			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
 					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
 									

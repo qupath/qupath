@@ -188,7 +188,11 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Turn on/off live preview while changing settings", cbLivePreview, cbLivePreview, cbLivePreview);
 
 			var btnSave = new Button("Save");
-			btnSave.setOnAction(e -> tryToSave());
+			btnSave.setOnAction(e -> {
+				tryToSave();
+				tfSaveName.requestFocus();
+				btnSave.requestFocus();
+			});
 			var labelSave = new Label("Classifier name");
 			tfSaveName.setMaxWidth(Double.MAX_VALUE);
 			tfSaveName.setPromptText("Enter object classifier name");

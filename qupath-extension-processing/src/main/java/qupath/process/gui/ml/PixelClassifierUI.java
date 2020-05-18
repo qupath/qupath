@@ -182,6 +182,8 @@ public class PixelClassifierUI {
 			if (name != null) {
 				Dialogs.showInfoNotification("Pixel classifier", "Classifier saved as \"" + name + "\"");
 				savedName.set(name);
+				tfClassifierName.requestFocus();
+				btnSave.requestFocus();
 			}
 		});
 		btnSave.disableProperty().bind(
@@ -198,6 +200,7 @@ public class PixelClassifierUI {
 		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
 		PaneTools.setToExpandGridPaneWidth(tfClassifierName);
 		pane.setHgap(5);
+		
 		
 		ProjectClassifierBindings.bindPixelClassifierNameInput(tfClassifierName, project);
 		

@@ -81,7 +81,11 @@ public class CreateCompositeClassifierCommand implements Runnable {
 		
 		Button btnSave = new Button("Save");
 		btnSave.setTooltip(new Tooltip("Save the composite classifier without applying it"));
-		btnSave.setOnAction(e -> tryToSave(qupath.getProject(), view.getTargetItems(), tfName.getText()));
+		btnSave.setOnAction(e -> {
+			tryToSave(qupath.getProject(), view.getTargetItems(), tfName.getText());
+			tfName.requestFocus();
+			btnSave.requestFocus();
+		});
 		
 		PaneTools.addGridRow(paneName, 0, 0, "Enter a name for the composite classifier", labelName, tfName, btnSave);
 		paneName.setHgap(5.0);
