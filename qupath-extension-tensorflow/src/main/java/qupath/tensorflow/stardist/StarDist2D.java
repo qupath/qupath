@@ -335,6 +335,11 @@ public class StarDist2D {
 		 * Note that this can be used in combination with {@link #preprocess(ImageOp...)}, 
 		 * in which case the order in which the operations are applied depends upon the order 
 		 * in which the methods of the builder are called.
+		 * <p>
+		 * Warning! This is applied on a per-tile basis. This can result in artifacts and false detections 
+		 * without background/constant regions. 
+		 * Consider using {@link #inputAdd(double...)} and {@link #inputScale(double...)} as alternative 
+		 * normalization strategies, if appropriate constants can be determined to apply globally.
 		 * 
 		 * @param min minimum percentile
 		 * @param max maximum percentile
@@ -342,6 +347,38 @@ public class StarDist2D {
 		 */
 		public Builder normalizePercentiles(double min, double max) {
 			this.ops.add(ImageOps.Normalize.percentile(min, max));
+			return this;
+		}
+		
+		/**
+		 * Add an offset as a preprocessing step.
+		 * Usually the value will be negative. Along with {@link #inputScale(double...)} this can be used as an alternative (global) normalization.
+		 * <p>
+		 * Note that this can be used in combination with {@link #preprocess(ImageOp...)}, 
+		 * in which case the order in which the operations are applied depends upon the order 
+		 * in which the methods of the builder are called.
+		 * 
+		 * @param values either a single value to add to all channels, or an array of values equal to the number of channels
+		 * @return this builder
+		 */
+		public Builder inputAdd(double... values) {
+			this.ops.add(ImageOps.Core.add(values));
+			return this;
+		}
+		
+		/**
+		 * Multiply by a scale factor as a preprocessing step.
+		 * Along with {@link #inputAdd(double...)} this can be used as an alternative (global) normalization.
+		 * <p>
+		 * Note that this can be used in combination with {@link #preprocess(ImageOp...)}, 
+		 * in which case the order in which the operations are applied depends upon the order 
+		 * in which the methods of the builder are called.
+		 * 
+		 * @param values either a single value to add to all channels, or an array of values equal to the number of channels
+		 * @return this builder
+		 */
+		public Builder inputScale(double... values) {
+			this.ops.add(ImageOps.Core.subtract(values));
 			return this;
 		}
 		

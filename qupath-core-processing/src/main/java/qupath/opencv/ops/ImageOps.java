@@ -1108,6 +1108,12 @@ public class ImageOps {
 				return input;
 			}
 			
+			/**
+			 * Get or compute a threshold for the single-channel image mat.
+			 * @param mat the mat for which a threshold should be calculated
+			 * @param channel the original channel number (sometimes required, e.g. if absolute thresholds are stored in an array)
+			 * @return the threshold for the specified channel
+			 */
 			public abstract double getThreshold(Mat mat, int channel);
 			
 		}
