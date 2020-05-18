@@ -39,7 +39,6 @@ import qupath.lib.plugins.objects.DilateAnnotationPlugin;
 import qupath.lib.plugins.objects.FillAnnotationHolesPlugin;
 import qupath.lib.plugins.objects.FindConvexHullDetectionsPlugin;
 import qupath.lib.plugins.objects.RefineAnnotationsPlugin;
-import qupath.lib.plugins.objects.ShapeFeaturesPlugin;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 

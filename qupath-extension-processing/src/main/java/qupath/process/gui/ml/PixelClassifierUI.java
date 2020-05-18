@@ -179,8 +179,10 @@ public class PixelClassifierUI {
 		var btnSave = new Button("Save");
 		btnSave.setOnAction(e -> {
 			var name = tryToSave(project.get(), classifier.get(), tfClassifierName.getText(), false);
-			if (name != null)
+			if (name != null) {
+				Dialogs.showInfoNotification("Pixel classifier", "Classifier saved as \"" + name + "\"");
 				savedName.set(name);
+			}
 		});
 		btnSave.disableProperty().bind(
 				classifier.isNull()
@@ -254,6 +256,8 @@ public class PixelClassifierUI {
 			writer = allWriters.iterator().next();
 
 		var file = Dialogs.promptToSaveFile("Save prediction", null, classifierName, writer.getName(), writer.getDefaultExtension());
+		if (file == null)
+			return false;
 		try {
 			writer.writeImage(server, file.getAbsolutePath());
 		} catch (IOException e) {
@@ -334,7 +338,7 @@ public class PixelClassifierUI {
 			((BooleanParameter)params.getParameters().get("includeIgnored")).setValue(includeIgnored);
 		} else {
 			params = new ParameterList()
-					.addChoiceParameter("objectType", "New object type", "Annotation", outputObjectTypes)
+					.addChoiceParameter("objectType", "New object type", "Annotation", outputObjectTypes, "Define the type of objects that will be created")
 					.addDoubleParameter("minSize", "Minimum object size", 0, units, "Minimum size of a region to keep (smaller regions will be dropped)")
 					.addDoubleParameter("minHoleSize", "Minimum hole size", 0, units, "Minimum size of a hole to keep (smaller holes will be filled)")
 					.addBooleanParameter("doSplit", "Split objects", false,
