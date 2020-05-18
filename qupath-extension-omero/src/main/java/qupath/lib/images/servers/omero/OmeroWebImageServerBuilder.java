@@ -20,6 +20,7 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -449,20 +450,27 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			connection.setDoInput(true);
 			connection.setDoOutput(true);
 			
-			// To avoid storing the password in a String: create ByteBuffers and concatenate them, then convert to byte[]
-			String s = String.join("&", "server=" + serverID, "username=" + authentication.getUserName(), "password=");
-			CharBuffer charBuffer = CharBuffer.wrap(authentication.getPassword());
-			ByteBuffer byteBuffer = ByteBuffer.allocate(charBuffer.length() + s.length());
-			byteBuffer.put(s.getBytes("UTF-8")).put(Charset.forName("UTF-8").encode(charBuffer)).flip();
-			byte[] out = Arrays.copyOf(byteBuffer.array(), byteBuffer.remaining());
 			
-			// Fill the traces of password with '0'
-			Arrays.fill(charBuffer.array(), (char) 0);
-			Arrays.fill(byteBuffer.array(), (byte) 0);
-			Arrays.fill(authentication.getPassword(), (char) 0);
-			
+			var charset = StandardCharsets.UTF_8;
 			try (OutputStream stream = connection.getOutputStream()) {
-				stream.write(out);
+				// To avoid storing the password in a String: create ByteBuffers and concatenate them, then convert to byte[]
+				String s = String.join("&", "server=" + serverID, "username=" + authentication.getUserName(), "password=");
+				CharBuffer charBuffer = CharBuffer.wrap(authentication.getPassword());
+				byte[] sBytes = s.getBytes(charset);
+				byte[] out = new byte[sBytes.length + charBuffer.length() * 4];
+				ByteBuffer byteBuffer = ByteBuffer.wrap(out);
+				byteBuffer.put(sBytes);
+				var encoder = charset.newEncoder();
+				encoder.encode(CharBuffer.wrap(charBuffer), byteBuffer, true);
+				stream.write(out, 0, byteBuffer.position());
+				
+				// Fill the traces of password with '0'
+				Arrays.fill(authentication.getPassword(), (char) 0);
+				Arrays.fill(out, (byte)0);
+				Arrays.fill(charBuffer.array(), (char)0);
+				Arrays.fill(byteBuffer.array(), (byte)0);
+				encoder.reset();
+				System.gc();
 			}
 
 //	        var client = HttpClient.newBuilder()

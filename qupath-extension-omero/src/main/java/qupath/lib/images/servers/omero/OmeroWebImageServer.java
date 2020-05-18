@@ -18,12 +18,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -31,13 +31,10 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
+import qupath.lib.images.servers.omero.OmeroShapes.OmeroShape;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
 
 /**
  * ImageServer that reads pixels using the OMERO web API.
@@ -170,9 +167,16 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				pixelsType = meta.get("pixelsType").getAsString();
 		}
 		
-		if (sizeC != 3 || pixelsType != null && !"uint8".equals(pixelsType))
+		
+		List<ImageChannel> channels = null;
+		if (sizeC == 3)
+			channels = ImageChannel.getDefaultRGBChannels();
+//		else if (sizeC == 1)
+//			channels = ImageChannel.getDefaultChannelList(1);
+		
+		if (channels == null || (pixelsType != null && !"uint8".equals(pixelsType)))
 			throw new IOException("Only 8-bit RGB images supported! Selected image has " + sizeC + " channel(s) & pixel type " + pixelsType);
-
+			
 		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(sizeX, sizeY);
 		
 		if (map.getAsJsonPrimitive("tiles").getAsBoolean()) {
@@ -248,6 +252,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	 * @return
 	 * @throws IOException
 	 */
+	@Override
 	public Collection<PathObject> readPathObjects() throws IOException {
 
 		//		URL urlROIs = new URL(
@@ -261,84 +266,21 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 
 		List<PathObject> list = new ArrayList<>();
 		try (InputStreamReader reader = new InputStreamReader(urlROIs.openStream())) {
-			JsonArray roisJson = new Gson().fromJson(reader, JsonObject.class).getAsJsonObject().getAsJsonArray("data");
+			
+			var gson = new GsonBuilder().registerTypeAdapter(OmeroShape.class, new OmeroShapes.GsonShapeDeserializer()).setLenient().create();
+			
+			JsonArray roisJson = gson.fromJson(reader, JsonObject.class).getAsJsonObject().getAsJsonArray("data");
 			for (int i = 0; i < roisJson.size(); i++) {
 				JsonObject roiJson = roisJson.get(i).getAsJsonObject();
 				JsonArray shapesJson = roiJson.getAsJsonArray("shapes");
-
+				
 				for (int j = 0; j < shapesJson.size(); j++) {
-					JsonObject shapeJson = shapesJson.get(j).getAsJsonObject();
-
-					int z = 0;
-					int t = 0;
-
-					List<Point2> points = null;
-					ROI roi = null;
-					String text = null;
-					Integer color = null;
-
-					double x = 0, y = 0, x2 = 0, y2 = 0, width = 0, height = 0;
-					if (shapeJson.has("Points")) {
-						points = new ArrayList<>();
-						for (String p : shapeJson.get("Points").getAsString().split(" ")) {
-							String[] p2 = p.split(",");
-							points.add(new Point2(Double.parseDouble(p2[0]), Double.parseDouble(p2[1])));
-						}
-					}
-					if (shapeJson.has("x"))
-						x = shapeJson.get("x").getAsDouble();
-					if (shapeJson.has("y"))
-						y = shapeJson.get("y").getAsDouble();
-					if (shapeJson.has("x2"))
-						x2 = shapeJson.get("x2").getAsDouble();
-					if (shapeJson.has("y2"))
-						y2 = shapeJson.get("y2").getAsDouble();
-					if (shapeJson.has("width"))
-						width = shapeJson.get("width").getAsDouble();
-					if (shapeJson.has("height"))
-						height = shapeJson.get("height").getAsDouble();
-
-					if (shapeJson.has("TheT"))
-						t = shapeJson.get("TheT").getAsInt();
-					if (shapeJson.has("TheZ"))
-						z = shapeJson.get("TheZ").getAsInt();
-					if (shapeJson.has("Text"))
-						text = shapeJson.get("Text").getAsString();
-					if (shapeJson.has("StrokeColor")) {
-						color = shapeJson.get("StrokeColor").getAsInt();
-					}
-
-					ImagePlane plane = ImagePlane.getPlane(z, t);
-
-					String type = shapeJson.get("@type").getAsString().toLowerCase();
-					if (type.endsWith("#line")) {
-						logger.debug("Found a line: " + id);
-						ROIs.createLineROI(x, y, x2, y2, plane);
-					} else if (type.endsWith("#rectangle")) {
-						logger.debug("Found a rectangle: " + id);
-						roi = ROIs.createRectangleROI(x, y, width, height, plane);
-					} else if (type.endsWith("#ellipse")) {
-						logger.debug("Found an ellipse: " + id);
-						roi = ROIs.createEllipseROI(x, y, width, height, plane);
-					} else if (type.endsWith("#point")) {
-						logger.debug("Found a point: " + id);
-						roi = ROIs.createPointsROI(points, plane);
-					} else if (type.endsWith("#polyline")) {
-						logger.debug("Found a polyline: " + id);
-						roi = ROIs.createPolylineROI(points, plane);
-					} else if (type.endsWith("#polygon")) {
-						logger.debug("Found a polygon: " + id);
-						roi = ROIs.createPolygonROI(points, plane);
-					} else if (type.endsWith("#label")) {
-						logger.warn("I found a label and I don't know what to do with it: " + id);
-					}
-					if (roi != null) {
-						PathObject annotation = PathObjects.createAnnotationObject(roi);
-						if (text != null)
-							annotation.setName(text);
-						if (color != null)
-							annotation.setColorRGB(color);
-						list.add(annotation);
+					try {
+						var shape = gson.fromJson(shapesJson.get(j), OmeroShape.class);
+						if (shape != null)
+							list.add(shape.createAnnotation());
+					} catch (Exception e) {
+						logger.error("Error parsing shape: " + e.getLocalizedMessage(), e);
 					}
 				}
 			}
@@ -347,9 +289,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 
 		return list;
 	}
-
-
-
+	
+	
 	@Override
 	public String getServerType() {
 		return "OMERO web server";
