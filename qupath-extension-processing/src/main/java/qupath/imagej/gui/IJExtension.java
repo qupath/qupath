@@ -434,40 +434,23 @@ public class IJExtension implements QuPathExtension {
 	@SuppressWarnings("javadoc")
 	public static class IJExtensionCommands {
 
-		@ActionMenu("Analyze>Region identification>Tiles & superpixels>")
+		@ActionMenu("Analyze>Tiles & superpixels>")
 		public final Action SEP_0 = ActionTools.createSeparator();
 
-		@ActionMenu("Analyze>Region identification>Tiles & superpixels>")
+		@ActionMenu("Analyze>Tiles & superpixels>")
 		@ActionDescription("Create superpixel tiles using the SLIC method.")
 		public final Action actionSLIC;
 		
-		@ActionMenu("Analyze>Region identification>Tiles & superpixels>")
+		@ActionMenu("Analyze>Tiles & superpixels>")
 		@ActionDescription("Create superpixel tiles using a Difference of Gaussians method.")
 		public final Action actionDoG;
 		
-		@ActionMenu("Analyze>Region identification>Tiles & superpixels>")
+		@ActionMenu("Analyze>Tiles & superpixels>")
 		public final Action SEP_1 = ActionTools.createSeparator();
 		
-		@ActionMenu("Analyze>Region identification>Tiles & superpixels>")
+		@ActionMenu("Analyze>Tiles & superpixels>")
 		@ActionDescription("Merge tiles sharing the same classification to become annotations.")
 		public final Action actionTiles;
-		
-		@ActionMenu("Analyze>Region identification>")		
-		@ActionDescription("Area-based quantification of positive pixels with DAB staining. "
-				+ "This command does not handle large regions well; if possible, pixel classification should usually be used instead.")
-		@Deprecated
-		public final Action actionPixelCount;
-		
-//		@ActionMenu("TMA>")				
-//		@ActionDescription("Identify cores and grid arrangement of a tissue microarray.")
-//		public final Action actionTMADearray;
-		
-		
-		@ActionMenu("Analyze>Preprocessing>")		
-		@ActionDescription("Detect large regions using a simple thresholding method. "
-				+ "Other methods to detect regions are usually preferable (e.g. simple thresholding, pixel classification).")
-		@Deprecated
-		public final Action actionSimpleTissueDetection;
 		
 		
 		@ActionMenu("Analyze>Cell detection>")		
@@ -480,13 +463,6 @@ public class IJExtension implements QuPathExtension {
 		@ActionDescription("Equivalent to 'Cell detection', with additional parameters to set a threshold during detection to "
 				+ "identify single-positive cells.")
 		public final Action actionPositiveCellDetection;
-
-		@ActionMenu("Analyze>Cell detection>")		
-		@ActionDescription("Cell detection that uses membrane information to constrain cell boundary expansion. "
-				+ "\n\nThis was designed specifically for hematoxylin and DAB staining, and works only where membrane staining is "
-				+ "either very clear or absent.")
-		@Deprecated
-		public final Action actionCellMembraneDetection;
 		
 		@ActionMenu("Analyze>Cell detection>")
 		public final Action SEP_2 = ActionTools.createSeparator();
@@ -495,6 +471,33 @@ public class IJExtension implements QuPathExtension {
 		@ActionDescription("Identify subcellular structures (e.g. spots of all kinds) within detected cells.")
 		@Deprecated
 		public final Action actionSubcellularDetection;
+
+		@ActionMenu("Analyze>")
+		public final Action SEP_2B = ActionTools.createSeparator();
+		
+		@ActionMenu("Analyze>Deprecated>")		
+		@ActionDescription("Area-based quantification of positive pixels with DAB staining. "
+				+ "This command does not handle large regions well; if possible, pixel classification should usually be used instead.")
+		@Deprecated
+		public final Action actionPixelCount;
+		
+//		@ActionMenu("TMA>")				
+//		@ActionDescription("Identify cores and grid arrangement of a tissue microarray.")
+//		public final Action actionTMADearray;
+		
+		
+		@ActionMenu("Analyze>Deprecated>")		
+		@ActionDescription("Detect large regions using a simple thresholding method. "
+				+ "This command is not very flexible and lacks any preview of the results; if possible, pixel classification should usually be used instead.")
+		@Deprecated
+		public final Action actionSimpleTissueDetection;
+		
+		@ActionMenu("Analyze>Deprecated>")		
+		@ActionDescription("Cell detection that uses membrane information to constrain cell boundary expansion. "
+				+ "\n\nThis was designed specifically for hematoxylin and DAB staining, and works only where membrane staining is "
+				+ "either very clear or absent. It is not recommended in general.")
+		@Deprecated
+		public final Action actionCellMembraneDetection;
 
 		
 		@ActionIcon(PathIcons.EXTRACT_REGION)
@@ -535,11 +538,11 @@ public class IJExtension implements QuPathExtension {
 			
 			actionMacroRunner = qupath.createPluginAction("ImageJ macro runner", new ImageJMacroRunner(qupath), null);
 			
-			actionSLIC = qupath.createPluginAction("SLIC superpixel segmentation (experimental)", SLICSuperpixelsPlugin.class, null);
+			actionSLIC = qupath.createPluginAction("SLIC superpixel segmentation", SLICSuperpixelsPlugin.class, null);
 			actionDoG = qupath.createPluginAction("DoG superpixel segmentation", DoGSuperpixelsPlugin.class, null);
 			actionTiles = qupath.createPluginAction("Tile classifications to annotations", TileClassificationsToAnnotationsPlugin.class, null);
 			
-			actionPixelCount = qupath.createPluginAction("Positive pixel count (experimental)", PositivePixelCounterIJ.class, null);
+			actionPixelCount = qupath.createPluginAction("Positive pixel count", PositivePixelCounterIJ.class, null);
 			
 //			actionTMADearray = qupath.createPluginAction("TMA dearrayer", TMADearrayerPluginIJ.class, null);
 			

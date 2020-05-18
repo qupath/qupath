@@ -207,7 +207,7 @@ class Menus {
 		
 		@ActionDescription("Create tiles. These can be useful as part of a larger workflow, for example " + 
 				"by adding intensity measurements to the tiles, training a classifier and then merging classified tiles to identify larger regions.")
-		@ActionMenu("Region identification>Tiles & superpixels>Create tiles")
+		@ActionMenu("Tiles & superpixels>Create tiles")
 		public final Action CREATE_TILES = qupath.createPluginAction("Create tiles", TilerPlugin.class, null);
 
 		@ActionMenu("Cell detection>")
@@ -218,7 +218,6 @@ class Menus {
 		public final Action SMOOTHED_FEATURES = qupath.createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, null);
 		@ActionDescription("Add new intensity-based features to objects.")
 		@ActionMenu("Calculate features>Add intensity features")
-		@Deprecated
 		public final Action INTENSITY_FEATURES = qupath.createPluginAction("Add intensity features", IntensityFeaturesPlugin.class, null);
 		@ActionDescription("Add new shape-based features to objects.")
 		@ActionMenu("Calculate features>Add shape features")
