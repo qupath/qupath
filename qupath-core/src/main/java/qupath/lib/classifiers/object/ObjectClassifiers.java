@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Function;
@@ -155,7 +154,7 @@ public class ObjectClassifiers {
 	 * @throws IOException
 	 */
 	public static <T> void writeClassifier(ObjectClassifier<T> classifier, Path path) throws IOException {
-		try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
+		try (var writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
 			GsonTools.getInstance(true).toJson(classifier, writer);
 		}
 	}
@@ -383,6 +382,14 @@ public class ObjectClassifiers {
 			this.pathClassBelow = pathClassBelow == PathClassFactory.getPathClassUnclassified() ? null : pathClassBelow;
 			this.pathClassEquals = pathClassEquals == PathClassFactory.getPathClassUnclassified() ? null : pathClassEquals;
 			this.pathClassAbove = pathClassAbove == PathClassFactory.getPathClassUnclassified() ? null : pathClassAbove;
+		}
+		
+		/**
+		 * Get the name of the measurement used for classification.
+		 * @return
+		 */
+		public String getMeasurement() {
+			return measurement;
 		}
 
 		@Override

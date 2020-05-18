@@ -4,7 +4,10 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -94,7 +97,7 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	 */
 	public static <T> ObjectClassifier<T> create(OpenCVStatModel model, PathObjectFilter filter,
 			FeatureExtractor<T> extractor, List<PathClass> pathClasses) {
-		return new OpenCVMLClassifier(model, filter, extractor, pathClasses);
+		return new OpenCVMLClassifier<>(model, filter, extractor, pathClasses);
 	}
 
 	@Override
@@ -243,6 +246,19 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 	@Override
 	public String toString() {
 		return String.format("OpenCV object classifier (%s, %d classes)", classifier.getName(), getPathClasses().size());
+	}
+	
+	@Override
+	public Map<String, Integer> getMissingFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects) {
+		if (pathObjects == null)
+			pathObjects = getCompatibleObjects(imageData);
+		var missing = new LinkedHashMap<String, Integer>();
+		var zero = Integer.valueOf(0);
+		for (var pathObject : pathObjects) {
+			for (var name : featureExtractor.getMissingFeatures(imageData, pathObject))
+				missing.put(name, missing.getOrDefault(name, zero) + 1);
+		}
+		return missing;
 	}
 
 

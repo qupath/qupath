@@ -33,7 +33,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
@@ -291,7 +290,7 @@ public class PathPrefs {
 					}
 					logger.info("Setting JVM option to {}", memory);
 					Files.copy(config, Paths.get(config.toString() + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
-					Files.write(config, lines, StandardOpenOption.WRITE);
+					Files.write(config, lines);
 					return;
 				} catch (Exception e) {
 					logger.error("Unable to set max memory", e);

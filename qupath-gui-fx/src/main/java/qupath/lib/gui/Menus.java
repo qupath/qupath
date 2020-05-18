@@ -39,7 +39,6 @@ import qupath.lib.plugins.objects.DilateAnnotationPlugin;
 import qupath.lib.plugins.objects.FillAnnotationHolesPlugin;
 import qupath.lib.plugins.objects.FindConvexHullDetectionsPlugin;
 import qupath.lib.plugins.objects.RefineAnnotationsPlugin;
-import qupath.lib.plugins.objects.ShapeFeaturesPlugin;
 import qupath.lib.plugins.objects.SmoothFeaturesPlugin;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
 
@@ -207,7 +206,7 @@ class Menus {
 		
 		@ActionDescription("Create tiles. These can be useful as part of a larger workflow, for example " + 
 				"by adding intensity measurements to the tiles, training a classifier and then merging classified tiles to identify larger regions.")
-		@ActionMenu("Region identification>Tiles & superpixels>Create tiles")
+		@ActionMenu("Tiles & superpixels>Create tiles")
 		public final Action CREATE_TILES = qupath.createPluginAction("Create tiles", TilerPlugin.class, null);
 
 		@ActionMenu("Cell detection>")
@@ -218,12 +217,13 @@ class Menus {
 		public final Action SMOOTHED_FEATURES = qupath.createPluginAction("Add Smoothed features", SmoothFeaturesPlugin.class, null);
 		@ActionDescription("Add new intensity-based features to objects.")
 		@ActionMenu("Calculate features>Add intensity features")
-		@Deprecated
 		public final Action INTENSITY_FEATURES = qupath.createPluginAction("Add intensity features", IntensityFeaturesPlugin.class, null);
 		@ActionDescription("Add new shape-based features to objects.")
 		@ActionMenu("Calculate features>Add shape features")
-		@Deprecated
-		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
+		public final Action SHAPE_FEATURES = qupath.createImageDataAction(imageData -> Commands.promptToAddShapeFeatures(qupath));
+
+//		@Deprecated
+//		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
 
 		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification. " +
 				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")

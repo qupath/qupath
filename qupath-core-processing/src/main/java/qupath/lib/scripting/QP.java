@@ -58,6 +58,8 @@ import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
+import qupath.lib.analysis.features.ObjectMeasurements;
+import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
@@ -109,6 +111,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.OpenCVTools;
@@ -900,6 +903,65 @@ public class QP {
 		if (selected instanceof TMACoreObject)
 			hierarchy.getSelectionModel().setSelectedObject(null);
 	}
+	
+	/**
+	 * Add the specified shape measurements to the current selected objects of the current image.
+	 * If no features are specified, all will be added.
+	 * @param features
+	 */
+	public static void addShapeMeasurements(String... features) {
+		var imageData = getCurrentImageData();
+		Collection<PathObject> selected = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty()) {
+			logger.debug("Cannot add shape measurements (no objects selected)");
+			return;
+		}
+		addShapeMeasurements(imageData, new ArrayList<>(selected), features);
+	}
+
+	/**
+	 * Add shape measurements to the specified objects.
+	 * @param imageData the image to which the objects belong. This is used to determine pixel calibration and to fire an update event. May be null.
+	 * @param pathObjects the objects that should be measured
+	 * @param features optional array of Strings specifying the features to add. If none are specified, all available features will be added.
+	 */
+	public static void addShapeMeasurements(ImageData<?> imageData, Collection<? extends PathObject> pathObjects, String... features) {
+		addShapeMeasurements(imageData, pathObjects, parseFeatures(features));
+	}
+	
+	/**
+	 * Add shape measurements to the specified objects.
+	 * @param imageData the image to which the objects belong. This is used to determine pixel calibration and to fire an update event. May be null.
+	 * @param pathObjects the objects that should be measured
+	 * @param features the specific features to add. If none are specified, all available features will be added.
+	 */
+	public static void addShapeMeasurements(ImageData<?> imageData, Collection<? extends PathObject> pathObjects, ShapeFeatures... features) {
+		if (pathObjects.isEmpty())
+			return;
+		if (imageData == null) {
+			ObjectMeasurements.addShapeMeasurements(pathObjects, null, features);
+		} else {
+			var hierarchy = imageData.getHierarchy();
+			ObjectMeasurements.addShapeMeasurements(pathObjects, imageData.getServer().getPixelCalibration(), features);
+			hierarchy.fireObjectMeasurementsChangedEvent(hierarchy, pathObjects);			
+		}
+	}
+	
+	private static ShapeFeatures[] parseFeatures(String... names) {
+		if (names == null || names.length == 1)
+			return new ShapeFeatures[0];
+		var objectOptions = new HashSet<ShapeFeatures>();
+		for (var optionName : names) {
+			try {
+				var option = ShapeFeatures.valueOf(optionName);
+				objectOptions.add(option);
+			} catch (Exception e) {
+				logger.warn("Could not parse option {}", optionName);
+			}
+		}
+		return objectOptions.toArray(ShapeFeatures[]::new);
+	}
+	
 	
 	/**
 	 * Set the channel names for the current ImageData.
@@ -2853,7 +2915,7 @@ public class QP {
 			if (project != null) {
 				try {
 					var objectClassifiers = project.getObjectClassifiers();
-					if (objectClassifiers.getNames().contains(name))
+					if (objectClassifiers.contains(name))
 						classifier = objectClassifiers.get(name);
 				} catch (Exception e) {
 					exception = e;
@@ -2896,7 +2958,7 @@ public class QP {
 		if (project != null) {
 			try {
 				var pixelClassifiers = project.getPixelClassifiers();
-				if (pixelClassifiers.getNames().contains(name))
+				if (pixelClassifiers.contains(name))
 					return pixelClassifiers.get(name);
 			} catch (Exception e) {
 				exception = e;
@@ -2942,13 +3004,12 @@ public class QP {
 	 * @param classifierName the name of the pixel classifier
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
-	 * @param doSplit if true, split connected regions into separate objects
-	 * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
 	 * @see #loadPixelClassifier(String)
 	 */
 	public static void createDetectionsFromPixelClassifier(
-			String classifierName, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
-		createDetectionsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, doSplit, clearExisting);
+			String classifierName, double minArea, double minHoleArea, String... options) {
+		createDetectionsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, options);
 	}
 
 	/**
@@ -2958,13 +3019,27 @@ public class QP {
 	 * @param classifier the pixel classifier
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
-	 * @param doSplit if true, split connected regions into separate objects
-	 * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
 	 */
 	public static void createDetectionsFromPixelClassifier(
-			PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			PixelClassifier classifier, double minArea, double minHoleArea, String... options) {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
-		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, doSplit, clearExisting);
+		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseCreateObjectOptions(options));
+	}
+	
+	private static CreateObjectOptions[] parseCreateObjectOptions(String... names) {
+		if (names == null || names.length == 1)
+			return new CreateObjectOptions[0];
+		var objectOptions = new HashSet<CreateObjectOptions>();
+		for (var optionName : names) {
+			try {
+				var option = CreateObjectOptions.valueOf(optionName);
+				objectOptions.add(option);
+			} catch (Exception e) {
+				logger.warn("Could not parse option {}", optionName);
+			}
+		}
+		return objectOptions.toArray(CreateObjectOptions[]::new);
 	}
 	 
 	
@@ -2975,13 +3050,12 @@ public class QP {
 	 * @param classifierName the name of the pixel classifier
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
-	 * @param doSplit if true, split connected regions into separate objects
-	 * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
 	 * @see #loadPixelClassifier(String)
 	 */
 	public static void createAnnotationsFromPixelClassifier(
-			String classifierName, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
-		createAnnotationsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, doSplit, clearExisting);
+			String classifierName, double minArea, double minHoleArea, String... options) {
+		createAnnotationsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, options);
 	}
 
 	/**
@@ -2991,13 +3065,12 @@ public class QP {
 	 * @param classifier the pixel classifier
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
-	 * @param doSplit if true, split connected regions into separate objects
-	 * @param clearExisting clear existing child objects before adding the new ones
+     * @param options additional options to control how objects are created
 	 */
 	public static void createAnnotationsFromPixelClassifier(
-			PixelClassifier classifier, double minArea, double minHoleArea, boolean doSplit, boolean clearExisting) {
+			PixelClassifier classifier, double minArea, double minHoleArea, String... options) {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
-		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, doSplit, clearExisting);
+		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseCreateObjectOptions(options));
 	}
 	
 	

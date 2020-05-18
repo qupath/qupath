@@ -1,6 +1,7 @@
 package qupath.lib.classifiers.object;
 
 import java.util.Collection;
+import java.util.Map;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -58,5 +59,19 @@ public interface ObjectClassifier<T> {
 	 * @return a collection of compatible objects, or empty list if no compatible objects are found
 	 */
 	Collection<PathObject> getCompatibleObjects(ImageData<T> imageData);
+	
+	/**
+	 * Check for missing features, returning the names and number of input objects missing the specified features.
+	 * This is useful as a warning that the input for the classifier may not be valid.
+	 * Default implementation returns an empty map; however, implementations should attempt to provide a meaningful 
+	 * output if possible. Features that are not missing should not be included in the output.
+	 * @param imageData image containing the objects to test
+	 * @param pathObjects objects to test for missing features; if not available, {@link #getCompatibleObjects(ImageData)} will be called.
+	 * @return a map of feature names and the number of objects missing the corresponding features.
+	 */
+	Map<String, Integer> getMissingFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects);
+//	default Collection<String> getMissingFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects) {
+//		return Collections.emptyList();
+//	}
 
 }

@@ -8,6 +8,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -25,6 +28,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
@@ -40,6 +44,8 @@ import qupath.lib.projects.Project;
  *
  */
 public class ObjectClassifierLoadCommand implements Runnable {
+	
+	private final static Logger logger = LoggerFactory.getLogger(ObjectClassifierLoadCommand.class);
 	
 	private QuPathGUI qupath;
 	
@@ -57,10 +63,6 @@ public class ObjectClassifierLoadCommand implements Runnable {
 	public void run() {
 		
 		var project = qupath.getProject();
-//		if (project == null) {
-//			Dialogs.showErrorMessage(title, "You need a project open to run this command!");
-//			return;
-//		}
 		
 		var listClassifiers = new ListView<String>();
 		
@@ -71,10 +73,6 @@ public class ObjectClassifierLoadCommand implements Runnable {
 		listClassifiers.setPlaceholder(labelPlaceholder);
 		
 		refreshNames(listClassifiers.getItems());
-//		if (comboClassifiers.getItems().isEmpty()) {
-//			Dialogs.showErrorMessage(title, "No object classifiers were found in the current project!");
-//			return;
-//		}
 
 		
 		// Provide an option to remove a classifier
@@ -202,8 +200,30 @@ public class ObjectClassifierLoadCommand implements Runnable {
 			Dialogs.showErrorMessage("Object classifier", ex);
 			return;
 		}
-		if (classifier.classifyObjects(imageData, true) > 0) {
-			imageData.getHierarchy().fireHierarchyChangedEvent(classifier);
+		// Perform sanity check for missing features
+		logger.info("Running classifier: {}", classifierNames);
+		var pathObjects = classifier.getCompatibleObjects(imageData);
+		var missingCounts = classifier.getMissingFeatures(imageData, pathObjects);
+		if (!missingCounts.isEmpty()) {
+			var sb = new StringBuilder("There are missing features!");
+			int n = pathObjects.size();
+			for (var entry : missingCounts.entrySet()) {
+				double percent = entry.getValue() * 100.0/n;
+				sb.append("\t").append(entry.getKey()).append(": ")
+					.append(n).append(" objects (")
+					.append(GeneralTools.formatNumber(percent, 2)).append("%)")
+					.append("\n");
+			}
+			if (missingCounts.size() == 1)
+				Dialogs.showWarningNotification("Missing features", "Missing feature: " + missingCounts.keySet().iterator().next() + "\n\nSee the log for more details.");
+			else
+				Dialogs.showWarningNotification("Missing features", missingCounts.size() + " missing features!\n\nSee the log for more details.");
+			logger.warn(sb.toString());
+		} else
+			logger.debug("No missing features found");
+		
+		if (classifier.classifyObjects(imageData, pathObjects, true) > 0) {
+			imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
 			if (logWorkflow) {
 				imageData.getHistoryWorkflow().addStep(createObjectClassifierStep(classifierNames));
 			}

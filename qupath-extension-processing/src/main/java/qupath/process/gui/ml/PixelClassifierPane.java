@@ -292,7 +292,7 @@ public class PixelClassifierPane {
 
 		
 		// Live predict
-		var btnAdvancedOptions = new Button("Advanced");
+		var btnAdvancedOptions = new Button("Advanced options");
 		btnAdvancedOptions.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
 		btnAdvancedOptions.setOnAction(e -> {
 			if (showAdvancedOptions())
@@ -303,8 +303,14 @@ public class PixelClassifierPane {
 		var btnProject = new Button("Load training");
 		btnProject.setTooltip(new Tooltip("Train using annotations from more images in the current project"));
 		btnProject.setOnAction(e -> {
-			if (promptToLoadTrainingImages())
+			if (promptToLoadTrainingImages()) {
 				updateClassifier();
+				int n = trainingEntries.size();
+				if (n > 0)
+					btnProject.setText("Load training (" + n + ")");
+				else
+					btnProject.setText("Load training");
+			}
 		});
 		btnProject.disableProperty().bind(qupath.projectProperty().isNull());
 		
@@ -557,11 +563,11 @@ public class PixelClassifierPane {
 		List<ImageData<BufferedImage>> list = new ArrayList<>();
 		for (var viewer : qupath.getViewers()) {
 			var tempData = viewer.getImageData();
-			if (imageData == tempData || compatibleChannels(imageData.getServer(), tempData.getServer()))
+			if (tempData != null && compatibleChannels(imageData.getServer(), tempData.getServer()))
 				list.add(tempData);
 		}
 		
-		// Read any other requested images for the projcet
+		// Read any other requested images for the project
 		if (!trainingEntries.isEmpty()) {
 			var currentEntries = ProjectDialogs.getCurrentImages(qupath);
 			for (var entry : trainingEntries) {
@@ -590,6 +596,8 @@ public class PixelClassifierPane {
 	}
 	
 	private static boolean compatibleChannels(ImageServer<?> server, ImageServer<?> server2) {
+		if (server == server2)
+			return true;
 		if (server.nChannels() != server2.nChannels())
 			return false;
 		for (int c = 0; c < server.nChannels(); c++) {
@@ -1102,21 +1110,6 @@ public class PixelClassifierPane {
 		trainingEntries.clear();
 		trainingMap.clear();
 	}
-	
-	
-	
-	private PixelClassificationImageServer getClassificationServerOrShowError() {
-		var imageData = qupath.getImageData();
-		if (imageData == null || overlay == null)
-			return null;
-		var server = overlay.getPixelClassificationServer(imageData);
-		if (server == null || !(server instanceof PixelClassificationImageServer)) {
-			Dialogs.showErrorMessage("Pixel classifier", "No classifier available!");
-			return null;
-		}
-		return (PixelClassificationImageServer)server;
-	}
-	
 	
 	
 	

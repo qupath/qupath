@@ -44,5 +44,10 @@ class PCAProjectFeatureExtractor<T> implements FeatureExtractor<T> {
 		buffer.put(mat.createBuffer());
 		mat.close();
 	}
+	
+	@Override
+	public Collection<String> getMissingFeatures(ImageData<T> imageData, PathObject pathObject) {
+		return featureExtractor.getMissingFeatures(imageData, pathObject);
+	}
 
 }

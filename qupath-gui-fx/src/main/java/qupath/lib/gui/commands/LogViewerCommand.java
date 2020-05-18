@@ -25,6 +25,9 @@ package qupath.lib.gui.commands;
 
 import java.io.File;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -40,6 +43,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
@@ -47,10 +51,12 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.SelectableItem;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.logging.LogManager;
+import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -69,6 +75,14 @@ public class LogViewerCommand implements Runnable {
 	private QuPathGUI qupath;
 	private Stage dialog = null;
 	private TextArea textPane = new TextArea();
+	
+	private static List<Action> actionLogLevels = Arrays.asList(
+			createLogLevelAction(LogLevel.ERROR),
+			createLogLevelAction(LogLevel.WARN),
+			createLogLevelAction(LogLevel.INFO),
+			createLogLevelAction(LogLevel.DEBUG),
+			createLogLevelAction(LogLevel.TRACE)
+			);
 	
 	/**
 	 * Constructor.
@@ -89,6 +103,17 @@ public class LogViewerCommand implements Runnable {
 			createDialog();
 		dialog.show();
 	}
+	
+	
+	private static Action createLogLevelAction(LogLevel level) {
+		var command = new SelectableItem<>(LogManager.rootLogLevelProperty(), level);
+		return ActionTools.actionBuilder(e -> command.setSelected(true))
+			.text(level.toString())
+			.selectable(true)
+			.selected(command.selectedProperty())
+			.build();
+	}
+	
 	
 	private void createDialog() {
 		dialog = new Stage();
@@ -124,6 +149,9 @@ public class LogViewerCommand implements Runnable {
 		menu.getItems().add(ActionUtils.createMenuItem(actionClear));
 		menu.getItems().add(miLockScroll);
 		
+		menu.getItems().add(createLogLevelMenu());
+		
+		
 		// Add actual menubar
 		MenuBar menubar = new MenuBar();
 		Menu menuFile = new Menu("File");
@@ -134,7 +162,7 @@ public class LogViewerCommand implements Runnable {
 			if (fileOutput == null)
 				return;
 			try {
-				PrintWriter writer = new PrintWriter(fileOutput);
+				PrintWriter writer = new PrintWriter(fileOutput, StandardCharsets.UTF_8);
 				writer.print(textPane.getText());
 				writer.close();
 			} catch (Exception ex) {
@@ -150,7 +178,8 @@ public class LogViewerCommand implements Runnable {
 		Menu menuEdit = new Menu("Edit");
 		menuEdit.getItems().addAll(
 				ActionUtils.createMenuItem(actionCopy),
-				ActionUtils.createMenuItem(actionClear)
+				ActionUtils.createMenuItem(actionClear),
+				createLogLevelMenu()
 				);
 		menubar.getMenus().addAll(menuFile, menuEdit);
 		pane.setTop(menubar);
@@ -172,6 +201,16 @@ public class LogViewerCommand implements Runnable {
 		dialog.initModality(Modality.NONE);
 		dialog.initOwner(qupath.getStage());
 		dialog.setResizable(true);
+	}
+	
+	
+	private static Menu createLogLevelMenu() {
+		var menu = new Menu("Set log level");
+		var group = new ToggleGroup();
+		for (var action : actionLogLevels) {
+			menu.getItems().add(ActionTools.createCheckMenuItem(action, group));
+		}
+		return menu;
 	}
 
 }

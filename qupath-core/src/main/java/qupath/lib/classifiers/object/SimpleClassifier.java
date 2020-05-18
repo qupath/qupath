@@ -3,8 +3,10 @@ package qupath.lib.classifiers.object;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.function.Function;
 
+import qupath.lib.classifiers.object.ObjectClassifiers.ClassifyByMeasurementFunction;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
@@ -31,22 +33,41 @@ class SimpleClassifier<T> extends AbstractObjectClassifier<T> {
 	public int classifyObjects(ImageData<T> imageData, Collection<? extends PathObject> pathObjects, boolean resetExistingClass) {
 		int n = 0;
 		for (var pathObject : pathObjects) {
+			var previousClass = pathObject.getPathClass();
 			if (resetExistingClass)
 				pathObject.setPathClass(null);
 			
 			var pathClass = function.apply(pathObject);
-			if (pathClass == null)
-				continue;
-			var currentClass = pathObject.getPathClass();
-			if (currentClass == null)
-				pathObject.setPathClass(pathClass);
-			else
-				pathObject.setPathClass(
-						PathClassTools.mergeClasses(currentClass, pathClass)
-						);
-			n++;
+			if (pathClass != null) {
+				var currentClass = pathObject.getPathClass();
+				if (currentClass == null)
+					pathObject.setPathClass(pathClass);
+				else
+					pathObject.setPathClass(
+							PathClassTools.mergeClasses(currentClass, pathClass)
+							);
+			}
+			if (previousClass != pathObject.getPathClass())
+				n++;
 		}
 		return n;
+	}
+	
+	@Override
+	public Map<String, Integer> getMissingFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects) {
+		if (function instanceof ClassifyByMeasurementFunction) {
+			int nMissing = 0;
+			var name = ((ClassifyByMeasurementFunction)function).getMeasurement();
+			if (name != null) {
+				for (var pathObject : pathObjects) {
+					if (!pathObject.getMeasurementList().containsNamedMeasurement(name))
+						nMissing++;
+				}
+			}
+			if (nMissing > 0)
+				return Map.of(name, nMissing);
+		}
+		return Collections.emptyMap();
 	}
 
 }

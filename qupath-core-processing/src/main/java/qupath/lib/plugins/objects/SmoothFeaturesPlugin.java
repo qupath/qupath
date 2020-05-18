@@ -76,7 +76,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 				.addDoubleParameter("fwhmMicrons", "Radius (FWHM)", 25, GeneralTools.micrometerSymbol(), "Smoothing filter size - higher values indicate more smoothing")
 				.addDoubleParameter("fwhmPixels", "Radius (FWHM)", 100, "pixels", "Smoothing filter size - higher values indicate more smoothing")
 				.addBooleanParameter("smoothWithinClasses", "Smooth within classes", false, "Restrict smoothing to only be applied within objects with the same base classification")
-				.addBooleanParameter("useLegacyNames", "Use legacy feature names", false, "Use previous naming strategy for smoothed features - only retained here for backwards compatibility")
+//				.addBooleanParameter("useLegacyNames", "Use legacy feature names", false, "Use previous naming strategy for smoothed features - only retained here for backwards compatibility")
 				;
 	}
 	
@@ -128,7 +128,7 @@ public class SmoothFeaturesPlugin<T> extends AbstractInteractivePlugin<T> {
 		final String fwhmString = fwhmStringTemp;
 		final double fwhmPixels = fwhm;
 		final boolean withinClass = params.getBooleanParameterValue("smoothWithinClasses");
-		final boolean useLegacyNames = Boolean.TRUE.equals(params.getBooleanParameterValue("useLegacyNames"));
+		final boolean useLegacyNames = params.containsKey("useLegacyNames") && Boolean.TRUE.equals(params.getBooleanParameterValue("useLegacyNames"));
 		tasks.add(new Runnable() {
 
 			@Override

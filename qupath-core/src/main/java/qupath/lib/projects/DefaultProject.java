@@ -36,7 +36,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -429,7 +428,7 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	public void saveScript(String name, String script) throws IOException {
 		var path = Paths.get(ensureDirectoryExists(getScriptsPath()).toString(), name + EXT_SCRIPT);
-		Files.writeString(path, script, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+		Files.writeString(path, script);
 	}
 	
 	private AtomicLong counter = new AtomicLong(0L);
@@ -757,7 +756,7 @@ class DefaultProject implements Project<BufferedImage> {
 			}
 			
 			var pathSummary = getDataSummaryPath();
-			try (var out = Files.newBufferedWriter(pathSummary, StandardCharsets.UTF_8, StandardOpenOption.CREATE)) {
+			try (var out = Files.newBufferedWriter(pathSummary, StandardCharsets.UTF_8)) {
 				GsonTools.getInstance().toJson(new ImageDataSummary(imageData, timestamp), out);
 			}			
 
@@ -783,7 +782,8 @@ class DefaultProject implements Project<BufferedImage> {
 		@Override
 		public String getSummary() {
 			StringBuilder sb = new StringBuilder();
-			sb.append(getImageName()).append("\n\n");
+			sb.append(getImageName()).append("\n");
+			sb.append("ID:\t").append(getID()).append("\n\n");
 			if (!getMetadataMap().isEmpty()) {
 				for (Entry<String, String> mapEntry : getMetadataMap().entrySet()) {
 					sb.append(mapEntry.getKey()).append(":\t").append(mapEntry.getValue()).append("\n");

@@ -124,6 +124,14 @@ public class ProcessingExtension implements QuPathExtension {
 	@SuppressWarnings("javadoc")
 	public class PixelClassificationCommands {
 		
+		@ActionMenu("Load pixel classifier")
+		@ActionDescription("Load an existing pixel classifier. "
+				+ "This can be used to apply the classifier to new images, but not to continue training.")
+		public final Action actionLoadPixelClassifier;
+
+		@ActionMenu("")
+		public final Action SEP = ActionTools.createSeparator();
+		
 		@ActionMenu("Train pixel classifier")
 		@ActionAccelerator("shortcut+shift+p")
 		@ActionDescription("Train a pixel classifier. "
@@ -133,11 +141,6 @@ public class ProcessingExtension implements QuPathExtension {
 		@ActionMenu("Create simple thresholder")
 		@ActionDescription("Create a pixel classifier that simply applies a threshold to an image.")
 		public final Action actionSimpleThreshold;
-
-		@ActionMenu("Load pixel classifier")
-		@ActionDescription("Load an existing pixel classifier. "
-				+ "This can be used to apply the classifier to new images, but not to continue training.")
-		public final Action actionLoadPixelClassifier;
 				
 		private PixelClassificationCommands(QuPathGUI qupath) {
 			actionPixelClassifier = ActionTools.createAction(new PixelClassifierCommand(), "Train pixel classifier");

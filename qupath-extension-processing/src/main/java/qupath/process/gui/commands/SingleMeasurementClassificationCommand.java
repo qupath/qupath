@@ -51,6 +51,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.process.gui.ml.ProjectClassifierBindings;
 
 /**
  * Command to (sub)classify objects based on a single measurement.
@@ -150,7 +151,6 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
 			GuiTools.bindSliderAndTextField(sliderThreshold, tf);
-			tfSaveName.setPromptText("Enter classifier name (required for scripting)");
 			
 			// Initialize pane
 			pane = new GridPane();
@@ -188,9 +188,15 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Turn on/off live preview while changing settings", cbLivePreview, cbLivePreview, cbLivePreview);
 
 			var btnSave = new Button("Save");
-			btnSave.setOnAction(e -> tryToSave());
+			btnSave.setOnAction(e -> {
+				tryToSave();
+				tfSaveName.requestFocus();
+				btnSave.requestFocus();
+			});
 			var labelSave = new Label("Classifier name");
 			tfSaveName.setMaxWidth(Double.MAX_VALUE);
+			tfSaveName.setPromptText("Enter object classifier name");
+			ProjectClassifierBindings.bindObjectClassifierNameInput(tfSaveName, qupath.projectProperty());
 			btnSave.setMaxWidth(Double.MAX_VALUE);
 			btnSave.disableProperty().bind(comboMeasurements.valueProperty().isNull().or(tfSaveName.textProperty().isEmpty()));
 			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
@@ -485,7 +491,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				return null;
 			}
 			try {
-				if (project.getObjectClassifiers().getNames().contains(name)) {
+				if (project.getObjectClassifiers().contains(name)) {
 					if (!Dialogs.showConfirmDialog(title, "Do you want to overwrite the existing classifier '" + name + "'?"))
 						return null;
 				}

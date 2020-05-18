@@ -84,7 +84,7 @@ public class OverlayOptions {
 	private ObjectProperty<GridLines> gridLines = new SimpleObjectProperty<>(new GridLines());
 
 	private BooleanProperty showPixelClassification = new SimpleBooleanProperty(true);
-	private ObjectProperty<RegionFilter> pixelClassificationFilter = new SimpleObjectProperty<>(RegionFilter.StandardRegionFilters.ANY_ANNOTATIONS);
+	private ObjectProperty<RegionFilter> pixelClassificationFilter = new SimpleObjectProperty<>(RegionFilter.StandardRegionFilters.EVERYWHERE);
 
 	private ObservableSet<PathClass> hiddenClasses = FXCollections.observableSet();
 

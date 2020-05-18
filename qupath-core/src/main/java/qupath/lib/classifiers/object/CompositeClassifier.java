@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
@@ -86,6 +86,27 @@ class CompositeClassifier<T> implements ObjectClassifier<T> {
 		for (var classifier : classifiers)
 			set.addAll(classifier.getCompatibleObjects(imageData));
 		return set;
+	}
+
+	@Override
+	public Map<String, Integer> getMissingFeatures(ImageData<T> imageData, Collection<? extends PathObject> pathObjects) {
+		if (pathObjects == null)
+			pathObjects = getCompatibleObjects(imageData);
+		Map<String, Integer> missingFeatures = new LinkedHashMap<>();
+		for (var classifier: classifiers) {
+			var newMissing = classifier.getMissingFeatures(imageData, pathObjects);
+			if (newMissing.isEmpty())
+				continue;
+			if (missingFeatures.isEmpty())
+				missingFeatures.putAll(newMissing);
+			else {
+				// Note that conceivably this might not be correct if different classifiers using the same feature names 
+				// to refer to different features... but that seems rather unlikely in practice
+				for (var entry : newMissing.entrySet())
+					missingFeatures.merge(entry.getKey(), entry.getValue(), (i, i2) -> Math.max(i, i2));
+			}
+		}
+		return missingFeatures;
 	}
 	
 

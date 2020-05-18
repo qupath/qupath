@@ -48,4 +48,18 @@ class DefaultFeatureExtractor<T> implements FeatureExtractor<T> {
 		}
 	}
 	
+	@Override
+	public Collection<String> getMissingFeatures(ImageData<T> imageData, PathObject pathObject) {
+		List<String> missing = null;
+		var ml = pathObject.getMeasurementList();
+		for (var name : measurements) {
+			if (!ml.containsNamedMeasurement(name)) {
+				if (missing == null)
+					missing = new ArrayList<>();
+				missing.add(name);
+			}
+		}
+		return missing == null ? Collections.emptyList() : missing;
+	}
+	
 }

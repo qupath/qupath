@@ -363,8 +363,9 @@ public class GeometryTools {
 //    			hasPoints = true;
     		}
     	}
-    	if (collection.size() == geometry.getNumGeometries())
-    		return geometry;
+//    	if (collection.size() == geometry.getNumGeometries())
+//    		return geometry;
+    	// Factory helps to ensure we have the correct type (e.g. MultiPolygon rather than GeometryCollection)
     	return geometry.getFactory().buildGeometry(collection);
     }
     
@@ -501,7 +502,7 @@ public class GeometryTools {
     			.collect(Collectors.toList());
     	if (filtered.isEmpty())
     		return geometry.getFactory().createPolygon();
-    	return geometry.getFactory().createGeometryCollection(filtered.toArray(Geometry[]::new));
+    	return geometry.getFactory().buildGeometry(filtered);
     }
     
     

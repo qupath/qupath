@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.WeakHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -77,6 +78,7 @@ import javafx.geometry.Side;
 import javafx.scene.Scene;
 import javafx.scene.chart.PieChart;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -106,6 +108,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
@@ -114,10 +117,10 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
-import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.projects.ProjectImageEntry;
 import qupath.opencv.ml.OpenCVClassifiers;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
@@ -125,6 +128,8 @@ import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.objects.features.Preprocessing;
+import qupath.opencv.tools.OpenCVTools;
+import qupath.process.gui.ml.ProjectClassifierBindings;
 
 
 /**
@@ -137,14 +142,14 @@ import qupath.opencv.ml.objects.features.Preprocessing;
  *
  */
 public class ObjectClassifierCommand implements Runnable {
-	
+
 	final private static String name = "Train object classifier";
-	
+
 	private QuPathGUI qupath;
-	
+
 	// TODO: Check use of static dialog
 	private Stage dialog;
-//	private ClassifierBuilderPanel<PathObjectClassifier> panel;
+	//	private ClassifierBuilderPanel<PathObjectClassifier> panel;
 
 	/**
 	 * Constructor.
@@ -153,7 +158,7 @@ public class ObjectClassifierCommand implements Runnable {
 	public ObjectClassifierCommand(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
-	
+
 	@Override
 	public void run() {
 		if (dialog == null) {
@@ -161,11 +166,11 @@ public class ObjectClassifierCommand implements Runnable {
 			if (qupath != null)
 				dialog.initOwner(qupath.getStage());
 			dialog.setTitle(name);
-			
+
 			BorderPane pane = new BorderPane();
 			var panel = new ObjectClassifierPane(qupath);
 			pane.setCenter(panel.getPane());
-			
+
 			ScrollPane scrollPane = new ScrollPane(pane);
 			scrollPane.setFitToWidth(true);
 			scrollPane.setFitToHeight(true);
@@ -174,43 +179,43 @@ public class ObjectClassifierCommand implements Runnable {
 			panel.registerListeners(qupath);
 			dialog.setOnCloseRequest(e -> {
 				dialog = null; // Reset the dialog so a new one will be created next time
-				panel.deregisterListeners(qupath);
+				panel.cleanup(qupath);
 			});
 		} else
 			dialog.requestFocus();
-		
+
 		dialog.sizeToScene();
 		dialog.show();
 	}
-	
-	
-//	/**
-//	 * Handle cleanup whenever a dialog should be closed (and forgotten)
-//	 */
-//	private void resetPanel() {
-//		if (panel == null)
-//			return;
-//		qupath.removeImageDataChangeListener(panel);
-//		panel.setImageData(qupath.getImageData(), null);
-//		if (dialog != null)
-//			dialog.setOnCloseRequest(null);
-//		dialog = null;
-//		panel = null;
-//	}
-	
-	
-	
+
+
+	//	/**
+	//	 * Handle cleanup whenever a dialog should be closed (and forgotten)
+	//	 */
+	//	private void resetPanel() {
+	//		if (panel == null)
+	//			return;
+	//		qupath.removeImageDataChangeListener(panel);
+	//		panel.setImageData(qupath.getImageData(), null);
+	//		if (dialog != null)
+	//			dialog.setOnCloseRequest(null);
+	//		dialog = null;
+	//		panel = null;
+	//	}
+
+
+
 	static class ObjectClassifierPane implements ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
-		
+
 		private final static Logger logger = LoggerFactory.getLogger(ObjectClassifierPane.class);
-		
+
 		private QuPathGUI qupath;
-		
+
 		/**
 		 * Use all classifications for training and prediction, or only some.
 		 */
 		private static enum OutputClasses { ALL, SELECTED;
-			
+
 			@Override
 			public String toString() {
 				switch(this) {
@@ -222,14 +227,14 @@ public class ObjectClassifierCommand implements Runnable {
 					throw new IllegalArgumentException();
 				}
 			}
-		
+
 		}
 
 		/**
 		 * Use all measurements for training and prediction, or only some.
 		 */
 		private static enum TrainingFeatures { ALL, SELECTED, FILTERED;
-			
+
 			@Override
 			public String toString() {
 				switch(this) {
@@ -243,14 +248,14 @@ public class ObjectClassifierCommand implements Runnable {
 					throw new IllegalArgumentException();
 				}
 			}
-			
+
 		}
-		
+
 		/**
 		 * Specify kind of annotations to use for training
 		 */
 		private static enum TrainingAnnotations { ALL, ALL_UNLOCKED, POINTS, AREAS;
-			
+
 			@Override
 			public String toString() {
 				switch(this) {
@@ -266,10 +271,10 @@ public class ObjectClassifierCommand implements Runnable {
 					throw new IllegalArgumentException();
 				}
 			}
-			
+
 		}
 
-		
+
 		/**
 		 * Main GUI pane
 		 */
@@ -283,45 +288,55 @@ public class ObjectClassifierCommand implements Runnable {
 		private ReadOnlyObjectProperty<TrainingFeatures> trainingFeatures;
 
 		private ReadOnlyObjectProperty<TrainingAnnotations> trainingAnnotations;
-		
+
 		private ObjectProperty<Normalization> normalization = new SimpleObjectProperty<>(Normalization.NONE);
 
 		private DoubleProperty pcaRetainedVariance = new SimpleDoubleProperty(-1.0);
 
-//		private ObjectClassifier<BufferedImage> classifier;
+		//		private ObjectClassifier<BufferedImage> classifier;
 		private Set<PathClass> selectedClasses = new HashSet<>();
-		
+
 		private Set<String> selectedMeasurements = new LinkedHashSet<>();
-		
+
 		/**
 		 * Request that multiclass classification is used where possible
 		 */
 		private ReadOnlyBooleanProperty doMulticlass = new SimpleBooleanProperty(true);
-		
+
 		/**
 		 * Text relevant to the current cursor location when over a viewer
 		 */
 		private StringProperty cursorLocation = new SimpleStringProperty();
-		
+
 		/**
 		 * If true, update classification as automatically
 		 */
 		private BooleanProperty livePrediction = new SimpleBooleanProperty(false);
-		
+
+
+		/**
+		 * Other images from which training annotations should be used
+		 */
+		private List<ProjectImageEntry<BufferedImage>> trainingEntries = new ArrayList<>();
+
+		private Map<ProjectImageEntry<BufferedImage>, ImageData<BufferedImage>> trainingMap = new WeakHashMap<>();
+
+
+
 		/**
 		 * Visualization of the training object proportions
 		 */
 		private PieChart pieChart;
-		
+
 		private ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("object-classifier", true));
 		private FutureTask<ObjectClassifier<BufferedImage>> classifierTask;
-		
+
 		ObjectClassifierPane(QuPathGUI qupath) {
 			this.qupath = qupath;
 			selectedClasses.addAll(qupath.getAvailablePathClasses());
 			initialize();
 		}
-		
+
 		/**
 		 * Flag that the classifier settings have changed.
 		 * Prompt an update if 'live prediction' is requested, otherwise just stop and reset any current classification task.
@@ -339,7 +354,7 @@ public class ObjectClassifierCommand implements Runnable {
 				classifierTask = submitClassifierUpdateTask(true);
 			}
 		}
-		
+
 		/**
 		 * Submit a classification update task, returning the task.
 		 * The {@code get()} method can then be used to request the classifier 
@@ -353,16 +368,16 @@ public class ObjectClassifierCommand implements Runnable {
 				if (pool == null || pool.isShutdown()) {
 					logger.error("No thread pool available to train classifer!");
 					return null;
-			    } else
+				} else
 					pool.submit(task);
 			}
 			return task;
 		}
-		
+
 		public Pane getPane() {
 			return pane;
 		}
-		
+
 		/**
 		 * Extract training objects from a hierarchy, based upon the kind of annotations permitted for training.
 		 * @param hierarchy
@@ -372,17 +387,17 @@ public class ObjectClassifierCommand implements Runnable {
 		private static List<PathObject> getTrainingAnnotations(PathObjectHierarchy hierarchy, TrainingAnnotations training) {
 			Predicate<PathObject> trainingFilter = (PathObject p) -> p.isAnnotation() && p.getPathClass() != null && p.hasROI();
 			switch (training) {
-				case AREAS:
-					trainingFilter = trainingFilter.and(PathObjectFilter.ROI_AREA);
-					break;
-				case POINTS:
-					trainingFilter = trainingFilter.and(PathObjectFilter.ROI_POINT);
-					break;
-				case ALL_UNLOCKED:
-					trainingFilter = trainingFilter.and(PathObjectFilter.UNLOCKED);
-					break;
-				default:
-					break;
+			case AREAS:
+				trainingFilter = trainingFilter.and(PathObjectFilter.ROI_AREA);
+				break;
+			case POINTS:
+				trainingFilter = trainingFilter.and(PathObjectFilter.ROI_POINT);
+				break;
+			case ALL_UNLOCKED:
+				trainingFilter = trainingFilter.and(PathObjectFilter.UNLOCKED);
+				break;
+			default:
+				break;
 			}
 			var annotations = hierarchy.getAnnotationObjects();
 			return annotations
@@ -390,7 +405,84 @@ public class ObjectClassifierCommand implements Runnable {
 					.filter(trainingFilter)
 					.collect(Collectors.toList());
 		}
+
+		/**
+		 * Get all the {@link ImageData} we need for training.
+		 * @return
+		 */
+		private Collection<ImageData<BufferedImage>> getTrainingImageData() {
+			// We use the current viewer to determine the image type
+			var imageData = qupath.getImageData();
+			if (imageData == null) {
+				logger.warn("Cannot train classifier - a valid image needs to be open in the current viewer");
+				return Collections.emptyList();
+			}
+
+			// Read annotations from all compatible images (which here means same channel names)
+			List<ImageData<BufferedImage>> list = new ArrayList<>();
+			for (var viewer : qupath.getViewers()) {
+				var tempData = viewer.getImageData();
+				if (tempData != null)
+					list.add(tempData);
+			}
+
+			// Read any other requested images for the project
+			if (!trainingEntries.isEmpty()) {
+				var currentEntries = ProjectDialogs.getCurrentImages(qupath);
+				for (var entry : trainingEntries) {
+					try {
+						if (currentEntries.contains(entry)) {
+							logger.debug("Will not load data for {} - will use the training annotations from the open viewer");
+							var tempData = trainingMap.remove(entry);
+							if (tempData != null)
+								tempData.getServer().close();
+						} else {
+							var tempData = trainingMap.get(entry);
+							if (tempData == null) {
+								tempData = entry.readImageData();
+								trainingMap.put(entry, tempData);
+							}
+							list.add(tempData);
+						}
+					} catch (Exception e) {
+						logger.error(e.getLocalizedMessage(), e);
+					}
+				}
+			}
+
+			return list;
+		}
+
 		
+		
+		private boolean promptToLoadTrainingImages() {
+			var project = qupath.getProject();
+			if (project == null) {
+				Dialogs.showNoProjectError("Object classifier");
+				return false;
+			}
+			
+			var listView = ProjectDialogs.createImageChoicePane(qupath, project.getImageList(), trainingEntries,
+					"Specified image is open!");
+			
+			var pane = new BorderPane(listView);
+			pane.setTop(new Label("Select images to use for training the object classifier.\n"
+					+ "Note that more images will require more memory and more processing time!"));
+			
+			if (Dialogs.builder()
+					.title("Object classifier training images")
+					.content(pane)
+					.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+					.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.CANCEL)
+				return false;
+			
+			trainingEntries.clear();
+			trainingEntries.addAll(ProjectDialogs.getTargetItems(listView));
+			
+			return true;
+		}
+		
+
 		/**
 		 * Create a classifier training task based on the current GUI control values (but don't submit it for processing).
 		 * @param doClassification
@@ -404,20 +496,20 @@ public class ObjectClassifierCommand implements Runnable {
 				resetPieChart();
 				return null;
 			}
-			
-			var imageData = qupath.getImageData();
-			if (imageData == null) {
+
+			var imageDataCollection = getTrainingImageData();
+			if (imageDataCollection.isEmpty()) {
 				logger.warn("No image - cannot update classifier");
 				resetPieChart();
 				return null;
 			}
-			
+
 			// Get key parameters
-			var training = trainingAnnotations.get();
+			var annotations = trainingAnnotations.get();
 			var output = outputClasses.get();
 			var selectedClasses = new HashSet<>(this.selectedClasses);
 			var norm = this.normalization.get();
-			
+
 			double pcaRetained = pcaRetainedVariance.get();
 			boolean multiclass = doMulticlass.get() && statModel.supportsMulticlass();
 
@@ -429,64 +521,144 @@ public class ObjectClassifierCommand implements Runnable {
 					return null;
 				}
 			}
-			
+
 			FeatureExtractor<BufferedImage> extractor = FeatureExtractors
 					.createMeasurementListFeatureExtractor(measurements);
-						
+
 			return new FutureTask<>(() -> {
-				var map = createTrainingData(
-						filter,
-						imageData.getHierarchy(),
-						training,
-						output == OutputClasses.ALL ? null : selectedClasses);
-				if (map == null || Thread.interrupted())
+				var training = new ArrayList<TrainingData<BufferedImage>>();
+				for (var imageData : imageDataCollection) {
+					var temp = createTrainingData(
+							filter,
+							imageData,
+							annotations,
+							output == OutputClasses.ALL ? null : selectedClasses);
+					training.add(temp);
+				}
+
+				if (training.isEmpty() || Thread.interrupted())
 					return null;
-							
+				
+				long nTrainingObjects = training.stream().mapToLong(t -> t.map.size()).sum();
+				if (nTrainingObjects <= 1L) {
+					Dialogs.showErrorNotification("Object classifier", "You need to annotate objects with at least two classifications to train a classifier!");
+					return null;
+				}
+
 				var classifier = createClassifier(
-						map,
+						training,
 						filter,
 						statModel,
-						imageData,
 						extractor,
 						norm,
 						pcaRetained,
 						multiclass
 						);
-				if (classifier == null || Thread.interrupted())
+				
+				if (Thread.interrupted())
 					return null;
 				
+				if (classifier == null) {
+					Dialogs.showErrorNotification("Object classifier", "Unable to train object classifier with the current settings!");
+					return null;
+				}
+
 				if (doClassification) {
-					var pathObjects = classifier.getCompatibleObjects(imageData);
-					if (classifier.classifyObjects(imageData, pathObjects, true) > 0) {
-						imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, pathObjects);
+					for (var viewer : qupath.getViewers()) {
+						var imageData = viewer.getImageData();
+						if (imageData != null) {
+							var pathObjects = classifier.getCompatibleObjects(imageData);
+							if (classifier.classifyObjects(imageData, pathObjects, true) > 0) {
+								imageData.getHierarchy().fireObjectClassificationsChangedEvent(this, pathObjects);
+							}
+						}
 					}
 				}
-				updatePieChart(map);
+				updatePieChart(training);
 				return classifier;
 			});
 		}
+
+			
+		/**
+		 * Extract training annotations from a collection of images.
+		 * @param trainingImageData
+		 * @return a collection of classified annotations suitable for training
+		 */
+		private Collection<PathObject> getTrainingAnnotations(Collection<ImageData<BufferedImage>> trainingImageData) {
+			if (trainingImageData.isEmpty())
+				return Collections.emptyList();
+			var annotationType = this.trainingAnnotations.get();
+			if (trainingImageData.size() == 1)
+				return getTrainingAnnotations(trainingImageData.iterator().next().getHierarchy(), annotationType);
+			
+			var trainingAnnotations = new ArrayList<PathObject>();
+			for (var imageData : trainingImageData) {
+				trainingAnnotations.addAll(getTrainingAnnotations(imageData.getHierarchy(), annotationType));
+			}
+			return trainingAnnotations;
+		}
 		
-		
-		private List<String> getRequestedMeasurements() {
-			var imageData = qupath.getImageData();
-			if (imageData == null)
+		/**
+		 * Extract training annotations from a collection of images.
+		 * @param trainingImageData
+		 * @param includeIntersection if true, retain only measurements found in all images
+		 * @return a collection of measurement names
+		 */
+		private Collection<String> getAllMeasurements(Collection<ImageData<BufferedImage>> trainingImageData, boolean includeIntersection) {
+			if (trainingImageData.isEmpty())
 				return Collections.emptyList();
 			
-			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
-				return new ArrayList<>(selectedMeasurements);
-			
-			// Extract the relevant objects
 			var filter = objectFilter.get();
+			if (trainingImageData.size() == 1) {
+				return getAllMeasurements(trainingImageData.iterator().next(), filter);
+			}
+			var allMeasurements = new LinkedHashSet<String>();
+			var firstMeasurements = new LinkedHashSet<String>();
+			boolean firstChanges = false;
+			for (var imageData : trainingImageData) {
+				var newMeasurements = getAllMeasurements(imageData, filter);
+				if (includeIntersection) {
+					if (firstMeasurements.isEmpty()) {
+						firstMeasurements.addAll(newMeasurements);
+						allMeasurements.addAll(firstMeasurements);
+					} else {
+						if (allMeasurements.retainAll(newMeasurements) && firstChanges) {
+							logger.warn("Different measurements found in different training images! Available measurements will be restricted to the intersection of these.");
+						}
+					}
+				} else
+					allMeasurements.addAll(newMeasurements);
+			}
+			return allMeasurements;
+		}
+		
+		private Collection<String> getAllMeasurements(ImageData<?> imageData, PathObjectFilter filter) {
 			var detections = imageData.getHierarchy()
 					.getFlattenedObjectList(null)
 					.stream()
 					.filter(filter)
 					.collect(Collectors.toList());
+			return PathClassifierTools.getAvailableFeatures(detections);
+		}
+		
 
-			var allMeasurements = PathClassifierTools.getAvailableFeatures(detections);
+		private List<String> getRequestedMeasurements() {
+
+			var trainingImageData = getTrainingImageData();
+			if (trainingImageData.isEmpty())
+				return Collections.emptyList();
+
+			if (trainingFeatures.get() == TrainingFeatures.SELECTED)
+				return new ArrayList<>(selectedMeasurements);
+
+			// Get all the available measurements
+			var allMeasurements = getAllMeasurements(trainingImageData, true);
+			
+			// Filter out the irrelevant measurements, if needed
 			if (trainingFeatures.get() == TrainingFeatures.FILTERED) {
+				var trainingAnnotations = getTrainingAnnotations(trainingImageData);
 				var measurements = new ArrayList<String>();
-				var trainingAnnotations = getTrainingAnnotations(imageData.getHierarchy(), this.trainingAnnotations.get());
 				var filterText = trainingAnnotations.stream().distinct().map(a -> a.getPathClass().toString().toLowerCase().trim()).collect(Collectors.toSet());
 				for (var m : allMeasurements) {
 					for (var f : filterText) {
@@ -500,31 +672,33 @@ public class ObjectClassifierCommand implements Runnable {
 			} else
 				return new ArrayList<>(allMeasurements);
 		}
-		
-		
-		
+
+
+
 		/**
 		 * Create a map of training data, with target classes as keys and collections of training objects as values.
 		 * @param filter
-		 * @param hierarchy
+		 * @param imageData
 		 * @param training
 		 * @param selectedClasses optional collection containing valid output classes; if null, all classes will be used
 		 * @return
 		 */
-		private static Map<PathClass, Set<PathObject>> createTrainingData(
+		private static <T> TrainingData<T> createTrainingData(
 				PathObjectFilter filter,
-				PathObjectHierarchy hierarchy,
+				ImageData<T> imageData,
 				TrainingAnnotations training,
 				Collection<PathClass> selectedClasses) {
-			
+
+			Map<PathClass, Set<PathObject>> map = new TreeMap<>();
+
 			// Get training annotations & associated objects
+			var hierarchy = imageData.getHierarchy();
 			var trainingAnnotations = getTrainingAnnotations(hierarchy, training);
 
 			if (Thread.interrupted())
 				return null;
 
 			// Use a set for detections because we might need to check if we have the same detection for multiple classes
-			Map<PathClass, Set<PathObject>> map = new TreeMap<>();
 			var filterNegated = filter.negate();
 			for (var annotation : trainingAnnotations) {
 				var pathClass = annotation.getPathClass();
@@ -545,14 +719,11 @@ public class ObjectClassifierCommand implements Runnable {
 					}
 				}
 			}
+
 			map.entrySet().removeIf(e -> e.getValue().isEmpty());
-			if (map.size() <= 1) {
-				logger.warn("Not enough training data - samples for at least two classes are needed");
-				return null;
-			}
-			return map;
+			return new TrainingData<>(imageData, map);
 		}
-		
+
 		/**
 		 * Train an object classifier.
 		 * 
@@ -567,35 +738,57 @@ public class ObjectClassifierCommand implements Runnable {
 		 * @return the trained object classifier, or null if insufficient information was provided or the thread was interrupted during training
 		 */
 		private static ObjectClassifier<BufferedImage> createClassifier(
-				Map<PathClass, Set<PathObject>> map,
+				Collection<TrainingData<BufferedImage>> training,
 				PathObjectFilter filter,
 				OpenCVStatModel statModel,
-				ImageData<BufferedImage> imageData,
 				FeatureExtractor<BufferedImage> extractor,
 				Normalization normalization,
 				double pcaRetainedVariance,
 				boolean doMulticlass) {
 
-			var pathClasses = new ArrayList<>(map.keySet());
+			var pathClasses = getPathClasses(training);
 			
+			if (pathClasses.isEmpty()) {
+				logger.warn("No compatible training data found!");
+				return null;
+			}
+			
+			if (training.size() > 1)
+				logger.info("Creating training data from {} images", training.size());
+
 			extractor = updateFeatureExtractorAndTrainClassifier(
 					statModel,
-					imageData,
-					map,
+					training,
 					extractor,
 					normalization,
 					pcaRetainedVariance,
 					doMulticlass);
-			
+
 			return OpenCVMLClassifier
 					.create(statModel, filter, extractor, pathClasses);
 		}
-		
-		
+
+
 		void resetPieChart() {
 			updatePieChart(Collections.emptyMap());
 		}
-		
+
+		<T> void updatePieChart(Collection<TrainingData<T>> training) {
+			if (!Platform.isFxApplicationThread()) {
+				Platform.runLater(() -> updatePieChart(training));
+				return;
+			}
+			var counts = new LinkedHashMap<PathClass, Integer>();
+			for (var t : training) {
+				for (var entry : t.map.entrySet()) {
+					var key = entry.getKey();
+					Integer total = counts.getOrDefault(key, 0) + entry.getValue().size();
+					counts.put(entry.getKey(), total);
+				}
+			}
+			ChartTools.setPieChartData(pieChart, counts, PathClass::toString, p -> ColorToolsFX.getCachedColor(p.getColor()), true, !counts.isEmpty());
+		}
+
 		void updatePieChart(Map<PathClass, Set<PathObject>> map) {
 			if (!Platform.isFxApplicationThread()) {
 				Platform.runLater(() -> updatePieChart(map));
@@ -607,9 +800,38 @@ public class ObjectClassifierCommand implements Runnable {
 			}
 			ChartTools.setPieChartData(pieChart, counts, PathClass::toString, p -> ColorToolsFX.getCachedColor(p.getColor()), true, !map.isEmpty());
 		}
+
+
+
+		static class TrainingData<T>{
+
+			private ImageData<T> imageData;
+			private Map<PathClass, Set<PathObject>> map;
+
+			private TrainingData(ImageData<T> imageData, Map<PathClass, Set<PathObject>> map) {
+				this.imageData = imageData;
+				this.map = map;
+			}
+
+			public Collection<PathClass> getPathClasses() {
+				return map.keySet();
+			}
+
+		}
 		
 		
-		
+		static <T> List<PathClass> getPathClasses(Collection<TrainingData<T>> training) {
+			Set<PathClass> classSet = new HashSet<>();
+			for (var t : training) {
+				classSet.addAll(t.getPathClasses());
+			}
+			var pathClasses = new ArrayList<>(classSet);
+			Collections.sort(pathClasses);
+			return pathClasses;
+		}
+
+
+
 		/**
 		 * Train a feature extractor and classifier.
 		 * @param classifier
@@ -623,67 +845,86 @@ public class ObjectClassifierCommand implements Runnable {
 		 */
 		private static <T> FeatureExtractor<T> updateFeatureExtractorAndTrainClassifier(
 				OpenCVStatModel classifier,
-				ImageData<T> imageData,
-				Map<PathClass, ? extends Collection<PathObject>> map, 
+				Collection<TrainingData<T>> trainingCollection,
 				FeatureExtractor<T> extractor,
 				Normalization normalization,
 				double pcaRetainedVariance,
 				boolean doMulticlass) {
-							
-			var pathClasses = new ArrayList<>(map.keySet());
-			Collections.sort(pathClasses);
-					
-			int nFeatures = extractor.nFeatures();
-			int nSamples = map.values().stream().mapToInt(l -> l.size()).sum();
-			int nClasses = pathClasses.size();
-			
-			Mat matTargets;
-			Mat matFeatures;
-			if (doMulticlass) {
-				// For multiclass, it's quite likely we have samples represented more than once
-				var sampleSet = new LinkedHashSet<PathObject>();
-				for (var entry : map.entrySet()) {
-					sampleSet.addAll(entry.getValue());
-				}
-				nSamples = sampleSet.size();
-				
-				matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
-				FloatBuffer buffer = matFeatures.createBuffer();
-				matTargets = new Mat(nSamples, nClasses, opencv_core.CV_8UC1, Scalar.ZERO);
-				UByteIndexer idxTargets = matTargets.createIndexer();
-				
-				extractor.extractFeatures(imageData, sampleSet, buffer);
-				
-				int row = 0;
-				for (var sample : sampleSet) {
-					for (int col = 0; col < nClasses; col++) {
-						var pathClass = pathClasses.get(col);
-						if (map.get(pathClass).contains(sample)) {
-							idxTargets.put(row, col, 1);
-						}
+
+			var pathClasses = getPathClasses(trainingCollection);
+
+			List<Mat> matFeaturesList = new ArrayList<>();
+			List<Mat> matTargetsList = new ArrayList<>();
+
+			for (var training : trainingCollection) {
+				var imageData = training.imageData;
+				var map = training.map;
+
+				int nFeatures = extractor.nFeatures();
+				int nSamples = map.values().stream().mapToInt(l -> l.size()).sum();
+				int nClasses = pathClasses.size();
+				if (nSamples == 0)
+					continue;
+
+				Mat matTargets;
+				Mat matFeatures;
+				if (doMulticlass) {
+					// For multiclass, it's quite likely we have samples represented more than once
+					var sampleSet = new LinkedHashSet<PathObject>();
+					for (var entry : map.entrySet()) {
+						sampleSet.addAll(entry.getValue());
 					}
-					row++;
-				}
-				idxTargets.release();				
-			} else {
-				matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
-				FloatBuffer buffer = matFeatures.createBuffer();
+					nSamples = sampleSet.size();
 
-				matTargets = new Mat(nSamples, 1, opencv_core.CV_32SC1, Scalar.ZERO);
-				IntBuffer bufTargets = matTargets.createBuffer();
+					matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
+					FloatBuffer buffer = matFeatures.createBuffer();
+					matTargets = new Mat(nSamples, nClasses, opencv_core.CV_8UC1, Scalar.ZERO);
+					UByteIndexer idxTargets = matTargets.createIndexer();
 
-				for (var entry : map.entrySet()) {
-					// Extract features
-					var pathClass = entry.getKey();
-					var pathObjects = entry.getValue();
-					extractor.extractFeatures(imageData, pathObjects, buffer);
-					// Update targets
-					int pathClassIndex = pathClasses.indexOf(pathClass);
-					for (int i = 0; i < pathObjects.size(); i++)
-						bufTargets.put(pathClassIndex);
+					extractor.extractFeatures(imageData, sampleSet, buffer);
+
+					int row = 0;
+					for (var sample : sampleSet) {
+						for (int col = 0; col < nClasses; col++) {
+							var pathClass = pathClasses.get(col);
+							if (map.get(pathClass).contains(sample)) {
+								idxTargets.put(row, col, 1);
+							}
+						}
+						row++;
+					}
+					idxTargets.release();				
+				} else {
+					matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
+					FloatBuffer buffer = matFeatures.createBuffer();
+
+					matTargets = new Mat(nSamples, 1, opencv_core.CV_32SC1, Scalar.ZERO);
+					IntBuffer bufTargets = matTargets.createBuffer();
+
+					for (var entry : map.entrySet()) {
+						// Extract features
+						var pathClass = entry.getKey();
+						var pathObjects = entry.getValue();
+						extractor.extractFeatures(imageData, pathObjects, buffer);
+						// Update targets
+						int pathClassIndex = pathClasses.indexOf(pathClass);
+						for (int i = 0; i < pathObjects.size(); i++)
+							bufTargets.put(pathClassIndex);
+					}
 				}
+				matFeaturesList.add(matFeatures);
+				matTargetsList.add(matTargets);
 			}
-						
+			
+			if (matFeaturesList.isEmpty()) {
+				logger.warn("No features found!");
+				return null;
+			}
+
+			var matFeatures = OpenCVTools.vConcat(matFeaturesList, null);
+			var matTargets = OpenCVTools.vConcat(matTargetsList, null);
+
+
 			// Create & apply feature normalizer if we need one
 			// We might even if normalization isn't requested so as to fill in missing values
 			if (!(classifier.supportsMissingValues() && normalization == Normalization.NONE && pcaRetainedVariance < 0)) {
@@ -692,14 +933,14 @@ public class ObjectClassifierCommand implements Runnable {
 				Preprocessing.normalize(matFeatures, normalizer);
 				extractor = FeatureExtractors.createNormalizingFeatureExtractor(extractor, normalizer);
 			}
-			
+
 			// Create a PCA projector, if needed
 			if (pcaRetainedVariance > 0) {
 				var pca = Preprocessing.createPCAProjector(matFeatures, pcaRetainedVariance, true);
 				pca.project(matFeatures, matFeatures);	
 				extractor = FeatureExtractors.createPCAProjectFeatureExtractor(extractor, pca);
 			}
-			
+
 			// Quit now if we cancelled, before changing fields and doing the slow bits
 			if (Thread.currentThread().isInterrupted()) {
 				logger.warn("Classifier training interrupted!");
@@ -707,9 +948,9 @@ public class ObjectClassifierCommand implements Runnable {
 				matTargets.close();
 				return null;
 			}
-			
+
 			trainClassifier(classifier, matFeatures, matTargets, doMulticlass);
-			
+
 			if (classifier instanceof RTreesClassifier) {
 				tryLoggingVariableImportance((RTreesClassifier)classifier, extractor);
 			}
@@ -718,7 +959,7 @@ public class ObjectClassifierCommand implements Runnable {
 			matTargets.close();
 			return extractor;
 		}
-				
+
 		static boolean trainClassifier(OpenCVStatModel classifier, Mat matFeatures, Mat matTargets, boolean doMulticlass) {		
 			// Train classifier
 			// TODO: Optionally limit the number of training samples we use
@@ -750,47 +991,57 @@ public class ObjectClassifierCommand implements Runnable {
 			logger.info(sb.toString());
 			return true;
 		}
-		
-		
-		
-		
+
+
+
+
 		private boolean showAdvancedOptions() {
 			// TODO: Add PCA options
-			
-//			int row = 0;
-//			var pane = new GridPane();
-//			
-//			var comboNormalization = new ComboBox<Normalization>();
-//			comboNormalization.getItems().setAll(Normalization.values());
-//			comboNormalization.getSelectionModel().select(normalization.get());
-//			var labelNormalization = new Label("Normalization");
-//			labelNormalization.setLabelFor(comboNormalization);
-//			
-//			PaneTools.addGridRow(pane, row++, 0,
-//					"Choose feature normalization",
-//					labelNormalization, comboNormalization);
-//
-//			var comboPCA = new ComboBox<String>();
-//			comboPCA.getItems().setAll("No PCA feature reduction", "PCA ");
-//			comboPCA.getSelectionModel().select(normalization.get());
-//			var labelNormalization = new Label("Normalization");
-//			labelNormalization.setLabelFor(comboNormalization);
-//			
-//			PaneTools.addGridRow(pane, row++, 0,
-//					"Choose feature normalization",
-//					labelNormalization, comboNormalization);
-			
+
+			//			int row = 0;
+			//			var pane = new GridPane();
+			//			
+			//			var comboNormalization = new ComboBox<Normalization>();
+			//			comboNormalization.getItems().setAll(Normalization.values());
+			//			comboNormalization.getSelectionModel().select(normalization.get());
+			//			var labelNormalization = new Label("Normalization");
+			//			labelNormalization.setLabelFor(comboNormalization);
+			//			
+			//			PaneTools.addGridRow(pane, row++, 0,
+			//					"Choose feature normalization",
+			//					labelNormalization, comboNormalization);
+			//
+			//			var comboPCA = new ComboBox<String>();
+			//			comboPCA.getItems().setAll("No PCA feature reduction", "PCA ");
+			//			comboPCA.getSelectionModel().select(normalization.get());
+			//			var labelNormalization = new Label("Normalization");
+			//			labelNormalization.setLabelFor(comboNormalization);
+			//			
+			//			PaneTools.addGridRow(pane, row++, 0,
+			//					"Choose feature normalization",
+			//					labelNormalization, comboNormalization);
+
 			var norm = Dialogs.showChoiceDialog("Advanced options", "Feature normalization", Normalization.values(), normalization.get());
 			if (norm == null || norm == normalization.get())
 				return false;
 			normalization.set(norm);
 			return true;
 		}
-		
-		private boolean saveAndApply() {
+
+		private boolean tryToSave(String name) {
+			var classifierName = name == null ? "" : GeneralTools.stripInvalidFilenameChars(name);
+			if (classifierName.isBlank()) {
+				Dialogs.showErrorMessage("Object classifier", "Please enter a valid classifier name!");
+				return false;
+			}
+			if (classifierName.equals(name))
+				logger.warn("Invalid classifier name {} replaced with {}", name, classifierName);
+
 			// Run the classification, or complete the existing classification
 			if (classifierTask == null) {
 				classifierTask = submitClassifierUpdateTask(false);
+				if (classifierTask == null)
+					return false;
 			}
 			ObjectClassifier<BufferedImage> classifier;
 			try {
@@ -803,48 +1054,42 @@ public class ObjectClassifierCommand implements Runnable {
 				return false;
 			}
 			if (classifier != null) {
-				// Make an educated guess at the classifier name if we just have one output class
-				var outputClasses = classifier.getPathClasses().stream().filter(p -> !PathClassTools.isIgnoredClass(p)).collect(Collectors.toList());
-				String defaultName = "";
-				if (outputClasses.size() == 1)
-					defaultName = outputClasses.get(0).toString() + " classifier";
-				
-				// Do the classification now
-				// TODO: Avoid re-applying classification if not needed
-				var imageData = qupath.getImageData();
-				if (imageData != null) {
-					var pathObjects = classifier.getCompatibleObjects(imageData);
-					if (classifier.classifyObjects(imageData, pathObjects, true) > 0)
-						imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
-				}
-
 				try {
 					var project = qupath.getProject();
-					String savedName = null;
 					if (project != null) {
-						String classifierName = Dialogs.showInputDialog("Object classifier", "Classifier name", defaultName);
-						if (classifierName != null) {
-							classifierName = GeneralTools.stripInvalidFilenameChars(classifierName);
-							project.getObjectClassifiers().put(classifierName, classifier);
-							savedName = classifierName;
-							logger.info("Classifier saved to project as {}", classifierName);
-						}
+						var allClassifiers = project.getObjectClassifiers();
+						if (allClassifiers.contains(name) && !
+								Dialogs.showConfirmDialog("Object classifiers", "Overwrite existing classifier \"" + classifierName + "\""))
+							return false;
+						project.getObjectClassifiers().put(classifierName, classifier);
+						logger.info("Classifier saved to project as {}", classifierName);
 					} else {
-						var file = Dialogs.promptToSaveFile("Save object classifier", null, null, "Object classifier", ".obj.json");
-						if (file != null) {
-							savedName = file.getAbsolutePath();
-							ObjectClassifiers.writeClassifier(classifier, file.toPath());
+						var file = Dialogs.promptToSaveFile("Save object classifier", null, classifierName, "Object classifier", ".obj.json");
+						if (file == null)
+							return false;
+						classifierName = file.getAbsolutePath();
+						ObjectClassifiers.writeClassifier(classifier, file.toPath());
+					}
+					Dialogs.showInfoNotification("Object classifiers", "Saved classifier as \"" + classifierName + "\"");
+					// We want to now apply classifier to all images & log to workflow
+					// (might be redundant, but we do want to make sure that we are logging the classifier we applied)
+					for (var viewer : qupath.getViewers()) {
+						var imageData = viewer.getImageData();
+						if (imageData != null) {
+							classifier.classifyObjects(imageData, true);
+							imageData.getHistoryWorkflow().addStep(
+									ObjectClassifierLoadCommand.createObjectClassifierStep(classifierName));
 						}
 					}
-					if (savedName != null)
-						imageData.getHistoryWorkflow().addStep(ObjectClassifierLoadCommand.createObjectClassifierStep(savedName));
+					return true;
 				} catch (Exception e) {
-					logger.error("Error attempting classifier serialization " + e.getLocalizedMessage(), e);
+					logger.error("Error attempting to save classifier " + e.getLocalizedMessage(), e);
 				}
 			}
+			Dialogs.showWarningNotification("Object classifiers", "Unable to save classifier!");
 			return false;
 		}
-		
+
 		private boolean editClassifierParameters() {
 			var model = selectedModel.get();
 			if (model == null) {
@@ -855,12 +1100,12 @@ public class ObjectClassifierCommand implements Runnable {
 			invalidateClassifier();
 			return true;
 		}
-		
+
 		private void initialize() {
-			
+
 			pane = new GridPane();
 			int row = 0;
-			
+
 			/*
 			 * Input object type
 			 */
@@ -876,20 +1121,20 @@ public class ObjectClassifierCommand implements Runnable {
 			objectFilter = comboObjects.getSelectionModel().selectedItemProperty();
 			comboObjects.getSelectionModel().select(PathObjectFilter.DETECTIONS_ALL);
 			objectFilter.addListener((v, o, n) -> invalidateClassifier());
-			
+
 			PaneTools.addGridRow(pane, row++, 0, 
 					"Choose object type to classify (default is all detections)",
 					labelObjects, comboObjects, comboObjects);
-			
+
 			/*
 			 * Classifier type
 			 */
-			var labelClassifier = new Label("Classifier type");
+			var labelClassifier = new Label("Classifier");
 			var comboClassifier = new ComboBox<OpenCVStatModel>();
 			comboClassifier.getItems().addAll(
 					OpenCVClassifiers.createStatModel(RTrees.class),
 					OpenCVClassifiers.createStatModel(ANN_MLP.class),
-//					OpenCVClassifiers.createMulticlassStatModel(ANN_MLP.class),
+					//					OpenCVClassifiers.createMulticlassStatModel(ANN_MLP.class),
 					OpenCVClassifiers.createStatModel(KNearest.class)
 					);
 			labelClassifier.setLabelFor(comboClassifier);
@@ -900,11 +1145,11 @@ public class ObjectClassifierCommand implements Runnable {
 			btnEditClassifier.setMaxWidth(Double.MAX_VALUE);
 			btnEditClassifier.setOnAction(e -> editClassifierParameters());
 			btnEditClassifier.disableProperty().bind(selectedModel.isNull());
-			
+
 			PaneTools.addGridRow(pane, row++, 0, 
 					"Choose classifier type (RTrees or ANN_MLP are generally good choices)",
 					labelClassifier, comboClassifier, btnEditClassifier);
-			
+
 			/*
 			 * Feature selection
 			 */
@@ -928,7 +1173,7 @@ public class ObjectClassifierCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, 
 					null,
 					labelFeatures, comboFeatures, btnSelectFeatures);
-			
+
 			var tooltipFeatures = new Tooltip();
 			tooltipFeatures.setOnShowing(e -> {
 				String text = "Select measurements for the classifier\n";
@@ -945,7 +1190,7 @@ public class ObjectClassifierCommand implements Runnable {
 			});
 			btnSelectFeatures.setTooltip(tooltipFeatures);
 			comboFeatures.setTooltip(tooltipFeatures);
-			
+
 			/*
 			 * Output classes
 			 */
@@ -982,11 +1227,11 @@ public class ObjectClassifierCommand implements Runnable {
 			});
 			btnSelectClasses.setTooltip(tooltipClasses);
 			comboClasses.setTooltip(tooltipClasses);
-			
+
 			PaneTools.addGridRow(pane, row++, 0, 
 					null,
 					labelClasses, comboClasses, btnSelectClasses);
-			
+
 			/*
 			 * Training annotations
 			 */
@@ -996,49 +1241,56 @@ public class ObjectClassifierCommand implements Runnable {
 			comboTraining.getSelectionModel().select(TrainingAnnotations.ALL_UNLOCKED);
 			trainingAnnotations = comboTraining.getSelectionModel().selectedItemProperty();
 			trainingAnnotations.addListener(v -> invalidateClassifier());
-			
+
 			PaneTools.addGridRow(pane, row++, 0, 
 					"Choose what kind of annotations to use for training",
 					labelTraining, comboTraining, comboTraining);
-			
-			
+
+
 			/*
 			 * Additional options & live predict
 			 */
+			var btnLoadTraining = new Button("Load training");
+			btnLoadTraining.setTooltip(new Tooltip("Train using annotations from more images in the current project"));
+			btnLoadTraining.setOnAction(e -> {
+				if (promptToLoadTrainingImages()) {
+					invalidateClassifier();
+					int n = trainingEntries.size();
+					if (n > 0)
+						btnLoadTraining.setText("Load training (" + n + ")");
+					else
+						btnLoadTraining.setText("Load training");
+				}
+			});
+			
 			var btnAdvancedOptions = new Button("Advanced options");
 			btnAdvancedOptions.setTooltip(new Tooltip("Advanced options to customize preprocessing and classifier behavior"));
 			btnAdvancedOptions.setOnAction(e -> {
 				if (showAdvancedOptions())
 					invalidateClassifier();
 			});
-			
+
 			var btnLive = new ToggleButton("Live update");
 			btnLive.selectedProperty().bindBidirectional(livePrediction);
 			btnLive.setTooltip(new Tooltip("Toggle whether to calculate classification 'live' while viewing the image"));
+			btnLive.setMaxWidth(Double.MAX_VALUE);
 			livePrediction.addListener((v, o, n) -> {
 				if (n) {
 					invalidateClassifier();				
 					return;
 				}
 			});
-			
-			var panePredict = PaneTools.createColumnGridControls(btnAdvancedOptions, btnLive);
+
+			var panePredict = PaneTools.createColumnGridControls(btnLoadTraining, btnAdvancedOptions);
 			pane.add(panePredict, 0, row++, pane.getColumnCount(), 1);
 			
-			/*
-			 * Save classifier
-			 */
-			var btnSave = new Button("Save & Apply");
-			btnSave.setMaxWidth(Double.MAX_VALUE);
-			btnSave.setOnAction(e -> saveAndApply());
-			btnSave.setTooltip(new Tooltip("Save a classifier with the current settings & apply it to the active image"));
-			pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
-			
+			pane.add(btnLive, 0, row++, pane.getColumnCount(), 1);
+
 			/*
 			 * Training proportions (pie chart)
 			 */
 			pieChart = new PieChart();
-			
+
 			pieChart.setLabelsVisible(false);
 			pieChart.setLegendVisible(true);
 			pieChart.setPrefSize(40, 40);
@@ -1047,7 +1299,7 @@ public class ObjectClassifierCommand implements Runnable {
 			pieChart.setMaxWidth(Double.MAX_VALUE);
 			GridPane.setVgrow(pieChart, Priority.ALWAYS);
 			pane.add(pieChart, 0, row++, pane.getColumnCount(), 1);
-			
+
 			// Label showing cursor location
 			var labelCursor = new Label();
 			labelCursor.textProperty().bindBidirectional(cursorLocation);
@@ -1055,60 +1307,96 @@ public class ObjectClassifierCommand implements Runnable {
 			labelCursor.setAlignment(Pos.CENTER);
 			labelCursor.setTooltip(new Tooltip("Prediction for current cursor location"));
 			pane.add(labelCursor, 0, row++, pane.getColumnCount(), 1);
-						
+			
+			/*
+			 * Save classifier
+			 */
+			var btnSave = new Button("Save");
+			var labelSave = new Label("Classifier name");
+			var tfSaveName = new TextField("");
+			tfSaveName.setMaxWidth(Double.MAX_VALUE);
+			tfSaveName.setPromptText("Enter object classifier name");
+			ProjectClassifierBindings.bindObjectClassifierNameInput(tfSaveName, qupath.projectProperty());
+			btnSave.setMaxWidth(Double.MAX_VALUE);
+			btnSave.disableProperty().bind(
+					tfSaveName.textProperty().isEmpty()
+					.or(qupath.projectProperty().isNull())
+					.or(qupath.imageDataProperty().isNull()));
+			btnSave.setOnAction(e -> {
+				tryToSave(tfSaveName.getText());
+				tfSaveName.requestFocus();
+				btnSave.requestFocus();
+			});
+			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
+					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
+									
+//			var btnSave = new Button("Save & Apply");
+//			btnSave.setMaxWidth(Double.MAX_VALUE);
+//			btnSave.setOnAction(e -> saveAndApply());
+//			btnSave.setTooltip(new Tooltip("Save a classifier with the current settings & apply it to the active image"));
+//			pane.add(btnSave, 0, row++, pane.getColumnCount(), 1);
+
+
 			PaneTools.setMaxWidth(Double.MAX_VALUE, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
 			PaneTools.setHGrowPriority(Priority.ALWAYS, comboTraining, comboObjects, comboClassifier, comboFeatures, comboClasses, panePredict);
 			PaneTools.setFillWidth(Boolean.TRUE, comboTraining, comboObjects, comboClassifier, comboClasses, panePredict);
 
 			pane.setHgap(5);
 			pane.setVgap(6);
-			
+
 			qupath.getStage().getScene().addEventFilter(MouseEvent.MOUSE_MOVED, e -> updateLocationText(e));
-			
+
 			pane.setPadding(new Insets(5));
 		}
-		
-		
+
+
 		boolean promptToSelectFeatures() {
-			var imageData = qupath.getImageData();
-			if (imageData == null)
-				return false;
-			var detections = imageData.getHierarchy().getFlattenedObjectList(null)
-					.stream()
-					.filter(objectFilter.get())
-					.collect(Collectors.toList());
-			
-			var measurements = PathClassifierTools.getAvailableFeatures(detections);
+			var measurements = getAllMeasurements(getTrainingImageData(), true);
 			if (measurements.isEmpty()) {
 				Dialogs.showErrorMessage("Select features", "No features available for specified objects!");
 				return false;
 			}
-			
+
 			var featuresPane = new SelectionPane<>(measurements, true);
 			featuresPane.selectItems(selectedMeasurements);
-			if (!Dialogs.showConfirmDialog("Select features", featuresPane.getPane()))
+			
+			if (Dialogs.builder()
+				.title("Select features")
+				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+				.content(featuresPane.getPane())
+				.showAndWait()
+				.orElse(ButtonType.CANCEL) != ButtonType.APPLY)
 				return false;
+			
 			selectedMeasurements.clear();
 			selectedMeasurements.addAll(featuresPane.getSelectedItems());
 			return true;
 		}
-		
+
 		boolean promptToSelectClasses() {
-			var imageData = qupath.getImageData();
-			if (imageData == null)
+			var annotations = getTrainingAnnotations(getTrainingImageData());
+			if (annotations.isEmpty()) {
+				Dialogs.showErrorMessage("Object classifier", "No annotations found for training!");
 				return false;
-			var annotations = getTrainingAnnotations(imageData.getHierarchy(), trainingAnnotations.get());
+			}
 			var pathClasses = annotations.stream().map(p -> p.getPathClass()).collect(Collectors.toCollection(TreeSet::new));
 			var classesPane = new SelectionPane<>(pathClasses, true);
 			classesPane.selectItems(selectedClasses);
-			if (!Dialogs.showConfirmDialog("Select classes", classesPane.getPane()))
-				return false;
+			
+			if (Dialogs.builder()
+					.title("Select classes")
+					.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+					.content(classesPane.getPane())
+					.showAndWait()
+					.orElse(ButtonType.CANCEL) != ButtonType.APPLY)
+					return false;
+			
 			selectedClasses.clear();
 			selectedClasses.addAll(classesPane.getSelectedItems());
 			return true;
 		}
-		
-		
+
+
 		void updateLocationText(MouseEvent e) {
 			String text = "";
 			for (var viewer : qupath.getViewers()) {
@@ -1124,7 +1412,7 @@ public class ObjectClassifierCommand implements Runnable {
 			cursorLocation.set(text);
 		}
 
-		
+
 		private void registerListeners(QuPathGUI qupath) {
 			qupath.imageDataProperty().addListener(this);
 			changed(qupath.imageDataProperty(), null, qupath.getImageData());
@@ -1134,6 +1422,21 @@ public class ObjectClassifierCommand implements Runnable {
 			qupath.imageDataProperty().removeListener(this);
 			changed(qupath.imageDataProperty(), qupath.getImageData(), null);
 		}
+		
+		private void cleanup(QuPathGUI qupath) {
+			deregisterListeners(qupath);
+			// Ensure we have closed any cached images
+			for (var data : trainingMap.values()) {
+				try {
+					data.getServer().close();
+				} catch (Exception e) {
+					logger.warn("Error closing server: " + e.getLocalizedMessage(), e);
+				}
+			}
+			trainingEntries.clear();
+			trainingMap.clear();
+		}
+		
 
 		@Override
 		public void changed(ObservableValue<? extends ImageData<BufferedImage>> source, ImageData<BufferedImage> imageDataOld,
@@ -1142,7 +1445,7 @@ public class ObjectClassifierCommand implements Runnable {
 				imageDataOld.getHierarchy().removePathObjectListener(this);
 			if (imageDataNew != null)
 				imageDataNew.getHierarchy().addPathObjectListener(this);
-			
+
 			invalidateClassifier();
 		}
 
@@ -1166,10 +1469,10 @@ public class ObjectClassifierCommand implements Runnable {
 			}
 			invalidateClassifier();
 		}
-		
+
 	}
-	
-	
+
+
 	/**
 	 * Helper class to display a table with selectable items.
 	 * Includes checkboxes, select all/none options, and (optionally) a filter box.
@@ -1181,7 +1484,7 @@ public class ObjectClassifierCommand implements Runnable {
 
 		private TableView<SelectableItem<T>> tableFeatures;
 		private FilteredList<SelectableItem<T>> list;
-		
+
 		SelectionPane(Collection<T> items, boolean includeFilter) {
 			list = FXCollections.observableArrayList(
 					items.stream().map(i -> getSelectableItem(i)).collect(Collectors.toList())
@@ -1189,7 +1492,7 @@ public class ObjectClassifierCommand implements Runnable {
 			tableFeatures = new TableView<>(list);
 			pane = makePane(includeFilter);
 		}
-		
+
 		void updatePredicate(String text) {
 			if (text == null || text.isBlank())
 				list.setPredicate(p -> true);
@@ -1209,7 +1512,7 @@ public class ObjectClassifierCommand implements Runnable {
 			}
 			return selectedFeatures;
 		}
-		
+
 
 		private BorderPane makePane(boolean includeFilter) {
 			TableColumn<SelectableItem<T>, String> columnName = new TableColumn<>("Name");
@@ -1258,7 +1561,7 @@ public class ObjectClassifierCommand implements Runnable {
 					feature.setSelected(false);
 			});
 			var panelSelectButtons = PaneTools.createColumnGridControls(btnSelectAll, btnSelectNone);
-			
+
 			Pane panelButtons;
 
 			if (includeFilter) {
@@ -1277,18 +1580,18 @@ public class ObjectClassifierCommand implements Runnable {
 				GridPane.setFillWidth(tfFilter, Boolean.TRUE);
 				paneFilter.setHgap(5);
 				paneFilter.setPadding(new Insets(5, 0, 5, 0));
-				
+
 				panelButtons = PaneTools.createRowGrid(
-					panelSelectButtons,
-					paneFilter
-					);
+						panelSelectButtons,
+						paneFilter
+						);
 			} else
 				panelButtons = panelSelectButtons;
 
 			var panelFeatures = new BorderPane();
 			panelFeatures.setCenter(tableFeatures);
 			panelFeatures.setBottom(panelButtons);
-			
+
 
 			return panelFeatures;
 		}
@@ -1344,7 +1647,7 @@ public class ObjectClassifierCommand implements Runnable {
 			}
 
 		}
-		
+
 	}
-	
+
 }

@@ -173,7 +173,7 @@ public class PixelClassifierTraining {
         // We need at least two classes for anything very meaningful to happen
         int nTargets = labels.size();
         if (nTargets <= 1) {
-        	logger.warn("Annotations for at least two classes are required to train a classifier");
+        	logger.warn("Unlocked annotations for at least two classes are required to train a classifier!");
             resetTrainingData();
             return null;
         }

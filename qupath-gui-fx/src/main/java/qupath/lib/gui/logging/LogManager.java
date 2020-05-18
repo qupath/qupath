@@ -2,6 +2,9 @@ package qupath.lib.gui.logging;
 
 import java.io.File;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+
 /**
  * Manage logging levels.
  * 
@@ -43,6 +46,15 @@ public class LogManager {
 		OFF;
 	}
 	
+	private static ObjectProperty<LogLevel> logLevelProperty = new SimpleObjectProperty<>(LogLevel.INFO);
+	
+	static {
+		logLevelProperty.addListener((v, o, n) -> {
+			if (n != null)
+				LoggingAppender.getInstance().setRootLogLevel(n);
+		});
+	}
+	
 	/**
 	 * Request logging to the specified file.
 	 * @param file
@@ -56,7 +68,26 @@ public class LogManager {
 	 * @param level
 	 */
 	public static void setRootLogLevel(LogLevel level) {
-		LoggingAppender.getInstance().setRootLogLevel(level);
+//		LoggingAppender.getInstance().setRootLogLevel(level);
+		logLevelProperty.set(level);
+	}
+	
+	
+	/**
+	 * Set the root log level, as set by this manager.
+	 * This is not guaranteed to match the actual root log level, in case it has been set elsewhere.
+	 * @return 
+	 */
+	public static LogLevel getRootLogLevel() {
+		return logLevelProperty.get();
+	}
+	
+	/**
+	 * Property representing the current requested root log level.
+	 * @return
+	 */
+	public static ObjectProperty<LogLevel> rootLogLevelProperty() {
+		return logLevelProperty;
 	}
 	
 	/**

@@ -151,29 +151,28 @@ public class GuiTools {
 		if (Desktop.isDesktopSupported()) {
 			var desktop = Desktop.getDesktop();
 			try {
-				// Seems to work on Mac
-				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
-					desktop.browseFileDirectory(file);
-				else {
-					// Can open directory in Windows
-					if (GeneralTools.isWindows()) {
-						if (file.isDirectory())
-							desktop.open(file);
-						else
-							desktop.open(file.getParentFile());
-						return true;
-					}
-					// Trouble on Linux - just copy
-					if (Dialogs.showConfirmDialog("Browse directory",
-							"Directory browsing not supported on this platform!\nCopy directory path to clipboard instead?")) {
-						var content = new ClipboardContent();
-						content.putString(file.getAbsolutePath());
-						Clipboard.getSystemClipboard().setContent(content);
-					}
+				// Can open directory on Windows & Mac
+				if (GeneralTools.isWindows() || GeneralTools.isMac()) {
+					if (file.isDirectory())
+						desktop.open(file);
+					else
+						desktop.open(file.getParentFile());
+					return true;
+				}
+				// Trouble on Linux - just copy
+				if (Dialogs.showConfirmDialog("Browse directory",
+						"Directory browsing not supported on this platform!\nCopy directory path to clipboard instead?")) {
+					var content = new ClipboardContent();
+					content.putString(file.getAbsolutePath());
+					Clipboard.getSystemClipboard().setContent(content);
 				}
 				return true;
 			} catch (Exception e1) {
-				Dialogs.showErrorNotification("Browse directory", e1);
+				// Browsing the directory (at least on Mac) seems to open the parent directory
+				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
+					desktop.browseFileDirectory(file);
+				else
+					Dialogs.showErrorNotification("Browse directory", e1);
 			}
 		}
 		return false;

@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -15,35 +17,48 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringExpression;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
+import javafx.geometry.Side;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.RegionFilter;
 import qupath.lib.gui.viewer.RegionFilter.StandardRegionFilters;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.writers.ImageWriter;
+import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
+import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.parameters.BooleanParameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
 /**
  * Helper class for generating standardized UI components for pixel classification.
@@ -62,7 +77,7 @@ public class PixelClassifierUI {
 	public static ComboBox<RegionFilter> createRegionFilterCombo(OverlayOptions options) {
 		var comboRegion = new ComboBox<RegionFilter>();
 //		comboRegion.getItems().addAll(StandardRegionFilters.values());
-		comboRegion.getItems().addAll(StandardRegionFilters.EVERYWHERE, StandardRegionFilters.ANY_ANNOTATIONS);
+		comboRegion.getItems().addAll(StandardRegionFilters.EVERYWHERE, StandardRegionFilters.ANY_OBJECTS, StandardRegionFilters.ANY_ANNOTATIONS);
 		var selected = options.getPixelClassificationRegionFilter();
 		if (!comboRegion.getItems().contains(selected))
 			comboRegion.getItems().add(selected);
@@ -88,7 +103,12 @@ public class PixelClassifierUI {
 	 */
 	public static Pane createPixelClassifierButtons(ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<PixelClassifier> classifier, StringExpression classifierName) {
 	
-		BooleanBinding disableButtons = imageData.isNull().or(classifier.isNull()).or(classifierName.isEmpty());
+		BooleanProperty allowWithoutSaving = new SimpleBooleanProperty(false);
+		
+		BooleanBinding disableButtons = imageData.isNull()
+				.or(classifier.isNull())
+				.or(classifierName.isEmpty().and(allowWithoutSaving.not()));
+		
 		
 		var btnCreateObjects = new Button("Create objects");
 		btnCreateObjects.disableProperty().bind(disableButtons);
@@ -114,7 +134,26 @@ public class PixelClassifierUI {
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
 		
-		return PaneTools.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
+		var paneMain = PaneTools.createColumnGrid(btnAddMeasurements, btnCreateObjects, btnClassifyObjects);
+		
+		// Add some more options
+		var menu = new ContextMenu();
+		var miWithoutSaving = new CheckMenuItem("Enable buttons for unsaved classifiers");
+		miWithoutSaving.selectedProperty().bindBidirectional(allowWithoutSaving);
+		var miSavePrediction = new MenuItem("Save prediction image");
+		miSavePrediction.setOnAction(e -> promptToSavePredictionImage(imageData.get(), classifier.get(), classifierName.get()));
+		miSavePrediction.disableProperty().bind(disableButtons);
+		
+		menu.getItems().addAll(
+				miSavePrediction,
+				miWithoutSaving
+				);
+		
+		var btnAdvanced = GuiTools.createMoreButton(menu, Side.RIGHT);
+		
+		var pane = new BorderPane(paneMain);
+		pane.setRight(btnAdvanced);
+		return pane;
 	}
 	
 	/**
@@ -140,8 +179,12 @@ public class PixelClassifierUI {
 		var btnSave = new Button("Save");
 		btnSave.setOnAction(e -> {
 			var name = tryToSave(project.get(), classifier.get(), tfClassifierName.getText(), false);
-			if (name != null)
+			if (name != null) {
+				Dialogs.showInfoNotification("Pixel classifier", "Classifier saved as \"" + name + "\"");
 				savedName.set(name);
+				tfClassifierName.requestFocus();
+				btnSave.requestFocus();
+			}
 		});
 		btnSave.disableProperty().bind(
 				classifier.isNull()
@@ -157,8 +200,13 @@ public class PixelClassifierUI {
 		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
 		PaneTools.setToExpandGridPaneWidth(tfClassifierName);
 		pane.setHgap(5);
+		
+		
+		ProjectClassifierBindings.bindPixelClassifierNameInput(tfClassifierName, project);
+		
 		return pane;
 	}
+	
 	
 	
 	private static String tryToSave(Project<?> project, PixelClassifier classifier, String name, boolean overwriteQuietly) {
@@ -173,7 +221,7 @@ public class PixelClassifierUI {
 		}
 		try {
 			var classifiers = project.getPixelClassifiers();
-			if (!overwriteQuietly && classifiers.getNames().contains(name)) {
+			if (!overwriteQuietly && classifiers.contains(name)) {
 				if (!Dialogs.showYesNoDialog("Pixel classifier", "Overwrite existing classifier '" + name + "'?"))
 					return null;
 			}
@@ -186,7 +234,44 @@ public class PixelClassifierUI {
 	}
 	
 	
-	private static boolean promptToClassifyDetectionsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, String  classifierName) {
+	private static boolean promptToSavePredictionImage(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
+		Objects.requireNonNull(imageData);
+		Objects.requireNonNull(classifier);
+		
+		var server = PixelClassifierTools.createPixelClassificationServer(imageData, classifier);
+		ImageWriter<BufferedImage> writer;
+		var allWriters = ImageWriterTools.getCompatibleWriters(server, "ome.tif");
+		if (allWriters == null || allWriters.isEmpty()) {
+			allWriters = ImageWriterTools.getCompatibleWriters(server, null);
+		}
+		if (allWriters.isEmpty()) {
+			Dialogs.showErrorMessage("Save prediction", "Sorry, I could not find any compatible image writers!");
+			return false;
+		} else if (allWriters.size() > 1) {
+			Map<String, ImageWriter<BufferedImage>> map = new LinkedHashMap<>();
+			for (var w : allWriters)
+				map.put(w.getName(), w);
+			var choice = Dialogs.showChoiceDialog("Save prediction", "Choose image writer", map.keySet(), map.keySet().iterator().next());
+			writer = choice == null ? null : map.get(choice);
+			if (writer == null)
+				return false;
+		} else
+			writer = allWriters.iterator().next();
+
+		var file = Dialogs.promptToSaveFile("Save prediction", null, classifierName, writer.getName(), writer.getDefaultExtension());
+		if (file == null)
+			return false;
+		try {
+			writer.writeImage(server, file.getAbsolutePath());
+		} catch (IOException e) {
+			Dialogs.showErrorMessage("Save prediction", e);
+		}
+		
+		return true;
+	}
+	
+	
+	private static boolean promptToClassifyDetectionsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(classifier);
 		
@@ -215,7 +300,7 @@ public class PixelClassifierUI {
 	 * 						 workflow of the {@link ImageData} for later scripting.
 	 * @return true if changes were made, false otherwise
 	 */
-	private static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String  classifierName) {
+	private static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(classifier);
 
@@ -239,6 +324,12 @@ public class PixelClassifierUI {
 		var outputObjectTypes = Arrays.asList(
 				"Annotation", "Detection"
 				);
+		
+		// To avoid confusing the user unnecessary, if we *only* have ignored classes then set default for includeIgnored to true
+		boolean includeIgnored = false;
+		var labels = classifier.getMetadata().getClassificationLabels();
+		if (!labels.isEmpty() && labels.values().stream().allMatch(p -> p == null || PathClassTools.isIgnoredClass(p)))
+			includeIgnored = true;
 
 		var cal = imageData.getServer().getPixelCalibration();
 		var units = cal.unitsMatch2D() ? cal.getPixelWidthUnit()+"^2" : cal.getPixelWidthUnit() + "x" + cal.getPixelHeightUnit();
@@ -247,57 +338,75 @@ public class PixelClassifierUI {
 		if (lastCreateObjectParams != null) {
 			params = lastCreateObjectParams.duplicate();
 			params.setHiddenParameters(false, params.getKeyValueParameters(true).keySet().toArray(String[]::new));
+			((BooleanParameter)params.getParameters().get("includeIgnored")).setValue(includeIgnored);
 		} else {
 			params = new ParameterList()
-					.addChoiceParameter("objectType", "New object type", "Annotation", outputObjectTypes)
+					.addChoiceParameter("objectType", "New object type", "Annotation", outputObjectTypes, "Define the type of objects that will be created")
 					.addDoubleParameter("minSize", "Minimum object size", 0, units, "Minimum size of a region to keep (smaller regions will be dropped)")
 					.addDoubleParameter("minHoleSize", "Minimum hole size", 0, units, "Minimum size of a hole to keep (smaller holes will be filled)")
-					.addBooleanParameter("doSplit", "Split objects", true,
+					.addBooleanParameter("doSplit", "Split objects", false,
 							"Split multi-part regions into separate objects")
 					.addBooleanParameter("clearExisting", "Delete existing objects", false,
-							"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)");
+							"Delete any existing objects within the selected object before adding new objects (or entire image if no object is selected)")
+					.addBooleanParameter("includeIgnored", "Create objects for ignored classes", includeIgnored,
+							"Create objects for classifications that are usually ignored (e.g. \"Ignore*\", \"Region*\")")
+					.addBooleanParameter("selectNew", "Set new objects to selected", false,
+							"Set the newly-created objects to be selected");
 		}
-
+		
 		if (!Dialogs.showParameterDialog("Create objects", params))
 			return false;
 
 		boolean createDetections = params.getChoiceParameterValue("objectType").equals("Detection");
 		boolean doSplit = params.getBooleanParameterValue("doSplit");
+		includeIgnored = params.getBooleanParameterValue("includeIgnored");
 		double minSize = params.getDoubleParameterValue("minSize");
 		double minHoleSize = params.getDoubleParameterValue("minHoleSize");
 		boolean clearExisting = params.getBooleanParameterValue("clearExisting");
+		boolean selectNew = params.getBooleanParameterValue("selectNew");
 
 		lastCreateObjectParams = params;
 
 		parentChoice.handleSelection(imageData);
+		
+		List<CreateObjectOptions> options = new ArrayList<>();
+		if (doSplit)
+			options.add(CreateObjectOptions.SPLIT);
+		if (clearExisting)
+			options.add(CreateObjectOptions.DELETE_EXISTING);
+		if (includeIgnored)
+			options.add(CreateObjectOptions.INCLUDE_IGNORED);
+		if (selectNew)
+			options.add(CreateObjectOptions.SELECT_NEW);
+		
+		var optionsArray = options.toArray(CreateObjectOptions[]::new);
+		String optionsString = "";
+		if (!options.isEmpty())
+			optionsString = ", " + options.stream().map(o -> "\"" + o.name() + "\"").collect(Collectors.joining(", "));
 
 		if (createDetections) {
-			if (PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, doSplit, clearExisting)) {
+			if (PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)) {
 				if (classifierName != null) {
 					imageData.getHistoryWorkflow().addStep(
 							new DefaultScriptableWorkflowStep("Pixel classifier create detections",
-									String.format("createDetectionsFromPixelClassifier(\"%s\", %s, %s, %s, %s)",
+									String.format("createDetectionsFromPixelClassifier(\"%s\", %s, %s)",
 											classifierName,
 											minSize,
-											minHoleSize,
-											doSplit,
-											clearExisting)
+											minHoleSize + optionsString)
 									)
 							);
 				}
 				return true;
 			}
 		} else {
-			if (PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, doSplit, clearExisting)) {
+			if (PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)) {
 				if (classifierName != null) {
 					imageData.getHistoryWorkflow().addStep(
 							new DefaultScriptableWorkflowStep("Pixel classifier create annotations",
-									String.format("createAnnotationsFromPixelClassifier(\"%s\", %s, %s, %s, %s)",
+									String.format("createAnnotationsFromPixelClassifier(\"%s\", %s, %s)",
 											classifierName,
 											minSize,
-											minHoleSize,
-											doSplit,
-											clearExisting)
+											minHoleSize + optionsString)
 									)
 							);
 				}

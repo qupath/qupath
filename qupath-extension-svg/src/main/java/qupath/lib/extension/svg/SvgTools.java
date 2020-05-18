@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -356,14 +355,14 @@ public class SvgTools {
 				try (var stream = 
 						new OutputStreamWriter(
 								new GZIPOutputStream(
-										Files.newOutputStream(file.toPath(), StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+										Files.newOutputStream(file.toPath())
 										),
 								StandardCharsets.UTF_8)
 						) {
 					stream.write(doc);
 				}
 			} else
-				Files.writeString(file.toPath(), doc, StandardCharsets.UTF_8, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
+				Files.writeString(file.toPath(), doc, StandardCharsets.UTF_8);
 			
 			// Write linked images, if necessary
 			if (!embedImages) {
