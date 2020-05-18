@@ -29,12 +29,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -300,18 +304,50 @@ public class GeneralTools {
 	/**
 	 * Try to convert a path to a URI.
 	 * <p>
-	 * This currently does a very simple check for http:/https:/file: at the beginning to see if it 
-	 * can construct the URI directly; if not, it assumes the path refers to a local file (as it 
-	 * generally did in QuPath 0.1.2 and earlier).
+	 * This currently does a very simple check for a known scheme at the beginning 
+	 * ("http:", "https:" or ""file:") to see if it can construct the URI directly; 
+	 * if not, it assumes the path refers to a local file (as it generally did in 
+	 * QuPath 0.1.2 and earlier). This method does not encode special characters.
 	 * 
 	 * @param path
 	 * @return
-	 * @throws URISyntaxException 
+	 * @throws URISyntaxException
+	 * @see #toEncodedURI(String path)
 	 */
 	public static URI toURI(String path) throws URISyntaxException {
 		if (path.startsWith("http:") || path.startsWith("https:") || path.startsWith("file:"))
 			return new URI(path);
 		return new File(path).toURI();
+	}
+	
+	/**
+	 * Try to convert a path to an encoded URI.
+	 * <p>
+	 * URIs do not accept some characters (e.g. "|"). This method will perform a simple check for
+	 * {@code http:} and {@code https:} schemes at the beginning of the URI. It will then modify 
+	 * the Query (@see <a href=https://docs.oracle.com/javase/tutorial/networking/urls/urlInfo.html>Query</a>) 
+	 * to a valid form. Finally, a reconstructed valid URI is returned. Note: this method will 
+	 * only encode the Query part of the URI (i.e. it will not handle Fragments).
+	 * <p>
+	 * E.g. "{@code https://host?query=first|second}" will return "{@code https://host?query%3Dfirst%7Csecond}".
+	 * 
+	 * @param path
+	 * @return encodedURI
+	 * @throws URISyntaxException
+	 * @throws UnsupportedEncodingException
+	 * @throws MalformedURLException 
+	 */
+	public static URI toEncodedURI(String path) throws URISyntaxException, UnsupportedEncodingException, MalformedURLException {
+		if (path.startsWith("http:") || path.startsWith("https:")) {
+			String urlQuery = new URL(path).getQuery();
+			if (urlQuery != null && !urlQuery.isEmpty()) {
+				String encodedQueryString = URLEncoder.encode(urlQuery, StandardCharsets.UTF_8);
+				String encodedURL = path.substring(0, path.lastIndexOf(urlQuery)) + urlQuery.replace(urlQuery, encodedQueryString);
+				return new URI(encodedURL);
+			}
+			return new URI(path);
+		}
+		return new URI(path);
 	}
 	
 	

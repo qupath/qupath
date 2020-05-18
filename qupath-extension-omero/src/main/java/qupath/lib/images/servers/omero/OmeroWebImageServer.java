@@ -18,25 +18,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import qupath.lib.awt.common.BufferedImageTools;
-import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.omero.OmeroShapes.OmeroShape;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjects;
-import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.ROIs;
-import qupath.lib.roi.interfaces.ROI;
+import qupath.lib.objects.PathObjectReader;
 
 /**
  * ImageServer that reads pixels using the OMERO web API.
@@ -47,7 +45,7 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class OmeroWebImageServer extends AbstractTileableImageServer {
+public class OmeroWebImageServer extends AbstractTileableImageServer implements PathObjectReader {
 
 	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServer.class);
 
@@ -74,26 +72,35 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	 */
 //	private static int OMERO_MAX_SIZE = 1024;
 
+	/**
+	 * Instantiate an OMERO server.
+	 * 
+	 * Note that there are five URI options currently supported:
+	 * <ul>
+	 * 	<li> Copy and paste from web viewer ("{@code /host/webclient/img_detail/id/}")</li>
+	 *  <li> Copy and paste from the 'Link' button ("{@code /host/webclient/?show=id}")</li>
+	 *  <li> Copy and paste from the old viewer ("{@code /host/webgateway/img_detail/id}")</li>
+	 *  <li> Copy and paste from the new viewer ("{@code /host/iviewer/?images=id}")</li>
+	 *  <li> Id provided as only fragment after host</li>
+	 * </ul>
+	 * The fifth option could be removed.
+	 * 
+	 * @param uri
+	 * @param client
+	 * @param args
+	 * @throws IOException
+	 */
 	OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
 		super();
 		
 		this.uri = uri;
-		
-
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
 
-		/*
-		 * Try to parse the ID.
-		 * Two options are currently supported:
-		 *  - Copy and paste from web viewer ("/host/webclient/img_detail/id/")
-		 *  - Id provided as only fragment after host
-		 * The second option could be removed.
-		 */
-		String uriPath = uri.getPath();
-		if (uriPath != null && uriPath.startsWith("/webclient/img_detail")) {
-			Pattern pattern = Pattern.compile("webclient/img_detail/(\\d+)");
-			Matcher matcher = pattern.matcher(uriPath);
+		String uriQuery = uri.getQuery();
+		if (uriQuery != null && !uriQuery.isEmpty() && uriQuery.startsWith("show=image-")) {
+			Pattern pattern = Pattern.compile("show=image-(\\d+)");
+			Matcher matcher = pattern.matcher(uriQuery);
 			if (matcher.find())
 				this.id = matcher.group(1);
 		}
@@ -160,9 +167,16 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 				pixelsType = meta.get("pixelsType").getAsString();
 		}
 		
-		if (sizeC != 3 || pixelsType != null && !"uint8".equals(pixelsType))
+		
+		List<ImageChannel> channels = null;
+		if (sizeC == 3)
+			channels = ImageChannel.getDefaultRGBChannels();
+//		else if (sizeC == 1)
+//			channels = ImageChannel.getDefaultChannelList(1);
+		
+		if (channels == null || (pixelsType != null && !"uint8".equals(pixelsType)))
 			throw new IOException("Only 8-bit RGB images supported! Selected image has " + sizeC + " channel(s) & pixel type " + pixelsType);
-
+			
 		var levelBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(sizeX, sizeY);
 		
 		if (map.getAsJsonPrimitive("tiles").getAsBoolean()) {
@@ -218,7 +232,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		originalMetadata = builder.build();
 	}
-	
+
 	@Override
 	protected String createID() {
 		return getClass().getName() + ": " + uri.toString();
@@ -238,7 +252,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 	 * @return
 	 * @throws IOException
 	 */
-	public Collection<PathObject> getROIs() throws IOException {
+	@Override
+	public Collection<PathObject> readPathObjects() throws IOException {
 
 		//		URL urlROIs = new URL(
 		//				scheme, host, -1, "/webgateway/get_rois_json/" + id
@@ -251,84 +266,21 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		List<PathObject> list = new ArrayList<>();
 		try (InputStreamReader reader = new InputStreamReader(urlROIs.openStream())) {
-			JsonArray roisJson = new Gson().fromJson(reader, JsonObject.class).getAsJsonObject().getAsJsonArray("data");
+			
+			var gson = new GsonBuilder().registerTypeAdapter(OmeroShape.class, new OmeroShapes.GsonShapeDeserializer()).setLenient().create();
+			
+			JsonArray roisJson = gson.fromJson(reader, JsonObject.class).getAsJsonObject().getAsJsonArray("data");
 			for (int i = 0; i < roisJson.size(); i++) {
 				JsonObject roiJson = roisJson.get(i).getAsJsonObject();
 				JsonArray shapesJson = roiJson.getAsJsonArray("shapes");
-
+				
 				for (int j = 0; j < shapesJson.size(); j++) {
-					JsonObject shapeJson = shapesJson.get(j).getAsJsonObject();
-
-					int z = 0;
-					int t = 0;
-
-					List<Point2> points = null;
-					ROI roi = null;
-					String text = null;
-					Integer color = null;
-
-					double x = 0, y = 0, x2 = 0, y2 = 0, width = 0, height = 0;
-					if (shapeJson.has("Points")) {
-						points = new ArrayList<>();
-						for (String p : shapeJson.get("Points").getAsString().split(" ")) {
-							String[] p2 = p.split(",");
-							points.add(new Point2(Double.parseDouble(p2[0]), Double.parseDouble(p2[1])));
-						}
-					}
-					if (shapeJson.has("x"))
-						x = shapeJson.get("x").getAsDouble();
-					if (shapeJson.has("y"))
-						y = shapeJson.get("y").getAsDouble();
-					if (shapeJson.has("x2"))
-						x2 = shapeJson.get("x2").getAsDouble();
-					if (shapeJson.has("y2"))
-						y2 = shapeJson.get("y2").getAsDouble();
-					if (shapeJson.has("width"))
-						width = shapeJson.get("width").getAsDouble();
-					if (shapeJson.has("height"))
-						height = shapeJson.get("height").getAsDouble();
-
-					if (shapeJson.has("TheT"))
-						t = shapeJson.get("TheT").getAsInt();
-					if (shapeJson.has("TheZ"))
-						z = shapeJson.get("TheZ").getAsInt();
-					if (shapeJson.has("Text"))
-						text = shapeJson.get("Text").getAsString();
-					if (shapeJson.has("StrokeColor")) {
-						color = shapeJson.get("StrokeColor").getAsInt();
-					}
-
-					ImagePlane plane = ImagePlane.getPlane(z, t);
-
-					String type = shapeJson.get("@type").getAsString();
-					if (type.toLowerCase().endsWith("#line")) {
-						logger.debug("FOUND A LINE: " + id);
-						ROIs.createLineROI(x, y, x2, y2, plane);
-					} else if (type.toLowerCase().endsWith("#rectangle")) {
-						logger.debug("FOUND A RECTANGLE: " + id);
-						roi = ROIs.createRectangleROI(x, y, width, height, plane);
-					} else if (type.toLowerCase().endsWith("#ellipse")) {
-						logger.debug("FOUND A ELLIPSE: " + id);
-						roi = ROIs.createEllipseROI(x, y, width, height, plane);
-					} else if (type.toLowerCase().endsWith("#point")) {
-						logger.debug("FOUND A POINT: " + id);
-						roi = ROIs.createPointsROI(points, plane);
-					} else if (type.toLowerCase().endsWith("#polyline")) {
-						logger.debug("FOUND A POLYLINE: " + id);
-						roi = ROIs.createPolylineROI(points, plane);
-					} else if (type.toLowerCase().endsWith("#polygon")) {
-						logger.debug("FOUND A POLYGON: " + id);
-						roi = ROIs.createPolygonROI(points, plane);
-					} else if (type.toLowerCase().endsWith("#label")) {
-						logger.warn("I found a label and I don't know what to do with it: " + id);
-					}
-					if (roi != null) {
-						PathObject annotation = PathObjects.createAnnotationObject(roi);
-						if (text != null)
-							annotation.setName(text);
-						if (color != null)
-							annotation.setColorRGB(color);
-						list.add(annotation);
+					try {
+						var shape = gson.fromJson(shapesJson.get(j), OmeroShape.class);
+						if (shape != null)
+							list.add(shape.createAnnotation());
+					} catch (Exception e) {
+						logger.error("Error parsing shape: " + e.getLocalizedMessage(), e);
 					}
 				}
 			}
@@ -337,9 +289,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer {
 
 		return list;
 	}
-
-
-
+	
+	
 	@Override
 	public String getServerType() {
 		return "OMERO web server";

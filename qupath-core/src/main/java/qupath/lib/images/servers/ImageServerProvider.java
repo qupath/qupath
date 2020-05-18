@@ -27,6 +27,9 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,6 +43,7 @@ import java.util.ServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.regions.RegionRequest;
 
@@ -129,8 +133,11 @@ public class ImageServerProvider {
 	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
 		URI uriTemp;
 		try {
-			if (path.startsWith("file:") || path.startsWith("http")) {
+			if (path.startsWith("file:")) { 
 				uriTemp = new URI(path);
+			} else if (path.startsWith("http")) {
+				// URI class does not support "|", so we need to convert urlTemp to a valid URI
+				uriTemp = GeneralTools.toEncodedURI(path);
 			} else {
 				// Handle legacy file paths (optionally with Bio-Formats series names included)
 				String delimiter = "::";
@@ -178,7 +185,7 @@ public class ImageServerProvider {
 					if (support != null && support.getSupportLevel() > 0f)
 						supports.add(support);
 				} catch (Exception e) {
-					logger.error("Error testing provider " + provider, e);
+					logger.error("Error testing provider " + provider, e.getLocalizedMessage());
 				}
 			}
 		}
