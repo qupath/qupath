@@ -221,8 +221,10 @@ class Menus {
 		public final Action INTENSITY_FEATURES = qupath.createPluginAction("Add intensity features", IntensityFeaturesPlugin.class, null);
 		@ActionDescription("Add new shape-based features to objects.")
 		@ActionMenu("Calculate features>Add shape features")
-		@Deprecated
-		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
+		public final Action SHAPE_FEATURES = qupath.createImageDataAction(imageData -> Commands.promptToAddShapeFeatures(qupath));
+
+//		@Deprecated
+//		public final Action SHAPE_FEATURES = qupath.createPluginAction("Add shape features", ShapeFeaturesPlugin.class, null);
 
 		@ActionDescription("Calculate distances between detection centroids and the closest annotation for each classification. " +
 				"For example, this may be used to identify the distance of every cell from 'bigger' region that has been annotated (e.g. an area of tumor, a blood vessel).")

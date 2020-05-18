@@ -1,8 +1,11 @@
-package qupath.imagej.tools;
+package qupath.lib.analysis.features;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -10,13 +13,14 @@ import java.util.Set;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.commons.math3.stat.descriptive.StatisticalSummary;
+import org.locationtech.jts.algorithm.Area;
+import org.locationtech.jts.algorithm.Length;
 import org.locationtech.jts.algorithm.MinimumBoundingCircle;
 import org.locationtech.jts.algorithm.MinimumDiameter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Lineal;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
-import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +28,8 @@ import org.slf4j.LoggerFactory;
 import ij.process.ByteProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
+import qupath.imagej.tools.IJTools;
+import qupath.imagej.tools.PixelImageIJ;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
@@ -32,21 +38,23 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
- * Experimental class to generate cell measurements from labelled images.
- * May or may not survive into a future release...
+ * Experimental class to generate object measurements.
+ * <p>
+ * May very well be moved, removed or refactored in a future release...
  * 
  * @author Pete Bankhead
  *
  */
-public class CellMeasurements {
+public class ObjectMeasurements {
 	
-	private final static Logger logger = LoggerFactory.getLogger(CellMeasurements.class);
+	private final static Logger logger = LoggerFactory.getLogger(ObjectMeasurements.class);
 	
 	/**
-	 * Requested intensity measurements.
+	 * Cell compartments.
 	 */
 	public enum Compartments {
 		/**
@@ -139,30 +147,47 @@ public class CellMeasurements {
 		}
 	}
 	
+	
+	private final static Collection<ShapeFeatures> ALL_SHAPE_FEATURES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(ShapeFeatures.values())));
+	
 	/**
-	 * Add shape measurements for the object. If this is a cell, measurements will be made for both the 
+	 * Add shape measurements for one object. If this is a cell, measurements will be made for both the 
 	 * nucleus and cell boundary where possible.
-	 * <p>
-	 * Note: This implementation is likely to change in the future, to enable specific shape measurements to be requested.
 	 * 
 	 * @param pathObject the object for which measurements should be added
 	 * @param cal pixel calibration, used to determine units and scaling
+	 * @param features specific features to add; if empty, all available shape features will be added
 	 */
-	public static void addShapeMeasurements(PathObject pathObject, PixelCalibration cal) {
-		if (cal == null || !cal.unitsMatch2D())
-			cal = PixelCalibration.getDefaultInstance();
-		var units = cal.getPixelWidthUnit();
-		if (pathObject instanceof PathCellObject) {
-			addCellShapeMeasurements((PathCellObject)pathObject, cal, units);
-		} else {
-			var geom = getScaledGeometry(pathObject.getROI(), cal);
-			try (var ml = pathObject.getMeasurementList()) {
-				addShapeMeasurements(ml, geom, "", units);
-			}
-		}
+	public static void addShapeMeasurements(PathObject pathObject, PixelCalibration cal, ShapeFeatures... features) {
+		addShapeMeasurements(Collections.singleton(pathObject), cal, features);
 	}
 	
-	private static Geometry getScaledGeometry(ROI roi, PixelCalibration cal) {
+	/**
+	 * Add shape measurements for multiple objects. If any of these objects is a cell, measurements will be made for both the 
+	 * nucleus and cell boundary where possible.
+	 * 
+	 * @param pathObjects the objects for which measurements should be added
+	 * @param cal pixel calibration, used to determine units and scaling
+	 * @param features specific features to add; if empty, all available shape features will be added
+	 */
+	public static void addShapeMeasurements(Collection<? extends PathObject> pathObjects, PixelCalibration cal, ShapeFeatures... features) {
+		
+		PixelCalibration calibration = cal == null || !cal.unitsMatch2D() ? PixelCalibration.getDefaultInstance() : cal;
+		Collection<ShapeFeatures> featureCollection = features.length == 0 ? ALL_SHAPE_FEATURES : Arrays.asList(features);
+		
+		pathObjects.parallelStream().filter(p -> p.hasROI()).forEach(pathObject -> {
+			if (pathObject instanceof PathCellObject) {
+				addCellShapeMeasurements((PathCellObject)pathObject, calibration, featureCollection);
+			} else {
+				try (var ml = pathObject.getMeasurementList()) {
+					addShapeMeasurements(ml, pathObject.getROI(), calibration, "", featureCollection);
+				}
+			}
+		});
+	}
+	
+	
+	private static Geometry getScaledGeometry(ROI roi, PixelCalibration cal, ShapeFeatures...features) {
 		if (roi == null)
 			return null;
 		var geom = roi.getGeometry();
@@ -173,34 +198,136 @@ public class CellMeasurements {
 		return AffineTransformation.scaleInstance(pixelWidth, pixelHeight).transform(geom);
 	}
 	
-	private static void addCellShapeMeasurements(PathCellObject cell, PixelCalibration cal, String units) {
-		var geom = getScaledGeometry(cell.getROI(), cal);
-		var geomNucleus = getScaledGeometry(cell.getNucleusROI(), cal);
+	private static void addCellShapeMeasurements(PathCellObject cell, PixelCalibration cal, Collection<ShapeFeatures> features) {
+		
+		var roiNucleus = cell.getNucleusROI();
+		var roiCell = cell.getROI();
+		
 		try (MeasurementList ml = cell.getMeasurementList()) {
-			if (geomNucleus != null) {
-				addShapeMeasurements(ml, geomNucleus, "Nucleus: ", units);
+			if (roiNucleus != null) {
+				addShapeMeasurements(ml, roiNucleus, cal, "Nucleus: ", features);
 			}
-			addShapeMeasurements(ml, geom, "Cell: ", units);
-			if (geomNucleus != null) {
-				double nucleusCellAreaRatio = GeneralTools.clipValue(geomNucleus.getArea() / geom.getArea(), 0, 1);
+			if (roiCell != null) {
+				addShapeMeasurements(ml, roiCell, cal, "Cell: ", features);
+			}
+			
+			if (roiNucleus != null && roiCell != null && features.contains(ShapeFeatures.NUCLEUS_CELL_RATIO)) {
+				double pixelWidth = cal.getPixelWidth().doubleValue();
+				double pixelHeight = cal.getPixelHeight().doubleValue();
+				double nucleusCellAreaRatio = GeneralTools.clipValue(roiNucleus.getScaledArea(pixelWidth, pixelHeight) / roiCell.getScaledArea(pixelWidth, pixelHeight), 0, 1);
 				ml.putMeasurement("Nucleus/Cell area ratio", nucleusCellAreaRatio);
 			}
 		}
 		
 	}
 	
-	private static void addShapeMeasurements(MeasurementList ml, Geometry geom, String baseName, String units) {
-		if (geom instanceof Puntal)
-			return;
+	/**
+	 * Standard measurements that may be computed from shapes.
+	 */
+	public static enum ShapeFeatures {
+		/**
+		 * Area of the shape.
+		 */
+		AREA,
+		/**
+		 * Length of the shape; for area geometries, this provides the perimeter.
+		 */
+		LENGTH,
+		/**
+		 * Circularity. This is available only for single-part polygonal shapes; holes are ignored.
+		 */
+		CIRCULARITY,
+		/**
+		 * Ratio of the area to the convex area.
+		 */
+		SOLIDITY,
+		/**
+		 * Maximum diameter; this is equivalent to the diameter of the minimum bounding circle.
+		 */
+		MAX_DIAMETER,
+		/**
+		 * Minimum diameter.
+		 */
+		MIN_DIAMETER,
+		/**
+		 * Nucleus/cell area ratio (only relevant to cell objects).
+		 */
+		NUCLEUS_CELL_RATIO;
 		
-		if (geom instanceof Lineal) {
-			ml.putMeasurement(baseName + "Length " + units, geom.getLength());
-			return;
+		@Override
+		public String toString() {
+			switch (this) {
+			case AREA:
+				return "Area";
+			case CIRCULARITY:
+				return "Circularity";
+			case LENGTH:
+				return "Length";
+			case MAX_DIAMETER:
+				return "Maximum diameter";
+			case MIN_DIAMETER:
+				return "Minimum diameter";
+			case SOLIDITY:
+				return "Solidity";
+			case NUCLEUS_CELL_RATIO:
+				return "Nucleus/Cell area ratio";
+			default:
+				throw new IllegalArgumentException("Unknown feature " + this);
+			}
 		}
 		
-		if (!(geom instanceof Polygonal))
+	}
+	
+	private static void addShapeMeasurements(MeasurementList ml, ROI roi, PixelCalibration cal, String baseName, Collection<ShapeFeatures> features) {
+		if (roi == null)
 			return;
-			
+		if (roi instanceof EllipseROI)
+			addShapeMeasurements(ml, (EllipseROI)roi, cal, baseName, features);
+		else {
+			var geom = getScaledGeometry(roi, cal);			
+			String units = cal.getPixelWidthUnit();
+			addShapeMeasurements(ml, geom, baseName, units, features);
+		}
+	}
+	
+	
+	private static void addShapeMeasurements(MeasurementList ml, EllipseROI ellipse, PixelCalibration cal, String baseName, Collection<ShapeFeatures> features) {
+		String units = cal.getPixelWidthUnit();
+		var units2 = units + "^2";
+		if (!baseName.isEmpty() && !baseName.endsWith(" "))
+			baseName += " ";
+		
+		double pixelWidth = cal.getPixelWidth().doubleValue();
+		double pixelHeight = cal.getPixelHeight().doubleValue();
+		
+		if (features.contains(ShapeFeatures.AREA))
+			ml.putMeasurement(baseName + "Area " + units2, ellipse.getScaledArea(pixelWidth, pixelHeight));
+		if (features.contains(ShapeFeatures.LENGTH))
+			ml.putMeasurement(baseName + "Length " + units, ellipse.getLength());
+		
+		if (features.contains(ShapeFeatures.CIRCULARITY)) {
+			ml.putMeasurement(baseName + "Circularity", 1.0);
+		}
+		
+		if (features.contains(ShapeFeatures.SOLIDITY)) {
+			ml.putMeasurement(baseName + "Solidity", 1.0);
+		}
+		
+		if (features.contains(ShapeFeatures.MAX_DIAMETER)) {
+			double maxDiameter = Math.max(ellipse.getBoundsWidth() * pixelWidth, ellipse.getBoundsHeight() * pixelHeight);
+			ml.putMeasurement(baseName + "Max diameter " + units, maxDiameter);
+		}
+
+		if (features.contains(ShapeFeatures.MIN_DIAMETER)) {
+			double minDiameter = Math.min(ellipse.getBoundsWidth() * pixelWidth, ellipse.getBoundsHeight() * pixelHeight);
+			ml.putMeasurement(baseName + "Min diameter " + units, minDiameter);
+		}
+	}
+	
+	private static void addShapeMeasurements(MeasurementList ml, Geometry geom, String baseName, String units, Collection<ShapeFeatures> features) {
+		boolean isArea = geom instanceof Polygonal;
+		boolean isLine = geom instanceof Lineal;
+		
 		var units2 = units + "^2";
 		if (!baseName.isEmpty() && !baseName.endsWith(" "))
 			baseName += " ";
@@ -208,22 +335,44 @@ public class CellMeasurements {
 		double area = geom.getArea();
 		double length = geom.getLength();
 		
-		ml.putMeasurement(baseName + "Area " + units2, area);
-		ml.putMeasurement(baseName + "Length " + units, length);
+		if (isArea && features.contains(ShapeFeatures.AREA))
+			ml.putMeasurement(baseName + "Area " + units2, area);
+		if ((isArea || isLine) && features.contains(ShapeFeatures.LENGTH))
+			ml.putMeasurement(baseName + "Length " + units, length);
 		
-		if (geom instanceof Polygon) {
-			double circularity = Math.PI * 4 * area / (length * length);
-			ml.putMeasurement(baseName + "Circularity", circularity);
+		if (isArea && features.contains(ShapeFeatures.CIRCULARITY)) {
+			if (geom instanceof Polygon) {
+				var polygon = (Polygon)geom;
+				double ringArea, ringLength;
+				if (polygon.getNumInteriorRing() == 0) {
+					ringArea = area;
+					ringLength = length;
+				} else {
+					var ring = ((Polygon)geom).getExteriorRing().getCoordinateSequence();
+					ringArea = Area.ofRing(ring);
+					ringLength = Length.ofLine(ring);
+				}
+				double circularity = Math.PI * 4 * ringArea / (ringLength * ringLength);
+				ml.putMeasurement(baseName + "Circularity", circularity);
+			} else {
+				logger.debug("Cannot compute circularity for {}", geom.getClass());
+			}
 		}
 		
-		double solidity = area / geom.convexHull().getArea();
-		ml.putMeasurement(baseName + "Solidity", solidity);
+		if (isArea && features.contains(ShapeFeatures.SOLIDITY)) {
+			double solidity = area / geom.convexHull().getArea();
+			ml.putMeasurement(baseName + "Solidity", solidity);
+		}
 		
-		double minCircleRadius = new MinimumBoundingCircle(geom).getRadius();
-		ml.putMeasurement(baseName + "Max diameter", minCircleRadius*2);
+		if (features.contains(ShapeFeatures.MAX_DIAMETER)) {
+			double minCircleRadius = new MinimumBoundingCircle(geom).getRadius();
+			ml.putMeasurement(baseName + "Max diameter " + units, minCircleRadius*2);
+		}
 
-		double minDiameter = new MinimumDiameter(geom).getLength();
-		ml.putMeasurement(baseName + "Min diameter", minDiameter);
+		if (features.contains(ShapeFeatures.MIN_DIAMETER)) {
+			double minDiameter = new MinimumDiameter(geom).getLength();
+			ml.putMeasurement(baseName + "Min diameter " + units, minDiameter);
+		}
 
 	}
 	

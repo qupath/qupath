@@ -37,6 +37,9 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
   * Adapted "Show log in console" option gives better control of script output (turn off to see less console output)
 * New 'Import objects' option when adding images to a project
   * Supports importing ROIs/overlays from ImageJ TIFF images
+* New 'Add shape features' command (replaces old command with the same name)
+  * Easier to call in scripts
+  * Supports additional measurements (including max/min diameters, solidity)
 * New preference to optionally invert the orientation of the z-position slide for z-stacks
 * Improved 'Measurement manager' to remove some or all measurements from objects of any type
 * Show ID in tooltip for project entries (makes it easier to find the data directory)

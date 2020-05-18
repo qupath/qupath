@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -16,6 +17,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +30,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -41,9 +44,11 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import qupath.lib.analysis.DistanceTools;
+import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
@@ -1402,6 +1407,83 @@ public class Commands {
 		}
 
 	}
+	
+	
+	
+	/**
+	 * Prompt to add shape features for selected objects.
+	 * @param qupath current QuPath instance
+	 */
+	public static void promptToAddShapeFeatures(QuPathGUI qupath) {
+		
+		var listView = new CheckListView<ShapeFeatures>();
+		listView.getItems().setAll(ShapeFeatures.values());
+		listView.getCheckModel().checkAll();
+		
+		listView.setPrefHeight(Math.min(listView.getItems().size() * 30, 320));
+		
+		var pane = new BorderPane(listView);
+		
+		listView.setTooltip(new Tooltip("Choose shape features"));
+		var label = new Label("Add shape features to selected objects.\nNote that not all measurements are compatible with all objects.");
+		label.setTextAlignment(TextAlignment.CENTER);
+		label.setPadding(new Insets(10));
+		pane.setTop(label);
+		
+		var btnSelectAll = new Button("Select all");
+		btnSelectAll.setOnAction(e -> listView.getCheckModel().checkAll());
+		var btnSelectNone = new Button("Select none");
+		btnSelectNone.setOnAction(e -> listView.getCheckModel().clearChecks());
+		
+		btnSelectAll.setMaxWidth(Double.MAX_VALUE);
+		btnSelectNone.setMaxWidth(Double.MAX_VALUE);
+		
+		pane.setBottom(PaneTools.createColumnGrid(btnSelectAll, btnSelectNone));
+		
+		var dialog = Dialogs.builder()
+				.title("Shape features")
+				.content(pane)
+				.modality(Modality.NONE)
+				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+				.build();
+		
+		var btnApply = (Button)dialog.getDialogPane().lookupButton(ButtonType.APPLY);
+		btnApply.disableProperty().bind(qupath.imageDataProperty().isNull());
+		
+		btnApply.setOnAction(e -> requestShapeFeatures(qupath.getImageData(), listView.getCheckModel().getCheckedItems()));
+		
+		dialog.show();
+		
+//		var result = dialog.showAndWait();
+//		if (result.orElse(ButtonType.CANCEL) == ButtonType.APPLY)
+//			requestShapeFeatures(qupath.getImageData(), listView.getSelectionModel().getSelectedItems());
+	}
+		
+		
+	private static void requestShapeFeatures(ImageData<?> imageData, Collection<ShapeFeatures> features) {
+		if (imageData == null)
+			return;
+		var featureArray = features.toArray(ShapeFeatures[]::new);
+		if (featureArray.length == 0)
+			return;
+		Collection<PathObject> selected = imageData.getHierarchy().getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty()) {
+			Dialogs.showWarningNotification("Shape features", "No objects selected!");
+		} else {
+			selected = new ArrayList<>(selected);			
+			String featureString = Arrays.stream(featureArray).map(f -> "\"" + f.name() + "\"").collect(Collectors.joining(", "));
+			QP.addShapeMeasurements(imageData, selected, featureArray);
+			imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Add shape measurements",
+					String.format("addShapeMeasurements(%s)", featureString)
+					));
+			
+			if (selected.size() == 1)
+				Dialogs.showInfoNotification("Shape features", "Shape features calculated for one object");
+			else
+				Dialogs.showInfoNotification("Shape features", "Shape features calculated for " + selected.size() + " objects");
+		}
+	}
+	
 
 	
 	/**

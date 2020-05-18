@@ -29,9 +29,9 @@ import org.locationtech.jts.simplify.VWSimplifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.tools.CellMeasurements;
-import qupath.imagej.tools.CellMeasurements.Compartments;
-import qupath.imagej.tools.CellMeasurements.Measurements;
+import qupath.lib.analysis.features.ObjectMeasurements;
+import qupath.lib.analysis.features.ObjectMeasurements.Compartments;
+import qupath.lib.analysis.features.ObjectMeasurements.Measurements;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
@@ -402,8 +402,8 @@ public class StarDist2D {
 
 	private boolean measureShape = false;
 
-	private Collection<CellMeasurements.Compartments> compartments;
-	private Collection<CellMeasurements.Measurements> measurements;
+	private Collection<ObjectMeasurements.Compartments> compartments;
+	private Collection<ObjectMeasurements.Measurements> measurements;
 	
 	/**
 	 * Detect cells within one or more parent objects, firing update events upon completion.
@@ -507,7 +507,7 @@ public class StarDist2D {
 		
 		// Add shape measurements, if needed
 		if (measureShape)
-			detections.parallelStream().forEach(c -> CellMeasurements.addShapeMeasurements(c, cal));
+			detections.parallelStream().forEach(c -> ObjectMeasurements.addShapeMeasurements(c, cal));
 		
 		// Add intensity measurements, if needed
 		if (!detections.isEmpty() && !measurements.isEmpty()) {
@@ -528,7 +528,7 @@ public class StarDist2D {
 			
 			detections.parallelStream().forEach(cell -> {
 				try {
-					CellMeasurements.addIntensityMeasurements(server2, cell, downsample, measurements, compartments);					
+					ObjectMeasurements.addIntensityMeasurements(server2, cell, downsample, measurements, compartments);					
 				} catch (IOException e) {
 					log(e.getLocalizedMessage(), e);
 				}

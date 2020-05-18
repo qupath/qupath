@@ -58,6 +58,8 @@ import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
+import qupath.lib.analysis.features.ObjectMeasurements;
+import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
@@ -901,6 +903,65 @@ public class QP {
 		if (selected instanceof TMACoreObject)
 			hierarchy.getSelectionModel().setSelectedObject(null);
 	}
+	
+	/**
+	 * Add the specified shape measurements to the current selected objects of the current image.
+	 * If no features are specified, all will be added.
+	 * @param features
+	 */
+	public static void addShapeMeasurements(String... features) {
+		var imageData = getCurrentImageData();
+		Collection<PathObject> selected = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getSelectionModel().getSelectedObjects();
+		if (selected.isEmpty()) {
+			logger.debug("Cannot add shape measurements (no objects selected)");
+			return;
+		}
+		addShapeMeasurements(imageData, new ArrayList<>(selected), features);
+	}
+
+	/**
+	 * Add shape measurements to the specified objects.
+	 * @param imageData the image to which the objects belong. This is used to determine pixel calibration and to fire an update event. May be null.
+	 * @param pathObjects the objects that should be measured
+	 * @param features optional array of Strings specifying the features to add. If none are specified, all available features will be added.
+	 */
+	public static void addShapeMeasurements(ImageData<?> imageData, Collection<? extends PathObject> pathObjects, String... features) {
+		addShapeMeasurements(imageData, pathObjects, parseFeatures(features));
+	}
+	
+	/**
+	 * Add shape measurements to the specified objects.
+	 * @param imageData the image to which the objects belong. This is used to determine pixel calibration and to fire an update event. May be null.
+	 * @param pathObjects the objects that should be measured
+	 * @param features the specific features to add. If none are specified, all available features will be added.
+	 */
+	public static void addShapeMeasurements(ImageData<?> imageData, Collection<? extends PathObject> pathObjects, ShapeFeatures... features) {
+		if (pathObjects.isEmpty())
+			return;
+		if (imageData == null) {
+			ObjectMeasurements.addShapeMeasurements(pathObjects, null, features);
+		} else {
+			var hierarchy = imageData.getHierarchy();
+			ObjectMeasurements.addShapeMeasurements(pathObjects, imageData.getServer().getPixelCalibration(), features);
+			hierarchy.fireObjectMeasurementsChangedEvent(hierarchy, pathObjects);			
+		}
+	}
+	
+	private static ShapeFeatures[] parseFeatures(String... names) {
+		if (names == null || names.length == 1)
+			return new ShapeFeatures[0];
+		var objectOptions = new HashSet<ShapeFeatures>();
+		for (var optionName : names) {
+			try {
+				var option = ShapeFeatures.valueOf(optionName);
+				objectOptions.add(option);
+			} catch (Exception e) {
+				logger.warn("Could not parse option {}", optionName);
+			}
+		}
+		return objectOptions.toArray(ShapeFeatures[]::new);
+	}
+	
 	
 	/**
 	 * Set the channel names for the current ImageData.
@@ -2965,7 +3026,6 @@ public class QP {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
 		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseCreateObjectOptions(options));
 	}
-	
 	
 	private static CreateObjectOptions[] parseCreateObjectOptions(String... names) {
 		if (names == null || names.length == 1)
