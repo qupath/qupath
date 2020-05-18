@@ -143,7 +143,7 @@ class OmeroShapes {
 		private double x;
 		@SerializedName(value = "Y", alternate = "y")
 		private double y;
-		@SerializedName(value = "RadiusX", alternate = "tadiusX")
+		@SerializedName(value = "RadiusX", alternate = "radiusX")
 		private double radiusX;
 		@SerializedName(value = "RadiusY", alternate = "radiusY")
 		private double radiusY;
