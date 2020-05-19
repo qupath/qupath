@@ -35,8 +35,11 @@ This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
   * Intercept mouse clicks for main window while a script is running & show a warning
   * Show a confirm prompt if trying to quit QuPath while a script is running
   * Adapted "Show log in console" option gives better control of script output (turn off to see less console output)
+* Improved OMERO web API support
+  * Supports a wider range of URLs, including import for multiple images via one 'link' URL
+  * Intended primarily for brightfield whole slide images -- limited to RGB
 * New 'Import objects' option when adding images to a project
-  * Supports importing ROIs/overlays from ImageJ TIFF images
+  * Supports importing ROIs/overlays from ImageJ TIFF images and OMERO
 * New 'Add shape features' command (replaces old command with the same name)
   * Easier to call in scripts
   * Supports additional measurements (including max/min diameters, solidity)

@@ -203,7 +203,14 @@ public class TensorFlowOp extends PaddedOp {
 
             logger.debug("Number of outputs: {}", outputs.size());
             var outputTensor = outputs.get(0L);
-            return TensorFlowTools.convertToMat(outputTensor);
+            var output = TensorFlowTools.convertToMat(outputTensor);
+            
+            inputs.close();
+            outputNames.close();
+            targetNodeNames.close();
+            outputTensor.close();
+            
+            return output;
         }
 
     }
