@@ -107,22 +107,25 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	@Override
 	public UriImageSupport<BufferedImage> checkImageSupport(URI uri, String...args) {
 		float supportLevel = supportLevel(uri, args);
-		List<URI> uris = new ArrayList<>();
-		try {
-			uris = getURIs(uri, args);
-		} catch (IOException e) {
-			Dialogs.showErrorNotification("OMERO web server", e.getLocalizedMessage());
-		}
-		
 		Collection<ServerBuilder<BufferedImage>> builders = new ArrayList<>();
-		for (var subURI: uris) {
-			try (var server = buildServer(subURI, args)) {
-				builders.add(server.getBuilder());
-			} catch (Exception e) {
-				logger.debug("Unable to create OMERO server", e.getLocalizedMessage());
+		
+		if (supportLevel > 0f) {
+			List<URI> uris = new ArrayList<>();
+			try {
+				uris = getURIs(uri, args);
+			} catch (IOException e) {
+				Dialogs.showErrorNotification("OMERO web server", e.getLocalizedMessage());
+			}
+			
+			for (var subURI: uris) {
+				try (var server = buildServer(subURI, args)) {
+					builders.add(server.getBuilder());
+				} catch (Exception e) {
+					logger.debug("Unable to create OMERO server", e.getLocalizedMessage());
+				}
 			}
 		}
-		
+
 		return UriImageSupport.createInstance(this.getClass(), supportLevel, builders);
 	}
 	
@@ -205,6 +208,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			} catch (Exception e) {
 				failedHosts.add(host);
 				logger.error("Unable to connect to OMERO server", e.getLocalizedMessage());
+				return 0;
 			}
 			clients.put(host, client);
 			return 4;
@@ -381,17 +385,6 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			this.baseURL = host;
 			if (!this.baseURL.startsWith("http"))
 				this.baseURL = "https://" + host;
-
-			timer = new Timer("OMERO " + host, true);
-
-			timer.schedule(new TimerTask() {
-
-				@Override
-				public void run() {
-					keepAlive();
-				}
-
-			}, 60000L);
 		}
 
 		synchronized void startTimer() {
@@ -425,6 +418,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		static OmeroWebClient create(String host) throws JsonSyntaxException, MalformedURLException, IOException {
 			OmeroWebClient client = new OmeroWebClient(host);
 			client.loadURLs();
+			client.startTimer();
 			return client;
 		}
 
