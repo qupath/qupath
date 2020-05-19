@@ -79,7 +79,15 @@ public class PathClassFactory {
 		 * annotations.  Consequently it is good to heavily annotated regions, or possibly detected tissue 
 		 * containing further annotations inside.
 		 */
-		REGION;
+		REGION,
+		/**
+		 * General class to represent something 'positive'
+		 */
+		POSITIVE,
+		/**
+		 * General class to represent something 'negative'
+		 */
+		NEGATIVE;
 		
 		
 		PathClass getPathClass() {
@@ -100,6 +108,10 @@ public class PathClassFactory {
 				return PathClassFactory.getPathClass("Stroma", ColorTools.makeRGB(150, 200, 150));
 			case TUMOR:
 				return PathClassFactory.getPathClass("Tumor", ColorTools.makeRGB(200, 0, 0));
+			case POSITIVE:
+				return PathClassFactory.getPositive(null);
+			case NEGATIVE:
+				return PathClassFactory.getNegative(null);
 			default:
 				throw new IllegalArgumentException("Unknown value!");
 			}

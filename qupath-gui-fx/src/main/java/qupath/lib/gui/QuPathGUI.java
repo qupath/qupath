@@ -1673,7 +1673,9 @@ public class QuPathGUI {
 				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NECROSIS),
 				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.OTHER),
 				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION),
-				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE)
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.POSITIVE),
+				PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NEGATIVE)
 				);
 		
 		if (availablePathClasses == null) {

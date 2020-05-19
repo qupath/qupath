@@ -339,9 +339,6 @@ class MeasurementManager {
 	/**
 	 * For whenever a measurement is removed, update 
 	 * the filtered list and call refresh display
-	 * 
-	 * @param mapMeasurements
-	 * @param currPathObject
 	 */
 	private void updateCurrentList() {
 		var selected = comboBox == null ? null : comboBox.getSelectionModel().getSelectedItem();

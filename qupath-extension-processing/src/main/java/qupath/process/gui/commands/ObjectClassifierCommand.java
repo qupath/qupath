@@ -727,10 +727,9 @@ public class ObjectClassifierCommand implements Runnable {
 		/**
 		 * Train an object classifier.
 		 * 
-		 * @param map training data map, see {@link #createTrainingData(PathObjectFilter, PathObjectHierarchy, TrainingAnnotations, Collection)}
+		 * @param training training data, see {@link #getTrainingImageData()}
 		 * @param filter filter to select compatible objects
 		 * @param statModel OpenCV stat model to be trained
-		 * @param imageData {@link ImageData} used for feature extraction of the training objects
 		 * @param extractor {@link FeatureExtractor} able to extract features from the training objects
 		 * @param normalization type of normalization that should be applied
 		 * @param pcaRetainedVariance variance to retain if PCA is applied to reduce features (not currently used or tested!)
@@ -835,11 +834,11 @@ public class ObjectClassifierCommand implements Runnable {
 		/**
 		 * Train a feature extractor and classifier.
 		 * @param classifier
-		 * @param imageData
-		 * @param map
+		 * @param trainingCollection
 		 * @param extractor
 		 * @param normalization
 		 * @param pcaRetainedVariance
+		 * @param doMulticlass
 		 * @return the updated feature extractor, with any normalization/PCA reduction incorporated, 
 		 * or null if the training was unsuccessful (e.g. it was interrupted)
 		 */
