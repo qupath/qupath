@@ -125,7 +125,7 @@ public class QuPath {
 		try {
 			pr = cmd.parseArgs(args);
 		} catch (Exception e) {
-			logger.error("An error has occured, please type -h to display help message.\n" + e.getLocalizedMessage());
+			logger.error("An error has occurred, please type -h to display help message.\n" + e.getLocalizedMessage());
 			return;
 		}
 		

@@ -1271,7 +1271,7 @@ public class QuPathGUI {
 				System.out.println("Done!");
 			}
 		} catch (Exception e) {
-			logger.error("Error lauching QuPath", e);
+			logger.error("Error launching QuPath", e);
 			e.printStackTrace();
 		}
 	}
