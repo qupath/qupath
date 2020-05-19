@@ -137,6 +137,8 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		     }
 		});
 		
+		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> treeView.refresh());
+		
 		treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		treeView.getSelectionModel().getSelectedItems().addListener(
 				(ListChangeListener.Change<? extends TreeItem<PathObject>> c) -> synchronizeSelectionModelToTree(c)

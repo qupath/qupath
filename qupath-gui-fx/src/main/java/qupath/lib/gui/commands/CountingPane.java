@@ -50,6 +50,7 @@ import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.panes.PathObjectListCell;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -182,6 +183,9 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 		listCounts.setContextMenu(menu);
 		
 		listCounts.setCellFactory(v -> new PathObjectListCell(p -> p.toString().replace(" (Points)", "")));
+		
+		
+		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listCounts.refresh());
 		
 		// Add to panel
 		BorderPane panelList = new BorderPane();
