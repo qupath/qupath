@@ -13,6 +13,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -78,6 +80,8 @@ public class StarDist2D {
 	public static class Builder {
 		
 		private boolean doLog;
+		
+		private int nThreads = -1;
 		
 		private String modelPath = null;
 		private ColorTransform[] channels = new ColorTransform[0];
@@ -229,6 +233,18 @@ public class StarDist2D {
 		 */
 		public Builder ignoreCellOverlaps(boolean ignore) {
 			this.ignoreCellOverlaps = ignore;
+			return this;
+		}
+		
+		/**
+		 * Specify the number of threads to use for processing.
+		 * If you encounter problems, setting this to 1 may help to resolve them by preventing 
+		 * multithreading.
+		 * @param nThreads
+		 * @return this builder
+		 */
+		public Builder nThreads(int nThreads) {
+			this.nThreads = nThreads;
 			return this;
 		}
 		
@@ -407,6 +423,7 @@ public class StarDist2D {
 			stardist.measureShape = measureShape;
 			stardist.doLog = doLog;
 			stardist.simplifyDistance = simplifyDistance;
+			stardist.nThreads = nThreads;
 			
 			stardist.compartments = new LinkedHashSet<>(compartments);
 			
@@ -432,6 +449,8 @@ public class StarDist2D {
 	private double cellConstrainScale;
 	private boolean ignoreCellOverlaps;
 	
+	private int nThreads = -1;
+	
 	private boolean includeProbability = false;
 	
 	private int tileWidth = 1024;
@@ -442,6 +461,9 @@ public class StarDist2D {
 	private Collection<ObjectMeasurements.Compartments> compartments;
 	private Collection<ObjectMeasurements.Measurements> measurements;
 	
+	
+	
+	
 	/**
 	 * Detect cells within one or more parent objects, firing update events upon completion.
 	 * 
@@ -449,6 +471,50 @@ public class StarDist2D {
 	 * @param parents the parent objects; existing child objects will be removed, and replaced by the detected cells
 	 */
 	public void detectObjects(ImageData<BufferedImage> imageData, Collection<? extends PathObject> parents) {
+		runInPool(() -> detectObjectsImpl(imageData, parents));		
+	}
+
+	/**
+	 * Detect cells within a parent object.
+	 * 
+	 * @param imageData the image data containing the object
+	 * @param parent the parent object; existing child objects will be removed, and replaced by the detected cells
+	 * @param fireUpdate if true, a hierarchy update will be fired on completion
+	 */
+	public void detectObjects(ImageData<BufferedImage> imageData, PathObject parent, boolean fireUpdate) {
+		runInPool(() -> detectObjectsImpl(imageData, parent, fireUpdate));
+	}
+	
+	/**
+	 * Optionally submit runnable to a thread pool. This limits the parallelization used by parallel streams.
+	 * @param runnable
+	 */
+	private void runInPool(Runnable runnable) {
+		if (nThreads > 0) {
+			if (nThreads == 1)
+				log("Processing with {} thread", nThreads);
+			else
+				log("Processing with {} threads", nThreads);
+			// Using an outer thread poll impacts any parallel streams created inside
+			var pool = new ForkJoinPool(nThreads);
+			try {
+				pool.submit(() -> runnable.run());
+			} finally {
+				pool.shutdown();
+				try {
+					pool.awaitTermination(24, TimeUnit.HOURS);
+				} catch (InterruptedException e) {
+					logger.warn("Process was interrupted! " + e.getLocalizedMessage(), e);
+				}
+			}
+		} else {
+			runnable.run();	
+		}
+	}
+	
+		
+	private void detectObjectsImpl(ImageData<BufferedImage> imageData, Collection<? extends PathObject> parents) {
+
 		if (parents.isEmpty())
 			return;
 		if (parents.size() == 1) {
@@ -456,7 +522,10 @@ public class StarDist2D {
 			return;
 		}
 		log("Processing {} parent objects", parents.size());
-		parents.parallelStream().forEach(p -> detectObjects(imageData, p, false));
+		if (nThreads >= 0)
+			parents.stream().forEach(p -> detectObjects(imageData, p, false));
+		else
+			parents.parallelStream().forEach(p -> detectObjects(imageData, p, false));
 		// Fire a globel update event
 		imageData.getHierarchy().fireHierarchyChangedEvent(imageData.getHierarchy());
 	}
@@ -469,16 +538,20 @@ public class StarDist2D {
 	 * @param parent the parent object; existing child objects will be removed, and replaced by the detected cells
 	 * @param fireUpdate if true, a hierarchy update will be fired on completion
 	 */
-	public void detectObjects(ImageData<BufferedImage> imageData, PathObject parent, boolean fireUpdate) {
+	private void detectObjectsImpl(ImageData<BufferedImage> imageData, PathObject parent, boolean fireUpdate) {
 		Objects.nonNull(parent);
 		// Lock early, so the user doesn't make modifications
 		parent.setLocked(true);
-		var detections = detectObjects(imageData, parent.getROI());		
+		
+		List<PathObject> detections = detectObjects(imageData, parent.getROI());		
+		
 		parent.clearPathObjects();
 		parent.addPathObjects(detections);
 		if (fireUpdate)
 			imageData.getHierarchy().fireHierarchyChangedEvent(imageData.getHierarchy(), parent);
 	}
+	
+	
 	
 	/**
 	 * Detect cells within a {@link ROI}.
@@ -622,7 +695,7 @@ public class StarDist2D {
 	
 	
 	private List<PotentialNucleus> detectObjectsForTile(ImageDataOp op, ImageData<BufferedImage> imageData, RegionRequest request, boolean excludeOnBounds, Geometry mask) {
-		
+
 		Mat mat;
 		try {
 			mat = op.apply(imageData, request);
