@@ -156,7 +156,7 @@ public class ResourceManager {
 		public boolean remove(String name) throws IOException {
 			var path = getPathForName(name, true);
 			if (path != null && Files.exists(path)) {
-				logger.debug("Delating resource '{}' from {}", name, path);
+				logger.debug("Deleting resource '{}' from {}", name, path);
 				GeneralTools.deleteFile(path.toFile(), true);
 				return true;
 			}
