@@ -55,6 +55,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
@@ -149,6 +150,8 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 				qupath.getViewer().centerROI(pathObject.getROI());
 			}
 		});
+		
+		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listAnnotations.refresh());
 
 		ContextMenu menuAnnotations = GuiTools.populateAnnotationsMenu(qupath, new ContextMenu());
 		listAnnotations.setContextMenu(menuAnnotations);

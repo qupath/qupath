@@ -273,8 +273,10 @@ public class IconFactory {
 		} else if (roi.isPoint()) {
 			// Just show generic points
 			Node node = IconFactory.createNode(Math.min(width, height), Math.min(width, height), IconFactory.PathIcons.POINTS_TOOL);	
-			if (node instanceof Glyph && !((Glyph) node).textFillProperty().isBound()) {
-				((Glyph)node).setColor(color);
+			if (node instanceof Glyph) {
+				var glyph = (Glyph)node;
+				glyph.textFillProperty().unbind();
+				glyph.setColor(color);
 			}
 			return node;
 		} else {

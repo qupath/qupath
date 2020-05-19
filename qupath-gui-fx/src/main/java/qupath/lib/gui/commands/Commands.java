@@ -150,20 +150,6 @@ public class Commands {
 				"Resolve hierarchy",
 				"resolveHierarchy()"));
 	}
-
-	
-	/**
-	 * Prompt the user to create a sparse image server composed of annotated regions from images within the current QuPath project.
-	 * @param qupath the current QuPath instance
-	 */
-	public static void promptToCreateSparseServer(QuPathGUI qupath) {
-		var project = qupath.getProject();
-		var entry = SparseImageServerCommand.promptToCreateServer(project, qupath.getAvailablePathClasses());
-		qupath.refreshProject();
-		if (entry != null) {
-			qupath.openImageEntry(entry);
-		}
-	}
 	
 	
 	/**

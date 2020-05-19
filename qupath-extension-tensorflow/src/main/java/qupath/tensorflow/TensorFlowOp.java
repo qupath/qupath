@@ -1,5 +1,7 @@
 package qupath.tensorflow;
 
+import java.io.File;
+import java.io.FileFilter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -61,6 +63,7 @@ public class TensorFlowOp extends PaddedOp {
 			try {
 				bundle = loadBundle(modelPath);
 			} catch (Exception e) {
+				logger.error("Unable to load bundle: " + e.getLocalizedMessage(), e);
 				this.exception = e;
 			}
 		}
@@ -122,6 +125,14 @@ public class TensorFlowOp extends PaddedOp {
     	private long[] outputShape;
 
     	private TensorFlowBundle(String pathModel) {
+    		
+    		var dir = new File(pathModel);
+    		if (!dir.exists()) {
+    			throw new IllegalArgumentException(pathModel + " does not exist!");
+    		} else if (!dir.isDirectory() || dir.listFiles((FileFilter)f -> f.isFile() && f.getName().toLowerCase().endsWith(".pb")).length == 0) {
+    			throw new IllegalArgumentException(pathModel + " is not a valid TensorFlow model directory!");    			
+    		}
+    		
             // If this fails, are both the main jars and the platform-specific jars present - for TensorFlow and MKL-DNN?
             var sessionOptions = new SessionOptions();
 

@@ -251,10 +251,6 @@ class Menus {
 
 		public final Action SEP_4 = ActionTools.createSeparator();
 
-		@ActionDescription("Create an image comprised of regions extracted from multiple images in a project. " +
-				"This can be useful for interactively training a classifier across a varied dataset.")
-		@ActionMenu("Training images>Create combined training image")
-		public final Action TRAINING_IMAGE = qupath.createProjectAction(project -> Commands.promptToCreateSparseServer(qupath));
 
 	}
 	
@@ -810,7 +806,12 @@ class Menus {
 
 		@ActionMenu("Export measurements")		
 		@ActionDescription("Export summary measurements for multiple images within a project.")
-		public final Action EXPORT = createAction(new MeasurementExportCommand(qupath));
+		public final Action EXPORT;
+		
+		private MeasureMenuManager() {
+			var measureCommand = new MeasurementExportCommand(qupath);
+			EXPORT = qupath.createProjectAction(project -> measureCommand.run());
+		}
 		
 	}
 	

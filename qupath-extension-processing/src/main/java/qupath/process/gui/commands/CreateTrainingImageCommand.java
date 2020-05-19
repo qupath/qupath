@@ -1,4 +1,4 @@
-package qupath.lib.gui.commands;
+package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.concurrent.Task;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.CroppedImageServer;
 import qupath.lib.images.servers.ImageServer;
@@ -35,9 +36,9 @@ import qupath.lib.roi.RectangleROI;
  * 
  * @author Pete Bankhead
  */
-class SparseImageServerCommand {
+public class CreateTrainingImageCommand {
 	
-	private static Logger logger = LoggerFactory.getLogger(SparseImageServerCommand.class);
+	private static Logger logger = LoggerFactory.getLogger(CreateTrainingImageCommand.class);
 	
 	private static String NAME = "Create training image";
 
@@ -46,8 +47,13 @@ class SparseImageServerCommand {
 	private static boolean doZ = false;
 	private static boolean rectanglesOnly = false;
 	
-
-	public static ProjectImageEntry<BufferedImage> promptToCreateServer(Project<BufferedImage> project, List<PathClass> availableClasses) {
+	/**
+	 * Prompt to create a training image, based upon annotations throughout a project.
+	 * @param project
+	 * @param availableClasses
+	 * @return the entry of the new training image, created within the project
+	 */
+	public static ProjectImageEntry<BufferedImage> promptToCreateTrainingImage(Project<BufferedImage> project, List<PathClass> availableClasses) {
 		if (project == null) {
 			Dialogs.showErrorMessage(NAME, "You need a project!");
 			return null;
@@ -104,7 +110,7 @@ class SparseImageServerCommand {
 				return null;			
 			}
 			
-			var entry = ProjectImportImagesCommand.addSingleImageToProject(project, server, null);
+			var entry = ProjectCommands.addSingleImageToProject(project, server, null);
 			server.close();
 			project.syncChanges();
 			return entry;
