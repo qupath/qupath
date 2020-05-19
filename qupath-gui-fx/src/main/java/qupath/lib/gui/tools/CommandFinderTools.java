@@ -327,7 +327,7 @@ public class CommandFinderTools {
 //	}
 	
 	/**
-	 * Create a Sphinx representation of the menus for inclusion in the documenation.
+	 * Create a Sphinx representation of the menus for inclusion in the documentation.
 	 * @param qupath
 	 * @param writer
 	 * @throws IOException

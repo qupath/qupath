@@ -93,7 +93,7 @@ public class BufferedImageTools {
 	 * @param roi ROI for mask
 	 * @param xOrigin pixel x coordinate of the top left of the region to include in the mask.
 	 * @param yOrigin pixel y coordinate of the top left of the region to include in the mask.
-	 * @param downsample downsample factor to use when generating the mask, i.e. the amoutn to scale.
+	 * @param downsample downsample factor to use when generating the mask, i.e. the amount to scale.
 	 * @return
 	 */
 	public static BufferedImage createROIMask(final int width, final int height, final ROI roi, final double xOrigin, final double yOrigin, final double downsample) {
@@ -125,7 +125,7 @@ public class BufferedImageTools {
 	 * @param shape Shape for mask
 	 * @param xOrigin pixel x coordinate of the top left of the region to include in the mask.
 	 * @param yOrigin pixel y coordinate of the top left of the region to include in the mask.
-	 * @param downsample downsample factor to use when generating the mask, i.e. the amoutn to scale.
+	 * @param downsample downsample factor to use when generating the mask, i.e. the amount to scale.
 	 * @return
 	 */
 	public static BufferedImage createShapeMask(final int width, final int height, final Shape shape, final double xOrigin, final double yOrigin, final double downsample) {

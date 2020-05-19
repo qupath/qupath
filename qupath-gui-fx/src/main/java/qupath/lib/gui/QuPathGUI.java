@@ -619,7 +619,7 @@ public class QuPathGUI {
 		@ActionAccelerator("g")
 		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), "Show TMA grid");
 		/**
-		 * Toggle the display of TMA grid lables.
+		 * Toggle the display of TMA grid labels.
 		 */
 		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
 		

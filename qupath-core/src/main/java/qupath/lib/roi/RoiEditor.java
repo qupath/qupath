@@ -223,7 +223,7 @@ public class RoiEditor {
 	
 	
 	/**
-	 * Query if a ROI is currently being translated through thsi editor.
+	 * Query if a ROI is currently being translated through this editor.
 	 * @return
 	 */
 	public boolean isTranslating() {
