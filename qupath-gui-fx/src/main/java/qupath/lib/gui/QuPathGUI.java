@@ -471,13 +471,13 @@ public class QuPathGUI {
 		 * Rectangle tool action
 		 */
 		@ActionAccelerator("r")
-		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to contrain shape to be a square.")
+		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to constrain shape to be a square.")
 		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
 		/**
 		 * Ellipse tool action
 		 */
 		@ActionAccelerator("o")
-		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to contrain shape to be a circle.")
+		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to constrain shape to be a circle.")
 		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
 		/**
 		 * Polygon tool action
