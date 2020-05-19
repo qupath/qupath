@@ -456,8 +456,9 @@ class ProjectImportImagesCommand {
 			else
 				Dialogs.showMessageDialog(commandName, textArea);
 		}
-		// TODO: Add failed paths to pathFailed and successful paths to pathSucceeded, so the following line doesn't print empty String
-		logger.info(sb.toString());
+		// TODO: Add failed and successful paths to pathFailed/pathSucceeded, so the line below prints something
+		if (sb.length() > 0)
+			logger.info(sb.toString());
 		return entries;
 	}
 	
