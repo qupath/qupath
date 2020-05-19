@@ -17,6 +17,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.locationtech.jts.algorithm.Centroid;
@@ -696,25 +697,30 @@ public class StarDist2D {
 	
 	private List<PotentialNucleus> detectObjectsForTile(ImageDataOp op, ImageData<BufferedImage> imageData, RegionRequest request, boolean excludeOnBounds, Geometry mask) {
 
-		Mat mat;
-		try {
-			mat = op.apply(imageData, request);
-		} catch (IOException e) {
-			logger.error(e.getLocalizedMessage(), e);
-			return Collections.emptyList();
-		}
+		List<PotentialNucleus> nuclei;
 		
-		FloatIndexer indexer = mat.createIndexer();
-		var nuclei = createNuclei(indexer, request, mask);
-		
-		// Exclude anything that overlaps the right/bottom boundary of a region
-		if (excludeOnBounds) {
-			var iter = nuclei.iterator();
-			while (iter.hasNext()) {
-				var n = iter.next();
-				var env = n.geometry.getEnvelopeInternal();
-				if (env.getMaxX() >= request.getMaxX() || env.getMaxY() >= request.getMaxY())
-					iter.remove();
+		try (@SuppressWarnings("unchecked")
+		var scope = new PointerScope()) {
+			Mat mat;
+			try {
+				mat = op.apply(imageData, request);
+			} catch (IOException e) {
+				logger.error(e.getLocalizedMessage(), e);
+				return Collections.emptyList();
+			}
+			
+			FloatIndexer indexer = mat.createIndexer();
+			nuclei = createNuclei(indexer, request, mask);
+			
+			// Exclude anything that overlaps the right/bottom boundary of a region
+			if (excludeOnBounds) {
+				var iter = nuclei.iterator();
+				while (iter.hasNext()) {
+					var n = iter.next();
+					var env = n.geometry.getEnvelopeInternal();
+					if (env.getMaxX() >= request.getMaxX() || env.getMaxY() >= request.getMaxY())
+						iter.remove();
+				}
 			}
 		}
 
