@@ -793,12 +793,12 @@ public class PixelClassifierPane {
 		
 		var params = new ParameterList()
 				.addTitleParameter("Training data")
-				.addIntParameter("maxSamples", "Maximum samples", maxSamples, null, "Maximum number of training samples")
-				.addIntParameter("rngSeed", "RNG seed", rngSeed, null, "Seed for the random number generator used when training (not relevant to all classifiers)")
+				.addIntParameter("maxSamples", "Maximum samples", maxSamples, null, "Maximum number of training samples - only needed if you have a lot of annotations, slowing down training")
+				.addIntParameter("rngSeed", "RNG seed", rngSeed, null, "Seed for the random number generator used when selecting training samples")
 				.addBooleanParameter("reweightSamples", "Reweight samples", reweightSamples, "Weight training samples according to frequency")
 				.addTitleParameter("Preprocessing")
 				.addChoiceParameter("normalization", "Feature normalization", normalization.getNormalization(),
-						Arrays.asList(Normalization.values()), "Method to normalize features")
+						Arrays.asList(Normalization.values()), "Method to normalize features - use only if needed, may make no difference with some common classifiers")
 				.addChoiceParameter("featureReduction", "Feature reduction", pcaChoice, List.of(PCA_NONE, PCA_BASIC, PCA_NORM), 
 						"Use Principal Component Analysis for feature reduction (must also specify retained variance)")
 				.addDoubleParameter("pcaRetainedVariance", "PCA retained variance", normalization.getPCARetainedVariance(), "",

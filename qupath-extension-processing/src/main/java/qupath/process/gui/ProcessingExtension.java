@@ -34,6 +34,7 @@ import qupath.process.gui.commands.CellIntensityClassificationCommand;
 import qupath.process.gui.commands.CreateChannelTrainingImagesCommand;
 import qupath.process.gui.commands.CreateCompositeClassifierCommand;
 import qupath.process.gui.commands.CreateRegionAnnotationsCommand;
+import qupath.process.gui.commands.CreateTrainingImageCommand;
 import qupath.process.gui.commands.ObjectClassifierCommand;
 import qupath.process.gui.commands.ObjectClassifierLoadCommand;
 import qupath.process.gui.commands.PixelClassifierCommand;
@@ -138,14 +139,20 @@ public class ProcessingExtension implements QuPathExtension {
 				+ "This can be used to quantify areas, or to generate or classify objects.")
 		public final Action actionPixelClassifier;
 		
-		@ActionMenu("Create simple thresholder")
-		@ActionDescription("Create a pixel classifier that simply applies a threshold to an image.")
+		@ActionMenu("Create thresholder")
+		@ActionDescription("Create a simple pixel classifier that applies a threshold to an image.")
 		public final Action actionSimpleThreshold;
 				
 		private PixelClassificationCommands(QuPathGUI qupath) {
-			actionPixelClassifier = ActionTools.createAction(new PixelClassifierCommand(), "Train pixel classifier");
-			actionLoadPixelClassifier = ActionTools.createAction(new PixelClassifierLoadCommand(qupath), "Load pixel classifier");
-			actionSimpleThreshold = ActionTools.createAction(new SimpleThresholdCommand(qupath), "Create simple thresholder");
+			
+			var commandPixel = new PixelClassifierCommand();
+			actionPixelClassifier = qupath.createImageDataAction(imageData -> commandPixel.run());
+			
+			var commandLoad = new PixelClassifierLoadCommand(qupath);
+			actionLoadPixelClassifier = qupath.createImageDataAction(imageData -> commandLoad.run());
+			
+			var commandThreshold = new SimpleThresholdCommand(qupath);
+			actionSimpleThreshold = qupath.createImageDataAction(imageData -> commandThreshold.run());
 		}
 		
 	}
@@ -154,6 +161,13 @@ public class ProcessingExtension implements QuPathExtension {
 	@SuppressWarnings("javadoc")
 	public class ObjectClassificationCommands {
 				
+		@ActionMenu("Load object classifier")
+		@ActionDescription("Load an existing object classifier. "
+				+ "This can be used to apply the classifier to new objects, but not to continue training.")
+		public final Action actionLoadObjectClassifier;
+
+		public final Action SEP = ActionTools.createSeparator();
+
 		@ActionMenu("Train object classifier")
 		@ActionAccelerator("shortcut+shift+d")
 		@ActionDescription("Interactively train an object classifier using machine learning. "
@@ -173,19 +187,22 @@ public class ProcessingExtension implements QuPathExtension {
 				+ "This is useful to calculate densities/percentages of positive cells or H-scores.")
 		public final Action actionIntensity;
 		
-		public final Action SEP = ActionTools.createSeparator();
 		
-		@ActionMenu("Load object classifier")
-		@ActionDescription("Load an existing object classifier. "
-				+ "This can be used to apply the classifier to new objects, but not to continue training.")
-		public final Action actionLoadObjectClassifier;
-
 		private ObjectClassificationCommands(QuPathGUI qupath) {
-			actionLoadObjectClassifier = ActionTools.createAction(new ObjectClassifierLoadCommand(qupath));
-			actionComposite = ActionTools.createAction(new CreateCompositeClassifierCommand(qupath));
-			actionMeasurement = ActionTools.createAction(new SingleMeasurementClassificationCommand(qupath));
-			actionIntensity = ActionTools.createAction(new CellIntensityClassificationCommand(qupath));
-			actionObjectClassifier = ActionTools.createAction(new ObjectClassifierCommand(qupath));
+			var commandLoad = new ObjectClassifierLoadCommand(qupath);
+			actionLoadObjectClassifier = qupath.createImageDataAction(imageData -> commandLoad.run());
+			
+			var commandComposite = new CreateCompositeClassifierCommand(qupath);
+			actionComposite = ActionTools.createAction(commandComposite);
+			
+			var commandSingle = new SingleMeasurementClassificationCommand(qupath);
+			actionMeasurement = qupath.createImageDataAction(imageData -> commandSingle.run());
+			
+			var commandIntensity = new CellIntensityClassificationCommand(qupath);
+			actionIntensity = qupath.createImageDataAction(imageData -> commandIntensity.run());
+			
+			var commandCreate = new ObjectClassifierCommand(qupath);
+			actionObjectClassifier = qupath.createImageDataAction(imageData -> commandCreate.run());
 		}
 		
 	}
@@ -193,18 +210,24 @@ public class ProcessingExtension implements QuPathExtension {
 	@SuppressWarnings("javadoc")
 	public class OtherCommands {
 		
-		@ActionMenu("Classify>Training images>Duplicate channel training images")
+		
+		@ActionMenu("Classify>Training images>Create region annotations")
+		@ActionDescription("Create annotations of fixed-size regions."
+				+ "\n\nThis can be used to select representative regions of multiple images to train (usually pixel) classifier, "
+				+ "in combination with 'Create training image'.")
+		public final Action actionCreateRegions;
+
+		@ActionDescription("Create an image comprised of regions extracted from multiple images in a project. " +
+				"This can be useful for interactively training a classifier across a varied dataset.")
+		@ActionMenu("Classify>Training images>Create training image")
+		public final Action actionTrainingImage;
+
+		@ActionMenu("Classify>Training images>Create duplicate channel training images")
 		@ActionDescription("Duplicate an image in a project so that there is one duplicate for each channel of the image. "
 				+ "\n\nThis can be used to train separate classifiers for different channels in multiplexed images, "
 				+ "which are then merged to form a composite classifier.")
 		public final Action actionChannelTraining;
 		
-		@ActionMenu("Classify>Training images>Create region annotations")
-		@ActionDescription("Create annotations of fixed-size regions."
-				+ "\n\nThis can be used to select representative regions of multiple images to train (usually pixel) classifier, "
-				+ "in combination with 'Create combined training image'.")
-		public final Action actionCreateRegions;
-
 		@ActionMenu("Classify>Training images>Split project train/validation/test")
 		@ActionDescription("Split images within a project into training, validation and test sets.")
 		public final Action actionSplitProject;
@@ -214,6 +237,9 @@ public class ProcessingExtension implements QuPathExtension {
 		
 		
 		private OtherCommands(QuPathGUI qupath) {
+			
+			actionTrainingImage = qupath.createProjectAction(project -> promptToCreateSparseServer(qupath));
+			
 			var channelTraining = new CreateChannelTrainingImagesCommand(qupath);
 			actionChannelTraining = qupath.createImageDataAction(imageData -> channelTraining.run());
 			
@@ -229,6 +255,19 @@ public class ProcessingExtension implements QuPathExtension {
 		
 	}
 	
+	
+	/**
+	 * Prompt the user to create a sparse image server composed of annotated regions from images within the current QuPath project.
+	 * @param qupath the current QuPath instance
+	 */
+	private static void promptToCreateSparseServer(QuPathGUI qupath) {
+		var project = qupath.getProject();
+		var entry = CreateTrainingImageCommand.promptToCreateTrainingImage(project, qupath.getAvailablePathClasses());
+		qupath.refreshProject();
+		if (entry != null) {
+			qupath.openImageEntry(entry);
+		}
+	}
 	
 	
     @Override
