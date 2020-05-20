@@ -269,6 +269,7 @@ public class PathPrefs {
 					List<String> lines = Files.readAllLines(config);
 					int jvmOptions = -1;
 					int argOptions = -1;
+					int lineXx = -1;
 					int lineXmx = -1;
 					int i = 0;
 					for (String line : lines) {
@@ -276,11 +277,15 @@ public class PathPrefs {
 					        jvmOptions = i;
 					    if (line.startsWith("[ArgOptions]"))
 					        argOptions = i;
+					    if (line.toLowerCase().contains("-xx"))
+					    	lineXx = i;
 					    if (line.toLowerCase().contains("-xmx"))
 					        lineXmx = i;
 					    i++;
 					}
-					if (lineXmx >= 0)
+					if (lineXx >= 0)
+						lines.set(lineXx, memory);
+					else if (lineXmx >= 0)
 					    lines.set(lineXmx, memory);
 					else if (argOptions > jvmOptions && jvmOptions >= 0) {
 					    lines.add(jvmOptions+1, memory);
