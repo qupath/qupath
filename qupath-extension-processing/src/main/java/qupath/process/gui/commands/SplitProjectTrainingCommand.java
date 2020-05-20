@@ -103,7 +103,7 @@ public class SplitProjectTrainingCommand implements Runnable {
 
 			params = new ParameterList()
 					.addIntParameter("nTrain", "Training set size", 50, null, "Choose number of images in the training set")
-					.addIntParameter("nValidation", "Validation set size", 25, null, "Choose number of images in the valiation set")
+					.addIntParameter("nValidation", "Validation set size", 25, null, "Choose number of images in the validation set")
 					.addIntParameter("nTest", "Test set size", 25, null, "Choose number of images in the test set")
 					.addBooleanParameter("fixedCounts", "Use absolute set sizes", false, 
 							"If checked, use the exact numbers of images specified for each set")

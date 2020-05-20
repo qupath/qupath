@@ -175,7 +175,7 @@ class FeatureSelectionPane {
 			String f = nFeatures == 1 ? "1 feature" : nFeatures + " features";
 
 			if (!Dialogs.showYesNoDialog("Delete feature measurements", 
-					"Are you sure you want to permenently delete " + f + " from all objects?"))
+					"Are you sure you want to permanently delete " + f + " from all objects?"))
 				return;
 
 			// Determine the features to remove

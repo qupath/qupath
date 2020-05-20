@@ -175,7 +175,7 @@ public class ObjectClassifiers {
 		
 		/**
 		 * Constructor.
-		 * @param measurementName name of the measurement used for clasification (should be present within the object's {@link MeasurementList}).
+		 * @param measurementName name of the measurement used for classification (should be present within the object's {@link MeasurementList}).
 		 */
 		public ClassifyByMeasurementBuilder(String measurementName) {
 			this.measurementName = measurementName;

@@ -117,7 +117,7 @@ public class DefaultTMAGrid implements TMAGrid {
 	public TMACoreObject getTMACore(String coreName) {
 		// We can't match a null coreName
 		if (coreName == null) {
-			logger.warn("Cannot find match to unnammed TMA core!");
+			logger.warn("Cannot find match to unnamed TMA core!");
 			return null;
 		}
 		for (TMACoreObject core : cores) {

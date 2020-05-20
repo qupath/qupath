@@ -53,7 +53,7 @@ public interface SimpleProgressMonitor {
 	 * Update the displayed progress, and optionally inform the PluginRunner that data related to a specified image region has been updated.
 	 * If progress &gt;= 1 this indicates that the task is finished, and the monitor may stop.
 	 * 
-	 * @param increment update progress by the specifie increment
+	 * @param increment update progress by the specified increment
 	 * @param message optional message that may be displayed to reflect the current progress status.
 	 * @param region optional region of the image that has been changed; in interactive mode, this region may be repainted.
 	 */

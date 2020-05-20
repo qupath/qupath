@@ -164,7 +164,7 @@ public class OpenCVClassifiers {
 		
 		/**
 		 * Classifier is able to handle more than one outputs for a single sample.
-		 * @return true if multiclass clasification is supported, false otherwise
+		 * @return true if multiclass classification is supported, false otherwise
 		 */
 		public abstract boolean supportsMulticlass();
 		

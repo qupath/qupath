@@ -56,7 +56,7 @@ public class PathRootObject extends PathObject {
 
 	@Override
 	public void setPathClass(PathClass pathClass, double classProbability) {
-		logger.warn("Attempted to set class for unclasifiable object - will be ignored");
+		logger.warn("Attempted to set class for unclassifiable object - will be ignored");
 	}
 
 	@Override

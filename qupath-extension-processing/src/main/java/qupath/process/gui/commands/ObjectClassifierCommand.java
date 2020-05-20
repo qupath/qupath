@@ -366,7 +366,7 @@ public class ObjectClassifierCommand implements Runnable {
 			var task = createClassifierUpdateTask(true);
 			if (task != null) {
 				if (pool == null || pool.isShutdown()) {
-					logger.error("No thread pool available to train classifer!");
+					logger.error("No thread pool available to train classifier!");
 					return null;
 				} else
 					pool.submit(task);

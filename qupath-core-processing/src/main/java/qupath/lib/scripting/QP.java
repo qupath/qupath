@@ -1541,7 +1541,7 @@ public class QP {
 	
 	
 	/**
-	 * Delete the selected objects from the current hierarchy, optoonally keeping their child (descendant) objects.
+	 * Delete the selected objects from the current hierarchy, optionally keeping their child (descendant) objects.
 	 * 
 	 * @param keepChildren
 	 */
