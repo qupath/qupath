@@ -618,6 +618,8 @@ public class ObjectClassifierCommand implements Runnable {
 			boolean firstChanges = false;
 			for (var imageData : trainingImageData) {
 				var newMeasurements = getAllMeasurements(imageData, filter);
+				if (newMeasurements.isEmpty())
+					continue;
 				if (includeIntersection) {
 					if (firstMeasurements.isEmpty()) {
 						firstMeasurements.addAll(newMeasurements);
