@@ -45,7 +45,7 @@ public class ImageWriterTools {
 		if (server == null)
 			return getCompatibleWriters((Class<T>)null, ext);
 		var writers = getCompatibleWriters(server.getImageClass(), ext);
-		return writers.stream().filter(w -> w.suportsImageType(server)).collect(Collectors.toList());
+		return writers.stream().filter(w -> w.supportsImageType(server)).collect(Collectors.toList());
 	}
 	
 	/**

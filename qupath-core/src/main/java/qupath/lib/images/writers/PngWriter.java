@@ -75,8 +75,8 @@ public class PngWriter extends AbstractImageIOWriter {
 	}
 	
 	@Override
-	public boolean suportsImageType(ImageServer<BufferedImage> server) {
-		return super.suportsImageType(server) || isIndexedColor(server);
+	public boolean supportsImageType(ImageServer<BufferedImage> server) {
+		return super.supportsImageType(server) || isIndexedColor(server);
 	}
 	
 	private static boolean isIndexedColor(ImageServer<BufferedImage> server) {
