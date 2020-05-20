@@ -1,3 +1,9 @@
+## Version 0.2.0-m13
+This is the second *release candidate* for v0.2.0 (i.e. the proposed stable version).
+
+* Better error logging if unable to set max memory
+
+
 ## Version 0.2.0-m12
 
 This is the *release candidate* for v0.2.0 (i.e. the proposed stable version).
