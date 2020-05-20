@@ -127,7 +127,7 @@ public class IJTools {
 	 * @param region the requested region coming from 
 	 * @param imageData this BufferedImage
 	 * @return true if the memory is sufficient
-	 * @throws Exception either the fact that IamgeJ cannot handle the image size or that the memory is insufficient
+	 * @throws Exception either the fact that ImageJ cannot handle the image size or that the memory is insufficient
 	 */
 	public static boolean isMemorySufficient(RegionRequest region, final ImageData<BufferedImage> imageData) throws Exception {
 		

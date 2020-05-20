@@ -109,7 +109,7 @@ class RetainedTrainingObjects implements Externalizable {
 	/**
 	 * Get an unmodifiable version of the map stored internally.
 	 * 
-	 * Note: the mapped entres are returned as-is.  In other words, they could still be modified
+	 * Note: the mapped entries are returned as-is.  In other words, they could still be modified
 	 * (but almost certainly shouldn't be).
 	 * 
 	 * @return

@@ -471,13 +471,13 @@ public class QuPathGUI {
 		 * Rectangle tool action
 		 */
 		@ActionAccelerator("r")
-		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to contrain shape to be a square.")
+		@ActionDescription("Click and drag to draw a rectangle annotation. Hold down 'Shift' to constrain shape to be a square.")
 		public final Action RECTANGLE_TOOL = getToolAction(PathTools.RECTANGLE);
 		/**
 		 * Ellipse tool action
 		 */
 		@ActionAccelerator("o")
-		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to contrain shape to be a circle.")
+		@ActionDescription("Click and drag to draw an ellipse annotation. Hold down 'Shift' to constrain shape to be a circle.")
 		public final Action ELLIPSE_TOOL = getToolAction(PathTools.ELLIPSE);
 		/**
 		 * Polygon tool action
@@ -619,7 +619,7 @@ public class QuPathGUI {
 		@ActionAccelerator("g")
 		public final Action SHOW_TMA_GRID = ActionTools.createSelectableAction(overlayOptions.showTMAGridProperty(), "Show TMA grid");
 		/**
-		 * Toggle the display of TMA grid lables.
+		 * Toggle the display of TMA grid labels.
 		 */
 		public final Action SHOW_TMA_GRID_LABELS = ActionTools.createSelectableAction(overlayOptions.showTMACoreLabelsProperty(), "Show TMA grid labels");
 		
@@ -1271,7 +1271,7 @@ public class QuPathGUI {
 				System.out.println("Done!");
 			}
 		} catch (Exception e) {
-			logger.error("Error lauching QuPath", e);
+			logger.error("Error launching QuPath", e);
 			e.printStackTrace();
 		}
 	}

@@ -160,7 +160,7 @@ public class LogRankTest {
 		}
 
 		/**
-		 * Get the calcualted p-value.
+		 * Get the calculated p-value.
 		 * @return
 		 */
 		public double getPValue() {

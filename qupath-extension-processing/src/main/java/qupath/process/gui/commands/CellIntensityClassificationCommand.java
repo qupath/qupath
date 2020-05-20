@@ -72,7 +72,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 		var cells = imageData.getHierarchy().getCellObjects();
 		boolean allDetections = cells.isEmpty();
 		if (allDetections)
-			logger.debug("No cells found - will try using all detectons");
+			logger.debug("No cells found - will try using all detections");
 		var detections = allDetections ? imageData.getHierarchy().getDetectionObjects() : cells;
 		if (detections.isEmpty()) {
 			Dialogs.showErrorMessage(title, "No cells found in the current image!");

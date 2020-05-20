@@ -123,8 +123,8 @@ public class PreferencePane {
 				"Percentage memory for tile caching",
 				category,
 				"Percentage of maximum memory to use for caching image tiles (must be >10% and <90%; suggested value is 25%)." +
-				"\nA high value can improve performance (especially for multichannel images), but increses risk of out-of-memory errors." +
-				"\nChanges take effect when QuPath is retarted.");
+				"\nA high value can improve performance (especially for multichannel images), but increases risk of out-of-memory errors." +
+				"\nChanges take effect when QuPath is restarted.");
 		
 		addPropertyPreference(PathPrefs.showImageNameInTitleProperty(), Boolean.class,
 				"Show image name in window title",
@@ -153,7 +153,7 @@ public class PreferencePane {
 		addPropertyPreference(PathPrefs.imageTypeSettingProperty(), ImageTypeSetting.class,
 				"Set image type",
 				category,
-				"Automically estimate & set the image type on first opening (e.g. H&E, H-DAB, fluorescence), prompt or leave unset." + 
+				"Automatically estimate & set the image type on first opening (e.g. H&E, H-DAB, fluorescence), prompt or leave unset." +
 						"\nEstimating can be handy, but be aware it might not always be correct - and you should always check!" + 
 						"\nThe image type influences some available commands, e.g. how stains are separated for display or cell detections.");
 

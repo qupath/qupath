@@ -659,7 +659,7 @@ public class IntensityFeaturesPlugin extends AbstractInteractivePlugin<BufferedI
 			// Regions & resolution
 			params.addTitleParameter("Resolution");
 			params.addDoubleParameter("downsample", "Downsample", 1, null, "Amount to downsample the image before calculating textures; choose 1 to use full resolution, or a higher value to use a smaller image").
-					addDoubleParameter("pixelSizeMicrons", "Preferred pixel size", 2, GeneralTools.micrometerSymbol(), "Preferred pixel size of the image used to calculate the tetures - higher values means coarser (lower resolution) images")
+					addDoubleParameter("pixelSizeMicrons", "Preferred pixel size", 2, GeneralTools.micrometerSymbol(), "Preferred pixel size of the image used to calculate the textures - higher values means coarser (lower resolution) images")
 					;
 
 			// Regions & resolution

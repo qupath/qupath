@@ -65,7 +65,7 @@ public class FillAnnotationHolesPlugin<T> extends AbstractInteractivePlugin<T> {
 
 	@Override
 	public String getDescription() {
-		return "Fill holes occuring within selected annotations (AreaROIs or some PolygonROIs)";
+		return "Fill holes occurring within selected annotations (AreaROIs or some PolygonROIs)";
 	}
 
 	@Override

@@ -116,7 +116,7 @@ public class SimpleTissueDetection2 extends AbstractDetectionPlugin<BufferedImag
 		params.addBooleanParameter("smoothImage", "Smooth image", true, "Apply 3x3 mean filter to (downsampled) image to reduce noise before thresholding");
 		params.addBooleanParameter("medianCleanup", "Cleanup with median filter", true, "Apply median filter to thresholded image to reduce small variations");
 		params.addBooleanParameter("dilateBoundaries", "Expand boundaries", false, "Apply 3x3 maximum filter to binary image to increase region sizes");
-		params.addBooleanParameter("smoothCoordinates", "Smooth coordinates", true, "Apply smmothing to region boundaries, to reduce 'blocky' appearance");
+		params.addBooleanParameter("smoothCoordinates", "Smooth coordinates", true, "Apply smoothing to region boundaries, to reduce 'blocky' appearance");
 		params.addBooleanParameter("excludeOnBoundary", "Exclude on boundary", false, "Discard detection regions that touch the image boundary");
 		
 		params.addBooleanParameter("singleAnnotation", "Single annotation", true, "Create a single annotation object from all (possibly-disconnected) regions");

@@ -26,7 +26,7 @@ public class Padding {
 	}
 	
 	/**
-	 * Get the total horizonal padding (sum of x1 and x2).
+	 * Get the total horizontal padding (sum of x1 and x2).
 	 * @return
 	 */
 	public int getXSum() {

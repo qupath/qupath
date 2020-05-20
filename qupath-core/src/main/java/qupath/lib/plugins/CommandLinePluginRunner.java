@@ -45,7 +45,7 @@ public class CommandLinePluginRunner<T> extends AbstractPluginRunner<T> {
 	private ImageData<T> imageData;
 
 	/**
-	 * Constructor for a PluginRunner that send progrress to a log.
+	 * Constructor for a PluginRunner that send progress to a log.
 	 * @param imageData the ImageData for the current plugin
 	 */
 	public CommandLinePluginRunner(final ImageData<T> imageData) {

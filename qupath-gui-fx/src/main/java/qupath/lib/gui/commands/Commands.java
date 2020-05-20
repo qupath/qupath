@@ -1029,7 +1029,7 @@ public class Commands {
 //		pathObjects.removeIf(p -> !RoiTools.isShapeROI(p.getROI())); // Remove any null or point ROIs, TODO: Consider supporting points
 		pathObjects.removeIf(p -> !p.hasROI() || !p.getROI().getImagePlane().equals(plane)); // Remove any null or point ROIs, TODO: Consider supporting points
 		if (pathObjects.isEmpty()) {
-			logger.warn("Cannot combint annotations - only one suitable annotation found");
+			logger.warn("Cannot combine annotations - only one suitable annotation found");
 			return false;
 		}
 		
