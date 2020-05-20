@@ -277,7 +277,7 @@ public class PathPrefs {
 					        jvmOptions = i;
 					    if (line.startsWith("[ArgOptions]"))
 					        argOptions = i;
-					    if (line.toLowerCase().contains("-xx"))
+					    if (line.toLowerCase().contains("-xx:maxrampercentage"))
 					    	lineXx = i;
 					    if (line.toLowerCase().contains("-xmx"))
 					        lineXmx = i;
