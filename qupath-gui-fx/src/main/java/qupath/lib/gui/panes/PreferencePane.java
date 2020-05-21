@@ -279,7 +279,7 @@ public class PreferencePane {
 		addPropertyPreference(PathPrefs.gridSpacingXProperty(), Double.class,
 				"Grid spacing X",
 				category,
-				"Horizonal grid spacing when displaying a grid on the viewer");
+				"Horizontal grid spacing when displaying a grid on the viewer");
 
 		addPropertyPreference(PathPrefs.gridSpacingYProperty(), Double.class,
 				"Grid spacing Y",

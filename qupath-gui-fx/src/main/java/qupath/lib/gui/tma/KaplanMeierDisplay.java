@@ -818,7 +818,7 @@ class KaplanMeierDisplay implements ParameterChangeListener, PathObjectHierarchy
 				if (pValueThresholds.length > 1) {
 					Data<Number, Number> sigData1 = new Data<>(pValueThresholds[0], 0.05);
 					Data<Number, Number> sigData2 = new Data<>(pValueThresholds[pValueThresholds.length-1], 0.05);
-					XYChart.Series<Number, Number> dataSignificant = new XYChart.Series<>("Signficance 0.05", FXCollections.observableArrayList(
+					XYChart.Series<Number, Number> dataSignificant = new XYChart.Series<>("Significance 0.05", FXCollections.observableArrayList(
 							sigData1,
 							sigData2
 							));

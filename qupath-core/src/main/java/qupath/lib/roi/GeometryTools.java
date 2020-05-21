@@ -803,7 +803,7 @@ public class GeometryTools {
 				areaTempSigned += 0.5 * (x0 * y1 - x1 * y0);
 				// Add polygon if it has just been closed
 				if (closed && points.size() == 1) {
-					logger.debug("Error when converting area to Geometry: cannot create polygon from cordinate array of length 1!");
+					logger.debug("Error when converting area to Geometry: cannot create polygon from coordinate array of length 1!");
 				} else if (closed) {
 					points.closeRing();
 					if (points.size() <= 3) {

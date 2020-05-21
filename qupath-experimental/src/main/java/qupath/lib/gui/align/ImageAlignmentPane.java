@@ -802,7 +802,7 @@ public class ImageAlignmentPane {
 				motion = opencv_video.MOTION_EUCLIDEAN;
 				break;
 			default:
-				logger.warn("Unknown registraton type {} - will use {}", regionstrationType, RegistrationType.AFFINE);
+				logger.warn("Unknown registration type {} - will use {}", regionstrationType, RegistrationType.AFFINE);
 				motion = opencv_video.MOTION_AFFINE;
 				break;
 			}
