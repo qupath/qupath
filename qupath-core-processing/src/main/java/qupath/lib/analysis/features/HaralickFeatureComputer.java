@@ -76,10 +76,10 @@ public class HaralickFeatureComputer {
 		}
 		
 		// Create & update cooccurrance matrices
-		CoocurranceMatrices matricies = updateCooccurrenceMatrices(null, ip, bpMask, xx, yy, ww, hh, nBins, minValue, maxValue, d);
+		CoocurranceMatrices matrices = updateCooccurrenceMatrices(null, ip, bpMask, xx, yy, ww, hh, nBins, minValue, maxValue, d);
 
 		// Get features
-		HaralickFeatures features = matricies.getMeanFeatures();
+		HaralickFeatures features = matrices.getMeanFeatures();
 
 		return features;
 	}

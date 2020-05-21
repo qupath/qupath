@@ -259,7 +259,7 @@ public class OMEPyramidWriter {
 				doBigTiff = Boolean.TRUE.equals(temp.bigTiff) | doBigTiff;
 				nPixelBytes += ((long)temp.width * temp.height * temp.channels.length * temp.server.getPixelType().getBytesPerPixel() *
 						(temp.tEnd - temp.tStart) * (temp.zEnd - temp.zStart));
-				temp.initializeMatadata(meta, s);
+				temp.initializeMetadata(meta, s);
 			}
 			
 			writer.setWriteSequentially(true); // Setting this to false can be problematic!
@@ -306,7 +306,7 @@ public class OMEPyramidWriter {
 	
 		private CompressionType compression = CompressionType.DEFAULT;
 		
-		public void initializeMatadata(IMetadata meta, int series) throws IOException {
+		public void initializeMetadata(IMetadata meta, int series) throws IOException {
 			
 			meta.setImageID("Image:"+series, series);
 			meta.setPixelsID("Pixels:"+series, series);
@@ -458,7 +458,7 @@ public class OMEPyramidWriter {
 		 * @throws IOException
 		 * 
 		 * @see Builder
-		 * @see #initializeMatadata(IMetadata, int)
+		 * @see #initializeMetadata(IMetadata, int)
 		 */
 		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
 	

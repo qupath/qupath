@@ -81,7 +81,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		
 		// Create persistent properties
 		BooleanProperty enableBioformats = PathPrefs.createPersistentPreference("bfEnableBioformats", options.bioformatsEnabled());
-		BooleanProperty useParallelization = PathPrefs.createPersistentPreference("bfUseParallization", options.requestParallelization());
+		BooleanProperty useParallelization = PathPrefs.createPersistentPreference("bfUseParallelization", options.requestParallelization());
 		IntegerProperty memoizationTimeMillis = PathPrefs.createPersistentPreference("bfMemoizationTimeMS", options.getMemoizationTimeMillis());
 //		BooleanProperty parallelizeMultichannel = PathPrefs.createPersistentPreference("bfParallelizeMultichannel", options.requestParallelizeMultichannel());
 

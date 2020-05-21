@@ -1716,7 +1716,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 		/**
-		 * Get the percentage of positive detections, considering only descendents of one or more
+		 * Get the percentage of positive detections, considering only descendants of one or more
 		 * specified classes.
 		 * 
 		 * @param ancestors

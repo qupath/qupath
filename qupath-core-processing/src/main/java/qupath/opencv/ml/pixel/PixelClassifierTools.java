@@ -191,7 +191,7 @@ public class PixelClassifierTools {
 				}
 				if (willRemove) {
 					toDeselect.add(pathObject);
-					logger.warn("Skipping {} during object creation (is descendent of an object that is already being processed)", pathObject);
+					logger.warn("Skipping {} during object creation (is descendant of an object that is already being processed)", pathObject);
 					continue;
 				}
 			}

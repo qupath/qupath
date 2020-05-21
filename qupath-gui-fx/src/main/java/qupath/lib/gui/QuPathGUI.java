@@ -584,7 +584,7 @@ public class QuPathGUI {
 		/**
 		 * Request that cells are displayed using both cell and nucleus ROIs.
 		 */
-		@ActionIcon(PathIcons.CELL_NULCEI_BOTH)
+		@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
 		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
 		/**
 		 * Request that cells are displayed using their centroids only.

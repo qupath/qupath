@@ -2827,9 +2827,9 @@ public class QP {
 			boolean firstTime = true;
 			for (PathObject temp : pathObjectList) {
 				if (firstTime)
-					parentSet.addAll(PathObjectTools.getAncenstorList(temp));
+					parentSet.addAll(PathObjectTools.getAncestorList(temp));
 				else
-					parentSet.retainAll(PathObjectTools.getAncenstorList(temp));
+					parentSet.retainAll(PathObjectTools.getAncestorList(temp));
 				firstTime = false;
 			}
 			List<PathObject> parents = new ArrayList<>(parentSet);

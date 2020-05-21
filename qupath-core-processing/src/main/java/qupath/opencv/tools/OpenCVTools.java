@@ -741,12 +741,12 @@ public class OpenCVTools {
 		Scalar color = Scalar.WHITE;
 		int ind = 0;
 		Point offset = new Point(0, 0);
-		Indexer indexerHierearchy = hierarchy.createIndexer();
+		Indexer indexerHierarchy = hierarchy.createIndexer();
 		for (int c = 0; c < contours.size(); c++) {
 			Mat contour = contours.get(c);
 			// Only fill the small, inner contours
 			// TODO: Check hierarchy indexing after switch to JavaCPP!!
-			if (indexerHierearchy.getDouble(0, ind, 3) >= 0 || opencv_imgproc.contourArea(contour) > maxArea) {
+			if (indexerHierarchy.getDouble(0, ind, 3) >= 0 || opencv_imgproc.contourArea(contour) > maxArea) {
 				ind++;
 				continue;
 			}

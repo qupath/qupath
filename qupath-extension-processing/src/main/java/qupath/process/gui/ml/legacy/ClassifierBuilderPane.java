@@ -824,7 +824,7 @@ public class ClassifierBuilderPane<T extends PathObjectClassifier> implements Pa
 					Map<PathClass, List<PathObject>> map = PathClassificationLabellingHelper.getClassificationMap(hierarchy, trainFromPoints);
 					// Because we're looking at a detection classifier, remove all other object relationships -
 					// we don't need them, and they bring in substantial memory requirements
-					// (because objects know their parents, which know their parents... and all know descendents... basically 
+					// (because objects know their parents, which know their parents... and all know descendants... basically 
 					// the whole hierarchy ends up in memory for every image)
 					for (List<PathObject> list : map.values()) {
 						hierarchy.removeObjects(list, false);
