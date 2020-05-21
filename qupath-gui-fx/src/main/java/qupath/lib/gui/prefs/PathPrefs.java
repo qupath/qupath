@@ -352,7 +352,7 @@ public class PathPrefs {
 	
 	/**
 	 * Percentage to scale scroll speed for zooming etc.
-	 * Helps customize the viewer according to moure/less enthusiastic input devices.
+	 * Helps customize the viewer according to more/less enthusiastic input devices.
 	 * 
 	 * @return
 	 */
