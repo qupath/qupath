@@ -219,7 +219,7 @@ class ProjectMetadataEditorCommand {
 	 * an entire row or column.
 	 * 
 	 * @param table
-	 * @param warnIfDiscontinuous If true, a warning is shown if a discontinous selection is made.
+	 * @param warnIfDiscontinuous If true, a warning is shown if a discontinuous selection is made.
 	 */
 	private static void copySelectedCellsToClipboard(final TableView<?> table, final boolean warnIfDiscontinuous) {
 		var positions = table.getSelectionModel().getSelectedCells();
@@ -231,7 +231,7 @@ class ProjectMetadataEditorCommand {
 		boolean isContinuous = (rows[rows.length-1] - rows[0] + 1) * (cols[cols.length-1] - cols[0] + 1) == positions.size();
 		if (!isContinuous) {
 			if (warnIfDiscontinuous)
-				Dialogs.showWarningNotification("Copy table selection", "Cannot copy discontinous selection, sorry");
+				Dialogs.showWarningNotification("Copy table selection", "Cannot copy discontinuous selection, sorry");
 			return;
 		}
 		

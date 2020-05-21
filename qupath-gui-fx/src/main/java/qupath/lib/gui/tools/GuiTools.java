@@ -385,7 +385,7 @@ public class GuiTools {
 			return new Robot().getScreenCapture(null,
 					bounds.getMinX(), bounds.getMinY(), bounds.getWidth(), bounds.getHeight());
 		default:
-			throw new IllegalArgumentException("Unknown snaptop type " + type);
+			throw new IllegalArgumentException("Unknown snapshot type " + type);
 		}
 	}
 
