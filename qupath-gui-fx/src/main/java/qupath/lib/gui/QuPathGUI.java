@@ -1500,7 +1500,17 @@ public class QuPathGUI {
 		// Sort the extensions by name, to ensure predictable loading order
 		// (also, menus are in a better order if ImageJ extension installed before OpenCV extension)
 		List<QuPathExtension> extensions = new ArrayList<>();
-		extensionLoader.iterator().forEachRemaining(extensions::add);
+		Iterator<QuPathExtension> iterator = extensionLoader.iterator();
+		while (iterator.hasNext()) {
+			try {
+				extensions.add(iterator.next());
+			} catch (Throwable e) {
+				if (getStage() != null && getStage().isShowing()) {
+					Dialogs.showErrorMessage("Extension error", "Error loading extension - check 'View -> Show log' for details.");
+				}
+				logger.error(e.getLocalizedMessage(), e);
+			}
+		}
 		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
 		for (QuPathExtension extension : extensions) {
 			if (!loadedExtensions.containsKey(extension.getClass())) {

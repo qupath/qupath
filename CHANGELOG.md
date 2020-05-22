@@ -1,9 +1,13 @@
 ## Version 0.2.0-m13
 This is the second *release candidate* for v0.2.0 (i.e. the proposed stable version).
 
-* Bug fixes since m12:
+Changes since v0.2.0-m12:
+* Added more prefilter options to 'Create thresholder'
+* Bug fixes:
   * Unable to set max memory (https://github.com/qupath/qupath/issues/490)
+  * Fail with a more meaningful error if an incompatible extension is found (https://github.com/qupath/qupath/issues/497)
   * 'Show TMA measurements' showed detection measurements instead
+  * Fixed many typos (thanks to Cameron Lloyd)
 
 
 ## Version 0.2.0-m12
