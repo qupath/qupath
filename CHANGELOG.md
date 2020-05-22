@@ -1,7 +1,9 @@
 ## Version 0.2.0-m13
 This is the second *release candidate* for v0.2.0 (i.e. the proposed stable version).
 
-* Better error logging if unable to set max memory
+* Bug fixes since m12:
+  * Unable to set max memory (https://github.com/qupath/qupath/issues/490)
+  * 'Show TMA measurements' showed detection measurements instead
 
 
 ## Version 0.2.0-m12

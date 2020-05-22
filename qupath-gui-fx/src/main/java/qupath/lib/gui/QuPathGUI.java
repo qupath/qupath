@@ -669,7 +669,7 @@ public class QuPathGUI {
 		 * Show summary measurement table for TMA cores.
 		 */
 		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
-		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
+		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showTMAMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
 		
 		/**
 		 * Show summary measurement table for annotations.
