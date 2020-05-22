@@ -56,7 +56,7 @@ public class ImageServers {
 			.registerSubtype(AffineTransformImageServerBuilder.class, "affine")
 			.registerSubtype(SparseImageServerBuilder.class, "sparse")
 			.registerSubtype(CroppedImageServerBuilder.class, "cropped")
-			.registerSubtype(PyramidGeneratingServerBuilder.class, "pyramidize")
+			.registerSubtype(PyramidGeneratingServerBuilder.class, "pyramidize") // For consistency, this would ideally be pyramidalize... but need to keep backwards-compatibility
 			.registerSubtype(ColorDeconvolutionServerBuilder.class, "color_deconvolved")
 			;
 	

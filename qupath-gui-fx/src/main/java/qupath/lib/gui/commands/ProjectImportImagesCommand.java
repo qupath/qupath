@@ -179,15 +179,15 @@ class ProjectImportImagesCommand {
 		labelRotate.setLabelFor(comboRotate);
 		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
 		
-		CheckBox cbPyramidize = new CheckBox("Auto-generate pyramids");
-		cbPyramidize.setSelected(pyramidalizeProperty.get());
+		CheckBox cbPyramidalize = new CheckBox("Auto-generate pyramids");
+		cbPyramidalize.setSelected(pyramidalizeProperty.get());
 		
 		CheckBox cbImportObjects = new CheckBox("Import objects");
 		cbImportObjects.setSelected(importObjectsProperty.get());
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidize, cbImportObjects);
-		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidize, cbImportObjects);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidize, cbImportObjects);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
+		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
@@ -197,7 +197,7 @@ class ProjectImportImagesCommand {
 		PaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
 		PaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
 		PaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
-		PaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidize, cbPyramidize);
+		PaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidalize, cbPyramidalize);
 		PaneTools.addGridRow(paneType, row++, 0, "Read and import objects (e.g. annotations) from the image file, if possible", cbImportObjects, cbImportObjects);
 		
 		paneImages.setCenter(paneList);
@@ -267,9 +267,9 @@ class ProjectImportImagesCommand {
 				
 		ImageType type = comboType.getValue();
 		Rotation rotation = comboRotate.getValue();
-		boolean pyramidize = cbPyramidize.isSelected();
+		boolean pyramidalize = cbPyramidalize.isSelected();
 		boolean importObjects = cbImportObjects.isSelected();
-		pyramidalizeProperty.set(pyramidize);
+		pyramidalizeProperty.set(pyramidalize);
 		importObjectsProperty.set(importObjects);
 		
 		ImageServerBuilder<BufferedImage> requestedBuilder = comboBuilder.getSelectionModel().getSelectedItem();
@@ -367,7 +367,7 @@ class ProjectImportImagesCommand {
 					for (var entry : entries) {
 						pool.submit(() -> {
 							try {
-								initializeEntry(entry, type, pyramidize, importObjects);
+								initializeEntry(entry, type, pyramidalize, importObjects);
 							} catch (Exception e) {
 								failures.add(entry);
 								logger.warn("Exception adding " + entry, e);
@@ -600,12 +600,12 @@ class ProjectImportImagesCommand {
 	 * 
 	 * @param entry the entry that should be initialized
 	 * @param type the ImageType that should be set for each entry being added
-	 * @param pyramidizeSingleResolution if true, attempt to pyramidalize single-resolution image servers
+	 * @param pyramidalizeSingleResolution if true, attempt to pyramidalize single-resolution image servers
 	 * @param importObjects if true, read objects from the server - if available
 	 * @return
 	 * @throws Exception 
 	 */
-	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidizeSingleResolution, boolean importObjects) throws Exception {
+	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidalizeSingleResolution, boolean importObjects) throws Exception {
 		try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()) {
 			var img = getThumbnailRGB(server, null);
 			// Set the image name
@@ -618,7 +618,7 @@ class ProjectImportImagesCommand {
 			@SuppressWarnings("resource")
 			ImageServer<BufferedImage> server2 = server;
 			int minPyramidDimension = PathPrefs.minPyramidDimensionProperty().get();
-			if (pyramidizeSingleResolution && server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > minPyramidDimension) {
+			if (pyramidalizeSingleResolution && server.nResolutions() == 1 && Math.max(server.getWidth(), server.getHeight()) > minPyramidDimension) {
 				var serverTemp = ImageServers.pyramidalize(server);
 				if (serverTemp.nResolutions() > 1) {
 					logger.debug("Auto-generating image pyramid for " + name);
