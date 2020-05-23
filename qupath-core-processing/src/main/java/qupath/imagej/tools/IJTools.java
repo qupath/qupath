@@ -187,16 +187,19 @@ public class IJTools {
 	/**
 	 * Extract a full ImageJ hyperstack for a specific region, for specified ranges of z-slices and time points.
 	 * 
-	 * @param server
-	 * @param request
-	 * @param zStart
-	 * @param zEnd
-	 * @param tStart
-	 * @param tEnd
-	 * @return
+	 * @param server server from which to extract pixels
+	 * @param request region and downsample value; if null, the entire image is used
+	 * @param zStart starting z-slice index (0-based index)
+	 * @param zEnd ending z-slice index (exclusive)
+	 * @param tStart starting timepoint index (0-based index)
+	 * @param tEnd ending timepoint index (exclusive)
+	 * @return the ImageJ hyperstack
 	 * @throws IOException
 	 */
 	public static ImagePlus extractHyperstack(ImageServer<BufferedImage> server, RegionRequest request, int zStart, int zEnd, int tStart, int tEnd) throws IOException {
+		
+		if (request == null)
+			request = RegionRequest.createInstance(server);
 		
 		int nChannels = -1;
 		int nZ = zEnd - zStart;

@@ -2386,6 +2386,30 @@ public class QP {
 	}
 	
 	/**
+	 * Write the output of applying a pixel classifier to an image. The writer will be determined based on the file extension.
+	 * @param imageData image to which the classifier should be applied
+	 * @param classifier pixel classifier
+	 * @param path output file path
+	 * @throws IOException
+	 */
+	public static void writePredictionImage(ImageData<BufferedImage> imageData, PixelClassifier classifier, String path) throws IOException {
+		if (imageData == null)
+			imageData = getCurrentImageData();
+		var server = PixelClassifierTools.createPixelClassificationServer(imageData, classifier);
+		ImageWriterTools.writeImage(server, path);
+	}
+	
+	/**
+	 * Write the output of applying a pixel classifier to the current image image.
+	 * @param classifierName name of the classifier, see {@link #loadPixelClassifier(String)}
+	 * @param path output file path
+	 * @throws IOException
+	 */
+	public static void writePredictionImage(String classifierName, String path) throws IOException {
+		writePredictionImage(getCurrentImageData(), loadPixelClassifier(classifierName), path);
+	}
+	
+	/**
 	 * Write a full image to the specified path. The writer will be determined based on the file extension.
 	 * @param server
 	 * @param path
