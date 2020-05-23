@@ -1141,7 +1141,7 @@ public class QuPathGUI {
 		
 		// Show a startup message, if we have one
 		if (!startupQuietly)
-			showStartupMesssage();
+			showStartupMessage();
 		
 		// Run startup script, if we can
 		try {
@@ -1184,7 +1184,7 @@ public class QuPathGUI {
 	}
 	
 	
-	private void showStartupMesssage() {
+	private void showStartupMessage() {
 		File fileStartup = new File("STARTUP.md");
 		if (!fileStartup.exists()) {
 			fileStartup = new File("app", fileStartup.getName());
