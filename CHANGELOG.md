@@ -6,6 +6,8 @@ Changes since v0.2.0-m12:
 * Bug fixes:
   * Unable to set max memory (https://github.com/qupath/qupath/issues/490)
   * Fail with a more meaningful error if an incompatible extension is found (https://github.com/qupath/qupath/issues/497)
+  * Selected images remained with 'Run for project' even when the project changed (https://github.com/qupath/qupath/issues/501)
+  * writeImage did not do all z-slices/timepoints for an OME-TIFF
   * 'Show TMA measurements' showed detection measurements instead
   * Fixed many typos (thanks to Cameron Lloyd)
 

@@ -331,6 +331,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
 		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without save)", false);
 		
+		qupath.projectProperty().addListener((v, o, n) -> {
+			previousImages.clear();
+		});
+		
 		findAction = createFindAction("Find");
 	}
 	
