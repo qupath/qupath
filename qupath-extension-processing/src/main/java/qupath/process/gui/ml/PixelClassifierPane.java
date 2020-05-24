@@ -845,8 +845,10 @@ public class PixelClassifierPane {
 //		}
 		var imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showErrorNotification("Pixel classifier", "No image available!");
-			return;			
+			if (!qupath.getViewers().stream().anyMatch(v -> v.getImageData() != null)) {
+				logger.debug("doClassification() called, but no images are open"); 
+				return;			
+			}
 		}
 		
 		var model = selectedClassifier.get();
@@ -957,7 +959,7 @@ public class PixelClassifierPane {
 
 		 if (model instanceof RTreesClassifier) {
 			 var trees = (RTreesClassifier)model;
-			 if (trees.hasFeatureImportance())
+			 if (trees.hasFeatureImportance() && imageData != null)
 				 logVariableImportance(trees,
 						 helper.getFeatureOp().getChannels(imageData).stream()
 						 .map(c -> c.getName()).collect(Collectors.toList()));
