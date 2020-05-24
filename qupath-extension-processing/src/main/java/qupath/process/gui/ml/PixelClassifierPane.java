@@ -651,11 +651,14 @@ public class PixelClassifierPane {
 	 * @param imageData
 	 */
 	private void updateAvailableResolutions(ImageData<BufferedImage> imageData) {
+		var selected = selectedResolution.get();
 		if (imageData == null) {
-			resolutions.clear();
+//			if (selected != null)
+//				resolutions.setAll(selected);
+//			else
+//				resolutions.clear();
 			return;
 		}
-		var selected = selectedResolution.get();
 		var requestedResolutions = ClassificationResolution.getDefaultResolutions(imageData, selected);
 		if (!resolutions.equals(requestedResolutions)) {
 			resolutions.setAll(ClassificationResolution.getDefaultResolutions(imageData, selected));
@@ -1077,6 +1080,8 @@ public class PixelClassifierPane {
 		if (overlay != null)
 			overlay.stop();
 		
+		qupath.imageDataProperty().removeListener(imageDataListener);
+
 		for (var viewer : qupath.getViewers()) {
 			var imageData = viewer.getImageData();
 			if (overlay != null) {
@@ -1090,7 +1095,7 @@ public class PixelClassifierPane {
 				featureOverlay.stop();
 			}
 	
-			viewer.imageDataProperty().removeListener(imageDataListener);
+//			viewer.imageDataProperty().removeListener(imageDataListener);
 			var hierarchy = viewer.getHierarchy();
 			if (hierarchy != null)
 				hierarchy.removePathObjectListener(hierarchyListener);
