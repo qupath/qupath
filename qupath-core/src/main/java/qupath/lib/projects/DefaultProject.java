@@ -689,6 +689,10 @@ class DefaultProject implements Project<BufferedImage> {
 			return Paths.get(getEntryPath().toString(), "summary.json");
 		}
 		
+		private Path getServerPath() {
+			return Paths.get(getEntryPath().toString(), "server.json");
+		}
+		
 		private Path getThumbnailPath() {
 			return Paths.get(getEntryPath().toString(), "thumbnail.jpg");
 		}
@@ -736,6 +740,7 @@ class DefaultProject implements Project<BufferedImage> {
 			// Write to a temp file first
 			long timestamp = 0L;
 			try (var stream = Files.newOutputStream(pathData)) {
+				logger.debug("Saving image data to {}", pathData);
 				PathIO.writeImageData(stream, imageData);
 				imageData.setLastSavedPath(pathData.toString(), true);
 				timestamp = Files.getLastModifiedTime(pathData).toMillis();
@@ -744,7 +749,10 @@ class DefaultProject implements Project<BufferedImage> {
 					Files.delete(pathBackup);
 			} catch (IOException e) {
 				// Try to restore the backup
-				Files.move(pathBackup, pathData, StandardCopyOption.REPLACE_EXISTING);				
+				if (Files.exists(pathBackup)) {
+					logger.warn("Exception writing image file - attempting to restore {} from backup", pathData);
+					Files.move(pathBackup, pathData, StandardCopyOption.REPLACE_EXISTING);				
+				}
 				throw e;
 			}
 			
@@ -752,6 +760,14 @@ class DefaultProject implements Project<BufferedImage> {
 			var currentServerBuilder = imageData.getServer().getBuilder();
 			if (currentServerBuilder != null && !currentServerBuilder.equals(this.serverBuilder)) {
 				this.serverBuilder = currentServerBuilder;
+				// Write the server - it isn't used, but it may enable us to rebuild the server from the data directory if the project is lost
+				var pathServer = getServerPath();
+				try (var out = Files.newBufferedWriter(pathServer, StandardCharsets.UTF_8)) {
+					GsonTools.getInstance().toJson(serverBuilder, out);
+				} catch (Exception e) {
+					logger.warn("Unable to write server to {}", pathServer);
+					Files.deleteIfExists(pathServer);
+				}
 //				syncChanges();
 			}
 			
@@ -948,23 +964,49 @@ class DefaultProject implements Project<BufferedImage> {
 //		}
 		builder.add("images", gson.toJsonTree(images));
 		
-		// TODO: Consider the (admittedly unexpected) case where the JSON is too long for a String
-		var jsonString = gson.toJson(builder);
-
+		
+		// Write project to a new file
+		var pathProject = fileProject.toPath();
+		var pathTempNew = new File(fileProject.getAbsolutePath() + ".tmp").toPath();
+		logger.debug("Writing project to {}", pathTempNew);
+		try (var writer = Files.newBufferedWriter(pathTempNew, StandardCharsets.UTF_8)) {
+			gson.toJson(builder, writer);
+		}
+//		// In Java 12 we could check if there is a mismatch - to avoid writing unnecessarily (and reducing the usefulness of any backup)
+//		if (Files.mismatch(pathTempNew, pathProject) == -1) {
+//			logger.debug("Project contents are unchanged - no need to overwrite file");
+//			return;
+//		}
+		
 		// If we already have a project, back it up
 		if (fileProject.exists()) {
-			File fileBackup = new File(fileProject.getAbsolutePath() + ".backup");
-			if (fileProject.renameTo(fileBackup))
-				logger.debug("Existing project file backed up at {}", fileBackup.getAbsolutePath());
-			else
-				logger.debug("Unable to backup existing project to {}", fileBackup.getAbsolutePath());				
+			var pathBackup = new File(fileProject.getAbsolutePath() + ".backup").toPath();
+			logger.debug("Backing up existing project to {}", pathBackup);
+			Files.move(pathProject, pathBackup, StandardCopyOption.REPLACE_EXISTING);
 		}
-
-		// Write project
-		logger.info("Writing project to {}", fileProject.getAbsolutePath());
-		try (PrintWriter writer = new PrintWriter(fileProject, StandardCharsets.UTF_8)) {
-			writer.write(jsonString);
-		}
+		
+		// If this succeeded, rename files
+		logger.debug("Renaming project to {}", pathProject);
+		Files.move(pathTempNew, pathProject, StandardCopyOption.REPLACE_EXISTING);	
+		
+		
+//		// TODO: Consider the (admittedly unexpected) case where the JSON is too long for a String
+//		var jsonString = gson.toJson(builder);
+//
+//		// If we already have a project, back it up
+//		if (fileProject.exists()) {
+//			File fileBackup = new File(fileProject.getAbsolutePath() + ".backup");
+//			if (fileProject.renameTo(fileBackup))
+//				logger.debug("Existing project file backed up at {}", fileBackup.getAbsolutePath());
+//			else
+//				logger.debug("Unable to backup existing project to {}", fileBackup.getAbsolutePath());				
+//		}
+//
+//		// Write project
+//		logger.info("Writing project to {}", fileProject.getAbsolutePath());
+//		try (PrintWriter writer = new PrintWriter(fileProject, StandardCharsets.UTF_8)) {
+//			writer.write(jsonString);
+//		}
 	}
 	
 	
