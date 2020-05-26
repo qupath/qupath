@@ -948,7 +948,7 @@ public class QP {
 	}
 	
 	private static ShapeFeatures[] parseFeatures(String... names) {
-		if (names == null || names.length == 1)
+		if (names == null || names.length == 0)
 			return new ShapeFeatures[0];
 		var objectOptions = new HashSet<ShapeFeatures>();
 		for (var optionName : names) {
@@ -3052,7 +3052,7 @@ public class QP {
 	}
 	
 	private static CreateObjectOptions[] parseCreateObjectOptions(String... names) {
-		if (names == null || names.length == 1)
+		if (names == null || names.length == 0)
 			return new CreateObjectOptions[0];
 		var objectOptions = new HashSet<CreateObjectOptions>();
 		for (var optionName : names) {
