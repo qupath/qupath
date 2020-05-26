@@ -2,6 +2,8 @@
 This is the second *release candidate* for v0.2.0 (i.e. the proposed stable version).
 
 Changes since v0.2.0-m12:
+* Change (debug).exe to (console).exe on Windows
+  * Required also for running from the command line
 * Added more prefilter options to 'Create thresholder'
 * Bug fixes:
   * Unable to set max memory (https://github.com/qupath/qupath/issues/490)

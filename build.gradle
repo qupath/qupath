@@ -803,7 +803,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 			params << '--type' << packageType
 		// Create a separate launcher with a console - this can help with debugging
 		def fileTemp = File.createTempFile('qupath-building', '.properties')
-		def consoleLauncherName = "QuPath-${qupathVersion} (debug)"
+		def consoleLauncherName = "QuPath-${qupathVersion} (console)"
 		fileTemp.deleteOnExit()
 		fileTemp.text = 'win-console=true'
 //		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'
