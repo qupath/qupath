@@ -247,7 +247,13 @@ public class ImageServers {
 		
 		@Override
 		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
-			return new AffineTransformImageServer(builder.build(), transform);
+			double[] flat = new double[6];
+			// The state is a transient property, which is not restored when using JSON serialization -
+			// so we need to create a new transform, rather than simply using the existing one.
+			// If we don't, operations aren't performed because the transform is assumed to be the identity 
+			// (based upon state, even though the values are 'correct')
+			transform.getMatrix(flat);
+			return new AffineTransformImageServer(builder.build(), new AffineTransform(flat));
 		}
 
 		@Override
@@ -280,9 +286,10 @@ public class ImageServers {
 		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
 			List<ImageServer<BufferedImage>> servers = new ArrayList<>();
 			ImageServer<BufferedImage> server = null;
-			for (ServerBuilder<BufferedImage> channel :channels) {
+			for (ServerBuilder<BufferedImage> channel : channels) {
 				var temp = channel.build();
 				servers.add(temp);
+				// TODO: Warning! in general, ServerBuilders do not necessarily override equals/hashcode - which can be problematic here
 				if (builder.equals(channel))
 					server = temp;
 			}
