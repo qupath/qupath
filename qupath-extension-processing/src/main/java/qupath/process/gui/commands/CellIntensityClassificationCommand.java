@@ -22,12 +22,14 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.paint.Color;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramPanelFX;
+import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -113,7 +115,20 @@ public class CellIntensityClassificationCommand implements Runnable {
 		var map = new HashMap<String, double[]>();
 		
 		var histogramPanel = new HistogramPanelFX();
+		var chartWrapper = new ThresholdedChartWrapper(histogramPanel.getChart());
+		chartWrapper.setIsInteractive(true);
 		
+		singleThreshold.addListener((v, o, n) -> {
+			chartWrapper.clearThresholds();
+			Color color = Color.rgb(0, 0, 0, 0.2);
+			if (!n) {
+				for (int i = 0; i < sliders.size(); i++) {
+					chartWrapper.addThreshold(sliders.get(i).valueProperty(), color);
+				}
+			} else
+				chartWrapper.addThreshold(sliders.get(0).valueProperty(), color);
+		});
+
 		selectedMeasurement.addListener((v, o, n) -> {
 			if (o != null)
 				map.put(o, parseValues(sliders));
@@ -131,6 +146,12 @@ public class CellIntensityClassificationCommand implements Runnable {
 				slider.setMax(stats.getMax());
 				double val = values == null ? stats.getMean() + stats.getStandardDeviation() * i : values[i];
 				slider.setValue(val);
+				
+				// Add first threshold to histogram
+				if (i == 0) {
+					Color color = Color.rgb(0, 0, 0, 0.2);
+					chartWrapper.addThreshold(sliders.get(i).valueProperty(), color);
+				}
 			}
 		});
 				
@@ -157,11 +178,11 @@ public class CellIntensityClassificationCommand implements Runnable {
 		pane.setVgap(5.0);
 				
 		PaneTools.setToExpandGridPaneHeight(histogramPanel.getChart());
-		histogramPanel.getChart().setPrefWidth(140);
-		histogramPanel.getChart().setPrefHeight(80);
+		PaneTools.setToExpandGridPaneWidth(chartWrapper.getPane());
 		histogramPanel.getChart().getYAxis().setTickLabelsVisible(false);
 		histogramPanel.getChart().setAnimated(false);
-		pane.add(histogramPanel.getChart(), pane.getColumnCount(), 0, 1, pane.getRowCount());
+		chartWrapper.getPane().setPrefSize(140, 80);
+		pane.add(chartWrapper.getPane(), pane.getColumnCount(), 0, 1, pane.getRowCount());
 		
 		var dialog = new Dialog<ButtonType>();
 		dialog.initOwner(qupath.getStage());
