@@ -262,7 +262,16 @@ public class PixelClassifierUI {
 		if (file == null)
 			return false;
 		try {
-			writer.writeImage(server, file.getAbsolutePath());
+			var path = file.getAbsolutePath();
+			writer.writeImage(server, path);
+			if (classifierName != null && !classifierName.isBlank()) {
+				imageData.getHistoryWorkflow().addStep(
+						new DefaultScriptableWorkflowStep("Write prediction image",
+								String.format("writePredictionImage(\"%s\", \"%s\")", classifierName, path)
+								)
+						);
+			}
+
 		} catch (IOException e) {
 			Dialogs.showErrorMessage("Save prediction", e);
 		}

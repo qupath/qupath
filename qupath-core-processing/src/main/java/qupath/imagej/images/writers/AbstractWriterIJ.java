@@ -61,7 +61,7 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 	}
 
 	@Override
-	public boolean suportsImageType(ImageServer<BufferedImage> server) {
+	public boolean supportsImageType(ImageServer<BufferedImage> server) {
 		return true;
 	}
 

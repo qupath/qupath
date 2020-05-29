@@ -68,7 +68,7 @@ abstract class AbstractImageIOWriter implements ImageWriter<BufferedImage> {
 	}
 	
 	@Override
-	public boolean suportsImageType(ImageServer<BufferedImage> server) {
+	public boolean supportsImageType(ImageServer<BufferedImage> server) {
 		return server.isRGB() || (server.nChannels() == 1 && server.getPixelType() == PixelType.UINT8);
 	}
 	

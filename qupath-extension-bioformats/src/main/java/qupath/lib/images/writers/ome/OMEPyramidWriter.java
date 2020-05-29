@@ -259,7 +259,7 @@ public class OMEPyramidWriter {
 				doBigTiff = Boolean.TRUE.equals(temp.bigTiff) | doBigTiff;
 				nPixelBytes += ((long)temp.width * temp.height * temp.channels.length * temp.server.getPixelType().getBytesPerPixel() *
 						(temp.tEnd - temp.tStart) * (temp.zEnd - temp.zStart));
-				temp.initializeMatadata(meta, s);
+				temp.initializeMetadata(meta, s);
 			}
 			
 			writer.setWriteSequentially(true); // Setting this to false can be problematic!
@@ -306,7 +306,7 @@ public class OMEPyramidWriter {
 	
 		private CompressionType compression = CompressionType.DEFAULT;
 		
-		public void initializeMatadata(IMetadata meta, int series) throws IOException {
+		public void initializeMetadata(IMetadata meta, int series) throws IOException {
 			
 			meta.setImageID("Image:"+series, series);
 			meta.setPixelsID("Pixels:"+series, series);
@@ -458,7 +458,7 @@ public class OMEPyramidWriter {
 		 * @throws IOException
 		 * 
 		 * @see Builder
-		 * @see #initializeMatadata(IMetadata, int)
+		 * @see #initializeMetadata(IMetadata, int)
 		 */
 		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
 	
@@ -997,13 +997,13 @@ public class OMEPyramidWriter {
 		 * @return this builder
 		 */
 		public Builder zSlices(int zStart, int zEnd) {
-			if (zStart < series.zStart) {
-				logger.warn("First z-slice (" + zStart + ") is out of bounds. Will use " + series.zStart + " instead.");
-				zStart = series.zStart;
+			if (zStart < 0) {
+				logger.warn("First z-slice (" + zStart + ") is out of bounds. Will use " + 0 + " instead.");
+				zStart = 0;
 			}
-			if (zEnd > series.zEnd) {
-				logger.warn("Last z-slice (" + zEnd + ") is out of bounds. Will use " + series.zEnd + " instead.");
-				zEnd = series.zEnd;
+			if (zEnd > series.server.nZSlices()) {
+				logger.warn("Last z-slice (" + zEnd + ") is out of bounds. Will use " + series.server.nZSlices() + " instead.");
+				zEnd = series.server.nZSlices();
 			}
 			series.zStart = zStart;
 			series.zEnd = zEnd;
@@ -1034,13 +1034,13 @@ public class OMEPyramidWriter {
 		 * @return this builder
 		 */
 		public Builder timePoints(int tStart, int tEnd) {
-			if (tStart < series.tStart) {
-				logger.warn("First timepoint (" + tStart + ") is out of bounds. Will use " + series.tStart + " instead.");
-				tStart = series.tStart;
+			if (tStart < 0) {
+				logger.warn("First timepoint (" + tStart + ") is out of bounds. Will use " + 0 + " instead.");
+				tStart = 0;
 			}
-			if (tEnd > series.tEnd) {
-				logger.warn("Last timepoint (" + tEnd + ") is out of bounds. Will use " + series.tEnd + " instead.");
-				tEnd = series.tEnd;
+			if (tEnd > series.server.nTimepoints()) {
+				logger.warn("Last timepoint (" + tEnd + ") is out of bounds. Will use " + series.server.nTimepoints() + " instead.");
+				tEnd = series.server.nTimepoints();
 			}
 			series.tStart = tStart;
 			series.tEnd = tEnd;

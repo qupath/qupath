@@ -50,7 +50,7 @@ public class OMETiffWriter implements ImageWriter<BufferedImage> {
 	}
 
 	@Override
-	public boolean suportsImageType(ImageServer<BufferedImage> server) {
+	public boolean supportsImageType(ImageServer<BufferedImage> server) {
 		return true;
 	}
 

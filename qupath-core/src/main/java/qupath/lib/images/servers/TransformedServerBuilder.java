@@ -6,6 +6,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
@@ -149,7 +150,12 @@ public class TransformedServerBuilder {
 //			temp.addAll(additionalChannels);
 //			server = new ConcatChannelsImageServer(((ConcatChannelsImageServer)server).getWrappedServer(), temp);
 //		} else
-			server = new ConcatChannelsImageServer(server, additionalChannels);
+		
+		List<ImageServer<BufferedImage>> allChannels = new ArrayList<>(additionalChannels);
+		// Make sure that the current server is included
+		if (!allChannels.contains(server))
+			allChannels.add(0, server);
+		server = new ConcatChannelsImageServer(server, allChannels);
 		return this;
 	}
 	

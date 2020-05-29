@@ -651,11 +651,14 @@ public class PixelClassifierPane {
 	 * @param imageData
 	 */
 	private void updateAvailableResolutions(ImageData<BufferedImage> imageData) {
+		var selected = selectedResolution.get();
 		if (imageData == null) {
-			resolutions.clear();
+//			if (selected != null)
+//				resolutions.setAll(selected);
+//			else
+//				resolutions.clear();
 			return;
 		}
-		var selected = selectedResolution.get();
 		var requestedResolutions = ClassificationResolution.getDefaultResolutions(imageData, selected);
 		if (!resolutions.equals(requestedResolutions)) {
 			resolutions.setAll(ClassificationResolution.getDefaultResolutions(imageData, selected));
@@ -845,8 +848,10 @@ public class PixelClassifierPane {
 //		}
 		var imageData = qupath.getImageData();
 		if (imageData == null) {
-			Dialogs.showErrorNotification("Pixel classifier", "No image available!");
-			return;			
+			if (!qupath.getViewers().stream().anyMatch(v -> v.getImageData() != null)) {
+				logger.debug("doClassification() called, but no images are open"); 
+				return;			
+			}
 		}
 		
 		var model = selectedClassifier.get();
@@ -957,7 +962,7 @@ public class PixelClassifierPane {
 
 		 if (model instanceof RTreesClassifier) {
 			 var trees = (RTreesClassifier)model;
-			 if (trees.hasFeatureImportance())
+			 if (trees.hasFeatureImportance() && imageData != null)
 				 logVariableImportance(trees,
 						 helper.getFeatureOp().getChannels(imageData).stream()
 						 .map(c -> c.getName()).collect(Collectors.toList()));
@@ -1075,6 +1080,8 @@ public class PixelClassifierPane {
 		if (overlay != null)
 			overlay.stop();
 		
+		qupath.imageDataProperty().removeListener(imageDataListener);
+
 		for (var viewer : qupath.getViewers()) {
 			var imageData = viewer.getImageData();
 			if (overlay != null) {
@@ -1088,7 +1095,7 @@ public class PixelClassifierPane {
 				featureOverlay.stop();
 			}
 	
-			viewer.imageDataProperty().removeListener(imageDataListener);
+//			viewer.imageDataProperty().removeListener(imageDataListener);
 			var hierarchy = viewer.getHierarchy();
 			if (hierarchy != null)
 				hierarchy.removePathObjectListener(hierarchyListener);

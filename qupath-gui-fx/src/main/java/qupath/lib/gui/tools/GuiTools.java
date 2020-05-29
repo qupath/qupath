@@ -512,73 +512,44 @@ public class GuiTools {
 	 * @return
 	 */
 	public static boolean promptToRemoveSelectedObject(PathObject pathObjectSelected, PathObjectHierarchy hierarchy) {
-			// Can't delete null - or a TMACoreObject
-			if (pathObjectSelected == null || pathObjectSelected instanceof TMACoreObject)
+		// Can't delete null - or a TMACoreObject
+		if (pathObjectSelected == null || pathObjectSelected instanceof TMACoreObject)
+			return false;
+
+		// Deselect first
+		hierarchy.getSelectionModel().deselectObject(pathObjectSelected);
+
+		if (pathObjectSelected.hasChildren()) {
+			Dialogs.DialogButton confirm = Dialogs.showYesNoCancelDialog("Delete object", String.format("Keep %d descendant object(s)?", PathObjectTools.countDescendants(pathObjectSelected)));
+			if (confirm == Dialogs.DialogButton.CANCEL)
 				return false;
-			
-			// Deselect first
-			hierarchy.getSelectionModel().deselectObject(pathObjectSelected);
-	
-			if (pathObjectSelected.hasChildren()) {
-				Dialogs.DialogButton confirm = Dialogs.showYesNoCancelDialog("Delete object", String.format("Keep %d descendant object(s)?", PathObjectTools.countDescendants(pathObjectSelected)));
-				if (confirm == Dialogs.DialogButton.CANCEL)
-					return false;
-				if (confirm == Dialogs.DialogButton.YES)
-					hierarchy.removeObject(pathObjectSelected, true);
-				else
-					hierarchy.removeObject(pathObjectSelected, false);
-			} else if (PathObjectTools.hasPointROI(pathObjectSelected)) {
-				int nPoints = ((PointsROI)pathObjectSelected.getROI()).getNumPoints();
-				if (nPoints > 1) {
-					if (!Dialogs.showYesNoDialog("Delete object", String.format("Delete %d points?", nPoints)))
-						return false;
-					else
-						hierarchy.removeObject(pathObjectSelected, false);
-				} else
-					hierarchy.removeObject(pathObjectSelected, false);	
-			} else if (pathObjectSelected.isDetection()) {
-				// Check whether to delete a detection object... can't simply be redrawn (like an annotation), so be cautious...
-				if (!Dialogs.showYesNoDialog("Delete object", "Are you sure you want to delete this detection object?"))
+			if (confirm == Dialogs.DialogButton.YES)
+				hierarchy.removeObject(pathObjectSelected, true);
+			else
+				hierarchy.removeObject(pathObjectSelected, false);
+		} else if (PathObjectTools.hasPointROI(pathObjectSelected)) {
+			int nPoints = ((PointsROI)pathObjectSelected.getROI()).getNumPoints();
+			if (nPoints > 1) {
+				if (!Dialogs.showYesNoDialog("Delete object", String.format("Delete %d points?", nPoints)))
 					return false;
 				else
 					hierarchy.removeObject(pathObjectSelected, false);
 			} else
+				hierarchy.removeObject(pathObjectSelected, false);	
+		} else if (pathObjectSelected.isDetection()) {
+			// Check whether to delete a detection object... can't simply be redrawn (like an annotation), so be cautious...
+			if (!Dialogs.showYesNoDialog("Delete object", "Are you sure you want to delete this detection object?"))
+				return false;
+			else
 				hierarchy.removeObject(pathObjectSelected, false);
-	//		updateRoiEditor();
-	//		pathROIs.getObjectList().remove(pathObjectSelected);
-	//		repaint();
-			return true;
-		}
-
-	/**
-	 * Prompt to enter a filename (but not full file path).
-	 * This performs additional validation on the filename, stripping out illegal characters if necessary 
-	 * and requesting the user to confirm if the result is acceptable or showing an error message if 
-	 * no valid name can be derived from the input.
-	 * @param title dialog title
-	 * @param prompt prompt to display to the user
-	 * @param defaultName default name when the dialog is shown
-	 * @return the validated filename, or null if the user cancelled or did not provide any valid input
-	 * @see GeneralTools#stripInvalidFilenameChars(String)
-	 * @see GeneralTools#isValidFilename(String)
-	 */
-	public static String promptForFilename(String title, String prompt, String defaultName) {
-		String name = Dialogs.showInputDialog(title, prompt, defaultName);
-		if (name == null)
-			return null;
-		
-		String nameValidated = GeneralTools.stripInvalidFilenameChars(name);
-		if (!GeneralTools.isValidFilename(nameValidated)) {
-			Dialogs.showErrorMessage(title, name + " is not a valid filename!");
-			return null;
-		}
-		if (!nameValidated.equals(name)) {
-			if (!Dialogs.showYesNoDialog(
-					"Invalid classifier name", name + " contains invalid characters, do you want to use " + nameValidated + " instead?"))
-				return null;
-		}
-		return nameValidated;
+		} else
+			hierarchy.removeObject(pathObjectSelected, false);
+		//		updateRoiEditor();
+		//		pathROIs.getObjectList().remove(pathObjectSelected);
+		//		repaint();
+		return true;
 	}
+
 
 	/**
 	 * Try to open a file in the native application.

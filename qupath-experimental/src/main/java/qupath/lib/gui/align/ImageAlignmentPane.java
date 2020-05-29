@@ -745,7 +745,7 @@ public class ImageAlignmentPane {
 	}
 	
 
-	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, RegistrationType regionstrationType, Affine affine, double requestedPixelSizeMicrons) throws IOException {
+	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, RegistrationType registrationType, Affine affine, double requestedPixelSizeMicrons) throws IOException {
 		PixelCalibration calBase = serverBase.getPixelCalibration();
 		double pixelSize = calBase.getAveragedPixelSizeMicrons();
 		double downsample = 1;
@@ -794,7 +794,7 @@ public class ImageAlignmentPane {
 //		OpenCVTools.matToImagePlus(matTemp, "Transformed").show();
 		try {
 			int motion;
-			switch (regionstrationType) {
+			switch (registrationType) {
 			case AFFINE:
 				motion = opencv_video.MOTION_AFFINE;
 				break;
@@ -802,7 +802,7 @@ public class ImageAlignmentPane {
 				motion = opencv_video.MOTION_EUCLIDEAN;
 				break;
 			default:
-				logger.warn("Unknown registration type {} - will use {}", regionstrationType, RegistrationType.AFFINE);
+				logger.warn("Unknown registration type {} - will use {}", registrationType, RegistrationType.AFFINE);
 				motion = opencv_video.MOTION_AFFINE;
 				break;
 			}

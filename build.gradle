@@ -58,7 +58,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 def jfxVersion = '14.0.1'
 
 /*
- * Include OpenCV binaries with GPU support (quite big, may not be used?)
+ * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
  */
 def useGPU = false
 
@@ -314,10 +314,13 @@ allprojects {
     opencv "org.bytedeco:opencv:${opencvVersion}"
     if (nativesCPP != null) {
 	  opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
-      if (useGPU)
+      if (useGPU) {
+      	logger.warn("Requested useGPU... so this will probably fail - please don't do that")
         opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
-      else
-	    opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
+        // Isn't terribly clear if this is also needed when requesting GPU?
+        //opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
+     } else
+        opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
     }
 
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
@@ -800,7 +803,7 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 			params << '--type' << packageType
 		// Create a separate launcher with a console - this can help with debugging
 		def fileTemp = File.createTempFile('qupath-building', '.properties')
-		def consoleLauncherName = "QuPath-${qupathVersion} (debug)"
+		def consoleLauncherName = "QuPath-${qupathVersion} (console)"
 		fileTemp.deleteOnExit()
 		fileTemp.text = 'win-console=true'
 //		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'

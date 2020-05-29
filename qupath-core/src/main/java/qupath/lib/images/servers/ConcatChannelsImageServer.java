@@ -22,7 +22,7 @@ import qupath.lib.regions.RegionRequest;
  * @author Pete Bankhead
  *
  */
-public class ConcatChannelsImageServer extends TransformingImageServer<BufferedImage> {
+class ConcatChannelsImageServer extends TransformingImageServer<BufferedImage> {
 	
 	private ImageServerMetadata originalMetadata;
 	private List<ImageServer<BufferedImage>> allServers = new ArrayList<>();
@@ -33,16 +33,20 @@ public class ConcatChannelsImageServer extends TransformingImageServer<BufferedI
 	 * The order of entries in the collection determines the order in which the channels will be appended.
 	 * <p>
 	 * The main server is used to determine the metadata. If the main server is also inside the 
-	 * collection, then it will be inserted at the corresponding location in the collection; 
-	 * otherwise it will be the first server (i.e. first channels).
+	 * collection, then it will be inserted at the corresponding location in the collection.
+	 * Otherwise, its pixels may not be shown.
+	 * <p>
+	 * (This is a change from earlier QuPath v0.2.0 milestones, where the server would be inserted 
+	 * at the first position - but this was problematic since it required equality tests to work).
 	 * 
 	 * @param server
 	 * @param imageServers
 	 */
-	public ConcatChannelsImageServer(ImageServer<BufferedImage> server, Collection<ImageServer<BufferedImage>> imageServers) {
+	ConcatChannelsImageServer(ImageServer<BufferedImage> server, Collection<ImageServer<BufferedImage>> imageServers) {
 		super(server);
-		if (!imageServers.contains(server))
-			allServers.add(0, server);
+		//
+//		if (!imageServers.contains(server))
+//			allServers.add(0, server);
 		allServers.addAll(imageServers);
 		
 		var channels = new ArrayList<ImageChannel>();

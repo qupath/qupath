@@ -69,7 +69,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 																				"Options: ${COMPLETION-CANDIDATES}"})
 	private CompressionType compression;
 	
-	@Option(names = {"-p", "--paralellize"}, defaultValue = "false", description = "Parallelize tile export if possible.", paramLabel = "parallelization")
+	@Option(names = {"-p", "--parallelize"}, defaultValue = "false", description = "Parallelize tile export if possible.", paramLabel = "parallelization")
 	private boolean parallelize;
 	
 	@Option(names = {"--overwrite"}, defaultValue = "false", description = "Overwrite any existing file with the same name as the output.")

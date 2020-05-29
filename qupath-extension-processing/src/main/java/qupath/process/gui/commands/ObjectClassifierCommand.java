@@ -618,6 +618,8 @@ public class ObjectClassifierCommand implements Runnable {
 			boolean firstChanges = false;
 			for (var imageData : trainingImageData) {
 				var newMeasurements = getAllMeasurements(imageData, filter);
+				if (newMeasurements.isEmpty())
+					continue;
 				if (includeIntersection) {
 					if (firstMeasurements.isEmpty()) {
 						firstMeasurements.addAll(newMeasurements);
@@ -1033,8 +1035,8 @@ public class ObjectClassifierCommand implements Runnable {
 				Dialogs.showErrorMessage("Object classifier", "Please enter a valid classifier name!");
 				return false;
 			}
-			if (classifierName.equals(name))
-				logger.warn("Invalid classifier name {} replaced with {}", name, classifierName);
+			if (!classifierName.equals(name))
+				logger.warn("Invalid classifier name '{}' replaced with '{}'", name, classifierName);
 
 			// Run the classification, or complete the existing classification
 			if (classifierTask == null) {

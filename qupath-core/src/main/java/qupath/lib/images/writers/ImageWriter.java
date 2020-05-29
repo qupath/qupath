@@ -92,7 +92,7 @@ public interface ImageWriter<T> {
 	 * @param server
 	 * @return
 	 */
-	public boolean suportsImageType(ImageServer<T> server);
+	public boolean supportsImageType(ImageServer<T> server);
 
 	/**
 	 * Returns true if the writer is capable of writing pyramidal images.

@@ -172,11 +172,11 @@ public class TMACoreObject extends PathROIObject implements MetadataStore {
 		return super.isEditable() && !containsChildOfClass(this, PathDetectionObject.class, true);
 	}
 	
-	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendents) {
+	private static boolean containsChildOfClass(final PathObject pathObject, final Class<? extends PathObject> cls, final boolean allDescendants) {
 		for (PathObject childObject : pathObject.getChildObjectsAsArray()) {
 			if (cls.isAssignableFrom(childObject.getClass()))
 				return true;
-			if (childObject.hasChildren() && allDescendents && containsChildOfClass(childObject, cls, allDescendents))
+			if (childObject.hasChildren() && allDescendants && containsChildOfClass(childObject, cls, allDescendants))
 				return true;
 		}
 		return false;

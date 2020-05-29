@@ -366,7 +366,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		if (pathObjectSelected == null)
 			return;
 		// Search for a path to select the object... opening the tree accordingly
-		List<PathObject> ancestors = PathObjectTools.getAncenstorList(pathObjectSelected);
+		List<PathObject> ancestors = PathObjectTools.getAncestorList(pathObjectSelected);
 		if (ancestors.isEmpty() || treeView.getRoot() == null)
 			return;
 		List<TreeItem<PathObject>> treeItems = new ArrayList<>();

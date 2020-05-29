@@ -82,7 +82,7 @@ public class IconFactory {
 									
 									BRUSH_TOOL("\ue902", PathPrefs.colorDefaultObjectsProperty()),
 									
-									CELL_NULCEI_BOTH("\ue903"),
+									CELL_NUCLEI_BOTH("\ue903"),
 									CELL_ONLY("\ue904"),
 									CENTROIDS_ONLY("\ue913"),
 									

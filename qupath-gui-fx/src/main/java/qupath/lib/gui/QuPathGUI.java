@@ -584,7 +584,7 @@ public class QuPathGUI {
 		/**
 		 * Request that cells are displayed using both cell and nucleus ROIs.
 		 */
-		@ActionIcon(PathIcons.CELL_NULCEI_BOTH)
+		@ActionIcon(PathIcons.CELL_NUCLEI_BOTH)
 		public final Action SHOW_CELL_BOUNDARIES_AND_NUCLEI = createSelectableCommandAction(new SelectableItem<>(overlayOptions.detectionDisplayModeProperty(), DetectionDisplayMode.NUCLEI_AND_BOUNDARIES), "Nuclei & cell boundaries");
 		/**
 		 * Request that cells are displayed using their centroids only.
@@ -669,7 +669,7 @@ public class QuPathGUI {
 		 * Show summary measurement table for TMA cores.
 		 */
 		@ActionDescription("Show summary measurements for tissue microarray (TMA) cores")
-		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showDetectionMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
+		public final Action MEASURE_TMA = createImageDataAction(imageData -> Commands.showTMAMeasurementTable(QuPathGUI.this, imageData), "Show TMA measurements");
 		
 		/**
 		 * Show summary measurement table for annotations.
@@ -921,16 +921,16 @@ public class QuPathGUI {
 					return;
 				}
 			}
-//			// Could uncomment this to sync the project - but we should be careful to avoid excessive synchronization
-//			// (and it may already be synchronied when saving the image data)
-//			var project = getProject();
-//			if (project != null) {
-//				try {
-//					project.syncChanges();
-//				} catch (IOException ex) {
-//					logger.error("Error syncing project: " + ex.getLocalizedMessage(), e);
-//				}
-//			}
+			// Could uncomment this to sync the project - but we should be careful to avoid excessive synchronization
+			// (and it may already be synchronied when saving the image data)
+			var project = getProject();
+			if (project != null) {
+				try {
+					project.syncChanges();
+				} catch (IOException ex) {
+					logger.error("Error syncing project: " + ex.getLocalizedMessage(), e);
+				}
+			}
 			
 			// Check if there is a script running
 			if (scriptRunning.get()) {
@@ -1141,7 +1141,7 @@ public class QuPathGUI {
 		
 		// Show a startup message, if we have one
 		if (!startupQuietly)
-			showStarupMesssage();
+			showStartupMessage();
 		
 		// Run startup script, if we can
 		try {
@@ -1184,7 +1184,7 @@ public class QuPathGUI {
 	}
 	
 	
-	private void showStarupMesssage() {
+	private void showStartupMessage() {
 		File fileStartup = new File("STARTUP.md");
 		if (!fileStartup.exists()) {
 			fileStartup = new File("app", fileStartup.getName());
@@ -1500,7 +1500,17 @@ public class QuPathGUI {
 		// Sort the extensions by name, to ensure predictable loading order
 		// (also, menus are in a better order if ImageJ extension installed before OpenCV extension)
 		List<QuPathExtension> extensions = new ArrayList<>();
-		extensionLoader.iterator().forEachRemaining(extensions::add);
+		Iterator<QuPathExtension> iterator = extensionLoader.iterator();
+		while (iterator.hasNext()) {
+			try {
+				extensions.add(iterator.next());
+			} catch (Throwable e) {
+				if (getStage() != null && getStage().isShowing()) {
+					Dialogs.showErrorMessage("Extension error", "Error loading extension - check 'View -> Show log' for details.");
+				}
+				logger.error(e.getLocalizedMessage(), e);
+			}
+		}
 		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
 		for (QuPathExtension extension : extensions) {
 			if (!loadedExtensions.containsKey(extension.getClass())) {

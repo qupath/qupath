@@ -40,7 +40,6 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.opencv.tools.MultiscaleFeatures;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.process.gui.ml.ClassificationResolution;
 import qupath.process.gui.ml.PixelClassificationOverlay;
@@ -79,11 +78,76 @@ public class SimpleThresholdCommand implements Runnable {
 			stage.toFront();
 	}
 	
+	
+	private static enum Prefilter {
+		
+		GAUSSIAN,
+		LAPLACIAN,
+		EROSION,
+		DILATION,
+		OPENING,
+		CLOSING,
+		GRADIENT_MAG,
+		WEIGHTED_STD;
+		
+		public ImageOp buildOp(double sigma) {
+			if (sigma <= 0)
+				return null;
+			int radius = (int)Math.round(sigma * 2);
+			switch (this) {
+			case CLOSING:
+				return ImageOps.Filters.closing(radius);
+			case DILATION:
+				return ImageOps.Filters.maximum(radius);
+			case EROSION:
+				return ImageOps.Filters.minimum(radius);
+			case GAUSSIAN:
+				return ImageOps.Filters.gaussianBlur(sigma);
+			case GRADIENT_MAG:
+				return ImageOps.Filters.features(Collections.singletonList(MultiscaleFeature.GRADIENT_MAGNITUDE), sigma, sigma);
+			case LAPLACIAN:
+				return ImageOps.Filters.features(Collections.singletonList(MultiscaleFeature.LAPLACIAN), sigma, sigma);
+			case OPENING:
+				return ImageOps.Filters.opening(radius);
+			case WEIGHTED_STD:
+				return ImageOps.Filters.features(Collections.singletonList(MultiscaleFeature.WEIGHTED_STD_DEV), sigma, sigma);
+			default:
+				throw new IllegalArgumentException("Unknown filter " + this);
+			}
+		}
+		
+		@Override
+		public String toString() {
+			switch (this) {
+			case CLOSING:
+				return "Morphological closing";
+			case DILATION:
+				return "Maximum (dilation)";
+			case EROSION:
+				return "Minimum (erosion)";
+			case GAUSSIAN:
+				return "Gaussian";
+			case GRADIENT_MAG:
+				return "Gradient magnitude";
+			case LAPLACIAN:
+				return "Laplacian of Gaussian";
+			case OPENING:
+				return "Morphological opening";
+			case WEIGHTED_STD:
+				return "Weighted deviation";
+			default:
+				throw new IllegalArgumentException("Unknown filter " + this);
+			}
+		}
+		
+	}
+	
+	
 	private ComboBox<ClassificationResolution> comboResolutions = new ComboBox<>();
 	private ReadOnlyObjectProperty<ClassificationResolution> selectedResolution = comboResolutions.getSelectionModel().selectedItemProperty();
 
-	private ComboBox<MultiscaleFeatures.MultiscaleFeature> comboPrefilter = new ComboBox<>();
-	private ReadOnlyObjectProperty<MultiscaleFeatures.MultiscaleFeature> selectedPrefilter = comboPrefilter.getSelectionModel().selectedItemProperty();
+	private ComboBox<Prefilter> comboPrefilter = new ComboBox<>();
+	private ReadOnlyObjectProperty<Prefilter> selectedPrefilter = comboPrefilter.getSelectionModel().selectedItemProperty();
 
 	private ComboBox<PathClass> classificationsBelow = new ComboBox<>();
 	private ComboBox<PathClass> classificationsAbove = new ComboBox<>();
@@ -130,13 +194,8 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		Label labelPrefilter = new Label("Prefilter");
 		labelPrefilter.setLabelFor(comboPrefilter);
-		comboPrefilter.getItems().setAll(
-				MultiscaleFeature.GAUSSIAN,
-				MultiscaleFeature.LAPLACIAN,
-				MultiscaleFeature.GRADIENT_MAGNITUDE,
-				MultiscaleFeature.WEIGHTED_STD_DEV
-				);
-		comboPrefilter.getSelectionModel().selectFirst();
+		comboPrefilter.getItems().setAll(Prefilter.values());
+		comboPrefilter.getSelectionModel().select(Prefilter.GAUSSIAN);
 		PaneTools.addGridRow(pane, row++, 0, "Select image smoothing filter (Gaussian is usually best)", labelPrefilter, comboPrefilter, comboPrefilter);
 
 		label = new Label("Smoothing sigma");
@@ -331,10 +390,7 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		List<ImageOp> ops = new ArrayList<>();
 		if (feature != null && sigmaValue > 0) {
-			if (feature == MultiscaleFeature.GAUSSIAN)
-				ops.add(ImageOps.Filters.gaussianBlur(sigmaValue));
-			else
-				ops.add(ImageOps.Filters.features(Collections.singletonList(feature), sigmaValue, sigmaValue));
+			ops.add(feature.buildOp(sigmaValue));
 		}
 		
 		ops.add(ImageOps.Threshold.threshold(threshold.get()));

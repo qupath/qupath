@@ -193,7 +193,6 @@ public class PathObjectTools {
 //		int count = pathObject.nChildObjects();
 //		for (PathObject childObject : pathObject.getChildObjectsAsArray())
 //			count += countDescendants(childObject);
-//		assert count == pathObject.nDescendents();
 //		if (count > 0)
 //			System.err.println(count);
 //		return count;
@@ -592,7 +591,7 @@ public class PathObjectTools {
 	 * @param pathObject
 	 * @return
 	 */
-	public static List<PathObject> getAncenstorList(final PathObject pathObject) {
+	public static List<PathObject> getAncestorList(final PathObject pathObject) {
 		List<PathObject> ancestors = new ArrayList<>();
 		PathObject parent = pathObject;
 		while (parent != null) {

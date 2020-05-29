@@ -20,11 +20,11 @@ public class ExperimentalExtension implements QuPathExtension {
 		@ActionMenu("Analyze>Interactive image alignment")
 		@ActionDescription("Experimental command to interactively align images using an Affine transform. "
 				+ "This is currently not terribly useful in itself, but may be helpful as part of more complex scripting workflows.")
-		public final Action actionInterativeAlignment;
+		public final Action actionInteractiveAlignment;
 
 		private ExperimentalCommands(QuPathGUI qupath) {
 			var interactiveAlignment = new InteractiveImageAlignmentCommand(qupath);
-			actionInterativeAlignment = qupath.createProjectAction(project -> interactiveAlignment.run());
+			actionInteractiveAlignment = qupath.createProjectAction(project -> interactiveAlignment.run());
 		}
 		
 	}
