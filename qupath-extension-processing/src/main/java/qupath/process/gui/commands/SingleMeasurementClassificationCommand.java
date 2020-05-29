@@ -32,6 +32,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.classifiers.PathClassifierTools;
@@ -42,6 +43,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.charts.HistogramPanelFX;
+import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -202,16 +204,22 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Specify name of the classifier - this will be used to save to "
 					+ "save the classifier in the current project, so it may be used for scripting later", labelSave, tfSaveName, btnSave);
 			
-			pane.add(histogramPane.getChart(), pane.getColumnCount(), 0, 1, pane.getRowCount());
+			var chartWrapper = new ThresholdedChartWrapper(histogramPane.getChart());
+			chartWrapper.setIsInteractive(true);
+			chartWrapper.addThreshold(sliderThreshold.valueProperty(), Color.rgb(0, 0, 0, 0.2));
 			
-			// Set sizes
-			histogramPane.getChart().setPrefWidth(140);
-			histogramPane.getChart().setPrefHeight(80);
 			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);
 			histogramPane.getChart().setAnimated(false);
+			
+			PaneTools.setToExpandGridPaneHeight(chartWrapper.getPane());
+			PaneTools.setToExpandGridPaneWidth(chartWrapper.getPane());
 			PaneTools.setToExpandGridPaneWidth(comboFilter, comboChannels, comboMeasurements, sliderThreshold, 
 					comboAbove, comboBelow, tfSaveName, cbLivePreview);
-			PaneTools.setToExpandGridPaneHeight(histogramPane.getChart());
+			
+			histogramPane.getChart().getYAxis().setTickLabelsVisible(false);
+			histogramPane.getChart().setAnimated(false);
+			chartWrapper.getPane().setPrefSize(200, 80);
+			pane.add(chartWrapper.getPane(), pane.getColumnCount(), 0, 1, pane.getRowCount());
 			
 			// Add listeners
 			comboChannels.valueProperty().addListener((v, o, n) -> updateChannelFilter());
