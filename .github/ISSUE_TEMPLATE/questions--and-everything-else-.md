@@ -13,4 +13,4 @@ QuPath's 'Issues' section on GitHub is intended ONLY for bug reports, and NOT as
 
 **Help us keep things organized by posting questions & comments to https://forum.image.sc/tags/qupath**
 
-And, of course, check out the [documentation & tutorials](https://github.com/qupath/qupath/wiki/Getting-started) to see if the information you need is already there.
+And, of course, check out the [documentation & tutorials](https://qupath.readthedocs.io/en/latest/docs/starting/index.html) to see if the information you need is already there.

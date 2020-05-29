@@ -1,4 +1,4 @@
-The full list of Bio-Formats dependencies and respective licenses is at https://docs.openmicroscopy.org/bio-formats/6.4.0/developers/java-library.html
+The full list of Bio-Formats dependencies and respective licenses is at https://docs.openmicroscopy.org/bio-formats/6.5.0/developers/java-library.html
 
 Source for this table from https://raw.githubusercontent.com/ome/bio-formats-documentation/master/sphinx/developers/java-library.rst is included below.
 
