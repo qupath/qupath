@@ -45,6 +45,7 @@ import javafx.scene.text.TextAlignment;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 
@@ -151,9 +152,6 @@ public class QuPathViewerPlus extends QuPathViewer {
 			return 0.0;
 		}, PathPrefs.invertZSliderProperty()));
 		
-		AnchorPane.setLeftAnchor(sliderZ, (double)padding);
-		AnchorPane.setTopAnchor(sliderZ, (double)padding*2.0);
-		
 		// Add the t-slider
 		sliderT.valueProperty().bindBidirectional(tPositionProperty());
 //		sliderT.setOpaque(false);
@@ -164,13 +162,12 @@ public class QuPathViewerPlus extends QuPathViewer {
 		}, tPositionProperty()));
 		sliderT.setTooltip(tooltipT);
 		
-		AnchorPane.setLeftAnchor(sliderT, padding*2.0);
-		AnchorPane.setTopAnchor(sliderT, (double)padding);
-
+		// Set sliders' position so they make space for command bar (only if needed!)
+		var commandBarDisplay = CommandFinderTools.commandBarDisplayProperty().getValue();
+		setSlidersPosition(!commandBarDisplay.equals(CommandFinderTools.CommandBarDisplay.NEVER));
 
 		basePane.getChildren().addAll(sliderZ, sliderT);
 
-		
 		updateSliders();
 		
 		zPositionProperty().addListener(v -> updateLocationString());
@@ -270,6 +267,22 @@ public class QuPathViewerPlus extends QuPathViewer {
 		return overview.isVisible();
 	}
 	
+	/**
+	 * Sets the Z & T sliders' position to allow space for command bar
+	 * @param down
+	 */
+	public void setSlidersPosition(boolean down) {
+		double slidersTopPadding = (double)padding + (down ? 20 : 0);
+		
+		// Set Z sliders' position
+		AnchorPane.setTopAnchor(sliderZ, (double)padding + slidersTopPadding);
+		AnchorPane.setLeftAnchor(sliderZ, (double)padding);
+
+		// Set T sliders' position
+		AnchorPane.setTopAnchor(sliderT, slidersTopPadding);
+		AnchorPane.setLeftAnchor(sliderT, (double)padding*2);
+	}
+	
 	@Override
 	public void closeViewer() {
 		super.closeViewer();
@@ -329,6 +342,5 @@ public class QuPathViewerPlus extends QuPathViewer {
 		if (overview != null)
 			overview.repaint();
 	}
-	
-	
+
 }
