@@ -1,14 +1,20 @@
-## Version 0.2.0-m13
-This is the second *release candidate* for v0.2.0 (i.e. the proposed stable version).
+## Version 0.2.0
 
-Changes since v0.2.0-m12:
+Welcome to QuPath v0.2.0!
+A *lot* has changed since the last stable release, v0.1.2.
+For more details, see the documentation at http://qupath.readthedocs.io
+
+See also the changelogs for the past 12 milestone versions to watch the evolution of the software over the past 2 years.
+This release contains the following (minor) changes since v0.2.0-m12:
 * Change (debug).exe to (console).exe on Windows
   * Required also for running from the command line
 * Added more prefilter options to 'Create thresholder'
+* Added threshold lines to histograms for single measurement/cell intensity classification
 * Bug fixes:
   * Unable to set max memory (https://github.com/qupath/qupath/issues/490)
   * Fail with a more meaningful error if an incompatible extension is found (https://github.com/qupath/qupath/issues/497)
   * Selected images remained with 'Run for project' even when the project changed (https://github.com/qupath/qupath/issues/501)
+  * Command bar sometimes overlapped the z-slice/timepoint sliders
   * writeImage did not do all z-slices/timepoints for an OME-TIFF
   * 'Show TMA measurements' showed detection measurements instead
   * Fixed many typos (thanks to Cameron Lloyd)
