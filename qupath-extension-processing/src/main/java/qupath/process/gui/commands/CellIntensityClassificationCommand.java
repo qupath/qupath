@@ -177,11 +177,11 @@ public class CellIntensityClassificationCommand implements Runnable {
 		pane.setHgap(5.0);
 		pane.setVgap(5.0);
 				
-		PaneTools.setToExpandGridPaneHeight(histogramPanel.getChart());
+		PaneTools.setToExpandGridPaneHeight(chartWrapper.getPane());
 		PaneTools.setToExpandGridPaneWidth(chartWrapper.getPane());
 		histogramPanel.getChart().getYAxis().setTickLabelsVisible(false);
 		histogramPanel.getChart().setAnimated(false);
-		chartWrapper.getPane().setPrefSize(140, 80);
+		chartWrapper.getPane().setPrefSize(200, 80);
 		pane.add(chartWrapper.getPane(), pane.getColumnCount(), 0, 1, pane.getRowCount());
 		
 		var dialog = new Dialog<ButtonType>();
