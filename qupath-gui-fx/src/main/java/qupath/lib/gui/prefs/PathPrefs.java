@@ -78,7 +78,7 @@ public class PathPrefs {
 	/**
 	 * Name for preference node - until 0.2.0 is stable, avoid using same storage as v0.1.2
 	 */
-	final private static String NODE_NAME = "io.github.qupath.0.2.0.m1";
+	final private static String NODE_NAME = "io.github.qupath.0.2.0";
 	
 	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
 	
@@ -233,7 +233,7 @@ public class PathPrefs {
 				p -> {
 					// Look for the .cfg file that isn't concerned with debugging
 					String name = p.getFileName().toString();
-					return name.endsWith(".cfg") && !name.endsWith("(debug).cfg");
+					return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
 				})
 				.collect(Collectors.toList());
 	}
@@ -298,7 +298,7 @@ public class PathPrefs {
 					Files.write(config, lines);
 					return;
 				} catch (Exception e) {
-					logger.error("Unable to set max memory", e);
+					logger.error("Unable to set max memory: " + e.getLocalizedMessage(), e);
 				}
 			});
 		}

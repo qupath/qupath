@@ -1814,6 +1814,7 @@ public class QuPathGUI {
 //				PathPrefs.maxMemoryMBProperty().set(-1);
 			}
 		} else {
+			logger.warn("PathPrefs.hasJavaPreferences() returned false");
 			Dialogs.showWarningNotification("Max memory", "Cannot set maximum memory preferences");
 		}
 		
