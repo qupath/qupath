@@ -11,7 +11,8 @@ This release contains the following (minor) changes since v0.2.0-m12:
 * Added more prefilter options to 'Create thresholder'
 * Added threshold lines to histograms for single measurement/cell intensity classification
 * Bug fixes:
-  * Unable to set max memory (https://github.com/qupath/qupath/issues/490)
+  * Unable to set max memory on Windows (https://github.com/qupath/qupath/issues/490)
+    * Note this may still fail due to insufficient permissions (e.g. on macOS)
   * Fail with a more meaningful error if an incompatible extension is found (https://github.com/qupath/qupath/issues/497)
   * Selected images remained with 'Run for project' even when the project changed (https://github.com/qupath/qupath/issues/501)
   * Command bar sometimes overlapped the z-slice/timepoint sliders

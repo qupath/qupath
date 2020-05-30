@@ -1753,40 +1753,54 @@ public class QuPathGUI {
 		long maxMemoryMB = Runtime.getRuntime().maxMemory() / 1024 / 1024;
 		String maxMemoryString = String.format("Current maximum memory is %.2f GB.", maxMemoryMB/1024.0);
 		
+		boolean canSetMemory = PathPrefs.hasJavaPreferences();
+
 		ParameterList paramsSetup = new ParameterList()
-				.addTitleParameter("Memory")
-				.addEmptyParameter("Set the maximum memory used by QuPath, or -1 to use the default.")
-				.addEmptyParameter(maxMemoryString);
-
-		boolean lowMemory = maxMemoryMB < 1024*6;
-		if (lowMemory) {
-			paramsSetup.addEmptyParameter(
-					"It is suggested to increase the memory limit to approximately\nhalf of the RAM available on your computer."
-					);
+				.addTitleParameter("Memory");
+		
+		double originalMaxMemory = Math.ceil(maxMemoryMB/1024.0);
+		if (canSetMemory) {
+			paramsSetup.addEmptyParameter("Set the maximum memory used by QuPath, or -1 to use the default.")
+					.addEmptyParameter(maxMemoryString);
+	
+			boolean lowMemory = maxMemoryMB < 1024*6;
+			if (lowMemory) {
+				paramsSetup.addEmptyParameter(
+						"It is suggested to increase the memory limit to approximately\nhalf of the RAM available on your computer."
+						);
+			}
+			
+			paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", originalMaxMemory, null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system");
+		} else {
+			paramsSetup.addEmptyParameter(maxMemoryString)
+				.addEmptyParameter("Sorry, I can't access the config file needed to change the max memory.\n" +
+							"See the QuPath installation instructions for more details.");
 		}
-
-//				.addEmptyParameter("memoryString2", "Current ")
-		paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", Math.ceil(maxMemoryMB/1024.0), null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system")
-				.addTitleParameter("Region")
-				.addEmptyParameter("Set the region for QuPath to use for displaying numbers and messages.")
-				.addEmptyParameter("Note: It is highly recommended to keep the default (English, US) region settings.")
-				.addEmptyParameter("Support for regions that use different number formatting (e.g. commas as decimal marks)\nis still experimental, and may give unexpected results.")
+		
+		paramsSetup.addTitleParameter("Region")
+				.addEmptyParameter("Set the region for QuPath to use for displaying numbers and messages.\n" + 
+						"Note: It is *highly recommended* to keep the default (English, US) region settings.\n" +
+						"Support for regions that use different number formatting (e.g. commas as decimal marks)\n" +
+						"is still experimental, and may give unexpected results.")
 				.addChoiceParameter("localeFormatting", "Numbers & dates", Locale.getDefault(Category.FORMAT).getDisplayName(), localeList, "Choose region settings used to format numbers and dates")
-				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
+//				.addChoiceParameter("localeDisplay", "Messages", Locale.getDefault(Category.DISPLAY).getDisplayName(), localeList, "Choose region settings used for other formatting, e.g. in dialog boxes")
 				.addTitleParameter("Updates")
 				.addBooleanParameter("checkForUpdates", "Check for updates on startup (recommended)", PathPrefs.doAutoUpdateCheckProperty().get(), "Specify whether to automatically prompt to download the latest QuPath on startup (required internet connection)")	
 				;
 
 		ParameterPanelFX parameterPanel = new ParameterPanelFX(paramsSetup);
 		pane.setCenter(parameterPanel.getPane());
-		
-		Label labelMemory = new Label("You will need to restart QuPath for memory changes to take effect");
-		labelMemory.setMaxWidth(Double.MAX_VALUE);
-		labelMemory.setAlignment(Pos.CENTER);
-		labelMemory.setFont(Font.font("Arial"));
-		labelMemory.setStyle("-fx-font-weight: bold;");
-		labelMemory.setPadding(new Insets(10, 10, 10, 10));
-		pane.setBottom(labelMemory);
+				
+		Label labelMemory;
+		if (canSetMemory) {
+			labelMemory = new Label("You will need to restart QuPath for memory changes to take effect");
+			labelMemory.setStyle("-fx-font-weight: bold;");
+			labelMemory.setMaxWidth(Double.MAX_VALUE);
+			labelMemory.setAlignment(Pos.CENTER);
+			labelMemory.setFont(Font.font("Arial"));
+			labelMemory.setPadding(new Insets(10, 10, 10, 10));
+			pane.setBottom(labelMemory);
+		}
 		
 //		dialog.initStyle(StageStyle.UNDECORATED);
 		dialog.getDialogPane().setContent(pane);
@@ -1797,14 +1811,14 @@ public class QuPathGUI {
 			return false;
 		
 		Locale localeFormatting = localeMap.get(paramsSetup.getChoiceParameterValue("localeFormatting"));
-		Locale localeDisplay = localeMap.get(paramsSetup.getChoiceParameterValue("localeDisplay"));
+//		Locale localeDisplay = localeMap.get(paramsSetup.getChoiceParameterValue("localeDisplay"));
 		
 		PathPrefs.defaultLocaleFormatProperty().set(localeFormatting);
-		PathPrefs.defaultLocaleDisplayProperty().set(localeDisplay);
+//		PathPrefs.defaultLocaleDisplayProperty().set(localeDisplay);
 		
 		PathPrefs.doAutoUpdateCheckProperty().set(paramsSetup.getBooleanParameterValue("checkForUpdates"));
 		
-		if (PathPrefs.hasJavaPreferences()) {
+		if (canSetMemory && paramsSetup.containsKey("maxMemoryGB")) {
 			int maxMemorySpecifiedMB = (int)(Math.round(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024));
 			if (maxMemorySpecifiedMB > 512) {
 				PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
@@ -1813,8 +1827,6 @@ public class QuPathGUI {
 					Dialogs.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will ignore");
 //				PathPrefs.maxMemoryMBProperty().set(-1);
 			}
-		} else {
-			Dialogs.showWarningNotification("Max memory", "Cannot set maximum memory preferences");
 		}
 		
 		// Try to update display
