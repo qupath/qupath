@@ -29,10 +29,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
@@ -204,7 +206,7 @@ public class PathPrefs {
 			Path path = getConfigPath();
 			if (path == null)
 				return false;
-			return Files.exists(path);
+			return Files.exists(path) && Files.isWritable(path);
 		} catch (Exception e) {
 			logger.error("Error trying to find config file", e);
 			return false;
@@ -219,23 +221,27 @@ public class PathPrefs {
 				.getCodeSource()
 				.getLocation()
 				.toURI()).getParent();
-		List<Path> list = searchForConfigFile(path);
-		if (list.size() != 1) {
-			return null;
-		}
-		return list.get(0);
+		return searchForConfigFile(path);
 	}
 	
 	
-	private static List<Path> searchForConfigFile(Path dir) throws IOException {
-		return Files.list(dir)
+	private static Path searchForConfigFile(Path dir) throws IOException {
+		String configRequest = System.getProperty("qupath.config");
+		var paths = Files.list(dir)
 				.filter(
 				p -> {
-					// Look for the .cfg file that isn't concerned with debugging
+					// Look for the .cfg file, filtering if we have a system property specified
 					String name = p.getFileName().toString();
+					if (configRequest != null && !configRequest.isBlank())
+						return name.toLowerCase().contains(configRequest.toLowerCase());
 					return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
 				})
+				.sorted(Comparator.comparingInt(p -> p.getFileName().toString().length()))
 				.collect(Collectors.toList());
+		if (paths.isEmpty())
+			return null;
+		// Return the shortest valid path found
+		return paths.get(0);
 	}
 	
 	
@@ -297,6 +303,8 @@ public class PathPrefs {
 					Files.copy(config, Paths.get(config.toString() + ".bkp"), StandardCopyOption.REPLACE_EXISTING);
 					Files.write(config, lines);
 					return;
+				} catch (AccessDeniedException e) {
+					logger.error("I'm not allowed to access the config file - see the QuPath installation instructions to set the memory manually", e);
 				} catch (Exception e) {
 					logger.error("Unable to set max memory: " + e.getLocalizedMessage(), e);
 				}

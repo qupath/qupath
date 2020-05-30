@@ -772,7 +772,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 
     params << '--main-jar' << jar.archiveName
     
-    params << '--name' << 'QuPath-' + qupathVersion
+    String launcherName = 'QuPath-' + qupathVersion
+    params << '--name' << launcherName
+//    params << '--name' << 'QuPath-' + qupathVersion
 
     // Default to using 50% available memory
 	params << '--java-options' << '-XX:MaxRAMPercentage=50'
@@ -803,10 +805,11 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 			params << '--type' << packageType
 		// Create a separate launcher with a console - this can help with debugging
 		def fileTemp = File.createTempFile('qupath-building', '.properties')
-		def consoleLauncherName = "QuPath-${qupathVersion} (console)"
+		def consoleLauncherName = launcherName + " (console)"
 		fileTemp.deleteOnExit()
 		fileTemp.text = 'win-console=true'
-//		fileTemp << System.lineSeparator() << 'java-options=' << '"-Dqupath.config="' << consoleLauncherName + '.cfg""'
+		fileTemp << System.lineSeparator() << 'java-options=' << '-XX:MaxRAMPercentage=50' << ' -Dqupath.config=console'
+//		fileTemp << System.lineSeparator() << 'java-options=' << '-Dqupath.config=console'
 		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
 	} else
 		params << '--type' << packageType
