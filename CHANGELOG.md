@@ -1,3 +1,10 @@
+## Version 0.2.1
+
+This is a *minor release* containing the following bug fixes:
+
+* Cannot load a project if no classes.json is found (https://github.com/qupath/qupath/issues/510)
+
+
 ## Version 0.2.0
 
 Welcome to QuPath v0.2.0!

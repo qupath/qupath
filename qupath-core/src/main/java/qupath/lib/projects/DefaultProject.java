@@ -1079,7 +1079,7 @@ class DefaultProject implements Project<BufferedImage> {
 	Collection<PathClass> loadPathClasses() throws IOException {
 		var path = Paths.get(ensureDirectoryExists(getClassifiersPath()).toString(), "classes.json");
 		if (!Files.isRegularFile(path))
-			return null;
+			return Collections.emptyList();
 		Gson gson = GsonTools.getInstance();
 		try (var reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
 			var element = gson.fromJson(reader, JsonObject.class);
@@ -1103,7 +1103,7 @@ class DefaultProject implements Project<BufferedImage> {
 				}
 				return pathClasses;
 			} else
-				return null;
+				return Collections.emptyList();
 		}
 	}
 
