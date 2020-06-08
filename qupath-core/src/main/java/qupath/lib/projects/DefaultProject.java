@@ -685,6 +685,14 @@ class DefaultProject implements Project<BufferedImage> {
 			return Paths.get(getEntryPath().toString(), "data.qpdata");
 		}
 		
+		/**
+		 * Get the path used to backup an ImageData while writing it
+		 * @return
+		 */
+		private Path getBackupImageDataPath() {
+			return Paths.get(getEntryPath().toString(), "data.qpdata.bkp");
+		}
+		
 		private Path getDataSummaryPath() {
 			return Paths.get(getEntryPath().toString(), "summary.json");
 		}
@@ -719,6 +727,21 @@ class DefaultProject implements Project<BufferedImage> {
 					logger.error("Error reading image data from " + path, e);
 				}
 			}
+			// If we find a backup file, try to restore what we can from it
+			// See https://github.com/qupath/qupath/issues/512
+			if (imageData == null) {
+				var pathBackup = getBackupImageDataPath();
+				if (Files.exists(pathBackup)) {
+					try (var stream = Files.newInputStream(pathBackup)) {
+						imageData = PathIO.readImageData(stream, null, server, BufferedImage.class);
+						imageData.setLastSavedPath(pathBackup.toString(), true);
+						logger.warn("Restored previous ImageData from {}", pathBackup);
+					} catch (IOException e) {
+						logger.error("Error reading backup image data from " + pathBackup, e);
+					}
+				}
+			}
+			
 			if (imageData == null)
 				imageData = new ImageData<>(server);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
@@ -733,7 +756,7 @@ class DefaultProject implements Project<BufferedImage> {
 			var pathData = getImageDataPath();
 			
 			// If we already have a file, back it up first
-			var pathBackup = Paths.get(pathData.toString() + ".bkp");
+			var pathBackup = getBackupImageDataPath();
 			if (Files.exists(pathData))
 				Files.move(pathData, pathBackup, StandardCopyOption.REPLACE_EXISTING);
 			

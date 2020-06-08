@@ -1149,6 +1149,24 @@ public class QuPathGUI {
 		} catch (Exception e) {
 			logger.error("Error running startup script", e);
 		}
+		
+		
+		if (Desktop.isDesktopSupported()) {
+			var desktop = Desktop.getDesktop();
+//			if (desktop.isSupported(java.awt.Desktop.Action.APP_QUIT_STRATEGY)) {
+//				desktop.setQuitStrategy(QuitStrategy.;
+//			}
+			if (desktop.isSupported(java.awt.Desktop.Action.APP_QUIT_HANDLER)) {
+				desktop.setQuitHandler((e, r) -> {
+					Platform.runLater(() -> {
+						tryToQuit();
+						// Report that we have cancelled - we'll quit anyway if the user confirms it,
+						// but we need to handle this on the Application thread
+						r.cancelQuit();
+					});
+				});
+			}
+		}
 	}
 	
 	
