@@ -3,6 +3,7 @@
 This is a *minor release* containing the following bug fixes:
 
 * Cannot load a project if no classes.json is found (https://github.com/qupath/qupath/issues/510)
+* Unexpected results importing v0.1.2 projects containing multi-series image files (https://github.com/qupath/qupath/issues/515)
 
 
 ## Version 0.2.0
