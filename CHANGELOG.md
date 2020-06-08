@@ -5,7 +5,7 @@ This is a *minor release* containing the following bug fixes:
 * Cannot load a project if no classes.json is found (https://github.com/qupath/qupath/issues/510)
 * Unexpected results importing v0.1.2 projects containing multi-series image files (https://github.com/qupath/qupath/issues/515)
 * Better handling of situations in which QuPath is closed abnormal (https://github.com/qupath/qupath/issues/512)
-* Fixed zoom in/out direction (https://github.com/qupath/qupath/issues/518)
+* Fixed zoom in/out direction, use of +/- as shortcuts (https://github.com/qupath/qupath/issues/518)
 
 
 ## Version 0.2.0
