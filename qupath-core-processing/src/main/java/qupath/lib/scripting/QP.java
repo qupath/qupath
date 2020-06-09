@@ -71,6 +71,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
+import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -110,6 +111,8 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.objects.OpenCVMLClassifier;
+import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 import qupath.opencv.ml.pixel.PixelClassifiers;
@@ -179,6 +182,27 @@ public class QP {
 	 * </pre>
 	 */
 	final public static String PROJECT_BASE_DIR = "{%PROJECT}";
+	
+	
+	/**
+	 * TODO: Figure out where this should go...
+	 * Its purpose is to prompt essential type adapters to be registered so that they function 
+	 * within scripts. See https://github.com/qupath/qupath/issues/514
+	 */
+	static {
+		logger.info("Initializing type adapters");
+		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(OpenCVMLClassifier.class);
+		
+		GsonTools.getDefaultBuilder()
+			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
+			.registerTypeAdapterFactory(FeatureExtractors.getTypeAdapterFactory())
+			.registerTypeAdapterFactory(ObjectClassifiers.getTypeAdapterFactory())
+			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
+		
+		// Currently, the type adapters are registered within the class
+		@SuppressWarnings("unused")
+		var init = new ImageOps();
+	}
 
 	
 	private final static List<Class<?>> CORE_CLASSES = Collections.unmodifiableList(Arrays.asList(
