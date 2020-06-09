@@ -268,6 +268,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 	}
 
 	private void updateChannelOptions(boolean serverChanged) {
+		
+		logger.trace("Updating channel options (serverChanged={})", serverChanged);
+		
 		// If the server has changed, reset the RGB channels that we have cached
 		if (serverChanged) {
 			createRGBChannels(null);

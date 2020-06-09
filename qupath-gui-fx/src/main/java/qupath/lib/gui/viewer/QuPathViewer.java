@@ -552,7 +552,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void zoomIn(int nSteps) {
 		if (nSteps == 0)
 			return;
-		setDownsampleFactor(getDownsampleFactor() * Math.pow(getDefaultZoomFactor(), nSteps), -1, -1);
+		setDownsampleFactor(getDownsampleFactor() * Math.pow(getDefaultZoomFactor(), -nSteps), -1, -1);
 	}
 
 	/**
@@ -3044,11 +3044,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				if (event.isShiftDown()) {
 					switch (code) {
 					case UP:
-						zoomOut(10);
+						zoomIn(10);
 						event.consume();
 						return;
 					case DOWN:
-						zoomIn(10);
+						zoomOut(10);
 						event.consume();
 						return;
 					default:

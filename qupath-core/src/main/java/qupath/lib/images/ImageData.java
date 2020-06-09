@@ -420,6 +420,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 	    		changes = value != null;
 	    	else
 	    		changes = changes || !oldValue.equals(value);
+	    	logger.trace("Setting property: {}: {}", key, value);
 //	    	System.err.println(changes + " setting " + key + " to " + value);
 	    	if (oldValue != value)
 	    		pcs.firePropertyChange(key, oldValue, value);
@@ -435,6 +436,7 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
     	if (propertiesMap.containsKey(key)) {
         	Object oldValue = propertiesMap.remove(key);
     		changes = true;
+	    	logger.trace("Removing property: {}: {}", key, oldValue);
     		pcs.firePropertyChange(key, oldValue, null);
     		return oldValue;
     	}

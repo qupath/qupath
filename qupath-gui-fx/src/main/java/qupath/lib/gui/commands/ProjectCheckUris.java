@@ -72,6 +72,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
 
@@ -199,7 +200,7 @@ class ProjectCheckUris {
 			Button btnSearch = new Button("Search...");
 			btnSearch.setTooltip(new Tooltip("Choose a directory & search recursively for images inside"));
 			btnSearch.setOnAction(e -> {
-				var dir = Dialogs.promptForDirectory(null);
+				var dir = Dialogs.getChooser(GuiTools.getWindow(btnSearch)).promptForDirectory(null);
 				Map<String, List<UriItem>> missing = allItems.stream().filter(p -> p.getStatus() == UriStatus.MISSING && p.getPath() != null && replacements.get(p) == null)
 						.collect(Collectors.groupingBy(p -> p.getPath().getFileName().toString()));
 				
@@ -466,7 +467,7 @@ class ProjectCheckUris {
 					return;
 				var uriReplacement = replacements.get(uriOriginal);
 				var defaultPath = uriReplacement == null ? uriOriginal.getURI().toString() : uriReplacement.getURI().toString();
-				String path = Dialogs.promptForFilePathOrURL("Change URI", defaultPath, null, null);
+				String path = Dialogs.getChooser(GuiTools.getWindow(this)).promptForFilePathOrURL("Change URI", defaultPath, null, null);
 				if (path != null && !path.isBlank()) {
 					URI uri = null;
 					try {

@@ -67,7 +67,8 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			try (BioFormatsImageServer server = new BioFormatsImageServer(uri, BioFormatsServerOptions.getInstance(), args)) {
 				// If we requested a specified series, just allow one builder
 				Map<String, ServerBuilder<BufferedImage>> builders;
-				if (args.length > 0 && Arrays.asList(args).contains("--series"))
+				// --name is a legacy option, used in v0.1.2 - see https://github.com/qupath/qupath/issues/515
+				if (args.length > 0 && (Arrays.asList(args).contains("--series") || Arrays.asList(args).contains("--name")))
 					builders = Collections.singletonMap(server.getMetadata().getName(), server.getBuilder());
 				else
 					// If we didn't specify a series, return all of them

@@ -911,6 +911,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 	
 	@Override
 	public void propertyChange(PropertyChangeEvent evt) {
+		// Don't respond to changes in the ImageDisplay (which we may have triggered...)
 		if (evt.getPropertyName().equals("qupath.lib.display.ImageDisplay"))
 			return;
 		
@@ -918,13 +919,18 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 			Platform.runLater(() -> propertyChange(evt));
 			return;
 		}
-		// Update display - we might have changed stain vectors or server metadata in some major way
+		
+		logger.trace("Property change: {}", evt);
+		
+		// Update display if we changed something relevant, including
+		// - server metadata (including channel names/LUTs)
+		// - image type
+		// Note that we don't need to respond to all changes
 		if (evt.getPropertyName().equals("serverMetadata") || 
-				!((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("stains")))
+				((evt.getSource() instanceof ImageData<?>) && evt.getPropertyName().equals("imageType")))
 			imageDisplay.refreshChannelOptions();
 		
 		updateTable();
-
 		updateSliders();
 		
 		if (viewer != null) {

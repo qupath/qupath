@@ -34,6 +34,10 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
+import javafx.scene.input.KeyCharacterCombination;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import qupath.lib.algorithms.IntensityFeaturesPlugin;
 import qupath.lib.algorithms.TilerPlugin;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
@@ -670,7 +674,7 @@ class Menus {
 		@ActionDescription("Zoom in for the current viewer.")
 		@ActionMenu("Zoom...>Zoom in")
 		@ActionIcon(PathIcons.ZOOM_IN)
-		@ActionAccelerator("ignore shift+plus")
+//		@ActionAccelerator("ignore shift+plus")
 		public final Action ZOOM_IN = Commands.createZoomCommand(qupath, 10);
 		@ActionDescription("Zoom out for the current viewer.")
 		@ActionMenu("Zoom...>Zoom out")
@@ -795,6 +799,23 @@ class Menus {
 		@ActionMenu("Multi-touch gestures>Use rotate gestures")
 		public final Action GESTURES_ROTATE = createSelectableCommandAction(PathPrefs.useRotateGesturesProperty());
 
+		ViewMenuManager() {
+			// This accelerator should work even if the character requires a shift key to be pressed
+			// Oddly, on an English keyboard Shift+= must be pressed at first (since this indicates the + key), 
+			// but afterwards = alone will suffice (i.e. Shift is truly ignored again).
+			ZOOM_IN.setAccelerator(new KeyCharacterCombination("+", KeyCombination.SHIFT_ANY));
+			// Match on whatever would type +
+			var combo = new KeyCombination(KeyCombination.SHIFT_ANY, KeyCombination.SHORTCUT_ANY) {
+				@Override
+				public boolean match(final KeyEvent event) {
+					return 
+						event.getCode() != KeyCode.UNDEFINED &&
+						"+".equals(event.getText()) &&
+						super.match(event);
+				}
+			};
+			ZOOM_IN.setAccelerator(combo);
+		}
 		
 	}
 	

@@ -35,6 +35,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.geometry.Dimension2D;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -78,6 +79,7 @@ public class SimpleThresholdCommand implements Runnable {
 	private QuPathGUI qupath;
 	
 	private Stage stage;
+	private Dimension2D dim;
 	
 	/**
 	 * Constructor.
@@ -90,13 +92,24 @@ public class SimpleThresholdCommand implements Runnable {
 	@Override
 	public void run() {
 		if (qupath.getImageData() == null) {
-			Dialogs.showNoImageError("Simple threshold");
+			Dialogs.showNoImageError("Create thresholder");
 			return;
 		}
-		if (stage == null || !stage.isShowing())
+		if (stage == null)
 			showGUI();
-		else
-			stage.toFront();
+		else {
+			updateGUI();
+			updateClassification();
+			if (stage.isShowing())
+				stage.toFront();
+			else {
+				if (dim != null) {
+					stage.setWidth(Math.max(300, dim.getWidth()));
+					stage.setHeight(Math.max(200, dim.getHeight()));
+				}
+				stage.show();
+			}
+		}
 	}
 	
 	
@@ -192,8 +205,6 @@ public class SimpleThresholdCommand implements Runnable {
 	 * Map to track where we have added an overlay
 	 */
 	private Map<QuPathViewer, PathOverlay> map = new WeakHashMap<>();
-	
-	
 	
 	private void showGUI() {
 		
@@ -314,18 +325,26 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		updateGUI();
 		
-		pane.setMinSize(GridPane.USE_COMPUTED_SIZE, GridPane.USE_COMPUTED_SIZE);
+//		pane.setMinSize(GridPane.USE_COMPUTED_SIZE, GridPane.USE_COMPUTED_SIZE);
+		pane.setMinSize(250, GridPane.USE_COMPUTED_SIZE);
 		pane.setMaxSize(GridPane.USE_COMPUTED_SIZE, GridPane.USE_COMPUTED_SIZE);
 		
 		stage = new Stage();
-		stage.setTitle("Simple threshold");
+		stage.setTitle("Create thresholder");
 		stage.initOwner(qupath.getStage());
 		stage.setScene(new Scene(pane));
-		stage.sizeToScene();
-		stage.setResizable(false);
 		stage.show();
+
+		stage.sizeToScene();
+		// Permit horizontal resizing only
+		stage.maxHeightProperty().bind(stage.heightProperty());
+		stage.minHeightProperty().bind(stage.heightProperty());
+		stage.setResizable(true);
 		
-		stage.setOnHiding(e -> resetOverlays());
+		stage.setOnHiding(e -> {
+			dim = new Dimension2D(stage.getWidth(), stage.getHeight());
+			resetOverlays();
+		});
 	}
 	
 	
@@ -376,11 +395,16 @@ public class SimpleThresholdCommand implements Runnable {
 		sigmaSpinner.setEditable(true);
 		spinner.setEditable(true);
 		
-		comboResolutions.getItems().setAll(ClassificationResolution.getDefaultResolutions(imageData, selectedResolution.get()));
+		var newResolutions = ClassificationResolution.getDefaultResolutions(imageData, selectedResolution.get());
+		if (!newResolutions.equals(comboResolutions.getItems()))
+			comboResolutions.getItems().setAll(newResolutions);
 		if (selectedResolution.get() == null)
 			comboResolutions.getSelectionModel().selectLast();
 		
-		transforms.getItems().setAll(getAvailableTransforms(imageData));
+		// Set the transforms if we have to
+		var newTransforms = new ArrayList<>(getAvailableTransforms(imageData));
+		if (!newTransforms.equals(transforms.getItems()))
+			transforms.getItems().setAll(newTransforms);
 		if (transforms.getSelectionModel().getSelectedItem() == null)
 			transforms.getSelectionModel().selectFirst();
 		
@@ -447,7 +471,7 @@ public class SimpleThresholdCommand implements Runnable {
 			
 			viewer.setCustomPixelLayerOverlay(overlay);
 			map.put(viewer, overlay);
-			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects());
+//			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects(), true);
 	
 			viewer.resetMinimumRepaintSpacingMillis();
 		}
