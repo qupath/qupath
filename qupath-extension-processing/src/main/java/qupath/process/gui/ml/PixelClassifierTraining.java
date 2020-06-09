@@ -181,13 +181,17 @@ public class PixelClassifierTraining {
         for (var imageData : imageDataCollection) {
 	        // Get features & targets for all the tiles that we need
 	        var featureServer = getFeatureServer(imageData);
-	        var tiles = featureServer.getTileRequestManager().getAllTileRequests();
-	        for (var tile : tiles) {
-	            var tileFeatures = getTileFeatures(tile.getRegionRequest(), featureServer, boundaryStrategy, labels);
-	        	if (tileFeatures != null) {
-	        		allFeatures.add(tileFeatures.getFeatures());
-	        		allTargets.add(tileFeatures.getTargets());
-	        	}
+	        if (featureServer != null) {
+		        var tiles = featureServer.getTileRequestManager().getAllTileRequests();
+		        for (var tile : tiles) {
+		            var tileFeatures = getTileFeatures(tile.getRegionRequest(), featureServer, boundaryStrategy, labels);
+		        	if (tileFeatures != null) {
+		        		allFeatures.add(tileFeatures.getFeatures());
+		        		allTargets.add(tileFeatures.getTargets());
+		        	}
+		        }
+	        } else {
+	        	logger.warn("Unable to generate features for {}", imageData);
 	        }
         }
         

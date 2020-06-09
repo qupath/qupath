@@ -6,9 +6,11 @@ This is a *minor release* that fixes the following bugs:
 * Unable to correctly import v0.1.2 projects containing multi-series image files (https://github.com/qupath/qupath/issues/515)
 * Closing QuPath abnormally can result in broken data files (https://github.com/qupath/qupath/issues/512)
 * Closing QuPath from the dock icon on macOS closes immediately with no opportunity to save data
-* Switched zoom in/out direction, use of +/- as shortcuts (https://github.com/qupath/qupath/issues/518)
+* Switched zoom in/out direction, + shortcut does not zoom in (https://github.com/qupath/qupath/issues/518)
 * Misbehaving 'Update URIs' dialog (https://github.com/qupath/qupath/issues/519)
 * Create thresholder' dialog grows in size and forgets recent options when reopening (https://github.com/qupath/qupath/issues/517)
+* Brightness/Contrast & color transforms reset when training a pixel classifier/creating a thresholder for an RGB image (https://github.com/qupath/qupath/issues/509)
+* Null pointer exception when opening an incompatible image when training a pixel classifier (e.g. RGB to multichannel)
 
 
 ## Version 0.2.0
