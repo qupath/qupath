@@ -1,4 +1,5 @@
-## Version 0.2.1
+## Version 0.2.1-SNAPSHOT
+*Still in progress!*
 
 This is a *minor release* that fixes the following bugs:
 
