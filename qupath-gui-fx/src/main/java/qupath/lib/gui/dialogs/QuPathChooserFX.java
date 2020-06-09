@@ -188,6 +188,11 @@ public class QuPathChooserFX implements QuPathChooser {
 
 	@Override
 	public File promptForFile(String title, File dirBase, String filterDescription, String... exts) {
+		return promptForFile(ownerWindow, title, dirBase, filterDescription, exts);
+	}
+	
+	
+	private File promptForFile(Window owner, String title, File dirBase, String filterDescription, String... exts) {
 		
 		if (!Platform.isFxApplicationThread()) {
 			return GuiTools.callOnApplicationThread(() -> promptForFile(title, dirBase, filterDescription, exts));
@@ -210,7 +215,7 @@ public class QuPathChooserFX implements QuPathChooser {
 		
 		
 		// Ensure we make our request on the correct thread
-		File fileSelected = fileChooser.showOpenDialog(ownerWindow);
+		File fileSelected = fileChooser.showOpenDialog(owner);
 		
 		// Set the last directory if we aren't dealing with a directory that has been specifically requested this time
 		if (fileSelected != null) {
@@ -302,7 +307,9 @@ public class QuPathChooserFX implements QuPathChooser {
         Button button = new Button("Choose file");
         button.setOnAction(new EventHandler<ActionEvent>() {
             @Override public void handle(ActionEvent e) {
-            	File file = promptForFile(null, dirBase, filterDescription, exts);
+            	// Prefer to use this window as the parent
+    			var owner = GuiTools.getWindow(button);
+    			File file = promptForFile(owner, null, dirBase, filterDescription, exts);
             	if (file != null)
             		tf.setText(file.getAbsolutePath());
             }
