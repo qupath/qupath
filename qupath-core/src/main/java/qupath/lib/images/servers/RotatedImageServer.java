@@ -158,7 +158,7 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 			return rotate90(request);
 		case ROTATE_NONE:
 		default:
-			// Don't apply annotation rotation
+			// Don't apply any rotation
 			return getWrappedServer().readBufferedImage(request);
 		}
 	}
