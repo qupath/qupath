@@ -13,6 +13,7 @@ This is a *minor release* that fixes the following bugs:
 * Brightness/Contrast & color transforms reset when training a pixel classifier/creating a thresholder for an RGB image (https://github.com/qupath/qupath/issues/509)
 * Null pointer exception when opening an incompatible image when training a pixel classifier (e.g. RGB to multichannel)
 * Occasional "Width (-1) and height (-1) cannot be <= 0" error when opening an image
+* Warnings/errors reported when first loading libraries via JavaCPP
 
 
 ## Version 0.2.0

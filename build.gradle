@@ -313,15 +313,16 @@ allprojects {
 
     opencv "org.bytedeco:opencv:${opencvVersion}"
     if (nativesCPP != null) {
-	  opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
-      if (useGPU) {
-      	logger.warn("Requested useGPU... so this will probably fail - please don't do that")
-        opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
-        // Isn't terribly clear if this is also needed when requesting GPU?
+  		opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
+  		opencv "org.bytedeco:javacpp:{$javacppVersion}:${nativesCPP}"
+  	}
+  	if (useGPU) {
+  		logger.warn("Requested useGPU... so this will probably fail - please don't do that")
+    	opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
+    	// Isn't terribly clear if this is also needed when requesting GPU?
         //opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
-     } else
-        opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
-    }
+	} else
+    	opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
 
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)
