@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
-import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
@@ -43,13 +42,9 @@ import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
 import qupath.lib.gui.viewer.tools.PathTools;
-import qupath.lib.images.servers.ColorTransforms;
-import qupath.lib.io.GsonTools;
+import qupath.lib.scripting.QP;
 import qupath.opencv.CellCountsCV;
 import qupath.opencv.features.DelaunayClusteringPlugin;
-import qupath.opencv.ml.objects.OpenCVMLClassifier;
-import qupath.opencv.ml.objects.features.FeatureExtractors;
-import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOps;
 import qupath.process.gui.commands.CellIntensityClassificationCommand;
 import qupath.process.gui.commands.CreateChannelTrainingImagesCommand;
@@ -73,13 +68,8 @@ public class ProcessingExtension implements QuPathExtension {
 	private final static Logger logger = LoggerFactory.getLogger(ProcessingExtension.class);
 	
 	static {
-		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(OpenCVMLClassifier.class);
-		
-		GsonTools.getDefaultBuilder()
-			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
-			.registerTypeAdapterFactory(FeatureExtractors.getTypeAdapterFactory())
-			.registerTypeAdapterFactory(ObjectClassifiers.getTypeAdapterFactory())
-			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
+		// TODO: Consider a better way to force initialization of key processing classes
+		var qp = new QP();
 	}
 	
 	

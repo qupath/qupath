@@ -503,10 +503,11 @@ public class ImageServerMetadata {
 	 */
 	public double[] getPreferredDownsamplesArray() {
 		if (downsamples == null) {
-			downsamples = new double[nLevels()];
-			for (int i = 0; i < downsamples.length; i++) {
-				downsamples[i] = getDownsampleForLevel(i);
+			double[] temp = new double[nLevels()];
+			for (int i = 0; i < temp.length; i++) {
+				temp[i] = getDownsampleForLevel(i);
 			}
+			downsamples = temp;
 		}
 		return downsamples.clone();
 	}
