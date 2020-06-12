@@ -29,6 +29,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -528,7 +529,8 @@ class ProjectImportImagesCommand {
 				if (isPossiblePath(s) && !list.contains(s)) {
 					list.add(s);
 					changes++;
-				}
+				} else
+					logger.warn("Cannot find image for path {}", s.trim());
 			}
 		} catch (FileNotFoundException e) {
 			Dialogs.showErrorMessage(commandName, "File " + file.getName() + " not found!");
@@ -566,6 +568,8 @@ class ProjectImportImagesCommand {
 			for (String s : GeneralTools.splitLines(clipboardString)) {
 				if (isPossiblePath(s.trim()))
 					possiblePaths.add(s.trim());
+				else
+					logger.warn("Cannot find image for path {}", s.trim());
 			}
 		}
 		if (possiblePaths.isEmpty()) {
@@ -584,11 +588,22 @@ class ProjectImportImagesCommand {
 	 */
 	static boolean isPossiblePath(final String path) {
 		try {
-			var uri = GeneralTools.toEncodedURI(path);
-			if ("file".equals(uri.getScheme()))
-				return GeneralTools.toPath(uri).toFile().exists();
+			URI uri;
+			if (path.toLowerCase().startsWith("http") || path.toLowerCase().startsWith("file"))
+				uri = GeneralTools.toEncodedURI(path);
+			else
+				uri = new File(path).toURI();
+			if ("file".equals(uri.getScheme())) {
+				if (GeneralTools.toPath(uri).toFile().exists())
+					return true;
+				else {
+					logger.warn("File {} does not exist!", GeneralTools.toPath(uri));
+					return false;
+				}
+			}
 			return true;
 		} catch (Exception e) {
+			logger.debug("Exception trying to parse path " + path + ": " + e.getLocalizedMessage(), e);
 			return false;
 		}
 	}
