@@ -59,6 +59,7 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -1426,6 +1427,19 @@ public class Commands {
 		var listView = new CheckListView<ShapeFeatures>();
 		listView.getItems().setAll(ShapeFeatures.values());
 		listView.getCheckModel().checkAll();
+		
+		// This is to work around a bug in ControlsFX 11.0.1 that can throw a NPE if the parent is unavailable
+		listView.setCellFactory(view -> {
+            var cell = new CheckBoxListCell<ShapeFeatures>(item -> listView.getItemBooleanProperty(item));
+            cell.focusedProperty().addListener((o, ov, nv) -> {
+                if (nv) {
+                	var parent = cell.getParent();
+                	if (parent != null)
+                		parent.requestFocus();
+                }
+            });
+            return cell;
+        });
 		
 		listView.setPrefHeight(Math.min(listView.getItems().size() * 30, 320));
 		
