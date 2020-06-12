@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
 
 import org.controlsfx.control.Notifications;
 import org.slf4j.Logger;
@@ -251,7 +252,7 @@ public class Dialogs {
 			TextInputDialog dialog = new TextInputDialog(initialInput);
 			dialog.setTitle(title);
 			if (QuPathGUI.getInstance() != null)
-				dialog.initOwner(QuPathGUI.getInstance().getStage());
+				dialog.initOwner(getDefaultOwner());
 			dialog.setHeaderText(null);
 			dialog.setContentText(message);
 			dialog.setResizable(true);
@@ -292,7 +293,7 @@ public class Dialogs {
 			ChoiceDialog<T> dialog = new ChoiceDialog<>(defaultChoice, choices);
 			dialog.setTitle(title);
 			if (QuPathGUI.getInstance() != null)
-				dialog.initOwner(QuPathGUI.getInstance().getStage());
+				dialog.initOwner(getDefaultOwner());
 			dialog.getDialogPane().setHeaderText(null);
 			if (message != null)
 				dialog.getDialogPane().setContentText(message);
@@ -489,7 +490,10 @@ public class Dialogs {
 		}
 		logger.info("{}\n{}", title, contents);
 		Stage dialog = new Stage();
-		dialog.initOwner(owner);
+		if (owner == null)
+			dialog.initOwner(getDefaultOwner());
+		else
+			dialog.initOwner(owner);
 		dialog.initModality(modality);
 		dialog.setTitle(title);
 		
@@ -584,6 +588,34 @@ public class Dialogs {
 	private static QuPathChooser defaultFileChooser = new QuPathChooserFX(null);
 	private static Map<Window, QuPathChooser> fileChooserMap = new WeakHashMap<>();
 
+	
+	/**
+	 * Get a default owner window.
+	 * This is the main QuPath window, if available, unless we have any modal stages.
+	 * If we do have modal stages, and one is in focus, use that.
+	 * Otherwise, return null and let JavaFX figure out the owner.
+	 * @return
+	 */
+	private static Window getDefaultOwner() {
+		List<Stage> modalStages = Window.getWindows().stream()
+				.filter(w -> w.isShowing() && w instanceof Stage)
+				.map(w -> (Stage)w)
+				.filter(s -> s.getModality() != Modality.NONE)
+				.collect(Collectors.toList());
+		if (modalStages.isEmpty()) {
+			var qupath = QuPathGUI.getInstance();
+			if (qupath != null)
+				return qupath.getStage();
+			return null;
+		}
+		var focussedStages = modalStages.stream()
+				.filter(s -> s.isFocused())
+				.collect(Collectors.toList());
+		if (focussedStages.size() == 1)
+			return focussedStages.get(0);
+		return null;
+	}
+	
 	/**
 	 * Get a {@link QuPathChooser} instance linked to a specific window.
 	 * This may both influence the display of the chooser (by setting the parent window) and the starting directory 
@@ -598,9 +630,7 @@ public class Dialogs {
 	}
 
 	private static QuPathChooser getSharedChooser() {
-		var qupath = QuPathGUI.getInstance();
-		var stage = qupath == null ? null : qupath.getStage();
-		return getChooser(stage);
+		return getChooser(getDefaultOwner());
 	}
 	
 	/**
@@ -618,7 +648,7 @@ public class Dialogs {
 	public static class Builder {
 		
 		private AlertType alertType;
-		private Window owner = QuPathGUI.getInstance() == null ? null : QuPathGUI.getInstance().getStage();
+		private Window owner = null;
 		private String title = "";
 		private String header = null;
 		private String contentText = null;
@@ -846,7 +876,12 @@ public class Dialogs {
 				dialog = new Alert(AlertType.NONE);
 			else
 				dialog = new Alert(alertType);
-			dialog.initOwner(owner);
+			
+			if (owner == null) {
+				dialog.initOwner(getDefaultOwner());
+			} else
+				dialog.initOwner(owner);
+			
 			dialog.setTitle(title);
 			if (header != null)
 				dialog.setHeaderText(header);
