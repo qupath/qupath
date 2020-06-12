@@ -15,6 +15,7 @@ This is a *minor release* that fixes the following bugs:
 * Occasional "Width (-1) and height (-1) cannot be <= 0" error when opening an image
 * Warnings/errors reported when first loading libraries via JavaCPP
 * Changing classification color only updates the current viewer
+* Exception thrown by 'Add shape features' dialog under some circumstances (https://github.com/qupath/qupath/issues/522)
 
 
 ## Version 0.2.0
