@@ -14,6 +14,7 @@ This is a *minor release* that fixes the following bugs:
 * Null pointer exception when opening an incompatible image when training a pixel classifier (e.g. RGB to multichannel)
 * Occasional "Width (-1) and height (-1) cannot be <= 0" error when opening an image
 * Warnings/errors reported when first loading libraries via JavaCPP
+* Changing classification color only updates the current viewer
 
 
 ## Version 0.2.0
