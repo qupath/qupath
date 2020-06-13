@@ -153,24 +153,27 @@ public class PointsTool extends AbstractPathTool {
 	 */
 	private boolean handleAltClick(double x, double y, PathObject currentObject) {
 		var viewer = getViewer();
+		var viewerPlane = viewer.getImagePlane();
 		PathObjectHierarchy hierarchy = viewer.getHierarchy();
 		double distance = PathPrefs.pointRadiusProperty().get();
 		// Remove a point if the current selection has one
 		if (currentObject != null && PathObjectTools.hasPointROI(currentObject)) {
 			PointsROI points = (PointsROI)currentObject.getROI();
-			ROI points2 = removeNearbyPoint(points, x, y, distance);
-			if (points != points2) {
-				((PathROIObject)currentObject).setROI(points2);
-				hierarchy.updateObject(currentObject, false);
-//				hierarchy.fireHierarchyChangedEvent(this, currentObject);
-				return true;
+			if (points.getImagePlane().equals(viewerPlane)) {
+				ROI points2 = removeNearbyPoint(points, x, y, distance);
+				if (points != points2) {
+					((PathROIObject)currentObject).setROI(points2);
+					hierarchy.updateObject(currentObject, false);
+	//				hierarchy.fireHierarchyChangedEvent(this, currentObject);
+					return true;
+				}
 			}
 		}
 		
 		// Activate a points object if there is one
 		for (PathObject pathObject : hierarchy.getPointObjects(PathObject.class)) {
 			// Don't check the current object again
-			if (pathObject == currentObject)
+			if (pathObject == currentObject || !pathObject.getROI().getImagePlane().equals(viewerPlane))
 				continue;
 			// See if we've almost clicked on a point
 			if (((PointsROI)pathObject.getROI()).getNearest(x, y, distance) != null) {
@@ -198,6 +201,8 @@ public class PointsTool extends AbstractPathTool {
 		ImageServer<?> server = viewer.getServer();
 		if (server == null)
 			return;
+		
+		var viewerPlane = viewer.getImagePlane();
 
 		// Find out the coordinates in the image domain
 		Point2D p = mouseLocationToImage(e, false, requestPixelSnapping());
@@ -218,7 +223,10 @@ public class PointsTool extends AbstractPathTool {
 		RoiEditor editor = viewer.getROIEditor();
 		double radius = PathPrefs.pointRadiusProperty().get();
 		
-		ROI points = (currentROI != null && currentROI.isPoint()) ? currentROI : null;
+		ROI points = null;
+		if (currentROI != null && currentROI.isPoint() && (currentROI.isEmpty() || currentROI.getImagePlane().equals(viewerPlane)))
+			points = currentROI;
+		
 		// If Alt is pressed, try to delete a point
 		if (e.isAltDown()) {
 			handleAltClick(xx, yy, currentObject);
@@ -227,7 +235,7 @@ public class PointsTool extends AbstractPathTool {
 		else if (points == null || (!PathPrefs.multipointToolProperty().get() && !editor.grabHandle(xx, yy, radius, e.isShiftDown()))
 				|| (e.isShiftDown() && e.getClickCount() > 1)) {
 			// PathPoints is effectively ready from the start - don't need to finalize
-			points = ROIs.createPointsROI(xx, yy, ImagePlane.getDefaultPlane());
+			points = ROIs.createPointsROI(xx, yy, viewerPlane);
 			
 			currentObject = (PathROIObject)PathObjects.createAnnotationObject(points,  PathPrefs.autoSetAnnotationClassProperty().get());
 			viewer.getHierarchy().addPathObject(currentObject);
@@ -238,7 +246,8 @@ public class PointsTool extends AbstractPathTool {
 			editor.grabHandle(xx, yy, radius, e.isShiftDown());
 		} else if (points != null) {
 			// Add point to current ROI, or adjust the position of a nearby point
-			ROI points2 = addPoint(points, xx, yy, radius);
+			ImagePlane plane = points == null || points.isEmpty() ? viewerPlane : points.getImagePlane();
+			ROI points2 = addPoint(points, xx, yy, radius, plane);
 			if (points2 == points) {
 				// If we didn't add a point, try to grab a handle
 				if (!editor.grabHandle(xx, yy, radius, e.isShiftDown()))
@@ -275,7 +284,7 @@ public class PointsTool extends AbstractPathTool {
 	 * @param y
 	 * @param minimumSeparation
 	 */
-	private ROI addPoint(final ROI points, final double x, final double y, final double minimumSeparation) {
+	private ROI addPoint(final ROI points, final double x, final double y, final double minimumSeparation, final ImagePlane plane) {
 		// Can't add NaN points
 		if (Double.isNaN(x + y))
 			return points;
@@ -290,7 +299,7 @@ public class PointsTool extends AbstractPathTool {
 		}
 		List<Point2> pointsList2 = new ArrayList<>(pointsList);
 		pointsList2.add(new Point2(x, y));
-		return ROIs.createPointsROI(pointsList2, ImagePlane.getPlaneWithChannel(points.getC(), points.getZ(), points.getT()));
+		return ROIs.createPointsROI(pointsList2, plane);
 	}
 	
 	
