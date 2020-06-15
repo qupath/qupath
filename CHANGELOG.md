@@ -4,6 +4,7 @@
 This is a *minor release* that fixes the following bugs:
 
 * Points tool does not support z-stacks/time series (https://github.com/qupath/qupath/issues/526)
+* Point annotations could not be merged; attempting to merge objects across z-slices would throw an exception
 * Error thrown when right-clicking a points annotation in the counting dialog
 * Cannot load a project if no classes.json is found (https://github.com/qupath/qupath/issues/510)
 * Unable to correctly import v0.1.2 projects containing multi-series image files (https://github.com/qupath/qupath/issues/515)
