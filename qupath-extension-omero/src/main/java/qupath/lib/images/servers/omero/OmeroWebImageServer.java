@@ -27,6 +27,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -54,6 +55,7 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.omero.OmeroShapes.OmeroShape;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
+import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 
@@ -285,14 +287,13 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				scheme, host, -1, "/api/v0/m/rois/?image=" + id
 				);
 
+		var dataPages = readPaginated(urlROIs);
 		List<PathObject> list = new ArrayList<>();
-		try (InputStreamReader reader = new InputStreamReader(urlROIs.openStream())) {
-			
+		for (JsonArray page: dataPages) {
 			var gson = new GsonBuilder().registerTypeAdapter(OmeroShape.class, new OmeroShapes.GsonShapeDeserializer()).setLenient().create();
 			
-			JsonArray roisJson = gson.fromJson(reader, JsonObject.class).getAsJsonObject().getAsJsonArray("data");
-			for (int i = 0; i < roisJson.size(); i++) {
-				JsonObject roiJson = roisJson.get(i).getAsJsonObject();
+			for (int i = 0; i < page.size(); i++) {
+				JsonObject roiJson = page.get(i).getAsJsonObject();
 				JsonArray shapesJson = roiJson.getAsJsonArray("shapes");
 				
 				for (int j = 0; j < shapesJson.size(); j++) {
@@ -306,7 +307,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				}
 			}
 		}
-
 
 		return list;
 	}
@@ -329,6 +329,37 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	int getPreferredTileHeight() {
 		return getMetadata().getPreferredTileHeight();
 	}
+	
+    /**
+     * OMERO requests that return a list of items are paginated 
+     * (see <a href="https://docs.openmicroscopy.org/omero/5.6.1/developers/json-api.html#pagination">OMERO API docs</a>).
+     * Each {@code Json Array} in the returned {@code List} represents a page of the data.
+     * Using this helper method ensures that all the requested data is retrieved.
+     * @param url
+     * @return list of {@code Json Array}s
+     * @throws IOException
+     */
+    public static List<JsonArray> readPaginated(URL url) throws IOException {
+        String symbol = (url.getQuery() != null && !url.getQuery().isEmpty()) ? "&" : "?";
+
+        InputStreamReader reader = new InputStreamReader(url.openStream());
+        JsonObject map = GsonTools.getInstance().fromJson(reader, JsonObject.class);
+        List<JsonArray> jsonList = new ArrayList<>(Arrays.asList(map.get("data").getAsJsonArray()));
+        reader.close();
+
+        JsonObject meta = map.getAsJsonObject("meta");
+        int offset = 0;
+        int totalCount = meta.get("totalCount").getAsInt();
+        int limit = meta.get("limit").getAsInt();
+        while (offset + limit < totalCount) {
+            offset += limit;
+            URL nextURL = new URL(url + symbol + "offset=" + offset);
+            InputStreamReader newPageReader = new InputStreamReader(nextURL.openStream());
+            JsonObject newPageMap = GsonTools.getInstance().fromJson(newPageReader, JsonObject.class);
+            jsonList.add(newPageMap.getAsJsonArray("data"));
+        }
+        return jsonList;
+    }
 
 	@Override
 	protected BufferedImage readTile(TileRequest request) throws IOException {
