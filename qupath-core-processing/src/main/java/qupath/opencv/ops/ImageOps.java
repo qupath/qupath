@@ -73,6 +73,10 @@ import qupath.opencv.tools.OpenCVTools;
 
 /**
  * Create and use {@link ImageOp} and {@link ImageDataOp} objects.
+ * <p>
+ * The Gson types in v0.2.0 are subject to change in later version.
+ * Specifically, each category will likely have an additional part to the subtype.
+ * This is currently the case with "core", but not other subtypes.
  * 
  * @author Pete Bankhead
  */
@@ -141,7 +145,16 @@ public class ImageOps {
 	 * @return the {@link ImageDataServer}
 	 */
 	public static ImageDataServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData, ImageDataOp dataOp, PixelCalibration resolution, int tileWidth, int tileHeight) {
-		double downsample = resolution.getAveragedPixelSize().doubleValue() / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
+		double downsample;
+		// If the resolution is specified in pixels, use it - irrespective of what the image resolution is
+		if (resolution.unitsMatch2D() && PixelCalibration.PIXEL.equals(resolution.getPixelWidthUnit()))
+			downsample = resolution.getAveragedPixelSize().doubleValue();
+		else {
+			var cal = imageData.getServer().getPixelCalibration();
+			if (!resolution.getPixelWidthUnit().equals(cal.getPixelWidthUnit()) || !resolution.getPixelHeightUnit().equals(cal.getPixelHeightUnit()))
+				logger.warn("Resolution and pixel calibration units do not match! {} x {} vs {} x {}", resolution.getPixelWidthUnit(), resolution.getPixelHeightUnit(), cal.getPixelWidthUnit(), cal.getPixelHeightUnit());
+			downsample = resolution.getAveragedPixelSize().doubleValue() / cal.getAveragedPixelSize().doubleValue();
+		}
 		return new ImageOpServer(imageData, downsample, tileWidth, tileHeight, dataOp);
 	}
 	
@@ -310,6 +323,7 @@ public class ImageOps {
 	/**
 	 * Normalization operations.
 	 */
+	// TODO: This should have a name!
 	public static class Normalize {
 		
 		/**

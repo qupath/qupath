@@ -36,6 +36,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
@@ -124,12 +125,17 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 		var inputResolution = classifierMetadata.getInputResolution();
 		var cal = server.getPixelCalibration();
-		if (!(cal.getPixelWidthUnit().equals(inputResolution.getPixelWidthUnit()) && cal.getPixelHeightUnit().equals(inputResolution.getPixelHeightUnit()))) {
-			logger.warn("Image pixel units do not match the classifier pixel units! This may give unexpected results.");
-			logger.warn("Server calibration: {}", cal);
-			logger.warn("Classifier calibration: {}", inputResolution);
-		}
 		double downsample = inputResolution.getAveragedPixelSize().doubleValue() / cal.getAveragedPixelSize().doubleValue();
+		if (!(cal.getPixelWidthUnit().equals(inputResolution.getPixelWidthUnit()) && cal.getPixelHeightUnit().equals(inputResolution.getPixelHeightUnit()))) {
+			if (inputResolution.unitsMatch2D() && PixelCalibration.PIXEL.equals(inputResolution.getPixelWidthUnit())) {
+				downsample = inputResolution.getAveragedPixelSize().doubleValue();
+				logger.warn("Input resolution is requested in uncalibrated units - will use downsample of {}", downsample);
+			} else {
+				logger.warn("Image pixel units do not match the classifier pixel units! This may give unexpected results.");
+				logger.warn("Server calibration: {}", cal);
+				logger.warn("Classifier calibration: {}", inputResolution);
+			}
+		}
 		
 		int width = server.getWidth();
 		int height = server.getHeight();
