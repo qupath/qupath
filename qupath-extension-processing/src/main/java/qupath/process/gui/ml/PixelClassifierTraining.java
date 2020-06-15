@@ -210,7 +210,7 @@ public class PixelClassifierTraining {
         opencv_core.vconcat(new MatVector(allFeatures.toArray(Mat[]::new)), matTraining);
         opencv_core.vconcat(new MatVector(allTargets.toArray(Mat[]::new)), matTargets);
 
-        logger.info("Training data: {} x {}, Target data: {} x {}", matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols());
+        logger.debug("Training data: {} x {}, Target data: {} x {}", matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols());
         
         return new ClassifierTrainingData(labels, matTraining, matTargets);
     }
@@ -486,7 +486,6 @@ public class PixelClassifierTraining {
 	        		g2d.dispose();
     			}
     		}
-    		
     		// Allocate buffers
     		int capacity = width * height;
     		int nFeatures = features.getRaster().getNumBands();
@@ -511,7 +510,12 @@ public class PixelClassifierTraining {
     		matTargets = new Mat(n, 1, opencv_core.CV_32SC1);
 
     		if (n == 0) {
-    			logger.warn("I thought I'd have features but I don't! " + rois.size() + " - " + request);
+//    			new ImagePlus("Mask", IJTools.convertToImageProcessor(imgLabels, 0)).show(); 
+//    			for (var r : rois.keySet())
+//    				System.err.println(r.getArea());
+    			// This can happen if a training annotation falls exactly on a tile boundary
+    			// (However note that the boundary strategy can still make some annotations useful sometimes)
+    			logger.debug("I thought I'd have features but I don't! " + rois.size() + " - " + request);
     			return;
     		}
 

@@ -956,8 +956,11 @@ public class PixelClassifierPane {
 		 
 		 // Create TrainData in an appropriate format (e.g. labels or one-hot encoding)
 		 var trainSamples = trainData.getTrainSamples();
+		 var trainResponses = trainData.getTrainResponses();
 		 preprocessor.apply(trainSamples, false);
-		 trainData = model.createTrainData(trainSamples, trainData.getTrainResponses(), weights, false);
+		 trainData = model.createTrainData(trainSamples, trainResponses, weights, false);
+		 
+		 logger.info("Training data: {} x {}, Target data: {} x {}", trainSamples.rows(), trainSamples.cols(), trainResponses.rows(), trainResponses.cols());
 		 model.train(trainData);
 		 
 		 // Calculate accuracy using whatever we can, as a rough guide to progress
