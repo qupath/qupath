@@ -54,6 +54,7 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.omero.OmeroShapes.OmeroShape;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
+import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 
@@ -285,28 +286,24 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				scheme, host, -1, "/api/v0/m/rois/?image=" + id
 				);
 
+		var data = readPaginated(urlROIs);
 		List<PathObject> list = new ArrayList<>();
-		try (InputStreamReader reader = new InputStreamReader(urlROIs.openStream())) {
+		var gson = new GsonBuilder().registerTypeAdapter(OmeroShape.class, new OmeroShapes.GsonShapeDeserializer()).setLenient().create();
 			
-			var gson = new GsonBuilder().registerTypeAdapter(OmeroShape.class, new OmeroShapes.GsonShapeDeserializer()).setLenient().create();
+		for (int i = 0; i < data.size(); i++) {
+			JsonObject roiJson = data.get(i).getAsJsonObject();
+			JsonArray shapesJson = roiJson.getAsJsonArray("shapes");
 			
-			JsonArray roisJson = gson.fromJson(reader, JsonObject.class).getAsJsonObject().getAsJsonArray("data");
-			for (int i = 0; i < roisJson.size(); i++) {
-				JsonObject roiJson = roisJson.get(i).getAsJsonObject();
-				JsonArray shapesJson = roiJson.getAsJsonArray("shapes");
-				
-				for (int j = 0; j < shapesJson.size(); j++) {
-					try {
-						var shape = gson.fromJson(shapesJson.get(j), OmeroShape.class);
-						if (shape != null)
-							list.add(shape.createAnnotation());
-					} catch (Exception e) {
-						logger.error("Error parsing shape: " + e.getLocalizedMessage(), e);
-					}
+			for (int j = 0; j < shapesJson.size(); j++) {
+				try {
+					var shape = gson.fromJson(shapesJson.get(j), OmeroShape.class);
+					if (shape != null)
+						list.add(shape.createAnnotation());
+				} catch (Exception e) {
+					logger.error("Error parsing shape: " + e.getLocalizedMessage(), e);
 				}
 			}
 		}
-
 
 		return list;
 	}
@@ -329,6 +326,38 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	int getPreferredTileHeight() {
 		return getMetadata().getPreferredTileHeight();
 	}
+	
+    /**
+     * OMERO requests that return a list of items are paginated 
+     * (see <a href="https://docs.openmicroscopy.org/omero/5.6.1/developers/json-api.html#pagination">OMERO API docs</a>).
+     * Using this helper method ensures that all the requested data is retrieved.
+     * @param url
+     * @return list of {@code Json Element}s
+     * @throws IOException
+     */
+	// TODO: Consider using parallel/asynchronous requests
+    static List<JsonElement> readPaginated(URL url) throws IOException {
+        String symbol = (url.getQuery() != null && !url.getQuery().isEmpty()) ? "&" : "?";
+
+        InputStreamReader reader = new InputStreamReader(url.openStream());
+        JsonObject map = GsonTools.getInstance().fromJson(reader, JsonObject.class);
+        List<JsonElement> jsonList = new ArrayList<>();
+        map.get("data").getAsJsonArray().forEach(jsonList::add);
+        reader.close();
+
+        JsonObject meta = map.getAsJsonObject("meta");
+        int offset = 0;
+        int totalCount = meta.get("totalCount").getAsInt();
+        int limit = meta.get("limit").getAsInt();
+        while (offset + limit < totalCount) {
+            offset += limit;
+            URL nextURL = new URL(url + symbol + "offset=" + offset);
+            InputStreamReader newPageReader = new InputStreamReader(nextURL.openStream());
+            JsonObject newPageMap = GsonTools.getInstance().fromJson(newPageReader, JsonObject.class);
+            newPageMap.get("data").getAsJsonArray().forEach(jsonList::add);
+        }
+        return jsonList;
+    }
 
 	@Override
 	protected BufferedImage readTile(TileRequest request) throws IOException {
