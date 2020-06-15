@@ -199,7 +199,8 @@ class CountingPane implements PathObjectSelectionListener, PathObjectHierarchyLi
 	
 	MenuItem createPathClassMenuItem(PathClass pathClass) {
 		var mi = new MenuItem(pathClass.toString());
-		var rect = new Rectangle(8, 8, ColorToolsFX.getCachedColor(pathClass.getColor()));
+		var color = pathClass.getColor();
+		var rect = new Rectangle(8, 8, color == null ? ColorToolsFX.TRANSLUCENT_WHITE_FX : ColorToolsFX.getCachedColor(color));
 		mi.setGraphic(rect);
 		mi.setOnAction(e -> {
 			var pathObject = listCounts.getSelectionModel().getSelectedItem();

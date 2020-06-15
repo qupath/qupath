@@ -31,6 +31,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -44,6 +47,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class RegionRequest extends ImageRegion {
+	
+	private static final Logger logger = LoggerFactory.getLogger(RegionRequest.class);
 	
 	private static DecimalFormat df = new DecimalFormat("#.##");
 	
@@ -67,6 +72,8 @@ public class RegionRequest extends ImageRegion {
 		if (interned == null)
 			interned = path;
 		this.path = path;
+		if (!Double.isFinite(downsample))
+			logger.warn("Invalid downsample value {}! This will be an error in future versions.", downsample);
 		this.downsample = downsample;
 	}
 	

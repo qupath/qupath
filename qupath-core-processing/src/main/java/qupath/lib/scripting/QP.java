@@ -2750,11 +2750,15 @@ public class QP {
 		List<PathObject> merged = new ArrayList<>();
 		Set<PathClass> pathClasses = new HashSet<>();
 		for (PathObject annotation : annotations) {
-			if (annotation.isAnnotation() && annotation.hasROI() && annotation.getROI().isArea()) {
+			if (annotation.isAnnotation() && annotation.hasROI() && (annotation.getROI().isArea() || annotation.getROI().isPoint())) {
 				if (shapeNew == null)
 					shapeNew = annotation.getROI();//.duplicate();
-				else
+				else if (shapeNew.getImagePlane().equals(annotation.getROI().getImagePlane()))
 					shapeNew = RoiTools.combineROIs(shapeNew, annotation.getROI(), RoiTools.CombineOp.ADD);
+				else {
+					logger.warn("Cannot merge ROIs across different image planes!");
+					return false;
+				}
 				if (annotation.getPathClass() != null)
 					pathClasses.add(annotation.getPathClass());
 				merged.add(annotation);
