@@ -1406,8 +1406,16 @@ public class Commands {
 		
 		if (Dialogs.showConfirmDialog("Reload", "Revert to last saved version?  All changes will be lost.")) {
 			try {
-				logger.info("Reverting to last saved version: {}", savedFile.getAbsolutePath());
-				ImageData<BufferedImage> imageDataNew = PathIO.readImageData(savedFile, null, imageData.getServer(), BufferedImage.class);
+				var project = qupath.getProject();
+				var entry = project == null ? null : project.getEntry(imageData);
+				ImageData<BufferedImage> imageDataNew;
+				if (entry != null) {
+					logger.info("Reloading image data from project entry: {}", entry);
+					imageDataNew = entry.readImageData();
+				} else {
+					logger.info("Reverting to last saved version: {}", savedFile.getAbsolutePath());
+					imageDataNew = PathIO.readImageData(savedFile, null, imageData.getServer(), BufferedImage.class);
+				}
 				viewer.setImageData(imageDataNew);
 			} catch (Exception e) {
 				Dialogs.showErrorMessage("Reload", "Error reverting to previously saved file\n\n" + e.getLocalizedMessage());
