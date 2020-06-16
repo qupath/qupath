@@ -363,8 +363,8 @@ public class GeometryTools {
     	boolean hasLines = false;
 //    	boolean hasPoints = false;
     	List<Geometry> collection = new ArrayList<>();
-    	for (int i = 0; i < geometry.getNumGeometries(); i++) {
-    		var geom = homogenizeGeometryCollection(geometry.getGeometryN(i));
+    	for (var geom : flatten(geometry, null)) {
+    		geom = homogenizeGeometryCollection(geom);
     		if (geom instanceof Polygonal) {
     			if (!hasPolygons)
     				collection.clear();
