@@ -6,6 +6,7 @@ This is a *minor release* that fixes the following bugs:
 * Points tool does not support z-stacks/time series (https://github.com/qupath/qupath/issues/526)
 * Point annotations cannot be merged; attempting to merge objects across z-slices throws an exception
 * Error thrown when right-clicking a points annotation in the counting dialog
+* Inconsistent pixel classifier behavior when switching between known/unknown pixel sizes (https://github.com/qupath/qupath/issues/531)
 * Cannot load a project if no classes.json is found (https://github.com/qupath/qupath/issues/510)
 * Unable to correctly import v0.1.2 projects containing multi-series image files (https://github.com/qupath/qupath/issues/515)
 * Closing QuPath abnormally can result in broken data files (https://github.com/qupath/qupath/issues/512)
@@ -20,6 +21,7 @@ This is a *minor release* that fixes the following bugs:
 * Occasional "Width (-1) and height (-1) cannot be <= 0" error when opening an image
 * Warnings/errors reported when first loading libraries via JavaCPP
 * Changing classification color only updates the current viewer
+* Experimental AffineTransformImageServer did not update pixel calibration values (https://github.com/qupath/qupath/issues/528)
 
 
 ## Version 0.2.0

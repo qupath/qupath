@@ -95,14 +95,91 @@ public class AffineTransformImageServer extends TransformingImageServer<Buffered
 				region.getHeight() >= server.getMetadata().getPreferredTileHeight());
 		
 		// TODO: Apply AffineTransform to pixel sizes! Perhaps create a Shape or point and transform that?
-		metadata = new ImageServerMetadata.Builder(server.getMetadata())
+		var builder = new ImageServerMetadata.Builder(server.getMetadata())
 //				.path(server.getPath() + ": Affine " + transform.toString())
 				.width(region.getWidth())
 				.height(region.getHeight())
 				.name(String.format("%s (%s)", server.getMetadata().getName(), transform.toString()))
-				.levels(levelBuilder.build())
-				.build();
+				.levels(levelBuilder.build());
+		
+		// TODO: Handle pixel sizes in units other than microns
+		var calUpdated = updatePixelCalibration(server.getPixelCalibration(), transform);
+		if (!calUpdated.equals(server.getPixelCalibration())) {
+			if (!calUpdated.equals(PixelCalibration.getDefaultInstance()))
+				logger.debug("Pixel calibration updated to {}", calUpdated);
+			builder.pixelSizeMicrons(calUpdated.getPixelWidthMicrons(), calUpdated.getPixelHeightMicrons());
+		}
+				
+		metadata = builder.build();
 	}
+	
+	/**
+	 * Try to update a {@link PixelCalibration} for an image that has been transformed.
+	 * <p>
+	 * If the transform is the identity transform, the input calibration will be returned unchanged.
+	 * Otherwise, it will be updated if possible, or a default calibration (i.e. lacking pixel sizes) returned if not.
+	 * <p>
+	 * A default pixel calibration is expected in the following situations:
+	 * <ul>
+	 *   <li>The input calibration lacks pixel sizes</li>
+	 *   <li>The transform is not invertible</li>
+	 *   <li>The transform applies an arbitrary rotation (not a quadrant rotation) with non-square pixels</li>
+	 *   <li>The transform performs an arbitrary conversion of the input coordinates (and cannot be simplified into translation, rotation or scaling)</li>
+	 * </ul>
+	 * <p>
+	 * Warning! Be cautious when applying applying the same affine transform to an image in QuPath, 
+	 * particularly whether the original transform or its inverse is needed.
+	 * <p>
+	 * The behavior of this method may change in future versions.
+	 * 
+	 * @param cal the original calibration for the (untransformed) image
+	 * @param transform the affine transform to apply
+	 * @return an appropriate pixel calibration; this may be the same as the input calibration
+	 */
+	static PixelCalibration updatePixelCalibration(PixelCalibration cal, AffineTransform transform) {
+		// If units are in pixels, or we have an identity transform, keep the same calibration
+		if (transform.isIdentity() || 
+				(cal.unitsMatch2D() && PixelCalibration.PIXEL.equals(cal.getPixelWidthUnit()) && cal.getPixelWidth().doubleValue() == 1 && cal.getPixelHeight().doubleValue() == 1))
+			return cal;
+		
+		try {
+			transform = transform.createInverse();
+		} catch (NoninvertibleTransformException e) {
+			logger.warn("Transform is not invertible! I will use the default pixel calibration.");
+			return PixelCalibration.getDefaultInstance();
+		}
+		
+		int type = transform.getType();
+		
+		if ((type & AffineTransform.TYPE_GENERAL_TRANSFORM) != 0) {
+			logger.warn("Arbitrary transform cannot be decomposed! I will use the default pixel calibration.");
+			return PixelCalibration.getDefaultInstance();										
+		}
+		
+		// Compute x and y scaling
+		double[] temp = new double[] {1, 0, 0, 1};
+		transform.deltaTransform(temp, 0, temp, 0, 2);
+
+		double xScale = Math.sqrt(temp[0]*temp[0] + temp[1]*temp[1]);
+		double yScale = Math.sqrt(temp[2]*temp[2] + temp[3]*temp[3]);
+		
+		// See what we can do with non-square pixels
+		double pixelWidth = cal.getPixelWidth().doubleValue();
+		double pixelHeight = cal.getPixelHeight().doubleValue();
+		// For a 90 degree rotation with non-square pixels, swap pixel width & height
+		if ((type & AffineTransform.TYPE_QUADRANT_ROTATION) != 0 && temp[0] == 0 && temp[3] == 0) {
+			double pixelWidthOutput = pixelHeight * yScale;
+			double pixelHeightOutput = pixelWidth * xScale;
+			xScale = pixelWidthOutput / pixelWidth;
+			yScale = pixelHeightOutput / pixelHeight;
+		} else if ((type & AffineTransform.TYPE_GENERAL_ROTATION) != 0 && pixelWidth != pixelHeight) {
+			logger.warn("General rotation with non-square pixels is not supported ({} vs {})! I will use the default pixel calibration.", pixelWidth, pixelHeight);
+			return PixelCalibration.getDefaultInstance();							
+		}
+		
+		return cal.createScaledInstance(xScale, yScale);
+	}
+	
 	
 	@Override
 	protected String createID() {
