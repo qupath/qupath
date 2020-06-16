@@ -21,6 +21,7 @@ This is a *minor release* that fixes the following bugs:
 * Occasional "Width (-1) and height (-1) cannot be <= 0" error when opening an image
 * Warnings/errors reported when first loading libraries via JavaCPP
 * Changing classification color only updates the current viewer
+* Experimental AffineTransformImageServer did not update pixel calibration values (https://github.com/qupath/qupath/issues/528)
 
 
 ## Version 0.2.0
