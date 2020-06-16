@@ -123,9 +123,9 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 	
 	/**
 	 * Max thumbnails to store in cache.
-	 * This ends up ~< 90MB, assuming RGBA.
+	 * This ends up ~< 180MB, assuming RGBA.
 	 */
-	private static int MAX_CACHE_SIZE = 250;
+	private static int MAX_CACHE_SIZE = 500;
 	
 	/**
 	 * Cache for storing image thumbnails
@@ -279,11 +279,12 @@ class TMAGridView implements Runnable, ChangeListener<ImageData<BufferedImage>>,
 
 		long startTime = System.currentTimeMillis();
 		try {
-			latch.await(5, TimeUnit.SECONDS);
+			latch.await(10, TimeUnit.SECONDS);
 		} catch (InterruptedException e1) {
-			logger.debug("Loaded {} cores in 5 seconds", cores.size() - latch.getCount());
+			if (latch.getCount() > 0)
+				logger.warn("Loaded {} cores in 10 seconds", cores.size() - latch.getCount());
 		}
-		logger.debug("Countdown complete in {} seconds", (System.currentTimeMillis() - startTime)/1000.0);
+		logger.info("Countdown complete in {} seconds", (System.currentTimeMillis() - startTime)/1000.0);
 		
 		
 		model.setImageData(imageData, cores);
