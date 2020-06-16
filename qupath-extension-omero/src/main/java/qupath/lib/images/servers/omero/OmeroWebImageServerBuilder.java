@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Scanner;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.Authenticator;
@@ -59,8 +58,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
@@ -73,7 +70,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.io.GsonTools;
 
 /**
  * Builder for ImageServers that make requests from the OMERO web API.
@@ -330,12 +326,9 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         case "project-":
         	for (String id: ids) {
         		URL request = new URL(uri.getScheme(), uri.getHost(), -1, "/api/v0/m/projects/" + id + "/datasets/");
-        		InputStreamReader reader = new InputStreamReader(request.openStream());
-        		JsonObject map = GsonTools.getInstance().fromJson(reader, JsonObject.class);
-        		reader.close();
+        		var data = OmeroWebImageServer.readPaginated(request);
         		
-        		JsonArray data = map.getAsJsonArray("data");
-        		for (int i = 0; i < data.size(); i++) {
+    			for (int i = 0; i < data.size(); i++) {
         			tempIds.add(data.get(i).getAsJsonObject().get("@id").getAsString());
         		}
         	}
@@ -346,14 +339,11 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         case "dataset-":
         	for (String id: ids) {
         		URL request = new URL(uri.getScheme(), uri.getHost(), -1, "/api/v0/m/datasets/" + id + "/images/");
-        		InputStreamReader reader = new InputStreamReader(request.openStream());
-        		JsonObject map = GsonTools.getInstance().fromJson(reader, JsonObject.class);
-        		reader.close();
+        		var data = OmeroWebImageServer.readPaginated(request);
         		
-        		JsonArray data = map.getAsJsonArray("data");
-        		for (int i = 0; i < data.size(); i++) {
-        			tempIds.add(data.get(i).getAsJsonObject().get("@id").getAsString());
-        		}
+    			for (int i = 0; i < data.size(); i++) {
+    				tempIds.add(data.get(i).getAsJsonObject().get("@id").getAsString());
+    			}	
         	}
         	ids = new ArrayList<>(tempIds);
         	tempIds.clear();
