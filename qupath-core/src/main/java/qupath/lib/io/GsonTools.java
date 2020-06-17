@@ -21,6 +21,7 @@
 
 package qupath.lib.io;
 
+import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.util.Collection;
 
@@ -71,7 +72,8 @@ public class GsonTools {
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
 			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
-			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory());
+			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory())
+			.registerTypeAdapter(AffineTransform.class, AffineTransformTypeAdapter.INSTANCE);
 			//.create();
 	
 	/**
@@ -187,6 +189,51 @@ public class GsonTools {
 		}
 
 	}
+	
+	
+	
+	static class AffineTransformTypeAdapter extends TypeAdapter<AffineTransform> {
+		
+		static AffineTransformTypeAdapter INSTANCE = new AffineTransformTypeAdapter();
+		
+		private static Gson gson = new Gson();
+
+		@Override
+		public void write(JsonWriter out, AffineTransform value) throws IOException {
+			gson.toJson(new AffineTransformProxy(value), AffineTransformProxy.class, out);
+		}
+
+		@Override
+		public AffineTransform read(JsonReader in) throws IOException {
+			AffineTransformProxy proxy = gson.fromJson(in, AffineTransformProxy.class);
+			var transform = new AffineTransform();
+			proxy.fill(transform);
+			return transform;
+		}
+		
+		static class AffineTransformProxy {
+			
+			public final double m00, m10, m01, m11, m02, m12;
+			
+			AffineTransformProxy(AffineTransform transform) {
+				double[] flatmatrix = new double[6];
+				transform.getMatrix(flatmatrix);
+		        m00 = flatmatrix[0];
+		        m10 = flatmatrix[1];
+		        m01 = flatmatrix[2];
+		        m11 = flatmatrix[3];
+	            m02 = flatmatrix[4];
+	            m12 = flatmatrix[5];
+			}
+			
+			void fill(AffineTransform transform) {
+				transform.setTransform(m00, m10, m01, m11, m02, m12);
+			}
+			
+		}
+
+	}
+	
 	
 	/**
 	 * TypeAdapter for ImagePlane objects, ensuring each is a singleton.
