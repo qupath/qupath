@@ -273,6 +273,9 @@ public class ImageServers {
 			// so we need to create a new transform, rather than simply using the existing one.
 			// If we don't, operations aren't performed because the transform is assumed to be the identity 
 			// (based upon state, even though the values are 'correct')
+			
+			// Note: as of v0.2.1 the default Gson will actually use an AffineTransformProxy as an intermediate, 
+			// which should make this step unnecessary
 			transform.getMatrix(flat);
 			return new AffineTransformImageServer(builder.build(), new AffineTransform(flat));
 		}
