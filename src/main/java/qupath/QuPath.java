@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -110,6 +111,7 @@ public class QuPath {
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		
 		QuPath qupath = new QuPath();
 		CommandLine cmd = new CommandLine(qupath);
 		cmd.setCaseInsensitiveEnumValuesAllowed(true);
@@ -160,17 +162,17 @@ public class QuPath {
 			List<String> CLIArgs = new ArrayList<String>();
 			
 			if (qupath.path != null && !qupath.path.isBlank()) {
-				CLIArgs.add(qupath.path);
+				CLIArgs.add(getEncodedPath(qupath.path));
 			}
 			
 			if (qupath.quiet)
 				CLIArgs.add("--quiet=true");
 		
 			if (qupath.project != null && !qupath.project.equals("") && qupath.project.endsWith(ProjectIO.getProjectExtension()))
-				CLIArgs.add("--project=" + qupath.project);
+				CLIArgs.add("--project=" + getEncodedPath(qupath.project));
 		
 			if (qupath.image != null && !qupath.image.equals(""))
-				CLIArgs.add("--image=" + qupath.image);
+				CLIArgs.add("--image=" + getEncodedPath(qupath.image));
 			
 			QuPathApp.launch(QuPathApp.class, CLIArgs.toArray(new String[CLIArgs.size()]));
 			
@@ -181,6 +183,28 @@ public class QuPath {
 		}
 	
 		return;
+	}
+	
+	
+	/**
+	 * Non-ASCII characters in paths can become mangled on Windows due to character encoding.
+	 * Here, make a cautious attempt to correct these if necessary, or return the path unchanged.
+	 * @param path
+	 * @return
+	 */
+	static String getEncodedPath(String path) {
+		// Don't do anything if we don't have a path, aren't using Windows, or have only ASCII characters
+		if (path == null || !GeneralTools.isWindows() || StandardCharsets.US_ASCII.newEncoder().canEncode(path))
+			return path;
+		// Reencode as UTF-8 only if this means a non-existent file becomes available
+		if (!new File(path).exists()) {
+			var pathUTF8 = new String(path.getBytes(), StandardCharsets.UTF_8);
+			if (new File(pathUTF8).exists()) {
+				logger.warn("Updated path encoding to UTF-8: {}", pathUTF8);
+				return pathUTF8;
+			}
+		}
+		return path;
 	}
 	
 	
@@ -256,7 +280,8 @@ class ScriptCommand implements Runnable {
 			ImageData<BufferedImage> imageData;
 			
 			if (projectPath != null && !projectPath.equals("")) {
-				Project<BufferedImage> project = ProjectIO.loadProject(new File(projectPath), BufferedImage.class);
+				String path = QuPath.getEncodedPath(projectPath);
+				Project<BufferedImage> project = ProjectIO.loadProject(new File(path), BufferedImage.class);
 				for (var entry: project.getImageList()) {
 					imageData = entry.readImageData();
 					try {
@@ -271,7 +296,8 @@ class ScriptCommand implements Runnable {
 					imageData.getServer().close();
 				}
 			} else if (imagePath != null && !imagePath.equals("")) {
-				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(imagePath, BufferedImage.class);
+				String path = QuPath.getEncodedPath(imagePath);
+				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class);
 				imageData = new ImageData<>(server);
 				Object result = runScript(null, imageData);
 				if (result != null)
@@ -304,9 +330,12 @@ class ScriptCommand implements Runnable {
 			
 			// Try to run the script
 			// Read script
-			script = GeneralTools.readFileAsString(scriptFile);
-		} else
+			script = GeneralTools.readFileAsString(QuPath.getEncodedPath(scriptFile));
+		} else {
+			if (GeneralTools.isWindows() && !StandardCharsets.US_ASCII.newEncoder().canEncode(script))
+				logger.warn("Non-ASCII characters detected in the specified script! If you experience encoding issues, try passing a script file instead.");
 			engine = manager.getEngineByExtension("groovy");
+		}
 		
 		
 		// Try to make sure that the standard outputs are used
