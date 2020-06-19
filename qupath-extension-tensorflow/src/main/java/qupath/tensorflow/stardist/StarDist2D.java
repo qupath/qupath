@@ -124,6 +124,8 @@ public class StarDist2D {
 		private Collection<Compartments> compartments = Arrays.asList(Compartments.values());
 		private Collection<Measurements> measurements;
 		
+		private boolean constrainToParent = true;
+		
 		private int pad = 32;
 		
 		private List<ImageOp> ops = new ArrayList<>();
@@ -255,6 +257,16 @@ public class StarDist2D {
 		 */
 		public Builder ignoreCellOverlaps(boolean ignore) {
 			this.ignoreCellOverlaps = ignore;
+			return this;
+		}
+		
+		/**
+		 * If true, constrain nuclei and cells to any parent annotation (default is true).
+		 * @param constrainToMask
+		 * @return this builder
+		 */
+		public Builder constrainToParent(boolean constrainToParent) {
+			this.constrainToParent = constrainToParent;
 			return this;
 		}
 		
@@ -446,6 +458,7 @@ public class StarDist2D {
 			stardist.doLog = doLog;
 			stardist.simplifyDistance = simplifyDistance;
 			stardist.nThreads = nThreads;
+			stardist.constrainToParent = constrainToParent;
 			
 			stardist.compartments = new LinkedHashSet<>(compartments);
 			
@@ -470,6 +483,8 @@ public class StarDist2D {
 	private double cellExpansion;
 	private double cellConstrainScale;
 	private boolean ignoreCellOverlaps;
+	
+	private boolean constrainToParent = true;
 	
 	private int nThreads = -1;
 	
@@ -628,7 +643,7 @@ public class StarDist2D {
 		
 		// Convert to detections, dilating to approximate cells if necessary
 		var detections = nuclei.parallelStream()
-				.map(n -> convertToObject(n, plane, expansion, mask))
+				.map(n -> convertToObject(n, plane, expansion, constrainToParent ? mask : null))
 				.collect(Collectors.toList());
 		
 		// Resolve cell overlaps, if needed
@@ -685,7 +700,6 @@ public class StarDist2D {
 	
 	private PathObject convertToObject(PotentialNucleus nucleus, ImagePlane plane, double cellExpansion, Geometry mask) {
 		var geomNucleus = simplify(nucleus.geometry);
-		var roiNucleus = GeometryTools.geometryToROI(geomNucleus, plane);
 		PathObject pathObject;
 		if (cellExpansion > 0) {
 			var geomCell = CellTools.estimateCellBoundary(geomNucleus, cellExpansion, cellConstrainScale);
@@ -693,9 +707,15 @@ public class StarDist2D {
 				geomCell = GeometryTools.attemptOperation(geomCell, g -> g.intersection(mask));
 			geomCell = simplify(geomCell);
 			var roiCell = GeometryTools.geometryToROI(geomCell, plane);
+			var roiNucleus = GeometryTools.geometryToROI(geomNucleus, plane);
 			pathObject = PathObjects.createCellObject(roiCell, roiNucleus, null, null);
-		} else
+		} else {
+			if (mask != null) {
+				geomNucleus = GeometryTools.attemptOperation(geomNucleus, g -> g.intersection(mask));
+			}
+			var roiNucleus = GeometryTools.geometryToROI(geomNucleus, plane);
 			pathObject = PathObjects.createDetectionObject(roiNucleus);
+		}
 		if (includeProbability) {
         	try (var ml = pathObject.getMeasurementList()) {
         		ml.putMeasurement("Detection probability", nucleus.getProbability());

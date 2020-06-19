@@ -602,6 +602,8 @@ public class OMEPyramidWriter {
 									@Override
 									public void run() {
 										try {
+											if (Thread.currentThread().isInterrupted())
+												return;
 											writeRegion(writer, plane, ifd, region, d, isRGB, localChannels);
 										} catch (Exception e) {
 											logger.error(String.format(
@@ -628,11 +630,17 @@ public class OMEPyramidWriter {
 										pool.awaitTermination(regions.size(), TimeUnit.MINUTES);
 										logger.info("Plane written in {} ms", System.currentTimeMillis() - planeStartTime);
 									} catch (InterruptedException e) {
-										throw new IOException("Timeout writing regions", e);
+										logger.warn("OME-TIFF export interrupted!");
+										pool.shutdownNow();
+										throw new IOException("Error writing regions", e);
 									}
 								} else {
-									for (var task : tasks)
+									for (var task : tasks) {
+										if (Thread.currentThread().isInterrupted()) {
+											throw new IOException("Interrupted writing regions!");
+										}
 										task.run();
+									}
 								}
 							}
 						}
