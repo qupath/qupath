@@ -278,6 +278,7 @@ public class TileExporter  {
 		try {
 			pool.awaitTermination(24, TimeUnit.HOURS);
 		} catch (InterruptedException e) {
+			pool.shutdownNow();
 			logger.error("Tile export interrupted: {}", e);
 			logger.error("", e);
 		}
@@ -307,7 +308,10 @@ public class TileExporter  {
 					logger.warn("Resizing tile from {}x{} to {}x{}", img.getWidth(), img.getHeight(), tileWidth, tileHeight);
 					img = BufferedImageTools.resize(img, tileWidth, tileHeight, false);
 				}
-				ImageWriterTools.writeImageRegion(server, request, path);
+				if (!Thread.currentThread().isInterrupted())
+					ImageWriterTools.writeImageRegion(server, request, path);
+				else
+					logger.debug("Interrupted! Will not write image to {}", path);
 				//				ImageWriterTools.writeImage(img, path);
 			} catch (Exception e) {
 				logger.error("Error writing tile: " + e.getLocalizedMessage(), e);

@@ -24,6 +24,7 @@ This is a *minor release* that fixes the following bugs:
 * Changing classification color only updates the current viewer
 * Max number of images/annotations loaded from OMERO limited by pagination
 * Experimental AffineTransformImageServer did not update pixel calibration values (https://github.com/qupath/qupath/issues/528)
+* Unable to stop tile/OME-TIFF export after it has begun
 
 
 ## Version 0.2.0
