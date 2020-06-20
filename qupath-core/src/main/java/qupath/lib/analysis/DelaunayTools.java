@@ -37,19 +37,17 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.densify.Densifier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.GeometryCombiner;
 import org.locationtech.jts.index.quadtree.Quadtree;
-import org.locationtech.jts.index.strtree.STRtree;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
 import org.locationtech.jts.triangulate.DelaunayTriangulationBuilder;
 import org.locationtech.jts.triangulate.IncrementalDelaunayTriangulator;
@@ -121,15 +119,27 @@ public class DelaunayTools {
 //			if (!(geom instanceof Polygon))
 //				logger.warn("Unexpected Geometry: {}", geom);
 			
-			// Making precise is essential! Otherwise there can be small artifacts occuring
+			// Making precise is essential! Otherwise there can be small artifacts occurring
 			var coords = geom.getCoordinates();
 			var output = new LinkedHashSet<Coordinate>();
 			var p2 = precision;
+			Coordinate lastCoordinate = null;
 			if (p2 == null)
 				p2 = GeometryTools.getDefaultFactory().getPrecisionModel();
-			for (var c : coords) {
+			
+			// Add coordinates, unless they are extremely close to an existing coordinate
+			int n = coords.length;
+			double minDistance = densifyFactor*0.5;
+			var firstCoordinate = coords[0];
+			while (n > 2 && firstCoordinate.distance(coords[n-1]) < minDistance)
+				n--;
+			for (int i = 0; i < n ; i++) {
+				var c = coords[i];
 				p2.makePrecise(c);
-				output.add(c);
+				if (i == 0 || c.distance(lastCoordinate) > minDistance) {
+					output.add(c);
+					lastCoordinate = c;
+				}
 			}
 			
 			return output;
@@ -573,6 +583,7 @@ public class DelaunayTools {
 		
 		private Set<PathObject> pathObjects = new LinkedHashSet<>();
 		private Map<Coordinate, PathObject> coordinateMap = new HashMap<>();
+		private Map<PathObject, List<Coordinate>> objectCoordinateMap = new HashMap<>();
 		private QuadEdgeSubdivision subdivision;
 		
 		private ImagePlane plane;
@@ -788,46 +799,59 @@ public class DelaunayTools {
 			
 			logger.debug("Calculating Voronoi faces for {} objects by location", getPathObjects().size());
 			
+			// We use a new GeometryFactory because we need floating point precision (it seems) to avoid 
+			// invalid polygons being returned
 			@SuppressWarnings("unchecked")
-			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(GeometryTools.getDefaultFactory());
+			var polygons = (List<Polygon>)subdivision.getVoronoiCellPolygons(new GeometryFactory());
 			
 			// Create a spatial cache
-			var cache = new STRtree();
-			for (var p : polygons) {
-				cache.insert(p.getEnvelopeInternal(), p);
-			}
-			
-			// 
 			var map = new HashMap<PathObject, Geometry>();
 			var mapToMerge = new HashMap<PathObject, List<Geometry>>();
-			var env = new Envelope();
-			for (var entry : coordinateMap.entrySet()) {
-				var coord = entry.getKey();
-				var pathObject = entry.getValue();
-				env.init(coord);
-				var results = (List<Polygon>)cache.query(env);
-				for (var polygon : results) {
-					if (SimplePointInAreaLocator.locate(coord, polygon) == Location.INTERIOR) {
-						var existing = map.put(pathObject, polygon);
-						if (existing != null) {
-							var list = mapToMerge.computeIfAbsent(pathObject, g -> {
-								var l = new ArrayList<Geometry>();
-								l.add(existing);
-								return l;
-							});
-							list.add(polygon);
-						}
-					}
+			// Keep track of objects associated with invalid polygons (although this is not currently used)
+			var invalidPolygons = new HashSet<Geometry>();
+			var invalidPolygonObjects = new HashSet<PathObject>();
+			for (var polygon : polygons) {
+				var coord = (Coordinate)polygon.getUserData();
+				if (coord == null) {
+					// Shouldn't happen...
+					logger.debug("Missing coordinate!");
+					continue;
+				}
+				var pathObject = coordinateMap.getOrDefault(coord, null);
+				if (pathObject == null) {
+					// Shouldn't happen...
+					logger.warn("Missing object for coordinate {}", coord);
+					continue;
+				}
+				// Occasionally happens when a polygon is especially thin
+				// (at least with a fixed point precision model)
+				// We don't have a fix now, but we could one day...
+				if (!polygon.isValid()) {
+					invalidPolygons.add(polygon);
+					invalidPolygonObjects.add(pathObject);
+				}
+				var existing = map.put(pathObject, polygon);
+				if (existing != null) {
+					var list = mapToMerge.computeIfAbsent(pathObject, g -> {
+						var l = new ArrayList<Geometry>();
+						l.add(existing);
+						return l;
+					});
+					list.add(polygon);
 				}
 			}
-			
-			// Merge anything that we need to
+						
+			// Merge anything that we need to, and return to default precision
+			var precisionReducer = new GeometryPrecisionReducer(GeometryTools.getDefaultFactory().getPrecisionModel());
 			for (var entry : mapToMerge.entrySet()) {
 				var pathObject = entry.getKey();
+				
 				var list = entry.getValue();
 				Geometry geometry = null;
 				try {
-					geometry = GeometryCombiner.combine(list).buffer(0.0);
+					geometry = GeometryCombiner.combine(list);
+					geometry = geometry.buffer(0.0);
+					geometry = precisionReducer.reduce(geometry);
 				} catch (Exception e) {
 					logger.debug("Error doing fast geometry combine for Voronoi faces: " + e.getLocalizedMessage(), e);
 					try {
@@ -836,9 +860,15 @@ public class DelaunayTools {
 						logger.debug("Error doing fallback geometry combine for Voronoi faces: " + e2.getLocalizedMessage(), e2);
 					}
 				}
+//				// If there were invalid pieces, we could try to fix this
+//				if (invalidPolygonObjects.contains(pathObject)) {
+//					pathObject.setPathClass(PathClassFactory.getPathClass("Trouble"));
+//				}
 				map.put(pathObject, geometry);
 			}
-			
+			if (!invalidPolygons.isEmpty()) {
+				logger.warn("Number of invalid polygons found in Voronoi diagram: {}/{}", invalidPolygons.size(), polygons.size());
+			}
 			return map;
 		}
 
@@ -884,6 +914,7 @@ public class DelaunayTools {
 			// Merge anything that we need to
 			for (var entry : mapToMerge.entrySet()) {
 				var pathObject = entry.getKey();
+				
 				var list = entry.getValue();
 				Geometry geometry = null;
 				try {
