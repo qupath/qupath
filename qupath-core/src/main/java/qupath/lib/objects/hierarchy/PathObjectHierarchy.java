@@ -193,6 +193,7 @@ public final class PathObjectHierarchy implements Serializable {
 		updateTMAHierarchy();
 	}
 	
+
 	/**
 	 * Comparator to use when looking for a parent annotation in the hierarchy.
 	 * The logic is:
@@ -213,7 +214,7 @@ public final class PathObjectHierarchy implements Serializable {
 			})
 			.thenComparing(Comparator.comparingInt(PathObject::getLevel).reversed())
 			.thenComparing(DefaultPathObjectComparator.getInstance());
-
+	
 	/**
 	 * Insert an object into the hierarchy. This differs from {@link #addPathObject(PathObject, boolean)} in that it will seek to 
 	 * place the object in an appropriate location relative to existing objects, using the logic of {@link #HIERARCHY_COMPARATOR}.
@@ -305,7 +306,10 @@ public final class PathObjectHierarchy implements Serializable {
 					return false;
 				
 				// Reassign child objects if we need to
-				Collection<PathObject> previousChildren = pathObject.isDetection() ? Collections.emptyList() : new ArrayList<>(possibleParent.getChildObjects());
+				Collection<PathObject> previousChildren = pathObject.isDetection() ? new ArrayList<>() : new ArrayList<>(possibleParent.getChildObjects());
+				// Beware that we could have 'orphaned' detections
+				if (possibleParent.isTMACore())
+					possibleParent.getParent().getChildObjects().stream().filter(p -> p.isDetection()).forEach(previousChildren::add);
 				possibleParent.addPathObject(pathObject);
 				if (!previousChildren.isEmpty()) {
 					pathObject.addPathObjects(filterObjectsForROI(pathObject.getROI(), previousChildren));
