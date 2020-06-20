@@ -78,6 +78,10 @@ public class DistanceTools {
 		if (detections.isEmpty())
 			detections = hierarchy.getDetectionObjects();
 		
+		// TODO: Support TMA cores
+		if (hierarchy.getTMAGrid() != null)
+			logger.warn("Detection to annotation distances command currently ignores TMA grid information!");
+		
 		var pathClasses = annotations.stream()
 				.map(p -> p.getPathClass())
 				.filter(p -> p != null && p.isValid() && !PathClassTools.isIgnoredClass(p))
@@ -128,6 +132,10 @@ public class DistanceTools {
 		var detections = hierarchy.getCellObjects();
 		if (detections.isEmpty())
 			detections = hierarchy.getDetectionObjects();
+		
+		// TODO: Support TMA cores
+		if (hierarchy.getTMAGrid() != null)
+			logger.warn("Detection centroid distances command currently ignores TMA grid information!");
 		
 		var pathClasses = detections.stream()
 				.map(p -> p.getPathClass())
