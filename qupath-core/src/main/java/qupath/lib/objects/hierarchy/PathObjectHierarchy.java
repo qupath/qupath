@@ -235,6 +235,11 @@ public final class PathObjectHierarchy implements Serializable {
 	 */
 	public synchronized boolean insertPathObjects(Collection<? extends PathObject> pathObjects) {
 		var selectedObjects =  new ArrayList<>(pathObjects);
+		int nObjects = selectedObjects.size();
+		selectedObjects.removeIf(p -> p.isTMACore());
+		if (selectedObjects.size() < nObjects)
+			logger.warn("TMA core objects cannot be inserted - use resolveHierarchy() instead");
+		
 		if (selectedObjects.isEmpty())
 			return false;
 		removeObjects(selectedObjects, true);
@@ -252,22 +257,37 @@ public final class PathObjectHierarchy implements Serializable {
 	 * Attempt to resolve the parent-child relationships between all objects within the hierarchy.
 	 */
 	public synchronized void resolveHierarchy() {
+		List<? extends PathObject> tmaCores = tmaGrid == null ? Collections.emptyList() : tmaGrid.getTMACoreList();
 		var annotations = getAnnotationObjects();
-		if (annotations.isEmpty()) {
-			logger.debug("resolveHierarchy() called with no annotations!");
+		if (annotations.isEmpty() && tmaCores.isEmpty()) {
+			logger.debug("resolveHierarchy() called with no annotations or TMA cores!");
 			return;
 		}
 		var detections = getDetectionObjects();
-		if (annotations.size() > 1 && detections.size() > 1) {
+		if (annotations.size() > 1 && detections.size() > 1000) {
 			logger.warn("Resolving hierarchy that contains {} annotations and {} detections - this may be slow!",
 					annotations.size(), detections.size());
 		} else if (annotations.size() > 100) {
 			logger.warn("Resolving hierarchy with {} annotations - this may be slow!", annotations.size());
 		}
+		if (!tmaCores.isEmpty()) {
+			// Need to remove annotations first (they will be re-inserted later) so we can resolve detections if needed
+			if (!annotations.isEmpty())
+				removeObjects(annotations, true);
+			var remainingDetections = detections.stream().filter(p -> p.getParent() == rootObject).collect(Collectors.toList());
+			if (!remainingDetections.isEmpty())
+				insertPathObjects(remainingDetections);
+		}
 		insertPathObjects(annotations);
 	}
 	
 	private synchronized boolean insertPathObject(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
+		
+		if (pathObject.isTMACore()) {
+			logger.warn("TMA core objects cannot be inserted - use resolveHierarchy() instead");
+			return false;
+		}
+		
 		// Get all the annotations that might be a parent of this object
 		var region = ImageRegion.createInstance(pathObject.getROI());
 		Collection<PathObject> tempSet = new HashSet<>();
@@ -307,6 +327,8 @@ public final class PathObjectHierarchy implements Serializable {
 				
 				// Reassign child objects if we need to
 				Collection<PathObject> previousChildren = pathObject.isDetection() ? new ArrayList<>() : new ArrayList<>(possibleParent.getChildObjects());
+				// Can't reassign TMA core objects (these must be directly below the root object)
+				previousChildren.removeIf(p -> p.isTMACore());
 				// Beware that we could have 'orphaned' detections
 				if (possibleParent.isTMACore())
 					possibleParent.getParent().getChildObjects().stream().filter(p -> p.isDetection()).forEach(previousChildren::add);

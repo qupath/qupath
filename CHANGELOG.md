@@ -1,12 +1,15 @@
 ## Version 0.2.1-SNAPSHOT
 *Still in progress!*
 
-This is a *minor release* that fixes the following bugs:
+This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing numerous bugs.
 
+The most significant change is to fix the behavior of 'Resolve hierarchy' in the specific case where it is called for a TMA image; see https://github.com/qupath/qupath/issues/540 for more details if this might affect you.
+
+Full list of bugs fixed:
+* 'Resolve hierarchy' does not work correctly for images containing both detections and TMA cores (https://github.com/qupath/qupath/issues/540)
 * Points tool does not support z-stacks/time series (https://github.com/qupath/qupath/issues/526)
 * Point annotations cannot be merged; attempting to merge objects across z-slices throws an exception
 * Error thrown when right-clicking a points annotation in the counting dialog
-* 'Resolve hierarchy' does not work correctly for images containing both detections and TMA cores (https://github.com/qupath/qupath/issues/540)
 * Inconsistent pixel classifier behavior when switching between known/unknown pixel sizes (https://github.com/qupath/qupath/issues/531)
 * Cannot load a project if no classes.json is found (https://github.com/qupath/qupath/issues/510)
 * Unable to correctly import v0.1.2 projects containing multi-series image files (https://github.com/qupath/qupath/issues/515)
