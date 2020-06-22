@@ -26,7 +26,11 @@ package qupath.lib.objects.hierarchy;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -152,6 +156,229 @@ public class TestPathObjectHierarchy {
 		assertEquals(myPH.nObjects(), 0);
 
 	}
+	
+	/**
+	 * Introduced in v0.2.1 to cope with fixed behavior with TMA cores.
+	 * This test failed in v0.2.0, however {@link #test_resolveHierarchy()} already passed.
+	 */
+	@Test
+	public void test_resolveHierarchyWithTMA() {
+		
+		var hierarchy = new PathObjectHierarchy();
+		
+		var core = PathObjects.createTMACoreObject(1000, 1000, 1000, false);
+		var tmaGrid = DefaultTMAGrid.create(Collections.singletonList(core), 1);
+		hierarchy.setTMAGrid(tmaGrid);
+		
+		assertEquals(hierarchy.nObjects(), 1); 
+		
+		var annotationInCore = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(900, 900, 200, 200, ImagePlane.getDefaultPlane())
+				);
+		annotationInCore.setName("Annotation in core");
+		hierarchy.addPathObject(annotationInCore);
+
+		var annotationInAnnotation = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(950, 950, 100, 100, ImagePlane.getDefaultPlane())
+				);
+		annotationInAnnotation.setName("Annotation in " + annotationInCore.getName());
+		hierarchy.addPathObject(annotationInAnnotation);
+
+		var annotationOutsideCore = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(2000, 2000, 100, 100, ImagePlane.getDefaultPlane())
+				);
+		annotationOutsideCore.setName("Annotation outside core");
+		hierarchy.addPathObject(annotationOutsideCore);
+
+		// An annotation containing the core should *not* become a parent of the core,
+		// since cores must always be directly below the root
+		var annotationContainingCore = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(400, 400-100, 1200, 1200, ImagePlane.getDefaultPlane())
+				);
+		annotationContainingCore.setName("Annotation containing core");
+		hierarchy.addPathObject(annotationContainingCore);
+		
+		// Sanity check to ensure that our rectangle does indeed contain the core
+		assertTrue(annotationContainingCore.getROI().getGeometry().contains(core.getROI().getGeometry()));
+		assertFalse(core.getROI().getGeometry().contains(annotationContainingCore.getROI().getGeometry()));
+		
+		// Add a detection at the centroid of each annotation
+		var mapDetections = new LinkedHashMap<PathObject, PathObject>();
+		for (var annotation : Arrays.asList(annotationInAnnotation, annotationOutsideCore)) {
+			double radius = 2;
+			var roi = annotation.getROI();
+			var detection = PathObjects.createDetectionObject(
+					ROIs.createEllipseROI(
+							roi.getCentroidX()-radius,
+							roi.getCentroidX()-radius,
+							radius*2, radius*2, roi.getImagePlane())
+					);
+			detection.setName("Detection in " + annotation.getName());
+			mapDetections.put(detection, annotation);
+			hierarchy.addPathObject(detection);
+		}
+		// Add another detection outside of everything
+		var detectionOutside = PathObjects.createDetectionObject(
+				ROIs.createRectangleROI(4000, 4000, 5, 5, ImagePlane.getDefaultPlane())
+				);
+		detectionOutside.setName("Detection outside everything");
+		hierarchy.addPathObject(detectionOutside);
+		mapDetections.put(detectionOutside, hierarchy.getRootObject());
+
+		// Add another detection inside the core but outside of any annotations
+		var detectionInCore = PathObjects.createDetectionObject(
+				ROIs.createRectangleROI(1000, 510, 1, 1, ImagePlane.getDefaultPlane())
+//				ROIs.createPointsROI(1000, 510, ImagePlane.getDefaultPlane())
+				);
+//		System.err.println("Centroid: " + detectionInCore.getROI().getCentroidX() + ", " + detectionInCore.getROI().getCentroidY());
+		detectionInCore.setName("Detection in core only");
+		hierarchy.addPathObject(detectionInCore);
+		mapDetections.put(detectionInCore, core);
+
+
+		// Check hierarchy size
+		assertEquals(hierarchy.nObjects(), 5 + mapDetections.size()); 
+				
+		// Check level before resolving the hierarchy
+		assertEquals(core.getLevel(), 1); 
+		assertEquals(annotationContainingCore.getLevel(), 1); 
+		assertEquals(annotationInCore.getLevel(), 1); 
+		assertEquals(annotationInAnnotation.getLevel(), 1); 
+		assertEquals(annotationOutsideCore.getLevel(), 1); 
+		
+		assertEquals(core.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationContainingCore.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationInCore.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationInAnnotation.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationOutsideCore.getParent(), hierarchy.getRootObject()); 
+		
+		for (var detection : mapDetections.keySet())
+			assertEquals(detection.getParent(), hierarchy.getRootObject()); 
+
+		hierarchy.resolveHierarchy();
+		
+		// Check level after resolving the hierarchy
+		assertEquals(core.getLevel(), 1); 
+		assertEquals(annotationInCore.getLevel(), 2); 
+		assertEquals(annotationInAnnotation.getLevel(), 3); 
+		assertEquals(annotationOutsideCore.getLevel(), 1); 
+		
+		assertEquals(core.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationContainingCore.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationInCore.getParent(), core); 
+		assertEquals(annotationInAnnotation.getParent(), annotationInCore); 
+		assertEquals(annotationOutsideCore.getParent(), hierarchy.getRootObject()); 
+		
+		for (var entry : mapDetections.entrySet()) {
+//			System.err.println(entry.getKey() + ": " + entry.getKey().getParent() + ", " + entry.getValue());
+			assertEquals(entry.getKey().getParent(), entry.getValue()); 
+		}
+
+	}
+	
+	
+	/**
+	 * Based on {@link #test_resolveHierarchyWithTMA()}, without the TMA core involved.
+	 * This test already passed in v0.2.0.
+	 */
+	@Test
+	public void test_resolveHierarchy() {
+		
+		var hierarchy = new PathObjectHierarchy();
+		
+		var annotationInCore = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(900, 900, 200, 200, ImagePlane.getDefaultPlane())
+				);
+		annotationInCore.setName("Annotation in core");
+		hierarchy.addPathObject(annotationInCore);
+
+		var annotationInAnnotation = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(950, 950, 100, 100, ImagePlane.getDefaultPlane())
+				);
+		annotationInAnnotation.setName("Annotation in " + annotationInCore.getName());
+		hierarchy.addPathObject(annotationInAnnotation);
+
+		var annotationOutsideCore = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(2000, 2000, 100, 100, ImagePlane.getDefaultPlane())
+				);
+		annotationOutsideCore.setName("Annotation outside core");
+		hierarchy.addPathObject(annotationOutsideCore);
+
+		// This was previously containing the entire TMA core - without the core, it acts as a stand-in
+		var annotationContainingCore = PathObjects.createAnnotationObject(
+				ROIs.createRectangleROI(400, 400-100, 1200, 1200, ImagePlane.getDefaultPlane())
+				);
+		annotationContainingCore.setName("Annotation stand-in for core");
+		hierarchy.addPathObject(annotationContainingCore);
+		
+		// Add a detection at the centroid of each annotation
+		var mapDetections = new LinkedHashMap<PathObject, PathObject>();
+		for (var annotation : Arrays.asList(annotationInAnnotation, annotationOutsideCore)) {
+			double radius = 2;
+			var roi = annotation.getROI();
+			var detection = PathObjects.createDetectionObject(
+					ROIs.createEllipseROI(
+							roi.getCentroidX()-radius,
+							roi.getCentroidX()-radius,
+							radius*2, radius*2, roi.getImagePlane())
+					);
+			detection.setName("Detection in " + annotation.getName());
+			mapDetections.put(detection, annotation);
+			hierarchy.addPathObject(detection);
+		}
+		// Add another detection outside of everything
+		var detectionOutside = PathObjects.createDetectionObject(
+				ROIs.createRectangleROI(4000, 4000, 5, 5, ImagePlane.getDefaultPlane())
+				);
+		detectionOutside.setName("Detection outside everything");
+		hierarchy.addPathObject(detectionOutside);
+		mapDetections.put(detectionOutside, hierarchy.getRootObject());
+
+		// Add another detection inside the core but outside of any annotations
+		var detectionInCore = PathObjects.createDetectionObject(
+				ROIs.createRectangleROI(1000, 510, 1, 1, ImagePlane.getDefaultPlane())
+//				ROIs.createPointsROI(1000, 510, ImagePlane.getDefaultPlane())
+				);
+//		System.err.println("Centroid: " + detectionInCore.getROI().getCentroidX() + ", " + detectionInCore.getROI().getCentroidY());
+		detectionInCore.setName("Detection in core only");
+		hierarchy.addPathObject(detectionInCore);
+
+
+		// Check hierarchy size
+		assertEquals(hierarchy.nObjects(), 5 + mapDetections.size()); 
+				
+		// Check level before resolving the hierarchy
+		assertEquals(annotationContainingCore.getLevel(), 1); 
+		assertEquals(annotationInCore.getLevel(), 1); 
+		assertEquals(annotationInAnnotation.getLevel(), 1); 
+		assertEquals(annotationOutsideCore.getLevel(), 1); 
+		
+		assertEquals(annotationContainingCore.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationInCore.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationInAnnotation.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationOutsideCore.getParent(), hierarchy.getRootObject()); 
+		
+		for (var detection : mapDetections.keySet())
+			assertEquals(detection.getParent(), hierarchy.getRootObject()); 
+
+		hierarchy.resolveHierarchy();
+		
+		// Check level after resolving the hierarchy
+		assertEquals(annotationInCore.getLevel(), 2); 
+		assertEquals(annotationInAnnotation.getLevel(), 3); 
+		assertEquals(annotationOutsideCore.getLevel(), 1); 
+		
+		assertEquals(annotationContainingCore.getParent(), hierarchy.getRootObject()); 
+		assertEquals(annotationInCore.getParent(), annotationContainingCore); 
+		assertEquals(annotationInAnnotation.getParent(), annotationInCore); 
+		assertEquals(annotationOutsideCore.getParent(), hierarchy.getRootObject()); 
+		
+		for (var entry : mapDetections.entrySet()) {
+			assertEquals(entry.getKey().getParent(), entry.getValue()); 
+		}
+
+	}
+	
 	
 }
 

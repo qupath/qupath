@@ -1,8 +1,12 @@
 ## Version 0.2.1-SNAPSHOT
 *Still in progress!*
 
-This is a *minor release* that fixes the following bugs:
+This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing numerous bugs.
 
+The most significant change is to fix the behavior of 'Resolve hierarchy' in the specific case where it is called for a TMA image; see https://github.com/qupath/qupath/issues/540 for more details if this might affect you.
+
+Full list of bugs fixed:
+* 'Resolve hierarchy' does not work correctly for images containing both detections and TMA cores (https://github.com/qupath/qupath/issues/540)
 * Points tool does not support z-stacks/time series (https://github.com/qupath/qupath/issues/526)
 * Point annotations cannot be merged; attempting to merge objects across z-slices throws an exception
 * Error thrown when right-clicking a points annotation in the counting dialog
@@ -15,6 +19,7 @@ This is a *minor release* that fixes the following bugs:
 * Misbehaving 'Update URIs' dialog (https://github.com/qupath/qupath/issues/519)
 * Create thresholder' dialog grows in size and forgets recent options when reopening (https://github.com/qupath/qupath/issues/517)
 * Brightness/Contrast & color transforms reset when training a pixel classifier/creating a thresholder for an RGB image (https://github.com/qupath/qupath/issues/509)
+* Launching QuPath from the command line on Windows does not handle non-ASCII characters (https://github.com/qupath/qupath/issues/320)
 * Exception thrown by 'Add shape features' dialog under some circumstances (https://github.com/qupath/qupath/issues/522)
 * TMA grid view would sometimes not show all codes (https://github.com/qupath/qupath/issues/96)
 * Modal dialogs that launch new modal dialogs occasionally misbehave (e.g. drop behind the main window)
