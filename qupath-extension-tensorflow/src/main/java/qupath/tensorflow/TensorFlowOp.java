@@ -23,35 +23,25 @@ package qupath.tensorflow;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
-import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.tensorflow.GraphDef;
-import org.bytedeco.tensorflow.MetaGraphDef;
-import org.bytedeco.tensorflow.NodeDef;
-import org.bytedeco.tensorflow.RunOptions;
-import org.bytedeco.tensorflow.SavedModelBundle;
-import org.bytedeco.tensorflow.SessionOptions;
-import org.bytedeco.tensorflow.SignatureDef;
-import org.bytedeco.tensorflow.StringSignatureDefMap;
-import org.bytedeco.tensorflow.StringTensorPairVector;
-import org.bytedeco.tensorflow.StringUnorderedSet;
-import org.bytedeco.tensorflow.StringVector;
-import org.bytedeco.tensorflow.Tensor;
-import org.bytedeco.tensorflow.TensorInfo;
-import org.bytedeco.tensorflow.TensorShapeProto;
-import org.bytedeco.tensorflow.TensorVector;
-import org.bytedeco.tensorflow.global.tensorflow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tensorflow.SavedModelBundle;
+import org.tensorflow.Session.Runner;
+import org.tensorflow.Tensor;
+import org.tensorflow.framework.MetaGraphDef;
+import org.tensorflow.framework.SignatureDef;
+import org.tensorflow.framework.TensorInfo;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.regions.Padding;
@@ -67,6 +57,8 @@ import qupath.opencv.tools.OpenCVTools;
 public class TensorFlowOp extends PaddedOp {
 	
 	private final static Logger logger = LoggerFactory.getLogger(TensorFlowOp.class);
+	
+	private final static int DEFAULT_TILE_SIZE = 512;
 	
 	private String modelPath;
 	private int tileWidth = 512;
@@ -91,7 +83,37 @@ public class TensorFlowOp extends PaddedOp {
 			this.padding = Padding.empty();
 		else
 			this.padding = padding;
+		
+		// Correct tile sizes, if required
+		correctTileSize();
 	}
+	
+	private void correctTileSize() {
+		var bundle = loadBundle(modelPath);
+		if (!bundle.singleInput() || !bundle.singleOutput()) {
+			logger.warn("Only a single input & output supported for an op!");			
+			logger.warn("Any other input/output will be dropped from {}", bundle);			
+		}
+		var inputShape = bundle.getInput().getShape();
+		long width = inputShape[2];
+		long height = inputShape[1];
+		if (width > 0 && width != tileWidth) {
+			logger.warn("Updating tile width from {} to {}", tileWidth, width);
+			tileWidth = (int)width;
+		} else if (tileWidth <= 0) {
+			logger.warn("Setting default tile width: {}", DEFAULT_TILE_SIZE);
+			tileWidth = DEFAULT_TILE_SIZE;
+		}
+		
+		if (height > 0 && height != tileHeight) {
+			logger.warn("Updating tile height from {} to {}", tileHeight, height);
+			tileHeight = (int)height;
+		} else if (tileHeight <= 0) {
+			logger.warn("Setting default tile height: {}", DEFAULT_TILE_SIZE);
+			tileHeight = DEFAULT_TILE_SIZE;
+		}
+	}
+	
 	
 	private TensorFlowBundle getBundle() {
 		if (bundle == null && exception == null) {
@@ -116,12 +138,46 @@ public class TensorFlowOp extends PaddedOp {
 		var bundle = getBundle();
 		if (exception != null)
 			throw new RuntimeException(exception);
+		
+		String inputName = bundle.getInput().getName();
+		String outputName2 = this.outputName == null ? bundle.getOutput().getName() : this.outputName;
+		
+		var runner = bundle.bundle.session().runner();
 		if (tileWidth > 0 && tileHeight > 0)
-			return OpenCVTools.applyTiled(m -> bundle.run(m, outputName), input, tileWidth, tileHeight, opencv_core.BORDER_REFLECT);
+			return OpenCVTools.applyTiled(m -> run(runner, m, inputName, outputName2), input, tileWidth, tileHeight, opencv_core.BORDER_REFLECT);
 		else
-			return bundle.run(input, outputName);
+			return run(runner, input, inputName, outputName2);
 	}
 	
+	
+	private static Mat run(Runner runner, Mat mat, String inputName, String outputName) {
+
+		if (mat.depth() != opencv_core.CV_32F) {
+			var mat2 = new Mat();
+			mat.convertTo(mat2, opencv_core.CV_32F);
+			mat = mat2;
+		}
+
+		Mat result;
+		try (var tensor = TensorFlowTools.convertToTensor(mat)) {
+
+			List<Tensor<?>> outputs = runner
+					.feed(inputName, tensor)
+					.fetch(outputName)
+					.run();
+
+			logger.debug("Number of outputs: {}", outputs.size());
+			var outputTensor = outputs.get(0);
+			result = TensorFlowTools.convertToMat(outputTensor);
+
+			for (var output : outputs)
+				output.close();
+		}
+
+		return result;
+	}
+	
+    
 	
 	@Override
 	public Padding getPadding() {
@@ -131,12 +187,20 @@ public class TensorFlowOp extends PaddedOp {
     @Override
    public List<ImageChannel> getChannels(List<ImageChannel> channels) {
         var names = new ArrayList<String>();
-        var name = getBundle().outputName;
         var bundle = getBundle();
-        if (outputName != null && !Objects.equals(outputName, bundle.outputName))
-        	logger.warn("Non-default output node, predicted channel numbers may be incorrect");
-        var outputShape = bundle.outputShape;
-        var nChannels = outputShape[outputShape.length-1];
+        var output = bundle.getOutput();
+        long[] shape;
+        String name = outputName;
+        if (outputName == null || outputName.equals(output.getName())) {
+        	name = output.getName();
+        	shape = output.getShape();
+        } else
+        	shape = bundle.getOutputShape(outputName);
+        if (shape == null) {
+        	logger.warn("Cannot determine number of output channels - output shape is unknown!");
+        	return channels;
+        }
+        var nChannels = shape[shape.length-1];
         for (int i = 0; i < nChannels; i++)
             names.add(name + " " + i);
         return ImageChannel.getChannelList(names.toArray(String[]::new));
@@ -159,13 +223,12 @@ public class TensorFlowOp extends PaddedOp {
     	private String pathModel;
         private SavedModelBundle bundle;
         
-        private String inputName;
-        private String outputName;
-        private long[] inputShape;
-    	private long[] outputShape;
+        private List<SimpleTensorInfo> inputs;
+        private List<SimpleTensorInfo> outputs;
     	
-    	private transient Map<String, NodeDef> nodeDefs;
-
+    	private MetaGraphDef metaGraphDef;
+    	private SignatureDef sigDef;
+    	
     	private TensorFlowBundle(String pathModel) {
     		
     		this.pathModel = pathModel;
@@ -173,91 +236,41 @@ public class TensorFlowOp extends PaddedOp {
     		var dir = new File(pathModel);
     		if (!dir.exists()) {
     			throw new IllegalArgumentException(pathModel + " does not exist!");
-    		} else if (!dir.isDirectory() || !tensorflow.MaybeSavedModelDirectory(pathModel)) {
+    		} else if (!dir.isDirectory()) {
     			throw new IllegalArgumentException(pathModel + " is not a valid TensorFlow model directory!");    			
     		}
-    		
-            // If this fails, are both the main jars and the platform-specific jars present - for TensorFlow and MKL-DNN?
-            var sessionOptions = new SessionOptions();
-            
-//            var runOptions = new RunOptions();
-            
-            var runOptions = RunOptions.default_instance();
-            
-            
-            var tags = new StringUnorderedSet();
-            tags.insert(tensorflow.kSavedModelTagServe());
-//            tags.insert(tensorflow.kSavedModelTagTrain());
-            bundle = new SavedModelBundle();
-            
-            var status = tensorflow.LoadSavedModel(
-                    sessionOptions,
-                    runOptions,
-                    pathModel,
-                    tags,
-                    bundle
-            );
-                        
-            if (!status.ok()) {
-            	throw new RuntimeException(status.error_message().getString());
-            }
-            
-            MetaGraphDef graphDef = bundle.meta_graph_def();
-            logger.trace("Has GraphDef: {}", graphDef.has_graph_def());
-            StringSignatureDefMap sigdefMap = graphDef.signature_def();
-            
-            
-            logger.debug("StringSignatureDefMap size: {}", sigdefMap.size());
-            SignatureDef map = sigdefMap.get(sigdefMap.begin().first());
-            
-            long nInputs = map.inputs().size();
-            if (nInputs != 1) {
-            	logger.warn("Only one input currently supported, but model supports {}", nInputs);
-            }
-            long nOutputs = map.outputs().size();
-            if (nOutputs != 1) {
-            	logger.warn("Only one output currently supported, but model supports {}", nOutputs);
-            }
 
-            // Get input & output names and shapes
-            TensorInfo input = map.inputs().get(map.inputs().begin().first());
-            inputName = input.name().getString();
-            inputShape = tensorShape(input.tensor_shape());
-            
-            TensorInfo output = map.outputs().get(map.outputs().begin().first());
-            outputName = output.name().getString();
-            outputShape = tensorShape(output.tensor_shape());
-            
-            logger.debug("Model input: {} ({})", inputName, arrayToString(inputShape));
-        	logger.debug("Model output: {} ({})", outputName, arrayToString(outputShape));
-        	
+    		
+    		// Load the bundle
+    		bundle = SavedModelBundle.load(pathModel, "serve");
+    		
+    		try {
+				metaGraphDef = MetaGraphDef.parseFrom(bundle.metaGraphDef());
+			} catch (InvalidProtocolBufferException e) {
+				throw new RuntimeException("Cannot parse MetaGraphDef!");
+			}
+    		for (var entry : metaGraphDef.getSignatureDefMap().entrySet()) {
+    			var sigdef = entry.getValue();
+    			if (inputs == null) {
+    				logger.info("Found SignatureDef: {} (method={})", entry.getKey(), sigdef.getMethodName());
+    				this.sigDef = sigdef;
+    				inputs = sigdef.getInputsMap().values().stream().map(t -> new SimpleTensorInfo(t)).collect(Collectors.toList());
+    				outputs = sigdef.getOutputsMap().values().stream().map(t -> new SimpleTensorInfo(t)).collect(Collectors.toList());
+    			} else {
+    				logger.warn("Extra SignatureDef found - will be ignored ({}, method={})", entry.getKey(), sigdef.getMethodName());
+    			}
+    		}
+    		
+    		if (inputs.size() != 1) {
+    			logger.warn("Inputs: {}", inputs);
+    		}
+    		if (outputs.size() != 1) {
+    			logger.warn("Outputs: {}", outputs);
+    		}
+    		
         	logger.info("Loaded {}", this);
         }
     	
-    	private static String arrayToString(long[] shape) {
-    		return Arrays.stream(shape).mapToObj(l -> Long.toString(l)).collect(Collectors.joining(","));
-    	}
-        
-    	private static long[] tensorShape(TensorShapeProto shape) {
-        	long[] dims = new long[shape.dim_size()];
-        	for (int i = 0; i < dims.length; i++) {
-        		dims[i] = shape.dim(i).size();
-        	}
-        	return dims;
-        }
-    	
-    	private static BytePointer SHAPE = new BytePointer("shape");
-    	
-    	// Seems to do something useful, but mostly untested
-    	private static long[] nodeDefShape(NodeDef nodeDef) {
-    		if (nodeDef == null)
-    			return null;
-    		var shape = nodeDef.attr().get(SHAPE);
-    		if (shape.has_shape())
-    			return tensorShape(shape.shape());
-        	return null;
-        }
-        
     	/**
     	 * Get the path to the model (a directory).
     	 * @return
@@ -266,71 +279,128 @@ public class TensorFlowOp extends PaddedOp {
     		return pathModel;
     	}
     	
-    	private String getNodeSummary() {
-    		return getNodeDefs().values().stream().map(n -> tensorflow.SummarizeNodeDef(n).getString()).collect(Collectors.joining(System.lineSeparator())); 
+    	public long[] getOutputShape(String name) {
+    		var op = bundle.graph().operation(name);
+    		if (op == null)
+    			return null;
+    		int nOutputs = op.numOutputs();
+    		if (nOutputs > 1) {
+    			logger.warn("Operation {} has {} outputs!", name, nOutputs);
+    		} else if (nOutputs == 0)
+    			return new long[0];
+    		var shapeObject = op.output(0).shape();
+    		long[] shape = new long[shapeObject.numDimensions()];
+    		for (int i = 0; i < shape.length; i++)
+    			shape[i] = shapeObject.size(i);
+    		return shape;
     	}
 
-    	private List<String> getNodeNames() {
-    		return new ArrayList<>(getNodeDefs().keySet());
+    	/**
+    	 * Get information about the first required output (often the only one).
+    	 * @return
+    	 */
+    	public SimpleTensorInfo getInput() {
+    		return inputs == null || inputs.isEmpty() ? null : inputs.get(0);
+    	}
+
+    	/**
+    	 * Get information about all required inputs, or an empty list if no information is available.
+    	 * @return
+    	 */
+    	public List<SimpleTensorInfo> getInputs() {
+    		return inputs == null ? Collections.emptyList() : Collections.unmodifiableList(inputs);
     	}
     	
-    	private Map<String, NodeDef> getNodeDefs() {
-    		if (nodeDefs == null) {
-	    		nodeDefs = readNodeDefs();
-    		}
-            return nodeDefs;
+    	/**
+    	 * Get the first provided output (often the only one).
+    	 * @return
+    	 */
+    	public SimpleTensorInfo getOutput() {
+    		return outputs == null || outputs.isEmpty() ? null : outputs.get(0);
+    	}
+
+    	/**
+    	 * Get information about all provided outputs, or an empty list if no information is available.
+    	 * @return
+    	 */
+    	public List<SimpleTensorInfo> getOutputs() {
+    		return outputs == null ? Collections.emptyList() : Collections.unmodifiableList(outputs);
     	}
     	
-    	private synchronized Map<String, NodeDef> readNodeDefs() {
-    		GraphDef def = bundle.meta_graph_def().graph_def();
-   			Map<String, NodeDef> nodes = new LinkedHashMap<>();
-            for (int i = 0; i < def.node_size(); i++) {
-            	var node = def.node(i);
-            	var name = node.name().getString();
-            	nodes.put(name, node);
-            }
-            return nodes;
+    	/**
+    	 * Returns true if the model takes a single input.
+    	 * @return
+    	 */
+    	public boolean singleInput() {
+    		return inputs != null && inputs.size() == 1;
+    	}
+    	
+    	/**
+    	 * Returns true if the model provides a single output.
+    	 * @return
+    	 */
+    	public boolean singleOutput() {
+    		return outputs != null && outputs.size() == 1;
     	}
 
-        private Mat run(Mat mat, String outputName) {
-            var tensor = TensorFlowTools.convertToTensor(mat);
-
-            var outputs = new TensorVector();
-            var inputs = new StringTensorPairVector(
-                    new String[] {inputName},
-                    new Tensor[] {tensor}
-            );
-
-            var outputNames = new StringVector(outputName == null ? this.outputName : outputName);
-            var targetNodeNames = new StringVector();
-            var status = bundle.session().Run(
-                    inputs,
-                    outputNames,
-                    targetNodeNames,
-                    outputs
-            );
-            
-            if (!status.ok()) {
-            	throw new RuntimeException(status.error_message().getString());
-            }
-            
-            logger.debug("Number of outputs: {}", outputs.size());
-            var outputTensor = outputs.get(0L);
-            var output = TensorFlowTools.convertToMat(outputTensor);
-            
-            inputs.close();
-            outputNames.close();
-            targetNodeNames.close();
-            outputTensor.close();
-            
-            return output;
-        }
-        
+        @Override
         public String toString() {
-        	return String.format("TensorFlow bundle: %s, (input%s [%s], output=%s [%s])",
-        			pathModel, inputName, arrayToString(inputShape), outputName, arrayToString(outputShape));
+        	if (singleInput() && singleOutput())
+            	return String.format("TensorFlow bundle: %s, (input=%s, output=%s)",
+            			getModelPath(), getInput(), getOutput());
+        	return String.format("TensorFlow bundle: %s, (inputs=%s, outputs=%s)",
+        			getModelPath(), getInputs(), getOutputs());
+//        	return String.format("TensorFlow bundle: %s, (input%s [%s], output=%s [%s])",
+//        			pathModel, inputName, arrayToString(inputShape), outputName, arrayToString(outputShape));
         }
 
+    }
+    
+    /**
+     * Helper class for parsing the essential info for an input/output tensor.
+     */
+    public static class SimpleTensorInfo {
+    	
+    	private TensorInfo info;
+    	private String name;
+    	private long[] shape;
+    	
+    	SimpleTensorInfo(TensorInfo info) {
+    		this.info = info;
+    		this.name = info.getName();
+			if (info.hasTensorShape()) {
+				var dims = info.getTensorShape().getDimList();
+				shape = new long[dims.size()];
+				for (int i = 0; i < dims.size(); i++) {
+					var d = dims.get(i);
+					shape[i] = d.getSize();
+				}
+			}
+    	}
+    	
+    	TensorInfo getInfo() {
+    		return info;
+    	}
+    	
+    	public String getName() {
+    		return name;
+    	}
+    	
+    	public long[] getShape() {
+    		return shape == null ? null : shape.clone();
+    	}
+    	
+    	@Override
+    	public String toString() {
+    		if (shape == null) {
+    			return name + " (no shape)";
+    		} else {
+    			return name + " (" + 
+    					LongStream.of(shape).mapToObj(l -> Long.toString(l)).collect(Collectors.joining(", "))
+    							+ ")";    			
+    		}
+    	}
+    	
     }
 
 	
