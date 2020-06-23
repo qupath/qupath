@@ -1,5 +1,4 @@
-## Version 0.2.1-SNAPSHOT
-*Still in progress!*
+## Version 0.2.1
 
 This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing numerous bugs.
 
@@ -21,7 +20,7 @@ Full list of bugs fixed:
 * Brightness/Contrast & color transforms reset when training a pixel classifier/creating a thresholder for an RGB image (https://github.com/qupath/qupath/issues/509)
 * Launching QuPath from the command line on Windows does not handle non-ASCII characters (https://github.com/qupath/qupath/issues/320)
 * Exception thrown by 'Add shape features' dialog under some circumstances (https://github.com/qupath/qupath/issues/522)
-* TMA grid view would sometimes not show all codes (https://github.com/qupath/qupath/issues/96)
+* TMA grid view would sometimes not show all cores (https://github.com/qupath/qupath/issues/96)
 * Modal dialogs that launch new modal dialogs occasionally misbehave (e.g. drop behind the main window)
 * Null pointer exception when opening an incompatible image when training a pixel classifier (e.g. RGB to multichannel)
 * Occasional "Width (-1) and height (-1) cannot be <= 0" error when opening an image
