@@ -1017,6 +1017,9 @@ public class GeometryTools {
 	    }
 	
 	    private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
+	    	if (geometry.isEmpty())
+	    		return ROIs.createEmptyROI(plane);
+	    	
 	    	// Make sure out Geometry is all of the same type
 	    	var geometry2 = homogenizeGeometryCollection(geometry);
 	    	if (geometry2 != geometry) {
