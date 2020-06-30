@@ -1,7 +1,11 @@
 ## Version 0.2.2-SNAPSHOT
-*In progres*
+*In progress*
 
 This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
+
+List of bugs fixed:
+* Phantom polylines when creating objects with the pixel classifier (https://github.com/qupath/qupath/issues/544)
+* Unable to resolve project URIs when moving a project across file systems (https://github.com/qupath/qupath/issues/543)
 
 
 ## Version 0.2.1
