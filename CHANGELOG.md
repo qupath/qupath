@@ -6,6 +6,7 @@ This is a *minor release* that aims to be fully compatible with v0.2.0 while fix
 List of bugs fixed:
 * Phantom polylines when creating objects with the pixel classifier (https://github.com/qupath/qupath/issues/544)
 * Unable to resolve project URIs when moving a project across file systems (https://github.com/qupath/qupath/issues/543)
+* Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
 
 
 ## Version 0.2.1
