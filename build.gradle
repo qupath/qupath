@@ -209,7 +209,7 @@ allprojects {
     javaVersion = 11
   
     // Dependency versions
-    bioformatsVersion  = '6.5.0'
+    bioformatsVersion  = '6.5.1'
     commonsMathVersion = '3.6.1'
     commonsTextVersion = '1.8'
     controlsfxVersion  = '11.0.1'
