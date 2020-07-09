@@ -8,6 +8,8 @@ List of bugs fixed:
 * Unable to resolve project URIs when moving a project across file systems (https://github.com/qupath/qupath/issues/543)
 * Polygons could sometimes be closed early when making annotations quickly (https://github.com/qupath/qupath/issues/553)
 * Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
+* Updated to Bio-Formats 6.5.1
+  * See https://docs.openmicroscopy.org/bio-formats/6.5.1/about/whats-new.html for details
 
 
 ## Version 0.2.1
