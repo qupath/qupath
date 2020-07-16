@@ -669,7 +669,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		dialog.getDialogPane().setContent(editor);
 		Optional<ButtonType> result = dialog.showAndWait();
 		if (result.isPresent() && result.get() == ButtonType.OK) {
-			entry.setDescription(editor.getText());
+			var text = editor.getText();
+			entry.setDescription(text.isEmpty() ? null : text);
 			return true;
 		}
 		return false;
