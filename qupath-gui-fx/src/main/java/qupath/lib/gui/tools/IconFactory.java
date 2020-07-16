@@ -97,6 +97,8 @@ public class IconFactory {
 
 									SELECTION_MODE("S"),
 									
+									TRACKING_ACTIVE("U+2B24"),
+									
 									GRID("\ue90b"),
 									
 									LINE_TOOL("\ue90c", PathPrefs.colorDefaultObjectsProperty()),

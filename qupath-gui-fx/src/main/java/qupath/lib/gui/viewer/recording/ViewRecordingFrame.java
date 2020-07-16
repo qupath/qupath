@@ -40,6 +40,8 @@ interface ViewRecordingFrame {
 	long getTimestamp();
 
 	Rectangle getImageBounds();
+	
+	double getDownFactor();
 
 	Point2D getCursorPosition();
 
@@ -54,9 +56,17 @@ interface ViewRecordingFrame {
 	Boolean isEyeFixated();
 
 	boolean hasEyePosition();
+	
+	boolean hasZAndT();
+	
+	int getZ();
+	
+	int getT();
 
 	Shape getImageShape();
 
 	Dimension getSize();
+
+	double getRotation();
 
 }

@@ -22,6 +22,9 @@
 package qupath.lib.gui.tools;
 
 import java.awt.Desktop;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URI;
@@ -1075,6 +1078,40 @@ public class GuiTools {
 	 */
 	public static <T> ListCell<T> createCustomListCell(Function<T, String> stringFun) {
 		return createCustomListCell(stringFun, t -> null);
+	}
+	
+	/**
+	 * Get a scaled (RGB or ARGB) image, achieving reasonable quality even when scaling down by a considerably amount.
+	 * 
+	 * Code is based on https://today.java.net/article/2007/03/30/perils-imagegetscaledinstance
+	 * 
+	 * @param img
+	 * @param targetWidth
+	 * @param targetHeight
+	 * @return
+	 */
+	public static WritableImage getScaledRGBInstance(BufferedImage img, int targetWidth, int targetHeight) {
+		int type = (img.getTransparency() == Transparency.OPAQUE) ?
+				BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
+		
+		BufferedImage imgResult = (BufferedImage)img;
+		int w = img.getWidth();
+		int h = img.getHeight();
+
+		while (w > targetWidth || h > targetHeight) {
+			
+			w = Math.max(w / 2, targetWidth);
+			h = Math.max(h / 2, targetHeight);
+
+			BufferedImage imgTemp = new BufferedImage(w, h, type);
+			Graphics2D g2 = imgTemp.createGraphics();
+			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			g2.drawImage(imgResult, 0, 0, w, h, null);
+			g2.dispose();
+
+			imgResult = imgTemp;			
+		}
+		return SwingFXUtils.toFXImage(imgResult, null);
 	}
 	
 	

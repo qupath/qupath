@@ -34,7 +34,9 @@ import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.stage.Window;
@@ -64,8 +66,10 @@ class ViewTrackerPlayback {
 	private Timeline timeline;
 	private long startTimestamp;
 	
-	public ViewTrackerPlayback(final ViewTracker tracker, final QuPathViewer viewer) {
-		this.tracker = tracker;
+	private ViewRecordingFrame firstFrame;
+	private ObjectProperty<ViewRecordingFrame> currentFrame = new SimpleObjectProperty<>();
+	
+	public ViewTrackerPlayback(final QuPathViewer viewer) {
 		this.viewer = viewer;
 		this.playing = new SimpleBooleanProperty(false);
 		
@@ -103,9 +107,11 @@ class ViewTrackerPlayback {
 	 * @return
 	 */
 	boolean doStartPlayback() {
-		if (tracker.isEmpty())
+		if (tracker == null || tracker.isEmpty())
 			return false;
+		
 		startTimestamp = System.currentTimeMillis();
+		
 		if (timeline.getStatus() == Status.RUNNING)
 			timeline.playFromStart();
 		else
@@ -142,23 +148,16 @@ class ViewTrackerPlayback {
 			return;
 		
 		long timestamp = System.currentTimeMillis();
-		
-		long timestampOfFirstFrame = tracker.nFrames() > 0 ? tracker.getFrame(0).getTimestamp() : 0;
-		
-		ViewRecordingFrame frame = tracker.getFrameForTime((timestamp - startTimestamp) + timestampOfFirstFrame);
+		ViewRecordingFrame frame = tracker.getFrameForTime(timestamp - startTimestamp + firstFrame.getTimestamp());
 		boolean requestStop;
 		if (frame == null)
 			requestStop = true;
 		else {
+			currentFrame.set(frame);
 			setViewerForFrame(viewer, frame);
 			requestStop = tracker.isLastFrame(frame);
 		}
 		
-//		if (!requestStop) {
-//			// If we are controlling the cursor, check for the spacebar being pressed
-//			viewer.requestFocus();
-//			requestStop = viewer.isSpaceDown();
-//		}
 		
 		// Stop playback, if required
 		if (requestStop) {
@@ -173,10 +172,6 @@ class ViewTrackerPlayback {
 		if (isPlaying() == playing)
 			return;
 		this.playing.set(playing);
-//		if (playing)
-//			doStartPlayback();
-//		else
-//			doStopPlayback();
 	}
 	
 	
@@ -196,6 +191,9 @@ class ViewTrackerPlayback {
 			viewer.setDownsampleFactor(downsample);
 		// Set location
 		viewer.setCenterPixelLocation(imageBounds.x + imageBounds.width * .5, imageBounds.y + imageBounds.height * .5);
+		
+		// Set rotation
+		viewer.setRotation(frame.getRotation());
 		
 		
 //		if (frame.hasCursorPosition()) {
@@ -223,13 +221,32 @@ class ViewTrackerPlayback {
 			viewer.setSelectedObject(pathObject);
 			logger.debug("Eye position: " + p2d);
 		}
+		
+		if (frame.hasZAndT()) {
+			viewer.setZPosition(frame.getZ());
+			viewer.setTPosition(frame.getT());
+		}
 	}
-	
 	
 	public BooleanProperty playingProperty() {
 		return playing;
 	}
 	
+	public void setViewTracker(ViewTracker tracker) {
+		this.tracker = tracker;
+		if (!tracker.isEmpty()) {
+			firstFrame = tracker.getFrame(0);
+			currentFrame.set(firstFrame);
+		}
+	}
 	
+	public void setFirstFrame(ViewRecordingFrame frame) {
+		firstFrame = frame;
+		currentFrame.set(frame);
+	}
+	
+	public ObjectProperty<ViewRecordingFrame> getCurrentFrame() {
+		return currentFrame;
+	}
 	
 }

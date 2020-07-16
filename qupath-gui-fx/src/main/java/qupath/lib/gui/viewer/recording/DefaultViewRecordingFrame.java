@@ -46,38 +46,52 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 	private long timestamp;
 	private Shape region; // Store vertices 
 	private Dimension canvasSize;
+	private double downFactor;
 	private Point2D cursorPosition, eyePosition;
 	private Boolean isFixated;
+	private double rotation;
+	private int z;
+	private int t;
 	
 //	public RecordingFrame(long timestamp, Rectangle imageBounds, Dimension canvasSize) {
 //		this(timestamp, imageBounds, canvasSize);
 //	}
 	
 	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize) {
-		this(timestamp, region, canvasSize, null);
+		this(timestamp, region, canvasSize, 1.0, null);
 	}
 	
-	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, Point2D cursorPosition) {
-		this(timestamp, region, canvasSize, cursorPosition, null, false);
+	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, double rotation, int z, int t) {
+		this(timestamp, region, canvasSize, downFactor, rotation, null, null, false, z, t);
 	}
 	
-	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, Point2D cursorPosition, Point2D eyePosition, Boolean isFixated) {
+	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, Point2D cursorPosition) {
+		this(timestamp, region, canvasSize, 0, downFactor, cursorPosition, null, false, -1, -1);
+	}
+	
+	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, double rotation, Point2D cursorPosition, Point2D eyePosition, Boolean isFixated, int z, int t) {
 		this.timestamp = timestamp;
-		this.canvasSize = canvasSize;
 		this.region = region;
+		this.canvasSize = canvasSize;
+		this.downFactor = downFactor;
+		this.rotation = rotation;
 		this.cursorPosition = cursorPosition;
 		this.eyePosition = eyePosition;
 		this.isFixated = isFixated;
+		this.z = z;
+		this.t = t;
 	}
 	
 	
 	@Override
 	public String toString() {
-		String s = String.format("Timestamp: %d, Shape: %s, Canvas size: %d, %d", timestamp, region.toString(), canvasSize.width, canvasSize.height);
+		String s = String.format("Timestamp: %d, Shape: %s, Canvas size: %d, %d, Rotation: %d", timestamp, region.toString(), canvasSize.width, canvasSize.height, rotation);
 		if (cursorPosition != null)
 			s += ", Cursor position: " + df.format(cursorPosition.getX()) + ", " + df.format(cursorPosition.getY());
 		if (eyePosition != null)
 			s += ", Eye position: " + df.format(eyePosition.getX()) + ", " + df.format(eyePosition.getY()) + ", Is fixated: " + isFixated;
+		if (z != -1 || t != -1)
+			s += ", Z-Slice: " + df.format(z) + ", " + ", Timepoint: " + df.format(t);
 		return s;
 	}
 	
@@ -130,6 +144,31 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 	@Override
 	public Dimension getSize() {
 		return canvasSize;
+	}
+
+	@Override
+	public int getZ() {
+		return z;
+	}
+
+	@Override
+	public int getT() {
+		return t;
+	}
+	
+	@Override
+	public boolean hasZAndT() {
+		return z != -1 || t != -1;
+	}
+
+	@Override
+	public double getRotation() {
+		return rotation;
+	}
+
+	@Override
+	public double getDownFactor() {
+		return downFactor;
 	}
 	
 }

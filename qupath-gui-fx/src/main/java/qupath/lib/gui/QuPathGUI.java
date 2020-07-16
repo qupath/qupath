@@ -201,6 +201,9 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.ViewerPlusDisplayOptions;
+import qupath.lib.gui.viewer.recording.DefaultViewTracker;
+import qupath.lib.gui.viewer.recording.ViewTracker;
+import qupath.lib.gui.viewer.recording.ViewTrackerControlPane;
 import qupath.lib.gui.viewer.OverlayOptions.DetectionDisplayMode;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
@@ -327,6 +330,8 @@ public class QuPathGUI {
 	private UndoRedoManager undoRedoManager;
 	
 	private HostServices hostServices;
+	
+	private ViewTrackerControlPane ViewTrackerController = null;
 	
 	/**
 	 * Keystrokes can be lost on macOS... so ensure these are handled
@@ -2643,7 +2648,7 @@ public class QuPathGUI {
 		
 		// If the current ImageData belongs to the current project, check if there are changes to save
 		if (imageData != null && project != null) {
-			if (!checkSaveChanges(imageData))
+			if (!checkUnsavedRecordings(ViewTrackerController) || !checkSaveChanges(imageData))
 				return false;
 		}
 
@@ -2717,6 +2722,27 @@ public class QuPathGUI {
 			Dialogs.showErrorMessage("Save ImageData", e);
 			return false;
 		}
+	}
+	
+	/**
+	 * Sets the viewTrackerControlPane to the GUI.
+	 * There should be no more than one controller at a time.
+	 * @param controller
+	 */
+	public void setViewTrackController(ViewTrackerControlPane controller) {
+		ViewTrackerController = controller;
+	}
+	
+	boolean checkUnsavedRecordings(ViewTrackerControlPane controller) {
+		if (controller == null)
+			return true;
+	
+		List<ViewTracker> unsaved = controller.getViewTrackerList().stream().filter(e -> e.getFile() == null).collect(Collectors.toList());
+		if (unsaved.isEmpty())
+			return true;
+		
+		var response = Dialogs.showYesNoDialog("Save recordings", "You will lose your unsaved recording by continuing." + System.lineSeparator() + "Continue?");
+		return response;
 	}
 	
 		
@@ -3921,6 +3947,8 @@ public class QuPathGUI {
 				continue;
 			var imageData = viewer.getImageData();
 			if (imageData != null) {
+				if (!checkUnsavedRecordings(ViewTrackerController))
+					return;
 //				ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 	//			if (entry != null) {
 					if (!checkSaveChanges(imageData))

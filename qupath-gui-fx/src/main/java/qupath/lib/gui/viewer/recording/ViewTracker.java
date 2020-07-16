@@ -23,6 +23,9 @@
 
 package qupath.lib.gui.viewer.recording;
 
+import java.io.File;
+import java.util.List;
+
 import javafx.beans.property.BooleanProperty;
 
 /**
@@ -37,7 +40,7 @@ import javafx.beans.property.BooleanProperty;
  * @author Pete Bankhead
  *
  */
-interface ViewTracker {
+public interface ViewTracker {
 
 	public BooleanProperty recordingProperty();
 	
@@ -48,6 +51,10 @@ interface ViewTracker {
 	public void resetRecording();
 	
 	public boolean hasEyeTrackingData();
+	
+	public boolean hasZAndT();
+	
+	public int getFrameIndexForTime(long t);
 	
 	public ViewRecordingFrame getFrameForTime(long timestamp);
 
@@ -62,5 +69,19 @@ interface ViewTracker {
 	public boolean isEmpty();
 	
 	public String getSummaryString();
+	
+	public String getName();
+	
+	public void setName(String name);
+
+	public File getFile();
+
+	public void setFile(File file);
+	
+	public long getStartTime();
+	
+	public long getLastTime();
+
+	public List<ViewRecordingFrame> getAllFrames();
 	
 }

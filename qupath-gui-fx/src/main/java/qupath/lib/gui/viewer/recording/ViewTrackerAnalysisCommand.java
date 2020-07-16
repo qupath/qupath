@@ -23,26 +23,56 @@
 
 package qupath.lib.gui.viewer.recording;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import org.controlsfx.control.RangeSlider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBase;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.control.Separator;
+import javafx.scene.control.Slider;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableView;
-import javafx.scene.input.Clipboard;
-import javafx.scene.input.ClipboardContent;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import javafx.util.converter.DateTimeStringConverter;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.plugins.parameters.ParameterList;
 
 /**
  * Command to export view tracking information.
@@ -50,35 +80,72 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * @author Pete Bankhead
  *
  */
-class ViewTrackerExportCommand implements Runnable {
+class ViewTrackerAnalysisCommand implements Runnable {
+	// TODO: rotation is in radian
+	
+	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerAnalysisCommand.class);
 	
 	private QuPathViewer viewer;
 	private ViewTracker tracker;
+	private ImageServer<?> server;
+	private ObjectProperty<ViewRecordingFrame> currentFrame = new SimpleObjectProperty<>();
 	
 	private Stage dialog;
+	private SplitPane mainPane;
 	private TableView<ViewRecordingFrame> table = new TableView<>();
+	
+	private ViewTrackerPlayback playback;
+	
+	private Slider zSlider;
+	private Slider tSlider;
+	private Slider timeSlider;
+	
+	private CheckBox timeNormalizedCheck;
+	private RangeSlider downsampleSlider;
+	private RangeSlider timeDisplayedSlider;
+	
+	private static final Node iconPlay = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY);
+	private static final Node iconPause = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY_STOP);
+	private static final Node iconStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY_STOP);
+	
+	private ViewTrackerSlideOverview slideOverview;
+	private ViewTrackerDataOverlay trackerDataOverlay;
+	private Canvas canvas;
+	
+	private int windowPrefWidth = 350;
 	
 	/**
 	 * Constructor.
 	 * @param viewer the viewer being tracked
 	 * @param tracker the tracker doing the tracking
 	 */
-	public ViewTrackerExportCommand(final QuPathViewer viewer, final ViewTracker tracker) {
+	public ViewTrackerAnalysisCommand(final QuPathViewer viewer, final ViewTracker tracker) {
 		this.viewer = viewer;
 		this.tracker = tracker;
+		this.server = viewer.getServer();
+		this.canvas = new Canvas();
+		this.slideOverview = new ViewTrackerSlideOverview(viewer, canvas);
+		this.playback = new ViewTrackerPlayback(viewer);
+		this.playback.setViewTracker(tracker);
 	}
 
 	@Override
 	public void run() {
 		if (dialog == null) {
 			dialog = new Stage();
+			// TODO: Change owner? To block previous windows
+			dialog.sizeToScene();
 			if (QuPathGUI.getInstance() != null)
 				dialog.initOwner(QuPathGUI.getInstance().getStage());
 			dialog.setTitle("View tracker");
+			dialog.setAlwaysOnTop(true);
 			
-			for (int i = 0; i < nCols(tracker); i++) {
+			currentFrame.set(tracker.getFrame(0));
+			
+			int nCols = nCols(tracker);
+			for (int i = 0; i < nCols; i++) {
 				final int col = i;
-				TableColumn<ViewRecordingFrame, Object> column = new TableColumn<>(getColumnName(col));
+				TableColumn<ViewRecordingFrame, Object> column = new TableColumn<>(getColumnName(nCols, col));
 				column.setCellValueFactory(new Callback<CellDataFeatures<ViewRecordingFrame, Object>, ObservableValue<Object>>() {
 				     @Override
 					public ObservableValue<Object> call(CellDataFeatures<ViewRecordingFrame, Object> frame) {
@@ -88,50 +155,368 @@ class ViewTrackerExportCommand implements Runnable {
 				table.getColumns().add(column);
 			}
 			
-			table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+			
+			table.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
 			table.getSelectionModel().selectedItemProperty().addListener((v, o, frame) -> {
-					if (frame != null)
-						ViewTrackerPlayback.setViewerForFrame(viewer, frame);
+				if (frame != null)
+					currentFrame.set(frame);	
 			});
 			refreshTracker();
 			
-			Button btnImport = new Button("Import");
-			btnImport.setOnAction(e -> {
-					if (ViewTrackers.handleImport(tracker)) {
-						refreshTracker();
-					}
+			playback.getCurrentFrame().addListener((v, o, frame) -> currentFrame.set(frame));
+		
+			
+			currentFrame.addListener((v, o, frame) -> {
+				if (frame == null)
+					return;
+				
+				ViewTrackerPlayback.setViewerForFrame(viewer, frame);
+				slideOverview.setImageShape(frame.getImageShape());
+				
+				zSlider.setValue(frame.getZ());
+				tSlider.setValue(frame.getT());
+				timeSlider.setValue(frame.getTimestamp());
+				
+				
+				slideOverview.paintCanvas();
 			});
 			
-			Button btnExport = new Button("Export");
-			btnExport.setOnAction(e -> {
-					ViewTrackers.handleExport(tracker);
-			});
-			
-			Button btnCopy = new Button("Copy to clipboard");
-			btnCopy.setOnAction(e -> {
-				ClipboardContent content = new ClipboardContent();
-				content.putString(tracker.getSummaryString());
-			    Clipboard clipboard = Clipboard.getSystemClipboard();
-			    clipboard.setContent(content);
-			});
+//			Button btnImport = new Button("Import");
+//			btnImport.setOnAction(e -> {
+//					if (ViewTrackers.handleImport(tracker)) {
+//						refreshTracker();
+//					}
+//			});
 
-			GridPane panelButtons = PaneTools.createColumnGridControls(
-					btnImport,
-					btnExport,
-					btnCopy
+			
+			
+			mainPane = new SplitPane();
+			mainPane.setDividerPositions(1.0);
+			dialog.setMinWidth(windowPrefWidth);
+			BorderPane tablePane = new BorderPane();
+			tablePane.setCenter(table);
+			
+			
+			//----------------------------------------------------------------------//
+			//--------------------- SLIDE OVERVIEW (TOP RIGHT) ---------------------//
+			//----------------------------------------------------------------------//
+			
+			GridPane analysisPane = new GridPane();
+			analysisPane.setMinWidth(350);
+			analysisPane.setMaxWidth(350);
+			analysisPane.setPadding(new Insets(5.0, 5.0, 5.0, 5.0));
+			analysisPane.setHgap(10);
+			analysisPane.setVgap(10);
+			int z = server.getMetadata().getSizeZ();
+			int t = server.getMetadata().getSizeT();
+			
+			tSlider = new Slider(0, t-1, 0);
+			tSlider.setBlockIncrement(1);
+//			tSlider.setMinorTickCount(0);
+//			tSlider.setMajorTickUnit(1);
+//			tSlider.setShowTickMarks(true);
+			tSlider.valueProperty().addListener((v, o, n) -> {
+		    	tSlider.setValue(n.intValue());
+		    	viewer.setTPosition(n.intValue());
+	    		slideOverview.paintCanvas();
+			});
+			zSlider = new Slider(0, z-1, 0);
+			zSlider.setBlockIncrement(1);
+			zSlider.setMinorTickCount(0);
+			zSlider.setMajorTickUnit(1);
+			zSlider.setShowTickMarks(true);
+			zSlider.valueProperty().addListener((v, o, n) -> {
+	    		zSlider.setValue(n.intValue());
+	    		viewer.setZPosition(n.intValue());
+	    		slideOverview.paintCanvas();
+			});
+			zSlider.setOrientation(Orientation.VERTICAL);
+			
+			var timeSliderLength = (tracker.getLastTime()-tracker.getStartTime())-1;
+			timeSlider = new Slider(0L, timeSliderLength, 0L);
+			
+			if (timeSliderLength > 0) {
+				timeSlider.setMajorTickUnit(timeSliderLength / 4);
+				timeSlider.setMinorTickCount(0);
+				timeSlider.setShowTickMarks(true);
+			}
+			timeSlider.valueProperty().addListener((v, o, n) -> {
+				var frame = tracker.getFrameForTime(n.longValue());
+				currentFrame.set(frame);
+				
+				if (table.getSelectionModel().getSelectedItem() != frame)
+					table.getSelectionModel().select(frame);
+			});
+			
+			long startTime = tracker.getStartTime();
+			long endTime = tracker.getLastTime();
+
+			Label timepointLabel = new Label();
+			timepointLabel.textProperty().bind(
+					Bindings.createStringBinding(() -> GeneralTools.formatNumber(tSlider.getValue(), 2), tSlider.valueProperty())
+					);
+			
+			Label zSliceLabel = new Label();
+			zSliceLabel.textProperty().bind(
+					Bindings.createStringBinding(() -> GeneralTools.formatNumber(zSlider.getValue(), 2), zSlider.valueProperty())
+					);
+			
+			Label timeLabelLeft = new Label();
+			timeLabelLeft.textProperty().bind(
+					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeSlider.getValue() + startTime), timeSlider.valueProperty())
+					);
+			
+			Label timeLabelRight = new Label();
+			timeLabelRight.textProperty().bind(
+					Bindings.createStringBinding(() -> "-" + ViewTrackers.getPrettyTimestamp((long)timeSlider.getValue() + startTime, endTime), timeSlider.valueProperty())
 					);
 			
 			
-			BorderPane pane = new BorderPane();
-			pane.setCenter(table);
-			pane.setBottom(panelButtons);
-			dialog.setScene(new Scene(pane));
+			if (t == 1) {
+				tSlider.setVisible(false);
+				timepointLabel.setVisible(false);
+			}
+			
+			if (z == 1) {
+				zSlider.setVisible(false);
+				zSliceLabel.setVisible(false);
+			}
+
+			Button btnPlay = new Button();
+			btnPlay.setGraphic(iconPlay);
+			btnPlay.setOnAction(e -> {
+				if (!playback.isPlaying()) {
+					// If it's not playing already, start playing
+					playback.setFirstFrame(currentFrame.get());
+					playback.setPlaying(true);
+				} else {
+					// If already playing, pause the playback where it currently is
+					playback.doStopPlayback();
+				}
+				
+			});
+			
+			Button btnStop = new Button();
+			btnStop.setGraphic(iconStop);
+			btnStop.setOnAction(e -> {
+				playback.setPlaying(false);
+				timeSlider.setValue(tracker.getFrame(0).getTimestamp());
+			});
+			
+			
+			playback.playingProperty().addListener((v, o, n) -> {
+				if (n) {
+					btnPlay.setGraphic(iconPause);
+					//btnPlay.setText("Pause");
+					zSlider.setDisable(true);
+					tSlider.setDisable(true);
+				} else {
+					btnPlay.setGraphic(iconPlay);
+					//btnPlay.setText("Play");
+					zSlider.setDisable(false);
+					tSlider.setDisable(false);
+				}
+			});
+			
+			//--------------------------------------------------------------//
+			//--------------------- DATA VISUALISATION ---------------------//
+			//--------------------------------------------------------------//
+			
+			CheckBox visualisationCheckBox = new CheckBox("Live data visualisation");
+			timeNormalizedCheck = new CheckBox("Normalize by time");
+			
+			
+			//------------------ DOWNSAMPLE RANGESLIDER ------------------//
+			List<Double> allFramesDownsamples = tracker.getAllFrames().stream()
+					.map(e -> e.getDownFactor())
+					.collect(Collectors.toList());
+			
+			var minDownsample = allFramesDownsamples.stream().min(Comparator.naturalOrder()).get();
+			var maxDownsample = allFramesDownsamples.stream().max(Comparator.naturalOrder()).get();
+			downsampleSlider = new RangeSlider(minDownsample, maxDownsample, minDownsample, maxDownsample);
+			
+			Label downsampleLeftLabel = new Label();
+			Label downsampleRightLabel = new Label();
+			
+			// Prompt input from user (min downsample)
+			downsampleLeftLabel.setOnMouseClicked(e -> {
+				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
+					ParameterList params = new ParameterList();
+					params.addDoubleParameter("downsampleFilterLow", "Enter downsample", downsampleSlider.getLowValue());
+					
+					if (!Dialogs.showParameterDialog("Set min downsample", params))
+						return;
+					
+					double downFactor = params.getDoubleParameterValue("downsampleFilterLow");
+					downsampleSlider.setLowValue(downFactor);
+				}
+			});
+			// Prompt input from user (max downsample)
+			downsampleRightLabel.setOnMouseClicked(e -> {
+				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
+					ParameterList params = new ParameterList();
+					params.addDoubleParameter("downsampleFilterHigh", "Enter downsample", downsampleSlider.getHighValue());
+					
+					if (!Dialogs.showParameterDialog("Set max downsample", params))
+						return;
+					
+					double downFactor = params.getDoubleParameterValue("downsampleFilterHigh");
+					downsampleSlider.setHighValue(downFactor);
+				}
+			});
+			
+			downsampleLeftLabel.textProperty().bind(
+					Bindings.createStringBinding(() -> GeneralTools.formatNumber(downsampleSlider.getLowValue(), 2), downsampleSlider.lowValueProperty())
+					);
+			downsampleRightLabel.textProperty().bind(
+					Bindings.createStringBinding(() -> GeneralTools.formatNumber(downsampleSlider.getHighValue(), 2), downsampleSlider.highValueProperty())
+					);
+
+			
+			//------------------ TIME DISPLAYED RANGESLIDER ------------------//
+			Label timeDisplayedLeftLabel = new Label();
+			Label timeDisplayedRightLabel = new Label();
+			timeDisplayedSlider = new RangeSlider(0L, timeSliderLength, 0L, timeSliderLength);
+			
+			
+			
+			// Prompt input from user (min time)
+			timeDisplayedLeftLabel.setOnMouseClicked(e -> {
+				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
+					GridPane gp = new GridPane();
+					TextField tf = new TextField();
+					SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
+					try {
+						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse("00:00:00")));
+					} catch (ParseException ex) {
+						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
+					}
+					gp.addRow(0, new Label("Enter time"), tf);
+					Dialogs.showConfirmDialog("Set min time", gp);
+
+					long time = TimeUnit.HOURS.toMillis(Integer.parseInt(tf.getText(0, 2))) +
+							TimeUnit.MINUTES.toMillis(Integer.parseInt(tf.getText(3, 5))) +
+							TimeUnit.SECONDS.toMillis(Integer.parseInt(tf.getText(6, 8)));
+					timeDisplayedSlider.setLowValue(time);
+				}
+			});
+			// Prompt input from user (max time)
+			timeDisplayedRightLabel.setOnMouseClicked(e -> {
+				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
+					GridPane gp = new GridPane();
+					TextField tf = new TextField();
+					SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
+					try {
+						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse("00:00:00")));
+					} catch (ParseException ex) {
+						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
+					}
+					gp.addRow(0, new Label("Enter time"), tf);
+					Dialogs.showConfirmDialog("Set max time", gp);
+					
+					long time = TimeUnit.HOURS.toMillis(Integer.parseInt(tf.getText(0, 2))) +
+							TimeUnit.MINUTES.toMillis(Integer.parseInt(tf.getText(3, 5))) +
+							TimeUnit.SECONDS.toMillis(Integer.parseInt(tf.getText(6, 8)));
+					timeDisplayedSlider.setHighValue(time);
+				}
+			});
+			
+			timeDisplayedLeftLabel.textProperty().bind(
+					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getLowValue() + startTime), timeDisplayedSlider.lowValueProperty())
+					);
+			timeDisplayedRightLabel.textProperty().bind(
+					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getHighValue() + startTime), timeDisplayedSlider.highValueProperty())
+					);
+			
+			timeNormalizedCheck.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
+			timeDisplayedLeftLabel.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
+			timeDisplayedRightLabel.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
+			downsampleSlider.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
+			downsampleLeftLabel.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
+			downsampleRightLabel.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
+			timeDisplayedSlider.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
+
+			
+			trackerDataOverlay = new ViewTrackerDataOverlay(server, viewer, tracker);
+			timeDisplayedSlider.lowValueProperty().addListener((v, o, n) -> updateOverlay());
+			timeDisplayedSlider.highValueProperty().addListener((v, o, n) -> updateOverlay());
+			downsampleSlider.lowValueProperty().addListener((v, o, n) -> updateOverlay());
+			downsampleSlider.highValueProperty().addListener((v, o, n) -> updateOverlay());
+
+
+			visualisationCheckBox.selectedProperty().addListener((v, o, n) -> {
+				if (n) {
+					updateOverlay();
+					viewer.getCustomOverlayLayers().setAll(trackerDataOverlay.getOverlay());
+				} else {
+					viewer.getCustomOverlayLayers().clear();
+				}
+			});
+			
+			timeNormalizedCheck.selectedProperty().addListener((v, o, n) -> updateOverlay());
+			
+			GridPane canvasPane = new GridPane();
+			GridPane timepointPane = new GridPane();
+			GridPane timePane = new GridPane();
+			GridPane playbackPane = new GridPane();
+			GridPane dataVisualisationPane = new GridPane();
+			
+			canvasPane.addRow(0, zSliceLabel, zSlider, canvas);
+			timepointPane.addRow(0, timepointLabel, tSlider);
+			playbackPane.addRow(0, btnPlay, btnStop);
+			timePane.addRow(0, timeLabelLeft, timeSlider, timeLabelRight);
+			dataVisualisationPane.addRow(0, visualisationCheckBox, timeNormalizedCheck);
+			dataVisualisationPane.addRow(1, timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
+			dataVisualisationPane.addRow(2, downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
+
+			int row = 0;
+			PaneTools.addGridRow(analysisPane, row++, 0, "Slide to change timepoint", timepointPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Slide to change z-slice", canvasPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Slide to change the grid resolution", timePane);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Playback options", playbackPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, null, new Separator());
+			PaneTools.addGridRow(analysisPane, row++, 0, "Live data visualisations", dataVisualisationPane);
+			
+			//--------------------- BOTTOM BUTTON PANE---------------------//
+			Button btnExpand = new Button("Expand");
+			Button btnOpen = new Button("Open in System");
+			btnOpen.setDisable(tracker.getFile() == null);
+			List<Button> buttons = new ArrayList<>();
+			
+			btnOpen.setOnAction(e -> GuiTools.browseDirectory(tracker.getFile()));
+			
+			btnExpand.setOnAction(e -> {
+				if (btnExpand.getText().equals("Expand")) {
+					mainPane.getItems().add(tablePane);
+					btnExpand.setText("Collapse");
+					dialog.setMinWidth(windowPrefWidth + 250);
+				} else {
+					mainPane.getItems().remove(tablePane);
+					btnExpand.setText("Expand");
+					dialog.setMinWidth(windowPrefWidth);
+					dialog.setWidth(windowPrefWidth);
+				}
+			});
+			buttons.add(btnOpen);
+			buttons.add(btnExpand);
+			
+			GridPane panelButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
+			PaneTools.addGridRow(analysisPane, row++, 0, "Button", panelButtons);
+			
+
+			mainPane.getItems().add(analysisPane);
+			dialog.setScene(new Scene(mainPane));
 		}
+		
+		dialog.setOnHiding(e -> {
+			viewer.getCustomOverlayLayers().clear();
+		});
+		
+		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.show();
 		dialog.toFront();
 	}
-	
-	
+
 	static Object getColumnValue(final ViewRecordingFrame frame, final int col) {
 		switch (col) {
 		case 0: return frame.getTimestamp();
@@ -141,16 +526,33 @@ class ViewTrackerExportCommand implements Runnable {
 		case 4: return frame.getImageBounds().height;
 		case 5: return frame.getSize().width;
 		case 6: return frame.getSize().height;
-		case 7: return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
-		case 8: return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
-		case 9: return frame.getEyePosition() == null ? "" : frame.getEyePosition().getX();
-		case 10: return frame.getEyePosition() == null ? "" : frame.getEyePosition().getY();
-		case 11: return frame.isEyeFixated() == null ? "" : frame.isEyeFixated();
+		case 7: return frame.getDownFactor();
+		case 8: return frame.getRotation();
+		case 9: return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
+		case 10: return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
+		case 11: 
+			if (frame.getEyePosition() == null && (frame.getZ() != -1 || frame.getT() != 1))
+				return frame.getZ();
+			else
+				return frame.getEyePosition().getX();
+			
+		case 12: 
+			if (frame.getEyePosition() == null && (frame.getZ() != -1 || frame.getT() != 1))
+				return frame.getT();
+			else
+				return frame.getEyePosition().getY();
+		case 13: 
+			if (frame.getEyePosition() == null && (frame.getZ() != -1 || frame.getT() != 1))
+				return frame.getT();
+			else 
+				return frame.isEyeFixated();
+		case 14: return frame.getZ();
+		case 15: return frame.getT();
 		}
 		return null;
 	}
 	
-	static String getColumnName(int col) {
+	static String getColumnName(int nCols, int col) {
 		switch (col) {
 		case 0: return "Timestamp (ms)";
 		case 1: return "X";
@@ -159,11 +561,25 @@ class ViewTrackerExportCommand implements Runnable {
 		case 4: return "Height";
 		case 5: return "Canvas width";
 		case 6: return "Canvas height";
-		case 7: return "Cursor X";
-		case 8: return "Cursor Y";
-		case 9: return "Eye X";
-		case 10: return "Eye Y";
-		case 11: return "Fixated";
+		case 7: return "Downsample factor";
+		case 8: return "Rotation";
+		case 9: return "Cursor X";
+		case 10: return "Cursor Y";
+		case 11: 
+			if (nCols == 14)
+				return "Eye X";
+			else
+				return "Z";
+		case 12: 
+			if (nCols == 14)
+				return "Eye Y";
+			else
+				return "T";
+		case 13: 
+			if (nCols == 14)
+				return "Fixated";
+		case 14: return "Z";
+		case 15: return "T";
 		}
 		return null;
 	}
@@ -171,11 +587,14 @@ class ViewTrackerExportCommand implements Runnable {
 	static int nCols(final ViewTracker tracker) {
 		if (tracker == null)
 			return 0;
+		
+		int nCol = 11;
 		if (tracker.hasEyeTrackingData())
-			return 12;
-		return 9;
+			nCol += 3;
+		if (tracker.hasZAndT())
+			nCol += 2;
+		return nCol;
 	}
-	
 	
 	
 	void refreshTracker() {
@@ -186,6 +605,18 @@ class ViewTrackerExportCommand implements Runnable {
 			frames.add(tracker.getFrame(i));
 		}
 		table.getItems().setAll(frames);
+	}
+	
+	
+	private void updateOverlay() {
+		trackerDataOverlay.updateDataImage(
+				timeDisplayedSlider.lowValueProperty().longValue(),
+				timeDisplayedSlider.highValueProperty().longValue(),
+				downsampleSlider.lowValueProperty().doubleValue(),
+				downsampleSlider.highValueProperty().doubleValue(),
+				timeNormalizedCheck.selectedProperty().get()
+				);
+		viewer.getCustomOverlayLayers().setAll(trackerDataOverlay.getOverlay());
 	}
 	
 	
