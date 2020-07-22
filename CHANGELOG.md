@@ -4,14 +4,18 @@
 This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
 
 List of bugs fixed:
+* 'Delaunay cluster features 2D' could give wrong results when 'Add cluster measurements' is selected
+  * Bug likely introduced in ~v0.2.0-m5 (may want to recheck results if using this specific command)
 * Phantom polylines when creating objects with the pixel classifier (https://github.com/qupath/qupath/issues/544)
 * Unable to resolve project URIs when moving a project across file systems (https://github.com/qupath/qupath/issues/543)
 * Polygons could sometimes be closed early when making annotations quickly (https://github.com/qupath/qupath/issues/553)
+* Annotation names were not hidden along with classes (https://github.com/qupath/qupath/issues/557)
+* Unnecessary warning sometimes printed when generating tiles for parallel processing
+* AbstractPlugin log messages emitted (at INFO level) when adding a step to the command history
 * Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
-* 'Delaunay cluster features 2D' could give wrong results when 'Add cluster measurements' is selected
-  * Bug likely introduced in ~v0.2.0-m5 (may want to recheck results if using this specific command)
 
 Dependency updates:
+* AdoptOpenJDK 14.0.2
 * Bio-Formats 6.5.1; see https://docs.openmicroscopy.org/bio-formats/6.5.1/about/whats-new.html
 
 

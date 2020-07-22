@@ -205,23 +205,24 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 		@SuppressWarnings("unchecked")
 		WorkflowStep step = new SimplePluginWorkflowStep(getName(), (Class<? extends PathPlugin<T>>)getClass(), arg);
 		imageData.getHistoryWorkflow().addStep(step);
-		logger.info("{}", step);
+		logger.debug("Adding workflow step: {}", step);
 	}
 	
 	
 	/**
 	 * Test method for rearranging a collection so that entries are interleaved with a regularity given by stride.
-	 * 
+	 * <p>
 	 * It can be used to rearrange tasks to try to make better use of cached image regions, by helping to ensure that
 	 * all available processors are operating on distinct parts of the image - rather than all in the same region,
 	 * where image tile requests could become a bottleneck.
 	 * 
 	 * Intended use would be something like the following:
-	 * 
-	 * 		int n = tasks.size();
-	 *		Runnable[] tasks2 = new Runnable[n];
- 	 *   	if (rearrangeByStride(tasks, tasks2, Runtime.getRuntime().availableProcessors()))
-	 *			tasks = Arrays.asList(tasks2);
+	 * <pre>
+	 *   int n = tasks.size();
+	 *	 Runnable[] tasks2 = new Runnable[n];
+ 	 *   if (rearrangeByStride(tasks, tasks2, Runtime.getRuntime().availableProcessors()))
+	 *     tasks = Arrays.asList(tasks2);
+	 * </pre>
 	 * 
 	 * @param input
 	 * @param output
