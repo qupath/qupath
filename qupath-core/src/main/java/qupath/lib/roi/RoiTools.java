@@ -591,7 +591,7 @@ public class RoiTools {
 				else {
 					if (!area.intersects(boundsTile))
 						continue;
-					Geometry areaTemp = boundsTile.intersection(area);
+					Geometry areaTemp = GeometryTools.homogenizeGeometryCollection(boundsTile.intersection(area));
 					if (!areaTemp.isEmpty())
 						pathROI = GeometryTools.geometryToROI(areaTemp, plane);
 				}
