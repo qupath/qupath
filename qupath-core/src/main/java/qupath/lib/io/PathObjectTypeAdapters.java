@@ -43,6 +43,7 @@ import com.google.gson.TypeAdapterFactory;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.io.GsonTools.PathClassTypeAdapter;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
@@ -218,6 +219,22 @@ class PathObjectTypeAdapters {
 			out.name("properties");
 			out.beginObject();
 			
+			String name = value.getName();
+			if (name != null) {
+				out.name("name");
+				out.value(name);
+			}
+			
+			Integer color = value.getColorRGB();
+			if (name != null) {
+				out.name("color");
+				out.beginArray();
+				out.value(ColorTools.red(color));
+				out.value(ColorTools.green(color));
+				out.value(ColorTools.blue(color));
+				out.endArray();
+			}
+			
 			PathClass pathClass = value.getPathClass();
 			if (pathClass != null) {
 				out.name("classification");
@@ -287,12 +304,31 @@ class PathObjectTypeAdapters {
 			
 			boolean isMissing = false;
 			boolean isLocked = false;
+			String name = null;
+			Integer color = null;
 			
 			MeasurementList measurementList = null;
 			JsonObject metadata = null;
 			
 			if (obj.has("properties")) {
 				JsonObject properties = obj.get("properties").getAsJsonObject();
+				if (properties.has("name")) {
+					name = properties.get("name").getAsString();
+				}
+				if (properties.has("color")) {
+					var colorObj = properties.get("color");
+					if (colorObj.isJsonPrimitive())
+						color = colorObj.getAsInt();
+					else if (colorObj.isJsonArray()) {
+						var colorArray = colorObj.getAsJsonArray();
+						if (colorArray.size() == 3)
+							color = ColorTools.makeRGB(
+									colorArray.get(0).getAsInt(),
+									colorArray.get(1).getAsInt(),
+									colorArray.get(2).getAsInt()
+									);
+					}
+				}
 				if (properties.has("classification")) {
 					pathClass = PathClassTypeAdapter.INSTANCE.fromJsonTree(properties.get("classification"));
 				}
@@ -335,6 +371,12 @@ class PathObjectTypeAdapters {
 				// Default is to create an annotation
 				pathObject = PathObjects.createAnnotationObject(roi, pathClass);
 			}
+			if (name != null)
+				pathObject.setName(name);
+			
+			if (color != null)
+				pathObject.setColorRGB(color);
+			
 			if (isLocked)
 				pathObject.setLocked(isLocked);
 			

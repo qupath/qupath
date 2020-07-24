@@ -55,6 +55,7 @@ import qupath.lib.gui.ExtensionClassLoader;
 import qupath.lib.gui.QuPathApp;
 import qupath.lib.gui.Version;
 import qupath.lib.gui.extensions.Subcommand;
+import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.LogManager.LogLevel;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -277,17 +278,23 @@ class ScriptCommand implements Runnable {
 				throw new IllegalArgumentException("Either a script file or a script command may be provided, but not both!");
 			}
 			
+			// Ensure we have a tile cache set
+			createTileCache();
+			
 			ImageData<BufferedImage> imageData;
 			
 			if (projectPath != null && !projectPath.equals("")) {
 				String path = QuPath.getEncodedPath(projectPath);
 				Project<BufferedImage> project = ProjectIO.loadProject(new File(path), BufferedImage.class);
 				for (var entry: project.getImageList()) {
+					if (imagePath != null && !imagePath.equals("") && !imagePath.equals(entry.getImageName()))
+						continue;
+					logger.info("Running script for {}", entry.getImageName());
 					imageData = entry.readImageData();
 					try {
 						Object result = runScript(project, entry.readImageData());
 						if (result != null)
-							System.out.println(result);
+							logger.info("Script result: {}", result);
 						if (save)
 							entry.saveImageData(imageData);
 					} catch (Exception e) {
@@ -301,18 +308,46 @@ class ScriptCommand implements Runnable {
 				imageData = new ImageData<>(server);
 				Object result = runScript(null, imageData);
 				if (result != null)
-					System.out.println(result);
+					logger.info("Script result: {}", result);
 				server.close();
 			} else {
 				Object result = runScript(null, null);
 				if (result != null)
-					System.out.println(result);
+					logger.info("Script result: {}", result);
 			}
 			
 		} catch (Exception e) {
 			logger.error(e.getLocalizedMessage());
 		}
 	}
+	
+	
+	/**
+	 * The tile cache is usually set when initializing the GUI; here, we need to create one for performance
+	 */
+	private void createTileCache() {
+		// TODO: Refactor this to avoid replicating logic from QuPathGUI private method
+		Runtime rt = Runtime.getRuntime();
+		long maxAvailable = rt.maxMemory(); // Max available memory
+		if (maxAvailable == Long.MAX_VALUE) {
+			logger.warn("No inherent maximum memory set - for caching purposes, will assume 64 GB");
+			maxAvailable = 64L * 1024L * 1024L * 1024L;
+		}
+		double percentage = PathPrefs.tileCachePercentageProperty().get();
+		if (percentage < 10) {
+			logger.warn("At least 10% of available memory needs to be used for tile caching (you requested {}%)", percentage);
+			percentage = 10;
+		} else if (percentage > 90) {
+			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
+			percentage = 00;			
+		}
+		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
+		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
+		
+		var imageRegionStore = ImageRegionStoreFactory.createImageRegionStore(tileCacheSize);
+		ImageServerProvider.setCache(imageRegionStore.getCache(), BufferedImage.class);
+	}
+	
 	
 	private Object runScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		Object result = null;
