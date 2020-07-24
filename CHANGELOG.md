@@ -20,7 +20,7 @@ List of bugs fixed:
 * Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
 
 ### Dependency updates:
-* AdoptOpenJDK 14.0.2
+* JavaFX 14.0.2.1
 * Bio-Formats 6.5.1; see https://docs.openmicroscopy.org/bio-formats/6.5.1/about/whats-new.html
 
 
