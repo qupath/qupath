@@ -55,7 +55,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '14.0.1'
+def jfxVersion = '14.0.2.1'
 
 /*
  * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
