@@ -13,6 +13,7 @@ List of bugs fixed:
 * Object names and colors were not stored as properties in GeoJSON (https://github.com/qupath/qupath/issues/549)
 * Unable to specify image within a project to process when running a script from the command line (https://github.com/qupath/qupath/issues/560)
 * Tile cache not created when running scripts from the command line (https://github.com/qupath/qupath/issues/561)
+* Resolve hierarchy is very slow for some TMAs with many detections (https://github.com/qupath/qupath/issues/564)
 * Unnecessary warning sometimes printed when generating tiles for parallel processing
 * AbstractPlugin log messages emitted (at INFO level) when adding a step to the command history
 * Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
