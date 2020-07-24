@@ -11,6 +11,8 @@ List of bugs fixed:
 * Polygons could sometimes be closed early when making annotations quickly (https://github.com/qupath/qupath/issues/553)
 * Annotation names were not hidden along with classes (https://github.com/qupath/qupath/issues/557)
 * Object names and colors were not stored as properties in GeoJSON (https://github.com/qupath/qupath/issues/549)
+* Unable to specify image within a project to process when running a script from the command line (https://github.com/qupath/qupath/issues/560)
+* Tile cache not created when running scripts from the command line (https://github.com/qupath/qupath/issues/561)
 * Unnecessary warning sometimes printed when generating tiles for parallel processing
 * AbstractPlugin log messages emitted (at INFO level) when adding a step to the command history
 * Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
