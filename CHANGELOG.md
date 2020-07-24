@@ -14,11 +14,12 @@ List of bugs fixed:
 * Unable to specify image within a project to process when running a script from the command line (https://github.com/qupath/qupath/issues/560)
 * Tile cache not created when running scripts from the command line (https://github.com/qupath/qupath/issues/561)
 * Resolve hierarchy is very slow for some TMAs with many detections (https://github.com/qupath/qupath/issues/564)
+* Project cannot be loaded if no previous URI is available (https://github.com/qupath/qupath/issues/568)
 * Unnecessary warning sometimes printed when generating tiles for parallel processing
 * AbstractPlugin log messages emitted (at INFO level) when adding a step to the command history
 * Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
 
-Dependency updates:
+### Dependency updates:
 * AdoptOpenJDK 14.0.2
 * Bio-Formats 6.5.1; see https://docs.openmicroscopy.org/bio-formats/6.5.1/about/whats-new.html
 
