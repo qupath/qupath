@@ -110,7 +110,7 @@ import qupath.lib.images.servers.bioformats.BioFormatsImageServer.BioFormatsRead
  * <p>
  * See http://www.openmicroscopy.org/site/products/bio-formats
  * <p>
- * See also https://docs.openmicroscopy.org/bio-formats/5.9.0/developers/matlab-dev.html#improving-reading-performance
+ * See also https://docs.openmicroscopy.org/bio-formats/6.5.1/developers/matlab-dev.html#improving-reading-performance
  * 
  * @author Pete Bankhead
  *
@@ -313,9 +313,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			// Loop through series to find out whether we have multiresolution images, or associated images (e.g. thumbnails)
 			for (int s = 0; s < nImages; s++) {
 				String name = "Series " + s;
-				String originalImageName = meta.getImageName(s);
+				String originalImageName = getImageName(s);
 				if (originalImageName == null)
 					originalImageName = "";
+				
 				String imageName = originalImageName;
 				try {
 					if (!imageName.isEmpty())
@@ -376,7 +377,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 								largestSeries = s;
 								mostPixels = nPixels;
 							}
-						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(meta.getImageName(s))) {
+						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(getImageName(s)) || requestedSeriesName.contentEquals(meta.getImageName(s))) {
 							seriesIndex = s;
 						}
 					}
@@ -654,14 +655,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					}
 					resolutionBuilder.addLevel(w, h);
 				} catch (Exception e) {
-					logger.warn("Error attempting to extract resolution " + i + " for " + meta.getImageName(series), e);					
+					logger.warn("Error attempting to extract resolution " + i + " for " + getImageName(series), e);					
 					break;
 				}
 			}
 			
 			// Generate a suitable name for this image
 			String imageName = getFile().getName();
-			String shortName = meta.getImageName(seriesIndex);
+			String shortName = getImageName(seriesIndex);
 			if (shortName == null || shortName.isBlank()) {
 				if (imageMap.size() > 1)
 					imageName = imageName + " - Series " + seriesIndex;
@@ -709,6 +710,23 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 		long endTime = System.currentTimeMillis();
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
+	}
+	
+	
+	/**
+	 * Get the image name for a series, making sure to remove any trailing null terminators.
+	 * <p>
+	 * See https://github.com/qupath/qupath/issues/573
+	 * @param series
+	 * @return
+	 */
+	private String getImageName(int series) {
+		 String name = meta.getImageName(series);
+		 if (name == null)
+			 return null;
+		 while (name.endsWith("\0"))
+			 name = name.substring(0, name.length()-1);
+		 return name;
 	}
 	
 	/**

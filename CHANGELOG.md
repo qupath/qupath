@@ -16,6 +16,7 @@ List of bugs fixed:
 * Tile cache not created when running scripts from the command line (https://github.com/qupath/qupath/issues/561)
 * Resolve hierarchy is very slow for some TMAs with many detections (https://github.com/qupath/qupath/issues/564)
 * Project cannot be loaded if no previous URI is available (https://github.com/qupath/qupath/issues/568)
+* Null terminators in image names can prevent copying results to the clipboard (https://github.com/qupath/qupath/issues/573)
 * Unnecessary warning sometimes printed when generating tiles for parallel processing
 * AbstractPlugin log messages emitted (at INFO level) when adding a step to the command history
 * Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
