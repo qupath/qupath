@@ -1,5 +1,4 @@
-## Version 0.2.2-SNAPSHOT
-*In progress*
+## Version 0.2.2
 
 This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
 
