@@ -51,6 +51,8 @@ import qupath.lib.plugins.parameters.Parameterizable;
 
 import static org.bytedeco.opencv.global.opencv_core.*;
 import static org.bytedeco.opencv.global.opencv_ml.*;
+
+import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.*;
 import org.bytedeco.opencv.opencv_ml.*;
 
@@ -249,6 +251,11 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 		
 		// Create & train the classifier
 		try {
+			// Some classifiers (e.g. RTrees) require the global RNG to be set before training.
+			// We can't trust OpenCV to be consistent in this between versions, so set it here -
+			// see https://github.com/qupath/qupath/issues/567
+			// Note: we set it before training so that createClassifier() could potentially override our setting.
+			opencv_core.setRNGSeed(-1);
 			classifier = createClassifier();
 			classifier.train(matTraining, ROW_SAMPLE, matResponses);
 		} catch (Exception e) {

@@ -320,7 +320,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 				
 				var roi = annotation.getROI();
 				
-				if (name != null && !name.isBlank() && roi != null) {
+				if (name != null && !name.isBlank() && roi != null && !overlayOptions.isPathClassHidden(annotation.getPathClass())) {
 					g2d.setColor(ColorToolsAwt.TRANSLUCENT_BLACK);
 	
 					var bounds = metrics.getStringBounds(name, g2d);

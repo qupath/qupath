@@ -1040,7 +1040,14 @@ class DefaultProject implements Project<BufferedImage> {
 			
 			creationTimestamp = element.get("createTimestamp").getAsLong();
 			modificationTimestamp = element.get("modifyTimestamp").getAsLong();
-			previousURI = new URI(element.get("uri").getAsString());
+			if (element.has("uri")) {
+				try {
+					previousURI = new URI(element.get("uri").getAsString());
+				} catch (URISyntaxException e) {
+					logger.warn("Error parsing previous URI: " + e.getLocalizedMessage(), e);
+				}
+			} else
+				logger.debug("No previous URI found in project");
 			
 			if (element.has("version"))
 				version = element.get("version").getAsString();
@@ -1068,7 +1075,7 @@ class DefaultProject implements Project<BufferedImage> {
 //				logger.warn("Could not find {} image(s): {}", troublesome.size(), troublesome);
 //			}
 
-		} catch (URISyntaxException e) {
+		} catch (Exception e) {
 			throw new IOException(e);
 		}
 	}

@@ -431,7 +431,7 @@ public class PixelClassifierTools {
 				
 				// Apply size filters
 				geometry = GeometryTools.refineAreas(geometry, minAreaPixels, minHoleAreaPixels);
-				if (geometry == null)
+				if (geometry == null || geometry.isEmpty())
 					continue;
 				
 				if (doSplit) {

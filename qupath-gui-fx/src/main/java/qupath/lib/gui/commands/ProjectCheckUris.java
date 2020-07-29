@@ -131,17 +131,22 @@ class ProjectCheckUris {
 				case MISSING:
 					// Try to relativize the path to predict a likely replacement - if we have the same root
 					Path pathItem = item.getPath();
-					if (pathItem != null &&
-							pathPrevious != null &&
-							Objects.equals(pathItem.getRoot(), pathPrevious.getRoot()) &&
-							Objects.equals(pathItem.getRoot(), pathProject.getRoot())) {
-						if (tryRelative) {
-							Path pathRelative = pathProject.resolve(pathPrevious.relativize(item.getPath()));
+					try {
+						if (tryRelative &&
+								pathItem != null &&
+								pathPrevious != null &&
+								Objects.equals(pathItem.getRoot(), pathPrevious.getRoot())
+								) {
+							Path pathRelative = pathProject.resolve(pathPrevious.relativize(pathItem));
 							if (Files.exists(pathRelative)) {
 								URI uri2 = pathRelative.normalize().toUri().normalize();
 								replacements.put(item, new UriItem(uri2));
 							}
 						}
+					} catch (Exception e) {
+						// Shouldn't occur (but being extra careful in case resolve/normalize/toUri or sth else complains)
+						logger.warn("Error relativizing paths: {}", e.getLocalizedMessage());
+						logger.debug(e.getLocalizedMessage(), e);
 					}
 					nMissing++;
 					break;

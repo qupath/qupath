@@ -50,7 +50,19 @@ public class ROIs {
 	 * @return
 	 */
 	public static ROI createEmptyROI() {
-		return createRectangleROI(0, 0, 0, 0, ImagePlane.getDefaultPlane());
+		return createEmptyROI(ImagePlane.getDefaultPlane());
+	}
+	
+	/**
+	 * Create an 'empty' ROI with no length or area.
+	 * 
+	 * <p>The only guarantee is that it will return {@code isEmpty() == true}
+	 * 
+	 * @param plane the plane associated with the ROI
+	 * @return
+	 */
+	static ROI createEmptyROI(ImagePlane plane) {
+		return createRectangleROI(0, 0, 0, 0, plane);
 	}
 	
 	/**

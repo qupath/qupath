@@ -262,7 +262,7 @@ public class StarDist2D {
 		
 		/**
 		 * If true, constrain nuclei and cells to any parent annotation (default is true).
-		 * @param constrainToMask
+		 * @param constrainToParent
 		 * @return this builder
 		 */
 		public Builder constrainToParent(boolean constrainToParent) {
