@@ -142,11 +142,10 @@ public class TensorFlowOp extends PaddedOp {
 		String inputName = bundle.getInput().getName();
 		String outputName2 = this.outputName == null ? bundle.getOutput().getName() : this.outputName;
 		
-		var runner = bundle.bundle.session().runner();
 		if (tileWidth > 0 && tileHeight > 0)
-			return OpenCVTools.applyTiled(m -> run(runner, m, inputName, outputName2), input, tileWidth, tileHeight, opencv_core.BORDER_REFLECT);
+			return OpenCVTools.applyTiled(m -> run(bundle.bundle.session().runner(), m, inputName, outputName2), input, tileWidth, tileHeight, opencv_core.BORDER_REFLECT);
 		else
-			return run(runner, input, inputName, outputName2);
+			return run(bundle.bundle.session().runner(), input, inputName, outputName2);
 	}
 	
 	
@@ -172,16 +171,17 @@ public class TensorFlowOp extends PaddedOp {
 
 			for (var output : outputs)
 				output.close();
+			
+			return result;
 		}
-
-		return result;
 	}
 	
     
 	
 	@Override
 	public Padding getPadding() {
-        return Padding.empty();
+		return super.getPadding();
+//        return Padding.empty();
     }
 
     @Override
@@ -247,11 +247,11 @@ public class TensorFlowOp extends PaddedOp {
     		try {
 				metaGraphDef = MetaGraphDef.parseFrom(bundle.metaGraphDef());
 			} catch (InvalidProtocolBufferException e) {
-				throw new RuntimeException("Cannot parse MetaGraphDef!");
+				throw new RuntimeException("Cannot parse MetaGraphDef!", e);
 			}
     		for (var entry : metaGraphDef.getSignatureDefMap().entrySet()) {
     			var sigdef = entry.getValue();
-    			if (inputs == null) {
+    			if (inputs == null || inputs.isEmpty()) {
     				logger.info("Found SignatureDef: {} (method={})", entry.getKey(), sigdef.getMethodName());
     				this.sigDef = sigdef;
     				inputs = sigdef.getInputsMap().values().stream().map(t -> new SimpleTensorInfo(t)).collect(Collectors.toList());
