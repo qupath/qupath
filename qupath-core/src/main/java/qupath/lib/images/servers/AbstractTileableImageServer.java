@@ -335,12 +335,13 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 								dy >= raster.getHeight()
 								)
 							continue;
-						raster.setRect(
-								dx,
-								dy,
-	//							Math.min(raster.getWidth() - tileMinX, imgTile.getWidth()),
-	//							Math.min(raster.getHeight() - tileMinY, imgTile.getHeight()),							
-								imgTile.getRaster());
+						
+						copyPixels(imgTile.getRaster(), -dx, -dy, raster);
+
+//						raster.setRect(
+//								dx,
+//								dy,
+//								imgTile.getRaster());
 					}
 				}
 			}
@@ -371,7 +372,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 //				int w = Math.min(raster.getWidth() - xStart, xEnd - xStart);
 //				int h = Math.min(raster.getHeight() - yStart, yEnd - yStart);
 				var raster2 = raster.createCompatibleWritableRaster(w, h);
-				raster2.setRect(-x, -y, (Raster)raster);
+				copyPixels(raster, x, y, raster2);
 				raster = raster2;
 			}
 
@@ -392,6 +393,28 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
 			return imgResult;
 		}
+	}
+	
+	/**
+	 * This method essentially wraps a call to {@link WritableRaster#setRect(int, int, Raster)}, while working 
+	 * around an inconvenient JDK bug: https://bugs.openjdk.java.net/browse/JDK-4847156
+	 * <p>
+	 * Note that the underlying code is
+	 * <pre>
+	 * 	dest.setRect(-sx, -sy, (Raster)source)
+	 * </pre>
+	 * where the change of sign handles the coordinates moving from the source to the destination.
+	 * 
+	 * @param source raster containing source pixels
+	 * @param sx x-origin of the pixels to copy in the source raster
+	 * @param sy y-origin of the pixels to copy in the source raster
+	 * @param dest destination raster to update
+	 */
+	private static void copyPixels(WritableRaster source, int sx, int sy, WritableRaster dest) {
+		if (dest.getClass().getName().contains("ByteInterleavedRaster") && (sx != 0 || sy != 0))
+			dest.setRect(0, 0, source.createChild(sx, sy, source.getWidth()-sx, source.getHeight()-sy, 0, 0, null));
+		else
+			dest.setRect(-sx, -sy, (Raster)source);
 	}
 	
 	

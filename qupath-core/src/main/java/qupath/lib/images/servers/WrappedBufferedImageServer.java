@@ -156,6 +156,12 @@ public class WrappedBufferedImageServer extends AbstractTileableImageServer {
 
 	@Override
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
+		if (tileRequest.getDownsample() != 1.0 
+				|| tileRequest.getImageX() != 0 
+				|| tileRequest.getImageY() != 0
+				|| tileRequest.getImageWidth() != img.getWidth()
+				|| tileRequest.getImageHeight() != img.getHeight())
+			throw new IllegalArgumentException("Invalid tile request! Only the full image can be returned, but I got a request for " + tileRequest);
 		return img;
 	}
 
