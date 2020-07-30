@@ -1,3 +1,9 @@
+## Version 0.2.3-SNAPSHOT
+*In progress*
+
+This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
+
+
 ## Version 0.2.2
 
 This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
