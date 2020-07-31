@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
@@ -48,6 +49,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.RadioButton;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
@@ -57,9 +59,14 @@ import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -82,9 +89,9 @@ import qupath.lib.plugins.parameters.ParameterList;
  */
 class ViewTrackerAnalysisCommand implements Runnable {
 	// TODO: rotation is in radian
-	
 	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerAnalysisCommand.class);
 	
+	private ViewTrackerControlPane owner;
 	private QuPathViewer viewer;
 	private ViewTracker tracker;
 	private ImageServer<?> server;
@@ -100,26 +107,29 @@ class ViewTrackerAnalysisCommand implements Runnable {
 	private Slider tSlider;
 	private Slider timeSlider;
 	
-	private CheckBox timeNormalizedCheck;
+	private RadioButton timeNormalizedRadio;
+	private RadioButton magnificationNormalizedRadio;
 	private RangeSlider downsampleSlider;
 	private RangeSlider timeDisplayedSlider;
 	
 	private static final Node iconPlay = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY);
-	private static final Node iconPause = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY_STOP);
-	private static final Node iconStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY_STOP);
+	private static final Node iconPause = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_PAUSE);
+	private static final Node iconStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_STOP);
 	
 	private ViewTrackerSlideOverview slideOverview;
 	private ViewTrackerDataOverlay trackerDataOverlay;
 	private Canvas canvas;
 	
-	private int windowPrefWidth = 350;
+	private double initialWidth = -1;
 	
 	/**
 	 * Constructor.
+	 * @param parent the parent pane that this dialog belongs to
 	 * @param viewer the viewer being tracked
 	 * @param tracker the tracker doing the tracking
 	 */
-	public ViewTrackerAnalysisCommand(final QuPathViewer viewer, final ViewTracker tracker) {
+	public ViewTrackerAnalysisCommand(ViewTrackerControlPane parent, final QuPathViewer viewer, final ViewTracker tracker) {
+		this.owner = parent;
 		this.viewer = viewer;
 		this.tracker = tracker;
 		this.server = viewer.getServer();
@@ -135,8 +145,9 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			dialog = new Stage();
 			// TODO: Change owner? To block previous windows
 			dialog.sizeToScene();
-			if (QuPathGUI.getInstance() != null)
-				dialog.initOwner(QuPathGUI.getInstance().getStage());
+//			if (QuPathGUI.getInstance() != null)
+//				dialog.initOwner(QuPathGUI.getInstance().getStage());
+			dialog.initOwner(owner.getNode().getScene().getWindow());
 			dialog.setTitle("View tracker");
 			dialog.setAlwaysOnTop(true);
 			
@@ -192,7 +203,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			
 			mainPane = new SplitPane();
 			mainPane.setDividerPositions(1.0);
-			dialog.setMinWidth(windowPrefWidth);
+			
 			BorderPane tablePane = new BorderPane();
 			tablePane.setCenter(table);
 			
@@ -202,8 +213,6 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			//----------------------------------------------------------------------//
 			
 			GridPane analysisPane = new GridPane();
-			analysisPane.setMinWidth(350);
-			analysisPane.setMaxWidth(350);
 			analysisPane.setPadding(new Insets(5.0, 5.0, 5.0, 5.0));
 			analysisPane.setHgap(10);
 			analysisPane.setVgap(10);
@@ -319,11 +328,76 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			});
 			
 			//--------------------------------------------------------------//
-			//--------------------- DATA VISUALISATION ---------------------//
+			//--------------------- DATA VISUALIZATION ---------------------//
 			//--------------------------------------------------------------//
 			
-			CheckBox visualisationCheckBox = new CheckBox("Live data visualisation");
-			timeNormalizedCheck = new CheckBox("Normalize by time");
+			CheckBox visualizationCheckBox = new CheckBox("Live data visualization");
+			Label normalizedByLabel = new Label("Normalized by:");
+			
+			ToggleGroup toggleGroup = new ToggleGroup();
+			timeNormalizedRadio = new RadioButton("Time");
+			timeNormalizedRadio.setSelected(true);
+			timeNormalizedRadio.setToggleGroup(toggleGroup);
+			
+			magnificationNormalizedRadio = new RadioButton("Magnification");
+			magnificationNormalizedRadio.setToggleGroup(toggleGroup);
+			
+			//------------------ TIME DISPLAYED RANGESLIDER ------------------//
+			Label timeDisplayedLeftLabel = new Label();
+			Label timeDisplayedRightLabel = new Label();
+			timeDisplayedSlider = new RangeSlider(0L, timeSliderLength, 0L, timeSliderLength);
+
+			
+			// Prompt input from user (min time)
+			timeDisplayedLeftLabel.setOnMouseClicked(e -> {
+				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
+					GridPane gp = new GridPane();
+					TextField tf = new TextField();
+					SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
+					try {
+						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse("00:00:00")));
+					} catch (ParseException ex) {
+						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
+					}
+					gp.addRow(0, new Label("Enter time"), tf);
+					var response = Dialogs.showConfirmDialog("Set min time", gp);
+
+					if (response) {
+						long time = TimeUnit.HOURS.toMillis(Integer.parseInt(tf.getText(0, 2))) +
+								TimeUnit.MINUTES.toMillis(Integer.parseInt(tf.getText(3, 5))) +
+								TimeUnit.SECONDS.toMillis(Integer.parseInt(tf.getText(6, 8)));
+						timeDisplayedSlider.setLowValue(time);
+					}
+				}
+			});
+			// Prompt input from user (max time)
+			timeDisplayedRightLabel.setOnMouseClicked(e -> {
+				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
+					GridPane gp = new GridPane();
+					TextField tf = new TextField();
+					SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
+					try {
+						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse("00:00:00")));
+					} catch (ParseException ex) {
+						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
+					}
+					gp.addRow(0, new Label("Enter time"), tf);
+					var response = Dialogs.showConfirmDialog("Set max time", gp);
+					if (response) {
+						long time = TimeUnit.HOURS.toMillis(Integer.parseInt(tf.getText(0, 2))) +
+								TimeUnit.MINUTES.toMillis(Integer.parseInt(tf.getText(3, 5))) +
+								TimeUnit.SECONDS.toMillis(Integer.parseInt(tf.getText(6, 8)));
+						timeDisplayedSlider.setHighValue(time);
+					}
+				}
+			});
+			
+			timeDisplayedLeftLabel.textProperty().bind(
+					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getLowValue() + startTime), timeDisplayedSlider.lowValueProperty())
+					);
+			timeDisplayedRightLabel.textProperty().bind(
+					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getHighValue() + startTime), timeDisplayedSlider.highValueProperty())
+					);
 			
 			
 			//------------------ DOWNSAMPLE RANGESLIDER ------------------//
@@ -371,70 +445,18 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			downsampleRightLabel.textProperty().bind(
 					Bindings.createStringBinding(() -> GeneralTools.formatNumber(downsampleSlider.getHighValue(), 2), downsampleSlider.highValueProperty())
 					);
-
-			
-			//------------------ TIME DISPLAYED RANGESLIDER ------------------//
-			Label timeDisplayedLeftLabel = new Label();
-			Label timeDisplayedRightLabel = new Label();
-			timeDisplayedSlider = new RangeSlider(0L, timeSliderLength, 0L, timeSliderLength);
 			
 			
-			
-			// Prompt input from user (min time)
-			timeDisplayedLeftLabel.setOnMouseClicked(e -> {
-				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
-					GridPane gp = new GridPane();
-					TextField tf = new TextField();
-					SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
-					try {
-						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse("00:00:00")));
-					} catch (ParseException ex) {
-						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
-					}
-					gp.addRow(0, new Label("Enter time"), tf);
-					Dialogs.showConfirmDialog("Set min time", gp);
-
-					long time = TimeUnit.HOURS.toMillis(Integer.parseInt(tf.getText(0, 2))) +
-							TimeUnit.MINUTES.toMillis(Integer.parseInt(tf.getText(3, 5))) +
-							TimeUnit.SECONDS.toMillis(Integer.parseInt(tf.getText(6, 8)));
-					timeDisplayedSlider.setLowValue(time);
-				}
-			});
-			// Prompt input from user (max time)
-			timeDisplayedRightLabel.setOnMouseClicked(e -> {
-				if (e.getButton().equals(MouseButton.PRIMARY) && e.getClickCount() == 2) {
-					GridPane gp = new GridPane();
-					TextField tf = new TextField();
-					SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
-					try {
-						tf.setTextFormatter(new TextFormatter<>(new DateTimeStringConverter(format), format.parse("00:00:00")));
-					} catch (ParseException ex) {
-						logger.error("Error parsing the input time: ", ex.getLocalizedMessage());
-					}
-					gp.addRow(0, new Label("Enter time"), tf);
-					Dialogs.showConfirmDialog("Set max time", gp);
-					
-					long time = TimeUnit.HOURS.toMillis(Integer.parseInt(tf.getText(0, 2))) +
-							TimeUnit.MINUTES.toMillis(Integer.parseInt(tf.getText(3, 5))) +
-							TimeUnit.SECONDS.toMillis(Integer.parseInt(tf.getText(6, 8)));
-					timeDisplayedSlider.setHighValue(time);
-				}
-			});
-			
-			timeDisplayedLeftLabel.textProperty().bind(
-					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getLowValue() + startTime), timeDisplayedSlider.lowValueProperty())
-					);
-			timeDisplayedRightLabel.textProperty().bind(
-					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getHighValue() + startTime), timeDisplayedSlider.highValueProperty())
-					);
-			
-			timeNormalizedCheck.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
-			timeDisplayedLeftLabel.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
-			timeDisplayedRightLabel.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
-			downsampleSlider.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
-			downsampleLeftLabel.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
-			downsampleRightLabel.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
-			timeDisplayedSlider.disableProperty().bind(visualisationCheckBox.selectedProperty().not());
+			//------------------ BINDINGS/LISTENERS ------------------//
+			normalizedByLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			timeNormalizedRadio.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			magnificationNormalizedRadio.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			timeDisplayedLeftLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			timeDisplayedRightLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			downsampleSlider.disableProperty().bind(Bindings.or(visualizationCheckBox.selectedProperty().not(), new SimpleBooleanProperty(minDownsample == maxDownsample)));
+			downsampleLeftLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			downsampleRightLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			timeDisplayedSlider.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 
 			
 			trackerDataOverlay = new ViewTrackerDataOverlay(server, viewer, tracker);
@@ -444,38 +466,73 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			downsampleSlider.highValueProperty().addListener((v, o, n) -> updateOverlay());
 
 
-			visualisationCheckBox.selectedProperty().addListener((v, o, n) -> {
+			visualizationCheckBox.selectedProperty().addListener((v, o, n) -> {
 				if (n) {
 					updateOverlay();
 					viewer.getCustomOverlayLayers().setAll(trackerDataOverlay.getOverlay());
 				} else {
 					viewer.getCustomOverlayLayers().clear();
+					slideOverview.setOverlay(null);
 				}
 			});
 			
-			timeNormalizedCheck.selectedProperty().addListener((v, o, n) -> updateOverlay());
+			timeNormalizedRadio.selectedProperty().addListener((v, o, n) -> updateOverlay());
+			magnificationNormalizedRadio.selectedProperty().addListener((v, o, n) -> updateOverlay());
 			
 			GridPane canvasPane = new GridPane();
 			GridPane timepointPane = new GridPane();
-			GridPane timePane = new GridPane();
+			GridPane topPane = new GridPane();
 			GridPane playbackPane = new GridPane();
-			GridPane dataVisualisationPane = new GridPane();
+			GridPane normalizedByPane = new GridPane();
+			GridPane dataVisualizationPane = new GridPane();
+			
+			Separator sep = new Separator();
+			
+			dataVisualizationPane.setHgap(10.0);
+			dataVisualizationPane.setVgap(5.0);
+			playbackPane.setHgap(10.0);
+			normalizedByPane.setHgap(10.0);
 			
 			canvasPane.addRow(0, zSliceLabel, zSlider, canvas);
 			timepointPane.addRow(0, timepointLabel, tSlider);
-			playbackPane.addRow(0, btnPlay, btnStop);
-			timePane.addRow(0, timeLabelLeft, timeSlider, timeLabelRight);
-			dataVisualisationPane.addRow(0, visualisationCheckBox, timeNormalizedCheck);
-			dataVisualisationPane.addRow(1, timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
-			dataVisualisationPane.addRow(2, downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
+			normalizedByPane.addRow(0, timeNormalizedRadio, magnificationNormalizedRadio);
+//			playbackPane.addRow(0, btnPlay, btnStop);
+//			PaneTools.addGridRow(dataVisualizationPane, 0, 0, "Enable live data visualization", visualizationCheckBox, visualizationCheckBox, visualizationCheckBox);
+//			PaneTools.addGridRow(dataVisualizationPane, 1, 0, "Normalization type", normalizedByLabel, timeNormalizedRadio, magnificationNormalizedRadio);
+//			PaneTools.addGridRow(dataVisualizationPane, 2, 0, "Choose a time range", timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
+//			PaneTools.addGridRow(dataVisualizationPane, 3, 0, "Choose a magnification range", downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
 
+
+			int topPaneRow = 0;
+			PaneTools.addGridRow(topPane, topPaneRow++, 0, "Slide to change timepoint", timepointPane);
+			PaneTools.addGridRow(topPane, topPaneRow++, 0, "Slide to change z-slice", canvasPane);
+			
+			
 			int row = 0;
-			PaneTools.addGridRow(analysisPane, row++, 0, "Slide to change timepoint", timepointPane);
-			PaneTools.addGridRow(analysisPane, row++, 0, "Slide to change z-slice", canvasPane);
-			PaneTools.addGridRow(analysisPane, row++, 0, "Slide to change the grid resolution", timePane);
-			PaneTools.addGridRow(analysisPane, row++, 0, "Playback options", playbackPane);
-			PaneTools.addGridRow(analysisPane, row++, 0, null, new Separator());
-			PaneTools.addGridRow(analysisPane, row++, 0, "Live data visualisations", dataVisualisationPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, null, new HBox(), topPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Slide to change the grid resolution",  timeLabelLeft, timeSlider, timeLabelRight);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Playback options", new HBox(), playbackPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, null, sep, sep, sep);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Enable live data visualization", visualizationCheckBox, visualizationCheckBox, visualizationCheckBox);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Normalization type", normalizedByLabel, normalizedByPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Choose a time range", timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Choose a magnification range", downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
+			
+		    ColumnConstraints col1 = new ColumnConstraints();
+		    ColumnConstraints col2 = new ColumnConstraints();
+		    col1.setHgrow(Priority.ALWAYS);
+		    col2.setHgrow(Priority.ALWAYS);
+		    
+		    analysisPane.getColumnConstraints().addAll(new ColumnConstraints(80), col1, new ColumnConstraints(80), col2);
+			
+//			GridPane.setHgrow(normalizedByLabel, Priority.ALWAYS);
+//			GridPane.setHgrow(timeNormalizedRadio, Priority.ALWAYS);
+//			GridPane.setHgrow(normalizedByLabel, Priority.ALWAYS);
+//			normalizedByLabel.setPrefWidth(200.0);
+//			timeNormalizedRadio.setPrefWidth(200.0);
+//			magnificationNormalizedRadio.setPrefWidth(200.0);
+//			normalizedByLabel.setMaxWidth(Double.MAX_VALUE);
+			
 			
 			//--------------------- BOTTOM BUTTON PANE---------------------//
 			Button btnExpand = new Button("Expand");
@@ -487,21 +544,24 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			
 			btnExpand.setOnAction(e -> {
 				if (btnExpand.getText().equals("Expand")) {
+					initialWidth = dialog.getWidth();
+					dialog.setMinWidth(initialWidth + 250);
+					dialog.setMaxWidth(Double.MAX_VALUE);
 					mainPane.getItems().add(tablePane);
+					analysisPane.setMaxWidth(dialog.getScene().getWidth());
 					btnExpand.setText("Collapse");
-					dialog.setMinWidth(windowPrefWidth + 250);
 				} else {
 					mainPane.getItems().remove(tablePane);
 					btnExpand.setText("Expand");
-					dialog.setMinWidth(windowPrefWidth);
-					dialog.setWidth(windowPrefWidth);
+					dialog.setMinWidth(initialWidth);
+					dialog.setMaxWidth(initialWidth);
 				}
 			});
 			buttons.add(btnOpen);
 			buttons.add(btnExpand);
 			
 			GridPane panelButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
-			PaneTools.addGridRow(analysisPane, row++, 0, "Button", panelButtons);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Button", panelButtons, panelButtons, panelButtons);
 			
 
 			mainPane.getItems().add(analysisPane);
@@ -512,9 +572,11 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			viewer.getCustomOverlayLayers().clear();
 		});
 		
-		dialog.initModality(Modality.APPLICATION_MODAL);
 		dialog.show();
-		dialog.toFront();
+		dialog.setWidth(dialog.getWidth());
+		dialog.setMinWidth(dialog.getWidth());
+		dialog.setMaxWidth(dialog.getWidth());
+		//dialog.toFront();
 	}
 
 	static Object getColumnValue(final ViewRecordingFrame frame, final int col) {
@@ -614,9 +676,9 @@ class ViewTrackerAnalysisCommand implements Runnable {
 				timeDisplayedSlider.highValueProperty().longValue(),
 				downsampleSlider.lowValueProperty().doubleValue(),
 				downsampleSlider.highValueProperty().doubleValue(),
-				timeNormalizedCheck.selectedProperty().get()
+				timeNormalizedRadio.selectedProperty().get()
 				);
-		viewer.getCustomOverlayLayers().setAll(trackerDataOverlay.getOverlay());
+		slideOverview.setOverlay(trackerDataOverlay.getOverlay());
 	}
 	
 	

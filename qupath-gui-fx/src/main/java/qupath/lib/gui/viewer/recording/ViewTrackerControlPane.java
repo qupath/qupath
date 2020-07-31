@@ -30,6 +30,8 @@ import java.util.List;
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.action.ActionUtils.ActionTextBehavior;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.animation.AnimationTimer;
 import javafx.beans.binding.Bindings;
@@ -63,8 +65,10 @@ import qupath.lib.gui.viewer.QuPathViewer;
  * 
  * @author Pete Bankhead
  */
-// TODO: Restrict the nu,ber of times we can call the controller to 1
+// TODO: Restrict the number of times we can call the controller to 1
 public class ViewTrackerControlPane {
+	
+	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerControlPane.class);
 	
 	private QuPathViewer viewer;
 	
@@ -72,11 +76,11 @@ public class ViewTrackerControlPane {
 	
 	private final String[] columnNames = new String[] {"Name", "Duration"};
 	
-	private static final Node iconRecord = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_RECORD);
-	private static final Node iconRecordStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_RECORD_STOP);
+	private static final Node iconRecord = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_PLAY);
+	private static final Node iconRecordStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_STOP);
 	private static final Node iconPlay = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY);
-	private static final Node iconPlayStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY_STOP);
-	private static final Node iconRecording = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_RECORD);
+	private static final Node iconPlayStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_PAUSE);
+	private static final Node iconRecording = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_PLAY);
 	
 	private List<ViewTracker> trackersList;
 	private ViewTracker tracker;
@@ -125,6 +129,9 @@ public class ViewTrackerControlPane {
 		
 		// Ensure icons are correct
 		recordingMode.addListener((v, o, n) -> {
+			// Cannot bind, because user could click titledPane and make it crash
+			titledPane.setExpanded(!n);
+			
 			if (n) {
 				actionRecord.setGraphic(iconRecordStop);
 				actionRecord.setText("Stop recording");
@@ -160,8 +167,6 @@ public class ViewTrackerControlPane {
 		titledPane = new TitledPane();
 		titledPane.managedProperty().bind(titledPane.visibleProperty());
 		titledPane.setAnimated(true);
-		titledPane.expandedProperty().bind(recordingMode.not());
-		// TODO: Fix bug when clicking on titledPane
 		table = new TableView<ViewTracker>();
 		table.setMaxHeight(200);
 		contentPane = new GridPane();
@@ -178,9 +183,7 @@ public class ViewTrackerControlPane {
 			refreshListView();
 		});
 		Button moreBtn = new Button("More...");
-		moreBtn.setOnAction(e -> {
-			new ViewTrackerAnalysisCommand(viewer, table.getSelectionModel().getSelectedItem()).run();
-		});
+		moreBtn.setOnAction(e -> new ViewTrackerAnalysisCommand(this, viewer, table.getSelectionModel().getSelectedItem()).run());
 		
 		// Add all buttons to GridPane
 		GridPane btnPane = new GridPane();
@@ -246,15 +249,7 @@ public class ViewTrackerControlPane {
 		titledPane.setContent(contentPane);
 		titledPane.setGraphic(topButtonGrid);
 		titledPane.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-		// TODO: Fix this line below
-//		titledPane.setMaxHeight(Double.MAX_VALUE);
-//		titledPane.expandedProperty().addListener((v, o, n) -> {
-//			if (n)
-//				mainPane.getScene().getWindow().setHeight(600);
-//			else
-//				mainPane.getScene().getWindow().setHeight(80);
-////			logger.warn(mainPane.getHeight() + "");
-//		});
+		titledPane.setOnMouseClicked(mouseEvent -> titledPane.setExpanded(!recordingMode.getValue()));
 		
 		mainPane.setTop(titledPane);
 		mainPane.setMaxSize(200, 300);
@@ -364,7 +359,4 @@ public class ViewTrackerControlPane {
 //	public ViewTracker getViewTracker() {
 //		return tracker;
 //	}
-	
-
-
 }

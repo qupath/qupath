@@ -2,13 +2,17 @@ package qupath.lib.gui.viewer.recording;
 
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
+import java.awt.image.IndexColorModel;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.images.servers.ImageServer;
@@ -31,11 +35,9 @@ public class ViewTrackerDataOverlay{
 	private long timeStop;
 	private double downMin;
 	private double downMax;
-	private boolean timeNormalised;
+	private boolean timeNormalized;	// If False, it's magnification-normalized
 	
 	private Map<ImageRegion, BufferedImage> regions;
-	
-	private BufferedImageOverlay overlay;
 
 
 	public ViewTrackerDataOverlay(ImageServer<?> server, QuPathViewer viewer, ViewTracker tracker) {
@@ -65,7 +67,7 @@ public class ViewTrackerDataOverlay{
 		this.timeStop = timeStop;
 		this.downMin = downMin;
 		this.downMax = downMax;
-		this.timeNormalised = timeNormalised;
+		this.timeNormalized = timeNormalised;
 		
 		regions = getImageRegions();
 		viewer.repaint();
@@ -88,40 +90,35 @@ public class ViewTrackerDataOverlay{
 		int frameStopIndex = tracker.getFrameIndexForTime(timeStop);
 		
 		ViewRecordingFrame[] relevantFrames = tracker.getAllFrames().subList(frameStartIndex, frameStopIndex+1).parallelStream()
-				.filter(e -> e.getDownFactor() >= downMin && e.getDownFactor() <= downMax)
+				.filter(frame -> frame.getZ() == z && frame.getT() == t)
+				.filter(frame -> frame.getDownFactor() >= downMin && frame.getDownFactor() <= downMax)
 				.toArray(ViewRecordingFrame[]::new);
 		
 		
-		if (!timeNormalised) {
-			BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_INT_ARGB);
-			var g2d = img.createGraphics();
-			
-			for (var frame: relevantFrames) {
-				if (frame.getZ() != z || frame.getT() != t)
-					continue;
-				var downsampledBounds = getDownsampledBounds(frame.getImageBounds());
-				g2d.setColor(java.awt.Color.GREEN);
-				g2d.fillRect(downsampledBounds.x, downsampledBounds.y, downsampledBounds.width, downsampledBounds.height);	
-			}
-			return img;
-		} else {
-			// TODO: Find a color model
-			BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED);
-			byte[] buffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
-			
-			for (var frame: relevantFrames) {
-				Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds());
-				Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
-				var startIndex = imgWidth*downsampleBoundsCropped.y + downsampleBoundsCropped.x;
-				var stopIndex = imgWidth*(downsampleBoundsCropped.y+downsampleBoundsCropped.height) + downsampleBoundsCropped.x + downsampleBoundsCropped.width;
-				for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
-					for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
-						buffer[y*imgWidth + x] = (byte)(buffer[y*imgWidth + x] + 1);
-					}
-				}		
-			}
-			return img;
+		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED);
+		byte[] buffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
+		if (!timeNormalized) {
+			for (int i = 0; i < buffer.length; i++)
+				buffer[i] = (byte)downMax;
 		}
+		
+		for (var frame: relevantFrames) {
+			Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds());
+			Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
+			for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
+				for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
+					if (x < 0 || x >= imgWidth || y < 0 || y >= imgHeight)
+						continue;
+					
+					if (timeNormalized)
+						buffer[y*imgWidth + x] = (byte) (buffer[y*imgWidth + x] + frame.getTimestamp() - tracker.getStartTime());
+					else
+						buffer[y*imgWidth + x] = buffer[y*imgWidth + x] > (byte)frame.getDownFactor() ? (byte)frame.getDownFactor() : buffer[y*imgWidth + x];						
+				}
+			}
+		}
+		
+		return img;
 	}
 	
 	public BufferedImageOverlay getOverlay() {

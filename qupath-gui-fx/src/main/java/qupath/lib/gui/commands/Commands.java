@@ -996,7 +996,7 @@ public class Commands {
 		dialog.setOnCloseRequest(e -> {
 			// If currently recording
 			if (controller.recordingMode().get()) {
-				var response = Dialogs.showYesNoDialog("Shut down recording", "The currently recording will be stopped." + System.lineSeparator() + "Continue?");
+				var response = Dialogs.showYesNoDialog("Shut down recording", "The current recording will be stopped." + System.lineSeparator() + "Continue?");
 				if (!response) {
 					e.consume();
 					return;

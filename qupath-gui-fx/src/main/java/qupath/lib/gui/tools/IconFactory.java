@@ -97,8 +97,6 @@ public class IconFactory {
 
 									SELECTION_MODE("S"),
 									
-									TRACKING_ACTIVE("U+2B24"),
-									
 									GRID("\ue90b"),
 									
 									LINE_TOOL("\ue90c", PathPrefs.colorDefaultObjectsProperty()),
@@ -119,13 +117,15 @@ public class IconFactory {
 									
 									POLYLINE_TOOL("V", PathPrefs.colorDefaultObjectsProperty()),
 									
-									PLAYBACK_RECORD("\ue915"),
+									
 									RECTANGLE_TOOL("\ue916", PathPrefs.colorDefaultObjectsProperty()),
 									
 									SHOW_SCALEBAR("\ue917"),
 									SCREENSHOT("\ue918"),
-									PLAYBACK_RECORD_STOP("\ue919"),
-									PLAYBACK_PLAY_STOP("\ue919"),
+									
+									TRACKING_PAUSE("\u23f8"),
+									TRACKING_PLAY("\ue915"),
+									TRACKING_STOP("\ue919"),
 
 									TABLE("\ue91a"),
 									TMA_GRID("\ue91b", PathPrefs.colorTMAProperty()),

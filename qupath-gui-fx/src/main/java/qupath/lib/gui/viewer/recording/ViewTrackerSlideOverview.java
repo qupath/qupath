@@ -16,14 +16,17 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
+import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.regions.ImageRegion;
 
 public class ViewTrackerSlideOverview {
 	// TODO: Make sure we reset the shapeVisible (I think?) when we change T or Z manually from the slider (because it should always correspond to a specific frame)
-	// TODO: Size of thumbnail is sometimes cropped?
 	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerSlideOverview.class);
 	
 	private QuPathViewer viewer;
 	private BufferedImage img;
+	private BufferedImageOverlay overlay;
 	
 	private Canvas canvas;
 	
@@ -61,10 +64,16 @@ public class ViewTrackerSlideOverview {
 			return;
 		}
 		
-		// Ensure the image has been set
-//		setImage(viewer.getRGBThumbnail());
+		if (overlay == null) {
+			// Ensure the image has been set
+			setImage(viewer.getRGBThumbnail());
+			g.drawImage(imgPreview, 0, 0);
+		} else {
+			
+			setImage(overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition())));
+			g.drawImage(imgPreview, 0, 0);
+		}
 
-		g.drawImage(imgPreview, 0, 0);
 		
 		
 		// Draw the currently-visible region, if we have a viewer and it isn't 'zoom to fit' (in which case everything is visible)
@@ -101,6 +110,14 @@ public class ViewTrackerSlideOverview {
 		
 	}
 	
+	private void setImage(BufferedImage imgThumbnail) {
+		img = imgThumbnail;
+		int preferredHeight = (int)(img.getHeight() * (double)(preferredWidth / (double)img.getWidth()));
+		imgPreview = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
+		
+	}
+
+
 	private void getTransform() {
 		double scale = (double)preferredWidth / viewer.getServer().getWidth();
 		if (transform == null)
@@ -116,6 +133,12 @@ public class ViewTrackerSlideOverview {
 			shapeVisible = transform.createTransformedShape(shape);
 		else
 			shapeVisible = shape;	
+	}
+
+
+	public void setOverlay(BufferedImageOverlay overlay) {
+		this.overlay = overlay;
+		paintCanvas();
 	}
 	
 
