@@ -28,7 +28,7 @@ package qupath.lib.regions;
  */
 public class Padding {
 	
-	private int x1, x2, y1, y2;
+	private final int x1, x2, y1, y2;
 	
 	/**
 	 * Get the first horizontal padding (left of the image), in pixels.
@@ -170,7 +170,7 @@ public class Padding {
 		this(pad, pad, pad, pad);
 	}
 	
-	private static Padding[] symmetric = new Padding[64];
+	private static Padding[] symmetric = new Padding[65];
 	
 	static {
 		for (int i = 0; i < symmetric.length; i++)
@@ -183,7 +183,7 @@ public class Padding {
 	 * @return
 	 */
 	public static Padding symmetric(int pad) {
-		if (pad <= symmetric.length)
+		if (pad < symmetric.length)
 			return symmetric[pad];
 		return new Padding(pad);
 	}
