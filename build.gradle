@@ -234,8 +234,8 @@ allprojects {
     junitVersion       = '5.6.2'
     
     // Optional versions
-    tensorflowVersion  = "1.15.2-${javacppVersion}"
-    mkldnnVersion      = "0.21.4-${javacppVersion}"
+    tensorflowVersion  = "1.15.0"
+//    mkldnnVersion      = "0.21.4-${javacppVersion}"
     
     /*
      * Link to the main external Javadocs if -PlinkJavadoc=true
@@ -369,6 +369,7 @@ allprojects {
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
     
+    /*
     tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
     if (includeTensorFlowGPU)
 	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}-gpu"
@@ -376,6 +377,13 @@ allprojects {
 	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}"
     tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}"
     tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}:${nativesCPP}"
+    */
+    tensorflow "org.tensorflow:tensorflow:${tensorflowVersion}"
+    tensorflow "org.tensorflow:proto:${tensorflowVersion}"
+    if (includeTensorFlowGPU) {
+	    tensorflow "org.tensorflow:libtensorflow:${tensorflowVersion}"
+	    tensorflow "org.tensorflow:libtensorflow_jni_gpu:${tensorflowVersion}"
+    }
     
   }
   
