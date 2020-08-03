@@ -1,7 +1,12 @@
-## Version 0.2.3-SNAPSHOT
+## Version 0.3.0-SNAPSHOT
 *In progress*
 
-This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
+### Dependency updates*
+* Java Topology suite 1.17.0
+* ControlsFX 11.0.2
+* ImageJ 1.53c
+* picocli 4.5.0
+* Groovy 3.0.5
 
 
 ## Version 0.2.2
