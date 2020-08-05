@@ -140,18 +140,18 @@ public class CellTools {
 	private static Geometry estimateCellBoundary(Geometry geomNucleus, double distance, double nucleusScale, AffineTransformation transform) {
 		var geomCell = geomNucleus.buffer(distance);
 		if (nucleusScale > 1) {
-			geomNucleus = geomNucleus.convexHull();
-			var centroid = new Centroid(geomNucleus).getCentroid();
+			var geomNucleusHull = geomNucleus.convexHull();
+			var centroid = new Centroid(geomNucleusHull).getCentroid();
 			double x = centroid.getX();
 			double y = centroid.getY();
 			transform.setToTranslation(-x, -y);
 			transform.scale(nucleusScale, nucleusScale);
 			transform.translate(x, y);
-			var geomNucleusExpanded = transform.transform(geomNucleus);
+			var geomNucleusExpanded = transform.transform(geomNucleusHull);
 			if (!geomNucleusExpanded.covers(geomCell))
-				geomCell = geomCell.intersection(geomNucleusExpanded);
-			if (geomNucleus.getNumGeometries() == 1 && geomCell.getNumGeometries() == 1 && !geomCell.covers(geomNucleus))
-				geomCell = geomCell.union(geomNucleus);
+				geomCell = GeometryTools.attemptOperation(geomCell, g -> g.intersection(geomNucleusExpanded));
+			if (geomNucleusHull.getNumGeometries() == 1 && geomCell.getNumGeometries() == 1 && !geomCell.covers(geomNucleusHull))
+				geomCell = GeometryTools.attemptOperation(geomCell, g -> g.union(geomNucleusHull));
 		}
 		return geomCell;
 	}
