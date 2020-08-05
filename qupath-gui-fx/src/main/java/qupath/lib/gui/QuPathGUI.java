@@ -1778,8 +1778,8 @@ public class QuPathGUI {
 		
 		double originalMaxMemory = Math.ceil(maxMemoryMB/1024.0);
 		if (canSetMemory) {
-			paramsSetup.addEmptyParameter("Set the maximum memory used by QuPath, or -1 to use the default.")
-					.addEmptyParameter(maxMemoryString);
+			paramsSetup.addEmptyParameter("Set the maximum memory used by QuPath.");
+//					.addEmptyParameter(maxMemoryString);
 	
 			boolean lowMemory = maxMemoryMB < 1024*6;
 			if (lowMemory) {
@@ -1788,7 +1788,7 @@ public class QuPathGUI {
 						);
 			}
 			
-			paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory (GB)", originalMaxMemory, null, "Set the maximum memory for QuPath - considering using approximately half the total RAM for the system");
+			paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory", originalMaxMemory, "GB", "Set the maximum memory for QuPath - consider using approximately half the total RAM for the system");
 		} else {
 			paramsSetup.addEmptyParameter(maxMemoryString)
 				.addEmptyParameter("Sorry, I can't access the config file needed to change the max memory.\n" +
@@ -1838,11 +1838,13 @@ public class QuPathGUI {
 		
 		if (canSetMemory && paramsSetup.containsKey("maxMemoryGB")) {
 			int maxMemorySpecifiedMB = (int)(Math.round(paramsSetup.getDoubleParameterValue("maxMemoryGB") * 1024));
-			if (maxMemorySpecifiedMB > 512) {
+			if (maxMemorySpecifiedMB >= 1024) {
 				PathPrefs.maxMemoryMBProperty().set(maxMemorySpecifiedMB);
 			} else {
 				if (maxMemorySpecifiedMB >= 0)
-					Dialogs.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - will ignore");
+					Dialogs.showErrorNotification("Max memory setting", "Specified maximum memory setting too low - it must be at least 1 GB");
+				else
+					logger.warn("Requested max memory must be at least 1 GB - specified value {} will be ignored", paramsSetup.getDoubleParameterValue("maxMemoryGB"));
 //				PathPrefs.maxMemoryMBProperty().set(-1);
 			}
 		}
