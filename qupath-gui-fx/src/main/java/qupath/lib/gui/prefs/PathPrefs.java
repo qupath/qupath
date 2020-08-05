@@ -258,6 +258,13 @@ public class PathPrefs {
 	public synchronized static IntegerProperty maxMemoryMBProperty() {
 		if (maxMemoryMB == null) {
 			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
+			long requestedMaxMemoryMB = maxMemoryMB.get();
+			long currentMaxMemoryMB = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
+			if (requestedMaxMemoryMB > 0 && requestedMaxMemoryMB != currentMaxMemoryMB) {
+				logger.debug("Requested max memory ({} MB) does not match the current max ({} MB) - resetting preference to default value", 
+						requestedMaxMemoryMB, currentMaxMemoryMB);
+				maxMemoryMB.set(-1);
+			}
 			// Update Java preferences for restart
 			maxMemoryMB.addListener((v, o, n) -> {
 				try {
