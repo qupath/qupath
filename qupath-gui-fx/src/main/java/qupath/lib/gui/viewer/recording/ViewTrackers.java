@@ -27,9 +27,13 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
+
+import com.sun.media.jfxmedia.logging.Logger;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -60,7 +64,7 @@ class ViewTrackers {
 	 * @param includeEyeTracking optionally include columns relevant for eye tracking
 	 * @return
 	 */
-	static String getLogHeadings(final String delimiter, final boolean includeCursor, final boolean includeEyeTracking, final boolean isZAndTIncluded) {
+	static String getSummaryHeadings(final String delimiter, final boolean includeCursor, final boolean includeEyeTracking, final boolean isZAndTIncluded) {
 		StringBuffer sb = new StringBuffer();
 	
 		sb.append("Timestamp");
@@ -78,12 +82,12 @@ class ViewTrackers {
 		sb.append("Canvas width");
 		sb.append(delimiter);
 		sb.append("Canvas height");
+		sb.append(delimiter);
 		
 		sb.append("Downsample factor");
 		sb.append(delimiter);
 		
 		sb.append("Rotation");
-		sb.append(delimiter);
 		
 	
 		if (includeCursor) {
@@ -130,7 +134,7 @@ class ViewTrackers {
 		if (logString != null)
 			logString = logString.trim().toLowerCase();
 		// Check if we have anything, or if it is just a superfluous new line
-		if (logString == null || logString.length() == 0)
+		if (logString == null || logString.isEmpty())
 			return null;
 		// Should probably be using a Scanner here (?)
 		String[] columns = logString.split(delimiter);
@@ -208,7 +212,7 @@ class ViewTrackers {
 	 * @param includeEyeTracking
 	 * @return
 	 */
-	static String toLogString(final ViewRecordingFrame frame, final String delimiter, final boolean includeCursor, final boolean includeEyeTracking, final boolean includeZAndT) {
+	static String getSummary(final ViewRecordingFrame frame, final String delimiter, final boolean includeCursor, final boolean includeEyeTracking, final boolean includeZAndT) {
 		StringBuffer sb = new StringBuffer();
 	
 		sb.append(frame.getTimestamp());
@@ -228,6 +232,13 @@ class ViewTrackers {
 		sb.append(canvasSize.width);
 		sb.append(delimiter);
 		sb.append(canvasSize.height);
+		sb.append(delimiter);
+		
+		sb.append(frame.getDownFactor());
+		sb.append(delimiter);
+		
+		sb.append(frame.getRotation());
+
 	
 		if (includeCursor) {
 			if (frame.hasCursorPosition()) {
@@ -284,46 +295,48 @@ class ViewTrackers {
 		PrintWriter out = null;
 		try {
 			out = new PrintWriter(fileExport);
-			out.print(tracker.getSummaryString());
+			out.print(getSummaryHeadings("\t", tracker.hasCursorTrackingData(), tracker.hasEyeTrackingData(), tracker.hasZAndT()));
+			for (var frame: tracker.getAllFrames())
+				out.print(getSummary(frame, "\t", tracker.hasCursorTrackingData(), tracker.hasEyeTrackingData(), tracker.hasZAndT()));
+			
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} finally {
-			tracker.setFile(fileExport);
+//			tracker.setFile(fileExport);
 			if (out != null)
 				out.close();
 		}
 	}
 
-	static boolean handleImport(final ViewTracker tracker) {
-		File fileImport = Dialogs.promptForFile(null, null, "QuPath tracking data (csv)", new String[]{"csv"});
-		if (fileImport == null)
-			return false;
+	static ViewTracker handleImport(final Path in) {
 		
 		Scanner scanner = null;
 		String content = null;
 		try {
-			scanner = new Scanner(fileImport);
+			scanner = new Scanner(in);
 			content = scanner.useDelimiter("\\Z").next();
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+		} catch (IOException e) {
+			return null;
 		} finally {
 			if (scanner != null)
 				scanner.close();
 		}
 		
 		if (content == null) {
-			Dialogs.showErrorMessage("View tracking import", "Unable to read " + fileImport);
-			return false;
+			Dialogs.showErrorMessage("View tracking import", "Unable to read " + in);
+			return null;
 		}
-		tracker.resetRecording();
+		
 		try {
-			parseSummaryString(content, null, tracker);
-			return true;
+			ViewTracker tracker = parseSummaryString(content, null, null);
+			tracker.setFile(in.toFile());
+			return tracker;
+//			tracker.setName(GeneralTools.getNameWithoutExtension(in.toFile()));
 		} catch (Exception e) {
-			Dialogs.showErrorMessage("View tracking import", "Unable to read tracking data from " + fileImport);
+			Dialogs.showErrorMessage("View tracking import", "Unable to read tracking data from " + in);
 			e.printStackTrace();
 		}
-		return false;
+		return null;
 	}
 	
 	static String getPrettyTimestamp(long startTime, long endTime) {

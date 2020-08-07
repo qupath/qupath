@@ -52,6 +52,8 @@ public interface ViewTracker {
 	
 	public boolean hasEyeTrackingData();
 	
+	public boolean hasCursorTrackingData();
+	
 	public boolean hasZAndT();
 	
 	public int getFrameIndexForTime(long t);
@@ -67,8 +69,6 @@ public interface ViewTracker {
 	public ViewRecordingFrame getFrame(int index);
 
 	public boolean isEmpty();
-	
-	public String getSummaryString();
 	
 	public String getName();
 	

@@ -28,6 +28,11 @@ import java.awt.Shape;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -70,6 +75,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	static DecimalFormat df = new DecimalFormat("#.##");
 	protected static final String LOG_DELIMITER = "\t";
 
+	transient private QuPathGUI qupath;
 	transient private QuPathViewer viewer;
 	
 	private boolean hasZAndT;
@@ -78,11 +84,14 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 
 	private BooleanProperty recording = new SimpleBooleanProperty(false);
 
-	//	private String path;
-	private boolean doCursorTracking = false;
+	private File recordingDirectory;
+	private File recordingFile = null;
+	private OutputStreamWriter fw = null;
+	private String name = null;
+	
+	private boolean doCursorTracking = true;
 
 	private long startTime = -1;
-	private long lastTime = -1;
 
 	private List<ViewRecordingFrame> frames = new ArrayList<>();
 	transient ViewRecordingFrame lastFrame = null;
@@ -91,14 +100,12 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	
 	private boolean initialized = false;
 	
-	private File file = null;
-	private String name = null;
-	
 	private MouseMovementHandler mouseHandler = new MouseMovementHandler();
 
 
 	DefaultViewTracker(final QuPathGUI qupath) {
-		viewer = qupath.getViewer();
+		this.qupath = qupath;
+		viewer = qupath != null ? qupath.getViewer() : null;
 		recording.addListener((v, o, n) -> {
 			if (n)
 				doStartRecording();
@@ -130,9 +137,10 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		// Check we aren't recording already
 		if (viewer == null || viewer.getServer() == null || initialized)
 			return;
+		
 		// Look for a server
 		ImageServer<BufferedImage> server = viewer.getServer();
-		initializeRecording(viewer);
+		initializeRecording();
 		viewer.addViewerListener(this);
 		doCursorTracking = trackCursorPosition.get();
 		if (doCursorTracking) {
@@ -143,11 +151,36 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		hasEyeTrackingData = false;
 		visibleRegionChanged(viewer, viewer.getDisplayedRegionShape());
 
-		logger.info("--------------------------------------\n" + 
+		logger.debug("--------------------------------------\n" + 
 					"View tracking for image: " + server.getPath() + "\n" +
-					ViewTrackers.getLogHeadings(LOG_DELIMITER, doCursorTracking, supportsEyeTracking(), hasZAndT()));
+					ViewTrackers.getSummaryHeadings(LOG_DELIMITER, doCursorTracking, supportsEyeTracking(), hasZAndT()));
 	}
 
+
+
+	private boolean setRecordingDirectory() {
+		Path entryPath = qupath.getProject().getEntry(viewer.getImageData()).getEntryPath();
+		if (entryPath != null && entryPath.toFile().exists()) {
+			File recordingDirectory = new File(entryPath.toFile(), "recordings");
+			if (recordingDirectory.exists()) {
+				this.recordingDirectory = recordingDirectory;
+				return true;
+			}
+		}
+		return false;
+	}
+	
+
+	private void createRecordingDir(Path entryPath) {
+		if (entryPath == null) {
+			logger.warn("Could not set recording directory.");
+			return;			
+		}
+		File directory = new File(entryPath.toFile(), "recordings");
+		directory.mkdir();
+		
+		recordingDirectory = directory;
+	}
 
 	@Override
 	public boolean isRecording() {
@@ -161,11 +194,21 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 
 
 	private void doStopRecording() {
-		System.out.println("--------------------------------------");
+		logger.debug("--------------------------------------");
 		viewer.removeViewerListener(this);
 		if (doCursorTracking) {
 			viewer.getView().removeEventHandler(MouseEvent.MOUSE_MOVED, mouseHandler);
 			viewer.getView().removeEventHandler(MouseEvent.MOUSE_DRAGGED, mouseHandler);
+		}
+		if (fw != null) {
+			try {
+				fw.flush();
+				fw.close();
+				fw = null;
+			} catch (IOException e) {
+				logger.error("Error while closing back-up file: ", e);
+			}
+					
 		}
 	}
 
@@ -179,14 +222,26 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 //		initializeRecording(null, 0, 0);
 	}
 
-	private void initializeRecording(QuPathViewer viewer) {
-		this.viewer = viewer;
+	private void initializeRecording() {
 		var imageData = viewer.getImageData();
 		hasZAndT = imageData.getServer().getMetadata().getSizeZ() != 1 || viewer.getImageData().getServer().getMetadata().getSizeT() != 1;
 		frames.clear();
 		startTime = System.currentTimeMillis();
-		lastTime = System.currentTimeMillis();
 		lastFrame = null;
+		
+		// Create 'recordings' directory if it doesn't exist
+		if (!setRecordingDirectory())
+			createRecordingDir(qupath.getProject().getEntry(viewer.getImageData()).getEntryPath());
+		
+		recordingFile = recordingFile != null ? recordingFile : new File(recordingDirectory, name + ".tsv");
+		try {
+			fw = new OutputStreamWriter(new FileOutputStream(recordingFile), StandardCharsets.UTF_8);
+			fw.write(ViewTrackers.getSummaryHeadings(LOG_DELIMITER, doCursorTracking, supportsEyeTracking(), hasZAndT()));
+			fw.write(System.lineSeparator());
+		} catch (IOException e) {
+			logger.error("Could not create back-up file. Recording will not be saved.", e.getLocalizedMessage());
+		}
+		
 		initialized = true;
 	}
 
@@ -229,9 +284,8 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	
 		DefaultViewRecordingFrame frame = new DefaultViewRecordingFrame(timestamp-startTime, imageBounds, canvasSize, downFactor, rotation, cursorPoint, eyePoint, isFixated, z, t);
 		appendFrame(frame);
-		lastTime = timestamp;
 		// Log the frame
-		logger.info(ViewTrackers.toLogString(lastFrame, LOG_DELIMITER, doCursorTracking, supportsEyeTracking(), hasZAndT()));
+		logger.debug(ViewTrackers.getSummary(lastFrame, LOG_DELIMITER, doCursorTracking, hasEyeTrackingData, hasZAndT));
 		return frame;
 	}
 
@@ -242,8 +296,16 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 			throw new RuntimeException("Unable to append frame - frame timestamp is earlier than the current timestamp");
 		frames.add(frame);
 		lastFrame = frame;
-		lastTime = System.currentTimeMillis();
 		hasEyeTrackingData = hasEyeTrackingData || frame.hasEyePosition();
+		
+		if (fw != null) {
+			try {
+				fw.write(ViewTrackers.getSummary(frame, "\t", doCursorTracking, hasEyeTrackingData, hasZAndT));
+				fw.write(System.lineSeparator());
+			} catch (IOException e) {
+				logger.error("Could not write frame to file. Frame will be ignored: ", e);
+			}			
+		}
 	}
 
 
@@ -269,81 +331,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	public List<ViewRecordingFrame> getFrames() {
 		return Collections.unmodifiableList(frames);
 	}
-
-
-
-	@Override
-	public String getSummaryString() {
-		StringBuffer sb = new StringBuffer();
-		String delimiter = PathPrefs.tableDelimiterProperty().get();
-		sb.append(ViewTrackers.getLogHeadings(delimiter, doCursorTracking, hasEyeTrackingData, hasZAndT()));
-		sb.append("\n");
-		for (ViewRecordingFrame frame : frames) {
-			sb.append(ViewTrackers.toLogString(frame, delimiter, doCursorTracking, hasEyeTrackingData, hasZAndT()));
-			sb.append("\n");
-		}
-		return sb.toString();
-	}
-
-
-	//	public String getSummaryString() {
-	//		StringBuffer sb = new StringBuffer();
-	////		sb.append("Path:\t").append(path).append("\n");
-	////		sb.append("Width:\t").append(width).append("\n");
-	////		sb.append("Height:\t").append(height).append("\n");
-	//		sb.append("Timestamp (ms)\tx\ty\tw\th\tImage width\tImage height\tCanvas width\tCanvas height");
-	//		if (doCursorTracking)
-	//			sb.append("\tCursor x\tCursor y");
-	//		if (hasEyeTrackingData())
-	//			sb.append("\tEye x\tEye y\tIs fixated");
-	//		sb.append("\n");
-	//		for (ViewRecordingFrame frame : frames) {
-	//			Rectangle bounds = frame.getImageBounds();
-	//			Dimension canvasSize = frame.getSize();
-	//			sb.append(String.format("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d", frame.getTimestamp(), bounds.x, bounds.y, bounds.width, bounds.height, width, height, canvasSize.width, canvasSize.height));
-	//			if (doCursorTracking) {
-	//				if (frame.hasCursorPosition()) {
-	//					Point2D cursorPosition = frame.getCursorPosition();
-	//					sb.append("\t");
-	//					sb.append(df.format(cursorPosition.getX()));
-	//					sb.append("\t");
-	//					sb.append(df.format(cursorPosition.getY()));
-	//				} else {
-	//					sb.append("\t\t");				
-	//				}
-	//			}
-	//			if (hasEyeTrackingData()) {
-	//				if (frame.hasEyePosition()) {
-	//					Point2D eyePosition = frame.getEyePosition();
-	//					sb.append("\t");
-	//					sb.append(df.format(eyePosition.getX()));
-	//					sb.append("\t");
-	//					sb.append(df.format(eyePosition.getY()));
-	//					sb.append("\t");
-	//					if (frame.isEyeFixated() == null)
-	//						sb.append("\t");
-	//					else
-	//						sb.append(frame.isEyeFixated().toString());
-	//				} else {
-	//					sb.append("\t\t\t");				
-	//				}				
-	//			}
-	//			sb.append("\n");
-	//		}
-	//		return sb.toString();
-	//	}
-
-	//	public int getImageWidth() {
-	//		return width;
-	//	}
-	//
-	//	public int getImageHeight() {
-	//		return height;
-	//	}
-
-	//	public String getOriginalPath() {
-	//		return path;
-	//	}
 
 	@Override
 	public boolean isLastFrame(ViewRecordingFrame frame) {
@@ -445,12 +432,12 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 
 	@Override
 	public File getFile() {
-		return file;
+		return recordingFile;
 	}
 	
 	@Override
 	public void setFile(File file) {
-		this.file = file;
+		this.recordingFile = file;
 	}
 
 	@Override
@@ -465,17 +452,24 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	
 	@Override
 	public long getStartTime() {
-		return this.startTime;
+		if (startTime == -1 && frames.size() > 0)
+			return frames.get(0).getTimestamp();
+		return startTime;
 	}
 	
 	@Override
 	public long getLastTime() {
-		return this.lastTime;
+		return lastFrame.getTimestamp() + getStartTime();
 	}
 
 	@Override
 	public boolean hasZAndT() {
 		return hasZAndT;
+	}
+	
+	@Override
+	public boolean hasCursorTrackingData() {
+		return doCursorTracking;
 	}
 
 	@Override

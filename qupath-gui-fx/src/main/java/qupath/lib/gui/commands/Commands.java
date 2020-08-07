@@ -990,7 +990,7 @@ public class Commands {
 		controller.getTitledPane().heightProperty().addListener((v, o, n) -> dialog.sizeToScene());
 		
 		dialog.setResizable(false);
-		dialog.setAlwaysOnTop(true);
+//		dialog.setAlwaysOnTop(true);
 		
 		// When user requests closing, make sure no data is lost
 		dialog.setOnCloseRequest(e -> {

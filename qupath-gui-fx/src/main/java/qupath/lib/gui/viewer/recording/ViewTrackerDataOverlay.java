@@ -12,7 +12,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
+import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.images.servers.ImageServer;
@@ -52,13 +53,18 @@ public class ViewTrackerDataOverlay{
 		// Set width and height of img
 		double[] preferredDownsamples = server.getPreferredDownsamples();
 		int index = 0;
+		double divider = preferredDownsamples[0];
 		while ((long)imgWidth * imgHeight > 2000 * 2000) {
 			// compute downsample to reach img within pixel limit (2k * 2k)
 			index++;
-			imgWidth = (int)Math.round(server.getWidth() / preferredDownsamples[index]);
-			imgHeight = (int)Math.round(server.getHeight() / preferredDownsamples[index]);
+			if (index >= preferredDownsamples.length)
+				divider = preferredDownsamples[preferredDownsamples.length-1]*2;
+			else
+				divider = preferredDownsamples[index];
+			imgWidth = (int)Math.round(server.getWidth() / divider);
+			imgHeight = (int)Math.round(server.getHeight() / divider);
 		}
-		this.downsample = preferredDownsamples[index];
+		downsample = divider;
 	
 	}
 	
@@ -77,7 +83,8 @@ public class ViewTrackerDataOverlay{
 		regions.clear();
 		for (int z = 0; z < server.nZSlices(); z++) {
 			for (int t = 0; t < server.nTimepoints(); t++) {
-				ImageRegion region = ImageRegion.createInstance(0, 0, (int)Math.round(imgWidth*downsample), (int)Math.round(imgHeight*downsample), z, t);
+//				ImageRegion region = ImageRegion.createInstance(0, 0, (int)Math.round(imgWidth*downsample), (int)Math.round(imgHeight*downsample), z, t);
+				ImageRegion region = ImageRegion.createInstance(0, 0, server.getWidth(), server.getHeight(), z, t);
 				BufferedImage img = getBufferedImage(z, t);
 				regions.put(region, img);
 			}
@@ -95,7 +102,7 @@ public class ViewTrackerDataOverlay{
 				.toArray(ViewRecordingFrame[]::new);
 		
 		
-		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED);
+		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, createColorModel());
 		byte[] buffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
 		if (!timeNormalized) {
 			for (int i = 0; i < buffer.length; i++)
@@ -153,6 +160,16 @@ public class ViewTrackerDataOverlay{
 		int width = bounds.width < 0 ? 0 : (bounds.width + x > imgWidth ? imgWidth - x : bounds.width);
 		int height = bounds.height < 0 ? 0 : (bounds.height + x > imgHeight ? imgHeight - y : bounds.height);
 		return new Rectangle(x, y, width, height);
+	}
+	
+	private IndexColorModel createColorModel() {
+	    var mapper = MeasurementMapper.loadColorMappers().get(0);
+	    int[] rgba = new int[256];
+	    for (int i = 0; i < 256; i++) {
+	        int rgb = mapper.getColor(i, 0, 255);
+	        rgba[i] = ColorTools.makeRGBA(ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb), i);
+	    }
+	    return new IndexColorModel(8, 256, rgba, 0, true, 0, DataBuffer.TYPE_BYTE);
 	}
 	
 

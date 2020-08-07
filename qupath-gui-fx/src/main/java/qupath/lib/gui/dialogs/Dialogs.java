@@ -97,7 +97,7 @@ public class Dialogs {
 	 * @return
 	 */
 	public static boolean showConfirmDialog(String title, String text) {
-		return showConfirmDialog(text, createContentLabel(text));
+		return showConfirmDialog(title, createContentLabel(text));
 	}
 	
 	/**

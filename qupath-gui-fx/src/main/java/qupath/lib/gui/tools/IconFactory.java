@@ -124,7 +124,7 @@ public class IconFactory {
 									SCREENSHOT("\ue918"),
 									
 									TRACKING_PAUSE("\u23f8"),
-									TRACKING_PLAY("\ue915"),
+									TRACKING_RECORD("\ue915", ColorToolsFX.getCachedColor(200, 0, 0)),
 									TRACKING_STOP("\ue919"),
 
 									TABLE("\ue91a"),
