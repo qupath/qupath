@@ -827,10 +827,6 @@ public class GeometryTools {
 					var next = new Coordinate(x1, y1);
 					if (points.isEmpty() || points.get(points.size()-1).distance(next) > precision)
 						points.add(next, false);
-	//				double dx = x1 - points;
-	//				double dy = y1 - y0;
-	//				if (dx*dx + dy*dy > minDisplacement2)
-	//					points.add(new CoordinateXY(x1, y1));
 					else
 						logger.trace("Skipping nearby points");
 					closed = false;
@@ -929,39 +925,32 @@ public class GeometryTools {
 			} else {
 				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
-				// By doing this in order (largest first) we should find the 'correct' containing polygon.
-				
-				// Cache areas so we can use them for sorting without recalculating them every time
-				var areaMap = new HashMap<Geometry, Double>();
-				for (var g : outer)
-					areaMap.put(g, g.getArea());
-				for (var g : holes)
-					areaMap.put(g, g.getArea());
+				// By doing this in order we should find the 'correct' containing polygon.
+				var ascendingArea = Comparator.comparingDouble((GeometryWithArea g) -> g.area);
+				var outerWithArea = outer.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).collect(Collectors.toList());
+				var holesWithArea = holes.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).collect(Collectors.toList());
 				
 				// For each hole, find the smallest polygon that contains it
-				var ascendingArea = Comparator.comparingDouble(g -> areaMap.get(g));
-				outer.sort(ascendingArea);
-				holes.sort(ascendingArea);
 				Map<Geometry, List<Geometry>> matches = new HashMap<>();
-				for (var tempHole : holes) {
-					double holeArea = areaMap.get(tempHole);
+				for (var tempHole : holesWithArea) {
+					double holeArea = tempHole.area;
 					// We assume a single point inside is sufficient because polygons should be non-overlapping
-					var point = tempHole.getCoordinate();
-					var iterOuter = outer.iterator();
+					var point = tempHole.geom.getCoordinate();
+					var iterOuter = outerWithArea.iterator();
 					@SuppressWarnings("unused")
 					int count = 0;
 					while (point != null && iterOuter.hasNext()) {
 						var tempOuter = iterOuter.next();
-						if (holeArea > areaMap.get(tempOuter)) {
+						if (holeArea > tempOuter.area) {
 							continue;
 						}
-						if (SimplePointInAreaLocator.isContained(point, tempOuter)) {
-							var list = matches.get(tempOuter);
+						if (SimplePointInAreaLocator.isContained(point, tempOuter.geom)) {
+							var list = matches.get(tempOuter.geom);
 							if (list == null) {
 								list = new ArrayList<>();
-								matches.put(tempOuter, list);
+								matches.put(tempOuter.geom, list);
 							}
-							list.add(tempHole);
+							list.add(tempHole.geom);
 							break;
 						}
 					}
@@ -969,13 +958,13 @@ public class GeometryTools {
 				
 				// Loop through the outer polygons and remove all their holes
 				List<Geometry> fixedGeometries = new ArrayList<>();
-				for (var tempOuter : outer) {
-					var list = matches.getOrDefault(tempOuter, null);
+				for (var tempOuter : outerWithArea) {
+					var list = matches.getOrDefault(tempOuter.geom, null);
 					if (list == null || list.isEmpty()) {
-						fixedGeometries.add(tempOuter);
+						fixedGeometries.add(tempOuter.geom);
 					} else {
 						var mergedHoles = union(list);
-						fixedGeometries.add(tempOuter.difference(mergedHoles));
+						fixedGeometries.add(tempOuter.geom.difference(mergedHoles));
 					}
 				}
 				geometry = union(fixedGeometries);
@@ -993,6 +982,18 @@ public class GeometryTools {
 			}
 			return geometry;
 		}
+	    
+	    private static class GeometryWithArea {
+	    	
+	    	private final Geometry geom;
+	    	private final double area;
+	    	
+	    	private GeometryWithArea(Geometry geom) {
+	    		this.geom = geom;
+	    		this.area = geom.getArea();
+	    	}
+	    	
+	    }
 	    
 	    
 	    private Geometry pointsToGeometry(ROI points) {
