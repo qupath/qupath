@@ -21,7 +21,9 @@
 
 package qupath.opencv.ml.pixel;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,15 +47,19 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -396,7 +402,9 @@ public class PixelClassifierTools {
 							continue;
 //						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
 //							continue;
-						ROI roiDetected = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
+						
+						ROI roiDetected = createTracedROI(raster, c, c, 0, t);
+//						ROI roiDetected = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
 										
 						if (roiDetected != null)  {
 							Geometry geometry = roiDetected.getGeometry();
@@ -452,6 +460,24 @@ public class PixelClassifierTools {
 		}
 		return pathObjects;
 	}
+	
+	
+	// TODO: Handle scaling elsewhere?
+	static ROI createTracedROI(Raster raster, float minThresholdInclusive, float maxThresholdInclusive, int band, TileRequest t) {
+		
+		var geom = traceGeometry(raster, minThresholdInclusive, maxThresholdInclusive, t.getTileX(), t.getTileY());
+		
+		double scale = t.getDownsample();
+		if (scale != 1) {
+			var transform = AffineTransformation.scaleInstance(scale, scale);
+			geom = transform.transform(geom);
+		}
+		
+		return GeometryTools.geometryToROI(geom, t.getPlane());
+	}
+
+	
+	
 	
 	
 	private static class GeometryWrapper {
@@ -700,6 +726,258 @@ public class PixelClassifierTools {
 //		reclassifiers.parallelStream().forEach(r -> r.apply());
 //		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
 //	}
+	
+	
+		
+	
+		static boolean selected(Raster raster, int x, int y, float min, float max) {
+			float v = raster.getSampleFloat(x, y, 0);
+			return v >= min && v <= max;
+		}
+		
+		
+		/**
+		 * This is adapted from ImageJ's ThresholdToSelection.java (public domain) written by Johannes E. Schindelin 
+		 * based on a proposal by Tom Larkworthy.
+		 * <p>
+		 * See https://github.com/imagej/imagej1/blob/573ab799ae8deb0f4feb79724a5a6f82f60cd2d6/ij/plugin/filter/ThresholdToSelection.java
+		 * <p>
+		 * The code has been substantially revised to enable more efficient use within QuPath and to use Java Topology Suite.
+		 * 
+		 * @param raster
+		 * @param min
+		 * @param max
+		 * @param xOffset
+		 * @param yOffset
+		 * @return
+		 */
+		static Geometry traceGeometry(Raster raster, float min, float max, int xOffset, int yOffset) {
+			
+			int w = raster.getWidth();
+			int h = raster.getHeight();
+			
+			boolean[] prevRow, thisRow;
+			ArrayList<Coordinate[]> polygons = new ArrayList<>();
+			Outline[] outline;
+	
+			prevRow = new boolean[w + 2];
+			thisRow = new boolean[w + 2];
+			outline = new Outline[w + 1];
+	
+			for (int y = 0; y <= h; y++) {
+				boolean[] b = prevRow; prevRow = thisRow; thisRow = b;
+				int xAfterLowerRightCorner = -1;	   //x at right of 8-connected (not 4-connected) pixels NW-SE
+				Outline oAfterLowerRightCorner = null; //there, continue this outline towards south
+				thisRow[1] = y < h ? selected(raster, 0, y, min, max) : false;
+				for (int x = 0; x <= w; x++) {
+					if (y < h && x < w - 1)
+						thisRow[x + 2] = selected(raster, x + 1, y, min, max);  //we need to read one pixel ahead
+					else if (x < w - 1)
+						thisRow[x + 2] = false;
+					if (thisRow[x + 1]) {  // i.e., pixel (x,y) is selected
+						if (!prevRow[x + 1]) {
+							// Upper edge of selected area:
+							// - left and right outlines are null: new outline
+							// - left null: append (line to left)
+							// - right null: prepend (line to right), or prepend&append (after lower right corner, two borders from one corner)
+							// - left == right: close (end of hole above) unless we can continue at the right
+							// - left != right: merge (prepend) unless we can continue at the right
+							if (outline[x] == null) {
+								if (outline[x + 1] == null) {
+									outline[x + 1] = outline[x] = new Outline(xOffset, yOffset);
+									outline[x].append(x + 1, y);
+									outline[x].append(x, y);
+								} else {
+									outline[x] = outline[x + 1];  // line from top-right to top-left
+									outline[x + 1] = null;
+									outline[x].append(x, y);
+								}
+							} else if (outline[x + 1] == null) {
+								if (x == xAfterLowerRightCorner) {
+									outline[x + 1] = outline[x];
+									outline[x] = oAfterLowerRightCorner;
+									outline[x].append(x, y);
+									outline[x + 1].prepend(x + 1, y);
+								} else {
+									outline[x + 1] = outline[x];
+									outline[x] = null;
+									outline[x + 1].prepend(x + 1, y);
+								}
+							} else if (outline[x + 1] == outline[x]) {
+								if (x < w - 1 && y < h && x != xAfterLowerRightCorner
+										&& !thisRow[x + 2] && prevRow[x + 2]) { //at lower right corner & next pxl deselected
+									outline[x] = null;
+									//outline[x+1] unchanged
+									outline[x + 1].prepend(x + 1,y);
+									xAfterLowerRightCorner = x + 1;
+									oAfterLowerRightCorner = outline[x + 1];
+								} else {
+									//System.err.println("subtract " + outline[x]);
+									polygons.add(outline[x].getPolygon()); // MINUS (add inner hole)
+									outline[x + 1] = null;
+									outline[x] = (x == xAfterLowerRightCorner) ? oAfterLowerRightCorner : null;
+								}
+							} else {
+								outline[x].prepend(outline[x + 1]);		// merge
+								for (int x1 = 0; x1 <= w; x1++)
+									if (x1 != x + 1 && outline[x1] == outline[x + 1]) {
+										outline[x1] = outline[x];        // after merging, replace old with merged
+										outline[x + 1] = null;           // no line continues at the right
+										outline[x] = (x == xAfterLowerRightCorner) ? oAfterLowerRightCorner : null;
+										break;
+									}
+								if (outline[x + 1] != null)
+									throw new RuntimeException("assertion failed");							
+							}
+						}
+						if (!thisRow[x]) {
+							// left edge
+							if (outline[x] == null)
+								throw new RuntimeException("assertion failed");
+							outline[x].append(x, y + 1);
+						}
+					} else {  // !thisRow[x + 1], i.e., pixel (x,y) is deselected
+						if (prevRow[x + 1]) {
+							// Lower edge of selected area:
+							// - left and right outlines are null: new outline
+							// - left == null: prepend
+							// - right == null: append, or append&prepend (after lower right corner, two borders from one corner)
+							// - right == left: close unless we can continue at the right
+							// - right != left: merge (append) unless we can continue at the right
+							if (outline[x] == null) {
+								if (outline[x + 1] == null) {
+									outline[x] = outline[x + 1] = new Outline(xOffset, yOffset);
+									outline[x].append(x, y);
+									outline[x].append(x + 1, y);
+								} else {
+										outline[x] = outline[x + 1];
+										outline[x + 1] = null;
+										outline[x].prepend(x, y);
+								}
+							} else if (outline[x + 1] == null) {
+								if (x == xAfterLowerRightCorner) {
+									outline[x + 1] = outline[x];
+									outline[x] = oAfterLowerRightCorner;
+									outline[x].prepend(x, y);
+									outline[x + 1].append(x + 1, y);
+								} else {
+									outline[x + 1] = outline[x];
+									outline[x] = null;
+									outline[x + 1].append(x + 1, y);
+								}
+							} else if (outline[x + 1] == outline[x]) {
+								//System.err.println("add " + outline[x]);
+								if (x < w - 1 && y < h && x != xAfterLowerRightCorner
+										&& thisRow[x + 2] && !prevRow[x + 2]) { //at lower right corner & next pxl selected
+									outline[x] = null;
+									//outline[x+1] unchanged
+									outline[x + 1].append(x + 1,y);
+									xAfterLowerRightCorner = x + 1;
+									oAfterLowerRightCorner = outline[x + 1];
+								} else {
+									polygons.add(outline[x].getPolygon());   // PLUS (add filled outline)
+									outline[x + 1] = null;
+									outline[x] = x == xAfterLowerRightCorner ? oAfterLowerRightCorner : null;
+								}
+							} else {
+								if (x < w - 1 && y < h && x != xAfterLowerRightCorner
+										&& thisRow[x + 2] && !prevRow[x + 2]) { //at lower right corner && next pxl selected
+									outline[x].append(x + 1, y);
+									outline[x + 1].prepend(x + 1,y);
+									xAfterLowerRightCorner = x + 1;
+									oAfterLowerRightCorner = outline[x];
+									// outline[x + 1] unchanged (the one at the right-hand side of (x, y-1) to the top)
+									outline[x] = null;
+								} else {
+									outline[x].append(outline[x + 1]);         // merge
+									for (int x1 = 0; x1 <= w; x1++)
+										if (x1 != x + 1 && outline[x1] == outline[x + 1]) {
+											outline[x1] = outline[x];        // after merging, replace old with merged
+											outline[x + 1] = null;           // no line continues at the right
+											outline[x] = (x == xAfterLowerRightCorner) ? oAfterLowerRightCorner : null;
+											break;
+										}
+									if (outline[x + 1] != null)
+										throw new RuntimeException("assertion failed");
+								}
+							}
+						}
+						if (thisRow[x]) {
+							// right edge
+							if (outline[x] == null)
+								throw new RuntimeException("assertion failed");
+							outline[x].prepend(x, y + 1);
+						}
+					}
+				}
+			}
+			
+			if (polygons.size()==0)
+				return null;
+			
+			Path2D path = new Path2D.Double(Path2D.WIND_EVEN_ODD);
+			for (int i = 0; i < polygons.size(); i++) {
+				boolean first = true;
+				for (Coordinate c : polygons.get(i)) {
+					if (first)
+						path.moveTo(c.getX(), c.getY());
+					else
+						path.lineTo(c.getX(), c.getY());	
+					first = false;
+				}
+				path.closePath();
+			}
+	
+			return GeometryTools.shapeToGeometry(path);
+		}
+		
+	
+	
+	static class Outline {
+		
+		private Deque<Coordinate> coords = new ArrayDeque<>();
+		
+		private int xOffset, yOffset;
+		
+		/**
+		 * Initialize an output. Optional x and y offsets may be provided, in which case
+		 * these will be added to coordinates. The reason for this is to help support 
+		 * working with tiled images, where the tile origin is not 0,0 but we don't want to 
+		 * have to handle this elsewhere.
+		 * 
+		 * @param xOffset
+		 * @param yOffset
+		 */
+		public Outline(int xOffset, int yOffset) {
+			this.xOffset = xOffset;
+			this.yOffset = yOffset;
+		}
+		
+		public void append(int x, int y) {
+			coords.addLast(new Coordinate(xOffset + x, yOffset + y));
+		}
+		
+		public void prepend(int x, int y) {
+			coords.addFirst(new Coordinate(xOffset + x, yOffset + y));
+		}
+		
+		public void append(Outline outline) {
+			coords.addAll(outline.coords);
+		}
+		
+		public void prepend(Outline outline) {
+			outline.coords.descendingIterator().forEachRemaining(c -> coords.addFirst(c));
+		}
+		
+		public Coordinate[] getPolygon() {
+			if (!coords.getFirst().equals(coords.getLast()))
+				coords.add(coords.getFirst());
+			return coords.toArray(Coordinate[]::new);
+		}
+		
+	}
+	
+	
 	
 	
 
