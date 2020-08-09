@@ -299,10 +299,9 @@ public class GeometryTools {
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
     	if (fastUnion) {
-    		var geometryArray = geometries.toArray(Geometry[]::new);
-    		double areaSum = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
-    		var union = DEFAULT_INSTANCE.factory.createGeometryCollection(geometryArray).buffer(0);
-    		double areaUnion = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
+    		double areaSum = geometries.stream().mapToDouble(g -> g.getArea()).sum();
+    		var union = DEFAULT_INSTANCE.factory.buildGeometry(geometries).buffer(0);
+    		double areaUnion = union.getArea();
     		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001)) {
     			return union;
     		}
@@ -528,6 +527,65 @@ public class GeometryTools {
     
     
     /**
+     * Test a polygon for validity, attempting to fix TopologyValidationErrors if possible.
+     * This attempts a range of tricks (starting with Geometry.buffer(0)), although none
+     * are guaranteed to work. The first that largely preserves the polygon's area is returned.
+     * <p>
+     * The result is guaranteed to be valid, but not necessarily to be a close match to the 
+     * original polygon; in particular, if everything failed the result will be empty.
+     * <p>
+     * Code that calls this method can test if the output is equal to the input to determine 
+     * if any changes were made.
+     * 
+     * @param polygon input (possibly-invalid) polygon
+     * @return the input polygon (if valid), an adjusted polygon (if attempted fixes helped),
+     *         or an empty polygon if the situation could not be resolved
+     */
+    public static Geometry tryToFixPolygon(Polygon polygon) {
+    	TopologyValidationError error = new IsValidOp(polygon).getValidationError();
+    	if (error == null)
+    		return polygon;
+    	
+		logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
+		
+		// Area calculations seem to be reliable... even if the topology is invalid
+		double areaBefore = polygon.getArea();
+		
+		double tol = 0.0001;
+
+		// Try fast buffer trick to make valid (but sometimes this can 'break', e.g. with bow-tie shapes)
+		Geometry geomBuffered = polygon.buffer(0);
+		double areaBuffered = geomBuffered.getArea();
+		if (geomBuffered.isValid() && GeneralTools.almostTheSame(areaBefore, areaBuffered, tol))
+			return geomBuffered;
+		
+		// If the buffer trick gave us an exceedingly small area, try removing this and see if that resolves things
+		if (!geomBuffered.isEmpty() && areaBuffered < areaBefore * 0.001) {
+			try {
+				Geometry geomDifference = polygon.difference(geomBuffered);
+				if (geomDifference.isValid())
+					return geomDifference;
+			} catch (Exception e) {
+				logger.debug("Attempting to fix by difference failed: " + e.getLocalizedMessage(), e);
+			}
+		}
+		
+		// Resort to the slow method of fixing polygons if we have to
+		logger.debug("Unable to fix Geometry with buffer(0) - will try snapToSelf instead");
+		double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
+		Geometry geomSnapped = GeometrySnapper.snapToSelf(polygon,
+				distance,
+				true);
+		
+		if (geomSnapped.isValid())
+			return geomSnapped;
+		
+		// If everything failed, return an empty polygon (which will at least be valid...)
+		return polygon.getFactory().createPolygon();
+    }
+    
+    
+    /**
      * Remove small fragments and fill interior rings within a Geometry.
      * 
      * @param geometry
@@ -693,64 +751,6 @@ public class GeometryTools {
 //	    	System.err.println(geometry.getArea());
 ////	    	geometry = GeometrySnapper.snapToSelf(geometry, GeometryS, cleanResult)
 //	    	return VWSimplifier.simplify(geometry, 0);    		
-	    }
-	    
-	    /**
-	     * Test a polygon for validity, attempting to fix TopologyValidationErrors if possible.
-	     * This attempts a range of tricks (starting with Geometry.buffer(0)), although none
-	     * are guaranteed to work. The first that largely preserves the polygon's area is returned.
-	     * <p>
-	     * The result is guaranteed to be valid, but not necessarily to be a close match to the 
-	     * original polygon; in particular, if everything failed the result will be empty.
-	     * <p>
-	     * Code that calls this method can test if the output is equal to the input to determine 
-	     * if any changes were made.
-	     * 
-	     * @param polygon input (possibly-invalid) polygon
-	     * @return the input polygon (if valid), an adjusted polygon (if attempted fixes helped),
-	     *         or an empty polygon if the situation could not be resolved
-	     */
-	    static Geometry tryToFixPolygon(Polygon polygon) {
-	    	TopologyValidationError error = new IsValidOp(polygon).getValidationError();
-	    	if (error == null)
-	    		return polygon;
-	    	
-			logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
-			
-			// Area calculations seem to be reliable... even if the topology is invalid
-			double areaBefore = polygon.getArea();
-			
-			double tol = 0.0001;
-
-			// Try fast buffer trick to make valid (but sometimes this can 'break', e.g. with bow-tie shapes)
-			Geometry geomBuffered = polygon.buffer(0);
-			double areaBuffered = geomBuffered.getArea();
-			if (geomBuffered.isValid() && GeneralTools.almostTheSame(areaBefore, areaBuffered, tol))
-				return geomBuffered;
-			
-			// If the buffer trick gave us an exceedingly small area, try removing this and see if that resolves things
-			if (!geomBuffered.isEmpty() && areaBuffered < areaBefore * 0.001) {
-				try {
-					Geometry geomDifference = polygon.difference(geomBuffered);
-					if (geomDifference.isValid())
-						return geomDifference;
-				} catch (Exception e) {
-					logger.debug("Attempting to fix by difference failed: " + e.getLocalizedMessage(), e);
-				}
-			}
-			
-			// Resort to the slow method of fixing polygons if we have to
-			logger.debug("Unable to fix Geometry with buffer(0) - will try snapToSelf instead");
-			double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
-			Geometry geomSnapped = GeometrySnapper.snapToSelf(polygon,
-					distance,
-					true);
-			
-			if (geomSnapped.isValid())
-				return geomSnapped;
-			
-			// If everything failed, return an empty polygon (which will at least be valid...)
-			return polygon.getFactory().createPolygon();
 	    }
 	    
 	    

@@ -3,18 +3,27 @@ package qupath.opencv.ml.pixel;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.operation.valid.IsValidOp;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import ij.process.ByteProcessor;
 import ij.process.ImageStatistics;
@@ -30,20 +39,78 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
+/**
+ * Test conversion of raster images (binary and labelled) to ROIs.
+ * 
+ * @author Pete Bankhead
+ *
+ */
 class PixelClassifierToolsTest {
-
+	
+	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierToolsTest.class);
+	
+	
+	private List<String> excludeNames = Arrays.asList(
+			"binary-noise-medium.png",
+			"binary-noise-large.png"
+			);
+	
 	@Test
 	void testCreateObjects() throws Exception {
 		
-		// Read 8-bit labelled image containing objects of various shapes
-		var url = getClass().getResource("/data/shapes.png");
-		var img = ImageIO.read(url);
-		testImage(img, 14);
+		var path = Paths.get(getClass().getResource("/data").toURI());
+		
+		var pathList = Files.walk(path)
+				.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".png"))
+				.collect(Collectors.toCollection(ArrayList::new));
+		
+		if (pathList.isEmpty()) {
+			throw new Exception("No paths found to test object creation!");
+		}
+		
+		// Sort by file size - do simpler tests first
+		Collections.sort(pathList, Comparator.comparingLong(p -> {
+			try {
+				return Files.size(p);
+			} catch (Exception e) {
+				return Long.MAX_VALUE;
+			}
+		}));
+		
+		for (var p : pathList) {
+			String name = p.getFileName().toString();
+			if (excludeNames.contains(name)) {
+				logger.debug("Skipping {}", name);
+				continue;
+			}
+			logger.debug("Testing {}", name);
+			long time = testImage(p);
+			logger.debug("Processing time: {} ms", time);
+		}
 
+	}
+	
+	long testImage(Path path) throws Exception {
+		long startTime = System.currentTimeMillis();
+		
+		var img = ImageIO.read(path.toUri().toURL());
+		
+		// Convert binary images to 0-1
+		if (path.getFileName().toString().startsWith("binary")) {
+			var buffer = (DataBufferByte)img.getRaster().getDataBuffer();
+			byte[] bytes = buffer.getData();
+			for (int i = 0; i < bytes.length; i++)
+				if (bytes[i] != (byte)0)
+					bytes[i] = (byte)1;
+		}
+		
+		testImage(img);
+		
+		return System.currentTimeMillis() - startTime;
 	}
 
 		
-	void testImage(BufferedImage img, int nObjects) throws Exception {
+	void testImage(BufferedImage img) throws Exception {
 		
 		assertEquals(BufferedImage.TYPE_BYTE_GRAY, img.getType());
 		
@@ -53,7 +120,6 @@ class PixelClassifierToolsTest {
 		int[] hist = new int[max+1];
 		for (int p : pixels)
 			hist[p]++;
-		assertEquals(nObjects, max);
 		
 		// Check ImageJ labelling
 		var bpLabels = new ByteProcessor(img); 
@@ -123,8 +189,16 @@ class PixelClassifierToolsTest {
 		Collections.sort(annotations, Comparator.comparingInt(a -> classificationLabelsReverse.get(a.getPathClass())));
 		for (var annotation : annotations) {
 			int label = classificationLabelsReverse.get(annotation.getPathClass());
-			double area = annotation.getROI().getArea();
+			var roi = annotation.getROI();
+			double area = roi.getArea();
+//			System.err.println(hist[label] + ": \t" + area);
 			assertEquals(hist[label], area);
+			var geom = roi.getGeometry();
+			var error = new IsValidOp(geom).getValidationError();
+			if (error != null)
+				logger.warn(error.getMessage());
+			assertNull(error);
+			assertEquals(hist[label], geom.getArea());
 		}
 		
 	}
@@ -151,7 +225,6 @@ class PixelClassifierToolsTest {
 					.mapToDouble(a -> a.getROI().getArea())
 					.sum();
 			assertEquals(hist[label], totalArea);
-
 		}
 		
 	}

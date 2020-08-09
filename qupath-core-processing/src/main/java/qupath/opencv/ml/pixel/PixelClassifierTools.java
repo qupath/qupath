@@ -21,15 +21,26 @@
 
 package qupath.opencv.ml.pixel;
 
+import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
+import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
+import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Location;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.index.quadtree.Quadtree;
+import org.locationtech.jts.operation.polygonize.Polygonizer;
+import org.locationtech.jts.operation.valid.IsValidOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -47,7 +58,6 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
 
-import java.awt.geom.Path2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.awt.image.Raster;
@@ -62,8 +72,10 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -430,7 +442,7 @@ public class PixelClassifierTools {
 				// Merge to a single Geometry
 				var collection = list.stream().map(g -> g.geometry).collect(Collectors.toList());
 //				long start = System.currentTimeMillis();
-//				Geometry geometry = collection.get(0).getFactory().createGeometryCollection(collection.toArray(Geometry[]::new)).buffer(0);
+//				Geometry geometry = collection.get(0).getFactory().buildGeometry(collection.toArray(Geometry[]::new)).buffer(0);
 //				long middle = System.currentTimeMillis();
 				Geometry geometry = GeometryTools.union(collection);
 //				long end = System.currentTimeMillis();
@@ -727,7 +739,7 @@ public class PixelClassifierTools {
 //		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
 //	}
 	
-	
+
 		
 	
 		static boolean selected(Raster raster, int x, int y, float min, float max) {
@@ -742,7 +754,7 @@ public class PixelClassifierTools {
 		 * <p>
 		 * See https://github.com/imagej/imagej1/blob/573ab799ae8deb0f4feb79724a5a6f82f60cd2d6/ij/plugin/filter/ThresholdToSelection.java
 		 * <p>
-		 * The code has been substantially revised to enable more efficient use within QuPath and to use Java Topology Suite.
+		 * The code has been substantially rewritten to enable more efficient use within QuPath and to use Java Topology Suite.
 		 * 
 		 * @param raster
 		 * @param min
@@ -757,185 +769,474 @@ public class PixelClassifierTools {
 			int h = raster.getHeight();
 			
 			boolean[] prevRow, thisRow;
-			ArrayList<Coordinate[]> polygons = new ArrayList<>();
-			Outline[] outline;
+			var manager = new GeometryManager(GeometryTools.getDefaultFactory());
+//			var manager = new ComplexGeometryManager(GeometryTools.getDefaultFactory());
 	
+			// Cache for the current and previous thresholded rows
 			prevRow = new boolean[w + 2];
 			thisRow = new boolean[w + 2];
-			outline = new Outline[w + 1];
-	
+			
+			// Current outlines
+			Outline[] movingDown = new Outline[w + 1];
+			Outline movingRight = null;
+			
+			int pixelCount = 0;
+			
 			for (int y = 0; y <= h; y++) {
-				boolean[] b = prevRow; prevRow = thisRow; thisRow = b;
-				int xAfterLowerRightCorner = -1;	   //x at right of 8-connected (not 4-connected) pixels NW-SE
-				Outline oAfterLowerRightCorner = null; //there, continue this outline towards south
+				
+				// Swap this and previous rows (this row data will be overwritten as we go)
+				boolean[] tempSwap = prevRow;
+				prevRow = thisRow;
+				thisRow = tempSwap;
+				
 				thisRow[1] = y < h ? selected(raster, 0, y, min, max) : false;
+				
 				for (int x = 0; x <= w; x++) {
+					
+					int left = x;
+					int center = x + 1;
+					int right = x + 2;
+					
 					if (y < h && x < w - 1)
-						thisRow[x + 2] = selected(raster, x + 1, y, min, max);  //we need to read one pixel ahead
+						thisRow[right] = selected(raster, center, y, min, max);  //we need to read one pixel ahead
 					else if (x < w - 1)
-						thisRow[x + 2] = false;
-					if (thisRow[x + 1]) {  // i.e., pixel (x,y) is selected
-						if (!prevRow[x + 1]) {
-							// Upper edge of selected area:
-							// - left and right outlines are null: new outline
-							// - left null: append (line to left)
-							// - right null: prepend (line to right), or prepend&append (after lower right corner, two borders from one corner)
-							// - left == right: close (end of hole above) unless we can continue at the right
-							// - left != right: merge (prepend) unless we can continue at the right
-							if (outline[x] == null) {
-								if (outline[x + 1] == null) {
-									outline[x + 1] = outline[x] = new Outline(xOffset, yOffset);
-									outline[x].append(x + 1, y);
-									outline[x].append(x, y);
-								} else {
-									outline[x] = outline[x + 1];  // line from top-right to top-left
-									outline[x + 1] = null;
-									outline[x].append(x, y);
-								}
-							} else if (outline[x + 1] == null) {
-								if (x == xAfterLowerRightCorner) {
-									outline[x + 1] = outline[x];
-									outline[x] = oAfterLowerRightCorner;
-									outline[x].append(x, y);
-									outline[x + 1].prepend(x + 1, y);
-								} else {
-									outline[x + 1] = outline[x];
-									outline[x] = null;
-									outline[x + 1].prepend(x + 1, y);
-								}
-							} else if (outline[x + 1] == outline[x]) {
-								if (x < w - 1 && y < h && x != xAfterLowerRightCorner
-										&& !thisRow[x + 2] && prevRow[x + 2]) { //at lower right corner & next pxl deselected
-									outline[x] = null;
-									//outline[x+1] unchanged
-									outline[x + 1].prepend(x + 1,y);
-									xAfterLowerRightCorner = x + 1;
-									oAfterLowerRightCorner = outline[x + 1];
-								} else {
-									//System.err.println("subtract " + outline[x]);
-									polygons.add(outline[x].getPolygon()); // MINUS (add inner hole)
-									outline[x + 1] = null;
-									outline[x] = (x == xAfterLowerRightCorner) ? oAfterLowerRightCorner : null;
-								}
-							} else {
-								outline[x].prepend(outline[x + 1]);		// merge
-								for (int x1 = 0; x1 <= w; x1++)
-									if (x1 != x + 1 && outline[x1] == outline[x + 1]) {
-										outline[x1] = outline[x];        // after merging, replace old with merged
-										outline[x + 1] = null;           // no line continues at the right
-										outline[x] = (x == xAfterLowerRightCorner) ? oAfterLowerRightCorner : null;
-										break;
-									}
-								if (outline[x + 1] != null)
-									throw new RuntimeException("assertion failed");							
-							}
+						thisRow[right] = false;
+					
+					if (thisRow[center])
+						pixelCount++;
+										
+					/*
+					 * Pixels are considered in terms of a 2x2 square.
+					 * ----0----
+					 * | A | B |
+					 * 0---X====
+					 * | C | D |
+					 * ----=====
+					 * 
+					 * The current focus is on D, which is considered the 'center' (since subsequent 
+					 * pixels matter too for the pattern, but we don't need them during this iteration).
+					 * 
+					 * In each case, the question is whether or not an outline will be created,
+					 * or moved for a location 0 to location X - possibly involving merges or completion of 
+					 * an outline.
+					 * 
+					 * Note that outlines are always drawn so that the 'on' pixels are on the left, 
+					 * from the point of view of the directed line.
+					 * Therefore shells are anticlockwise whereas holes are clockwise.
+					 */
+					
+					// Extract the local 2x2 binary pattern
+					// This represented by a value between 0 and 15, where bits indicate if a pixel is selected or not
+					int pattern = (prevRow[left] ? 8 : 0) 
+									+ (prevRow[center] ? 4 : 0) 
+									+ (thisRow[left] ? 2 : 0)
+									+ (thisRow[center] ? 1 : 0);
+
+					
+					switch (pattern) {
+					case 0: 
+						// Nothing selected
+						assert movingDown[x] == null;
+						assert movingRight == null;
+						break;
+					case 1: 
+						// Selected D
+						assert movingDown[x] == null;
+						assert movingRight == null;
+						// Create new shell
+						movingRight = new Outline(xOffset, yOffset);
+						movingRight.append(x, y);
+						movingDown[x] = movingRight;
+						break;
+					case 2: 
+						// Selected C
+						assert movingDown[x] == null;
+						movingRight.prepend(x, y);
+						movingDown[x] = movingRight;
+						movingRight = null;
+						break;
+					case 3: 
+						// Selected C, D
+						assert movingDown[x] == null;
+						assert movingRight != null;
+						break;
+					case 4: 
+						// Selected B
+						assert movingRight == null;
+						movingDown[x].append(x, y);
+						movingRight = movingDown[x];
+						movingDown[x] = null;
+						break;
+					case 5: 
+						// Selected B, D
+						assert movingRight == null;
+						assert movingDown[x] != null;
+						break;
+					case 6: 
+						// Selected B, C
+						assert movingDown[x] != null;
+						assert movingRight != null;
+						movingRight.prepend(x, y);
+						if (Objects.equals(movingRight, movingDown[x])) {
+							// Hole completed!
+							manager.addHole(movingRight);
+							movingRight = new Outline(xOffset, yOffset);
+							movingRight.append(x, y);
+							movingDown[x] = movingRight;
+						} else {
+							movingDown[x].append(x, y);
+							var temp = movingRight;
+							movingRight = movingDown[x];
+							movingDown[x] = temp;
 						}
-						if (!thisRow[x]) {
-							// left edge
-							if (outline[x] == null)
-								throw new RuntimeException("assertion failed");
-							outline[x].append(x, y + 1);
+						break;
+					case 7: 
+						// Selected B, C, D
+						assert movingDown[x] != null;
+						assert movingRight != null;
+						movingDown[x].append(x, y);
+						if (Objects.equals(movingRight, movingDown[x])) {
+							// Hole completed!
+							manager.addHole(movingRight);
+						} else {
+							movingRight.prepend(movingDown[x]);
+							replace(movingDown, movingDown[x], movingRight);
 						}
-					} else {  // !thisRow[x + 1], i.e., pixel (x,y) is deselected
-						if (prevRow[x + 1]) {
-							// Lower edge of selected area:
-							// - left and right outlines are null: new outline
-							// - left == null: prepend
-							// - right == null: append, or append&prepend (after lower right corner, two borders from one corner)
-							// - right == left: close unless we can continue at the right
-							// - right != left: merge (append) unless we can continue at the right
-							if (outline[x] == null) {
-								if (outline[x + 1] == null) {
-									outline[x] = outline[x + 1] = new Outline(xOffset, yOffset);
-									outline[x].append(x, y);
-									outline[x].append(x + 1, y);
-								} else {
-										outline[x] = outline[x + 1];
-										outline[x + 1] = null;
-										outline[x].prepend(x, y);
-								}
-							} else if (outline[x + 1] == null) {
-								if (x == xAfterLowerRightCorner) {
-									outline[x + 1] = outline[x];
-									outline[x] = oAfterLowerRightCorner;
-									outline[x].prepend(x, y);
-									outline[x + 1].append(x + 1, y);
-								} else {
-									outline[x + 1] = outline[x];
-									outline[x] = null;
-									outline[x + 1].append(x + 1, y);
-								}
-							} else if (outline[x + 1] == outline[x]) {
-								//System.err.println("add " + outline[x]);
-								if (x < w - 1 && y < h && x != xAfterLowerRightCorner
-										&& thisRow[x + 2] && !prevRow[x + 2]) { //at lower right corner & next pxl selected
-									outline[x] = null;
-									//outline[x+1] unchanged
-									outline[x + 1].append(x + 1,y);
-									xAfterLowerRightCorner = x + 1;
-									oAfterLowerRightCorner = outline[x + 1];
-								} else {
-									polygons.add(outline[x].getPolygon());   // PLUS (add filled outline)
-									outline[x + 1] = null;
-									outline[x] = x == xAfterLowerRightCorner ? oAfterLowerRightCorner : null;
-								}
-							} else {
-								if (x < w - 1 && y < h && x != xAfterLowerRightCorner
-										&& thisRow[x + 2] && !prevRow[x + 2]) { //at lower right corner && next pxl selected
-									outline[x].append(x + 1, y);
-									outline[x + 1].prepend(x + 1,y);
-									xAfterLowerRightCorner = x + 1;
-									oAfterLowerRightCorner = outline[x];
-									// outline[x + 1] unchanged (the one at the right-hand side of (x, y-1) to the top)
-									outline[x] = null;
-								} else {
-									outline[x].append(outline[x + 1]);         // merge
-									for (int x1 = 0; x1 <= w; x1++)
-										if (x1 != x + 1 && outline[x1] == outline[x + 1]) {
-											outline[x1] = outline[x];        // after merging, replace old with merged
-											outline[x + 1] = null;           // no line continues at the right
-											outline[x] = (x == xAfterLowerRightCorner) ? oAfterLowerRightCorner : null;
-											break;
-										}
-									if (outline[x + 1] != null)
-										throw new RuntimeException("assertion failed");
-								}
-							}
+						movingRight = null;
+						movingDown[x] = null;
+						break;
+					case 8: 
+						// Selected A
+						assert movingDown[x] != null;
+						assert movingRight != null;
+						movingRight.append(x, y);
+						if (Objects.equals(movingRight, movingDown[x])) {
+							// Shell completed!
+							manager.addShell(movingRight);
+						} else {
+							movingDown[x].prepend(movingRight);
+							replace(movingDown, movingRight, movingDown[x]);
 						}
-						if (thisRow[x]) {
-							// right edge
-							if (outline[x] == null)
-								throw new RuntimeException("assertion failed");
-							outline[x].prepend(x, y + 1);
+						movingRight = null;
+						movingDown[x] = null;
+						break;
+					case 9: 
+						// Selected A, D
+						assert movingDown[x] != null;
+						assert movingRight != null;
+						movingRight.append(x, y);
+						if (Objects.equals(movingRight, movingDown[x])) {
+							// Shell completed!
+							manager.addShell(movingRight);
+							movingRight = new Outline(xOffset, yOffset);
+							movingRight.append(x, y);
+							movingDown[x] = movingRight;
+						} else {
+							movingDown[x].prepend(x, y);
+							var temp = movingRight;
+							movingRight = movingDown[x];
+							movingDown[x] = temp;
 						}
+						break;
+					case 10: 
+						// Selected A, C
+						assert movingRight == null;
+						assert movingDown[x] != null;
+						break;
+					case 11: 
+						// Selected A, C, D
+						assert movingRight == null;
+						assert movingDown[x] != null;
+						movingDown[x].prepend(x, y);
+						movingRight = movingDown[x];
+						movingDown[x] = null;
+						break;
+					case 12: 
+						// Selected A, B
+						assert movingDown[x] == null;
+						assert movingRight != null;
+						break;
+					case 13: 
+						// Selected A, B, D
+						assert movingDown[x] == null;
+						assert movingRight != null;
+						movingRight.append(x, y);
+						movingDown[x] = movingRight;
+						movingRight = null;
+						break;
+					case 14: 
+						// Selected A, B, C
+						assert movingRight == null;
+						assert movingDown[x] == null;
+						// Create new hole
+						movingRight = new Outline(xOffset, yOffset);
+						movingRight.append(x, y);
+						movingDown[x] = movingRight;
+						break;
+					case 15: 
+						// Selected A, B, C, D
+						assert movingDown[x] == null;
+						assert movingRight == null;
+						break;
 					}
 				}
 			}
 			
-			if (polygons.size()==0)
-				return null;
+			var geom = manager.getFinalGeometry();
 			
-			Path2D path = new Path2D.Double(Path2D.WIND_EVEN_ODD);
-			for (int i = 0; i < polygons.size(); i++) {
-				boolean first = true;
-				for (Coordinate c : polygons.get(i)) {
-					if (first)
-						path.moveTo(c.getX(), c.getY());
-					else
-						path.lineTo(c.getX(), c.getY());	
-					first = false;
-				}
-				path.closePath();
+			var area = geom.getArea();
+			if (pixelCount != area) {
+				logger.warn("Pixel count {} is not equal to geometry area {}", pixelCount, area);
 			}
-	
-			return GeometryTools.shapeToGeometry(path);
+			
+			return geom;
+
 		}
 		
+		
+		private static void replace(Outline[] outlines, Outline original, Outline replacement) {
+			for (int i = 0; i < outlines.length; i++) {
+				if (outlines[i] == original)
+					outlines[i] = replacement;
+			}
+		}
+		
+		static class GeometryManager {
+
+			private Polygonizer polygonizer = new Polygonizer(true);
+			private GeometryFactory factory;
+			
+			private List<Outline> shells = new ArrayList<>();
+			private List<Outline> holes = new ArrayList<>();
+
+			GeometryManager(GeometryFactory factory) {
+				this.factory = factory;
+			}
+
+			public void addHole(Outline outline) {
+//				System.err.println("Add hole: " + outline);
+				addOutline(outline, true);
+				holes.add(outline);
+			}
+
+			public void addShell(Outline outline) {
+//				System.err.println("Add shell: " + outline);
+				addOutline(outline, false);
+				shells.add(outline);
+			}
+
+			private void addOutline(Outline outline, boolean isHole) {
+				// Try to create a simple linear ring
+				Geometry lineString = factory.createLinearRing(outline.getRing());
+				// Remove self-intersections if we have to
+				var error = new IsValidOp(lineString).getValidationError();
+				if (error != null) {
+//					logger.debug(isHole ? "Hole: {}" : "Shell: {}", error);
+//					System.err.println(lineString);
+					lineString = factory.createLineString(outline.getRing()).union();
+//					System.err.println(lineString);
+				}
+				polygonizer.add(lineString);
+			}
+
+			public Geometry getFinalGeometry() {
+				var geom = polygonizer.getGeometry();
+				// TODO: Try to remove buffer step; it is used to avoid disconnected interior errors
+				return geom.buffer(0);
+			}
+
+		}
+		
+		
+		
+		
+	static class ComplexGeometryManager {
+		
+		private GeometryFactory factory;
+		
+		private Set<Geometry> holes = new LinkedHashSet<>();
+		private List<Geometry> shells = new ArrayList<>();
+		
+		private static int MIN_HOLES_TO_CACHE = 100;
+		private Quadtree holeCache = new Quadtree();
+		
+		public ComplexGeometryManager(GeometryFactory factory) {
+			this.factory = factory;
+		}
+		
+		public void addShell(Outline outline) {
+			addShell(getPolygon(outline));
+		}
+		
+		private void addShell(Geometry shell) {
+			if (shell.isEmpty())
+				return;
+			if (shell.getNumGeometries() == 1)
+				addSimpleShell(subtractHoles(shell));
+			else {
+				for (int i = 0; i < shell.getNumGeometries(); i++) {
+					addShell(shell.getGeometryN(i));
+				}
+			}
+		}
+		
+		private void addSimpleShell(Geometry shell) {
+//			if (!shell.isValid())
+//				shell = shell.buffer(0);
+			for (var i = 0; i < shell.getNumGeometries(); i++)
+				shells.add(shell.getGeometryN(i));
+		}
+		
+		
+		private Geometry subtractHoles(Geometry shell) {
+			if (holes.isEmpty())
+				return shell;
+			
+			var env = shell.getEnvelopeInternal();
+			
+			PointOnGeometryLocator locator = null;
+			
+			var possibleHoles = holeCache == null ? holes : (Collection<Geometry>)holeCache.query(env);
+			
+			if (possibleHoles.isEmpty())
+				return shell;
+			
+			var currentHoles = new ArrayList<Geometry>();
+			for (var hole : possibleHoles) {
+				var coord = hole.getCoordinate();
+				if (!env.intersects(coord))
+					continue;
+				if (locator == null)
+					locator = possibleHoles.size() == 1 ? new SimplePointInAreaLocator(shell) : new IndexedPointInAreaLocator(shell);
+				if (locator.locate(hole.getCoordinate()) != Location.EXTERIOR) {
+					currentHoles.add(hole);
+				}
+			}
+			if (currentHoles.isEmpty())
+				return shell;
+			holes.removeAll(currentHoles);
+			if (holeCache != null) {
+				for (var hole : currentHoles)
+					holeCache.remove(hole.getEnvelopeInternal(), hole);
+			}
+			return subtractHoles(shell, currentHoles);
+		}
+		
+		
+		private Geometry subtractHoles(Geometry shell, List<Geometry> holes) {
+			if (holes.isEmpty())
+				return shell;
+			boolean simpleHoles = holes.stream().allMatch(g -> g instanceof Polygon && ((Polygon)g).getNumInteriorRing() == 0);
+			if (simpleHoles) {
+				if (shell instanceof Polygon) {
+					Polygon polygon = (Polygon)shell;
+					LinearRing exterior = polygon.getExteriorRing();
+					List<LinearRing> interior = new ArrayList<>();
+					for (int i = 0; i < polygon.getNumInteriorRing(); i++)
+						interior.add(polygon.getInteriorRingN(i));
+					for (Geometry hole : holes) {
+						var temp = (Polygon)hole;
+						interior.add(temp.getExteriorRing());
+					}
+					var result = factory.createPolygon(exterior, interior.toArray(LinearRing[]::new));
+					var error = new IsValidOp(result).getValidationError();
+					if (error != null)
+						return result.buffer(0);
+//						return polygonize(result);
+					return result;
+				}
+			}
+			// This shouldn't happen! List of polygons should be adequately flattened first.
+			System.err.println("Calling the slow stuff! " + holes.size());
+			return shell.difference(GeometryTools.union(holes));
+		}
+		
+		
+		private Geometry polygonize(Geometry geom) {
+			var polygonizer = new Polygonizer(true);
+			polygonizer.add(geom);
+			return polygonizer.getGeometry();
+		}
+		
+
+		public void addHole(Outline outline) {
+			var hole = (Polygon)getPolygon(outline);
+			for (int i = 0; i < hole.getNumGeometries(); i++)
+				addHole((Polygon)hole.getGeometryN(i));
+		}
+		
+		private void addHole(Polygon polygon) {
+			if (polygon.getNumInteriorRing() == 0)
+				addSimpleHole(polygon);
+			else {
+				// A hole in a hole belongs in a shell
+				for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+					addShell(factory.createPolygon(polygon.getInteriorRingN(i)));
+				}
+				addSimpleHole(factory.createPolygon(polygon.getExteriorRing()));
+			}
+		}
+		
+		/**
+		 * Add a hole that has already been checked to ensure it does not contain interior rings, 
+		 * updating the cache if required.
+		 * @param polygon
+		 */
+		private void addSimpleHole(Polygon polygon) {
+			holes.add(polygon);
+			if (holeCache == null) {
+				if (holes.size() >= MIN_HOLES_TO_CACHE) {
+					holeCache = new Quadtree();
+					for (var hole : holes)
+						holeCache.insert(hole.getEnvelopeInternal(), hole);
+				}
+			} else
+				holeCache.insert(polygon.getEnvelopeInternal(), polygon);
+		}
+		
+		private Geometry getPolygon(Outline outline) {
+			var coords = outline.getRing();
+			var linearRing = factory.createLinearRing(coords);
+//			if (!linearRing.isValid()) {
+////				return factory.createPolygon(linearRing).buffer(0);
+//				return polygonize(factory.createLineString(coords).union());
+//			}
+			return factory.createPolygon(linearRing);
+		}
+		
+		public Geometry getFinalGeometry() {
+			// All holes should have been assigned by now
+			if (!holes.isEmpty())
+				assert holes.isEmpty();
+			// All polygons should be non-overlapping
+			if (shells.isEmpty())
+				return factory.createPolygon();
+			if (shells.size() == 1)
+				return shells.get(0);
+			logIfInvalid(shells);
+			return factory.buildGeometry(shells).buffer(0);
+		}
+
+		private void logIfInvalid(Collection<? extends Geometry> geometries) {
+			for (var g : geometries)
+				logIfInvalid(g);
+		}
+
+		private void logIfInvalid(Geometry geom) {
+			var error = new IsValidOp(geom).getValidationError();
+			if (error != null)
+				System.err.println(error.getMessage());			
+		}
+		
+	}
 	
 	
 	static class Outline {
 		
 		private Deque<Coordinate> coords = new ArrayDeque<>();
+		
+		private static long counter = 0L;
+		private long id;
 		
 		private int xOffset, yOffset;
 		
@@ -949,31 +1250,109 @@ public class PixelClassifierTools {
 		 * @param yOffset
 		 */
 		public Outline(int xOffset, int yOffset) {
+			id = ++counter;
+//			System.err.println("New outline: " + id);
 			this.xOffset = xOffset;
 			this.yOffset = yOffset;
 		}
 		
 		public void append(int x, int y) {
-			coords.addLast(new Coordinate(xOffset + x, yOffset + y));
+			append(new Coordinate(xOffset + x, yOffset + y));
+//			if (size() == 1)
+//				System.err.println("Create " + id + ": " + this);
+//			else
+//				System.err.println("Append " + id + ": " + this);
+		}
+		
+		public void append(Coordinate c) {
+			if (coords.isEmpty() || !coords.getLast().equals(c))
+				coords.addLast(c);
 		}
 		
 		public void prepend(int x, int y) {
-			coords.addFirst(new Coordinate(xOffset + x, yOffset + y));
+			prepend(new Coordinate(xOffset + x, yOffset + y));
+//			System.err.println("Prepend " + id + ": " + this);
 		}
 		
-		public void append(Outline outline) {
-			coords.addAll(outline.coords);
+		public void prepend(Coordinate c) {
+			if (coords.isEmpty() || !coords.getFirst().equals(c))
+				coords.addFirst(c);			
 		}
+		
+		public int size() {
+			return coords.size();
+		}
+		
+		public boolean singlePoint() {
+			return coords.size() == 1;
+		}
+		
+//		public void append2(Outline outline) {
+//			for (var c : outline.coords)
+//				append(c);
+//			// Update the coordinate array for the other - since they are now part of the same outline
+//			outline.coords = coords;
+////			coords.addAll(outline.coords);
+//			System.err.println("Merge [" + id + ", " + outline.id + "] to " + id);
+//			outline.id = id;
+//			System.err.println(id + " n=" + size() + ": " + this);
+//		}
 		
 		public void prepend(Outline outline) {
-			outline.coords.descendingIterator().forEachRemaining(c -> coords.addFirst(c));
+			outline.coords.descendingIterator().forEachRemaining(c -> prepend(c));
+//			outline.coords.iterator().forEachRemaining(c -> prepend(c));
+			// Update the coordinate array for the other - since they are now part of the same outline
+			outline.coords = coords;
+////			outline.coords.descendingIterator().forEachRemaining(c -> coords.addFirst(c));
+//			System.err.println("Merge [" + outline.id + ", " + id + "] to " + id);
+//			outline.id = id;
+//			System.err.println(id + " n=" + size() + ": " + this);
 		}
 		
-		public Coordinate[] getPolygon() {
+		public Coordinate[] getRing() {
 			if (!coords.getFirst().equals(coords.getLast()))
 				coords.add(coords.getFirst());
 			return coords.toArray(Coordinate[]::new);
 		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((coords == null) ? 0 : coords.hashCode());
+			result = prime * result + xOffset;
+			result = prime * result + yOffset;
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			Outline other = (Outline) obj;
+			if (coords == null) {
+				if (other.coords != null)
+					return false;
+			} else if (!coords.equals(other.coords))
+				return false;
+			if (xOffset != other.xOffset)
+				return false;
+			if (yOffset != other.yOffset)
+				return false;
+			return true;
+		}
+		
+		@Override
+		public String toString() {
+			return "[" + coords.stream()
+					.map(c -> "(" + GeneralTools.formatNumber(c.x, 2) + ", " + GeneralTools.formatNumber(c.y, 2) + ")")
+					.collect(Collectors.joining(", ")) + "]";
+		}
+		
 		
 	}
 	
