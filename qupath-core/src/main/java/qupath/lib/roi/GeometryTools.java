@@ -64,6 +64,7 @@ import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
+import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
@@ -756,13 +757,14 @@ public class GeometryTools {
 	    
 	    /**
 	     * Convert a java.awt.geom.Area to a JTS Geometry, trying to correctly distinguish holes.
-	     * 
-	     * @implNote This method generates {@link Coordinate}s, whereas in QuPath v0.2.0 (using JTS 1.16.1)
-	     * it used {@link CoordinateXY}.
-	     * The change was required to avoid test failures in JTS v1.17.0, caused by mixed-dimension coordinates 
+	     * <p>
+	     * @implNote An alternative (more complex) method was used in QuPath v0.2.0, using JTS 1.16.1.
+	     * The one advantage of the older method was that it used {@link CoordinateXY} - however this 
+	     * resulted in test failures in JTS v1.17.0, caused by mixed-dimension coordinates 
 	     * being generated within some operations as described by https://github.com/locationtech/jts/issues/434
     	 * Consequently, there may be some loss of efficiency.
-    	 *
+    	 * <p>
+    	 * See also https://github.com/locationtech/jts/issues/408
 	     * 
 	     * @param area
 	     * @param transform
@@ -771,6 +773,37 @@ public class GeometryTools {
 	     * @return a geometry corresponding to the Area object
 	     */
 	    private static Geometry convertAreaToGeometry(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
+
+	    	PathIterator iter = area.getPathIterator(transform, flatness);
+
+	    	PrecisionModel precisionModel = factory.getPrecisionModel();
+	    	Polygonizer polygonizer = new Polygonizer(true);
+
+	    	List<Coordinate[]> coords = (List<Coordinate[]>)ShapeReader.toCoordinates(iter);
+	    	List<Geometry> geometries = new ArrayList<>();
+	    	for (Coordinate[] array : coords) {
+	    		for (var c : array)
+	    			precisionModel.makePrecise(c);
+
+	    		LineString lineString = factory.createLineString(array);
+	    		geometries.add(lineString);
+	    	}
+	    	polygonizer.add(factory.buildGeometry(geometries).union());
+	    	return polygonizer.getGeometry();
+
+	    }
+
+	    /**
+	     * Legacy version of {@link #convertAreaToGeometry(Area, AffineTransform, double, GeometryFactory)} before v0.3.0.
+	     * 
+	     * @param area
+	     * @param transform
+	     * @param flatness
+	     * @param factory
+	     * @return a geometry corresponding to the Area object
+	     */
+	    @Deprecated
+	    private static Geometry convertAreaToGeometryLegacy(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
 	
 			List<Geometry> positive = new ArrayList<>();
 			List<Geometry> negative = new ArrayList<>();
