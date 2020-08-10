@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -40,6 +41,8 @@ import java.util.stream.Collectors;
 import org.bytedeco.opencv.opencv_core.Point2f;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_imgproc.Subdiv2D;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.lib.analysis.stats.RunningStatistics;
 import qupath.lib.classifiers.PathClassifierTools;
@@ -58,6 +61,8 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class DelaunayTriangulation implements PathObjectConnectionGroup {
+	
+	private final static Logger logger = LoggerFactory.getLogger(DelaunayTriangulation.class);
 	
 	private double distanceThreshold = Double.NaN;
 	private boolean limitByClass = false;
@@ -432,18 +437,25 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 				measurementNames.add(s);
 		}
 		RunningStatistics[] averagedMeasurements = new RunningStatistics[measurementNames.size()]; 
-		for (int i = 0; i < averagedMeasurements.length; i++)
-			averagedMeasurements[i] = new RunningStatistics();
+		
+		Set<String> missing = new LinkedHashSet<>();
+		
 		for (Set<PathObject> cluster : clusters) {
+			
+			for (int i = 0; i < averagedMeasurements.length; i++)
+				averagedMeasurements[i] = new RunningStatistics();
+			
 //			Arrays.fill(averagedMeasurements, 0);
 			int n = cluster.size();
 			for (PathObject pathObject : cluster) {
 				MeasurementList ml = pathObject.getMeasurementList();
 				for (int i = 0; i < measurementNames.size(); i++) {
-					double val = ml.getMeasurementValue(i);
+					String name = measurementNames.get(i);
+					double val = ml.getMeasurementValue(name);
 					if (Double.isFinite(val)) {
 						averagedMeasurements[i].addValue(val);
-					}
+					} else
+						missing.add(name);
 				}
 			}
 
@@ -456,6 +468,11 @@ public class DelaunayTriangulation implements PathObjectConnectionGroup {
 				ml.close();
 			}
 
+		}
+		if (!missing.isEmpty()) {
+			logger.warn("Some objects have missing measurements! Statistics will calculated only for objects with measurements available.");
+			logger.warn("Missing measurements: {}", missing);
+//			System.err.println("Missing measurements will be ignored! " + nMissing);
 		}
 		
 	}

@@ -55,7 +55,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '14.0.1'
+def jfxVersion = '14.0.2.1'
 
 /*
  * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
@@ -209,20 +209,20 @@ allprojects {
     javaVersion = 11
   
     // Dependency versions
-    bioformatsVersion  = '6.5.0'
+    bioformatsVersion  = '6.5.1'
     commonsMathVersion = '3.6.1'
     commonsTextVersion = '1.8'
-    controlsfxVersion  = '11.0.1'
-    groovyVersion      = '3.0.3'
+    controlsfxVersion  = '11.0.2'
+    groovyVersion      = '3.0.5'
     gsonVersion        = '2.8.6'
     guavaVersion       = '29.0-jre'
-    imagejVersion      = '1.53a'
+    imagejVersion      = '1.53c'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
-    jtsVersion         = '1.16.1'
+    jtsVersion         = '1.17.0'
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.5'
-    picocliVersion     = '4.3.2'
+    picocliVersion     = '4.5.0'
     jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     javacppVersion     = '1.5.3'
@@ -234,8 +234,8 @@ allprojects {
     junitVersion       = '5.6.2'
     
     // Optional versions
-    tensorflowVersion  = "1.15.2-${javacppVersion}"
-    mkldnnVersion      = "0.21.4-${javacppVersion}"
+    tensorflowVersion  = "1.15.0"
+//    mkldnnVersion      = "0.21.4-${javacppVersion}"
     
     /*
      * Link to the main external Javadocs if -PlinkJavadoc=true
@@ -369,6 +369,7 @@ allprojects {
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
     
+    /*
     tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
     if (includeTensorFlowGPU)
 	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}-gpu"
@@ -376,6 +377,13 @@ allprojects {
 	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}"
     tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}"
     tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}:${nativesCPP}"
+    */
+    tensorflow "org.tensorflow:tensorflow:${tensorflowVersion}"
+    tensorflow "org.tensorflow:proto:${tensorflowVersion}"
+    if (includeTensorFlowGPU) {
+	    tensorflow "org.tensorflow:libtensorflow:${tensorflowVersion}"
+	    tensorflow "org.tensorflow:libtensorflow_jni_gpu:${tensorflowVersion}"
+    }
     
   }
   

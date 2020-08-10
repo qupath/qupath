@@ -23,6 +23,7 @@ package qupath.lib.gui.viewer.tools;
 
 import java.awt.geom.Point2D;
 import java.util.Collections;
+import java.util.HashSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,13 +59,15 @@ abstract class AbstractPolyROITool extends AbstractPathROITool {
 			if (currentObject != null && currentObject.getROI() != roiUpdated && currentObject instanceof PathROIObject) {
 				((PathROIObject)currentObject).setROI(roiUpdated);
 			}
+			isFreehandPolyROI = false;
 			viewer.repaint();
 		} else {
 			commitObjectToHierarchy(e, currentObject);
 		}
 		
 		ROI currentROI = currentObject == null ? null : currentObject.getROI();
-		if (isPolyROI(currentROI) && currentROI.isEmpty())
+		if (isPolyROI(currentROI) && currentROI.isEmpty() && 
+				(currentROI.getNumPoints() == 1 || new HashSet<>(currentROI.getAllPoints()).size() == 1))
 			isFreehandPolyROI = true;
 	}
 	
@@ -73,10 +76,11 @@ abstract class AbstractPolyROITool extends AbstractPathROITool {
 	public void mouseReleased(MouseEvent e) {
 		super.mouseReleased(e);
 		
-		var viewer = getViewer();
-		PathObject currentObject = viewer.getSelectedObject();
-		ROI currentROI = currentObject == null ? null : currentObject.getROI();
 		if (isFreehandPolyROI) {
+			var viewer = getViewer();
+			PathObject currentObject = viewer.getSelectedObject();
+			ROI currentROI = currentObject == null ? null : currentObject.getROI();
+			
 			if (isPolyROI(currentROI) && currentROI.isEmpty()) {
 				isFreehandPolyROI = false;
 			} else if (PathPrefs.enableFreehandToolsProperty().get()) {

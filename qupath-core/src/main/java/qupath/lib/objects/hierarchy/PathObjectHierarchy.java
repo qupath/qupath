@@ -223,7 +223,7 @@ public final class PathObjectHierarchy implements Serializable {
 	 * @return true if the hierarchy changed as a result of this call, false otherwise
 	 */
 	public synchronized boolean insertPathObject(PathObject pathObject, boolean fireChangeEvents) {
-		return insertPathObject(getRootObject(), pathObject, fireChangeEvents);
+		return insertPathObject(getRootObject(), pathObject, fireChangeEvents, !fireChangeEvents);
 	}
 	
 	/**
@@ -244,11 +244,15 @@ public final class PathObjectHierarchy implements Serializable {
 			return false;
 		removeObjects(selectedObjects, true);
 		selectedObjects.sort(PathObjectHierarchy.HIERARCHY_COMPARATOR.reversed());
+		boolean singleObject = selectedObjects.size() == 1;
+		// We don't want to reset caches for every object if we have only detections, since previously-inserted objects don't impact the potential parent
+		boolean allDetections = selectedObjects.stream().allMatch(p -> p.isDetection());
 		for (var pathObject : selectedObjects) {
 //			hierarchy.insertPathObject(pathObject, true);
-			insertPathObject(pathObject, selectedObjects.size() == 1);
+			insertPathObject(getRootObject(), pathObject, singleObject, !singleObject && !allDetections);
+//			insertPathObject(pathObject, selectedObjects.size() == 1);
 		}
-		if (selectedObjects.size() > 1)
+		if (!singleObject)
 			fireHierarchyChangedEvent(this);
 		return true;
 	}
@@ -281,7 +285,15 @@ public final class PathObjectHierarchy implements Serializable {
 		insertPathObjects(annotations);
 	}
 	
-	private synchronized boolean insertPathObject(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
+	/**
+	 * Insert a path object at the appropriate place in the hierarchy, without making other changes.
+	 * @param pathObjectParent the first potential parent; this can be used to help filter out 'impossible' parents to aid performance
+	 * @param pathObject the object to insert
+	 * @param fireChangeEvents if true, fire hierarchy change events after inserting the object
+	 * @param resetCache if true, reset the tile cache after adding the object; this is only used if fireChangeEvents is false
+	 * @return
+	 */
+	private synchronized boolean insertPathObject(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents, boolean resetCache) {
 		
 		if (pathObject.isTMACore()) {
 			logger.warn("TMA core objects cannot be inserted - use resolveHierarchy() instead");
@@ -340,7 +352,7 @@ public final class PathObjectHierarchy implements Serializable {
 				// Notify listeners of changes, if required
 				if (fireChangeEvents)
 					fireObjectAddedEvent(this, pathObject);
-				else
+				else if (resetCache)
 					tileCache.resetCache();
 				return true;
 			}
@@ -789,6 +801,8 @@ public final class PathObjectHierarchy implements Serializable {
 		
 		var locator = tileCache.getLocator(roi, false);
 		var preparedGeometry = tileCache.getPreparedGeometry(tileCache.getGeometry(roi));
+		// Note: JTS 1.17.0 does not support parallel requests, see https://github.com/locationtech/jts/issues/571
+		// A change in getLocator() overcomes this - but watch out for future problems
 		return pathObjects.parallelStream().filter(child -> {
 			// Test plane first
 			if (!samePlane(roi, child.getROI(), false))

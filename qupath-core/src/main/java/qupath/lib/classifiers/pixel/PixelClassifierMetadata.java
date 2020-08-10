@@ -119,7 +119,7 @@ public class PixelClassifierMetadata {
      * @return 
      */
     public synchronized List<ImageChannel> getOutputChannels() {
-    	if (outputChannels == null && classificationLabels != null) {
+    	if ((outputChannels == null || outputChannels.isEmpty()) && classificationLabels != null) {
     		outputChannels = PathClassifierTools.classificationLabelsToChannels(classificationLabels, true);
     	}
     	return outputChannels == null ? Collections.emptyList() : Collections.unmodifiableList(outputChannels);

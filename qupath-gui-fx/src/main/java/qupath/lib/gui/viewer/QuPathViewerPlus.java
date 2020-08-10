@@ -268,7 +268,7 @@ public class QuPathViewerPlus extends QuPathViewer {
 	}
 	
 	/**
-	 * Sets the Z & T sliders' position to allow space for command bar
+	 * Sets the Z and T sliders' position to allow space for command bar
 	 * @param down
 	 */
 	public void setSlidersPosition(boolean down) {

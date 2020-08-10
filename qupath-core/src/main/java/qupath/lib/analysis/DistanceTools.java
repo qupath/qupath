@@ -275,6 +275,9 @@ public class DistanceTools {
 				
 				
 				var locator = shapeGeometry == null ? null : new IndexedPointInAreaLocator(shapeGeometry);
+				// See https://github.com/locationtech/jts/issues/571
+				if (locator != null)
+					locator.locate(new Coordinate(0, 0));
 				sourceObjects.parallelStream().forEach(p -> {
 					var roi = PathObjectTools.getROI(p, preferNucleus);
 					if (roi.getZ() != zi || roi.getT() != ti)

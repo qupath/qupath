@@ -614,9 +614,20 @@ public class GeometryTools {
 	    	return factory.createLineString(coords);
 	    }
 	    
+	    /**
+	     * @implNote This method generates {@link Coordinate}s, whereas in QuPath v0.2.0 (using JTS 1.16.1)
+	     * it used {@link CoordinateXY}.
+	     * The change was required to avoid test failures in JTS v1.17.0, caused by mixed-dimension coordinates 
+	     * being generated within some operations as described by https://github.com/locationtech/jts/issues/434
+    	 * Consequently, there may be some loss of efficiency.
+    	 * 
+	     * @param x
+	     * @param y
+	     * @return
+	     */
 	    private Coordinate createCoordinate(double x, double y) {
 	    	var precisionModel = factory.getPrecisionModel();
-	    	return new CoordinateXY(precisionModel.makePrecise(x), precisionModel.makePrecise(y));
+	    	return new Coordinate(precisionModel.makePrecise(x), precisionModel.makePrecise(y));
 	    }
 	    
 	    private Coordinate createCoordinate(double x, double y, double z) {
@@ -746,11 +757,18 @@ public class GeometryTools {
 	    /**
 	     * Convert a java.awt.geom.Area to a JTS Geometry, trying to correctly distinguish holes.
 	     * 
+	     * @implNote This method generates {@link Coordinate}s, whereas in QuPath v0.2.0 (using JTS 1.16.1)
+	     * it used {@link CoordinateXY}.
+	     * The change was required to avoid test failures in JTS v1.17.0, caused by mixed-dimension coordinates 
+	     * being generated within some operations as described by https://github.com/locationtech/jts/issues/434
+    	 * Consequently, there may be some loss of efficiency.
+    	 *
+	     * 
 	     * @param area
 	     * @param transform
 	     * @param flatness
 	     * @param factory
-	     * @return
+	     * @return a geometry corresponding to the Area object
 	     */
 	    private static Geometry convertAreaToGeometry(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
 	
@@ -792,7 +810,7 @@ public class GeometryTools {
 					areaCached += areaTempSigned;
 					areaTempSigned = 0;
 					points.clear();
-					points.add(new CoordinateXY(startX, startY));
+					points.add(new Coordinate(startX, startY));
 					closed = false;
 					continue;
 				case PathIterator.SEG_CLOSE:
@@ -806,7 +824,7 @@ public class GeometryTools {
 					// We only wand to add a point if the displacement is above a specified tolerance, 
 					// because JTS can be very sensitive to any hint of self-intersection - and does not always 
 					// like what the PathIterator provides
-					var next = new CoordinateXY(x1, y1);
+					var next = new Coordinate(x1, y1);
 					if (points.isEmpty() || points.get(points.size()-1).distance(next) > precision)
 						points.add(next, false);
 	//				double dx = x1 - points;
@@ -1017,6 +1035,9 @@ public class GeometryTools {
 	    }
 	
 	    private ROI geometryToROI(Geometry geometry, ImagePlane plane) {
+	    	if (geometry.isEmpty())
+	    		return ROIs.createEmptyROI(plane);
+	    	
 	    	// Make sure out Geometry is all of the same type
 	    	var geometry2 = homogenizeGeometryCollection(geometry);
 	    	if (geometry2 != geometry) {

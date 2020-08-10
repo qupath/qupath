@@ -1606,19 +1606,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		} else {
 			replaceText = tabString + textBetween.replace("\n", "\n"+tabString);
 		}
-//		System.out.println("LENGTH: " + textArea.getText().length() + ", POSITION: " + endRowPos);
-		String newText = text.substring(0, startRowPos) + replaceText;
-		if (endRowPos < text.length()) {
-			newText = newText + text.substring(endRowPos);
-			textArea.setText(newText);
-		} else {
-			// For reasons that aren't clear to me, I need to clear the text first to make this work (for now)
-			// TODO: Check if this bug still applies
-			textArea.deselect();
-			textArea.setText(newText);
-		}
-//		textArea.replaceText(startRowPos, endRowPos, replaceText);
-		textArea.selectRange(startRowPos, startRowPos+replaceText.length());
+		
+		textArea.selectRange(startRowPos, endRowPos);
+		textArea.paste(replaceText);
+		textArea.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	
 	
@@ -1653,14 +1644,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		String commentString = getCurrentLineCommentString();
 		if (commentString == null)
 			return;
-//		String selected = textArea.getSelectedText();
-//		int pos = textArea.getCaretPosition();
-//		if (selected == null || selected.length() == 0) {
-//			textArea.insertText(pos, tabString);
-//			return;
-//		}
 
-		int caretPos = textArea.getCaretPosition();
 		String text = textArea.getText();
 		IndexRange range = textArea.getSelection();
 		boolean hasSelection = range.getLength() > 0;
@@ -1682,28 +1666,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		} else {
 			replaceText = commentString + textBetween.replace("\n", "\n"+commentString);
 		}
-//		System.out.println("LENGTH: " + textArea.getText().length() + ", POSITION: " + endRowPos);
-		String newText = text.substring(0, startRowPos) + replaceText;
-		if (endRowPos < text.length()) {
-			newText = newText + text.substring(endRowPos);
-			textArea.setText(newText);
-		} else {
-			// For reasons that aren't clear to me, I need to clear the text first to make this work (for now)
-			// TODO: Check if this bug still applies
-			textArea.deselect();
-			textArea.setText(newText);
-		}
-//		textArea.replaceText(startRowPos, endRowPos, replaceText);
+		
+		textArea.selectRange(startRowPos, endRowPos);
+		textArea.paste(replaceText);
 		if (hasSelection)
-			textArea.selectRange(startRowPos, startRowPos+replaceText.length());
-		else {
-			int newPos;
-			if (allComments)
-				newPos = caretPos - commentString.length();
-			else
-				newPos = caretPos + commentString.length();
-			textArea.selectRange(newPos, newPos);
-		}
+			textArea.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	
 	

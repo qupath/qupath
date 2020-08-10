@@ -1,3 +1,41 @@
+## Version 0.3.0-SNAPSHOT
+*In progress*
+
+### Dependency updates*
+* Java Topology suite 1.17.0
+* ControlsFX 11.0.2
+* ImageJ 1.53c
+* picocli 4.5.0
+* Groovy 3.0.5
+
+
+## Version 0.2.2
+
+This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
+
+List of bugs fixed:
+* 'Delaunay cluster features 2D' could give wrong results when 'Add cluster measurements' is selected
+  * Bug likely introduced in ~v0.2.0-m5 (may want to recheck results if using this specific command)
+* Legacy RTrees classifiers can give different results when reloaded (https://github.com/qupath/qupath/issues/567)
+* Phantom polylines when creating objects with the pixel classifier (https://github.com/qupath/qupath/issues/544)
+* Unable to resolve project URIs when moving a project across file systems (https://github.com/qupath/qupath/issues/543)
+* Polygons could sometimes be closed early when making annotations quickly (https://github.com/qupath/qupath/issues/553)
+* Annotation names were not hidden along with classes (https://github.com/qupath/qupath/issues/557)
+* Object names and colors were not stored as properties in GeoJSON (https://github.com/qupath/qupath/issues/549)
+* Unable to specify image within a project to process when running a script from the command line (https://github.com/qupath/qupath/issues/560)
+* Tile cache not created when running scripts from the command line (https://github.com/qupath/qupath/issues/561)
+* Resolve hierarchy is very slow for some TMAs with many detections (https://github.com/qupath/qupath/issues/564)
+* Project cannot be loaded if no previous URI is available (https://github.com/qupath/qupath/issues/568)
+* Null terminators in image names can prevent copying results to the clipboard (https://github.com/qupath/qupath/issues/573)
+* Unnecessary warning sometimes printed when generating tiles for parallel processing
+* AbstractPlugin log messages emitted (at INFO level) when adding a step to the command history
+* Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
+
+### Dependency updates:
+* JavaFX 14.0.2.1
+* Bio-Formats 6.5.1; see https://docs.openmicroscopy.org/bio-formats/6.5.1/about/whats-new.html
+
+
 ## Version 0.2.1
 
 This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing numerous bugs.
