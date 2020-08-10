@@ -21,19 +21,12 @@
 
 package qupath.opencv.ml.pixel;
 
-import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
-import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
-import org.locationtech.jts.algorithm.locate.SimplePointInAreaLocator;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LinearRing;
-import org.locationtech.jts.geom.Location;
-import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.util.AffineTransformation;
-import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
-import org.locationtech.jts.operation.valid.IsValidOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +65,6 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -747,6 +739,11 @@ public class PixelClassifierTools {
 			return v >= min && v <= max;
 		}
 		
+		static boolean selected(float v, float min, float max) {
+			return v >= min && v <= max;
+		}
+		
+		
 		
 		/**
 		 * This is adapted from ImageJ's ThresholdToSelection.java (public domain) written by Johannes E. Schindelin 
@@ -770,7 +767,6 @@ public class PixelClassifierTools {
 			
 			boolean[] prevRow, thisRow;
 			var manager = new GeometryManager(GeometryTools.getDefaultFactory());
-//			var manager = new ComplexGeometryManager(GeometryTools.getDefaultFactory());
 	
 			// Cache for the current and previous thresholded rows
 			prevRow = new boolean[w + 2];
@@ -779,6 +775,8 @@ public class PixelClassifierTools {
 			// Current outlines
 			Outline[] movingDown = new Outline[w + 1];
 			Outline movingRight = null;
+			
+			float[] pixels = raster.getPixels(0, 0, raster.getWidth(), raster.getHeight(), (float[])null);
 			
 			int pixelCount = 0;
 			
@@ -789,7 +787,8 @@ public class PixelClassifierTools {
 				prevRow = thisRow;
 				thisRow = tempSwap;
 				
-				thisRow[1] = y < h ? selected(raster, 0, y, min, max) : false;
+//				thisRow[1] = y < h ? selected(raster, 0, y, min, max) : false;
+				thisRow[1] = y < h ? selected(pixels[y*w], min, max) : false;
 				
 				for (int x = 0; x <= w; x++) {
 					
@@ -798,7 +797,8 @@ public class PixelClassifierTools {
 					int right = x + 2;
 					
 					if (y < h && x < w - 1)
-						thisRow[right] = selected(raster, center, y, min, max);  //we need to read one pixel ahead
+						thisRow[right] = selected(pixels[y*w+x+1], min, max);  //we need to read one pixel ahead
+//						thisRow[right] = selected(raster, center, y, min, max);  //we need to read one pixel ahead
 					else if (x < w - 1)
 						thisRow[right] = false;
 					
@@ -836,13 +836,13 @@ public class PixelClassifierTools {
 					switch (pattern) {
 					case 0: 
 						// Nothing selected
-						assert movingDown[x] == null;
-						assert movingRight == null;
+//						assert movingDown[x] == null;
+//						assert movingRight == null;
 						break;
 					case 1: 
 						// Selected D
-						assert movingDown[x] == null;
-						assert movingRight == null;
+//						assert movingDown[x] == null;
+//						assert movingRight == null;
 						// Create new shell
 						movingRight = new Outline(xOffset, yOffset);
 						movingRight.append(x, y);
@@ -850,32 +850,32 @@ public class PixelClassifierTools {
 						break;
 					case 2: 
 						// Selected C
-						assert movingDown[x] == null;
+//						assert movingDown[x] == null;
 						movingRight.prepend(x, y);
 						movingDown[x] = movingRight;
 						movingRight = null;
 						break;
 					case 3: 
 						// Selected C, D
-						assert movingDown[x] == null;
-						assert movingRight != null;
+//						assert movingDown[x] == null;
+//						assert movingRight != null;
 						break;
 					case 4: 
 						// Selected B
-						assert movingRight == null;
+//						assert movingRight == null;
 						movingDown[x].append(x, y);
 						movingRight = movingDown[x];
 						movingDown[x] = null;
 						break;
 					case 5: 
 						// Selected B, D
-						assert movingRight == null;
-						assert movingDown[x] != null;
+//						assert movingRight == null;
+//						assert movingDown[x] != null;
 						break;
 					case 6: 
 						// Selected B, C
-						assert movingDown[x] != null;
-						assert movingRight != null;
+//						assert movingDown[x] != null;
+//						assert movingRight != null;
 						movingRight.prepend(x, y);
 						if (Objects.equals(movingRight, movingDown[x])) {
 							// Hole completed!
@@ -892,8 +892,8 @@ public class PixelClassifierTools {
 						break;
 					case 7: 
 						// Selected B, C, D
-						assert movingDown[x] != null;
-						assert movingRight != null;
+//						assert movingDown[x] != null;
+//						assert movingRight != null;
 						movingDown[x].append(x, y);
 						if (Objects.equals(movingRight, movingDown[x])) {
 							// Hole completed!
@@ -907,8 +907,8 @@ public class PixelClassifierTools {
 						break;
 					case 8: 
 						// Selected A
-						assert movingDown[x] != null;
-						assert movingRight != null;
+//						assert movingDown[x] != null;
+//						assert movingRight != null;
 						movingRight.append(x, y);
 						if (Objects.equals(movingRight, movingDown[x])) {
 							// Shell completed!
@@ -922,8 +922,8 @@ public class PixelClassifierTools {
 						break;
 					case 9: 
 						// Selected A, D
-						assert movingDown[x] != null;
-						assert movingRight != null;
+//						assert movingDown[x] != null;
+//						assert movingRight != null;
 						movingRight.append(x, y);
 						if (Objects.equals(movingRight, movingDown[x])) {
 							// Shell completed!
@@ -940,34 +940,34 @@ public class PixelClassifierTools {
 						break;
 					case 10: 
 						// Selected A, C
-						assert movingRight == null;
-						assert movingDown[x] != null;
+//						assert movingRight == null;
+//						assert movingDown[x] != null;
 						break;
 					case 11: 
 						// Selected A, C, D
-						assert movingRight == null;
-						assert movingDown[x] != null;
+//						assert movingRight == null;
+//						assert movingDown[x] != null;
 						movingDown[x].prepend(x, y);
 						movingRight = movingDown[x];
 						movingDown[x] = null;
 						break;
 					case 12: 
 						// Selected A, B
-						assert movingDown[x] == null;
-						assert movingRight != null;
+//						assert movingDown[x] == null;
+//						assert movingRight != null;
 						break;
 					case 13: 
 						// Selected A, B, D
-						assert movingDown[x] == null;
-						assert movingRight != null;
+//						assert movingDown[x] == null;
+//						assert movingRight != null;
 						movingRight.append(x, y);
 						movingDown[x] = movingRight;
 						movingRight = null;
 						break;
 					case 14: 
 						// Selected A, B, C
-						assert movingRight == null;
-						assert movingDown[x] == null;
+//						assert movingRight == null;
+//						assert movingDown[x] == null;
 						// Create new hole
 						movingRight = new Outline(xOffset, yOffset);
 						movingRight.append(x, y);
@@ -975,8 +975,8 @@ public class PixelClassifierTools {
 						break;
 					case 15: 
 						// Selected A, B, C, D
-						assert movingDown[x] == null;
-						assert movingRight == null;
+//						assert movingDown[x] == null;
+//						assert movingRight == null;
 						break;
 					}
 				}
@@ -1006,237 +1006,49 @@ public class PixelClassifierTools {
 			private Polygonizer polygonizer = new Polygonizer(true);
 			private GeometryFactory factory;
 			
-			private List<Outline> shells = new ArrayList<>();
-			private List<Outline> holes = new ArrayList<>();
+			private List<LineString> lines = new ArrayList<>();
 
 			GeometryManager(GeometryFactory factory) {
 				this.factory = factory;
 			}
 
 			public void addHole(Outline outline) {
-//				System.err.println("Add hole: " + outline);
 				addOutline(outline, true);
-				holes.add(outline);
 			}
 
 			public void addShell(Outline outline) {
-//				System.err.println("Add shell: " + outline);
 				addOutline(outline, false);
-				shells.add(outline);
 			}
 
 			private void addOutline(Outline outline, boolean isHole) {
-				// Try to create a simple linear ring
-				Geometry lineString = factory.createLinearRing(outline.getRing());
-				// Remove self-intersections if we have to
-				var error = new IsValidOp(lineString).getValidationError();
-				if (error != null) {
-//					logger.debug(isHole ? "Hole: {}" : "Shell: {}", error);
-//					System.err.println(lineString);
-					lineString = factory.createLineString(outline.getRing()).union();
-//					System.err.println(lineString);
-				}
-				polygonizer.add(lineString);
+				lines.add(factory.createLineString(outline.getRing()));
 			}
 
 			public Geometry getFinalGeometry() {
+				var geomTemp = factory.buildGeometry(lines).union();
+				
+//				Geometry empty = factory.createPoint();
+//				var geomTemp = SnapIfNeededOverlayOp.overlayOp(factory.buildGeometry(lines), empty, OverlayOp.UNION);
+				
+				polygonizer.add(geomTemp);
 				var geom = polygonizer.getGeometry();
 				// TODO: Try to remove buffer step; it is used to avoid disconnected interior errors
-				return geom.buffer(0);
+//				var error = new IsValidOp(geom).getValidationError();
+//				if (error != null) {
+//					System.err.println(error);
+//					return geom.buffer(0);
+//				}
+				return geom;
 			}
 
 		}
-		
-		
-		
-		
-	static class ComplexGeometryManager {
-		
-		private GeometryFactory factory;
-		
-		private Set<Geometry> holes = new LinkedHashSet<>();
-		private List<Geometry> shells = new ArrayList<>();
-		
-		private static int MIN_HOLES_TO_CACHE = 100;
-		private Quadtree holeCache = new Quadtree();
-		
-		public ComplexGeometryManager(GeometryFactory factory) {
-			this.factory = factory;
-		}
-		
-		public void addShell(Outline outline) {
-			addShell(getPolygon(outline));
-		}
-		
-		private void addShell(Geometry shell) {
-			if (shell.isEmpty())
-				return;
-			if (shell.getNumGeometries() == 1)
-				addSimpleShell(subtractHoles(shell));
-			else {
-				for (int i = 0; i < shell.getNumGeometries(); i++) {
-					addShell(shell.getGeometryN(i));
-				}
-			}
-		}
-		
-		private void addSimpleShell(Geometry shell) {
-//			if (!shell.isValid())
-//				shell = shell.buffer(0);
-			for (var i = 0; i < shell.getNumGeometries(); i++)
-				shells.add(shell.getGeometryN(i));
-		}
-		
-		
-		private Geometry subtractHoles(Geometry shell) {
-			if (holes.isEmpty())
-				return shell;
-			
-			var env = shell.getEnvelopeInternal();
-			
-			PointOnGeometryLocator locator = null;
-			
-			var possibleHoles = holeCache == null ? holes : (Collection<Geometry>)holeCache.query(env);
-			
-			if (possibleHoles.isEmpty())
-				return shell;
-			
-			var currentHoles = new ArrayList<Geometry>();
-			for (var hole : possibleHoles) {
-				var coord = hole.getCoordinate();
-				if (!env.intersects(coord))
-					continue;
-				if (locator == null)
-					locator = possibleHoles.size() == 1 ? new SimplePointInAreaLocator(shell) : new IndexedPointInAreaLocator(shell);
-				if (locator.locate(hole.getCoordinate()) != Location.EXTERIOR) {
-					currentHoles.add(hole);
-				}
-			}
-			if (currentHoles.isEmpty())
-				return shell;
-			holes.removeAll(currentHoles);
-			if (holeCache != null) {
-				for (var hole : currentHoles)
-					holeCache.remove(hole.getEnvelopeInternal(), hole);
-			}
-			return subtractHoles(shell, currentHoles);
-		}
-		
-		
-		private Geometry subtractHoles(Geometry shell, List<Geometry> holes) {
-			if (holes.isEmpty())
-				return shell;
-			boolean simpleHoles = holes.stream().allMatch(g -> g instanceof Polygon && ((Polygon)g).getNumInteriorRing() == 0);
-			if (simpleHoles) {
-				if (shell instanceof Polygon) {
-					Polygon polygon = (Polygon)shell;
-					LinearRing exterior = polygon.getExteriorRing();
-					List<LinearRing> interior = new ArrayList<>();
-					for (int i = 0; i < polygon.getNumInteriorRing(); i++)
-						interior.add(polygon.getInteriorRingN(i));
-					for (Geometry hole : holes) {
-						var temp = (Polygon)hole;
-						interior.add(temp.getExteriorRing());
-					}
-					var result = factory.createPolygon(exterior, interior.toArray(LinearRing[]::new));
-					var error = new IsValidOp(result).getValidationError();
-					if (error != null)
-						return result.buffer(0);
-//						return polygonize(result);
-					return result;
-				}
-			}
-			// This shouldn't happen! List of polygons should be adequately flattened first.
-			System.err.println("Calling the slow stuff! " + holes.size());
-			return shell.difference(GeometryTools.union(holes));
-		}
-		
-		
-		private Geometry polygonize(Geometry geom) {
-			var polygonizer = new Polygonizer(true);
-			polygonizer.add(geom);
-			return polygonizer.getGeometry();
-		}
-		
 
-		public void addHole(Outline outline) {
-			var hole = (Polygon)getPolygon(outline);
-			for (int i = 0; i < hole.getNumGeometries(); i++)
-				addHole((Polygon)hole.getGeometryN(i));
-		}
 		
-		private void addHole(Polygon polygon) {
-			if (polygon.getNumInteriorRing() == 0)
-				addSimpleHole(polygon);
-			else {
-				// A hole in a hole belongs in a shell
-				for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
-					addShell(factory.createPolygon(polygon.getInteriorRingN(i)));
-				}
-				addSimpleHole(factory.createPolygon(polygon.getExteriorRing()));
-			}
-		}
 		
-		/**
-		 * Add a hole that has already been checked to ensure it does not contain interior rings, 
-		 * updating the cache if required.
-		 * @param polygon
-		 */
-		private void addSimpleHole(Polygon polygon) {
-			holes.add(polygon);
-			if (holeCache == null) {
-				if (holes.size() >= MIN_HOLES_TO_CACHE) {
-					holeCache = new Quadtree();
-					for (var hole : holes)
-						holeCache.insert(hole.getEnvelopeInternal(), hole);
-				}
-			} else
-				holeCache.insert(polygon.getEnvelopeInternal(), polygon);
-		}
-		
-		private Geometry getPolygon(Outline outline) {
-			var coords = outline.getRing();
-			var linearRing = factory.createLinearRing(coords);
-//			if (!linearRing.isValid()) {
-////				return factory.createPolygon(linearRing).buffer(0);
-//				return polygonize(factory.createLineString(coords).union());
-//			}
-			return factory.createPolygon(linearRing);
-		}
-		
-		public Geometry getFinalGeometry() {
-			// All holes should have been assigned by now
-			if (!holes.isEmpty())
-				assert holes.isEmpty();
-			// All polygons should be non-overlapping
-			if (shells.isEmpty())
-				return factory.createPolygon();
-			if (shells.size() == 1)
-				return shells.get(0);
-			logIfInvalid(shells);
-			return factory.buildGeometry(shells).buffer(0);
-		}
-
-		private void logIfInvalid(Collection<? extends Geometry> geometries) {
-			for (var g : geometries)
-				logIfInvalid(g);
-		}
-
-		private void logIfInvalid(Geometry geom) {
-			var error = new IsValidOp(geom).getValidationError();
-			if (error != null)
-				System.err.println(error.getMessage());			
-		}
-		
-	}
-	
 	
 	static class Outline {
 		
 		private Deque<Coordinate> coords = new ArrayDeque<>();
-		
-		private static long counter = 0L;
-		private long id;
 		
 		private int xOffset, yOffset;
 		
@@ -1250,33 +1062,31 @@ public class PixelClassifierTools {
 		 * @param yOffset
 		 */
 		public Outline(int xOffset, int yOffset) {
-			id = ++counter;
-//			System.err.println("New outline: " + id);
 			this.xOffset = xOffset;
 			this.yOffset = yOffset;
 		}
 		
 		public void append(int x, int y) {
 			append(new Coordinate(xOffset + x, yOffset + y));
-//			if (size() == 1)
-//				System.err.println("Create " + id + ": " + this);
-//			else
-//				System.err.println("Append " + id + ": " + this);
 		}
 		
 		public void append(Coordinate c) {
-			if (coords.isEmpty() || !coords.getLast().equals(c))
-				coords.addLast(c);
+			// Don't add repeating coordinate
+			if (!coords.isEmpty() && coords.getLast().equals(c))
+				return;
+			coords.addLast(c);
 		}
+		
 		
 		public void prepend(int x, int y) {
 			prepend(new Coordinate(xOffset + x, yOffset + y));
-//			System.err.println("Prepend " + id + ": " + this);
 		}
 		
 		public void prepend(Coordinate c) {
-			if (coords.isEmpty() || !coords.getFirst().equals(c))
-				coords.addFirst(c);			
+			// Don't add repeating coordinate
+			if (!coords.isEmpty() && coords.getFirst().equals(c))
+				return;
+			coords.addFirst(c);
 		}
 		
 		public int size() {
@@ -1287,26 +1097,10 @@ public class PixelClassifierTools {
 			return coords.size() == 1;
 		}
 		
-//		public void append2(Outline outline) {
-//			for (var c : outline.coords)
-//				append(c);
-//			// Update the coordinate array for the other - since they are now part of the same outline
-//			outline.coords = coords;
-////			coords.addAll(outline.coords);
-//			System.err.println("Merge [" + id + ", " + outline.id + "] to " + id);
-//			outline.id = id;
-//			System.err.println(id + " n=" + size() + ": " + this);
-//		}
-		
 		public void prepend(Outline outline) {
 			outline.coords.descendingIterator().forEachRemaining(c -> prepend(c));
-//			outline.coords.iterator().forEachRemaining(c -> prepend(c));
 			// Update the coordinate array for the other - since they are now part of the same outline
 			outline.coords = coords;
-////			outline.coords.descendingIterator().forEachRemaining(c -> coords.addFirst(c));
-//			System.err.println("Merge [" + outline.id + ", " + id + "] to " + id);
-//			outline.id = id;
-//			System.err.println(id + " n=" + size() + ": " + this);
 		}
 		
 		public Coordinate[] getRing() {
@@ -1314,7 +1108,7 @@ public class PixelClassifierTools {
 				coords.add(coords.getFirst());
 			return coords.toArray(Coordinate[]::new);
 		}
-
+		
 		@Override
 		public int hashCode() {
 			final int prime = 31;

@@ -49,11 +49,22 @@ class PixelClassifierToolsTest {
 	
 	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierToolsTest.class);
 	
+	/**
+	 * Optionally print areas (not just check they match)
+	 */
+	private boolean printAreas = false;
+	
 	
 	private List<String> excludeNames = Arrays.asList(
 			"binary-noise-medium.png",
 			"binary-noise-large.png"
 			);
+
+	/**
+	 * Optionally check validity (can take a *very* long time with large geometries)
+	 */
+	private boolean checkValidity = excludeNames.size() >= 2;
+
 	
 	@Test
 	void testCreateObjects() throws Exception {
@@ -79,6 +90,7 @@ class PixelClassifierToolsTest {
 		
 		for (var p : pathList) {
 			String name = p.getFileName().toString();
+			
 			if (excludeNames.contains(name)) {
 				logger.debug("Skipping {}", name);
 				continue;
@@ -191,13 +203,16 @@ class PixelClassifierToolsTest {
 			int label = classificationLabelsReverse.get(annotation.getPathClass());
 			var roi = annotation.getROI();
 			double area = roi.getArea();
-//			System.err.println(hist[label] + ": \t" + area);
+			if (printAreas)
+				System.err.println(hist[label] + ": \t" + area);
 			assertEquals(hist[label], area);
 			var geom = roi.getGeometry();
-			var error = new IsValidOp(geom).getValidationError();
-			if (error != null)
-				logger.warn(error.getMessage());
-			assertNull(error);
+			if (checkValidity) {
+				var error = new IsValidOp(geom).getValidationError();
+				if (error != null)
+					logger.warn(error.getMessage());
+				assertNull(error);				
+			}
 			assertEquals(hist[label], geom.getArea());
 		}
 		
