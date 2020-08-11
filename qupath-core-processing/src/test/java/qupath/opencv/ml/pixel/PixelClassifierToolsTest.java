@@ -210,7 +210,7 @@ class PixelClassifierToolsTest {
 			if (checkValidity) {
 				var error = new IsValidOp(geom).getValidationError();
 				if (error != null)
-					logger.warn(error.getMessage());
+					logger.warn("{}", error);
 				assertNull(error);				
 			}
 			assertEquals(hist[label], geom.getArea());

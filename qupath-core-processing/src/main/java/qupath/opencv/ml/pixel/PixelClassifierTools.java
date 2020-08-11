@@ -22,15 +22,18 @@
 package qupath.opencv.ml.pixel;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
+import org.locationtech.jts.geom.util.PolygonExtracter;
+import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.processing.SimpleThresholding;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
@@ -69,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -407,18 +411,38 @@ public class PixelClassifierTools {
 //						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
 //							continue;
 						
-						ROI roiDetected = createTracedROI(raster, c, c, 0, t);
-//						ROI roiDetected = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
-										
-						if (roiDetected != null)  {
-							Geometry geometry = roiDetected.getGeometry();
-							if (clipArea != null)
-								geometry = geometry.intersection(clipArea);
+						Geometry geometry = createTracedGeometry(raster, c, c, 0, t);
+						if (geometry != null) {
+							if (clipArea != null) {
+								geometry = GeometryTools.attemptOperation(geometry, g -> g.intersection(clipArea));
+								geometry = GeometryTools.homogenizeGeometryCollection(geometry);
+								
+//								var error = new IsValidOp(geometry).getValidationError();
+//								if (error != null)
+//									System.err.println("When merging: " + error);
+							}
 							if (!geometry.isEmpty() && geometry.getArea() > 0) {
+								
+//								var error = new IsValidOp(geometry).getValidationError();
+////								if (error != null)
+//									System.err.println("When : " + error);
+
 								// Exclude lines/points that can sometimes arise
-								list.add(new GeometryWrapper(geometry, pathClass, roiDetected.getImagePlane()));
+								list.add(new GeometryWrapper(geometry, pathClass, t.getPlane()));
 							}
 						}
+						
+//						ROI roiDetected = createTracedROI(raster, c, c, 0, t);
+//						ROI roiDetected = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
+//						if (roiDetected != null)  {
+//							Geometry geometry = roiDetected.getGeometry();
+//							if (clipArea != null)
+//								geometry = geometry.intersection(clipArea);
+//							if (!geometry.isEmpty() && geometry.getArea() > 0) {
+//								// Exclude lines/points that can sometimes arise
+//								list.add(new GeometryWrapper(geometry, pathClass, roiDetected.getImagePlane()));
+//							}
+//						}
 					}
 				} catch (Exception e) {
 					logger.error("Error requesting classified tile", e);
@@ -426,17 +450,99 @@ public class PixelClassifierTools {
 				return list;
 			}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.pathClass, Collectors.toList()));
 		
+			// Determine 'inter-tile boundaries' - union operations can be very slow, so we want to restrict them 
+			// only to geometries that really require them.
+			var xBoundsSet = new TreeSet<Integer>();
+			var yBoundsSet = new TreeSet<Integer>();
+			for (var t : tiles) {
+				xBoundsSet.add(t.getImageX());
+				xBoundsSet.add(t.getImageX() + t.getImageWidth());
+				yBoundsSet.add(t.getImageY());
+				yBoundsSet.add(t.getImageY() + t.getImageHeight());
+			}
+			int[] xBounds = xBoundsSet.stream().mapToInt(x -> x).toArray(); 
+			int[] yBounds = yBoundsSet.stream().mapToInt(y -> y).toArray(); 
+			
+			
 			// Merge objects with the same classification
+			var factory = GeometryTools.getDefaultFactory();
 			for (var entry : pathObjectMap.entrySet()) {
 				var pathClass = entry.getKey();
 				var list = entry.getValue();
 				
-				// Merge to a single Geometry
-				var collection = list.stream().map(g -> g.geometry).collect(Collectors.toList());
+				// If we just have one tile, that's what we need
+				Geometry geometry = null;
+				
+				if (list.isEmpty())
+					continue;
+				if (list.size() == 1) {
+					geometry = list.get(0).geometry;
+				} else {
+					logger.debug("Merging geometries from {} tiles for class {}", list.size(), pathClass);
+					
+					// Merge everything quickly into a single geometry
+					var allPolygons = new ArrayList<Polygon>();
+					for (var temp : list)
+						PolygonExtracter.getPolygons(temp.geometry, allPolygons);
+					
+					// TODO: Explore where buffering is faster than union; if we can get rules for this it can be used instead
+					boolean onlyBuffer = false;
+					
+					if (onlyBuffer) {
+						var singleGeometry = factory.buildGeometry(allPolygons);
+						geometry = singleGeometry.buffer(0);
+					} else {
+						
+						// Unioning is expensive, so we just want to do it where really needed
+						var tree = new Quadtree();
+						for (var p : allPolygons) {
+							tree.insert(p.getEnvelopeInternal(), p);
+						}
+						var env = new Envelope();
+						
+						var toMerge = new HashSet<Polygon>();
+						for (int yi = 1; yi < yBounds.length-1; yi++) {
+							env.init(xBounds[0]-1, xBounds[xBounds.length-1]+1, yBounds[yi]-1, yBounds[yi]+1);
+							var items = tree.query(env);
+							if (items.size() > 1)
+								toMerge.addAll(items);
+						}
+						for (int xi = 1; xi < xBounds.length-1; xi++) {
+							env.init(xBounds[xi]-1, xBounds[xi]+1, yBounds[0]-1, yBounds[yBounds.length-1]+1);
+							var items = tree.query(env);
+							if (items.size() > 1)
+								toMerge.addAll(items);
+						}
+						if (!toMerge.isEmpty()) {
+							logger.debug("Computing union for {}/{} polygons", toMerge.size(), allPolygons.size());
+							var mergedGeometry = GeometryTools.union(toMerge);
+//							System.err.println("To merge: " + toMerge.size());
+//							var mergedGeometry = factory.buildGeometry(toMerge).buffer(0);
+							var iter = allPolygons.iterator();
+							while (iter.hasNext()) {
+								if (toMerge.contains(iter.next()))
+									iter.remove();
+							}
+							allPolygons.removeAll(toMerge);
+							var newPolygons = new ArrayList<Polygon>();
+							PolygonExtracter.getPolygons(mergedGeometry, newPolygons);
+							allPolygons.addAll(newPolygons);
+						}
+						geometry = factory.buildGeometry(allPolygons);				
+						geometry.normalize();
+					}
+					
+				}
+				
+				
+				
+				
+				
+				
 //				long start = System.currentTimeMillis();
 //				Geometry geometry = collection.get(0).getFactory().buildGeometry(collection.toArray(Geometry[]::new)).buffer(0);
 //				long middle = System.currentTimeMillis();
-				Geometry geometry = GeometryTools.union(collection);
+//				Geometry geometry = GeometryTools.union(collection);
 //				long end = System.currentTimeMillis();
 //				System.err.println("Buffer: " + (middle - start) + ", area = " + geometry.getArea());
 //				System.err.println("Union: " + (end - middle) + ", area = " + geometry2.getArea());
@@ -466,18 +572,43 @@ public class PixelClassifierTools {
 	}
 	
 	
-	// TODO: Handle scaling elsewhere?
 	static ROI createTracedROI(Raster raster, float minThresholdInclusive, float maxThresholdInclusive, int band, TileRequest t) {
 		
-		var geom = traceGeometry(raster, minThresholdInclusive, maxThresholdInclusive, t.getTileX(), t.getTileY());
+		var geom = createTracedGeometry(raster, minThresholdInclusive, maxThresholdInclusive, band, t);
 		
-		double scale = t.getDownsample();
+		return GeometryTools.geometryToROI(geom, t.getPlane());
+	}
+	
+	
+	/**
+	 * Create a traced geometry from a raster.
+	 * 
+	 * @param raster input raster
+	 * @param minThresholdInclusive minimum threshold value
+	 * @param maxThresholdInclusive maximum threshold value
+	 * @param band band (channel) to threshold
+	 * @param t optional tile request; if provided, the geometry will be translated and rescaled to the image space
+	 * @return a polygonal geometry created by tracing pixel values &ge; minThresholdInclusive and &le; maxThresholdInclusive
+	 */
+	static Geometry createTracedGeometry(Raster raster, float minThresholdInclusive, float maxThresholdInclusive, int band, TileRequest t) {
+		
+		int xOffset = 0;
+		int yOffset = 0;
+		double scale = 1;
+		if (t != null) {
+			xOffset = t.getTileX();
+			yOffset = t.getTileY();
+			scale = t.getDownsample();
+		}
+		
+		var geom = traceGeometry(raster, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset);
+		
 		if (scale != 1) {
 			var transform = AffineTransformation.scaleInstance(scale, scale);
 			geom = transform.transform(geom);
 		}
 		
-		return GeometryTools.geometryToROI(geom, t.getPlane());
+		return geom;
 	}
 
 	
