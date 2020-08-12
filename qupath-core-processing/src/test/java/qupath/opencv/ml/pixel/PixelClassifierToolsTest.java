@@ -1,26 +1,44 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2020 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License 
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
+
 package qupath.opencv.ml.pixel;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
-
 import javax.imageio.ImageIO;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,60 +70,24 @@ class PixelClassifierToolsTest {
 	/**
 	 * Optionally print areas (not just check they match)
 	 */
-	private boolean printAreas = false;
+	private static boolean printAreas = false;
 	
-	
-	private List<String> excludeNames = Arrays.asList(
-			"binary-noise-medium.png",
-			"binary-noise-large.png"
-			);
-
 	/**
-	 * Optionally check validity (can take a *very* long time with large geometries)
+	 * Turn this on with caution... can be extremely slow for large images
 	 */
-	private boolean checkValidity = excludeNames.size() >= 2;
+	private static boolean alwaysCheckValidity = false;
+	
+	private static int MAX_POINTS_FOR_VALIDITY = 50_000;
 
 	
-	@Test
-	void testCreateObjects() throws Exception {
-		
-		var path = Paths.get(getClass().getResource("/data").toURI());
-		
-		var pathList = Files.walk(path)
-				.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".png"))
-				.collect(Collectors.toCollection(ArrayList::new));
-		
-		if (pathList.isEmpty()) {
-			throw new Exception("No paths found to test object creation!");
-		}
-		
-		// Sort by file size - do simpler tests first
-		Collections.sort(pathList, Comparator.comparingLong(p -> {
-			try {
-				return Files.size(p);
-			} catch (Exception e) {
-				return Long.MAX_VALUE;
-			}
-		}));
-		
-		for (var p : pathList) {
-			String name = p.getFileName().toString();
-			
-			if (excludeNames.contains(name)) {
-				logger.debug("Skipping {}", name);
-				continue;
-			}
-			logger.debug("Testing {}", name);
-			long time = testImage(p);
-			logger.debug("Processing time: {} ms", time);
-		}
-
-	}
-	
-	long testImage(Path path) throws Exception {
+	@ParameterizedTest
+	@MethodSource("qupath.lib.analysis.algorithms.TestContourTracing#providePathsForTraceContours")
+	void testTraceContours(Path path) throws Exception {
 		long startTime = System.currentTimeMillis();
 		
 		var img = ImageIO.read(path.toUri().toURL());
+		
+		logger.debug("Tracing contours for {}", path.getFileName().toString());
 		
 		// Convert binary images to 0-1
 		if (path.getFileName().toString().startsWith("binary")) {
@@ -118,7 +100,8 @@ class PixelClassifierToolsTest {
 		
 		testImage(img);
 		
-		return System.currentTimeMillis() - startTime;
+		long time = System.currentTimeMillis() - startTime;
+		logger.debug("Contours traced for {} in {} ms", path.getFileName().toString(), time);
 	}
 
 		
@@ -204,10 +187,10 @@ class PixelClassifierToolsTest {
 			var roi = annotation.getROI();
 			double area = roi.getArea();
 			if (printAreas)
-				System.err.println(hist[label] + ": \t" + area);
+				logger.debug(hist[label] + ": \t" + area);
 			assertEquals(hist[label], area);
 			var geom = roi.getGeometry();
-			if (checkValidity) {
+			if (alwaysCheckValidity || geom.getNumPoints() < MAX_POINTS_FOR_VALIDITY) {
 				var error = new IsValidOp(geom).getValidationError();
 				if (error != null)
 					logger.warn("{}", error);

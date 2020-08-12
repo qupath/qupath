@@ -148,23 +148,39 @@ public class GeometryTools {
     }
     
     
+//    /**
+//	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
+//	 * @param geometry
+//     * @param minX 
+//     * @param minY 
+//     * @param maxX 
+//     * @param maxY 
+//     * @return 
+//	 */
+//	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
+//		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
+//		geometry = TopologyPreservingSimplifier.simplify(geometry, 0.0);
+//		geometry = geometry.intersection(GeometryTools.createRectangle(minX, minY, maxX-minX, maxY-minY));
+//		return geometry;
+////		roundingFilter.setBounds(minX, minY, maxX, maxY);
+////		geometry.apply(roundingFilter);
+////		return VWSimplifier.simplify(geometry, 0.5);
+//	}
+	
+	
     /**
-	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
-	 * @param geometry
-     * @param minX 
-     * @param minY 
-     * @param maxX 
-     * @param maxY 
-     * @return 
-	 */
-	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
-		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
-		geometry = TopologyPreservingSimplifier.simplify(geometry, 0.0);
-		geometry = geometry.intersection(GeometryTools.createRectangle(minX, minY, maxX-minX, maxY-minY));
-		return geometry;
-//		roundingFilter.setBounds(minX, minY, maxX, maxY);
-//		geometry.apply(roundingFilter);
-//		return VWSimplifier.simplify(geometry, 0.5);
+     * Convert an {@link Envelope} to an {@link ImageRegion}.
+     * @param env envelop
+     * @param z z index for the region (default is 0)
+     * @param t timepoint for the region (default is 0)
+     * @return the smallest {@link ImageRegion} that contains the specified envelop
+     */
+	public static ImageRegion envelopToRegion(Envelope env, int z, int t) {
+		int x = (int)Math.floor(env.getMinX());
+		int y = (int)Math.floor(env.getMinY());
+		int width = (int)Math.ceil(env.getMaxX()) - x;
+		int height = (int)Math.ceil(env.getMaxY()) - y;
+		return ImageRegion.createInstance(x, y, width, height, z, t);
 	}
 	
 	
@@ -410,6 +426,10 @@ public class GeometryTools {
     
     /**
      * Fill all interior rings for the specified geometry that have an area &lt; a specified threshold.
+     * <p>
+     * Note that this assumes that the geometry is valid, and does not contain self-intersections or overlapping pieces. 
+     * No checks are made to confirm this (for performance reasons).
+     * 
      * @param geometry
      * @param minRingArea
      * @return
