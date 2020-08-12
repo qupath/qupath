@@ -6,6 +6,7 @@ This is a *minor release* that aims to be fully compatible with v0.2.0 while fix
 List of bugs fixed:
 * Maximum memory setting is sometimes ignored (https://github.com/qupath/qupath/issues/582)
   * Memory cannot no longer be specified to be less than 1 GB
+* Improve reliability of cell expansion code, currently used with StarDist (https://github.com/qupath/qupath/issues/587)
 
 
 ## Version 0.2.2
