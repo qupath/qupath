@@ -21,20 +21,30 @@
 
 package qupath.lib.color;
 
+import java.awt.image.BandedSampleModel;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferDouble;
+import java.awt.image.DataBufferFloat;
+import java.awt.image.DataBufferShort;
 import java.awt.image.IndexColorModel;
+import java.awt.image.Raster;
+import java.awt.image.WritableRaster;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.DoubleToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.classes.PathClass;
@@ -135,6 +145,53 @@ public final class ColorModelFactory {
     
     
     /**
+     * Create an 8-bit {@link IndexColorModel} from a {@link ColorMap}.
+     * @param map
+     * @return
+     */
+    public static IndexColorModel createIndexedColorModel8bit(ColorMap map) {
+    	Objects.nonNull(map);
+    	return new IndexColorModel(8, 256, ColorMaps.getColors(map, 256, false), 0, false, -1, DataBuffer.TYPE_BYTE);
+    }
+    
+    public static ColorModel createColorModel(PixelType pixelType, ColorMap map) {
+    	return createColorModel(pixelType, map, 0, pixelType.isFloatingPoint() ? 1.0 : pixelType.getUpperBound().doubleValue(), -1, null);
+    }
+    
+    public static ColorModel createColorModel(PixelType pixelType, ColorMap map, double min, double max, int alphaChannel, DoubleToIntFunction alphaFun) {
+    	Objects.nonNull(map);
+    	if (alphaFun == null && alphaChannel >= 0)
+    		alphaFun = createLinearFunction(pixelType);
+    	return new ColorMapModel(pixelType, map, min, max, alphaChannel, alphaFun);
+    }
+    
+    public static DoubleToIntFunction createLinearFunction(PixelType type) {
+    	return createLinearFunction(0, type.isFloatingPoint() ? 1.0 : type.getUpperBound().doubleValue());
+    }
+
+    public static DoubleToIntFunction createLinearFunction(double min, double max) {
+    	return d -> (int)GeneralTools.clipValue(Math.round(255 * (d - min) / (max - min)), 0, 255);
+    }
+    
+    public static DoubleToIntFunction createLinearFunction(double gamma, PixelType type) {
+    	return createGammaFunction(gamma, 0, type.isFloatingPoint() ? 1.0 : type.getUpperBound().doubleValue());
+    }
+    
+    public static DoubleToIntFunction createGammaFunction(double gamma, double min, double max) {
+    	return d -> gamma(d, min, max, gamma);
+    }
+    
+    private static int gamma(double val, double min, double max, double gamma) {
+    	val -= min;
+    	val /= (max - min);
+    	if (gamma != 1)
+    		val = Math.pow(val, gamma);
+    	val = GeneralTools.clipValue(val, 0, 1);
+    	return (int)Math.round(val * 255);
+    }
+    
+    
+    /**
      * Get a ColorModel suitable for showing 8-bit pseudo-probabilities for multiple channels.
      * <p>
      * The range of values is assumed to be 0-255, treated as probabilities rescaled from 0-1.
@@ -224,5 +281,347 @@ public final class ColorModelFactory {
 		}).toArray());
 	}
     
+	
+	
+	static class ColorMapModel extends DefaultAbstractColorModel {
+		
+		private ColorMap map;
+		private double min, max;
+		
+		private int nBits;
+		private boolean hasAlphaChannel;
+		private boolean isSigned;
+		private int alphaChannel;
+		private DoubleToIntFunction alphaFun;
+
+		public ColorMapModel(PixelType pixelType, ColorMap map, double min, double max, int alphaChannel, DoubleToIntFunction alphaFun) {
+			super(pixelType, Math.max(1, alphaChannel + 1));
+			this.nBits = pixelType.getBitsPerPixel();
+			this.isSigned = pixelType.isSignedInteger();
+			this.map = map;
+			this.min = min;
+			this.max = max;
+			this.hasAlphaChannel = alphaChannel >= 0;
+			this.alphaChannel = alphaChannel;
+			this.alphaFun = alphaFun;
+		}
+
+		@Override
+		public int getRed(int pixel) {
+			return ColorTools.red(map.getColor(pixel, min, max));
+		}
+
+		@Override
+		public int getGreen(int pixel) {
+			return ColorTools.green(map.getColor(pixel, min, max));
+		}
+
+		@Override
+		public int getBlue(int pixel) {
+			return ColorTools.blue(map.getColor(pixel, min, max));
+		}
+
+		@Override
+		public int getAlpha(int pixel) {
+			if (hasAlphaChannel)
+				pixel = pixel << (nBits * alphaChannel);
+			return alphaFun == null ? 255 : alphaFun.applyAsInt(pixel);
+		}
+		
+		private double extractByteValue(byte b) {
+			return isSigned ? (double)b : (double)(b & 0xFF);
+		}
+
+		private double extractShortValue(short s) {
+			return isSigned ? (double)s : (double)(s & 0xFFFF);
+		}
+
+		@Override
+		protected int getRedByte(byte[] pixel) {
+			return getRed(extractByteValue(pixel[0]));
+		}
+
+		@Override
+		protected int getGreenByte(byte[] pixel) {
+			return getGreen(extractByteValue(pixel[0]));
+		}
+
+		@Override
+		protected int getBlueByte(byte[] pixel) {
+			return getBlue(extractByteValue(pixel[0]));
+		}
+
+		@Override
+		protected int getAlphaByte(byte[] pixel) {
+			return getAlpha(extractByteValue(pixel[hasAlphaChannel ? alphaChannel : 0]));
+		}
+
+		@Override
+		protected int getRedFloat(float[] pixel) {
+			return getRed(pixel[0]);
+		}
+
+		@Override
+		protected int getGreenFloat(float[] pixel) {
+			return getGreen(pixel[0]);
+		}
+
+		@Override
+		protected int getBlueFloat(float[] pixel) {
+			return getBlue(pixel[0]);
+		}
+
+		@Override
+		protected int getAlphaFloat(float[] pixel) {
+			return hasAlphaChannel ? getAlpha(pixel[alphaChannel]) : getAlpha(pixel[0]);
+		}
+
+		@Override
+		protected int getRedDouble(double[] pixel) {
+			return getRed(pixel[0]);
+		}
+
+		@Override
+		protected int getGreenDouble(double[] pixel) {
+			return getGreen(pixel[0]);
+		}
+
+		@Override
+		protected int getBlueDouble(double[] pixel) {
+			return getBlue(pixel[0]);
+		}
+
+		@Override
+		protected int getAlphaDouble(double[] pixel) {
+			return hasAlphaChannel ? getAlpha(pixel[alphaChannel]) : getAlpha(pixel[0]);
+		}
+
+		@Override
+		protected int getRedShort(short[] pixel) {
+			return getRed(extractShortValue(pixel[0]));
+		}
+
+		@Override
+		protected int getGreenShort(short[] pixel) {
+			return getGreen(extractShortValue(pixel[0]));
+		}
+
+		@Override
+		protected int getBlueShort(short[] pixel) {
+			return getBlue(extractShortValue(pixel[0]));
+		}
+
+		@Override
+		protected int getAlphaShort(short[] pixel) {
+			return getAlpha(extractShortValue(pixel[hasAlphaChannel ? alphaChannel : 0]));
+		}
+
+		@Override
+		protected int getRedInt(int[] pixel) {
+			return getRed(pixel[0]);
+		}
+
+		@Override
+		protected int getGreenInt(int[] pixel) {
+			return getGreen(pixel[0]);
+		}
+
+		@Override
+		protected int getBlueInt(int[] pixel) {
+			return getBlue(pixel[0]);
+		}
+
+		@Override
+		protected int getAlphaInt(int[] pixel) {
+			return hasAlphaChannel ? getAlpha(pixel[alphaChannel]) : getAlpha(pixel[0]);
+		}
+		
+		public int getRed(double pixel) {
+			return ColorTools.red(map.getColor(pixel, min, max));
+		}
+
+		public int getGreen(double pixel) {
+			return ColorTools.green(map.getColor(pixel, min, max));
+		}
+
+		public int getBlue(double pixel) {
+			return ColorTools.blue(map.getColor(pixel, min, max));
+		}
+
+		public int getAlpha(double pixel) {
+			return alphaFun == null ? 255 : alphaFun.applyAsInt(pixel);
+		}
+		
+	}
+	
+	
+	
+	/**
+	 * Abstract color model that handles all types of transfer.
+	 */
+	static abstract class DefaultAbstractColorModel extends ColorModel {
+		
+		private PixelType pixelType;
+		private int nBands;
+		
+		DefaultAbstractColorModel(final PixelType pixelType, int nBands) {
+			super(pixelType.getBitsPerPixel() * nBands);
+			this.pixelType = pixelType;
+			this.nBands = nBands;
+		}
+
+		@Override
+		public int getRed(Object pixel) {
+			if (pixel instanceof byte[])
+				return getRedByte((byte[])pixel);
+			if (pixel instanceof float[])
+				return getRedFloat((float[])pixel);
+			if (pixel instanceof short[])
+				return getRedShort((short[])pixel);
+			if (pixel instanceof int[])
+				return getRedInt((int[])pixel);
+			if (pixel instanceof double[])
+				return getRedDouble((double[])pixel);
+			return 0;
+		}
+
+		@Override
+		public int getGreen(Object pixel) {
+			if (pixel instanceof byte[])
+				return getGreenByte((byte[])pixel);
+			if (pixel instanceof float[])
+				return getGreenFloat((float[])pixel);
+			if (pixel instanceof short[])
+				return getGreenShort((short[])pixel);
+			if (pixel instanceof int[])
+				return getGreenInt((int[])pixel);
+			if (pixel instanceof double[])
+				return getGreenDouble((double[])pixel);
+			return 0;
+		}
+
+		@Override
+		public int getBlue(Object pixel) {
+			if (pixel instanceof byte[])
+				return getBlueByte((byte[])pixel);
+			if (pixel instanceof float[])
+				return getBlueFloat((float[])pixel);
+			if (pixel instanceof short[])
+				return getBlueShort((short[])pixel);
+			if (pixel instanceof int[])
+				return getBlueInt((int[])pixel);
+			if (pixel instanceof double[])
+				return getBlueDouble((double[])pixel);
+			return 0;
+		}
+
+		@Override
+		public int getAlpha(Object pixel) {
+			if (pixel instanceof byte[])
+				return getAlphaByte((byte[])pixel);
+			if (pixel instanceof float[])
+				return getAlphaFloat((float[])pixel);
+			if (pixel instanceof short[])
+				return getAlphaShort((short[])pixel);
+			if (pixel instanceof int[])
+				return getAlphaInt((int[])pixel);
+			if (pixel instanceof double[])
+				return getAlphaDouble((double[])pixel);
+			return 255;
+		}
+		
+		protected abstract int getRedByte(byte[] pixel);
+
+		protected abstract int getGreenByte(byte[] pixel);
+
+		protected abstract int getBlueByte(byte[] pixel);
+
+		protected abstract int getAlphaByte(byte[] pixel);
+		
+		protected abstract int getRedFloat(float[] pixel);
+
+		protected abstract int getGreenFloat(float[] pixel);
+
+		protected abstract int getBlueFloat(float[] pixel);
+		
+		protected abstract int getAlphaFloat(float[] pixel);
+		
+		protected abstract int getRedDouble(double[] pixel);
+
+		protected abstract int getGreenDouble(double[] pixel);
+
+		protected abstract int getBlueDouble(double[] pixel);
+		
+		protected abstract int getAlphaDouble(double[] pixel);
+		
+		protected abstract int getRedShort(short[] pixel);
+
+		protected abstract int getGreenShort(short[] pixel);
+
+		protected abstract int getBlueShort(short[] pixel);
+		
+		protected abstract int getAlphaShort(short[] pixel);
+		
+		protected abstract int getRedInt(int[] pixel);
+
+		protected abstract int getGreenInt(int[] pixel);
+
+		protected abstract int getBlueInt(int[] pixel);
+
+		protected abstract int getAlphaInt(int[] pixel);		
+		
+		@Override
+		public boolean isCompatibleRaster(Raster raster) {
+			int transferType = raster.getTransferType();
+			return transferType == DataBuffer.TYPE_BYTE ||
+					transferType == DataBuffer.TYPE_USHORT ||
+					transferType == DataBuffer.TYPE_INT ||
+					transferType == DataBuffer.TYPE_SHORT ||
+					transferType == DataBuffer.TYPE_FLOAT ||
+					transferType == DataBuffer.TYPE_DOUBLE;
+		}
+		
+		@Override
+		public WritableRaster createCompatibleWritableRaster(int w, int h) {
+			switch(pixelType) {
+			case FLOAT32:
+				return WritableRaster.createWritableRaster(
+						new BandedSampleModel(DataBuffer.TYPE_FLOAT, w, h, nBands),
+						new DataBufferFloat(w*h, nBands), null);
+			case FLOAT64:
+				return WritableRaster.createWritableRaster(
+						new BandedSampleModel(DataBuffer.TYPE_DOUBLE, w, h, nBands),
+						new DataBufferDouble(w*h, nBands), null);
+			case INT16:
+				return WritableRaster.createWritableRaster(
+						new BandedSampleModel(DataBuffer.TYPE_SHORT, w, h, nBands),
+						new DataBufferShort(w*h, nBands), null);
+			case INT32:
+				return WritableRaster.createBandedRaster(DataBuffer.TYPE_INT, w, h, nBands, null);
+			case UINT16:
+				return WritableRaster.createBandedRaster(DataBuffer.TYPE_USHORT, w, h, nBands, null);
+			case UINT8:
+				return WritableRaster.createBandedRaster(DataBuffer.TYPE_BYTE, w, h, nBands, null);
+			case INT8:
+			case UINT32:
+			default:
+				try {
+					return super.createCompatibleWritableRaster(w, h);
+				} catch (Exception e) {
+					throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
+				}
+			}
+		}
+		
+		@Override
+		public ColorModel coerceData(WritableRaster raster, boolean isAlphaPremultiplied) {
+			logger.warn("Unsupported call to coerce data for {} (isAlphaPremultiplied = {})", raster, isAlphaPremultiplied);
+			return null;
+		}
+		
+		
+	}
+	
+	
 
 }

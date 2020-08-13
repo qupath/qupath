@@ -24,7 +24,11 @@
 package qupath.lib.gui.panes;
 
 import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -57,11 +61,12 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.classifiers.PathClassifierTools;
+import qupath.lib.color.ColorMaps;
+import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MeasurementMapper;
-import qupath.lib.gui.tools.MeasurementMapper.ColorMapper;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.objects.PathObject;
@@ -85,8 +90,8 @@ public class MeasurementMapPane {
 
 	private BorderPane pane = new BorderPane();
 	
-	private ObservableList<ColorMapper> colorMappers = FXCollections.observableArrayList(MeasurementMapper.loadColorMappers());
-	private ObservableValue<ColorMapper> selectedColorMapper;
+	private ObservableList<ColorMap> colorMaps = FXCollections.observableArrayList();
+	private ObservableValue<ColorMap> selectedColorMap;
 	
 	private ObservableList<String> baseList = FXCollections.observableArrayList();
 	private FilteredList<String> filteredList = new FilteredList<>(baseList);
@@ -98,8 +103,8 @@ public class MeasurementMapPane {
 	// For not painting values outside the mapper range
 	private CheckBox cbExcludeOutside = new CheckBox("Exclude outside range");
 	
-	private Canvas colorMapperKey;
-	private Image colorMapperKeyImage;
+	private Canvas colorMapKey;
+	private Image colorMapKeyImage;
 	
 	private Label labelMin = new Label("");
 	private Label labelMax = new Label("");
@@ -120,6 +125,9 @@ public class MeasurementMapPane {
 		this.qupath = qupath;
 		
 		logger.trace("Creating Measurement Map Pane");
+		
+		ColorMaps.installColorMaps(getUserColormapPaths().toArray(Path[]::new));
+		colorMaps.setAll(ColorMaps.getColorMaps().values());
 		
 		updateMeasurements();
 		
@@ -175,7 +183,7 @@ public class MeasurementMapPane {
 				);
 
 		double canvasHeight = 10;
-		colorMapperKey = new Canvas() {
+		colorMapKey = new Canvas() {
 			@Override
 			public double minHeight(double width) {
 			    return canvasHeight;
@@ -213,7 +221,7 @@ public class MeasurementMapPane {
 			    updateColorMapperKey();
 			}
 		};
-		Tooltip.install(colorMapperKey, new Tooltip("Measurement map key"));
+		Tooltip.install(colorMapKey, new Tooltip("Measurement map key"));
 		
 		// Filter to reduce visible measurements
 		TextField tfFilter = new TextField();
@@ -232,11 +240,11 @@ public class MeasurementMapPane {
 		paneFilter.setCenter(tfFilter);
 		
 		// Create a color mapper combobox
-		ComboBox<ColorMapper> comboMapper = new ComboBox<>(colorMappers);
-		selectedColorMapper = comboMapper.getSelectionModel().selectedItemProperty();
+		ComboBox<ColorMap> comboMapper = new ComboBox<>(colorMaps);
+		selectedColorMap = comboMapper.getSelectionModel().selectedItemProperty();
 		String name = preferredMapperName.get();
 		if (name != null) {
-			for (var mapper : colorMappers) {
+			for (var mapper : colorMaps) {
 				if (name.equalsIgnoreCase(mapper.getName())) {
 					comboMapper.getSelectionModel().select(mapper);
 					break;
@@ -246,7 +254,7 @@ public class MeasurementMapPane {
 		if (comboMapper.getSelectionModel().isEmpty() && !comboMapper.getItems().isEmpty())
 			comboMapper.getSelectionModel().selectFirst();
 		comboMapper.setTooltip(new Tooltip("Select color map"));
-		selectedColorMapper.addListener((v, o, n) -> {
+		selectedColorMap.addListener((v, o, n) -> {
 			updateMap();
 			if (n != null)
 				preferredMapperName.set(n.getName());
@@ -258,7 +266,7 @@ public class MeasurementMapPane {
 				comboMapper,
 				sliderMin,
 				sliderMax,
-				colorMapperKey,
+				colorMapKey,
 				panelLabels,
 				btnRefresh,
 				toggleShowMap
@@ -279,6 +287,19 @@ public class MeasurementMapPane {
 
 		pane.setPadding(new Insets(10, 10, 10, 10));
 	}
+	
+	
+	private static Collection<Path> getUserColormapPaths() {
+		String userPath = PathPrefs.getUserPath();
+        if (userPath != null) {
+        	Path dirUser = Paths.get(userPath, "colormaps");
+	        if (Files.isDirectory(dirUser)) {
+	        	return Collections.singletonList(dirUser);
+	        }
+        }
+        return Collections.emptyList();
+	}
+	
 	
 	
 	static void setSliderValue(Slider slider, String message) {
@@ -315,7 +336,7 @@ public class MeasurementMapPane {
 			return;
 		// Reuse mappers if we can
 		mapper = mapperMap.get(measurement);
-		var colorMapper = selectedColorMapper.getValue();
+		var colorMapper = selectedColorMap.getValue();
 		if (mapper == null) {
 			mapper = new MeasurementMapper(colorMapper, measurement, viewer.getHierarchy().getObjects(null, null));
 			if (mapper.isValid())
@@ -337,7 +358,7 @@ public class MeasurementMapPane {
 			updatingSliders = false;
 		}
 
-		colorMapperKeyImage = createPanelKey(mapper.getColorMapper());
+		colorMapKeyImage = createPanelKey(mapper.getColorMapper());
 		updateColorMapperKey();
 		mapper.setExcludeOutsideRange(cbExcludeOutside.isSelected());
 		viewer.forceOverlayUpdate();
@@ -349,13 +370,13 @@ public class MeasurementMapPane {
 	
 	
 	private void updateColorMapperKey() {
-		GraphicsContext gc = colorMapperKey.getGraphicsContext2D();
-		double w = colorMapperKey.getWidth();
-		double h = colorMapperKey.getHeight();
+		GraphicsContext gc = colorMapKey.getGraphicsContext2D();
+		double w = colorMapKey.getWidth();
+		double h = colorMapKey.getHeight();
 		gc.clearRect(0, 0, w, h);
-		if (colorMapperKeyImage != null)
-			gc.drawImage(colorMapperKeyImage,
-					0, 0, colorMapperKeyImage.getWidth(), colorMapperKeyImage.getHeight(),
+		if (colorMapKeyImage != null)
+			gc.drawImage(colorMapKeyImage,
+					0, 0, colorMapKeyImage.getWidth(), colorMapKeyImage.getHeight(),
 					0, 0, w, h);
 	}
 	
@@ -422,7 +443,7 @@ public class MeasurementMapPane {
 	
 	
 	
-	private static Image createPanelKey(final ColorMapper colorMapper) {
+	private static Image createPanelKey(final ColorMap colorMapper) {
 		BufferedImage imgKey = new BufferedImage(255, 10, BufferedImage.TYPE_INT_ARGB);
 		if (colorMapper != null) {
 			for (int i = 0; i < imgKey.getWidth(); i++) {
