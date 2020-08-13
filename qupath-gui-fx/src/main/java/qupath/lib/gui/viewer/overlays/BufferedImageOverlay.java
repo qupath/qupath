@@ -35,7 +35,10 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import qupath.lib.gui.viewer.ImageInterpolation;
+import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.ImageRegion;
@@ -47,12 +50,13 @@ import qupath.lib.regions.ImageRegion;
  * 
  * @author Pete Bankhead
  */
-public class BufferedImageOverlay extends AbstractOverlay {
+public class BufferedImageOverlay extends AbstractOverlay implements ChangeListener<ImageData<BufferedImage>> {
 	
 	private static Logger logger = LoggerFactory.getLogger(BufferedImageOverlay.class);
     
     private Map<ImageRegion, BufferedImage> regions = new LinkedHashMap<>();
     
+    private QuPathViewer viewer;
     private ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
     
     /**
@@ -62,42 +66,62 @@ public class BufferedImageOverlay extends AbstractOverlay {
      * @param img
      */
     public BufferedImageOverlay(final QuPathViewer viewer, BufferedImage img) {
-        this(viewer,
+        this(viewer.getOverlayOptions(),
         		ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()),
             img);
-    }
+        addViewerListener(viewer);
+    }    	
     
     /**
      * Create an empty overlay without any images to display.
      * 
-     * @param viewer
+     * @param options
      */
-    public BufferedImageOverlay(final QuPathViewer viewer) {
-        this(viewer, Collections.emptyMap());
+    public BufferedImageOverlay(final OverlayOptions options) {
+        this(options, Collections.emptyMap());
     }
     
-        /**
+    /**
      * Create an overlay to display one specified image region.
      * 
-     * @param viewer
+     * @param options
      * @param region
      * @param img
      */
-    public BufferedImageOverlay(final QuPathViewer viewer, ImageRegion region, BufferedImage img) {
-        this(viewer, Collections.singletonMap(region, img));
+    public BufferedImageOverlay(final OverlayOptions options, ImageRegion region, BufferedImage img) {
+        this(options, Collections.singletonMap(region, img));
     }
 
     /**
      * Create an overlay to display multiple image regions.
      * 
-     * @param viewer
+     * @param options
      * @param regions
      */
-    public BufferedImageOverlay(final QuPathViewer viewer, Map<ImageRegion, BufferedImage> regions) {
-        super(viewer.getOverlayOptions());
+    public BufferedImageOverlay(final OverlayOptions options, Map<ImageRegion, BufferedImage> regions) {
+        super(options);
         if (regions != null)
         	this.regions.putAll(regions);
     }
+    
+    
+    private void addViewerListener(QuPathViewer viewer) {
+    	this.viewer = viewer;
+    	viewer.imageDataProperty().addListener(this);
+    }
+    
+    @Override
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
+			ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
+    	if (viewer != null) {
+    		viewer.imageDataProperty().removeListener(this);
+    		viewer.getCustomOverlayLayers().remove(this);
+    		if (this == viewer.getCustomPixelLayerOverlay())
+    			viewer.resetCustomPixelLayerOverlay();
+    		viewer = null;
+    	}
+	}
+
     
     
     /**
@@ -139,8 +163,8 @@ public class BufferedImageOverlay extends AbstractOverlay {
 
     @Override
     public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageData<BufferedImage> imageData, boolean paintCompletely) {
-        // Don't show if objects aren't being shown
-        if (!getOverlayOptions().getShowDetections())
+        // Don't show if pixel classifications aren't being shown
+        if (!getOverlayOptions().getShowPixelClassification())
             return;
 
         // Paint the regions we have

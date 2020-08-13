@@ -35,6 +35,7 @@ Enhancements:
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
+* BufferedImageOverlays are now tied to the the pixel classification display setting (rather than the detection display)
 
 Code changes:
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")

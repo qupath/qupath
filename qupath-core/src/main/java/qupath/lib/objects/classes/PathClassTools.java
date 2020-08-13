@@ -84,7 +84,17 @@ public final class PathClassTools {
 	}
 	
 	/**
-	 * Return true if the name of the class is "1+", indicating a weakly-positive staining.
+	 * Returns true if the PathClass represents a valid (non-null) classification.
+	 * 
+	 * @param pathClass input classification to check
+	 * @return true if the input represents a valid classification, or false if the input is null or is equivalent to {@link PathClassFactory#getPathClassUnclassified()}.
+	 */
+	public static boolean isValidClass(final PathClass pathClass) {
+		return pathClass != null && pathClass != PathClassFactory.getPathClassUnclassified() && pathClass.getName() != null;
+	}
+	
+	/**
+	 * Returns true if the name of the class is "1+", indicating a weakly-positive staining.
 	 * @param pathClass
 	 * @return
 	 */
