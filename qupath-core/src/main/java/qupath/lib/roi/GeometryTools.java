@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -61,9 +62,13 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.Puntal;
 import org.locationtech.jts.geom.TopologyException;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
+import org.locationtech.jts.geom.prep.PreparedPolygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.locationtech.jts.geom.util.PolygonExtracter;
+import org.locationtech.jts.index.quadtree.Quadtree;
 import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
+import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
@@ -143,23 +148,39 @@ public class GeometryTools {
     }
     
     
+//    /**
+//	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
+//	 * @param geometry
+//     * @param minX 
+//     * @param minY 
+//     * @param maxX 
+//     * @param maxY 
+//     * @return 
+//	 */
+//	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
+//		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
+//		geometry = TopologyPreservingSimplifier.simplify(geometry, 0.0);
+//		geometry = geometry.intersection(GeometryTools.createRectangle(minX, minY, maxX-minX, maxY-minY));
+//		return geometry;
+////		roundingFilter.setBounds(minX, minY, maxX, maxY);
+////		geometry.apply(roundingFilter);
+////		return VWSimplifier.simplify(geometry, 0.5);
+//	}
+	
+	
     /**
-	 * Round coordinates in a Geometry to integer values, and constrain to the specified bounding box.
-	 * @param geometry
-     * @param minX 
-     * @param minY 
-     * @param maxX 
-     * @param maxY 
-     * @return 
-	 */
-	protected Geometry roundAndConstrain(Geometry geometry, double minX, double minY, double maxX, double maxY) {
-		geometry = GeometryPrecisionReducer.reduce(geometry, new PrecisionModel(1));
-		geometry = TopologyPreservingSimplifier.simplify(geometry, 0.0);
-		geometry = geometry.intersection(GeometryTools.createRectangle(minX, minY, maxX-minX, maxY-minY));
-		return geometry;
-//		roundingFilter.setBounds(minX, minY, maxX, maxY);
-//		geometry.apply(roundingFilter);
-//		return VWSimplifier.simplify(geometry, 0.5);
+     * Convert an {@link Envelope} to an {@link ImageRegion}.
+     * @param env envelop
+     * @param z z index for the region (default is 0)
+     * @param t timepoint for the region (default is 0)
+     * @return the smallest {@link ImageRegion} that contains the specified envelop
+     */
+	public static ImageRegion envelopToRegion(Envelope env, int z, int t) {
+		int x = (int)Math.floor(env.getMinX());
+		int y = (int)Math.floor(env.getMinY());
+		int width = (int)Math.ceil(env.getMaxX()) - x;
+		int height = (int)Math.ceil(env.getMaxY()) - y;
+		return ImageRegion.createInstance(x, y, width, height, z, t);
 	}
 	
 	
@@ -299,10 +320,9 @@ public class GeometryTools {
     	if (geometries.size() == 1)
     		return geometries.iterator().next();
     	if (fastUnion) {
-    		var geometryArray = geometries.toArray(Geometry[]::new);
-    		double areaSum = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
-    		var union = DEFAULT_INSTANCE.factory.createGeometryCollection(geometryArray).buffer(0);
-    		double areaUnion = Arrays.stream(geometryArray).mapToDouble(g -> g.getArea()).sum();
+    		double areaSum = geometries.stream().mapToDouble(g -> g.getArea()).sum();
+    		var union = DEFAULT_INSTANCE.factory.buildGeometry(geometries).buffer(0);
+    		double areaUnion = union.getArea();
     		if (GeneralTools.almostTheSame(areaSum, areaUnion, 0.00001)) {
     			return union;
     		}
@@ -406,6 +426,10 @@ public class GeometryTools {
     
     /**
      * Fill all interior rings for the specified geometry that have an area &lt; a specified threshold.
+     * <p>
+     * Note that this assumes that the geometry is valid, and does not contain self-intersections or overlapping pieces. 
+     * No checks are made to confirm this (for performance reasons).
+     * 
      * @param geometry
      * @param minRingArea
      * @return
@@ -414,26 +438,82 @@ public class GeometryTools {
     	if (minRingArea <= 0)
     		return geometry;
     	
+    	// Single polygons are easy... just remove the interior rings
     	if (geometry instanceof Polygon)
-    		return removeInteriorRings((Polygon)geometry, minRingArea);
+    		return removeInteriorRings((Polygon)geometry, minRingArea, null);
     	
-    	// Quick check to see if we are filling all holes - this is rather a lot easier
-    	if (!Double.isFinite(minRingArea))
-    		return fillHoles(geometry);
+//    	// Quick check to see if we are filling all holes - this is also rather a lot easier
+//    	if (!Double.isFinite(minRingArea))
+//    		return fillHoles(geometry);
     	
-    	// Remove interior rings that are too small
+    	// Remove interior rings that are too small, logging their location in case we need it
+    	// Also keep a list of small geometries, which might be inside rings that have been removed
     	var list = flatten(geometry, null);
-    	var filtered = list.stream().map(g -> {
-    		if (g instanceof Polygon)
-    			return removeInteriorRings((Polygon)g, minRingArea);
-    		else
-    			return g;
-    	}).collect(Collectors.toList());
+    	var smallGeometries = new HashSet<Geometry>();
+    	Quadtree tree = null;
+    	var preparedFactory = new PreparedGeometryFactory();
     	
-    	if (list.equals(filtered))
+    	var removedRingList = new ArrayList<LinearRing>();
+    	for (int i = 0; i < list.size(); i++) {
+    		var temp = list.get(i);
+    		if (temp instanceof Polygon) {
+    			var poly = removeInteriorRings((Polygon)temp, minRingArea, removedRingList);
+    			if (poly != temp) {
+    				// If the polygon has changed, we need to check if it has swallowed any nested holes
+    				// TODO: Add the holes rather than the full polygons
+    				if (tree == null)
+    					tree = new Quadtree();
+    				for (var ring : removedRingList) {
+    					var hole = preparedFactory.create(ring.getFactory().createPolygon(ring));
+    					tree.insert(ring.getEnvelopeInternal(), hole);
+    				}
+        			list.set(i, poly);
+        			removedRingList.clear();
+    			}
+    			// Check also if the polygon could also be swallowed by another filled hole
+    			if (org.locationtech.jts.algorithm.Area.ofRing(poly.getExteriorRing().getCoordinateSequence()) < minRingArea)
+    				smallGeometries.add(poly);
+    		} else if (temp.getArea() < minRingArea)
+    			smallGeometries.add(temp);
+    	}
+    	
+    	// If we don't have a tree, we didn't change anything
+    	if (tree == null)
     		return geometry;
+    	
+    	// Loop through and remove any small polygons nested inside rings that were removed
+    	var iter = list.iterator();
+    	while (iter.hasNext()) {
+    		var small = iter.next();
+    		if (smallGeometries.contains(small)) {
+        		var query = (List<PreparedPolygon>)tree.query(small.getEnvelopeInternal());
+        		for (PreparedPolygon hole : query) {
+        			if (hole.covers(small)) {
+        				iter.remove();
+        				break;
+        			}
+//        			if (PointLocation.isInRing(small.getInteriorPoint().getCoordinate(), ring.getCoordinates())) {
+//        				iter.remove();
+//        				break;
+//        			}
+        		}
+    		}
+    	}
+    	
+    	// Build a geometry from what is left
+    	return geometry.getFactory().buildGeometry(list);
+    	
+//    	var filtered = list.stream().map(g -> {
+//    		if (g instanceof Polygon)
+//    			return removeInteriorRings((Polygon)g, minRingArea);
+//    		else
+//    			return g;
+//    	}).collect(Collectors.toList());
+    	
+    	
+    	// TODO: Find out how to avoid the Union operation (which can be very slow)
     	// We need to use union because there may be polygons nested within holes that have been filled
-    	return GeometryTools.union(filtered);
+//    	return GeometryTools.union(filtered);
     }
     
     private static Polygon removeAllInteriorRings(Polygon polygon) {
@@ -449,26 +529,30 @@ public class GeometryTools {
     	return org.locationtech.jts.algorithm.Area.ofRing(polygon.getExteriorRing().getCoordinates());
     }
     
-    private static Polygon removeInteriorRings(Polygon polygon, double minArea) {
+    private static Polygon removeInteriorRings(Polygon polygon, double minArea, List<LinearRing> removedRings) {
     	int nRings = polygon.getNumInteriorRing();
     	if (nRings == 0)
 			return polygon;
     	
     	var holes = new ArrayList<LinearRing>();
-    	var factory = polygon.getFactory();
     	for (int i = 0; i < nRings; i++) {
     		var ring = polygon.getInteriorRingN(i);
     		var coords = ring.getCoordinates();
     		if (org.locationtech.jts.algorithm.Area.ofRing(coords) >= minArea) {
-    			holes.add(factory.createLinearRing(coords));
-    		}
+    			holes.add(ring);
+    		} else if (removedRings != null)
+    			removedRings.add(ring);
     	}
     	
+    	if (holes.size() == nRings)
+    		return polygon;
+
+    	var factory = polygon.getFactory();
     	if (holes.isEmpty())
-    		return removeAllInteriorRings(polygon);
-    	
-    	return polygon.getFactory().createPolygon(
-    			factory.createLinearRing(polygon.getExteriorRing().getCoordinates()),
+    		return factory.createPolygon(polygon.getExteriorRing());
+
+    	return factory.createPolygon(
+    			polygon.getExteriorRing(),
     			holes.toArray(LinearRing[]::new)
     			);
     }
@@ -491,6 +575,8 @@ public class GeometryTools {
     	}).collect(Collectors.toList());
     	if (list.equals(filtered))
     		return geometry;
+    	
+    	// TODO: Find out how to avoid the Union operation (which can be very slow)
     	// We need to use union because there may be polygons nested within holes that have been filled
     	return GeometryTools.union(filtered);
 //    	return geometry.getFactory().buildGeometry(filtered);
@@ -528,24 +614,91 @@ public class GeometryTools {
     
     
     /**
+     * Test a polygon for validity, attempting to fix TopologyValidationErrors if possible.
+     * This attempts a range of tricks (starting with Geometry.buffer(0)), although none
+     * are guaranteed to work. The first that largely preserves the polygon's area is returned.
+     * <p>
+     * The result is guaranteed to be valid, but not necessarily to be a close match to the 
+     * original polygon; in particular, if everything failed the result will be empty.
+     * <p>
+     * Code that calls this method can test if the output is equal to the input to determine 
+     * if any changes were made.
+     * 
+     * @param polygon input (possibly-invalid) polygon
+     * @return the input polygon (if valid), an adjusted polygon (if attempted fixes helped),
+     *         or an empty polygon if the situation could not be resolved
+     */
+    public static Geometry tryToFixPolygon(Polygon polygon) {
+    	TopologyValidationError error = new IsValidOp(polygon).getValidationError();
+    	if (error == null)
+    		return polygon;
+    	
+		logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
+		
+		// Area calculations seem to be reliable... even if the topology is invalid
+		double areaBefore = polygon.getArea();
+		
+		double tol = 0.0001;
+
+		// Try fast buffer trick to make valid (but sometimes this can 'break', e.g. with bow-tie shapes)
+		Geometry geomBuffered = polygon.buffer(0);
+		double areaBuffered = geomBuffered.getArea();
+		if (geomBuffered.isValid() && GeneralTools.almostTheSame(areaBefore, areaBuffered, tol))
+			return geomBuffered;
+		
+		// If the buffer trick gave us an exceedingly small area, try removing this and see if that resolves things
+		if (!geomBuffered.isEmpty() && areaBuffered < areaBefore * 0.001) {
+			try {
+				Geometry geomDifference = polygon.difference(geomBuffered);
+				if (geomDifference.isValid())
+					return geomDifference;
+			} catch (Exception e) {
+				logger.debug("Attempting to fix by difference failed: " + e.getLocalizedMessage(), e);
+			}
+		}
+		
+		// Resort to the slow method of fixing polygons if we have to
+		logger.debug("Unable to fix Geometry with buffer(0) - will try snapToSelf instead");
+		double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
+		Geometry geomSnapped = GeometrySnapper.snapToSelf(polygon,
+				distance,
+				true);
+		
+		if (geomSnapped.isValid())
+			return geomSnapped;
+		
+		// If everything failed, return an empty polygon (which will at least be valid...)
+		return polygon.getFactory().createPolygon();
+    }
+    
+    
+    /**
      * Remove small fragments and fill interior rings within a Geometry.
      * 
-     * @param geometry
-     * @param minSizePixels
-     * @param minHoleSizePixels
+     * @param geometry input geometry to refine
+     * @param minSizePixels minimum area of a fragment to keep (the area of interior rings for polygons will be ignored)
+     * @param minHoleSizePixels minimum size of an interior hole to keep
      * @return the refined geometry (possibly the original unchanged), or null if the changes resulted in the Geometry disappearing
+     * 
+     * @see #removeFragments(Geometry, double)
+     * @see #removeInteriorRings(Geometry, double)
      */
     public static Geometry refineAreas(Geometry geometry, double minSizePixels, double minHoleSizePixels) {
 		
     	if (minSizePixels <= 0 && minHoleSizePixels <= 0)
 			return geometry;
+    	
+    	var geom2 = geometry;
 		
-    	// Fill interior rings first
-    	var geom2 = removeInteriorRings(geometry, minHoleSizePixels);
+//    	// Fill interior rings first
+//    	geom2 = removeInteriorRings(geometry, minHoleSizePixels);
     	
-    	// Remove fragments
+    	// Remove fragments first, so we don't need to worry about whether they fall in holes
     	geom2 = removeFragments(geom2, minSizePixels);
-    	
+
+    	// Fill interior rings
+    	geom2 = removeInteriorRings(geom2, minHoleSizePixels);
+
     	return geom2;
 	}
 	
@@ -695,74 +848,17 @@ public class GeometryTools {
 //	    	return VWSimplifier.simplify(geometry, 0);    		
 	    }
 	    
-	    /**
-	     * Test a polygon for validity, attempting to fix TopologyValidationErrors if possible.
-	     * This attempts a range of tricks (starting with Geometry.buffer(0)), although none
-	     * are guaranteed to work. The first that largely preserves the polygon's area is returned.
-	     * <p>
-	     * The result is guaranteed to be valid, but not necessarily to be a close match to the 
-	     * original polygon; in particular, if everything failed the result will be empty.
-	     * <p>
-	     * Code that calls this method can test if the output is equal to the input to determine 
-	     * if any changes were made.
-	     * 
-	     * @param polygon input (possibly-invalid) polygon
-	     * @return the input polygon (if valid), an adjusted polygon (if attempted fixes helped),
-	     *         or an empty polygon if the situation could not be resolved
-	     */
-	    static Geometry tryToFixPolygon(Polygon polygon) {
-	    	TopologyValidationError error = new IsValidOp(polygon).getValidationError();
-	    	if (error == null)
-	    		return polygon;
-	    	
-			logger.debug("Invalid polygon detected! Attempting to correct {}", error.toString());
-			
-			// Area calculations seem to be reliable... even if the topology is invalid
-			double areaBefore = polygon.getArea();
-			
-			double tol = 0.0001;
-
-			// Try fast buffer trick to make valid (but sometimes this can 'break', e.g. with bow-tie shapes)
-			Geometry geomBuffered = polygon.buffer(0);
-			double areaBuffered = geomBuffered.getArea();
-			if (geomBuffered.isValid() && GeneralTools.almostTheSame(areaBefore, areaBuffered, tol))
-				return geomBuffered;
-			
-			// If the buffer trick gave us an exceedingly small area, try removing this and see if that resolves things
-			if (!geomBuffered.isEmpty() && areaBuffered < areaBefore * 0.001) {
-				try {
-					Geometry geomDifference = polygon.difference(geomBuffered);
-					if (geomDifference.isValid())
-						return geomDifference;
-				} catch (Exception e) {
-					logger.debug("Attempting to fix by difference failed: " + e.getLocalizedMessage(), e);
-				}
-			}
-			
-			// Resort to the slow method of fixing polygons if we have to
-			logger.debug("Unable to fix Geometry with buffer(0) - will try snapToSelf instead");
-			double distance = GeometrySnapper.computeOverlaySnapTolerance(polygon);
-			Geometry geomSnapped = GeometrySnapper.snapToSelf(polygon,
-					distance,
-					true);
-			
-			if (geomSnapped.isValid())
-				return geomSnapped;
-			
-			// If everything failed, return an empty polygon (which will at least be valid...)
-			return polygon.getFactory().createPolygon();
-	    }
-	    
 	    
 	    /**
 	     * Convert a java.awt.geom.Area to a JTS Geometry, trying to correctly distinguish holes.
-	     * 
-	     * @implNote This method generates {@link Coordinate}s, whereas in QuPath v0.2.0 (using JTS 1.16.1)
-	     * it used {@link CoordinateXY}.
-	     * The change was required to avoid test failures in JTS v1.17.0, caused by mixed-dimension coordinates 
+	     * <p>
+	     * @implNote An alternative (more complex) method was used in QuPath v0.2.0, using JTS 1.16.1.
+	     * The one advantage of the older method was that it used {@link CoordinateXY} - however this 
+	     * resulted in test failures in JTS v1.17.0, caused by mixed-dimension coordinates 
 	     * being generated within some operations as described by https://github.com/locationtech/jts/issues/434
     	 * Consequently, there may be some loss of efficiency.
-    	 *
+    	 * <p>
+    	 * See also https://github.com/locationtech/jts/issues/408
 	     * 
 	     * @param area
 	     * @param transform
@@ -771,6 +867,37 @@ public class GeometryTools {
 	     * @return a geometry corresponding to the Area object
 	     */
 	    private static Geometry convertAreaToGeometry(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
+
+	    	PathIterator iter = area.getPathIterator(transform, flatness);
+
+	    	PrecisionModel precisionModel = factory.getPrecisionModel();
+	    	Polygonizer polygonizer = new Polygonizer(true);
+
+	    	List<Coordinate[]> coords = (List<Coordinate[]>)ShapeReader.toCoordinates(iter);
+	    	List<Geometry> geometries = new ArrayList<>();
+	    	for (Coordinate[] array : coords) {
+	    		for (var c : array)
+	    			precisionModel.makePrecise(c);
+
+	    		LineString lineString = factory.createLineString(array);
+	    		geometries.add(lineString);
+	    	}
+	    	polygonizer.add(factory.buildGeometry(geometries).union());
+	    	return polygonizer.getGeometry();
+
+	    }
+
+	    /**
+	     * Legacy version of {@link #convertAreaToGeometry(Area, AffineTransform, double, GeometryFactory)} before v0.3.0.
+	     * 
+	     * @param area
+	     * @param transform
+	     * @param flatness
+	     * @param factory
+	     * @return a geometry corresponding to the Area object
+	     */
+	    @Deprecated
+	    private static Geometry convertAreaToGeometryLegacy(final Area area, final AffineTransform transform, final double flatness, final GeometryFactory factory) {
 	
 			List<Geometry> positive = new ArrayList<>();
 			List<Geometry> negative = new ArrayList<>();
@@ -827,10 +954,6 @@ public class GeometryTools {
 					var next = new Coordinate(x1, y1);
 					if (points.isEmpty() || points.get(points.size()-1).distance(next) > precision)
 						points.add(next, false);
-	//				double dx = x1 - points;
-	//				double dy = y1 - y0;
-	//				if (dx*dx + dy*dy > minDisplacement2)
-	//					points.add(new CoordinateXY(x1, y1));
 					else
 						logger.trace("Skipping nearby points");
 					closed = false;
@@ -929,39 +1052,32 @@ public class GeometryTools {
 			} else {
 				// We need to handle holes... and, in particular, additional objects that may be nested within holes.
 				// To do that, we iterate through the holes and try to match these with the containing polygon, updating it accordingly.
-				// By doing this in order (largest first) we should find the 'correct' containing polygon.
-				
-				// Cache areas so we can use them for sorting without recalculating them every time
-				var areaMap = new HashMap<Geometry, Double>();
-				for (var g : outer)
-					areaMap.put(g, g.getArea());
-				for (var g : holes)
-					areaMap.put(g, g.getArea());
+				// By doing this in order we should find the 'correct' containing polygon.
+				var ascendingArea = Comparator.comparingDouble((GeometryWithArea g) -> g.area);
+				var outerWithArea = outer.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).collect(Collectors.toList());
+				var holesWithArea = holes.stream().map(g -> new GeometryWithArea(g)).sorted(ascendingArea).collect(Collectors.toList());
 				
 				// For each hole, find the smallest polygon that contains it
-				var ascendingArea = Comparator.comparingDouble(g -> areaMap.get(g));
-				outer.sort(ascendingArea);
-				holes.sort(ascendingArea);
 				Map<Geometry, List<Geometry>> matches = new HashMap<>();
-				for (var tempHole : holes) {
-					double holeArea = areaMap.get(tempHole);
+				for (var tempHole : holesWithArea) {
+					double holeArea = tempHole.area;
 					// We assume a single point inside is sufficient because polygons should be non-overlapping
-					var point = tempHole.getCoordinate();
-					var iterOuter = outer.iterator();
+					var point = tempHole.geom.getCoordinate();
+					var iterOuter = outerWithArea.iterator();
 					@SuppressWarnings("unused")
 					int count = 0;
 					while (point != null && iterOuter.hasNext()) {
 						var tempOuter = iterOuter.next();
-						if (holeArea > areaMap.get(tempOuter)) {
+						if (holeArea > tempOuter.area) {
 							continue;
 						}
-						if (SimplePointInAreaLocator.isContained(point, tempOuter)) {
-							var list = matches.get(tempOuter);
+						if (SimplePointInAreaLocator.isContained(point, tempOuter.geom)) {
+							var list = matches.get(tempOuter.geom);
 							if (list == null) {
 								list = new ArrayList<>();
-								matches.put(tempOuter, list);
+								matches.put(tempOuter.geom, list);
 							}
-							list.add(tempHole);
+							list.add(tempHole.geom);
 							break;
 						}
 					}
@@ -969,13 +1085,13 @@ public class GeometryTools {
 				
 				// Loop through the outer polygons and remove all their holes
 				List<Geometry> fixedGeometries = new ArrayList<>();
-				for (var tempOuter : outer) {
-					var list = matches.getOrDefault(tempOuter, null);
+				for (var tempOuter : outerWithArea) {
+					var list = matches.getOrDefault(tempOuter.geom, null);
 					if (list == null || list.isEmpty()) {
-						fixedGeometries.add(tempOuter);
+						fixedGeometries.add(tempOuter.geom);
 					} else {
 						var mergedHoles = union(list);
-						fixedGeometries.add(tempOuter.difference(mergedHoles));
+						fixedGeometries.add(tempOuter.geom.difference(mergedHoles));
 					}
 				}
 				geometry = union(fixedGeometries);
@@ -993,6 +1109,18 @@ public class GeometryTools {
 			}
 			return geometry;
 		}
+	    
+	    private static class GeometryWithArea {
+	    	
+	    	private final Geometry geom;
+	    	private final double area;
+	    	
+	    	private GeometryWithArea(Geometry geom) {
+	    		this.geom = geom;
+	    		this.area = geom.getArea();
+	    	}
+	    	
+	    }
 	    
 	    
 	    private Geometry pointsToGeometry(ROI points) {
