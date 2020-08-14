@@ -26,6 +26,8 @@ import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.Point2D;
 
+import qupath.lib.gui.viewer.tools.PathTool;
+
 /**
  * Interface representing a snapshot of viewer recording information.
  * <p>
@@ -39,13 +41,25 @@ interface ViewRecordingFrame {
 
 	long getTimestamp();
 
-	Rectangle getImageBounds();
+	/**
+	 * Returns the x- and y- align rectangle of the visible region.
+	 * The actual visible region is the returned rectangle rotated by theta.
+	 * @param theta
+	 * @return
+	 */
+	Rectangle getImageBounds(double theta);
 	
 	double getDownFactor();
+	
+	Point2D getFrameCentre();
 
 	Point2D getCursorPosition();
 
 	boolean hasCursorPosition();
+	
+	PathTool getActiveTool();
+	
+	boolean hasActiveTool();
 
 	Point2D getEyePosition();
 
@@ -68,5 +82,7 @@ interface ViewRecordingFrame {
 	Dimension getSize();
 
 	double getRotation();
+
+	Shape getShape();
 
 }

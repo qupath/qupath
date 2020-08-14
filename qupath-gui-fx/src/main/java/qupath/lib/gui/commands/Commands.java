@@ -684,32 +684,48 @@ public class Commands {
 	
 	
 	/**
-	 * Create a dialog for rotating the image in the current viewer (for display only.
+	 * Create a dialog for rotating the image in the current viewer (for display only)
 	 * @param qupath the {@link QuPathGUI} instance
 	 * @return a rotate image dialog
 	 */
+	// TODO: Restrict this command to an opened image
 	public static Stage createRotateImageDialog(QuPathGUI qupath) {
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Rotate view");
 
+		
 		BorderPane pane = new BorderPane();
-
 		final Label label = new Label("0 degrees");
 		label.setTextAlignment(TextAlignment.CENTER);
-		QuPathViewer viewerTemp = qupath.getViewer();
-		var slider = new Slider(-90, 90, viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
-		slider.setMajorTickUnit(10);
+		QuPathViewer viewer = qupath.getViewer();
+		
+		var slider = new Slider(Math.toRadians(-90), Math.toRadians(90), viewer == null ? 0 : viewer.getRotation());
+		slider.setMajorTickUnit(10 * Math.PI/180);
 		slider.setMinorTickCount(5);
 		slider.setShowTickMarks(true);
-		slider.valueProperty().addListener((v, o, n) -> {
-			QuPathViewer viewer = qupath.getViewer();
-			if (viewer == null)
+		
+		// Tie rotation property of the current viewer to slider's value
+		viewer.getRotationProperty().bindBidirectional(slider.valueProperty());
+		
+		// If user changes current active viewer (multi-viewer)
+		qupath.viewerProperty().addListener((v, o, n) -> {
+			if (n == null)
 				return;
-			double rotation = slider.getValue();
-			label.setText(String.format("%.1f degrees", rotation));
-			viewer.setRotation(Math.toRadians(rotation));
+			
+			// Remove biDirectional binding from old viewer and add new one to new viewer
+			o.getRotationProperty().unbindBidirectional(slider.valueProperty());
+			slider.setValue(n.getRotation());
+			n.getRotationProperty().bindBidirectional(slider.valueProperty());
+			
+			// Make the pane not clickable if there is no image to rotate
+			pane.disableProperty().bind(n.imageDataProperty().isNull());
 		});
+		
+		// Bind displayed string to the slider's value
+		label.textProperty().bind(Bindings.createStringBinding(() -> {
+			return String.format("%.1f degrees", Math.toDegrees(slider.getValue()));
+		}, slider.valueProperty()));
 
 		Button btnReset = new Button("Reset");
 		btnReset.setOnAction(e -> slider.setValue(0));
@@ -717,10 +733,10 @@ public class Commands {
 		Button btnTMAAlign = new Button("Straighten TMA");
 		btnTMAAlign.setOnAction(e -> {
 
-			QuPathViewer viewer = qupath.getViewer();
-			if (viewer == null)
+			QuPathViewer viewerTemp = qupath.getViewer();
+			if (viewerTemp == null)
 				return;
-			TMAGrid tmaGrid = viewer.getHierarchy().getTMAGrid();
+			TMAGrid tmaGrid = viewerTemp.getHierarchy().getTMAGrid();
 			if (tmaGrid == null || tmaGrid.getGridWidth() < 2)
 				return;
 			// Determine predominant angle
@@ -979,7 +995,6 @@ public class Commands {
 		dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Tracking");
 		final ViewTrackerControlPane controller = new ViewTrackerControlPane(qupath);
-		qupath.setViewTrackController(controller);
 		StackPane pane = new StackPane(controller.getNode());
 		dialog.setScene(new Scene(pane));
 		
@@ -1013,11 +1028,12 @@ public class Commands {
 				e.consume();
 		});
 		
-		// If something is recording, stop
+		// Stop recording and remove listeners
 		dialog.setOnHidden(e -> {
-			if (controller != null)
+			if (controller != null) {
 				controller.forceStopRecording();
-			qupath.setViewTrackController(null);
+				controller.removeListeners();				
+			}
 		});
 		dialog.show();
 	}

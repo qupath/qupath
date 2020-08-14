@@ -181,15 +181,11 @@ class ViewTrackerPlayback {
 		// Resize the viewer (if necessary)
 		resizeViewer(viewer, frame.getSize());
 		
-		Rectangle imageBounds = frame.getImageBounds();
-		Dimension canvasSize = frame.getSize();
-		// Compute & set downsample
-		double downsampleX = (double)imageBounds.width / canvasSize.width;
-		double downsampleY = (double)imageBounds.height / canvasSize.height;
-		double downsample = 0.5 * (downsampleX + downsampleY);
-//		if (Math.abs(viewer.getDownsampleFactor() - downsample)/downsample > 0.0001)
-			viewer.setDownsampleFactor(downsample);
+		// Set downsample
+		viewer.setDownsampleFactor(frame.getDownFactor());
+		
 		// Set location
+		Rectangle imageBounds = frame.getImageBounds(frame.getRotation());
 		viewer.setCenterPixelLocation(imageBounds.x + imageBounds.width * .5, imageBounds.y + imageBounds.height * .5);
 		
 		// Set rotation

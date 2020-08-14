@@ -50,9 +50,12 @@ public interface ViewTracker {
 	
 	public void resetRecording();
 	
-	public boolean hasEyeTrackingData();
 	
 	public boolean hasCursorTrackingData();
+	
+	public boolean hasActiveToolTrackingData();
+	
+	public boolean hasEyeTrackingData();
 	
 	public boolean hasZAndT();
 	
@@ -83,5 +86,35 @@ public interface ViewTracker {
 	public long getLastTime();
 
 	public List<ViewRecordingFrame> getAllFrames();
+
+	/**
+	 * Return the cursorTracking property of this tracker.
+	 * @return doCursorTracking
+	 */
+	public BooleanProperty cursorTrackingProperty();
+	
+	/**
+	 * Return the activeTool property of this tracker.
+	 * @return doActiveToolTracking
+	 */
+	public BooleanProperty activeToolProperty();
+	
+	/**
+	 * Return the eyeTracking property of this tracker.
+	 * @return doEyeTracking
+	 */
+	public BooleanProperty eyeTrackingProperty();
+
+	/**
+	 * Set optional parameter for the tracker.
+	 * This method is useful when importing a tracker that 
+	 * was not recorded during this session.
+	 * 
+	 * @param ZandT
+	 * @param cursorTracking
+	 * @param activeToolTracking
+	 * @param eyeTracking
+	 */
+	void includeOptionals(boolean ZandT, boolean cursorTracking, boolean activeToolTracking, boolean eyeTracking);
 	
 }

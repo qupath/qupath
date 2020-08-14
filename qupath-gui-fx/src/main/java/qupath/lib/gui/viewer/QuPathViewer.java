@@ -202,7 +202,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private double xCenter = 0;
 	private double yCenter = 0;
 	private DoubleProperty downsampleFactor = new SimpleDoubleProperty(1.0);
-	private double rotation = 0;
+	private DoubleProperty rotation = new SimpleDoubleProperty(0.0);
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 	
 	// Affine transform used to apply rotation
@@ -846,6 +846,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				centerImage();
 			}
 			imageUpdated = true;
+			repaint();
+		});
+		
+		rotation.addListener((v, o, n) -> {
+			imageUpdated = true;
+			updateAffineTransform();
 			repaint();
 		});
 	}
@@ -2669,8 +2675,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		double downsample = getDownsampleFactor();
 		transform.scale(1.0/downsample, 1.0/downsample);
 		transform.translate(-xCenter, -yCenter);
-		if (rotation != 0)
-			transform.rotate(rotation, xCenter, yCenter);
+		if (rotation.get() != 0)
+			transform.rotate(rotation.get(), xCenter, yCenter);
 
 		transformInverse.setTransform(transform);
 		try {
@@ -2691,18 +2697,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 	/**
-	 * Set the rotation; angle in radians.
+	 * Set the rotation property; angle in radians.
 	 * 
 	 * @param theta
 	 */
 	public void setRotation(double theta) {
-		if (this.rotation == theta)
+		if (this.rotation.get() == theta)
 			return;
-		this.rotation = theta;
-		imageUpdated = true;
-		updateAffineTransform();
-		repaint();
+		this.rotation.set(theta);
 	}
+
 
 	/**
 	 * Returns true if {@code viewer.getRotation() != 0}.
@@ -2717,6 +2721,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @return
 	 */
 	public double getRotation() {
+		return rotation.get();
+	}
+	
+	/**
+	 * Get the rotation property.
+	 * @return
+	 */
+	public DoubleProperty getRotationProperty() {
 		return rotation;
 	}
 

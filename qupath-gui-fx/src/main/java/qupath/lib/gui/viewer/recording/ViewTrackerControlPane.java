@@ -23,11 +23,13 @@
 
 package qupath.lib.gui.viewer.recording;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,10 +45,14 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
@@ -64,9 +70,13 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.QuPathViewerPlus;
+import qupath.lib.images.ImageData;
 
 /**
  * Panel for viewing ViewTracker controls.
@@ -80,20 +90,33 @@ public class ViewTrackerControlPane {
 	
 	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerControlPane.class);
 	
+	private QuPathGUI qupath;
 	private QuPathViewer viewer;
 	
 	private BooleanProperty recordingMode = new SimpleBooleanProperty(false);
+	private BooleanProperty supportsEyeTracking = new SimpleBooleanProperty(false);
+	
+	private static BooleanProperty cursorTrackingProperty = PathPrefs.createPersistentPreference("trackCursorPosition", true);
+	private static BooleanProperty activeToolTrackingProperty = PathPrefs.createPersistentPreference("trackActiveTool", true);
+	private static BooleanProperty eyeTrackingProperty = PathPrefs.createPersistentPreference("trackEyePosition", false);
 	
 	private final String[] columnNames = new String[] {"Name", "Duration"};
 	
 	private static final Node iconRecord = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_RECORD);
 	private static final Node iconRecordStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_STOP);
 	private static final Node iconPlay = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.PLAYBACK_PLAY);
-	private static final Node iconPlayStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_PAUSE);
+	private static final Node iconPlayStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_STOP);
 	private static final Node iconRecording = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_RECORD);
 	
 	private List<ViewTracker> trackersList;
 	private ViewTracker tracker;
+	
+	private CheckMenuItem miTrackCursor = new CheckMenuItem("Track cursor");
+	private CheckMenuItem miTrackActiveTool = new CheckMenuItem("Track active tool");
+	private CheckMenuItem miTrackEye = new CheckMenuItem("Track eye position");
+	
+	private ChangeListener<ImageData<?>> imageDataListener;
+	private ChangeListener<QuPathViewer> viewerListener;
 	
 	private AnimationTimer recordingTime;
 	
@@ -103,8 +126,6 @@ public class ViewTrackerControlPane {
 	private TitledPane titledPane;
 	private GridPane contentPane;
 	private Label duration;
-	
-	private int nRecording = 0;
 	
 	ViewTrackerPlayback playback;
 
@@ -123,28 +144,61 @@ public class ViewTrackerControlPane {
 	 * @throws IOException 
 	 */
 	ViewTrackerControlPane(final QuPathGUI qupath, final ViewTracker viewTracker) {
-		// TODO: add a listener to check if imageData (or something else that represents the image) has changed -> stop recording
+		this.qupath = qupath;
 		this.viewer = qupath.getViewer();
 		
 		trackersList = new ArrayList<>();
-		File entryDirectory = qupath.getProject().getEntry(viewer.getImageData()).getEntryPath().toFile();
-		if (entryDirectory != null && entryDirectory.exists()) {
-			File recordingDirectory = new File(entryDirectory, "recordings");
-			if (recordingDirectory.exists()) {
-				try (Stream<Path> walk = Files.walk(recordingDirectory.toPath())) {
-					List<ViewTracker> trackers = walk.filter(Files::isRegularFile)
-													.filter(path -> GeneralTools.getExtension(path.toFile()).get().equals(".tsv"))
-													.map(path -> ViewTrackers.handleImport(path))
-													.collect(Collectors.toList());
-					trackersList.addAll(trackers);
-					
-				} catch (IOException e) {
-					logger.error("Could not fetch existing recordings: ", e.getLocalizedMessage());
-				}
-			}
-		}
-		prepareNewViewTracker(qupath);
+		populateTrackersList(qupath);
 		
+		// Create listener that will be triggered for every imageData change
+		imageDataListener = new ChangeListener<ImageData<?>>() {
+			@Override
+			public void changed(ObservableValue<? extends ImageData<?>> v, ImageData<?> o, ImageData<?> n) {
+				// Stop recording (if recording)
+				if (recordingMode.get())
+					recordingMode.set(false);
+				
+				// Empty TableView
+				trackersList.clear();
+				
+				// If the new ImageData is not null (e.g. 'close viewer'), get existing recordings
+				if (n != null)
+					populateTrackersList(qupath);
+				
+				// Make sure titledPane is not clickable if no ImageData
+				titledPane.disableProperty().bind(viewer.imageDataProperty().isNull());
+				refreshListView();
+			}
+		};
+		viewer.imageDataProperty().addListener(imageDataListener);
+		
+		// Create listener to stop recording if user changes the active viewer (e.g. multi-viewer)
+		viewerListener = new ChangeListener<QuPathViewer>() {
+			@Override
+			public void changed(ObservableValue<? extends QuPathViewer> v, QuPathViewer o, QuPathViewer n) {
+				// Stop recording (if recording)
+				if (recordingMode.get())
+					recordingMode.set(false);
+					
+				trackersList.clear();
+				
+				// Add listener to the new viewer's imageData property (and remove previous one)
+				viewer.imageDataProperty().removeListener(imageDataListener);
+				viewer = n;
+				viewer.imageDataProperty().addListener(imageDataListener);
+				
+				// If the new ImageData is not null (e.g. 'close viewer'), get existing recordings
+				if (n.getImageData() != null)
+					populateTrackersList(qupath);
+				
+				// Make sure titledPane is not clickable if no ImageData
+				titledPane.disableProperty().bind(viewer.imageDataProperty().isNull());
+				refreshListView();
+			}
+		};
+		qupath.viewerProperty().addListener(viewerListener);
+		
+		prepareNewViewTracker(qupath);
 		playback = new ViewTrackerPlayback(viewer);
 
 		Action actionRecord = ActionTools.createSelectableAction(recordingMode, "Record", iconRecord, null);
@@ -152,6 +206,7 @@ public class ViewTrackerControlPane {
 		
 		// Can't select one while the other is selected
 		actionRecord.disabledProperty().bind(actionPlayback.selectedProperty());
+		
 		
 		// Ensure icons are correct
 		recordingMode.addListener((v, o, n) -> {
@@ -161,6 +216,7 @@ public class ViewTrackerControlPane {
 			if (n) {
 				actionRecord.setGraphic(iconRecordStop);
 				actionRecord.setText("Stop recording");
+				setTrackerName(tracker);
 				tracker.setRecording(true);
 				startTrackingDuration();
 			} else {
@@ -215,14 +271,13 @@ public class ViewTrackerControlPane {
 				return;
 			
 			for (ViewTracker tracker: trackersToDelete) {
-				try{
+				try {
 					Files.delete(tracker.getFile().toPath());
 				} catch (IOException ex) {
-					Dialogs.showErrorMessage("Could not delete recording", ex);
-					return;
+					Dialogs.showErrorNotification("Could not delete recording", ex);
 				}
 			}
-			
+			// Remove all trackers to delete from ListView (even if exception when deleting file)
 			trackersList.removeAll(trackersToDelete);
 			refreshListView();
 		});
@@ -306,6 +361,25 @@ public class ViewTrackerControlPane {
 		refreshListView();
 			
 		
+		// Option Context Menu
+		miTrackCursor = new CheckMenuItem("Track cursor");
+		miTrackActiveTool = new CheckMenuItem("Track active tool");
+		miTrackEye = new CheckMenuItem("Track eye position");
+		
+		// Binding the properties doesn't 'save' the settings (as if it didn't call propertry.set(value)?)
+		miTrackCursor.selectedProperty().addListener((v, o, n) -> cursorTrackingProperty.set(n));
+		miTrackActiveTool.selectedProperty().addListener((v, o, n) -> activeToolTrackingProperty.set(n));
+		miTrackEye.selectedProperty().addListener((v, o, n) -> eyeTrackingProperty.set(n));
+		
+		miTrackCursor.setSelected(cursorTrackingProperty.get());
+		miTrackActiveTool.setSelected(activeToolTrackingProperty.get());
+		miTrackEye.setSelected(eyeTrackingProperty.get());
+		
+		miTrackEye.disableProperty().bind(supportsEyeTracking.not());
+		
+		ContextMenu menu = new ContextMenu(miTrackCursor, miTrackActiveTool, miTrackEye);
+		Button optionBtn = GuiTools.createMoreButton(menu, Side.RIGHT);
+		
 		// Separator and duration indicator on top of window
 		duration = new Label("");
 		duration.setVisible(false);
@@ -313,6 +387,7 @@ public class ViewTrackerControlPane {
 		duration.visibleProperty().bind(recordingMode);
 		separator.visibleProperty().bind(recordingMode);
 		iconRecording.visibleProperty().bind(recordingMode);
+		optionBtn.disableProperty().bind(recordingMode);
 
 
 		GridPane topButtonGrid = new GridPane();
@@ -322,7 +397,8 @@ public class ViewTrackerControlPane {
 				ActionUtils.createToggleButton(actionPlayback, ActionTextBehavior.HIDE),
 				separator,
 				iconRecording,
-				duration
+				duration,
+				optionBtn
 				);
 		
 		titledPane.setContent(contentPane);
@@ -335,9 +411,58 @@ public class ViewTrackerControlPane {
 	}
 
 
+	private void populateTrackersList(QuPathGUI qupath) {
+		var entry = qupath.getProject().getEntry(viewer.getImageData());
+		if (entry == null) 
+			return;
+		File entryDirectory = entry.getEntryPath().toFile();
+		if (entryDirectory != null && entryDirectory.exists())
+			trackersList.addAll(getExistingRecordings(entryDirectory));
+	}
+
+	private void setTrackerName(ViewTracker tracker) {
+		// Check if there were imported ViewTrackers with clashing name
+		List<Integer> temp = new ArrayList<>();
+		try {
+			temp = trackersList.stream()
+					.filter(e -> e.getFile().getName().matches("Recording (\\d*).tsv"))
+					.map(e -> {
+						String name = e.getFile().getName();
+						return GeneralTools.getNameWithoutExtension(name.substring(name.lastIndexOf(" ")+1));
+					})
+					.mapToInt(e -> Integer.parseInt(e))
+					.boxed().collect(Collectors.toList());
+		} catch (Exception e) {
+			logger.warn("Could not fetch previous recordings", e.getLocalizedMessage());
+		}
+		
+		// Get ID that doesn't clash with existing recordings
+		int nRecording = 0;
+		while (temp.contains(nRecording))
+			nRecording++;
+		tracker.setName("Recording " + nRecording++);
+		
+	}
+
+	private Collection<ViewTracker> getExistingRecordings(File entryDirectory) {
+		File recordingDirectory = new File(entryDirectory, "recordings");
+		List<ViewTracker> trackers = new ArrayList<>();
+		if (recordingDirectory.exists()) {
+			try (Stream<Path> walk = Files.walk(recordingDirectory.toPath())) {
+				trackers.addAll(walk.filter(Files::isRegularFile)
+												.filter(path -> GeneralTools.getExtension(path.toFile()).get().equals(".tsv"))
+												.map(path -> ViewTrackers.handleImport(path))
+												.collect(Collectors.toList()));
+			} catch (IOException e) {
+				logger.error("Could not fetch existing recordings: ", e.getLocalizedMessage());
+			}
+		}
+		return trackers;
+	}
+
 	/**
 	 * Add a ViewTracker entry to the TableView.
-	 * This should be called every time a new recording has started.
+	 * This should be called every time a new recording is finished.
 	 */
 	private void addViewTrackerEntry() {
 		if (tracker.isEmpty())
@@ -354,24 +479,20 @@ public class ViewTrackerControlPane {
 	 * @param viewer
 	 */
 	private void prepareNewViewTracker(QuPathGUI qupath) {
+		// Good practice to unbind property of previous trackers
+		if (tracker != null) {
+			tracker.cursorTrackingProperty().unbind();
+			tracker.activeToolProperty().unbind();
+			tracker.eyeTrackingProperty().unbind();			
+		}
+		
+		// Create new tracker
 		tracker = ViewTrackers.createViewTracker(qupath);
-		recordingMode.unbind();
-		tracker.recordingProperty().bind(recordingMode);
 		
-		// Need to check if there were imported ViewTrackers with clashing name
-		List<Integer> temp = trackersList.stream()
-				.filter(e -> e.getFile().getName().matches("Recording (\\d*).tsv"))
-				.map(e -> {
-					String name = e.getFile().getName();
-					return GeneralTools.getNameWithoutExtension(name.substring(name.lastIndexOf(" ")+1));
-				})
-				.mapToInt(e -> Integer.parseInt(e))
-				.boxed().collect(Collectors.toList());
-		
-		// Get ID that doesn't clash with existing recordings
-		while (temp.contains(nRecording))
-			nRecording++;
-		tracker.setName("Recording " + nRecording++);
+		// Bind properties
+		tracker.cursorTrackingProperty().bind(cursorTrackingProperty);
+		tracker.activeToolProperty().bind(activeToolTrackingProperty);
+		tracker.eyeTrackingProperty().bind(eyeTrackingProperty);
 	}
 
 	/**
@@ -389,6 +510,9 @@ public class ViewTrackerControlPane {
 	 * @return
 	 */
 	private static Object getColumnValue(final ViewTracker currentTracker, final int col) {
+		if (currentTracker == null)
+			return null;
+		
 		switch (col) {
 		case 0:
 			File file = currentTracker.getFile();
@@ -443,13 +567,9 @@ public class ViewTrackerControlPane {
 	public List<ViewTracker> getViewTrackerList() {
 		return trackersList;
 	}
-
 	
-//	/**
-//	 * Get the current ViewTracker associated with these controls.
-//	 * @return
-//	 */
-//	public ViewTracker getViewTracker() {
-//		return tracker;
-//	}
+	public void removeListeners() {
+		viewer.imageDataProperty().removeListener(imageDataListener);
+		qupath.viewerProperty().removeListener(viewerListener);
+	}
 }

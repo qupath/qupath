@@ -23,6 +23,8 @@
 
 package qupath.lib.gui.viewer.recording;
 
+import java.awt.Rectangle;
+import java.awt.geom.Point2D;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -42,6 +44,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
@@ -154,11 +157,12 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			int nCols = nCols(tracker);
 			for (int i = 0; i < nCols; i++) {
 				final int col = i;
-				TableColumn<ViewRecordingFrame, Object> column = new TableColumn<>(getColumnName(nCols, col));
+				final String columnName = getColumnName(tracker, col);
+				TableColumn<ViewRecordingFrame, Object> column = new TableColumn<>(columnName);
 				column.setCellValueFactory(new Callback<CellDataFeatures<ViewRecordingFrame, Object>, ObservableValue<Object>>() {
 				     @Override
 					public ObservableValue<Object> call(CellDataFeatures<ViewRecordingFrame, Object> frame) {
-				         return new SimpleObjectProperty<>(getColumnValue(frame.getValue(), col));
+				         return new SimpleObjectProperty<>(getColumnValue(frame.getValue(), columnName));
 				     }
 				  });
 				table.getColumns().add(column);
@@ -179,8 +183,11 @@ class ViewTrackerAnalysisCommand implements Runnable {
 				if (frame == null)
 					return;
 				
+				// Set viewer for frame
 				ViewTrackerPlayback.setViewerForFrame(viewer, frame);
-				slideOverview.setImageShape(frame.getImageShape());
+				
+				// Set slide overview for frame
+				slideOverview.setVisibleShape(frame);
 				
 				zSlider.setValue(frame.getZ());
 				tSlider.setValue(frame.getT());
@@ -189,16 +196,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 				
 				slideOverview.paintCanvas();
 			});
-			
-//			Button btnImport = new Button("Import");
-//			btnImport.setOnAction(e -> {
-//					if (ViewTrackers.handleImport(tracker)) {
-//						refreshTracker();
-//					}
-//			});
 
-			
-			
 			mainPane = new SplitPane();
 			mainPane.setDividerPositions(1.0);
 			
@@ -309,6 +307,10 @@ class ViewTrackerAnalysisCommand implements Runnable {
 				playback.setPlaying(false);
 				timeSlider.setValue(tracker.getFrame(0).getTimestamp());
 			});
+			
+			// If we have a total of 0 or 1 frame in recording, disable playback
+			btnPlay.disableProperty().bind(new SimpleBooleanProperty(tracker.nFrames() <= 1));
+			btnStop.disableProperty().bind(new SimpleBooleanProperty(tracker.nFrames() <= 1));
 			
 			
 			playback.playingProperty().addListener((v, o, n) -> {
@@ -458,24 +460,23 @@ class ViewTrackerAnalysisCommand implements Runnable {
 
 			
 			trackerDataOverlay = new ViewTrackerDataOverlay(server, viewer, tracker);
-			timeDisplayedSlider.lowValueProperty().addListener((v, o, n) -> updateOverlay());
-			timeDisplayedSlider.highValueProperty().addListener((v, o, n) -> updateOverlay());
-			downsampleSlider.lowValueProperty().addListener((v, o, n) -> updateOverlay());
-			downsampleSlider.highValueProperty().addListener((v, o, n) -> updateOverlay());
+			timeDisplayedSlider.lowValueProperty().addListener((v, o, n) -> updateOverlays());
+			timeDisplayedSlider.highValueProperty().addListener((v, o, n) -> updateOverlays());
+			downsampleSlider.lowValueProperty().addListener((v, o, n) -> updateOverlays());
+			downsampleSlider.highValueProperty().addListener((v, o, n) -> updateOverlays());
 
 
 			visualizationCheckBox.selectedProperty().addListener((v, o, n) -> {
 				if (n) {
-					updateOverlay();
-					viewer.getCustomOverlayLayers().setAll(trackerDataOverlay.getOverlay());
+					updateOverlays();
 				} else {
 					viewer.getCustomOverlayLayers().clear();
 					slideOverview.setOverlay(null);
 				}
 			});
 			
-			timeNormalizedRadio.selectedProperty().addListener((v, o, n) -> updateOverlay());
-			magnificationNormalizedRadio.selectedProperty().addListener((v, o, n) -> updateOverlay());
+			// Listener for timeNormalizedRadio, no need for magnificationNormalizedRadio one as it's either one or the other
+			timeNormalizedRadio.selectedProperty().addListener((v, o, n) -> updateOverlays());
 			
 			GridPane canvasPane = new GridPane();
 			GridPane timepointPane = new GridPane();
@@ -494,7 +495,8 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			canvasPane.addRow(0, zSliceLabel, zSlider, canvas);
 			timepointPane.addRow(0, timepointLabel, tSlider);
 			normalizedByPane.addRow(0, timeNormalizedRadio, magnificationNormalizedRadio);
-//			playbackPane.addRow(0, btnPlay, btnStop);
+			playbackPane.addRow(0, btnPlay, btnStop);
+			playbackPane.setAlignment(Pos.CENTER);
 //			PaneTools.addGridRow(dataVisualizationPane, 0, 0, "Enable live data visualization", visualizationCheckBox, visualizationCheckBox, visualizationCheckBox);
 //			PaneTools.addGridRow(dataVisualizationPane, 1, 0, "Normalization type", normalizedByLabel, timeNormalizedRadio, magnificationNormalizedRadio);
 //			PaneTools.addGridRow(dataVisualizationPane, 2, 0, "Choose a time range", timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
@@ -577,42 +579,30 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		//dialog.toFront();
 	}
 
-	static Object getColumnValue(final ViewRecordingFrame frame, final int col) {
-		switch (col) {
-		case 0: return frame.getTimestamp();
-		case 1: return frame.getImageBounds().x;
-		case 2: return frame.getImageBounds().y;
-		case 3: return frame.getImageBounds().width;
-		case 4: return frame.getImageBounds().height;
-		case 5: return frame.getSize().width;
-		case 6: return frame.getSize().height;
-		case 7: return frame.getDownFactor();
-		case 8: return frame.getRotation();
-		case 9: return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
-		case 10: return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
-		case 11: 
-			if (frame.getEyePosition() == null && (frame.getZ() != -1 || frame.getT() != 1))
-				return frame.getZ();
-			else
-				return frame.getEyePosition().getX();
-			
-		case 12: 
-			if (frame.getEyePosition() == null && (frame.getZ() != -1 || frame.getT() != 1))
-				return frame.getT();
-			else
-				return frame.getEyePosition().getY();
-		case 13: 
-			if (frame.getEyePosition() == null && (frame.getZ() != -1 || frame.getT() != 1))
-				return frame.getT();
-			else 
-				return frame.isEyeFixated();
-		case 14: return frame.getZ();
-		case 15: return frame.getT();
+	static Object getColumnValue(final ViewRecordingFrame frame, final String columnName) {
+		switch (columnName) {
+		case "Timestamp (ms)": return frame.getTimestamp();
+		case "X": return frame.getImageBounds(frame.getRotation()).x;
+		case "Y": return frame.getImageBounds(frame.getRotation()).y;
+		case "Width": return frame.getImageBounds(frame.getRotation()).width;
+		case "Height": return frame.getImageBounds(frame.getRotation()).height;
+		case "Canvas width": return frame.getSize().width;
+		case "Canvas height": return frame.getSize().height;
+		case "Downsample factor": return frame.getDownFactor();
+		case "Rotation": return frame.getRotation();
+		case "Cursor X": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
+		case "Cursor Y": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
+		case "Active Tool": return frame.getActiveTool().getName();
+		case "Eye X": return frame.getEyePosition().getX();
+		case "Eye Y": return frame.getEyePosition().getY();
+		case "Fixated": return frame.isEyeFixated();
+		case "Z": return frame.getZ();
+		case "T": return frame.getT();
 		}
 		return null;
 	}
 	
-	static String getColumnName(int nCols, int col) {
+	static String getColumnName(ViewTracker tracker, int col) {
 		switch (col) {
 		case 0: return "Timestamp (ms)";
 		case 1: return "X";
@@ -623,23 +613,28 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		case 6: return "Canvas height";
 		case 7: return "Downsample factor";
 		case 8: return "Rotation";
-		case 9: return "Cursor X";
-		case 10: return "Cursor Y";
+		case 9: 
+			if (tracker.hasCursorTrackingData()) return "Cursor X";
+			else if (tracker.hasActiveToolTrackingData()) return "Active Tool";
+			else if (tracker.hasEyeTrackingData()) return "Eye X";
+			else return "Z";
+		case 10: 
+			if (tracker.hasCursorTrackingData()) return "Cursor Y";
+			else if (tracker.hasEyeTrackingData()) return "Eye Y";
+			else return "T";
 		case 11: 
-			if (nCols == 14)
-				return "Eye X";
-			else
-				return "Z";
+			if (tracker.hasActiveToolTrackingData()) return "Active Tool";
+			else if (tracker.hasEyeTrackingData()) return "Eye X";
 		case 12: 
-			if (nCols == 14)
-				return "Eye Y";
-			else
-				return "T";
-		case 13: 
-			if (nCols == 14)
-				return "Fixated";
-		case 14: return "Z";
-		case 15: return "T";
+			if (tracker.hasEyeTrackingData()) {
+				if (tracker.hasActiveToolTrackingData()) return "Eye X";
+				else return "Eye Y";
+			} else
+				return "Z";
+		case 13: return tracker.hasEyeTrackingData() ? "Eye Y" : "T";
+		case 14: return "Fixated";
+		case 15: return "Z";
+		case 16: return "T";
 		}
 		return null;
 	}
@@ -648,11 +643,11 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		if (tracker == null)
 			return 0;
 		
-		int nCol = 11;
-		if (tracker.hasEyeTrackingData())
-			nCol += 3;
-		if (tracker.hasZAndT())
-			nCol += 2;
+		int nCol = 9;
+		nCol += tracker.hasCursorTrackingData() ? 2 : 0;
+		nCol += tracker.hasActiveToolTrackingData() ? 1 : 0;
+		nCol += tracker.hasEyeTrackingData() ? 3 : 0;
+		nCol += tracker.hasZAndT() ? 2 : 0;
 		return nCol;
 	}
 	
@@ -668,7 +663,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 	}
 	
 	
-	private void updateOverlay() {
+	private void updateOverlays() {
 		trackerDataOverlay.updateDataImage(
 				timeDisplayedSlider.lowValueProperty().longValue(),
 				timeDisplayedSlider.highValueProperty().longValue(),
@@ -676,6 +671,10 @@ class ViewTrackerAnalysisCommand implements Runnable {
 				downsampleSlider.highValueProperty().doubleValue(),
 				timeNormalizedRadio.selectedProperty().get()
 				);
+		
+		// Update the viewer's custom overlay layer
+		viewer.getCustomOverlayLayers().setAll(trackerDataOverlay.getOverlay());
+		// Update the slideOverview
 		slideOverview.setOverlay(trackerDataOverlay.getOverlay());
 	}
 	

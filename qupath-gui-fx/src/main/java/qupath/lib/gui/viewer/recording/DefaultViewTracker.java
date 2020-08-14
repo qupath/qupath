@@ -50,6 +50,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
+import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
@@ -80,7 +81,9 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	
 	private boolean hasZAndT;
 	
-	private static BooleanProperty trackCursorPosition = PathPrefs.createPersistentPreference("trackCursorPosition", true);
+	private BooleanProperty doCursorTracking = new SimpleBooleanProperty(true);
+	private BooleanProperty doActiveToolTracking = new SimpleBooleanProperty();
+	private BooleanProperty doEyeTracking = new SimpleBooleanProperty();
 
 	private BooleanProperty recording = new SimpleBooleanProperty(false);
 
@@ -88,14 +91,11 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	private File recordingFile = null;
 	private OutputStreamWriter fw = null;
 	private String name = null;
-	
-	private boolean doCursorTracking = true;
 
 	private long startTime = -1;
 
 	private List<ViewRecordingFrame> frames = new ArrayList<>();
 	transient ViewRecordingFrame lastFrame = null;
-	private boolean hasEyeTrackingData = false;
 	private double rotation = 0;
 	
 	private boolean initialized = false;
@@ -142,18 +142,16 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		ImageServer<BufferedImage> server = viewer.getServer();
 		initializeRecording();
 		viewer.addViewerListener(this);
-		doCursorTracking = trackCursorPosition.get();
-		if (doCursorTracking) {
+		if (doCursorTracking.get()) {
 			viewer.getView().addEventHandler(MouseEvent.MOUSE_MOVED, mouseHandler);
 			viewer.getView().addEventHandler(MouseEvent.MOUSE_DRAGGED, mouseHandler);
 		}
 		// Assume no eye tracking data until we learn otherwise
-		hasEyeTrackingData = false;
 		visibleRegionChanged(viewer, viewer.getDisplayedRegionShape());
 
 		logger.debug("--------------------------------------\n" + 
 					"View tracking for image: " + server.getPath() + "\n" +
-					ViewTrackers.getSummaryHeadings(LOG_DELIMITER, doCursorTracking, supportsEyeTracking(), hasZAndT()));
+					ViewTrackers.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
 	}
 
 
@@ -196,7 +194,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	private void doStopRecording() {
 		logger.debug("--------------------------------------");
 		viewer.removeViewerListener(this);
-		if (doCursorTracking) {
+		if (doCursorTracking.get()) {
 			viewer.getView().removeEventHandler(MouseEvent.MOUSE_MOVED, mouseHandler);
 			viewer.getView().removeEventHandler(MouseEvent.MOUSE_DRAGGED, mouseHandler);
 		}
@@ -236,7 +234,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		recordingFile = recordingFile != null ? recordingFile : new File(recordingDirectory, name + ".tsv");
 		try {
 			fw = new OutputStreamWriter(new FileOutputStream(recordingFile), StandardCharsets.UTF_8);
-			fw.write(ViewTrackers.getSummaryHeadings(LOG_DELIMITER, doCursorTracking, supportsEyeTracking(), hasZAndT()));
+			fw.write(ViewTrackers.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
 			fw.write(System.lineSeparator());
 		} catch (IOException e) {
 			logger.error("Could not create back-up file. Recording will not be saved.", e.getLocalizedMessage());
@@ -254,11 +252,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		return frames.isEmpty();
 	}
 
-
-	protected boolean supportsEyeTracking() {
-		return false;
-	}
-
 	/**
 	 * 
 	 * @param timestamp
@@ -272,7 +265,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	 * @param t 
 	 * @return The frame, if one was added, or null otherwise.
 	 */
-	protected synchronized ViewRecordingFrame addFrame(final long timestamp, final Shape imageBounds, final Dimension canvasSize, final double downFactor, final Point2D cursorPoint, final Point2D eyePoint, final Boolean isFixated, double rotation, int z, int t) {
+	protected synchronized ViewRecordingFrame addFrame(final long timestamp, final Shape imageBounds, final Dimension canvasSize, final double downFactor, final Point2D cursorPoint, final PathTool activeTool, final Point2D eyePoint, final Boolean isFixated, double rotation, int z, int t) {
 		if (!isRecording()) {
 			logger.error("Recording has not started!  Frame request will be ignored.");
 		}
@@ -282,10 +275,10 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 			return null;
 		}
 	
-		DefaultViewRecordingFrame frame = new DefaultViewRecordingFrame(timestamp-startTime, imageBounds, canvasSize, downFactor, rotation, cursorPoint, eyePoint, isFixated, z, t);
+		DefaultViewRecordingFrame frame = new DefaultViewRecordingFrame(timestamp-startTime, imageBounds, canvasSize, downFactor, rotation, cursorPoint, activeTool, eyePoint, isFixated, z, t);
 		appendFrame(frame);
 		// Log the frame
-		logger.debug(ViewTrackers.getSummary(lastFrame, LOG_DELIMITER, doCursorTracking, hasEyeTrackingData, hasZAndT));
+		logger.debug(ViewTrackers.getSummary(lastFrame, LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT));
 		return frame;
 	}
 
@@ -296,11 +289,10 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 			throw new RuntimeException("Unable to append frame - frame timestamp is earlier than the current timestamp");
 		frames.add(frame);
 		lastFrame = frame;
-		hasEyeTrackingData = hasEyeTrackingData || frame.hasEyePosition();
 		
 		if (fw != null) {
 			try {
-				fw.write(ViewTrackers.getSummary(frame, "\t", doCursorTracking, hasEyeTrackingData, hasZAndT));
+				fw.write(ViewTrackers.getSummary(frame, "\t", doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT));
 				fw.write(System.lineSeparator());
 			} catch (IOException e) {
 				logger.error("Could not write frame to file. Frame will be ignored: ", e);
@@ -309,11 +301,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	}
 
 
-
-	@Override
-	public boolean hasEyeTrackingData() {
-		return hasEyeTrackingData;
-	}
 	
 	private int getCurrentZ() {
 		return viewer.getZPosition();
@@ -375,7 +362,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		
 		rotation = viewer.getRotation() != rotation ? viewer.getRotation() : rotation;
 
-		addFrame(System.currentTimeMillis(), shape, getSize(viewer), viewer.getDownsampleFactor(), getMousePointIfRequired(), null, null, rotation, getCurrentZ(), getCurrentT());
+		addFrame(System.currentTimeMillis(), shape, getSize(viewer), viewer.getDownsampleFactor(), getMousePointIfRequired(), getActiveToolIfRequired(), null, null, rotation, getCurrentZ(), getCurrentT());
 	}
 
 	static Dimension getSize(QuPathViewer viewer) {
@@ -385,12 +372,27 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	protected Point2D getMousePointIfRequired() {
 		// Get the mouse position, if required
 		Point2D p = null;
-		if (doCursorTracking) {
-			//			p = MouseInfo.getPointerInfo().getLocation(); // We don't want cursor positions outside the component, because they may be confusing when converted to image coordinates
+		if (doCursorTracking.get()) {
+			// p = MouseInfo.getPointerInfo().getLocation(); // We don't want cursor positions outside the component, because they may be confusing when converted to image coordinates
 			p = viewer.getMousePosition();
 			if (p != null)
 				return viewer.componentPointToImagePoint(p, p, false);
 		}
+		return null;
+	}
+	
+	protected PathTool getActiveToolIfRequired() {
+		// Get the current active tool, if required
+		return doActiveToolTracking.get() ? viewer.getActiveTool() : null;
+	}
+	
+	protected Point2D getEyePointIfRequired() {
+		// TODO
+		return null;
+	}
+	
+	protected Boolean getEyeFixatedIfRequired() {
+		// TODO
 		return null;
 	}
 
@@ -418,7 +420,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		@Override
 		public void handle(MouseEvent event) {
 			Point2D p = viewer.componentPointToImagePoint(event.getX(), event.getY(), null, false);
-			addFrame(System.currentTimeMillis(), viewer.getDisplayedRegionShape(), getSize(viewer), viewer.getDownsampleFactor(), p, null, null, viewer.getRotation(), getCurrentZ(), getCurrentT());
+			addFrame(System.currentTimeMillis(), viewer.getDisplayedRegionShape(), getSize(viewer), viewer.getDownsampleFactor(), p, getActiveToolIfRequired(), getEyePointIfRequired(), getEyeFixatedIfRequired(), viewer.getRotation(), getCurrentZ(), getCurrentT());
 		}		
 		
 	}
@@ -469,11 +471,53 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	
 	@Override
 	public boolean hasCursorTrackingData() {
+		return doCursorTracking.get();
+	}
+	
+	@Override
+	public boolean hasActiveToolTrackingData() {
+		return doActiveToolTracking.get();
+	}
+	
+	@Override
+	public boolean hasEyeTrackingData() {
+		return doEyeTracking.get();
+	}
+	
+	/**
+	 * Return the cursorTracking property of this tracker.
+	 * @return doCursorTracking
+	 */
+	@Override
+	public BooleanProperty cursorTrackingProperty() {
 		return doCursorTracking;
+	}
+	
+	/**
+	 * Return the activeToolTracking property of this tracker.
+	 * @return doActiveToolTracking
+	 */
+	@Override
+	public BooleanProperty activeToolProperty() {
+		return doActiveToolTracking;
+	}
+	
+
+	@Override
+	public BooleanProperty eyeTrackingProperty() {
+		return doEyeTracking;
 	}
 
 	@Override
 	public List<ViewRecordingFrame> getAllFrames() {
 		return frames;
+	}
+
+	@Override
+	public void includeOptionals(boolean ZandT, boolean cursorTracking, boolean activeToolTracking, boolean eyeTracking) {
+		hasZAndT = ZandT;
+		doCursorTracking.set(cursorTracking);
+		doActiveToolTracking.set(activeToolTracking);
+		doEyeTracking.set(eyeTracking);
 	}
 }

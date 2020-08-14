@@ -38,6 +38,8 @@ import com.sun.media.jfxmedia.logging.Logger;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.viewer.tools.PathTool;
+import qupath.lib.gui.viewer.tools.PathTools;
 
 /**
  * Static methods for working with {@link ViewTracker ViewTrackers}.1
@@ -64,7 +66,7 @@ class ViewTrackers {
 	 * @param includeEyeTracking optionally include columns relevant for eye tracking
 	 * @return
 	 */
-	static String getSummaryHeadings(final String delimiter, final boolean includeCursor, final boolean includeEyeTracking, final boolean isZAndTIncluded) {
+	static String getSummaryHeadings(final String delimiter, final boolean includeCursor, final boolean includeActiveTool, final boolean includeEyeTracking, final boolean isZAndTIncluded) {
 		StringBuffer sb = new StringBuffer();
 	
 		sb.append("Timestamp");
@@ -95,6 +97,10 @@ class ViewTrackers {
 			sb.append("Cursor X");
 			sb.append(delimiter);
 			sb.append("Cursor Y");
+		}
+		if (includeActiveTool) {
+			sb.append(delimiter);
+			sb.append("Active tool");
 		}
 		if (includeEyeTracking) {
 			sb.append(delimiter);				
@@ -130,7 +136,7 @@ class ViewTrackers {
 		return DefaultViewTracker.LOG_DELIMITER; // Default
 	}
 
-	private static ViewRecordingFrame parseLogString(String logString, String delimiter, boolean includesCursorTracking, boolean includesEyeTracking, boolean includeZAndT) {
+	private static ViewRecordingFrame parseLogString(String logString, String delimiter, boolean includesCursorTracking, boolean includesActiveToolTracking, boolean includesEyeTracking, boolean includeZAndT) {
 		if (logString != null)
 			logString = logString.trim().toLowerCase();
 		// Check if we have anything, or if it is just a superfluous new line
@@ -150,17 +156,20 @@ class ViewTrackers {
 		double rotation = Double.parseDouble(columns[col++]);
 		Point2D pCursor = null;
 		
-		// TODO: Check if this (and following 2) out-of-bounds checks need to be extended...
+		// TODO: Check if this (and following 3) out-of-bounds checks need to be extended...
 		// (currently implementing Alan's MSc required changes)
-		if (includesCursorTracking && columns.length > col && columns[col].length() > 0 && columns[col+1].length() > 0) {
+		if (includesCursorTracking && columns.length > col && !columns[col].isEmpty() && !columns[col+1].isEmpty()) {
 			double cursorX = Double.parseDouble(columns[col++]);
 			double cursorY = Double.parseDouble(columns[col++]);
 			pCursor = new Point2D.Double(cursorX, cursorY);
 		}
+		PathTool activeTool = null;
+		if (includesActiveToolTracking && columns.length > col && !columns[col].isEmpty())
+			activeTool = PathTools.getTool(columns[col++]);
 		Point2D pEye = null;
 		Boolean isFixated = null;
 		if (includesEyeTracking) {
-			if (columns.length > col && columns[col].length() > 0 && columns[col+1].length() > 0) {
+			if (columns.length > col && columns[col].length() > 0 && !columns[col+1].isEmpty()) {
 				double eyeX = Double.parseDouble(columns[col++]);
 				double eyeY = Double.parseDouble(columns[col++]);
 				pEye = new Point2D.Double(eyeX, eyeY);
@@ -169,15 +178,15 @@ class ViewTrackers {
 				isFixated = Boolean.parseBoolean(columns[col++]);
 		}
 		
-		int z = -1;
-		int t = -1;
+		int z = 0;
+		int t = 0;
 		if (includeZAndT) {
-			if (columns.length > col && columns[col].length() > 0 && columns[col+1].length() > 0) {
+			if (columns.length > col && columns[col].length() > 0 && !columns[col+1].isEmpty()) {
 				z = Integer.parseInt(columns[col++]);
 				t = Integer.parseInt(columns[col++]);
 			}
 		}
-		return new DefaultViewRecordingFrame(timestamp, new Rectangle2D.Double(x, y, width, height), new Dimension(canvasWidth, canvasHeight), downFactor, rotation, pCursor, pEye, isFixated, z, t);
+		return new DefaultViewRecordingFrame(timestamp, new Rectangle2D.Double(x, y, width, height), new Dimension(canvasWidth, canvasHeight), downFactor, rotation, pCursor, activeTool, pEye, isFixated, z, t);
 	}
 
 	static ViewTracker parseSummaryString(final String str, String delimiter, ViewTracker tracker) throws Exception { // TODO: Find out what exceptions!
@@ -186,21 +195,25 @@ class ViewTrackers {
 		if (delimiter == null)
 			delimiter = estimateDelimiter(str);
 		boolean includesCursorTracking = false;
+		boolean includesActiveToolTracking = false;
 		boolean includesEyeTracking = false;
 		boolean includeZAndT = false;
 		boolean firstLine = true;
 		for (String s : GeneralTools.splitLines(str)) {
 			if (firstLine) {
 				includesCursorTracking = s.toLowerCase().contains("cursor");
+				includesActiveToolTracking = s.toLowerCase().contains("tool");
 				includesEyeTracking = s.toLowerCase().contains("eye");
 				includeZAndT = s.toLowerCase().contains("z") && s.toLowerCase().contains("t");
 				firstLine = false;
 			} else {
-				ViewRecordingFrame frame = parseLogString(s, delimiter, includesCursorTracking, includesEyeTracking, includeZAndT);
+				ViewRecordingFrame frame = parseLogString(s, delimiter, includesCursorTracking, includesActiveToolTracking, includesEyeTracking, includeZAndT);
 				if (frame != null)
 					tracker.appendFrame(frame);
 			}
 		}
+		// To indicate Z and T columns
+		tracker.includeOptionals(includeZAndT, includesCursorTracking, includesActiveToolTracking, includesEyeTracking);
 		return tracker;
 	}
 
@@ -212,13 +225,13 @@ class ViewTrackers {
 	 * @param includeEyeTracking
 	 * @return
 	 */
-	static String getSummary(final ViewRecordingFrame frame, final String delimiter, final boolean includeCursor, final boolean includeEyeTracking, final boolean includeZAndT) {
+	static String getSummary(final ViewRecordingFrame frame, final String delimiter, final boolean includeCursor, final boolean includeActiveTool, final boolean includeEyeTracking, final boolean includeZAndT) {
 		StringBuffer sb = new StringBuffer();
 	
 		sb.append(frame.getTimestamp());
 		sb.append(delimiter);
 	
-		Rectangle bounds = frame.getImageBounds();
+		Rectangle bounds = frame.getImageBounds(frame.getRotation());
 		sb.append(bounds.x);
 		sb.append(delimiter);
 		sb.append(bounds.y);
@@ -251,6 +264,10 @@ class ViewTrackers {
 				sb.append(delimiter);				
 				sb.append(delimiter);				
 			}
+		}
+		if (includeActiveTool) {
+			sb.append(delimiter);
+			sb.append(frame.getActiveTool().getName());
 		}
 		if (includeEyeTracking) {
 			if (frame.hasEyePosition()) {
@@ -295,9 +312,9 @@ class ViewTrackers {
 		PrintWriter out = null;
 		try {
 			out = new PrintWriter(fileExport);
-			out.print(getSummaryHeadings("\t", tracker.hasCursorTrackingData(), tracker.hasEyeTrackingData(), tracker.hasZAndT()));
+			out.print(getSummaryHeadings("\t", tracker.hasCursorTrackingData(), tracker.hasActiveToolTrackingData(), tracker.hasEyeTrackingData(), tracker.hasZAndT()));
 			for (var frame: tracker.getAllFrames())
-				out.print(getSummary(frame, "\t", tracker.hasCursorTrackingData(), tracker.hasEyeTrackingData(), tracker.hasZAndT()));
+				out.print(getSummary(frame, "\t", tracker.hasCursorTrackingData(), tracker.hasActiveToolTrackingData(), tracker.hasEyeTrackingData(), tracker.hasZAndT()));
 			
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();

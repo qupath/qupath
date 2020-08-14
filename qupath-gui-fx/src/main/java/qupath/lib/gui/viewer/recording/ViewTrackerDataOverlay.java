@@ -1,11 +1,13 @@
 package qupath.lib.gui.viewer.recording;
 
 import java.awt.Rectangle;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.IndexColorModel;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -80,6 +82,7 @@ public class ViewTrackerDataOverlay{
 	}
 	
 	private Map<ImageRegion, BufferedImage> getImageRegions() {
+		var startTime = System.currentTimeMillis();
 		regions.clear();
 		for (int z = 0; z < server.nZSlices(); z++) {
 			for (int t = 0; t < server.nTimepoints(); t++) {
@@ -89,6 +92,7 @@ public class ViewTrackerDataOverlay{
 				regions.put(region, img);
 			}
 		}
+		logger.info("Processing time for getImageRegions(): " + (System.currentTimeMillis()-startTime));
 		return regions;
 	}
 	
@@ -104,32 +108,78 @@ public class ViewTrackerDataOverlay{
 		
 		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, createColorModel());
 		byte[] buffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
+		
 		if (!timeNormalized) {
 			for (int i = 0; i < buffer.length; i++)
 				buffer[i] = (byte)downMax;
 		}
-		
-		for (var frame: relevantFrames) {
-			Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds());
-			Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
-			for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
-				for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
-					if (x < 0 || x >= imgWidth || y < 0 || y >= imgHeight)
-						continue;
-					
-					if (timeNormalized)
-						buffer[y*imgWidth + x] = (byte) (buffer[y*imgWidth + x] + frame.getTimestamp() - tracker.getStartTime());
-					else
-						buffer[y*imgWidth + x] = buffer[y*imgWidth + x] > (byte)frame.getDownFactor() ? (byte)frame.getDownFactor() : buffer[y*imgWidth + x];						
+
+		if (timeNormalized) {
+			long[] bufferTest = new long[buffer.length];
+			Arrays.fill(bufferTest, 0);
+			long curMax = -1;
+			for (int nFrame = 0; nFrame < relevantFrames.length; nFrame++) {
+				var frame = relevantFrames[nFrame];
+				Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds(frame.getRotation()));
+				Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
+				for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
+					for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
+						if (x < 0 || x >= imgWidth || y < 0 || y >= imgHeight)
+							continue;
+						var nextTimeStamp = nFrame+1 < relevantFrames.length ? relevantFrames[nFrame+1].getTimestamp() : 0;
+						long value = (bufferTest[y*imgWidth + x] + frame.getTimestamp() - nextTimeStamp);
+						if (value > curMax)
+							curMax = value;
+						bufferTest[y*imgWidth + x] = value;
+					}
 				}
 			}
+			
+			// Normalize
+			for (int i = 0; i < bufferTest.length; i++)
+				buffer[i] = (byte)(bufferTest[i] / curMax * 255);
+		} else {
+			double[] bufferTest = new double[buffer.length];
+			Arrays.fill(bufferTest, 0);
+			double curMin = downMax;
+			for (int nFrame = 0; nFrame < relevantFrames.length; nFrame++) {
+				var frame = relevantFrames[nFrame];
+				Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds(frame.getRotation()));
+				Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
+				for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
+					for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
+						if (frame.getRotation() != 0) {
+							var at = AffineTransform.getRotateInstance(frame.getRotation());
+							Point2D myPoint = new Point2D.Double(x, y);
+							var melvin = at.transform(myPoint, null);
+						}
+							
+						
+						if (x < 0 || x >= imgWidth || y < 0 || y >= imgHeight)
+							continue;
+						
+						if (downMax == downMin)
+							bufferTest[y*imgWidth + x] = 255;
+						
+						double value = downMax;
+							value = bufferTest[y*imgWidth + x] < frame.getDownFactor() ? frame.getDownFactor() : buffer[y*imgWidth + x];
+						if (value < curMin)
+							curMin = value;
+						bufferTest[y*imgWidth + x] = value;
+					}
+				}
+			}
+			
+			// Normalize
+			for (int i = 0; i < bufferTest.length; i++)
+				buffer[i] = (byte)(bufferTest[i] / curMin * 255);
 		}
 		
 		return img;
 	}
 	
 	public BufferedImageOverlay getOverlay() {
-		return new BufferedImageOverlay(viewer, getImageRegions());
+		return new BufferedImageOverlay(viewer, regions);
 	}
 	
 	/**

@@ -1,15 +1,15 @@
 package qupath.lib.gui.viewer.recording;
 
+import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
+import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.WritableImage;
@@ -17,7 +17,6 @@ import javafx.scene.paint.Color;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
-import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.regions.ImageRegion;
 
 public class ViewTrackerSlideOverview {
@@ -116,24 +115,7 @@ public class ViewTrackerSlideOverview {
 		imgPreview = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
 		
 	}
-
-
-	private void getTransform() {
-		double scale = (double)preferredWidth / viewer.getServer().getWidth();
-		if (transform == null)
-			transform = AffineTransform.getScaleInstance(scale, scale);
-		else
-			transform.setToScale(scale, scale);
-	}
 	
-
-	public void setImageShape(Shape shape) {
-		getTransform();
-		if (transform != null)
-			shapeVisible = transform.createTransformedShape(shape);
-		else
-			shapeVisible = shape;	
-	}
 
 
 	public void setOverlay(BufferedImageOverlay overlay) {
@@ -141,5 +123,27 @@ public class ViewTrackerSlideOverview {
 		paintCanvas();
 	}
 	
-
+	public void setVisibleShape(ViewRecordingFrame frame) {
+		double scale = (double)preferredWidth / viewer.getServer().getWidth();
+		double theta = frame.getRotation();
+		Shape shape = frame.getShape();
+//		Rectangle boundingBox = frame.getImageBounds(theta);
+//		Point2D center = frame.getFrameCentre();
+//		AffineTransform at = AffineTransform.getRotateInstance(theta, center.getX(), center.getY());
+//		Shape shape = at.createTransformedShape(boundingBox);
+		
+		// TODO
+		if (transform == null) {
+//			transform = AffineTransform.getRotateInstance(theta, center.getX(), center.getY());
+//			shapeVisible = transform.createTransformedShape(boundingBox);
+//			transform.concatenate(AffineTransform.getScaleInstance(scale, scale));
+			transform = AffineTransform.getScaleInstance(scale, scale);
+		} else {
+			transform.setToScale(scale, scale);
+//			transform = AffineTransform.getRotateInstance(theta, center.getX(), center.getY());
+//			shapeVisible = transform.createTransformedShape(boundingBox);
+//			transform.setToScale(scale, scale);
+		}
+		shapeVisible = transform.createTransformedShape(shape);
+	}
 }
