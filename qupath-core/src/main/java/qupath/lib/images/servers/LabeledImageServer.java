@@ -154,7 +154,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		if (tileHeight <= 0)
 			tileHeight = tileWidth;
 		
-		var metadataBuilder = new ImageServerMetadata.Builder(server.getOriginalMetadata())
+		var metadataBuilder = new ImageServerMetadata.Builder(server.getMetadata())
 				.preferredTileSize(tileWidth, tileHeight)
 				.levelsFromDownsamples(downsample)
 				.pixelType(PixelType.UINT8)

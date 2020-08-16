@@ -7,6 +7,7 @@ List of bugs fixed:
 * Maximum memory setting is sometimes ignored (https://github.com/qupath/qupath/issues/582)
   * Note that memory can no longer be specified to be less than 1 GB
 * 'Locked status cannot be set' exception when adding pixel classifier measurements to full image (https://github.com/qupath/qupath/issues/595)
+* LabeledImageServer ignores updated pixel sizes (https://github.com/qupath/qupath/issues/591)
 * Improve reliability of cell expansion code, currently used with StarDist (https://github.com/qupath/qupath/issues/587)
 
 
