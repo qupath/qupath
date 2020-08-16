@@ -124,10 +124,11 @@ public class ResourceManager {
 	
 	private static Map<String, Path> getNameMap(Path path, String ext) throws IOException {
 		if (path == null || !Files.isDirectory(path))
-			return Collections.emptyMap();
-		return Files.list(path)
-				.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext))
+			return Collections.emptyMap();		
+		try (var stream = Files.list(path)) {
+			return stream.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext))
 				.collect(Collectors.toMap(p -> nameWithoutExtension(p, ext), p -> p));
+		}
 	}
 	
 	private static Collection<String> listFilenames(Path path, String ext) throws IOException {

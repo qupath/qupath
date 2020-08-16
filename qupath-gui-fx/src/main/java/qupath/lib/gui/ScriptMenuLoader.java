@@ -173,8 +173,8 @@ class ScriptMenuLoader {
 		if (Files.isDirectory(path)) {
 			Menu subMenu = MenuTools.createMenu(path.getFileName().toString());
 			
-			try {
-				Files.list(path).forEach(p -> addMenuItemsForPath(addDirectly ? menu : subMenu, p, false));
+			try (var stream = Files.list(path)) {
+				stream.forEach(p -> addMenuItemsForPath(addDirectly ? menu : subMenu, p, false));
 			} catch (IOException e) {
 				logger.debug("Error adding menu item for {}", path);
 			}
