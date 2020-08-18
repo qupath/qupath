@@ -267,7 +267,12 @@ class DefaultProject implements Project<BufferedImage> {
 	List<String> listFilenames(Path path, String ext) throws IOException {
 		if (!Files.isDirectory(path))
 			return Collections.emptyList();
-		return Files.list(path).filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext)).map(p -> nameWithoutExtension(p, ext)).collect(Collectors.toList());
+		
+		try (var stream = Files.list(path)) {
+			return stream.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext))
+					.map(p -> nameWithoutExtension(p, ext))
+					.collect(Collectors.toList());
+		}
 	}
 	
 	String nameWithoutExtension(Path path, String ext) {

@@ -326,6 +326,7 @@ public class TensorFlowOp extends PaddedOp {
             return output;
         }
         
+        @Override
         public String toString() {
         	return String.format("TensorFlow bundle: %s, (input%s [%s], output=%s [%s])",
         			pathModel, inputName, arrayToString(inputShape), outputName, arrayToString(outputShape));

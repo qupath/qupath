@@ -161,16 +161,18 @@ public class MeasurementMapper {
 	
 	private static List<ColorMapper> loadColorMapsFromDirectory(Path path) throws IOException {
 		List<ColorMapper> list = new ArrayList<>();
-		Iterator<Path> iter = Files.list(path).filter(p -> p.getFileName().toString().endsWith(".tsv")).iterator();
-	    while (iter.hasNext()) {
-    		var temp = iter.next();
-	    	try {
-	    		list.add(loadColorMap(temp));
-	    	} catch (Exception e) {
-	    		logger.error("Error loading color map from {}", temp);
-	    	}
-	    }
-	    return list;
+		try (var stream = Files.list(path)) {
+			Iterator<Path> iter = stream.filter(p -> p.getFileName().toString().endsWith(".tsv")).iterator();
+		    while (iter.hasNext()) {
+	    		var temp = iter.next();
+		    	try {
+		    		list.add(loadColorMap(temp));
+		    	} catch (Exception e) {
+		    		logger.error("Error loading color map from {}", temp);
+		    	}
+		    }
+		    return list;
+		}
 	}
 	
 	private static ColorMapper loadColorMap(Path path) throws IOException {

@@ -227,21 +227,22 @@ public class PathPrefs {
 	
 	private static Path searchForConfigFile(Path dir) throws IOException {
 		String configRequest = System.getProperty("qupath.config");
-		var paths = Files.list(dir)
-				.filter(
-				p -> {
-					// Look for the .cfg file, filtering if we have a system property specified
-					String name = p.getFileName().toString();
-					if (configRequest != null && !configRequest.isBlank())
-						return name.toLowerCase().contains(configRequest.toLowerCase());
-					return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
-				})
-				.sorted(Comparator.comparingInt(p -> p.getFileName().toString().length()))
-				.collect(Collectors.toList());
-		if (paths.isEmpty())
-			return null;
-		// Return the shortest valid path found
-		return paths.get(0);
+		try (var stream = Files.list(dir)) {
+			var paths = stream.filter(
+					p -> {
+						// Look for the .cfg file, filtering if we have a system property specified
+						String name = p.getFileName().toString();
+						if (configRequest != null && !configRequest.isBlank())
+							return name.toLowerCase().contains(configRequest.toLowerCase());
+						return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
+					})
+					.sorted(Comparator.comparingInt(p -> p.getFileName().toString().length()))
+					.collect(Collectors.toList());
+			if (paths.isEmpty())
+				return null;
+			// Return the shortest valid path found
+			return paths.get(0);
+		}
 	}
 	
 	
