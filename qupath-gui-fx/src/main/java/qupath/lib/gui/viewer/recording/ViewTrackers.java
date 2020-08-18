@@ -231,7 +231,7 @@ class ViewTrackers {
 		sb.append(frame.getTimestamp());
 		sb.append(delimiter);
 	
-		Rectangle bounds = frame.getImageBounds(frame.getRotation());
+		Rectangle bounds = frame.getImageBounds();
 		sb.append(bounds.x);
 		sb.append(delimiter);
 		sb.append(bounds.y);

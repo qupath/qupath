@@ -185,7 +185,7 @@ class ViewTrackerPlayback {
 		viewer.setDownsampleFactor(frame.getDownFactor());
 		
 		// Set location
-		Rectangle imageBounds = frame.getImageBounds(frame.getRotation());
+		Rectangle imageBounds = frame.getImageBounds();
 		viewer.setCenterPixelLocation(imageBounds.x + imageBounds.width * .5, imageBounds.y + imageBounds.height * .5);
 		
 		// Set rotation

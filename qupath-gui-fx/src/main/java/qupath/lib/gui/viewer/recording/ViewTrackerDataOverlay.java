@@ -10,6 +10,7 @@ import java.awt.image.IndexColorModel;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,74 +108,101 @@ public class ViewTrackerDataOverlay{
 		
 		
 		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, createColorModel());
-		byte[] buffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
+		byte[] imgBuffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
+		float[] buffer = new float[imgBuffer.length];
 		
-		if (!timeNormalized) {
-			for (int i = 0; i < buffer.length; i++)
-				buffer[i] = (byte)downMax;
-		}
 
+		// Get max time (for normalization)
+		double maxValue;
 		if (timeNormalized) {
-			long[] bufferTest = new long[buffer.length];
-			Arrays.fill(bufferTest, 0);
-			long curMax = -1;
-			for (int nFrame = 0; nFrame < relevantFrames.length; nFrame++) {
-				var frame = relevantFrames[nFrame];
-				Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds(frame.getRotation()));
-				Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
-				for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
-					for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
-						if (x < 0 || x >= imgWidth || y < 0 || y >= imgHeight)
-							continue;
-						var nextTimeStamp = nFrame+1 < relevantFrames.length ? relevantFrames[nFrame+1].getTimestamp() : 0;
-						long value = (bufferTest[y*imgWidth + x] + frame.getTimestamp() - nextTimeStamp);
-						if (value > curMax)
-							curMax = value;
-						bufferTest[y*imgWidth + x] = value;
-					}
-				}
-			}
-			
-			// Normalize
-			for (int i = 0; i < bufferTest.length; i++)
-				buffer[i] = (byte)(bufferTest[i] / curMax * 255);
+			maxValue = IntStream.range(0, relevantFrames.length-1)
+					.map(index -> index < relevantFrames.length ? (int)(relevantFrames[index+1].getTimestamp() - relevantFrames[index].getTimestamp()) : 0)
+					.max()
+					.getAsInt();
 		} else {
-			double[] bufferTest = new double[buffer.length];
-			Arrays.fill(bufferTest, 0);
-			double curMin = downMax;
-			for (int nFrame = 0; nFrame < relevantFrames.length; nFrame++) {
-				var frame = relevantFrames[nFrame];
-				Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds(frame.getRotation()));
-				Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
-				for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
-					for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
-						if (frame.getRotation() != 0) {
-							var at = AffineTransform.getRotateInstance(frame.getRotation());
-							Point2D myPoint = new Point2D.Double(x, y);
-							var melvin = at.transform(myPoint, null);
-						}
-							
-						
-						if (x < 0 || x >= imgWidth || y < 0 || y >= imgHeight)
-							continue;
-						
-						if (downMax == downMin)
-							bufferTest[y*imgWidth + x] = 255;
-						
-						double value = downMax;
-							value = bufferTest[y*imgWidth + x] < frame.getDownFactor() ? frame.getDownFactor() : buffer[y*imgWidth + x];
-						if (value < curMin)
-							curMin = value;
-						bufferTest[y*imgWidth + x] = value;
-					}
-				}
-			}
-			
-			// Normalize
-			for (int i = 0; i < bufferTest.length; i++)
-				buffer[i] = (byte)(bufferTest[i] / curMin * 255);
+			maxValue = Arrays.asList(relevantFrames).stream()
+					.mapToDouble(e -> e.getDownFactor())
+					.max()
+					.getAsDouble();
 		}
 		
+		Arrays.fill(buffer, 0);
+		for (int nFrame = 0; nFrame < relevantFrames.length; nFrame++) {
+			var frame = relevantFrames[nFrame];
+			Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds());
+			if (frame.getRotation() == 0) {
+				Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
+				for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
+					for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
+						if (x < 0 || x >= imgWidth || y < 0 || y >= imgHeight)
+							continue;
+						if (nFrame < relevantFrames.length-1) {
+							if (timeNormalized)
+								buffer[y*imgWidth + x] += (int)(frame.getTimestamp() - relevantFrames[nFrame+1].getTimestamp());
+							else
+								buffer[y*imgWidth + x] = buffer[y*imgWidth + x] < maxValue-frame.getDownFactor() ? (float)(maxValue-frame.getDownFactor()) : buffer[y*imgWidth + x];
+						}
+						
+					}
+				}
+			} else {
+//				Shape shape = frame.getImageShape();
+//				PathIterator it = shape.getPathIterator(null);
+//				double[] segment = new double[6];
+//				int[] xs = new int[4];
+//				int[] ys = new int[4];
+//				for (int i = 0; i < 4; i++) {
+//					if (it.isDone())
+//						return null;
+//					
+//			        it.currentSegment(segment);
+//			        xs[i] = (int)Math.round(segment[0]/downsample);
+//			        ys[i] = (int)Math.round(segment[1]/downsample);
+//			        
+//			        it.next();
+//				}
+//				
+//				Polygon poly = new Polygon(xs, ys, 4);
+//				for (int x = 0; x < imgWidth; x++) {
+//					for (int y = 0; y < imgHeight; y++) {
+//						Point2D p = new Point2D.Double(x, y);
+//						if (poly.contains(p)) {
+//							if (timeNormalized && nFrame < relevantFrames.length-1)
+//								buffer[y*imgWidth + x] += (int)(frame.getTimestamp() - relevantFrames[nFrame+1].getTimestamp());
+//							else if (!timeNormalized)
+//								buffer[y*imgWidth + x] = buffer[y*imgWidth + x] < maxValue-frame.getDownFactor() ? (float)(maxValue-frame.getDownFactor()) : buffer[y*imgWidth + x];
+//						}
+//					}
+//				}
+				
+				// Iterating through x and y, checking if they're included in frame.getImageBounds() when rotated
+				AffineTransform transform = new AffineTransform();
+				Point2D center = frame.getFrameCentre();
+				transform.rotate(-frame.getRotation(), center.getX()/downsample, center.getY()/downsample);
+
+				for (int x = 0; x < imgWidth; x++) {
+					for (int y = 0; y < imgHeight; y++) {
+						Point2D[] pts = new Point2D[] {new Point2D.Double(x, y)};
+						transform.transform(pts, 0, pts, 0, 1);
+						if (downsampledBounds.contains(new Point2D.Double(x, y))) {
+							if (nFrame < relevantFrames.length-1 && new Rectangle(0, 0, imgWidth, imgHeight).contains(pts[0])) {
+								// Index of the rotated point in the buffer (flatten)
+								int index = ((int)pts[0].getY()*imgWidth + (int)pts[0].getX());
+								
+								// Update buffer
+								if (timeNormalized)
+									buffer[index] += (int)(frame.getTimestamp() - relevantFrames[nFrame+1].getTimestamp());
+								else
+									buffer[index] = buffer[index] < maxValue-frame.getDownFactor() ? (float)(maxValue-frame.getDownFactor()) : buffer[index];
+							}
+						}
+					}
+				}
+			}
+		}
+		// Normalize
+	    for (int i = 0; i < buffer.length; i++)
+	    	imgBuffer[i] = (byte)(buffer[i] / maxValue * 255);
 		return img;
 	}
 	
@@ -183,7 +211,7 @@ public class ViewTrackerDataOverlay{
 	}
 	
 	/**
-	 * Scales the coordinate of the given rectangle according to the 
+	 * Scales the coordinates of the given rectangle according to the 
 	 * {@code img}'s {@code downsample}.
 	 * @param bounds
 	 * @return
@@ -197,7 +225,7 @@ public class ViewTrackerDataOverlay{
 	}
 	
 	/**
-	 * Ensures that the coordinate of the given rectangle are within the
+	 * Ensures that the coordinates of the given rectangle are within the
 	 * bounds of {@code img}.
 	 * <p>
 	 * Note: bounds.x is used instead of bounds.getX() to avoid type casting.

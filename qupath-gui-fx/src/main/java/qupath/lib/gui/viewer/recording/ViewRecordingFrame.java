@@ -47,7 +47,7 @@ interface ViewRecordingFrame {
 	 * @param theta
 	 * @return
 	 */
-	Rectangle getImageBounds(double theta);
+	Rectangle getImageBounds();
 	
 	double getDownFactor();
 	

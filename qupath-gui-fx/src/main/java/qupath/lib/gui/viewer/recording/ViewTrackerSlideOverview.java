@@ -1,15 +1,14 @@
 package qupath.lib.gui.viewer.recording;
 
-import java.awt.Rectangle;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
-import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.WritableImage;
@@ -125,25 +124,21 @@ public class ViewTrackerSlideOverview {
 	
 	public void setVisibleShape(ViewRecordingFrame frame) {
 		double scale = (double)preferredWidth / viewer.getServer().getWidth();
-		double theta = frame.getRotation();
 		Shape shape = frame.getShape();
-//		Rectangle boundingBox = frame.getImageBounds(theta);
-//		Point2D center = frame.getFrameCentre();
-//		AffineTransform at = AffineTransform.getRotateInstance(theta, center.getX(), center.getY());
-//		Shape shape = at.createTransformedShape(boundingBox);
+		double theta = frame.getRotation();
 		
-		// TODO
-		if (transform == null) {
-//			transform = AffineTransform.getRotateInstance(theta, center.getX(), center.getY());
-//			shapeVisible = transform.createTransformedShape(boundingBox);
-//			transform.concatenate(AffineTransform.getScaleInstance(scale, scale));
-			transform = AffineTransform.getScaleInstance(scale, scale);
-		} else {
-			transform.setToScale(scale, scale);
-//			transform = AffineTransform.getRotateInstance(theta, center.getX(), center.getY());
-//			shapeVisible = transform.createTransformedShape(boundingBox);
-//			transform.setToScale(scale, scale);
+		if (transform == null)
+			transform = new AffineTransform();
+		else
+			transform.setToIdentity();
+		
+		transform.setToScale(scale, scale);
+		
+		if (theta != 0) {
+			var center = frame.getFrameCentre();
+			transform.rotate(-theta, center.getX(), center.getY());
 		}
+
 		shapeVisible = transform.createTransformedShape(shape);
 	}
 }

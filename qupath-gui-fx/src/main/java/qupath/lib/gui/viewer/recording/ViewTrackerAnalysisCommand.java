@@ -582,10 +582,10 @@ class ViewTrackerAnalysisCommand implements Runnable {
 	static Object getColumnValue(final ViewRecordingFrame frame, final String columnName) {
 		switch (columnName) {
 		case "Timestamp (ms)": return frame.getTimestamp();
-		case "X": return frame.getImageBounds(frame.getRotation()).x;
-		case "Y": return frame.getImageBounds(frame.getRotation()).y;
-		case "Width": return frame.getImageBounds(frame.getRotation()).width;
-		case "Height": return frame.getImageBounds(frame.getRotation()).height;
+		case "X": return frame.getImageBounds().x;
+		case "Y": return frame.getImageBounds().y;
+		case "Width": return frame.getImageBounds().width;
+		case "Height": return frame.getImageBounds().height;
 		case "Canvas width": return frame.getSize().width;
 		case "Canvas height": return frame.getSize().height;
 		case "Downsample factor": return frame.getDownFactor();
