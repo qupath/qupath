@@ -54,7 +54,6 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.omero.OmeroShapes.OmeroShape;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
-import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 
@@ -82,6 +81,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	
 	private final String host;
 	private final String scheme;
+	
+	private OmeroWebClient client;
 
 	/**
 	 * Quality of requested JPEG.
@@ -118,6 +119,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		this.uri = uri;
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
+		this.client = client;
 
 		String uriQuery = uri.getQuery();
 		if (uriQuery != null && !uriQuery.isEmpty() && uriQuery.startsWith("show=image-")) {
@@ -286,7 +288,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				scheme, host, -1, "/api/v0/m/rois/?image=" + id
 				);
 
-		var data = readPaginated(urlROIs);
+		var data = OmeroTools.readPaginated(urlROIs);
 		List<PathObject> list = new ArrayList<>();
 		var gson = new GsonBuilder().registerTypeAdapter(OmeroShape.class, new OmeroShapes.GsonShapeDeserializer()).setLenient().create();
 			
@@ -306,8 +308,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		}
 
 		return list;
-	}
-	
+	}	
 	
 	@Override
 	public String getServerType() {
@@ -326,38 +327,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	int getPreferredTileHeight() {
 		return getMetadata().getPreferredTileHeight();
 	}
-	
-    /**
-     * OMERO requests that return a list of items are paginated 
-     * (see <a href="https://docs.openmicroscopy.org/omero/5.6.1/developers/json-api.html#pagination">OMERO API docs</a>).
-     * Using this helper method ensures that all the requested data is retrieved.
-     * @param url
-     * @return list of {@code Json Element}s
-     * @throws IOException
-     */
-	// TODO: Consider using parallel/asynchronous requests
-    static List<JsonElement> readPaginated(URL url) throws IOException {
-        String symbol = (url.getQuery() != null && !url.getQuery().isEmpty()) ? "&" : "?";
-
-        InputStreamReader reader = new InputStreamReader(url.openStream());
-        JsonObject map = GsonTools.getInstance().fromJson(reader, JsonObject.class);
-        List<JsonElement> jsonList = new ArrayList<>();
-        map.get("data").getAsJsonArray().forEach(jsonList::add);
-        reader.close();
-
-        JsonObject meta = map.getAsJsonObject("meta");
-        int offset = 0;
-        int totalCount = meta.get("totalCount").getAsInt();
-        int limit = meta.get("limit").getAsInt();
-        while (offset + limit < totalCount) {
-            offset += limit;
-            URL nextURL = new URL(url + symbol + "offset=" + offset);
-            InputStreamReader newPageReader = new InputStreamReader(nextURL.openStream());
-            JsonObject newPageMap = GsonTools.getInstance().fromJson(newPageReader, JsonObject.class);
-            newPageMap.get("data").getAsJsonArray().forEach(jsonList::add);
-        }
-        return jsonList;
-    }
 
 	@Override
 	protected BufferedImage readTile(TileRequest request) throws IOException {
@@ -447,6 +416,38 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				getMetadata(),
 				uri,
 				args);
+	}
+	
+	/**
+	 * Return the web client used for this image server.
+	 * @return client
+	 */
+	public OmeroWebClient getWebClient() {
+		return client;
+	}
+	
+	/**
+	 * Return the OMERO ID of the image
+	 * @return id
+	 */
+	public String getId() {
+		return id;
+	}
+	
+	/**
+	 * Return the URI host used by this image server
+	 * @return host
+	 */
+	public String getHost() {
+		return host;
+	}
+	
+	/**
+	 * Return the URI scheme used by this image server
+	 * @return scheme
+	 */
+	public String getScheme() {
+		return scheme;
 	}
 
 }

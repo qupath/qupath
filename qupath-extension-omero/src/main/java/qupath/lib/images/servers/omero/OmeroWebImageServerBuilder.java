@@ -326,7 +326,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         case "project-":
         	for (String id: ids) {
         		URL request = new URL(uri.getScheme(), uri.getHost(), -1, "/api/v0/m/projects/" + id + "/datasets/");
-        		var data = OmeroWebImageServer.readPaginated(request);
+        		var data = OmeroTools.readPaginated(request);
         		
     			for (int i = 0; i < data.size(); i++) {
         			tempIds.add(data.get(i).getAsJsonObject().get("@id").getAsString());
@@ -339,7 +339,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         case "dataset-":
         	for (String id: ids) {
         		URL request = new URL(uri.getScheme(), uri.getHost(), -1, "/api/v0/m/datasets/" + id + "/images/");
-        		var data = OmeroWebImageServer.readPaginated(request);
+        		var data = OmeroTools.readPaginated(request);
         		
     			for (int i = 0; i < data.size(); i++) {
     				tempIds.add(data.get(i).getAsJsonObject().get("@id").getAsString());
@@ -554,6 +554,10 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		private <T> T parseJSON(Type type, String base, String... query)
 				throws JsonSyntaxException, MalformedURLException, IOException {
 			return (T) gson.fromJson(getJSONString(base, query), type);
+		}
+		
+		public String getToken() {
+			return token;
 		}
 
 	}
