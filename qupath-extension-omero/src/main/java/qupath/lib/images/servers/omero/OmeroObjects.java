@@ -62,6 +62,9 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		@SerializedName(value = "@id")
 		private int id = -1;
 		
+		@SerializedName(value = "Name")
+		private String name;
+		
 		@SerializedName(value = "@type")
 		private String type;
 		
@@ -73,6 +76,22 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		 */
 		public int getId() {
 			return id;
+		}
+		
+		/**
+		 * Return the name associated with this object
+		 * @return name
+		 */
+		public String getName() {
+			return name;
+		}
+		
+		/**
+		 * Return the OMERO type associated with this object
+		 * @return type
+		 */
+		public String getType() {
+			return this.type;
 		}
 		
 		/**
@@ -88,19 +107,25 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		}
 	}
 	
+	static class Server extends OmeroObjects.OmeroObject {
+		
+		Server(OmeroWebImageServer server) {
+			super.id = Integer.parseInt(server.getId());
+			super.type = "#server";
+			super.owner = null;
+		}
+	}
+	
 	static class Project extends OmeroObjects.OmeroObject {
 		
-		@SerializedName(value = "Name")
-		private String name;
-		
-		@SerializedName(value = "Decription")
+		@SerializedName(value = "Description")
 		private String description;
 		
 		@SerializedName("omero:childCount")
 		private int childCount;
 		
-		public String getName() {
-			return name;
+		public String getDescription() {
+			return description;
 		}
 		
 		public int getNChildren() {
@@ -109,17 +134,16 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 	}
 	
 	static class Dataset extends OmeroObjects.OmeroObject {
-		@SerializedName(value = "Name")
-		private String name;
 		
-		@SerializedName(value = "Decription")
+		@SerializedName(value = "Description")
 		private String description;
 		
 		@SerializedName("omero:childCount")
 		private int childCount;
+
 		
-		public String getName() {
-			return name;
+		public String getDescription() {
+			return description;
 		}
 		
 		public int getNChildren() {
@@ -129,6 +153,27 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 
 	static class Image extends OmeroObjects.OmeroObject {
 		
+		@SerializedName(value = "AcquisitionDate")
+		private long acquisitionDate = -1;
+		
+		@SerializedName(value = "Pixels")
+		private PixelInfo pixels;
+		
+		public long getAcquisitionDate() {
+			return acquisitionDate;
+		}
+		
+		public int[] getImageDimensions() {
+			return pixels.getImageDimensions();
+		}
+		
+		public PhysicalSize[] getPhysicalSizes() {
+			return pixels.getPhysicalSizes();
+		}
+		
+		public String getPixelType() {
+			return pixels.getPixelType();
+		}
 	}
 	
 	
@@ -156,12 +201,98 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 			return firstName + " " + (middleName.isEmpty() ? "" : middleName + " ") + lastName;
 		}
 		
+		private Owner(String firstName, String middleName, String lastName, String emailAddress, String institution, String username) {
+			this.firstName = firstName;
+			this.middleName = middleName;
+			this.lastName = lastName;
+			this.emailAddress = emailAddress;
+			this.institution = institution;
+			this.username = username;
+		}
+		
 		@Override
 		public String toString() {
 			List<String> list = new ArrayList<String>(Arrays.asList("Owner: " + getName(), emailAddress, institution, username));
 			list.removeAll(Collections.singleton(""));
 			return String.join(", ", list);
-			
+		}
+		
+		static public Owner getAllMembersOwner() {
+			return new Owner("All members", "", "", "", "", "");
 		}
 	}
+	
+	static class PixelInfo {
+		
+		@SerializedName(value = "SizeX")
+		private int width;
+		
+		@SerializedName(value = "SizeY")
+		private int height;
+		
+		@SerializedName(value = "SizeZ")
+		private int z;
+		
+		@SerializedName(value = "SizeC")
+		private int c;
+		
+		@SerializedName(value = "SizeT")
+		private int t;
+		
+		@SerializedName(value = "PhysicalSizeX")
+		private PhysicalSize physicalSizeX;
+		
+		@SerializedName(value = "PhysicalSizeY")
+		private PhysicalSize physicalSizeY;
+		
+		@SerializedName(value = "PhysicalSizeZ")
+		private PhysicalSize physicalSizeZ;
+		
+		@SerializedName(value = "Type")
+		private ImageType imageType;
+		
+		public int[] getImageDimensions() {
+			return new int[] {width, height, z, c, t};
+		}
+		
+		public PhysicalSize[] getPhysicalSizes() {
+			return new PhysicalSize[] {physicalSizeX, physicalSizeY, physicalSizeZ};
+		}
+		
+		public String getPixelType() {
+			return imageType.getValue();
+		}
+
+		
+	}
+	
+	static class PhysicalSize {
+		
+		@SerializedName(value = "Symbol")
+		private String symbol;
+		
+		@SerializedName(value = "Value")
+		private int value;
+		
+		
+		public String getSymbol() {
+			return symbol;
+		}
+			
+		public int getValue() {
+			return value;
+		}
+		
+	}
+	
+	static class ImageType {
+		
+		@SerializedName(value = "value")
+		private String value;
+		
+		public String getValue() {
+			return value;
+		}	
+	}
+	
 }

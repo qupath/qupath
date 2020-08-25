@@ -19,6 +19,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.io.GsonTools;
@@ -62,15 +65,16 @@ public class OmeroTools {
 	public static List<OmeroObject> getOmeroObjects(OmeroWebImageServer server, Class<? extends OmeroObject> clazz, String parentId) throws IOException {
 		String objectClass = "projects";
 		String parentClass = "";
+		parentId = parentId == "" || parentId == null ? "" : "=" + parentId;
 		if (clazz == OmeroObjects.Dataset.class) {
 			objectClass = "datasets";
-			parentClass = "project";
+			parentClass = parentId == "" || parentId == null ? "" : "&project";
 		} else if (clazz == OmeroObjects.Image.class) {
 			objectClass = "images";
-			parentClass = "dataset";
+			parentClass = parentId == "" || parentId == null ? "" : "&dataset";
 		}
 
-		var query = "?childCount=true" + (parentId != null ? "&" + parentClass + "=" + parentId : "");
+		var query = "?childCount=true" + (parentId != null ? parentClass + parentId : "");
 		URL url = new URL(server.getScheme(), server.getHost(), -1, "/api/v0/m/" + objectClass + "/" + query);
 		
 		var data = readPaginated(url);
@@ -87,8 +91,7 @@ public class OmeroTools {
 			}
 		}
 		return list;
-	}
-	
+	}	
 	
 	
 	/**
@@ -213,5 +216,24 @@ public class OmeroTools {
             newPageMap.get("data").getAsJsonArray().forEach(jsonList::add);
         }
         return jsonList;
+    }
+    
+    
+    static void promptBrowsingWindow(OmeroWebImageServer server) {
+    	Stage dialog = new Stage();
+		dialog.sizeToScene();
+			if (QuPathGUI.getInstance() != null)
+				dialog.initOwner(QuPathGUI.getInstance().getStage());
+		dialog.setTitle("OMERO web server");
+//		dialog.setAlwaysOnTop(true);
+		
+		OmeroWebImageServerBrowser browser = new OmeroWebImageServerBrowser(server);
+		
+		dialog.setScene(new Scene(browser.getPane()));
+		
+		dialog.showAndWait();
+		
+		
+    	
     }
 }
