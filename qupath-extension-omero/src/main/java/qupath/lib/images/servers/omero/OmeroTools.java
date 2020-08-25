@@ -22,7 +22,11 @@ import com.google.gson.JsonObject;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.images.servers.omero.OmeroObjects.Dataset;
+import qupath.lib.images.servers.omero.OmeroObjects.Image;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
+import qupath.lib.images.servers.omero.OmeroObjects.Project;
+import qupath.lib.images.servers.omero.OmeroObjects.Server;
 import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -53,23 +57,21 @@ public class OmeroTools {
 	/**
 	 * Get all the OMERO objects (inside the parent ID) present in the OMERO server from which 
 	 * the specified OmeroWebImageServer was created.
-	 * <p>
-	 * If {@code parentId} is {@code null}, all OMERO {@code clazz} objects in the server are retrieved.
 	 * 
 	 * @param server
-	 * @param clazz
-	 * @param parentId
-	 * @return
+	 * @param parent 
+	 * @return list of OmeroObjects
 	 * @throws IOException
 	 */
-	public static List<OmeroObject> getOmeroObjects(OmeroWebImageServer server, Class<? extends OmeroObject> clazz, String parentId) throws IOException {
+	public static List<OmeroObject> getOmeroObjects(OmeroWebImageServer server, OmeroObject parent) throws IOException {
+		String parentId = parent instanceof Server ? "" : parent.getId() + "";
 		String objectClass = "projects";
 		String parentClass = "";
 		parentId = parentId == "" || parentId == null ? "" : "=" + parentId;
-		if (clazz == OmeroObjects.Dataset.class) {
+		if (parent instanceof Project) {
 			objectClass = "datasets";
 			parentClass = parentId == "" || parentId == null ? "" : "&project";
-		} else if (clazz == OmeroObjects.Image.class) {
+		} else if (parent instanceof Dataset) {
 			objectClass = "images";
 			parentClass = parentId == "" || parentId == null ? "" : "&dataset";
 		}
@@ -83,9 +85,10 @@ public class OmeroTools {
 		for (var d: data) {
 			var gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
 			try {
-				var project = gson.fromJson(d, OmeroObject.class);
-				if (project != null)
-					list.add(project);
+				var omeroObj = gson.fromJson(d, OmeroObject.class);
+				omeroObj.setParent(parent);
+				if (omeroObj != null)
+					list.add(omeroObj);
 			} catch (Exception e) {
 				logger.error("Error parsing OMERO object: " + e.getLocalizedMessage(), e);
 			}

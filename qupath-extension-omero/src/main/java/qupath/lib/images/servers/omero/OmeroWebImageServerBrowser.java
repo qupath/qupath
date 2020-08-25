@@ -32,7 +32,6 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -43,10 +42,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.util.StringConverter;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.omero.OmeroObjects.Dataset;
 import qupath.lib.images.servers.omero.OmeroObjects.Image;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
@@ -171,6 +168,7 @@ public class OmeroWebImageServerBrowser {
 
         
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+			clearCanvas();
 			if (n != null) {
 				selectedObject = n.getValue();
 				updateDescription();
@@ -178,7 +176,6 @@ public class OmeroWebImageServerBrowser {
 					if (thumbnailBank.containsKey(selectedObject))
 						setThumbnail(thumbnailBank.get(selectedObject));
 					else {
-						clearCanvas(); // Clear canvas while it's loading next thumbnail
 						executor.submit(() -> {
 							try {
 								
@@ -190,6 +187,10 @@ public class OmeroWebImageServerBrowser {
 							}
 						});					
 					}					
+				} else {
+					// To avoid empty space at the top
+					canvas.setWidth(0);
+					canvas.setHeight(0);
 				}
 			}
 		});
@@ -243,15 +244,15 @@ public class OmeroWebImageServerBrowser {
 
 		} else if (selectedObject.getType().toLowerCase().endsWith("#image")) {
 			Image obj = (Image)selectedObject;
-			String acquisitionDate = obj.getAcquisitionDate() == -1 ? "" : new Date(obj.getAcquisitionDate()*1000).toString();
+			String acquisitionDate = obj.getAcquisitionDate() == -1 ? "-" : new Date(obj.getAcquisitionDate()*1000).toString();
 			String width = obj.getImageDimensions()[0] + " px";
 			String height = obj.getImageDimensions()[1] + " px";
 			String c = obj.getImageDimensions()[2] + "";
 			String z = obj.getImageDimensions()[3] + "";
 			String t = obj.getImageDimensions()[4] + "";
-			String pixelSizeX = obj.getPhysicalSizes()[0].getValue() + " " + obj.getPhysicalSizes()[0].getSymbol();
-			String pixelSizeY = obj.getPhysicalSizes()[1].getValue() + " " + obj.getPhysicalSizes()[1].getSymbol();
-			String pixelSizeZ = obj.getPhysicalSizes()[2] == null ? "" : obj.getPhysicalSizes()[2].getValue() + obj.getPhysicalSizes()[2].getSymbol();
+			String pixelSizeX = obj.getPhysicalSizes()[0] == null ? "-" : obj.getPhysicalSizes()[0].getValue() + " " + obj.getPhysicalSizes()[0].getSymbol();
+			String pixelSizeY = obj.getPhysicalSizes()[1] == null ? "-" : obj.getPhysicalSizes()[1].getValue() + " " + obj.getPhysicalSizes()[1].getSymbol();
+			String pixelSizeZ = obj.getPhysicalSizes()[2] == null ? "-" : obj.getPhysicalSizes()[2].getValue() + obj.getPhysicalSizes()[2].getSymbol();
 			String pixelType = obj.getPixelType();
 			outString = new String[] {name, owner, acquisitionDate, width, height, c, z, t, pixelSizeX, pixelSizeY, pixelSizeZ, pixelType};
 		}
@@ -337,7 +338,6 @@ public class OmeroWebImageServerBrowser {
 		public ObservableList<TreeItem<OmeroObject>> getChildren() {
 			if (!isLeaf() && !computed) {
 				List<OmeroObject> children;
-				Class<? extends OmeroObject> childrenType = Project.class;
 				if (this.getValue() instanceof Project) {
 					
 					// Check if we already have the Datasets for this Project (avoid sending request)
@@ -349,27 +349,24 @@ public class OmeroWebImageServerBrowser {
 						computed = true;
 						return super.getChildren();
 					}
-					childrenType = Dataset.class;
 				}
 				else if (this.getValue() instanceof Dataset) {
 					
 					// Check if we already have the Images for this Dataset (avoid sending request)
 					if (datasetMap.containsKey((Dataset)this.getValue())) {
-						var temp = datasetMap.get((Project)this.getValue()).stream()
+						var temp = datasetMap.get((Dataset)this.getValue()).stream()
 								.map(e -> new OmeroObjectTreeItem(e))
 								.collect(Collectors.toList());
 						super.getChildren().setAll(temp);
 						computed = true;
 						return super.getChildren();
 					}
-					childrenType = Image.class;
 				} else if (this.getValue() instanceof Image)
 					return FXCollections.observableArrayList(new ArrayList<TreeItem<OmeroObject>>());
 				
 				
 				try {
-					String id = this.getValue() instanceof OmeroObjects.Server ? "" : this.getValue().getId() + "";
-					children = OmeroTools.getOmeroObjects(server, childrenType, id);
+					children = OmeroTools.getOmeroObjects(server, this.getValue());
 					
 					// If Server, get all owner to populate comboOwner
 					if (this.getValue() instanceof Server) {
@@ -381,7 +378,7 @@ public class OmeroWebImageServerBrowser {
 						datasetMap.put(this.getValue(), children);
 					}
 				} catch (IOException e) {
-					logger.error("Couldn't fetch server information.", e.getLocalizedMessage());
+					logger.error("Couldn't fetch server information", e.getLocalizedMessage());
 					return null;
 				}
 				

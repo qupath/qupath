@@ -68,7 +68,9 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		@SerializedName(value = "@type")
 		private String type;
 		
-		private transient Owner owner;
+		private Owner owner;
+		
+		private OmeroObject parent;
 		
 		/**
 		 * Return the OMERO ID associated with this object
@@ -102,8 +104,28 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 			return owner;
 		}
 		
-		protected void setOwner(Owner owner) {
+		/**
+		 * Set the owner of this OMERO object
+		 * @param owner
+		 */
+		public void setOwner(Owner owner) {
 			this.owner = owner;
+		}
+		
+		/**
+		 * Return the parent of this object
+		 * @return parent
+		 */
+		public OmeroObject getParent() {
+			return parent;
+		}
+		
+		/**
+		 * Set the parent of this OMERO object
+		 * @param parent
+		 */
+		public void setParent(OmeroObject parent) {
+			this.parent = parent;
 		}
 		
 		/**
@@ -283,14 +305,14 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		private String symbol;
 		
 		@SerializedName(value = "Value")
-		private int value;
+		private double value;
 		
 		
 		public String getSymbol() {
 			return symbol;
 		}
 			
-		public int getValue() {
+		public double getValue() {
 			return value;
 		}
 		
