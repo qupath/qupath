@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -20,6 +22,7 @@ import javax.imageio.ImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -29,6 +32,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -38,8 +42,11 @@ import javafx.scene.control.TreeView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.util.StringConverter;
+import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.omero.OmeroObjects.Dataset;
 import qupath.lib.images.servers.omero.OmeroObjects.Image;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
@@ -60,9 +67,13 @@ public class OmeroWebImageServerBrowser {
 	OmeroObject selectedObject;
 	TextField filter = new TextField();
 	Canvas canvas;
-	int imgPrefSize = 64;
+	int imgPrefSize = 256;
 	
-//	Map<Project, List<Map<Dataset, List<Image>>>> serverMap = new HashMap<>();
+	Map<OmeroObject, BufferedImage> thumbnailBank = new HashMap<OmeroObject, BufferedImage>();	// To store thumbnails
+	
+	
+	Map<OmeroObject, List<OmeroObject>> projectMap = new HashMap<>();
+	Map<OmeroObject, List<OmeroObject>> datasetMap = new HashMap<>();
 	
 	String[] projectAttributes;
 	String[] datasetAttributes;
@@ -155,17 +166,30 @@ public class OmeroWebImageServerBrowser {
 			else return null;
 		});
 		
-		
-		
+		// Get thumbnails in separate thread
+		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
+
         
 		tree.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 			if (n != null) {
 				selectedObject = n.getValue();
 				updateDescription();
-				try {
-					getThumbnail(n.getValue().getId());
-				} catch (IOException e) {
-					logger.warn("Could not load thumbnail");
+				if (n.getValue() instanceof Image) {
+					if (thumbnailBank.containsKey(selectedObject))
+						setThumbnail(thumbnailBank.get(selectedObject));
+					else {
+						clearCanvas(); // Clear canvas while it's loading next thumbnail
+						executor.submit(() -> {
+							try {
+								
+								BufferedImage img = getThumbnail(n.getValue().getId());
+								thumbnailBank.put(selectedObject, img);
+								Platform.runLater( () -> setThumbnail(img));							
+							} catch (IOException e) {
+								logger.warn("Error loading thumbnail: " + e.getLocalizedMessage(), e);
+							}
+						});					
+					}					
 				}
 			}
 		});
@@ -193,8 +217,8 @@ public class OmeroWebImageServerBrowser {
 		
     	
     }
-    
-    
+
+
 	private void refreshTree() {
 		tree.setRoot(null);
 		tree.refresh();
@@ -209,12 +233,12 @@ public class OmeroWebImageServerBrowser {
 		String owner = selectedObject.getOwner().getName();
 		if (selectedObject.getType().toLowerCase().endsWith("#project")) {
 			String description = ((Project)selectedObject).getDescription();
-			String nChildren = ((Project)selectedObject).getNChildren() + "";
+			String nChildren = selectedObject.getNChildren() + "";
 			outString = new String[] {name, description, owner, nChildren};
 			
 		} else if (selectedObject.getType().toLowerCase().endsWith("#dataset")) {
 			String description = ((Dataset)selectedObject).getDescription();
-			String nChildren = ((Dataset)selectedObject).getNChildren() + "";
+			String nChildren = selectedObject.getNChildren() + "";
 			outString = new String[] {name, description, owner, nChildren};
 
 		} else if (selectedObject.getType().toLowerCase().endsWith("#image")) {
@@ -274,9 +298,9 @@ public class OmeroWebImageServerBrowser {
             	if (item.getType().toLowerCase().endsWith("server"))
             		name = server.getHost();
             	else if (item.getType().toLowerCase().endsWith("project"))
-            		name = item.getName() + " (" + ((Project)item).getNChildren() + ")";
+            		name = item.getName() + " (" + item.getNChildren() + ")";
             	else if (item.getType().toLowerCase().endsWith("dataset"))
-                	name = item.getName() + " (" + ((Dataset)item).getNChildren() + ")";
+                	name = item.getName() + " (" + item.getNChildren() + ")";
             	else
             		name = item.getName();
 
@@ -298,16 +322,48 @@ public class OmeroWebImageServerBrowser {
 			super(value);
 		}
 
+		/**
+		 * This method gets the children of the current tree item.
+		 * Only the currently expanded items will call this method.
+		 * <p>
+		 * If we have never seen the current tree item, a JSON request
+		 * will be sent to the OMERO API to get its children, this value 
+		 * will then be stored (cache). If we have seen this tree item 
+		 * before, it will simply return the stored value.
+		 * 
+		 * All stored values are in {@code projectMap} & {@code datasetMap}.
+		 */
 		@Override
 		public ObservableList<TreeItem<OmeroObject>> getChildren() {
 			if (!isLeaf() && !computed) {
 				List<OmeroObject> children;
 				Class<? extends OmeroObject> childrenType = Project.class;
-				if (this.getValue() instanceof Project)
+				if (this.getValue() instanceof Project) {
+					
+					// Check if we already have the Datasets for this Project (avoid sending request)
+					if (projectMap.containsKey((Project)this.getValue())) {
+						var temp = projectMap.get((Project)this.getValue()).stream()
+								.map(e -> new OmeroObjectTreeItem(e))
+								.collect(Collectors.toList());
+						super.getChildren().setAll(temp);
+						computed = true;
+						return super.getChildren();
+					}
 					childrenType = Dataset.class;
-				else if (this.getValue() instanceof Dataset)
+				}
+				else if (this.getValue() instanceof Dataset) {
+					
+					// Check if we already have the Images for this Dataset (avoid sending request)
+					if (datasetMap.containsKey((Dataset)this.getValue())) {
+						var temp = datasetMap.get((Project)this.getValue()).stream()
+								.map(e -> new OmeroObjectTreeItem(e))
+								.collect(Collectors.toList());
+						super.getChildren().setAll(temp);
+						computed = true;
+						return super.getChildren();
+					}
 					childrenType = Image.class;
-				else if (this.getValue() instanceof Image)
+				} else if (this.getValue() instanceof Image)
 					return FXCollections.observableArrayList(new ArrayList<TreeItem<OmeroObject>>());
 				
 				
@@ -319,8 +375,11 @@ public class OmeroWebImageServerBrowser {
 					if (this.getValue() instanceof Server) {
 						owners.add(Owner.getAllMembersOwner());
 						owners.addAll(children.stream().map(e -> e.getOwner()).filter(distinctByName(Owner::getName)).collect(Collectors.toList()));
+					} else if (this.getValue() instanceof Project) {
+						projectMap.put(this.getValue(), children);
+					} else if (this.getValue() instanceof Dataset) {
+						datasetMap.put(this.getValue(), children);
 					}
-					
 				} catch (IOException e) {
 					logger.error("Couldn't fetch server information.", e.getLocalizedMessage());
 					return null;
@@ -349,7 +408,13 @@ public class OmeroWebImageServerBrowser {
 		
 		@Override
 		public boolean isLeaf() {
-			return this.getValue().getType().toLowerCase().endsWith("image");
+			if (this.getValue().getType().toLowerCase().endsWith("#server"))
+				return false;
+			if (this.getValue().getType().toLowerCase().endsWith("#image"))
+				return true;
+			if (this.getValue().getNChildren() == 0)
+				return true;
+			return false;
 		}
 		
 		
@@ -365,26 +430,35 @@ public class OmeroWebImageServerBrowser {
 		}
 	}
 	
-	void getThumbnail(int id) throws IOException {
-		GraphicsContext gc = canvas.getGraphicsContext2D();
-		gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
-
-		
+	BufferedImage getThumbnail(int id) throws IOException {
 		URL url;
 		try {
 			url = new URL(server.getScheme(), server.getHost(), "/webgateway/render_thumbnail/" + id + "/" + imgPrefSize);
 		} catch (MalformedURLException e) {
 			logger.warn(e.getLocalizedMessage());
-			return;
+			return null;
 		}
 		
-		BufferedImage img = ImageIO.read(url);
-		
+		return ImageIO.read(url);
+	}
+	
+	void setThumbnail(BufferedImage img) {
+		GraphicsContext gc = canvas.getGraphicsContext2D();
+		gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
 		var wi =  SwingFXUtils.toFXImage(img, null);
 		if (wi == null)
 			return;
 		else
 			GuiTools.paintImage(canvas, wi);
+		
+		canvas.setWidth(imgPrefSize);
+		canvas.setHeight(imgPrefSize);
+	}
+	
+	private void clearCanvas() {
+		GraphicsContext gc = canvas.getGraphicsContext2D();
+		gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
 	}
 	
 	

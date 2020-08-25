@@ -105,6 +105,14 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		protected void setOwner(Owner owner) {
 			this.owner = owner;
 		}
+		
+		/**
+		 * Return the number of children associated with this object
+		 * @return nChildren
+		 */
+		public int getNChildren() {
+			return 0;
+		}
 	}
 	
 	static class Server extends OmeroObjects.OmeroObject {
@@ -124,12 +132,14 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		@SerializedName("omero:childCount")
 		private int childCount;
 		
-		public String getDescription() {
-			return description;
-		}
 		
+		@Override
 		public int getNChildren() {
 			return childCount;
+		}
+		
+		public String getDescription() {
+			return description;
 		}
 	}
 	
@@ -140,14 +150,15 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		
 		@SerializedName("omero:childCount")
 		private int childCount;
-
+		
+		
+		@Override
+		public int getNChildren() {
+			return childCount;
+		}
 		
 		public String getDescription() {
 			return description;
-		}
-		
-		public int getNChildren() {
-			return childCount;
 		}
 	}
 

@@ -496,6 +496,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			}
 		}
 
+		// TODO: Fix this method, connection is lost after a while
 		private int keepAlive() {
 			try {
 				logger.debug("Attempting to keep connection alive...");
