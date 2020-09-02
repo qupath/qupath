@@ -997,9 +997,6 @@ public class Commands {
 		final ViewTrackerControlPane controller = new ViewTrackerControlPane(qupath);
 		StackPane pane = new StackPane(controller.getNode());
 		dialog.setScene(new Scene(pane));
-		
-		// TODO: Remove below line and fix the alignment problem
-		pane.setStyle("-fx-background-color: blue;");
 
 		// Necessary for window resizing when expanding the TitledPane
 		controller.getTitledPane().heightProperty().addListener((v, o, n) -> dialog.sizeToScene());

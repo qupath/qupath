@@ -23,8 +23,6 @@
 
 package qupath.lib.gui.viewer.recording;
 
-import java.awt.Rectangle;
-import java.awt.geom.Point2D;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -97,6 +96,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 	private ViewTracker tracker;
 	private ImageServer<?> server;
 	private ObjectProperty<ViewRecordingFrame> currentFrame = new SimpleObjectProperty<>();
+	private BooleanProperty isActive = new SimpleBooleanProperty(true);
 	
 	private Stage dialog;
 	private SplitPane mainPane;
@@ -570,6 +570,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		
 		dialog.setOnHiding(e -> {
 			viewer.getCustomOverlayLayers().clear();
+			isActive.set(false);
 		});
 		
 		dialog.show();
@@ -676,6 +677,10 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		viewer.getCustomOverlayLayers().setAll(trackerDataOverlay.getOverlay());
 		// Update the slideOverview
 		slideOverview.setOverlay(trackerDataOverlay.getOverlay());
+	}
+	
+	BooleanProperty getActiveProperty() {
+		return isActive;
 	}
 	
 	

@@ -23,7 +23,6 @@
 
 package qupath.lib.gui.viewer.recording;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,10 +58,12 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Region;
 import javafx.scene.control.TableColumn.CellDataFeatures;
+import javafx.scene.control.TableRow;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.util.Callback;
@@ -75,7 +76,6 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.images.ImageData;
 
 /**
@@ -86,6 +86,7 @@ import qupath.lib.images.ImageData;
  * @author Pete Bankhead
  */
 // TODO: Restrict the number of times we can call the controller to 1
+// TODO: Prevent recordings with 0 frame from being saved
 public class ViewTrackerControlPane {
 	
 	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerControlPane.class);
@@ -110,6 +111,8 @@ public class ViewTrackerControlPane {
 	
 	private List<ViewTracker> trackersList;
 	private ViewTracker tracker;
+	
+	private BooleanProperty isAnalysisActive = new SimpleBooleanProperty(false);
 	
 	private CheckMenuItem miTrackCursor = new CheckMenuItem("Track cursor");
 	private CheckMenuItem miTrackActiveTool = new CheckMenuItem("Track active tool");
@@ -166,7 +169,7 @@ public class ViewTrackerControlPane {
 					populateTrackersList(qupath);
 				
 				// Make sure titledPane is not clickable if no ImageData
-				titledPane.disableProperty().bind(viewer.imageDataProperty().isNull());
+				titledPane.disableProperty().bind(Bindings.or(viewer.imageDataProperty().isNull(), isAnalysisActive));
 				refreshListView();
 			}
 		};
@@ -192,7 +195,7 @@ public class ViewTrackerControlPane {
 					populateTrackersList(qupath);
 				
 				// Make sure titledPane is not clickable if no ImageData
-				titledPane.disableProperty().bind(viewer.imageDataProperty().isNull());
+				titledPane.disableProperty().bind(Bindings.or(viewer.imageDataProperty().isNull(), isAnalysisActive));
 				refreshListView();
 			}
 		};
@@ -282,17 +285,20 @@ public class ViewTrackerControlPane {
 			refreshListView();
 		});
 		Button moreBtn = new Button("More...");
-		moreBtn.setOnAction(e -> new ViewTrackerAnalysisCommand(this, viewer, table.getSelectionModel().getSelectedItem()).run());
+		moreBtn.setOnAction(e -> openViewTrackingAnalysisCommand());
 		
 		// Add all buttons to GridPane
-		GridPane btnPane =PaneTools.createColumnGrid(3);
+		GridPane btnPane = PaneTools.createColumnGrid(3);
+		exportBtn.setMaxWidth(Double.MAX_VALUE);
+		deleteBtn.setMaxWidth(Double.MAX_VALUE);
+		moreBtn.setMaxWidth(Double.MAX_VALUE);
 		btnPane.addRow(0, exportBtn, deleteBtn, moreBtn);
 		
 		
 		// Disable all buttons if no recording is selected, disable 'Export' and 'More' if multiple selection
-		exportBtn.disableProperty().bind(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not());
-		deleteBtn.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
-		moreBtn.disableProperty().bind(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not());
+		exportBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisActive));
+		deleteBtn.disableProperty().bind(Bindings.or(table.getSelectionModel().selectedItemProperty().isNull(), isAnalysisActive));
+		moreBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisActive));
 //		btnPane.getChildren().forEach(e -> e.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull()));
 		
 		// Disable playback button if no ViewTracker is selected
@@ -344,7 +350,16 @@ public class ViewTrackerControlPane {
 			e.setDropCompleted(true);
 			e.consume();
         });
-
+		
+		// Handle the double-click
+		table.setRowFactory(e -> {
+		    TableRow<ViewTracker> recordingRow = new TableRow<>();
+		    recordingRow.setOnMouseClicked(event -> {
+		        if (event.getClickCount() == 2 && (!recordingRow.isEmpty()))
+		        	openViewTrackingAnalysisCommand();
+		    });
+		    return recordingRow;
+		});
 		
 		for (int i = 0; i < columnNames.length; i++) {
 			final int col = i;
@@ -366,7 +381,6 @@ public class ViewTrackerControlPane {
 		miTrackActiveTool = new CheckMenuItem("Track active tool");
 		miTrackEye = new CheckMenuItem("Track eye position");
 		
-		// Binding the properties doesn't 'save' the settings (as if it didn't call propertry.set(value)?)
 		miTrackCursor.selectedProperty().addListener((v, o, n) -> cursorTrackingProperty.set(n));
 		miTrackActiveTool.selectedProperty().addListener((v, o, n) -> activeToolTrackingProperty.set(n));
 		miTrackEye.selectedProperty().addListener((v, o, n) -> eyeTrackingProperty.set(n));
@@ -380,21 +394,29 @@ public class ViewTrackerControlPane {
 		ContextMenu menu = new ContextMenu(miTrackCursor, miTrackActiveTool, miTrackEye);
 		Button optionBtn = GuiTools.createMoreButton(menu, Side.RIGHT);
 		
+		// Toggle buttons to play/record and stop
+		ToggleButton toggleRecord = ActionUtils.createToggleButton(actionRecord, ActionTextBehavior.HIDE);
+		ToggleButton togglePlayback = ActionUtils.createToggleButton(actionPlayback, ActionTextBehavior.HIDE);
+		
 		// Separator and duration indicator on top of window
 		duration = new Label("");
 		duration.setVisible(false);
+		
 		Separator separator = new Separator();
 		duration.visibleProperty().bind(recordingMode);
 		separator.visibleProperty().bind(recordingMode);
 		iconRecording.visibleProperty().bind(recordingMode);
-		optionBtn.disableProperty().bind(recordingMode);
-
+		
+		optionBtn.disableProperty().bind(Bindings.or(recordingMode, isAnalysisActive));
+		toggleRecord.disableProperty().bind(isAnalysisActive);
+		togglePlayback.disableProperty().bind(isAnalysisActive);
+		table.disableProperty().bind(isAnalysisActive);
 
 		GridPane topButtonGrid = new GridPane();
 		topButtonGrid.setHgap(10);
 		topButtonGrid.addRow(0,
-				ActionUtils.createToggleButton(actionRecord, ActionTextBehavior.HIDE),
-				ActionUtils.createToggleButton(actionPlayback, ActionTextBehavior.HIDE),
+				toggleRecord,
+				togglePlayback,
 				separator,
 				iconRecording,
 				duration,
@@ -410,6 +432,12 @@ public class ViewTrackerControlPane {
 		mainPane.setMaxSize(200, 300);
 	}
 
+
+	private void openViewTrackingAnalysisCommand() {
+		ViewTrackerAnalysisCommand activeTracker = new ViewTrackerAnalysisCommand(this, viewer, table.getSelectionModel().getSelectedItem());
+		isAnalysisActive.bind(activeTracker.getActiveProperty());
+		activeTracker.run();
+	}
 
 	private void populateTrackersList(QuPathGUI qupath) {
 		var entry = qupath.getProject().getEntry(viewer.getImageData());

@@ -30,7 +30,6 @@ public class ViewTrackerSlideOverview {
 	
 	private int preferredWidth = 250; // Preferred component/image width - used for thumbnail scaling
 	
-	private WritableImage imgPreview;
 	private static Color color = Color.rgb(200, 0, 0, .8);
 	private Shape shapeVisible = null; // The visible shape (transformed already)
 	private AffineTransform transform = null;
@@ -45,7 +44,7 @@ public class ViewTrackerSlideOverview {
 			return;
 
 		int preferredHeight = (int)(img.getHeight() * (double)(preferredWidth / (double)img.getWidth()));
-		imgPreview = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
+		var imgPreview = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
 		canvas.setWidth(imgPreview.getWidth());
 		canvas.setHeight(imgPreview.getHeight());
 		paintCanvas();
@@ -62,18 +61,17 @@ public class ViewTrackerSlideOverview {
 			return;
 		}
 		
-		if (overlay == null) {
-			// Ensure the image has been set
-			setImage(viewer.getRGBThumbnail());
-			g.drawImage(imgPreview, 0, 0);
-		} else {
-			
-			setImage(overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition())));
-			g.drawImage(imgPreview, 0, 0);
-		}
+		// Set img
+		img = viewer.getRGBThumbnail();
+		
+		// Draw image
+		drawImage(g, img);
+		
+		
+		// Draw overlay on top of image
+		if (overlay != null)
+			drawImage(g, overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition())));
 
-		
-		
 		// Draw the currently-visible region, if we have a viewer and it isn't 'zoom to fit' (in which case everything is visible)
 		if (!viewer.getZoomToFit() && shapeVisible != null) {
 			g.setStroke(color);
@@ -108,10 +106,10 @@ public class ViewTrackerSlideOverview {
 		
 	}
 	
-	private void setImage(BufferedImage imgThumbnail) {
-		img = imgThumbnail;
+	private void drawImage(GraphicsContext g, BufferedImage imgToDraw) {
 		int preferredHeight = (int)(img.getHeight() * (double)(preferredWidth / (double)img.getWidth()));
-		imgPreview = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
+		var imgPreview = GuiTools.getScaledRGBInstance(imgToDraw, preferredWidth, preferredHeight);
+		g.drawImage(imgPreview, 0, 0);
 		
 	}
 	

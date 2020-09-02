@@ -58,7 +58,7 @@ public class ViewTrackerDataOverlay{
 		int index = 0;
 		double divider = preferredDownsamples[0];
 		while ((long)imgWidth * imgHeight > 2000 * 2000) {
-			// compute downsample to reach img within pixel limit (2k * 2k)
+			// Compute downsample to reach img within pixel limit (2k * 2k)
 			index++;
 			if (index >= preferredDownsamples.length)
 				divider = preferredDownsamples[preferredDownsamples.length-1]*2;
@@ -185,9 +185,14 @@ public class ViewTrackerDataOverlay{
 						Point2D[] pts = new Point2D[] {new Point2D.Double(x, y)};
 						transform.transform(pts, 0, pts, 0, 1);
 						if (downsampledBounds.contains(new Point2D.Double(x, y))) {
-							if (nFrame < relevantFrames.length-1 && new Rectangle(0, 0, imgWidth, imgHeight).contains(pts[0])) {
+							//if (nFrame < relevantFrames.length-1 && new Rectangle(0, 0, imgWidth, imgHeight).contains(pts[0])) {
+							if (nFrame < relevantFrames.length-1) {
 								// Index of the rotated point in the buffer (flatten)
-								int index = ((int)pts[0].getY()*imgWidth + (int)pts[0].getX());
+								int index = (int)(Math.round(pts[0].getY())*imgWidth + Math.round(pts[0].getX()));
+								
+								// Precision errors means that it could potentially go over edges
+								if (index < 0 || index > buffer.length)
+									continue;
 								
 								// Update buffer
 								if (timeNormalized)
@@ -236,7 +241,7 @@ public class ViewTrackerDataOverlay{
 		int x = bounds.x < 0 ? 0 : bounds.x < imgWidth ? bounds.x : imgWidth;
 		int y = bounds.y < 0 ? 0 : bounds.y < imgHeight ? bounds.y : imgHeight;
 		int width = bounds.width < 0 ? 0 : (bounds.width + x > imgWidth ? imgWidth - x : bounds.width);
-		int height = bounds.height < 0 ? 0 : (bounds.height + x > imgHeight ? imgHeight - y : bounds.height);
+		int height = bounds.height < 0 ? 0 : (bounds.height + y > imgHeight ? imgHeight - y : bounds.height);
 		return new Rectangle(x, y, width, height);
 	}
 	
