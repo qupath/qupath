@@ -77,7 +77,8 @@ public class IconFactory {
 	 * Default icons for QuPath commands.
 	 */
 	@SuppressWarnings("javadoc")
-	public static enum PathIcons {	ANNOTATIONS("\ue901", PathPrefs.colorDefaultObjectsProperty()),
+	public static enum PathIcons {	ACTIVE_SERVER("\ue915", ColorToolsFX.getCachedColor(0, 200, 0)),
+									ANNOTATIONS("\ue901", PathPrefs.colorDefaultObjectsProperty()),
 									ANNOTATIONS_FILL("\ue900", PathPrefs.colorDefaultObjectsProperty()),
 									
 									BRUSH_TOOL("\ue902", PathPrefs.colorDefaultObjectsProperty()),
@@ -98,6 +99,8 @@ public class IconFactory {
 									SELECTION_MODE("S"),
 									
 									GRID("\ue90b"),
+									
+									INACTIVE_SERVER("\ue915", ColorToolsFX.getCachedColor(200, 0, 0)),
 									
 									LINE_TOOL("\ue90c", PathPrefs.colorDefaultObjectsProperty()),
 									LOCATION("\ue90d"),

@@ -23,11 +23,9 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.omero.OmeroObjects.Dataset;
-import qupath.lib.images.servers.omero.OmeroObjects.Image;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
 import qupath.lib.images.servers.omero.OmeroObjects.Project;
 import qupath.lib.images.servers.omero.OmeroObjects.Server;
-import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathDetectionObject;
@@ -56,7 +54,11 @@ public class OmeroTools {
 	
 	/**
 	 * Get all the OMERO objects (inside the parent ID) present in the OMERO server from which 
-	 * the specified OmeroWebImageServer was created.
+	 * the specified OmeroWebImageServer was created. 
+	 * <p>
+	 * If the parent object is an {@code OmeroObjects.Server},
+	 * orphaned {@code OmeroObjects.Dataset}s and {@code OmeroObjects.Image}s will also be 
+	 * returned.
 	 * 
 	 * @param server
 	 * @param parent 
@@ -91,6 +93,27 @@ public class OmeroTools {
 					list.add(omeroObj);
 			} catch (Exception e) {
 				logger.error("Error parsing OMERO object: " + e.getLocalizedMessage(), e);
+			}
+		}
+		
+		// If parent is Server, get orphaned Datasets and Images
+		if (parent instanceof Server) {
+			URL urlOrphanedDatasets = new URL(server.getScheme(), server.getHost(), -1, "/api/v0/m/datasets/?childCount=true&orphaned=true");
+			URL urlOrphanedImages = new URL(server.getScheme(), server.getHost(), -1, "/api/v0/m/images/?childCount=true&orphaned=true");
+			
+			var orphanedData = readPaginated(urlOrphanedDatasets);
+			orphanedData.addAll(readPaginated(urlOrphanedImages));
+			
+			for (var d: orphanedData) {
+				var gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
+				try {
+					var omeroObj = gson.fromJson(d, OmeroObject.class);
+					omeroObj.setParent(parent);
+					if (omeroObj != null)
+						list.add(omeroObj);
+				} catch (Exception e) {
+					logger.error("Error parsing OMERO object: " + e.getLocalizedMessage(), e);
+				}
 			}
 		}
 		return list;
@@ -225,18 +248,16 @@ public class OmeroTools {
     static void promptBrowsingWindow(OmeroWebImageServer server) {
     	Stage dialog = new Stage();
 		dialog.sizeToScene();
-			if (QuPathGUI.getInstance() != null)
-				dialog.initOwner(QuPathGUI.getInstance().getStage());
+		QuPathGUI qupath = QuPathGUI.getInstance();
+		if (qupath != null)
+			dialog.initOwner(QuPathGUI.getInstance().getStage());
 		dialog.setTitle("OMERO web server");
 //		dialog.setAlwaysOnTop(true);
 		
-		OmeroWebImageServerBrowser browser = new OmeroWebImageServerBrowser(server);
+		OmeroWebImageServerBrowser browser = new OmeroWebImageServerBrowser(qupath, server);
 		
 		dialog.setScene(new Scene(browser.getPane()));
 		
 		dialog.showAndWait();
-		
-		
-    	
     }
 }

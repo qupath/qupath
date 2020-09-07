@@ -53,7 +53,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.omero.OmeroShapes.OmeroShape;
-import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 
@@ -254,6 +253,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 			builder.preferredTileSize(tileSize[0], tileSize[1]);
 		}
 
+		client.addImageServer(this);
 		originalMetadata = builder.build();
 	}
 

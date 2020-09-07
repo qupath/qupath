@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,11 +90,17 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		}
 		
 		/**
+		 * Return the URL associated with this object
+		 * @return url
+		 */
+		public abstract String getAPIURLString();
+		
+		/**
 		 * Return the OMERO type associated with this object
 		 * @return type
 		 */
 		public String getType() {
-			return this.type;
+			return type;
 		}
 		
 		/**
@@ -135,25 +142,57 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		public int getNChildren() {
 			return 0;
 		}
+		
+		@Override
+	    public int hashCode() {
+	        return Objects.hash(id);
+	    }
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this)
+	            return true;
+			
+			if (!(obj instanceof OmeroObject))
+				return false;
+			
+			return id == ((OmeroObject)obj).getId();
+		}
 	}
 	
 	static class Server extends OmeroObjects.OmeroObject {
+		
+		String url;
 		
 		Server(OmeroWebImageServer server) {
 			super.id = Integer.parseInt(server.getId());
 			super.type = "#server";
 			super.owner = null;
+			url = server.getURIs().toString();
+		}
+
+		@Override
+		public String getAPIURLString() {
+			return url;
 		}
 	}
 	
 	static class Project extends OmeroObjects.OmeroObject {
 		
+		@SerializedName(value = "url:project")
+		private String url;
+		
 		@SerializedName(value = "Description")
 		private String description;
 		
-		@SerializedName("omero:childCount")
+		@SerializedName(value = "omero:childCount")
 		private int childCount;
 		
+		
+		@Override
+		public String getAPIURLString() {
+			return url;
+		}
 		
 		@Override
 		public int getNChildren() {
@@ -167,12 +206,20 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 	
 	static class Dataset extends OmeroObjects.OmeroObject {
 		
+		@SerializedName(value = "url:dataset")
+		private String url;
+		
 		@SerializedName(value = "Description")
 		private String description;
 		
-		@SerializedName("omero:childCount")
+		@SerializedName(value = "omero:childCount")
 		private int childCount;
 		
+		
+		@Override
+		public String getAPIURLString() {
+			return url;
+		}
 		
 		@Override
 		public int getNChildren() {
@@ -186,11 +233,20 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 
 	static class Image extends OmeroObjects.OmeroObject {
 		
+		@SerializedName(value = "url:image")
+		private String url;
+		
 		@SerializedName(value = "AcquisitionDate")
 		private long acquisitionDate = -1;
 		
 		@SerializedName(value = "Pixels")
 		private PixelInfo pixels;
+		
+		
+		@Override
+		public String getAPIURLString() {
+			return url;
+		}
 		
 		public long getAcquisitionDate() {
 			return acquisitionDate;
