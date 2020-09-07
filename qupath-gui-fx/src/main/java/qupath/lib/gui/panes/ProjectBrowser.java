@@ -734,9 +734,21 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 
 		var entry = ProjectCommands.addSingleImageToProject(project, imageData.getServer(), null);
 		if (entry != null) {
+			boolean expanded = tree.getRoot() != null && tree.getRoot().isExpanded();
 			tree.setRoot(model.getRootFX());
 			setSelectedEntry(tree, tree.getRoot(), project.getEntry(imageData));
 			syncProject(project);
+			if (expanded)
+				tree.getRoot().setExpanded(true);
+			// Copy the ImageData to the current entry
+			if (!entry.hasImageData()) {
+				try {
+					logger.info("Copying ImageData to {}", entry);
+					entry.saveImageData(imageData);
+				} catch (IOException e) {
+					logger.error("Unable to save ImageData: " + e.getLocalizedMessage(), e);
+				}
+			}
 		}
 	}
 
