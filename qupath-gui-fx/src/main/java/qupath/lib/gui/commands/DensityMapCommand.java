@@ -24,11 +24,13 @@ package qupath.lib.gui.commands;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.function.DoubleToIntFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -58,17 +60,21 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import qupath.imagej.tools.IJTools;
+import qupath.lib.analysis.algorithms.ContourTracing;
 import qupath.lib.analysis.heatmaps.DensityMap;
+import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
@@ -77,6 +83,7 @@ import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
@@ -84,7 +91,12 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
 
 
 /**
@@ -95,6 +107,8 @@ import qupath.lib.roi.ROIs;
 public class DensityMapCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DensityMapCommand.class);
+	
+	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.makeRGB(200, 120, 20));
 	
 	private QuPathGUI qupath;
 	private Map<QuPathViewer, DensityMapDialog> dialogMap = new WeakHashMap<>();
@@ -130,7 +144,8 @@ public class DensityMapCommand implements Runnable {
 		stage.show();
 	}
 	
-	static enum DensityMapType {
+	
+	private static enum DensityMapType {
 		
 		DETECTIONS_CLASSIFIED,
 		POSITIVE_PERCENTAGE;
@@ -158,18 +173,27 @@ public class DensityMapCommand implements Runnable {
 		private Stage stage;
 		
 		private ComboBox<DensityMapType> comboType = new ComboBox<>();
+		private ObservableValue<DensityMapType> densityType = comboType.getSelectionModel().selectedItemProperty();
+		
 		private ComboBox<PathClass> comboPrimary = new ComboBox<>(qupath.getAvailablePathClasses());
+		private ObservableValue<PathClass> selectedClass = comboPrimary.getSelectionModel().selectedItemProperty();
 
 		private ComboBox<ColorMap> comboColorMap = new ComboBox<>();
+		private ObservableValue<ColorMap> colorMap = comboColorMap.getSelectionModel().selectedItemProperty();
+		
+		private ComboBox<ImageInterpolation> comboInterpolation = new ComboBox<>();
+		private ObservableValue<ImageInterpolation> interpolation = comboInterpolation.getSelectionModel().selectedItemProperty();
 
 		private DoubleProperty pixelSize = new SimpleDoubleProperty(-1);
-		private DoubleProperty radius = new SimpleDoubleProperty(0.0);
+		private DoubleProperty radius = new SimpleDoubleProperty(10.0);
 
 		private DoubleProperty gamma = new SimpleDoubleProperty(1.0);
 
 		private DoubleProperty minDisplay = new SimpleDoubleProperty(0);
 		private DoubleProperty maxDisplay = new SimpleDoubleProperty(100);
 		private BooleanProperty autoUpdateDisplayRange = new SimpleBooleanProperty(true);
+		
+		private BooleanProperty autoUpdate = new SimpleBooleanProperty(true);
 		
 		private DensityMap densityMap;
 		private BufferedImageOverlay overlay;
@@ -183,14 +207,21 @@ public class DensityMapCommand implements Runnable {
 			comboType.getItems().setAll(DensityMapType.values());
 			comboType.getSelectionModel().select(DensityMapType.DETECTIONS_CLASSIFIED);
 			
+			comboInterpolation.getItems().setAll(ImageInterpolation.values());
+			comboInterpolation.getSelectionModel().select(ImageInterpolation.NEAREST);
+			
 			var pane = new GridPane();
 			int row = 0;
 			
-			var labelTitle = new Label("Generate density map");
+			var labelTitle = new Label("Customize map data");
 			labelTitle.setStyle("-fx-font-weight: bold;");
 			labelTitle.setPadding(new Insets(0, 0, 5, 0));
 			PaneTools.addGridRow(pane, row++, 0, null, labelTitle, labelTitle, labelTitle);
-					
+
+//			var labelDescription = new Label("These options change how the density map is calculated.");
+//			labelDescription.setAlignment(Pos.CENTER);
+//			PaneTools.addGridRow(pane, row++, 0, null, labelDescription, labelDescription, labelDescription);
+
 			PaneTools.addGridRow(pane, row++, 0, "Select type of density map.\n"
 					+ "Use 'Detections' to look for the density of all detections with any classication.\n"
 					+ "Use 'Positive %' specifically if your detections are classified as positive & negative and you want to find a high density that is positive.", new Label("Map type"), comboType, comboType);
@@ -209,10 +240,17 @@ public class DensityMapCommand implements Runnable {
 			var labelColor = new Label("Customize appearance");
 			labelColor.setStyle("-fx-font-weight: bold;");
 			labelColor.setPadding(new Insets(5, 0, 5, 0));
+			labelColor.setPadding(new Insets(10, 0, 0, 0));
 			PaneTools.addGridRow(pane, row++, 0, null, labelColor, labelColor, labelColor);
+			
+//			var labelAppearance = new Label("These options change the appearance of the density map only.");
+//			labelAppearance.setAlignment(Pos.CENTER);
+//			PaneTools.addGridRow(pane, row++, 0, null, labelAppearance, labelAppearance, labelAppearance);
 			
 			PaneTools.addGridRow(pane, row++, 0, "Choose the colormap to use for display", new Label("Colormap"), comboColorMap, comboColorMap);
 			
+			PaneTools.addGridRow(pane, row++, 0, "Choose how the density map should be interpolated (this impacts the visual smoothness, especially if the density radius is small)", new Label("Interpolation"), comboInterpolation, comboInterpolation);
+
 			var slideMin = new Slider(0, maxDisplay.get(), minDisplay.get());
 			slideMin.valueProperty().bindBidirectional(minDisplay);
 			slideMin.setBlockIncrement(0.1);
@@ -237,11 +275,18 @@ public class DensityMapCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Control how the opacity of the density map changes between low & high values.\n"
 					+ "Choose zero for an opaque map.", new Label("Gamma"), sliderGamma, tfGamma);
 			
-			var cbAutoUpdate = new CheckBox("Auto-update display range");
-			cbAutoUpdate.selectedProperty().bindBidirectional(autoUpdateDisplayRange);
+			var cbAutoUpdateDisplayRange = new CheckBox("Use full display range");
+			cbAutoUpdateDisplayRange.selectedProperty().bindBidirectional(autoUpdateDisplayRange);
 			PaneTools.addGridRow(pane, row++, 0, "Automatically set the minimum & maximum display range for the colormap.", 
-					cbAutoUpdate, cbAutoUpdate, cbAutoUpdate);
+					cbAutoUpdateDisplayRange, cbAutoUpdateDisplayRange, cbAutoUpdateDisplayRange);
+			cbAutoUpdateDisplayRange.setPadding(new Insets(0, 0, 10, 0));
 			
+			
+			var btnAutoUpdate = new ToggleButton("Auto-update");
+			btnAutoUpdate.setSelected(autoUpdate.get());
+			btnAutoUpdate.selectedProperty().bindBidirectional(autoUpdate);
+			
+			PaneTools.addGridRow(pane, row++, 0, "Automatically update the heatmap. Turn this off if changing parameters and heatmap generation is slow.", btnAutoUpdate, btnAutoUpdate, btnAutoUpdate);
 			
 			double tfw = 80;
 			tfRadius.setMaxWidth(tfw);
@@ -255,34 +300,37 @@ public class DensityMapCommand implements Runnable {
 
 			refresh();
 						
-			comboType.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> requestUpdate(true));
-			comboPrimary.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> requestUpdate(true));
-			comboColorMap.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> requestUpdate(false));
+			densityType.addListener((v, o, n) -> requestUpdate(true));
+			selectedClass.addListener((v, o, n) -> requestUpdate(true));
+			colorMap.addListener((v, o, n) -> requestUpdate(false));
 			radius.addListener((v, o, n) -> requestUpdate(true));
 			gamma.addListener((v, o, n) -> requestUpdate(false));
+			minDisplay.addListener((v, o, n) -> requestUpdate(false));
 			maxDisplay.addListener((v, o, n) -> requestUpdate(false));
-			
+			interpolation.addListener((v, o, n) -> updateInterpolation());
+			autoUpdate.addListener((v, o, n) -> autoUpdateChanged(n));
+			autoUpdateDisplayRange.addListener((v, o, n) -> requestUpdate(false));
 			
 			var btnHotspots = new Button("Find hotspots");
 			btnHotspots.setTooltip(new Tooltip("Find the hotspots in the density map with highest values"));
 			btnHotspots.setOnAction(e -> promptToFindHotspots());
 			
+			var btnContours = new Button("Threshold regions");
+			btnContours.setTooltip(new Tooltip("Threshold to identify high-density regions"));
+			btnContours.setOnAction(e -> promptToTraceContours());
+			
 			var btnExport = new Button("Export map");
 			btnExport.setTooltip(new Tooltip("Export the density map as an image"));
 			btnExport.setOnAction(e -> promptToSaveImage());
 			
-//			var btnSendToIJ = new Button("Send to ImageJ");
-//			btnSendToIJ.setTooltip(new Tooltip("Send the density map to ImageJ"));
-//			btnSendToIJ.setOnAction(e -> sendToImageJ());
-			
-			var buttonPane = PaneTools.createColumnGrid(btnHotspots, btnExport);
+			var buttonPane = PaneTools.createColumnGrid(btnHotspots, btnContours, btnExport);
 			buttonPane.setHgap(5);
 			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
-			PaneTools.setToExpandGridPaneWidth(btnHotspots, btnExport);
-			buttonPane.setPadding(new Insets(5, 0, 0, 0));
+			PaneTools.setToExpandGridPaneWidth(btnHotspots, btnExport, btnContours);
 			
-			PaneTools.setToExpandGridPaneWidth(comboType, comboPrimary, comboColorMap, sliderRadius, sliderGamma, buttonPane);
+			PaneTools.setToExpandGridPaneWidth(comboType, comboPrimary, comboColorMap, comboInterpolation, btnAutoUpdate, sliderRadius, sliderGamma, buttonPane);
 			
+			pane.setHgap(5);
 			pane.setVgap(5);
 			pane.setPadding(new Insets(10));
 
@@ -320,7 +368,18 @@ public class DensityMapCommand implements Runnable {
 			return stage;
 		}
 		
+		private void autoUpdateChanged(boolean doAutoUpdate) {
+			// Make sure our request isn't thwarted by existing flags
+			requestFullUpdate = false;
+			requestQuickUpdate = false;
+			if (doAutoUpdate) {
+				requestUpdate(true);
+			}
+		}
+		
 		private void requestUpdate(boolean fullUpdate) {
+			if (!autoUpdate.get())
+				return;
 			if (requestFullUpdate || (requestQuickUpdate && !fullUpdate))
 				return;
 			requestFullUpdate = fullUpdate;
@@ -329,7 +388,6 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 		public void promptToFindHotspots() {
-			// TODO: Implement finding hotspots
 			
 			var imageData = viewer.getImageData();
 			if (imageData == null || densityMap == null) {
@@ -341,67 +399,100 @@ public class DensityMapCommand implements Runnable {
 			boolean allowOverlapping = false;
 			if (response == null)
 				return;
+			
 			int n = response.intValue();
 			
-			var imgValues = densityMap.getValues();
-			var fp = IJTools.convertToFloatProcessor(imgValues);
-			var maxima = new MaximumFinder().getMaxima(fp, 1e-6, false);
-			
-			var region = densityMap.getRegion();
-			double downsample = region.getDownsample();
-			List<PointWithValue> points = new ArrayList<>();
-			for (int i = 0; i < maxima.npoints; i++) {
-				double val = fp.getf(maxima.xpoints[i], maxima.ypoints[i]);
-				double x = maxima.xpoints[i] * downsample + region.getX();
-				double y = maxima.ypoints[i] * downsample + region.getY();
-				points.add(new PointWithValue(x, y, val));
-			}
-			points.sort(Comparator.comparingDouble((PointWithValue p) -> p.value).reversed().thenComparingDouble(p -> p.y).thenComparingDouble(p -> p.x));
-			
-			var accepted = new ArrayList<PointWithValue>();
-			double radiusPixels = radius.get() / imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
-			int i = 0;
-			while (accepted.size() < n && i < points.size()) {
-				var p = points.get(i);
-				boolean tooClose = false;
-				if (!allowOverlapping) {
-					for (var p2 : accepted) {
-						if (p.distance(p2) <= radiusPixels * 2) {
-							tooClose = true;
-							break;
-						}
-					}
-				}
-				if (!tooClose)
-					accepted.add(p);
-				i++;
-			}
-			
-			var annotations = new ArrayList<PathObject>();
-			var plane = region.getPlane();
-			var baseClass = comboPrimary.getSelectionModel().getSelectedItem();
-			PathClass hotspotClass = PathClassFactory.getPathClass("Hotspot", ColorTools.makeRGB(200, 120, 20));
+			PathClass hotspotClass = DEFAULT_HOTSPOT_CLASS;
+			PathClass baseClass = selectedClass.getValue();
 			if (PathClassTools.isValidClass(baseClass)) {
 				hotspotClass = PathClassTools.mergeClasses(baseClass, hotspotClass);
 			}
-			for (var p : accepted) {
-				var roi = ROIs.createEllipseROI(p.x-radiusPixels, p.y-radiusPixels, radiusPixels*2, radiusPixels*2, plane);
-				annotations.add(PathObjects.createAnnotationObject(roi, hotspotClass));
-			}
 			
-			if (annotations.size() < n) {
-				if (annotations.size() == 1)
-					Dialogs.showErrorNotification(title, "I could only find one hotspot!");
-				else
-					Dialogs.showErrorNotification(title, "I could only find " + annotations.size() + " hotspots!");
-			}
+			var finder = new PeakFinder(densityMap.getValues())
+					.region(densityMap.getRegion())
+					.calibration(imageData.getServer().getPixelCalibration())
+					.peakClass(hotspotClass)
+					.minimumSeparation(allowOverlapping ? -1 : radius.get() * 2)
+					.withinROI(true)
+					.radius(radius.get());
+
+			var hierarchy = imageData.getHierarchy();
 			
 			// Remove existing hotspots with the same classification
-			var hierarchy = imageData.getHierarchy();
-			var hotspotClassTemp = hotspotClass;
-			var existing = hierarchy.getAnnotationObjects().stream().filter(a -> a.getPathClass() == hotspotClassTemp).collect(Collectors.toList());
+			var existing = hierarchy.getAnnotationObjects().stream().filter(a -> a.getPathClass() == finder.pathClass).collect(Collectors.toList());
 			hierarchy.removeObjects(existing, true);
-			hierarchy.addPathObjects(annotations);
+
+			var selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+			if (selected.isEmpty())
+				selected.add(imageData.getHierarchy().getRootObject());
+
+			for (var parent : selected) {
+				var hotspots = finder.createObjects(parent.getROI(), n);
+				parent.addPathObjects(hotspots);
+			}
+			
+			hierarchy.fireHierarchyChangedEvent(finder);
+		}
+		
+		
+		
+		private void updateInterpolation() {
+			if (overlay != null) {
+				overlay.setInterpolation(interpolation.getValue());
+				viewer.repaint();
+			}
+		}
+		
+		
+		public void promptToTraceContours() {
+			
+			if (densityMap == null) {
+				Dialogs.showErrorMessage(title, "No density map is available!");
+				return;
+			}
+			
+			var imageData = viewer.getImageData();
+			if (imageData == null) {
+				Dialogs.showErrorMessage(title, "No image available!");
+				return;
+			}
+			
+			var params = new ParameterList()
+					.addDoubleParameter("threshold", "Density threshold", maxDisplay.get(), null, "Define the density threshold to detection regions")
+					.addBooleanParameter("split", "Split regions", false, "Split disconnected regions into separate annotations")
+//					.addBooleanParameter("erode", "Erode by radius", false, "Erode ROIs by the density radius")
+					;
+			
+			if (!Dialogs.showParameterDialog("Trace contours from density map", params))
+				return;
+			
+			var image = densityMap.getValues();
+			var threshold = params.getDoubleParameterValue("threshold");
+			boolean doSplit = params.getBooleanParameterValue("split");
+//			boolean doErode = params.getBooleanParameterValue("erode");
+			var roi = ContourTracing.createTracedROI(image, threshold, Double.POSITIVE_INFINITY, densityMap.getRegion());
+//			if (roi != null && doErode) {
+//				double radiusPixels = radius.get()/imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
+//				roi = RoiTools.buffer(roi, -radiusPixels);
+//			}
+			if (roi == null || roi.isEmpty()) {
+				Dialogs.showWarningNotification(title, "No regions found!");
+				return;
+			}
+			// TODO: Change hotspot class name, and generate class with another method
+			var baseClass = selectedClass.getValue();
+			PathClass hotspotClass = DEFAULT_HOTSPOT_CLASS;
+			if (PathClassTools.isValidClass(baseClass)) {
+				hotspotClass = PathClassTools.mergeClasses(baseClass, hotspotClass);
+			}
+			
+			var annotations = new ArrayList<PathObject>();
+			if (doSplit) {
+				for (var r : RoiTools.splitROI(roi))
+					annotations.add(PathObjects.createAnnotationObject(r, hotspotClass));
+			} else
+				annotations.add(PathObjects.createAnnotationObject(roi, hotspotClass));
+			imageData.getHierarchy().addPathObjects(annotations);
 		}
 		
 		
@@ -482,9 +573,17 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		public void updateHeatmap() {
-			if (requestFullUpdate || densityMap == null)
-				densityMap = calculateHeatmap();
-			overlay = createOverlay(densityMap);
+			try {
+				if (requestFullUpdate || densityMap == null) {
+					densityMap = calculateHeatmap();
+				}
+				overlay = createOverlay(densityMap);
+			} catch (Exception e) {
+				Dialogs.showErrorNotification(title, "Error creating density map: " + e.getLocalizedMessage());
+				logger.error(e.getLocalizedMessage(), e);
+				overlay = null;
+				densityMap = null;
+			}
 			if (Platform.isFxApplicationThread()) {
 				viewer.setCustomPixelLayerOverlay(overlay);
 			} else
@@ -506,7 +605,7 @@ public class DensityMapCommand implements Runnable {
 			if (pixelSize.get() > 0)
 				builder.pixelSize(pixelSize.get());
 			
-			var mapType = comboType.getSelectionModel().getSelectedItem();
+			var mapType = densityType.getValue();
 			var pathClass = comboPrimary.getSelectionModel().getSelectedItem();
 			if (PathClassTools.isValidClass(pathClass)) {
 				if (mapType == DensityMapType.POSITIVE_PERCENTAGE)
@@ -519,6 +618,7 @@ public class DensityMapCommand implements Runnable {
 				else
 					builder.density(PathObjectFilter.DETECTIONS_ALL);
 			}
+			builder.pixelSize(10);
 			
 			builder.radius(radius.get());
 			
@@ -582,7 +682,7 @@ public class DensityMapCommand implements Runnable {
 			img = BufferedImageTools.ensureBufferedImageType(img, BufferedImage.TYPE_INT_ARGB);
 			
 			var overlay = new BufferedImageOverlay(viewer, img);
-			overlay.setInterpolation(ImageInterpolation.BILINEAR);
+			overlay.setInterpolation(comboInterpolation.getSelectionModel().getSelectedItem());
 			return overlay;
 		}
 
@@ -695,6 +795,282 @@ public class DensityMapCommand implements Runnable {
 			i++;
 		}
 		return new MinMaxLoc(minInd, minVal, maxInd, maxVal);
+	}
+	
+	
+	/**
+	 * Find peaks in 2D images.
+	 * 
+	 * @author Pete Bankhead
+	 */
+	static class PeakFinder {
+		
+		private final static Logger logger = LoggerFactory.getLogger(PeakFinder.class);
+				
+		private PixelCalibration cal = PixelCalibration.getDefaultInstance();
+		
+		private RegionRequest region;
+		private SimpleImage imgValues;
+		private SimpleImage imgMask;
+		
+		private boolean mergeROIs = false;
+		private double minimumSeparation = -1;
+		
+		private boolean constrainWithinROI = true;
+		
+		private Function<ROI, PathObject> objectFun = r -> PathObjects.createAnnotationObject(r);
+		
+		private double radius;
+		
+		private PathClass pathClass = null;
+		
+		/**
+		 * Create a new {@link PeakFinder} to identify peaks in the provided image.
+		 * @param imgValues
+		 */
+		public PeakFinder(SimpleImage imgValues) {
+			this.imgValues = imgValues;
+		}
+		
+		/**
+		 * Define region for the image. This can be used to adjust the coordinates of any 
+		 * identified ROIs to match the full image space.
+		 * @param region
+		 * @return this finder
+		 */
+		public PeakFinder region(RegionRequest region) {
+			this.region = region;
+			return this;
+		}
+		
+//		public HotspotFinder values(SimpleImage imgValues) {
+//			this.imgValues = imgValues;
+//			return this;
+//		}
+		
+		/**
+		 * Define a mask; hotspots will not be found where pixel values are 0.
+		 * @param imgMask
+		 * @return this finder
+		 */
+		public PeakFinder mask(SimpleImage imgMask) {
+			this.imgMask = imgMask;
+			return this;
+		}
+		
+		/**
+		 * Optionally merge detected ROIs. This is most useful when radius == 0, to control whether 
+		 * a multipoint ROI is created or multiple single-point ROIs.
+		 * @param doMerge
+		 * @return this finder
+		 */
+		public PeakFinder mergeROIs(boolean doMerge) {
+			this.mergeROIs = doMerge;
+			return this;
+		}
+		
+		/**
+		 * Define the function that creates objects for {@link #createObjects(ROI, int)}.
+		 * Default is to create annotation objects; this method may be used to create detections (or other objects) instead.
+		 * @param objectFun
+		 * @return this finder
+		 */
+		public PeakFinder objectCreator(Function<ROI, PathObject> objectFun) {
+			this.objectFun = objectFun;
+			return this;
+		}
+		
+		/**
+		 * Define the pixel width and height in (unspecified) calibrated units.
+		 * This relates to the full-resolution image; if a region with downsample is defined, the pixel size 
+		 * will be scaled accordingly.
+		 * @param pixelSize
+		 * @return this finder
+		 */
+		public PeakFinder pixelSize(double pixelSize) {
+			return calibration(PixelCalibration.getDefaultInstance().createScaledInstance(pixelSize, pixelSize));
+		}
+		
+		/**
+		 * Define the hotspot radius in calibrated units. If &le; 0, point ROIs will be created. Otherwise, ellipse ROIs will be created.
+		 * @param radius
+		 * @return this finder
+		 */
+		public PeakFinder radius(double radius) {
+			if (!Double.isFinite(radius) || radius < 0) {
+				logger.warn("Invalid radius {}, will use 0 instead", radius);
+				this.radius = 0;
+			} else
+				this.radius = radius;
+			return this;
+		}
+		
+		/**
+		 * Define the pixel calibration for the corresponding full-resolution image.
+		 * This means that if a region with downsample is defined, the pixel size will be scaled accordingly.
+		 * @param cal
+		 * @return this finder
+		 */
+		public PeakFinder calibration(PixelCalibration cal) {
+			this.cal = cal;
+			return this;
+		}
+		
+		/**
+		 * Define the minimum separation between hotspot centroids. In general, this should be If &le; 0 (i.e. hotspots may overlap) or 
+		 * radius x 2 (hotspots should not overlap).
+		 * @param minimumSeparation
+		 * @return this finder
+		 */
+		public PeakFinder minimumSeparation(double minimumSeparation) {
+			this.minimumSeparation = minimumSeparation;
+			return this;
+		}
+		
+		/**
+		 * Optionally constrain hotspots to be fully-contained within any provided ROI.
+		 * This is relevant if the radius &gt; 0.
+		 * @param constrainToROI
+		 * @return this finder
+		 */
+		public PeakFinder withinROI(boolean constrainToROI) {
+			this.constrainWithinROI = constrainToROI;
+			return this;
+		}
+		
+		/**
+		 * Classification to apply to hotspots when using {@link #createObjects(ROI, int)}.
+		 * @param hotspotClass
+		 * @return this finder
+		 */
+		public PeakFinder peakClass(PathClass hotspotClass) {
+			this.pathClass = hotspotClass;
+			return this;
+		}
+		
+		/**
+		 * Find peaks as ROIs.
+		 * @param roi optional ROI within which peaks should be found
+		 * @param nPeaks total number of requested peaks (usually 1)
+		 * @return a list of peak ROIs (ellipses or points, depending upon radius)
+		 */
+		public List<ROI> createROIs(ROI roi, int nPeaks) {
+			
+			// TODO: Consider using morphological reconstruction and H-maxima instead
+			var fp = IJTools.convertToFloatProcessor(imgValues);
+			var maxima = new MaximumFinder().getMaxima(fp, 1e-6, false);
+			
+			double downsample = 1;
+			double offsetX = 0;
+			double offsetY = 0;
+			double maxX = imgValues.getWidth() * downsample;
+			double maxY = imgValues.getHeight() * downsample;
+			ImagePlane plane = ImagePlane.getDefaultPlane();
+			if (region != null) {
+				downsample = region.getDownsample();
+				offsetX = region.getX();
+				offsetY = region.getY();
+				maxX = region.getMaxX();
+				maxY = region.getMaxY();
+				plane = region.getPlane();
+			}
+			
+			double pixelSize = cal == null ? 1 : cal.getAveragedPixelSize().doubleValue();
+			double radiusPixels = radius / pixelSize;
+			double minimumSeparationPixels = minimumSeparation > 0 ? minimumSeparation / pixelSize : -1; 
+			
+			ROI roiMask = roi;
+			if (constrainWithinROI) {
+				if (roiMask == null) {
+					roiMask = ROIs.createRectangleROI(offsetX+radiusPixels, offsetY+radiusPixels, maxX-radiusPixels, maxY-radiusPixels, plane);
+				} else if (radiusPixels != 0) {
+					roiMask = RoiTools.buffer(roiMask, -radiusPixels);
+				}
+			}
+			if (roiMask.isEmpty()) {
+				logger.error("ROI is too small - no hotspots can be found with radius " + radius);
+				return Collections.emptyList();
+			}
+			
+			List<PointWithValue> points = new ArrayList<>();
+			for (int i = 0; i < maxima.npoints; i++) {
+				if (imgMask != null && imgMask.getValue(maxima.xpoints[i], maxima.ypoints[i]) == 0f)
+					continue;
+				
+				double val = fp.getf(maxima.xpoints[i], maxima.ypoints[i]);
+				double x = (maxima.xpoints[i]+0.5) * downsample + offsetX;
+				double y = (maxima.ypoints[i]+0.5) * downsample + offsetY;
+				
+				if (roiMask == null || roiMask.contains(x, y))
+					points.add(new PointWithValue(x, y, val));
+			}
+			points.sort(Comparator.comparingDouble((PointWithValue p) -> p.value).reversed().thenComparingDouble(p -> p.y).thenComparingDouble(p -> p.x));
+			
+			var accepted = new ArrayList<PointWithValue>();
+			int i = 0;
+			while (accepted.size() < nPeaks && i < points.size()) {
+				var p = points.get(i);
+				boolean tooClose = false;
+				if (minimumSeparationPixels > 0) {
+					for (var p2 : accepted) {
+						if (p.distance(p2) <= radiusPixels * 2) {
+							tooClose = true;
+							break;
+						}
+					}
+				}
+				if (!tooClose)
+					accepted.add(p);
+				i++;
+			}
+			
+			if (accepted.isEmpty()) {
+				logger.warn("No hotspots found matching the search criteria!");
+				return Collections.emptyList();
+			}
+			if (accepted.size() < nPeaks) {
+				logger.warn("I could only find {}/{} hotspots", accepted.size(), nPeaks);
+			}
+			
+			var plane2 = plane;
+			if (radiusPixels > 0) {
+				var rois = accepted.stream().map(p -> ROIs.createEllipseROI(p.x-radiusPixels, p.y-radiusPixels, radiusPixels*2, radiusPixels*2, plane2)).collect(Collectors.toList());
+				if (mergeROIs)
+					return Collections.singletonList(RoiTools.union(rois));
+				else
+					return rois;
+			} else {
+				if (mergeROIs) {
+					return Collections.singletonList(
+							ROIs.createPointsROI(accepted.stream().map(p -> new Point2(p.x, p.y)).collect(Collectors.toList()), plane2)
+							);
+				} else
+					return accepted.stream().map(p -> ROIs.createPointsROI(p.x, p.y, plane2)).collect(Collectors.toList());
+			}
+		}
+		
+		private PathObject createObject(ROI roi) {
+			var pathObject = objectFun.apply(roi);
+			pathObject.setPathClass(pathClass);
+			return pathObject;
+		}
+		
+		
+		/**
+		 * Create peaks as objects.
+		 * @param roi optional ROI within which peaks should be found
+		 * @param nPeaks total number of requested peaks (usually 1)
+		 * @return a list of peak objects
+		 * 
+		 * @see #createROIs(ROI, int)
+		 * @see #objectCreator(Function)
+		 */
+		public List<PathObject> createObjects(ROI roi, int nPeaks) {
+			return createROIs(roi, nPeaks).stream().map(r -> createObject(r)).collect(Collectors.toList());
+			
+		}
+		
+		
 	}
 	
 	

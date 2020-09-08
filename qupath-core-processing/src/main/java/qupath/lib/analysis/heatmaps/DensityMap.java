@@ -27,6 +27,7 @@ import java.util.function.DoubleFunction;
 import java.util.function.Predicate;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -211,12 +212,12 @@ public interface DensityMap {
 					if (primaryObjects.test(pathObject)) {
 						int x = (int)(pathObject.getROI().getCentroidX() / downsample);
 						int y = (int)(pathObject.getROI().getCentroidY() / downsample);
-						idx.put(y, x, 0, idx.get(y, x, 0) + 1f);
+						idx.put(y, x, 0, idx.get(y, x, 0) + 1);
 					}
 					if (allObjects != null && allObjects.test(pathObject)) {
 						int x = (int)(pathObject.getROI().getCentroidX() / downsample);
 						int y = (int)(pathObject.getROI().getCentroidY() / downsample);
-						idx.put(y, x, 1, idx.get(y, x, 1) + 1f);
+						idx.put(y, x, 1, idx.get(y, x, 1) + 1);
 					}
 				}
 			}
@@ -230,22 +231,21 @@ public interface DensityMap {
 //				opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_REPLICATE);
 				opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_CONSTANT);
 			}
-//			OpenCVTools.matToImagePlus(mat, "after").show();
 			
-			float minValue = 1e-12f;
-			if (nChannels > 1) {
-				// Compute ratio, while retaining zeros
-				try (FloatIndexer idx = mat.createIndexer()) {
-					for (int y = 0; y < height; y++) {
-						for (int x = 0; x < width; x++) {
-							float primary = idx.get(y, x, 0);
-							float total = idx.get(y, x, 1);
-							if (total <= minValue) {
-								idx.put(y, x, 0, 0f);
-							} else
-								idx.put(y, x, 0, primary/total*100f);
-						}						
-					}
+			// Compute ratios (if required) & apply rounding
+			// The rounding is needed because floating point errors can be introduced during the filtering 
+			// (probably connected to FFT?) - and int filtering won't necessarily work for all kernel sizes
+			boolean twoChannels = nChannels > 1;
+			try (FloatIndexer idx = mat.createIndexer()) {
+				for (int y = 0; y < height; y++) {
+					for (int x = 0; x < width; x++) {
+						float primary = Math.round(idx.get(y, x, 0));
+						idx.put(y, x, 0, primary);
+						if (twoChannels) {
+							float total = Math.round(idx.get(y, x, 1));
+							idx.put(y, x, 0, primary/total*100f);
+						}
+					}						
 				}
 			}
 			

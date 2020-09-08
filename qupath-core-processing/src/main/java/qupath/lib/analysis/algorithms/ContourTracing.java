@@ -81,9 +81,9 @@ public class ContourTracing {
 	 * @param request region request used to translate and rescale to the image space, and determine the image plane
 	 * @return a ROI created by tracing pixel values &ge; minThresholdInclusive and &le; maxThresholdInclusive
 	 * 
-	 * @see #createTracedGeometry(Raster, float, float, int, RegionRequest)
+	 * @see #createTracedGeometry(Raster, double, double, int, RegionRequest)
 	 */
-	public static ROI createTracedROI(Raster raster, float minThresholdInclusive, float maxThresholdInclusive, int band, RegionRequest request) {
+	public static ROI createTracedROI(Raster raster, double minThresholdInclusive, double maxThresholdInclusive, int band, RegionRequest request) {
 		var geom = createTracedGeometry(raster, minThresholdInclusive, maxThresholdInclusive, band, request);
 		return GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
 	}
@@ -97,9 +97,9 @@ public class ContourTracing {
 	 * @param request region request used to translate and rescale to the image space, and determine the image plane
 	 * @return a ROI created by tracing pixel values &ge; minThresholdInclusive and &le; maxThresholdInclusive
 	 * 
-	 * @see #createTracedGeometry(SimpleImage, float, float, RegionRequest)
+	 * @see #createTracedGeometry(SimpleImage, double, double, RegionRequest)
 	 */
-	public static ROI createTracedROI(SimpleImage image, float minThresholdInclusive, float maxThresholdInclusive, RegionRequest request) {
+	public static ROI createTracedROI(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, RegionRequest request) {
 		var geom = createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request);
 		return GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
 	}
@@ -113,7 +113,7 @@ public class ContourTracing {
 	 * @param request optional region request; if provided, the geometry will be translated and rescaled to the image space
 	 * @return a polygonal geometry created by tracing pixel values &ge; minThresholdInclusive and &le; maxThresholdInclusive
 	 */
-	public static Geometry createTracedGeometry(SimpleImage image, float minThresholdInclusive, float maxThresholdInclusive, RegionRequest request) {
+	public static Geometry createTracedGeometry(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, RegionRequest request) {
 		
 		// If we are translating but not rescaling, we can do this during tracing
 		double xOffset = 0;
@@ -148,7 +148,7 @@ public class ContourTracing {
 	 * @param request optional region request; if provided, the geometry will be translated and rescaled to the image space
 	 * @return a polygonal geometry created by tracing pixel values &ge; minThresholdInclusive and &le; maxThresholdInclusive
 	 */
-	public static Geometry createTracedGeometry(Raster raster, float minThresholdInclusive, float maxThresholdInclusive, int band, RegionRequest request) {
+	public static Geometry createTracedGeometry(Raster raster, double minThresholdInclusive, double maxThresholdInclusive, int band, RegionRequest request) {
 		
 		var pixels = raster.getSamples(0, 0, raster.getWidth(), raster.getHeight(), band, (float[])null);
 		var image = SimpleImages.createFloatImage(pixels, raster.getWidth(), raster.getHeight());
@@ -168,10 +168,10 @@ public class ContourTracing {
 	public static class ChannelThreshold {
 		
 		private final int channel;
-		private final float minThreshold;
-		private final float maxThreshold;
+		private final double minThreshold;
+		private final double maxThreshold;
 		
-		private ChannelThreshold(int channel, float minThreshold, float maxThreshold) {
+		private ChannelThreshold(int channel, double minThreshold, double maxThreshold) {
 			this.channel = channel;
 			this.minThreshold = minThreshold;
 			this.maxThreshold = maxThreshold;
@@ -195,7 +195,7 @@ public class ContourTracing {
 		 * @param maxThreshold maximum value (inclusive)
 		 * @return
 		 */
-		public static ChannelThreshold create(int channel, float minThreshold, float maxThreshold) {
+		public static ChannelThreshold create(int channel, double minThreshold, double maxThreshold) {
 			return new ChannelThreshold(channel, minThreshold, maxThreshold);
 		}
 
@@ -205,8 +205,8 @@ public class ContourTracing {
 		 * @param minThreshold the minimum threshold to apply
 		 * @return
 		 */
-		public static ChannelThreshold createAbove(int channel, float minThreshold) {
-			return new ChannelThreshold(channel, minThreshold, Float.POSITIVE_INFINITY);
+		public static ChannelThreshold createAbove(int channel, double minThreshold) {
+			return new ChannelThreshold(channel, minThreshold, Double.POSITIVE_INFINITY);
 		}
 
 		/**
@@ -215,8 +215,8 @@ public class ContourTracing {
 		 * @param maxThreshold the maximum threshold to apply
 		 * @return
 		 */
-		public static ChannelThreshold createBelow(int channel, float maxThreshold) {
-			return new ChannelThreshold(channel, Float.NEGATIVE_INFINITY, maxThreshold);
+		public static ChannelThreshold createBelow(int channel, double maxThreshold) {
+			return new ChannelThreshold(channel, Double.NEGATIVE_INFINITY, maxThreshold);
 		}
 		
 		/**
@@ -225,7 +225,7 @@ public class ContourTracing {
 		 * @param threshold the threshold value
 		 * @return
 		 */
-		public static ChannelThreshold createExactly(int channel, float threshold) {
+		public static ChannelThreshold createExactly(int channel, double threshold) {
 			return new ChannelThreshold(channel, threshold, threshold);
 		}
 
@@ -233,7 +233,7 @@ public class ContourTracing {
 		 * Get the minimum threshold value. This may be {@link Float#NEGATIVE_INFINITY} if no minimum threshold is required.
 		 * @return
 		 */
-		public float getMinThreshold() {
+		public double getMinThreshold() {
 			return minThreshold;
 		}
 		
@@ -241,7 +241,7 @@ public class ContourTracing {
 		 * Get the maximum threshold value. This may be {@link Float#POSITIVE_INFINITY} if no minimum threshold is required.
 		 * @return
 		 */
-		public float getMaxThreshold() {
+		public double getMaxThreshold() {
 			return maxThreshold;
 		}
 		
@@ -601,7 +601,7 @@ public class ContourTracing {
 	
 	
 	
-	private static boolean selected(float v, float min, float max) {
+	private static boolean selected(double v, double min, double max) {
 		return v >= min && v <= max;
 	}
 	
@@ -622,7 +622,7 @@ public class ContourTracing {
 	 * @param yOffset
 	 * @return
 	 */
-	private static Geometry traceGeometry(SimpleImage image, float min, float max, double xOffset, double yOffset) {
+	private static Geometry traceGeometry(SimpleImage image, double min, double max, double xOffset, double yOffset) {
 		
 		int w = image.getWidth();
 		int h = image.getHeight();
