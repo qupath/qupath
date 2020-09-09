@@ -51,6 +51,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -100,6 +101,7 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.display.ImageDisplay;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
@@ -1480,7 +1482,32 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 		long startTime = System.currentTimeMillis();
 		if (imageDisplay != null) {
-			imageDisplay.setImageData(imageDataNew, PathPrefs.keepDisplaySettingsProperty().get());
+			boolean keepDisplay = PathPrefs.keepDisplaySettingsProperty().get();
+			// This is a bit of a hack to avoid calling internal methods for ImageDisplay
+			// See https://github.com/qupath/qupath/issues/601
+			boolean displaySet = false;
+			if (imageDataNew != null && keepDisplay) {
+				if (imageDisplay.getImageData() != null && serversCompatible(imageDataNew.getServer(), imageDisplay.getImageData().getServer())) {
+					imageDisplay.setImageData(imageDataNew, keepDisplay);
+					displaySet = true;
+				} else {
+					for (var viewer : QuPathGUI.getInstance().getViewers()) {
+						if (this == viewer || viewer.getImageData() == null)
+							continue;
+						var tempServer = viewer.getServer();
+						var currentServer = imageDataNew.getServer();
+						if (serversCompatible(tempServer, currentServer)) {
+							var json = viewer.getImageDisplay().toJSON(false);
+							imageDataNew.setProperty(ImageDisplay.class.getName(), json);
+							imageDisplay.setImageData(imageDataNew, false);
+							displaySet = true;
+							break;
+						}
+					}
+				}
+			}
+			if (!displaySet)
+				imageDisplay.setImageData(imageDataNew, keepDisplay);
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Setting ImageData time: {} ms", endTime - startTime);
@@ -1526,6 +1553,26 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			repaint();
 		
 		logger.info("Image data set to {}", imageDataNew);
+	}
+	
+	
+	/**
+	 * Check if two ImageServers are compatible in terms of display settings, i.e. having the same number, type and names for channels.
+	 * @param currentServer
+	 * @param tempServer
+	 * @return true if the servers are compatible, false otherwise
+	 */
+	private static boolean serversCompatible(ImageServer<BufferedImage> currentServer, ImageServer<BufferedImage> tempServer) {
+		if (Objects.equals(currentServer, tempServer))
+			return true;
+		if (currentServer == null || tempServer == null)
+			return false;
+		if (tempServer.nChannels() == currentServer.nChannels() && tempServer.getPixelType() == currentServer.getPixelType()) {
+			var tempNames = tempServer.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
+			var currentNames = currentServer.getMetadata().getChannels().stream().map(c -> c.getName()).collect(Collectors.toList());
+			return tempNames.equals(currentNames);
+		}
+		return false;
 	}
 
 	
