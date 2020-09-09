@@ -71,6 +71,7 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 import javax.script.ScriptException;
+import javax.swing.SwingUtilities;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.control.action.ActionUtils;
@@ -1241,58 +1242,98 @@ public class QuPathGUI {
 	/**
 	 * Static method to launch QuPath on the JavaFX Application thread.
 	 * <p>
-	 * This can be used from other applications (e.g. MATLAB).
-	 * Afterwards, calls to getInstance() will return the QuPath instance.
+	 * This can potentially be used from other environments (e.g. MATLAB, Fiji, Python).
+	 * It is assumed that it is being launched from a JavaFX (without {@link HostServices} available) or AWT/Swing application; 
+	 * if this is not the case, use {@link #launchQuPath(HostServices, boolean)} instead.
+	 * <p>
+	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance as soon as it is available.
+	 * However, note that depending upon the thread from which this method is called, the QuPath instance may <i>not</i> 
+	 * be available until some time after the method returns.
 	 * <p>
 	 * If there is already an instance of QuPath running, this ensures that it is visible - but otherwise does nothing.
-	 * <p>
-	 * If {@link HostServices} are available, {@link #launchQuPath(HostServices)} should be used instead.
-	 * This method exists to make it easier to call using reflection whenever {@link HostServices} are not present.
 	 */
 	public static void launchQuPath() {
-		launchQuPath(null);
+		launchQuPath(null, true);
 	}
 	
+	/**
+	 * Launch QuPath from an AWT/Swing application.
+	 * Equivalent to calling {@code #launchQuPath(hostServices, true)}
+	 * @param hostServices
+	 * @deprecated as of v0.2.3 in favor of {@link #launchQuPath(HostServices, boolean)}
+	 */
+	@Deprecated
+	public static void launchQuPath(HostServices hostServices) {
+		launchQuPath(hostServices, true);
+	}
 	
 	/**
 	 * Static method to launch QuPath on the JavaFX Application thread.
 	 * <p>
-	 * This can be used from other applications (e.g. MATLAB).
-	 * Afterwards, calls to getInstance() will return the QuPath instance.
+	 * This can potentially be used from other environments (e.g. MATLAB, Fiji, Python).
+	 * Afterwards, calls to {@link #getInstance()} will return the QuPath instance as soon as it is available.
+	 * However, note that depending upon the thread from which this method is called, the QuPath instance may <i>not</i> 
+	 * be available until some time after the method returns.
 	 * <p>
-	 * If there is already an instance of QuPath running, this ensures that it is visible - but otherwise does nothing.
+	 * If there is already an instance of QuPath running, this requests that it is made visible - but otherwise does nothing.
 	 * 
 	 * @param hostServices JavaFX HostServices if available, otherwise null
+	 * @param isSwing if true, it is assumed that the launch is being requested from another Swing-based Java application.
+	 *                This results in an alternative method of starting the JavaFX runtime, which may be more reliable. 
+	 *                However, when called from a non-swing app in some cases the thread may freeze.
 	 */
-	public static void launchQuPath(HostServices hostServices) {
-		if (!Platform.isFxApplicationThread()) {
-			System.out.println("Requesting QuPath launch in JavaFX thread...");
-			logger.info("Requesting QuPath launch in JavaFX thread...");
-			new JFXPanel(); // To initialize
-			Platform.runLater(() -> launchQuPath(hostServices));
-			logger.info("Request sent");
-			System.out.println("Request sent");
+	public static void launchQuPath(HostServices hostServices, boolean isSwing) {
+		
+		QuPathGUI instance = getInstance();
+		if (instance != null) {
+			logger.info("Request to launch QuPath - will try to show existing instance instead");
+			if (Platform.isFxApplicationThread())
+				instance.getStage().show();
+			else {
+				Platform.runLater(() -> instance.getStage().show());
+			}
 			return;
 		}
-		try {
-			if (getInstance() == null){
-				System.out.println("Launching new QuPath instance...");
-				logger.info("Launching new QuPath instance...");
-				Stage stage = new Stage();
-				QuPathGUI qupath = new QuPathGUI(hostServices, stage, (String)null, false, false);
-				qupath.getStage().show();
-				System.out.println("Done!");
-			} else {
-				System.out.println("Trying to show existing QuPath instance...");
-				logger.info("Trying to show existing QuPath instance");
-				getInstance().getStage().show();
-				System.out.println("Done!");
-			}
-		} catch (Exception e) {
-			logger.error("Error launching QuPath", e);
-			e.printStackTrace();
+		
+		if (Platform.isFxApplicationThread()) {
+			System.out.println("Launching new QuPath instance...");
+			logger.info("Launching new QuPath instance...");
+			Stage stage = new Stage();
+			QuPathGUI qupath = new QuPathGUI(hostServices, stage, (String)null, false, false);
+			qupath.getStage().show();
+			System.out.println("Done!");
+			return;
 		}
+		
+		System.out.println("QuPath launch requested in " + Thread.currentThread());
+		
+		if (isSwing) {
+			// If we are starting from a Swing application, try to ensure we are on the correct thread
+			// (This can be particularly important on macOS)
+			if (SwingUtilities.isEventDispatchThread()) {
+				System.out.println("Initializing with JFXPanel...");
+				new JFXPanel(); // To initialize
+				Platform.runLater(() -> launchQuPath(hostServices, true));
+				return;
+			} else {
+				SwingUtilities.invokeLater(() -> launchQuPath(hostServices, true));
+				// Required to be able to restart QuPath... or probably any JavaFX application
+				Platform.setImplicitExit(false);
+			}
+		} else {
+			try {
+				// This will fail if already started... but unfortunately there is no method to query if this is the case
+				System.out.println("Calling Platform.startup()...");
+				Platform.startup(() -> launchQuPath(hostServices, false));
+			} catch (Exception e) {
+				System.err.println("If JavaFX is initialized, be sure to call launchQuPath() on the Application thread!");
+				System.out.println("Calling Platform.runLater()...");
+				Platform.runLater(() -> launchQuPath(hostServices, false));
+			}
+		}
+		
 	}
+	
 	
 	
 	/**
