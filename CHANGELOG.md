@@ -11,6 +11,7 @@ List of bugs fixed:
 * LabeledImageServer ignores updated pixel sizes (https://github.com/qupath/qupath/issues/591)
 * Support adding an individual .qpdata file to an existing project (https://github.com/qupath/qupath/issues/592)
 * Improve reliability of cell expansion code, currently used only with StarDist (https://github.com/qupath/qupath/issues/587)
+* NullPointerException when loading .qpdata files corresponding to OMERO images (https://github.com/qupath/qupath/issues/598)
 
 
 ## Version 0.2.2
@@ -221,7 +222,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 #### Multiplexed analysis & Object classification
 * Completely rewritten object classifier (currently flagged with 'New'! in the menus)
   * Support for multi-class classification with composite classifiers
-  * New command to create single-measurement classifiers 
+  * New command to create single-measurement classifiers
   * New command to apply intensity (sub)classification
   * JSON serialization for classifiers
 * New 'Centroids only' cell display mode to visualize cells with complex classifications
