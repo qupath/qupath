@@ -2,10 +2,11 @@
 *In progress*
 
 ### Dependency updates*
-* Java Topology suite 1.17.0
+* Java Topology suite 1.17.1
+* OpenCV 4.4.0
 * ControlsFX 11.0.2
-* ImageJ 1.53c
-* picocli 4.5.0
+* ImageJ 1.53d
+* picocli 4.5.1
 * Groovy 3.0.5
 
 
