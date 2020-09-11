@@ -1,5 +1,4 @@
-## Version 0.2.3-SNAPSHOT
-*In progress*
+## Version 0.2.3
 
 This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
 
@@ -9,6 +8,7 @@ List of bugs fixed:
 * 'Locked status cannot be set' exception when adding pixel classifier measurements to full image (https://github.com/qupath/qupath/issues/595)
 * 'Too many open files' exceptions caused by streams not being closed (https://github.com/qupath/qupath/issues/594)
 * LabeledImageServer ignores updated pixel sizes (https://github.com/qupath/qupath/issues/591)
+* Work around Java issue with ByteInterleavedRaster.setRect
 * Support adding an individual .qpdata file to an existing project (https://github.com/qupath/qupath/issues/592)
 * Improve reliability of cell expansion code, currently used only with StarDist (https://github.com/qupath/qupath/issues/587)
 * NullPointerException when loading .qpdata files corresponding to OMERO images (https://github.com/qupath/qupath/issues/598)
