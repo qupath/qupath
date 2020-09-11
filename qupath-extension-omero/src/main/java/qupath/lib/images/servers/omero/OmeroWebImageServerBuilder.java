@@ -241,7 +241,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 
 	@Override
 	public String getName() {
-		return "OMERO web";
+		return "OMERO web builder";
 	}
 
 	@Override
