@@ -13,6 +13,7 @@ List of bugs fixed:
 * Improve reliability of cell expansion code, currently used only with StarDist (https://github.com/qupath/qupath/issues/587)
 * NullPointerException when loading .qpdata files corresponding to OMERO images (https://github.com/qupath/qupath/issues/598)
 * Brightness/Contrast 'Keep settings' ignored when using multiple viewers (https://github.com/qupath/qupath/issues/601)
+* Improve QuPathGUI.launchQuPath() method (https://github.com/qupath/qupath/issues/603)
 
 
 ## Version 0.2.2
