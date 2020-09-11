@@ -188,6 +188,7 @@ public class DensityMapCommand implements Runnable {
 		private DoubleProperty radius = new SimpleDoubleProperty(10.0);
 
 		private DoubleProperty gamma = new SimpleDoubleProperty(1.0);
+		private DoubleProperty minCount = new SimpleDoubleProperty(0);
 
 		private DoubleProperty minDisplay = new SimpleDoubleProperty(0);
 		private DoubleProperty maxDisplay = new SimpleDoubleProperty(100);
@@ -230,11 +231,21 @@ public class DensityMapCommand implements Runnable {
 			
 			var sliderRadius = new Slider(0, 1000, radius.get());
 			sliderRadius.valueProperty().bindBidirectional(radius);
-			sliderRadius.setBlockIncrement(50);
+			initializeSliderSnapping(sliderRadius, 50, 1, 0.1);
 			var tfRadius = new TextField();
-			GuiTools.bindSliderAndTextField(sliderRadius, tfRadius);
-			PaneTools.addGridRow(pane, row++, 0, "Select smoothing radius used to calculate densities."
+			GuiTools.bindSliderAndTextField(sliderRadius, tfRadius, 2);
+			PaneTools.addGridRow(pane, row++, 0, "Select smoothing radius used to calculate densities.\n"
 					+ "This is defined in calibrated pixel units.", new Label("Radius"), sliderRadius, tfRadius);
+			
+			
+			var sliderMinCount = new Slider(0, 1000, minCount.get());
+			sliderMinCount.valueProperty().bindBidirectional(minCount);
+			initializeSliderSnapping(sliderMinCount, 50, 1, 1);
+			var tfMinCount = new TextField();
+			GuiTools.bindSliderAndTextField(sliderMinCount, tfMinCount, 0);
+			PaneTools.addGridRow(pane, row++, 0, "Select minimum density of detections required for display (lower density regions will be transparent).\n"
+					+ "This is used to avoid isolated detections dominating the display of the heatmap.",
+					new Label("Minimum count"), sliderMinCount, tfMinCount);
 			
 			
 			var labelColor = new Label("Customize appearance");
@@ -253,7 +264,7 @@ public class DensityMapCommand implements Runnable {
 
 			var slideMin = new Slider(0, maxDisplay.get(), minDisplay.get());
 			slideMin.valueProperty().bindBidirectional(minDisplay);
-			slideMin.setBlockIncrement(0.1);
+			initializeSliderSnapping(slideMin, 1, 1, 0.1);
 			slideMin.disableProperty().bind(autoUpdateDisplayRange);
 			var tfMin = new TextField();
 			GuiTools.bindSliderAndTextField(slideMin, tfMin);
@@ -261,7 +272,7 @@ public class DensityMapCommand implements Runnable {
 
 			var slideMax = new Slider(0, maxDisplay.get(), maxDisplay.get());
 			slideMax.valueProperty().bindBidirectional(maxDisplay);
-			slideMax.setBlockIncrement(0.1);
+			initializeSliderSnapping(slideMax, 1, 1, 0.1);
 			slideMax.disableProperty().bind(autoUpdateDisplayRange);
 			var tfMax = new TextField();
 			GuiTools.bindSliderAndTextField(slideMax, tfMax);
@@ -269,9 +280,9 @@ public class DensityMapCommand implements Runnable {
 
 			var sliderGamma = new Slider(0, 4, gamma.get());
 			sliderGamma.valueProperty().bindBidirectional(gamma);
-			sliderGamma.setBlockIncrement(0.1);
+			initializeSliderSnapping(sliderGamma, 0.1, 1, 0.1);
 			var tfGamma = new TextField();
-			GuiTools.bindSliderAndTextField(sliderGamma, tfGamma);
+			GuiTools.bindSliderAndTextField(sliderGamma, tfGamma, 1);
 			PaneTools.addGridRow(pane, row++, 0, "Control how the opacity of the density map changes between low & high values.\n"
 					+ "Choose zero for an opaque map.", new Label("Gamma"), sliderGamma, tfGamma);
 			
@@ -293,6 +304,7 @@ public class DensityMapCommand implements Runnable {
 			tfGamma.setMaxWidth(tfw);
 			tfMin.setMaxWidth(tfw);
 			tfMax.setMaxWidth(tfw);
+			tfMinCount.setMaxWidth(tfw);
 			
 			comboPrimary.setButtonCell(GuiTools.createCustomListCell(p -> classificationText(p)));
 			comboPrimary.setCellFactory(c -> GuiTools.createCustomListCell(p -> classificationText(p)));
@@ -304,6 +316,7 @@ public class DensityMapCommand implements Runnable {
 			selectedClass.addListener((v, o, n) -> requestUpdate(true));
 			colorMap.addListener((v, o, n) -> requestUpdate(false));
 			radius.addListener((v, o, n) -> requestUpdate(true));
+			minCount.addListener((v, o, n) -> requestUpdate(false));
 			gamma.addListener((v, o, n) -> requestUpdate(false));
 			minDisplay.addListener((v, o, n) -> requestUpdate(false));
 			maxDisplay.addListener((v, o, n) -> requestUpdate(false));
@@ -342,6 +355,15 @@ public class DensityMapCommand implements Runnable {
 			stage.setTitle("Density map");
 			stage.setOnCloseRequest(e -> deregister());
 		}
+		
+		
+		private void initializeSliderSnapping(Slider slider, double blockIncrement, double majorTicks, double minorTicks) {
+			slider.setBlockIncrement(blockIncrement);
+			slider.setMajorTickUnit(majorTicks);
+			slider.setMinorTickCount((int)Math.round(majorTicks / minorTicks) - 1);
+			slider.setSnapToTicks(true);
+		}
+		
 		
 		private String classificationText(PathClass pathClass) {
 			if (PathClassTools.isValidClass(pathClass))
@@ -408,6 +430,15 @@ public class DensityMapCommand implements Runnable {
 				hotspotClass = PathClassTools.mergeClasses(baseClass, hotspotClass);
 			}
 			
+			double minCount = this.minCount.get();
+			SimpleImage mask = null;
+			if (minCount > 0) {
+				if (densityMap.getAlpha() == null)
+					mask = threshold(densityMap.getValues(), minCount, 0, 1, 1);
+				else
+					mask = threshold(densityMap.getAlpha(), minCount, 0, 1, 1);
+			}
+			
 			var finder = new PeakFinder(densityMap.getValues())
 					.region(densityMap.getRegion())
 					.calibration(imageData.getServer().getPixelCalibration())
@@ -415,6 +446,9 @@ public class DensityMapCommand implements Runnable {
 					.minimumSeparation(allowOverlapping ? -1 : radius.get() * 2)
 					.withinROI(true)
 					.radius(radius.get());
+			
+			if (mask != null)
+				finder.mask(mask);
 
 			var hierarchy = imageData.getHierarchy();
 			
@@ -654,28 +688,51 @@ public class DensityMapCommand implements Runnable {
 			}
 			
 			var g = gamma.get();
-			DoubleToIntFunction alphaFun;
-			int alphaChannel;
+			DoubleToIntFunction alphaFun = null;
+			int alphaChannel = 1;
 			var alpha = map.getAlpha();
-			if (g <= 0) {
-				alphaFun = null;
-				alphaChannel = -1;
-			} else {
+			
+			// Everything <= minCount should be transparent
+			// Everything else should derive opacity from the alpha value
+			
+			var minCount = this.minCount.get();
+			if (minCount > 0) {
 				if (alpha == null) {
-					alphaFun = ColorModelFactory.createGammaFunction(g, min, max);
-					alphaChannel = 0;
-				} else {
-					var alphaMinMax = findMinAndMax(SimpleImages.getPixels(alpha, true));
-					alphaFun = ColorModelFactory.createGammaFunction(g, alphaMinMax.minVal, alphaMinMax.maxVal);
-					alphaChannel = 1;
+					if (g <= 0) {
+						alpha = threshold(image, minCount, 0, 0, 1);
+						alphaFun = ColorModelFactory.createLinearFunction(0, 1);
+					} else {
+//						alphaFun = ColorModelFactory.createLinearFunction(minCount+1, max);
+						alpha = image;
+						alphaFun = ColorModelFactory.createGammaFunction(g, minCount, max);
+						alphaChannel = 0;
+					}
 				}
+			}
+
+			if (alpha == null) {
+				if (g <= 0) {
+					alphaFun = null;
+					alphaChannel = -1;
+				} else {
+					alphaFun = ColorModelFactory.createGammaFunction(g, 0, max);
+					alphaChannel = 0;
+				}
+			} else if (alphaFun == null) {
+				var alphaMinMax = findMinAndMax(SimpleImages.getPixels(alpha, true));
+				if (g <= 0)
+					alphaFun = ColorModelFactory.createLinearFunction(Math.max(0, minCount), Math.max(0, minCount)+1);
+				else if (minCount >= alphaMinMax.maxVal)
+					alphaFun = v -> 0;
+				else
+					alphaFun = ColorModelFactory.createGammaFunction(g, Math.max(0, minCount), alphaMinMax.maxVal);
 			}
 			
 			var cm = ColorModelFactory.createColorModel(PixelType.FLOAT32, colorMap, min, max, alphaChannel, alphaFun);
 			
 			var raster = cm.createCompatibleWritableRaster(image.getWidth(), image.getHeight());
 			raster.setSamples(0, 0, image.getWidth(), image.getHeight(), 0, SimpleImages.getPixels(map.getValues(), true));
-			if (alpha != null && alphaChannel >= 0)
+			if (alpha != null && alphaChannel > 0)
 				raster.setSamples(0, 0, image.getWidth(), image.getHeight(), 1, SimpleImages.getPixels(alpha, true));
 			var img = new BufferedImage(cm, raster, false, null);
 			
@@ -694,6 +751,27 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 		
+	}
+	
+	
+	static SimpleImage threshold(SimpleImage image, double threshold, float below, float equals, float above) {
+		int w = image.getWidth();
+		int h = image.getHeight();
+		float[] pixels = new float[w * h];
+		int i = 0;
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				var v = image.getValue(x, y);
+				if (v > threshold)
+					pixels[i] = above;
+				else if (v < threshold)
+					pixels[i] = below;
+				else
+					pixels[i] = equals;
+				i++;
+			}
+		}
+		return SimpleImages.createFloatImage(pixels, w, h);
 	}
 
 	
@@ -958,6 +1036,12 @@ public class DensityMapCommand implements Runnable {
 			
 			// TODO: Consider using morphological reconstruction and H-maxima instead
 			var fp = IJTools.convertToFloatProcessor(imgValues);
+			int w = fp.getWidth();
+			int h = fp.getHeight();
+			for (int i = 0; i < w*h; i++) {
+				if (Float.isNaN(fp.getf(i)))
+					fp.setf(i, 0f);
+			}
 			var maxima = new MaximumFinder().getMaxima(fp, 1e-6, false);
 			
 			double downsample = 1;

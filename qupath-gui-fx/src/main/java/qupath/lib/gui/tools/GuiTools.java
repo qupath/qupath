@@ -1006,8 +1006,8 @@ public class GuiTools {
 	
 	
 	/**
-	 * Bind the value of a slider and contents of a text field, so that both may be used to 
-	 * set a numeric (double) value.
+	 * Bind the value of a slider and contents of a text field with a default number of decimal places,
+	 * so that both may be used to set a numeric (double) value.
 	 * <p>
 	 * This aims to overcome the challenge of keeping both synchronized, while also quietly handling 
 	 * parsing errors that may occur whenever the text field is being edited.
@@ -1017,8 +1017,24 @@ public class GuiTools {
 	 * @return a property representing the value represented by the slider and text field
 	 */
 	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf) {
-		new NumberAndText(slider.valueProperty(), tf.textProperty()).synchronizeTextToNumber();
-		return slider.valueProperty();
+		return bindSliderAndTextField(slider, tf, -1);
+	}
+	
+	/**
+	 * Bind the value of a slider and contents of a text field, so that both may be used to 
+	 * set a numeric (double) value.
+	 * <p>
+	 * This aims to overcome the challenge of keeping both synchronized, while also quietly handling 
+	 * parsing errors that may occur whenever the text field is being edited.
+	 * 
+	 * @param slider slider that may be used to adjust the value
+	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @param ndp if &ge; 0, this will be used to define the number of decimal places shown in the text field
+	 * @return a property representing the value represented by the slider and text field
+	 */
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, int ndp) {
+		new NumberAndText(slider.valueProperty(), tf.textProperty(), ndp).synchronizeTextToNumber();
+		return slider.valueProperty();		
 	}
 	
 	
@@ -1035,12 +1051,14 @@ public class GuiTools {
 		private DoubleProperty number;
 		private StringProperty text;
 		private NumberFormat format = GeneralTools.createFormatter(5);
+		private int ndp;
 		
-		NumberAndText(DoubleProperty number, StringProperty text) {
+		NumberAndText(DoubleProperty number, StringProperty text, int ndp) {
 			this.number = number;
 			this.text = text;
 			this.number.addListener((v, o, n) -> synchronizeTextToNumber());
 			this.text.addListener((v, o, n) -> synchronizeNumberToText());
+			this.ndp = ndp;
 		}
 		
 		public void synchronizeNumberToText() {
@@ -1069,9 +1087,12 @@ public class GuiTools {
 			if (Double.isNaN(value))
 				s = "";
 			else if (Double.isFinite(value)) {
-				double log10 = Math.round(Math.log10(value));
-				int ndp = (int)Math.max(4, -log10 + 2);
-				s = GeneralTools.formatNumber(value, ndp);
+				if (ndp < 0) {
+					double log10 = Math.round(Math.log10(value));
+					int ndp2 = (int)Math.max(4, -log10 + 2);
+					s = GeneralTools.formatNumber(value, ndp2);
+				} else
+					s = GeneralTools.formatNumber(value, ndp);
 			} else
 				s = Double.toString(value);
 			text.set(s);
