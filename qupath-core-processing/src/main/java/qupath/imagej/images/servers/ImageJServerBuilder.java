@@ -82,7 +82,7 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	
 	@Override
 	public String getName() {
-		return "ImageJ Builder";
+		return "ImageJ builder";
 	}
 
 	@Override

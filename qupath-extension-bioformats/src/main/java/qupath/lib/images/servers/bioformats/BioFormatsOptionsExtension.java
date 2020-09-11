@@ -146,15 +146,15 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 	@Override
 	public String getName() {
 		if (bfVersion == null)
-			return "Bio-Formats server options (Bio-Formats library is missing!)";
+			return "Bio-Formats options (Bio-Formats library is missing!)";
 		else
-			return "Bio-Formats server options (Bio-Formats " + bfVersion + ")";
+			return "Bio-Formats options (Bio-Formats " + bfVersion + ")";
 	}
 
 	@Override
 	public String getDescription() {
 		if (bfVersion == null) {
-			return "Cannot fit the Bio-Formats library required by this extension!'";
+			return "Cannot find the Bio-Formats library required by this extension!'";
 		} else {
 			return "Installs options for the Bio-Formats image server in the QuPath preference pane";			
 		}
