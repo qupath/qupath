@@ -58,7 +58,7 @@ public class ExperimentalExtension implements QuPathExtension {
 
     @Override
     public String getName() {
-        return "Experimental commands";
+        return "Experimental extension";
     }
 
     @Override

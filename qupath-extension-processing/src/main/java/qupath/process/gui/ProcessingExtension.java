@@ -327,11 +327,11 @@ public class ProcessingExtension implements QuPathExtension {
 
     @Override
     public String getName() {
-        return "Experimental commands";
+        return "Processing extension";
     }
 
     @Override
     public String getDescription() {
-        return "New features that are still being developed or tested";
+        return "Core processing & classification commands";
     }
 }

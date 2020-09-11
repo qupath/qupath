@@ -8,13 +8,13 @@
  * it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- * 
+ *
  * QuPath is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License 
+ *
+ * You should have received a copy of the GNU General Public License
  * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
  * #L%
  */
@@ -51,24 +51,24 @@ import qupath.opencv.tools.OpenCVTools;
 
 /**
  * An {@link ImageOp} that runs a TensorFlow model for prediction.
- * 
+ *
  * @author Pete Bankhead
  */
 public class TensorFlowOp extends PaddedOp {
-	
+
 	private final static Logger logger = LoggerFactory.getLogger(TensorFlowOp.class);
-	
+
 	private final static int DEFAULT_TILE_SIZE = 512;
-	
+
 	private String modelPath;
 	private int tileWidth = 512;
 	private int tileHeight = 512;
-	
+
 	private Padding padding;
-	
+
 	// Identifier for the requested output node - may be null to use the default output
 	private String outputName = null;
-	
+
 	private transient TensorFlowBundle bundle;
 	private transient Exception exception;
 
@@ -83,16 +83,16 @@ public class TensorFlowOp extends PaddedOp {
 			this.padding = Padding.empty();
 		else
 			this.padding = padding;
-		
+
 		// Correct tile sizes, if required
 		correctTileSize();
 	}
-	
+
 	private void correctTileSize() {
 		var bundle = loadBundle(modelPath);
 		if (!bundle.singleInput() || !bundle.singleOutput()) {
-			logger.warn("Only a single input & output supported for an op!");			
-			logger.warn("Any other input/output will be dropped from {}", bundle);			
+			logger.warn("Only a single input & output supported for an op!");
+			logger.warn("Any other input/output will be dropped from {}", bundle);
 		}
 		var inputShape = bundle.getInput().getShape();
 		long width = inputShape[2];
@@ -104,7 +104,7 @@ public class TensorFlowOp extends PaddedOp {
 			logger.warn("Setting default tile width: {}", DEFAULT_TILE_SIZE);
 			tileWidth = DEFAULT_TILE_SIZE;
 		}
-		
+
 		if (height > 0 && height != tileHeight) {
 			logger.warn("Updating tile height from {} to {}", tileHeight, height);
 			tileHeight = (int)height;
@@ -113,8 +113,8 @@ public class TensorFlowOp extends PaddedOp {
 			tileHeight = DEFAULT_TILE_SIZE;
 		}
 	}
-	
-	
+
+
 	private TensorFlowBundle getBundle() {
 		if (bundle == null && exception == null) {
 			try {
@@ -126,7 +126,7 @@ public class TensorFlowOp extends PaddedOp {
 		}
 		return bundle;
 	}
-	
+
 	// Not needed
 	@Override
 	protected Padding calculatePadding() {
@@ -138,17 +138,17 @@ public class TensorFlowOp extends PaddedOp {
 		var bundle = getBundle();
 		if (exception != null)
 			throw new RuntimeException(exception);
-		
+
 		String inputName = bundle.getInput().getName();
 		String outputName2 = this.outputName == null ? bundle.getOutput().getName() : this.outputName;
-		
+
 		if (tileWidth > 0 && tileHeight > 0)
 			return OpenCVTools.applyTiled(m -> run(bundle.bundle.session().runner(), m, inputName, outputName2), input, tileWidth, tileHeight, opencv_core.BORDER_REFLECT);
 		else
 			return run(bundle.bundle.session().runner(), input, inputName, outputName2);
 	}
-	
-	
+
+
 	private static Mat run(Runner runner, Mat mat, String inputName, String outputName) {
 
 		if (mat.depth() != opencv_core.CV_32F) {
@@ -171,13 +171,13 @@ public class TensorFlowOp extends PaddedOp {
 
 			for (var output : outputs)
 				output.close();
-			
+
 			return result;
 		}
 	}
-	
-    
-	
+
+
+
 	@Override
 	public Padding getPadding() {
 		return super.getPadding();
@@ -205,45 +205,45 @@ public class TensorFlowOp extends PaddedOp {
             names.add(name + " " + i);
         return ImageChannel.getChannelList(names.toArray(String[]::new));
     }
-    
-    
-    
-    
+
+
+
+
     private static Map<String, TensorFlowBundle> cachedBundles = new HashMap<>();
-    
+
     private static TensorFlowBundle loadBundle(String path) {
     	return cachedBundles.computeIfAbsent(path, p -> new TensorFlowBundle(p));
     }
-    
-    
+
+
     private static class TensorFlowBundle {
-    	
+
     	private final static Logger logger = LoggerFactory.getLogger(TensorFlowBundle.class);
 
     	private String pathModel;
         private SavedModelBundle bundle;
-        
+
         private List<SimpleTensorInfo> inputs;
         private List<SimpleTensorInfo> outputs;
-    	
+
     	private MetaGraphDef metaGraphDef;
     	private SignatureDef sigDef;
-    	
+
     	private TensorFlowBundle(String pathModel) {
-    		
+
     		this.pathModel = pathModel;
-    		
+
     		var dir = new File(pathModel);
     		if (!dir.exists()) {
     			throw new IllegalArgumentException(pathModel + " does not exist!");
     		} else if (!dir.isDirectory()) {
-    			throw new IllegalArgumentException(pathModel + " is not a valid TensorFlow model directory!");    			
+    			throw new IllegalArgumentException(pathModel + " is not a valid TensorFlow model directory!");
     		}
 
-    		
+
     		// Load the bundle
     		bundle = SavedModelBundle.load(pathModel, "serve");
-    		
+
     		try {
 				metaGraphDef = MetaGraphDef.parseFrom(bundle.metaGraphDef());
 			} catch (InvalidProtocolBufferException e) {
@@ -260,17 +260,17 @@ public class TensorFlowOp extends PaddedOp {
     				logger.warn("Extra SignatureDef found - will be ignored ({}, method={})", entry.getKey(), sigdef.getMethodName());
     			}
     		}
-    		
+
     		if (inputs.size() != 1) {
     			logger.warn("Inputs: {}", inputs);
     		}
     		if (outputs.size() != 1) {
     			logger.warn("Outputs: {}", outputs);
     		}
-    		
+
         	logger.info("Loaded {}", this);
         }
-    	
+
     	/**
     	 * Get the path to the model (a directory).
     	 * @return
@@ -278,7 +278,7 @@ public class TensorFlowOp extends PaddedOp {
     	public String getModelPath() {
     		return pathModel;
     	}
-    	
+
     	public long[] getOutputShape(String name) {
     		var op = bundle.graph().operation(name);
     		if (op == null)
@@ -310,7 +310,7 @@ public class TensorFlowOp extends PaddedOp {
     	public List<SimpleTensorInfo> getInputs() {
     		return inputs == null ? Collections.emptyList() : Collections.unmodifiableList(inputs);
     	}
-    	
+
     	/**
     	 * Get the first provided output (often the only one).
     	 * @return
@@ -326,7 +326,7 @@ public class TensorFlowOp extends PaddedOp {
     	public List<SimpleTensorInfo> getOutputs() {
     		return outputs == null ? Collections.emptyList() : Collections.unmodifiableList(outputs);
     	}
-    	
+
     	/**
     	 * Returns true if the model takes a single input.
     	 * @return
@@ -334,7 +334,7 @@ public class TensorFlowOp extends PaddedOp {
     	public boolean singleInput() {
     		return inputs != null && inputs.size() == 1;
     	}
-    	
+
     	/**
     	 * Returns true if the model provides a single output.
     	 * @return
@@ -355,16 +355,16 @@ public class TensorFlowOp extends PaddedOp {
         }
 
     }
-    
+
     /**
      * Helper class for parsing the essential info for an input/output tensor.
      */
     public static class SimpleTensorInfo {
-    	
+
     	private TensorInfo info;
     	private String name;
     	private long[] shape;
-    	
+
     	SimpleTensorInfo(TensorInfo info) {
     		this.info = info;
     		this.name = info.getName();
@@ -377,31 +377,31 @@ public class TensorFlowOp extends PaddedOp {
 				}
 			}
     	}
-    	
+
     	TensorInfo getInfo() {
     		return info;
     	}
-    	
+
     	public String getName() {
     		return name;
     	}
-    	
+
     	public long[] getShape() {
     		return shape == null ? null : shape.clone();
     	}
-    	
+
     	@Override
     	public String toString() {
     		if (shape == null) {
     			return name + " (no shape)";
     		} else {
-    			return name + " (" + 
+    			return name + " (" +
     					LongStream.of(shape).mapToObj(l -> Long.toString(l)).collect(Collectors.joining(", "))
-    							+ ")";    			
+    							+ ")";
     		}
     	}
-    	
+
     }
 
-	
+
 }

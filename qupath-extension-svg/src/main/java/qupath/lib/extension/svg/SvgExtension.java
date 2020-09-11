@@ -56,11 +56,11 @@ public class SvgExtension implements QuPathExtension {
 
     @Override
     public String getName() {
-        return "SVG export commands";
+        return "SVG export extension";
     }
 
     @Override
     public String getDescription() {
-        return "New features that are still being developed or tested";
+        return "Export snapshots and images in SVG format";
     }
 }

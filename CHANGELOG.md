@@ -9,6 +9,22 @@
 * Groovy 3.0.5
 
 
+## Version 0.2.3
+
+List of bugs fixed:
+* Maximum memory setting is sometimes ignored (https://github.com/qupath/qupath/issues/582)
+  * Note that memory can no longer be specified to be less than 1 GB
+* 'Locked status cannot be set' exception when adding pixel classifier measurements to full image (https://github.com/qupath/qupath/issues/595)
+* 'Too many open files' exceptions caused by streams not being closed (https://github.com/qupath/qupath/issues/594)
+* LabeledImageServer ignores updated pixel sizes (https://github.com/qupath/qupath/issues/591)
+* Work around Java issue with ByteInterleavedRaster.setRect
+* Support adding an individual .qpdata file to an existing project (https://github.com/qupath/qupath/issues/592)
+* Improve reliability of cell expansion code, currently used only with StarDist (https://github.com/qupath/qupath/issues/587)
+* NullPointerException when loading .qpdata files corresponding to OMERO images (https://github.com/qupath/qupath/issues/598)
+* Brightness/Contrast 'Keep settings' ignored when using multiple viewers (https://github.com/qupath/qupath/issues/601)
+* Improve QuPathGUI.launchQuPath() method (https://github.com/qupath/qupath/issues/603)
+
+
 ## Version 0.2.2
 
 This is a *minor release* that aims to be fully compatible with v0.2.0 while fixing bugs.
@@ -217,7 +233,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 #### Multiplexed analysis & Object classification
 * Completely rewritten object classifier (currently flagged with 'New'! in the menus)
   * Support for multi-class classification with composite classifiers
-  * New command to create single-measurement classifiers 
+  * New command to create single-measurement classifiers
   * New command to apply intensity (sub)classification
   * JSON serialization for classifiers
 * New 'Centroids only' cell display mode to visualize cells with complex classifications

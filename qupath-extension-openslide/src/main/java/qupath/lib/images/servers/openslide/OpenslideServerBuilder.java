@@ -148,7 +148,7 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 	
 	@Override
 	public String getName() {
-		return "OpenSlide Builder";
+		return "OpenSlide builder";
 	}
 
 	@Override

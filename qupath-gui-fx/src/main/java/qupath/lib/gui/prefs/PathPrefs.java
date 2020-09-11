@@ -227,21 +227,22 @@ public class PathPrefs {
 	
 	private static Path searchForConfigFile(Path dir) throws IOException {
 		String configRequest = System.getProperty("qupath.config");
-		var paths = Files.list(dir)
-				.filter(
-				p -> {
-					// Look for the .cfg file, filtering if we have a system property specified
-					String name = p.getFileName().toString();
-					if (configRequest != null && !configRequest.isBlank())
-						return name.toLowerCase().contains(configRequest.toLowerCase());
-					return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
-				})
-				.sorted(Comparator.comparingInt(p -> p.getFileName().toString().length()))
-				.collect(Collectors.toList());
-		if (paths.isEmpty())
-			return null;
-		// Return the shortest valid path found
-		return paths.get(0);
+		try (var stream = Files.list(dir)) {
+			var paths = stream.filter(
+					p -> {
+						// Look for the .cfg file, filtering if we have a system property specified
+						String name = p.getFileName().toString();
+						if (configRequest != null && !configRequest.isBlank())
+							return name.toLowerCase().contains(configRequest.toLowerCase());
+						return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
+					})
+					.sorted(Comparator.comparingInt(p -> p.getFileName().toString().length()))
+					.collect(Collectors.toList());
+			if (paths.isEmpty())
+				return null;
+			// Return the shortest valid path found
+			return paths.get(0);
+		}
 	}
 	
 	
@@ -258,6 +259,13 @@ public class PathPrefs {
 	public synchronized static IntegerProperty maxMemoryMBProperty() {
 		if (maxMemoryMB == null) {
 			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
+			long requestedMaxMemoryMB = maxMemoryMB.get();
+			long currentMaxMemoryMB = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
+			if (requestedMaxMemoryMB > 0 && requestedMaxMemoryMB != currentMaxMemoryMB) {
+				logger.debug("Requested max memory ({} MB) does not match the current max ({} MB) - resetting preference to default value", 
+						requestedMaxMemoryMB, currentMaxMemoryMB);
+				maxMemoryMB.set(-1);
+			}
 			// Update Java preferences for restart
 			maxMemoryMB.addListener((v, o, n) -> {
 				try {
