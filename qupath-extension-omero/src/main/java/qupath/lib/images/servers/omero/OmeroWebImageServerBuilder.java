@@ -23,12 +23,9 @@ package qupath.lib.images.servers.omero;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -39,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.lib.images.servers.omero.OmeroWebClient.OmeroAuthenticatorFX;
 
 /**
  * Builder for ImageServers that make requests from the OMERO web API.
@@ -53,10 +49,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebImageServerBuilder.class);
 	
-	/**
-	 * Last username for login
-	 */
-	private String lastUsername = "";
+	private static OmeroWebClient client = null;
 
 	
 	/**
@@ -66,12 +59,6 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	private final static Pattern patternNewViewer = Pattern.compile("images=(\\d+)");
 	private final static Pattern patternWebViewer= Pattern.compile("/webclient/img_detail/(\\d+)");
 	private final static Pattern patternType = Pattern.compile("show=(\\w+-)");
-	
-	/**
-	 * Encoding differences
-	 */
-	private String equalSign = "%3D";
-	private String vertBarSign = "%7C";
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
@@ -120,50 +107,11 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				logger.debug("OMERO web server does not support {}", uri);
 				return false;
 			}
-			OmeroWebClient client = OmeroWebClients.getClient(host);
 			
-			if (!client.loggedIn()) {
-				if (client.getServers().isEmpty()) {
-					logger.warn("Could not find any servers for {}!", host);
-					return false;
-				}
-				if (client.getServers().size() > 1) {
-					logger.warn("Found multiple servers for {} - will take the first one", host);
-				}
-				
-				// TODO: Parse args to look for password (or password file - and don't store them!)
-				String username = lastUsername;
-				char[] password = null;
-				List<String> cleanedArgs = new ArrayList<>();
-				int i = 0;
-				while (i < args.length-1) {
-					String name = args[i++];
-					if ("--username".equals(name) || "-u".equals(name))
-						username = args[i++];
-					else if ("--password".equals(name) || "-p".equals(name)) {
-						password = args[i++].toCharArray();
-					} else
-						cleanedArgs.add(name);
-				}
-				if (cleanedArgs.size() < args.length)
-					args = cleanedArgs.toArray(String[]::new);
-				
-				PasswordAuthentication authentication;
-				if (username != null && password != null) {
-					logger.info("Username & password parsed from args");
-					authentication = new PasswordAuthentication(username, password);
-				} else 
-					authentication = OmeroAuthenticatorFX.getPasswordAuthentication(
-							"Please enter your login details for OMERO server", uri.getHost(), username);
-				if (authentication == null) {
-					logger.warn("Could not log in to {} - No authentification found!", host);
-					return false;
-				}
-				lastUsername = authentication.getUserName();
-				String result = client.login(authentication, client.getServers().get(0).getId());
-				Arrays.fill(authentication.getPassword(), (char)0);
-				logger.info(result);
-			}
+			if (!client.loggedIn())
+				OmeroWebClients.logIn(client, args);
+			
+			OmeroWebClients.addClient(host, client);
 			return true;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Omero web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");
@@ -179,7 +127,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		if (OmeroWebClients.hasFailed(host))
 			return 0;
 
-		OmeroWebClient client = OmeroWebClients.getClient(host);
+		client = OmeroWebClients.getClient(host);
 		if (client != null)
 			return 4;
 
@@ -238,7 +186,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         	var matcher = similarPatterns[i].matcher(shortPath);
             if (matcher.find()) {
                 elemId += matcher.group(1);
-                list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + "/webclient/?show" + equalSign + elemId));
+                list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + "/webclient/?show=" + elemId));
                 return list;
             }
         }
@@ -249,7 +197,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
             var patternElem = Pattern.compile("image-(\\d+)");
             var matcherElem = patternElem.matcher(newURI.toString());
             while (matcherElem.find()) {
-                list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + uri.getPath() + "?show" + equalSign + "image-" + matcherElem.group(1)));
+                list.add(URI.create(uri.getScheme() + "://" + uri.getHost() + uri.getPath() + "?show=" + "image-" + matcherElem.group(1)));
             }
         	return list;
         }
@@ -261,14 +209,16 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	private URI getStandardURI(URI uri, String... args) throws IOException {
 		if (!canConnectToOmero(uri, args))
 			throw new IOException("Problem connecting to OMERO web server");
+		
 		List<String> ids = new ArrayList<String>();
+		String vertBarSign = "%7C";
 		
 		// Identify the type of element shown (e.g. dataset)
         var type = "";
         String query = uri.getQuery() != null ? uri.getQuery() : "";
         
         // Because of encoding, the equal sign might not be recognized when loading .qpproj file
-        query = query.replace(equalSign, "=");
+        query = query.replace("%3D", "=");
         
         // Match 
         var matcherType = patternType.matcher(query);

@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -449,5 +450,24 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	public String getScheme() {
 		return scheme;
 	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(host, client);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this)
+            return true;
+		
+		if (!(obj instanceof OmeroWebImageServer))
+			return false;
+		
+		return host == ((OmeroWebImageServer)obj).getHost() &&
+				client.getUsername() == ((OmeroWebImageServer)obj).getWebClient().getUsername();
+	}
+	
+	
 
 }

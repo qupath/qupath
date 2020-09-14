@@ -42,6 +42,12 @@ import javafx.scene.layout.GridPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 
+/**
+ * Class representing an Omero Web Client. This class will take care of 
+ * logging in, keeping the connection alive and logging out.
+ * 
+ * @author Melvin Gelbard
+ */
 public class OmeroWebClient {
 	
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebClient.class);
@@ -89,11 +95,7 @@ public class OmeroWebClient {
 			public void run() {
 				keepAlive();
 			}
-		}, 60000L);
-	}
-
-	public boolean loggedIn() {
-		return keepAlive() == 200; // Check if response is OK
+		}, 60000L, 60000L);
 	}
 
 	private boolean loadURLs() throws JsonSyntaxException, MalformedURLException, IOException {
@@ -111,7 +113,6 @@ public class OmeroWebClient {
 		OmeroWebClient client = new OmeroWebClient(host);
 		client.loadURLs();
 		client.startTimer();
-		OmeroWebClients.addClient(host, client);
 		return client;
 	}
 
@@ -179,12 +180,11 @@ public class OmeroWebClient {
 		}
 	}
 
-	// TODO: Fix this method, connection is lost after a while
 	private int keepAlive() {
 		try {
 			logger.debug("Attempting to keep connection alive...");
-			HttpURLConnection connection = (HttpURLConnection) URI.create(serviceURLs.get(URL_PROJECTS)).toURL()
-					.openConnection();
+			var pingURL = URI.create(baseURL + "/webclient/keepalive_ping/?_=" + System.currentTimeMillis()).toURL();
+			HttpURLConnection connection = (HttpURLConnection) pingURL.openConnection();
 			connection.setRequestProperty("Content-Type", "application/json");
 			connection.setRequestMethod("GET");
 			connection.setDoInput(true);
@@ -194,6 +194,23 @@ public class OmeroWebClient {
 		} catch (IOException e) {
 			logger.warn("Error trying to keep connection alive", e);
 			return -1;
+		}
+	}
+	
+	boolean loggedIn() {
+		try {
+			logger.debug("Attempting to keep connection alive...");
+			HttpURLConnection connection = (HttpURLConnection) URI.create(serviceURLs.get(URL_PROJECTS)).toURL()
+					.openConnection();
+			connection.setRequestProperty("Content-Type", "application/json");
+			connection.setRequestMethod("GET");
+			connection.setDoInput(true);
+			int response = connection.getResponseCode();
+			connection.disconnect();
+			return response == 200;
+		} catch (IOException e) {
+			logger.warn("Error trying to log in", e);
+			return false;
 		}
 	}
 
@@ -244,16 +261,25 @@ public class OmeroWebClient {
 		return token;
 	}
 	
+	void logOut() {
+		timer.cancel();
+	}
+	
 	String getUsername() {
 		return username;
 	}
 	
 	void addImageServer(OmeroWebImageServer server) {
-		imageServers.add(server);
+		if (!imageServers.contains(server))
+			imageServers.add(server);
 	}
 	
-	List<OmeroWebImageServer> getImageServers(){
+	List<OmeroWebImageServer> getImageServers() {
 		return imageServers;
+	}
+	
+	String getBaseUrl() {
+		return baseURL;
 	}
 	
 	
@@ -358,5 +384,4 @@ public class OmeroWebClient {
 		}
 
 	}
-
 }
