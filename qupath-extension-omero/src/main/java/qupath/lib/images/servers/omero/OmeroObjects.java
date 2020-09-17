@@ -30,31 +30,27 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 				throws JsonParseException {
 			
 			var type = ((JsonObject)json).get("@type").getAsString().toLowerCase();
-			if (type.endsWith("#project")) {
-				Owner owner = GsonTools.getInstance().fromJson(((JsonObject)json).get("omero:details").getAsJsonObject().get("owner"), Owner.class);
-				Project project = context.deserialize(json, Project.class);
-				if (owner != null)
-					project.setOwner(owner);
-				return project;
+			
+			OmeroObject omeroObj;
+			if (type.endsWith("#project"))
+				omeroObj = context.deserialize(json, Project.class);
+			else if (type.endsWith("#dataset"))
+				omeroObj = context.deserialize(json, Dataset.class);
+			else if (type.endsWith("#image"))
+				omeroObj = context.deserialize(json, Image.class);
+			else {
+				logger.warn("Unsupported type {}", type);
+				return null;
 			}
-			if (type.endsWith("#dataset")) {
-				Owner owner = context.deserialize(((JsonObject)json).get("omero:details").getAsJsonObject().get("owner"), Owner.class);
-				Dataset dataset = context.deserialize(json, Dataset.class);
-				if (owner != null)
-					dataset.setOwner(owner);
-				return dataset;
-			}
-			if (type.endsWith("#image")) {
-				Owner owner = context.deserialize(((JsonObject)json).get("omero:details").getAsJsonObject().get("owner"), Owner.class);
-				Image image = context.deserialize(json, Image.class);
-				if (owner != null)
-					image.setOwner(owner);
-				return image;
-			}
-			logger.warn("Unsupported type {}", type);
-			return null;
+			Owner owner = context.deserialize(((JsonObject)json).get("omero:details").getAsJsonObject().get("owner"), Owner.class);
+			Group group = context.deserialize(((JsonObject)json).get("omero:details").getAsJsonObject().get("group"), Group.class);
+			if (owner != null)
+				omeroObj.setOwner(owner);
+			if (group != null)
+				omeroObj.setGroup(group);
+			
+			return omeroObj;
 		}
-		
 	}
 	
 	
@@ -70,6 +66,8 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		private String type;
 		
 		private Owner owner;
+		
+		private Group group;
 		
 		private OmeroObject parent;
 		
@@ -117,6 +115,22 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		 */
 		public void setOwner(Owner owner) {
 			this.owner = owner;
+		}
+		
+		/**
+		 * Return the OMERO group of this object
+		 * @return group
+		 */
+		public Group getGroup() {
+			return group;
+		}
+		
+		/**
+		 * Set the group of this OMERO object
+		 * @param group
+		 */
+		public void setGroup(Group group) {
+			this.group = group;
 		}
 		
 		/**
@@ -268,6 +282,9 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 	
 	static class Owner {
 		
+		@SerializedName(value = "@id")
+		private int id;
+		
 		@SerializedName(value = "FirstName")
 		private String firstName;
 		
@@ -290,7 +307,8 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 			return firstName + " " + (middleName.isEmpty() ? "" : middleName + " ") + lastName;
 		}
 		
-		private Owner(String firstName, String middleName, String lastName, String emailAddress, String institution, String username) {
+		private Owner(int id, String firstName, String middleName, String lastName, String emailAddress, String institution, String username) {
+			this.id = id;
 			this.firstName = firstName;
 			this.middleName = middleName;
 			this.lastName = lastName;
@@ -306,8 +324,52 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 			return String.join(", ", list);
 		}
 		
+		public int getId() {
+			return id;
+		}
+		
+		/**
+		 * Dummy {@code Owner} object to represent all owners.
+		 * @return owner
+		 */
 		static public Owner getAllMembersOwner() {
-			return new Owner("All members", "", "", "", "", "");
+			return new Owner(-1, "All members", "", "", "", "", "");
+		}
+	}
+	
+	static class Group {
+		
+		@SerializedName(value = "@id")
+		private int id;
+		
+		@SerializedName(value = "Name")
+		private String name;
+		
+		
+		private Group(int id, String name) {
+			this.id = id;
+			this.name = name;
+		}
+		
+		@Override
+		public String toString() {
+			return name;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public int getId() {
+			return id;
+		}
+
+		/**
+		 * Dummy {@code Group} object to represent all groups.
+		 * @return group
+		 */
+		public static Group getAllGroupsObject() {
+			return new Group(-1, "All groups");
 		}
 	}
 	

@@ -1,15 +1,19 @@
 package qupath.lib.images.servers.omero;
 
+import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+
+import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -211,6 +215,26 @@ public class OmeroTools {
 		return true;
 	}
 	
+	/**
+	 * Return the thumbnail of the Omero object corresponding to the specified id.
+	 * @param server
+	 * @param id
+	 * @param prefSize
+	 * @return thumbnail
+	 * @throws IOException
+	 */
+	public static BufferedImage getThumbnail(OmeroWebImageServer server, int id, int prefSize) throws IOException {
+		URL url;
+		try {
+			url = new URL(server.getScheme(), server.getHost(), "/webgateway/render_thumbnail/" + id + "/" + prefSize);
+		} catch (MalformedURLException e) {
+			logger.warn(e.getLocalizedMessage());
+			return null;
+		}
+		
+		return ImageIO.read(url);
+	}
+	
 	
     /**
      * OMERO requests that return a list of items are paginated 
@@ -257,6 +281,8 @@ public class OmeroTools {
 		OmeroWebImageServerBrowser browser = new OmeroWebImageServerBrowser(qupath, server);
 		
 		dialog.setScene(new Scene(browser.getPane()));
+		
+		dialog.setOnCloseRequest(e -> browser.shutdownPool());
 		
 		dialog.showAndWait();
     }
