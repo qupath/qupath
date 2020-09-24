@@ -16,8 +16,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
-import qupath.lib.io.GsonTools;
-
 class OmeroObjects {
 	
 private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class);

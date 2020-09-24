@@ -12,6 +12,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
@@ -66,11 +67,11 @@ public class OmeroWebClient {
 	
 	private List<OmeroWebImageServer> imageServers = new ArrayList<>();
 	
+	private URI uri;
 	private String username;
 
 	private OmeroAPI supportedVersions;
 	private OmeroAPIVersion version;
-	private OmeroServer server;
 	private List<OmeroServer> servers;
 
 	private String token;
@@ -79,11 +80,12 @@ public class OmeroWebClient {
 
 	private Map<String, String> serviceURLs = new HashMap<>();
 
-	OmeroWebClient(final String host) {
+	OmeroWebClient(final URI uri) {
+		this.uri = uri;
 		this.username = "";
-		this.baseURL = host;
+		this.baseURL = uri.getHost();
 		if (!this.baseURL.startsWith("http"))
-			this.baseURL = "https://" + host;
+			this.baseURL = "https://" + this.baseURL;
 	}
 
 	synchronized void startTimer() {
@@ -109,10 +111,11 @@ public class OmeroWebClient {
 		return true;
 	}
 
-	static OmeroWebClient create(String host) throws JsonSyntaxException, MalformedURLException, IOException {
-		OmeroWebClient client = new OmeroWebClient(host);
+	static OmeroWebClient create(URI uri, boolean startTimer) throws JsonSyntaxException, MalformedURLException, IOException {
+		OmeroWebClient client = new OmeroWebClient(uri);
 		client.loadURLs();
-		client.startTimer();
+		if (startTimer)
+			client.startTimer();
 		return client;
 	}
 
@@ -199,9 +202,13 @@ public class OmeroWebClient {
 	
 	boolean loggedIn() {
 		try {
-			logger.debug("Attempting to keep connection alive...");
-			HttpURLConnection connection = (HttpURLConnection) URI.create(serviceURLs.get(URL_PROJECTS)).toURL()
-					.openConnection();
+			logger.debug("Attempting to log in...");
+			String imageId = OmeroTools.getOmeroObjectId(uri);
+			if (imageId == null)
+				return false;
+			
+			URL imgDataURL = new URL(uri.getScheme(), uri.getHost(), -1, "/webgateway/imgData/" + imageId);
+			HttpURLConnection connection = (HttpURLConnection) imgDataURL.openConnection();
 			connection.setRequestProperty("Content-Type", "application/json");
 			connection.setRequestMethod("GET");
 			connection.setDoInput(true);
@@ -262,6 +269,26 @@ public class OmeroWebClient {
 	}
 	
 	void logOut() {
+		try {
+			String url = baseURL + "/webclient/logout/";
+			HttpURLConnection connection;
+			connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
+			connection.setRequestProperty("X-CSRFToken", token);
+			connection.setRequestProperty("Content-Type", "application/json");
+			connection.setRequestProperty("Referer", url + ":" + servers.get(0).port);
+			connection.setRequestMethod("POST");
+			connection.setDoOutput(true);
+			connection.setDoInput(true);
+			int response = connection.getResponseCode();
+			connection.disconnect();
+			
+			if (response != 200)
+				throw new IOException("Server returned " + response);	
+			
+		} catch (IOException e) {
+			logger.error("Could not logout.", e.getLocalizedMessage());
+		}
+
 		timer.cancel();
 	}
 	
@@ -276,6 +303,10 @@ public class OmeroWebClient {
 	
 	List<OmeroWebImageServer> getImageServers() {
 		return imageServers;
+	}
+	
+	URI getURI() {
+		return uri;
 	}
 	
 	String getBaseUrl() {

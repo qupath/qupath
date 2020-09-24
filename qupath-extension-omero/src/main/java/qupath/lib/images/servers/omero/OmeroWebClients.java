@@ -1,6 +1,7 @@
 package qupath.lib.images.servers.omero;
 
 import java.net.PasswordAuthentication;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -16,7 +17,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.omero.OmeroWebClient.OmeroAuthenticatorFX;
 
 /**
- * Class to keeps track of active OMERO clients.
+ * Class to keep track of active OMERO clients.
  * 
  * @author Melvin Gelbard
  */
@@ -32,38 +33,53 @@ public class OmeroWebClients {
 	/**
 	 * A list of active/non-active clients. The user may not necessarily be logged in.
 	 */
-	final private static Map<String, OmeroWebClient> clients = new HashMap<>();
+	final private static Map<String, List<OmeroWebClient>> clients = new HashMap<>();
 	
 	
 	/**
 	 * A set of potential hosts that don't correspond to valid OMERO web servers.
 	 * This is used to avoid trying again.
 	 */
-	final private static Set<String> failedHosts = new HashSet<>();
+	final private static Set<URI> failedHosts = new HashSet<>();
 	
 	
 	/**
-	 * Return the client associated with the specified host.
+	 * Return the client associated with the specified uri.
 	 * @param host
 	 * @return
 	 */
-	static OmeroWebClient getClient(String host) {
-		return clients.get(host);
+	static OmeroWebClient getClient(URI uri) {
+		for (var list: clients.values()) {
+			for (var client: list) {
+				if (client.getURI() == uri)
+					return client;
+			}
+		}
+		return null;
 	}
 	
 	
 	/**
-	 * Add the specified client to the host-client map.
+	 * Add the specified client to the host-clients map.
 	 * @param host
 	 * @param client
 	 */
 	static void addClient(String host, OmeroWebClient client) {
-		clients.put(host, client);
+		var list = clients.get(host);
+		if (list != null)
+			list.add(client);
+		else
+			clients.put(host, new ArrayList<OmeroWebClient>(Arrays.asList(client)));
 	}
 	
-	
-	static void removeClient(String host) {
-		clients.remove(host);
+	/**
+	 * Remove the client from the host-clients map
+	 * @param uri
+	 */
+	static void removeClient(OmeroWebClient client) {
+		var list = clients.get(client.getURI().getHost());
+		if (list != null)
+			list.remove(client);
 	}
 	
 	/**
@@ -72,23 +88,23 @@ public class OmeroWebClients {
 	 * @param host
 	 * @return hasFailed
 	 */
-	static boolean hasFailed(String host) {
-		return failedHosts.contains(host);
+	static boolean hasFailed(URI uri) {
+		return failedHosts.contains(uri);
 	}
 	
 	/**
 	 * Add the specified host to the list of failed hosts.
 	 * @param host
 	 */
-	static void addFailedHost(String host) {
-		failedHosts.add(host);
+	static void addFailedHost(URI uri) {
+		failedHosts.add(uri);
 	}
 	
 	/**
 	 * Return the map with all hosts and clients.
 	 * @return
 	 */
-	static Map<String, OmeroWebClient> getAllClients() {
+	static Map<String, List<OmeroWebClient>> getAllClients() {
 		return clients;
 	}
 
@@ -143,7 +159,7 @@ public class OmeroWebClients {
 			lastUsername = authentication.getUserName();
 			String result = client.login(authentication, client.getServers().get(0).getId());
 			Arrays.fill(authentication.getPassword(), (char)0);
-			logger.info(result);			
+			logger.info(result);
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Omero web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");
 			return false;
