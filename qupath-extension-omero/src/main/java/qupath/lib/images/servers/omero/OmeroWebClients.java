@@ -66,7 +66,7 @@ public class OmeroWebClients {
 	 */
 	static void addClient(String host, OmeroWebClient client) {
 		var list = clients.get(host);
-		if (list != null)
+		if (list != null && !list.contains(client))
 			list.add(client);
 		else
 			clients.put(host, new ArrayList<OmeroWebClient>(Arrays.asList(client)));

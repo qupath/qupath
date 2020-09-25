@@ -71,9 +71,8 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		if (supportLevel > 0f) {
 			List<URI> uris = new ArrayList<>();
 			try {
-				if (!canConnectToOmero(uri, args))
-					throw new IOException("Problem connecting to OMERO web server");
-				uris = OmeroTools.getURIs(uri, args);
+				if (canConnectToOmero(uri, args))
+					uris = OmeroTools.getURIs(uri, args);
 			} catch (IOException e) {
 				Dialogs.showErrorNotification("OMERO web server", e.getLocalizedMessage());
 			}
@@ -99,11 +98,15 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			
 			if (client == null)
 				client = OmeroWebClient.create(uri, true);
-			if (!client.loggedIn())
-				OmeroWebClients.logIn(client, args);
 			
-			OmeroWebClients.addClient(uri.getHost(), client);
-			return true;
+			boolean isLoggedIn = true;
+			if (!client.loggedIn())
+				isLoggedIn = OmeroWebClients.logIn(client, args);
+			
+			if (isLoggedIn) {
+				OmeroWebClients.addClient(uri.getHost(), client);
+				return true;				
+			}
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Omero web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");
 		}

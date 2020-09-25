@@ -16,12 +16,12 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -42,6 +42,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
 
 /**
  * Class representing an Omero Web Client. This class will take care of 
@@ -50,7 +51,7 @@ import qupath.lib.gui.dialogs.Dialogs;
  * @author Melvin Gelbard
  */
 public class OmeroWebClient {
-	
+
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebClient.class);
 
 	private Timer timer;
@@ -64,8 +65,6 @@ public class OmeroWebClient {
 	private final static String URL_SAVE = "url:save";
 
 	private Gson gson = new Gson();
-	
-	private List<OmeroWebImageServer> imageServers = new ArrayList<>();
 	
 	private URI uri;
 	private String username;
@@ -296,21 +295,29 @@ public class OmeroWebClient {
 		return username;
 	}
 	
-	void addImageServer(OmeroWebImageServer server) {
-		if (!imageServers.contains(server))
-			imageServers.add(server);
-	}
-	
-	List<OmeroWebImageServer> getImageServers() {
-		return imageServers;
-	}
-	
 	URI getURI() {
 		return uri;
 	}
 	
 	String getBaseUrl() {
 		return baseURL;
+	}
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(uri, username);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this)
+            return true;
+		
+		if (!(obj instanceof OmeroWebClient))
+			return false;
+		
+		return uri == ((OmeroWebClient)obj).getURI() && 
+				username.equals(((OmeroWebClient)obj).getUsername());
 	}
 	
 	

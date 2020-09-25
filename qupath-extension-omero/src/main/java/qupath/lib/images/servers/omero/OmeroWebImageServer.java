@@ -254,7 +254,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 			builder.preferredTileSize(tileSize[0], tileSize[1]);
 		}
 
-		client.addImageServer(this);
 		originalMetadata = builder.build();
 	}
 

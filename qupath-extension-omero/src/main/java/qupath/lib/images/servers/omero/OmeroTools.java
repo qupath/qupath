@@ -162,7 +162,9 @@ public class OmeroTools {
 	    			Future<?> future = executorRequests.submit(() -> {
         				try {
 	        				URL imageURL = new URL(server.getScheme(), server.getHost(), -1, "/api/v0/m/images/" + e.getAsJsonObject().get("id"));
-	        				list.add(readOmeroObject(imageURL));	       
+	        				var omeroObj = readOmeroObject(imageURL);
+	        				omeroObj.setParent(parent);
+	        				list.add(omeroObj);	       
         				} catch (IOException ex) {
     						logger.error("Could not fetch information for image id: " + e.getAsJsonObject().get("id"));
     					}
