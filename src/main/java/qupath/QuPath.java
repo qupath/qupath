@@ -96,7 +96,7 @@ public class QuPath {
 	private String project;
 	
 	@Option(names = {"-i", "--image"}, description = {"Launch QuPath and open the specified image.",
-											"This should be the image name if a project is also specified, otherwise the full image path."})
+											"This should be the image name if a project is also specified, otherwise it should be the full image path."})
 	private String image;
 	
 	@Option(names = {"-t", "--tma"}, description = "Launch standalone viewer for TMA summary results.")
@@ -254,7 +254,9 @@ class ScriptCommand implements Runnable {
 	@Option(names = {"-c", "--cmd"}, description = "Groovy script passed a a string", paramLabel = "command")
 	private String scriptCommand;
 	
-	@Option(names = {"-i", "--image"}, description = "Path to an image file.", paramLabel = "image")
+	@Option(names = {"-i", "--image"}, description = {"Apply the script to the specified image.",
+			"This should be the image name if a project is also specified, otherwise it should be the full image path."}, 
+			paramLabel = "image")
 	private String imagePath;
 	
 	@Option(names = {"-p", "--project"}, description = "Path to a project file (.qpproj).", paramLabel = "project")

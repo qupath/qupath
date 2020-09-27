@@ -3,6 +3,7 @@
 
 List of bugs fixed:
 * Exception when converting PathObject with name but no color to GeoJSON
+* Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
 
 ### Dependency updates*
 * Java Topology suite 1.17.1
