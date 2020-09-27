@@ -1,11 +1,17 @@
 ## Version 0.3.0-SNAPSHOT
 *In progress*
 
+List of bugs fixed:
+* Exception when converting PathObject with name but no color to GeoJSON
+* Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
+* Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
+
 ### Dependency updates*
-* Java Topology suite 1.17.0
+* Java Topology suite 1.17.1
+* OpenCV 4.4.0
 * ControlsFX 11.0.2
-* ImageJ 1.53c
-* picocli 4.5.0
+* ImageJ 1.53d
+* picocli 4.5.1
 * Groovy 3.0.5
 
 

@@ -216,17 +216,17 @@ allprojects {
     groovyVersion      = '3.0.5'
     gsonVersion        = '2.8.6'
     guavaVersion       = '29.0-jre'
-    imagejVersion      = '1.53c'
+    imagejVersion      = '1.53d'
     jfxtrasVersion     = '10.0-r1'
     jpenVersion        = '2-150301'
-    jtsVersion         = '1.17.0'
+    jtsVersion         = '1.17.1'
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.5'
-    picocliVersion     = '4.5.0'
+    picocliVersion     = '4.5.1'
     jfreesvgVersion    = '4.1'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    javacppVersion     = '1.5.3'
-    opencvVersion      = "4.3.0-${javacppVersion}"
+    javacppVersion     = '1.5.4'
+    opencvVersion      = "4.4.0-${javacppVersion}"
     
     // Additional versions
     logbackVersion     = '1.2.3'

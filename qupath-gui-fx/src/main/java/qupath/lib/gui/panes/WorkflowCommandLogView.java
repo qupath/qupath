@@ -87,7 +87,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  */
 public class WorkflowCommandLogView implements ChangeListener<ImageData<BufferedImage>>, WorkflowListener {
 
-	final private static Logger logger = LoggerFactory.getLogger(WorkflowCommandLogView.class);
+	private final static Logger logger = LoggerFactory.getLogger(WorkflowCommandLogView.class);
 	
 	private QuPathGUI qupath;
 	
@@ -95,7 +95,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	
 	private final boolean isStaticWorkflow;
 	
-	private Workflow workflow;
+	private ObjectProperty<Workflow> workflowProperty = new SimpleObjectProperty<>();
 	private ListView<WorkflowStep> list = new ListView<>();
 	
 	private TableView<KeyValue<Object>> table = new TableView<>();
@@ -112,8 +112,9 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		qupath.imageDataProperty().addListener(this);
 		ImageData<BufferedImage> imageData = qupath.getImageData();
 		if (imageData != null) {
-			workflow = imageData.getHistoryWorkflow();
+			var workflow = imageData.getHistoryWorkflow();
 			workflow.addWorkflowListener(this);
+			workflowProperty.set(workflow);
 		}
 		isStaticWorkflow = false;
 	}
@@ -126,9 +127,10 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	 */
 	public WorkflowCommandLogView(final QuPathGUI qupath, final Workflow workflow) {
 		this.qupath = qupath;
-		this.workflow = workflow;
-		this.workflow.addWorkflowListener(this);
-		this.list.getItems().addAll(this.workflow.getSteps());
+		Objects.nonNull(workflow);
+		workflowProperty.set(workflow);
+		workflow.addWorkflowListener(this);
+		this.list.getItems().addAll(workflow.getSteps());
 		this.isStaticWorkflow = true;
 	}
 	
@@ -172,6 +174,9 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		if (isStaticWorkflow) {
 			MenuItem miRemoveSelected = new MenuItem("Remove selected items");
 			miRemoveSelected.setOnAction(e -> {
+				var workflow = getWorkflow();
+				if (workflow == null)
+					return;
 				List<Integer> steps = list.getSelectionModel().getSelectedIndices();
 				if (steps.isEmpty())
 					return;
@@ -184,8 +189,13 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 					workflow.removeStep(steps.get(i));
 //				workflow.removeSteps(steps);
 			});
+			miRemoveSelected.disableProperty().bind(workflowProperty.isNull());
+			
 			MenuItem miMoveUp = new MenuItem("Move up");
 			miMoveUp.setOnAction(e -> {
+				var workflow = getWorkflow();
+				if (workflow == null)
+					return;
 				List<Integer> indices = list.getSelectionModel().getSelectedIndices();
 				if (indices.isEmpty() || indices.get(0) <= 0)
 					return;
@@ -207,8 +217,13 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 				list.getSelectionModel().clearSelection();
 				list.getSelectionModel().selectIndices(newIndices[0], newIndices);
 			});
+			miMoveUp.disableProperty().bind(workflowProperty.isNull());
+			
 			MenuItem miMoveDown = new MenuItem("Move down");
 			miMoveDown.setOnAction(e -> {
+				var workflow = getWorkflow();
+				if (workflow == null)
+					return;
 				List<Integer> indices = list.getSelectionModel().getSelectedIndices();
 				if (indices.isEmpty() || indices.get(indices.size()-1) >= workflow.size()-1)
 					return;
@@ -242,6 +257,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 //				workflow.addSteps(steps);
 //				list.getSelectionModel().select(step);
 			});
+			miMoveDown.disableProperty().bind(workflowProperty.isNull());
 			contextMenu.getItems().setAll(
 					miMoveUp,
 					miMoveDown,
@@ -285,12 +301,16 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		Button btnCreateScript = new Button("Create script");
 		btnCreateScript.setMaxWidth(Double.MAX_VALUE);
 		btnCreateScript.setOnAction(e -> showScript());
+		btnCreateScript.disableProperty().bind(workflowProperty.isNull());
 
 		Button btnCreateWorkflow = null;
 		if (!isStaticWorkflow) {
 			btnCreateWorkflow = new Button("Create workflow");
 			btnCreateWorkflow.setMaxWidth(Double.MAX_VALUE);
 			btnCreateWorkflow.setOnAction(e -> {
+				var workflow = getWorkflow();
+				if (workflow == null)
+					return;
 				Stage stage = new Stage();
 				stage.initOwner(qupath.getStage());
 				stage.setTitle("Workflow");
@@ -299,6 +319,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 				stage.setScene(new Scene(new WorkflowCommandLogView(qupath, workflowNew).getPane(), 400, 600));
 				stage.show();
 			});
+			btnCreateWorkflow.disableProperty().bind(workflowProperty.isNull());
 			pane.setBottom(PaneTools.createColumnGridControls(btnCreateWorkflow, btnCreateScript));
 		} else
 			pane.setBottom(btnCreateScript);
@@ -308,6 +329,15 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 //		btnGenerateScript.setOnAction(e -> showScript());
 //		pane.setBottom(btnGenerateScript);
 		return pane;
+	}
+	
+	
+	private Workflow getWorkflow() {
+		var workflow = workflowProperty.get();
+		if (workflow == null) {
+			logger.error("Workflow is null!");
+		}
+		return workflow;
 	}
 	
 	
@@ -404,7 +434,7 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 	
 	
 	void showScript() {
-		showScript(qupath.getScriptEditor(), workflow);
+		showScript(qupath.getScriptEditor(), workflowProperty.get());
 	}
 	
 	/**
@@ -483,13 +513,13 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 		
 		if (imageDataNew != null) {
 			imageDataNew.getHistoryWorkflow().addWorkflowListener(this);
-			workflow = imageDataNew.getHistoryWorkflow();
+			workflowProperty.set(imageDataNew.getHistoryWorkflow());
 			list.getSelectionModel().clearSelection();
 			Workflow workflow = imageDataNew.getHistoryWorkflow();
 			list.getItems().setAll(workflow.getSteps());
 			workflowUpdated(workflow);
 		} else {
-			workflow = null;
+			workflowProperty.set(null);
 			list.getItems().clear();
 			workflowUpdated(null);
 		}
