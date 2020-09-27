@@ -1,6 +1,9 @@
 ## Version 0.3.0-SNAPSHOT
 *In progress*
 
+List of bugs fixed:
+* Exception when converting PathObject with name but no color to GeoJSON
+
 ### Dependency updates*
 * Java Topology suite 1.17.1
 * OpenCV 4.4.0
