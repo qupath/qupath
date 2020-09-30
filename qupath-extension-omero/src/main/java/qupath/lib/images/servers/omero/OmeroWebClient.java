@@ -42,7 +42,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
 
 /**
  * Class representing an Omero Web Client. This class will take care of 

@@ -173,14 +173,11 @@ public class OmeroTools {
 	        	});
 	    		executorRequests.shutdown();
 	    		try {
-	    			// If more than 10 seconds 
-	    			executorRequests.awaitTermination(5L, TimeUnit.SECONDS);
-	    			for (Future<?> future : futures){
-	    			    if (!future.isDone()) {
-	    			    	logger.warn("Too many orphaned images in " + server.getHost() + ". Could not load all of them.");
-	    			    	break;
-	    			    }
-	    			}
+	    			// Wait 10 seconds to terminate tasks
+	    			executorRequests.awaitTermination(10L, TimeUnit.SECONDS);
+	    			long nPending = futures.parallelStream().filter(e -> !e.isDone()).count();
+	    			if (nPending > 0)
+	    				logger.warn("Too many orphaned images in " + server.getHost() + ". Ignored " + nPending + " orphaned image(s).");
 	    		} catch (InterruptedException ex) {
 	    			logger.warn("An exception occurred while interrupting requests: " + ex);
 	    		}

@@ -38,6 +38,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -447,8 +448,6 @@ class OmeroWebImageServerBrowser {
 			GridPane gridPane = new GridPane();
 			GridPane infoPane = new GridPane();
 			GridPane actionPane = new GridPane();
-
-			infoPane.setId("paneToCollapse");
 			
 			GridPane imageServersPane = new GridPane();
 			int imageServerRow = 0;
@@ -457,7 +456,6 @@ class OmeroWebImageServerBrowser {
 			Optional<OmeroWebClient> clientsWithUsername = hostClientEntry.getValue().parallelStream().filter(e -> !e.getUsername().isEmpty()).findAny();
 			Label userLabel = clientsWithUsername.isEmpty() ? new Label(host) : new Label(host + " (" + clientsWithUsername.get().getUsername() + ")");
 			PaneTools.addGridRow(infoPane, 0, 0, null, userLabel);
-			
 			
 			for (OmeroWebClient client: hostClientEntry.getValue()) {
 				// Check if client's servers haven't been deleted from project
@@ -476,6 +474,7 @@ class OmeroWebImageServerBrowser {
 			imageServersTitledPane.setMaxWidth(Double.MAX_VALUE);
 			imageServersTitledPane.setExpanded(false);
 			Platform.runLater(() -> {
+				// TODO: When refreshing the pane, it throws a NPE
 				try {
 					imageServersTitledPane.lookup(".title").setStyle("-fx-background-color: transparent");
 					imageServersTitledPane.lookup(".title").setEffect(null);
@@ -484,8 +483,7 @@ class OmeroWebImageServerBrowser {
 					logger.error("Error setting CSS style", e.getLocalizedMessage());
 				}
 			});
-			
-			
+
 			PaneTools.addGridRow(infoPane, 1, 0, null, imageServersTitledPane);
 
 			// Get first client in list that requires login, or the first one if all public
@@ -547,29 +545,19 @@ class OmeroWebImageServerBrowser {
 			PaneTools.addGridRow(gridPane, 0, 1, null, actionPane);
 			
 			GridPane.setHgrow(gridPane, Priority.ALWAYS);
+			GridPane.setHgrow(actionPane, Priority.ALWAYS);
+			actionPane.setAlignment(Pos.CENTER_RIGHT);
 
 			gridPane.setStyle("-fx-border-color: black;");
 			serverGrid.add(gridPane, 0, rowIndex++);
 		}
 
 		refreshBtn.setOnAction(e -> {
-			// When refreshing the pane, it throws an Exception for (I believe) having the TitledPane expanded
-			// TODO: Fix this..
-			GridPane paneToCollapse = (GridPane) mainPane.lookup("#paneToCollapse");
-			paneToCollapse.getChildren().forEach(collapsiblePane -> {
-				if (collapsiblePane instanceof TitledPane)
-					((TitledPane)collapsiblePane).setExpanded(false);
-			});
 			clientPane.getChildren().clear();
 			clientPane.addRow(0, getClientPane());
 		});
 		
-		GridPane buttonPane = PaneTools.createColumnGridControls(
-				refreshBtn
-//				btnPasteData,
-//				btnLoadGrid,
-//				btnPasteGrid
-				);
+		GridPane buttonPane = PaneTools.createColumnGridControls(refreshBtn);
 		buttonPane.setHgap(10);
 		buttonPane.setPadding(new Insets(5, 0, 5, 0));
 		
