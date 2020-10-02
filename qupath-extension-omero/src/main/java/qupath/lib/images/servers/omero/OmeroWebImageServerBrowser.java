@@ -38,7 +38,6 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
-import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -94,7 +93,7 @@ class OmeroWebImageServerBrowser {
 	private QuPathGUI qupath;
 	private OmeroWebImageServer server;
 	private BorderPane mainPane;
-	private GridPane clientPane;
+	private BorderPane clientPane;
 	private ComboBox<Owner> comboOwner = new ComboBox<>();
 	private List<Owner> owners = new ArrayList<>();
 	private List<Group> groups = new ArrayList<>();
@@ -106,6 +105,7 @@ class OmeroWebImageServerBrowser {
 	private int imgPrefSize = 256;
 	private ProgressIndicator progressIndicator;
 	private Button openBtn;
+	private Button refreshBtn;
 	
 	private StringConverter<Owner> ownerStringConverter;
 	
@@ -141,7 +141,7 @@ class OmeroWebImageServerBrowser {
 		GridPane browseLeftPane = new GridPane();
 		GridPane browseRightPane = new GridPane();
 		
-		clientPane = new GridPane();
+		clientPane = new BorderPane();
 
 		progressIndicator = new ProgressIndicator();
 		progressIndicator.setPrefSize(20, 20);
@@ -238,6 +238,15 @@ class OmeroWebImageServerBrowser {
 			else
 				return new ReadOnlyObjectWrapper<String>();
 		});
+		valueCol.setCellFactory(n -> new TableCell<Integer, String>() {
+			@Override
+	        protected void updateItem(String item, boolean empty) {
+				super.updateItem(item, empty);
+				setText(item);
+				setTooltip(new Tooltip(item));
+			}
+		});
+		valueCol.setPrefWidth(150.0);
 		
 		// Get thumbnails in separate thread
 		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
@@ -329,6 +338,8 @@ class OmeroWebImageServerBrowser {
 		GridPane searchPane = new GridPane();
 		Button advancedSearchBtn = new Button("Advanced search");
 		advancedSearchBtn.setOnAction(e -> new AdvancedSearch(server));
+		GridPane.setHgrow(filter, Priority.ALWAYS);
+		GridPane.setHgrow(advancedSearchBtn, Priority.ALWAYS);
 		searchPane.addRow(0,  filter, advancedSearchBtn);
 		
 		PaneTools.addGridRow(browseLeftPane, 0, 0, "Filter by owner", comboOwner);
@@ -411,7 +422,17 @@ class OmeroWebImageServerBrowser {
 		browsePane.setLeft(browseLeftPane);
 		browsePane.setRight(browseRightPane);
 		
-		clientPane.addRow(0, getClientPane());
+		refreshBtn = new Button("Refresh");
+		refreshBtn.setOnAction(e -> {
+			clientPane.setTop(getClientPane());
+		});
+		
+		GridPane buttonPane = PaneTools.createColumnGridControls(refreshBtn);
+		buttonPane.setHgap(10);
+		buttonPane.setPadding(new Insets(5, 0, 5, 0));
+		
+		clientPane.setTop(getClientPane());
+		clientPane.setBottom(buttonPane);
     }
 
     
@@ -436,8 +457,6 @@ class OmeroWebImageServerBrowser {
     	BorderPane mainPane = new BorderPane();
 		GridPane serverGrid = new GridPane();
 		serverGrid.setVgap(10.0);
-		
-		Button refreshBtn = new Button("Refresh");
 		
 		var rowIndex = 0;
 		var hostClientsMap = OmeroWebClients.getAllClients();
@@ -474,8 +493,10 @@ class OmeroWebImageServerBrowser {
 			imageServersTitledPane.setMaxWidth(Double.MAX_VALUE);
 			imageServersTitledPane.setExpanded(false);
 			Platform.runLater(() -> {
-				// TODO: When refreshing the pane, it throws a NPE
 				try {
+					// These 2 next lines help prevent NPE
+					imageServersTitledPane.applyCss();
+					imageServersTitledPane.layout();
 					imageServersTitledPane.lookup(".title").setStyle("-fx-background-color: transparent");
 					imageServersTitledPane.lookup(".title").setEffect(null);
 					imageServersTitledPane.lookup(".content").setStyle("-fx-border-color: null");
@@ -551,18 +572,12 @@ class OmeroWebImageServerBrowser {
 			gridPane.setStyle("-fx-border-color: black;");
 			serverGrid.add(gridPane, 0, rowIndex++);
 		}
-
-		refreshBtn.setOnAction(e -> {
-			clientPane.getChildren().clear();
-			clientPane.addRow(0, getClientPane());
-		});
 		
-		GridPane buttonPane = PaneTools.createColumnGridControls(refreshBtn);
-		buttonPane.setHgap(10);
-		buttonPane.setPadding(new Insets(5, 0, 5, 0));
-		
+		if (serverGrid.getChildren().isEmpty())
+			serverGrid.add(new Label("No OMERO server"), 0, 0);
+			
+		serverGrid.setMinWidth(250);
 		mainPane.setTop(serverGrid);
-		mainPane.setBottom(buttonPane);
 		return mainPane;
     }
 
@@ -1053,6 +1068,7 @@ class OmeroWebImageServerBrowser {
 				}
 				ownedByCombo.getSelectionModel().selectFirst();
 				groupCombo.getSelectionModel().selectFirst();
+				resultsTableView.getItems().clear();
 			});
 			searchBtn = new Button("Search");
 			progressIndicator2 = new ProgressIndicator();
@@ -1084,8 +1100,22 @@ class OmeroWebImageServerBrowser {
 			
 			Button openBtn = new Button("Open image");
 			openBtn.disableProperty().bind(resultsTableView.getSelectionModel().selectedItemProperty().isNull());
-			openBtn.setOnAction(e -> qupath.openImage(resultsTableView.getSelectionModel().getSelectedItem().link.toString(), false, false));
+			openBtn.setOnAction(e -> {
+				String[] URIs = resultsTableView.getSelectionModel().getSelectedItems().stream()
+						.flatMap(item -> {
+							try {
+								return OmeroTools.getURIs(item.link.toURI()).stream();
+							} catch (URISyntaxException | IOException ex) {
+								logger.error("Could not open.", ex.getLocalizedMessage());
+							}
+							return null;
+						}).map(item -> item.toString())
+						  .toArray(String[]::new);
+				ProjectCommands.promptToImportImages(qupath, URIs);
+			});
 			openBtn.setMaxWidth(Double.MAX_VALUE);
+			
+			resultsTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 			
 			
 			int row = 0;
@@ -1190,14 +1220,18 @@ class OmeroWebImageServerBrowser {
 			        if (e.getClickCount() == 2) {
 			        	var selectedItem = resultsTableView.getSelectionModel().getSelectedItem();
 			        	if (selectedItem != null)
-			        		qupath.openImage(selectedItem.link.toString(), false, false);
+			        		ProjectCommands.promptToImportImages(qupath, selectedItem.link.toString());
 			        }
 		    });
 			
 			resultsTableView.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
 				if (n == null)
 					return;
-				openBtn.setText("Open " + n.type);
+				
+				if (resultsTableView.getSelectionModel().getSelectedItems().size() == 1)
+					openBtn.setText("Open " + n.type);
+				else
+					openBtn.setText("Open OMERO objects");
 			});
 			
 			
@@ -1241,7 +1275,7 @@ class OmeroWebImageServerBrowser {
 			int owner = ownedByCombo.getSelectionModel().getSelectedItem().getId();
 			int group = groupCombo.getSelectionModel().getSelectedItem().getId();
 
-			
+			// TODO: search is not exactly the same as OMERO one
 			URL url;
 			try {
 				url = new URL(server.getScheme() + "://" +
@@ -1316,6 +1350,7 @@ class OmeroWebImageServerBrowser {
 		
 		private void updateTableView(List<SearchResult> results) {
 			resultsTableView.getItems().setAll(results);
+			Platform.runLater(() -> resultsTableView.refresh());
 		}
 		
 		/**
