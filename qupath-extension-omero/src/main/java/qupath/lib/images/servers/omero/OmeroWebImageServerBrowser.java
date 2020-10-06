@@ -50,6 +50,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
@@ -66,6 +67,8 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -137,7 +140,7 @@ class OmeroWebImageServerBrowser {
 		
 		TabPane tabPane = new TabPane();
 		
-		BorderPane browsePane = new BorderPane();
+		SplitPane browsePane = new SplitPane();
 		GridPane browseLeftPane = new GridPane();
 		GridPane browseRightPane = new GridPane();
 		
@@ -150,10 +153,11 @@ class OmeroWebImageServerBrowser {
 		
 		executorTable = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("children-loader", true));
 		
+		// Get OMERO icons (project and dataset icons)
 		omeroIcons = getOmeroIcons();
 		
+		// Create converter from Owner object to proper String
 		ownerStringConverter = new StringConverter<Owner>() {
-
 		    @Override
 		    public String toString(Owner owner) {
 		    	if (owner != null)
@@ -168,24 +172,34 @@ class OmeroWebImageServerBrowser {
 		    }
 		};
 		
-		tree = new TreeView<>();
 		OmeroObjectTreeItem root = new OmeroObjectTreeItem(new OmeroObjects.Server(server));
+		tree = new TreeView<>();
 		tree.setRoot(root);
 		tree.setShowRoot(false);
 		tree.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tree.setCellFactory(n -> new OmeroObjectCell());
+		tree.setOnMouseClicked(e -> {
+	        if (e.getClickCount() == 2) {
+	        	var selectedItem = tree.getSelectionModel().getSelectedItem();
+	        	if (selectedItem != null && selectedItem.getValue() instanceof Image) {
+	        		String typeFull = selectedItem.getValue().getType().toLowerCase();
+	        		String type = typeFull.substring(typeFull.lastIndexOf('#') + 1);
+	        		String url = server.getScheme() + "://" + server.getHost() + "/webclient/?show=" + type + "-" + selectedItem.getValue().getId();
+	        		ProjectCommands.promptToImportImages(qupath, url);
+	        	}
+	        }
+	    });
 		
-		comboOwner.setMaxWidth(Double.MAX_VALUE);
 		owners.add(Owner.getAllMembersOwner());
 		comboOwner.getItems().setAll(owners);
 		comboOwner.getSelectionModel().selectFirst();
 		comboOwner.setConverter(ownerStringConverter);
-		
 		comboOwner.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> refreshTree());
 		
 		description = new TableView<>();
 		TableColumn<Integer, String> attributeCol = new TableColumn<>("Attribute");
 		TableColumn<Integer, String> valueCol = new TableColumn<>("Value");
+		valueCol.setPrefWidth(150.0);
 		
 		projectAttributes = new String[] {"Name", 
 				"Id",
@@ -216,7 +230,6 @@ class OmeroWebImageServerBrowser {
 				"Pixel size Z",
 				"Pixel type"};
 
-		
 		attributeCol.setCellValueFactory(cellData -> {
 			var selectedItems = tree.getSelectionModel().getSelectedItems();
 			if (selectedItems.size() == 1 && selectedItems.get(0).getValue() != null) {
@@ -231,7 +244,6 @@ class OmeroWebImageServerBrowser {
 			return new ReadOnlyObjectWrapper<String>("");
 			
 		});
-		
 		valueCol.setCellValueFactory(cellData -> {
 			if (selectedObjects != null && selectedObjects.length == 1) 
 				return getObjectInfo(cellData.getValue(), selectedObjects[0]);
@@ -246,7 +258,6 @@ class OmeroWebImageServerBrowser {
 				setTooltip(new Tooltip(item));
 			}
 		});
-		valueCol.setPrefWidth(150.0);
 		
 		// Get thumbnails in separate thread
 		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
@@ -263,7 +274,7 @@ class OmeroWebImageServerBrowser {
 				updateDescription();
 				if (selectedObjects.length == 1) {
 					var selectedObjectLocal = n.getValue();
-					if (selectedObjects[0] instanceof Image) {
+					if (selectedObjects.length == 1 && selectedObjects[0] instanceof Image) {
 						// Check if thumbnail was previously cached
 						if (thumbnailBank.containsKey(selectedObjectLocal.getId()))
 							setThumbnail(thumbnailBank.get(selectedObjectLocal.getId()));
@@ -284,13 +295,17 @@ class OmeroWebImageServerBrowser {
 										logger.warn("Error loading thumbnail: " + e.getLocalizedMessage());
 									}
 								}
-							});
+							});							
 						}
 					} else {
 						// To avoid empty space at the top
 						canvas.setWidth(0);
 						canvas.setHeight(0);
 					}
+				} else {
+					// If multiple elements are selected, collapse canvas
+					canvas.setWidth(0);
+					canvas.setHeight(0);
 				}
 				// Change text on "Open .." button
 				Platform.runLater(() -> {
@@ -311,8 +326,6 @@ class OmeroWebImageServerBrowser {
 		
 		Button expandBtn = new Button("Expand all");
 		Button collapseBtn = new Button("Collapse all");
-		expandBtn.setMaxWidth(Double.MAX_VALUE);
-		collapseBtn.setMaxWidth(Double.MAX_VALUE);
 
 		expandBtn.setOnMouseClicked(e -> {
 			tree.getSelectionModel().clearSelection();
@@ -321,9 +334,6 @@ class OmeroWebImageServerBrowser {
 		collapseBtn.setOnMouseClicked(e -> collapseTreeView(tree.getRoot()));
 		GridPane expansionPane = new GridPane();
 		PaneTools.addGridRow(expansionPane, 0, 0, "Expand/collapse items", expandBtn, collapseBtn);
-		expansionPane.setMaxWidth(Double.MAX_VALUE);
-		GridPane.setHgrow(expandBtn, Priority.ALWAYS);
-		GridPane.setHgrow(collapseBtn, Priority.ALWAYS);
 		
 		filter.setPromptText("Search project");
 		filter.textProperty().addListener((v, o, n) -> {
@@ -338,8 +348,6 @@ class OmeroWebImageServerBrowser {
 		GridPane searchPane = new GridPane();
 		Button advancedSearchBtn = new Button("Advanced search");
 		advancedSearchBtn.setOnAction(e -> new AdvancedSearch(server));
-		GridPane.setHgrow(filter, Priority.ALWAYS);
-		GridPane.setHgrow(advancedSearchBtn, Priority.ALWAYS);
 		searchPane.addRow(0,  filter, advancedSearchBtn);
 		
 		PaneTools.addGridRow(browseLeftPane, 0, 0, "Filter by owner", comboOwner);
@@ -349,8 +357,6 @@ class OmeroWebImageServerBrowser {
 		
 		canvas = new Canvas();
 		description.getColumns().addAll(attributeCol, valueCol);
-		description.setMaxHeight(Double.MAX_VALUE);
-		GridPane.setVgrow(description, Priority.ALWAYS);
 		
 		Button clipboardBtn = new Button("Copy URI to clipboard");
 		clipboardBtn.disableProperty().bind(tree.getSelectionModel().selectedItemProperty().isNull());
@@ -359,10 +365,7 @@ class OmeroWebImageServerBrowser {
 		
 		GridPane actionBtnPane = new GridPane();
 		PaneTools.addGridRow(actionBtnPane, 0, 0, null, clipboardBtn, openBtn);
-		clipboardBtn.setMaxWidth(Double.MAX_VALUE);
-		openBtn.setMaxWidth(Double.MAX_VALUE);
-		GridPane.setHgrow(clipboardBtn, Priority.ALWAYS);
-		GridPane.setHgrow(openBtn, Priority.ALWAYS);
+
 		
 		clipboardBtn.setOnMouseClicked(e -> {
 			var selected = tree.getSelectionModel().getSelectedItems();
@@ -391,7 +394,7 @@ class OmeroWebImageServerBrowser {
 						try {
 							return OmeroTools.getURIs(URI.create(getURI(item.getValue()))).stream();
 						} catch (URISyntaxException | IOException ex) {
-							logger.error("Could not open.", ex.getLocalizedMessage());
+							logger.error("Could not open " + item.getValue().getName(), ex.getLocalizedMessage());
 						}
 						return null;
 					}).map(item -> item.toString())
@@ -417,10 +420,32 @@ class OmeroWebImageServerBrowser {
         AnchorPane.setRightAnchor(tabPane, 1.0);
         AnchorPane.setLeftAnchor(tabPane, 1.0);
         AnchorPane.setBottomAnchor(tabPane, 1.0);
+        
+        // Set HGrow and VGrow
+		GridPane.setHgrow(description,  Priority.ALWAYS);
+		GridPane.setHgrow(tree, Priority.ALWAYS);
+		GridPane.setHgrow(expandBtn, Priority.ALWAYS);
+		GridPane.setHgrow(collapseBtn, Priority.ALWAYS);
+		GridPane.setHgrow(filter, Priority.ALWAYS);
+		GridPane.setHgrow(advancedSearchBtn, Priority.ALWAYS);
+		GridPane.setHgrow(clipboardBtn, Priority.ALWAYS);
+		GridPane.setHgrow(openBtn, Priority.ALWAYS);
+		GridPane.setVgrow(description, Priority.ALWAYS);
+		GridPane.setVgrow(tree, Priority.ALWAYS);
+		
+		// Set max width & height
+		comboOwner.setMaxWidth(Double.MAX_VALUE);
+		expandBtn.setMaxWidth(Double.MAX_VALUE);
+		collapseBtn.setMaxWidth(Double.MAX_VALUE);
+		expansionPane.setMaxWidth(Double.MAX_VALUE);
+        advancedSearchBtn.setMaxWidth(Double.MAX_VALUE);
+        browseLeftPane.setMaxWidth(Double.MAX_VALUE);
+        clipboardBtn.setMaxWidth(Double.MAX_VALUE);
+        openBtn.setMaxWidth(Double.MAX_VALUE);
+		description.setMaxHeight(Double.MAX_VALUE);
 		
 		mainPane.setCenter(anchor);
-		browsePane.setLeft(browseLeftPane);
-		browsePane.setRight(browseRightPane);
+		browsePane.getItems().addAll(browseLeftPane, browseRightPane);
 		
 		refreshBtn = new Button("Refresh");
 		refreshBtn.setOnAction(e -> {
@@ -583,10 +608,8 @@ class OmeroWebImageServerBrowser {
 
 
 	private Node createStateNode(boolean loggedIn) {
-		if (loggedIn)
-			return IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.ACTIVE_SERVER);
-		else 
-			return IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.INACTIVE_SERVER);
+		var state = loggedIn ? IconFactory.PathIcons.ACTIVE_SERVER : IconFactory.PathIcons.INACTIVE_SERVER;
+		return IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, state);
 	}
 
 
@@ -696,8 +719,6 @@ class OmeroWebImageServerBrowser {
 		else
 			GuiTools.paintImage(canvas, wi);
 		
-		
-		
 		return wi;
 	}
 
@@ -797,7 +818,6 @@ class OmeroWebImageServerBrowser {
 							owners.addAll(tempOwners);
 							Platform.runLater(() -> {
 								comboOwner.getItems().setAll(owners);
-//							comboOwner.getSelectionModel().selectFirst();
 							});								
 						}
 						if (tempGroups.size() > groups.size()) {
@@ -1106,12 +1126,15 @@ class OmeroWebImageServerBrowser {
 							try {
 								return OmeroTools.getURIs(item.link.toURI()).stream();
 							} catch (URISyntaxException | IOException ex) {
-								logger.error("Could not open.", ex.getLocalizedMessage());
+								logger.error("Error while opening " + item.name, ex.getLocalizedMessage());
 							}
 							return null;
 						}).map(item -> item.toString())
 						  .toArray(String[]::new);
-				ProjectCommands.promptToImportImages(qupath, URIs);
+				if (URIs.length > 0)
+					ProjectCommands.promptToImportImages(qupath, URIs);
+				else
+					Dialogs.showErrorMessage("No image found", "No image found in OMERO object.");
 			});
 			openBtn.setMaxWidth(Double.MAX_VALUE);
 			
@@ -1217,11 +1240,21 @@ class OmeroWebImageServerBrowser {
 			resultsTableView.setItems(obsResults);
 			
 			resultsTableView.setOnMouseClicked(e -> {
-			        if (e.getClickCount() == 2) {
-			        	var selectedItem = resultsTableView.getSelectionModel().getSelectedItem();
-			        	if (selectedItem != null)
-			        		ProjectCommands.promptToImportImages(qupath, selectedItem.link.toString());
-			        }
+		        if (e.getClickCount() == 2) {
+		        	var selectedItem = resultsTableView.getSelectionModel().getSelectedItem();
+		        	if (selectedItem != null) {
+						try {
+							List<URI> URIs = OmeroTools.getURIs(selectedItem.link.toURI());
+							var uriStrings = URIs.parallelStream().map(uri -> uri.toString()).toArray(String[]::new);
+							if (URIs.size() > 0)
+								ProjectCommands.promptToImportImages(qupath, uriStrings);
+							else
+								Dialogs.showErrorMessage("No image found", "No image found in OMERO object.");
+						} catch (IOException | URISyntaxException ex) {
+							logger.error("Error while opening " + selectedItem.name, ex.getLocalizedMessage());
+						}
+		        	}
+		        }
 		    });
 			
 			resultsTableView.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
@@ -1252,8 +1285,6 @@ class OmeroWebImageServerBrowser {
 				executor2.shutdownNow();
 			});
 			dialog.showAndWait();
-			
-			
 		}
 		
 		
@@ -1394,8 +1425,7 @@ class OmeroWebImageServerBrowser {
 		}
 	}
 
-	
-	
+
 	private class SearchResult {
 		String type;
 		int id;

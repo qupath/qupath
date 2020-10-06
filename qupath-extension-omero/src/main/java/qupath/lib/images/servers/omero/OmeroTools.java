@@ -468,7 +468,7 @@ public class OmeroTools {
         else
             throw new IOException("URI not recognized: " + uri.toString());
         
-        var patternId= Pattern.compile(type + "(\\d+)");
+        var patternId = Pattern.compile(type + "(\\d+)");
         var matcherId = patternId.matcher(query);
         while (matcherId.find()) {
         	ids.add(matcherId.group(1));
@@ -511,7 +511,7 @@ public class OmeroTools {
         	
         case "image-":
         	if (ids.isEmpty())
-        		throw new IOException("No image found in URI: " + uri.toString());
+        		logger.info("No image found in URI: " + uri.toString());
         	for (int i = 0; i < ids.size(); i++) {
         		String imgId = (i == ids.size()-1) ? ids.get(i) : ids.get(i) + vertBarSign + "image-";
         		sb.append(imgId);        		
