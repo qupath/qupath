@@ -67,8 +67,6 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -1227,10 +1225,9 @@ class OmeroWebImageServerBrowser {
 
 		            button.setOnAction(e -> QuPathGUI.launchBrowserWindow(item.link.toString()));
 		            setGraphic(button);
-		            setAlignment(Pos.CENTER);
 		        }
 		    });
-
+		    
 		    resultsTableView.getColumns().add(typeCol);
 		    resultsTableView.getColumns().add(nameCol);
 		    resultsTableView.getColumns().add(acquisitionCol);
@@ -1238,6 +1235,7 @@ class OmeroWebImageServerBrowser {
 		    resultsTableView.getColumns().add(groupCol);
 		    resultsTableView.getColumns().add(linkCol);
 			resultsTableView.setItems(obsResults);
+			resultsTableView.getColumns().forEach(e -> e.setStyle( "-fx-alignment: CENTER;"));
 			
 			resultsTableView.setOnMouseClicked(e -> {
 		        if (e.getClickCount() == 2) {
@@ -1306,7 +1304,6 @@ class OmeroWebImageServerBrowser {
 			int owner = ownedByCombo.getSelectionModel().getSelectedItem().getId();
 			int group = groupCombo.getSelectionModel().getSelectedItem().getId();
 
-			// TODO: search is not exactly the same as OMERO one
 			URL url;
 			try {
 				url = new URL(server.getScheme() + "://" +

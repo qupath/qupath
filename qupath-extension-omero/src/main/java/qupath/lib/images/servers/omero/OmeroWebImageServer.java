@@ -115,12 +115,15 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	 */
 	OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
 		super();
-		
 		this.uri = uri;
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
 		this.client = client;
-
+		this.args = args;
+		this.originalMetadata = buildMetadata(uri);
+	}
+	
+	protected ImageServerMetadata buildMetadata(URI uri) throws IOException {
 		String uriQuery = uri.getQuery();
 		if (uriQuery != null && !uriQuery.isEmpty() && uriQuery.startsWith("show=image-")) {
 			Pattern pattern = Pattern.compile("show=image-(\\d+)");
@@ -146,11 +149,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		boolean isRGB = true;
 		double magnification = Double.NaN;
 
-
-		URL urlMetadata = new URL(
-				scheme, host, -1, "/webgateway/imgData/" + id
-				);
-
+		URL urlMetadata = new URL(scheme, host, -1, "/webgateway/imgData/" + id);
 		InputStreamReader reader = new InputStreamReader(urlMetadata.openStream());
 		JsonObject map = new Gson().fromJson(reader, JsonObject.class);
 		reader.close();
@@ -232,7 +231,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		if (map.has("nominalMagnification"))
 			magnification = map.getAsJsonPrimitive("nominalMagnification").getAsDouble();
 		
-		this.args = args;
 		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), sizeX, sizeY)
 				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
@@ -254,7 +252,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 			builder.preferredTileSize(tileSize[0], tileSize[1]);
 		}
 
-		originalMetadata = builder.build();
+		return builder.build();
 	}
 
 	@Override

@@ -135,7 +135,7 @@ public class OmeroTools {
 			}
 			
 			// Requesting orphaned images can time-out the JSON API on OMERO side if too many,
-			// so we go through the webclient, whose response comes in a different format
+			// so we go through the webclient, whose response comes in a different format.
 	        HttpURLConnection connection = (HttpURLConnection) urlOrphanedImages.openConnection();
 	        if (connection.getResponseCode() == 200) {
 	        	InputStreamReader reader = new InputStreamReader(connection.getInputStream());
