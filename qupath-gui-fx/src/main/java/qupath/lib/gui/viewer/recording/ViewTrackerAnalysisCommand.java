@@ -88,7 +88,6 @@ import qupath.lib.plugins.parameters.ParameterList;
  *
  */
 class ViewTrackerAnalysisCommand implements Runnable {
-	// TODO: rotation is in radian
 	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerAnalysisCommand.class);
 	
 	private ViewTrackerControlPane owner;
@@ -453,7 +452,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			magnificationNormalizedRadio.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			timeDisplayedLeftLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			timeDisplayedRightLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
-			downsampleSlider.disableProperty().bind(Bindings.or(visualizationCheckBox.selectedProperty().not(), new SimpleBooleanProperty(minDownsample == maxDownsample)));
+			downsampleSlider.disableProperty().bind(visualizationCheckBox.selectedProperty().not().or(new SimpleBooleanProperty(minDownsample == maxDownsample)));
 			downsampleLeftLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			downsampleRightLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			timeDisplayedSlider.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
