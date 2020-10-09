@@ -30,10 +30,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import javafx.scene.Scene;
-import javafx.stage.Stage;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.omero.OmeroObjects.Dataset;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
 import qupath.lib.images.servers.omero.OmeroObjects.Project;
@@ -386,25 +383,6 @@ public class OmeroTools {
         return omeroObj;
     }
     
-    
-    static void promptBrowsingWindow(OmeroWebImageServer server) {
-    	Stage dialog = new Stage();
-		dialog.sizeToScene();
-		QuPathGUI qupath = QuPathGUI.getInstance();
-		if (qupath != null)
-			dialog.initOwner(QuPathGUI.getInstance().getStage());
-		dialog.setTitle("OMERO web server");
-//		dialog.setAlwaysOnTop(true);
-		
-		OmeroWebImageServerBrowser browser = new OmeroWebImageServerBrowser(qupath, server);
-		
-		dialog.setScene(new Scene(browser.getPane()));
-		
-		dialog.setOnCloseRequest(e -> browser.shutdownPool());
-		
-		dialog.showAndWait();
-    }
-    
     /**
 	 * Return a list of valid URIs from the given URI. If no valid URI can be parsed 
 	 * from it, an IOException is thrown.
@@ -532,10 +510,13 @@ public class OmeroTools {
 	 * @return Id
 	 */
 	public static String getOmeroObjectId(URI uri) {
+		String uriString = uri.toString().replace("show%3Dimage-", "show=image-");
+		uriString = uriString.replace("/?images%3D", "/?images=");
 		Pattern patternLink = Pattern.compile("show=image-(\\d+)");
-		Pattern[] similarPatterns = new Pattern[] {patternLink, patternNewViewer, patternWebViewer};
+		Pattern patternImgDetail = Pattern.compile("img_detail/(\\d+)");
+		Pattern[] similarPatterns = new Pattern[] {patternLink, patternImgDetail, patternNewViewer, patternWebViewer};
         for (int i = 0; i < similarPatterns.length; i++) {
-        	var matcher = similarPatterns[i].matcher(uri.getQuery());
+        	var matcher = similarPatterns[i].matcher(uriString);
         	if (matcher.find())
         		return matcher.group(1);
         }
