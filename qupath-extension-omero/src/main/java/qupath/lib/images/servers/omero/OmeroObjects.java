@@ -401,7 +401,7 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		private ImageType imageType;
 		
 		public int[] getImageDimensions() {
-			return new int[] {width, height, z, c, t};
+			return new int[] {width, height, c, z, t};
 		}
 		
 		public PhysicalSize[] getPhysicalSizes() {

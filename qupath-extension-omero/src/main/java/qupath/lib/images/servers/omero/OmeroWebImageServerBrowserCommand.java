@@ -15,7 +15,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -40,7 +39,6 @@ import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -52,23 +50,18 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.TabPane.TabClosingPolicy;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -79,7 +72,6 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
-import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.omero.OmeroObjects.Dataset;
@@ -90,25 +82,30 @@ import qupath.lib.images.servers.omero.OmeroObjects.Owner;
 import qupath.lib.images.servers.omero.OmeroObjects.Project;
 import qupath.lib.images.servers.omero.OmeroObjects.Server;
 
-class OmeroWebImageServerBrowserCommand implements Runnable {
+/**
+ * Command to browse a specified OMERO server.
+ * 
+ * @author Melvin Gelbard
+ * 
+ */
+public class OmeroWebImageServerBrowserCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebImageServerBrowserCommand.class);
 	
 	private QuPathGUI qupath;
 	private OmeroWebImageServer server;
 	private BorderPane mainPane;
-	private BorderPane clientPane;
-	private ComboBox<Owner> comboOwner = new ComboBox<>();
-	private List<Owner> owners = new ArrayList<>();
-	private List<Group> groups = new ArrayList<>();
+	private ComboBox<Owner> comboOwner;
+	private List<Owner> owners;
+	private List<Group> groups;
 	private TreeView<OmeroObject> tree;
 	private TableView<Integer> description;
 	private OmeroObject[] selectedObjects;
-	private TextField filter = new TextField();
+	private TextField filter;
 	private Canvas canvas;
 	private int imgPrefSize = 256;
 	private ProgressIndicator progressIndicator;
-	private Button openBtn;
+	private Button importBtn;
 	
 	private StringConverter<Owner> ownerStringConverter;
 	
@@ -116,11 +113,11 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 	// Get table item children in separate thread
 	ExecutorService executorTable;
 	
-	private Map<Integer, BufferedImage> thumbnailBank = new HashMap<Integer, BufferedImage>();	// To store thumbnails
+	private Map<Integer, BufferedImage> thumbnailBank;	// To store thumbnails
 	
-	private List<OmeroObject> serverChildrenList = new ArrayList<>();
-	private Map<OmeroObject, List<OmeroObject>> projectMap = new ConcurrentHashMap<>();
-	private Map<OmeroObject, List<OmeroObject>> datasetMap = new ConcurrentHashMap<>();
+	private List<OmeroObject> serverChildrenList;
+	private Map<OmeroObject, List<OmeroObject>> projectMap;
+	private Map<OmeroObject, List<OmeroObject>> datasetMap;
 	
 	private String[] projectAttributes;
 	private String[] datasetAttributes;
@@ -129,22 +126,24 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 	private Integer[] imageIndices;
 	private Integer[] datasetIndices;
 	private Integer[] projectIndices;
+
 	
-	
-    public OmeroWebImageServerBrowserCommand(QuPathGUI qupath) {
+    OmeroWebImageServerBrowserCommand(QuPathGUI qupath) {
     	this.qupath = qupath;
     }
     
     @Override
     public void run() {
+    	// Initialize class variables
+    	initializeVariables();
+    	
     	// Need to choose which server to browse first
     	if (qupath.getImageData() != null) {
     		var serverTemp = qupath.getImageData().getServer();
     		if (serverTemp instanceof OmeroWebImageServer)
     			server = (OmeroWebImageServer) serverTemp;
     	}
-    	while (server == null) {
-//    		String[] choices = qupath.getProject().getImageList().parallelStream().map(e -> e.getImageName()).toArray(String[]::new);
+    	if (server == null) {
     		var entry = Dialogs.showChoiceDialog("No open OMERO image", "Choose an entry for a server to browse", qupath.getProject().getImageList(), null);
     		if (entry == null)
     			return;
@@ -152,28 +151,44 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 				ImageServer<BufferedImage> serverTemp = entry.getServerBuilder().build();
 				if (serverTemp instanceof OmeroWebImageServer)
 	    			server = (OmeroWebImageServer)serverTemp;
-	    		else
+	    		else {
 	    			Dialogs.showErrorMessage("Not an OMERO image", "Chosen image does not come from an OMERO server");
+	    			return;
+	    		}
 			} catch (Exception ex) {
 				Dialogs.showErrorMessage("Error", "An error occurred while processing " + entry);
+				return;
 			}
     	}
-    	
-    	
+
     	
 		mainPane = new BorderPane();
-		selectedObjects = null;
-		
+		BorderPane serverInfoPane = new BorderPane();
+		GridPane serverAttributePane = new GridPane();
 		SplitPane browsePane = new SplitPane();
 		GridPane browseLeftPane = new GridPane();
 		GridPane browseRightPane = new GridPane();
-		
-		clientPane = new BorderPane();
 
 		progressIndicator = new ProgressIndicator();
 		progressIndicator.setPrefSize(20, 20);
 		progressIndicator.setMinSize(20, 20);
 		progressIndicator.setOpacity(0);
+		
+		// Info about the server to display at the top
+		String bold = "-fx-font-weight: bold";
+		var hostLabel = new Label(server.getHost());
+		var username = server.getWebClient().getUsername();
+		var usernameText = username.isEmpty() ? new Label("public") : new Label(username);
+		var nOpenImages = new Label(OmeroWebClients.getAllClients().get(server.getHost()).size() + "");
+		hostLabel.setStyle(bold);
+		usernameText.setStyle(bold);
+		nOpenImages.setStyle(bold);
+		
+		serverAttributePane.addRow(0, new Label("Server: "), hostLabel);
+		serverAttributePane.addRow(1, new Label("Username: "), usernameText);
+		serverAttributePane.addRow(2, new Label("Open images: "), nOpenImages);
+		serverInfoPane.setLeft(serverAttributePane);
+		serverInfoPane.setRight(progressIndicator);
 		
 		executorTable = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("children-loader", true));
 		
@@ -205,7 +220,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 		tree.setOnMouseClicked(e -> {
 	        if (e.getClickCount() == 2) {
 	        	var selectedItem = tree.getSelectionModel().getSelectedItem();
-	        	if (selectedItem != null && selectedItem.getValue() instanceof Image) {
+	        	if (selectedItem != null && selectedItem.getValue() instanceof Image && isSupported(selectedItem.getValue())) {
 	        		String typeFull = selectedItem.getValue().getType().toLowerCase();
 	        		String type = typeFull.substring(typeFull.lastIndexOf('#') + 1);
 	        		String url = server.getScheme() + "://" + server.getHost() + "/webclient/?show=" + type + "-" + selectedItem.getValue().getId();
@@ -223,36 +238,6 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 		description = new TableView<>();
 		TableColumn<Integer, String> attributeCol = new TableColumn<>("Attribute");
 		TableColumn<Integer, String> valueCol = new TableColumn<>("Value");
-		valueCol.setPrefWidth(150.0);
-		
-		projectAttributes = new String[] {"Name", 
-				"Id",
-				"Description",
-				"Owner",
-				"Group",
-				"Num. datasets"};
-		
-		datasetAttributes = new String[] {"Name", 
-				"Id", 
-				"Description",
-				"Owner",
-				"Group",
-				"Num. images"};
-		
-		imageAttributes = new String[] {"Name", 
-				"Id", 
-				"Owner",
-				"Group",
-				"Acquisition date",
-				"Image width",
-				"Image height",
-				"Num. channels",
-				"Num. z-slices",
-				"Num. timepoints",
-				"Pixel size X",
-				"Pixel size Y",
-				"Pixel size Z",
-				"Pixel type"};
 
 		attributeCol.setCellValueFactory(cellData -> {
 			var selectedItems = tree.getSelectionModel().getSelectedItems();
@@ -316,7 +301,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 											progressIndicator.setOpacity(0);
 										});		
 									} catch (IOException e) {
-										logger.warn("Error loading thumbnail: " + e.getLocalizedMessage());
+										logger.warn("Error loading thumbnail: {}" + e.getLocalizedMessage());
 									}
 								}
 							});							
@@ -334,16 +319,16 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 				// Change text on "Open .." button
 				Platform.runLater(() -> {
 					if (selectedObjects.length > 1)
-						openBtn.setText("Open selected");
+						importBtn.setText("Import selected");
 					else if (selectedObjects[0] instanceof Image)
-						openBtn.setText("Open image");
+						importBtn.setText("Import image");
 					else if (selectedObjects[0] instanceof Dataset)
-						openBtn.setText("Open dataset");
+						importBtn.setText("Import dataset");
 					else if (selectedObjects[0] instanceof Project)
-						openBtn.setText("Open Omero project");
+						importBtn.setText("Import Omero project");
 					
 					var allSupported = !List.of(selectedObjects).stream().allMatch(obj -> isSupported(obj));
-					openBtn.setDisable(allSupported);
+					importBtn.setDisable(allSupported);
 				});
 			}
 		});
@@ -384,11 +369,11 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 		
 		Button clipboardBtn = new Button("Copy URI to clipboard");
 		clipboardBtn.disableProperty().bind(tree.getSelectionModel().selectedItemProperty().isNull());
-		openBtn = new Button("Open image");
-		openBtn.setDisable(true);
+		importBtn = new Button("Import image");
+		importBtn.setDisable(true);
 		
 		GridPane actionBtnPane = new GridPane();
-		PaneTools.addGridRow(actionBtnPane, 0, 0, null, clipboardBtn, openBtn);
+		PaneTools.addGridRow(actionBtnPane, 0, 0, null, clipboardBtn, importBtn);
 
 		
 		clipboardBtn.setOnMouseClicked(e -> {
@@ -407,18 +392,18 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 					}
 					Clipboard.getSystemClipboard().setContent(content);
 				} catch (URISyntaxException ex) {
-					logger.error("Could not copy to clipboard:", ex.getLocalizedMessage());
+					logger.error("Could not copy to clipboard: {}", ex.getLocalizedMessage());
 				}
 			}
 		});
 		
-		openBtn.setOnMouseClicked(e -> {
+		importBtn.setOnMouseClicked(e -> {
 			String[] URIs = tree.getSelectionModel().getSelectedItems().stream()
 					.flatMap(item -> {
 						try {
 							return OmeroTools.getURIs(URI.create(getURI(item.getValue()))).stream();
 						} catch (URISyntaxException | IOException ex) {
-							logger.error("Could not open " + item.getValue().getName(), ex.getLocalizedMessage());
+							logger.error("Could not import " + item.getValue().getName() + ": {}", ex.getLocalizedMessage());
 						}
 						return null;
 					}).map(item -> item.toString())
@@ -430,17 +415,6 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 		PaneTools.addGridRow(browseRightPane, 0, 0, null, canvas);
 		PaneTools.addGridRow(browseRightPane, 1, 0, null, description);
 		PaneTools.addGridRow(browseRightPane, 2, 0, null, actionBtnPane);
-		
-
-        // Anchor the tabs and progressIndicator
-        AnchorPane anchor = new AnchorPane();
-        anchor.getChildren().addAll(browsePane, progressIndicator);
-        AnchorPane.setTopAnchor(progressIndicator, 3.0);
-        AnchorPane.setRightAnchor(progressIndicator, 5.0);
-        AnchorPane.setTopAnchor(browsePane, 1.0);
-        AnchorPane.setRightAnchor(browsePane, 1.0);
-        AnchorPane.setLeftAnchor(browsePane, 1.0);
-        AnchorPane.setBottomAnchor(browsePane, 1.0);
         
         // Set HGrow and VGrow
 		GridPane.setHgrow(description,  Priority.ALWAYS);
@@ -450,7 +424,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 		GridPane.setHgrow(filter, Priority.ALWAYS);
 		GridPane.setHgrow(advancedSearchBtn, Priority.ALWAYS);
 		GridPane.setHgrow(clipboardBtn, Priority.ALWAYS);
-		GridPane.setHgrow(openBtn, Priority.ALWAYS);
+		GridPane.setHgrow(importBtn, Priority.ALWAYS);
 		GridPane.setVgrow(description, Priority.ALWAYS);
 		GridPane.setVgrow(tree, Priority.ALWAYS);
 		
@@ -462,12 +436,21 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
         advancedSearchBtn.setMaxWidth(Double.MAX_VALUE);
         browseLeftPane.setMaxWidth(Double.MAX_VALUE);
         clipboardBtn.setMaxWidth(Double.MAX_VALUE);
-        openBtn.setMaxWidth(Double.MAX_VALUE);
+        importBtn.setMaxWidth(Double.MAX_VALUE);
 		description.setMaxHeight(Double.MAX_VALUE);
 		
-		mainPane.setCenter(anchor);
-		browsePane.getItems().addAll(browseLeftPane, browseRightPane);
+		// Set paddings & gaps
+		serverInfoPane.setPadding(new Insets(5, 15, 5, 5));
+		serverAttributePane.setHgap(10.0);
 		
+		// Set specific sizes
+		browsePane.setPrefWidth(600.0);
+		browsePane.setDividerPosition(0, 0.6);
+		valueCol.setPrefWidth(150.0);
+		
+		mainPane.setTop(serverInfoPane);
+		mainPane.setCenter(browsePane);
+		browsePane.getItems().addAll(browseLeftPane, browseRightPane);
 		
 		Stage dialog = new Stage();
 		dialog.sizeToScene();
@@ -492,7 +475,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 			URL url2 = new URL(server.getScheme() + "://" + server.getHost() + "/static/webgateway/img/folder_image16.png");
 			map.put("dataset", ImageIO.read(url2));
 		} catch (IOException e) {
-			logger.warn("Could not load OMERO icons.", e.getLocalizedMessage());
+			logger.warn("Could not load OMERO icons: {}", e.getLocalizedMessage());
 		}
 		return map;
 	}
@@ -793,7 +776,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 				else if (omeroObj instanceof Dataset)
 					datasetMap.put(omeroObj, children);
 			} catch (IOException e) {
-				logger.error("Couldn't fetch server information", e.getLocalizedMessage());
+				logger.error("Could not fetch server information: {}", e.getLocalizedMessage());
 				return new ArrayList<OmeroObject>();
 			}
 			return children;
@@ -835,7 +818,8 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 	private boolean isSupported(OmeroObject omeroObj) {
 		if (omeroObj == null || !omeroObj.getType().toLowerCase().endsWith("image"))
 			return true;
-		return ((Image)omeroObj).getPixelType().equals("uint8");
+		return ((Image)omeroObj).getPixelType().equals("uint8") && 
+				Integer.parseInt(getObjectInfo(7, omeroObj).getValue()) == 3;
 		
 	}
 	
@@ -868,6 +852,50 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 	    		}
 	    	}
 	    }
+	}
+	
+	private void initializeVariables() {
+		this.server = null;
+		this.owners = new ArrayList<>();
+		this.groups = new ArrayList<>();
+		this.thumbnailBank = new HashMap<Integer, BufferedImage>();
+		this.serverChildrenList = new ArrayList<>();
+		this.projectMap = new ConcurrentHashMap<>();
+		this.datasetMap = new ConcurrentHashMap<>();
+		
+		this.comboOwner = new ComboBox<>();
+		this.filter = new TextField();
+		this.selectedObjects = null;
+		
+		
+		this.projectAttributes = new String[] {"Name", 
+				"Id",
+				"Description",
+				"Owner",
+				"Group",
+				"Num. datasets"};
+		
+		this.datasetAttributes = new String[] {"Name", 
+				"Id", 
+				"Description",
+				"Owner",
+				"Group",
+				"Num. images"};
+		
+		this.imageAttributes = new String[] {"Name", 
+				"Id", 
+				"Owner",
+				"Group",
+				"Acquisition date",
+				"Image width",
+				"Image height",
+				"Num. channels",
+				"Num. z-slices",
+				"Num. timepoints",
+				"Pixel size X",
+				"Pixel size Y",
+				"Pixel size Z",
+				"Pixel type"};
 	}
 
 	private class AdvancedSearch {
@@ -977,8 +1005,8 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 			});
 			searchBtn = new Button("Search");
 			progressIndicator2 = new ProgressIndicator();
-			progressIndicator2.setPrefSize(20, 20);
-			progressIndicator2.setMinSize(20, 20);
+			progressIndicator2.setPrefSize(30, 30);
+			progressIndicator2.setMinSize(30, 30);
 			searchBtn.setOnAction(e -> {
 				searchBtn.setGraphic(progressIndicator2);
 				// Show progress indicator (loading)
@@ -1002,16 +1030,17 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 			GridPane.setHgrow(resetBtn, Priority.ALWAYS);
 			GridPane.setHgrow(searchBtn, Priority.ALWAYS);
 			buttonPane.addRow(0,  resetBtn, searchBtn);
+			buttonPane.setHgap(5.0);
 			
-			Button openBtn = new Button("Open image");
-			openBtn.disableProperty().bind(resultsTableView.getSelectionModel().selectedItemProperty().isNull());
-			openBtn.setOnAction(e -> {
+			Button importBtn = new Button("Import image");
+			importBtn.disableProperty().bind(resultsTableView.getSelectionModel().selectedItemProperty().isNull());
+			importBtn.setOnAction(e -> {
 				String[] URIs = resultsTableView.getSelectionModel().getSelectedItems().stream()
 						.flatMap(item -> {
 							try {
 								return OmeroTools.getURIs(item.link.toURI()).stream();
 							} catch (URISyntaxException | IOException ex) {
-								logger.error("Error while opening " + item.name, ex.getLocalizedMessage());
+								logger.error("Error while opening " + item.name + ": {}", ex.getLocalizedMessage());
 							}
 							return null;
 						}).map(item -> item.toString())
@@ -1021,7 +1050,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 				else
 					Dialogs.showErrorMessage("No image found", "No image found in OMERO object.");
 			});
-			openBtn.setMaxWidth(Double.MAX_VALUE);
+			importBtn.setMaxWidth(Double.MAX_VALUE);
 			
 			resultsTableView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 			
@@ -1037,7 +1066,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 			PaneTools.addGridRow(searchOptionPane, row++, 0, null, new Separator());
 			PaneTools.addGridRow(searchOptionPane, row++, 0, null, comboPane);
 			PaneTools.addGridRow(searchOptionPane, row++, 0, null, buttonPane);
-			PaneTools.addGridRow(searchOptionPane, row++, 0, "Open selected image", openBtn);
+			PaneTools.addGridRow(searchOptionPane, row++, 0, "Import selected image", importBtn);
 			
 			
 			TableColumn<SearchResult, SearchResult> typeCol = new TableColumn<>("Type");
@@ -1054,7 +1083,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 		        protected void updateItem(SearchResult item, boolean empty) {
 		            super.updateItem(item, empty);
 		            BufferedImage img = null;
-		            Canvas canvas = new Canvas();
+		            Canvas canvas = new Canvas(prefScale, prefScale);
 		            
 		            if (item == null || empty) {
 						setTooltip(null);
@@ -1077,20 +1106,24 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 							}
 						}
 					}
-					
-		            if (img != null ) {
+
+		            if (img != null) {
 		            	var wi = paintBufferedImageOnCanvas(img, canvas, prefScale);
-		            	// Setting tooltips on hover
 		            	Tooltip tooltip = new Tooltip();
-		            	ImageView imageView = new ImageView(wi);
-		            	imageView.setFitHeight(250);
-		            	imageView.setPreserveRatio(true);
-		            	tooltip.setGraphic(imageView);
-		            	setGraphic(canvas);
+		            	if (item.type.toLowerCase().equals("image")) {
+		            		// Setting tooltips on hover
+		            		ImageView imageView = new ImageView(wi);
+		            		imageView.setFitHeight(250);
+		            		imageView.setPreserveRatio(true);
+		            		tooltip.setGraphic(imageView);
+		            	} else
+		            		tooltip.setText(item.name);
+		            			            	
 		            	setText(null);
+		            	setTooltip(tooltip);
 		            }
-					
-					setTooltip(new Tooltip(item.name));
+
+		            setGraphic(canvas);
 					setAlignment(Pos.CENTER);
 				}
 		    });
@@ -1136,7 +1169,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 							else
 								Dialogs.showErrorMessage("No image found", "No image found in OMERO object.");
 						} catch (IOException | URISyntaxException ex) {
-							logger.error("Error while opening " + selectedItem.name, ex.getLocalizedMessage());
+							logger.error("Error while importing " + selectedItem.name + ": {}", ex.getLocalizedMessage());
 						}
 		        	}
 		        }
@@ -1147,9 +1180,9 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 					return;
 				
 				if (resultsTableView.getSelectionModel().getSelectedItems().size() == 1)
-					openBtn.setText("Open " + n.type);
+					importBtn.setText("Import " + n.type);
 				else
-					openBtn.setText("Open OMERO objects");
+					importBtn.setText("Import OMERO objects");
 			});
 			
 			
@@ -1256,7 +1289,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 					SearchResult obj = new SearchResult(values);
 					searchResults.add(obj);
 				} catch (Exception e) {
-					logger.error("Could not parse search result.", e.getLocalizedMessage());
+					logger.error("Could not parse search result. {}", e.getLocalizedMessage());
 				}
 	        }
 	        
@@ -1302,7 +1335,7 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 						}
 						Platform.runLater(() -> resultsTableView.refresh());
 					} catch (IOException e) {
-						logger.warn("Could not load thumbnail.", e.getLocalizedMessage());
+						logger.warn("Could not load thumbnail: {}", e.getLocalizedMessage());
 					}
 				});
 			}
@@ -1331,7 +1364,9 @@ class OmeroWebImageServerBrowserCommand implements Runnable {
 		}
 	}
 	
-	
+	/**
+	 * Shutdown the pool that loads OMERO objects' children (treeView)
+	 */
 	public void shutdownPool() {
 		executorTable.shutdownNow();
 	}

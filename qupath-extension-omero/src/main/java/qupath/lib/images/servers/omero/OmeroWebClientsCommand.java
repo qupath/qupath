@@ -1,5 +1,6 @@
 package qupath.lib.images.servers.omero;
 
+import java.net.URI;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -22,12 +23,20 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 
+/**
+ * Command to manually manage OMERO web clients. This offers the possibility to log in/off
+ * and 'forget' OMERO web clients.
+ * 
+ * @author Melvin Gelbard
+ * 
+ */
 public class OmeroWebClientsCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebClientsCommand.class);
 
 	
 	private QuPathGUI qupath;
+	private Stage dialog;
 	private Button refreshBtn;
 	
 	OmeroWebClientsCommand(QuPathGUI qupath) {
@@ -36,8 +45,30 @@ public class OmeroWebClientsCommand implements Runnable {
 
 	public void run() {
 		BorderPane mainPane = new BorderPane();
-		GridPane serverGrid = new GridPane();
+		GridPane serverGrid = createServerGrid();
+		refreshBtn = new Button("Refresh");
+		refreshBtn.setOnAction(e -> mainPane.setTop(createServerGrid()));
+		GridPane buttonPane = PaneTools.createColumnGridControls(refreshBtn);
+		mainPane.setTop(serverGrid);
+		mainPane.setBottom(buttonPane);
+
 		serverGrid.setVgap(10.0);
+		buttonPane.setHgap(10);
+		buttonPane.setPadding(new Insets(5, 0, 5, 0));
+				
+		dialog = new Stage();
+		dialog.sizeToScene();
+		dialog.setResizable(false);
+		dialog.setTitle("OMERO web server");
+		dialog.setScene(new Scene(mainPane));
+		QuPathGUI qupath = QuPathGUI.getInstance();
+		if (qupath != null)
+			dialog.initOwner(qupath.getStage());
+		dialog.showAndWait();
+	}
+	
+	private GridPane createServerGrid() {
+		GridPane grid = new GridPane();
 		
 		var rowIndex = 0;
 		var hostClientsMap = OmeroWebClients.getAllClients();
@@ -82,10 +113,9 @@ public class OmeroWebClientsCommand implements Runnable {
 					imageServersTitledPane.lookup(".title").setEffect(null);
 					imageServersTitledPane.lookup(".content").setStyle("-fx-border-color: null");
 				} catch (Exception e) {
-					logger.error("Error setting CSS style", e.getLocalizedMessage());
+					logger.error("Error setting CSS style: {}", e.getLocalizedMessage());
 				}
 			});
-
 			PaneTools.addGridRow(infoPane, 1, 0, null, imageServersTitledPane);
 
 			// Get first client in list that requires login, or the first one if all public
@@ -123,10 +153,12 @@ public class OmeroWebClientsCommand implements Runnable {
 			});
 			
 			removeBtn.setOnMouseClicked(e -> {
-				if (!clientsWithUsername.isEmpty() && qupath.getViewers().stream().anyMatch(viewer -> {
+				// Check if the webclient to delete is currently used in any viewer
+				if (qupath.getViewers().stream().anyMatch(viewer -> {
 							if (viewer.getServer() == null)
 								return false;
-							return viewer.getServer().getURIs().iterator().next() == clientsWithUsername.get().getURI();
+							URI viewerURI = viewer.getServer().getURIs().iterator().next();
+							return hostClientEntry.getValue().parallelStream().anyMatch(tempClient -> tempClient.getURI() == viewerURI);
 						})) {
 					Dialogs.showMessageDialog("Remove server", "You need to close the image in the viewer first!");
 					return;
@@ -148,35 +180,26 @@ public class OmeroWebClientsCommand implements Runnable {
 			
 			GridPane.setHgrow(gridPane, Priority.ALWAYS);
 			GridPane.setHgrow(actionPane, Priority.ALWAYS);
+			actionPane.setHgap(5.0);
 			actionPane.setAlignment(Pos.CENTER_RIGHT);
+			gridPane.setPadding(new Insets(5, 5, 5, 5));
 
 			gridPane.setStyle("-fx-border-color: black;");
-			serverGrid.add(gridPane, 0, rowIndex++);
+			grid.add(gridPane, 0, rowIndex++);
 		}
 		
-		if (serverGrid.getChildren().isEmpty())
-			serverGrid.add(new Label("No OMERO server"), 0, 0);
-			
-		serverGrid.setMinWidth(250);
-		mainPane.setTop(serverGrid);
+		// If project has no OMERO server 
+		if (grid.getChildren().isEmpty()) {
+			grid.setMinWidth(250);
+			grid.setAlignment(Pos.CENTER);
+			grid.add(new Label("No OMERO server"), 0, 0);
+		} else {
+			// Resize when expanding inner panes
+			grid.heightProperty().addListener((v, o, n) -> dialog.sizeToScene());
+			grid.widthProperty().addListener((v, o, n) -> dialog.sizeToScene());
+		}
 		
-		refreshBtn = new Button("Refresh");
-		refreshBtn.setOnAction(e -> {
-			logger.debug("SHOULD REFRESH NOW");
-		});
-		GridPane buttonPane = PaneTools.createColumnGridControls(refreshBtn);
-		buttonPane.setHgap(10);
-		buttonPane.setPadding(new Insets(5, 0, 5, 0));
-		mainPane.setBottom(buttonPane);
-				
-		Stage dialog = new Stage();
-		dialog.sizeToScene();
-		QuPathGUI qupath = QuPathGUI.getInstance();
-		if (qupath != null)
-			dialog.initOwner(QuPathGUI.getInstance().getStage());
-		dialog.setTitle("OMERO web server");
-		dialog.setScene(new Scene(mainPane));
-		dialog.showAndWait();
+		return grid;
 	}
 	
 	
