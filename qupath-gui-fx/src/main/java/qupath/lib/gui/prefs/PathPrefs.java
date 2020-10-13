@@ -390,6 +390,52 @@ public class PathPrefs {
 	}
 	
 	
+	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 100);
+	
+	/**
+	 * Percentage to scale navigation speed.
+	 * 
+	 * @return navigationSpeedProperty
+	 */
+	public static IntegerProperty navigationSpeedProperty() {
+		return navigationSpeedProperty;
+	}
+	
+	
+	/**
+	 * Get navigation speed scaled as a proportion and forced to be in the range 0-1. For example, 100% becomes 1.
+	 * 
+	 * @return speed
+	 */
+	public static double getScaledNavigationSpeed() {
+		double speed = navigationSpeedProperty.get() / 100.0;
+		if (!Double.isFinite(speed) || speed <= 0)
+			return 1;
+		return speed;
+	}
+	
+	private static BooleanProperty navigationAccelerationProperty = createPersistentPreference("Navigation acceleration effects", true);
+	
+	/**
+	 * Apply acceleration/deceleration effects when holding and releasing navigation key.
+	 * 
+	 * @return navigationAccelerationProperty
+	 */
+	public static BooleanProperty navigationAccelerationProperty() {
+		return navigationAccelerationProperty;
+	}
+	
+	
+	/**
+	 * Get whether to apply the navigation acceleration (& deceleration) effects or not.
+	 * 
+	 * @return
+	 */
+	public static boolean getNavigationAccelerationProperty() {
+		return navigationAccelerationProperty.get();
+	}
+	
+	
 	
 	private static boolean showAllRGBTransforms = true;
 	

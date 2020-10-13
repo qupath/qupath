@@ -49,9 +49,11 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -2972,6 +2974,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 */
 	class KeyEventHandler implements EventHandler<KeyEvent> {
 
+		private KeyCode lastPressed = null;
+		private Set<KeyCode> keysPressed = new HashSet<>();
 		private long keyDownTime = Long.MIN_VALUE;
 		private double scale = 1.0;
 
@@ -3086,7 +3090,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 				
 			} else if (event.getEventType() == KeyEvent.KEY_PRESSED) {
-
+				
+				if (keysPressed.isEmpty()) {
+					keysPressed.add(code);
+					lastPressed = code;
+				} else if (!keysPressed.contains(code)) {
+					keysPressed.add(code);
+					if (keysPressed.size() == 3)
+						keysPressed.remove(lastPressed);
+				}
 
 				if (event.isShiftDown()) {
 					switch (code) {
@@ -3111,8 +3123,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				//				double dt = 0.1*currentTime - 0.1*keyDownTime;
 				//				double scale = 5 * Math.pow(20 + dt, 0.5);
 
-				scale = scale * 1.05;
-				double d = getDownsampleFactor() * scale * 20;
+				// Apply acceleration effects if required
+				if (PathPrefs.getNavigationAccelerationProperty())
+					scale = scale * 1.05;
+				
+				double d = getDownsampleFactor() * scale * 20 * PathPrefs.getScaledNavigationSpeed();
 				double dx = 0;
 				double dy = 0;
 				int nZSlices = hasServer() ? getServer().nZSlices() : 1;
@@ -3125,6 +3140,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						return;
 					}
 					dx = d;
+					if (lastPressed != code) {
+						if (lastPressed == KeyCode.RIGHT)
+							dx = 0;
+						else
+							dy = lastPressed == KeyCode.UP ? d : -d;
+					}
 					break;
 				case UP:
 					if (nZSlices > 1) {
@@ -3133,6 +3154,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						return;
 					}
 					dy = d;
+					if (lastPressed != code) {
+						if (lastPressed == KeyCode.DOWN)
+							dy = 0;
+						else
+							dx = lastPressed == KeyCode.LEFT ? d : -d;
+					}
 					break;
 				case RIGHT:
 					if (nTimepoints > 1) {
@@ -3141,6 +3168,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						return;
 					}
 					dx = -d;
+					if (lastPressed != code) {
+						if (lastPressed == KeyCode.LEFT)
+							dx = 0;
+						else
+							dy = lastPressed == KeyCode.UP ? d : -d;							
+					}
 					break;
 				case DOWN:
 					if (nZSlices > 1) {
@@ -3149,6 +3182,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						return;
 					}
 					dy = -d;
+					if (lastPressed != code) {
+						if (lastPressed == KeyCode.UP)
+							dy = 0;
+						else
+							dx = lastPressed == KeyCode.LEFT ? d : -d;
+					}
 					break;
 				default:
 					return;
@@ -3159,15 +3198,28 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 			} else if (event.getEventType() == KeyEvent.KEY_RELEASED) {
+				keysPressed.remove(code);
+				if (lastPressed == code) {
+					if (keysPressed.size() == 1)
+						lastPressed = keysPressed.iterator().next();
+					else
+						lastPressed = null;
+				}
+				
 				switch (code) {
 				case LEFT:
 				case UP:
 				case RIGHT:
 				case DOWN:
-					mover.decelerate();
-					setDoFasterRepaint(false);
-					keyDownTime = Long.MIN_VALUE;
-					scale = 1;
+					if (lastPressed == null) {
+						if (!PathPrefs.getNavigationAccelerationProperty())
+							mover.stopMoving();
+						else 
+							mover.decelerate();
+						setDoFasterRepaint(false);
+						keyDownTime = Long.MIN_VALUE;
+						scale = 1;
+					}
 					event.consume();
 					break;
 				default:
