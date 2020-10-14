@@ -16,15 +16,24 @@ public class OmeroExtension implements QuPathExtension {
 	public void installExtension(QuPathGUI qupath) {
 		var actionBrowse = ActionTools.createAction(new OmeroWebImageServerBrowserCommand(qupath), "Browse server");
 		var actionClients = ActionTools.createAction(new OmeroWebClientsCommand(qupath), "Manage clients");
+		var actionSendObjects = ActionTools.createAction(new OmeroWritePathObjectsCommand(qupath), "Send selection to OMERO server");
+		
 		actionBrowse.disabledProperty().bind(qupath.projectProperty().isNull());
 		actionClients.disabledProperty().bind(qupath.projectProperty().isNull());
-
+		actionSendObjects.disabledProperty().bind(qupath.imageDataProperty().isNull());
+		
 		qupath.getMenu("OMERO", true);
 		MenuTools.addMenuItems(
                 qupath.getMenu("OMERO", true),
                 actionBrowse,
                 actionClients
-        );	
+        );
+
+		MenuTools.addMenuItems(
+				qupath.getMenu("Objects>Annotations...", false),
+                null,
+                actionSendObjects
+        );
 	}
 
 	@Override

@@ -280,14 +280,10 @@ public class OmeroTools {
 		    while((str = br.readLine())!= null){
 		        sb.append(str);
 		    }
-		    if (sb.toString().toLowerCase().contains("error")) {
-		    	logger.error(sb.toString());
-		    	return false;
-		    }
-		} catch (Exception e) {
-			logger.error(e.getLocalizedMessage());
-		    return false;
+		    if (sb.toString().toLowerCase().contains("error"))
+		    	throw new IOException(sb.toString());
 		}
+		
 		return true;
 	}
 	
