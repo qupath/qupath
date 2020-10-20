@@ -3036,8 +3036,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				if (ind < 0) {
 					// Find the closest TMA core to the current position
 					double minDisplacementSq = Double.POSITIVE_INFINITY;
-					int i = 0;
+					int i = -1;
 					for (TMACoreObject core : cores) {
+						i++;
+						if (core.isMissing())
+							continue;
+						
 						ROI coreROI = core.getROI();
 						double dx = coreROI.getCentroidX() - getCenterPixelX();
 						double dy = coreROI.getCentroidY() - getCenterPixelY();
@@ -3046,34 +3050,30 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 							ind = i;
 							minDisplacementSq = displacementSq;
 						}
-						i++;
+						
 					}
 				}
 
 				switch (code) {
 				case LEFT:
-					if (ind >= 0)
-						ind--;
-					else
-						ind = 0;
+					ind = --ind < 0 ? 0 : ind;
+					while (cores.get(ind).isMissing())
+						ind = --ind < 0 ? 0 : ind--;
 					break;
 				case UP:
-					if (ind >= 0)
-						ind -= w;
-					else
-						ind = 0;
+					ind = ind-w < 0 ? 0 : ind-w;
+					while (cores.get(ind).isMissing())
+						ind = ind-w < 0 ? 0 : ind-w;
 					break;
 				case RIGHT:
-					if (ind >= 0)
-						ind++;
-					else
-						ind = 0;
+					ind = ++ind >= w*h ? (w*h)-1 : ind;
+					while (cores.get(ind).isMissing())
+						ind = ++ind >= w*h ? (w*h)-1 : ind++;
 					break;
 				case DOWN:
-					if (ind >= 0)
-						ind += w;
-					else
-						ind = 0;
+					ind = ind+w >= w*h ? (w*h)-1 : ind+w;
+					while (cores.get(ind).isMissing())
+						ind = ind+w >= w*h ? (w*h)-1 : ind+w;
 					break;
 				default:
 					return;
@@ -3206,6 +3206,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						lastPressed = null;
 				}
 				
+				if (keysPressed.size() == 1)
+					requestCancelDirection(code == KeyCode.LEFT || code == KeyCode.RIGHT);
+				
 				switch (code) {
 				case LEFT:
 				case UP:
@@ -3267,6 +3270,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void requestStartMoving(final double dx, final double dy) {
 		mover.startMoving(dx, dy, true);
 		this.setDoFasterRepaint(true);
+	}
+	
+	/**
+	 * Requests that the viewer cancels either the x- or y-axis direction.
+	 * @param xAxis 
+	 */
+	public void requestCancelDirection(final boolean xAxis) {
+		mover.cancelDirection(xAxis);
 	}
 
 }
