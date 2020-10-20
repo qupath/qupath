@@ -3020,6 +3020,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				return;
 
 			// Use arrow keys to navigate, either or directly or using a TMA grid
+			boolean skipMissingTMACores = PathPrefs.getIgnoreMissingCoresProperty();
 			TMAGrid tmaGrid = hierarchy.getTMAGrid();
 			List<TMACoreObject> cores = tmaGrid == null ? Collections.emptyList() : new ArrayList<>(tmaGrid.getTMACoreList());
 			if (!event.isShiftDown() && tmaGrid != null && tmaGrid.nCores() > 0) {
@@ -3039,7 +3040,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					int i = -1;
 					for (TMACoreObject core : cores) {
 						i++;
-						if (core.isMissing())
+						if (core.isMissing() && skipMissingTMACores)
 							continue;
 						
 						ROI coreROI = core.getROI();
@@ -3057,22 +3058,22 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				switch (code) {
 				case LEFT:
 					ind = --ind < 0 ? 0 : ind;
-					while (cores.get(ind).isMissing())
+					while (skipMissingTMACores && cores.get(ind).isMissing())
 						ind = --ind < 0 ? 0 : ind--;
 					break;
 				case UP:
 					ind = ind-w < 0 ? 0 : ind-w;
-					while (cores.get(ind).isMissing())
+					while (skipMissingTMACores && cores.get(ind).isMissing())
 						ind = ind-w < 0 ? 0 : ind-w;
 					break;
 				case RIGHT:
 					ind = ++ind >= w*h ? (w*h)-1 : ind;
-					while (cores.get(ind).isMissing())
+					while (skipMissingTMACores && cores.get(ind).isMissing())
 						ind = ++ind >= w*h ? (w*h)-1 : ind++;
 					break;
 				case DOWN:
 					ind = ind+w >= w*h ? (w*h)-1 : ind+w;
-					while (cores.get(ind).isMissing())
+					while (skipMissingTMACores && cores.get(ind).isMissing())
 						ind = ind+w >= w*h ? (w*h)-1 : ind+w;
 					break;
 				default:

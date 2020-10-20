@@ -242,6 +242,10 @@ public class PreferencePane {
 				"Navigation acceleration effects", category, 
 				"Apply acceleration/deceleration effects when holding and releasing a navigation key");
 		
+		addPropertyPreference(PathPrefs.ignoreMissingCoresProperty(), Boolean.class,
+				"Ignore missing TMA cores", category, 
+				"Jumps over missing TMA cores when navigating TMA grids using the arrow keys.");
+		
 		addPropertyPreference(PathPrefs.useScrollGesturesProperty(), Boolean.class,
 				"Use scroll touch gestures",
 				category,
