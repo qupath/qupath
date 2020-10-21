@@ -436,25 +436,25 @@ public class PathPrefs {
 	}
 	
 	
-	private static BooleanProperty ignoreMissingCoresProperty = createPersistentPreference("Ignore missing TMA cores", false);
+	private static BooleanProperty skipMissingCoresProperty = createPersistentPreference("Skip missing TMA cores", false);
 	
 	/**
-	 * Ignore ('jumps over') missing cores when navigating through TMA grids.
+	 * Skip ('jump over') missing cores when navigating through TMA grids.
 	 * 
-	 * @return ignoreMissingCoresProperty
+	 * @return skipMissingCoresProperty
 	 */
-	public static BooleanProperty ignoreMissingCoresProperty() {
-		return ignoreMissingCoresProperty;
+	public static BooleanProperty skipMissingCoresProperty() {
+		return skipMissingCoresProperty;
 	}
 	
 	/**
-	 * Return whether the viewer ignores missing TMA cores when navigating TMA grids 
+	 * Return whether the viewer skips missing TMA cores when navigating TMA grids 
 	 * with arrow keys.
 	 * 
 	 * @return
 	 */
-	public static boolean getIgnoreMissingCoresProperty() {
-		return ignoreMissingCoresProperty.get();
+	public static boolean getSkipMissingCoresProperty() {
+		return skipMissingCoresProperty.get();
 	}
 	
 	

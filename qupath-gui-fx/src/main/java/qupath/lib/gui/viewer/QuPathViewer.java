@@ -3020,7 +3020,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				return;
 
 			// Use arrow keys to navigate, either or directly or using a TMA grid
-			boolean skipMissingTMACores = PathPrefs.getIgnoreMissingCoresProperty();
+			boolean skipMissingTMACores = PathPrefs.getSkipMissingCoresProperty();
 			TMAGrid tmaGrid = hierarchy.getTMAGrid();
 			List<TMACoreObject> cores = tmaGrid == null ? Collections.emptyList() : new ArrayList<>(tmaGrid.getTMACoreList());
 			if (!event.isShiftDown() && tmaGrid != null && tmaGrid.nCores() > 0) {
@@ -3055,30 +3055,32 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					}
 				}
 
+				int temp;
 				switch (code) {
 				case LEFT:
-					ind = --ind < 0 ? 0 : ind;
-					while (skipMissingTMACores && cores.get(ind).isMissing())
-						ind = --ind < 0 ? 0 : ind--;
+					temp = ind-1 < 0 ? 0 : ind-1;
+					while (skipMissingTMACores && cores.get(temp).isMissing() && temp > 0)
+						temp = temp-1 < 0 ? 0 : temp-1;
 					break;
 				case UP:
-					ind = ind-w < 0 ? 0 : ind-w;
-					while (skipMissingTMACores && cores.get(ind).isMissing())
-						ind = ind-w < 0 ? 0 : ind-w;
+					temp = ind == 0 ? ind : ind-w < 0 ? (w*h)-(w-ind+1) : ind-w;
+					while (skipMissingTMACores && cores.get(temp).isMissing() && temp != 0) 
+						temp = ind == 0 ? ind : temp-w <= 0 ? (w*h)-(w-temp+1) : temp-w;
 					break;
 				case RIGHT:
-					ind = ++ind >= w*h ? (w*h)-1 : ind;
-					while (skipMissingTMACores && cores.get(ind).isMissing())
-						ind = ++ind >= w*h ? (w*h)-1 : ind++;
+					temp = ind+1 >= w*h ? (w*h)-1 : ind+1;
+					while (skipMissingTMACores && cores.get(temp).isMissing() && temp < (w*h)-1)
+						temp = temp+1 >= w*h ? (w*h)-1 : temp+1;
 					break;
 				case DOWN:
-					ind = ind+w >= w*h ? (w*h)-1 : ind+w;
-					while (skipMissingTMACores && cores.get(ind).isMissing())
-						ind = ind+w >= w*h ? (w*h)-1 : ind+w;
+					temp = ind == (w*h)-1 ? ind : ind+w >= (w*h) ? ind%w + 1 : ind+w;
+					while (skipMissingTMACores && cores.get(temp).isMissing() && temp != (w*h)-1) 
+						temp = temp+w >= (w*h) ? temp%w + 1 : temp+w;
 					break;
 				default:
 					return;
 				}
+				ind = !skipMissingTMACores ? temp : cores.get(temp).isMissing() ? ind : temp;
 				// Set the selected object & center the viewer
 				if (ind >= 0 && ind < w*h) {
 					PathObject selectedObject = cores.get(ind);
