@@ -14,6 +14,7 @@ import javafx.scene.shape.Circle;
 import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
+import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import qupath.lib.gui.dialogs.Dialogs;
 
@@ -72,6 +73,7 @@ public class CircularSlider extends Control {
         getStyleClass().setAll("circular-slider");
         outerCircle.getStyleClass().setAll("circular-slider-outer");
         innerCircle.getStyleClass().setAll("circular-slider-inner");
+        angle.setFont(new Font(18));
         angle.getStyleClass().setAll("circular-slider-text");
         tickMarks.getStyleClass().setAll("circular-slider-track-mark");
         //prevent mouse events being trapped by some nodes
