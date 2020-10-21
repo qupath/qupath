@@ -713,7 +713,7 @@ public class Commands {
             viewer.setRotation(Math.toRadians(rotation));
         });
         final Tooltip rotationTooltip = new Tooltip();
-        rotationTooltip.textProperty().bind(Bindings.createStringBinding(() -> String.format("Set image rotation. SHIFT snaps rotation to nearest %s degrees. Double clicked text to specify angle.", GeneralTools.formatNumber(rotationSlider.getTickSpacing(), 1))));
+        rotationTooltip.textProperty().bind(Bindings.createStringBinding(() -> String.format("Set rotation of the image. \nShift snaps rotation to the nearest %s degrees. \nDouble click the text to specify angle.", GeneralTools.formatNumber(rotationSlider.getTickSpacing(), 1))));
         rotationSlider.setTooltip(rotationTooltip);
 
 
