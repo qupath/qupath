@@ -1,4 +1,4 @@
-.knob > .knob-outer {
+.circular-slider > .circular-slider-outer {
     -fx-fill: linear-gradient(derive(-fx-base, 10%), derive(-fx-base, -10%));
     -fx-stroke: -fx-text-base-color;
     -fx-stroke-width: 1px;
@@ -6,28 +6,28 @@
 
 }
 
-.knob:disabled {
+.circular-slider:disabled {
     -fx-opacity: 0.4;
 }
 
-.knob > .knob-inner {
+.circular-slider > .circular-slider-inner {
     -fx-fill: linear-gradient(derive(-fx-text-base-color, -10%), derive(-fx-text-base-color, 10%));
     -fx-stroke: -fx-base;
     -fx-effect: dropshadow(two-pass-box, -fx-base, 5, 0.2, 0, 0);
 
 }
 
-.knob:focused > .knob-outer {
+.circular-slider:focused > .circular-slider-outer {
     -fx-stroke: -fx-focus-color;
     -fx-effect: dropshadow(two-pass-box, -fx-focus-color, 5, 0.2, 0, 0);
 }
 
-.knob > .knob-track-mark {
+.circular-slider > .circular-slider-track-mark {
     -fx-stroke: -fx-text-base-color;
 
 
 }
 
-.knob > .knob-text {
+.circular-slider > .circular-slider-text {
     -fx-fill: -fx-text-base-color;
 }

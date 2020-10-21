@@ -1,42 +1,51 @@
 package qupath.lib.gui;
 
-import javafx.beans.property.*;
-import javafx.geometry.Pos;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
 import javafx.scene.control.SkinBase;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.scene.paint.CycleMethod;
-import javafx.scene.paint.LinearGradient;
-import javafx.scene.paint.Stop;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.LineTo;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
-import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import qupath.lib.gui.dialogs.Dialogs;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/**
- * A custom JavaFX knob control
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
  */
 
-/**
- * A custom JavaFX knob control
- */
-public class Knob extends Control {
 
-    private static final class KnobSkin extends SkinBase<Knob> {
-        protected KnobSkin(Knob control) {
+/**
+ * A custom JavaFX circular-slider control
+ */
+public class CircularSlider extends Control {
+
+    private static final class CircularSliderSkin extends SkinBase<CircularSlider> {
+        protected CircularSliderSkin(CircularSlider control) {
             super(control);
         }
     }
@@ -49,7 +58,7 @@ public class Knob extends Control {
     private final Path tickMarks = new Path();
     private final Text angle = new Text("0.0\u00B0");
 
-    public Knob() {
+    public CircularSlider() {
         //add nodes
         getChildren().addAll(outerCircle, tickMarks, innerCircle, angle);
         //enable focus
@@ -58,16 +67,24 @@ public class Knob extends Control {
         innerCircle.setManaged(false);
         outerCircle.setManaged(false);
         //add CSS
-        getStylesheets().add(getClass().getResource("/css/knob.css").toExternalForm());
+        getStylesheets().add(getClass().getResource("/css/circular-slider.css").toExternalForm());
         // set style class
-        getStyleClass().setAll("knob");
-        outerCircle.getStyleClass().setAll("knob-outer");
-        innerCircle.getStyleClass().setAll("knob-inner");
-        angle.getStyleClass().setAll("knob-text");
-        tickMarks.getStyleClass().setAll("knob-track-mark");
+        getStyleClass().setAll("circular-slider");
+        outerCircle.getStyleClass().setAll("circular-slider-outer");
+        innerCircle.getStyleClass().setAll("circular-slider-inner");
+        angle.getStyleClass().setAll("circular-slider-text");
+        tickMarks.getStyleClass().setAll("circular-slider-track-mark");
         //prevent mouse events being trapped by some nodes
         innerCircle.setMouseTransparent(true);
-        angle.setMouseTransparent(true);
+        angle.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                e.consume();
+                final Double rotation = Dialogs.showInputDialog("Set image rotation", "Rotation (degrees)", getValue());
+                if (rotation != null) {
+                    setValue(rotation);
+                }
+            }
+        });
 
         tickMarks.setVisible(false);
         //add event handlers
@@ -130,7 +147,7 @@ public class Knob extends Control {
         if (isDisabled()) {
             return;
         }
-        final double[] currentVector = normalize(e.getX() - outerCircle.getCenterX() , e.getY() - outerCircle.getCenterY());
+        final double[] currentVector = normalize(e.getX() - outerCircle.getCenterX(), e.getY() - outerCircle.getCenterY());
         final double angle = Math.atan2(currentVector[0], -currentVector[1]);
         rotationProperty.set(Math.toDegrees(angle >= 0 ? angle : Math.PI + Math.PI + angle));// atan2 of dot product and determinant of current vector verses up (0,-1). As x of up vector is 0, can simplify
     }
@@ -292,7 +309,7 @@ public class Knob extends Control {
 
     @Override
     protected Skin<?> createDefaultSkin() {
-        return new KnobSkin(this);
+        return new CircularSliderSkin(this);
     }
 
     @Override
