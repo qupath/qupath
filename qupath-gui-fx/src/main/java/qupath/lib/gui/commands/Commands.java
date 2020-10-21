@@ -21,6 +21,29 @@
 
 package qupath.lib.gui.commands;
 
+import java.awt.Window;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+import javafx.scene.input.KeyCode;
+import org.controlsfx.control.CheckListView;
+import org.controlsfx.control.action.Action;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
@@ -29,21 +52,24 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.*;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.CheckBoxListCell;
-import javafx.scene.input.KeyCode;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import org.controlsfx.control.CheckListView;
-import org.controlsfx.control.action.Action;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
@@ -71,8 +97,16 @@ import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriter;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.io.PathIO;
-import qupath.lib.objects.*;
+import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathTileObject;
+import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -82,26 +116,20 @@ import qupath.lib.projects.Projects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.*;
+import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.RoiTools.CombineOp;
+import qupath.lib.roi.ShapeSimplifier;
 import qupath.lib.roi.interfaces.ROI;
 import qupath.lib.scripting.QP;
-
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.List;
-import java.util.*;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 /**
  * Helper class implementing simple 'single-method' commands for easy inclusion in the GUI.
  *
  * @author Pete Bankhead
+ *
  */
 public class Commands {
 
@@ -112,7 +140,6 @@ public class Commands {
      * <p>
      * This causes smaller 'completely-contained' annotations to be positioned below larger containing annotations,
      * and detections to be assigned to other annotations based on centroid location.
-     *
      * @param imageData the image data containing the hierarchy
      */
     public static void insertSelectedObjectsInHierarchy(ImageData<?> imageData) {
@@ -125,7 +152,6 @@ public class Commands {
     /**
      * Resolve parent-child relationships within the object hierarchy.
      * This means that objects will be arranged hierarchically, rather than as a flat list.
-     *
      * @param imageData the image data to process
      */
     public static void promptToResolveHierarchy(ImageData<?> imageData) {
@@ -153,7 +179,6 @@ public class Commands {
     /**
      * Create a full image annotation for the image in the specified viewer.
      * The z and t positions of the viewer will be used.
-     *
      * @param viewer the viewer containing the image to be processed
      */
     public static void createFullImageAnnotation(QuPathViewer viewer) {
@@ -195,6 +220,7 @@ public class Commands {
     }
 
 
+
     private static Map<QuPathGUI, RigidObjectEditorCommand> rigidObjectEditorMap = new WeakHashMap<>();
 
     /**
@@ -202,7 +228,6 @@ public class Commands {
      * <p>
      * Note that this method may change in future versions to be tied to a specified image data,
      * rather than a specific QuPath instance.
-     *
      * @param qupath the QuPath instance for which the object should be edited
      */
     public static void editSelectedAnnotation(QuPathGUI qupath) {
@@ -212,8 +237,7 @@ public class Commands {
 
     /**
      * Show a measurement table for all detection objects.
-     *
-     * @param qupath    the QuPath instance
+     * @param qupath the QuPath instance
      * @param imageData the image data for which to show measurements
      */
     public static void showDetectionMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
@@ -222,8 +246,7 @@ public class Commands {
 
     /**
      * Show a measurement table for all cell objects.
-     *
-     * @param qupath    the QuPath instance
+     * @param qupath the QuPath instance
      * @param imageData the image data for which to show measurements
      */
     public static void showCellMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
@@ -232,8 +255,7 @@ public class Commands {
 
     /**
      * Show a measurement table for all annotation objects.
-     *
-     * @param qupath    the QuPath instance
+     * @param qupath the QuPath instance
      * @param imageData the image data for which to show measurements
      */
     public static void showAnnotationMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
@@ -242,8 +264,7 @@ public class Commands {
 
     /**
      * Show a measurement table for all TMA core objects.
-     *
-     * @param qupath    the QuPath instance
+     * @param qupath the QuPath instance
      * @param imageData the image data for which to show measurements
      */
     public static void showTMAMeasurementTable(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
@@ -253,7 +274,6 @@ public class Commands {
 
     /**
      * Prompt to estimate stain vectors for the specified image, using any current region of interest.
-     *
      * @param imageData the image data for which stain vectors should be estimated
      */
     public static void promptToEstimateStainVectors(ImageData<BufferedImage> imageData) {
@@ -267,8 +287,7 @@ public class Commands {
 
     /**
      * Prompt to export the current image region selected in the viewer.
-     *
-     * @param viewer        the viewer containing the image to export
+     * @param viewer the viewer containing the image to export
      * @param renderedImage if true, export the rendered (RGB) image rather than original pixel values
      */
     public static void promptToExportImageRegion(QuPathViewer viewer, boolean renderedImage) {
@@ -312,8 +331,8 @@ public class Commands {
         textArea.setEditable(false);
         textArea.setWrapText(true);
 //		textArea.setPadding(new Insets(15, 0, 0, 0));
-        comboImageType.setOnAction(e -> textArea.setText(((ImageWriter<BufferedImage>) comboImageType.getValue()).getDetails()));
-        textArea.setText(((ImageWriter<BufferedImage>) comboImageType.getValue()).getDetails());
+        comboImageType.setOnAction(e -> textArea.setText(((ImageWriter<BufferedImage>)comboImageType.getValue()).getDetails()));
+        textArea.setText(((ImageWriter<BufferedImage>)comboImageType.getValue()).getDetails());
         pane.add(textArea, 0, row++, 2, 1);
 
         var label = new Label("Downsample factor");
@@ -331,7 +350,7 @@ public class Commands {
         }, tfDownsample.textProperty());
 
         // Define a sensible limit for non-pyramidal images
-        long maxPixels = 10000 * 10000;
+        long maxPixels = 10000*10000;
 
         Label labelSize = new Label();
         labelSize.setMinWidth(400);
@@ -345,9 +364,10 @@ public class Commands {
             if (!Double.isFinite(downsample.get())) {
                 labelSize.setStyle("-fx-text-fill: red;");
                 return "Invalid downsample value!  Must be >= 1";
-            } else {
-                long w = (long) (regionWidth / downsample.get() + 0.5);
-                long h = (long) (regionHeight / downsample.get() + 0.5);
+            }
+            else {
+                long w = (long)(regionWidth / downsample.get() + 0.5);
+                long h = (long)(regionHeight / downsample.get() + 0.5);
                 String warning = "";
                 var writer = comboImageType.getSelectionModel().getSelectedItem();
                 boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
@@ -378,8 +398,8 @@ public class Commands {
 
         var writer = comboImageType.getSelectionModel().getSelectedItem();
         boolean supportsPyramid = writer == null ? false : writer.supportsPyramidal();
-        int w = (int) (regionWidth / downsample.get() + 0.5);
-        int h = (int) (regionHeight / downsample.get() + 0.5);
+        int w = (int)(regionWidth / downsample.get() + 0.5);
+        int h = (int)(regionHeight / downsample.get() + 0.5);
         if (!supportsPyramid && w * h > maxPixels) {
             Dialogs.showErrorNotification("Export image region", "Requested export region too large - try selecting a smaller region, or applying a higher downsample factor");
             return;
@@ -433,7 +453,6 @@ public class Commands {
 
     /**
      * Show a dialog displaying the extensions installed for a specified QuPath instance.
-     *
      * @param qupath the QuPath instance
      */
     public static void showInstalledExtensions(final QuPathGUI qupath) {
@@ -443,7 +462,6 @@ public class Commands {
 
     /**
      * Show a simple dialog for viewing (and optionally removing) detection measurements.
-     *
      * @param qupath
      * @param imageData
      */
@@ -454,7 +472,6 @@ public class Commands {
 
     /**
      * Reset TMA metadata, if available.
-     *
      * @param imageData
      * @return true if changes were made, false otherwise
      */
@@ -472,7 +489,6 @@ public class Commands {
      * Create a command that generates a persistent single dialog on demand.
      * A reference to the dialog can be retained, so that if the command is called again
      * either the original dialog is shown and/or brought to the front.
-     *
      * @param supplier supplier function to generate the dialog on demand
      * @return the action
      */
@@ -504,7 +520,6 @@ public class Commands {
 
     /**
      * Create a dialog for displaying measurement maps.
-     *
      * @param qupath the {@link QuPathGUI} instance to which the maps refer
      * @return a measurement map dialog
      */
@@ -540,7 +555,6 @@ public class Commands {
 
     /**
      * Show a script interpreter window for a Qupath instance.
-     *
      * @param qupath the QuPath instance
      */
     public static void showScriptInterpreter(QuPathGUI qupath) {
@@ -554,7 +568,7 @@ public class Commands {
      * Create and show a new input display dialog.
      * <p>
      * This makes input such as key-presses and mouse button presses visible on screen, and is therefore
-     * useful for demos and tutorials where shortcut keys are used.
+     *  useful for demos and tutorials where shortcut keys are used.
      *
      * @param qupath the QuPath instance
      */
@@ -568,7 +582,6 @@ public class Commands {
 
     /**
      * Create a window summarizing license information for QuPath and its third party dependencies.
-     *
      * @param qupath the current QuPath instance
      * @return a window to display license information
      */
@@ -579,7 +592,6 @@ public class Commands {
 
     /**
      * Create a window summarizing key system information relevant for QuPath.
-     *
      * @param qupath the current QuPath instance
      * @return a window to display license information
      */
@@ -590,7 +602,6 @@ public class Commands {
 
     /**
      * Show a dialog to adjust QuPath preferences.
-     *
      * @param qupath the QuPath instance
      * @return window to use to display preferences
      */
@@ -629,7 +640,7 @@ public class Commands {
         pane.setCenter(panel.getPropertySheet());
         pane.setBottom(paneImportExport);
         if (qupath != null && qupath.getStage() != null) {
-            pane.setPrefHeight(Math.round(Math.max(300, qupath.getStage().getHeight() * 0.75)));
+            pane.setPrefHeight(Math.round(Math.max(300, qupath.getStage().getHeight()*0.75)));
         }
         paneImportExport.prefWidthProperty().bind(pane.widthProperty());
 //			btnClose.prefWidthProperty().bind(pane.widthProperty());
@@ -782,11 +793,9 @@ public class Commands {
         return dialog;
     }
 
-
     /**
      * Create a zoom in/out command action.
-     *
-     * @param qupath     QuPath instance
+     * @param qupath QuPath instance
      * @param zoomAmount relative amount to zoom in (positive) or out (negative). Suggested value is +/-10.
      * @return
      */
@@ -798,7 +807,6 @@ public class Commands {
 
     /**
      * Create a stage to prompt the user to specify an annotation to add.
-     *
      * @param qupath
      * @return
      */
@@ -816,7 +824,6 @@ public class Commands {
 
     /**
      * Prompt to save the specified {@link ImageData}.
-     *
      * @param qupath
      * @param imageData
      * @param overwriteExisting
@@ -847,14 +854,14 @@ public class Commands {
                         File fileDefault = new File(lastSavedPath);
                         file = Dialogs.promptToSaveFile(null, fileDefault.getParentFile(), fileDefault.getName(), "QuPath Serialized Data", PathPrefs.getSerializationExtension());
                     }
-                } else {
+                }
+                else {
                     ImageServer<?> server = imageData.getServer();
                     String name = ServerTools.getDisplayableImageName(server);
                     if (name.contains(".")) {
                         try {
                             name = GeneralTools.getNameWithoutExtension(new File(name));
-                        } catch (Exception e) {
-                        }
+                        } catch (Exception e) {}
                     }
                     file = Dialogs.promptToSaveFile(null, null, name, "QuPath Serialized Data", PathPrefs.getSerializationExtension());
                 }
@@ -876,9 +883,8 @@ public class Commands {
 
     /**
      * Save an image snapshot, prompting the user to select the output file.
-     *
      * @param qupath the {@link QuPathGUI} instance to snapshot
-     * @param type   the snapshot type
+     * @param type the snapshot type
      * @return true if a snapshot was saved, false otherwise
      */
     public static boolean saveSnapshot(QuPathGUI qupath, GuiTools.SnapshotType type) {
@@ -935,7 +941,6 @@ public class Commands {
 
     /**
      * Merge the currently-selected annotations for an image, replacing them with a single new annotation.
-     *
      * @param imageData
      */
     public static void mergeSelectedAnnotations(ImageData<?> imageData) {
@@ -951,7 +956,6 @@ public class Commands {
 
     /**
      * Duplicate the selected annotations.
-     *
      * @param imageData
      */
     public static void duplicateSelectedAnnotations(ImageData<?> imageData) {
@@ -968,7 +972,6 @@ public class Commands {
 
     /**
      * Make an inverse annotation for the selected objects, storing the command in the history workflow.
-     *
      * @param imageData
      * @see QP#makeInverseAnnotation(ImageData)
      */
@@ -984,7 +987,6 @@ public class Commands {
 
     /**
      * Show a dialog to track the viewed region of an image.
-     *
      * @param qupath
      */
     public static void showViewTracker(QuPathGUI qupath) {
@@ -1004,6 +1006,7 @@ public class Commands {
     }
 
 
+
 //	/**
 //	 * Combine the selected annotations for the image open in the specified viewer.
 //	 * @param viewer viewer containing the image data
@@ -1017,9 +1020,8 @@ public class Commands {
 
     /**
      * Combine the selected annotations for the specified hierarchy.
-     *
      * @param imageData the image data to process
-     * @param op        the {@link CombineOp} operation to apply
+     * @param op the {@link CombineOp} operation to apply
      * @return true if changes were made, false otherwise
      */
     public static boolean combineSelectedAnnotations(ImageData<?> imageData, RoiTools.CombineOp op) {
@@ -1109,7 +1111,6 @@ public class Commands {
 
     /**
      * Prompt to select objects according to their classifications.
-     *
      * @param qupath
      * @param imageData
      */
@@ -1125,7 +1126,6 @@ public class Commands {
 
     /**
      * Prompt to delete objects of a specified type, or all objects.
-     *
      * @param imageData
      * @param cls
      */
@@ -1200,22 +1200,22 @@ public class Commands {
     /**
      * Reset QuPath's preferences, after confirming with the user.
      * QuPath needs to be restarted for this to take effect.
-     *
      * @return true if the preferences were reset, false otherwise
      */
     public static boolean promptToResetPreferences() {
         if (Dialogs.showConfirmDialog("Reset Preferences", "Do you want to reset all custom preferences?\n\nYou may have to restart QuPath to see all changes.")) {
             PathPrefs.resetPreferences();
             return true;
-        } else
+        }
+        else
             logger.info("Reset preferences command skipped!");
         return false;
     }
 
 
+
     /**
      * Set the downsample factor for the specified viewer.
-     *
      * @param viewer
      * @param downsample
      */
@@ -1227,7 +1227,6 @@ public class Commands {
 
     /**
      * Close the current project open in the {@link QuPathGUI}.
-     *
      * @param qupath
      */
     public static void closeProject(QuPathGUI qupath) {
@@ -1237,7 +1236,6 @@ public class Commands {
 
     /**
      * Prompt the user to select an empty directory, and use this to create a new project and set it as active.
-     *
      * @param qupath the {@link QuPathGUI} instance for which the project should be created.
      * @return true if a project was created, false otherwise (e.g. the user cancelled).
      */
@@ -1262,7 +1260,6 @@ public class Commands {
 
     /**
      * Prompt the user to open an existing project and set it as active.
-     *
      * @param qupath the {@link QuPathGUI} instance for which the project should be opened.
      * @return true if a project was opened, false otherwise (e.g. the user cancelled).
      */
@@ -1282,9 +1279,9 @@ public class Commands {
     }
 
 
+
     /**
      * Open new window with the TMA data viewer.
-     *
      * @param qupath current {@link QuPathGUI} instance (may be null).
      */
     public static void launchTMADataViewer(QuPathGUI qupath) {
@@ -1299,8 +1296,8 @@ public class Commands {
 
         try {
             Screen screen = Screen.getPrimary();
-            stage.setWidth(screen.getBounds().getWidth() * 0.75);
-            stage.setHeight(screen.getBounds().getHeight() * 0.75);
+            stage.setWidth(screen.getBounds().getWidth()*0.75);
+            stage.setHeight(screen.getBounds().getHeight()*0.75);
         } catch (Exception e) {
             logger.error("Exception setting stage size", e);
         }
@@ -1310,7 +1307,6 @@ public class Commands {
 
     /**
      * Compute the distance between all detections and the closest annotation, for all annotation classifications.
-     *
      * @param imageData the image data to process
      */
     public static void distanceToAnnotations2D(ImageData<?> imageData) {
@@ -1344,7 +1340,6 @@ public class Commands {
 
     /**
      * Compute the distance between the centroids of all detections, for all available classifications.
-     *
      * @param imageData the image data to process
      */
     public static void detectionCentroidDistances2D(ImageData<?> imageData) {
@@ -1379,7 +1374,6 @@ public class Commands {
 
     /**
      * Prompt to input the spacing for the grid lines optionally displayed on viewers.
-     *
      * @param options the {@link OverlayOptions} that manage the grid lines.
      */
     public static void promptToSetGridLineSpacing(OverlayOptions options) {
@@ -1404,7 +1398,6 @@ public class Commands {
 
     /**
      * Reload the specified image data from a previously saved version,if available.
-     *
      * @param qupath
      * @param imageData
      */
@@ -1449,9 +1442,9 @@ public class Commands {
     }
 
 
+
     /**
      * Prompt to add shape features for selected objects.
-     *
      * @param qupath current QuPath instance
      */
     public static void promptToAddShapeFeatures(QuPathGUI qupath) {
@@ -1500,7 +1493,7 @@ public class Commands {
                 .buttons(ButtonType.APPLY, ButtonType.CANCEL)
                 .build();
 
-        var btnApply = (Button) dialog.getDialogPane().lookupButton(ButtonType.APPLY);
+        var btnApply = (Button)dialog.getDialogPane().lookupButton(ButtonType.APPLY);
         btnApply.disableProperty().bind(qupath.imageDataProperty().isNull());
 
         btnApply.setOnAction(e -> requestShapeFeatures(qupath.getImageData(), listView.getCheckModel().getCheckedItems()));
@@ -1538,10 +1531,10 @@ public class Commands {
     }
 
 
+
     /**
      * Convert detection objects to point annotations based upon their ROI centroids.
-     *
-     * @param imageData     the image data to process
+     * @param imageData the image data to process
      * @param preferNucleus if true, use a nucleus ROI for cell objects (if available
      */
     public static void convertDetectionsToPoints(ImageData<?> imageData, boolean preferNucleus) {
@@ -1575,15 +1568,14 @@ public class Commands {
         if (button == Dialogs.DialogButton.CANCEL)
             return;
 
-        boolean deleteDetections = button == Dialogs.DialogButton.YES;
+        boolean	deleteDetections = button == Dialogs.DialogButton.YES;
         PathObjectTools.convertToPoints(hierarchy, pathObjects, preferNucleus, deleteDetections);
     }
 
 
     /**
      * Show a prompt to selected annotations in a hierarchy.
-     *
-     * @param imageData         the current image data
+     * @param imageData the current image data
      * @param altitudeThreshold default altitude value for simplification
      */
     public static void promptToSimplifySelectedAnnotations(ImageData<?> imageData, double altitudeThreshold) {
@@ -1599,10 +1591,10 @@ public class Commands {
         String input = Dialogs.showInputDialog("Simplify shape",
                 "Set altitude threshold in pixels (> 0; higher values give simpler shapes)",
                 Double.toString(altitudeThreshold));
-        if (input == null || !(input instanceof String) || ((String) input).trim().length() == 0)
+        if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
             return;
         try {
-            altitudeThreshold = Double.parseDouble(((String) input).trim());
+            altitudeThreshold = Double.parseDouble(((String)input).trim());
         } catch (NumberFormatException e) {
             logger.error("Could not parse altitude threshold from {}", input);
             return;
@@ -1612,17 +1604,18 @@ public class Commands {
         for (var pathObject : pathObjects) {
             ROI pathROI = pathObject.getROI();
             if (pathROI instanceof PolygonROI) {
-                PolygonROI polygonROI = (PolygonROI) pathROI;
+                PolygonROI polygonROI = (PolygonROI)pathROI;
                 pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
             } else {
                 pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
             }
-            ((PathAnnotationObject) pathObject).setROI(pathROI);
+            ((PathAnnotationObject)pathObject).setROI(pathROI);
         }
         long endTime = System.currentTimeMillis();
         logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
         hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
     }
+
 
 
     /**
@@ -1662,9 +1655,9 @@ public class Commands {
     }
 
 
+
     /**
      * Reset the selection for an image.
-     *
      * @param imageData
      */
     public static void resetSelection(final ImageData<?> imageData) {
@@ -1686,6 +1679,7 @@ public class Commands {
         else
             imageData.getHistoryWorkflow().addStep(newStep);
     }
+
 
 
     /**
@@ -1721,7 +1715,6 @@ public class Commands {
 
     /**
      * Create a dialog to show the workflow history for the current image data.
-     *
      * @param qupath the QuPath instance
      * @return a workflow display dialog
      */
@@ -1738,7 +1731,6 @@ public class Commands {
 
     /**
      * Show the QuPath script editor with a script corresponding to the command history of a specified image.
-     *
      * @param qupath
      * @param imageData
      */
@@ -1753,7 +1745,6 @@ public class Commands {
 
     /**
      * Show the script editor, or bring the window to the front if it is already open.
-     *
      * @param qupath
      */
     public static void showScriptEditor(QuPathGUI qupath) {
@@ -1763,15 +1754,14 @@ public class Commands {
             return;
         }
         // Show script editor with a new script
-        if ((scriptEditor instanceof Window) && ((Window) scriptEditor).isShowing())
-            ((Window) scriptEditor).toFront();
+        if ((scriptEditor instanceof Window) && ((Window)scriptEditor).isShowing())
+            ((Window)scriptEditor).toFront();
         else
             scriptEditor.showEditor();
     }
 
     /**
      * Create a dialog to monitor memory usage.
-     *
      * @param qupath
      * @return
      */
@@ -1781,7 +1771,6 @@ public class Commands {
 
     /**
      * Show a mini viewer window associated with a specific viewer.
-     *
      * @param viewer the viewer with which to associate this window
      */
     public static void showMiniViewer(QuPathViewer viewer) {
@@ -1792,7 +1781,6 @@ public class Commands {
 
     /**
      * Show a channel viewer window associated with a specific viewer.
-     *
      * @param viewer the viewer with which to associate this window
      */
     public static void showChannelViewer(QuPathViewer viewer) {
