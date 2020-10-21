@@ -234,6 +234,18 @@ public class PreferencePane {
 				"Scroll speed %", category, 
 				"Adjust the scrolling speed - 100% is 'normal', while lower values lead to slower scrolling");
 		
+		addPropertyPreference(PathPrefs.navigationSpeedProperty(), Integer.class,
+				"Navigation speed %", category, 
+				"Adjust the navigation speed - 100% is 'normal', while lower values lead to slower navigation");
+		
+		addPropertyPreference(PathPrefs.navigationAccelerationProperty(), Boolean.class,
+				"Navigation acceleration effects", category, 
+				"Apply acceleration/deceleration effects when holding and releasing a navigation key");
+		
+		addPropertyPreference(PathPrefs.skipMissingCoresProperty(), Boolean.class,
+				"Skip missing TMA cores", category, 
+				"Jumps over missing TMA cores when navigating TMA grids using the arrow keys.");
+		
 		addPropertyPreference(PathPrefs.useScrollGesturesProperty(), Boolean.class,
 				"Use scroll touch gestures",
 				category,
