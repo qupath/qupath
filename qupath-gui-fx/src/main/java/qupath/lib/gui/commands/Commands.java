@@ -38,6 +38,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javafx.scene.input.KeyCode;
+import javafx.scene.text.Font;
 import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
@@ -73,6 +75,7 @@ import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.Knob;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -694,26 +697,37 @@ public class Commands {
 
 		BorderPane pane = new BorderPane();
 
-		final Label label = new Label("0 degrees");
-		label.setTextAlignment(TextAlignment.CENTER);
+
 		QuPathViewer viewerTemp = qupath.getViewer();
-		var slider = new Slider(-90, 90, viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
-		slider.setMajorTickUnit(10);
-		slider.setMinorTickCount(5);
-		slider.setShowTickMarks(true);
-		slider.valueProperty().addListener((v, o, n) -> {
+		var knob = new Knob();
+		knob.setValue(viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
+		knob.setTickSpacing(10);
+		knob.setShowValue(true);
+		knob.setSnapToTicks(false);
+		knob.setOnKeyPressed(e -> {
+			if (e.getCode() == KeyCode.SHIFT) {
+				knob.setSnapToTicks(true);
+				knob.setShowTickMarks(true);
+			}
+		});
+		knob.setOnKeyReleased(e -> {
+			if (e.getCode() == KeyCode.SHIFT) {
+				knob.setSnapToTicks(false);
+				knob.setShowTickMarks(false);
+			}
+		});
+		knob.rotationProperty().addListener((v, o, n) -> {
 			QuPathViewer viewer = qupath.getViewer();
 			if (viewer == null)
 				return;
-			double rotation = slider.getValue();
-			label.setText(String.format("%.1f degrees", rotation));
+			double rotation = knob.getValue();
 			viewer.setRotation(Math.toRadians(rotation));
 		});
 
 		Button btnReset = new Button("Reset");
-		btnReset.setOnAction(e -> slider.setValue(0));
+		btnReset.setOnAction(e -> knob.setValue(0));
 
-		Button btnTMAAlign = new Button("Straighten TMA");
+		/*Button btnTMAAlign = new Button("Straighten TMA");
 		btnTMAAlign.setOnAction(e -> {
 
 			QuPathViewer viewer = qupath.getViewer();
@@ -750,22 +764,22 @@ public class Commands {
 				return;
 			Collections.sort(angles);
 			double angleMedian = Math.toDegrees(angles.get(angles.size()/2));
-			slider.setValue(angleMedian);
+			knob.setValue(angleMedian);
 
 			logger.debug("Median angle: " + angleMedian);
 
-		});
+		});*/
 
 		GridPane panelButtons = PaneTools.createColumnGridControls(
-				btnReset,
-				btnTMAAlign
+				btnReset
+				//,				btnTMAAlign
 				);
 		panelButtons.setPrefWidth(300);
 		
-		slider.setPadding(new Insets(5, 0, 10, 0));
+		knob.setPadding(new Insets(5, 0, 10, 0));
 
-		pane.setTop(label);
-		pane.setCenter(slider);
+		pane.setCenter(knob);
+
 		pane.setBottom(panelButtons);
 		pane.setPadding(new Insets(10, 10, 10, 10));
 
