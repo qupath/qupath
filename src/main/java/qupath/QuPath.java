@@ -294,7 +294,7 @@ class ScriptCommand implements Runnable {
 					logger.info("Running script for {}", entry.getImageName());
 					imageData = entry.readImageData();
 					try {
-						Object result = runScript(project, entry.readImageData());
+						Object result = runScript(project, imageData);
 						if (result != null)
 							logger.info("Script result: {}", result);
 						if (save)
