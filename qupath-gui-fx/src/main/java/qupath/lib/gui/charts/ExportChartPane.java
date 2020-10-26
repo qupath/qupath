@@ -614,6 +614,8 @@ class ExportChartPane {
 				o.writeObject(map);
 			}
 			byte[] bytes = b.toByteArray();
+			
+			// TODO: Next line might break as Preferences values' size is limited to 0.75*MAX_VALUE_LENGTH 
 			PathPrefs.getUserPreferences().putByteArray(EXPORT_CHART_PREFS_KEY + name, bytes);
 		}
 	}

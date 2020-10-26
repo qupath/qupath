@@ -67,6 +67,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -1933,7 +1934,10 @@ public class QuPathGUI {
 			logger.error("Error saving classes", e);
 		}
 		byte[] bytes = stream.toByteArray();
-		PathPrefs.getUserPreferences().putByteArray("defaultPathClasses", bytes);
+		if (bytes.length < 0.75*Preferences.MAX_VALUE_LENGTH) {
+			PathPrefs.getUserPreferences().putByteArray("defaultPathClasses", bytes);
+		} else
+			logger.error("Could not save that many classes: will store default classes instead.");
 	}
 	
 	
