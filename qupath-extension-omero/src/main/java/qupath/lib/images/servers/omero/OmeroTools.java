@@ -37,8 +37,10 @@ import qupath.lib.images.servers.omero.OmeroObjects.Project;
 import qupath.lib.images.servers.omero.OmeroObjects.Server;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 
 
 /**
@@ -49,7 +51,7 @@ import qupath.lib.objects.PathObject;
  */
 public class OmeroTools {
 	
-	final private static Logger logger = LoggerFactory.getLogger(OmeroTools.class);
+	private final static Logger logger = LoggerFactory.getLogger(OmeroTools.class);
 	
 	/**
 	 * Patterns for parsing input URIs
@@ -57,7 +59,15 @@ public class OmeroTools {
 	private final static Pattern patternOldViewer = Pattern.compile("/webgateway/img_detail/(\\d+)");
 	private final static Pattern patternNewViewer = Pattern.compile("images=(\\d+)");
 	private final static Pattern patternWebViewer= Pattern.compile("/webclient/img_detail/(\\d+)");
+	private final static Pattern patternLink = Pattern.compile("show=image-(\\d+)");
+	private final static Pattern patternImgDetail = Pattern.compile("img_detail/(\\d+)");
 	private final static Pattern patternType = Pattern.compile("show=(\\w+-)");
+	
+	
+	// Suppress default constructor for non-instantiability
+	private OmeroTools() {
+		throw new AssertionError();
+	}
 	
 	/**
 	 * Return the web client used for the specified OMERO server
@@ -220,7 +230,7 @@ public class OmeroTools {
 		
 		// TODO: probably should do this in one line
 		Gson gsonAnnotation = new GsonBuilder().registerTypeAdapter(PathAnnotationObject.class, new OmeroShapes.GsonShapeSerializer()).setLenient().create();
-		Gson gsonDetection  = new GsonBuilder().registerTypeAdapter(PathDetectionObject.class, new OmeroShapes.GsonShapeSerializer()).setLenient().create();
+		Gson gsonDetection  = new GsonBuilder().registerTypeAdapter(PathDetectionObject.class, new OmeroShapes.GsonShapeSerializer()).serializeSpecialFloatingPointValues().setLenient().create();
 		
 		// Iterate through PathObjects and get their JSON representation
 		List<String> jsonList = new ArrayList<>();
@@ -228,8 +238,17 @@ public class OmeroTools {
 			String myJson = "";
 			if (pathObject instanceof PathAnnotationObject)
 				myJson = gsonAnnotation.toJson(pathObject);
-			else
-				myJson = gsonDetection.toJson(pathObject);
+			else {
+				// TODO: ugly design, should improve this
+				if (pathObject instanceof PathCellObject) {
+					var detTemp = PathObjects.createDetectionObject(pathObject.getROI());
+					detTemp.setPathClass(pathObject.getPathClass());
+					detTemp.setColorRGB(pathObject.getColorRGB());
+					detTemp.setName(pathObject.getName());
+					pathObject = detTemp;
+				}
+				myJson = gsonDetection.toJson(pathObject);				
+			}
 			
 			var gson = GsonTools.getInstance();
 			try {
@@ -508,8 +527,6 @@ public class OmeroTools {
 	public static String getOmeroObjectId(URI uri) {
 		String uriString = uri.toString().replace("show%3Dimage-", "show=image-");
 		uriString = uriString.replace("/?images%3D", "/?images=");
-		Pattern patternLink = Pattern.compile("show=image-(\\d+)");
-		Pattern patternImgDetail = Pattern.compile("img_detail/(\\d+)");
 		Pattern[] similarPatterns = new Pattern[] {patternLink, patternImgDetail, patternNewViewer, patternWebViewer};
         for (int i = 0; i < similarPatterns.length; i++) {
         	var matcher = similarPatterns[i].matcher(uriString);

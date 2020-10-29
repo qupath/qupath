@@ -18,8 +18,8 @@ import com.google.gson.annotations.SerializedName;
 
 class OmeroObjects {
 	
-private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class);
-
+	private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class);
+	
 	
 	static class GsonOmeroObjectDeserializer implements JsonDeserializer<OmeroObject> {
 
@@ -333,6 +333,20 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		static public Owner getAllMembersOwner() {
 			return new Owner(-1, "All members", "", "", "", "", "");
 		}
+		
+		@Override
+		public int hashCode() {
+			return Integer.hashCode(id);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this)
+				return true;
+			if (!(obj instanceof Owner))
+				return false;
+			return ((Owner)obj).id == this.id;
+		}
 	}
 	
 	static class Group {
@@ -366,8 +380,22 @@ private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class)
 		 * Dummy {@code Group} object to represent all groups.
 		 * @return group
 		 */
-		public static Group getAllGroupsObject() {
+		public static Group getAllGroupsGroup() {
 			return new Group(-1, "All groups");
+		}
+
+		@Override
+		public int hashCode() {
+			return Integer.hashCode(id);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == this)
+				return true;
+			if (!(obj instanceof Group))
+				return false;
+			return ((Group)obj).id == this.id;
 		}
 	}
 	

@@ -38,9 +38,13 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.google.gson.annotations.SerializedName;
+
+import qupath.lib.common.ColorTools;
 import qupath.lib.geom.Point2;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.GeometryROI;
@@ -65,27 +69,27 @@ class OmeroShapes {
 				throws JsonParseException {
 			
 			var type = ((JsonObject)json).get("@type").getAsString().toLowerCase();
-			if (type.endsWith("#rectangle")) {
+			if (type.endsWith("#rectangle"))
 				return context.deserialize(json, Rectangle.class);
-			}
-			if (type.endsWith("#ellipse")) {
+			
+			if (type.endsWith("#ellipse"))
 				return context.deserialize(json, Ellipse.class);
-			}
-			if (type.endsWith("#line")) {
+			
+			if (type.endsWith("#line"))
 				return context.deserialize(json, Line.class);
-			}
-			if (type.endsWith("#polygon")) {
+			
+			if (type.endsWith("#polygon"))
 				return context.deserialize(json, Polygon.class);
-			}
-			if (type.endsWith("#polyline")) {
+			
+			if (type.endsWith("#polyline"))
 				return context.deserialize(json, Polyline.class);
-			}
-			if (type.endsWith("#point")) {
+			
+			if (type.endsWith("#point"))
 				return context.deserialize(json, Point.class);
-			}
-			if (type.endsWith("#label")) {
+			
+			if (type.endsWith("#label"))
 				return context.deserialize(json, Label.class);
-			}
+			
 //			if (type.endsWith("#mask")) {
 //				return context.deserialize(json, Mask.class);
 //			}
@@ -100,62 +104,84 @@ class OmeroShapes {
 		@Override
 		public JsonElement serialize(PathObject src, Type typeOfSrc, JsonSerializationContext context) {
 			ROI roi = src.getROI();
+			Type type = null;
+			OmeroShape shape;
 			if (roi instanceof RectangleROI) {
-				var shape = new Rectangle(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
+				type = Rectangle.class;
+				shape = new Rectangle(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
 				shape.setType("Rectangle");
-				return context.serialize(shape, Rectangle.class);
-			}
-			if (roi instanceof EllipseROI) {
-				var shape = new Ellipse(roi.getCentroidX(), roi.getCentroidY(), roi.getBoundsWidth()/2, roi.getBoundsHeight()/2);
+
+			} else if (roi instanceof EllipseROI) {
+				type = Ellipse.class;
+				shape = new Ellipse(roi.getCentroidX(), roi.getCentroidY(), roi.getBoundsWidth()/2, roi.getBoundsHeight()/2);
 				shape.setType("Ellipse");
-				return context.serialize(shape, Ellipse.class);
-			}
-			if (roi instanceof LineROI) {
+				
+			} else if (roi instanceof LineROI) {
+				type = Line.class;
 				LineROI lineRoi = (LineROI)roi;
-				var shape = new Line(lineRoi.getX1(), lineRoi.getY1(), lineRoi.getX2(), lineRoi.getY2());
+				shape = new Line(lineRoi.getX1(), lineRoi.getY1(), lineRoi.getX2(), lineRoi.getY2());
 				shape.setType("Line");
-				return context.serialize(shape, Line.class);
-			}
-			if (roi instanceof PointsROI) {
+
+			} else if (roi instanceof PolylineROI) {
+				type = Polyline.class;
+				shape = new Polyline(pointsToString(roi.getAllPoints()));
+				shape.setType("Polyline");
+
+			} else if (roi instanceof PolygonROI) {
+				type = Polygon.class;
+				shape = new Polygon(pointsToString(roi.getAllPoints()));
+				shape.setType("Polygon");
+				
+			} else if (roi instanceof PointsROI) {
 				JsonElement[] points = new JsonElement[roi.getNumPoints()];
 				List<Point2> roiPoints = roi.getAllPoints();
+				PathClass pathClass = src.getPathClass();
 				
 				for (int i = 0; i < roiPoints.size(); i++) {
-					var shape = new Point(roiPoints.get(i).getX(), roiPoints.get(i).getY());
+					shape = new Point(roiPoints.get(i).getX(), roiPoints.get(i).getY());
 					shape.setType("Point");
+					shape.setText(src.getName() != null ? src.getName() : "");
+					shape.setFillColor(pathClass != null ? ColorTools.ARGBToRGBA(src.getPathClass().getColor()) : -256);
 					points[i] = context.serialize(shape, Point.class);;
 				}
 				return context.serialize(points);
-			}
-			if (roi instanceof PolylineROI) {
-				var shape = new Polyline(pointsToString(roi.getAllPoints()));
-				shape.setType("Polyline");
-				return context.serialize(shape, Polyline.class);
-			}
-			if (roi instanceof PolygonROI) {
-				var shape = new Polygon(pointsToString(roi.getAllPoints()));
-				shape.setType("Polygon");
-				return context.serialize(shape, Polygon.class);
-			}
-			if (roi instanceof GeometryROI) {
+				
+			} else if (roi instanceof GeometryROI) {
 				// MultiPolygon
 				logger.info("OMERO shapes do not support holes.");
 				logger.warn("MultiPolygon will be split for OMERO compatibility.");
 				roi = RoiTools.fillHoles(roi);
+				PathClass pathClass = src.getPathClass();
 				
 				List<ROI> rois = RoiTools.splitROI(roi);
 				JsonElement[] polygons = new JsonElement[rois.size()];
 				
 				for (int i = 0; i < polygons.length; i++) {
-					var shape = new Polygon(pointsToString(rois.get(i).getAllPoints()));
+					shape = new Polygon(pointsToString(rois.get(i).getAllPoints()));
 					shape.setType("Polygon");
+					shape.setText(src.getName() != null ? src.getName() : "");
+					shape.setFillColor(pathClass != null ? ColorTools.ARGBToRGBA(pathClass.getColor()) : -256);
 					polygons[i] = context.serialize(shape, Polygon.class);
 				}
 				return context.serialize(polygons);
 				
+			} else {
+				logger.warn("Unsupported type {}", roi.getRoiName());
+				return null;				
 			}
-			logger.warn("Unsupported type {}", roi.getRoiName());
-			return null;
+			
+			// Set the appropriate colors
+			if (src.getPathClass() != null) {
+				int classColor = ColorTools.ARGBToRGBA(src.getPathClass().getColor());
+				shape.setFillColor(classColor);
+				shape.setStrokeColor(classColor);
+			} else {
+				shape.setFillColor(-256);	// Transparent
+				shape.setStrokeColor(ColorTools.ARGBToRGBA(PathPrefs.colorDefaultObjectsProperty().get())); // Default Qupath object color
+			}
+			
+			shape.setText(src.getName() != null ? src.getName() : "");
+			return context.serialize(shape, type);
 		}
 	}
 	
@@ -177,6 +203,9 @@ class OmeroShapes {
 		
 		@SerializedName(value = "Locked", alternate = "locked")
 		private Boolean locked;
+		
+		@SerializedName(value = "FillColor", alternate = "fillColor")
+		private Integer fillColor;
 		
 		@SerializedName(value = "StrokeColor", alternate = "strokeColor")
 		private Integer strokeColor;
@@ -220,6 +249,18 @@ class OmeroShapes {
 		
 		protected void setType(String type) {
 			this.type = "http://www.openmicroscopy.org/Schemas/OME/2016-06#" + type;
+		}
+		
+		protected void setText(String text) {
+			this.text = text;			
+		}
+		
+		protected void setStrokeColor(Integer color) {
+			this.strokeColor = color;
+		}
+		
+		protected void setFillColor(Integer color) {
+			this.fillColor = color;
 		}
 		
 	}

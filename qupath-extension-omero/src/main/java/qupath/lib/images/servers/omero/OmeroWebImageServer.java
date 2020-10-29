@@ -78,7 +78,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	 * Image ID
 	 */
 	private String id;
-	
+
 	private final String host;
 	private final String scheme;
 	

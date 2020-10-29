@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +30,10 @@ import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -56,6 +61,7 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
@@ -74,6 +80,8 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.omero.OmeroAnnotations.CommentAnnotation;
+import qupath.lib.images.servers.omero.OmeroAnnotations.OmeroAnnotation;
 import qupath.lib.images.servers.omero.OmeroObjects.Dataset;
 import qupath.lib.images.servers.omero.OmeroObjects.Group;
 import qupath.lib.images.servers.omero.OmeroObjects.Image;
@@ -81,6 +89,7 @@ import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
 import qupath.lib.images.servers.omero.OmeroObjects.Owner;
 import qupath.lib.images.servers.omero.OmeroObjects.Project;
 import qupath.lib.images.servers.omero.OmeroObjects.Server;
+import qupath.lib.io.GsonTools;
 
 /**
  * Command to browse a specified OMERO server.
@@ -96,8 +105,9 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	private OmeroWebImageServer server;
 	private BorderPane mainPane;
 	private ComboBox<Owner> comboOwner;
-	private List<Owner> owners;
-	private List<Group> groups;
+	private ComboBox<Group> comboGroup;
+	private Set<Owner> owners;
+	private Set<Group> groups;
 	private TreeView<OmeroObject> tree;
 	private TableView<Integer> description;
 	private OmeroObject[] selectedObjects;
@@ -105,13 +115,14 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	private Canvas canvas;
 	private int imgPrefSize = 256;
 	private ProgressIndicator progressIndicator;
+	private Button moreInfoBtn;
 	private Button importBtn;
 	
 	private StringConverter<Owner> ownerStringConverter;
 	
 	private Map<String, BufferedImage> omeroIcons;
 	// Get table item children in separate thread
-	ExecutorService executorTable;
+	private ExecutorService executorTable;
 	
 	private Map<Integer, BufferedImage> thumbnailBank;	// To store thumbnails
 	
@@ -235,6 +246,31 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		comboOwner.setConverter(ownerStringConverter);
 		comboOwner.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> refreshTree());
 		
+		comboGroup.getItems().setAll(groups);
+		try {
+			URL url = new URL(server.getScheme(), server.getHost(), -1, "/api/v0/m/images/" + server.getId());
+			InputStreamReader reader = new InputStreamReader(url.openStream());
+			JsonObject mapImageInfo = GsonTools.getInstance().fromJson(reader, JsonObject.class);
+			reader.close();
+			Group group = GsonTools.getInstance()
+					.fromJson(mapImageInfo.get("data")
+					.getAsJsonObject()
+					.get("omero:details")
+					.getAsJsonObject()
+					.get("group"), OmeroObjects.Group.class);
+			
+			groups.add(group);
+			comboGroup.getItems().setAll(groups);
+			comboGroup.getSelectionModel().select(group);
+		} catch (Exception ex) {
+			logger.error("Could not parse OMERO 'Group'");
+			groups.add(Group.getAllGroupsGroup());
+			comboGroup.getItems().setAll(groups);
+			comboGroup.getSelectionModel().selectFirst();
+		}
+		comboGroup.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> refreshTree());
+		
+		
 		description = new TableView<>();
 		TableColumn<Integer, String> attributeCol = new TableColumn<>("Attribute");
 		TableColumn<Integer, String> valueCol = new TableColumn<>("Value");
@@ -327,23 +363,19 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 					else if (selectedObjects[0] instanceof Project)
 						importBtn.setText("Import Omero project");
 					
+					moreInfoBtn.setDisable(selectedObjects.length != 1);
 					var allSupported = !List.of(selectedObjects).stream().allMatch(obj -> isSupported(obj));
 					importBtn.setDisable(allSupported);
 				});
 			}
 		});
 		
-		Button expandBtn = new Button("Expand all");
-		Button collapseBtn = new Button("Collapse all");
-
-		expandBtn.setOnMouseClicked(e -> {
-			tree.getSelectionModel().clearSelection();
-			expandTreeView(tree.getRoot());
-		});
+		Button collapseBtn = new Button("Collapse all items");
 		collapseBtn.setOnMouseClicked(e -> collapseTreeView(tree.getRoot()));
-		GridPane expansionPane = new GridPane();
-		PaneTools.addGridRow(expansionPane, 0, 0, "Expand/collapse items", expandBtn, collapseBtn);
 		
+		moreInfoBtn = new Button("More info");
+		moreInfoBtn.setDisable(true);
+		moreInfoBtn.setOnMouseClicked(e -> new AdvancedObjectInfo(tree.getSelectionModel().getSelectedItem().getValue()));		
 		filter.setPromptText("Search project");
 		filter.textProperty().addListener((v, o, n) -> {
 			refreshTree();
@@ -354,15 +386,13 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 				
 		});
 		
-		GridPane searchPane = new GridPane();
 		Button advancedSearchBtn = new Button("Advanced search");
 		advancedSearchBtn.setOnAction(e -> new AdvancedSearch(server));
-		searchPane.addRow(0,  filter, advancedSearchBtn);
 		
-		PaneTools.addGridRow(browseLeftPane, 0, 0, "Filter by owner", comboOwner);
-		PaneTools.addGridRow(browseLeftPane, 1, 0, null, tree);
-		PaneTools.addGridRow(browseLeftPane, 2, 0, null, expansionPane);
-		PaneTools.addGridRow(browseLeftPane, 3, 0, null, searchPane);
+		PaneTools.addGridRow(browseLeftPane, 0, 0, "Filter by", comboGroup, comboOwner);
+		PaneTools.addGridRow(browseLeftPane, 1, 0, null, tree, tree);
+		PaneTools.addGridRow(browseLeftPane, 2, 0, "Expand/collapse items", collapseBtn, moreInfoBtn);
+		PaneTools.addGridRow(browseLeftPane, 3, 0, null, filter, advancedSearchBtn);
 		
 		canvas = new Canvas();
 		description.getColumns().addAll(attributeCol, valueCol);
@@ -371,10 +401,6 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		clipboardBtn.disableProperty().bind(tree.getSelectionModel().selectedItemProperty().isNull());
 		importBtn = new Button("Import image");
 		importBtn.setDisable(true);
-		
-		GridPane actionBtnPane = new GridPane();
-		PaneTools.addGridRow(actionBtnPane, 0, 0, null, clipboardBtn, importBtn);
-
 		
 		clipboardBtn.setOnMouseClicked(e -> {
 			var selected = tree.getSelectionModel().getSelectedItems();
@@ -412,14 +438,16 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		});
 		
 		
-		PaneTools.addGridRow(browseRightPane, 0, 0, null, canvas);
-		PaneTools.addGridRow(browseRightPane, 1, 0, null, description);
-		PaneTools.addGridRow(browseRightPane, 2, 0, null, actionBtnPane);
+		PaneTools.addGridRow(browseRightPane, 0, 0, null, canvas, canvas);
+		PaneTools.addGridRow(browseRightPane, 1, 0, null, description, description);
+		PaneTools.addGridRow(browseRightPane, 2, 0, null, clipboardBtn, importBtn);
         
         // Set HGrow and VGrow
+		GridPane.setHgrow(comboOwner,  Priority.ALWAYS);
+		GridPane.setHgrow(comboGroup,  Priority.ALWAYS);
 		GridPane.setHgrow(description,  Priority.ALWAYS);
 		GridPane.setHgrow(tree, Priority.ALWAYS);
-		GridPane.setHgrow(expandBtn, Priority.ALWAYS);
+		GridPane.setHgrow(moreInfoBtn, Priority.ALWAYS);
 		GridPane.setHgrow(collapseBtn, Priority.ALWAYS);
 		GridPane.setHgrow(filter, Priority.ALWAYS);
 		GridPane.setHgrow(advancedSearchBtn, Priority.ALWAYS);
@@ -430,9 +458,11 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		
 		// Set max width & height
 		comboOwner.setMaxWidth(Double.MAX_VALUE);
-		expandBtn.setMaxWidth(Double.MAX_VALUE);
+		comboGroup.setMaxWidth(Double.MAX_VALUE);
+		moreInfoBtn.setMaxWidth(Double.MAX_VALUE);
 		collapseBtn.setMaxWidth(Double.MAX_VALUE);
-		expansionPane.setMaxWidth(Double.MAX_VALUE);
+		moreInfoBtn.setMaxWidth(Double.MAX_VALUE);
+		collapseBtn.setMaxWidth(Double.MAX_VALUE);
         advancedSearchBtn.setMaxWidth(Double.MAX_VALUE);
         browseLeftPane.setMaxWidth(Double.MAX_VALUE);
         clipboardBtn.setMaxWidth(Double.MAX_VALUE);
@@ -608,9 +638,9 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
             } else {
             	String name;
             	setOpacity(1.0);
-            	if (item.getType().toLowerCase().endsWith("server"))
+            	if (item.getType().toLowerCase().endsWith("#server"))
             		name = server.getHost();
-            	else if (item.getType().toLowerCase().endsWith("image")) {
+            	else if (item.getType().toLowerCase().endsWith("#image")) {
             		name = item.getName();
             		setGraphic(null);
             		if (!isSupported(item))
@@ -618,7 +648,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
             	} else {
             		// If it's either project or dataset, need to set graphic with icon
             		BufferedImage img = null;
-            		if (item.getType().toLowerCase().endsWith("project")) {
+            		if (item.getType().toLowerCase().endsWith("#project")) {
             			name = item.getName() + " (" + item.getNChildren() + ")";
             			img = omeroIcons.get("project");
             			
@@ -670,7 +700,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 					// Get children and populate maps if necessary
 					List<OmeroObject> children = getChildren(omeroObj);
 					
-					// If server, update list of owners (and combo box)
+					// If server, update list of groups/owners (and comboBoxes)
 					if (omeroObj instanceof Server) {
 						var tempOwners = children.stream()
 								.map(e -> e.getOwner())
@@ -684,24 +714,37 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 							owners.clear();
 							owners.add(Owner.getAllMembersOwner());
 							owners.addAll(tempOwners);
+							// Update comboBox
 							Platform.runLater(() -> {
 								comboOwner.getItems().setAll(owners);
-							});								
+							});
 						}
 						if (tempGroups.size() > groups.size()) {
 							groups.clear();
-							groups.add(Group.getAllGroupsObject());
 							groups.addAll(tempGroups);
+							// Update comboBox
+							Platform.runLater(() -> {
+								comboGroup.getItems().setAll(groups);
+							});
 						}
 					}
 					
 					var items = children.parallelStream()
 							.filter(e -> {
-								var selected = comboOwner.getSelectionModel().getSelectedItem();
+								Group selected = comboGroup.getSelectionModel().getSelectedItem();
 								if (selected != null) {
-									if (selected.getName().equals("All members "))
+									if (selected.equals(Group.getAllGroupsGroup()))
 										return true;
-									return e.getOwner().getName().equals(comboOwner.getSelectionModel().getSelectedItem().getName());
+									return e.getGroup().equals(selected);
+								}
+								return true;
+							})
+							.filter(e -> {
+								Owner selected = comboOwner.getSelectionModel().getSelectedItem();
+								if (selected != null) {
+									if (selected.equals(Owner.getAllMembersOwner()))
+										return true;
+									return e.getOwner().equals(selected);
 								}
 								return true;
 							})
@@ -856,13 +899,14 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	
 	private void initializeVariables() {
 		this.server = null;
-		this.owners = new ArrayList<>();
-		this.groups = new ArrayList<>();
+		this.owners = new HashSet<>();
+		this.groups = new HashSet<>();
 		this.thumbnailBank = new HashMap<Integer, BufferedImage>();
 		this.serverChildrenList = new ArrayList<>();
 		this.projectMap = new ConcurrentHashMap<>();
 		this.datasetMap = new ConcurrentHashMap<>();
 		
+		this.comboGroup = new ComboBox<>();
 		this.comboOwner = new ComboBox<>();
 		this.filter = new TextField();
 		this.selectedObjects = null;
@@ -897,34 +941,120 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 				"Pixel size Z",
 				"Pixel type"};
 	}
+	
+	
+	private class AdvancedObjectInfo {
+		
+		private final OmeroObject obj;
+		private final Map<String, JsonElement> objectDetails;
+		private final Map<String, JsonElement> tags;
+		private final Map<String, JsonElement> keyValuePairs;
+//		private final Map<String, JsonElement> tables;
+		private final Map<String, JsonElement> attachments;
+		private final Map<String, JsonElement> comments;
+		private final Map<String, JsonElement> ratings;
+		private final Map<String, JsonElement> others;
+
+		private AdvancedObjectInfo(OmeroObject obj) {
+			this.obj = obj;
+			this.objectDetails = getOmeroAnnotationsMap("objectDetails");
+			this.tags = getOmeroAnnotationsMap("tag");
+			this.keyValuePairs = getOmeroAnnotationsMap("map");
+//			this.tables = getOmeroAnnotations("tables");
+			this.attachments = getOmeroAnnotationsMap("file");
+			this.comments = getOmeroAnnotationsMap("comment");
+			this.ratings = getOmeroAnnotationsMap("rating");
+			this.others = getOmeroAnnotationsMap("custom");
+			
+			showOmeroObjectInfo();
+		}
+
+
+		private Map<String, JsonElement> getOmeroAnnotationsMap(String category) {
+			String objType = obj.getType().substring(obj.getType().lastIndexOf("#") + 1);
+			
+			try {
+				URL url = new URL(server.getScheme(), server.getHost(), -1, 
+						"/webclient/api/annotations/?type=" + category + 
+						"&" + objType + "=" + obj.getId() + 
+						"&_=" + System.currentTimeMillis());
+				
+				InputStreamReader reader = new InputStreamReader(url.openStream());
+				HashMap<String, JsonElement> OmeroMap = GsonTools.getInstance().fromJson(reader, HashMap.class);
+				return OmeroMap;
+			} catch (Exception e) {
+				logger.warn("Could not fetch {0} information: {1}", category, e.getLocalizedMessage());
+				return null;
+			}
+		}
+		
+		/*
+		 * Create a GridPane in which each row is an annotation value
+		 */
+		private GridPane createAnnotationsPane(Map<String, JsonElement> map) {
+			GridPane gp = new GridPane();
+			
+			// TODO: Fix the for loop below (ClassCastException)
+			for (var ann: map.get("annotations").getAsJsonArray()) {
+				var gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
+				try {
+					// TODO: Check if the deserialisation works
+					// TODO: Should we add info such as 'modified by'?
+					// TODO: Should we handle permissions?
+					var omeroAnnotation = gson.fromJson(ann, OmeroAnnotation.class);
+					PaneTools.addGridRow(gp,  0,  0,  null,  new Label(((CommentAnnotation)omeroAnnotation).getValue()));
+				} catch (Exception e) {
+					logger.error("Could not parse Omero annotation. {}", e);
+				}
+			}
+			return gp;
+		}
+		
+
+		private void showOmeroObjectInfo() {
+			GridPane mainPane = new GridPane();
+			
+			int row = 0;
+			PaneTools.addGridRow(mainPane, row++, 0, "Tags", new TitledPane("Tags", createAnnotationsPane(tags)));
+			PaneTools.addGridRow(mainPane, row++, 0, "Key-Value Pairs", new TitledPane("Key-Value Pairs", createAnnotationsPane(keyValuePairs)));
+//			PaneTools.addGridRow(mainPane, row++, 0, "Tables", new TitledPane("Tables", createAnnotationsPane(tables)));
+			PaneTools.addGridRow(mainPane, row++, 0, "Attachments", new TitledPane("Attachments", createAnnotationsPane(attachments)));
+			PaneTools.addGridRow(mainPane, row++, 0, "Comments", new TitledPane("Comments", createAnnotationsPane(comments)));
+			PaneTools.addGridRow(mainPane, row++, 0, "Ratings", new TitledPane("Ratings", createAnnotationsPane(ratings)));
+			PaneTools.addGridRow(mainPane, row++, 0, "Others", new TitledPane("Others", createAnnotationsPane(others)));
+			
+			var dialog = Dialogs.builder().content(mainPane).build();
+			dialog.showAndWait();
+		}
+	}
 
 	private class AdvancedSearch {
 		
-		TableView<SearchResult> resultsTableView = new TableView<>();
-		ObservableList<SearchResult> obsResults = FXCollections.observableArrayList();
+		private final TableView<SearchResult> resultsTableView = new TableView<>();
+		private final ObservableList<SearchResult> obsResults = FXCollections.observableArrayList();
 		
-		TextField searchTf;
-		CheckBox restrictedByName;
-		CheckBox restrictedByDesc;
-		CheckBox searchForImages;
-		CheckBox searchForDatasets;
-		CheckBox searchForProjects;
-		CheckBox searchForWells;
-		CheckBox searchForPlates;
-		CheckBox searchForScreens;
-		ComboBox<Owner> ownedByCombo;
-		ComboBox<Group> groupCombo;
+		private TextField searchTf;
+		private CheckBox restrictedByName;
+		private CheckBox restrictedByDesc;
+		private CheckBox searchForImages;
+		private CheckBox searchForDatasets;
+		private CheckBox searchForProjects;
+		private CheckBox searchForWells;
+		private CheckBox searchForPlates;
+		private CheckBox searchForScreens;
+		private ComboBox<Owner> ownedByCombo;
+		private ComboBox<Group> groupCombo;
 		
-		int prefScale = 50;
+		private final int prefScale = 50;
 		
-		Button searchBtn;
-		ProgressIndicator progressIndicator2;
+		private Button searchBtn;
+		private ProgressIndicator progressIndicator2;
 		
 		// Search query in separate thread
-		ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("query-processing", true));
+		private final ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("query-processing", true));
 		
 		// Load thumbnail in separate thread
-		ExecutorService executor2;
+		private ExecutorService executor2;
 		
 		private final Pattern patternRow = Pattern.compile("<tr id=\"(.+?)-(.+?)\".+?</tr>", Pattern.DOTALL | Pattern.MULTILINE);
 	    private final Pattern patternDesc = Pattern.compile("<td class=\"desc\"><a>(.+?)</a></td>");
@@ -932,7 +1062,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	    private final Pattern patternGroup = Pattern.compile("<td class=\"group\">(.+?)</td>");
 	    private final Pattern patternLink = Pattern.compile("<td><a href=\"(.+?)\"");
 
-	    Pattern[] patterns = new Pattern[] {patternDesc, patternDate, patternDate, patternGroup, patternLink};
+	    private final Pattern[] patterns = new Pattern[] {patternDesc, patternDate, patternDate, patternGroup, patternLink};
 		
 		private AdvancedSearch(OmeroWebImageServer server) {
 			
@@ -1241,10 +1371,9 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 				Dialogs.showErrorMessage("Search query", "An error occurred. Check log in for more information.");
 				return;
 			}
-			
-			InputStreamReader reader;
+
 			try {
-				reader = new InputStreamReader(url.openStream());
+				InputStreamReader reader = new InputStreamReader(url.openStream());
 				String response = "";
 				var temp = reader.read();
 				while (temp != -1) {

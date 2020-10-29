@@ -124,6 +124,37 @@ public class ColorTools {
 	public static int makeRGBA(int r, int g, int b, int a) {
 		return (a<<24) + (r<<16) + (g<<8) + b;
 	}
+	
+	/**
+	 * Return the packed RGBA representation of the specified ARGB (packed) value.
+	 * <p>
+	 * This doesn't use the convenient method {@code makeRGBA()} as 
+	 * the order in the method is confusing.
+	 * @param argb
+	 * @return rgba
+	 */
+	public static int ARGBToRGBA(int argb) {
+		int a =  (argb >> 24) & 0xff;
+		int r =  (argb >> 16) & 0xff;
+		int g =  (argb >> 8) & 0xff;
+		int b =  argb & 0xff;
+		return (r<<24) + (g<<16) + (b<<8) + a;
+	}
+	
+	/**
+	 * Return the packed ARGB representation of the specified RGBA (packed) value.
+	 * <p>
+	 * This method is similar to {@code makeRGBA()} but with packed RGBA input.
+	 * @param rgba
+	 * @return argb
+	 */
+	public static int RGBAToARGB(int rgba) {
+		int r =  (rgba >> 24) & 0xff;
+		int g =  (rgba >> 16) & 0xff;
+		int b =  (rgba >> 8) & 0xff;
+		int a =  rgba & 0xff;
+		return (a<<24) + (r<<16) + (g<<8) + b;
+	}
 
 	/**
 	 * Clip an input value to be an integer in the range 0-255 (with rounding down).
