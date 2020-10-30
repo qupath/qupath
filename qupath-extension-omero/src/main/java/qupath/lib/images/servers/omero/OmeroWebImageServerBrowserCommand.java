@@ -44,6 +44,7 @@ import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -78,10 +79,15 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.omero.OmeroAnnotations.CommentAnnotation;
+import qupath.lib.images.servers.omero.OmeroAnnotations.FileAnnotation;
+import qupath.lib.images.servers.omero.OmeroAnnotations.LongAnnotation;
+import qupath.lib.images.servers.omero.OmeroAnnotations.MapAnnotation;
 import qupath.lib.images.servers.omero.OmeroAnnotations.OmeroAnnotation;
+import qupath.lib.images.servers.omero.OmeroAnnotations.TagAnnotation;
 import qupath.lib.images.servers.omero.OmeroObjects.Dataset;
 import qupath.lib.images.servers.omero.OmeroObjects.Group;
 import qupath.lib.images.servers.omero.OmeroObjects.Image;
@@ -99,9 +105,10 @@ import qupath.lib.io.GsonTools;
  */
 public class OmeroWebImageServerBrowserCommand implements Runnable {
 	
-	final private static Logger logger = LoggerFactory.getLogger(OmeroWebImageServerBrowserCommand.class);
+	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServerBrowserCommand.class);
+	private static final String BOLD = "-fx-font-weight: bold";
 	
-	private QuPathGUI qupath;
+	private final QuPathGUI qupath;
 	private OmeroWebImageServer server;
 	private BorderPane mainPane;
 	private ComboBox<Owner> comboOwner;
@@ -118,9 +125,11 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	private Button moreInfoBtn;
 	private Button importBtn;
 	
+	
 	private StringConverter<Owner> ownerStringConverter;
 	
 	private Map<String, BufferedImage> omeroIcons;
+	
 	// Get table item children in separate thread
 	private ExecutorService executorTable;
 	
@@ -186,14 +195,13 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		progressIndicator.setOpacity(0);
 		
 		// Info about the server to display at the top
-		String bold = "-fx-font-weight: bold";
 		var hostLabel = new Label(server.getHost());
 		var username = server.getWebClient().getUsername();
 		var usernameText = username.isEmpty() ? new Label("public") : new Label(username);
 		var nOpenImages = new Label(OmeroWebClients.getAllClients().get(server.getHost()).size() + "");
-		hostLabel.setStyle(bold);
-		usernameText.setStyle(bold);
-		nOpenImages.setStyle(bold);
+		hostLabel.setStyle(BOLD);
+		usernameText.setStyle(BOLD);
+		nOpenImages.setStyle(BOLD);
 		
 		serverAttributePane.addRow(0, new Label("Server: "), hostLabel);
 		serverAttributePane.addRow(1, new Label("Username: "), usernameText);
@@ -232,8 +240,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	        if (e.getClickCount() == 2) {
 	        	var selectedItem = tree.getSelectionModel().getSelectedItem();
 	        	if (selectedItem != null && selectedItem.getValue() instanceof Image && isSupported(selectedItem.getValue())) {
-	        		String typeFull = selectedItem.getValue().getType().toLowerCase();
-	        		String type = typeFull.substring(typeFull.lastIndexOf('#') + 1);
+	        		String type = selectedItem.getValue().getDisplayedType().toLowerCase();
 	        		String url = server.getScheme() + "://" + server.getHost() + "/webclient/?show=" + type + "-" + selectedItem.getValue().getId();
 	        		ProjectCommands.promptToImportImages(qupath, url);
 	        	}
@@ -373,7 +380,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		Button collapseBtn = new Button("Collapse all items");
 		collapseBtn.setOnMouseClicked(e -> collapseTreeView(tree.getRoot()));
 		
-		moreInfoBtn = new Button("More info");
+		moreInfoBtn = new Button("More info..");
 		moreInfoBtn.setDisable(true);
 		moreInfoBtn.setOnMouseClicked(e -> new AdvancedObjectInfo(tree.getSelectionModel().getSelectedItem().getValue()));		
 		filter.setPromptText("Search project");
@@ -946,18 +953,18 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	private class AdvancedObjectInfo {
 		
 		private final OmeroObject obj;
-		private final Map<String, JsonElement> objectDetails;
-		private final Map<String, JsonElement> tags;
-		private final Map<String, JsonElement> keyValuePairs;
-//		private final Map<String, JsonElement> tables;
-		private final Map<String, JsonElement> attachments;
-		private final Map<String, JsonElement> comments;
-		private final Map<String, JsonElement> ratings;
-		private final Map<String, JsonElement> others;
+//		private final OmeroAnnotation objectDetails;
+		private final OmeroAnnotation tags;
+		private final OmeroAnnotation keyValuePairs;
+//		private final OmeroAnnotation tables;
+		private final OmeroAnnotation attachments;
+		private final OmeroAnnotation comments;
+		private final OmeroAnnotation ratings;
+		private final OmeroAnnotation others;
 
 		private AdvancedObjectInfo(OmeroObject obj) {
 			this.obj = obj;
-			this.objectDetails = getOmeroAnnotationsMap("objectDetails");
+//			this.objectDetails = getOmeroAnnotationsMap("objectDetails");
 			this.tags = getOmeroAnnotationsMap("tag");
 			this.keyValuePairs = getOmeroAnnotationsMap("map");
 //			this.tables = getOmeroAnnotations("tables");
@@ -970,8 +977,8 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		}
 
 
-		private Map<String, JsonElement> getOmeroAnnotationsMap(String category) {
-			String objType = obj.getType().substring(obj.getType().lastIndexOf("#") + 1);
+		private OmeroAnnotation getOmeroAnnotationsMap(String category) {
+			String objType = obj.getDisplayedType().toLowerCase();
 			
 			try {
 				URL url = new URL(server.getScheme(), server.getHost(), -1, 
@@ -980,10 +987,13 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 						"&_=" + System.currentTimeMillis());
 				
 				InputStreamReader reader = new InputStreamReader(url.openStream());
-				HashMap<String, JsonElement> OmeroMap = GsonTools.getInstance().fromJson(reader, HashMap.class);
-				return OmeroMap;
+				JsonElement json = GsonTools.getInstance().fromJson(reader, JsonElement.class);
+				var gson = new GsonBuilder().registerTypeAdapter(OmeroAnnotation.class, new OmeroAnnotations.GsonOmeroAnnotationDeserializer()).setLenient().create();
+				
+				var omeroAnnotation = gson.fromJson(json.getAsJsonObject().get("annotations").getAsJsonArray().get(0), OmeroAnnotation.class);
+				return omeroAnnotation;
 			} catch (Exception e) {
-				logger.warn("Could not fetch {0} information: {1}", category, e.getLocalizedMessage());
+				logger.warn("Could not fetch {} information: {}", category, e.getLocalizedMessage());
 				return null;
 			}
 		}
@@ -991,40 +1001,128 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		/*
 		 * Create a GridPane in which each row is an annotation value
 		 */
-		private GridPane createAnnotationsPane(Map<String, JsonElement> map) {
+		private GridPane createAnnotationsPane(OmeroAnnotation omeroAnnotation) {
 			GridPane gp = new GridPane();
+			gp.setHgap(50.0);
+			gp.setVgap(1.0);
+			gp.setMaxHeight(20.0);
+			gp.setMinWidth(50.0);
 			
-			// TODO: Fix the for loop below (ClassCastException)
-			for (var ann: map.get("annotations").getAsJsonArray()) {
-				var gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
-				try {
-					// TODO: Check if the deserialisation works
-					// TODO: Should we add info such as 'modified by'?
-					// TODO: Should we handle permissions?
-					var omeroAnnotation = gson.fromJson(ann, OmeroAnnotation.class);
-					PaneTools.addGridRow(gp,  0,  0,  null,  new Label(((CommentAnnotation)omeroAnnotation).getValue()));
-				} catch (Exception e) {
-					logger.error("Could not parse Omero annotation. {}", e);
-				}
-			}
+			// TODO: Remove next line once all annotations are correctly implemented
+			if (omeroAnnotation == null)
+				return gp;
+			
+			if (omeroAnnotation instanceof TagAnnotation) {
+				var ann = (TagAnnotation)omeroAnnotation;
+				PaneTools.addGridRow(gp,  0,  0,  null,  new Label(ann.getValue()));
+				
+			} else if (omeroAnnotation instanceof MapAnnotation) {
+				var ann = (MapAnnotation)omeroAnnotation;
+				for (var value: ann.getValues().entrySet())
+					addKeyValueToGrid(gp, true, value.getKey(), value.getValue());
+				
+			} else if (omeroAnnotation instanceof FileAnnotation) {
+				var ann = (FileAnnotation)omeroAnnotation;
+				// TODO
+				PaneTools.addGridRow(gp,  0,  0,  null,  new Label(ann.getFile()));
+				
+			} else if (omeroAnnotation instanceof CommentAnnotation) {
+				var ann = (CommentAnnotation)omeroAnnotation;
+				PaneTools.addGridRow(gp,  0,  0,  null,  new Label(ann.getValue()));
+				
+			} else if (omeroAnnotation instanceof LongAnnotation) {
+				var ann = (LongAnnotation)omeroAnnotation;
+				for (int i = 0; i < ann.getValue(); i++)
+					gp.add(IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.STAR), i, 0);
+				gp.setHgap(10.0);
+			} else
+				logger.error("OMERO annotation not supported: {}", omeroAnnotation.getType());
+			
 			return gp;
 		}
 		
 
 		private void showOmeroObjectInfo() {
-			GridPane mainPane = new GridPane();
+			BorderPane bp = new BorderPane();
+			GridPane gp = new GridPane();
+			
+			Label nameLabel = new Label(obj.getName());
+			nameLabel.setStyle(BOLD);
 			
 			int row = 0;
-			PaneTools.addGridRow(mainPane, row++, 0, "Tags", new TitledPane("Tags", createAnnotationsPane(tags)));
-			PaneTools.addGridRow(mainPane, row++, 0, "Key-Value Pairs", new TitledPane("Key-Value Pairs", createAnnotationsPane(keyValuePairs)));
-//			PaneTools.addGridRow(mainPane, row++, 0, "Tables", new TitledPane("Tables", createAnnotationsPane(tables)));
-			PaneTools.addGridRow(mainPane, row++, 0, "Attachments", new TitledPane("Attachments", createAnnotationsPane(attachments)));
-			PaneTools.addGridRow(mainPane, row++, 0, "Comments", new TitledPane("Comments", createAnnotationsPane(comments)));
-			PaneTools.addGridRow(mainPane, row++, 0, "Ratings", new TitledPane("Ratings", createAnnotationsPane(ratings)));
-			PaneTools.addGridRow(mainPane, row++, 0, "Others", new TitledPane("Others", createAnnotationsPane(others)));
+			PaneTools.addGridRow(gp, row++, 0, null, new TitledPane(obj.getDisplayedType() + " Details", createObjectDetailsPane(obj)));
+			PaneTools.addGridRow(gp, row++, 0, "Tags", new TitledPane("Tags", createAnnotationsPane(tags)));
+			PaneTools.addGridRow(gp, row++, 0, "Key-Value Pairs", new TitledPane("Key-Value Pairs", createAnnotationsPane(keyValuePairs)));
+//			PaneTools.addGridRow(gp, row++, 0, "Tables", new TitledPane("Tables", createAnnotationsPane(tables)));
+			PaneTools.addGridRow(gp, row++, 0, "Attachments", new TitledPane("Attachments", createAnnotationsPane(attachments)));
+			PaneTools.addGridRow(gp, row++, 0, "Comments", new TitledPane("Comments", createAnnotationsPane(comments)));
+			PaneTools.addGridRow(gp, row++, 0, "Ratings", new TitledPane("Ratings", createAnnotationsPane(ratings)));
+			PaneTools.addGridRow(gp, row++, 0, "Others", new TitledPane("Others", createAnnotationsPane(others)));
 			
-			var dialog = Dialogs.builder().content(mainPane).build();
+			// Top: object name
+			bp.setTop(nameLabel);
+			
+			// Center: annotations
+			bp.setCenter(gp);
+			
+//			// Set all titledPane to not expanded
+//			gp.getChildren().forEach(e -> ((TitledPane)e).setExpanded(false));
+			
+			var dialog = Dialogs.builder()
+					.content(bp)
+					.title("More info")
+					.build();
 			dialog.showAndWait();
+		}
+
+
+		private Node createObjectDetailsPane(OmeroObject obj) {
+			GridPane gp = new GridPane();
+			
+			addKeyValueToGrid(gp, true, "Id", obj.getId() + "");
+			addKeyValueToGrid(gp, true, "Owner", obj.getOwner().getName());
+			addKeyValueToGrid(gp, false, "Group", obj.getGroup().getName());
+			
+			if (obj instanceof Image) {
+				Image temp = (Image)obj;
+				
+				String acquisitionDate = temp.getAcquisitionDate() == -1 ? "-" : temp.getAcquisitionDate() + "";
+				String pixelSizeX = temp.getPhysicalSizes()[0] == null ? "-" : temp.getPhysicalSizes()[0].getValue() + " " + temp.getPhysicalSizes()[0].getSymbol();
+				String pixelSizeY = temp.getPhysicalSizes()[1] == null ? "-" : temp.getPhysicalSizes()[1].getValue() + " " + temp.getPhysicalSizes()[1].getSymbol();
+				String pixelSizeZ = temp.getPhysicalSizes()[2] == null ? "-" : temp.getPhysicalSizes()[2].getValue() + temp.getPhysicalSizes()[2].getSymbol();
+
+				addKeyValueToGrid(gp, true, "Acquisition date", acquisitionDate);
+				addKeyValueToGrid(gp, true, "Image width", temp.getImageDimensions()[0] + " px");
+				addKeyValueToGrid(gp, true, "Image height", temp.getImageDimensions()[1] + " px");
+				addKeyValueToGrid(gp, true, "Num. channels", temp.getImageDimensions()[2] + "");
+				addKeyValueToGrid(gp, true, "Num. z-slices", temp.getImageDimensions()[3] + "");
+				addKeyValueToGrid(gp, true, "Num. timepoints", temp.getImageDimensions()[4] + "");
+				addKeyValueToGrid(gp, true, "Pixel size X", pixelSizeX);
+				addKeyValueToGrid(gp, true, "Pixel size Y", pixelSizeY);
+				addKeyValueToGrid(gp, true, "Pixel size Z", pixelSizeZ);
+				addKeyValueToGrid(gp, false, "Pixel type", temp.getPixelType());
+			}
+			
+			gp.setHgap(50.0);
+			gp.setVgap(1.0);
+			return gp;
+		}
+		
+		/**
+		 * Append a key-value row to the end (bottom row) of the specified GridPane.
+		 * @param gp
+		 * @param addSeparator
+		 * @param key
+		 * @param value
+		 */
+		private void addKeyValueToGrid(GridPane gp, boolean addSeparator, String key, String value) {
+			Label keyLabel = new Label(key);
+			keyLabel.setStyle(BOLD);
+			int row = gp.getRowCount();
+			
+			PaneTools.addGridRow(gp, row, 0, key, keyLabel, new Label(value));
+			if (addSeparator)
+				gp.add(new Separator(), 0, row + 1, gp.getColumnCount(), 1);
 		}
 	}
 

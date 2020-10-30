@@ -13,6 +13,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
+import qupath.lib.images.servers.omero.OmeroObjects.Owner;
+
 /**
  * Class representing OMERO annotations.
  * <p>
@@ -63,7 +65,7 @@ class OmeroAnnotations {
 		private int id;
 		
 		@SerializedName(value = "owner")
-		private int owner;
+		private Owner owner;
 		
 		@SerializedName(value = "permissions")
 		private Permission permissions;
@@ -73,6 +75,10 @@ class OmeroAnnotations {
 		
 		@SerializedName(value = "class")
 		private String clazz;
+		
+		public String getType() {
+			return clazz;
+		}
 	}
 	
 	/**

@@ -125,6 +125,7 @@ public class IconFactory {
 									
 									SHOW_SCALEBAR("\ue917"),
 									SCREENSHOT("\ue918"),
+									STAR("\u2605"),
 									PLAYBACK_RECORD_STOP("\ue919"),
 									PLAYBACK_PLAY_STOP("\ue919"),
 

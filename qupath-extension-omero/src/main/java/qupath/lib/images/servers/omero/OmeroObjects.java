@@ -100,6 +100,17 @@ class OmeroObjects {
 		}
 		
 		/**
+		 * Return the OMERO type associated with this object in a 'pretty' 
+		 * form.
+		 * <p>
+		 * I.e. 'Image' rather than 'www.some-server.com/object#Image'.
+		 * @return displayedType
+		 */
+		public String getDisplayedType() {
+			return type.substring(type.lastIndexOf("#") + 1);
+		}
+		
+		/**
 		 * Return the OMERO owner of this object
 		 * @return owner
 		 */
@@ -154,6 +165,7 @@ class OmeroObjects {
 		public int getNChildren() {
 			return 0;
 		}
+		
 		
 		@Override
 	    public int hashCode() {
@@ -280,7 +292,7 @@ class OmeroObjects {
 	
 	static class Owner {
 		
-		@SerializedName(value = "@id")
+		@SerializedName(value = "@id", alternate = "id")
 		private int id;
 		
 		@SerializedName(value = "FirstName")
@@ -306,10 +318,11 @@ class OmeroObjects {
 		}
 		
 		private Owner(int id, String firstName, String middleName, String lastName, String emailAddress, String institution, String username) {
-			this.id = id;
-			this.firstName = firstName;
-			this.middleName = middleName;
-			this.lastName = lastName;
+			this.id = Objects.requireNonNull(id);
+			this.firstName = Objects.requireNonNull(firstName);
+			this.middleName = Objects.requireNonNull(middleName);
+			this.lastName = Objects.requireNonNull(lastName);
+			
 			this.emailAddress = emailAddress;
 			this.institution = institution;
 			this.username = username;
