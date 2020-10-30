@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.Future;
 import java.util.function.DoubleToIntFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -84,6 +85,7 @@ import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObject;
@@ -92,6 +94,8 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
+import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -113,7 +117,7 @@ public class DensityMapCommand implements Runnable {
 	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.makeRGB(200, 120, 20));
 	
 	private QuPathGUI qupath;
-	private Map<QuPathViewer, DensityMapDialog> dialogMap = new WeakHashMap<>();
+	private DensityMapDialog dialog;
 	
 	/**
 	 * Constructor.
@@ -126,23 +130,12 @@ public class DensityMapCommand implements Runnable {
 	@Override
 	public void run() {
 		
-		var viewer = qupath.getViewer();
-		
-		var dialog = dialogMap.getOrDefault(viewer, null);
-		if (dialog != null) {
-			dialog.refresh();
-			var stage = dialog.getStage();
-			if (stage.isShowing())
-				stage.requestFocus();
-			else
-				stage.show();
-			return;
+		if (dialog == null) {
+			dialog = new DensityMapDialog();
 		}
-		dialog = new DensityMapDialog(viewer);
-		dialogMap.put(viewer, dialog);
 		
 		var stage = dialog.getStage();
-//		stage.setOnCloseRequest(e -> dialogMap.remove(dialog.viewer));
+		stage.setOnCloseRequest(e -> dialog.deregister());
 		stage.show();
 	}
 	
@@ -169,11 +162,9 @@ public class DensityMapCommand implements Runnable {
 		
 	}
 	
-	private class DensityMapDialog implements ChangeListener<ImageData<BufferedImage>> {
+	private class DensityMapDialog implements ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 		
 		private final static String title = "Density map";
-		
-		private QuPathViewer viewer;
 		
 		private Stage stage;
 		
@@ -199,16 +190,17 @@ public class DensityMapCommand implements Runnable {
 		private DoubleProperty maxDisplay = new SimpleDoubleProperty(100);
 		private BooleanProperty autoUpdateDisplayRange = new SimpleBooleanProperty(true);
 		
+		/**
+		 * Automatically update the density maps and overlays.
+		 */
 		private BooleanProperty autoUpdate = new SimpleBooleanProperty(true);
 		
-		private DensityMap densityMap;
-		private BufferedImageOverlay overlay;
+		private Future<?> currentTask;
 		
-		private boolean requestFullUpdate = false;
-		private boolean requestQuickUpdate = false;
+		private Map<QuPathViewer, DensityMap> densityMapMap = new WeakHashMap<>();
+		private Map<QuPathViewer, BufferedImageOverlay> overlayMap = new WeakHashMap<>();
 		
-		public DensityMapDialog(QuPathViewer viewer) {
-			this.viewer = viewer;
+		public DensityMapDialog() {
 			
 			comboType.getItems().setAll(DensityMapType.values());
 			comboType.getSelectionModel().select(DensityMapType.DETECTIONS_CLASSIFIED);
@@ -219,10 +211,12 @@ public class DensityMapCommand implements Runnable {
 			var pane = new GridPane();
 			int row = 0;
 			
-			var labelTitle = new Label("Customize map data");
+			var labelTitle = new Label("Define density map");
 			labelTitle.setStyle("-fx-font-weight: bold;");
 			labelTitle.setPadding(new Insets(0, 0, 5, 0));
-			PaneTools.addGridRow(pane, row++, 0, null, labelTitle, labelTitle, labelTitle);
+			PaneTools.addGridRow(pane, row++, 0,
+					"Options to specify how the density map is calculated",
+					labelTitle, labelTitle, labelTitle);
 
 //			var labelDescription = new Label("These options change how the density map is calculated.");
 //			labelDescription.setAlignment(Pos.CENTER);
@@ -230,7 +224,9 @@ public class DensityMapCommand implements Runnable {
 
 			PaneTools.addGridRow(pane, row++, 0, "Select type of density map.\n"
 					+ "Use 'Detections' to look for the density of all detections with any classication.\n"
-					+ "Use 'Positive %' specifically if your detections are classified as positive & negative and you want to find a high density that is positive.", new Label("Map type"), comboType, comboType);
+					+ "Use 'Positive %' specifically if your detections are classified as positive & negative and you want to find a high density that is positive.\n"
+					+ "Use 'Point annotations' to use annotated points rather than detections.",
+					new Label("Map type"), comboType, comboType);
 			PaneTools.addGridRow(pane, row++, 0, "Select object classifications to include.\n"
 					+ "Use this to filter out detections that should not contribute to the density map.", new Label("Classifications"), comboPrimary, comboPrimary);
 			
@@ -238,18 +234,25 @@ public class DensityMapCommand implements Runnable {
 			sliderRadius.valueProperty().bindBidirectional(radius);
 			initializeSliderSnapping(sliderRadius, 50, 1, 0.1);
 			var tfRadius = new TextField();
-			GuiTools.bindSliderAndTextField(sliderRadius, tfRadius, 2);
+			boolean expandSliderLimits = true;
+			GuiTools.bindSliderAndTextField(sliderRadius, tfRadius, expandSliderLimits, 2);
+			GuiTools.installRangePrompt(sliderRadius);
+//			tfRadius.setOnMouseClicked(e -> {
+//				if (e.getClickCount() > 1)
+//					GuiTools.promptForSliderRange(slider)
+//			});
 			PaneTools.addGridRow(pane, row++, 0, "Select smoothing radius used to calculate densities.\n"
-					+ "This is defined in calibrated pixel units.", new Label("Radius"), sliderRadius, tfRadius);
+					+ "This is defined in calibrated pixel units (e.g. µm if available).", new Label("Radius"), sliderRadius, tfRadius);
 			
 			
 			var sliderMinCount = new Slider(0, 1000, minCount.get());
 			sliderMinCount.valueProperty().bindBidirectional(minCount);
 			initializeSliderSnapping(sliderMinCount, 50, 1, 1);
 			var tfMinCount = new TextField();
-			GuiTools.bindSliderAndTextField(sliderMinCount, tfMinCount, 0);
-			PaneTools.addGridRow(pane, row++, 0, "Select minimum density of detections required for display (lower density regions will be transparent).\n"
-					+ "This is used to avoid isolated detections dominating the display of the heatmap.",
+			GuiTools.bindSliderAndTextField(sliderMinCount, tfMinCount, expandSliderLimits, 0);
+			GuiTools.installRangePrompt(sliderMinCount);
+			PaneTools.addGridRow(pane, row++, 0, "Select minimum count of objects required for display in the density map.\n"
+					+ "This is used to avoid isolated detections dominating the map (i.e. lower density regions can be shown as transparent).",
 					new Label("Minimum count"), sliderMinCount, tfMinCount);
 			
 			
@@ -257,7 +260,9 @@ public class DensityMapCommand implements Runnable {
 			labelColor.setStyle("-fx-font-weight: bold;");
 			labelColor.setPadding(new Insets(5, 0, 5, 0));
 			labelColor.setPadding(new Insets(10, 0, 0, 0));
-			PaneTools.addGridRow(pane, row++, 0, null, labelColor, labelColor, labelColor);
+			PaneTools.addGridRow(pane, row++, 0,
+					"Options to customize how the density map is displayed",
+					labelColor, labelColor, labelColor);
 			
 //			var labelAppearance = new Label("These options change the appearance of the density map only.");
 //			labelAppearance.setAlignment(Pos.CENTER);
@@ -272,7 +277,8 @@ public class DensityMapCommand implements Runnable {
 			initializeSliderSnapping(slideMin, 1, 1, 0.1);
 			slideMin.disableProperty().bind(autoUpdateDisplayRange);
 			var tfMin = new TextField();
-			GuiTools.bindSliderAndTextField(slideMin, tfMin);
+			GuiTools.bindSliderAndTextField(slideMin, tfMin, expandSliderLimits);
+			GuiTools.installRangePrompt(slideMin);
 			PaneTools.addGridRow(pane, row++, 0, "Set the density value corresponding to the first entry in the colormap.", new Label("Min display"), slideMin, tfMin);
 
 			var slideMax = new Slider(0, maxDisplay.get(), maxDisplay.get());
@@ -280,14 +286,15 @@ public class DensityMapCommand implements Runnable {
 			initializeSliderSnapping(slideMax, 1, 1, 0.1);
 			slideMax.disableProperty().bind(autoUpdateDisplayRange);
 			var tfMax = new TextField();
-			GuiTools.bindSliderAndTextField(slideMax, tfMax);
+			GuiTools.bindSliderAndTextField(slideMax, tfMax, expandSliderLimits);
+			GuiTools.installRangePrompt(slideMax);
 			PaneTools.addGridRow(pane, row++, 0, "Set the density value corresponding to the last entry in the colormap.", new Label("Max display"), slideMax, tfMax);
 
 			var sliderGamma = new Slider(0, 4, gamma.get());
 			sliderGamma.valueProperty().bindBidirectional(gamma);
 			initializeSliderSnapping(sliderGamma, 0.1, 1, 0.1);
 			var tfGamma = new TextField();
-			GuiTools.bindSliderAndTextField(sliderGamma, tfGamma, 1);
+			GuiTools.bindSliderAndTextField(sliderGamma, tfGamma, false, 1);
 			PaneTools.addGridRow(pane, row++, 0, "Control how the opacity of the density map changes between low & high values.\n"
 					+ "Choose zero for an opaque map.", new Label("Gamma"), sliderGamma, tfGamma);
 			
@@ -304,6 +311,14 @@ public class DensityMapCommand implements Runnable {
 			
 			PaneTools.addGridRow(pane, row++, 0, "Automatically update the heatmap. Turn this off if changing parameters and heatmap generation is slow.", btnAutoUpdate, btnAutoUpdate, btnAutoUpdate);
 			
+//			var btnRefresh = new Button("Refresh density maps");
+//			btnRefresh.setOnAction(e -> requestUpdate(true));
+//			PaneTools.addGridRow(pane, row++, 0,
+//					"Synchronize the density maps with the current object data. \n"
+//					+ "Press this button when something changes (e.g. objects added/removed), or you just want to ensure everything is"
+//					+ "up-to-date.",
+//					btnRefresh, btnRefresh, btnRefresh);
+			
 			double tfw = 80;
 			tfRadius.setMaxWidth(tfw);
 			tfGamma.setMaxWidth(tfw);
@@ -317,17 +332,17 @@ public class DensityMapCommand implements Runnable {
 
 			refresh();
 						
-			densityType.addListener((v, o, n) -> requestUpdate(true));
-			selectedClass.addListener((v, o, n) -> requestUpdate(true));
-			colorMap.addListener((v, o, n) -> requestUpdate(false));
-			radius.addListener((v, o, n) -> requestUpdate(true));
-			minCount.addListener((v, o, n) -> requestUpdate(false));
-			gamma.addListener((v, o, n) -> requestUpdate(false));
-			minDisplay.addListener((v, o, n) -> requestUpdate(false));
-			maxDisplay.addListener((v, o, n) -> requestUpdate(false));
+			densityType.addListener((v, o, n) -> requestAutoUpdate(true));
+			selectedClass.addListener((v, o, n) -> requestAutoUpdate(true));
+			colorMap.addListener((v, o, n) -> requestAutoUpdate(false));
+			radius.addListener((v, o, n) -> requestAutoUpdate(true));
+			minCount.addListener((v, o, n) -> requestAutoUpdate(false));
+			gamma.addListener((v, o, n) -> requestAutoUpdate(false));
+			minDisplay.addListener((v, o, n) -> requestAutoUpdate(false));
+			maxDisplay.addListener((v, o, n) -> requestAutoUpdate(false));
 			interpolation.addListener((v, o, n) -> updateInterpolation());
 			autoUpdate.addListener((v, o, n) -> autoUpdateChanged(n));
-			autoUpdateDisplayRange.addListener((v, o, n) -> requestUpdate(false));
+			autoUpdateDisplayRange.addListener((v, o, n) -> requestAutoUpdate(false));
 			
 			var btnHotspots = new Button("Find hotspots");
 			btnHotspots.setTooltip(new Tooltip("Find the hotspots in the density map with highest values"));
@@ -352,7 +367,7 @@ public class DensityMapCommand implements Runnable {
 			pane.setVgap(5);
 			pane.setPadding(new Insets(10));
 
-			viewer.imageDataProperty().addListener(this);
+			qupath.imageDataProperty().addListener(this);
 			
 			stage = new Stage();
 			stage.setScene(new Scene(pane));
@@ -376,12 +391,22 @@ public class DensityMapCommand implements Runnable {
 			else
 				return "Any";
 		}
+
 		
 		private void deregister() {
-			viewer.imageDataProperty().removeListener(this);
-			dialogMap.remove(viewer);
-			if (viewer.getCustomPixelLayerOverlay() == overlay)
-				viewer.resetCustomPixelLayerOverlay();
+			dialog = null;
+			var currentImageData = qupath.getImageData();
+			if (currentImageData != null)
+				currentImageData.getHierarchy().removePathObjectListener(this);
+			qupath.imageDataProperty().removeListener(this);
+			for (var viewer : qupath.getViewers()) {
+				var hierarchy = viewer.getHierarchy();
+				if (hierarchy != null)
+					hierarchy.removePathObjectListener(this);
+//				viewer.imageDataProperty().removeListener(this);
+				if (viewer.getCustomPixelLayerOverlay() == overlayMap.getOrDefault(viewer, null))
+					viewer.resetCustomPixelLayerOverlay();
+			}
 		}
 		
 		public void refresh() {
@@ -396,27 +421,47 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 		private void autoUpdateChanged(boolean doAutoUpdate) {
-			// Make sure our request isn't thwarted by existing flags
-			requestFullUpdate = false;
-			requestQuickUpdate = false;
 			if (doAutoUpdate) {
-				requestUpdate(true);
+				requestAutoUpdate(true);
 			}
 		}
 		
-		private void requestUpdate(boolean fullUpdate) {
+		/**
+		 * Request that the density maps and/or overlays are updated.
+		 * Note that this only has an effect if autoUpdate is turned on.
+		 * @param fullUpdate if true, recalculate the density map entirely
+		 */
+		private void requestAutoUpdate(boolean fullUpdate) {
 			if (!autoUpdate.get())
 				return;
-			if (requestFullUpdate || (requestQuickUpdate && !fullUpdate))
-				return;
-			requestFullUpdate = fullUpdate;
-			requestQuickUpdate = true;
-			qupath.createSingleThreadExecutor(this).submit(() -> updateHeatmap());
+			requestUpdate(fullUpdate);
+		}
+		
+		/**
+		 * Request that the density maps and/or overlays are updated.
+		 * @param fullUpdate if true, recalculate the density map entirely
+		 */
+		private void requestUpdate(boolean fullUpdate) {
+			if (currentTask != null)
+				currentTask.cancel(true);
+			if (fullUpdate)
+				densityMapMap.clear();
+			
+			var executor = qupath.createSingleThreadExecutor(this);
+			currentTask = executor.submit(() -> {
+				for (var viewer : qupath.getViewers()) {
+					if (Thread.currentThread().isInterrupted())
+						return;
+					updateHeatmap(viewer);
+				}
+			});
 		}
 		
 		public void promptToFindHotspots() {
 			
+			var viewer = qupath.getViewer();
 			var imageData = viewer.getImageData();
+			var densityMap = densityMapMap.get(viewer);
 			if (imageData == null || densityMap == null) {
 				Dialogs.showErrorMessage(title, "No density map found!");
 				return;
@@ -476,15 +521,21 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		private void updateInterpolation() {
-			if (overlay != null) {
-				overlay.setInterpolation(interpolation.getValue());
-				viewer.repaint();
+			for (var viewer : qupath.getViewers()) {
+				var overlay = overlayMap.getOrDefault(viewer, null);
+				if (overlay != null) {
+					overlay.setInterpolation(interpolation.getValue());
+					viewer.repaint();
+				}
 			}
 		}
 		
 		
 		public void promptToTraceContours() {
-			
+
+			var viewer = qupath.getViewer();
+			var densityMap = densityMapMap.getOrDefault(viewer, null);
+
 			if (densityMap == null) {
 				Dialogs.showErrorMessage(title, "No density map is available!");
 				return;
@@ -561,8 +612,13 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		public void promptToSaveImage() {
+
+			var viewer = qupath.getViewer();
+			var imageData = viewer.getImageData();
+			var densityMap = densityMapMap.getOrDefault(viewer, null);
+			var overlay = overlayMap.getOrDefault(viewer, null);
 			
-			if (densityMap == null) {
+			if (imageData == null || densityMap == null || overlay == null) {
 				Dialogs.showErrorMessage(title, "No density map is available!");
 				return;
 			}
@@ -578,22 +634,22 @@ public class DensityMapCommand implements Runnable {
 			
 			var response = dialog.showAndWait().orElse(ButtonType.CANCEL);
 			if (btOrig.equals(response)) {
-				promptToSaveRawImage();
+				promptToSaveRawImage(densityMap, imageData.getServer());
 			} else if (btColor.equals(response)) {
-				promptToSaveColorImage();
+				promptToSaveColorImage(overlay);
 			} else if (btImageJ.equals(response)) {
-				sendToImageJ();
+				sendToImageJ(densityMap, imageData.getServer());
 			}
 		}
 		
-		public void promptToSaveRawImage() {
-			var imp = convertToImagePlus(densityMap);
+		public void promptToSaveRawImage(DensityMap densityMap, ImageServer<BufferedImage> server) {
+			var imp = convertToImagePlus(densityMap, server);
 			var file = Dialogs.promptToSaveFile(title, null, null, "ImageJ tif", ".tif");
 			if (file != null)
 				IJ.save(imp, file.getAbsolutePath());
 		}
 
-		public void promptToSaveColorImage() {
+		public void promptToSaveColorImage(BufferedImageOverlay overlay) {
 			var img = overlay.getRegionMap().values().iterator().next();
 			var file = Dialogs.promptToSaveFile(title, null, null, "PNG", ".png");
 			if (file != null) {
@@ -606,58 +662,46 @@ public class DensityMapCommand implements Runnable {
 			}
 		}
 
-		public void sendToImageJ() {
+		public void sendToImageJ(DensityMap densityMap, ImageServer<BufferedImage> server) {
 			if (densityMap == null) {
 				Dialogs.showErrorMessage(title, "No density map is available!");
 				return;
 			}
-			convertToImagePlus(densityMap).show();
+			convertToImagePlus(densityMap, server).show();
 		}
 
-		public ImagePlus convertToImagePlus(DensityMap densityMap) {
-			var imgValues = densityMap.getValues();
-			var fp = IJTools.convertToFloatProcessor(imgValues);
-			var stack = new ImageStack(fp.getWidth(), fp.getHeight());
-			stack.addSlice(fp);
-			var alpha = densityMap.getAlpha();
-			if (alpha != null) {
-				stack.addSlice(IJTools.convertToFloatProcessor(alpha));
-			}
-			var imp = new ImagePlus("Density map", stack);
-			if (stack.getSize() > 1) {
-				imp.setDimensions(stack.getSize(), 1, 1);
-				imp = new CompositeImage(imp, CompositeImage.COLOR);
-			}
-			// TODO: Calibrate the ImagePlus
-			// TODO: Handle multidimensional images
-//			IJTools.calibrateImagePlus(imp, request, server);
-			return imp;
-		}
 		
-		
-		
-		public void updateHeatmap() {
+		private void updateHeatmap(QuPathViewer viewer) {
+			BufferedImageOverlay overlay;
+			DensityMap densityMap = densityMapMap.getOrDefault(viewer, null);
 			try {
-				if (requestFullUpdate || densityMap == null) {
-					densityMap = calculateDensityMap();
+				if (densityMap == null) {
+					densityMap = calculateDensityMap(viewer);
 				}
-				overlay = createOverlay(densityMap);
+				densityMapMap.put(viewer, densityMap);
+				overlay = createOverlay(viewer, densityMap);
+				overlayMap.put(viewer, overlay);
 			} catch (Exception e) {
 				Dialogs.showErrorNotification(title, "Error creating density map: " + e.getLocalizedMessage());
 				logger.error(e.getLocalizedMessage(), e);
+				densityMapMap.remove(viewer);
+				overlayMap.remove(viewer);
 				overlay = null;
 				densityMap = null;
 			}
+			
 			if (Platform.isFxApplicationThread()) {
 				viewer.setCustomPixelLayerOverlay(overlay);
-			} else
-				Platform.runLater(() -> viewer.setCustomPixelLayerOverlay(overlay));
+			} else {
+				var overlay2 = overlay;
+				Platform.runLater(() -> viewer.setCustomPixelLayerOverlay(overlay2));
+			}
 		}
 		
 				
 		
-		public DensityMap calculateDensityMap() {
-			requestFullUpdate = false;
+		private DensityMap calculateDensityMap(QuPathViewer viewer) {
+//			requestFullUpdate = false;
 			
 			var imageData = viewer.getImageData();
 			if (imageData == null) {
@@ -710,21 +754,41 @@ public class DensityMapCommand implements Runnable {
 			return map;
 		}
 		
-		public BufferedImageOverlay createOverlay(DensityMap map) {
-			
-			requestQuickUpdate = false;
+		private BufferedImageOverlay createOverlay(QuPathViewer viewer, DensityMap map) {
+//			requestQuickUpdate = false;
 			
 			if (map == null)
 				return null;
 			
 			var colorMap = comboColorMap.getSelectionModel().getSelectedItem();
 			var image = map.getValues();
+			var counts = map.getAlpha();
+			if (counts == null)
+				counts = image;
 			
 			var min = minDisplay.get();
 			var max = maxDisplay.get();
+			var minCount = this.minCount.get();
 
 			if (autoUpdateDisplayRange.get()) {
-				var minMax = findMinAndMax(SimpleImages.getPixels(image, true));
+				float[] pixels = null;
+				if (minCount <= 0) {
+					pixels = SimpleImages.getPixels(image, true);
+				} else {
+					int w = counts.getWidth();
+					int h = counts.getHeight();
+					pixels = new float[w * h];
+					for (int y = 0; y < h; y++) {
+						for (int x = 0; x < w; x++) {
+							if (counts.getValue(x, y) >= minCount)
+								pixels[y*w+x] = image.getValue(x, y);
+							else
+								pixels[y*w+x] = Float.NaN;
+						}
+					}
+					SimpleImages.getPixels(image, true);					
+				}
+				var minMax = findMinAndMax(pixels);
 				min = minMax.minVal;
 				max = minMax.maxVal;
 				if (minMax.minInd >= 0) {
@@ -743,11 +807,10 @@ public class DensityMapCommand implements Runnable {
 			// Everything <= minCount should be transparent
 			// Everything else should derive opacity from the alpha value
 			
-			var minCount = this.minCount.get();
 			if (minCount > 0) {
 				if (alpha == null) {
 					if (g <= 0) {
-						alpha = threshold(image, minCount, 0, 0, 1);
+						alpha = threshold(image, minCount, 0, 1, 1);
 						alphaFun = ColorModelFactory.createLinearFunction(0, 1);
 					} else {
 //						alphaFun = ColorModelFactory.createLinearFunction(minCount+1, max);
@@ -791,14 +854,52 @@ public class DensityMapCommand implements Runnable {
 			return overlay;
 		}
 
+		/**
+		 * Listen for changes to the 
+		 */
 		@Override
 		public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
 				ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
-			if (newValue != null)
-				requestUpdate(true);
+			if (oldValue != null)
+				oldValue.getHierarchy().removePathObjectListener(this);
+			if (newValue != null) {
+				newValue.getHierarchy().addPathObjectListener(this);
+				requestAutoUpdate(true);
+			}
+		}
+
+
+		@Override
+		public void hierarchyChanged(PathObjectHierarchyEvent event) {
+			if (event.isChanging())
+				return;
+			requestAutoUpdate(true);
 		}
 		
 		
+	}
+	
+	
+	private static ImagePlus convertToImagePlus(DensityMap densityMap, ImageServer<BufferedImage> server) {
+		var imgValues = densityMap.getValues();
+		var fp = IJTools.convertToFloatProcessor(imgValues);
+		var stack = new ImageStack(fp.getWidth(), fp.getHeight());
+		stack.addSlice(fp);
+		stack.setSliceLabel("Density", 1);
+		var alpha = densityMap.getAlpha();
+		if (alpha != null) {
+			stack.addSlice(IJTools.convertToFloatProcessor(alpha));
+			stack.setSliceLabel("Counts", 2);
+		}
+		var imp = new ImagePlus("Density map", stack);
+		if (stack.getSize() > 1) {
+			imp.setDimensions(stack.getSize(), 1, 1);
+			imp = new CompositeImage(imp, CompositeImage.COLOR);
+		}
+		// Calibrate the image if we can
+		if (server != null && densityMap.getRegion() != null)
+			IJTools.calibrateImagePlus(imp, densityMap.getRegion(), server);
+		return imp;
 	}
 	
 	

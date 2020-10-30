@@ -125,7 +125,8 @@ public class CellIntensityClassificationCommand implements Runnable {
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
 			textFields.add(tf);
-			GuiTools.bindSliderAndTextField(slider, tf);
+			GuiTools.bindSliderAndTextField(slider, tf, true);
+			GuiTools.installRangePrompt(slider);
 			slider.valueProperty().addListener((v, o, n) -> {
 				updateClassifications(hierarchy, allDetections, selectedMeasurement.get(), parseValues(sliders, singleThreshold.get()));
 			});

@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
 import javafx.embed.swing.SwingFXUtils;
@@ -99,6 +100,7 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools.CombineOp;
@@ -1014,10 +1016,12 @@ public class GuiTools {
 	 * 
 	 * @param slider slider that may be used to adjust the value
 	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @param expandLimits optionally expand slider min/max range to suppose the text field input; if this is false, the text field 
+	 *                     may contain a different value that is unsupported by the slider
 	 * @return a property representing the value represented by the slider and text field
 	 */
-	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf) {
-		return bindSliderAndTextField(slider, tf, -1);
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, boolean expandLimits) {
+		return bindSliderAndTextField(slider, tf, expandLimits, -1);
 	}
 	
 	/**
@@ -1029,12 +1033,63 @@ public class GuiTools {
 	 * 
 	 * @param slider slider that may be used to adjust the value
 	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @param expandLimits optionally expand slider min/max range to suppose the text field input; if this is false, the text field 
+	 *                     may contain a different value that is unsupported by the slider
 	 * @param ndp if &ge; 0, this will be used to define the number of decimal places shown in the text field
 	 * @return a property representing the value represented by the slider and text field
 	 */
-	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, int ndp) {
-		new NumberAndText(slider.valueProperty(), tf.textProperty(), ndp).synchronizeTextToNumber();
-		return slider.valueProperty();		
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, boolean expandLimits, int ndp) {
+		var numberProperty = new SimpleDoubleProperty(slider.getValue());
+		new NumberAndText(numberProperty, tf.textProperty(), ndp).synchronizeTextToNumber();
+		if (expandLimits) {
+			numberProperty.addListener((v, o, n) -> {
+				double val = n.doubleValue();
+				if (Double.isFinite(val)) {
+					if (val < slider.getMin())
+						slider.setMin(val);
+					if (val > slider.getMax())
+						slider.setMax(val);
+					slider.setValue(val);
+				}
+			});
+			slider.valueProperty().addListener((v, o, n) -> numberProperty.setValue(n));
+		} else {
+			slider.valueProperty().bindBidirectional(numberProperty);
+		}
+		return numberProperty;	
+//		new NumberAndText(slider.valueProperty(), tf.textProperty(), ndp).synchronizeTextToNumber();
+//		return slider.valueProperty();		
+	}
+	
+	/**
+	 * Install a mouse click listener to prompt the user to input min/max values for a slider.
+	 * @param slider
+	 * @see #promptForSliderRange(Slider)
+	 */
+	public static void installRangePrompt(Slider slider) {
+		slider.setOnMouseClicked(e -> {
+			if (e.getClickCount() == 2)
+				promptForSliderRange(slider);
+		});
+	}
+	
+	/**
+	 * Prompt the user to input min/max values for a slider.
+	 * @param slider
+	 * @return true if the user may have made changes, false if they cancelled the dialog
+	 */
+	public static boolean promptForSliderRange(Slider slider) {
+		
+		var params = new ParameterList()
+				.addEmptyParameter("Specify the min/max values supported by the slider")
+				.addDoubleParameter("minValue", "Slider minimum", slider.getMin())
+				.addDoubleParameter("maxValue", "Slider maximum", slider.getMax());
+		if (!Dialogs.showParameterDialog("Slider range", params))
+			return false;
+		
+		slider.setMin(params.getDoubleParameterValue("minValue"));
+		slider.setMax(params.getDoubleParameterValue("maxValue"));
+		return true;
 	}
 	
 	

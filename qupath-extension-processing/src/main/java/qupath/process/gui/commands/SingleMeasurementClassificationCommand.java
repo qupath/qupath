@@ -173,7 +173,8 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			// Set up text fields
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
-			GuiTools.bindSliderAndTextField(sliderThreshold, tf);
+			GuiTools.bindSliderAndTextField(sliderThreshold, tf, true);
+			GuiTools.installRangePrompt(sliderThreshold);
 			
 			// Initialize pane
 			pane = new GridPane();
