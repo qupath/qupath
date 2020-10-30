@@ -1932,8 +1932,12 @@ public class QuPathGUI {
 		} catch (IOException e) {
 			logger.error("Error saving classes", e);
 		}
+		
 		byte[] bytes = stream.toByteArray();
-		PathPrefs.getUserPreferences().putByteArray("defaultPathClasses", bytes);
+		if (bytes.length < 0.75*Preferences.MAX_VALUE_LENGTH)
+			PathPrefs.getUserPreferences().putByteArray("defaultPathClasses", bytes);
+		else
+			logger.error("Could not save that many classes: will store default classes instead.");
 	}
 	
 	
