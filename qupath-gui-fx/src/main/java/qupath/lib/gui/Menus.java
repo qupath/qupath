@@ -261,8 +261,8 @@ class Menus {
 		public final Action DISTANCE_CENTROIDS = qupath.createImageDataAction(imageData -> Commands.detectionCentroidDistances2D(imageData));
 		
 		
-		@ActionMenu("Detection density map")
-		public final Action DETECTION_DENSITY = createAction(new DensityMapCommand(qupath));
+		@ActionMenu("Create density map")
+		public final Action DENSITY_MAP = createAction(new DensityMapCommand(qupath));
 		
 
 	}

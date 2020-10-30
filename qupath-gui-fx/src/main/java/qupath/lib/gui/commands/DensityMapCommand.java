@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
+import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +95,7 @@ import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
@@ -148,7 +150,8 @@ public class DensityMapCommand implements Runnable {
 	private static enum DensityMapType {
 		
 		DETECTIONS_CLASSIFIED,
-		POSITIVE_PERCENTAGE;
+		POSITIVE_PERCENTAGE,
+		POINT_ANNOTATIONS;
 		
 		@Override
 		public String toString() {
@@ -157,6 +160,8 @@ public class DensityMapCommand implements Runnable {
 				return "Detections";
 			case POSITIVE_PERCENTAGE:
 				return "Positive %";
+			case POINT_ANNOTATIONS:
+				return "Point annotations";
 			default:
 				throw new IllegalArgumentException("Unknown enum " + this);
 			}
@@ -503,16 +508,21 @@ public class DensityMapCommand implements Runnable {
 			var image = densityMap.getValues();
 			var threshold = params.getDoubleParameterValue("threshold");
 			boolean doSplit = params.getBooleanParameterValue("split");
+			var region = densityMap.getRegion();
 //			boolean doErode = params.getBooleanParameterValue("erode");
-			var roi = ContourTracing.createTracedROI(image, threshold, Double.POSITIVE_INFINITY, densityMap.getRegion());
-//			if (roi != null && doErode) {
-//				double radiusPixels = radius.get()/imageData.getServer().getPixelCalibration().getAveragedPixelSize().doubleValue();
-//				roi = RoiTools.buffer(roi, -radiusPixels);
-//			}
-			if (roi == null || roi.isEmpty()) {
+			var geometry = ContourTracing.createTracedGeometry(image, threshold, Double.POSITIVE_INFINITY, region);
+			if (geometry == null || geometry.isEmpty()) {
 				Dialogs.showWarningNotification(title, "No regions found!");
 				return;
 			}
+			
+			// Get the selected objects
+			var hierarchy = imageData.getHierarchy();
+			var selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+			if (selected.isEmpty())
+				selected.add(imageData.getHierarchy().getRootObject());
+			
+			// Get the class for hotspot
 			// TODO: Change hotspot class name, and generate class with another method
 			var baseClass = selectedClass.getValue();
 			PathClass hotspotClass = DEFAULT_HOTSPOT_CLASS;
@@ -520,13 +530,33 @@ public class DensityMapCommand implements Runnable {
 				hotspotClass = PathClassTools.mergeClasses(baseClass, hotspotClass);
 			}
 			
-			var annotations = new ArrayList<PathObject>();
-			if (doSplit) {
-				for (var r : RoiTools.splitROI(roi))
-					annotations.add(PathObjects.createAnnotationObject(r, hotspotClass));
-			} else
-				annotations.add(PathObjects.createAnnotationObject(roi, hotspotClass));
-			imageData.getHierarchy().addPathObjects(annotations);
+			boolean changes = false;
+			for (var parent : selected) {
+				var annotations = new ArrayList<PathObject>();
+				var roiParent = parent.getROI();
+				Geometry geomNew = null;
+				if (roiParent == null)
+					geomNew = geometry;
+				else
+					geomNew = GeometryTools.ensurePolygonal(geometry.intersection(roiParent.getGeometry()));
+				if (geomNew.isEmpty())
+					continue;
+				
+				var roi = GeometryTools.geometryToROI(geomNew, region == null ? ImagePlane.getDefaultPlane() : region.getPlane());
+					
+				if (doSplit) {
+					for (var r : RoiTools.splitROI(roi))
+						annotations.add(PathObjects.createAnnotationObject(r, hotspotClass));
+				} else
+					annotations.add(PathObjects.createAnnotationObject(roi, hotspotClass));
+				parent.addPathObjects(annotations);
+				changes = true;
+			}
+			
+			if (changes)
+				hierarchy.fireHierarchyChangedEvent(this);
+			else
+				logger.warn("No thresholded hotspots found!");
 		}
 		
 		
@@ -609,7 +639,7 @@ public class DensityMapCommand implements Runnable {
 		public void updateHeatmap() {
 			try {
 				if (requestFullUpdate || densityMap == null) {
-					densityMap = calculateHeatmap();
+					densityMap = calculateDensityMap();
 				}
 				overlay = createOverlay(densityMap);
 			} catch (Exception e) {
@@ -626,7 +656,7 @@ public class DensityMapCommand implements Runnable {
 		
 				
 		
-		public DensityMap calculateHeatmap() {
+		public DensityMap calculateDensityMap() {
 			requestFullUpdate = false;
 			
 			var imageData = viewer.getImageData();
@@ -642,15 +672,33 @@ public class DensityMapCommand implements Runnable {
 			var mapType = densityType.getValue();
 			var pathClass = comboPrimary.getSelectionModel().getSelectedItem();
 			if (PathClassTools.isValidClass(pathClass)) {
-				if (mapType == DensityMapType.POSITIVE_PERCENTAGE)
-					builder.positivePercentage(pathClass);
-				else
+				switch (mapType) {
+				case DETECTIONS_CLASSIFIED:
 					builder.density(pathClass, !pathClass.isDerivedClass());
+					break;
+				case POINT_ANNOTATIONS:
+					builder.pointAnnotations(pathClass, !pathClass.isDerivedClass());
+					break;
+				case POSITIVE_PERCENTAGE:
+					builder.positivePercentage(pathClass);
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown density map type " + mapType);
+				}
 			} else {
-				if (mapType == DensityMapType.POSITIVE_PERCENTAGE)
-					builder.positivePercentage();
-				else
+				switch (mapType) {
+				case DETECTIONS_CLASSIFIED:
 					builder.density(PathObjectFilter.DETECTIONS_ALL);
+					break;
+				case POINT_ANNOTATIONS:
+					builder.density(PathObjectFilter.ANNOTATIONS.and(PathObjectFilter.ROI_POINT));
+					break;
+				case POSITIVE_PERCENTAGE:
+					builder.positivePercentage();
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown density map type " + mapType);
+				}
 			}
 			builder.pixelSize(10);
 			

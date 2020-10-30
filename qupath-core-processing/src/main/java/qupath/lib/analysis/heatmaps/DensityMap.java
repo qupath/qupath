@@ -41,6 +41,7 @@ import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.tools.OpenCVTools;
 
 /**
@@ -142,6 +143,19 @@ public interface DensityMap {
 			return this;
 		}
 		
+		public HeatmapBuilder pointAnnotations(PathClass pathClass) {
+			return pointAnnotations(pathClass, false);
+		}
+		
+		public HeatmapBuilder pointAnnotations(PathClass pathClass, boolean baseClass) {
+			var filter = PathObjectFilter.ANNOTATIONS.and(PathObjectFilter.ROI_POINT);
+			if (baseClass)
+				this.primaryObjects = filter.and(p -> getBaseClass(p.getPathClass()) == pathClass);
+			else
+				this.primaryObjects = filter.and(p -> p.getPathClass() == pathClass);
+			return this;
+		}
+		
 		public HeatmapBuilder percentage(Predicate<PathObject> primaryObjects, Predicate<PathObject> allObjects) {
 			this.primaryObjects = primaryObjects;
 			this.allObjects = allObjects;
@@ -209,14 +223,10 @@ public interface DensityMap {
 			try (FloatIndexer idx = mat.createIndexer()) {
 				for (var pathObject : pathObjects) {
 					if (primaryObjects.test(pathObject)) {
-						int x = (int)(pathObject.getROI().getCentroidX() / downsample);
-						int y = (int)(pathObject.getROI().getCentroidY() / downsample);
-						idx.put(y, x, 0, idx.get(y, x, 0) + 1);
+						incrementCounts(idx, 0, pathObject.getROI(), downsample);
 					}
 					if (allObjects != null && allObjects.test(pathObject)) {
-						int x = (int)(pathObject.getROI().getCentroidX() / downsample);
-						int y = (int)(pathObject.getROI().getCentroidY() / downsample);
-						idx.put(y, x, 1, idx.get(y, x, 1) + 1);
+						incrementCounts(idx, 1, pathObject.getROI(), downsample);
 					}
 				}
 			}
@@ -257,6 +267,23 @@ public interface DensityMap {
 			
 			return new DefaultDensityMap(region, values, alpha, stringFun);
 		}
+		
+		
+		
+		private static void incrementCounts(FloatIndexer idx, int channel, ROI roi, double downsample) {
+			if (roi.isPoint()) {
+				for (var p : roi.getAllPoints()) {
+					int x = (int)(p.getX() / downsample);
+					int y = (int)(p.getY() / downsample);
+					idx.put(y, x, 0, idx.get(y, x, 0) + 1);
+				}
+			} else {
+				int x = (int)(roi.getCentroidX() / downsample);
+				int y = (int)(roi.getCentroidY() / downsample);
+				idx.put(y, x, channel, idx.get(y, x, channel) + 1);
+			}
+		}
+		
 		
 	}
 	

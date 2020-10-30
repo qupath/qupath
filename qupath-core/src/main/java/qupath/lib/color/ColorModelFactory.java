@@ -183,7 +183,7 @@ public final class ColorModelFactory {
     
     private static int gamma(double val, double min, double max, double gamma) {
     	val -= min;
-    	val /= (max - min);
+    	val /= Math.abs(max - min);
     	if (gamma != 1)
     		val = Math.pow(val, gamma);
     	val = GeneralTools.clipValue(val, 0, 1);
