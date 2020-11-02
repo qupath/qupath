@@ -1937,7 +1937,7 @@ public class QuPathGUI {
 		if (bytes.length < 0.75*Preferences.MAX_VALUE_LENGTH)
 			PathPrefs.getUserPreferences().putByteArray("defaultPathClasses", bytes);
 		else
-			logger.error("Could not save that many classes: will store default classes instead.");
+			logger.error("Classification list too long ({} bytes) - cannot save it to the preferences.", bytes.length);
 	}
 	
 	
