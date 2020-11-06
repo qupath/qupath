@@ -1,4 +1,5 @@
 package qupath.lib.images.servers.omero;
+
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,9 +17,44 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
-class OmeroObjects {
+final class OmeroObjects {
 	
 	private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class);
+	
+	public static enum OmeroObjectType {
+		SERVER("#Server", "Server"),
+		PROJECT("http://www.openmicroscopy.org/Schemas/OME/2016-06#Project", "Project"),
+		DATASET("http://www.openmicroscopy.org/Schemas/OME/2016-06#Dataset", "Dataset"),
+		IMAGE("http://www.openmicroscopy.org/Schemas/OME/2016-06#Image", "Image"),
+		PLATE("TODO", "Plate"),
+		WELL("TODO", "Well"),
+		SCREEN("TODO", "Screen"),
+		UNKNOWN("", "Unknown");
+		
+		private final String APIName;
+		private final String displayedName;
+		private OmeroObjectType(String APIName, String displayedName) {
+			this.APIName = APIName;
+			this.displayedName = displayedName;
+		}
+
+		public static OmeroObjectType fromString(String text) {
+	        for (var type : OmeroObjectType.values()) {
+	            if (type.APIName.equalsIgnoreCase(text) || type.displayedName.equalsIgnoreCase(text))
+	                return type;
+	        }
+	        return UNKNOWN;
+	    }
+		
+		public String toURLString() {
+			return displayedName.toLowerCase() + 's';
+		}
+		
+		@Override
+		public String toString() {
+			return displayedName;
+		}
+	}
 	
 	
 	static class GsonOmeroObjectDeserializer implements JsonDeserializer<OmeroObject> {
@@ -27,14 +63,14 @@ class OmeroObjects {
 		public OmeroObject deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
 				throws JsonParseException {
 			
-			var type = ((JsonObject)json).get("@type").getAsString().toLowerCase();
+			var type = OmeroObjectType.fromString(((JsonObject)json).get("@type").getAsString().toLowerCase());
 			
 			OmeroObject omeroObj;
-			if (type.endsWith("#project"))
+			if (type.equals(OmeroObjectType.PROJECT))
 				omeroObj = context.deserialize(json, Project.class);
-			else if (type.endsWith("#dataset"))
+			else if (type.equals(OmeroObjectType.DATASET))
 				omeroObj = context.deserialize(json, Dataset.class);
-			else if (type.endsWith("#image"))
+			else if (type.equals(OmeroObjectType.IMAGE))
 				omeroObj = context.deserialize(json, Image.class);
 			else {
 				logger.warn("Unsupported type {}", type);
@@ -70,7 +106,7 @@ class OmeroObjects {
 		private OmeroObject parent;
 		
 		/**
-		 * Return the OMERO ID associated with this object
+		 * Return the OMERO ID associated with this object.
 		 * @return id
 		 */
 		public int getId() {
@@ -78,7 +114,7 @@ class OmeroObjects {
 		}
 		
 		/**
-		 * Return the name associated with this object
+		 * Return the name associated with this object.
 		 * @return name
 		 */
 		public String getName() {
@@ -86,28 +122,17 @@ class OmeroObjects {
 		}
 		
 		/**
-		 * Return the URL associated with this object
+		 * Return the URL associated with this object.
 		 * @return url
 		 */
 		public abstract String getAPIURLString();
 		
 		/**
-		 * Return the OMERO type associated with this object
+		 * Return the {@code OmeroObjectType} associated with this object.
 		 * @return type
 		 */
-		public String getType() {
-			return type;
-		}
-		
-		/**
-		 * Return the OMERO type associated with this object in a 'pretty' 
-		 * form.
-		 * <p>
-		 * I.e. 'Image' rather than 'www.some-server.com/object#Image'.
-		 * @return displayedType
-		 */
-		public String getDisplayedType() {
-			return type.substring(type.lastIndexOf("#") + 1);
+		public OmeroObjectType getType() {
+			return OmeroObjectType.fromString(type);
 		}
 		
 		/**
@@ -190,7 +215,7 @@ class OmeroObjects {
 		
 		Server(OmeroWebImageServer server) {
 			super.id = Integer.parseInt(server.getId());
-			super.type = "#server";
+			super.type = "Server";
 			super.owner = null;
 			url = server.getURIs().toString();
 		}
@@ -296,26 +321,23 @@ class OmeroObjects {
 		private int id;
 		
 		@SerializedName(value = "FirstName")
-		private String firstName;
+		private String firstName = "";
 		
 		@SerializedName(value = "MiddleName")
-		private String middleName;
+		private String middleName = "";
 		
 		@SerializedName(value = "LastName")
-		private String lastName;
+		private String lastName = "";
 		
 		@SerializedName(value = "Email")
-		private String emailAddress;
+		private String emailAddress = "";
 		
 		@SerializedName(value = "Institution")
-		private String institution;
+		private String institution = "";
 		
 		@SerializedName(value = "UserName")
-		private String username;
+		private String username = "";
 		
-		public String getName() {
-			return firstName + " " + (middleName.isEmpty() ? "" : middleName + " ") + lastName;
-		}
 		
 		private Owner(int id, String firstName, String middleName, String lastName, String emailAddress, String institution, String username) {
 			this.id = Objects.requireNonNull(id);
@@ -328,11 +350,8 @@ class OmeroObjects {
 			this.username = username;
 		}
 		
-		@Override
-		public String toString() {
-			List<String> list = new ArrayList<String>(Arrays.asList("Owner: " + getName(), emailAddress, institution, username));
-			list.removeAll(Collections.singleton(""));
-			return String.join(", ", list);
+		public String getName() {
+			return firstName + " " + (middleName.isEmpty() ? "" : middleName + " ") + lastName;
 		}
 		
 		public int getId() {
@@ -347,6 +366,13 @@ class OmeroObjects {
 			return new Owner(-1, "All members", "", "", "", "", "");
 		}
 		
+		@Override
+		public String toString() {
+			List<String> list = new ArrayList<String>(Arrays.asList("Owner: " + getName(), emailAddress, institution, username));
+			list.removeAll(Collections.singleton(""));
+			return String.join(", ", list);
+		}
+
 		@Override
 		public int hashCode() {
 			return Integer.hashCode(id);
@@ -485,4 +511,93 @@ class OmeroObjects {
 		}	
 	}
 	
+	
+	static class Permission {
+		
+		// Both in OmeroAnnotations and in OmeroObjects
+		@SerializedName(value = "canDelete")
+		private boolean canDelete;
+		
+		@SerializedName(value = "canAnnotate")
+		private boolean canAnnotate;
+		
+		@SerializedName(value = "canLink")
+		private boolean canLink;
+		
+		@SerializedName(value = "canEdit")
+		private boolean canEdit;
+		
+		// Only in OmeroObjects
+		@SerializedName(value = "isUserWrite")
+		private boolean isUserWrite;
+		
+		@SerializedName(value = "isUserRead")
+		private boolean isUserRead;
+		
+		@SerializedName(value = "isWorldWrite")
+		private boolean isWorldWrite;
+		
+		@SerializedName(value = "isWorldRead")
+		private boolean isWorldRead;
+		
+		@SerializedName(value = "isGroupWrite")
+		private boolean isGroupWrite;
+		
+		@SerializedName(value = "isGroupRead")
+		private boolean isGroupRead;
+		
+		@SerializedName(value = "isGroupAnnotate")
+		private boolean isGroupAnnotate;
+
+		@SerializedName(value = "perm")
+		private String perm;
+	}
+	
+	
+//	static class Parent {
+//		
+//		@SerializedName(value = "id")
+//		private int id;
+//		
+//		@SerializedName(value = "class")
+//		private String clazz;
+//		
+//		@SerializedName(value = "name")
+//		private String name;
+//		
+//	}
+	
+
+	static class Experimenter {
+		
+		@SerializedName(value = "id")
+		private int id;
+		
+		@SerializedName(value = "omeName")
+		private String omeName;
+		
+		@SerializedName(value = "firstName")
+		private String firstName;
+		
+		@SerializedName(value = "lastName")
+		private String lastName;
+		
+		
+		/**
+		 * Return the Id of this {@code Experimenter}.
+		 * @return id
+		 */
+		public int getId() {
+			return id;
+		}
+		
+		
+		/**
+		 * Return the full name (first name + last name) of this {@code Experimenter}.
+		 * @return full name
+		 */
+		public String getFullName() {
+			return firstName + " " + lastName;
+		}
+	}
 }

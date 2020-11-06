@@ -282,11 +282,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		//				);
 
 		// Options are: Rectangle, Ellipse, Point, Line, Polyline, Polygon and Label
-		URL urlROIs = new URL(
-				scheme, host, -1, "/api/v0/m/rois/?image=" + id
-				);
-
-		var data = OmeroTools.readPaginated(urlROIs);
+		var data = OmeroRequests.requestROIs(scheme, host, id);
 		List<PathObject> list = new ArrayList<>();
 		var gson = new GsonBuilder().registerTypeAdapter(OmeroShape.class, new OmeroShapes.GsonShapeDeserializer()).setLenient().create();
 			
@@ -304,7 +300,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				}
 			}
 		}
-
 		return list;
 	}	
 	
@@ -420,7 +415,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	 * Return the web client used for this image server.
 	 * @return client
 	 */
-	public OmeroWebClient getWebClient() {
+	public OmeroWebClient getWebclient() {
 		return client;
 	}
 	
@@ -462,7 +457,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 			return false;
 		
 		return host == ((OmeroWebImageServer)obj).getHost() &&
-				client.getUsername() == ((OmeroWebImageServer)obj).getWebClient().getUsername();
+				client.getUsername() == ((OmeroWebImageServer)obj).getWebclient().getUsername();
 	}
 	
 	

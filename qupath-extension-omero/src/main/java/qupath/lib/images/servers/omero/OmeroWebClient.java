@@ -44,7 +44,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
 
 /**
- * Class representing an Omero Web Client. This class will take care of 
+ * Class representing an OMERO Web Client. This class will take care of 
  * logging in, keeping the connection alive and logging out.
  * 
  * @author Melvin Gelbard
@@ -58,10 +58,10 @@ public class OmeroWebClient {
 	private final static String URL_SERVERS = "url:servers";
 	private final static String URL_LOGIN = "url:login";
 	private final static String URL_TOKEN = "url:token";
-	private final static String URL_IMAGES = "url:images";
-	private final static String URL_PROJECTS = "url:projects";
-	private final static String URL_BASE = "url:base";
-	private final static String URL_SAVE = "url:save";
+//	private final static String URL_IMAGES = "url:images";
+//	private final static String URL_PROJECTS = "url:projects";
+//	private final static String URL_BASE = "url:base";
+//	private final static String URL_SAVE = "url:save";
 
 	private Gson gson = new Gson();
 	
@@ -201,8 +201,8 @@ public class OmeroWebClient {
 	boolean loggedIn() {
 		try {
 			logger.debug("Attempting to log in...");
-			String imageId = OmeroTools.getOmeroObjectId(uri);
-			if (imageId == null)
+			int imageId = OmeroTools.getOmeroObjectId(uri);
+			if (imageId == -1)
 				return false;
 			
 			URL imgDataURL = new URL(uri.getScheme(), uri.getHost(), -1, "/webgateway/imgData/" + imageId);

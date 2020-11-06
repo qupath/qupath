@@ -1,11 +1,17 @@
 package qupath.lib.images.servers.omero;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -13,7 +19,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
+import qupath.lib.images.servers.omero.OmeroObjects.Experimenter;
 import qupath.lib.images.servers.omero.OmeroObjects.Owner;
+import qupath.lib.images.servers.omero.OmeroObjects.Permission;
 
 /**
  * Class representing OMERO annotations.
@@ -26,9 +34,115 @@ import qupath.lib.images.servers.omero.OmeroObjects.Owner;
  * @author Melvin Gelbard
  */
 // TODO: Handle Table annotations
-class OmeroAnnotations {
+final class OmeroAnnotations {
 	
 	private final static Logger logger = LoggerFactory.getLogger(OmeroAnnotations.class);
+	
+	public static enum OmeroAnnotationType {
+		TAG("TagAnnotationI", "tag"), 
+		MAP("MapAnnotationI", "map"), 
+		ATTACHMENT("FileAnnotationI", "file"), 
+		COMMENT("CommentAnnotationI", "comment"), 
+		RATING("LongAnnotationI", "rating");
+		
+		private final String name;
+		private final String urlName;
+		private OmeroAnnotationType(String name, String urlName) {
+			this.name = name;
+			this.urlName = urlName;
+		}
+		
+		public static OmeroAnnotationType fromString(String text) {
+	        for (var type : OmeroAnnotationType.values()) {
+	            if (type.name.equalsIgnoreCase(text) || type.urlName.equalsIgnoreCase(text))
+	                return type;
+	        }
+	        return null;
+	    }
+		
+		public String toURLString() {
+			return urlName;
+		}
+		
+		@Override
+		public String toString() {
+			return name;
+		}
+	}
+	
+	
+	@SerializedName(value = "annotations")
+	private final List<OmeroAnnotation> annotations;
+
+	@SerializedName(value = "experimenters")
+	private final List<Experimenter> experimenters;
+	
+	private final OmeroAnnotationType type;
+	
+	private OmeroAnnotations(List<OmeroAnnotation> annotations, List<Experimenter> experimenters, OmeroAnnotationType type) {
+		this.annotations = Objects.requireNonNull(annotations);
+		this.experimenters = Objects.requireNonNull(experimenters);
+		this.type = type;
+	}
+	
+	/**
+	 * Static factory method to get all annotations & experimenters in a single {@code OmeroAnnotations} object.
+	 * @param json
+	 * @return OmeroAnnotations
+	 * @throws IOException 
+	 */
+	public static OmeroAnnotations getOmeroAnnotations(JsonObject json) throws IOException {
+		List<OmeroAnnotation> annotations = new ArrayList<>();
+		List<Experimenter> experimenters = new ArrayList<>();
+		var gson = new GsonBuilder().registerTypeAdapter(OmeroAnnotation.class, new OmeroAnnotations.GsonOmeroAnnotationDeserializer()).setLenient().create();
+		
+		// Get all OmeroAnnotation-s
+		JsonArray annotationsArray = json.get("annotations").getAsJsonArray();
+		for (var jsonAnn: annotationsArray)
+			annotations.add(gson.fromJson(jsonAnn, OmeroAnnotation.class));
+		
+		// Get all Experimenters
+		JsonArray experimentersArray = json.get("experimenters").getAsJsonArray();
+		for (var jsonExp: experimentersArray)
+			experimenters.add(gson.fromJson(jsonExp, Experimenter.class));
+		
+		// Get type
+		OmeroAnnotationType type = annotations.isEmpty() ? null : annotations.get(0).getType();
+		
+		return new OmeroAnnotations(annotations, experimenters, type);
+	}
+	
+	/**
+	 * Return all {@code OmeroAnnotation} objects present in this {@code OmeroAnnotation}s object.
+	 * @return annotations
+	 */
+	public List<OmeroAnnotation> getAnnotations() {
+		return annotations;
+	}
+	
+	/**
+	 * Return all {@code Experimenter}s present in this {@code OmeroAnnotations} object.
+	 * @return experimenters
+	 */
+	public List<Experimenter> getExperimenters() {
+		return experimenters;
+	}
+	
+	/**
+	 * Return the type of the {@code OmeroAnnotation} objects present in this {@code OmeroAnnotations} object.
+	 * @return type
+	 */
+	public OmeroAnnotationType getType() {
+		return type;
+	}
+	
+	/**
+	 * Return the number of annotations in this {@code OmeroAnnotations} object.
+	 * @return size
+	 */
+	public int getSize() {
+		return annotations.stream().mapToInt(e -> e.getNInfo()).sum();
+	}
 	
 	static class GsonOmeroAnnotationDeserializer implements JsonDeserializer<OmeroAnnotation> {
 
@@ -36,19 +150,18 @@ class OmeroAnnotations {
 		public OmeroAnnotation deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
 				throws JsonParseException {
 			
-			var type = ((JsonObject)json).get("class").getAsString().toLowerCase();
+			var type = OmeroAnnotationType.fromString(((JsonObject)json).get("class").getAsString());
 			
 			OmeroAnnotation omeroAnnotation;
-			// some OMERO 'class' have an extra I?
-			if (type.contains("tagannotation"))	
+			if (type == OmeroAnnotationType.TAG)
 				omeroAnnotation = context.deserialize(json, TagAnnotation.class);
-			else if (type.contains("mapannotation"))
+			else if (type == OmeroAnnotationType.MAP)
 				omeroAnnotation = context.deserialize(json, MapAnnotation.class);
-			else if (type.contains("fileannotation"))
+			else if (type == OmeroAnnotationType.ATTACHMENT)
 				omeroAnnotation = context.deserialize(json, FileAnnotation.class);
-			else if (type.contains("commentannotation"))
+			else if (type == OmeroAnnotationType.COMMENT)
 				omeroAnnotation = context.deserialize(json, CommentAnnotation.class);
-			else if (type.contains("longannotation"))
+			else if (type == OmeroAnnotationType.RATING)
 				omeroAnnotation = context.deserialize(json, LongAnnotation.class);
 			else {
 				logger.warn("Unsupported type {}", type);
@@ -70,14 +183,32 @@ class OmeroAnnotations {
 		@SerializedName(value = "permissions")
 		private Permission permissions;
 		
-		@SerializedName(value = "parent")
-		private Parent parent;
-		
 		@SerializedName(value = "class")
-		private String clazz;
+		private String type;
 		
-		public String getType() {
-			return clazz;
+		
+		/**
+		 * Return the {@code OmeroAnnotationType} of this {@code OmeroAnnotation} object.
+		 * @return
+		 */
+		public OmeroAnnotationType getType() {
+			return OmeroAnnotationType.fromString(type);
+		}
+		
+		/**
+		 * Return the owner of this {@code OmeroAnnotation}.
+		 * @return owner
+		 */
+		public Owner getOwner() {
+			return owner;
+		}
+
+		/**
+		 * Return the number of 'fields' within this {@code OmeroAnnotation}.
+		 * @return number of fields
+		 */
+		public int getNInfo() {
+			return 1;
 		}
 	}
 	
@@ -85,7 +216,7 @@ class OmeroAnnotations {
 	 * 'Tags'
 	 */
 	static class TagAnnotation extends OmeroAnnotation {
-		
+
 		@SerializedName(value = "textValue")
 		String value;
 
@@ -105,20 +236,36 @@ class OmeroAnnotations {
 		Map<String, String> getValues() {
 			return values;
 		}
+
+		@Override
+		public int getNInfo() {
+			return values.size();
+		}
 	}
 	
 	
 	/**
 	 * 'Attachments'
 	 */
-	// TODO: handle the file object?
 	static class FileAnnotation extends OmeroAnnotation {
-
+		
 		@SerializedName(value = "file")
-		String file;
+		Map<String, String> map;
 
-		String getFile() {
-			return file;
+		String getFilename() {
+			return map.get("name");
+		}
+		
+		/**
+		 * Size in bits.
+		 * @return size
+		 */
+		long getFileSize() {
+			return Long.parseLong(map.get("size"));
+		}
+		
+		String getMimeType() {
+			return map.get("mimetype");
 		}
 	}
 	
@@ -146,40 +293,7 @@ class OmeroAnnotations {
 		short getValue() {
 			return value;
 		}
-		
 	}
-	
-	
-	static class Permission {
-		
-		@SerializedName(value = "canDelete")
-		private boolean canDelete;
-		
-		@SerializedName(value = "canAnnotate")
-		private boolean canAnnotate;
-		
-		@SerializedName(value = "canLink")
-		private boolean canLink;
-		
-		@SerializedName(value = "canEdit")
-		private boolean canEdit;
-	}
-	
-	
-	static class Parent {
-		
-		@SerializedName(value = "id")
-		private int id;
-		
-		@SerializedName(value = "class")
-		private String clazz;
-		
-		@SerializedName(value = "name")
-		private String name;
-		
-	}
-	
-	
 }
 
 
