@@ -986,6 +986,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
 						}
 					}
+					
+					// Check if the error was to do with a special left quote character
+					var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([‘“’”])' @ line (\\d+), column (\\d+).").matcher(message);
+					if (matcherQuotationMarks.find()) {
+						int nLine = Integer.parseInt(matcherQuotationMarks.group(2));
+						sb.append(String.format("At least one left quotation mark (%s) was found @ line %s column %s! ", matcherQuotationMarks.group(1), importDefaultMethods ? nLine-1 : nLine, matcherQuotationMarks.group(3)));
+						sb.append("You can try replacing it with a regular apostrophe (').\n");
+					}
 				}
 				if (sb.length() > 0)
 					errorWriter.append(sb.toString());
