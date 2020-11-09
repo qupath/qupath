@@ -23,6 +23,7 @@ package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -43,6 +44,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
@@ -54,6 +57,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.io.GsonTools;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
@@ -123,6 +127,39 @@ public class ObjectClassifierLoadCommand implements Runnable {
 			}
 		});
 		
+		// Support drag & drop for classifiers
+		listClassifiers.setOnDragOver(e -> {
+			e.acceptTransferModes(TransferMode.COPY);
+            e.consume();
+        });
+		
+		listClassifiers.setOnDragDropped(e -> {
+			Dragboard dragboard = e.getDragboard();
+			if (dragboard.hasFiles()) {
+				logger.trace("File(s) dragged onto classifier listView");
+				try {
+					var files = dragboard.getFiles()
+							.stream()
+							.filter(f -> f.isFile() && !f.isHidden())
+							.collect(Collectors.toList());
+					for (var file: files) {
+						if (!GeneralTools.getExtension(file).get().equals(".json"))
+							Dialogs.showErrorNotification(String.format("Could not add '%s'", file.getName()), 
+									String.format("Classifier files should be JSON files (.json), not %s", GeneralTools.getExtension(file).get()));
+						else {
+							var json = Files.newBufferedReader(file.toPath());
+							var classifier = GsonTools.getInstance().fromJson(json, ObjectClassifier.class);
+							// TODO: Check if classifier is valid before adding it?
+							project.getObjectClassifiers().put(GeneralTools.getNameWithoutExtension(file), classifier);
+						}
+					}
+				} catch (Exception ex) {
+					Dialogs.showErrorMessage("Error adding classifier(s)", ex.getLocalizedMessage());
+				}
+			}
+			
+			e.consume();
+		});
 
 		var label = new Label("Choose classifier");
 		label.setLabelFor(listClassifiers);
