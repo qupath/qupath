@@ -715,7 +715,8 @@ task createRuntime(dependsOn:build, type:Exec) {
     def usefulModules = [
         'java.net.http',       // Add HttpClient support (may be used by scripts)
     	'java.management',     // Useful to check memory usage
-    	'jdk.management.agent' // Enables VisualVM to connect and sample CPU use
+    	'jdk.management.agent', // Enables VisualVM to connect and sample CPU use
+    	'jdk.jsobject'         // Allows to interact with WebView through JSObject
     ]
   
     def addModules
