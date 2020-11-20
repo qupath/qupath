@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringExpression;
@@ -188,7 +189,9 @@ public class PixelClassifierUI {
 	 */
 	public static Pane createSavePixelClassifierPane(ObjectExpression<Project<BufferedImage>> project, ObjectExpression<PixelClassifier> classifier, StringProperty savedName) {
 		
-		var tooltip = new Tooltip("Save classifier in the current project - this is required to use the classifier to use the classifier later (e.g. to create objects, measurements)");
+		var tooltipText = "Save classifier in the current project - this is required to use the classifier to use the classifier later (e.g. to create objects, measurements)";
+		var tooltipText2 = "Cannot save a classifier outside a project. Please create a project to save the classifier.";
+		var tooltip = new Tooltip();
 		var label = new Label("Classifier name");
 		var defaultName = savedName.get();
 		var tfClassifierName = new TextField(defaultName == null ? "" : defaultName);
@@ -211,11 +214,16 @@ public class PixelClassifierUI {
 				classifier.isNull()
 					.or(project.isNull())
 					.or(tfClassifierName.textProperty().isEmpty()));
+		tfClassifierName.disableProperty().bind(project.isNull());
 		
 		label.setLabelFor(tfClassifierName);
 		label.setTooltip(tooltip);
 		tfClassifierName.setTooltip(tooltip);
 		btnSave.setTooltip(tooltip);
+		tooltip.textProperty().bind(Bindings
+				.when(project.isNull())
+				.then(Bindings.createStringBinding(() -> tooltipText2, project))
+				.otherwise(Bindings.createStringBinding(() -> tooltipText, project)));
 		
 		var pane = new GridPane();
 		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);

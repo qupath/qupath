@@ -23,10 +23,12 @@ package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -43,6 +45,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.TextAlignment;
@@ -54,6 +58,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.io.GsonTools;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
@@ -73,6 +78,11 @@ public class ObjectClassifierLoadCommand implements Runnable {
 	private String title = "Object Classifiers";
 	
 	/**
+	 * Will hold external object classifiers (i.e. not from the project directory)
+	 */
+	private Map<String, ObjectClassifier<BufferedImage>> externalObjectClassifiers;
+	
+	/**
 	 * Constructor.
 	 * @param qupath
 	 */
@@ -86,6 +96,8 @@ public class ObjectClassifierLoadCommand implements Runnable {
 		var project = qupath.getProject();
 		
 		var listClassifiers = new ListView<String>();
+		
+		 externalObjectClassifiers = new HashMap<>();
 		
 		listClassifiers.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		var labelPlaceholder = new Label("Object classifiers in the\n" + "current project will appear here");
@@ -123,6 +135,54 @@ public class ObjectClassifierLoadCommand implements Runnable {
 			}
 		});
 		
+		// Support drag & drop for classifiers
+		listClassifiers.setOnDragOver(e -> {
+			e.acceptTransferModes(TransferMode.COPY);
+            e.consume();
+        });
+		
+		listClassifiers.setOnDragDropped(e -> {
+			Dragboard dragboard = e.getDragboard();
+			if (dragboard.hasFiles()) {
+				logger.trace("File(s) dragged onto classifier listView");
+				try {
+					var files = dragboard.getFiles()
+							.stream()
+							.filter(f -> f.isFile() && !f.isHidden())
+							.collect(Collectors.toList());
+					
+					String copyToDirectory = "Copy file(s) to project directory";
+					String leaveInDirectory = "Leave file(s) in current directory";
+					var response = Dialogs.showChoiceDialog("Copy classifier file(s)", "Copy files to project directory?", new String[] {copyToDirectory, leaveInDirectory}, copyToDirectory);
+					for (var file: files) {
+						if (!GeneralTools.getExtension(file).get().equals(".json"))
+							Dialogs.showErrorNotification(String.format("Could not add '%s'", file.getName()), 
+									String.format("Classifier files should be JSON files (.json), not %s", GeneralTools.getExtension(file).get()));
+						else {
+							var json = Files.newBufferedReader(file.toPath());
+							// TODO: Check if classifier is valid before adding it
+							var classifier = GsonTools.getInstance().fromJson(json, ObjectClassifier.class);
+							
+							// Fix duplicate name
+							int index = 1;
+							String name = GeneralTools.getNameWithoutExtension(file);
+							while (project.getObjectClassifiers().contains(name) || externalObjectClassifiers.containsKey(name))
+								name = GeneralTools.getNameWithoutExtension(file) + " (" + index++ + ")";
+
+							if (response == copyToDirectory)
+								project.getObjectClassifiers().put(name, classifier);
+							else if (response == leaveInDirectory)
+								externalObjectClassifiers.put(name, classifier);
+							// If null don't do anything
+						}
+					}
+				} catch (Exception ex) {
+					Dialogs.showErrorMessage("Error adding classifier(s)", ex.getLocalizedMessage());
+				}
+			}
+			refreshNames(listClassifiers.getItems());
+			e.consume();
+		});
 
 		var label = new Label("Choose classifier");
 		label.setLabelFor(listClassifiers);
@@ -142,7 +202,7 @@ public class ObjectClassifierLoadCommand implements Runnable {
 				Dialogs.showErrorMessage(title, "No image open!");
 				return;
 			}
-			runClassifier(imageData, project, listClassifiers.getSelectionModel().getSelectedItems(), true);
+			runClassifier(imageData, project, externalObjectClassifiers, listClassifiers.getSelectionModel().getSelectedItems(), true);
 		});
 		
 //		var pane = new BorderPane();
@@ -195,12 +255,14 @@ public class ObjectClassifierLoadCommand implements Runnable {
 			availableClassifiers.clear();
 			return;
 		}
-		Collection<String> names;
+		
 		try {
-			names = project.getObjectClassifiers().getNames();
+			List<String> names = new ArrayList<>();
+			names.addAll(project.getObjectClassifiers().getNames());
+			names.addAll(externalObjectClassifiers.keySet());
 			availableClassifiers.setAll(names);
 		} catch (IOException e) {
-			Dialogs.showErrorMessage(title, e);
+			Dialogs.showErrorMessage(title, e.getLocalizedMessage());
 			return;
 		}
 	}
@@ -213,16 +275,16 @@ public class ObjectClassifierLoadCommand implements Runnable {
 	 * @param classifierNames
 	 * @param logWorkflow
 	 */
-	static void runClassifier(ImageData<BufferedImage> imageData, Project<BufferedImage> project, List<String> classifierNames, boolean logWorkflow) {
+	static void runClassifier(ImageData<BufferedImage> imageData, Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> selectedClassifiersNames, boolean logWorkflow) {
 		ObjectClassifier<BufferedImage> classifier;
 		try {
-			classifier = getClassifier(project, classifierNames);
+			classifier = getClassifier(project, externalClassifiers, selectedClassifiersNames);
 		} catch (IOException ex) {
 			Dialogs.showErrorMessage("Object classifier", ex);
 			return;
 		}
 		// Perform sanity check for missing features
-		logger.info("Running classifier: {}", classifierNames);
+		logger.info("Running classifier: {}", selectedClassifiersNames);
 		var pathObjects = classifier.getCompatibleObjects(imageData);
 		var missingCounts = classifier.getMissingFeatures(imageData, pathObjects);
 		if (!missingCounts.isEmpty()) {
@@ -245,9 +307,8 @@ public class ObjectClassifierLoadCommand implements Runnable {
 		
 		if (classifier.classifyObjects(imageData, pathObjects, true) > 0) {
 			imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
-			if (logWorkflow) {
-				imageData.getHistoryWorkflow().addStep(createObjectClassifierStep(classifierNames));
-			}
+			if (logWorkflow)
+				imageData.getHistoryWorkflow().addStep(createObjectClassifierStep(selectedClassifiersNames));
 		}
 	}
 
@@ -265,23 +326,28 @@ public class ObjectClassifierLoadCommand implements Runnable {
 	
 	
 	/**
-	 * Load a single or composite classifier
+	 * Load a single or composite classifier. The returned classifier can be fetched from either 
+	 * the project directory or from an external source (gathered in {@code externalClassifiers}).
 	 * @param project
+	 * @param externalClassifiers
 	 * @param names
 	 * @return
 	 * @throws IOException
 	 */
-	private static ObjectClassifier<BufferedImage> getClassifier(Project<BufferedImage> project, List<String> names) throws IOException {
-		if (project == null)
+	private static ObjectClassifier<BufferedImage> getClassifier(Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> names) throws IOException {
+		if (project == null || names.isEmpty())
 			return null;
-		if (names.isEmpty())
-			return null;
-		if (names.size() == 1)
-			return project.getObjectClassifiers().get(names.get(0));
+		
 		List<ObjectClassifier<BufferedImage>> classifiers = new ArrayList<>();
 		for (var s : names) {
-			classifiers.add(project.getObjectClassifiers().get(s));
+			if (project.getObjectClassifiers().contains(s))
+				classifiers.add(project.getObjectClassifiers().get(s));
+			else
+				classifiers.add(externalClassifiers.get(s));
 		}
+		
+		if (names.size() == 1)
+			return classifiers.get(0);
 		return ObjectClassifiers.createCompositeClassifier(classifiers);
 	}
 	
