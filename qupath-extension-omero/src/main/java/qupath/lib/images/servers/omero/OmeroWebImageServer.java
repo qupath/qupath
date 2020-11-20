@@ -23,7 +23,6 @@ package qupath.lib.images.servers.omero;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -39,7 +38,6 @@ import javax.imageio.ImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -148,12 +146,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		PixelType pixelType = PixelType.UINT8;
 		boolean isRGB = true;
 		double magnification = Double.NaN;
-
-		URL urlMetadata = new URL(scheme, host, -1, "/webgateway/imgData/" + id);
-		InputStreamReader reader = new InputStreamReader(urlMetadata.openStream());
-		JsonObject map = new Gson().fromJson(reader, JsonObject.class);
-		reader.close();
-
+		
+		JsonObject map = OmeroRequests.requestMetadata(scheme, host, Integer.parseInt(id));
 		JsonObject size = map.getAsJsonObject("size");
 
 		sizeX = size.getAsJsonPrimitive("width").getAsInt();

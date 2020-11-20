@@ -1,21 +1,24 @@
 package qupath.lib.images.servers.omero;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.InvalidParameterException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.omero.OmeroAnnotations.OmeroAnnotationType;
 import qupath.lib.images.servers.omero.OmeroObjects.Group;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
@@ -30,8 +33,10 @@ import qupath.lib.io.GsonTools;
  */
 public final class OmeroRequests {
 	
-	private static final String WEBCLIENT_ANNOTATION = "/webclient/api/annotations/?type=%s&%s=%d&limit=10000&_=&%d";
+	private static final String WEBCLIENT_READ_ANNOTATION = "/webclient/api/annotations/?type=%s&%s=%d&limit=10000&_=&%d";
+	private static final String WEBCLIENT_WRITE_ANNOTATION = "/webclient/annotate_%s";
 	
+	private static final String WEBGATEWAY_DATA = "/webgateway/imgData/%d";
 	private static final String WEBGATEWAY_THUMBNAIL = "/webgateway/render_thumbnail/%d/%d";	// '/webgateway/render_thumbnail/101/256'
 	private static final String WEBGATEWAY_ICON = "/static/webgateway/img/%s";
 	
@@ -44,6 +49,23 @@ public final class OmeroRequests {
 	// Suppress default constructor for non-instantiability
 	private OmeroRequests() {
 		throw new AssertionError();
+	}
+	
+	
+	/**
+	 * Request the metadata of OMERO image with {@code id}.
+	 * @param scheme
+	 * @param host
+	 * @param id
+	 * @return metadata json
+	 * @throws IOException
+	 */
+	public static JsonObject requestMetadata(String scheme, String host, int id) throws IOException {
+		URL url = new URL(scheme, host, String.format(WEBGATEWAY_DATA, id));
+		InputStreamReader reader = new InputStreamReader(url.openStream());
+		JsonObject map = new Gson().fromJson(reader, JsonObject.class);
+		reader.close();
+		return map;
 	}
 
 	
@@ -258,7 +280,7 @@ public final class OmeroRequests {
 	 * @throws IOException
 	 */
 	public static JsonElement requestOMEROAnnotations(String scheme, String host, int id, OmeroObjectType objType, OmeroAnnotationType annType) throws IOException {
-		URL url = new URL(scheme, host, String.format(WEBCLIENT_ANNOTATION, annType.toURLString(), objType.toString().toLowerCase(), id, System.currentTimeMillis()));
+		URL url = new URL(scheme, host, String.format(WEBCLIENT_READ_ANNOTATION, annType.toURLString(), objType.toString().toLowerCase(), id, System.currentTimeMillis()));
 		InputStreamReader reader = new InputStreamReader(url.openStream());
 		JsonElement json = GsonTools.getInstance().fromJson(reader, JsonElement.class);
 		reader.close();
@@ -318,20 +340,9 @@ public final class OmeroRequests {
 		
 		
 		// Get response
-		try (InputStream is = conn.getInputStream()) {
-		      
-		    InputStreamReader reader = new InputStreamReader(is);
-
-		    //Creating a BufferedReader object
-		    BufferedReader br = new BufferedReader(reader);
-		    StringBuffer sb = new StringBuffer();
-		    String str;
-		    while((str = br.readLine())!= null){
-		        sb.append(str);
-		    }
-		    if (sb.toString().toLowerCase().contains("error"))
-		    	throw new IOException(sb.toString());
-		}
+		String response = GeneralTools.readInputStreamAsString(conn.getInputStream());
+	    if (response.toLowerCase().contains("error"))
+	    	throw new IOException(response);
 		
 		return true;
 	}
@@ -421,4 +432,56 @@ public final class OmeroRequests {
 		return response;
 	}
 
+	/**
+	 * Write the given {@code annType} with {@code value} to the {@code omeroObj} object on {@code server}.
+	 * @param server
+	 * @param omeroObj
+	 * @param annType
+	 * @param value
+	 * @return success
+	 * @throws IOException
+	 */
+	// TODO: This method does not work yet
+	public static boolean writeAnnotation(OmeroWebImageServer server, OmeroObject omeroObj, OmeroAnnotationType annType, String value) throws IOException {
+		Map<String,String> form = new HashMap<>();
+		form.put(omeroObj.getType().toString().toLowerCase(), omeroObj.getId() + "");
+		form.put("csrfmiddlewaretoken", server.getWebclient().getToken());
+		switch (annType) {
+		case TAG:
+			form.put("filter_mode", "any");
+			form.put("filter_owner_mode", "all");
+			form.put(omeroObj.getType().toString().toLowerCase(), omeroObj.getId() + "");
+			form.put("newtags-TOTAL_FORMS", "1");
+			form.put("newtags-0-tag", value);
+			break;
+		case MAP:
+			break;
+		case ATTACHMENT:
+			break;
+		case COMMENT:
+			form.put("comment", value);
+			break;
+		case RATING:
+			break;
+		default:
+			return false;
+		}
+		
+		// Format form request
+		String requestProperty = form.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("&"));
+		
+		URL url = new URL(server.getScheme(), server.getHost(), String.format(WEBCLIENT_WRITE_ANNOTATION, annType.toURLString()));
+		HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+		conn.setDoOutput(true);
+		conn.setRequestMethod("POST");
+		conn.setRequestProperty("csrfmiddlewaretoken", server.getWebclient().getToken());
+		conn.setRequestProperty("comment", value);
+		conn.setRequestProperty(omeroObj.getType().toString().toLowerCase(), omeroObj.getId() + "");
+		
+		// Send form
+		OutputStream stream = conn.getOutputStream();
+		stream.write(requestProperty.getBytes("UTF-8"));
+		stream.close();
+		return true;
+	}
 }

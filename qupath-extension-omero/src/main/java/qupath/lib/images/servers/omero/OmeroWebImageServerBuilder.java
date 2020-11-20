@@ -105,7 +105,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			
 			if (isLoggedIn) {
 				OmeroWebClients.addClient(uri.getHost(), client);
-				return true;				
+				return true;
 			}
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("Omero web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");

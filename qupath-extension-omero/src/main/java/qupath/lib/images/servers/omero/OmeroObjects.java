@@ -552,22 +552,22 @@ final class OmeroObjects {
 		@SerializedName(value = "perm")
 		private String perm;
 	}
-	
-	
-//	static class Parent {
-//		
-//		@SerializedName(value = "id")
-//		private int id;
-//		
-//		@SerializedName(value = "class")
-//		private String clazz;
-//		
-//		@SerializedName(value = "name")
-//		private String name;
-//		
-//	}
-	
 
+	
+	static class Link {
+		
+		@SerializedName(value = "id")
+		private int id;
+		
+		@SerializedName(value = "owner")
+		private Owner owner;
+		
+		public Owner getOwner() {
+			return owner;
+		}
+	}
+
+	
 	static class Experimenter {
 		
 		@SerializedName(value = "id")

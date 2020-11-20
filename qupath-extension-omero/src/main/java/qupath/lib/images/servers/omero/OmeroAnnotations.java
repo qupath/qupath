@@ -20,6 +20,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
 import qupath.lib.images.servers.omero.OmeroObjects.Experimenter;
+import qupath.lib.images.servers.omero.OmeroObjects.Link;
 import qupath.lib.images.servers.omero.OmeroObjects.Owner;
 import qupath.lib.images.servers.omero.OmeroObjects.Permission;
 
@@ -79,7 +80,7 @@ final class OmeroAnnotations {
 	
 	private final OmeroAnnotationType type;
 	
-	private OmeroAnnotations(List<OmeroAnnotation> annotations, List<Experimenter> experimenters, OmeroAnnotationType type) {
+	protected OmeroAnnotations(List<OmeroAnnotation> annotations, List<Experimenter> experimenters, OmeroAnnotationType type) {
 		this.annotations = Objects.requireNonNull(annotations);
 		this.experimenters = Objects.requireNonNull(experimenters);
 		this.type = type;
@@ -108,7 +109,7 @@ final class OmeroAnnotations {
 		
 		// Get type
 		OmeroAnnotationType type = annotations.isEmpty() ? null : annotations.get(0).getType();
-		
+
 		return new OmeroAnnotations(annotations, experimenters, type);
 	}
 	
@@ -186,23 +187,37 @@ final class OmeroAnnotations {
 		@SerializedName(value = "class")
 		private String type;
 		
+		@SerializedName(value = "link")
+		private Link link;
+		
 		
 		/**
 		 * Return the {@code OmeroAnnotationType} of this {@code OmeroAnnotation} object.
-		 * @return
+		 * @return omeroAnnotationType
 		 */
 		public OmeroAnnotationType getType() {
 			return OmeroAnnotationType.fromString(type);
 		}
 		
+
 		/**
-		 * Return the owner of this {@code OmeroAnnotation}.
-		 * @return owner
+		 * Return the owner of this {@code OmeroAnnotation}. Which is the creator of this annotation 
+		 * but not necessarily the person that added it.
+		 * @return creator of this annotation
 		 */
 		public Owner getOwner() {
 			return owner;
 		}
-
+		
+		/**
+		 * Return the {@code Owner} that added this annotation. This is <b>not</b> necessarily 
+		 * the same as the owner <b>of</b> the annotation.
+		 * @return owner who added this annotation
+		 */
+		public Owner addedBy() {
+			return link.getOwner();
+		}
+		
 		/**
 		 * Return the number of 'fields' within this {@code OmeroAnnotation}.
 		 * @return number of fields
@@ -218,9 +233,9 @@ final class OmeroAnnotations {
 	static class TagAnnotation extends OmeroAnnotation {
 
 		@SerializedName(value = "textValue")
-		String value;
+		private String value;
 
-		String getValue() {
+		protected String getValue() {
 			return value;
 		}
 	}
@@ -231,9 +246,9 @@ final class OmeroAnnotations {
 	static class MapAnnotation extends OmeroAnnotation {
 		
 		@SerializedName(value = "values")
-		Map<String, String> values;
+		private Map<String, String> values;
 
-		Map<String, String> getValues() {
+		protected Map<String, String> getValues() {
 			return values;
 		}
 
@@ -250,9 +265,9 @@ final class OmeroAnnotations {
 	static class FileAnnotation extends OmeroAnnotation {
 		
 		@SerializedName(value = "file")
-		Map<String, String> map;
+		private Map<String, String> map;
 
-		String getFilename() {
+		protected String getFilename() {
 			return map.get("name");
 		}
 		
@@ -260,11 +275,11 @@ final class OmeroAnnotations {
 		 * Size in bits.
 		 * @return size
 		 */
-		long getFileSize() {
+		protected long getFileSize() {
 			return Long.parseLong(map.get("size"));
 		}
 		
-		String getMimeType() {
+		protected String getMimeType() {
 			return map.get("mimetype");
 		}
 	}
@@ -275,9 +290,9 @@ final class OmeroAnnotations {
 	static class CommentAnnotation extends OmeroAnnotation {
 
 		@SerializedName(value = "textValue")
-		String value;
+		private String value;
 
-		String getValue() {
+		protected String getValue() {
 			return value;
 		}
 	}
@@ -288,9 +303,9 @@ final class OmeroAnnotations {
 	static class LongAnnotation extends OmeroAnnotation {
 
 		@SerializedName(value = "longValue")
-		short value;
+		private short value;
 
-		short getValue() {
+		protected short getValue() {
 			return value;
 		}
 	}

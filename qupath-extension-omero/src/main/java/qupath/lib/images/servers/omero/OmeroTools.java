@@ -86,7 +86,7 @@ public class OmeroTools {
 	 * @return list of OmeroObjects
 	 * @throws IOException
 	 */
-	public static List<OmeroObject> getOmeroObjects(OmeroWebImageServer server, OmeroObject parent) throws IOException {
+	public static List<OmeroObject> readOmeroObjects(OmeroWebImageServer server, OmeroObject parent) throws IOException {
 		List<OmeroObject> list = new ArrayList<>();
 		if (parent == null)
 			return list;
@@ -151,7 +151,7 @@ public class OmeroTools {
 	    			Future<?> future = executorRequests.submit(() -> {
         				try {
         					var id = Integer.parseInt(e.getAsJsonObject().get("id").toString());
-	        				var omeroObj = getOmeroObject(server.getScheme(), server.getHost(), id, OmeroObjectType.IMAGE);
+	        				var omeroObj = readOmeroObject(server.getScheme(), server.getHost(), id, OmeroObjectType.IMAGE);
 	        				omeroObj.setParent(parent);
 	        				list.add(omeroObj);	       
         				} catch (IOException ex) {
@@ -190,7 +190,7 @@ public class OmeroTools {
 	 * @return OmeroObject
 	 * @throws IOException
      */
-    public static OmeroObject getOmeroObject(String scheme, String host, int id, OmeroObjectType type) throws IOException {
+    public static OmeroObject readOmeroObject(String scheme, String host, int id, OmeroObjectType type) throws IOException {
     	// Request Json
     	var map = OmeroRequests.requestObjectInfo(scheme, host, id, type);
         
@@ -207,7 +207,7 @@ public class OmeroTools {
 	 * @param uri
 	 * @return Id
 	 */
-	public static int getOmeroObjectId(URI uri) {
+	public static int parseOmeroObjectId(URI uri) {
 		String uriString = uri.toString().replace("show%3Dimage-", "show=image-");
 		uriString = uriString.replace("/?images%3D", "/?images=");
 		Pattern[] similarPatterns = new Pattern[] {patternLink, patternImgDetail, patternNewViewer, patternWebViewer};
@@ -229,7 +229,7 @@ public class OmeroTools {
 	 * @param category
 	 * @return omeroAnnotations object
 	 */
-	public static OmeroAnnotations getOmeroAnnotations(OmeroWebImageServer server, OmeroObject obj, OmeroAnnotationType category) {
+	public static OmeroAnnotations readOmeroAnnotations(OmeroWebImageServer server, OmeroObject obj, OmeroAnnotationType category) {
 		try {
 			var json = OmeroRequests.requestOMEROAnnotations(server.getScheme(), server.getHost(), obj.getId(), obj.getType(), category);
 			return OmeroAnnotations.getOmeroAnnotations(json.getAsJsonObject());
@@ -237,6 +237,27 @@ public class OmeroTools {
 			logger.warn("Could not fetch {} information: {}", category, e.getLocalizedMessage());
 			return null;
 		}
+	}
+	
+	// TODO
+	public static boolean writeTagAnnotation(OmeroWebImageServer server, OmeroObject omeroObj, String value) {
+		try {
+			return OmeroRequests.writeAnnotation(server, omeroObj, OmeroAnnotationType.TAG, value);
+		} catch (IOException ex) {
+			logger.error(ex.getLocalizedMessage());
+		}
+		return false;
+	}
+	
+	
+	// TODO
+	public static boolean writeCommentAnnotation(OmeroWebImageServer server, OmeroObject omeroObj, String value) {
+		try {
+			return OmeroRequests.writeAnnotation(server, omeroObj, OmeroAnnotationType.COMMENT, value);
+		} catch (IOException ex) {
+			logger.error(ex.getLocalizedMessage());
+		}
+		return false;
 	}
 	
 	

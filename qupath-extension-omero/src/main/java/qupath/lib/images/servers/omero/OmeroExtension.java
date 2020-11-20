@@ -26,14 +26,16 @@ public class OmeroExtension implements QuPathExtension {
 		MenuTools.addMenuItems(
                 qupath.getMenu("OMERO", true),
                 actionBrowse,
-                actionClients
-        );
-
-		MenuTools.addMenuItems(
-				qupath.getMenu("Objects>Annotations...", false),
+                actionClients,
                 null,
                 actionSendObjects
         );
+
+//		MenuTools.addMenuItems(
+//				qupath.getMenu("Objects>Annotations...", false),
+//                null,
+//                actionSendObjects
+//        );
 	}
 
 	@Override

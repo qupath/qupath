@@ -201,7 +201,7 @@ public class OmeroWebClient {
 	boolean loggedIn() {
 		try {
 			logger.debug("Attempting to log in...");
-			int imageId = OmeroTools.getOmeroObjectId(uri);
+			int imageId = OmeroTools.parseOmeroObjectId(uri);
 			if (imageId == -1)
 				return false;
 			
