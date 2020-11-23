@@ -991,8 +991,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 					var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([‘“’”])' @ line (\\d+), column (\\d+).").matcher(message);
 					if (matcherQuotationMarks.find()) {
 						int nLine = Integer.parseInt(matcherQuotationMarks.group(2));
-						sb.append(String.format("At least one left quotation mark (%s) was found @ line %s column %s! ", matcherQuotationMarks.group(1), importDefaultMethods ? nLine-1 : nLine, matcherQuotationMarks.group(3)));
-						sb.append("You can try replacing it with a regular apostrophe (').\n");
+						String quotationMark = matcherQuotationMarks.group(1);
+						String suggestion = quotationMark.equals("‘") || quotationMark.equals("’") ? "'" : "\"";
+						sb.append(String.format("At least one invalid quotation mark (%s) was found @ line %s column %s! ", quotationMark, importDefaultMethods ? nLine-1 : nLine, matcherQuotationMarks.group(3)));
+						sb.append(String.format("You can try replacing it with a straight quotation mark (%s).%n", suggestion));
 					}
 				}
 				if (sb.length() > 0)
