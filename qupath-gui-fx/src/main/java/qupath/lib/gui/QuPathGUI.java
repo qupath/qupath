@@ -515,7 +515,7 @@ public class QuPathGUI {
 		/**
 		 * Toggle 'selection mode' on/off for all drawing tools.
 		 */
-		@ActionAccelerator("shortcut+alt+s")
+		@ActionAccelerator("shift+s")
 		@ActionIcon(PathIcons.SELECTION_MODE)
 		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
 		
@@ -1200,6 +1200,7 @@ public class QuPathGUI {
 	
 	private void refreshToolsMenu(List<PathTool> tools, Menu menu) {
 		menu.getItems().setAll(tools.stream().map(t -> ActionTools.createCheckMenuItem(getToolAction(t))).collect(Collectors.toList()));
+		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE));
 	}
 	
 	
@@ -2390,7 +2391,9 @@ public class QuPathGUI {
 				ActionTools.createCheckMenuItem(defaultActions.POLYGON_TOOL, groupTools),
 				ActionTools.createCheckMenuItem(defaultActions.POLYLINE_TOOL, groupTools),
 				ActionTools.createCheckMenuItem(defaultActions.BRUSH_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.POINTS_TOOL, groupTools)
+				ActionTools.createCheckMenuItem(defaultActions.POINTS_TOOL, groupTools),
+				null,
+				ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE)
 //				ActionTools.getActionCheckBoxMenuItem(actionManager.WAND_TOOL, groupTools)
 				);
 
