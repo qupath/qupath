@@ -7,10 +7,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.InvalidParameterException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -34,11 +31,11 @@ import qupath.lib.io.GsonTools;
 public final class OmeroRequests {
 	
 	private static final String WEBCLIENT_READ_ANNOTATION = "/webclient/api/annotations/?type=%s&%s=%d&limit=10000&_=&%d";
-	private static final String WEBCLIENT_WRITE_ANNOTATION = "/webclient/annotate_%s";
 	
 	private static final String WEBGATEWAY_DATA = "/webgateway/imgData/%d";
 	private static final String WEBGATEWAY_THUMBNAIL = "/webgateway/render_thumbnail/%d/%d";	// '/webgateway/render_thumbnail/101/256'
 	private static final String WEBGATEWAY_ICON = "/static/webgateway/img/%s";
+	private static final String WEBGATEWAY_IMAGE_ICON = "/static/webclient/image/%s";
 	
 	private static final String JSON_API_INFO = "/api/v0/m/%s/%d";					// '/api/v0/m/{images}/{101}'
 	private static final String JSON_API_LIST = "/api/v0/m/%s/?%s";					// '/api/v0/m/{images}/?{childCount=true}'
@@ -377,7 +374,22 @@ public final class OmeroRequests {
 		URL url = new URL(scheme, host, String.format(WEBGATEWAY_ICON, iconFilename));
 		return ImageIO.read(url);
 	}
-
+	
+	/**
+	 * Request OMERO icon with the specified {@code iconFilename} from the provided server. 
+	 * This is a separate method from {@link #requestIcon(String, String, String)} because 
+	 * OMERO Image icons are hosted on a separate path.
+	 * 
+	 * @param scheme server's scheme
+	 * @param host server's host
+	 * @param iconFilename icon's filename
+	 * @return icon
+	 * @throws IOException
+	 */
+	public static BufferedImage requestImageIcon(String scheme, String host, String iconFilename) throws IOException {
+		URL url = new URL(scheme, host, String.format(WEBGATEWAY_IMAGE_ICON, iconFilename));
+		return ImageIO.read(url);
+	}
 
 	/**
 	 * Request advanced search with specified {@code query}. A list of fields (e.g. 'name', 'description') to look 
@@ -430,58 +442,5 @@ public final class OmeroRequests {
 		}
 		
 		return response;
-	}
-
-	/**
-	 * Write the given {@code annType} with {@code value} to the {@code omeroObj} object on {@code server}.
-	 * @param server
-	 * @param omeroObj
-	 * @param annType
-	 * @param value
-	 * @return success
-	 * @throws IOException
-	 */
-	// TODO: This method does not work yet
-	public static boolean writeAnnotation(OmeroWebImageServer server, OmeroObject omeroObj, OmeroAnnotationType annType, String value) throws IOException {
-		Map<String,String> form = new HashMap<>();
-		form.put(omeroObj.getType().toString().toLowerCase(), omeroObj.getId() + "");
-		form.put("csrfmiddlewaretoken", server.getWebclient().getToken());
-		switch (annType) {
-		case TAG:
-			form.put("filter_mode", "any");
-			form.put("filter_owner_mode", "all");
-			form.put(omeroObj.getType().toString().toLowerCase(), omeroObj.getId() + "");
-			form.put("newtags-TOTAL_FORMS", "1");
-			form.put("newtags-0-tag", value);
-			break;
-		case MAP:
-			break;
-		case ATTACHMENT:
-			break;
-		case COMMENT:
-			form.put("comment", value);
-			break;
-		case RATING:
-			break;
-		default:
-			return false;
-		}
-		
-		// Format form request
-		String requestProperty = form.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.joining("&"));
-		
-		URL url = new URL(server.getScheme(), server.getHost(), String.format(WEBCLIENT_WRITE_ANNOTATION, annType.toURLString()));
-		HttpURLConnection conn = (HttpURLConnection)url.openConnection();
-		conn.setDoOutput(true);
-		conn.setRequestMethod("POST");
-		conn.setRequestProperty("csrfmiddlewaretoken", server.getWebclient().getToken());
-		conn.setRequestProperty("comment", value);
-		conn.setRequestProperty(omeroObj.getType().toString().toLowerCase(), omeroObj.getId() + "");
-		
-		// Send form
-		OutputStream stream = conn.getOutputStream();
-		stream.write(requestProperty.getBytes("UTF-8"));
-		stream.close();
-		return true;
 	}
 }

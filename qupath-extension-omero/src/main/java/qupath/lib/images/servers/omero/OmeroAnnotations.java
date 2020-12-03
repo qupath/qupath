@@ -17,6 +17,7 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 
 import qupath.lib.images.servers.omero.OmeroObjects.Experimenter;
@@ -44,7 +45,8 @@ final class OmeroAnnotations {
 		MAP("MapAnnotationI", "map"), 
 		ATTACHMENT("FileAnnotationI", "file"), 
 		COMMENT("CommentAnnotationI", "comment"), 
-		RATING("LongAnnotationI", "rating");
+		RATING("LongAnnotationI", "rating"),
+		UNKNOWN("Unknown", "unknown");
 		
 		private final String name;
 		private final String urlName;
@@ -58,7 +60,7 @@ final class OmeroAnnotations {
 	            if (type.name.equalsIgnoreCase(text) || type.urlName.equalsIgnoreCase(text))
 	                return type;
 	        }
-	        return null;
+	        return UNKNOWN;
 	    }
 		
 		public String toURLString() {
@@ -95,21 +97,28 @@ final class OmeroAnnotations {
 	public static OmeroAnnotations getOmeroAnnotations(JsonObject json) throws IOException {
 		List<OmeroAnnotation> annotations = new ArrayList<>();
 		List<Experimenter> experimenters = new ArrayList<>();
+		OmeroAnnotationType type = OmeroAnnotationType.UNKNOWN;
 		var gson = new GsonBuilder().registerTypeAdapter(OmeroAnnotation.class, new OmeroAnnotations.GsonOmeroAnnotationDeserializer()).setLenient().create();
 		
-		// Get all OmeroAnnotation-s
-		JsonArray annotationsArray = json.get("annotations").getAsJsonArray();
-		for (var jsonAnn: annotationsArray)
-			annotations.add(gson.fromJson(jsonAnn, OmeroAnnotation.class));
-		
-		// Get all Experimenters
-		JsonArray experimentersArray = json.get("experimenters").getAsJsonArray();
-		for (var jsonExp: experimentersArray)
-			experimenters.add(gson.fromJson(jsonExp, Experimenter.class));
+		try {
+			// Get all OmeroAnnotation-s
+			JsonArray annotationsArray = json.get("annotations").getAsJsonArray();
+			for (var jsonAnn: annotationsArray)
+				annotations.add(gson.fromJson(jsonAnn, OmeroAnnotation.class));
+			
+			// Get all Experimenters
+			JsonArray experimentersArray = json.get("experimenters").getAsJsonArray();
+			for (var jsonExp: experimentersArray)
+				experimenters.add(gson.fromJson(jsonExp, Experimenter.class));
+			
+		} catch (JsonSyntaxException e) {
+			logger.error(e.getLocalizedMessage());
+			// If JSE, return empty OmeroAnnotations object with UNKNOWN type
+			return new OmeroAnnotations(new ArrayList<>(), new ArrayList<>(), type);
+		}
 		
 		// Get type
-		OmeroAnnotationType type = annotations.isEmpty() ? null : annotations.get(0).getType();
-
+		type = annotations.isEmpty() ? null : annotations.get(0).getType();
 		return new OmeroAnnotations(annotations, experimenters, type);
 	}
 	

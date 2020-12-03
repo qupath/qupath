@@ -45,10 +45,8 @@ import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
@@ -511,6 +509,10 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			
 			// Load dataset icon
 			map.put(OmeroObjectType.DATASET, OmeroRequests.requestIcon(server.getScheme(), server.getHost(), "folder_image16.png"));
+			
+			// Load image icon
+			map.put(OmeroObjectType.IMAGE, OmeroRequests.requestImageIcon(server.getScheme(), server.getHost(), "image16.png"));
+			
 		} catch (IOException e) {
 			logger.warn("Could not load OMERO icons: {}", e.getLocalizedMessage());
 		}
@@ -755,29 +757,27 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
             	setOpacity(1.0);
             	if (item.getType().equals(OmeroObjectType.SERVER))
             		name = server.getHost();
-            	else if (item.getType().equals(OmeroObjectType.IMAGE)) {
-            		name = item.getName();
-            		setGraphic(null);
-            		if (!isSupported(item))
-            			setOpacity(0.5);
-            	} else {
+            	else {
             		// If it's either project or dataset, need to set graphic with icon
             		BufferedImage img = null;
             		if (item.getType().equals(OmeroObjectType.PROJECT)) {
             			name = item.getName() + " (" + item.getNChildren() + ")";
             			img = omeroIcons.get(OmeroObjectType.PROJECT);
-            			
-            		} else {
+            		} else if (item.getType().equals(OmeroObjectType.DATASET)) {
             			name = item.getName() + " (" + item.getNChildren() + ")";
             			img = omeroIcons.get(OmeroObjectType.DATASET);
-            		}
-            		
+            		} else {
+                		name = item.getName();
+                		img = omeroIcons.get(OmeroObjectType.IMAGE);
+                		if (!isSupported(item))
+                			setOpacity(0.5);
+                	} 
             		if (img != null) {
             			paintBufferedImageOnCanvas(img, canvas, 15);
             			setGraphic(canvas);
             		}
             	}
-                setText(name);
+            	setText(name);
             }
         }		
 	}
@@ -809,6 +809,13 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			if (!isLeaf() && !computed) {
 				progressIndicator.setOpacity(100);
 				var filterTemp = filter.getText();
+				
+				// If submitting tasks to a shutdown executor, an Exception is thrown
+				if (executorTable.isShutdown()) {
+					progressIndicator.setOpacity(0);
+					return FXCollections.observableArrayList();
+				}
+				
 				executorTable.submit(() -> {
 					var omeroObj = this.getValue();
 					
@@ -850,45 +857,6 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 									comboOwner.getSelectionModel().selectFirst(); // 'All members'
 							});
 						}
-
-						
-//						if (tempOwners.size() > owners.size()) {
-//							owners.clear();
-//							owners.add(Owner.getAllMembersOwner());
-//							owners.addAll(tempOwners);
-//						}
-//							
-//						// Only display Owners from selected Group
-//						Set<Owner> ownersFromGroups;
-//						var selectedGroup = comboGroup.getSelectionModel().getSelectedItem();
-//						if (selectedGroup != null) {
-//							// Note: this will not display Owners with no OmeroObject in this specific Group
-//							var temp = children.stream()
-//									.filter(e -> e.getGroup() == selectedGroup)
-//									.map(e -> e.getOwner())
-//									.collect(Collectors.toSet());
-//							ownersFromGroups = new HashSet<>();
-//							ownersFromGroups.add(Owner.getAllMembersOwner());
-//							ownersFromGroups.addAll(temp);
-//						} else 
-//							ownersFromGroups = owners;
-//
-//						// Check if the set of Owners from the selected Group is the same as the
-//						// one displayed in the comboOwner already (in which case no update is needed)
-//						Set<Owner> tempSet = new HashSet<>();
-//						tempSet.addAll(comboOwner.getItems());
-//						if (!ownersFromGroups.equals(tempSet)) {
-//							var selectedOwner = comboOwner.getSelectionModel().getSelectedItem();
-//							// Update comboBox
-//							Platform.runLater(() -> {
-//								comboOwner.getItems().setAll(ownersFromGroups);
-//								// Attempt not to change the currently selected owner if present in new Owner set
-//								if (ownersFromGroups.contains(selectedOwner))
-//									comboOwner.getSelectionModel().select(selectedOwner);
-//								else
-//									comboOwner.getSelectionModel().selectFirst(); // 'All members'
-//							});
-//						}
 					}
 					
 					var items = children.parallelStream()
@@ -921,7 +889,6 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 					return super.getChildren();
 				});
 			}
-			//progressIndicator.setOpacity(0);
 			return super.getChildren();
 		}
 		
@@ -1079,15 +1046,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		 */
 		private Node createAnnotationsPane(String title, OmeroAnnotations omeroAnnotations) {
 			TitledPane tp = new TitledPane();
-			Button plusBtn = new Button("+");
 			tp.setText(title);
-			tp.setGraphic(plusBtn);
-			tp.setContentDisplay(ContentDisplay.RIGHT);
-			plusBtn.translateXProperty().bind(Bindings.createDoubleBinding(
-					() -> tp.getWidth() - plusBtn.getLayoutX() - plusBtn.getWidth() - 10,
-				    tp.widthProperty())
-			);
-			plusBtn.setDisable(true);	// Not yet supported
 			
 			if (omeroAnnotations.getAnnotations().isEmpty())
 				return tp;
@@ -1180,52 +1139,10 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 				logger.error("OMERO annotation not supported: {}", omeroAnnotations.getType());
 			}
 			
-			plusBtn.setOnAction(e -> promptAddAnnotationsDialog(omeroAnnotations.getType()));
-			
 			sp.setContent(gp);
 			tp.setContent(sp);
 			return tp;
 		}
-
-		// TODO
-		private boolean promptAddAnnotationsDialog(OmeroAnnotationType type) {
-			GridPane gp = new GridPane();
-			switch (type) {
-			case TAG:
-				String value = Dialogs.showInputDialog("Add " + type, "Value", "");
-				return OmeroTools.writeTagAnnotation(server, obj, value);
-			case MAP:
-				TextField tfKey = new TextField();
-				TextField tfValue = new TextField();
-				PaneTools.addGridRow(gp, 0, 0, "Key", new Label("Key"), tfKey);
-				PaneTools.addGridRow(gp, 1, 0, "Value", new Label("Value"), tfValue);
-				
-				var response = Dialogs.builder().content(gp).buttons(ButtonType.CANCEL, ButtonType.APPLY).build().showAndWait();
-				if (response.get() == ButtonType.APPLY) {
-					if (tfKey.getText().isEmpty() || tfValue.getText().isEmpty()) {
-						Dialogs.showErrorMessage("Empty key/value", "Key/value cannot be empty.");
-						return false;
-					}
-					logger.info("Sending new map annotation to OMERO.");
-				}
-				break;
-			case ATTACHMENT:
-				Dialogs.showErrorMessage("Not supported yet", "Not supported yet!");
-				break;
-			case COMMENT:
-				value = Dialogs.showInputDialog("Add " + type, "Value", "");
-				return OmeroTools.writeCommentAnnotation(server, obj, value);
-			case RATING:
-				Dialogs.showErrorMessage("Not supported yet", "Not supported yet!");
-				break;
-			default:
-				Dialogs.showErrorMessage("Not supported yet", "Not supported yet!");
-			}
-			return false;
-
-		}
-
-
 
 		private Node createObjectDetailsPane(OmeroObject obj) {
 			GridPane gp = new GridPane();

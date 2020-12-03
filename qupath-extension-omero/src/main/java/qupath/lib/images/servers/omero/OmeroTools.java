@@ -168,7 +168,8 @@ public class OmeroTools {
 	    			if (nPending > 0)
 	    				logger.warn("Too many orphaned images in " + server.getHost() + ". Ignored " + nPending + " orphaned image(s).");
 	    		} catch (InterruptedException ex) {
-	    			logger.warn("An exception occurred while interrupting requests: " + ex);
+	    			logger.debug("InterrupedException occurred while interrupting requests.");
+	    			Thread.currentThread().interrupt();
 	    		}
 	        } catch (IOException ex) {		
 	        	logger.error(ex.getLocalizedMessage());
@@ -238,28 +239,6 @@ public class OmeroTools {
 			return null;
 		}
 	}
-	
-	// TODO
-	public static boolean writeTagAnnotation(OmeroWebImageServer server, OmeroObject omeroObj, String value) {
-		try {
-			return OmeroRequests.writeAnnotation(server, omeroObj, OmeroAnnotationType.TAG, value);
-		} catch (IOException ex) {
-			logger.error(ex.getLocalizedMessage());
-		}
-		return false;
-	}
-	
-	
-	// TODO
-	public static boolean writeCommentAnnotation(OmeroWebImageServer server, OmeroObject omeroObj, String value) {
-		try {
-			return OmeroRequests.writeAnnotation(server, omeroObj, OmeroAnnotationType.COMMENT, value);
-		} catch (IOException ex) {
-			logger.error(ex.getLocalizedMessage());
-		}
-		return false;
-	}
-	
 	
 	/**
 	 * Write PathObject collection to OMERO server. This will not delete the existing 
