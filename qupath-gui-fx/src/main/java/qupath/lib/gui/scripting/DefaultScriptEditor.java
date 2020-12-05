@@ -503,17 +503,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		ScriptEditorTextArea control = new ScriptEditorTextArea(editor);
 		editor.addEventFilter(KeyEvent.KEY_PRESSED, (KeyEvent e) -> {
-	        if (e.getCode() == KeyCode.TAB) {
-	        	handleTabPress(control, e.isShiftDown());
-	        	e.consume();
-	        } else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
-	        	handleLineComment(control);
-	        	e.consume();
-	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
+			if (e.getCode() == KeyCode.TAB) {
+				handleTabPress(control, e.isShiftDown());
+				e.consume();
+			} else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
+				handleLineComment(control);
+				e.consume();
+			} else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 				handleNewLine(control);
 				e.consume();
 			} 
-	    });
+		});
 
 //		editor.getDocument().addUndoableEditListener(new UndoManager());
 //		// Handle tabs
@@ -646,13 +646,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 		panelList.setCenter(titledScripts);
 		listScripts.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateSelectedScript());
 		listScripts.setCellFactory(new Callback<ListView<ScriptTab>, 
-	            ListCell<ScriptTab>>() {
-	                @Override 
-	                public ListCell<ScriptTab> call(ListView<ScriptTab> list) {
-	                    return new ScriptTabListCell();
-	                }
-	            }
-	        );
+				ListCell<ScriptTab>>() {
+					@Override 
+					public ListCell<ScriptTab> call(ListView<ScriptTab> list) {
+						return new ScriptTabListCell();
+					}
+				}
+			);
 		listScripts.setMinWidth(150);
 		runningTask.addListener((v, o, n) -> listScripts.refresh());
 
@@ -769,6 +769,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptContext context = new SimpleScriptContext();
 		var writer = new ScriptConsoleWriter(console, false);
 		context.setWriter(writer);
+		String[] argsArray = new String[0];
+		context.setAttribute("args", argsArray, ScriptContext.ENGINE_SCOPE);
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
 		var printWriter = new PrintWriter(writer);
 		
@@ -1034,25 +1036,25 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	static class ScriptTabListCell extends ListCell<ScriptTab> {
-        @Override
-        public void updateItem(ScriptTab item, boolean empty) {
-            super.updateItem(item, empty);
-            if (item == null || empty) {
-            	setText(null);
-            	setTooltip(null);
-             	return;
-            }
-            var text = item.toString();
-            if (item.isRunning) {
-            	text = text + " (Running)";
-            	setStyle("-fx-font-style: italic;");
-            } else
-            	setStyle(null);
-            setText(text);
-            setTooltip(new Tooltip(text));
+		@Override
+		public void updateItem(ScriptTab item, boolean empty) {
+			super.updateItem(item, empty);
+			if (item == null || empty) {
+				setText(null);
+				setTooltip(null);
+			 	return;
+			}
+			var text = item.toString();
+			if (item.isRunning) {
+				text = text + " (Running)";
+				setStyle("-fx-font-style: italic;");
+			} else
+				setStyle(null);
+			setText(text);
+			setTooltip(new Tooltip(text));
 //            this.setOpacity(0);
-        }
-    }
+		}
+	}
 	
 	
 	
