@@ -770,6 +770,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		var writer = new ScriptConsoleWriter(console, false);
 		context.setWriter(writer);
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
+		var argsArray = new String[0];
+		context.setAttribute("args", argsArray, ScriptContext.ENGINE_SCOPE);
 		var printWriter = new PrintWriter(writer);
 		
 		boolean attachToLog = sendLogToConsole.get();
