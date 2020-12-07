@@ -767,11 +767,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptEditorControl console = tab.getConsoleComponent();
 		
 		ScriptContext context = new SimpleScriptContext();
+		String[] argsArray = new String[0];
+		context.setAttribute("args", argsArray, ScriptContext.ENGINE_SCOPE);
 		var writer = new ScriptConsoleWriter(console, false);
 		context.setWriter(writer);
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
-		var argsArray = new String[0];
-		context.setAttribute("args", argsArray, ScriptContext.ENGINE_SCOPE);
 		var printWriter = new PrintWriter(writer);
 		
 		boolean attachToLog = sendLogToConsole.get();
