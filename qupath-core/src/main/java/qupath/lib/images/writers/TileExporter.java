@@ -375,13 +375,15 @@ public class TileExporter  {
 		int fullWidth = request.getWidth();
 		int fullHeight = request.getHeight();
 
+		int minX = (int)(request.getMinX() / downsample);
+		int minY = (int)(request.getMinY() / downsample);
 		int maxX = (int)(request.getMaxX() / downsample);
 		int maxY = (int)(request.getMaxY() / downsample);
 
 		int z = request.getZ();
 		int t = request.getT();
 
-		for (int y = request.getY(); y < maxY; y += tileHeight-yOverlap) {
+		for (int y = minY; y < maxY; y += tileHeight-yOverlap) {
 			int th = tileHeight;
 			if (y + th > maxY)
 				th = maxY - y;
@@ -396,7 +398,7 @@ public class TileExporter  {
 			} else if (y2i == yi)
 				continue;
 
-			for (int x = request.getX(); x < maxX; x += tileWidth-xOverlap) {
+			for (int x = minX; x < maxX; x += tileWidth-xOverlap) {
 				int tw = tileWidth;
 				if (x + tw > maxX)
 					tw = maxX - x;
