@@ -159,7 +159,7 @@ public class TileExporter  {
 	 * @return this exporter
 	 */
 	public TileExporter requestedPixelSize(double pixelSize) {
-		this.downsample = server.getPixelCalibration().getAveragedPixelSize().doubleValue() / pixelSize;
+		this.downsample = pixelSize / server.getPixelCalibration().getAveragedPixelSize().doubleValue();
 		return this;
 	}
 
