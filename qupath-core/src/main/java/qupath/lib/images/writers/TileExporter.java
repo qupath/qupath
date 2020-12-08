@@ -336,10 +336,12 @@ public class TileExporter  {
 			int tileWidth, int tileHeight, int xOverlap, int yOverlap, boolean includePartialTiles) {
 		List<RegionRequest> requests = new ArrayList<>();
 
+		RegionRequest fullRequest = RegionRequest.createInstance(server, downsample);
+
 		for (int t = 0; t < server.nTimepoints(); t++) {
 			for (int z = 0; z < server.nZSlices(); z++) {
 				requests.addAll(
-						splitRegionRequests(RegionRequest.createInstance(server, downsample), tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
+						splitRegionRequests(fullRequest, t, z, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
 						);
 			}
 		}
@@ -362,7 +364,7 @@ public class TileExporter  {
 	 * @return
 	 */
 	static Collection<RegionRequest> splitRegionRequests(
-			RegionRequest request, 
+			RegionRequest request, int t, int z,
 			int tileWidth, int tileHeight,
 			int xOverlap, int yOverlap,
 			boolean includePartialTiles) {
@@ -379,9 +381,6 @@ public class TileExporter  {
 		int minY = (int)(request.getMinY() / downsample);
 		int maxX = (int)(request.getMaxX() / downsample);
 		int maxY = (int)(request.getMaxY() / downsample);
-
-		int z = request.getZ();
-		int t = request.getT();
 
 		for (int y = minY; y < maxY; y += tileHeight-yOverlap) {
 			int th = tileHeight;
