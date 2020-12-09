@@ -197,7 +197,7 @@ import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.lib.gui.viewer.DragDropFileImportListener;
+import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -324,7 +324,7 @@ public class QuPathGUI {
 	private boolean isStandalone = false;
 	private ScriptMenuLoader sharedScriptMenuLoader;
 	
-	private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
+	private DragDropImportListener dragAndDrop = new DragDropImportListener(this);
 	
 	private UndoRedoManager undoRedoManager;
 	
@@ -2120,7 +2120,7 @@ public class QuPathGUI {
 	 * 
 	 * @return
 	 */
-	public DragDropFileImportListener getDefaultDragDropListener() {
+	public DragDropImportListener getDefaultDragDropListener() {
 		return dragAndDrop;
 	}
 	
