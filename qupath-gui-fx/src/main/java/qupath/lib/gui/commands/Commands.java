@@ -1771,6 +1771,31 @@ public class Commands {
 			return;
 		MiniViewers.createDialog(viewer, true).show();
 	}
+
+	/**
+	 * Show a dialog to export path object(s) as a GeoJSON file.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void runGeoJSONPathObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		try {
+			PathObjectsExportCommand.runGeoJSONExport(qupath, imageData);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
+		}
+	}
 	
+	/**
+	 * Show a dialog to export serialized path object(s).
+	 * @param qupath 
+	 * @param imageData
+	 */
+	public static void runSerializedPathObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		try {
+			PathObjectsExportCommand.runSerializedExport(qupath, imageData);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
+		}
+	}
 	
 }
