@@ -699,8 +699,10 @@ public class QuPathGUI {
 	 * @return
 	 */
 	public synchronized DefaultActions getDefaultActions() {
-		if (defaultActions == null)
+		if (defaultActions == null) {
 			defaultActions = new DefaultActions();
+			installActions(ActionTools.getAnnotatedActions(defaultActions));
+		}
 		return defaultActions;
 	}
 	
