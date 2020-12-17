@@ -56,9 +56,10 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 
 /**
- * Drag and drop support for main QuPath application, which supports a range of different supported file types as well as URLs.
+ * Drag and drop support for main QuPath application, which can support a range of different object types (Files, URLs, Strings,..)
  * 
  * @author Pete Bankhead
+ * @author Melvin Gelbard
  *
  */
 public class DragDropImportListener implements EventHandler<DragEvent> {
@@ -67,7 +68,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 
 	private QuPathGUI qupath;
 	
-	private List<DropHandler<?>> dropHandlers = new ArrayList<>();
+	private List<DropHandler<File>> dropHandlers = new ArrayList<>();
 
 	/**
 	 * Constructor.
@@ -128,7 +129,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				Dialogs.showErrorMessage("Drag & Drop", e);
 			}
 		}
-		if (dragboard.hasUrl()) {
+		if (dragboard.hasUrl() && !dragboard.getUrl().startsWith("file:/")) {
 			logger.debug("URL dragged onto {}", source);
 			try {
 				handleURLDrop(viewer, dragboard.getUrl());
@@ -153,24 +154,13 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		this.dropHandlers.add(handler);
 	}
 	
-	/**
-     * Add a new URL DropHandler.
-     * <p>
-     * This may be called on a drag-and-drop application on the main window, if no other 
-     * handler deals with the event.
-     * 
-     * @param handler
-     */
-	public void addURLDropHandler(final DropHandler<String> handler) {
-		this.dropHandlers.add(handler);
-	}
 
 	/**
-	 * Remove a DropHandler (can be either a File or a URL DropHandler).
+	 * Remove a DropHandler.
 	 * 
 	 * @param handler
 	 */
-	public void removeDropHandler(final DropHandler<?> handler) {
+	public void removeDropHandler(final DropHandler<File> handler) {
 		this.dropHandlers.remove(handler);
 	}
     
@@ -310,7 +300,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 
 			
 			// Check handlers
-			for (DropHandler handler: dropHandlers) {
+			for (DropHandler<File> handler: dropHandlers) {
 				if (handler.handleDrop(viewer, list))
 					return;
 			}
@@ -352,11 +342,13 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
      * Interface to define a new drop handler.
      * 
      * @author Pete Bankhead
+     * @author Melvin Gelbard
      * @param <T> 
      *
      */
+     @FunctionalInterface
     public static interface DropHandler<T> {
-    	
+    	 
     	/**
     	 * Handle drop onto a viewer.
     	 * This makes it possible to drop images (for example) onto a specific viewer to open them in that viewer, 
