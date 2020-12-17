@@ -988,7 +988,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					}
 					
 					// Check if the error was to do with a special left quote character
-					var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([‘“’”])' @ line (\\d+), column (\\d+).").matcher(message);
+					var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([\\x{2018}|\\x{201c}|\\x{2019}|\\x{201D}]+)' @ line (\\d+), column (\\d+).").matcher(message);
 					if (matcherQuotationMarks.find()) {
 						int nLine = Integer.parseInt(matcherQuotationMarks.group(2));
 						String quotationMark = matcherQuotationMarks.group(1);
