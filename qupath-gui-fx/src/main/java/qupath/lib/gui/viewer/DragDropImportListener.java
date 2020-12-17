@@ -56,24 +56,25 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
 
 
 /**
- * Drag and drop support for main QuPath application, which supports a range of different supported file types.
+ * Drag and drop support for main QuPath application, which can support a range of different object types (Files, URLs, Strings,..)
  * 
  * @author Pete Bankhead
+ * @author Melvin Gelbard
  *
  */
-public class DragDropFileImportListener implements EventHandler<DragEvent> {
+public class DragDropImportListener implements EventHandler<DragEvent> {
 	
-	final private static Logger logger = LoggerFactory.getLogger(DragDropFileImportListener.class);
+	final private static Logger logger = LoggerFactory.getLogger(DragDropImportListener.class);
 
 	private QuPathGUI qupath;
 	
-	private List<FileDropHandler> fileDropHandlers = new ArrayList<>();
+	private List<DropHandler<File>> dropHandlers = new ArrayList<>();
 
 	/**
 	 * Constructor.
 	 * @param qupath the current QuPath instance
 	 */
-	public DragDropFileImportListener(final QuPathGUI qupath) {
+	public DragDropImportListener(final QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
 	
@@ -127,35 +128,54 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 			} catch (IOException e) {
 				Dialogs.showErrorMessage("Drag & Drop", e);
 			}
+		} else if (dragboard.hasUrl()) {
+			logger.debug("URL dragged onto {}", source);
+			try {
+				handleURLDrop(viewer, dragboard.getUrl());
+			} catch (IOException e) {
+				Dialogs.showErrorMessage("Drag & Drop", e.getLocalizedMessage());
+			}
 		}
 		event.setDropCompleted(true);
 		event.consume();
     }
-    
-    /**
-     * Add a new FileDropHandler.
+
+
+	/**
+     * Add a new File DropHandler.
      * <p>
      * This may be called on a drag-and-drop application on the main window, if no other 
      * handler deals with the event.
      * 
      * @param handler
      */
-	public void addFileDropHandler(final FileDropHandler handler) {
-		this.fileDropHandlers.add(handler);
+	public void addFileDropHandler(final DropHandler<File> handler) {
+		this.dropHandlers.add(handler);
 	}
+	
 
 	/**
-	 * Remove a FileDropHandler.
+	 * Remove a File DropHandler.
 	 * 
 	 * @param handler
 	 */
-	public void removeFileDropHandler(final FileDropHandler handler) {
-		this.fileDropHandlers.remove(handler);
+	public void removeFileDropHandler(final DropHandler<File> handler) {
+		this.dropHandlers.remove(handler);
 	}
     
     void handleFileDrop(final QuPathViewer viewer, final List<File> list) throws IOException {
     	try {
     		handleFileDropImpl(viewer, list);
+    	} catch (IOException e) {
+    		throw e;
+    	} catch (Throwable e) {
+    		throw new IOException(e);
+    	}
+    }
+    
+    void handleURLDrop(final QuPathViewer viewer, final String url) throws IOException {
+    	try {
+    		qupath.openImage(viewer, url, false, false);
     	} catch (IOException e) {
     		throw e;
     	} catch (Throwable e) {
@@ -279,8 +299,8 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
 
 			
 			// Check handlers
-			for (FileDropHandler handler : fileDropHandlers) {
-				if (handler.handleFileDrop(viewer, list))
+			for (DropHandler<File> handler: dropHandlers) {
+				if (handler.handleDrop(viewer, list))
 					return;
 			}
 
@@ -318,23 +338,26 @@ public class DragDropFileImportListener implements EventHandler<DragEvent> {
     
     
     /**
-     * Interface to define a new file drop handler for a particular kind of file.
+     * Interface to define a new drop handler.
      * 
      * @author Pete Bankhead
+     * @author Melvin Gelbard
+     * @param <T> 
      *
      */
-    public static interface FileDropHandler {
-    	
+     @FunctionalInterface
+    public static interface DropHandler<T> {
+    	 
     	/**
-    	 * Handle file drop onto a viewer.
+    	 * Handle drop onto a viewer.
     	 * This makes it possible to drop images (for example) onto a specific viewer to open them in that viewer, 
     	 * irrespective of whether the viewer is active currently.
     	 * 
-    	 * @param viewer the active viewer, or the viewer only which the files were dropped
-    	 * @param list the dropped files
-    	 * @return true if the handler processed the file drop event
+    	 * @param viewer the active viewer, or the viewer only which the object were dropped
+    	 * @param list the dropped objects
+    	 * @return true if the handler processed the drop event
     	 */
-    	public boolean handleFileDrop(final QuPathViewer viewer, final List<File> list);
+    	public boolean handleDrop(final QuPathViewer viewer, final List<T> list);
     	
     }
     
