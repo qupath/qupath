@@ -128,8 +128,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			} catch (IOException e) {
 				Dialogs.showErrorMessage("Drag & Drop", e);
 			}
-		}
-		if (dragboard.hasUrl() && !dragboard.getUrl().startsWith("file:/")) {
+		} else if (dragboard.hasUrl()) {
 			logger.debug("URL dragged onto {}", source);
 			try {
 				handleURLDrop(viewer, dragboard.getUrl());
@@ -156,11 +155,11 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 	
 
 	/**
-	 * Remove a DropHandler.
+	 * Remove a File DropHandler.
 	 * 
 	 * @param handler
 	 */
-	public void removeDropHandler(final DropHandler<File> handler) {
+	public void removeFileDropHandler(final DropHandler<File> handler) {
 		this.dropHandlers.remove(handler);
 	}
     
