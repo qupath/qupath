@@ -5,6 +5,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -22,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Separator;
 import javafx.scene.layout.GridPane;
-import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -97,17 +98,16 @@ public class PathObjectsExportCommand {
 		ParameterList paramsObjectTypes = new ParameterList();
 		paramsObjectTypes.addChoiceParameter(KEY_OBJECT_TYPE, "Export all", pathObjectList.get(0), pathObjectList);
 		paramsObjectTypes.addChoiceParameter(KEY_PATH_CLASS, "Only class", pathClassList.get(0), pathClassList);
-		CheckBox onlyROICheck = new CheckBox("Export only ROI");
+		CheckBox onlyROICheck = new CheckBox("Only export ROI");
 		CheckBox compressedCheck = new CheckBox("Compress data");
 		CheckBox prettyGsonCheck = new CheckBox("Pretty GeoJSON");
-		
 		
 		GridPane grid = new GridPane();
 		PaneTools.addGridRow(grid, 0, 0, "Export path objects", new ParameterPanelFX(paramsObjectTypes).getPane());
 		PaneTools.addGridRow(grid, 1, 0, null, new Separator());
 		PaneTools.addGridRow(grid, 2, 0, "Only export ROI", onlyROICheck);
 		PaneTools.addGridRow(grid, 3, 0, "Compressed files take less memory", compressedCheck);
-		PaneTools.addGridRow(grid, 4, 0, "Pretty Gson take more memory", prettyGsonCheck);
+		PaneTools.addGridRow(grid, 4, 0, "Pretty GeoJSON is more human-readable but takes more memory", prettyGsonCheck);
 		grid.setVgap(5.0);
 		if (!Dialogs.showConfirmDialog("Export path objects", grid))
 			return false;
@@ -148,10 +148,11 @@ public class PathObjectsExportCommand {
 		}
 
 		File outFile;
+		var project = qupath.getProject();
 		if (!compressedCheck.isSelected())
-			outFile = Dialogs.promptToSaveFile("Export to file", qupath.getProject() != null ? qupath.getProject().getPath().toFile() : null, "pathObjects.json", "GeoJSON", ".json");
+			outFile = Dialogs.promptToSaveFile("Export to file", project != null && project.getPath() != null ? project.getPath().toFile() : null, "pathObjects.json", "GeoJSON", ".json");
 		else
-			outFile = Dialogs.promptToSaveFile("Export to file", qupath.getProject() != null ? qupath.getProject().getPath().toFile() : null, "pathObjects.zip", "ZIP archive", ".zip");
+			outFile = Dialogs.promptToSaveFile("Export to file", project != null && project.getPath() != null ? project.getPath().toFile() : null, "pathObjects.zip", "ZIP archive", ".zip");
 			
 		// If user cancels
 		if (outFile == null)
@@ -179,12 +180,98 @@ public class PathObjectsExportCommand {
 	
 	/**
 	 * Run the path object serialized export command.
-	 * @param qupath 
+	 * @param qupath
 	 * @param imageData
 	 * @return
 	 */
-	public static Stage runSerializedExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) throws IOException {
-		return null;
+	// TODO include onlyROI!
+	public static boolean runSerializedExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) throws IOException {
+		// Get hierarchy
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
+		
+		// Get all objects
+		Collection<PathObject> allObjects = hierarchy.getObjects(null,  null);
+		
+		// Add all path object types
+		objectsToProcess.put("Objects", PathObject.class);
+		objectsToProcess.put("Selected objects", PathObject.class);
+		objectsToProcess.put(PathObjectTools.getSuitableName(PathAnnotationObject.class, true), PathAnnotationObject.class);
+		objectsToProcess.put(PathObjectTools.getSuitableName(PathCellObject.class, true), PathCellObject.class);
+		objectsToProcess.put(PathObjectTools.getSuitableName(PathDetectionObject.class, true), PathDetectionObject.class);
+		objectsToProcess.put(PathObjectTools.getSuitableName(PathTileObject.class, true), PathTileObject.class);
+
+		List<String> pathObjectList = new ArrayList<>(objectsToProcess.keySet());
+		List<String> pathClassList = allObjects.parallelStream()
+				.filter(e -> e.getClass() != PathRootObject.class)
+				.map(e -> e.getPathClass())
+				.distinct()
+				.map(e -> e == null || e.getName() == null ? "Unclassified" : e.getName())
+				.collect(Collectors.toList());
+		pathClassList.add(0, "All");
+		
+		// Params to prompt
+		ParameterList paramsObjectTypes = new ParameterList();
+		paramsObjectTypes.addChoiceParameter(KEY_OBJECT_TYPE, "Export all", pathObjectList.get(0), pathObjectList);
+		paramsObjectTypes.addChoiceParameter(KEY_PATH_CLASS, "Only class", pathClassList.get(0), pathClassList);
+		CheckBox onlyROICheck = new CheckBox("Only export ROI");
+		CheckBox compressedCheck = new CheckBox("Compress data");
+		
+		GridPane grid = new GridPane();
+		PaneTools.addGridRow(grid, 0, 0, "Export path objects", new ParameterPanelFX(paramsObjectTypes).getPane());
+		PaneTools.addGridRow(grid, 1, 0, "Only export ROI", onlyROICheck);
+		PaneTools.addGridRow(grid, 2, 0, "Compressed files take less memory", compressedCheck);
+		if (!Dialogs.showConfirmDialog("Export path objects", grid))
+			return false;
+		
+		String pathObjectChosen = (String)paramsObjectTypes.getChoiceParameterValue(KEY_OBJECT_TYPE);
+		String pathClassChosen = (String)paramsObjectTypes.getChoiceParameterValue(KEY_PATH_CLASS);
+		
+		Collection<PathObject> toProcess;
+		if ("Selected objects".equals(pathObjectChosen)) {
+			if (hierarchy.getSelectionModel().noSelection()) {
+				Dialogs.showErrorMessage("No selection", "No selection detected!");
+				return false;
+			}
+			toProcess = hierarchy.getSelectionModel().getSelectedObjects();
+		} else
+			toProcess = hierarchy.getObjects(null, objectsToProcess.get(pathObjectChosen));
+		
+		// Remove PathRootObject
+		toProcess = toProcess.parallelStream().filter(e -> e.getClass() != PathRootObject.class).collect(Collectors.toList());
+
+		// Filter by PathClass if needed
+		if (!pathClassChosen.equals("All")) {
+			toProcess = toProcess.parallelStream()
+				.filter(e -> { 
+					if (pathClassChosen.equals("Unclassified"))
+						return e.getPathClass() == null;
+					else
+						return e.getPathClass() != null && e.getPathClass().equals(PathClassFactory.getPathClass(pathClassChosen));
+				})
+				.collect(Collectors.toList());
+		}
+		
+		var project = qupath.getProject();
+		var outFile = Dialogs.promptToSaveFile("Export to file", project != null && project.getPath() != null ? project.getPath().toFile() : null, "pathObjects.qpdata", "QuPath Serialized Data", ".qpdata");
+		
+		// If user cancels
+		if (outFile == null)
+			return false;
+		
+		// Export
+		exportAsSerialized(toProcess, outFile, onlyROICheck.isSelected(), compressedCheck.isSelected());
+		
+		// Notify user of success
+		Dialogs.showInfoNotification("Succesful export", String.format("%d object(s) were successfully exported.", toProcess.size()));
+		
+		// args for workflow step
+		Map<String, String> map = new HashMap<>();
+		map.put("type", pathObjectChosen);
+		map.put("pathClass", pathClassChosen);
+		map.put("path", outFile.getPath().toString());		
+		imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep("Export path objects",	map, "exportAsSerialized(objs, path, onlyROI)"));
+				
+		return true;
 	}
 	
 	/**
@@ -205,7 +292,6 @@ public class PathObjectsExportCommand {
 		else
 			out = GsonTools.getInstance(prettyPrint).toJson(objs).getBytes(Charset.forName("UTF-8"));
 		
-			
 		if (compress) {
 			var zos = new ZipOutputStream(bos);
 			ZipEntry entry = new ZipEntry(GeneralTools.getNameWithoutExtension(outFile) + ".json");
@@ -216,6 +302,35 @@ public class PathObjectsExportCommand {
 		} else
 			bos.write(out);
 		bos.close();
+	}
+	
+	/**
+	 * Export the {@code objs} to the {@code outFile} as serialized data (compressed or not).
+	 * 
+	 * @param objs
+	 * @param outFile
+	 * @param onlyROI
+	 * @param compressed
+	 * @throws IOException
+	 */
+	public static void exportAsSerialized(Collection<PathObject> objs, File outFile, boolean onlyROI, boolean compressed) throws IOException {
+		if (compressed) {
+			GZIPOutputStream gzipOut = new GZIPOutputStream(new FileOutputStream(outFile));
+			ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut);
+			if (onlyROI)
+				objectOut.writeObject(objs.parallelStream().map(e -> e.getROI()).collect(Collectors.toList()));
+			else
+				objectOut.writeObject(objs);
+			objectOut.close();
+			gzipOut.close();
+		} else {
+			var oos = new ObjectOutputStream(new FileOutputStream(outFile));
+			if (onlyROI)
+				oos.writeObject(objs.parallelStream().map(e -> e.getROI()).collect(Collectors.toList()));
+			else
+				oos.writeObject(objs);
+			oos.close();
+		}
 	}
 	
 	
