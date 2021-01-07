@@ -388,30 +388,29 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 			return;
 		}
 		if (step instanceof SimplePluginWorkflowStep) {
-			if (step instanceof SimplePluginWorkflowStep) {
-				SimplePluginWorkflowStep pluginStep = (SimplePluginWorkflowStep)step;
-				String pluginClassName = pluginStep.getPluginClass();
-				try {
-					Class<? extends PathPlugin> cls = (Class<? extends PathPlugin>)Class.forName(pluginClassName);
-					PathPlugin<BufferedImage> plugin = qupath.createPlugin(cls);
+			SimplePluginWorkflowStep pluginStep = (SimplePluginWorkflowStep)step;
+			String pluginClassName = pluginStep.getPluginClass();
+			try {
+				Class<? extends PathPlugin> cls = (Class<? extends PathPlugin>)Class.forName(pluginClassName);
+				PathPlugin<BufferedImage> plugin = qupath.createPlugin(cls);
+				
+				Map<String, ?> parameterMap = pluginStep.getParameterMap();
+				String arg = null;
+				if (parameterMap != null && !parameterMap.isEmpty()) {
+					arg = ParameterList.getParameterListJSON(parameterMap, " ");
+				}
+				
+				if (plugin instanceof PathInteractivePlugin) {
+					PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
+					ParameterList params = pluginInteractive.getDefaultParameterList(imageData);
+					// Update parameter list, if necessary
+					if (arg != null)
+						ParameterList.updateParameterList(params, GeneralTools.parseArgStringValues(arg), Locale.US); // Assume decimal points always
+					ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(qupath));
+					dialog.showDialog();
 					
-					Map<String, ?> parameterMap = pluginStep.getParameterMap();
-					String arg = null;
-					if (parameterMap != null && !parameterMap.isEmpty()) {
-						arg = ParameterList.getParameterListJSON(parameterMap, " ");
-					}
+					// TODO: Update workflow steps for customization?
 					
-					if (plugin instanceof PathInteractivePlugin) {
-						PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
-						ParameterList params = pluginInteractive.getDefaultParameterList(imageData);
-						// Update parameter list, if necessary
-						if (arg != null)
-							ParameterList.updateParameterList(params, GeneralTools.parseArgStringValues(arg), Locale.US); // Assume decimal points always
-						ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(qupath));
-						dialog.showDialog();
-						
-						// TODO: Update workflow steps for customization?
-						
 //						dialog.getLastWorkflowStep()
 //						// Listen to workflow changes
 //						imageData.getWorkflow().addWorkflowListener(listener);
@@ -419,12 +418,11 @@ public class WorkflowCommandLogView implements ChangeListener<ImageData<Buffered
 //							imageData.getWorkflow().removeWorkflowListener(listener);
 ////							dialog.getDialog().removeEventHandler(WindowEvent.WINDOW_HIDDEN, this);
 //						});
-					}
-					else
-						plugin.runPlugin(new PluginRunnerFX(qupath), arg);
-				} catch (ClassNotFoundException e1) {
-					Dialogs.showErrorNotification("Plugin class not found", "No plugin class found with name " + pluginClassName);
 				}
+				else
+					plugin.runPlugin(new PluginRunnerFX(qupath), arg);
+			} catch (ClassNotFoundException e1) {
+				Dialogs.showErrorNotification("Plugin class not found", "No plugin class found with name " + pluginClassName);
 			}
 		} else if (step instanceof ScriptableWorkflowStep) {
 			// TODO: Run command script

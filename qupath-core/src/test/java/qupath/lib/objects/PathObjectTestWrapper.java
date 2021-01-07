@@ -23,6 +23,7 @@
 
 package qupath.lib.objects;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -62,6 +63,14 @@ public class PathObjectTestWrapper {
 	public void test_getMeasurementList(PathObject myPO, MeasurementList ML) {
 		MeasurementList myPOML = myPO.getMeasurementList();
 		assertEquals(myPOML, ML);
+	}
+	//@Test
+	public void test_equalMeasurementListContent(MeasurementList ML, MeasurementList ML2) {
+		var keys = ML.getMeasurementNames();
+		assertArrayEquals(keys.toArray(), ML2.getMeasurementNames().toArray());
+		for (String name: keys) {
+			assertEquals(ML.getMeasurementValue(name), ML2.getMeasurementValue(name));
+		}
 	}
 	//@Test
 	public void test_nMeasurements(PathObject myPO, Integer nmeasurements) {
@@ -187,6 +196,11 @@ public class PathObjectTestWrapper {
 	//@Test
 	public void test_getROI(PathObject myPO, ROI roi) {
 		assertEquals(myPO.getROI(), roi); 
+	}
+	//@Test
+	public void test_equalROIRegions(ROI roi, ROI roi2) {
+		assertEquals(roi.getAllPoints(), roi2.getAllPoints());
+		assertEquals(roi.getImagePlane(), roi.getImagePlane());
 	}
 	//@Test
 	public void test_getColorRGB(PathObject myPO, Integer colorrgb) {
