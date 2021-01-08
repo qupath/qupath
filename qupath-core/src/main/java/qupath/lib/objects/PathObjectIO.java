@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -92,7 +91,6 @@ public class PathObjectIO {
 		exportToGeoJSON(objs, bos, onlyROI, includeMeasurements, prettyPrint, compress);
 	}
 	
-	
 	/**
 	 * Export the {@code objs} to the {@code BufferedOutputStream} as serialized data (compressed or not).
 	 * 
@@ -116,15 +114,18 @@ public class PathObjectIO {
 		}
 		
 		if (compressed) {
-			GZIPOutputStream gzipOut = new GZIPOutputStream(bos);
-			ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut);
+			// Create entry
+			var zos = new ZipOutputStream(bos);
+			ZipEntry entry = new ZipEntry("pathObjects.qpdata");
+			zos.putNextEntry(entry);
 			
-			if (onlyROI)
-				objectOut.writeObject(objs.parallelStream().map(e -> e.getROI()).collect(Collectors.toList()));
-			else
-				objectOut.writeObject(objs);
-			objectOut.close();
-			gzipOut.close();
+			// Write object
+			ObjectOutputStream oos = new ObjectOutputStream(zos);
+			oos.writeObject(objs);
+			
+			// Close entry & stream
+			zos.closeEntry();
+			oos.close();
 		} else {
 			var oos = new ObjectOutputStream(bos);
 			if (onlyROI)
@@ -160,7 +161,6 @@ public class PathObjectIO {
 		String json = GeneralTools.readInputStreamAsString(stream);
 		return importFromGeoJSON(json);
 	}
-	
 	
 	/**
 	 * Create a collection of {@code PathObject}s from GeoJson String input.
@@ -201,9 +201,6 @@ public class PathObjectIO {
 		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serializedData));
 		return (Collection<PathObject>) ois.readObject();
 	}
-	
-	
-	
 	
 	/**
 	 * Return whether the {@code PathObject} is an ellipse.

@@ -84,8 +84,10 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectIO;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.CellTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -1232,19 +1234,35 @@ public class QP {
 			return Collections.emptyList();
 		return hierarchy.getObjects(null, PathCellObject.class);
 	}
-
+	
 	/**
 	 * Get an array of all objects in the current hierarchy.
+	 * @param includeRootObject 
+	 * 
+	 * @return
+	 * 
+	 * @see #getCurrentHierarchy
+	 */
+	public static PathObject[] getAllObjects(boolean includeRootObject) {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return new PathObject[0];
+		var objList = hierarchy.getFlattenedObjectList(null);
+		if (includeRootObject)
+			return objList.toArray(new PathObject[0]);
+		return objList.parallelStream().filter(e -> e.getClass() != PathRootObject.class).toArray(PathObject[]::new);
+	}
+
+	/**
+	 * Get an array of all objects in the current hierarchy. 
+	 * Note that this includes the root object.
 	 * 
 	 * @return
 	 * 
 	 * @see #getCurrentHierarchy
 	 */
 	public static PathObject[] getAllObjects() {
-		PathObjectHierarchy hierarchy = getCurrentHierarchy();
-		if (hierarchy == null)
-			return new PathObject[0];
-		return hierarchy.getFlattenedObjectList(null).toArray(new PathObject[0]);
+		return getAllObjects(true);
 	}
 	
 	/**
@@ -1594,6 +1612,17 @@ public class QP {
 			return hierarchy.getFlattenedObjectList(null).stream().filter(predicate).collect(Collectors.toList());
 		return Collections.emptyList();
 	}
+	
+	/**
+	 * Set selected objects to contain all objects.
+	 * 
+	 */
+	public static void selectAllObjects() {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		var allObjs = Arrays.asList(getAllObjects(false));
+		if (hierarchy != null)
+			hierarchy.getSelectionModel().setSelectedObjects(allObjs, null);
+	}
 
 	/**
 	 * Set selected objects to contain (only) all objects in the current hierarchy according to a specified predicate.
@@ -1935,6 +1964,56 @@ public class QP {
 		PathObjectHierarchy hierarchy = getCurrentHierarchy();
 		if (hierarchy != null)
 			selectObjects(hierarchy, parsePredicate(command));
+	}
+	
+	/**
+	 * Export all objects (excluding root object) to an output file as GeoJSON.
+	 * 
+	 * @param path 
+	 * @param onlyROI
+	 * @param includeMeasurements
+	 * @param prettyGson
+	 * @throws IOException
+	 */
+	public static void exportAllObjectsToGeoJSON(String path, boolean onlyROI, boolean includeMeasurements, boolean prettyGson) throws IOException {
+		PathObjectIO.exportToGeoJSON(Arrays.asList(getAllObjects(false)), new File(path), onlyROI, includeMeasurements, prettyGson, path.endsWith(".zip"));
+	}
+	
+	/**
+	 * Export the selected objects to an output file as GeoJSON.
+	 * 
+	 * @param path 
+	 * @param onlyROI
+	 * @param includeMeasurements
+	 * @param prettyGson
+	 * @throws IOException
+	 */
+	public static void exportSelectedToGeoJSON(String path, boolean onlyROI, boolean includeMeasurements, boolean prettyGson) throws IOException {
+		PathObjectIO.exportToGeoJSON(getSelectedObjects(), new File(path), onlyROI, includeMeasurements, prettyGson, path.endsWith(".zip"));
+	}
+	
+	/**
+	 * Export all the (Java serialized) objects (excluding root object) to an output file.
+	 * 
+	 * @param path 
+	 * @param onlyROI
+	 * @param includeMeasurements
+	 * @throws IOException
+	 */
+	public static void exportAllObjectsAsSerialized(String path, boolean onlyROI, boolean includeMeasurements) throws IOException {
+		PathObjectIO.exportAsSerialized(Arrays.asList(getAllObjects(false)), new File(path), onlyROI, includeMeasurements, path.endsWith(".zip"));
+	}
+	
+	/**
+	 * Export the (Java serialized) selected objects to an output file.
+	 * 
+	 * @param path 
+	 * @param onlyROI
+	 * @param includeMeasurements
+	 * @throws IOException
+	 */
+	public static void exportSelectedAsSerialized(String path, boolean onlyROI, boolean includeMeasurements) throws IOException {
+		PathObjectIO.exportAsSerialized(getSelectedObjects(), new File(path), onlyROI, includeMeasurements, path.endsWith(".zip"));
 	}
 	
 	/**

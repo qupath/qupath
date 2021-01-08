@@ -460,6 +460,10 @@ class Menus {
 		@ActionMenu("Select...>")
 		public final Action SEP_2 = ActionTools.createSeparator();
 
+		@ActionDescription("Select all objects for the current image.")
+		@ActionMenu("Select...>Select all objects")
+		public final Action SELECT_ALL_OBJECTS = qupath.createImageDataAction(imageData -> Commands.selectAllObjects(imageData));
+		
 		@ActionDescription("Select all TMA cores for the current image.")
 		@ActionMenu("Select...>Select TMA cores")
 		@ActionAccelerator("shortcut+alt+t")
