@@ -30,8 +30,11 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -1701,6 +1704,7 @@ public class ImageOps {
 			private transient Net net;
 			private transient ThreadLocal<Net> localNet = ThreadLocal.withInitial(() -> readNet());
 			private transient Exception exception;
+			private transient Map<Integer, List<ImageChannel>> outputChannels = Collections.synchronizedMap(new HashMap<>());
 			
 			/**
 			 * A DNN op.
@@ -1763,7 +1767,19 @@ public class ImageOps {
 			public PixelType getOutputType(PixelType inputType) {
 				return PixelType.FLOAT32;
 			}
-
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				var outChannels = outputChannels.get(channels.size());
+				if (outChannels == null) {
+					var mat = new Mat(inputHeight, inputWidth, opencv_core.CV_32FC(channels.size()), Scalar.ZERO);
+					var output = transformPadded(mat);
+					outChannels = ImageChannel.getDefaultChannelList(output.channels());					
+					outputChannels.put(channels.size(), outChannels);
+				}
+				return outChannels;
+			}
+			
 		}
 		
 		@OpType("opencv-statmodel")
