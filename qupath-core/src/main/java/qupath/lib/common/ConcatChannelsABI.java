@@ -125,17 +125,18 @@ public class ConcatChannelsABI {
 
     public static void concatDuplicateChannels(ImageData<?> imageData){
         int nChannels = imageData.getServer().nChannels();
-        List<Integer> duplicateChannelNumbers = null;
+        List<Integer> duplicates = null;
         float[][] tmpChannelOne;
         float[][] tmpChannelTwo;
         for(int i = 0; i < nChannels - 1; i++) {
-            for(int j = 1; j < nChannels; j++) {
+            //only check for duplicates in channels that aren't already considered duplicates
+            if(!duplicates.contains(i)) {
                 tmpChannelOne = convertChannelToFloatArray(imageData.getServer().getChannel(i));
-                tmpChannelTwo = convertChannelToFloatArray(imageData.getServer().getChannel(j));
-                if(normCrossCorrelation(tmpChannelOne, tmpChannelTwo)) {
-                    duplicateChannelNumbers.add(j);
-                    i++;
-                    j++;
+                for(int j = 1; j < nChannels; j++) {
+                    tmpChannelTwo = convertChannelToFloatArray(imageData.getServer().getChannel(j));
+                    if(normCrossCorrelation(tmpChannelOne, tmpChannelTwo)) {
+                        duplicates.add(j);
+                    }
                 }
             }
         }
