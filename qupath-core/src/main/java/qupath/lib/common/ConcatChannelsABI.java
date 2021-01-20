@@ -1,11 +1,7 @@
 package qupath.lib.common;
 
 import qupath.lib.images.servers.*;
-import qupath.lib.regions.RegionRequest;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collection;
 import java.util.List;
 //import java.lang.Object.com.imsl.stat.CrossCorrelation;
 
@@ -44,6 +40,14 @@ public class ConcatChannelsABI {
         //TODO: implement converting an ImageChannel object into an array of the pixel values for the individual channel.
         float[][] channelArray = null;
         return channelArray;
+    }
+
+    public static boolean isExcessChannels(int nChannels) {
+        if(nChannels >= 42) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public static ImageServer concatDuplicateChannels(ImageServer imageServer){
