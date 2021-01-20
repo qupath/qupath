@@ -1829,22 +1829,47 @@ public class ImageOps {
     	// since it appears that the result of calling model.forward() can become invalid later.
     	Mat matResult = null;
     	Mat blob = null;
-    	if (mat.channels() == 3) {
+   		int nChannels = mat.channels();
+   	    if (nChannels == 1 || nChannels == 3 || nChannels == 4) {
     		blob = opencv_dnn.blobFromImage(mat);
     	} else {
     		// TODO: Don't have any net to test this with currently...
-    		logger.warn("Attempting to reshape an image with channels != 3 - this may not work!");
-    		int[] shape = new int[mat.dims() + 1];
-    		shape[0] = 1;
-    		for (int s = 1; s < shape.length; s++) {
-    			shape[1] = mat.size(s-1);
+    		logger.warn("Attempting to reshape an image with " + nChannels + " channels - this may not work! "
+    				+ "Only 1, 3 and 4 supported.");
+    		// Blob is a 4D Tensor [NCHW]
+    		int[] shape = new int[4];
+    		Arrays.fill(shape, 1);
+    		int nRows = mat.size(0);
+    		int nCols = mat.size(1);
+    		shape[1] = nChannels;
+    		shape[2] = nRows;
+    		shape[3] = nCols;
+//    		for (int s = 1; s <= Math.min(nDims, 3); s++) {
+//    			shape[s] = mat.size(s-1);
+//    		}
+    		blob = new Mat(shape, opencv_core.CV_32F);
+    		var idxBlob = blob.createIndexer();
+    		var idxMat = mat.createIndexer();
+    		long[] indsBlob = new long[4];
+    		long[] indsMat = new long[4];
+    		for (int r = 0; r < nRows; r++) {
+    			indsMat[0] = r;
+    			indsBlob[2] = r;
+        		for (int c = 0; c < nCols; c++) {
+        			indsMat[1] = c;
+        			indsBlob[3] = c;
+            		for (int channel = 0; channel < nChannels; channel++) {
+            			indsMat[2] = channel;
+            			indsBlob[1] = channel;
+            			double val = idxMat.getDouble(indsMat);
+            			idxBlob.putDouble(indsBlob, val);
+            		}    			        			
+        		}    			
     		}
-    		if (mat.isContinuous())
-    			blob = new Mat(shape, opencv_core.CV_32F, mat);
-    		else
-        		blob = new Mat(shape, opencv_core.CV_32F, mat.clone());
+    		idxBlob.close();
+    		idxMat.close();
     	}
-    	synchronized(net) {
+   	    synchronized(net) {
     		long startTime = System.currentTimeMillis();
     		net.setInput(blob);
     		try {

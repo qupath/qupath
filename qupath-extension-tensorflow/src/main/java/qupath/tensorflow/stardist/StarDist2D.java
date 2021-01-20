@@ -22,6 +22,7 @@
 package qupath.tensorflow.stardist;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,6 +72,7 @@ import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
@@ -441,7 +443,13 @@ public class StarDist2D {
 			
 			var padding = pad > 0 ? Padding.symmetric(pad) : Padding.empty();
 			var mergedOps = new ArrayList<>(ops);
-			mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding));
+			if (new File(modelPath).isFile() && modelPath.endsWith(".pb")) {
+				var dnn = new OpenCVDNN.Builder(modelPath)
+						.build();
+				mergedOps.add(ImageOps.ML.dnn(dnn, tileWidth, tileHeight, padding));				
+			} else {
+				mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding));				
+			}
 			mergedOps.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 			
 			stardist.op = ImageOps.buildImageDataOp(channels)
