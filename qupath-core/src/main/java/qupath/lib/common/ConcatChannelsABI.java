@@ -3,10 +3,11 @@ package qupath.lib.common;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.*;
 
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-//import java.lang.Object.com.imsl.stat.CrossCorrelation;
+
 
 /**
  * Functions to help with combining fluorescent channels that are the same or similar.
@@ -24,9 +25,18 @@ public class ConcatChannelsABI {
      * @param secondChannel
      */
     public static boolean normCrossCorrelation(float[][] firstChannel, float[][] secondChannel) {
-        //TODO: implement normalised cross-correlation here or use a package
-        double NCCResult = 0;
-        if(NCCResult > 0.85) {
+        float nominator = 0;
+        float firstDenominator = 0;
+        float secondDenominator = 0;
+        //number of rows and columns should be the same in both channels
+        for(int i = 0; i < firstChannel.length; i++) {
+            for(int j = 0; j < firstChannel[0].length; j++) {
+                nominator += firstChannel[i][j] * secondChannel[i][j];
+                firstDenominator += (firstChannel[i][j] * firstChannel[i][j]);
+                secondDenominator += (secondChannel[i][j] * secondChannel[i][j]);
+            }
+        }
+        if(nominator/(float)(Math.sqrt((double)(firstDenominator * secondDenominator))) > 0.85) {
             return true;
         } else {
             return false;
@@ -123,7 +133,7 @@ public class ConcatChannelsABI {
         setChannelColors(imageData, regularChannelColourArray);
     }
 
-    public static void concatDuplicateChannels(ImageData<?> imageData){
+    public static void concatDuplicateChannels(ImageData<?> imageData, BufferedImage img){
         int nChannels = imageData.getServer().nChannels();
         List<Integer> duplicates = null;
         float[][] tmpChannelOne;
