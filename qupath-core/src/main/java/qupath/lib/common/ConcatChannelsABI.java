@@ -139,7 +139,6 @@ public class ConcatChannelsABI {
     public static void concatDuplicateChannels(ImageData<?> imageData) throws IOException {
         int nChannels = imageData.getServer().nChannels();
         if(isExcessChannels(nChannels)) {
-            ImageServerMetadata newMetadata = imageData.getServer().getMetadata().duplicate();
             RegionRequest request = RegionRequest.createInstance(imageData.getServer());
             BufferedImage img = (BufferedImage) imageData.getServer().readBufferedImage(request);
             List<Integer> duplicates = null;
@@ -160,7 +159,6 @@ public class ConcatChannelsABI {
                     }
                 }
             }
-            imageData.getServer().setMetadata(newMetadata);
             setRegularChannelColours(imageData);
             //TODO: remove duplicate channels from the image server using duplicateChannelNumbers.
         }
