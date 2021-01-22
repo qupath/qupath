@@ -2,8 +2,10 @@ package qupath.lib.common;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.*;
+import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -24,35 +26,20 @@ public class ConcatChannelsABI {
      * @param firstChannel
      * @param secondChannel
      */
-    public static boolean normCrossCorrelation(float[][] firstChannel, float[][] secondChannel) {
+    public static boolean normCrossCorrelation(float[] firstChannel, float[] secondChannel) {
         float nominator = 0;
         float firstDenominator = 0;
         float secondDenominator = 0;
-        //number of rows and columns should be the same in both channels
         for(int i = 0; i < firstChannel.length; i++) {
-            for(int j = 0; j < firstChannel[0].length; j++) {
-                nominator += firstChannel[i][j] * secondChannel[i][j];
-                firstDenominator += (firstChannel[i][j] * firstChannel[i][j]);
-                secondDenominator += (secondChannel[i][j] * secondChannel[i][j]);
-            }
+                nominator += firstChannel[i] * secondChannel[i];
+                firstDenominator += (firstChannel[i] * firstChannel[i]);
+                secondDenominator += (secondChannel[i] * secondChannel[i]);
         }
-        if(nominator/(float)(Math.sqrt((double)(firstDenominator * secondDenominator))) > 0.85) {
+        if(nominator/(float)(Math.sqrt((firstDenominator * secondDenominator))) > 0.85) {
             return true;
         } else {
             return false;
         }
-    }
-
-    /**
-     * This method is used to convert a regular ImageChannel into a float array so it can be compared using
-     * normalised cross-correlation.
-     *
-     * @param imgChnl
-     */
-    public static float[][] convertChannelToFloatArray(ImageChannel imgChnl) {
-        //TODO: implement converting an ImageChannel object into an array of the pixel values for the individual channel.
-        float[][] channelArray = null;
-        return channelArray;
     }
 
     /**
@@ -122,6 +109,15 @@ public class ConcatChannelsABI {
         imageData.updateServerMetadata(metadata2);
     }
 
+//    public static float[] getPixelIntensities(BufferedImage img, int channel, float[] array) {
+//        if (array == null || array.length < w * h)
+//            array = new float[w * h];
+//        int x = img.getWidth();
+//        int y = img.getHeight();
+//        float[] pixelIntensities = img.getRaster().getSamples(x, y, x, y, channel, array);
+//        return pixelIntensities;
+//    }
+
     /**
      * Call setChannelColors method with the channel colours used regularly with 7 channels
      *
@@ -129,28 +125,44 @@ public class ConcatChannelsABI {
      */
     public static void setRegularChannelColours(ImageData<?> imageData){
         Integer[] regularChannelColourArray = new Integer[7];
+        regularChannelColourArray[0] = ColorTools.makeRGB(0,0,0);
+        regularChannelColourArray[1] = ColorTools.makeRGB(0,0,0);
+        regularChannelColourArray[2] = ColorTools.makeRGB(0,0,0);
+        regularChannelColourArray[3] = ColorTools.makeRGB(0,0,0);
+        regularChannelColourArray[4] = ColorTools.makeRGB(0,0,0);
+        regularChannelColourArray[5] = ColorTools.makeRGB(0,0,0);
+        regularChannelColourArray[6] = ColorTools.makeRGB(0,0,0);
         //TODO: set the regular 7 colours in the array
         setChannelColors(imageData, regularChannelColourArray);
     }
 
-    public static void concatDuplicateChannels(ImageData<?> imageData, BufferedImage img){
+    public static void concatDuplicateChannels(ImageData<?> imageData) throws IOException {
         int nChannels = imageData.getServer().nChannels();
-        List<Integer> duplicates = null;
-        float[][] tmpChannelOne;
-        float[][] tmpChannelTwo;
-        for(int i = 0; i < nChannels - 1; i++) {
-            //only check for duplicates in channels that aren't already considered duplicates
-            if(!duplicates.contains(i)) {
-                tmpChannelOne = convertChannelToFloatArray(imageData.getServer().getChannel(i));
-                for(int j = 1; j < nChannels; j++) {
-                    tmpChannelTwo = convertChannelToFloatArray(imageData.getServer().getChannel(j));
-                    if(normCrossCorrelation(tmpChannelOne, tmpChannelTwo)) {
-                        duplicates.add(j);
+        if(isExcessChannels(nChannels)) {
+            ImageServerMetadata newMetadata = imageData.getServer().getMetadata().duplicate();
+            RegionRequest request = RegionRequest.createInstance(imageData.getServer());
+            BufferedImage img = (BufferedImage) imageData.getServer().readBufferedImage(request);
+            List<Integer> duplicates = null;
+            float[] tmpChannelOne;
+            float[] tmpChannelTwo;
+            int width = img.getWidth();
+            int height = img.getHeight();
+            float[] array = new float[width * height];
+            for(int channelOne = 0; channelOne < nChannels - 1; channelOne++) {
+                //only check for duplicates in channels that aren't already considered duplicates
+                if(!duplicates.contains(channelOne)) {
+                    tmpChannelOne = img.getRaster().getSamples(width, height, width, height, channelOne, array);
+                    for(int channelTwo = 1; channelTwo < nChannels; channelTwo++) {
+                        tmpChannelTwo = img.getRaster().getSamples(width, height, width, height, channelTwo, array);
+                        if(normCrossCorrelation(tmpChannelOne, tmpChannelTwo)) {
+                            duplicates.add(channelTwo);
+                        }
                     }
                 }
             }
+            imageData.getServer().setMetadata(newMetadata);
+            setRegularChannelColours(imageData);
+            //TODO: remove duplicate channels from the image server using duplicateChannelNumbers.
         }
-        setRegularChannelColours(imageData);
-        //TODO: remove duplicate channels from the image server using duplicateChannelNumbers.
     }
 }
