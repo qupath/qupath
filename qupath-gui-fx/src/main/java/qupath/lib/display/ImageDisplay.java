@@ -55,6 +55,7 @@ import javafx.collections.ObservableList;
 import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.color.ColorTransformer;
 import qupath.lib.color.ColorTransformer.ColorTransformMethod;
+import qupath.lib.common.ConcatChannelsABI;
 import qupath.lib.display.ChannelDisplayInfo.ModifiableChannelDisplayInfo;
 import qupath.lib.gui.images.stores.AbstractImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -125,7 +126,7 @@ public class ImageDisplay extends AbstractImageRenderer {
 	public void setImageData(ImageData<BufferedImage> imageData, boolean retainDisplaySettings) {
 		if (this.imageData == imageData)
 			return;
-
+		ConcatChannelsABI.concatDuplicateChannels(imageData);
 		// Retain display settings if requested *and* we have two similar images 
 		// (i.e. same bit depth, same number and names for channels)
 		String lastDisplayJSON = null;

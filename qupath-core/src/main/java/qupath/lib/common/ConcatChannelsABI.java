@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 
@@ -30,14 +31,23 @@ public class ConcatChannelsABI {
         float nominator = 0;
         float firstDenominator = 0;
         float secondDenominator = 0;
+        float result = 0;
+        System.out.println("channelLength: " + firstChannel.length);
         for(int i = 0; i < firstChannel.length; i++) {
-                nominator += firstChannel[i] * secondChannel[i];
-                firstDenominator += (firstChannel[i] * firstChannel[i]);
-                secondDenominator += (secondChannel[i] * secondChannel[i]);
+            nominator += firstChannel[i] * secondChannel[i];
+            firstDenominator += (firstChannel[i] * firstChannel[i]);
+            secondDenominator += (secondChannel[i] * secondChannel[i]);
         }
-        if(nominator/(float)(Math.sqrt((firstDenominator * secondDenominator))) > 0.85) {
+        System.out.println("nominator: " + nominator);
+        System.out.println("firstDenominator: " + firstDenominator);
+        System.out.println("secondDenominator: " + secondDenominator);
+        result = nominator/(float)(Math.sqrt((firstDenominator * secondDenominator)));
+        System.out.println("result: " + result);
+        if(result > 0.95) {
+            System.out.println("dupeChannel: true");
             return true;
         } else {
+            System.out.println("dupeChannel: false");
             return false;
         }
     }
@@ -49,8 +59,10 @@ public class ConcatChannelsABI {
      */
     public static boolean isExcessChannels(int nChannels) {
         if(nChannels >= 42) {
+            System.out.println("excessChannels: true");
             return true;
         } else {
+            System.out.println("excessChannels: false");
             return false;
         }
     }
@@ -136,28 +148,42 @@ public class ConcatChannelsABI {
         setChannelColors(imageData, regularChannelColourArray);
     }
 
-    public static void concatDuplicateChannels(ImageData<?> imageData) throws IOException {
+    public static void concatDuplicateChannels(ImageData<?> imageData) {
         int nChannels = imageData.getServer().nChannels();
+        System.out.println("nChannels: " + nChannels);
         if(isExcessChannels(nChannels)) {
             RegionRequest request = RegionRequest.createInstance(imageData.getServer());
-            BufferedImage img = (BufferedImage) imageData.getServer().readBufferedImage(request);
-            List<Integer> duplicates = null;
-            float[] tmpChannelOne;
-            float[] tmpChannelTwo;
+            BufferedImage img = null;
+            try {
+              img = (BufferedImage) imageData.getServer().readBufferedImage(request);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            ArrayList<Integer> duplicates = new ArrayList<Integer>();
             int width = img.getWidth();
+            System.out.println("width: " + width);
             int height = img.getHeight();
+            System.out.println("height: " + height);
+            float[] channelOneArray = new float[width * height];
+            float[] channelTwoArray = new float[width * height];
             float[] array = new float[width * height];
             for(int channelOne = 0; channelOne < nChannels - 1; channelOne++) {
                 //only check for duplicates in channels that aren't already considered duplicates
                 if(!duplicates.contains(channelOne)) {
-                    tmpChannelOne = img.getRaster().getSamples(width, height, width, height, channelOne, array);
-                    for(int channelTwo = 1; channelTwo < nChannels; channelTwo++) {
-                        tmpChannelTwo = img.getRaster().getSamples(width, height, width, height, channelTwo, array);
-                        if(normCrossCorrelation(tmpChannelOne, tmpChannelTwo)) {
-                            duplicates.add(channelTwo);
+                    img.getRaster().getSamples(0 , 0, width, height, channelOne, channelOneArray);
+                    for(int channelTwo = channelOne + 1; channelTwo < nChannels; channelTwo++) {
+                        if(!duplicates.contains(channelTwo)) {
+                            System.out.println("ChannelOne: " + channelOne + " ChannelTwo: " + channelTwo);
+                            img.getRaster().getSamples(0, 0, width, height, channelTwo, channelTwoArray);
+                            if(normCrossCorrelation(channelOneArray, channelTwoArray)) {
+                                duplicates.add(channelTwo);
+                            }
                         }
                     }
                 }
+            }
+            for(int dupe = 0; dupe < duplicates.size(); dupe++) {
+                System.out.println(duplicates.get(dupe));
             }
             setRegularChannelColours(imageData);
             //TODO: remove duplicate channels from the image server using duplicateChannelNumbers.
