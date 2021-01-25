@@ -121,15 +121,6 @@ public class ConcatChannelsABI {
         imageData.updateServerMetadata(metadata2);
     }
 
-//    public static float[] getPixelIntensities(BufferedImage img, int channel, float[] array) {
-//        if (array == null || array.length < w * h)
-//            array = new float[w * h];
-//        int x = img.getWidth();
-//        int y = img.getHeight();
-//        float[] pixelIntensities = img.getRaster().getSamples(x, y, x, y, channel, array);
-//        return pixelIntensities;
-//    }
-
     /**
      * Call setChannelColors method with the channel colours used regularly with 7 channels
      *
@@ -144,7 +135,7 @@ public class ConcatChannelsABI {
         regularChannelColourArray[4] = ColorTools.makeRGB(0,0,0);
         regularChannelColourArray[5] = ColorTools.makeRGB(0,0,0);
         regularChannelColourArray[6] = ColorTools.makeRGB(0,0,0);
-        //TODO: set the regular 7 colours in the array
+        //TODO: set the regular 7 colours in the array (not black)
         setChannelColors(imageData, regularChannelColourArray);
     }
 
@@ -159,7 +150,7 @@ public class ConcatChannelsABI {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            ArrayList<Integer> duplicates = new ArrayList<Integer>();
+            ArrayList<Integer> duplicates = new ArrayList<>();
             int width = img.getWidth();
             System.out.println("width: " + width);
             int height = img.getHeight();
@@ -182,11 +173,16 @@ public class ConcatChannelsABI {
                     }
                 }
             }
-            for(int dupe = 0; dupe < duplicates.size(); dupe++) {
-                System.out.println(duplicates.get(dupe));
+            ArrayList<Integer> notDuplicates = new ArrayList<>();
+            for(int i = 0; i < nChannels; i++) {
+                if(!duplicates.contains(i)) {
+                    notDuplicates.add(i);
+                    System.out.println(i);
+                }
             }
             setRegularChannelColours(imageData);
-            //TODO: remove duplicate channels from the image server using duplicateChannelNumbers.
+            //TODO: remove duplicate channels from the image server using duplicateChannelNumbers
+            //TODO: set imageData to reflect changes in this class
         }
     }
 }
