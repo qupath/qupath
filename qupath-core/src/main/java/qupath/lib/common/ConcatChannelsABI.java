@@ -128,14 +128,13 @@ public class ConcatChannelsABI {
      */
     public static void setRegularChannelColours(ImageData<?> imageData){
         Integer[] regularChannelColourArray = new Integer[7];
-        regularChannelColourArray[0] = ColorTools.makeRGB(0,0,0);
-        regularChannelColourArray[1] = ColorTools.makeRGB(0,0,0);
-        regularChannelColourArray[2] = ColorTools.makeRGB(0,0,0);
-        regularChannelColourArray[3] = ColorTools.makeRGB(0,0,0);
-        regularChannelColourArray[4] = ColorTools.makeRGB(0,0,0);
-        regularChannelColourArray[5] = ColorTools.makeRGB(0,0,0);
-        regularChannelColourArray[6] = ColorTools.makeRGB(0,0,0);
-        //TODO: set the regular 7 colours in the array (not black)
+        regularChannelColourArray[0] = ColorTools.makeRGB(0,204,0); //Alexa 488
+        regularChannelColourArray[1] = ColorTools.makeRGB(255,255,0); //Alexa 555
+        regularChannelColourArray[2] = ColorTools.makeRGB(255,0,0); //Alexa 594
+        regularChannelColourArray[3] = ColorTools.makeRGB(0,255,255); //ATTO 425
+        regularChannelColourArray[4] = ColorTools.makeRGB(0,0,255); //DAPI
+        regularChannelColourArray[5] = ColorTools.makeRGB(255,255,255); //DL680_Dunbar
+        regularChannelColourArray[6] = ColorTools.makeRGB(233,150,122); //DL755_Dunabr
         setChannelColors(imageData, regularChannelColourArray);
     }
 
@@ -181,6 +180,10 @@ public class ConcatChannelsABI {
                 }
             }
             setRegularChannelColours(imageData);
+            ImageServerMetadata metadata = imageData.getServer().getMetadata();
+            ImageServerMetadata metadata2 = new ImageServerMetadata.Builder(metadata).build(); //set the correct channels in this line
+            imageData.updateServerMetadata(metadata2);
+
             //TODO: remove duplicate channels from the image server using duplicateChannelNumbers
             //TODO: set imageData to reflect changes in this class
         }
