@@ -1,11 +1,14 @@
 package qupath.lib.common;
 
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.*;
 import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -138,6 +141,26 @@ public class ConcatChannelsABI {
         setChannelColors(imageData, regularChannelColourArray);
     }
 
+    /**
+     * Use the channels that are not duplicates to create a new BufferedImage object.
+     *
+     * @param notDuplicates
+     * @param img
+     */
+    public static BufferedImage createNewBufferedImage(ArrayList<Integer> notDuplicates, BufferedImage img) {
+        int width = img.getWidth();
+        int height = img.getHeight();
+        float[] tempFloatArray = new float[width * height];
+        //May need to create a new image rather than duplicating
+        BufferedImage resultImg = BufferedImageTools.duplicate(img);
+        //need to set 3 to number of channels. Currently does not work as channels are limited to 3 rather than 7.
+        for(int i = 0; i < 3; i++) {
+            img.getRaster().getSamples(0, 0, width, height, notDuplicates.get(i), tempFloatArray);
+            resultImg.getRaster().setSamples(0, 0, width, height, i, tempFloatArray);
+        }
+        return resultImg;
+    }
+
     public static void concatDuplicateChannels(ImageData<?> imageData) {
         int nChannels = imageData.getServer().nChannels();
         System.out.println("nChannels: " + nChannels);
@@ -180,10 +203,10 @@ public class ConcatChannelsABI {
                 }
             }
             setRegularChannelColours(imageData);
-            ImageServerMetadata metadata = imageData.getServer().getMetadata();
-            ImageServerMetadata metadata2 = new ImageServerMetadata.Builder(metadata).build(); //set the correct channels in this line
-            imageData.updateServerMetadata(metadata2);
-
+//            ImageServerMetadata metadata = imageData.getServer().getMetadata();
+//            ImageServerMetadata metadata2 = new ImageServerMetadata.Builder(metadata).build(); //set the correct channels in this line
+//            imageData.updateServerMetadata(metadata2);
+            BufferedImage newImg = createNewBufferedImage(notDuplicates, img);
             //TODO: remove duplicate channels from the image server using duplicateChannelNumbers
             //TODO: set imageData to reflect changes in this class
         }
