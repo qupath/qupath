@@ -24,6 +24,17 @@ import java.util.List;
 
 public class ConcatChannelsABI {
 
+    //Macros
+    private static double SIMILARITY_THRESHOLD = 0.95;
+    private static int NUMBER_FOR_EXCESS_CHANNELS = 42;
+    private static int[] ALEXA_488 = {0, 204, 0}; //GREEN
+    private static int[] ALEXA_555 = {255, 255, 0}; //YELLOW
+    private static int[] ALEXA_594 = {255, 0, 0}; //RED
+    private static int[] ATTO_425 = {0, 255, 255}; //CYAN
+    private static int[] DAPI = {0, 0, 255}; //BLUE
+    private static int[] DL680_DUNBAR = {255, 255, 255}; //WHITE
+    private static int[] DL755_DUNBAR = {233, 150, 122}; //DARK SALMON
+
     /**
      * This method is used to compare two channels together to see if they are similar or not using normalised cross-correlation.
      *
@@ -46,7 +57,7 @@ public class ConcatChannelsABI {
         System.out.println("secondDenominator: " + secondDenominator);
         result = nominator/(float)(Math.sqrt((firstDenominator * secondDenominator)));
         System.out.println("result: " + result);
-        if(result > 0.95) {
+        if(result > SIMILARITY_THRESHOLD) {
             System.out.println("dupeChannel: true");
             return true;
         } else {
@@ -61,7 +72,7 @@ public class ConcatChannelsABI {
      * @param nChannels
      */
     public static boolean isExcessChannels(int nChannels) {
-        if(nChannels >= 42) {
+        if(nChannels >= NUMBER_FOR_EXCESS_CHANNELS) {
             System.out.println("excessChannels: true");
             return true;
         } else {
@@ -131,13 +142,13 @@ public class ConcatChannelsABI {
      */
     public static void setRegularChannelColours(ImageData<?> imageData){
         Integer[] regularChannelColourArray = new Integer[7];
-        regularChannelColourArray[0] = ColorTools.makeRGB(0,204,0); //Alexa 488
-        regularChannelColourArray[1] = ColorTools.makeRGB(255,255,0); //Alexa 555
-        regularChannelColourArray[2] = ColorTools.makeRGB(255,0,0); //Alexa 594
-        regularChannelColourArray[3] = ColorTools.makeRGB(0,255,255); //ATTO 425
-        regularChannelColourArray[4] = ColorTools.makeRGB(0,0,255); //DAPI
-        regularChannelColourArray[5] = ColorTools.makeRGB(255,255,255); //DL680_Dunbar
-        regularChannelColourArray[6] = ColorTools.makeRGB(233,150,122); //DL755_Dunabr
+        regularChannelColourArray[0] = ColorTools.makeRGB(ALEXA_488[0], ALEXA_488[1], ALEXA_488[2]); //Alexa 488
+        regularChannelColourArray[1] = ColorTools.makeRGB(ALEXA_555[0], ALEXA_555[1], ALEXA_555[2]); //Alexa 555
+        regularChannelColourArray[2] = ColorTools.makeRGB(ALEXA_594[0], ALEXA_594[1], ALEXA_594[2]); //Alexa 594
+        regularChannelColourArray[3] = ColorTools.makeRGB(ATTO_425[0], ATTO_425[1], ATTO_425[2]); //ATTO 425
+        regularChannelColourArray[4] = ColorTools.makeRGB(DAPI[0], DAPI[1], DAPI[2]); //DAPI
+        regularChannelColourArray[5] = ColorTools.makeRGB(DL680_DUNBAR[0], DL680_DUNBAR[1], DL680_DUNBAR[2]); //DL680_Dunbar
+        regularChannelColourArray[6] = ColorTools.makeRGB(DL755_DUNBAR[0], DL755_DUNBAR[1], DL755_DUNBAR[2]); //DL755_Dunbar
         setChannelColors(imageData, regularChannelColourArray);
     }
 
