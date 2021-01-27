@@ -171,10 +171,10 @@ public class ConcatChannelsABI {
         BufferedImage resultImage = new BufferedImage(img.getColorModel(), resultRaster, img.getColorModel().isAlphaPremultiplied(), null);
         //May need to create a new image rather than duplicating
         //need to set 3 to number of channels. Currently does not work as channels are limited to 3 rather than 7.
-//        for(int i = 0; i < notDuplicates.size(); i++) {
-//            img.getRaster().getSamples(0, 0, width, height, notDuplicates.get(i), tempFloatArray);
-//            resultRaster.setSamples(0, 0, width, height, i, tempFloatArray);
-//        }
+        for(int i = 0; i < notDuplicates.size(); i++) {
+            img.getRaster().getSamples(0, 0, width, height, notDuplicates.get(i), tempFloatArray);
+            resultImage.getRaster().setSamples(0, 0, width, height, i, tempFloatArray);
+        }
         return resultImage;
     }
 
