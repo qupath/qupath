@@ -193,7 +193,7 @@ public class ImageServerMetadata {
 			metadata.width = width;
 			metadata.height = height;
 		}
-		
+
 		/**
 		 * Specify the full-resolution image width.
 		 * @param width

@@ -159,6 +159,7 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import jfxtras.scene.menu.CirclePopupMenu;
+import qupath.lib.common.ConcatChannelsABI;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
@@ -2932,8 +2933,8 @@ public class QuPathGUI {
 					}
 					imageData = createNewImageData(serverNew);
 				}
-				
-				viewer.setImageData(imageData);
+				ImageData imageData1 = ConcatChannelsABI.concatDuplicateChannels(imageData);
+				viewer.setImageData(imageData1);
 //				setInitialLocationAndMagnification(viewer);
 
 				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT)

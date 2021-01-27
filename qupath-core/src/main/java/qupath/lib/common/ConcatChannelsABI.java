@@ -1,19 +1,21 @@
 package qupath.lib.common;
 
-import qupath.lib.awt.common.BufferedImageTools;
+import com.google.common.primitives.Ints;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.*;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.regions.RegionRequest;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.Raster;
+import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
-import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-
 
 /**
  * Functions to help with combining fluorescent channels that are the same or similar.
@@ -25,15 +27,15 @@ import java.util.List;
 public class ConcatChannelsABI {
 
     //Macros
-    private static double SIMILARITY_THRESHOLD = 0.95;
-    private static int NUMBER_FOR_EXCESS_CHANNELS = 42;
-    private static int[] ALEXA_488 = {0, 204, 0}; //GREEN
-    private static int[] ALEXA_555 = {255, 255, 0}; //YELLOW
-    private static int[] ALEXA_594 = {255, 0, 0}; //RED
-    private static int[] ATTO_425 = {0, 255, 255}; //CYAN
-    private static int[] DAPI = {0, 0, 255}; //BLUE
-    private static int[] DL680_DUNBAR = {255, 255, 255}; //WHITE
-    private static int[] DL755_DUNBAR = {233, 150, 122}; //DARK SALMON
+    private static final double SIMILARITY_THRESHOLD = 0.95;
+    private static final int NUMBER_FOR_EXCESS_CHANNELS = 42;
+    private static final int[] ALEXA_488 = {0, 204, 0}; //GREEN
+    private static final int[] ALEXA_555 = {255, 255, 0}; //YELLOW
+    private static final int[] ALEXA_594 = {255, 0, 0}; //RED
+    private static final int[] ATTO_425 = {0, 255, 255}; //CYAN
+    private static final int[] DAPI = {0, 0, 255}; //BLUE
+    private static final int[] DL680_DUNBAR = {255, 255, 255}; //WHITE
+    private static final int[] DL755_DUNBAR = {233, 150, 122}; //DARK SALMON
 
     /**
      * This method is used to compare two channels together to see if they are similar or not using normalised cross-correlation.
@@ -159,22 +161,26 @@ public class ConcatChannelsABI {
      * @param img
      */
     public static BufferedImage createNewBufferedImage(ArrayList<Integer> notDuplicates, BufferedImage img) {
+
         int width = img.getWidth();
         int height = img.getHeight();
+        int[] notDuplicatesArray = Ints.toArray(notDuplicates);
         float[] tempFloatArray = new float[width * height];
+        SampleModel resultSampleModel = img.getSampleModel().createSubsetSampleModel(notDuplicatesArray);
+        WritableRaster resultRaster = Raster.createWritableRaster(resultSampleModel, null);
+        BufferedImage resultImage = new BufferedImage(img.getColorModel(), resultRaster, img.getColorModel().isAlphaPremultiplied(), null);
         //May need to create a new image rather than duplicating
-        BufferedImage resultImg = BufferedImageTools.duplicate(img);
         //need to set 3 to number of channels. Currently does not work as channels are limited to 3 rather than 7.
-        for(int i = 0; i < 3; i++) {
-            img.getRaster().getSamples(0, 0, width, height, notDuplicates.get(i), tempFloatArray);
-            resultImg.getRaster().setSamples(0, 0, width, height, i, tempFloatArray);
-        }
-        return resultImg;
+//        for(int i = 0; i < notDuplicates.size(); i++) {
+//            img.getRaster().getSamples(0, 0, width, height, notDuplicates.get(i), tempFloatArray);
+//            resultRaster.setSamples(0, 0, width, height, i, tempFloatArray);
+//        }
+        return resultImage;
     }
 
-    public static void concatDuplicateChannels(ImageData<?> imageData) {
+    public static ImageData concatDuplicateChannels(ImageData<?> imageData) {
+        ImageData resultImageData = imageData;
         int nChannels = imageData.getServer().nChannels();
-        System.out.println("nChannels: " + nChannels);
         if(isExcessChannels(nChannels)) {
             RegionRequest request = RegionRequest.createInstance(imageData.getServer());
             BufferedImage img = null;
@@ -185,9 +191,7 @@ public class ConcatChannelsABI {
             }
             ArrayList<Integer> duplicates = new ArrayList<>();
             int width = img.getWidth();
-            System.out.println("width: " + width);
             int height = img.getHeight();
-            System.out.println("height: " + height);
             float[] channelOneArray = new float[width * height];
             float[] channelTwoArray = new float[width * height];
             float[] array = new float[width * height];
@@ -197,7 +201,6 @@ public class ConcatChannelsABI {
                     img.getRaster().getSamples(0 , 0, width, height, channelOne, channelOneArray);
                     for(int channelTwo = channelOne + 1; channelTwo < nChannels; channelTwo++) {
                         if(!duplicates.contains(channelTwo)) {
-                            System.out.println("ChannelOne: " + channelOne + " ChannelTwo: " + channelTwo);
                             img.getRaster().getSamples(0, 0, width, height, channelTwo, channelTwoArray);
                             if(normCrossCorrelation(channelOneArray, channelTwoArray)) {
                                 duplicates.add(channelTwo);
@@ -207,19 +210,20 @@ public class ConcatChannelsABI {
                 }
             }
             ArrayList<Integer> notDuplicates = new ArrayList<>();
+            List<ImageChannel> channels = new ArrayList<>();
             for(int i = 0; i < nChannels; i++) {
                 if(!duplicates.contains(i)) {
                     notDuplicates.add(i);
-                    System.out.println(i);
+                    channels.add(imageData.getServer().getChannel(i));
                 }
             }
-            setRegularChannelColours(imageData);
-//            ImageServerMetadata metadata = imageData.getServer().getMetadata();
-//            ImageServerMetadata metadata2 = new ImageServerMetadata.Builder(metadata).build(); //set the correct channels in this line
-//            imageData.updateServerMetadata(metadata2);
-            BufferedImage newImg = createNewBufferedImage(notDuplicates, img);
-            //TODO: remove duplicate channels from the image server using duplicateChannelNumbers
-            //TODO: set imageData to reflect changes in this class
+            BufferedImage finalImg = createNewBufferedImage(notDuplicates, img);
+            ImageServer newServer = new WrappedBufferedImageServer(imageData.getServer().getOriginalMetadata().getName(), finalImg, channels);
+            ImageData imageData1 = new ImageData<BufferedImage>(newServer);
+            setRegularChannelColours(imageData1);
+            resultImageData = imageData1;
+            //TODO: set edit image data to show the correct values
         }
+        return resultImageData;
     }
 }
