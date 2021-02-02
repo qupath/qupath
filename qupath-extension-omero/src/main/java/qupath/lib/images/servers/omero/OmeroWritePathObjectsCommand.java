@@ -1,6 +1,7 @@
 package qupath.lib.images.servers.omero;
 
 import java.io.IOException;
+import java.net.URI;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -13,7 +14,7 @@ import qupath.lib.gui.dialogs.Dialogs;
  */
 public class OmeroWritePathObjectsCommand implements Runnable {
 	
-	QuPathGUI qupath;
+	private QuPathGUI qupath;
 	
 	OmeroWritePathObjectsCommand(QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -37,13 +38,23 @@ public class OmeroWritePathObjectsCommand implements Runnable {
 			return;
 		}
 		
-		// Write path object(s)
+		// Confirm
 		var omeroServer = (OmeroWebImageServer) server;
+		URI uri = server.getURIs().iterator().next();
+		var confirm = Dialogs.showConfirmDialog("Send objects", String.format("%d object(s) will be sent to:%s%s", 
+				selectedObjects.size(), 
+				System.lineSeparator(), 
+				uri));
+		
+		if (!confirm)
+			return;
+		
+		// Write path object(s)
 		try {
 			OmeroTools.writePathObjects(selectedObjects, omeroServer);
-			Dialogs.showInfoNotification("Object(s) written successfully", "Object(s) were successfully written to OMERO server");
+			Dialogs.showInfoNotification("Objects written successfully", selectedObjects.size() + " object(s) were successfully written to OMERO server");
 		} catch (IOException ex) {
-			Dialogs.showErrorNotification("Could not send path objects", ex.getLocalizedMessage());
+			Dialogs.showErrorNotification("Could not send objects", ex.getLocalizedMessage());
 		}
 	}
 }

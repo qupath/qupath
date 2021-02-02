@@ -1,9 +1,26 @@
 package qupath.lib.images.servers.omero;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
+
+import javafx.event.Event;
+import javafx.event.EventHandler;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.PaneTools;
 
 /**
  * 
@@ -11,31 +28,33 @@ import qupath.lib.gui.tools.MenuTools;
  * 
  */
 public class OmeroExtension implements QuPathExtension {
+	
+	/**
+	 * To handle the different stages of browsers (only allow one per OMERO server)
+	 */
+	private Map<OmeroWebClient, OmeroWebImageServerBrowserCommand> browsers = new HashMap<>();
 
 	@Override
 	public void installExtension(QuPathGUI qupath) {
-		var actionBrowse = ActionTools.createAction(new OmeroWebImageServerBrowserCommand(qupath), "Browse server");
 		var actionClients = ActionTools.createAction(new OmeroWebClientsCommand(qupath), "Manage clients");
 		var actionSendObjects = ActionTools.createAction(new OmeroWritePathObjectsCommand(qupath), "Send selection to OMERO server");
+		Menu browseServerMenu = new Menu("Browse server...");
 		
-		actionBrowse.disabledProperty().bind(qupath.projectProperty().isNull());
 		actionClients.disabledProperty().bind(qupath.projectProperty().isNull());
 		actionSendObjects.disabledProperty().bind(qupath.imageDataProperty().isNull());
+		browseServerMenu.disableProperty().bind(qupath.projectProperty().isNull());
+		
 		
 		qupath.getMenu("OMERO", true);
 		MenuTools.addMenuItems(
                 qupath.getMenu("OMERO", true),
-                actionBrowse,
+                browseServerMenu,
                 actionClients,
                 null,
                 actionSendObjects
         );
-
-//		MenuTools.addMenuItems(
-//				qupath.getMenu("Objects>Annotations...", false),
-//                null,
-//                actionSendObjects
-//        );
+		
+		createServerListMenu(qupath, browseServerMenu);
 	}
 
 	@Override
@@ -47,5 +66,88 @@ public class OmeroExtension implements QuPathExtension {
 	public String getDescription() {
 		return "Adds the ability to browse OMERO servers and open images hosted on OMERO servers.";
 	}
+	
+	private Menu createServerListMenu(QuPathGUI qupath, Menu browseServerMenu) {
+		EventHandler<Event> validationHandler = e -> {
+			browseServerMenu.getItems().clear();
+			
+			// Get all active servers
+			var activeServers = OmeroWebClients.getAllClients();
+			
+			// Populate the menu with each unique active servers
+			for (var client: activeServers) {
+				if (client == null)
+					continue;
+				MenuItem item = new MenuItem(client.getServerURI() + "...");
+				item.setOnAction(e2 -> {
+					var browser = browsers.get(client);
+					if (browser == null || browser.getStage() == null) {
+						browser = new OmeroWebImageServerBrowserCommand(qupath, client);
+						browsers.put(client, browser);
+						browser.run();
+					} else
+						browser.getStage().requestFocus();
+				});
+				browseServerMenu.getItems().add(item);
+			}
+			
+			// Create 'New server...' MenuItem
+			MenuItem customServerItem = new MenuItem("New server...");
+			customServerItem.setOnAction(e2 -> {
+				GridPane gp = new GridPane();
+				gp.setHgap(5.0);
+		        TextField tf = new TextField();
+		        tf.setPrefWidth(400);
+		        PaneTools.addGridRow(gp, 0, 0, "Enter URL", new Label("Enter URL"), tf);
+		        var confirm = Dialogs.showConfirmDialog("Enter URL", gp);
+		        if (!confirm)
+		        	return;
+		        
+		        var path = tf.getText();
+				if (path == null || path.isEmpty())
+					return;
+				try {
+					if (!path.startsWith("http:") && !path.startsWith("https:"))
+						throw new IOException("The input URL must contain a scheme (e.g. \"https://\")!");
 
+					// Make the path a URI
+					URI uri = new URI(path);
+					
+					// Clean the URI (in case it's a full path)
+					URI uriServer = OmeroTools.getServerURI(uri);
+					
+					if (uriServer == null)
+						throw new MalformedURLException("Could not parse server from " + uri.toString());
+					
+					// Check if client exist and if browser is already opened
+					var client = OmeroWebClients.getClientFromServerURI(uriServer);
+					if (client == null)
+						client = OmeroWebClients.createClientAndLogin(uriServer);
+					
+					if (client == null)
+						throw new IOException("Could not parse server from " + uri.toString());
+					
+					var browser = browsers.get(client);
+					if (browser == null || browser.getStage() == null) {
+						// Create new browser
+						browser = new OmeroWebImageServerBrowserCommand(qupath, client);
+						browsers.put(client, browser);
+						browser.run();
+					} else	// Request focus for already-existing browser
+						browser.getStage().requestFocus();		
+					
+				} catch (FileNotFoundException ex) {
+					Dialogs.showErrorMessage("OMERO web server", "Could not parse server from: " + path);
+				} catch (IOException | URISyntaxException ex) {
+					Dialogs.showErrorMessage("OMERO web server", ex.getLocalizedMessage());
+					return;
+				}
+			});
+			MenuTools.addMenuItems(browseServerMenu, null, customServerItem);
+		};
+		
+		// Ensure the menu is populated (every time the parent menu is opened)
+		browseServerMenu.getParentMenu().setOnShowing(validationHandler);	
+		return browseServerMenu;
+	}
 }

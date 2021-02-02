@@ -23,7 +23,11 @@ package qupath.lib.images.servers.omero;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.AccessDeniedException;
+import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,14 +50,12 @@ import qupath.lib.images.servers.ImageServerBuilder;
 public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedImage> {
 
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebImageServerBuilder.class);
-	
-	private static OmeroWebClient client = null;
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		if (canConnectToOmero(uri, args)) {
 			try {
-				OmeroWebClient client = OmeroWebClients.getClient(uri);
+				OmeroWebClient client = OmeroWebClients.getClientFromImageURI(uri);
 				return new OmeroWebImageServer(uri, client, args);
 			} catch (IOException e) {
 				Dialogs.showErrorNotification("OMERO web server", uri.toString() + " - " + e.getLocalizedMessage());
@@ -72,7 +74,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			List<URI> uris = new ArrayList<>();
 			try {
 				if (canConnectToOmero(uri, args))
-					uris = OmeroTools.getURIs(uri, args);
+					uris = OmeroTools.getURIs(uri);
 			} catch (IOException e) {
 				Dialogs.showErrorNotification("OMERO web server", e.getLocalizedMessage());
 			}
@@ -96,41 +98,62 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				return false;
 			}
 			
+			var serverUri = OmeroTools.getServerURI(uri);
+			if (serverUri == null)
+				return false;
+			
+			var client = OmeroWebClients.getClientFromServerURI(serverUri);
 			if (client == null)
-				client = OmeroWebClient.create(uri, true);
+				client = OmeroWebClient.create(serverUri, true);
 			
+			// Check if client can reach the image. If not, prompt login
 			boolean isLoggedIn = true;
-			if (!client.loggedIn())
-				isLoggedIn = OmeroWebClients.logIn(client, args);
+			if (!client.canAccessImage(uri))
+				isLoggedIn = client.logIn(args);
 			
-			if (isLoggedIn) {
-				OmeroWebClients.addClient(uri.getHost(), client);
-				return true;
+			if (!isLoggedIn)
+				return false;
+			else {
+				// Add the client to the list (but not URI yet!)
+				OmeroWebClients.addClient(client);
+
+				// Check if client can reach the image while being logged in
+				if (!client.canAccessImage(uri))
+					throw new AccessDeniedException(String.format("\"%s\" does not have permission to read %s", client.getUsername(), uri));
 			}
-		} catch (Exception e) {
-			Dialogs.showErrorMessage("Omero web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");
+			
+			// Add URI to the list of URIs supported by this client
+			client.addURI(uri);
+			return true;
+		} catch (AccessDeniedException | ConnectException ex) {		// Catch 'access not permitted'
+			Dialogs.showErrorNotification("OMERO web server", ex.getLocalizedMessage());
+		} catch (InvalidParameterException ex) {					// Catch wrong URI
+			Dialogs.showErrorNotification("OMERO web server", ex.getLocalizedMessage());
+			OmeroWebClients.addFailedHost(uri);
+		} catch (URISyntaxException | IOException ex) {				// Catch errors when creating an OmeroWebClient
+			Dialogs.showErrorNotification("OMERO web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");			
 		}
 		return false;
 	}
 	
 	private static float supportLevel(URI uri, String...args) {
+		var serverURI = OmeroTools.getServerURI(uri);
+		
 		// If we tried, and failed, to treat this as an OMERO server before, fail early
-		if (OmeroWebClients.hasFailed(uri))
+		if (OmeroWebClients.hasFailed(serverURI))
 			return 0;
 
 		// Check if we already had the same client before
-		client = OmeroWebClients.getClient(uri);
-		if (client != null)
+		if (OmeroWebClients.getClientFromServerURI(serverURI) != null)
 			return 4;
 
 		String scheme = uri.getScheme();
 		if (scheme.startsWith("http")) {
 			// Try to connect (but don't log in yet)
 			try {
-				OmeroWebClient.create(uri, false);	// Dummy client
+				OmeroWebClient.create(serverURI, false);	// Dummy client
 			} catch (Exception e) {
-				OmeroWebClients.addFailedHost(uri);
-				logger.error("Unable to connect to OMERO server", e.getLocalizedMessage());
+				logger.error("Unable to connect to OMERO server: {}", e.getLocalizedMessage());
 				return 0;
 			}
 			return 4;

@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.Authenticator;
+import java.net.ConnectException;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
@@ -12,17 +13,18 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidParameterException;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -31,20 +33,26 @@ import javax.net.ssl.HttpsURLConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.io.GsonTools;
 
 /**
- * Class representing an OMERO Web Client. This class will take care of 
+ * Class representing an OMERO Web Client. This class takes care of 
  * logging in, keeping the connection alive and logging out.
  * 
  * @author Melvin Gelbard
@@ -53,37 +61,59 @@ public class OmeroWebClient {
 
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebClient.class);
 
-	private Timer timer;
-
 	private final static String URL_SERVERS = "url:servers";
 	private final static String URL_LOGIN = "url:login";
 	private final static String URL_TOKEN = "url:token";
-//	private final static String URL_IMAGES = "url:images";
-//	private final static String URL_PROJECTS = "url:projects";
-//	private final static String URL_BASE = "url:base";
-//	private final static String URL_SAVE = "url:save";
-
-	private Gson gson = new Gson();
+	private Map<String, String> omeroURLs = new HashMap<>();
 	
-	private URI uri;
-	private String username;
-
+	/**
+	 * List of all URIs supported by this client. This list should be populated after calls to {@link #canAccessImage(URI)}.
+	 */
+	private ObservableList<URI> uris = FXCollections.observableArrayList();
+	
+	/**
+	 * 'Clean' URI representing the server's URI (<b>not</b> its images). <p> See {@link OmeroTools#getServerURI(URI)}.
+	 */
+	private URI serverURI;
+	
+	/**
+	 * The username might be empty (public), and might also change (user switching account)
+	 */
+	private StringProperty username;
+	
+	
+	/**
+	 * Logged in property (modified by login/loggedIn/logout/timer)
+	 */
+	private BooleanProperty loggedIn;
+	
+	
+	private OmeroServerInfo omeroServerInfo;
 	private OmeroAPI supportedVersions;
 	private OmeroAPIVersion version;
-	private List<OmeroServer> servers;
-
 	private String token;
-	private String baseURL;
-	private String requestURL;
+	
+	private Timer timer;
+	
+	static OmeroWebClient create(URI serverURI, boolean startTimer) throws JsonSyntaxException, MalformedURLException, IOException, URISyntaxException {
+		// Clean server URI (filter out wrong URIs and get rid of unnecessary characters)
+		serverURI = new URL(serverURI.getScheme(), serverURI.getHost(), "").toURI();
+		
+		// Create OmeroWebClient with the serverURI
+		OmeroWebClient client = new OmeroWebClient(serverURI);
+		
+		// Start timer to keep connection alive
+		if (startTimer)
+			client.startTimer();
+		
+		return client;
+	}
 
-	private Map<String, String> serviceURLs = new HashMap<>();
-
-	OmeroWebClient(final URI uri) {
-		this.uri = uri;
-		this.username = "";
-		this.baseURL = uri.getHost();
-		if (!this.baseURL.startsWith("http"))
-			this.baseURL = "https://" + this.baseURL;
+	private OmeroWebClient(final URI serverUri) throws JsonSyntaxException, MalformedURLException, IOException {
+		this.serverURI = serverUri;
+		this.username = new SimpleStringProperty("");
+		this.loggedIn = new SimpleBooleanProperty(false);
+		loadURLs();
 	}
 
 	synchronized void startTimer() {
@@ -93,31 +123,15 @@ public class OmeroWebClient {
 		timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
-				keepAlive();
+				if (keepAlive() == -1) {
+					this.cancel();
+					loggedIn.set(false);
+				}
 			}
 		}, 60000L, 60000L);
 	}
 
-	private boolean loadURLs() throws JsonSyntaxException, MalformedURLException, IOException {
-		supportedVersions = parseJSON(OmeroAPI.class, baseURL, "/api/");
-		version = supportedVersions.getLatestVersion();
-		if (version == null)
-			return false;
-		requestURL = version.versionURL;
-		serviceURLs = parseJSON(new TypeToken<Map<String, String>>() {}.getType(), requestURL);
-		servers = parseJSON(OmeroServerList.class, serviceURLs.get(URL_SERVERS)).data;
-		return true;
-	}
-
-	static OmeroWebClient create(URI uri, boolean startTimer) throws JsonSyntaxException, MalformedURLException, IOException {
-		OmeroWebClient client = new OmeroWebClient(uri);
-		client.loadURLs();
-		if (startTimer)
-			client.startTimer();
-		return client;
-	}
-
-	String login(final PasswordAuthentication authentication, final int serverID) throws Exception {
+	String authenticate(final PasswordAuthentication authentication, final int serverID) throws Exception {
 		var handler = CookieHandler.getDefault();
 		if (handler == null) {
 			handler = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
@@ -127,12 +141,11 @@ public class OmeroWebClient {
 		if (this.token == null)
 			this.token = getCSRFToken();
 
-		String url = serviceURLs.get(URL_LOGIN);
-
+		String url = omeroURLs.get(URL_LOGIN);
 		HttpsURLConnection connection = (HttpsURLConnection) URI.create(url).toURL().openConnection();
 		connection.setRequestProperty("X-CSRFToken", this.token);
 		connection.setRequestMethod("POST");
-		connection.setRequestProperty("Referer", url + ":" + servers.get(0).port);
+		connection.setRequestProperty("Referer", url + ":" + omeroServerInfo.port);
 		connection.setUseCaches(false);
 
 		connection.setDoInput(true);
@@ -141,9 +154,8 @@ public class OmeroWebClient {
 		
 		var charset = StandardCharsets.UTF_8;
 		try (OutputStream stream = connection.getOutputStream()) {
-			username = authentication.getUserName();
 			// To avoid storing the password in a String: create ByteBuffers and concatenate them, then convert to byte[]
-			String s = String.join("&", "server=" + serverID, "username=" + username, "password=");
+			String s = String.join("&", "server=" + serverID, "username=" + authentication.getUserName(), "password=");
 			CharBuffer charBuffer = CharBuffer.wrap(authentication.getPassword());
 			byte[] sBytes = s.getBytes(charset);
 			byte[] out = new byte[sBytes.length + charBuffer.length() * 4];
@@ -184,7 +196,7 @@ public class OmeroWebClient {
 	private int keepAlive() {
 		try {
 			logger.debug("Attempting to keep connection alive...");
-			var pingURL = URI.create(baseURL + "/webclient/keepalive_ping/?_=" + System.currentTimeMillis()).toURL();
+			var pingURL = URI.create(serverURI.getScheme() + "://" + serverURI.getHost() + "/webclient/keepalive_ping/?_=" + System.currentTimeMillis()).toURL();
 			HttpURLConnection connection = (HttpURLConnection) pingURL.openConnection();
 			connection.setRequestProperty("Content-Type", "application/json");
 			connection.setRequestMethod("GET");
@@ -193,19 +205,27 @@ public class OmeroWebClient {
 			connection.disconnect();
 			return response;
 		} catch (IOException e) {
-			logger.warn("Error trying to keep connection alive", e);
+			logger.warn("Error trying to keep connection alive. Client will shut down now.", e.getLocalizedMessage());
 			return -1;
 		}
 	}
 	
-	boolean loggedIn() {
+	/**
+	 * Attempt to access the image given by the provided {@code imageUri}.
+	 * <p>
+	 * N.B. being logged on the server doesn't necessarily mean that the user has 
+	 * permission to access all the images on the server.
+	 * @return
+	 * @throws ConnectException 
+	 */
+	boolean canAccessImage(URI imageUri) throws InvalidParameterException, ConnectException {
 		try {
-			logger.debug("Attempting to log in...");
-			int imageId = OmeroTools.parseOmeroObjectId(uri);
+			logger.debug("Attempting to access image...");
+			int imageId = OmeroTools.parseOmeroObjectId(imageUri);
 			if (imageId == -1)
-				return false;
+				throw new InvalidParameterException("No image found in: " + imageUri);
 			
-			URL imgDataURL = new URL(uri.getScheme(), uri.getHost(), -1, "/webgateway/imgData/" + imageId);
+			URL imgDataURL = new URL(imageUri.getScheme(), imageUri.getHost(), -1, "/webgateway/imgData/" + imageId);
 			HttpURLConnection connection = (HttpURLConnection) imgDataURL.openConnection();
 			connection.setRequestProperty("Content-Type", "application/json");
 			connection.setRequestMethod("GET");
@@ -213,25 +233,205 @@ public class OmeroWebClient {
 			int response = connection.getResponseCode();
 			connection.disconnect();
 			return response == 200;
+		} catch (ConnectException ex) {
+			throw ex;
 		} catch (IOException e) {
-			logger.warn("Error trying to log in", e);
+			logger.warn("Error attempting to access image", e.getLocalizedMessage());
 			return false;
 		}
 	}
 
-	List<OmeroServer> getServers() {
-		return Collections.unmodifiableList(servers);
-	}
-
-	private String getCSRFToken() throws JsonSyntaxException, MalformedURLException, IOException {
-		String url = serviceURLs.get(URL_TOKEN);
-		String token = (String) getMapJSON(url).get("data");
+	
+	String getToken() {
 		return token;
 	}
+	
+	StringProperty usernameProperty() {
+		return username;
+	}
 
-	private Map<?, ?> getMapJSON(String base, String... query)
-			throws JsonSyntaxException, MalformedURLException, IOException {
-		return parseJSON(Map.class, base, query);
+	String getUsername() {
+		return username.get();
+	}
+	
+	void setUsername(String newUsername) {
+		username.set(newUsername);
+	}
+	
+	/**
+	 * Return the server URI ('clean' URI) of this {@code OmeroWebClient}.
+	 * @return serverUri
+	 * @see OmeroTools#getServerURI(URI)
+	 */
+	URI getServerURI() {
+		return serverURI;
+	}
+	
+	/**
+	 * Return an unmodifiable list of all URIs using this {@code OmeroWebClient}. 
+	 * @return list of uris
+	 * @see #addURI(URI)
+	 */
+	ObservableList<URI> getURIs() {
+		return FXCollections.unmodifiableObservableList(uris);
+	}
+	
+	/**
+	 * Adds a URI to the list of this client's URIs.
+	 * <p>
+	 * Note: there is currently no equivalent 'removeURI()' method.
+	 * @param uri
+	 * @see #getURIs()
+	 */
+	void addURI(URI uri) {
+		if (!uris.contains(uri))
+			uris.add(uri);
+		else
+			logger.debug("URI already exists in the list. Ignoring operation.");
+	}
+	
+	/**
+	 * Return whether the client is logged in to its server (<b>not</b> necessarily with access to all its images).
+	 * 
+	 * @return isLoggedIn
+	 * @see #checkIfLoggedIn()
+	 */
+	public boolean isLoggedIn() {
+		return loggedIn.get();
+	}
+	
+	/**
+	 * Check and return whether the client is logged in to its server 
+	 * (<b>not</b> necessarily with access to all its images).
+	 * 
+	 * @return
+	 * @see #isLoggedIn()
+	 */
+	public boolean checkIfLoggedIn() {
+		loggedIn.set(OmeroRequests.isLoggedIn(serverURI));
+		return loggedIn.get();		
+	}
+	
+	/**
+	 * Return the log property of this client.
+	 * @return
+	 */
+	public BooleanProperty logProperty() {
+		return loggedIn;
+	}
+	
+	/**
+	 * Log in to the client's server with optional args.
+	 * 
+	 * @param args
+	 * @return success
+	 */
+	public boolean logIn(String...args) {
+		try {
+			// TODO: Parse args to look for password (or password file - and don't store them!)
+			String usernameOld = username.get();
+			char[] password = null;
+			List<String> cleanedArgs = new ArrayList<>();
+			int i = 0;
+			while (i < args.length-1) {
+				String name = args[i++];
+				if ("--username".equals(name) || "-u".equals(name))
+					usernameOld = args[i++];
+				else if ("--password".equals(name) || "-p".equals(name)) {
+					password = args[i++].toCharArray();
+				} else
+					cleanedArgs.add(name);
+			}
+			if (cleanedArgs.size() < args.length)
+				args = cleanedArgs.toArray(String[]::new);
+			
+			PasswordAuthentication authentication;
+			if (usernameOld != null && password != null) {
+				logger.info("Username & password parsed from args");
+				authentication = new PasswordAuthentication(usernameOld, password);
+			} else 
+				authentication = OmeroAuthenticatorFX.getPasswordAuthentication("Please enter your login details for OMERO server", serverURI.toString(), usernameOld);
+			if (authentication == null) {
+				logger.warn("Could not log in to {} - No authentification found!", serverURI);
+				return false;
+			}
+			String result = authenticate(authentication, omeroServerInfo.id);
+			Arrays.fill(authentication.getPassword(), (char)0);
+			
+			// If we have previous URIs and the the username was different
+			if (uris.size() > 0 && !usernameOld.isEmpty() && !usernameOld.equals(authentication.getUserName())) {
+				Dialogs.showInfoNotification("OMERO login", String.format("OMERO account switched from \"%s\" to \"%s\" for %s", usernameOld, authentication.getUserName(), serverURI));
+			} else if (uris.size() == 0 || usernameOld.isEmpty())
+				Dialogs.showInfoNotification("OMERO login", String.format("Login successful: %s(\"%s\")", serverURI, authentication.getUserName()));
+			
+			loggedIn.set(true);
+			username.set(authentication.getUserName());
+			logger.info(result);
+			return true;
+		} catch (Exception e) {
+			Dialogs.showErrorNotification("OMERO web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");
+		}
+		loggedIn.set(false);
+		return false;
+	}
+	
+	/**
+	 * Log out this client from the server.
+	 */
+	public void logOut() {
+		try {
+			URL url = new URL(serverURI.getScheme(), serverURI.getHost(), "/webclient/logout/");
+			HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+			connection.setRequestProperty("X-CSRFToken", token);
+			connection.setRequestProperty("Content-Type", "application/json");
+			connection.setRequestProperty("Referer", url + ":" + omeroServerInfo.port);
+			connection.setRequestMethod("POST");
+			connection.setDoOutput(true);
+			connection.setDoInput(true);
+			int response = connection.getResponseCode();
+			connection.disconnect();
+			
+			if (response != 200 && response != 403)
+				throw new IOException("Server returned " + response);
+			
+			loggedIn.set(false);
+			timer.cancel();
+			username.set("");
+		} catch (IOException e) {
+			logger.error("Could not logout.", e.getLocalizedMessage());
+		}
+	}
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(serverURI, username);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this)
+            return true;
+		
+		if (!(obj instanceof OmeroWebClient))
+			return false;
+		
+		return serverURI.equals(((OmeroWebClient)obj).getServerURI()) && 
+				getUsername().equals(((OmeroWebClient)obj).getUsername());
+	}
+	
+	private boolean loadURLs() throws JsonSyntaxException, MalformedURLException, IOException {
+		supportedVersions = parseJSON(OmeroAPI.class, serverURI.toString(), "/api/");
+		version = supportedVersions.getLatestVersion();
+		if (version == null)
+			return false;
+		omeroURLs = parseJSON(new TypeToken<Map<String, String>>() {}.getType(), version.versionURL);
+		omeroServerInfo = parseJSON(OmeroServerList.class, omeroURLs.get(URL_SERVERS)).data.get(0);
+		return true;
+	}
+	
+	private String getCSRFToken() throws JsonSyntaxException, MalformedURLException, IOException {
+		var map = parseJSON(Map.class, omeroURLs.get(URL_TOKEN));
+		return map.get("data").toString();
 	}
 
 	private static String getJSONString(String base, String... query) throws MalformedURLException, IOException {
@@ -245,80 +445,18 @@ public class OmeroWebClient {
 		connection.setRequestMethod("GET");
 		connection.setDoInput(true);
 		try (InputStream stream = connection.getInputStream()) {
-			try (var s = new Scanner(stream).useDelimiter("\\A")) {
-				return s.hasNext() ? s.next() : "";
-			}
+			return GeneralTools.readInputStreamAsString(stream);
 		}
 	}
 
-	private <T> T parseJSON(Class<T> cls, String base, String... query)
-			throws JsonSyntaxException, MalformedURLException, IOException {
-		return gson.fromJson(getJSONString(base, query), cls);
+	private <T> T parseJSON(Class<T> cls, String base, String... query) throws JsonSyntaxException, MalformedURLException, IOException {
+		return GsonTools.getInstance().fromJson(getJSONString(base, query), cls);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> T parseJSON(Type type, String base, String... query)
-			throws JsonSyntaxException, MalformedURLException, IOException {
-		return (T) gson.fromJson(getJSONString(base, query), type);
+	private <T> T parseJSON(Type type, String base, String... query) throws JsonSyntaxException, MalformedURLException, IOException {
+		return (T) GsonTools.getInstance().fromJson(getJSONString(base, query), type);
 	}
-	
-	String getToken() {
-		return token;
-	}
-	
-	void logOut() {
-		try {
-			String url = baseURL + "/webclient/logout/";
-			HttpURLConnection connection;
-			connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
-			connection.setRequestProperty("X-CSRFToken", token);
-			connection.setRequestProperty("Content-Type", "application/json");
-			connection.setRequestProperty("Referer", url + ":" + servers.get(0).port);
-			connection.setRequestMethod("POST");
-			connection.setDoOutput(true);
-			connection.setDoInput(true);
-			int response = connection.getResponseCode();
-			connection.disconnect();
-			
-			if (response != 200)
-				throw new IOException("Server returned " + response);	
-			
-		} catch (IOException e) {
-			logger.error("Could not logout.", e.getLocalizedMessage());
-		}
-
-		timer.cancel();
-	}
-	
-	String getUsername() {
-		return username;
-	}
-	
-	URI getURI() {
-		return uri;
-	}
-	
-	String getBaseUrl() {
-		return baseURL;
-	}
-	
-	@Override
-	public int hashCode() {
-		return Objects.hash(uri, username);
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this)
-            return true;
-		
-		if (!(obj instanceof OmeroWebClient))
-			return false;
-		
-		return uri == ((OmeroWebClient)obj).getURI() && 
-				username.equals(((OmeroWebClient)obj).getUsername());
-	}
-	
 	
 	private class OmeroAPI {
 
@@ -329,7 +467,6 @@ public class OmeroWebClient {
 				return null;
 			return data.get(data.size() - 1);
 		}
-
 	}
 
 	private class OmeroAPIVersion {
@@ -343,30 +480,26 @@ public class OmeroWebClient {
 	}
 
 	private class OmeroServerList {
-
-		private List<OmeroServer> data;
-
+		private List<OmeroServerInfo> data;
 	}
+		
 
-	class OmeroServer {
-
-		private String host;
-		private String server;
+	
+	private class OmeroServerInfo {
+		
 		private int id;
+		private String host;
 		private int port;
-
+		private String server;
+		
 		@Override
 		public String toString() {
 			return String.format("Host: %s, Server: %s, ID: %d, Port: %d", host, server, id, port);
 		}
-
-		public int getId() {
-			return id;
-		}
-
 	}
+		
 
-	static class OmeroAuthenticatorFX extends Authenticator {
+	private static class OmeroAuthenticatorFX extends Authenticator {
 
 		private String lastUsername = "";
 
@@ -390,6 +523,7 @@ public class OmeroWebClient {
 			Label labUsername = new Label("Username");
 			TextField tfUsername = new TextField(lastUsername);
 			labUsername.setLabelFor(tfUsername);
+			
 
 			Label labPassword = new Label("Password");
 			PasswordField tfPassword = new PasswordField();
@@ -419,6 +553,5 @@ public class OmeroWebClient {
 
 			return new PasswordAuthentication(userName, password);
 		}
-
 	}
 }

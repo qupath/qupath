@@ -1,26 +1,37 @@
 package qupath.lib.images.servers.omero;
 
+import java.net.ConnectException;
 import java.net.URI;
-import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableSet;
+import javafx.collections.SetChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 
 /**
@@ -28,184 +39,300 @@ import qupath.lib.gui.tools.PaneTools;
  * and 'forget' OMERO web clients.
  * 
  * @author Melvin Gelbard
- * 
  */
 public class OmeroWebClientsCommand implements Runnable {
 	
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebClientsCommand.class);
-
 	
 	private QuPathGUI qupath;
 	private Stage dialog;
-	private Button refreshBtn;
+	private ExecutorService executor;
+	private ObservableSet<ServerInfo> clientsDisplayed;
+	
+	// GUI
+	private GridPane mainPane;
 	
 	OmeroWebClientsCommand(QuPathGUI qupath) {
 		this.qupath = qupath;
+		this.clientsDisplayed = FXCollections.observableSet();
 	}
 
 	public void run() {
-		BorderPane mainPane = new BorderPane();
-		GridPane serverGrid = createServerGrid();
-		refreshBtn = new Button("Refresh");
-		refreshBtn.setOnAction(e -> mainPane.setTop(createServerGrid()));
-		GridPane buttonPane = PaneTools.createColumnGridControls(refreshBtn);
-		mainPane.setTop(serverGrid);
-		mainPane.setBottom(buttonPane);
+		if (dialog == null) {
+			// Get connection status of each imageServer in separate thread
+			executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("OMERO-server-status", true));
+			
+			dialog = new Stage();
+			mainPane = new GridPane();
+			mainPane.setMinWidth(250);
+			mainPane.setMinHeight(50);
+			mainPane.setPadding(new Insets(0.0, 0.5, 5, 0.5));
+			for (var client: OmeroWebClients.getAllClients()) {
+				var serverInfo = new ServerInfo(qupath, client);
+				clientsDisplayed.add(serverInfo);
+			}
+			
+			
+			// If empty, display 'No OMERO clients' label
+			if (clientsDisplayed.isEmpty()) {
+				Platform.runLater(() -> {
+					mainPane.setAlignment(Pos.CENTER);
+					mainPane.add(new Label("No OMERO clients"), 0, 0);			        						
+				});
+			}
+			
+			// If a change is detected in the clients list, refresh pane
+			OmeroWebClients.getAllClients().addListener(new ListChangeListener<OmeroWebClient>() {
+			    @Override
+			    public void onChanged(Change<? extends OmeroWebClient> c) {
+			        refreshServerGrid();
+			        dialog.getScene().getWindow().sizeToScene();
+			    }
+			});
+			
+			// If project has no OMERO server, display label
+			clientsDisplayed.addListener(new SetChangeListener<ServerInfo>() {
+			    @Override
+			    public void onChanged(Change<? extends ServerInfo> c) {
+			        if (clientsDisplayed.isEmpty()) {
+			        	Platform.runLater(() -> {
+			        		mainPane.setAlignment(Pos.CENTER);
+			        		mainPane.add(new Label("No OMERO clients"), 0, 0);			        		
+			        	});
+			        }
+			    }
+			});
+			
+			refreshServerGrid();
+			
+			mainPane.setVgap(10.0);
+			dialog.sizeToScene();
+			dialog.setResizable(false);
+			dialog.setTitle("OMERO web clients");
+			dialog.setScene(new Scene(mainPane));
+			dialog.setOnCloseRequest(e -> dialog = null);
+			QuPathGUI qupath = QuPathGUI.getInstance();
+			if (qupath != null)
+				dialog.initOwner(qupath.getStage());
+		} else
+			dialog.requestFocus();
 
-		serverGrid.setVgap(10.0);
-		buttonPane.setHgap(10);
-		buttonPane.setPadding(new Insets(5, 0, 5, 0));
-				
-		dialog = new Stage();
 		dialog.sizeToScene();
-		dialog.setResizable(false);
-		dialog.setTitle("OMERO web server");
-		dialog.setScene(new Scene(mainPane));
-		QuPathGUI qupath = QuPathGUI.getInstance();
-		if (qupath != null)
-			dialog.initOwner(qupath.getStage());
-		dialog.showAndWait();
+		dialog.show();
 	}
 	
-	private GridPane createServerGrid() {
-		GridPane grid = new GridPane();
+	
+	private void refreshServerGrid() {
+		mainPane.getChildren().clear();
+		var allClients = OmeroWebClients.getAllClients();
+		for (var client: allClients) {
+			// If new client is not displayed, add it to the set
+			if (clientsDisplayed.stream().noneMatch(e -> e.client.equals(client)))
+				clientsDisplayed.add(new ServerInfo(qupath, client));
+		}
 		
-		var rowIndex = 0;
-		var hostClientsMap = OmeroWebClients.getAllClients();
-		for (var hostClientEntry: hostClientsMap.entrySet()) {
-			if (hostClientEntry.getValue().isEmpty())
+		int row = 0;
+		// Using iterator to avoid ConcurrentModificationExceptions
+		for (var i = clientsDisplayed.iterator(); i.hasNext();) {
+			var serverInfo = i.next();
+			// If the client list does not contain this client, remove from set
+			if (!allClients.contains(serverInfo.client)) {
+				i.remove();
 				continue;
-			
-			GridPane gridPane = new GridPane();
-			GridPane infoPane = new GridPane();
-			GridPane actionPane = new GridPane();
-			
-			GridPane imageServersPane = new GridPane();
-			int imageServerRow = 0;
-			var imageList = qupath.getProject().getImageList();
-			String host = hostClientEntry.getKey();
-			Optional<OmeroWebClient> clientsWithUsername = hostClientEntry.getValue().parallelStream().filter(e -> !e.getUsername().isEmpty()).findAny();
-			Label userLabel = clientsWithUsername.isEmpty() ? new Label(host) : new Label(host + " (" + clientsWithUsername.get().getUsername() + ")");
-			PaneTools.addGridRow(infoPane, 0, 0, null, userLabel);
-			
-			for (OmeroWebClient client: hostClientEntry.getValue()) {
-				// Check if client's servers haven't been deleted from project
-				if (imageList.parallelStream().anyMatch(e -> {
-					try {
-						return e.getServerURIs().iterator().next() == client.getURI();
-					} catch (Exception ex) {
-						logger.warn(ex.getLocalizedMessage());
-					}
-					return false;
-				}))
-					imageServersPane.addRow(imageServerRow++, new Label(client.getURI().toString()));
 			}
+			mainPane.addRow(row++, serverInfo.getPane());
+			if (dialog != null)
+				dialog.sizeToScene();
+		}
+	}
+	
+	
+	/**
+	 * Class to keep info about an OMERO server for display.
+	 * The point here is to keep track of the bindings with {@code OmeroWebClients} 
+	 * and to avoid having to recreate panes after each update.
+	 * <p>
+	 * Each instance has a {@code GridPane} which is created <b>once</b>. Within this pane, the 
+	 * {@code titledPane} is continuously updated according to the URI list of the 
+	 * {@code client} (each addition/removal recreate the title pane content).
+	 *
+	 */
+	class ServerInfo {
 
-			TitledPane imageServersTitledPane = new TitledPane(imageServerRow + " server(s)", imageServersPane);
-			imageServersTitledPane.setMaxWidth(Double.MAX_VALUE);
-			imageServersTitledPane.setExpanded(false);
+		private QuPathGUI qupath;
+		private OmeroWebClient client;
+		private GridPane pane;
+		
+		private IntegerProperty nImages;
+
+		private ServerInfo(QuPathGUI qupath, OmeroWebClient client) {
+			this.qupath = qupath;
+			this.client = client;
+			this.nImages = new SimpleIntegerProperty(0);
+			this.pane = createServerPane();			
+		}
+		
+		private GridPane getPane() {
+			return pane;
+		}
+		
+		private GridPane createServerPane() {
+			// The username should be the same for all images in the server
+			String username = client.getUsername();
+			GridPane gridPane = new GridPane();
+			BorderPane infoPane = new BorderPane();
+			GridPane actionPane = new GridPane();
+		
+			URI uri = client.getServerURI();
+			Label userLabel = new Label();
+			userLabel.textProperty().bind(Bindings
+					.when(client.usernameProperty().isNotEmpty())
+					.then(Bindings.concat(uri.toString(), " (", client.usernameProperty(), ")"))
+					.otherwise(Bindings.concat(uri.toString())));
+			
+			// Bind state node
+			userLabel.graphicProperty().bind(Bindings.createObjectBinding(() -> {
+				if (client.getUsername().isEmpty())
+					return OmeroTools.createStateNode(client.checkIfLoggedIn());
+				else
+					return OmeroTools.createStateNode(client.logProperty().get());
+			}, client.usernameProperty()));
+			
+			// Make it appear on the right of the server's URI
+			userLabel.setContentDisplay(ContentDisplay.RIGHT);
+			
+			nImages.bind(Bindings.size(client.getURIs()));
+			
+			TitledPane tp = new TitledPane();
+			tp.textProperty().bind(Bindings.concat(nImages, " image(s)"));
+			tp.setMaxWidth(Double.MAX_VALUE);
+			tp.setExpanded(false);
+			tp.heightProperty().addListener((v, o, n) -> Platform.runLater(() -> dialog.sizeToScene()));
+			tp.widthProperty().addListener((v, o, n) -> Platform.runLater(() -> dialog.sizeToScene()));
+			
+			// If the login status or the client's username has changed or a new image is opened, recreate the titlePane content
+			tp.contentProperty().bind(Bindings.createObjectBinding(() -> createImagesPane(client), client.usernameProperty(), client.getURIs()));
+			tp.collapsibleProperty().bind(nImages.greaterThan(0));
+			
 			Platform.runLater(() -> {
 				try {
 					// These 2 next lines help prevent NPE
-					imageServersTitledPane.applyCss();
-					imageServersTitledPane.layout();
-					imageServersTitledPane.lookup(".title").setStyle("-fx-background-color: transparent");
-					imageServersTitledPane.lookup(".title").setEffect(null);
-					imageServersTitledPane.lookup(".content").setStyle("-fx-border-color: null");
+					tp.applyCss();
+					tp.layout();
+					if (!tp.getStyle().isEmpty()) {
+						tp.lookup(".title").setStyle("-fx-background-color: transparent");
+						tp.lookup(".title").setEffect(null);						
+						tp.lookup(".content").setStyle("-fx-border-color: null");						
+					}
 				} catch (Exception e) {
 					logger.error("Error setting CSS style: {}", e.getLocalizedMessage());
 				}
 			});
-			PaneTools.addGridRow(infoPane, 1, 0, null, imageServersTitledPane);
-
-			// Get first client in list that requires login, or the first one if all public
-			OmeroWebClient clientToPing = clientsWithUsername.isEmpty() ? hostClientEntry.getValue().get(0) : clientsWithUsername.get();
-			boolean loggedIn = clientToPing.loggedIn();
+			infoPane.setBottom(tp);
 			
-			Node state = createStateNode(clientToPing.loggedIn());
-			Button connectionBtn = loggedIn ? new Button("Log out") : new Button("Log in");
+			Button connectionBtn = new Button();
+			// Bind button's text properly
+			connectionBtn.textProperty().bind(Bindings.createStringBinding(() -> {
+				if (client.isLoggedIn()) {
+					if (client.getUsername().isEmpty())
+						return "Log in";
+					return "Log out";
+				}
+				return "Log in";
+			},  client.logProperty(), client.usernameProperty()));
+			
 			Button removeBtn = new Button("Remove");
-			PaneTools.addGridRow(actionPane, 0, 0, null, state, connectionBtn, removeBtn);
+			PaneTools.addGridRow(actionPane, 0, 0, null, connectionBtn, removeBtn);
+			infoPane.setLeft(userLabel);
+			infoPane.setRight(actionPane);
 			
 			connectionBtn.setOnAction(e -> {
 				if (connectionBtn.getText().equals("Log in")) {
 					boolean success = true;
-					
-					// Check again the state, in case it wasn't refreshed in time
-					if (!clientToPing.loggedIn())
-						success = OmeroWebClients.logIn(clientToPing);
-					
-					// Change text on button if connection was successful
-					if (success) {
-						connectionBtn.setText("Log out");
-						refreshBtn.fire();
-					} else
-						Dialogs.showErrorMessage("Connect to server", "Could not connect to server. Check the log for more info.");
+					success = client.logIn();
+					if (!success)
+						Dialogs.showErrorMessage("Log in to OMERO server", "Could not log in to server with credentials. Check the log for more info.");
 				} else {
 					// Check again the state, in case it wasn't refreshed in time
-					if (clientToPing.loggedIn())
-						OmeroWebClients.logOut(clientToPing);
-
-					// Change text on button
-					connectionBtn.setText("Log in");
-					refreshBtn.fire();
+					if (client.isLoggedIn())
+						client.logOut();
 				}
 			});
 			
 			removeBtn.setOnMouseClicked(e -> {
 				// Check if the webclient to delete is currently used in any viewer
 				if (qupath.getViewers().stream().anyMatch(viewer -> {
-							if (viewer.getServer() == null)
-								return false;
-							URI viewerURI = viewer.getServer().getURIs().iterator().next();
-							return hostClientEntry.getValue().parallelStream().anyMatch(tempClient -> tempClient.getURI() == viewerURI);
-						})) {
-					Dialogs.showMessageDialog("Remove server", "You need to close the image in the viewer first!");
+					if (viewer.getServer() == null)
+						return false;
+					URI viewerURI = viewer.getServer().getURIs().iterator().next();
+					return client.getURIs().contains(viewerURI);
+				})) {
+					Dialogs.showMessageDialog("Remove OMERO client", "You need to close images from this server in the viewer first!");
 					return;
 				}
-				if (!clientsWithUsername.isEmpty() && clientToPing.loggedIn())
-					OmeroWebClients.logOut(clientToPing);
-				OmeroWebClients.removeClient(clientToPing);
-				refreshBtn.fire();
+				if (!username.isEmpty() && client.isLoggedIn())
+					client.logOut();
+				OmeroWebClients.removeClient(client);
 			});
+			removeBtn.disableProperty().bind(client.logProperty().and(client.usernameProperty().isNotEmpty()));
 			
-			connectionBtn.setDisable(clientsWithUsername.isEmpty());
-			if (!clientsWithUsername.isEmpty())
-				removeBtn.disableProperty().bind(connectionBtn.textProperty().isEqualTo("Log out"));
-			else
-				removeBtn.setDisable(false);
+
 			
 			PaneTools.addGridRow(gridPane, 0, 0, null, infoPane);
-			PaneTools.addGridRow(gridPane, 0, 1, null, actionPane);
+			PaneTools.addGridRow(gridPane, 1, 0, null, tp);
 			
 			GridPane.setHgrow(gridPane, Priority.ALWAYS);
-			GridPane.setHgrow(actionPane, Priority.ALWAYS);
+			GridPane.setHgrow(tp, Priority.ALWAYS);
 			actionPane.setHgap(5.0);
-			actionPane.setAlignment(Pos.CENTER_RIGHT);
 			gridPane.setPadding(new Insets(5, 5, 5, 5));
-
+			
 			gridPane.setStyle("-fx-border-color: black;");
-			grid.add(gridPane, 0, rowIndex++);
+			return gridPane;
 		}
 		
-		// If project has no OMERO server 
-		if (grid.getChildren().isEmpty()) {
-			grid.setMinWidth(250);
-			grid.setAlignment(Pos.CENTER);
-			grid.add(new Label("No OMERO server"), 0, 0);
-		} else {
-			// Resize when expanding inner panes
-			grid.heightProperty().addListener((v, o, n) -> dialog.sizeToScene());
-			grid.widthProperty().addListener((v, o, n) -> dialog.sizeToScene());
-		}
 		
-		return grid;
+		private GridPane createImagesPane(OmeroWebClient client) {
+			var imageList = qupath.getProject().getImageList();
+			
+			GridPane gp = new GridPane();
+			for (URI imageUri: client.getURIs()) {
+				// Check if client's servers haven't been deleted from project
+				var anyMatch = imageList.parallelStream().anyMatch(e -> {
+					try {
+						return e.getServerURIs().iterator().next().equals(imageUri);
+					} catch (Exception ex) {
+						logger.warn(ex.getLocalizedMessage());
+					}
+					return false;
+				});
+				
+				if (anyMatch) {
+					// To save time, check the imageServers' status in other threads and update the pane later
+					ProgressIndicator pi = new ProgressIndicator();
+					pi.setPrefSize(15, 15);
+					Label imageServerName = new Label("../" + imageUri.getQuery(), pi);
+					imageServerName.setContentDisplay(ContentDisplay.RIGHT);
+					PaneTools.addGridRow(gp, gp.getRowCount(), 0, null, imageServerName);
+					
+					executor.submit(() -> {
+						try {
+							final boolean canAccessImage = client.canAccessImage(imageUri);
+							String tooltip = (client.isLoggedIn() && !canAccessImage) ? "Unreachable image (access not permitted)" : imageUri.toString();
+							Platform.runLater(() -> {
+								imageServerName.setTooltip(new Tooltip(tooltip));
+								imageServerName.setGraphic(OmeroTools.createStateNode(canAccessImage));									
+							});
+						} catch (ConnectException ex) {
+							Platform.runLater(() -> {
+								imageServerName.setTooltip(new Tooltip("Unreachable image"));									
+								imageServerName.setGraphic(OmeroTools.createStateNode(false));
+							});
+						}
+					});				
+				}
+			}
+			gp.setHgap(5.0);
+			return gp;
+		}
 	}
-	
-	
-	private Node createStateNode(boolean loggedIn) {
-		var state = loggedIn ? IconFactory.PathIcons.ACTIVE_SERVER : IconFactory.PathIcons.INACTIVE_SERVER;
-		return IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, state);
-	}
-
 }

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.security.InvalidParameterException;
 import java.util.List;
@@ -42,12 +43,12 @@ public final class OmeroRequests {
 	private static final String JSON_API_FILTERED_LIST = "/api/v0/m/%s/%d/%s/?%s";	// '/api/v0/m/{datasets}/{103}/{images}/?{childCount=true}'
 	private static final String JSON_API_ROIS = "/api/v0/m/rois/?image=%s";
 	
-	
-	// Suppress default constructor for non-instantiability
+	/**
+	 * Suppress default constructor for non-instantiability
+	 */
 	private OmeroRequests() {
 		throw new AssertionError();
 	}
-	
 	
 	/**
 	 * Request the metadata of OMERO image with {@code id}.
@@ -64,7 +65,6 @@ public final class OmeroRequests {
 		reader.close();
 		return map;
 	}
-
 	
 	/**
 	 * Request information about an OMERO object with id ({@code id}) and OMERO type ({@code type}). 
@@ -79,7 +79,6 @@ public final class OmeroRequests {
 	public static JsonObject requestObjectInfo(String scheme, String host, int id, OmeroObjectType type) throws IOException {
 		return requestObjectInfo(scheme, host, id, type, null);
 	}
-	
 	
 	/**
 	 * Request information about an OMERO object with id ({@code id}) and OMERO type ({@code type}).
@@ -112,7 +111,6 @@ public final class OmeroRequests {
         // Return json
 		return json;
 	}
-
 	
 	/**
 	 * Request a list of all {@code OmeroObject}s with type {@code objectType} from the server. 
@@ -134,10 +132,9 @@ public final class OmeroRequests {
 			return requestObjectList(scheme, host, objectType, null, -1);
 	}
 	
-	
 	/**
 	 * Request a list of all {@code OmeroObject}s with type {@code objectType} from the server.
-	 * Depending on whether the {@code orphaned} flag is triggered, the method will return 
+	 * Depending on whether the {@code orphaned} flag is active, the method will return 
 	 * <b>only</b> orphaned objects or <b>only</b> non-orphaned objects.
 	 * 
 	 * <p>
@@ -147,13 +144,13 @@ public final class OmeroRequests {
 	 * @param scheme server's scheme
 	 * @param host server's host
 	 * @param objectType object's type
-	 * @param orphaned type of objects to request
+	 * @param onlyOrphaned type of objects to request
 	 * @return list of json responses
 	 * @throws IOException
 	 * @see #requestWebClientObjectList
 	 */
-	public static List<JsonElement> requestObjectList(String scheme, String host, OmeroObjectType objectType, boolean orphaned) throws IOException {
-		return requestObjectList(scheme, host, objectType, orphaned ? OmeroObjectType.SERVER : objectType, -1);
+	public static List<JsonElement> requestObjectList(String scheme, String host, OmeroObjectType objectType, boolean onlyOrphaned) throws IOException {
+		return requestObjectList(scheme, host, objectType, onlyOrphaned ? OmeroObjectType.SERVER : objectType, -1);
 	}
 	
 	/**
@@ -174,7 +171,6 @@ public final class OmeroRequests {
 	public static List<JsonElement> requestObjectList(String scheme, String host, OmeroObjectType objectType, OmeroObject parent) throws IOException {
 		return requestObjectList(scheme, host, objectType, parent.getType(), parent.getId());
 	}
-
 	
 	/**
 	 * Request a list of {@code OmeroObject}s with type {@code objectType} and parent's id {@code parentId} from the server.
@@ -209,7 +205,6 @@ public final class OmeroRequests {
 			throw new IOException(String.format("Could not recognized OMERO object: %s", objectType.toString()));
 	}
 	
-	
 	/**
 	 * Request a list of {@code OmeroObject}s with type {@code objectType} and parent's id {@code parentId} from the server. 
 	 * A list of {@code JsonElement}s is returned as the OMERO API response is paginated.
@@ -238,7 +233,6 @@ public final class OmeroRequests {
 		
 	}
 	
-	
 	/**
 	 * Request a list of all {@code OmeroObject}s with type {@code objectType} from the server via the Webclient.
 	 * <p>
@@ -263,7 +257,6 @@ public final class OmeroRequests {
         	throw new IOException(String.format("Error %d while connecting to OMERO Webclient: %s", connection.getResponseCode(), connection.getResponseMessage()));
 	}
 	
-	
 	/**
 	 * Request all OMERO 'metadata' annotations (<b>not</b> QuPath annotations) of type {@code annType} 
 	 * from the {@code OmeroObject} with the specified {@code id}.
@@ -284,7 +277,6 @@ public final class OmeroRequests {
 		return json;
 	}
 
-	
 	/**
 	 * Request all the (OMERO) ROIs from the OMERO image with the specified {@code id}.
 	 * A list of {@code JsonElement}s is returned as the OMERO API response is paginated.
@@ -299,7 +291,6 @@ public final class OmeroRequests {
 		URL url = new URL(scheme, host, String.format(JSON_API_ROIS, id));
 		return OmeroTools.readPaginated(url);
 	}
-	
 	
 	/**
 	 * Request to write QuPath's annotations (in Json form) to the OMERO image with the specified {@code id}.
@@ -359,7 +350,6 @@ public final class OmeroRequests {
 		return ImageIO.read(url);
 		
 	}
-
 
 	/**
 	 * Request OMERO icon with the specified {@code iconFilename} from the provided server.
@@ -442,5 +432,20 @@ public final class OmeroRequests {
 		}
 		
 		return response;
+	}
+
+	/**
+	 * Checks whether this QuPath instance is logged in to the specified server (<b>not</b> necessarily with access to its image).
+	 * @param uri 
+	 * @return isLoggedIn
+	 */
+	public static boolean isLoggedIn(URI uri) {
+		try {
+			var url = new URL(uri.getScheme(), uri.getHost(), "/api/v0/m/" + OmeroObjectType.PROJECT.toURLString());
+			var conn = (HttpURLConnection) url.openConnection();
+			return conn.getResponseCode() == 200;
+		} catch (IOException e) {
+			return false;
+		}
 	}
 }

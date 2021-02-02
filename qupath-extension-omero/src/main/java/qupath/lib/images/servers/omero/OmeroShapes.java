@@ -61,7 +61,6 @@ class OmeroShapes {
 	
 	private final static Logger logger = LoggerFactory.getLogger(OmeroShapes.class);
 
-	
 	static class GsonShapeDeserializer implements JsonDeserializer<OmeroShape> {
 
 		@Override
@@ -214,18 +213,20 @@ class OmeroShapes {
 		private String oldId = "-1:-1";
 		
 		
-		public PathObject createAnnotation() {
-			return createObject(r -> PathObjects.createAnnotationObject(r));
-		}
-		
-		public PathObject createDetection() {
-			return createObject(r -> PathObjects.createDetectionObject(r));
-		}
-		
-		public PathObject createObject(Function<ROI, PathObject> fun) {
+		private PathObject createObject(Function<ROI, PathObject> fun) {
 			var pathObject = fun.apply(createROI());
 			initializeObject(pathObject);
 			return pathObject;
+		}
+		
+		abstract ROI createROI();
+
+		protected PathObject createAnnotation() {
+			return createObject(r -> PathObjects.createAnnotationObject(r));
+		}
+		
+		protected PathObject createDetection() {
+			return createObject(r -> PathObjects.createDetectionObject(r));
 		}
 		
 		protected void initializeObject(PathObject pathObject) {
@@ -244,8 +245,6 @@ class OmeroShapes {
 			else
 				return ImagePlane.getPlane(z, t);
 		}
-		
-		public abstract ROI createROI();
 		
 		protected void setType(String type) {
 			this.type = "http://www.openmicroscopy.org/Schemas/OME/2016-06#" + type;
@@ -284,7 +283,7 @@ class OmeroShapes {
 		}
 		
 		@Override
-		public ROI createROI() {
+		ROI createROI() {
 			logger.debug("Creating rectangle");
 			return ROIs.createRectangleROI(x, y, width, height, getPlane());
 		}
@@ -309,7 +308,7 @@ class OmeroShapes {
 		}
 		
 		@Override
-		public ROI createROI() {
+		ROI createROI() {
 			logger.debug("Creating ellipse");
 			return ROIs.createEllipseROI(x-radiusX, y-radiusY, radiusX*2, radiusY*2, getPlane());
 		}
@@ -334,7 +333,7 @@ class OmeroShapes {
 		}
 		
 		@Override
-		public ROI createROI() {
+		ROI createROI() {
 			logger.debug("Creating line");
 			return ROIs.createLineROI(x1, y1, x2, y2, getPlane());
 		}
@@ -353,7 +352,7 @@ class OmeroShapes {
 		}
 		
 		@Override
-		public ROI createROI() {
+		ROI createROI() {
 			logger.debug("Creating point");
 			return ROIs.createPointsROI(x, y, getPlane());
 		}
@@ -369,7 +368,7 @@ class OmeroShapes {
 		}
 		
 		@Override
-		public ROI createROI() {
+		ROI createROI() {
 			logger.debug("Creating polyline");
 			return ROIs.createPolylineROI(parseStringPoints(pointString), getPlane());
 		}
@@ -385,7 +384,7 @@ class OmeroShapes {
 		}
 		
 		@Override
-		public ROI createROI() {
+		ROI createROI() {
 			logger.debug("Creating polygon");
 			return ROIs.createPolygonROI(parseStringPoints(pointString), getPlane());
 		}
@@ -404,7 +403,7 @@ class OmeroShapes {
 		}
 		
 		@Override
-		public ROI createROI() {
+		ROI createROI() {
 			logger.warn("Creating point (requested label shape is unsupported)");
 			return ROIs.createPointsROI(x, y, getPlane());
 		}
@@ -413,7 +412,7 @@ class OmeroShapes {
 	static class Mask extends OmeroShapes.OmeroShape {
 		
 		@Override
-		public ROI createROI() {
+		ROI createROI() {
 			throw new UnsupportedOperationException("Mask rois not yet supported!");
 		}
 	}

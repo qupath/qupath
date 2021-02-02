@@ -68,29 +68,32 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 
 	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServer.class);
 
-	private ImageServerMetadata originalMetadata;
-	private URI uri;
-	private String[] args;
-
-	/**
-	 * Image ID
-	 */
-	private String id;
-
+	private final URI uri;
+	private final String[] args;	
 	private final String host;
 	private final String scheme;
+
+	private ImageServerMetadata originalMetadata;
+
+	/**
+	 * Image OMERO ID
+	 */
+	private String id;
 	
-	private OmeroWebClient client;
+	/**
+	 * Client used to open this image.
+	 */
+	private final OmeroWebClient client;
 
 	/**
 	 * Quality of requested JPEG.
 	 */
 	private static double QUALITY = 0.9;
 
-	/**
-	 * There appears to be a max size (hard-coded?) in OMERO, so we need to make sure we don't exceed that.
-	 * Requesting anything larger just returns a truncated image.
-	 */
+//	/**
+//	 * There appears to be a max size (hard-coded?) in OMERO, so we need to make sure we don't exceed that.
+//	 * Requesting anything larger just returns a truncated image.
+//	 */
 //	private static int OMERO_MAX_SIZE = 1024;
 
 	/**
@@ -118,10 +121,10 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		this.host = uri.getHost();
 		this.client = client;
 		this.args = args;
-		this.originalMetadata = buildMetadata(uri);
+		this.originalMetadata = buildMetadata();
 	}
 	
-	protected ImageServerMetadata buildMetadata(URI uri) throws IOException {
+	protected ImageServerMetadata buildMetadata() throws IOException {
 		String uriQuery = uri.getQuery();
 		if (uriQuery != null && !uriQuery.isEmpty() && uriQuery.startsWith("show=image-")) {
 			Pattern pattern = Pattern.compile("show=image-(\\d+)");
@@ -306,14 +309,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
-	
-	int getPreferredTileWidth() {
-		return getMetadata().getPreferredTileWidth();
-	}
-
-	int getPreferredTileHeight() {
-		return getMetadata().getPreferredTileHeight();
-	}
 
 	@Override
 	protected BufferedImage readTile(TileRequest request) throws IOException {
@@ -406,6 +401,23 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	}
 	
 	/**
+	 * Return the preferred tile width of this {@code ImageServer}.
+	 * @return preferredTileWidth
+	 */
+	public int getPreferredTileWidth() {
+		return getMetadata().getPreferredTileWidth();
+	}
+
+	/**
+	 * Return the preferred tile height of this {@code ImageServer}.
+	 * @return preferredTileHeight
+	 */
+	public int getPreferredTileHeight() {
+		return getMetadata().getPreferredTileHeight();
+	}
+
+	
+	/**
 	 * Return the web client used for this image server.
 	 * @return client
 	 */
@@ -450,10 +462,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		if (!(obj instanceof OmeroWebImageServer))
 			return false;
 		
-		return host == ((OmeroWebImageServer)obj).getHost() &&
-				client.getUsername() == ((OmeroWebImageServer)obj).getWebclient().getUsername();
+		return host.equals(((OmeroWebImageServer)obj).getHost()) &&
+				client.getUsername().equals(((OmeroWebImageServer)obj).getWebclient().getUsername());
 	}
-	
-	
-
 }

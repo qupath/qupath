@@ -1,11 +1,12 @@
 package qupath.lib.images.servers.omero;
 
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,19 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.collections.ObservableList;
+
+/**
+ * 
+ * Class regrouping all OMERO objects (most of which will be instantiated through deserialization) that represent
+ * OMERO objects or data.
+ * @author Melvin Gelbard
+ *
+ */
 final class OmeroObjects {
 	
 	private final static Logger logger = LoggerFactory.getLogger(OmeroObjects.class);
@@ -29,6 +43,11 @@ final class OmeroObjects {
 		PLATE("TODO", "Plate"),
 		WELL("TODO", "Well"),
 		SCREEN("TODO", "Screen"),
+		
+		// Object for OmeroWebBrowser's 'Orphaned folder' item (not for deserialization)
+		ORPHANED_FOLDER("#OrphanedFolder", "Orphaned Folder"),
+		
+		// Default if unknown
 		UNKNOWN("", "Unknown");
 		
 		private final String APIName;
@@ -38,7 +57,7 @@ final class OmeroObjects {
 			this.displayedName = displayedName;
 		}
 
-		public static OmeroObjectType fromString(String text) {
+		static OmeroObjectType fromString(String text) {
 	        for (var type : OmeroObjectType.values()) {
 	            if (type.APIName.equalsIgnoreCase(text) || type.displayedName.equalsIgnoreCase(text))
 	                return type;
@@ -46,7 +65,7 @@ final class OmeroObjects {
 	        return UNKNOWN;
 	    }
 		
-		public String toURLString() {
+		String toURLString() {
 			return displayedName.toLowerCase() + 's';
 		}
 		
@@ -94,10 +113,10 @@ final class OmeroObjects {
 		private int id = -1;
 		
 		@SerializedName(value = "Name")
-		private String name;
+		protected String name;
 		
 		@SerializedName(value = "@type")
-		private String type;
+		protected String type;
 		
 		private Owner owner;
 		
@@ -109,7 +128,7 @@ final class OmeroObjects {
 		 * Return the OMERO ID associated with this object.
 		 * @return id
 		 */
-		public int getId() {
+		int getId() {
 			return id;
 		}
 		
@@ -117,7 +136,7 @@ final class OmeroObjects {
 		 * Return the name associated with this object.
 		 * @return name
 		 */
-		public String getName() {
+		String getName() {
 			return name;
 		}
 		
@@ -125,13 +144,13 @@ final class OmeroObjects {
 		 * Return the URL associated with this object.
 		 * @return url
 		 */
-		public abstract String getAPIURLString();
+		abstract String getAPIURLString();
 		
 		/**
 		 * Return the {@code OmeroObjectType} associated with this object.
 		 * @return type
 		 */
-		public OmeroObjectType getType() {
+		OmeroObjectType getType() {
 			return OmeroObjectType.fromString(type);
 		}
 		
@@ -139,7 +158,7 @@ final class OmeroObjects {
 		 * Return the OMERO owner of this object
 		 * @return owner
 		 */
-		public Owner getOwner() {
+		Owner getOwner() {
 			return owner;
 		}
 		
@@ -147,7 +166,7 @@ final class OmeroObjects {
 		 * Set the owner of this OMERO object
 		 * @param owner
 		 */
-		public void setOwner(Owner owner) {
+		void setOwner(Owner owner) {
 			this.owner = owner;
 		}
 		
@@ -155,7 +174,7 @@ final class OmeroObjects {
 		 * Return the OMERO group of this object
 		 * @return group
 		 */
-		public Group getGroup() {
+		Group getGroup() {
 			return group;
 		}
 		
@@ -163,7 +182,7 @@ final class OmeroObjects {
 		 * Set the group of this OMERO object
 		 * @param group
 		 */
-		public void setGroup(Group group) {
+		void setGroup(Group group) {
 			this.group = group;
 		}
 		
@@ -171,7 +190,7 @@ final class OmeroObjects {
 		 * Return the parent of this object
 		 * @return parent
 		 */
-		public OmeroObject getParent() {
+		OmeroObject getParent() {
 			return parent;
 		}
 		
@@ -179,7 +198,7 @@ final class OmeroObjects {
 		 * Set the parent of this OMERO object
 		 * @param parent
 		 */
-		public void setParent(OmeroObject parent) {
+		void setParent(OmeroObject parent) {
 			this.parent = parent;
 		}
 		
@@ -187,7 +206,7 @@ final class OmeroObjects {
 		 * Return the number of children associated with this object
 		 * @return nChildren
 		 */
-		public int getNChildren() {
+		int getNChildren() {
 			return 0;
 		}
 		
@@ -211,22 +230,105 @@ final class OmeroObjects {
 	
 	static class Server extends OmeroObjects.OmeroObject {
 		
-		String url;
+		private String url;
 		
-		Server(OmeroWebImageServer server) {
-			super.id = Integer.parseInt(server.getId());
+		Server(URI uri) {
+			super.id = -1;
 			super.type = "Server";
 			super.owner = null;
-			url = server.getURIs().toString();
+			url = uri.toString();
 		}
 
 		@Override
-		public String getAPIURLString() {
+		String getAPIURLString() {
 			return url;
 		}
 	}
 	
-	static class Project extends OmeroObjects.OmeroObject {
+	
+	/**
+	 * The {@code Orphaned folder} class differs from other in this class as it 
+	 * is never created through deserialization of JSON objects. Note that it should only 
+	 * contain orphaned images, <b>not</b> orphaned datasets (like the OMERO webclient).
+	 * <p>
+	 * It should only be used once per {@code OmeroWebImageServerBrowser}, with its children objects loaded 
+	 * in an executor (see {@link OmeroTools#populateOrphanedImageList(URI, OrphanedFolder)}). This class keeps track of:
+	 * <li>Total child count: total amount of orphaned images on the server.</li>
+	 * <li>Current child count: what is displayed in the current {@code OmeroWebServerImageBrowser}, which depends on what is loaded and the current Group/Owner.</li>
+	 * <li>Child count: total amount of orphaned images currently loaded (always smaller than total child count).</li>
+	 * <li>{@code isLoading} property: defines whether QuPath is still loading its children objects.</li>
+	 * <li>List of orphaned image objects.</li>
+	 */
+	static class OrphanedFolder extends OmeroObject {
+
+		/**
+		 * Number of children currently to display (based on Group/Owner and loaded objects)
+		 */
+		private IntegerProperty currentChildCount;
+		
+		/**
+		 * Number of children objects loaded
+		 */
+		private AtomicInteger loadedChildCount;
+		
+		/**
+		 * Total number of children (loaded + unloaded)
+		 */
+		private AtomicInteger totalChildCount;
+		
+		private BooleanProperty isLoading;
+		private ObservableList<OmeroObject> orphanedImageList;
+		
+		OrphanedFolder(ObservableList<OmeroObject> orphanedImageList) {
+			this.name = "Orphaned Images";
+			this.type = OmeroObjectType.ORPHANED_FOLDER.toString();
+			this.currentChildCount = new SimpleIntegerProperty(0);
+			this.loadedChildCount = new AtomicInteger(0);
+			this.totalChildCount = new AtomicInteger(-1);
+			this.isLoading = new SimpleBooleanProperty(true);
+			this.orphanedImageList = orphanedImageList;
+		}	
+		
+		IntegerProperty getCurrentCountProperty() {
+			return currentChildCount;
+		}
+
+		int incrementAndGetLoadedCount() {
+			return loadedChildCount.incrementAndGet();
+		}
+		
+		void setTotalChildCount(int newValue) {
+			totalChildCount.set(newValue);
+		}
+		
+		int getTotalChildCount() {
+			return totalChildCount.get();
+		}
+
+		BooleanProperty getLoadingProperty() {
+			return isLoading;
+		}
+		
+		void setLoading(boolean value) {
+			isLoading.set(value);
+		}
+		
+		ObservableList<OmeroObject> getImageList() {
+			return orphanedImageList;
+		}
+		
+		@Override
+		int getNChildren() {
+			return currentChildCount.get();
+		}
+
+		@Override
+		String getAPIURLString() {
+			return "";
+		}
+	}
+	
+	static class Project extends OmeroObject {
 		
 		@SerializedName(value = "url:project")
 		private String url;
@@ -239,21 +341,21 @@ final class OmeroObjects {
 		
 		
 		@Override
-		public String getAPIURLString() {
+		String getAPIURLString() {
 			return url;
 		}
 		
 		@Override
-		public int getNChildren() {
+		int getNChildren() {
 			return childCount;
 		}
 		
-		public String getDescription() {
+		String getDescription() {
 			return description;
 		}
 	}
 	
-	static class Dataset extends OmeroObjects.OmeroObject {
+	static class Dataset extends OmeroObject {
 		
 		@SerializedName(value = "url:dataset")
 		private String url;
@@ -266,21 +368,21 @@ final class OmeroObjects {
 		
 		
 		@Override
-		public String getAPIURLString() {
+		String getAPIURLString() {
 			return url;
 		}
 		
 		@Override
-		public int getNChildren() {
+		int getNChildren() {
 			return childCount;
 		}
 		
-		public String getDescription() {
+		String getDescription() {
 			return description;
 		}
 	}
 
-	static class Image extends OmeroObjects.OmeroObject {
+	static class Image extends OmeroObject {
 		
 		@SerializedName(value = "url:image")
 		private String url;
@@ -293,23 +395,23 @@ final class OmeroObjects {
 		
 		
 		@Override
-		public String getAPIURLString() {
+		String getAPIURLString() {
 			return url;
 		}
 		
-		public long getAcquisitionDate() {
+		long getAcquisitionDate() {
 			return acquisitionDate;
 		}
 		
-		public int[] getImageDimensions() {
+		int[] getImageDimensions() {
 			return pixels.getImageDimensions();
 		}
 		
-		public PhysicalSize[] getPhysicalSizes() {
+		PhysicalSize[] getPhysicalSizes() {
 			return pixels.getPhysicalSizes();
 		}
 		
-		public String getPixelType() {
+		String getPixelType() {
 			return pixels.getPixelType();
 		}
 	}
@@ -338,6 +440,8 @@ final class OmeroObjects {
 		@SerializedName(value = "UserName")
 		private String username = "";
 		
+		// Singleton (with static factory)
+		private static final Owner ALL_MEMBERS = new Owner(-1, "All members", "", "", "", "", "");
 		
 		private Owner(int id, String firstName, String middleName, String lastName, String emailAddress, String institution, String username) {
 			this.id = Objects.requireNonNull(id);
@@ -350,26 +454,30 @@ final class OmeroObjects {
 			this.username = username;
 		}
 		
-		public String getName() {
+		String getName() {
+			// We never know if a deserialized Owner will have all the necessary information
+			firstName = firstName == null ? "" : firstName;
+			middleName = middleName == null ? "" : middleName;
+			lastName = lastName == null ? "" : lastName;
 			return firstName + " " + (middleName.isEmpty() ? "" : middleName + " ") + lastName;
 		}
 		
-		public int getId() {
+		int getId() {
 			return id;
 		}
 		
 		/**
-		 * Dummy {@code Owner} object to represent all owners.
+		 * Dummy {@code Owner} object (singleton instance) to represent all owners.
 		 * @return owner
 		 */
-		static public Owner getAllMembersOwner() {
-			return new Owner(-1, "All members", "", "", "", "", "");
+		static Owner getAllMembersOwner() {
+			return ALL_MEMBERS;
 		}
 		
 		@Override
 		public String toString() {
 			List<String> list = new ArrayList<String>(Arrays.asList("Owner: " + getName(), emailAddress, institution, username));
-			list.removeAll(Collections.singleton(""));
+			list.removeAll(Arrays.asList("", null));
 			return String.join(", ", list);
 		}
 
@@ -396,33 +504,36 @@ final class OmeroObjects {
 		@SerializedName(value = "Name")
 		private String name;
 		
+		// Singleton (with static factory)
+		private static final Group ALL_GROUPS = new Group(-1, "All groups");
+		
 		
 		private Group(int id, String name) {
 			this.id = id;
 			this.name = name;
 		}
 		
+		/**
+		 * Dummy {@code Group} object (singleton instance) to represent all groups.
+		 * @return group
+		 */
+		public static Group getAllGroupsGroup() { 
+			return ALL_GROUPS; 
+		}
+		
+		String getName() {
+			return name;
+		}
+		
+		int getId() {
+			return id;
+		}
+
 		@Override
 		public String toString() {
 			return name;
 		}
 		
-		public String getName() {
-			return name;
-		}
-		
-		public int getId() {
-			return id;
-		}
-
-		/**
-		 * Dummy {@code Group} object to represent all groups.
-		 * @return group
-		 */
-		public static Group getAllGroupsGroup() {
-			return new Group(-1, "All groups");
-		}
-
 		@Override
 		public int hashCode() {
 			return Integer.hashCode(id);
@@ -467,15 +578,15 @@ final class OmeroObjects {
 		@SerializedName(value = "Type")
 		private ImageType imageType;
 		
-		public int[] getImageDimensions() {
+		int[] getImageDimensions() {
 			return new int[] {width, height, c, z, t};
 		}
 		
-		public PhysicalSize[] getPhysicalSizes() {
+		PhysicalSize[] getPhysicalSizes() {
 			return new PhysicalSize[] {physicalSizeX, physicalSizeY, physicalSizeZ};
 		}
 		
-		public String getPixelType() {
+		String getPixelType() {
 			return imageType.getValue();
 		}
 
@@ -491,11 +602,11 @@ final class OmeroObjects {
 		private double value;
 		
 		
-		public String getSymbol() {
+		String getSymbol() {
 			return symbol;
 		}
 			
-		public double getValue() {
+		double getValue() {
 			return value;
 		}
 		
@@ -506,15 +617,17 @@ final class OmeroObjects {
 		@SerializedName(value = "value")
 		private String value;
 		
-		public String getValue() {
+		String getValue() {
 			return value;
 		}	
 	}
 	
 	
+	/**
+	 * Both in OmeroAnnotations and in OmeroObjects.
+	 */
 	static class Permission {
 		
-		// Both in OmeroAnnotations and in OmeroObjects
 		@SerializedName(value = "canDelete")
 		private boolean canDelete;
 		
@@ -562,7 +675,7 @@ final class OmeroObjects {
 		@SerializedName(value = "owner")
 		private Owner owner;
 		
-		public Owner getOwner() {
+		Owner getOwner() {
 			return owner;
 		}
 	}
@@ -582,21 +695,19 @@ final class OmeroObjects {
 		@SerializedName(value = "lastName")
 		private String lastName;
 		
-		
 		/**
 		 * Return the Id of this {@code Experimenter}.
 		 * @return id
 		 */
-		public int getId() {
+		int getId() {
 			return id;
 		}
-		
 		
 		/**
 		 * Return the full name (first name + last name) of this {@code Experimenter}.
 		 * @return full name
 		 */
-		public String getFullName() {
+		String getFullName() {
 			return firstName + " " + lastName;
 		}
 	}

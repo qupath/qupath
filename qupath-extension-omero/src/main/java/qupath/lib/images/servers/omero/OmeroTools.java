@@ -4,7 +4,9 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,8 +14,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -24,10 +24,15 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import javafx.application.Platform;
+import javafx.scene.Node;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.images.servers.omero.OmeroAnnotations.OmeroAnnotationType;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObject;
 import qupath.lib.images.servers.omero.OmeroObjects.OmeroObjectType;
+import qupath.lib.images.servers.omero.OmeroObjects.OrphanedFolder;
 import qupath.lib.images.servers.omero.OmeroObjects.Server;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -43,7 +48,7 @@ import qupath.lib.objects.PathObjects;
  * @author Melvin Gelbard
  *
  */
-public class OmeroTools {
+public final class OmeroTools {
 	
 	private final static Logger logger = LoggerFactory.getLogger(OmeroTools.class);
 	
@@ -57,8 +62,9 @@ public class OmeroTools {
 	private final static Pattern patternImgDetail = Pattern.compile("img_detail/(\\d+)");
 	private final static Pattern patternType = Pattern.compile("show=(\\w+-)");
 	
-	
-	// Suppress default constructor for non-instantiability
+	/**
+	 * Suppress default constructor for non-instantiability
+	 */
 	private OmeroTools() {
 		throw new AssertionError();
 	}
@@ -75,18 +81,17 @@ public class OmeroTools {
 	
 	
 	/**
-	 * Get all the OMERO objects (inside the parent Id) present in the OMERO server from which 
-	 * the specified OmeroWebImageServer was created. 
+	 * Get all the OMERO objects (inside the parent Id) present in the OMERO server with the specified 
+	 * URI.
 	 * <p>
-	 * If the parent object is an {@code OmeroObjects.Server}, orphaned {@code OmeroObjects.Dataset}s 
-	 * and {@code OmeroObjects.Image}s will also be returned.
+	 * No orphaned {@code OmeroObject} will be fetched.
 	 * 
-	 * @param server
-	 * @param parent 
+	 * @param uri
+	 * @param parent
 	 * @return list of OmeroObjects
 	 * @throws IOException
 	 */
-	public static List<OmeroObject> readOmeroObjects(OmeroWebImageServer server, OmeroObject parent) throws IOException {
+	public static List<OmeroObject> readOmeroObjects(URI uri, OmeroObject parent) throws IOException {
 		List<OmeroObject> list = new ArrayList<>();
 		if (parent == null)
 			return list;
@@ -97,9 +102,10 @@ public class OmeroTools {
 		else if (parent.getType() == OmeroObjectType.DATASET)
 			type = OmeroObjectType.IMAGE;
 
-		List<JsonElement> data = OmeroRequests.requestObjectList(server.getScheme(), server.getHost(), type, parent);
+		var gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
+		List<JsonElement> data = OmeroRequests.requestObjectList(uri.getScheme(), uri.getHost(), type, parent);
 		for (var d: data) {
-			var gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
+			gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
 			try {
 				var omeroObj = gson.fromJson(d, OmeroObject.class);
 				omeroObj.setParent(parent);
@@ -110,70 +116,133 @@ public class OmeroTools {
 			}
 		}
 		
-		// If parent is Server, get orphaned Datasets and Images
-		if (parent instanceof Server) {
-			var gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
-			
-			var orphanedDatasets = OmeroRequests.requestObjectList(server.getScheme(), server.getHost(), OmeroObjectType.DATASET, true);
-			for (var d: orphanedDatasets) {
-				try {
-					var omeroObj = gson.fromJson(d, OmeroObject.class);
-					omeroObj.setParent(parent);
-					if (omeroObj != null)
-						list.add(omeroObj);
-				} catch (Exception e) {
-					logger.error("Error parsing OMERO object: " + e.getLocalizedMessage(), e);
-				}
-			}
-			
-			// Requesting orphaned images can time-out the JSON API on OMERO side if too many,
-			// so we go through the webclient, whose response comes in a different format.
+		return list;
+	}
+	
+//	/**
+//	 * Get all the orphaned images in the given server.
+//	 * 
+//	 * @param uri
+//	 * @return list of orphaned images
+//	 * @see #populateOrphanedImageList(URI, OrphanedFolder)
+//	 */
+//	public static List<OmeroObject> readOrphanedImages(URI uri) {
+//		List<OmeroObject> list = new ArrayList<>();
+//
+//		// Requesting orphaned images can time-out the JSON API on OMERO side if too many,
+//		// so we go through the webclient, whose response comes in a different format.
+//		try {
+//			var map = OmeroRequests.requestWebClientObjectList(uri.getScheme(), uri.getHost(), OmeroObjectType.IMAGE);
+//        	
+//        	// Send requests in separate threads, this is not a great design
+//        	// TODO: Clean up this code, which now does: 
+//        	// 1. Send request for each image in the list of orphaned images in the executor
+//        	// 2. Terminate the executor after 5 seconds
+//        	// 3. Checks if there are still requests that weren't processed and gives log error if so
+//        	// Solution: Give a time-out for the request in readPaginated() :::
+//        	//
+//        	// URLConnection con = url.openConnection();
+//        	// con.setConnectTimeout(connectTimeout);
+//        	// con.setReadTimeout(readTimeout);
+//        	// InputStream in = con.getInputStream();
+//        	//
+//    		ExecutorService executorRequests = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("orphaned-image-requests", true));
+//    		List<Future<?>> futures = new ArrayList<Future<?>>();
+//        	
+//    		map.get("images").getAsJsonArray().forEach(e -> {
+//    			// To keep track of the completed requests, keep a Future variable
+//    			Future<?> future = executorRequests.submit(() -> {
+//    				try {
+//    					var id = Integer.parseInt(e.getAsJsonObject().get("id").toString());
+//        				var omeroObj = readOmeroObject(uri.getScheme(), uri.getHost(), id, OmeroObjectType.IMAGE);
+//        				list.add(omeroObj);	       
+//    				} catch (IOException ex) {
+//						logger.error("Could not fetch information for image id: " + e.getAsJsonObject().get("id"));
+//					}
+//    			});
+//    			futures.add(future);
+//        	});
+//    		executorRequests.shutdown();
+//    		try {
+//    			// Wait 10 seconds to terminate tasks
+//    			executorRequests.awaitTermination(10L, TimeUnit.SECONDS);
+//    			long nPending = futures.parallelStream().filter(e -> !e.isDone()).count();
+//    			if (nPending > 0)
+//    				logger.warn("Too many orphaned images in " + uri.getHost() + ". Ignored " + nPending + " orphaned image(s).");
+//    		} catch (InterruptedException ex) {
+//    			logger.debug("InterrupedException occurred while interrupting requests.");
+//    			Thread.currentThread().interrupt();
+//    		}
+//        } catch (IOException ex) {		
+//        	logger.error(ex.getLocalizedMessage());
+//        }
+//		return list;
+//	}
+	
+	/**
+	 * Populate the specified {@code orphanedFolder}'s image list with all orphaned images in the server.
+	 * <p>
+	 * As soon as all the objects have been loaded in the list, the {@code isLoading} property of the 
+	 * {@code OrphanedFodler} is modified accordingly.
+	 * 
+	 * @param uri
+	 * @param orphanedFolder 
+	 */
+	public static synchronized void populateOrphanedImageList(URI uri, OrphanedFolder orphanedFolder) {
+		var list = orphanedFolder.getImageList();
+		orphanedFolder.setLoading(true);
+		list.clear();
+		
+		try {
+			var map = OmeroRequests.requestWebClientObjectList(uri.getScheme(), uri.getHost(), OmeroObjectType.IMAGE);
+    		ExecutorService executorRequests = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("orphaned-image-requests", true));
+    		int max = map.get("images").getAsJsonArray().size();
+    		orphanedFolder.setTotalChildCount(max);
+    		map.get("images").getAsJsonArray().forEach(e -> {
+    			executorRequests.submit(() -> {
+    				try {
+    					var id = Integer.parseInt(e.getAsJsonObject().get("id").toString());
+    					OmeroObject omeroObj = readOmeroObject(uri.getScheme(), uri.getHost(), id, OmeroObjectType.IMAGE);
+        				Platform.runLater(() -> {
+        					list.add(omeroObj);
+        					
+        					// Check if all orphaned images were loaded
+        					if (orphanedFolder.incrementAndGetLoadedCount() >= max)
+        						orphanedFolder.setLoading(false);
+        				});
+    				} catch (IOException ex) {
+						logger.error("Could not fetch information for image id: " + e.getAsJsonObject().get("id"));
+					}
+    			});
+        	});
+    		executorRequests.shutdown();
+        } catch (IOException ex) {
+        	logger.error(ex.getLocalizedMessage());
+        }
+	}
+	
+	/**
+	 * Get all the orphaned {@code OmeroObject}s of type {@code type} from the server.
+	 * 
+	 * @param uri
+	 * @param server the parent {@code Server} object
+	 * @return list of orphaned datasets
+	 * @throws IOException 
+	 */
+	public static List<OmeroObject> readOrphanedDatasets(URI uri, Server server) throws IOException {
+		List<OmeroObject> list = new ArrayList<>();
+		var gson = new GsonBuilder().registerTypeAdapter(OmeroObject.class, new OmeroObjects.GsonOmeroObjectDeserializer()).setLenient().create();
+	
+		var orphanedDatasets = OmeroRequests.requestObjectList(uri.getScheme(), uri.getHost(), OmeroObjectType.DATASET, true);
+		for (var d: orphanedDatasets) {
 			try {
-				var map = OmeroRequests.requestWebClientObjectList(server.getScheme(), server.getHost(), OmeroObjectType.IMAGE);
-	        	
-	        	// Send requests in separate threads, this is not a great design
-	        	// TODO: Clean up this code, which now does: 
-	        	// 1. Send request for each image in the list of orphaned images in the executor
-	        	// 2. Terminate the executor after 5 seconds
-	        	// 3. Checks if there are still requests that weren't processed and gives log error if so
-	        	// Solution: Give a time-out for the request in readPaginated() :::
-	        	//
-	        	// URLConnection con = url.openConnection();
-	        	// con.setConnectTimeout(connectTimeout);
-	        	// con.setReadTimeout(readTimeout);
-	        	// InputStream in = con.getInputStream();
-	        	//
-	    		ExecutorService executorRequests = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("orphaned-image-requests", true));
-	    		List<Future<?>> futures = new ArrayList<Future<?>>();
-	        	
-	    		map.get("images").getAsJsonArray().forEach(e -> {
-	    			// To keep track of the completed requests, keep a Future variable
-	    			Future<?> future = executorRequests.submit(() -> {
-        				try {
-        					var id = Integer.parseInt(e.getAsJsonObject().get("id").toString());
-	        				var omeroObj = readOmeroObject(server.getScheme(), server.getHost(), id, OmeroObjectType.IMAGE);
-	        				omeroObj.setParent(parent);
-	        				list.add(omeroObj);	       
-        				} catch (IOException ex) {
-    						logger.error("Could not fetch information for image id: " + e.getAsJsonObject().get("id"));
-    					}
-        			});
-	    			futures.add(future);
-	        	});
-	    		executorRequests.shutdown();
-	    		try {
-	    			// Wait 10 seconds to terminate tasks
-	    			executorRequests.awaitTermination(10L, TimeUnit.SECONDS);
-	    			long nPending = futures.parallelStream().filter(e -> !e.isDone()).count();
-	    			if (nPending > 0)
-	    				logger.warn("Too many orphaned images in " + server.getHost() + ". Ignored " + nPending + " orphaned image(s).");
-	    		} catch (InterruptedException ex) {
-	    			logger.debug("InterrupedException occurred while interrupting requests.");
-	    			Thread.currentThread().interrupt();
-	    		}
-	        } catch (IOException ex) {		
-	        	logger.error(ex.getLocalizedMessage());
-	        }
+				OmeroObject omeroObj = gson.fromJson(d, OmeroObject.class);
+				omeroObj.setParent(server);
+				if (omeroObj != null)
+					list.add(omeroObj);
+			} catch (Exception e) {
+				logger.error("Error parsing OMERO object: {}", e.getLocalizedMessage());
+			}
 		}
 		return list;
 	}
@@ -209,14 +278,22 @@ public class OmeroTools {
 	 * @return Id
 	 */
 	public static int parseOmeroObjectId(URI uri) {
-		String uriString = uri.toString().replace("show%3Dimage-", "show=image-");
-		uriString = uriString.replace("/?images%3D", "/?images=");
-		Pattern[] similarPatterns = new Pattern[] {patternLink, patternImgDetail, patternNewViewer, patternWebViewer};
-        for (int i = 0; i < similarPatterns.length; i++) {
-        	var matcher = similarPatterns[i].matcher(uriString);
-        	if (matcher.find())
-        		return Integer.parseInt(matcher.group(1));
-        }
+		try {
+			var URIs = getURIs(uri);
+			if (URIs == null || URIs.size() == 0)
+				return -1;
+			
+			var cleanURI = URIs.get(0).toString();
+			cleanURI = cleanURI.replace("/?images%3D", "/?images=");
+			Pattern[] similarPatterns = new Pattern[] {patternLink, patternImgDetail, patternNewViewer, patternWebViewer};
+	        for (int i = 0; i < similarPatterns.length; i++) {
+	        	var matcher = similarPatterns[i].matcher(cleanURI);
+	        	if (matcher.find())
+	        		return Integer.parseInt(matcher.group(1));
+	        }
+		} catch (IOException e) {
+			logger.warn("Could not parse any ID from {}", uri.toString());
+		}
         return -1;
 	}
 	
@@ -225,14 +302,14 @@ public class OmeroTools {
 	 * Request the {@code OmeroAnnotations} object of type {@code category} associated with 
 	 * the {@code OmeroObject} specified.
 	 * 
-	 * @param server
+	 * @param uri
 	 * @param obj
 	 * @param category
 	 * @return omeroAnnotations object
 	 */
-	public static OmeroAnnotations readOmeroAnnotations(OmeroWebImageServer server, OmeroObject obj, OmeroAnnotationType category) {
+	public static OmeroAnnotations readOmeroAnnotations(URI uri, OmeroObject obj, OmeroAnnotationType category) {
 		try {
-			var json = OmeroRequests.requestOMEROAnnotations(server.getScheme(), server.getHost(), obj.getId(), obj.getType(), category);
+			var json = OmeroRequests.requestOMEROAnnotations(uri.getScheme(), uri.getHost(), obj.getId(), obj.getType(), category);
 			return OmeroAnnotations.getOmeroAnnotations(json.getAsJsonObject());
 		} catch (Exception e) {
 			logger.warn("Could not fetch {} information: {}", category, e.getLocalizedMessage());
@@ -311,6 +388,69 @@ public class OmeroTools {
 		}
 	}
 	
+	/**
+	 * Return the thumbnail of the OMERO image corresponding to the specified {@code id}.
+	 * 
+	 * @param uri
+	 * @param id
+	 * @param prefSize
+	 * @return thumbnail
+	 */
+	public static BufferedImage getThumbnail(URI uri, int id, int prefSize) {
+		try {
+			return OmeroRequests.requestThumbnail(uri.getScheme(), uri.getHost(), id, prefSize);
+		} catch (IOException e) {
+			logger.warn("Error requesting the thumbnail: {}", e.getLocalizedMessage());
+			return null;
+		}
+	}
+	
+	
+//	/**
+//	 * Return a list of all {@code OmeroWebClient}s that are using the specified URI (based on their {@code host}).
+//	 * @param uri
+//	 * @return
+//	 */
+//	public static OmeroWebClient getWebClients(URI uri) {
+//		var webclients = OmeroWebClients.getAllClients();
+//		return webclients.values().parallelStream().flatMap(List::stream).filter(e -> e.getURI().getHost().equals(uri.getHost())).collect(Collectors.toList());
+//	}
+	
+	
+	/**
+	 * Return a clean URI of the server from which the given URI is specified. This method relies on 
+	 * the specified {@code uri} to be formed properly (with a scheme and a host). 
+	 * <p>
+	 * A few notes:
+	 * <li> If the URI does not contain a host (but does a path), it will be returned without modification. </li>
+	 * <li> If no host <b> and </b> no path is found, {@code null} is returned. </li>
+	 * <li> If the specified {@code uri} does not contain a scheme, {@code https://} will be used. </li>
+	 * <p>
+	 * E.g. {@code https://www.my-server.com/show=image-462} returns {@code https://www.my-server.com/}
+	 * 
+	 * @param uri
+	 * @return clean uri
+	 */
+	public static URI getServerURI(URI uri) {
+		if (uri == null)
+			return null;
+		
+		try {
+			var host = uri.getHost();
+			var path = uri.getPath();
+			if (host == null || host.isEmpty())
+				return (path == null || path.isEmpty()) ? null : uri;
+
+			var scheme = uri.getScheme();
+			if (scheme == null || scheme.isEmpty())
+				scheme = "https://";
+			return new URL(scheme, host, "").toURI();
+		} catch (MalformedURLException | URISyntaxException ex) {
+			logger.error("Could not parse server from {}", uri.toString());
+		}
+		return null;
+	}
+	
 	
     /**
      * OMERO requests that return a list of items are paginated 
@@ -357,21 +497,21 @@ public class OmeroTools {
     /**
 	 * Return a list of valid URIs from the given URI. If no valid URI can be parsed 
 	 * from it, an IOException is thrown.
-	 * 
 	 * <p>
 	 * E.g. "{@code /host/webclient/?show=image=4|image=5}" returns a list containing: 
 	 * "{@code /host/webclient/?show=image=4}" and "{@code /host/webclient/?show=image=5}".
 	 * 
 	 * @param uri
-	 * @param args
 	 * @return list
 	 * @throws IOException
 	 */
-	static List<URI> getURIs(URI uri, String... args) throws IOException {
+    static List<URI> getURIs(URI uri) throws IOException {
 		List<URI> list = new ArrayList<>();
+		uri = URI.create(uri.toString().replace("show%3Dimage-", "show=image-"));
         String elemId = "image-";
         String query = uri.getQuery() != null ? uri.getQuery() : "";
         String shortPath = uri.getPath() + query;
+        
         Pattern[] similarPatterns = new Pattern[] {patternOldViewer, patternNewViewer, patternWebViewer};
 
         // Check for simpler patterns first
@@ -399,7 +539,7 @@ public class OmeroTools {
         throw new IOException("URI not recognized: " + uri.toString());
 	}
 	
-	static URI getStandardURI(URI uri, String... args) throws IOException {
+    static URI getStandardURI(URI uri) throws IOException {
 		List<String> ids = new ArrayList<String>();
 		String vertBarSign = "%7C";
 		
@@ -469,5 +609,10 @@ public class OmeroTools {
         }
         
 		return URI.create(sb.toString());
+	}
+    
+	static Node createStateNode(boolean loggedIn) {
+		var state = loggedIn ? IconFactory.PathIcons.ACTIVE_SERVER : IconFactory.PathIcons.INACTIVE_SERVER;
+		return IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, state);
 	}
 }

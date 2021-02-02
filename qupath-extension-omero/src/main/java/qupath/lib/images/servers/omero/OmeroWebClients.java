@@ -1,20 +1,18 @@
 package qupath.lib.images.servers.omero;
 
-import java.net.PasswordAuthentication;
+import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.net.URISyntaxException;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.images.servers.omero.OmeroWebClient.OmeroAuthenticatorFX;
+import com.google.gson.JsonSyntaxException;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 /**
  * Class to keep track of active OMERO clients.
@@ -23,151 +21,121 @@ import qupath.lib.images.servers.omero.OmeroWebClient.OmeroAuthenticatorFX;
  */
 public class OmeroWebClients {
 	
+	/**
+	 * Suppress default constructor for non-instantiability
+	 */
+	private OmeroWebClients() {
+		throw new AssertionError();
+	}
+
 	final private static Logger logger = LoggerFactory.getLogger(OmeroWebClients.class);
 	
 	/**
-	 * Last username for login
+	 * An observable list of active/non-active clients. The user may not necessarily be logged in.
 	 */
-	private static String lastUsername = "";
-	
-	/**
-	 * A list of active/non-active clients. The user may not necessarily be logged in.
-	 */
-	final private static Map<String, List<OmeroWebClient>> clients = new HashMap<>();
-	
+	final private static ObservableList<OmeroWebClient> clients = FXCollections.observableArrayList();
 	
 	/**
 	 * A set of potential hosts that don't correspond to valid OMERO web servers.
 	 * This is used to avoid trying again.
 	 */
-	final private static Set<URI> failedHosts = new HashSet<>();
+	final private static Set<URI> failedUris = new HashSet<>();
 	
 	
 	/**
-	 * Return the client associated with the specified uri.
-	 * @param host
-	 * @return
+	 * Return the client associated with the specified server URI. 
+	 * If no client is found, {@code null} is returned.
+	 * @param serverUri
+	 * @return client
 	 */
-	static OmeroWebClient getClient(URI uri) {
-		for (var list: clients.values()) {
-			for (var client: list) {
-				if (client.getURI() == uri)
-					return client;
-			}
-		}
-		return null;
+	static OmeroWebClient getClientFromServerURI(URI serverURI) {
+		return clients.parallelStream().filter(e -> e.getServerURI().equals(serverURI)).findFirst().orElse(null);
 	}
 	
+	/**
+	 * Return the client associated with the specified image URI. 
+	 * If no client is found, {@code null} is returned.
+	 * @param imageUri
+	 * @return client
+	 */
+	static OmeroWebClient getClientFromImageURI(URI imageURI) {
+		return clients.parallelStream().filter(e -> e.getURIs().contains(imageURI)).findFirst().orElse(null);
+	}
 	
 	/**
-	 * Add the specified client to the host-clients map.
-	 * @param host
+	 * Add a server (with an empty list of clients) to the client list. 
+	 * Nothing happens if the client is already present in the list.
 	 * @param client
 	 */
-	static void addClient(String host, OmeroWebClient client) {
-		var list = clients.get(host);
-		if (list != null && !list.contains(client))
-			list.add(client);
+	static void addClient(OmeroWebClient client) {
+		if (!clients.contains(client))
+			clients.add(client);
 		else
-			clients.put(host, new ArrayList<OmeroWebClient>(Arrays.asList(client)));
+			logger.debug("Client already exists in the list. Ignoring operation.");
 	}
 	
 	/**
-	 * Remove the client from the host-clients map
-	 * @param uri
+	 * Remove the client from the clients list (losing all info about its URIs).
+	 * @param client
 	 */
 	static void removeClient(OmeroWebClient client) {
-		var list = clients.get(client.getURI().getHost());
-		if (list != null)
-			list.remove(client);
+		clients.remove(client);
 	}
-	
+
 	/**
-	 * Return whether the specified host was processed before 
+	 * Return whether the specified server URI was processed before 
 	 * and had failed (to avoid unnecessary processing).
-	 * @param host
+	 * @param serverUri
 	 * @return hasFailed
 	 */
-	static boolean hasFailed(URI uri) {
-		return failedHosts.contains(uri);
+	static boolean hasFailed(URI serverURI) {
+		return failedUris.contains(serverURI);
 	}
 	
 	/**
 	 * Add the specified host to the list of failed hosts.
 	 * @param host
 	 */
-	static void addFailedHost(URI uri) {
-		failedHosts.add(uri);
+	static void addFailedHost(URI serverURI) {
+		if (!failedUris.contains(serverURI))
+			failedUris.add(serverURI);
+		else
+			logger.debug("URI already exists in the list. Ignoring operation.");
 	}
 	
 	/**
-	 * Return the map with all hosts and clients.
-	 * @return
+	 * Return the observable list of all clients.
+	 * @return client list
 	 */
-	static Map<String, List<OmeroWebClient>> getAllClients() {
+	static ObservableList<OmeroWebClient> getAllClients() {
 		return clients;
 	}
-
-
+	
 	/**
-	 * Log in to the client's server with optional args.
+	 * Create client from the server URI provided.
+	 * If login is required, it will prompt a dialog automatically.
+	 * This method will also add it to the list of clients.
 	 * 
-	 * @param client
-	 * @param args
-	 * @return success
+	 * @param serverURI
+	 * @return client
+	 * @throws IOException 
+	 * @throws URISyntaxException 
+	 * @throws JsonSyntaxException 
 	 */
-	public static boolean logIn(OmeroWebClient client, String...args) {
-		try {
-			String host = client.getBaseUrl();
-			
-			if (client.getServers().isEmpty()) {
-				logger.warn("Could not find any servers for {}!", host);
-				return false;
-			}
-			if (client.getServers().size() > 1) {
-				logger.warn("Found multiple servers for {} - will take the first one", host);
-			}
-			
-			// TODO: Parse args to look for password (or password file - and don't store them!)
-			String username = lastUsername;
-			char[] password = null;
-			List<String> cleanedArgs = new ArrayList<>();
-			int i = 0;
-			while (i < args.length-1) {
-				String name = args[i++];
-				if ("--username".equals(name) || "-u".equals(name))
-					username = args[i++];
-				else if ("--password".equals(name) || "-p".equals(name)) {
-					password = args[i++].toCharArray();
-				} else
-					cleanedArgs.add(name);
-			}
-			if (cleanedArgs.size() < args.length)
-				args = cleanedArgs.toArray(String[]::new);
-			
-			PasswordAuthentication authentication;
-			if (username != null && password != null) {
-				logger.info("Username & password parsed from args");
-				authentication = new PasswordAuthentication(username, password);
-			} else 
-				authentication = OmeroAuthenticatorFX.getPasswordAuthentication(
-						"Please enter your login details for OMERO server", host, username);
-			if (authentication == null) {
-				logger.warn("Could not log in to {} - No authentification found!", host);
-				return false;
-			}
-			lastUsername = authentication.getUserName();
-			String result = client.login(authentication, client.getServers().get(0).getId());
-			Arrays.fill(authentication.getPassword(), (char)0);
-			logger.info(result);
-		} catch (Exception e) {
-			Dialogs.showErrorMessage("Omero web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");
-			return false;
-		}
-		return true;
+	public static OmeroWebClient createClientAndLogin(URI serverURI) throws IOException, URISyntaxException {
+		OmeroWebClient client = OmeroWebClient.create(serverURI, false);
+		boolean loggedIn = true;
+		if (!client.checkIfLoggedIn())
+			loggedIn = client.logIn();
+		
+		if (!loggedIn)
+			return null;
+		
+		client.startTimer();
+		addClient(client);
+		return client;
 	}
-	
-	
+
 	/**
 	 * Log the specified client out.
 	 * @param client
@@ -175,7 +143,4 @@ public class OmeroWebClients {
 	public static void logOut(OmeroWebClient client) {
 		client.logOut();
 	}
-	
-
-	
 }
