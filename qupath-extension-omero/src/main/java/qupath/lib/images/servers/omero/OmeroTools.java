@@ -196,7 +196,12 @@ public final class OmeroTools {
 		try {
 			var map = OmeroRequests.requestWebClientObjectList(uri.getScheme(), uri.getHost(), OmeroObjectType.IMAGE);
     		ExecutorService executorRequests = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("orphaned-image-requests", true));
+    		
+    		// Get the total amount of orphaned images to load
     		int max = map.get("images").getAsJsonArray().size();
+    		if (max == 0)
+    			orphanedFolder.setLoading(false);
+    		
     		orphanedFolder.setTotalChildCount(max);
     		map.get("images").getAsJsonArray().forEach(e -> {
     			executorRequests.submit(() -> {

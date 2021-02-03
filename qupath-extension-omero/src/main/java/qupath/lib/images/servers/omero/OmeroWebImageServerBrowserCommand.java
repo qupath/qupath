@@ -232,6 +232,9 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		GridPane browseRightPane = new GridPane();
 		GridPane loadingInfoPane = new GridPane();
 		
+		// Disable entire pane if client not logged in (user should login via webclient command)
+		mainPane.disableProperty().bind(client.logProperty().not());
+		
 		var progressChildren = new ProgressIndicator();
 		progressChildren.setPrefSize(15, 15);
 		loadingChildrenLabel = new Label("Loading OMERO object(s)", progressChildren);
@@ -255,7 +258,8 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		var hostLabel = new Label(serverURI.getHost());
 		var usernames = client.getUsername();
 		var usernameText = usernames.isEmpty() ? new Label("public") : new Label(usernames);
-		var nOpenImages = new Label(client.getURIs().size() + "");
+		var nOpenImages = new Label();
+		nOpenImages.textProperty().bind(Bindings.concat(Bindings.size(client.getURIs()), ""));
 		hostLabel.setStyle(BOLD);
 		usernameText.setStyle(BOLD);
 		nOpenImages.setStyle(BOLD);

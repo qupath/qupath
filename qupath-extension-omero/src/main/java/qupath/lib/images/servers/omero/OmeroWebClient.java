@@ -37,6 +37,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.reflect.TypeToken;
 
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -285,7 +286,7 @@ public class OmeroWebClient {
 	 */
 	void addURI(URI uri) {
 		if (!uris.contains(uri))
-			uris.add(uri);
+			Platform.runLater(() -> uris.add(uri));
 		else
 			logger.debug("URI already exists in the list. Ignoring operation.");
 	}

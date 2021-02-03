@@ -68,6 +68,9 @@ public class OmeroWebClients {
 	 * @param client
 	 */
 	static void addClient(OmeroWebClient client) {
+		// Check if logged in to make sure the log property is updated
+		client.checkIfLoggedIn();
+		
 		if (!clients.contains(client))
 			clients.add(client);
 		else

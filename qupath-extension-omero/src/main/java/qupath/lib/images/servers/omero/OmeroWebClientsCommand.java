@@ -15,7 +15,6 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableSet;
-import javafx.collections.SetChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -46,8 +45,8 @@ public class OmeroWebClientsCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	private Stage dialog;
-	private ExecutorService executor;
 	private ObservableSet<ServerInfo> clientsDisplayed;
+	private ExecutorService executor;
 	
 	// GUI
 	private GridPane mainPane;
@@ -67,39 +66,16 @@ public class OmeroWebClientsCommand implements Runnable {
 			mainPane.setMinWidth(250);
 			mainPane.setMinHeight(50);
 			mainPane.setPadding(new Insets(0.0, 0.5, 5, 0.5));
-			for (var client: OmeroWebClients.getAllClients()) {
-				var serverInfo = new ServerInfo(qupath, client);
-				clientsDisplayed.add(serverInfo);
-			}
-			
-			
-			// If empty, display 'No OMERO clients' label
-			if (clientsDisplayed.isEmpty()) {
-				Platform.runLater(() -> {
-					mainPane.setAlignment(Pos.CENTER);
-					mainPane.add(new Label("No OMERO clients"), 0, 0);			        						
-				});
-			}
 			
 			// If a change is detected in the clients list, refresh pane
 			OmeroWebClients.getAllClients().addListener(new ListChangeListener<OmeroWebClient>() {
 			    @Override
 			    public void onChanged(Change<? extends OmeroWebClient> c) {
-			        refreshServerGrid();
+			    	if (dialog == null)
+			    		return;
+
+			    	refreshServerGrid();
 			        dialog.getScene().getWindow().sizeToScene();
-			    }
-			});
-			
-			// If project has no OMERO server, display label
-			clientsDisplayed.addListener(new SetChangeListener<ServerInfo>() {
-			    @Override
-			    public void onChanged(Change<? extends ServerInfo> c) {
-			        if (clientsDisplayed.isEmpty()) {
-			        	Platform.runLater(() -> {
-			        		mainPane.setAlignment(Pos.CENTER);
-			        		mainPane.add(new Label("No OMERO clients"), 0, 0);			        		
-			        	});
-			        }
 			    }
 			});
 			
@@ -128,7 +104,7 @@ public class OmeroWebClientsCommand implements Runnable {
 		for (var client: allClients) {
 			// If new client is not displayed, add it to the set
 			if (clientsDisplayed.stream().noneMatch(e -> e.client.equals(client)))
-				clientsDisplayed.add(new ServerInfo(qupath, client));
+				clientsDisplayed.add(new ServerInfo(client));
 		}
 		
 		int row = 0;
@@ -141,8 +117,14 @@ public class OmeroWebClientsCommand implements Runnable {
 				continue;
 			}
 			mainPane.addRow(row++, serverInfo.getPane());
-			if (dialog != null)
-				dialog.sizeToScene();
+		}
+		
+		// If empty, display 'No OMERO clients' label
+		if (clientsDisplayed.isEmpty()) {
+			Platform.runLater(() -> {
+				mainPane.setAlignment(Pos.CENTER);
+				mainPane.add(new Label("No OMERO clients"), 0, 0);			        						
+			});
 		}
 	}
 	
@@ -159,14 +141,12 @@ public class OmeroWebClientsCommand implements Runnable {
 	 */
 	class ServerInfo {
 
-		private QuPathGUI qupath;
 		private OmeroWebClient client;
 		private GridPane pane;
 		
 		private IntegerProperty nImages;
 
-		private ServerInfo(QuPathGUI qupath, OmeroWebClient client) {
-			this.qupath = qupath;
+		private ServerInfo(OmeroWebClient client) {
 			this.client = client;
 			this.nImages = new SimpleIntegerProperty(0);
 			this.pane = createServerPane();			
@@ -211,19 +191,21 @@ public class OmeroWebClientsCommand implements Runnable {
 			tp.widthProperty().addListener((v, o, n) -> Platform.runLater(() -> dialog.sizeToScene()));
 			
 			// If the login status or the client's username has changed or a new image is opened, recreate the titlePane content
-			tp.contentProperty().bind(Bindings.createObjectBinding(() -> createImagesPane(client), client.usernameProperty(), client.getURIs()));
+			var contentBinding = Bindings.createObjectBinding(() -> createTitledPaneContent(client), client.usernameProperty(), client.getURIs());
+			tp.contentProperty().bind(contentBinding);
 			tp.collapsibleProperty().bind(nImages.greaterThan(0));
 			
 			Platform.runLater(() -> {
+				if (dialog == null)
+					return;
 				try {
 					// These 2 next lines help prevent NPE
 					tp.applyCss();
 					tp.layout();
-					if (!tp.getStyle().isEmpty()) {
-						tp.lookup(".title").setStyle("-fx-background-color: transparent");
-						tp.lookup(".title").setEffect(null);						
-						tp.lookup(".content").setStyle("-fx-border-color: null");						
-					}
+					tp.setStyle(".title {}");
+					tp.lookup(".title").setStyle("-fx-background-color: transparent");						
+					tp.lookup(".title").setEffect(null);
+					tp.lookup(".content").setStyle("-fx-border-color: null");
 				} catch (Exception e) {
 					logger.error("Error setting CSS style: {}", e.getLocalizedMessage());
 				}
@@ -270,14 +252,17 @@ public class OmeroWebClientsCommand implements Runnable {
 					Dialogs.showMessageDialog("Remove OMERO client", "You need to close images from this server in the viewer first!");
 					return;
 				}
+				
+				var confirm = Dialogs.showConfirmDialog("Remove client", "This client will be removed from the list of active OMERO clients.");
+				if (!confirm)
+					return;
+				
 				if (!username.isEmpty() && client.isLoggedIn())
 					client.logOut();
 				OmeroWebClients.removeClient(client);
 			});
 			removeBtn.disableProperty().bind(client.logProperty().and(client.usernameProperty().isNotEmpty()));
-			
 
-			
 			PaneTools.addGridRow(gridPane, 0, 0, null, infoPane);
 			PaneTools.addGridRow(gridPane, 1, 0, null, tp);
 			
@@ -291,7 +276,7 @@ public class OmeroWebClientsCommand implements Runnable {
 		}
 		
 		
-		private GridPane createImagesPane(OmeroWebClient client) {
+		private GridPane createTitledPaneContent(OmeroWebClient client) {
 			var imageList = qupath.getProject().getImageList();
 			
 			GridPane gp = new GridPane();
