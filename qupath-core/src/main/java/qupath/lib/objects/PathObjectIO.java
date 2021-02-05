@@ -6,6 +6,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -18,192 +19,248 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Class to export {@code PathObject}s as either serialized or GeoJSON format.
  * 
  * @author Melvin Gelbard
  */
-public class PathObjectIO {
+public final class PathObjectIO {
 	
-	/**
-	 * Export the {@code objs} to the {@code BufferedOutputStream} in GeoJSON format (compressed or not).
-	 * 
-	 * @param objs
-	 * @param bos
-	 * @param onlyROI
-	 * @param includeMeasurements
-	 * @param prettyPrint
-	 * @param compress
-	 * @throws IOException
-	 */
-	public static void exportToGeoJSON(Collection<PathObject> objs, OutputStream bos, boolean onlyROI, boolean includeMeasurements, boolean prettyPrint, boolean compress) throws IOException {
-		byte[] out;
-		
-		// If exclude measurements, make a copy of each detection without their measurements
-		if (!includeMeasurements) {
-			List<PathObject> objsTemp = new ArrayList<>();
-			objs.forEach(e -> {
-				if (!e.hasMeasurements() || !e.hasROI()) {
-					objsTemp.add(e);					
-					return;
-				}
-				var temp = PathObjectTools.transformObject(e, null, true);
-				temp.getMeasurementList().clear();
-				objsTemp.add(temp);
-			});
-			objs = objsTemp;
-		}
-		if (onlyROI)
-			out = GsonTools.getInstance(prettyPrint).toJson(objs.parallelStream().map(e -> e.getROI()).collect(Collectors.toList())).getBytes(Charset.forName("UTF-8"));
-		else
-			out = GsonTools.getInstance(prettyPrint).toJson(objs).getBytes(Charset.forName("UTF-8"));
-		
-		if (compress) {
-			var zos = new ZipOutputStream(bos);
-//			ZipEntry entry = new ZipEntry(GeneralTools.getNameWithoutExtension(outFile) + ".json");
-			ZipEntry entry = new ZipEntry("PathObjects.json");
-			zos.putNextEntry(entry);
-			zos.write(out);
-			zos.closeEntry();
-			zos.close();
-		} else
-			bos.write(out);
-		bos.close();
+	// Suppress default constructor for non-instantiability
+	private PathObjectIO() {
+		throw new AssertionError();
 	}
 	
 	/**
-	 * Export the {@code objs} to the {@code outFile} in GeoJSON format (compressed or not).
+	 * Export the {@code objs} to the {@code outFile} in GeoJSON format (compressed or not, based on the file extension).
 	 * 
 	 * @param objs
 	 * @param outFile
-	 * @param onlyROI
 	 * @param includeMeasurements 
 	 * @param prettyPrint
-	 * @param compress 
 	 * @throws IOException
 	 */
-	public static void exportToGeoJSON(Collection<PathObject> objs, File outFile, boolean onlyROI, boolean includeMeasurements, boolean prettyPrint, boolean compress) throws IOException {
-		var bos = new BufferedOutputStream(new FileOutputStream(outFile));
-		exportToGeoJSON(objs, bos, onlyROI, includeMeasurements, prettyPrint, compress);
+	public static void exportObjectsToGeoJson(Collection<? extends PathObject> objs, File outFile, boolean includeMeasurements, boolean prettyPrint) throws IOException {
+		try (var bos = new BufferedOutputStream(new FileOutputStream(outFile))) {
+			if (outFile.getPath().endsWith(".zip")) {
+				try (var zos = new ZipOutputStream(bos)) {
+					ZipEntry entry = new ZipEntry(GeneralTools.getNameWithoutExtension(outFile) + ".geojson");
+					zos.putNextEntry(entry);
+					exportObjectsToGeoJson(objs, zos, includeMeasurements,prettyPrint);
+					zos.closeEntry();
+				}
+			} else
+				exportObjectsToGeoJson(objs, bos, includeMeasurements, prettyPrint);
+		}
 	}
 	
 	/**
-	 * Export the {@code objs} to the {@code BufferedOutputStream} as serialized data (compressed or not).
+	 * Export the {@code objs} to the {@code OutputStream} in GeoJSON format.
+	 * <p>
+	 * The {@code OutputStream} is <b>not</b> automatically closed after completion of this method.
 	 * 
 	 * @param objs
 	 * @param bos
-	 * @param onlyROI
 	 * @param includeMeasurements
-	 * @param compressed
+	 * @param prettyPrint
 	 * @throws IOException
 	 */
-	public static void exportAsSerialized(Collection<PathObject> objs, OutputStream bos, boolean onlyROI, boolean includeMeasurements, boolean compressed) throws IOException {
-		// If exclude measurements, make a copy of each detection without their measurements
-		if (!includeMeasurements) {
-			List<PathObject> objsTemp = new ArrayList<>();
-			objs.forEach(e -> {
-				var temp = PathObjectTools.transformObject(e, null, true);
-				temp.getMeasurementList().clear();
-				objsTemp.add(temp);
-			});
-			objs = objsTemp;
-		}
+	public static void exportObjectsToGeoJson(Collection<? extends PathObject> objs, OutputStream bos, boolean includeMeasurements, boolean prettyPrint) throws IOException {
+		// If exclude measurements, 'transform' each PathObject to get rid of measurements
+		if (!includeMeasurements)
+			objs.stream().map(e -> PathObjectTools.transformObject(e, null, false)).collect(Collectors.toList());
 		
-		if (compressed) {
-			// Create entry
-			var zos = new ZipOutputStream(bos);
-			ZipEntry entry = new ZipEntry("pathObjects.qpdata");
-			zos.putNextEntry(entry);
-			
-			// Write object
-			ObjectOutputStream oos = new ObjectOutputStream(zos);
-			oos.writeObject(objs);
-			
-			// Close entry & stream
-			zos.closeEntry();
-			oos.close();
+		byte[] out = GsonTools.getInstance(prettyPrint).toJson(objs).getBytes(Charset.forName("UTF-8"));
+		bos.write(out);
+	}
+	
+	/**
+	 * Export the {@code objs} to the {@code outFile} as serialized data (compressed or not, based on the file extension).
+	 * <p>
+	 * The {@code objs} collection must to be serializable.
+	 * 
+	 * @param objs
+	 * @param outFile
+	 * @param includeMeasurements
+	 * @throws IOException
+	 */
+	public static void exportObjectsAsSerialized(Collection<? extends PathObject> objs, File outFile, boolean includeMeasurements) throws IOException {
+		if (outFile.getPath().endsWith(".zip")) {
+			try (var zos = new ZipOutputStream(new FileOutputStream(outFile))) {
+				// Create entry
+				ZipEntry entry = new ZipEntry(GeneralTools.getNameWithoutExtension(outFile) + ".qpdata");
+				zos.putNextEntry(entry);
+				
+				try (ObjectOutputStream oos = new ObjectOutputStream(zos)) {
+					exportObjectsAsSerialized(objs, oos, includeMeasurements);
+				}
+			}
 		} else {
-			var oos = new ObjectOutputStream(bos);
-			if (onlyROI)
-				oos.writeObject(objs.parallelStream().map(e -> e.getROI()).collect(Collectors.toList()));
-			else
-				oos.writeObject(objs);
-			oos.close();
+			try (var bos = new BufferedOutputStream(new FileOutputStream(outFile))) {
+				exportObjectsAsSerialized(objs, bos, includeMeasurements);
+			}			
 		}
 	}
 	
 	/**
-	 * Export the {@code objs} to the {@code outFile} as serialized data (compressed or not).
+	 * Export the {@code objs} to the {@code OutputStream} as serialized data.
+	 * <p>
+	 * The {@code objs} collection must to be serializable.
+	 * <p>
+	 * The {@code OutputStream} is <b>not</b> automatically closed after completion of this method.
+	 * 
+	 * @param objs
+	 * @param bos
+	 * @param includeMeasurements 
+	 * @throws IOException
+	 */
+	public static void exportObjectsAsSerialized(Collection<? extends PathObject> objs, OutputStream bos, boolean includeMeasurements) throws IOException {
+		// If exclude measurements, 'transform' each PathObject to get rid of measurements
+		if (!includeMeasurements)
+			objs.stream().map(e -> PathObjectTools.transformObject(e, null, false)).collect(Collectors.toList());
+		
+		try (var oos = new ObjectOutputStream(bos)) {
+			oos.writeObject(new ArrayList<>(objs));
+		}
+	}
+	
+	/**
+	 * Export the {@code objs} to the {@code outFile} in GeoJSON format (compressed or not, based on the file extension).
 	 * 
 	 * @param objs
 	 * @param outFile
-	 * @param onlyROI
-	 * @param includeMeasurements
-	 * @param compressed
+	 * @param prettyPrint
 	 * @throws IOException
 	 */
-	public static void exportAsSerialized(Collection<PathObject> objs, File outFile, boolean onlyROI, boolean includeMeasurements, boolean compressed) throws IOException {
-		var bos = new BufferedOutputStream(new FileOutputStream(outFile));
-		exportAsSerialized(objs, bos, onlyROI, includeMeasurements, compressed);
+	public static void exportROIsToGeoJson(Collection<? extends ROI> objs, File outFile, boolean prettyPrint) throws IOException {
+		try (var bos = new BufferedOutputStream(new FileOutputStream(outFile))) {
+			if (outFile.getPath().endsWith(".zip")) {
+				try (var zos = new ZipOutputStream(bos)) {
+					ZipEntry entry = new ZipEntry(GeneralTools.getNameWithoutExtension(outFile) + ".geojson");
+					zos.putNextEntry(entry);
+					exportROIsToGeoJson(objs, zos, prettyPrint);
+					zos.closeEntry();
+				}
+			} else
+				exportROIsToGeoJson(objs, bos, prettyPrint);
+		}
+	}
+	
+	/**
+	 * Export the {@code objs} to the {@code OutputStream} in GeoJSON format.
+	 * <p>
+	 * The {@code OutputStream} is <b>not</b> automatically closed after completion of this method.
+	 * 
+	 * @param objs
+	 * @param bos
+	 * @param prettyPrint
+	 * @throws IOException
+	 */
+	public static void exportROIsToGeoJson(Collection<? extends ROI> objs, OutputStream bos, boolean prettyPrint) throws IOException {
+		byte[] out = GsonTools.getInstance(prettyPrint).toJson(new ArrayList<>(objs)).getBytes(Charset.forName("UTF-8"));
+		bos.write(out);
+	}
+	
+	/**
+	 * Export the {@code objs} to the output {@code File} as serialized data (compressed or not, based on the file extension).
+	 * <p>
+	 * The {@code objs} collection must to be serializable.
+	 * 
+	 * @param objs
+	 * @param outFile
+	 * @throws IOException
+	 */
+	public static void exportROIsAsSerialized(Collection<? extends ROI> objs, File outFile) throws IOException {
+		if (outFile.getPath().endsWith(".zip")) {
+			try (var zos = new ZipOutputStream(new FileOutputStream(outFile))) {
+				// Create entry
+				ZipEntry entry = new ZipEntry(GeneralTools.getNameWithoutExtension(outFile) + ".qpdata");
+				zos.putNextEntry(entry);
+				
+				try (ObjectOutputStream oos = new ObjectOutputStream(zos)) {
+					exportROIsAsSerialized(objs, oos);
+				}
+			}
+		} else {
+			try (var bos = new BufferedOutputStream(new FileOutputStream(outFile))) {
+				exportROIsAsSerialized(objs, bos);
+			}
+		}
+	}
+	
+	/**
+	 * Export the {@code objs} to the {@code OutputStream} as serialized data.
+	 * <p>
+	 * The {@code objs} collection must to be serializable.
+	 * <p>
+	 * The {@code OutputStream} is <b>not</b> automatically closed after completion of this method.
+	 * 
+	 * @param objs
+	 * @param bos
+	 * @throws IOException
+	 */
+	public static void exportROIsAsSerialized(Collection<? extends ROI> objs, OutputStream bos) throws IOException {
+		try (var oos = new ObjectOutputStream(bos)) {
+			oos.writeObject(new ArrayList<>(objs));
+		}
 	}
 
 	/**
 	 * Create a collection of {@code PathObject}s from GeoJson input (via stream).
+	 * 
 	 * @param stream
-	 * @return pathObjects
-	 * @throws IOException 
-	 */
-	public static Collection<PathObject> importFromGeoJSON(InputStream stream) throws IOException {
-		String json = GeneralTools.readInputStreamAsString(stream);
-		return importFromGeoJSON(json);
-	}
-	
-	/**
-	 * Create a collection of {@code PathObject}s from GeoJson String input.
-	 * @param json
 	 * @return pathObjects
 	 * @throws IOException
 	 */
-	public static Collection<PathObject> importFromGeoJSON(String json) throws IOException {
+	public static List<PathObject> importFromGeoJson(InputStream stream) throws IOException {
 		// Prepare template
 		var type = new TypeToken<List<PathObject>>() {}.getType();
 		
 		// Deserialize
-		return GsonTools.getInstance().fromJson(json, type);
+		try (InputStreamReader isr = new InputStreamReader(stream); JsonReader reader = new JsonReader(isr)) {
+			return GsonTools.getInstance().fromJson(reader, type);
+		}
 	}
 	
 	/**
 	 * Create a collection of {@code PathObject}s from Java serialized input (via stream).
+	 * 
 	 * @param stream
 	 * @return pathObjects
 	 * @throws IOException
 	 * @throws ClassNotFoundException 
 	 */
 	@SuppressWarnings("unchecked")
-	public static Collection<PathObject> importFromSerialized(InputStream stream) throws IOException, ClassNotFoundException {
-		ObjectInputStream ois = new ObjectInputStream(stream);
-		return (Collection<PathObject>) ois.readObject();
+	public static List<PathObject> importFromSerialized(InputStream stream) throws IOException, ClassNotFoundException {
+		try (ObjectInputStream ois = new ObjectInputStream(stream)) {
+			return (List<PathObject>) ois.readObject();
+		}
 	}
 	
 	/**
 	 * Create a collection of {@code PathObject}s from Java serialized input (via stream).
+	 * 
 	 * @param serializedData 
 	 * @return pathObjects
 	 * @throws IOException
 	 * @throws ClassNotFoundException 
 	 */
 	@SuppressWarnings("unchecked")
-	public static Collection<PathObject> importFromSerialized(byte[] serializedData) throws IOException, ClassNotFoundException {
-		ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serializedData));
-		return (Collection<PathObject>) ois.readObject();
+	public static List<PathObject> importFromSerialized(byte[] serializedData) throws IOException, ClassNotFoundException {
+		try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(serializedData))) {
+			return (List<PathObject>) ois.readObject();
+		}
 	}
 	
 	/**
 	 * Return whether the {@code PathObject} is an ellipse.
+	 * 
 	 * @param ann
 	 * @return isEllipse
 	 */

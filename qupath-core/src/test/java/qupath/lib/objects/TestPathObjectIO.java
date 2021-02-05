@@ -2,9 +2,9 @@ package qupath.lib.objects;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -41,7 +41,7 @@ public class TestPathObjectIO extends PathObjectTestWrapper {
 	Collection<PathObject> objs = Arrays.asList(myPDO, myPCO, myPAO, myPTO);
 	
 	@Test
-	public void test_exportImportGeoJSON() throws IOException {
+	public void test_IOObjectsGeoJSON() throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		
 		// Add measurements
@@ -51,10 +51,10 @@ public class TestPathObjectIO extends PathObjectTestWrapper {
 		mlCell.addMeasurement("TestMeasurement4", 20.0);
 		
 		// Export to GeoJSON
-		PathObjectIO.exportToGeoJSON(objs, bos, false, true, false, false);
+		PathObjectIO.exportObjectsToGeoJson(objs, bos, true, true);
 		
 		// Import from GeoJSON
-		List<PathObject> col = new ArrayList<>(PathObjectIO.importFromGeoJSON(new String(bos.toByteArray(), StandardCharsets.UTF_8)));
+		List<PathObject> col = new ArrayList<>(PathObjectIO.importFromGeoJson(new ByteArrayInputStream(bos.toByteArray())));
 		
 		// Array to count number of each PathObject type
 		int[] countCheck = new int[] {0, 0, 0, 0};
@@ -94,7 +94,7 @@ public class TestPathObjectIO extends PathObjectTestWrapper {
 	}
 	
 	@Test
-	public void test_exportImportSerialized() throws IOException, ClassNotFoundException {
+	public void test_IOObjectsSerialized() throws IOException, ClassNotFoundException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		
 		// Add measurements
@@ -104,7 +104,7 @@ public class TestPathObjectIO extends PathObjectTestWrapper {
 		mlCell.addMeasurement("TestMeasurement4", 20.0);
 		
 		// Serialize
-		PathObjectIO.exportAsSerialized(objs, bos, false, true, false);
+		PathObjectIO.exportObjectsAsSerialized(objs, bos, true);
 		
 		// Deserialize
 		List<PathObject> col = new ArrayList<>(PathObjectIO.importFromSerialized(bos.toByteArray()));

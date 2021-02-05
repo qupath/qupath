@@ -401,11 +401,11 @@ class Menus {
 		
 		@ActionDescription("Export path object(s) in GeoJSON format to file.")
 		@ActionMenu("Export objects...>GeoJSON")
-		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJSONPathObjectExport(qupath, imageData));
+		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJsonObjectsExport(qupath, imageData));
 		
 		@ActionDescription("Export path object(s) in serialized format (QuPath only).")
 		@ActionMenu("Export objects...>Serialized (QuPath only)")
-		public final Action EXPORT_SERIALIZED = qupath.createImageDataAction(imageData -> Commands.runSerializedPathObjectExport(qupath, imageData));
+		public final Action EXPORT_SERIALIZED = qupath.createImageDataAction(imageData -> Commands.runSerializedObjectsExport(qupath, imageData));
 		
 		public final Action SEP_7 = ActionTools.createSeparator();
 

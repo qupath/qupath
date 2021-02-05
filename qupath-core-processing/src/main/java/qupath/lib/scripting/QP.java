@@ -1970,50 +1970,92 @@ public class QP {
 	 * Export all objects (excluding root object) to an output file as GeoJSON.
 	 * 
 	 * @param path 
-	 * @param onlyROI
 	 * @param includeMeasurements
 	 * @param prettyGson
 	 * @throws IOException
 	 */
-	public static void exportAllObjectsToGeoJSON(String path, boolean onlyROI, boolean includeMeasurements, boolean prettyGson) throws IOException {
-		PathObjectIO.exportToGeoJSON(Arrays.asList(getAllObjects(false)), new File(path), onlyROI, includeMeasurements, prettyGson, path.endsWith(".zip"));
+	public static void exportAllObjectsToGeoJson(String path, boolean includeMeasurements, boolean prettyGson) throws IOException {
+		PathObjectIO.exportObjectsToGeoJson(Arrays.asList(getAllObjects(false)), new File(path), includeMeasurements, prettyGson);
+	}
+	
+	/**
+	 * Export all ROIs (excluding root object) to an output file as GeoJSON.
+	 * 
+	 * @param path
+	 * @param prettyGson
+	 * @throws IOException
+	 */
+	public static void exportAllROIsToGeoJson(String path, boolean prettyGson) throws IOException {
+		var rois = Arrays.asList(getAllObjects(false)).stream().map(e -> e.getROI()).collect(Collectors.toList());
+		PathObjectIO.exportROIsToGeoJson(rois, new File(path), prettyGson);
 	}
 	
 	/**
 	 * Export the selected objects to an output file as GeoJSON.
 	 * 
 	 * @param path 
-	 * @param onlyROI
 	 * @param includeMeasurements
 	 * @param prettyGson
 	 * @throws IOException
 	 */
-	public static void exportSelectedToGeoJSON(String path, boolean onlyROI, boolean includeMeasurements, boolean prettyGson) throws IOException {
-		PathObjectIO.exportToGeoJSON(getSelectedObjects(), new File(path), onlyROI, includeMeasurements, prettyGson, path.endsWith(".zip"));
+	public static void exportSelectedObjectsToGeoJson(String path, boolean includeMeasurements, boolean prettyGson) throws IOException {
+		PathObjectIO.exportObjectsToGeoJson(getSelectedObjects(), new File(path), includeMeasurements, prettyGson);
+	}
+	
+	/**
+	 * Export the selected ROIs to an output file as GeoJSON.
+	 * 
+	 * @param path
+	 * @param prettyGson
+	 * @throws IOException
+	 */
+	public static void exportSelectedROIsToGeoJson(String path, boolean prettyGson) throws IOException {
+		var rois = getSelectedObjects().stream().map(e -> e.getROI()).collect(Collectors.toList());
+		PathObjectIO.exportROIsToGeoJson(rois, new File(path), prettyGson);
 	}
 	
 	/**
 	 * Export all the (Java serialized) objects (excluding root object) to an output file.
 	 * 
 	 * @param path 
-	 * @param onlyROI
 	 * @param includeMeasurements
 	 * @throws IOException
 	 */
-	public static void exportAllObjectsAsSerialized(String path, boolean onlyROI, boolean includeMeasurements) throws IOException {
-		PathObjectIO.exportAsSerialized(Arrays.asList(getAllObjects(false)), new File(path), onlyROI, includeMeasurements, path.endsWith(".zip"));
+	public static void exportAllObjectsAsSerialized(String path, boolean includeMeasurements) throws IOException {
+		PathObjectIO.exportObjectsAsSerialized(Arrays.asList(getAllObjects(false)), new File(path), includeMeasurements);
+	}
+	
+	/**
+	 * Export all the (Java serialized) ROIs (excluding root object) to an output file.
+	 * 
+	 * @param path
+	 * @throws IOException
+	 */
+	public static void exportAllROIsAsSerialized(String path) throws IOException {
+		var rois = Arrays.asList(getAllObjects(false)).stream().map(e -> e.getROI()).collect(Collectors.toList());
+		PathObjectIO.exportROIsAsSerialized(rois, new File(path));
 	}
 	
 	/**
 	 * Export the (Java serialized) selected objects to an output file.
 	 * 
 	 * @param path 
-	 * @param onlyROI
 	 * @param includeMeasurements
 	 * @throws IOException
 	 */
-	public static void exportSelectedAsSerialized(String path, boolean onlyROI, boolean includeMeasurements) throws IOException {
-		PathObjectIO.exportAsSerialized(getSelectedObjects(), new File(path), onlyROI, includeMeasurements, path.endsWith(".zip"));
+	public static void exportSelectedObjectsAsSerialized(String path, boolean includeMeasurements) throws IOException {
+		PathObjectIO.exportObjectsAsSerialized(getSelectedObjects(), new File(path), includeMeasurements);
+	}
+	
+	/**
+	 * Export the (Java serialized) selected objects' ROI to an output file.
+	 * 
+	 * @param path
+	 * @throws IOException
+	 */
+	public static void exportSelectedROIsAsSerialized(String path) throws IOException {
+		var rois = getSelectedObjects().stream().map(e -> e.getROI()).collect(Collectors.toList());
+		PathObjectIO.exportROIsAsSerialized(rois, new File(path));
 	}
 	
 	/**

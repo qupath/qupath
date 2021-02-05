@@ -1798,9 +1798,9 @@ public class Commands {
 	 * @param qupath
 	 * @param imageData
 	 */
-	public static void runGeoJSONPathObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+	public static void runGeoJsonObjectsExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		try {
-			PathObjectsExportCommand.runGeoJSONExport(qupath, imageData);
+			ExportObjectsCommand.runGeoJsonExport(qupath, imageData);
 		} catch (IOException e) {
 			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
 		}
@@ -1811,9 +1811,9 @@ public class Commands {
 	 * @param qupath 
 	 * @param imageData
 	 */
-	public static void runSerializedPathObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+	public static void runSerializedObjectsExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		try {
-			PathObjectsExportCommand.runSerializedExport(qupath, imageData);
+			ExportObjectsCommand.runSerializedExport(qupath, imageData);
 		} catch (IOException e) {
 			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
 		}
