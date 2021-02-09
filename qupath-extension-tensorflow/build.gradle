@@ -4,6 +4,7 @@ description = 'qupath-tensorflow'
 
 configurations {
   implementation.extendsFrom tensorflow
+  implementation.extendsFrom openvino
 }
 
 dependencies {

@@ -74,7 +74,8 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.tensorflow.TensorFlowTools;
+// import qupath.tensorflow.TensorFlowTools;
+import qupath.openvino.OpenVINOTools;
 
 /**
  * Cell detection based on the following method:
@@ -441,7 +442,8 @@ public class StarDist2D {
 			
 			var padding = pad > 0 ? Padding.symmetric(pad) : Padding.empty();
 			var mergedOps = new ArrayList<>(ops);
-			mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding));
+			// mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding));
+			mergedOps.add(OpenVINOTools.createOp(modelPath, tileWidth, tileHeight, padding));
 			mergedOps.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 			
 			stardist.op = ImageOps.buildImageDataOp(channels)
