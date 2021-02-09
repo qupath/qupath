@@ -25,6 +25,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -157,15 +158,24 @@ public class OpenVINOOp extends PaddedOp {
         private final static Logger logger = LoggerFactory.getLogger(OpenVINOBundle.class);
 
         private IECore ie = new IECore();
-        private InferRequest req;
+        private InferRequest[] requests;
+        private boolean[] requestIsFree;
 
         private OpenVINOBundle(String pathModel) {
             System.out.println("~~~~~~~~~ OpenVINOBundle");
-            CNNNetwork net = ie.ReadNetwork(pathModel + "/saved_model.xml");
+            String xmlPath = Paths.get(pathModel, "saved_model.xml").toString();
+            CNNNetwork net = ie.ReadNetwork(xmlPath);
             InputInfo inputInfo = net.getInputsInfo().get("input");
             inputInfo.setLayout(Layout.NHWC);
             ExecutableNetwork execNet = ie.LoadNetwork(net, "CPU");
-            req = execNet.CreateInferRequest();
+
+            int numRequests = 4;
+            requests = new InferRequest[numRequests];
+            requestIsFree = new boolean[numRequests];
+            for (int i = 0; i < numRequests; ++i) {
+                requests[i] = execNet.CreateInferRequest();
+                requestIsFree[i] = true;
+            }
         }
 
         private static Mat nchw2nhwc(Blob blob) {
@@ -176,14 +186,37 @@ public class OpenVINOOp extends PaddedOp {
         }
 
         private Mat run(Mat mat, String outputName) {
-            Mat res;
-            synchronized (req) {
-                Blob input = OpenVINOTools.convertToBlob(mat);
-                req.SetBlob("input", input);
-                req.Infer();
-                Blob output = req.GetBlob("concatenate_4/concat");
-                res = nchw2nhwc(output);
+            // Find a free inference request.
+            InferRequest req = null;
+            int idx = -1;
+            synchronized (requests) {
+                while (req == null) {
+                    for (idx = 0; idx < requestIsFree.length; ++idx) {
+                        if (requestIsFree[idx]) {
+                            req = requests[idx];
+                            requestIsFree[idx] = false;
+                            break;
+                        }
+                    }
+                }
             }
+
+            // Run inference
+            Blob input = OpenVINOTools.convertToBlob(mat);
+            req.SetBlob("input", input);
+            req.Infer();
+            Blob output = req.GetBlob("concatenate_4/concat");
+
+            long start = System.currentTimeMillis();
+            OpenVINOTools.convertToMat(output);
+            long end = System.currentTimeMillis();
+            System.out.println(end - start);
+
+            Mat res = nchw2nhwc(output);
+
+            // Release inference request
+            requestIsFree[idx] = true;
+
             return res;
         }
     }

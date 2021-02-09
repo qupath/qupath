@@ -57,18 +57,10 @@ public class OpenVINOTools {
     }
 
     public static Blob convertToBlob(Mat mat) {
-        int c = mat.channels();
-        int h = mat.rows();
         int w = mat.cols();
-        int[] dimsArr = {1, c, h, w};
+        int[] dimsArr = {1, mat.channels(), mat.rows(), mat.cols()};
         TensorDesc tDesc = new TensorDesc(Precision.FP32, dimsArr, Layout.NHWC);
-
-        float[] data = new float[c * w * h];
-        FloatBuffer dstBuf = FloatBuffer.wrap(data);
-        FloatBuffer srcBuf = mat.getFloatBuffer();
-        dstBuf.put(srcBuf);
-
-        return new Blob(tDesc, data);
+        return new Blob(tDesc, mat.data().address());
     }
 
     /**
