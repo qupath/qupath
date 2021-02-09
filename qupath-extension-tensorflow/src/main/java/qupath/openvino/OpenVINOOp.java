@@ -159,27 +159,44 @@ public class OpenVINOOp extends PaddedOp {
 
         private IECore ie = new IECore();
         private InferRequest[] requests;
+        // Vector with flags that indicate if inference request is free or busy.
         private boolean[] requestIsFree;
+        // Pre-allocated buffers for outputs.
+        private Mat[] outputs;
 
         private OpenVINOBundle(String pathModel) {
-            System.out.println("~~~~~~~~~ OpenVINOBundle");
+            logger.info("Initialize OpenVINO network");
+
             String xmlPath = Paths.get(pathModel, "saved_model.xml").toString();
             CNNNetwork net = ie.ReadNetwork(xmlPath);
             InputInfo inputInfo = net.getInputsInfo().get("input");
             inputInfo.setLayout(Layout.NHWC);
             ExecutableNetwork execNet = ie.LoadNetwork(net, "CPU");
 
-            int numRequests = 4;
-            requests = new InferRequest[numRequests];
-            requestIsFree = new boolean[numRequests];
-            for (int i = 0; i < numRequests; ++i) {
+            // Determine default number of async streams.
+            Map<String, String> config = Map.of("CPU_THROUGHPUT_STREAMS", "CPU_THROUGHPUT_AUTO");
+            ie.SetConfig(config, "CPU");
+            String nStr = ie.GetConfig("CPU", "CPU_THROUGHPUT_STREAMS").asString();
+            int nstreams = Integer.parseInt(nStr);
+            logger.info("Number of asynchronous streams: " + nstreams);
+
+            requests = new InferRequest[nstreams];
+            requestIsFree = new boolean[nstreams];
+            outputs = new Mat[nstreams];
+            for (int i = 0; i < nstreams; ++i) {
                 requests[i] = execNet.CreateInferRequest();
                 requestIsFree[i] = true;
+
+                int[] shape = {1, 33, 1024, 1024};
+                outputs[i] = new Mat(shape, opencv_core.CV_32F);
+
+                TensorDesc tDesc = new TensorDesc(Precision.FP32, shape, Layout.NCHW);
+                Blob output = new Blob(tDesc, outputs[i].data().address());
+                requests[i].SetBlob("concatenate_4/concat", output);
             }
         }
 
-        private static Mat nchw2nhwc(Blob blob) {
-            Mat src = OpenVINOTools.convertToMat(blob);
+        private static Mat nchw2nhwc(Mat src) {
             var images = new MatVector();
             opencv_dnn.imagesFromBlob(src, images);
             return images.get(0);
@@ -190,29 +207,27 @@ public class OpenVINOOp extends PaddedOp {
             InferRequest req = null;
             int idx = -1;
             synchronized (requests) {
-                while (req == null) {
-                    for (idx = 0; idx < requestIsFree.length; ++idx) {
-                        if (requestIsFree[idx]) {
-                            req = requests[idx];
-                            requestIsFree[idx] = false;
-                            break;
+                try {
+                    while (req == null) {
+                        Thread.sleep(1);
+                        for (idx = 0; idx < requestIsFree.length; ++idx) {
+                            if (requestIsFree[idx]) {
+                                req = requests[idx];
+                                requestIsFree[idx] = false;
+                                break;
+                            }
                         }
                     }
-                }
+                } catch(InterruptedException e) {}
             }
 
             // Run inference
             Blob input = OpenVINOTools.convertToBlob(mat);
             req.SetBlob("input", input);
-            req.Infer();
-            Blob output = req.GetBlob("concatenate_4/concat");
+            req.StartAsync();
+            req.Wait(WaitMode.RESULT_READY);
 
-            long start = System.currentTimeMillis();
-            OpenVINOTools.convertToMat(output);
-            long end = System.currentTimeMillis();
-            System.out.println(end - start);
-
-            Mat res = nchw2nhwc(output);
+            Mat res = nchw2nhwc(outputs[idx]);
 
             // Release inference request
             requestIsFree[idx] = true;
@@ -220,189 +235,4 @@ public class OpenVINOOp extends PaddedOp {
             return res;
         }
     }
-
-
-    // private static class TensorFlowBundle {
-
-//     	private final static Logger logger = LoggerFactory.getLogger(TensorFlowBundle.class);
-
-//     	private String pathModel;
-//         private SavedModelBundle bundle;
-
-//         private String inputName;
-//         private String outputName;
-//         private long[] inputShape;
-//     	private long[] outputShape;
-
-//     	private transient Map<String, NodeDef> nodeDefs;
-
-//     	private TensorFlowBundle(String pathModel) {
-
-//     		this.pathModel = pathModel;
-
-//     		var dir = new File(pathModel);
-//     		if (!dir.exists()) {
-//     			throw new IllegalArgumentException(pathModel + " does not exist!");
-//     		} else if (!dir.isDirectory() || !tensorflow.MaybeSavedModelDirectory(pathModel)) {
-//     			throw new IllegalArgumentException(pathModel + " is not a valid TensorFlow model directory!");
-//     		}
-
-//             // If this fails, are both the main jars and the platform-specific jars present - for TensorFlow and MKL-DNN?
-//             var sessionOptions = new SessionOptions();
-
-// //            var runOptions = new RunOptions();
-
-//             var runOptions = RunOptions.default_instance();
-
-
-//             var tags = new StringUnorderedSet();
-//             tags.insert(tensorflow.kSavedModelTagServe());
-// //            tags.insert(tensorflow.kSavedModelTagTrain());
-//             bundle = new SavedModelBundle();
-
-//             var status = tensorflow.LoadSavedModel(
-//                     sessionOptions,
-//                     runOptions,
-//                     pathModel,
-//                     tags,
-//                     bundle
-//             );
-
-//             if (!status.ok()) {
-//             	throw new RuntimeException(status.error_message().getString());
-//             }
-
-//             MetaGraphDef graphDef = bundle.meta_graph_def();
-//             logger.trace("Has GraphDef: {}", graphDef.has_graph_def());
-//             StringSignatureDefMap sigdefMap = graphDef.signature_def();
-
-
-//             logger.debug("StringSignatureDefMap size: {}", sigdefMap.size());
-//             SignatureDef map = sigdefMap.get(sigdefMap.begin().first());
-
-//             long nInputs = map.inputs().size();
-//             if (nInputs != 1) {
-//             	logger.warn("Only one input currently supported, but model supports {}", nInputs);
-//             }
-//             long nOutputs = map.outputs().size();
-//             if (nOutputs != 1) {
-//             	logger.warn("Only one output currently supported, but model supports {}", nOutputs);
-//             }
-
-//             // Get input & output names and shapes
-//             TensorInfo input = map.inputs().get(map.inputs().begin().first());
-//             inputName = input.name().getString();
-//             inputShape = tensorShape(input.tensor_shape());
-
-//             TensorInfo output = map.outputs().get(map.outputs().begin().first());
-//             outputName = output.name().getString();
-//             outputShape = tensorShape(output.tensor_shape());
-
-//             logger.debug("Model input: {} ({})", inputName, arrayToString(inputShape));
-//         	logger.debug("Model output: {} ({})", outputName, arrayToString(outputShape));
-
-//         	logger.info("Loaded {}", this);
-//         }
-
-//     	private static String arrayToString(long[] shape) {
-//     		return Arrays.stream(shape).mapToObj(l -> Long.toString(l)).collect(Collectors.joining(","));
-//     	}
-
-//     	private static long[] tensorShape(TensorShapeProto shape) {
-//         	long[] dims = new long[shape.dim_size()];
-//         	for (int i = 0; i < dims.length; i++) {
-//         		dims[i] = shape.dim(i).size();
-//         	}
-//         	return dims;
-//         }
-
-//     	private static BytePointer SHAPE = new BytePointer("shape");
-
-//     	// Seems to do something useful, but mostly untested
-//     	private static long[] nodeDefShape(NodeDef nodeDef) {
-//     		if (nodeDef == null)
-//     			return null;
-//     		var shape = nodeDef.attr().get(SHAPE);
-//     		if (shape.has_shape())
-//     			return tensorShape(shape.shape());
-//         	return null;
-//         }
-
-//     	/**
-//     	 * Get the path to the model (a directory).
-//     	 * @return
-//     	 */
-//     	public String getModelPath() {
-//     		return pathModel;
-//     	}
-
-//     	private String getNodeSummary() {
-//     		return getNodeDefs().values().stream().map(n -> tensorflow.SummarizeNodeDef(n).getString()).collect(Collectors.joining(System.lineSeparator()));
-//     	}
-
-//     	private List<String> getNodeNames() {
-//     		return new ArrayList<>(getNodeDefs().keySet());
-//     	}
-
-//     	private Map<String, NodeDef> getNodeDefs() {
-//     		if (nodeDefs == null) {
-// 	    		nodeDefs = readNodeDefs();
-//     		}
-//             return nodeDefs;
-//     	}
-
-//     	private synchronized Map<String, NodeDef> readNodeDefs() {
-//     		GraphDef def = bundle.meta_graph_def().graph_def();
-//    			Map<String, NodeDef> nodes = new LinkedHashMap<>();
-//             for (int i = 0; i < def.node_size(); i++) {
-//             	var node = def.node(i);
-//             	var name = node.name().getString();
-//             	nodes.put(name, node);
-//             }
-//             return nodes;
-//     	}
-
-//         private Mat run(Mat mat, String outputName) {
-//             var tensor = TensorFlowTools.convertToTensor(mat);
-
-//             var outputs = new TensorVector();
-//             var inputs = new StringTensorPairVector(
-//                     new String[] {inputName},
-//                     new Tensor[] {tensor}
-//             );
-
-//             var outputNames = new StringVector(outputName == null ? this.outputName : outputName);
-//             var targetNodeNames = new StringVector();
-//             var status = bundle.session().Run(
-//                     inputs,
-//                     outputNames,
-//                     targetNodeNames,
-//                     outputs
-//             );
-
-//             if (!status.ok()) {
-//             	throw new RuntimeException(status.error_message().getString());
-//             }
-
-//             logger.debug("Number of outputs: {}", outputs.size());
-//             var outputTensor = outputs.get(0L);
-//             var output = TensorFlowTools.convertToMat(outputTensor);
-
-//             inputs.close();
-//             outputNames.close();
-//             targetNodeNames.close();
-//             outputTensor.close();
-
-//             return output;
-//         }
-
-//         @Override
-//         public String toString() {
-//         	return String.format("TensorFlow bundle: %s, (input%s [%s], output=%s [%s])",
-//         			pathModel, inputName, arrayToString(inputShape), outputName, arrayToString(outputShape));
-//         }
-
-//     }
-
-
 }
