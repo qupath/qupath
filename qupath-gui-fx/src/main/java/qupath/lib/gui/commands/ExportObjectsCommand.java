@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -28,12 +27,17 @@ import qupath.lib.objects.PathObjectIO;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 
 /**
- * Command to export path object(s) as either GeoJSON or Java serialized to an output file.
+ * Command to export object(s) as either GeoJSON or Java serialized to an output file.
+ * 
  * @author Melvin Gelbard
- *
  */
 // TODO make default dir the project one when choosing outFile?
 public final class ExportObjectsCommand {
+	
+	// Suppress default constructor for non-instantiability
+	private ExportObjectsCommand() {
+		throw new AssertionError();
+	}
 	
 	/**
 	 * Run the path object GeoJSON export command.
@@ -135,14 +139,14 @@ public final class ExportObjectsCommand {
 		String methodTitle;
 		String methodString;
 		if (onlyROICheck.isSelected()) {
-			method = comboChoice.equals("All objects") ? "exportAllROIsToGeoJSON" : "exportSelectedROIsToGeoJson";
+			method = comboChoice.equals("All objects") ? "exportAllROIsToGeoJson" : "exportSelectedROIsToGeoJson";
 			methodTitle = comboChoice.equals("All objects") ? "Export all ROIs" : "Export selected ROIs";
 			methodString = String.format("%s(%s%s%s, %s)", 
 					method, 
 					"\"", GeneralTools.escapeFilePath(outFile.getPath()), "\"", 
 					String.valueOf(prettyGsonCheck.isSelected()));
 		} else {
-			method = comboChoice.equals("All objects") ? "exportAllObjectsToGeoJSON" : "exportSelectedObjectsToGeoJson";
+			method = comboChoice.equals("All objects") ? "exportAllObjectsToGeoJson" : "exportSelectedObjectsToGeoJson";
 			methodTitle = comboChoice.equals("All objects") ? "Export all objects" : "Export selected objects";
 			map.put("includeMeasurements", includeMeasurementsCheck.isSelected() ? "true" : "false");
 			methodString = String.format("%s(%s%s%s, %s, %s)", 
@@ -203,7 +207,7 @@ public final class ExportObjectsCommand {
 			toProcess = hierarchy.getObjects(null, null);
 		
 		// Remove PathRootObject
-		List<PathObject> toProcess2 = toProcess.stream().filter(e -> e.getClass() != PathRootObject.class).collect(Collectors.toList());
+		toProcess = toProcess.stream().filter(e -> e.getClass() != PathRootObject.class).collect(Collectors.toList());
 		
 		var project = qupath.getProject();
 		File outFile;
@@ -218,7 +222,7 @@ public final class ExportObjectsCommand {
 		
 		// Export
 		if (onlyROICheck.isSelected()) {
-			var objs = toProcess2.parallelStream().map(e -> e.getROI()).collect(Collectors.toList());
+			var objs = toProcess.parallelStream().map(e -> e.getROI()).collect(Collectors.toList());
 			PathObjectIO.exportROIsAsSerialized(objs, outFile);
 		} else
 			PathObjectIO.exportObjectsAsSerialized(toProcess, outFile, (includeMeasurementsCheck.isSelected() && !includeMeasurementsCheck.isDisabled()));

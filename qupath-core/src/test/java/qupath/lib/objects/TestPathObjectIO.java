@@ -54,7 +54,7 @@ public class TestPathObjectIO extends PathObjectTestWrapper {
 		PathObjectIO.exportObjectsToGeoJson(objs, bos, true, true);
 		
 		// Import from GeoJSON
-		List<PathObject> col = new ArrayList<>(PathObjectIO.importFromGeoJson(new ByteArrayInputStream(bos.toByteArray())));
+		List<PathObject> col = new ArrayList<>(PathObjectIO.importObjectsFromGeoJson(new ByteArrayInputStream(bos.toByteArray())));
 		
 		// Array to count number of each PathObject type
 		int[] countCheck = new int[] {0, 0, 0, 0};
@@ -107,7 +107,7 @@ public class TestPathObjectIO extends PathObjectTestWrapper {
 		PathObjectIO.exportObjectsAsSerialized(objs, bos, true);
 		
 		// Deserialize
-		List<PathObject> col = new ArrayList<>(PathObjectIO.importFromSerialized(bos.toByteArray()));
+		List<PathObject> col = new ArrayList<>(PathObjectIO.importObjectsFromSerialized(bos.toByteArray()));
 		
 		// Array to count number of each PathObject type
 		int[] countCheck = new int[] {0, 0, 0, 0};

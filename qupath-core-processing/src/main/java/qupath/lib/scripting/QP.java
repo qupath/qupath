@@ -25,6 +25,7 @@ package qupath.lib.scripting;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -50,6 +51,8 @@ import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import javax.naming.OperationNotSupportedException;
 
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
@@ -2056,6 +2059,26 @@ public class QP {
 	public static void exportSelectedROIsAsSerialized(String path) throws IOException {
 		var rois = getSelectedObjects().stream().map(e -> e.getROI()).collect(Collectors.toList());
 		PathObjectIO.exportROIsAsSerialized(rois, new File(path));
+	}
+	
+	/**
+	 * Import all {@code PathObject}s from the given file. <p>
+	 * {@code OperationNotSupportedException} is thrown if the file is not compatible. <br>
+	 * {@code FileNotFoundException} is thrown if the file is not found. <br>
+	 * {@code IOException} is thrown if an error occurs while reading the file. <br>
+	 * {@code ClassNotFoundException} should never occur naturally (except through a change in the code).
+	 * 
+	 * 
+	 * @param path
+	 * @return success
+	 * @throws OperationNotSupportedException
+	 * @throws FileNotFoundException
+	 * @throws ClassNotFoundException
+	 * @throws IOException
+	 */
+	public static boolean importObjectsFromFile(String path) throws OperationNotSupportedException, FileNotFoundException, IOException, ClassNotFoundException {
+		var objs = PathObjectIO.extractObjectsFromFile(new File(path));
+		return getCurrentHierarchy().addPathObjects(objs);
 	}
 	
 	/**

@@ -399,13 +399,17 @@ class Menus {
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 		
-		@ActionDescription("Export path object(s) in GeoJSON format to file.")
-		@ActionMenu("Export objects...>GeoJSON")
-		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJsonObjectsExport(qupath, imageData));
+		@ActionDescription("Import path object(s) in serialized format (QuPath only).")
+		@ActionMenu("Object data...>Import objects")
+		public final Action OBJECT_IMPORT= qupath.createImageDataAction(imageData -> Commands.runObjectImport(qupath, imageData));
 		
-		@ActionDescription("Export path object(s) in serialized format (QuPath only).")
-		@ActionMenu("Export objects...>Serialized (QuPath only)")
-		public final Action EXPORT_SERIALIZED = qupath.createImageDataAction(imageData -> Commands.runSerializedObjectsExport(qupath, imageData));
+		@ActionDescription("Export object(s) in GeoJSON format to file.")
+		@ActionMenu("Object data...>Export objects...>GeoJSON")
+		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJsonObjectExport(qupath, imageData));
+		
+		@ActionDescription("Export object(s) in serialized format (QuPath only).")
+		@ActionMenu("Object data...>Export objects...>Serialized (QuPath only)")
+		public final Action EXPORT_SERIALIZED = qupath.createImageDataAction(imageData -> Commands.runSerializedObjectExport(qupath, imageData));
 		
 		public final Action SEP_7 = ActionTools.createSeparator();
 
