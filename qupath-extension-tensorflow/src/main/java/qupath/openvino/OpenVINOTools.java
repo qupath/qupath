@@ -43,19 +43,6 @@ public class OpenVINOTools {
 
     private final static Logger logger = LoggerFactory.getLogger(OpenVINOTools.class);
 
-    public static Mat convertToMat(Blob blob) {
-        int[] dims = blob.getTensorDesc().getDims();
-        Mat dst = new Mat(dims, opencv_core.CV_32F);
-
-        float[] data = new float[blob.size()];
-        blob.rmap().get(data);
-
-        FloatBuffer srcBuf = FloatBuffer.wrap(data);
-        FloatBuffer dstBuf = dst.getFloatBuffer();
-        dstBuf.put(srcBuf);
-        return dst;
-    }
-
     public static Blob convertToBlob(Mat mat) {
         int[] dimsArr = {1, mat.channels(), mat.rows(), mat.cols()};
         TensorDesc tDesc = new TensorDesc(Precision.FP32, dimsArr, Layout.NHWC);

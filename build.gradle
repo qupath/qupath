@@ -273,12 +273,12 @@ allprojects {
     guava
     picocli
     jfreesvg
-	junit
-	logback
-	
-	// Optional
-	tensorflow
-  openvino
+    junit
+    logback
+
+    // Optional
+    tensorflow
+    openvino
   }
 
   dependencies {
@@ -370,7 +370,7 @@ allprojects {
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
 
-    openvino "org.intel:openvino:0.0.4"
+    openvino "org.intel:openvino:0.0.6"
 
     tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
     if (includeTensorFlowGPU)

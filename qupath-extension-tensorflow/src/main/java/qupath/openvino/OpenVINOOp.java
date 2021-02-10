@@ -37,9 +37,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.MatVector;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -156,6 +154,8 @@ public class OpenVINOOp extends PaddedOp {
 
     private static class OpenVINOBundle {
         private final static Logger logger = LoggerFactory.getLogger(OpenVINOBundle.class);
+        private final static String inpName = "input";
+        private final static String outName = "concatenate_4/concat";
 
         private IECore ie = new IECore();
         private InferRequest[] requests;
@@ -169,8 +169,8 @@ public class OpenVINOOp extends PaddedOp {
 
             String xmlPath = Paths.get(pathModel, "saved_model.xml").toString();
             CNNNetwork net = ie.ReadNetwork(xmlPath);
-            InputInfo inputInfo = net.getInputsInfo().get("input");
-            inputInfo.setLayout(Layout.NHWC);
+            net.getInputsInfo().get(inpName).setLayout(Layout.NHWC);
+            net.getOutputsInfo().get(outName).setLayout(Layout.NHWC);
             ExecutableNetwork execNet = ie.LoadNetwork(net, "CPU");
 
             // Determine default number of async streams.
@@ -187,19 +187,13 @@ public class OpenVINOOp extends PaddedOp {
                 requests[i] = execNet.CreateInferRequest();
                 requestIsFree[i] = true;
 
-                int[] shape = {1, 33, 1024, 1024};
+                int[] shape = requests[i].GetBlob(outName).getTensorDesc().getDims();
                 outputs[i] = new Mat(shape, opencv_core.CV_32F);
 
-                TensorDesc tDesc = new TensorDesc(Precision.FP32, shape, Layout.NCHW);
+                TensorDesc tDesc = new TensorDesc(Precision.FP32, shape, Layout.NHWC);
                 Blob output = new Blob(tDesc, outputs[i].data().address());
-                requests[i].SetBlob("concatenate_4/concat", output);
+                requests[i].SetBlob(outName, output);
             }
-        }
-
-        private static Mat nchw2nhwc(Mat src) {
-            var images = new MatVector();
-            opencv_dnn.imagesFromBlob(src, images);
-            return images.get(0);
         }
 
         private Mat run(Mat mat, String outputName) {
@@ -223,11 +217,15 @@ public class OpenVINOOp extends PaddedOp {
 
             // Run inference
             Blob input = OpenVINOTools.convertToBlob(mat);
-            req.SetBlob("input", input);
-            req.StartAsync();
-            req.Wait(WaitMode.RESULT_READY);
+            req.SetBlob(inpName, input);
+            req.Infer();
 
-            Mat res = nchw2nhwc(outputs[idx]);
+            Mat res = outputs[idx];
+
+            int c = res.size(1);
+            int h = res.size(2);
+            // Data is already in NHWC layout. Change just a shape.
+            res = res.reshape(1, c * h).reshape(c, h);
 
             // Release inference request
             requestIsFree[idx] = true;
