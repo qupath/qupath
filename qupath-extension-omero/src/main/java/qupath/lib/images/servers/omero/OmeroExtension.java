@@ -32,7 +32,7 @@ public class OmeroExtension implements QuPathExtension {
 	/**
 	 * To handle the different stages of browsers (only allow one per OMERO server)
 	 */
-	private Map<OmeroWebClient, OmeroWebImageServerBrowserCommand> browsers = new HashMap<>();
+	private static Map<OmeroWebClient, OmeroWebImageServerBrowserCommand> browsers = new HashMap<>();
 
 	@Override
 	public void installExtension(QuPathGUI qupath) {
@@ -137,7 +137,7 @@ public class OmeroExtension implements QuPathExtension {
 						browser.getStage().requestFocus();		
 					
 				} catch (FileNotFoundException ex) {
-					Dialogs.showErrorMessage("OMERO web server", "Could not parse server from: " + path);
+					Dialogs.showErrorMessage("OMERO web server", "An error occured when trying to reach " + path);
 				} catch (IOException | URISyntaxException ex) {
 					Dialogs.showErrorMessage("OMERO web server", ex.getLocalizedMessage());
 					return;
@@ -149,5 +149,14 @@ public class OmeroExtension implements QuPathExtension {
 		// Ensure the menu is populated (every time the parent menu is opened)
 		browseServerMenu.getParentMenu().setOnShowing(validationHandler);	
 		return browseServerMenu;
+	}
+	
+	/**
+	 * Return map of currently opened browsers
+	 * 
+	 * @return browsers
+	 */
+	static Map<OmeroWebClient, OmeroWebImageServerBrowserCommand> getOpenedBrowsers() {
+		return browsers;
 	}
 }

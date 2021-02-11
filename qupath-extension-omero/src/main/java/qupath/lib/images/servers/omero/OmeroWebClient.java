@@ -18,7 +18,6 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -28,6 +27,7 @@ import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import javax.naming.OperationNotSupportedException;
 import javax.net.ssl.HttpsURLConnection;
 
 import org.slf4j.Logger;
@@ -50,6 +50,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.images.servers.omero.OmeroObjects.OmeroObjectType;
 import qupath.lib.io.GsonTools;
 
 /**
@@ -212,32 +213,48 @@ public class OmeroWebClient {
 	}
 	
 	/**
-	 * Attempt to access the image given by the provided {@code imageUri}.
+	 * Attempt to access the OMERO object given by the provided {@code uri} and {@code type}.
 	 * <p>
 	 * N.B. being logged on the server doesn't necessarily mean that the user has 
-	 * permission to access all the images on the server.
-	 * @return
+	 * permission to access all the objects on the server.
+	 * 
+	 * @return success
 	 * @throws ConnectException 
+	 * @throws OperationNotSupportedException 
 	 */
-	boolean canAccessImage(URI imageUri) throws InvalidParameterException, ConnectException {
+	boolean canBeAccessed(URI uri, OmeroObjectType type) throws IllegalArgumentException, ConnectException {
 		try {
-			logger.debug("Attempting to access image...");
-			int imageId = OmeroTools.parseOmeroObjectId(imageUri);
-			if (imageId == -1)
-				throw new InvalidParameterException("No image found in: " + imageUri);
+			logger.debug("Attempting to access {}...", type.toString().toLowerCase());
+			int id = OmeroTools.parseOmeroObjectId(uri, type);
+			if (id == -1)
+				throw new NullPointerException("No object ID found in: " + uri);
 			
-			URL imgDataURL = new URL(imageUri.getScheme(), imageUri.getHost(), -1, "/webgateway/imgData/" + imageId);
-			HttpURLConnection connection = (HttpURLConnection) imgDataURL.openConnection();
+			String query;
+			
+			// Implementing this as a switch because of future plates/wells/.. implementations
+			switch (type) {
+			case PROJECT:
+			case DATASET:
+			case IMAGE:
+				query = String.format("/api/v0/m/%s/", type.toURLString());
+				break;
+			case ORPHANED_FOLDER:
+			case UNKNOWN:
+				throw new IllegalArgumentException();
+			default:
+				throw new OperationNotSupportedException("Type not supported: " + type);
+			}	
+			
+			URL url = new URL(uri.getScheme(), uri.getHost(), query + id);
+			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 			connection.setRequestProperty("Content-Type", "application/json");
 			connection.setRequestMethod("GET");
 			connection.setDoInput(true);
 			int response = connection.getResponseCode();
 			connection.disconnect();
 			return response == 200;
-		} catch (ConnectException ex) {
-			throw ex;
-		} catch (IOException e) {
-			logger.warn("Error attempting to access image", e.getLocalizedMessage());
+		} catch (IOException | OperationNotSupportedException ex) {
+			logger.warn("Error attempting to access OMERO object", ex.getLocalizedMessage());
 			return false;
 		}
 	}
@@ -278,7 +295,7 @@ public class OmeroWebClient {
 	}
 	
 	/**
-	 * Adds a URI to the list of this client's URIs.
+	 * Add a URI to the list of this client's URIs.
 	 * <p>
 	 * Note: there is currently no equivalent 'removeURI()' method.
 	 * @param uri
@@ -352,10 +369,9 @@ public class OmeroWebClient {
 				authentication = new PasswordAuthentication(usernameOld, password);
 			} else 
 				authentication = OmeroAuthenticatorFX.getPasswordAuthentication("Please enter your login details for OMERO server", serverURI.toString(), usernameOld);
-			if (authentication == null) {
-				logger.warn("Could not log in to {} - No authentification found!", serverURI);
+			if (authentication == null)
 				return false;
-			}
+			
 			String result = authenticate(authentication, omeroServerInfo.id);
 			Arrays.fill(authentication.getPassword(), (char)0);
 			
@@ -365,14 +381,26 @@ public class OmeroWebClient {
 			} else if (uris.size() == 0 || usernameOld.isEmpty())
 				Dialogs.showInfoNotification("OMERO login", String.format("Login successful: %s(\"%s\")", serverURI, authentication.getUserName()));
 			
-			loggedIn.set(true);
-			username.set(authentication.getUserName());
+			// If a browser was currently opened with this client, close it
+			if (OmeroExtension.getOpenedBrowsers().containsKey(this)) {
+				var oldBrowser = OmeroExtension.getOpenedBrowsers().get(this);
+				oldBrowser.requestClose();
+				OmeroExtension.getOpenedBrowsers().remove(this);
+			}
+			// (Re)start timer (needed if logging back in for instance)
+			startTimer();
+			
+			// If this method is called from 'project-import' thread (i.e. 'Open URI..'), 'Not on FX Appl. thread' IllegalStateException is thrown
+			Platform.runLater(() -> {
+				loggedIn.set(true);
+				username.set(authentication.getUserName());
+			});
+			
 			logger.info(result);
 			return true;
 		} catch (Exception e) {
 			Dialogs.showErrorNotification("OMERO web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");
 		}
-		loggedIn.set(false);
 		return false;
 	}
 	
@@ -397,6 +425,7 @@ public class OmeroWebClient {
 			
 			loggedIn.set(false);
 			timer.cancel();
+			timer = null;
 			username.set("");
 		} catch (IOException e) {
 			logger.error("Could not logout.", e.getLocalizedMessage());
@@ -516,16 +545,12 @@ public class OmeroWebClient {
 		}
 
 		static PasswordAuthentication getPasswordAuthentication(String prompt, String host, String lastUsername) {
-
 			GridPane pane = new GridPane();
-
 			Label labHost = new Label(host);
-
 			Label labUsername = new Label("Username");
 			TextField tfUsername = new TextField(lastUsername);
 			labUsername.setLabelFor(tfUsername);
 			
-
 			Label labPassword = new Label("Password");
 			PasswordField tfPassword = new PasswordField();
 			labPassword.setLabelFor(tfPassword);

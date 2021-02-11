@@ -32,6 +32,7 @@ import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.images.servers.omero.OmeroObjects.OmeroObjectType;
 
 /**
  * Command to manually manage OMERO web clients. This offers the possibility to log in/off
@@ -74,8 +75,11 @@ public class OmeroWebClientsCommand implements Runnable {
 			    	if (dialog == null)
 			    		return;
 
-			    	refreshServerGrid();
-			        dialog.getScene().getWindow().sizeToScene();
+			    	// If 'import-project' thread ('Open URI..'), 'Not on FX appl. thread' Exception can be thrown
+			    	Platform.runLater(() -> {
+			    		refreshServerGrid();
+			    		dialog.getScene().getWindow().sizeToScene();
+			    	});
 			    }
 			});
 			
@@ -185,7 +189,7 @@ public class OmeroWebClientsCommand implements Runnable {
 			
 			TitledPane tp = new TitledPane();
 			tp.textProperty().bind(Bindings.concat(nImages, " image(s)"));
-			tp.setMaxWidth(Double.MAX_VALUE);
+			tp.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 			tp.setExpanded(false);
 			tp.heightProperty().addListener((v, o, n) -> Platform.runLater(() -> dialog.sizeToScene()));
 			tp.widthProperty().addListener((v, o, n) -> Platform.runLater(() -> dialog.sizeToScene()));
@@ -233,11 +237,17 @@ public class OmeroWebClientsCommand implements Runnable {
 					boolean success = true;
 					success = client.logIn();
 					if (!success)
-						Dialogs.showErrorMessage("Log in to OMERO server", "Could not log in to server with credentials. Check the log for more info.");
+						Dialogs.showErrorMessage("Log in to OMERO server", "Could not log in to server. Check the log for more info.");
 				} else {
 					// Check again the state, in case it wasn't refreshed in time
-					if (client.isLoggedIn())
-						client.logOut();
+					if (client.isLoggedIn()) {
+						if (OmeroExtension.getOpenedBrowsers().containsKey(client)) {
+							var confirm = Dialogs.showConfirmDialog("Log out", "A browser for this OMERO server is currently opened and will be closed when logging out. Continue?");
+							if (confirm)
+								client.logOut();
+						} else 
+							client.logOut();
+					}
 				}
 			});
 			
@@ -277,44 +287,30 @@ public class OmeroWebClientsCommand implements Runnable {
 		
 		
 		private GridPane createTitledPaneContent(OmeroWebClient client) {
-			var imageList = qupath.getProject().getImageList();
-			
 			GridPane gp = new GridPane();
 			for (URI imageUri: client.getURIs()) {
-				// Check if client's servers haven't been deleted from project
-				var anyMatch = imageList.parallelStream().anyMatch(e -> {
-					try {
-						return e.getServerURIs().iterator().next().equals(imageUri);
-					} catch (Exception ex) {
-						logger.warn(ex.getLocalizedMessage());
-					}
-					return false;
-				});
+				// To save time, check the imageServers' status in other threads and update the pane later
+				ProgressIndicator pi = new ProgressIndicator();
+				pi.setPrefSize(15, 15);
+				Label imageServerName = new Label("../" + imageUri.getQuery(), pi);
+				imageServerName.setContentDisplay(ContentDisplay.RIGHT);
+				PaneTools.addGridRow(gp, gp.getRowCount(), 0, null, imageServerName);
 				
-				if (anyMatch) {
-					// To save time, check the imageServers' status in other threads and update the pane later
-					ProgressIndicator pi = new ProgressIndicator();
-					pi.setPrefSize(15, 15);
-					Label imageServerName = new Label("../" + imageUri.getQuery(), pi);
-					imageServerName.setContentDisplay(ContentDisplay.RIGHT);
-					PaneTools.addGridRow(gp, gp.getRowCount(), 0, null, imageServerName);
-					
-					executor.submit(() -> {
-						try {
-							final boolean canAccessImage = client.canAccessImage(imageUri);
-							String tooltip = (client.isLoggedIn() && !canAccessImage) ? "Unreachable image (access not permitted)" : imageUri.toString();
-							Platform.runLater(() -> {
-								imageServerName.setTooltip(new Tooltip(tooltip));
-								imageServerName.setGraphic(OmeroTools.createStateNode(canAccessImage));									
-							});
-						} catch (ConnectException ex) {
-							Platform.runLater(() -> {
-								imageServerName.setTooltip(new Tooltip("Unreachable image"));									
-								imageServerName.setGraphic(OmeroTools.createStateNode(false));
-							});
-						}
-					});				
-				}
+				executor.submit(() -> {
+					try {
+						final boolean canAccessImage = client.canBeAccessed(imageUri, OmeroObjectType.IMAGE);
+						String tooltip = (client.isLoggedIn() && !canAccessImage) ? "Unreachable image (access not permitted)" : imageUri.toString();
+						Platform.runLater(() -> {
+							imageServerName.setTooltip(new Tooltip(tooltip));
+							imageServerName.setGraphic(OmeroTools.createStateNode(canAccessImage));									
+						});
+					} catch (ConnectException ex) {
+						Platform.runLater(() -> {
+							imageServerName.setTooltip(new Tooltip("Unreachable image"));									
+							imageServerName.setGraphic(OmeroTools.createStateNode(false));
+						});
+					}
+				});
 			}
 			gp.setHgap(5.0);
 			return gp;

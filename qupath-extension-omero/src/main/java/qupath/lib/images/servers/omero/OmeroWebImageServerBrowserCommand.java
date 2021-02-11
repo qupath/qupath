@@ -76,6 +76,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import javafx.util.StringConverter;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
@@ -107,6 +108,7 @@ import qupath.lib.io.GsonTools;
  * @author Melvin Gelbard
  */
 // TODO: Orphaned folder is still 'selectable' via arrow keys (despite being disabled), which looks like a JavaFX bug..
+// TODO: If switching users while the browser is opened, nothing will load (but everything stays clickable).
 public class OmeroWebImageServerBrowserCommand implements Runnable {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServerBrowserCommand.class);
@@ -231,10 +233,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		GridPane browseLeftPane = new GridPane();
 		GridPane browseRightPane = new GridPane();
 		GridPane loadingInfoPane = new GridPane();
-		
-		// Disable entire pane if client not logged in (user should login via webclient command)
-		mainPane.disableProperty().bind(client.logProperty().not());
-		
+
 		var progressChildren = new ProgressIndicator();
 		progressChildren.setPrefSize(15, 15);
 		loadingChildrenLabel = new Label("Loading OMERO object(s)", progressChildren);
@@ -256,19 +255,24 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		
 		// Info about the server to display at the top
 		var hostLabel = new Label(serverURI.getHost());
-		var usernames = client.getUsername();
-		var usernameText = usernames.isEmpty() ? new Label("public") : new Label(usernames);
+		var usernameLabel = new Label();
+		usernameLabel.textProperty().bind(Bindings.createStringBinding(() -> {
+			if (client.getUsername().isEmpty() && client.isLoggedIn())
+				return "public";
+			else
+				return client.getUsername();
+		}, client.usernameProperty(), client.logProperty()));
 		var nOpenImages = new Label();
 		nOpenImages.textProperty().bind(Bindings.concat(Bindings.size(client.getURIs()), ""));
 		hostLabel.setStyle(BOLD);
-		usernameText.setStyle(BOLD);
+		usernameLabel.setStyle(BOLD);
 		nOpenImages.setStyle(BOLD);
 		
 		Label isReachable = new Label();
 		isReachable.graphicProperty().bind(Bindings.createObjectBinding(() -> OmeroTools.createStateNode(client.isLoggedIn()), client.logProperty()));
 
 		serverAttributePane.addRow(0, new Label("Server: "), hostLabel, isReachable);
-		serverAttributePane.addRow(1, new Label("Username: "), usernameText);
+		serverAttributePane.addRow(1, new Label("Username: "), usernameLabel);
 		serverAttributePane.addRow(2, new Label("Open image(s): "), nOpenImages);
 		serverInfoPane.setLeft(serverAttributePane);
 		serverInfoPane.setRight(loadingInfoPane);
@@ -337,7 +341,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			
 			try {
 				var tempImageURI = server.getURIs().iterator().next();
-				if (OmeroTools.getServerURI(tempImageURI).equals(serverURI) && client.canAccessImage(tempImageURI)) {
+				if (OmeroTools.getServerURI(tempImageURI).equals(serverURI) && client.canBeAccessed(tempImageURI, OmeroObjectType.IMAGE)) {
 					try {
 						JsonObject mapImageInfo = OmeroRequests.requestObjectInfo(serverURI.getScheme(), serverURI.getHost(), Integer.parseInt(server.getId()), OmeroObjectType.IMAGE);
 						
@@ -575,7 +579,12 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		mainPane.setCenter(browsePane);
 		browsePane.getItems().addAll(browseLeftPane, browseRightPane);
 		
+		
 		dialog = new Stage();
+		client.logProperty().addListener((v, o, n) -> {
+			if (!n)
+				requestClose();
+		});
 		dialog.sizeToScene();
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		if (qupath != null)
@@ -585,11 +594,12 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		dialog.setOnCloseRequest(e -> {
 			shutdownPools();
 			dialog = null;
+			OmeroExtension.getOpenedBrowsers().remove(client);
 		});
 		dialog.showAndWait();
     }
-    
-    private Map<OmeroObjectType, BufferedImage> getOmeroIcons() {
+
+	private Map<OmeroObjectType, BufferedImage> getOmeroIcons() {
     	Map<OmeroObjectType, BufferedImage> map = new HashMap<>();
     	var scheme = serverURI.getScheme();
     	var host = serverURI.getHost();
@@ -951,7 +961,6 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 					
 					// If server, update list of groups/owners (and comboBoxes)
 					if (omeroObj.getType() == OmeroObjectType.SERVER) {
-						
 						// Fetch ALL Groups and ALL Owners
 						var tempGroups = children.stream()
 								.map(e -> e.getGroup())
@@ -1758,6 +1767,14 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			this.group = values[5];
 			this.link = URI.create(serverURI.getScheme() + "://" + serverURI.getHost() + values[6]).toURL();
 		}
+	}
+	
+	/**
+	 * Request closure of the dialog
+	 */
+	void requestClose() {
+    	if (dialog != null)
+    		dialog.fireEvent(new WindowEvent(dialog, WindowEvent.WINDOW_CLOSE_REQUEST));
 	}
 	
 	/**

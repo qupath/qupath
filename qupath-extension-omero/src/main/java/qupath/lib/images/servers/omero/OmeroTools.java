@@ -14,6 +14,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -53,14 +54,25 @@ public final class OmeroTools {
 	private final static Logger logger = LoggerFactory.getLogger(OmeroTools.class);
 	
 	/**
-	 * Patterns for parsing input URIs
+	 * Patterns to parse image URIs (for IDs)
 	 */
 	private final static Pattern patternOldViewer = Pattern.compile("/webgateway/img_detail/(\\d+)");
 	private final static Pattern patternNewViewer = Pattern.compile("images=(\\d+)");
 	private final static Pattern patternWebViewer= Pattern.compile("/webclient/img_detail/(\\d+)");
-	private final static Pattern patternLink = Pattern.compile("show=image-(\\d+)");
+	private final static Pattern patternLinkImage = Pattern.compile("show=image-(\\d+)");
 	private final static Pattern patternImgDetail = Pattern.compile("img_detail/(\\d+)");
+	private final static Pattern[] imagePatterns = new Pattern[] {patternOldViewer, patternNewViewer, patternWebViewer, patternImgDetail, patternLinkImage};
+	
+	/**
+	 * Pattern to recognize the OMERO type of an URI (i.e. Project, Dataset, Image, ..)
+	 */
 	private final static Pattern patternType = Pattern.compile("show=(\\w+-)");
+	
+	/**
+	 * Patterns to parse Projects and Datasets ID ('link URI').
+	 */
+	private final static Pattern patternLinkProject = Pattern.compile("show=project-(\\d+)");
+	private final static Pattern patternLinkDataset = Pattern.compile("show=dataset-(\\d+)");
 	
 	/**
 	 * Suppress default constructor for non-instantiability
@@ -280,26 +292,61 @@ public final class OmeroTools {
 	 * If no Id could be found, return -1.
 	 * 
 	 * @param uri
+     * @param type 
 	 * @return Id
 	 */
-	public static int parseOmeroObjectId(URI uri) {
-		try {
-			var URIs = getURIs(uri);
-			if (URIs == null || URIs.size() == 0)
-				return -1;
-			
-			var cleanURI = URIs.get(0).toString();
-			cleanURI = cleanURI.replace("/?images%3D", "/?images=");
-			Pattern[] similarPatterns = new Pattern[] {patternLink, patternImgDetail, patternNewViewer, patternWebViewer};
-	        for (int i = 0; i < similarPatterns.length; i++) {
-	        	var matcher = similarPatterns[i].matcher(cleanURI);
-	        	if (matcher.find())
-	        		return Integer.parseInt(matcher.group(1));
-	        }
-		} catch (IOException e) {
-			logger.warn("Could not parse any ID from {}", uri.toString());
+	public static int parseOmeroObjectId(URI uri, OmeroObjectType type) {
+		String cleanUri = uri.toString().replace("%3D", "=");
+		Matcher m;
+		switch (type) {
+			case SERVER:
+				logger.error("Cannot parse an ID from OMERO server.");
+				break;
+			case PROJECT:
+				m = patternLinkProject.matcher(cleanUri);
+				if (m.find()) return Integer.parseInt(m.group(1));
+				break;
+			case DATASET:
+				m = patternLinkDataset.matcher(cleanUri);
+				if (m.find()) return Integer.parseInt(m.group(1));
+				break;
+			case IMAGE:
+				for (var p: imagePatterns) {
+					m = p.matcher(cleanUri);
+					if (m.find()) return Integer.parseInt(m.group(1));
+				}
+				break;
+			default:
+				throw new UnsupportedOperationException("Type (" + type + ") not supported");
 		}
-        return -1;
+		return -1;
+	}
+	
+    /**
+	 * Return the type associated with the {@code URI} provided.
+	 * If multiple types are present, only the first one will be retrieved.
+	 * If no type is found, return UNKNOWN.
+	 * <p>
+	 * Accepts the same formats as the {@code OmeroWebImageServer} constructor.
+	 * <br>
+	 * E.g., https://{server}/webclient/?show=dataset-{datasetId}
+	 * 
+	 * @param uri
+	 * @return omeroObjectType
+	 */
+	public static OmeroObjectType parseOmeroObjectType(URI uri) {
+			var uriString = uri.toString().replace("%3D", "=");
+	        if (patternLinkProject.matcher(uriString).find())
+	        	return OmeroObjectType.PROJECT;
+	        else if (patternLinkDataset.matcher(uriString).find())
+	        	return OmeroObjectType.DATASET;
+	        else {
+	        	for (var p: imagePatterns) {
+	        		if (p.matcher(uriString).find())
+	        			return OmeroObjectType.IMAGE;
+	        	}
+	        }
+	        return OmeroObjectType.UNKNOWN;
 	}
 	
 	
@@ -377,16 +424,16 @@ public final class OmeroTools {
 	}
 	
 	/**
-	 * Return the thumbnail of the OMERO image corresponding to the specified {@code id}.
+	 * Return the thumbnail of the OMERO image corresponding to the specified {@code imageId}.
 	 * 
 	 * @param server
-	 * @param id
+	 * @param imageId
 	 * @param prefSize
 	 * @return thumbnail
 	 */
-	public static BufferedImage getThumbnail(OmeroWebImageServer server, int id, int prefSize) {
+	public static BufferedImage getThumbnail(OmeroWebImageServer server, int imageId, int prefSize) {
 		try {
-			return OmeroRequests.requestThumbnail(server.getScheme(), server.getHost(), id, prefSize);			
+			return OmeroRequests.requestThumbnail(server.getScheme(), server.getHost(), imageId, prefSize);			
 		} catch (IOException e) {
 			logger.warn("Error requesting the thumbnail: {}", e.getLocalizedMessage());
 			return null;
@@ -606,7 +653,7 @@ public final class OmeroTools {
         		logger.info("No image found in URI: " + uri.toString());
         	for (int i = 0; i < ids.size(); i++) {
         		String imgId = (i == ids.size()-1) ? ids.get(i) : ids.get(i) + vertBarSign + "image-";
-        		sb.append(imgId);        		
+        		sb.append(imgId);
         	}
         	break;
         default:

@@ -122,6 +122,9 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		this.client = client;
 		this.args = args;
 		this.originalMetadata = buildMetadata();
+		
+		// Add URI to the client's list of URIs
+		client.addURI(uri);
 	}
 	
 	protected ImageServerMetadata buildMetadata() throws IOException {

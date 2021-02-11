@@ -27,7 +27,6 @@ import java.net.ConnectException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.AccessDeniedException;
-import java.security.InvalidParameterException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -55,7 +54,8 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
 		if (canConnectToOmero(uri, args)) {
 			try {
-				OmeroWebClient client = OmeroWebClients.getClientFromImageURI(uri);
+				URI serverUri = OmeroTools.getServerURI(uri);
+				OmeroWebClient client = OmeroWebClients.getClientFromServerURI(serverUri);
 				return new OmeroWebImageServer(uri, client, args);
 			} catch (IOException e) {
 				Dialogs.showErrorNotification("OMERO web server", uri.toString() + " - " + e.getLocalizedMessage());
@@ -71,26 +71,34 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		Collection<ServerBuilder<BufferedImage>> builders = new ArrayList<>();
 		
 		if (supportLevel > 0f) {
-			List<URI> uris = new ArrayList<>();
 			try {
-				if (canConnectToOmero(uri, args))
-					uris = OmeroTools.getURIs(uri);
+				if (canConnectToOmero(uri, args)) {
+					List<URI> uris = OmeroTools.getURIs(uri);
+					for (var subURI: uris) {
+						try (var server = buildServer(subURI, args)) {
+							builders.add(server.getBuilder());
+						} catch (Exception e) {
+							logger.debug("Unable to create OMERO server", e.getLocalizedMessage());
+						}
+					}					
+				}
+				
 			} catch (IOException e) {
 				Dialogs.showErrorNotification("OMERO web server", e.getLocalizedMessage());
-			}
-			
-			for (var subURI: uris) {
-				try (var server = buildServer(subURI, args)) {
-					builders.add(server.getBuilder());
-				} catch (Exception e) {
-					logger.debug("Unable to create OMERO server", e.getLocalizedMessage());
-				}
 			}
 		}
 
 		return UriImageSupport.createInstance(this.getClass(), supportLevel, builders);
 	}
-	
+
+	/**
+	 * Check whether QuPath can connect to the OMERO server & the OMERO object the given URI represents.
+	 * Prompt login if required.
+	 * 
+	 * @param uri
+	 * @param args
+	 * @return success
+	 */
 	boolean canConnectToOmero(URI uri, String... args) {
 		try {
 			if (supportLevel(uri) <= 0) {
@@ -108,7 +116,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			
 			// Check if client can reach the image. If not, prompt login
 			boolean isLoggedIn = true;
-			if (!client.canAccessImage(uri))
+			if (!client.canBeAccessed(uri, OmeroTools.parseOmeroObjectType(uri)))
 				isLoggedIn = client.logIn(args);
 			
 			if (!isLoggedIn)
@@ -117,17 +125,15 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				// Add the client to the list (but not URI yet!)
 				OmeroWebClients.addClient(client);
 
-				// Check if client can reach the image while being logged in
-				if (!client.canAccessImage(uri))
+				// Check if client can reach the OMERO object while being logged in
+				if (!client.canBeAccessed(uri, OmeroTools.parseOmeroObjectType(uri)))
 					throw new AccessDeniedException(String.format("\"%s\" does not have permission to read %s", client.getUsername(), uri));
 			}
 			
-			// Add URI to the list of URIs supported by this client
-			client.addURI(uri);
 			return true;
 		} catch (AccessDeniedException | ConnectException ex) {		// Catch 'access not permitted'
 			Dialogs.showErrorNotification("OMERO web server", ex.getLocalizedMessage());
-		} catch (InvalidParameterException ex) {					// Catch wrong URI
+		} catch (IllegalArgumentException  ex) {					// Catch wrong URI
 			Dialogs.showErrorNotification("OMERO web server", ex.getLocalizedMessage());
 			OmeroWebClients.addFailedHost(uri);
 		} catch (URISyntaxException | IOException ex) {				// Catch errors when creating an OmeroWebClient
