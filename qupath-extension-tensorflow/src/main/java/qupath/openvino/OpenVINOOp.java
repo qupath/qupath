@@ -163,6 +163,7 @@ public class OpenVINOOp extends PaddedOp {
         private boolean[] requestIsFree;
         // Pre-allocated buffers for outputs.
         private Mat[] outputs;
+        private int idx = 0;
 
         private OpenVINOBundle(String pathModel) {
             logger.info("Initialize OpenVINO network");
@@ -197,41 +198,27 @@ public class OpenVINOOp extends PaddedOp {
         }
 
         private Mat run(Mat mat, String outputName) {
-            // Find a free inference request.
             InferRequest req = null;
-            int idx = -1;
+            Mat output;
             synchronized (requests) {
-                try {
-                    while (req == null) {
-                        Thread.sleep(1);
-                        for (idx = 0; idx < requestIsFree.length; ++idx) {
-                            if (requestIsFree[idx]) {
-                                req = requests[idx];
-                                requestIsFree[idx] = false;
-                                break;
-                            }
-                        }
-                    }
-                } catch(InterruptedException e) {}
+                req = requests[idx];
+                output = outputs[idx];
+                idx = (idx + 1) % requests.length;
             }
 
             // Run inference
+            Mat res;
             Blob input = OpenVINOTools.convertToBlob(mat);
-            req.SetBlob(inpName, input);
-            req.StartAsync();
-            req.Wait(WaitMode.RESULT_READY);
-
-            Mat res = outputs[idx];
-
+            synchronized (req) {
+                req.SetBlob(inpName, input);
+                req.StartAsync();
+                req.Wait(WaitMode.RESULT_READY);
+                res = output.clone();
+            }
             int c = res.size(1);
             int h = res.size(2);
             // Data is already in NHWC layout. Change just a shape.
-            res = res.reshape(1, c * h).reshape(c, h);
-
-            // Release inference request
-            requestIsFree[idx] = true;
-
-            return res;
+            return res.reshape(1, c * h).reshape(c, h);
         }
     }
 }
