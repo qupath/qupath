@@ -167,18 +167,18 @@ public class OpenVINOOp extends PaddedOp {
         private OpenVINOBundle(String pathModel) {
             logger.info("Initialize OpenVINO network");
 
-            String xmlPath = Paths.get(pathModel, "saved_model.xml").toString();
-            CNNNetwork net = ie.ReadNetwork(xmlPath);
-            net.getInputsInfo().get(inpName).setLayout(Layout.NHWC);
-            net.getOutputsInfo().get(outName).setLayout(Layout.NHWC);
-            ExecutableNetwork execNet = ie.LoadNetwork(net, "CPU");
-
             // Determine default number of async streams.
             Map<String, String> config = Map.of("CPU_THROUGHPUT_STREAMS", "CPU_THROUGHPUT_AUTO");
             ie.SetConfig(config, "CPU");
             String nStr = ie.GetConfig("CPU", "CPU_THROUGHPUT_STREAMS").asString();
             int nstreams = Integer.parseInt(nStr);
             logger.info("Number of asynchronous streams: " + nstreams);
+
+            String xmlPath = Paths.get(pathModel, "saved_model.xml").toString();
+            CNNNetwork net = ie.ReadNetwork(xmlPath);
+            net.getInputsInfo().get(inpName).setLayout(Layout.NHWC);
+            net.getOutputsInfo().get(outName).setLayout(Layout.NHWC);
+            ExecutableNetwork execNet = ie.LoadNetwork(net, "CPU");
 
             requests = new InferRequest[nstreams];
             requestIsFree = new boolean[nstreams];
@@ -218,7 +218,8 @@ public class OpenVINOOp extends PaddedOp {
             // Run inference
             Blob input = OpenVINOTools.convertToBlob(mat);
             req.SetBlob(inpName, input);
-            req.Infer();
+            req.StartAsync();
+            req.Wait(WaitMode.RESULT_READY);
 
             Mat res = outputs[idx];
 
