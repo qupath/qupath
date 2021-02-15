@@ -464,6 +464,7 @@ subprojects {
         test {
 	        useJUnitPlatform()
         }
+        test.onlyIf { !project.hasProperty('skip_tests') }
     }
 }
 
@@ -494,6 +495,8 @@ allprojects {
     
     // Currently required for OpenSlide
     maven { url "../maven/repo" }
+
+    maven { url "https://dl.bintray.com/dkurt/openvino" }
   }
 
   // May use this in the future, but fails where javadocs are incomplete
@@ -519,7 +522,6 @@ repositories {
   mavenLocal()
   mavenCentral()
   maven { url "./maven/repo" }
-  maven { url "https://dl.bintray.com/dkurt/openvino" }
 }
 
 configurations {

@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  run_linux:
+    runs-on: ubuntu-18.04
+    name: Build on Linux
+
+    steps:
+    - name: Clone repository
+      uses: actions/checkout@v2
+
+    - name: Install Java
+      uses: actions/setup-java@v1
+      with:
+        java-version: '14.0.2'
+
+    - name: Build
+      run: ./gradlew clean build createPackage -Ptensorflow-cpu=true -Pskip_tests
