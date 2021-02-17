@@ -160,7 +160,7 @@ public class OpenVINOOp extends PaddedOp {
             for (int i = 0; i < nstreams; ++i) {
                 requests[i] = execNet.CreateInferRequest();
 
-                int[] shape = requests[i].GetBlob(outName).getTensorDesc().getDims();
+                int[] shape = outputInfo.getDims();
                 outputs[i] = new Mat(shape, opencv_core.CV_32F);
 
                 TensorDesc tDesc = new TensorDesc(Precision.FP32, shape, Layout.NHWC);

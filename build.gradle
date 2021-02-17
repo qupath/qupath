@@ -236,7 +236,7 @@ allprojects {
     // Optional versions
     tensorflowVersion  = "1.15.2-${javacppVersion}"
     mkldnnVersion      = "0.21.4-${javacppVersion}"
-    openvinoVersion    = "2021.2.4"
+    openvinoVersion    = "2021.2.7"
     
     /*
      * Link to the main external Javadocs if -PlinkJavadoc=true
