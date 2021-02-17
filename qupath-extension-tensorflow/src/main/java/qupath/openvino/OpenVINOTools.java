@@ -35,14 +35,20 @@ import qupath.opencv.ops.ImageOp;
 import org.intel.openvino.*;
 
 /**
- * Helper methods for working with TensorFlow and QuPath, with the help of OpenCV.
+ * Helper methods for working with OpenVINO and QuPath, with the help of OpenCV.
  *
- * @author Pete Bankhead
+ * @author Dmitry Kurtaev
  */
 public class OpenVINOTools {
 
     private final static Logger logger = LoggerFactory.getLogger(OpenVINOTools.class);
 
+    /**
+     * Wrap OpenCV Mat to OpenVINO Blob to pass it then to the network.
+     *
+     * @param mat OpenCV Mat which represents an image with interleaved channels order
+     * @return OpenVINO Blob
+     */
     public static Blob convertToBlob(Mat mat) {
         int[] dimsArr = {1, mat.channels(), mat.rows(), mat.cols()};
         TensorDesc tDesc = new TensorDesc(Precision.FP32, dimsArr, Layout.NHWC);
@@ -50,7 +56,7 @@ public class OpenVINOTools {
     }
 
     /**
-     * Create an {@link ImageOp} to run a TensorFlow model with a single image input and output,
+     * Create an {@link ImageOp} to run a OpenVINO model with a single image input and output,
      * optionally specifying the input tile width and height.
      *
      * @param modelPath
@@ -65,7 +71,7 @@ public class OpenVINOTools {
     }
 
     /**
-     * Create an {@link ImageOp} to run a TensorFlow model with a single image input and output,
+     * Create an {@link ImageOp} to run a OpenVINO model with a single image input and output,
      * optionally specifying the input tile width and height.
      *
      * @param modelPath

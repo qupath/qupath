@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -24,6 +24,7 @@ package qupath.openvino;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -71,13 +72,13 @@ public class OpenVINOOp extends PaddedOp {
             this.padding = padding;
 
         IECore.loadNativeLibs();
-        loadBundle(modelPath);
+        loadBundle(modelPath, tileWidth, tileHeight);
     }
 
     private OpenVINOBundle getBundle() {
         if (bundle == null && exception == null) {
             try {
-                bundle = loadBundle(modelPath);
+                bundle = loadBundle(modelPath, tileWidth, tileHeight);
             } catch (Exception e) {
                 logger.error("Unable to load bundle: " + e.getLocalizedMessage(), e);
                 this.exception = e;
@@ -105,24 +106,22 @@ public class OpenVINOOp extends PaddedOp {
 
     private static Map<String, OpenVINOBundle> cachedBundles = new HashMap<>();
 
-    private static OpenVINOBundle loadBundle(String path) {
-        return cachedBundles.computeIfAbsent(path, p -> new OpenVINOBundle(p));
+    private static OpenVINOBundle loadBundle(String path, int tileWidth, int tileHeight) {
+        return cachedBundles.computeIfAbsent(path, p -> new OpenVINOBundle(p, tileWidth, tileHeight));
     }
 
     private static class OpenVINOBundle {
         private final static Logger logger = LoggerFactory.getLogger(OpenVINOBundle.class);
-        private final static String inpName = "input";
-        private final static String outName = "concatenate_4/concat";
+        private String inpName;
+        private String outName;
 
         private IECore ie = new IECore();
         private InferRequest[] requests;
-        // Vector with flags that indicate if inference request is free or busy.
-        private boolean[] requestIsFree;
         // Pre-allocated buffers for outputs.
         private Mat[] outputs;
         private int idx = 0;
 
-        private OpenVINOBundle(String pathModel) {
+        private OpenVINOBundle(String pathModel, int tileWidth, int tileHeight) {
             logger.info("Initialize OpenVINO network");
 
             // Determine default number of async streams.
@@ -134,16 +133,32 @@ public class OpenVINOOp extends PaddedOp {
 
             String xmlPath = Paths.get(pathModel, "saved_model.xml").toString();
             CNNNetwork net = ie.ReadNetwork(xmlPath);
-            net.getInputsInfo().get(inpName).setLayout(Layout.NHWC);
-            net.getOutputsInfo().get(outName).setLayout(Layout.NHWC);
+
+            // Get input and output info and perform network reshape in case of changed tile size
+            Map<String, InputInfo> inputsInfo = net.getInputsInfo();
+            inpName = new ArrayList<String>(inputsInfo.keySet()).get(0);
+            InputInfo inputInfo = inputsInfo.get(inpName);
+
+            Map<String, Data> outputsInfo = net.getOutputsInfo();
+            outName = new ArrayList<String>(outputsInfo.keySet()).get(0);
+            Data outputInfo = outputsInfo.get(outName);
+
+            int[] inpDims = inputInfo.getTensorDesc().getDims();
+            if (inpDims[2] != tileHeight || inpDims[3] != tileWidth) {
+                inpDims[2] = tileHeight;
+                inpDims[3] = tileWidth;
+                Map<String, int[]> shapes = new HashMap<>();
+                shapes.put(inpName, inpDims);
+                net.reshape(shapes);
+            }
+            inputInfo.setLayout(Layout.NHWC);
+            outputInfo.setLayout(Layout.NHWC);
             ExecutableNetwork execNet = ie.LoadNetwork(net, "CPU");
 
             requests = new InferRequest[nstreams];
-            requestIsFree = new boolean[nstreams];
             outputs = new Mat[nstreams];
             for (int i = 0; i < nstreams; ++i) {
                 requests[i] = execNet.CreateInferRequest();
-                requestIsFree[i] = true;
 
                 int[] shape = requests[i].GetBlob(outName).getTensorDesc().getDims();
                 outputs[i] = new Mat(shape, opencv_core.CV_32F);
