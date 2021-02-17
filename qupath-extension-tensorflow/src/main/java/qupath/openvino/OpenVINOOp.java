@@ -21,20 +21,9 @@
 
 package qupath.openvino;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -69,38 +58,6 @@ public class OpenVINOOp extends PaddedOp {
     private transient OpenVINOBundle bundle;
     private transient Exception exception;
 
-    private static void loadNativeLibs() {
-        // Load native libraries
-        String[] nativeFiles = {
-            "plugins.xml",
-            "libngraph.so",
-            "libinference_engine_transformations.so",
-            "libinference_engine.so",
-            "libinference_engine_ir_reader.so",
-            "libinference_engine_legacy.so",
-            "libinference_engine_lp_transformations.so",
-            "libMKLDNNPlugin.so",
-            "libinference_engine_java_api.so"  // Should be at the end
-        };
-        try {
-            File tmpDir = Files.createTempDirectory("openvino-native").toFile();
-            for (String file : nativeFiles) {
-                URL url = IECore.class.getClassLoader().getResource(file);
-                tmpDir.deleteOnExit();
-                File nativeLibTmpFile = new File(tmpDir, file);
-                nativeLibTmpFile.deleteOnExit();
-                try (InputStream in = url.openStream()) {
-                    Files.copy(in, nativeLibTmpFile.toPath());
-                }
-                String path = nativeLibTmpFile.getAbsolutePath();
-                if (file.endsWith(".so")) {
-                    System.load(path);
-                }
-            }
-        } catch (IOException ex) {
-        }
-    }
-
     OpenVINOOp(String modelPath, int tileWidth, int tileHeight, Padding padding, String outputName) {
         super();
         logger.debug("Creating op from {}", modelPath);
@@ -113,7 +70,7 @@ public class OpenVINOOp extends PaddedOp {
         else
             this.padding = padding;
 
-        loadNativeLibs();
+        IECore.loadNativeLibs();
         loadBundle(modelPath);
     }
 

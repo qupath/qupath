@@ -236,6 +236,7 @@ allprojects {
     // Optional versions
     tensorflowVersion  = "1.15.2-${javacppVersion}"
     mkldnnVersion      = "0.21.4-${javacppVersion}"
+    openvinoVersion    = "2021.2.4"
     
     /*
      * Link to the main external Javadocs if -PlinkJavadoc=true
@@ -370,7 +371,7 @@ allprojects {
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
 
-    openvino "org.intel:openvino:0.0.6"
+    openvino "org.intel:openvino:${openvinoVersion}-${nativesCPP}"
 
     tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
     if (includeTensorFlowGPU)
