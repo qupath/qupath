@@ -89,6 +89,7 @@ import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectIO;
 import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjectTransform;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.PathTileObject;
@@ -2079,6 +2080,46 @@ public class QP {
 	public static boolean importObjectsFromFile(String path) throws OperationNotSupportedException, FileNotFoundException, IOException, ClassNotFoundException {
 		var objs = PathObjectIO.extractObjectsFromFile(new File(path));
 		return getCurrentHierarchy().addPathObjects(objs);
+	}
+	
+	/**
+	 * Transform selected objects according to the specified affine transform.
+	 * 
+	 * @param affineTransform double array with the following order: [m00, m01, m02, m10, m11, m12]
+	 * @param keepMeasurements
+	 * @param duplicateObjects
+	 * @return
+	 */
+	public static Collection<PathObject> transformSelectedObjects(List<? extends Number> affineTransform, boolean keepMeasurements, boolean duplicateObjects) {
+		if (affineTransform.size() != 6)
+			throw new IllegalArgumentException("Affine transform array should contain 6 digits. " + affineTransform.size() + " digits found.");
+		
+		return PathObjectTransform.transformObjects(
+				getCurrentImageData(), 
+				getSelectedObjects(),
+				affineTransform, 
+				keepMeasurements, 
+				duplicateObjects);
+	}
+	
+	/**
+	 * Transform all objects according to the specified affine transform.
+	 * 
+	 * @param affineTransform double array with the following order: [m00, m01, m02, m10, m11, m12]
+	 * @param keepMeasurements
+	 * @param duplicateObjects
+	 * @return transformed pathObjects
+	 */
+	public static Collection<PathObject> transformAllObjects(List<? extends Number> affineTransform, boolean keepMeasurements, boolean duplicateObjects) {
+		if (affineTransform.size() != 6)
+			throw new IllegalArgumentException("Affine transform array should contain 6 digits. " + affineTransform.size() + " digits found.");
+		
+		return PathObjectTransform.transformObjects(
+				getCurrentImageData(), 
+				Arrays.asList(getAllObjects(false)), 
+				affineTransform, 
+				keepMeasurements, 
+				duplicateObjects);
 	}
 	
 	/**

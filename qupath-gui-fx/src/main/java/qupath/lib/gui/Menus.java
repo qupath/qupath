@@ -410,8 +410,15 @@ class Menus {
 		@ActionDescription("Export object(s) in serialized format (QuPath only).")
 		@ActionMenu("Object data...>Export objects...>Serialized (QuPath only)")
 		public final Action EXPORT_SERIALIZED = qupath.createImageDataAction(imageData -> Commands.runSerializedObjectExport(qupath, imageData));
-		
+
+		@ActionMenu("Object data...>")
 		public final Action SEP_7 = ActionTools.createSeparator();
+		
+		@ActionDescription("Transform object(s) based on an affine transform.")
+		@ActionMenu("Object data...>Transform objects")
+		public final Action TRANSFORM_OBJECT = qupath.createImageDataAction(imageData -> Commands.runTransformObjectCommand(imageData));
+		
+		public final Action SEP_8 = ActionTools.createSeparator();
 
 		@ActionDescription("Import a TMA map, e.g. a grid containing 'Unique ID' values for each core.")
 		@ActionMenu("TMA data...>Import TMA map")
@@ -425,7 +432,7 @@ class Menus {
 		@ActionMenu("TMA data...>Launch TMA data viewer")
 		public final Action TMA_VIEWER = createAction(() -> Commands.launchTMADataViewer(qupath));
 
-		public final Action SEP_8 = ActionTools.createSeparator();
+		public final Action SEP_9 = ActionTools.createSeparator();
 
 		@ActionDescription("Quit QuPath.")
 		@ActionMenu("Quit")

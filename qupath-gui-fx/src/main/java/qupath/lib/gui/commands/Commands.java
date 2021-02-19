@@ -1814,7 +1814,7 @@ public class Commands {
 	 */
 	public static void runGeoJsonObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		try {
-			ExportObjectsCommand.runGeoJsonExport(qupath, imageData);
+			ExportObjectsCommand.runGeoJsonExport(qupath);
 		} catch (IOException e) {
 			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
 		}
@@ -1827,10 +1827,18 @@ public class Commands {
 	 */
 	public static void runSerializedObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
 		try {
-			ExportObjectsCommand.runSerializedExport(qupath, imageData);
+			ExportObjectsCommand.runSerializedExport(qupath);
 		} catch (IOException e) {
 			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
 		}
+	}
+	
+	/**
+	 * Show a dialog to apply an affine transform to objects (and keep the original one or not).
+	 * @param imageData
+	 */
+	public static void runTransformObjectCommand(ImageData<BufferedImage> imageData) {
+		ObjectAffineTransformCommand.showPane(imageData);
 	}
 	
 }

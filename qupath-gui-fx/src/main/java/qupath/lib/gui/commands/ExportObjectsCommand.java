@@ -1,6 +1,5 @@
 package qupath.lib.gui.commands;
 
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -19,7 +18,6 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -42,11 +40,15 @@ public final class ExportObjectsCommand {
 	/**
 	 * Run the path object GeoJSON export command.
 	 * @param qupath 
-	 * @param imageData
 	 * @return success
 	 * @throws IOException 
 	 */
-	public static boolean runGeoJsonExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) throws IOException {
+	public static boolean runGeoJsonExport(QuPathGUI qupath) throws IOException {
+		// Get ImageData
+		var imageData = qupath.getImageData();
+		if (imageData == null)
+			return false;
+		
 		// Get hierarchy
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
@@ -164,11 +166,15 @@ public final class ExportObjectsCommand {
 	/**
 	 * Run the path object serialized export command.
 	 * @param qupath
-	 * @param imageData
-	 * @return
+	 * @return success
 	 * @throws IOException 
 	 */
-	public static boolean runSerializedExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) throws IOException {
+	public static boolean runSerializedExport(QuPathGUI qupath) throws IOException {
+		// Get ImageData
+		var imageData = qupath.getImageData();
+		if (imageData == null)
+			return false;
+		
 		// Get hierarchy
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		

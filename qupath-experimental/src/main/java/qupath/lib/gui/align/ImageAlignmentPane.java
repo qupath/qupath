@@ -29,7 +29,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
-import java.text.NumberFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
@@ -115,6 +114,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
 import qupath.opencv.tools.OpenCVTools;
 
 
@@ -350,7 +350,17 @@ public class ImageAlignmentPane {
 			var affine = overlay == null ? null : overlay.getAffine();
 			if (affine == null)
 				return;
-			parseAffine(textArea.getText(), affine);
+			try {
+				// Parse String as AffineTransform
+				var newAffine = GeometryTools.parseTransformMatrix(textArea.getText());
+				var values = newAffine.getMatrixEntries();
+				
+				// JavaFX's Affine has a different element ordering than awt's AffineTransform
+				affine.setToTransform(values[0], values[1], values[2], values[3], values[4], values[5]);
+			} catch (ParseException ex) {
+				Dialogs.showErrorMessage("Parse affine transform", "Unable to parse affine transform!");
+				logger.error("Error parsing transform: " + ex.getLocalizedMessage(), ex);
+			}
 		});
 		Button btnReset = new Button("Reset");
 		btnReset.setOnAction(e -> {
@@ -460,33 +470,6 @@ public class ImageAlignmentPane {
 		});
 		
 	}
-	
-	
-	void parseAffine(String text, Affine affine) {
-		String delims = "\t\n ";
-		// If we have any periods, then use a comma as an acceptable delimiter as well
-		if (text.contains("."))
-			delims += ",";
-		var tokens = new StringTokenizer(text, delims);
-		if (tokens.countTokens() != 6) {
-			Dialogs.showErrorMessage("Parse affine transform", "Affine transform should be tab-delimited and contain 6 numbers only");
-			return;
-		}
-		var nf = NumberFormat.getInstance();
-		try {
-			double m00 = nf.parse(tokens.nextToken()).doubleValue();
-			double m01 = nf.parse(tokens.nextToken()).doubleValue();
-			double m02 = nf.parse(tokens.nextToken()).doubleValue();
-			double m10 = nf.parse(tokens.nextToken()).doubleValue();
-			double m11 = nf.parse(tokens.nextToken()).doubleValue();
-			double m12 = nf.parse(tokens.nextToken()).doubleValue();
-			affine.setToTransform(m00, m01, m02, m10, m11, m12);
-		} catch (Exception e) {
-			Dialogs.showErrorMessage("Parse affine transform", "Unable to parse affine transform!");
-			logger.error("Error parsing transform: " + e.getLocalizedMessage(), e);
-		}
-	}
-	
 		
 	void promptToAddImages() {
 		// Get all the other project entries - except for the base image (which is fixed)
