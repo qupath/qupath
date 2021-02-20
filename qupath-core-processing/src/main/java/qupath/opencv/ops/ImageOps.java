@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -100,6 +101,7 @@ public class ImageOps {
 		if (annotation != null) {
 			base = base + "." + annotation.value();
 			if (factoryType.isAssignableFrom(cls)) {
+				logger.debug("Registering op {} with label {}", cls, base);
 				factory.registerSubtype((Class<? extends T>)cls, base);
 			}
 		}
@@ -108,13 +110,33 @@ public class ImageOps {
 		}
 	}
 
+	private static RuntimeTypeAdapterFactory<ImageOp> factoryOps = RuntimeTypeAdapterFactory.of(ImageOp.class, "type");
+	private static RuntimeTypeAdapterFactory<ImageDataOp> factoryDataOps = RuntimeTypeAdapterFactory.of(ImageDataOp.class, "type");
+
+	/**
+	 * Register an {@link ImageOp} class for JSON serialization/deserialization.
+	 * <p>
+	 * Labels should typically be all lowercase and begin with "op." and include "ext" if the op is added via an extension.
+	 * <p>
+	 * For example, an "op.threshold.ext.triangle" would be a suitable label for an op added via an extension to apply a threshold 
+	 * using the triangle method.
+	 * 
+	 * @param cls the op to register; this must be compatible with JSON serialization.
+	 * @param label an identifying label; that this must be unique. If it does not start with "op." a warning will be logged.
+	 */
+	public static void registerOp(Class<? extends ImageOp> cls, String label) {
+		Objects.nonNull(cls);
+		Objects.nonNull(label);
+		logger.debug("Registering ImageOp {} with label {}", cls, label);
+		if (!label.startsWith("op."))
+			logger.warn("ImageOp label '{}' does not begin with 'op.'", label);
+		factoryOps.registerSubtype(cls, label);
+	}
 
 	static {
-		RuntimeTypeAdapterFactory<ImageOp> factoryOps = RuntimeTypeAdapterFactory.of(ImageOp.class, "type");
 		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryOps);
 
-		RuntimeTypeAdapterFactory<ImageDataOp> factoryDataOps = RuntimeTypeAdapterFactory.of(ImageDataOp.class, "type");
 		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryDataOps);
 	}
