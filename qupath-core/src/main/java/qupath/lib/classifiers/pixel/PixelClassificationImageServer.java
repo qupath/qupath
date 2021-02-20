@@ -22,6 +22,7 @@
 package qupath.lib.classifiers.pixel;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -63,6 +64,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private ImageServer<BufferedImage> server;
 	
 	private PixelClassifier classifier;
+	private ColorModel colorModel;
 	
 	private ImageServerMetadata originalMetadata;
 	
@@ -107,10 +109,15 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 * @param classifier
 	 */
 	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
+		this(imageData, classifier, null);
+	}
+		
+	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier, ColorModel colorModel) {
 		super();
 		this.classifier = classifier;
 		this.imageData = imageData;
 		this.server = imageData.getServer();
+		this.colorModel = colorModel;
 		
 		var classifierMetadata = classifier.getMetadata();
 				
@@ -166,6 +173,13 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 		originalMetadata = builder.build();
 		
+	}
+	
+	@Override
+	protected ColorModel getDefaultColorModel() throws IOException {
+		if (colorModel == null)
+			return super.getDefaultColorModel();
+		return colorModel;
 	}
 	
 	/**
@@ -235,6 +249,10 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 			// Classify at this resolution if need be
 			img = classifier.applyClassification(imageData, tileRequest.getRegionRequest());
 			img = BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
+		}
+		// If we have specified a color model, apply it now
+		if (colorModel != null && colorModel != img.getColorModel() && colorModel.isCompatibleRaster(img.getRaster())) {
+			img = new BufferedImage(colorModel, img.getRaster(), img.isAlphaPremultiplied(), null);
 		}
 		return img;
 	}

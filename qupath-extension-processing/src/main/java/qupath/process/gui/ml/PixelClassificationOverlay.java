@@ -51,6 +51,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -135,7 +136,19 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
      * @return
      */
     public static PixelClassificationOverlay createPixelClassificationOverlay(final OverlayOptions options, final PixelClassifier classifier, final int nThreads) {
-    	return new PixelClassificationOverlay(options, Math.max(1, nThreads), new ClassifierServerFunction(classifier));
+    	return createPixelClassificationOverlay(options, classifier, null, nThreads);
+    }
+    
+    /**
+     * Create an overlay to display the live application of a {@link PixelClassifier} to an image.
+     * @param options the options controlling the overlay display
+     * @param classifier the classifier
+     * @param colorModel the color model to use with the classifier; if null, a suitable color model will be created
+     * @param nThreads number of parallel threads to use for classification (will be clipped to 1 or greater)
+     * @return
+     */
+    public static PixelClassificationOverlay createPixelClassificationOverlay(final OverlayOptions options, final PixelClassifier classifier, final ColorModel colorModel, final int nThreads) {
+    	return new PixelClassificationOverlay(options, Math.max(1, nThreads), new ClassifierServerFunction(classifier, colorModel));
     }
     
     
@@ -207,11 +220,13 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
     
     static class ClassifierServerFunction implements Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> {
     	
-    	private PixelClassificationImageServer server;
+    	private PixelClassificationImageServer server; // Cached server
     	private PixelClassifier classifier;
+    	private ColorModel colorModel;
     	
-    	private ClassifierServerFunction(PixelClassifier classifier) {
+    	private ClassifierServerFunction(PixelClassifier classifier, ColorModel colorModel) {
     		this.classifier = classifier;
+    		this.colorModel = colorModel;
     	}
 
 		@Override
@@ -223,7 +238,7 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 			if (server != null && server.getImageData() != imageData)
 				server = null;
 			if (server == null && classifier.supportsImage(imageData)) {
-				server = new PixelClassificationImageServer(imageData, classifier);
+				server = new PixelClassificationImageServer(imageData, classifier, colorModel);
 	    		PixelClassificationImageServer.setPixelLayer(imageData, server);
 	    	}
 	    	return server;
