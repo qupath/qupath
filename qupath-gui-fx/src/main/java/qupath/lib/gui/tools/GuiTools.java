@@ -663,11 +663,12 @@ public class GuiTools {
 	
 	
 	/**
-	 * Restrict the possible spinner input to integer (or double) format.
-	 * @param spinner
+	 * Restrict the {@link TextField} input to integer (or double) format.
+	 * 
+	 * @param textField
 	 * @param allowDecimals
 	 */
-	public static void restrictSpinnerInputToNumber(Spinner<? extends Number> spinner, boolean allowDecimals) {
+	public static void restrictTextFieldInputToNumber(TextField textField, boolean allowDecimals) {
 		NumberFormat format;
 		if (allowDecimals)
 			format = NumberFormat.getNumberInstance();
@@ -686,7 +687,7 @@ public class GuiTools {
 		    return c;
 		};
 		TextFormatter<Integer> normalizeFormatter = new TextFormatter<Integer>(filter);
-		spinner.getEditor().setTextFormatter(normalizeFormatter);		
+		textField.setTextFormatter(normalizeFormatter);
 	}
 	
 

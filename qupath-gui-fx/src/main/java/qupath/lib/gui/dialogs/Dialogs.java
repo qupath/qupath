@@ -220,7 +220,8 @@ public class Dialogs {
 	
 	
 	/**
-	 * Show an input dialog requesting a numeric value.
+	 * Show an input dialog requesting a numeric value. Only digits and a decimal separator (e.g. ".") 
+	 * are permitted.
 	 * 
 	 * @param title
 	 * @param message
@@ -228,15 +229,29 @@ public class Dialogs {
 	 * @return Number input by the user, or NaN if no valid number was entered, or null if cancel was pressed.
 	 */
 	public static Double showInputDialog(final String title, final String message, final Double initialInput) {
-		String result = showInputDialog(title, message, initialInput == null ? "" : initialInput.toString());
-		if (result == null)
-			return null;
-		try {
-			return Double.parseDouble(result);
-		} catch (Exception e) {
-			logger.error("Unable to parse numeric value from {}", result);
-			return Double.NaN;
-		}
+		if (Platform.isFxApplicationThread()) {
+			TextInputDialog dialog = new TextInputDialog(initialInput.toString());
+			GuiTools.restrictTextFieldInputToNumber(dialog.getEditor(), true);
+			dialog.setTitle(title);
+			if (QuPathGUI.getInstance() != null)
+				dialog.initOwner(getDefaultOwner());
+			dialog.setHeaderText(null);
+			dialog.setContentText(message);
+			dialog.setResizable(true);
+			// Traditional way to get the response value.
+			Optional<String> result = dialog.showAndWait();
+			if (result.isPresent()) {
+				try {
+					return Double.parseDouble(result.get());
+				} catch (Exception e) {
+					// Should not happen since the TextField is restricted to Double format
+					logger.error("Unable to parse numeric value from {}", result);
+					return Double.NaN;
+				}
+			}
+		} else
+			return GuiTools.callOnApplicationThread(() -> showInputDialog(title, message, initialInput));
+		return null;
 	}
 	
 	/**
