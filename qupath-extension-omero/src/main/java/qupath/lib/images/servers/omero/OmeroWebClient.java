@@ -164,7 +164,7 @@ public class OmeroWebClient {
 			ByteBuffer byteBuffer = ByteBuffer.wrap(out);
 			byteBuffer.put(sBytes);
 			var encoder = charset.newEncoder();
-			encoder.encode(CharBuffer.wrap(charBuffer), byteBuffer, true);
+			encoder.encode(charBuffer, byteBuffer, true);
 			stream.write(out, 0, byteBuffer.position());
 			
 			// Fill the traces of password with '0'
