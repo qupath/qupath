@@ -512,16 +512,43 @@ public class ImageOps {
 
 			@Override
 			public Mat apply(Mat input) {
-				var matvec = new MatVector();
-				opencv_core.split(input, matvec);
-				for (int i = 0; i < matvec.size(); i++) {
-					var mat = matvec.get(i);
-					var range = percentiles(mat, percentiles);
-					double scale = 1./(range[1] - range[0]);
-					double offset = -range[0];
-					mat.convertTo(mat, mat.type(), scale, offset*scale);
+				// Pertentiles normalization based of histogram calculation.
+				// The following code assumes that input is a Mat with values range [0, 256)
+				final int NUM_COLORS = 256;
+				Mat hist = new Mat();
+				double range[] = new double[2];
+				Scalar scale = new Scalar();
+				Scalar offset = new Scalar();
+				for (int ch = 0; ch < input.channels(); ++ch) {
+					// Compute a histogram for a channel
+					opencv_imgproc.calcHist(input, 1, new int[ch], new Mat(), hist, 1, new int[]{NUM_COLORS}, new float[]{0, NUM_COLORS});
+
+					// Find two percentiles from colors distribution
+					long counter = 0;
+					int i = 0;
+					long ind = (long)(percentiles[i] / 100.0 * input.total());
+					try (var idx = hist.createIndexer()) {
+						for (int color = 0; color < NUM_COLORS; ++color) {
+							counter += idx.getDouble(color);
+							if (counter >= ind) {
+								range[i] = color;
+								if (i == 1) {
+									break;
+								}
+								i += 1;
+								ind = (long)(percentiles[i] / 100.0 * input.total());
+							}
+						}
+						scale.put(ch, 1./(range[1] - range[0]));
+						offset.put(ch, -range[0]);
+					}
 				}
-				opencv_core.merge(matvec, input);
+				hist.release();
+
+				Mat scales = new Mat(1, 1, opencv_core.CV_64F, scale);
+				input = opencv_core.add(input, offset).mul(scales).asMat();
+				scales.release();
+
 				return input;
 			}
 			
