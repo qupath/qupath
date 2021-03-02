@@ -35,6 +35,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.controlsfx.control.CheckComboBox;
@@ -668,7 +670,7 @@ public class GuiTools {
 	 * <li> character deletion is always permitted (e.g. -1.5e5 -> -1.5e; deletion of last character).</li>
 	 * <li>users are allowed to input a minus sign, in order to permit manual typing, which then needs to accept intermediate (invalid) states.</li>
 	 * <li>users are allowed to input an 'E'/'e' character, in order to permit manual typing as well, which then needs to accept intermediate (invalid) states.</li>
-	 * <li>copy-pasting is not as strictly restricted (e.g. -1.6e--5 is accepted, but won't be parsed).</li>
+	 * <li>copy-pasting is not as strictly restricted (e.g. -1.6e--5 and 1.6e4e9 are accepted, but won't be parsed).</li>
 	 * <p>
 	 * Some invalid states are accepted and should therefore be caught after this method returns.
 	 * <p>
@@ -688,6 +690,12 @@ public class GuiTools {
 		    if (c.isContentChange()) {
 		    	String text = c.getControlText().toUpperCase();
 		    	String newText = c.getControlNewText().toUpperCase();
+		    	
+		    	// Check for invalid characters (weak check)
+		    	Pattern pattern = Pattern.compile("[a-zA-Z&&[^Ee]]+");
+		        Matcher matcher = pattern.matcher(newText);
+		        if (matcher.find())
+		        	return null;
 		    	
 		    	// Accept minus sign if starting character OR if following 'E'
 		    	if ((newText.length() == 1 || text.toUpperCase().endsWith("E")) && newText.endsWith("-"))
