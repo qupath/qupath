@@ -220,13 +220,17 @@ public class Dialogs {
 	
 	
 	/**
-	 * Show an input dialog requesting a numeric value. Only digits and a decimal separator (e.g. ".") 
-	 * are permitted.
+	 * Show an input dialog requesting a numeric value. Only scientific notation and digits 
+	 * with/without a decimal separator (e.g. ".") are permitted.
+	 * <p>
+	 * The returned value might still not be in a valid state, as 
+	 * limited by {@link GuiTools#restrictTextFieldInputToNumber(javafx.scene.control.TextField, boolean)}.
 	 * 
 	 * @param title
 	 * @param message
 	 * @param initialInput
 	 * @return Number input by the user, or NaN if no valid number was entered, or null if cancel was pressed.
+	 * @see GuiTools#restrictTextFieldInputToNumber(javafx.scene.control.TextField, boolean)
 	 */
 	public static Double showInputDialog(final String title, final String message, final Double initialInput) {
 		if (Platform.isFxApplicationThread()) {
@@ -244,7 +248,7 @@ public class Dialogs {
 				try {
 					return Double.parseDouble(result.get());
 				} catch (Exception e) {
-					// Should not happen since the TextField is restricted to Double format
+					// Can still happen since the TextField restrictions allow intermediate (invalid) formats
 					logger.error("Unable to parse numeric value from {}", result);
 					return Double.NaN;
 				}

@@ -249,6 +249,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 						imageDisplay.setMinMaxDisplay(infoVisible, (float)value.floatValue(), (float)infoVisible.getMaxDisplay());
 //						infoVisible.setMinDisplay(value.floatValue());
 //						viewer.updateThumbnail();
+						updateSliders();
 						viewer.repaintEntireImage();
 					}
 				}
@@ -268,6 +269,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 						imageDisplay.setMinMaxDisplay(infoVisible, (float)infoVisible.getMinDisplay(), (float)value.floatValue());
 //						infoVisible.setMaxDisplay(value.floatValue());
 //						viewer.updateThumbnail();
+						updateSliders();
 						viewer.repaintEntireImage();
 					}
 				}
