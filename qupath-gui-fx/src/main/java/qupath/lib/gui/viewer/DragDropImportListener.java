@@ -28,7 +28,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -40,6 +42,7 @@ import javafx.scene.Scene;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -47,8 +50,11 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectIO;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.Projects;
@@ -270,6 +276,38 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				} catch (Exception e) {
 					Dialogs.showErrorMessage("Project error", e);
 //					logger.error("Could not open as project file: {}", e);
+				}
+				return;
+			}
+			
+			// Check if it is an object file in GeoJSON format (.geojson)
+			if (singleFile && (fileName.endsWith(".geojson") || fileName.endsWith(".zip"))) {
+				if (imageData == null || hierarchy == null) {
+					Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
+					return;
+				}
+				
+				List<PathObject> objs;
+				try {
+					objs = PathObjectIO.extractObjectsFromFile(file);
+					
+					// Ask confirmation to user
+					var confirm = Dialogs.showConfirmDialog("Add to hierarchy", String.format("Add %d object(s) to the hierarchy?", objs.size()));
+					if (!confirm)
+						return;
+					
+					// Add objects to hierarchy
+					hierarchy.addPathObjects(objs);
+					
+					// Add step to workflow
+					Map<String, String> map = new HashMap<>();
+					map.put("path", file.getPath());
+					String method = "Import objects";
+					String methodString = String.format("%s(%s%s%s)", "importObjectsFromFile", "\"", GeneralTools.escapeFilePath(file.getPath()), "\"");
+					imageData.getHistoryWorkflow().addStep(new DefaultScriptableWorkflowStep(method, map, methodString));
+					
+				} catch (ClassNotFoundException | IllegalArgumentException e) {
+					Dialogs.showErrorNotification("Object import", e.getLocalizedMessage());
 				}
 				return;
 			}

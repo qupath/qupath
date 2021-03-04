@@ -735,11 +735,13 @@ public final class PathObjectHierarchy implements Serializable {
 //		fireHierarchyChangedEvent(this, pathObject);
 	}
 	
-	
+
 	/**
-	 * Get a flattened list containing all PathObjects in the hierarchy (apart from the root object).
-	 * 
-	 * @param list optional list into which the objects should be added (may be null)
+	 * Get a flattened list containing all PathObjects in the hierarchy (including from the root object).
+	 * <p>
+	 * To get a flattened list containing all {@code PathObject}s <b>without</b> the root object, one can run the following:<br>
+	 * {@code getFlattenedObjectList(null).stream().filter(p -> !p.isRootObject()).collect(Collectors.toList())}
+	 * @param list
 	 * @return
 	 */
 	public synchronized List<PathObject> getFlattenedObjectList(List<PathObject> list) {

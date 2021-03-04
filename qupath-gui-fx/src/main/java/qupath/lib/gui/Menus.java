@@ -399,6 +399,16 @@ class Menus {
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 
+		@ActionDescription("Import path object(s) in serialized format (QuPath only).")
+		@ActionMenu("Object data...>Import objects")
+		public final Action OBJECT_IMPORT= qupath.createImageDataAction(imageData -> Commands.runObjectImport(qupath, imageData));
+
+		@ActionDescription("Export object(s) in GeoJSON format to file.")
+		@ActionMenu("Object data...>Export objects...>GeoJSON")
+		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJsonObjectExport(qupath, imageData));
+		
+		public final Action SEP_7 = ActionTools.createSeparator();
+
 		@ActionDescription("Import a TMA map, e.g. a grid containing 'Unique ID' values for each core.")
 		@ActionMenu("TMA data...>Import TMA map")
 		public final Action TMA_IMPORT = qupath.createImageDataAction(imageData -> TMACommands.promptToImportTMAData(imageData));
@@ -411,7 +421,7 @@ class Menus {
 		@ActionMenu("TMA data...>Launch TMA data viewer")
 		public final Action TMA_VIEWER = createAction(() -> Commands.launchTMADataViewer(qupath));
 
-		public final Action SEP_7 = ActionTools.createSeparator();
+		public final Action SEP_8 = ActionTools.createSeparator();
 
 		@ActionDescription("Quit QuPath.")
 		@ActionMenu("Quit")
