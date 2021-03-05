@@ -231,8 +231,10 @@ class ShowInstalledExtensionsCommand {
 				try (JarInputStream stream = new JarInputStream(url.openStream())) {
 					if (stream != null) {
 						  Manifest manifest = stream.getManifest();
-						  Attributes mainAttributes = manifest.getMainAttributes();
-						  return mainAttributes.getValue("Implementation-Version");						
+						  if (manifest != null) {
+							  Attributes mainAttributes = manifest.getMainAttributes();
+							  return mainAttributes.getValue("Implementation-Version");	
+						  }
 					}
 				} catch (IOException e) {
 					logger.debug("Exception attempting to open manifest for {}: {}", extension, e.getLocalizedMessage());

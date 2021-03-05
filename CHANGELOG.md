@@ -15,6 +15,7 @@ List of bugs fixed:
 * --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
 * Extremely long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
 * 'Selection mode' keyboard shortcut did not work; not activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
+* Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
 
 ### Dependency updates*
 * Apache Commons Text 1.9
