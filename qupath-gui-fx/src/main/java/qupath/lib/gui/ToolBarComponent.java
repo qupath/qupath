@@ -180,13 +180,21 @@ class ToolBarComponent {
 			if (hasMagnification) {
 				double defaultValue = Math.rint(viewer.getMagnification() * 1000) / 1000;
 				Double value = Dialogs.showInputDialog("Set magnification", "Enter magnification", defaultValue);
-				if (value != null && !Double.isNaN(value))
+				if (value == null)
+					return;
+				if (Double.isFinite(value) && value > 0)
 					viewer.setMagnification(value.doubleValue());
+				else
+					Dialogs.showErrorMessage("Set downsample factor", "Invalid magnification " + value + ". \nPlease use a value greater than 0.");
 			} else {
 				double defaultValue = Math.rint(viewer.getDownsampleFactor() * 1000) / 1000;
 				Double value = Dialogs.showInputDialog("Set downsample factor", "Enter downsample factor", defaultValue);
-				if (value != null && !Double.isNaN(value))
+				if (value == null)
+					return;
+				if (Double.isFinite(value) && value > 0)
 					viewer.setDownsampleFactor(value.doubleValue());
+				else
+					Dialogs.showErrorMessage("Set downsample factor", "Invalid downsample " + value + ". \nPlease use a value greater than 0.");
 			}
 		}
 		

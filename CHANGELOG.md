@@ -13,7 +13,7 @@ List of bugs fixed:
 * Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
 * --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
-* Exceptionally long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
+* Extremely long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
 * 'Selection mode' keyboard shortcut did not work; not activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
 
 ### Dependency updates*
