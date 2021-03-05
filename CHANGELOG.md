@@ -1,18 +1,35 @@
 ## Version 0.3.0-SNAPSHOT
 *In progress*
 
+Enhancements:
+* New preferences for slide navigation using arrow keys
+  * Control navigation speed & acceleration
+  * Optionally skip TMA cores marked as 'ignored'
+* Brightness/Contrast panel shows small min/max values to 2 decimal places
+* Better validation when entering numeric values in text fields
+
 List of bugs fixed:
 * Exception when converting PathObject with name but no color to GeoJSON
 * Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
+* --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
+* Exceptionally long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
+* 'Selection mode' keyboard shortcut did not work; not activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
 
 ### Dependency updates*
-* Java Topology suite 1.17.1
+* Apache Commons Text 1.9
+* Bio-Formats 6.6.0
+* ControlsFX 11.1.0
+* Groovy 3.0.7
+* Guava 30.1-jre
+* ImageJ 1.53h
+* JavaFX 15.0.1
+* Java Topology suite 1.18.1
+* JavaCPP 1.5.4
+* JFreeSVG 4.2
+* jfxtras 11-r1
 * OpenCV 4.4.0
-* ControlsFX 11.0.2
-* ImageJ 1.53d
-* picocli 4.5.1
-* Groovy 3.0.5
+* picocli 4.6.1
 
 
 ## Version 0.2.3
