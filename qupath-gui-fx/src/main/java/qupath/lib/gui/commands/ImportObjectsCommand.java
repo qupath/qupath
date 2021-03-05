@@ -24,7 +24,6 @@ public final class ImportObjectsCommand {
 		throw new AssertionError();
 	}
 	
-	
 	/**
 	 * Import objects or ROIs and adds them to the current hierarchy.
 	 * 

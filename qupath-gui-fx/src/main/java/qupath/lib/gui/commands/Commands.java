@@ -1803,7 +1803,7 @@ public class Commands {
 	}
 
 	/**
-	 * Show a dialog to export object(s) as a GeoJSON file.
+	 * Show a dialog to export object(s) to a GeoJSON file.
 	 * @param qupath
 	 * @param imageData
 	 */

@@ -399,7 +399,7 @@ class Menus {
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 
-		@ActionDescription("Import path object(s) in serialized format (QuPath only).")
+		@ActionDescription("Import object(s) from a GeoJSON (or compressed ZIP) file.")
 		@ActionMenu("Object data...>Import objects")
 		public final Action OBJECT_IMPORT= qupath.createImageDataAction(imageData -> Commands.runObjectImport(qupath, imageData));
 

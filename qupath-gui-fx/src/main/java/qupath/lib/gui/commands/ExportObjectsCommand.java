@@ -19,7 +19,6 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.PathObjectIO;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
@@ -88,7 +87,7 @@ public final class ExportObjectsCommand {
 			toProcess = hierarchy.getObjects(null, null);
 		
 		// Remove PathRootObject
-		toProcess = toProcess.stream().filter(e -> e.getClass() != PathRootObject.class).collect(Collectors.toList());
+		toProcess = toProcess.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
 
 		// Check if includes ellipse(s), as they will need to be polygonized
 		var nEllipses = toProcess.stream().filter(ann -> PathObjectIO.isEllipse(ann)).count();
