@@ -220,23 +220,42 @@ public class Dialogs {
 	
 	
 	/**
-	 * Show an input dialog requesting a numeric value.
+	 * Show an input dialog requesting a numeric value. Only scientific notation and digits 
+	 * with/without a decimal separator (e.g. ".") are permitted.
+	 * <p>
+	 * The returned value might still not be in a valid state, as 
+	 * limited by {@link GuiTools#restrictTextFieldInputToNumber(javafx.scene.control.TextField, boolean)}.
 	 * 
 	 * @param title
 	 * @param message
 	 * @param initialInput
 	 * @return Number input by the user, or NaN if no valid number was entered, or null if cancel was pressed.
+	 * @see GuiTools#restrictTextFieldInputToNumber(javafx.scene.control.TextField, boolean)
 	 */
 	public static Double showInputDialog(final String title, final String message, final Double initialInput) {
-		String result = showInputDialog(title, message, initialInput == null ? "" : initialInput.toString());
-		if (result == null)
-			return null;
-		try {
-			return Double.parseDouble(result);
-		} catch (Exception e) {
-			logger.error("Unable to parse numeric value from {}", result);
-			return Double.NaN;
-		}
+		if (Platform.isFxApplicationThread()) {
+			TextInputDialog dialog = new TextInputDialog(initialInput.toString());
+			GuiTools.restrictTextFieldInputToNumber(dialog.getEditor(), true);
+			dialog.setTitle(title);
+			if (QuPathGUI.getInstance() != null)
+				dialog.initOwner(getDefaultOwner());
+			dialog.setHeaderText(null);
+			dialog.setContentText(message);
+			dialog.setResizable(true);
+			// Traditional way to get the response value.
+			Optional<String> result = dialog.showAndWait();
+			if (result.isPresent()) {
+				try {
+					return Double.parseDouble(result.get());
+				} catch (Exception e) {
+					// Can still happen since the TextField restrictions allow intermediate (invalid) formats
+					logger.error("Unable to parse numeric value from {}", result);
+					return Double.NaN;
+				}
+			}
+		} else
+			return GuiTools.callOnApplicationThread(() -> showInputDialog(title, message, initialInput));
+		return null;
 	}
 	
 	/**
