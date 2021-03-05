@@ -981,6 +981,48 @@ public class PathObjectTools {
 		return newObject;
 	}
 	
+	/**
+	 * Create (optionally) transformed versions of the {@link PathObject} and all its descendants, recursively. 
+	 * This method can be applied to all objects in a hierarchy by supplying its root object. The parent-children 
+	 * relationships are kept after transformation.
+	 * 
+	 * @param pathObject
+	 * @param transform
+	 * @param copyMeasurements
+	 * @return
+	 */
+	public static List<PathObject> transformObjects(PathObject pathObject, AffineTransform transform, boolean copyMeasurements) {
+		List<PathObject> newObjs = new ArrayList<>();
+		transformRecursive(pathObject, transform, copyMeasurements, null, newObjs);
+		return newObjs;
+	}
+	
+	/**
+	 * Helper method for {@link #transformObjects(PathObject, AffineTransform, boolean)}.
+	 * 
+	 * @param parent the original parent
+	 * @param transform the transformation to apply
+	 * @param copyMeasurements whether new objects will keep their measurements
+	 * @param transformedParent transformed object to which the transformed children will be linked to
+	 * @param list where to store the newly-transformed objects
+	 */
+	private static void transformRecursive(PathObject parent, AffineTransform transform, boolean copyMeasurements, PathObject transformedParent, List<PathObject> list) {
+	    var children = parent.getChildObjectsAsArray();
+	    for (PathObject child: children) {
+	        PathObject transformedObj = PathObjectTools.transformObject(child, transform, copyMeasurements);
+	        
+	        // Add parent (if the transformed parent is null, assume that it's because it is the root object)
+	        if (transformedParent != null)
+	        	transformedParent.addPathObject(transformedObj);
+	        else
+	        	parent.addPathObject(transformedObj);
+	        	
+	        list.add(transformedObj);
+	        
+	        transformRecursive(child, transform, copyMeasurements, transformedObj, list);
+	    }
+	}
+	
 	private static ROI maybeTransformROI(ROI roi, AffineTransform transform) {
 		if (roi == null || transform == null || transform.isIdentity())
 			return roi;
