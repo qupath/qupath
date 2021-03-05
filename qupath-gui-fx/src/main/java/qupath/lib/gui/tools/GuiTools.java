@@ -113,6 +113,11 @@ import qupath.lib.roi.interfaces.ROI;
 public class GuiTools {
 	
 	/**
+	 * Pattern object to match any letter except E/e
+	 */
+	private static final Pattern pattern = Pattern.compile("[a-zA-Z&&[^Ee]]+");
+	
+	/**
 	 * Vertical ellipsis, which can be used to indicate a 'more' button.
 	 */
 	private static String MORE_ELLIPSIS = "\u22EE";
@@ -692,7 +697,6 @@ public class GuiTools {
 		    	String newText = c.getControlNewText().toUpperCase();
 		    	
 		    	// Check for invalid characters (weak check)
-		    	Pattern pattern = Pattern.compile("[a-zA-Z&&[^Ee]]+");
 		        Matcher matcher = pattern.matcher(newText);
 		        if (matcher.find())
 		        	return null;
