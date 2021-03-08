@@ -38,12 +38,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import javafx.scene.input.KeyCode;
 import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.scene.input.KeyCode;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.StringProperty;
@@ -73,8 +73,8 @@ import javafx.stage.Stage;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.CircularSlider;
+import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
