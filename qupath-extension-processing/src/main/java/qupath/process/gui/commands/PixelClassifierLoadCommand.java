@@ -32,9 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
@@ -44,6 +41,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
@@ -51,6 +50,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.io.GsonTools;
@@ -64,13 +64,11 @@ import qupath.process.gui.ml.PixelClassifierUI;
  * @author Pete Bankhead
  *
  */
-public class PixelClassifierLoadCommand implements Runnable {
-	
-	private final static Logger logger = LoggerFactory.getLogger(PixelClassifierLoadCommand.class);
+public final class PixelClassifierLoadCommand implements Runnable {
 	
 	private QuPathGUI qupath;
-	
-	private String title = "Load Pixel Classifier";
+	private Project<BufferedImage> project;
+	private final String title = "Load Pixel Classifier";
 	
 	/**
 	 * Will hold external pixel classifiers (i.e. not from the project directory)
@@ -87,6 +85,7 @@ public class PixelClassifierLoadCommand implements Runnable {
 
 	@Override
 	public void run() {
+		project = qupath.getProject();
 		var viewer = qupath.getViewer();
 		
 		var imageData = viewer.getImageData();
@@ -95,7 +94,6 @@ public class PixelClassifierLoadCommand implements Runnable {
 			return;
 		}		
 		
-		var project = qupath.getProject();
 		if (project == null) {
 			Dialogs.showErrorMessage(title, "You need a project open to run this command!");
 			return;
@@ -104,17 +102,13 @@ public class PixelClassifierLoadCommand implements Runnable {
 		Collection<String> names;
 		try {
 			names = project.getPixelClassifiers().getNames();
-			if (names.isEmpty()) {
-				Dialogs.showErrorMessage(title, "No pixel classifiers were found in the current project!");
-				return;
-			}
 		} catch (IOException e) {
 			Dialogs.showErrorMessage(title, e);
 			return;
 		}
 		
 		externalPixelClassifiers = new HashMap<>();
-		var comboClassifiers = new ComboBox<String>();
+		ComboBox<String> comboClassifiers = new ComboBox<String>();
 		comboClassifiers.getItems().setAll(names);
 		var selectedClassifier = Bindings.createObjectBinding(() -> {
 			String name = comboClassifiers.getSelectionModel().getSelectedItem();
@@ -154,7 +148,11 @@ public class PixelClassifierLoadCommand implements Runnable {
 		var menu = new ContextMenu();
 		var loadClassifierMI = new MenuItem("Add existing classifiers");
 		loadClassifierMI.setOnAction(e -> {
-			promptToAddExistingClassifier(project);
+			List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier file", "json");
+			if (files == null || files.isEmpty())
+				return;
+
+			addClassifierFiles(files);
 			try {
 				List<String> updatedNames = new ArrayList<>();
 				updatedNames.addAll(project.getPixelClassifiers().getNames());
@@ -162,7 +160,6 @@ public class PixelClassifierLoadCommand implements Runnable {
 				comboClassifiers.getItems().setAll(updatedNames);
 			} catch (IOException ex) {
 				Dialogs.showErrorMessage(title, ex);
-//				return;
 			}
 		});
 		
@@ -181,13 +178,35 @@ public class PixelClassifierLoadCommand implements Runnable {
 		pane.setPadding(new Insets(10.0));
 		pane.setHgap(5);
 		pane.setVgap(10);
+		pane.setPrefWidth(350.0);
 		int row = 0;
 		PaneTools.addGridRow(pane, row++, 0, "Choose pixel classification model to apply to the current image", label, comboClassifiers, btnLoadExistingClassifier);
 		PaneTools.addGridRow(pane, row++, 0, "Control where the pixel classification is applied during preview",
 				labelRegion, comboRegionFilter, comboRegionFilter);
 		PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane, tilePane);
 		
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboClassifiers, tilePane);
+		PaneTools.setToExpandGridPaneWidth(comboClassifiers, tilePane);
+
+		// Handle drag and drop
+		pane.setOnDragOver(e -> {
+			e.acceptTransferModes(TransferMode.COPY);
+			e.consume();
+		});
+		
+		pane.setOnDragDropped(e -> {
+			Dragboard dragboard = e.getDragboard();
+			if (dragboard.hasFiles()) {
+				addClassifierFiles(dragboard.getFiles());
+				try {
+					List<String> updatedNames = new ArrayList<>();
+					updatedNames.addAll(project.getPixelClassifiers().getNames());
+					updatedNames.addAll(externalPixelClassifiers.keySet());
+					comboClassifiers.getItems().setAll(updatedNames);
+				} catch (IOException ex) {
+					Dialogs.showErrorMessage(title, ex);
+				}				
+			}
+		});
 		
 //		var labelInfo = new Label(
 //				"Load & apply a pixel classifier to an image.\n\n" +
@@ -226,16 +245,10 @@ public class PixelClassifierLoadCommand implements Runnable {
 		
 	}
 	
-	
-	
-	private void promptToAddExistingClassifier(Project<BufferedImage> project) {
-		List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier file", "json");
-		if (files == null || files.isEmpty())
-			return;
-		
-		String copyToDirectory = "Copy file(s) to project directory";
-		var response = Dialogs.showChoiceDialog("Copy classifier file(s)", "Copy files to project directory?", new String[] {copyToDirectory, "Leave file(s) in current directory"}, copyToDirectory);
-		if (response == null)
+	private void addClassifierFiles(List<File> files) {
+		String plural = files.size() > 1 ? "s" : "";
+		var response = Dialogs.showYesNoCancelDialog("Copy classifier file" + plural, "Copy classifier" + plural + " to the current project?");
+		if (response == DialogButton.CANCEL)
 			return;
 		
 		List<File> fails = new ArrayList<>();
@@ -250,32 +263,31 @@ public class PixelClassifierLoadCommand implements Runnable {
 				// Fix duplicate name
 				int index = 1;
 				String name = GeneralTools.getNameWithoutExtension(file);
-				while (project.getObjectClassifiers().contains(name) || externalPixelClassifiers.containsKey(name))
+				while (project.getPixelClassifiers().getNames().contains(name) || externalPixelClassifiers.containsKey(name))
 					name = GeneralTools.getNameWithoutExtension(file) + " (" + index++ + ")";
 				
-				if (response == copyToDirectory)
+				if (response == DialogButton.YES)
 					project.getPixelClassifiers().put(name, classifier);
 				else
 					externalPixelClassifiers.put(name, classifier);
-			} catch (IOException e) {
-				Dialogs.showErrorNotification(String.format("Could not add %s", file.getName()), e.getLocalizedMessage());
-				logger.error(e.getLocalizedMessage());
+			} catch (IOException ex) {
+				Dialogs.showErrorNotification(String.format("Could not add %s", file.getName()), ex.getLocalizedMessage());
 				fails.add(file);
 			}
 		}
 		
 		if (!fails.isEmpty()) {
 			String failedClassifiers = fails.stream().map(e -> "- " + e.getName()).collect(Collectors.joining(System.lineSeparator()));
-			Dialogs.showErrorMessage("Error adding classifiers", String.format("Could not add the following classifiers:%s%s", 
+			Dialogs.showErrorMessage("Error adding classifier(s)", String.format("Could not add the following classifier(s):%s%s", 
 					System.lineSeparator(), 
 					failedClassifiers)
 			);
 		}
 		
 		int nSuccess = files.size() - fails.size();
+		String plural2 = nSuccess > 1 ? "s" : "";
 		if (nSuccess > 0)
-			Dialogs.showInfoNotification("Classifiers added successfully", String.format("%d classifiers added", nSuccess));
+			Dialogs.showInfoNotification("Classifier" + plural2 + " added successfully", String.format("%d classifier" + plural2 + " added", nSuccess));
+		
 	}
-	
-
 }

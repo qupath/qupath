@@ -22,6 +22,7 @@
 package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.GsonTools;
@@ -69,13 +71,14 @@ import qupath.lib.projects.Project;
  * @author Pete Bankhead
  *
  */
-public class ObjectClassifierLoadCommand implements Runnable {
+public final class ObjectClassifierLoadCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ObjectClassifierLoadCommand.class);
+	private final String title = "Object Classifiers";
 	
 	private QuPathGUI qupath;
+	private Project<BufferedImage> project;
 	
-	private String title = "Object Classifiers";
 	
 	/**
 	 * Will hold external object classifiers (i.e. not from the project directory)
@@ -93,7 +96,7 @@ public class ObjectClassifierLoadCommand implements Runnable {
 	@Override
 	public void run() {
 		
-		var project = qupath.getProject();
+		project = qupath.getProject();
 		
 		var listClassifiers = new ListView<String>();
 		
@@ -135,6 +138,23 @@ public class ObjectClassifierLoadCommand implements Runnable {
 			}
 		});
 		
+		listClassifiers.setOnMouseClicked(e -> {
+			if (e.getClickCount() == 2) {
+				List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier file", "json");
+				if (files == null || files.isEmpty())
+					return;
+
+				try {
+					addClassifierFiles(files);
+					List<String> updatedNames = new ArrayList<>();
+					updatedNames.addAll(project.getPixelClassifiers().getNames());
+					updatedNames.addAll(externalObjectClassifiers.keySet());
+				} catch (IOException ex) {
+					Dialogs.showErrorMessage(title, ex);
+				}
+			}
+		});
+		
 		// Support drag & drop for classifiers
 		listClassifiers.setOnDragOver(e -> {
 			e.acceptTransferModes(TransferMode.COPY);
@@ -151,31 +171,7 @@ public class ObjectClassifierLoadCommand implements Runnable {
 							.filter(f -> f.isFile() && !f.isHidden())
 							.collect(Collectors.toList());
 					
-					String copyToDirectory = "Copy file(s) to project directory";
-					String leaveInDirectory = "Leave file(s) in current directory";
-					var response = Dialogs.showChoiceDialog("Copy classifier file(s)", "Copy files to project directory?", new String[] {copyToDirectory, leaveInDirectory}, copyToDirectory);
-					for (var file: files) {
-						if (!GeneralTools.getExtension(file).get().equals(".json"))
-							Dialogs.showErrorNotification(String.format("Could not add '%s'", file.getName()), 
-									String.format("Classifier files should be JSON files (.json), not %s", GeneralTools.getExtension(file).get()));
-						else {
-							var json = Files.newBufferedReader(file.toPath());
-							// TODO: Check if classifier is valid before adding it
-							var classifier = GsonTools.getInstance().fromJson(json, ObjectClassifier.class);
-							
-							// Fix duplicate name
-							int index = 1;
-							String name = GeneralTools.getNameWithoutExtension(file);
-							while (project.getObjectClassifiers().contains(name) || externalObjectClassifiers.containsKey(name))
-								name = GeneralTools.getNameWithoutExtension(file) + " (" + index++ + ")";
-
-							if (response == copyToDirectory)
-								project.getObjectClassifiers().put(name, classifier);
-							else if (response == leaveInDirectory)
-								externalObjectClassifiers.put(name, classifier);
-							// If null don't do anything
-						}
-					}
+					addClassifierFiles(files);
 				} catch (Exception ex) {
 					Dialogs.showErrorMessage("Error adding classifier(s)", ex.getLocalizedMessage());
 				}
@@ -221,7 +217,7 @@ public class ObjectClassifierLoadCommand implements Runnable {
 		PaneTools.setHGrowPriority(Priority.ALWAYS, label, listClassifiers, btnApplyClassifier);
 		PaneTools.setMaxWidth(Double.MAX_VALUE, label, listClassifiers, btnApplyClassifier);
 		PaneTools.addGridRow(pane, row++, 0, "Choose object classification model to apply to the current image", label);
-		PaneTools.addGridRow(pane, row++, 0, "Choose object classification model to apply to the current image", listClassifiers);
+		PaneTools.addGridRow(pane, row++, 0, "Drag and drop a file here to add a new classifier", listClassifiers);
 		PaneTools.addGridRow(pane, row++, 0, "Apply object classification to all open images", btnApplyClassifier);
 		
 		PaneTools.setMaxWidth(Double.MAX_VALUE, listClassifiers, btnApplyClassifier);
@@ -245,12 +241,59 @@ public class ObjectClassifierLoadCommand implements Runnable {
 	}
 	
 	
+	private void addClassifierFiles(List<File> files) throws IOException {
+		String plural = files.size() > 1 ? "s" : "";
+		var response = Dialogs.showYesNoCancelDialog("Copy classifier file" + plural, "Copy classifier" + plural + " to the current project?");
+		if (response == DialogButton.CANCEL)
+			return;
+		
+		List<File> fails = new ArrayList<>();
+		for (var file: files) {
+			try {
+				if (!GeneralTools.getExtension(file).get().equals(".json"))
+					Dialogs.showErrorNotification(String.format("Could not add '%s'", file.getName()), 
+							String.format("Classifier files should be JSON files (.json), not %s", GeneralTools.getExtension(file).get()));
+				else {
+					var json = Files.newBufferedReader(file.toPath());
+					// TODO: Check if classifier is valid before adding it
+					ObjectClassifier<BufferedImage> classifier = GsonTools.getInstance().fromJson(json, ObjectClassifier.class);
+					
+					// Fix duplicate name
+					int index = 1;
+					String name = GeneralTools.getNameWithoutExtension(file);
+					while (project.getObjectClassifiers().contains(name) || externalObjectClassifiers.containsKey(name))
+						name = GeneralTools.getNameWithoutExtension(file) + " (" + index++ + ")";
+					
+					if (response == DialogButton.YES)
+						project.getObjectClassifiers().put(name, classifier);
+					else
+						externalObjectClassifiers.put(name, classifier);
+				}				
+			}  catch (IOException ex) {
+				Dialogs.showErrorNotification(String.format("Could not add %s", file.getName()), ex.getLocalizedMessage());
+				fails.add(file);
+			}
+		}
+		
+		if (!fails.isEmpty()) {
+			String failedClassifiers = fails.stream().map(e -> "- " + e.getName()).collect(Collectors.joining(System.lineSeparator()));
+			Dialogs.showErrorMessage("Error adding classifier(s)", String.format("Could not add the following classifier(s):%s%s", 
+					System.lineSeparator(), 
+					failedClassifiers)
+			);
+		}
+		
+		int nSuccess = files.size() - fails.size();
+		String plural2 = nSuccess > 1 ? "s" : "";
+		if (nSuccess > 0)
+			Dialogs.showInfoNotification("Classifier" + plural2 + " added successfully", String.format("%d classifier" + plural2 + " added", nSuccess));
+	}
+
 	/**
 	 * Refresh names from the current project.
 	 * @param availableClassifiers list to which names should be added
 	 */
-	void refreshNames(ObservableList<String> availableClassifiers) {
-		var project = qupath.getProject();
+	private void refreshNames(ObservableList<String> availableClassifiers) {
 		if (project == null) {
 			availableClassifiers.clear();
 			return;
@@ -275,7 +318,7 @@ public class ObjectClassifierLoadCommand implements Runnable {
 	 * @param classifierNames
 	 * @param logWorkflow
 	 */
-	static void runClassifier(ImageData<BufferedImage> imageData, Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> selectedClassifiersNames, boolean logWorkflow) {
+	private static void runClassifier(ImageData<BufferedImage> imageData, Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> selectedClassifiersNames, boolean logWorkflow) {
 		ObjectClassifier<BufferedImage> classifier;
 		try {
 			classifier = getClassifier(project, externalClassifiers, selectedClassifiersNames);
@@ -350,6 +393,4 @@ public class ObjectClassifierLoadCommand implements Runnable {
 			return classifiers.get(0);
 		return ObjectClassifiers.createCompositeClassifier(classifiers);
 	}
-	
-
 }
