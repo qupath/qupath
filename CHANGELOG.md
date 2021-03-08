@@ -27,10 +27,10 @@ List of bugs fixed:
 * ImageJ 1.53h
 * JavaFX 15.0.1
 * Java Topology suite 1.18.1
-* JavaCPP 1.5.4
+* JavaCPP 1.5.5
 * JFreeSVG 4.2
 * jfxtras 11-r1
-* OpenCV 4.4.0
+* OpenCV 4.5.1
 * picocli 4.6.1
 
 
