@@ -225,8 +225,8 @@ allprojects {
     picocliVersion     = '4.6.1'
     jfreesvgVersion    = '4.2'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    javacppVersion     = '1.5.4'
-    opencvVersion      = "4.4.0-${javacppVersion}"
+    javacppVersion     = '1.5.5'
+    opencvVersion      = "4.5.1-${javacppVersion}"
     
     // Additional versions
     logbackVersion     = '1.2.3'
