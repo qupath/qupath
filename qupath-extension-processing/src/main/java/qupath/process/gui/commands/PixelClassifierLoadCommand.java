@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
@@ -66,9 +69,11 @@ import qupath.process.gui.ml.PixelClassifierUI;
  */
 public final class PixelClassifierLoadCommand implements Runnable {
 	
+	private final Logger logger = LoggerFactory.getLogger(PixelClassifierLoadCommand.class);
+	private final String title = "Load Pixel Classifier";
+
 	private QuPathGUI qupath;
 	private Project<BufferedImage> project;
-	private final String title = "Load Pixel Classifier";
 	
 	/**
 	 * Will hold external pixel classifiers (i.e. not from the project directory)
@@ -117,8 +122,8 @@ public final class PixelClassifierLoadCommand implements Runnable {
 					if (project.getPixelClassifiers().contains(name))
 						return project.getPixelClassifiers().get(name);
 					return externalPixelClassifiers.get(name);
-				} catch (Exception e) {
-					Dialogs.showErrorMessage("Load pixel model", e);
+				} catch (Exception ex) {
+					Dialogs.showErrorMessage("Load pixel model", ex);
 				}
 			}
 			return null;
@@ -134,8 +139,10 @@ public final class PixelClassifierLoadCommand implements Runnable {
 			if (o != null)
 				o.stop();
 			if (n == null) {
+				logger.info("Resetting pixel classifier overlay");
 				viewer.resetCustomPixelLayerOverlay();
 			} else {
+				logger.info("Setting pixel classifier overlay for: {}", comboClassifiers.getSelectionModel().getSelectedItem());
 				n.setLivePrediction(true);
 				viewer.setCustomPixelLayerOverlay(n);
 			}
@@ -194,6 +201,7 @@ public final class PixelClassifierLoadCommand implements Runnable {
 		});
 		
 		pane.setOnDragDropped(e -> {
+			logger.trace("File(s) dragged onto pane");
 			Dragboard dragboard = e.getDragboard();
 			if (dragboard.hasFiles()) {
 				addClassifierFiles(dragboard.getFiles());
@@ -236,6 +244,7 @@ public final class PixelClassifierLoadCommand implements Runnable {
 			var current = selectedOverlay.get();
 			if (current != null && viewer.getCustomPixelLayerOverlay() == current) {
 				current.stop();
+				logger.info("Resetting pixel classifier overlay");
 				viewer.resetCustomPixelLayerOverlay();
 				var data = viewer.getImageData();
 				if (data != null)
@@ -270,6 +279,7 @@ public final class PixelClassifierLoadCommand implements Runnable {
 					project.getPixelClassifiers().put(name, classifier);
 				else
 					externalPixelClassifiers.put(name, classifier);
+				logger.debug("Added {} to classifier combo.", name);
 			} catch (IOException ex) {
 				Dialogs.showErrorNotification(String.format("Could not add %s", file.getName()), ex.getLocalizedMessage());
 				fails.add(file);
@@ -288,6 +298,5 @@ public final class PixelClassifierLoadCommand implements Runnable {
 		String plural2 = nSuccess > 1 ? "s" : "";
 		if (nSuccess > 0)
 			Dialogs.showInfoNotification("Classifier" + plural2 + " added successfully", String.format("%d classifier" + plural2 + " added", nSuccess));
-		
 	}
 }
