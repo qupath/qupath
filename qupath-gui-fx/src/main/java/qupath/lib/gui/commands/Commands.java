@@ -55,7 +55,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -69,6 +68,9 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.scene.input.KeyCode;
+
+import qupath.lib.gui.CircularSlider;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
@@ -697,16 +699,28 @@ public class Commands {
 		final Label label = new Label("0 degrees");
 		label.setTextAlignment(TextAlignment.CENTER);
 		QuPathViewer viewerTemp = qupath.getViewer();
-		var slider = new Slider(-90, 90, viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
-		slider.setMajorTickUnit(10);
-		slider.setMinorTickCount(5);
-		slider.setShowTickMarks(true);
-		slider.valueProperty().addListener((v, o, n) -> {
+		var slider = new CircularSlider();
+		slider.setValue(viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
+		slider.setTickSpacing(10);
+		slider.setShowValue(true);
+		slider.setSnapToTicks(false);
+		slider.setOnKeyPressed(e -> {
+			if (e.getCode() == KeyCode.SHIFT) {
+				slider.setSnapToTicks(true);
+				slider.setShowTickMarks(true);
+			}
+		});
+		slider.setOnKeyReleased(e -> {
+			if (e.getCode() == KeyCode.SHIFT) {
+				slider.setSnapToTicks(false);
+				slider.setShowTickMarks(false);
+			}
+		});
+		slider.rotationProperty().addListener((v, o, n) -> {
 			QuPathViewer viewer = qupath.getViewer();
 			if (viewer == null)
 				return;
 			double rotation = slider.getValue();
-			label.setText(String.format("%.1f degrees", rotation));
 			viewer.setRotation(Math.toRadians(rotation));
 		});
 
@@ -764,7 +778,6 @@ public class Commands {
 		
 		slider.setPadding(new Insets(5, 0, 10, 0));
 
-		pane.setTop(label);
 		pane.setCenter(slider);
 		pane.setBottom(panelButtons);
 		pane.setPadding(new Insets(10, 10, 10, 10));
