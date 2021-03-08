@@ -124,6 +124,7 @@ public class QuPath {
 		for (var subcommand : ServiceLoader.load(Subcommand.class)) {
 			cmd.addSubcommand(subcommand);
 		}
+		cmd.setExitCodeExceptionMapper(t -> 1);
 		ParseResult pr;
 		try {
 			pr = cmd.parseArgs(args);
@@ -180,6 +181,8 @@ public class QuPath {
 		} else {
 			// Parse and execute subcommand with args
 			int exitCode = cmd.execute(args);
+			if (exitCode != 0)
+				logger.warn("Calling System.exit with exit code {}", exitCode);
 			System.exit(exitCode);
 		}
 	
@@ -301,8 +304,13 @@ class ScriptCommand implements Runnable {
 							entry.saveImageData(imageData);
 					} catch (Exception e) {
 						logger.error("Error running script for image: " + entry.getImageName(), e);
+						// Throw an exception if we have a single image
+						// Otherwise, try to recover and continue processing images
+						if (imagePath != null && imagePath.equals(entry.getImageName()))
+							throw new RuntimeException(e);
+					} finally {
+						imageData.getServer().close();						
 					}
-					imageData.getServer().close();
 				}
 			} else if (imagePath != null && !imagePath.equals("")) {
 				String path = QuPath.getEncodedPath(imagePath);
@@ -319,7 +327,8 @@ class ScriptCommand implements Runnable {
 			}
 			
 		} catch (Exception e) {
-			logger.error(e.getLocalizedMessage());
+			logger.error(e.getLocalizedMessage(), e);
+			throw new RuntimeException(e);
 		}
 	}
 	
@@ -383,11 +392,14 @@ class ScriptCommand implements Runnable {
 		context.setErrorWriter(errWriter);
 		
 		// Evaluate the script
-		result = DefaultScriptEditor.executeScript(engine, script, project, imageData, true, context);
+		try {
+			result = DefaultScriptEditor.executeScript(engine, script, project, imageData, true, context);
+		} finally {
+			// Ensure writers are flushed
+			outWriter.flush();
+			errWriter.flush();
+		}
 		
-		// Ensure writers are flushed
-		outWriter.flush();
-		errWriter.flush();
 		
 		// return output, which may be null
 		return result;

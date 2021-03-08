@@ -785,6 +785,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 			if (outputScriptStartTime.get())
 				printWriter.println(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
+		} catch (ScriptException e) {
+			// TODO: Consider exception logging here, rather than via the called method
 		} finally {
 			if (attachToLog)
 				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
@@ -853,8 +855,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param importDefaultMethods
 	 * @param context
 	 * @return
+	 * @throws ScriptException 
 	 */
-	public static Object executeScript(final Language language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+	public static Object executeScript(final Language language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
 		ScriptEngine engine = manager.getEngineByName(language.toString());
 		return executeScript(engine, script, project, imageData, importDefaultMethods, context);
 	}
@@ -870,8 +873,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param importDefaultMethods
 	 * @param context
 	 * @return
+	 * @throws ScriptException 
 	 */
-	public static Object executeScript(final ScriptEngine engine, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+	public static Object executeScript(final ScriptEngine engine, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
 		
 		// Set the current ImageData if we can
 		QP.setBatchProjectAndImage(project, imageData);
@@ -1024,6 +1028,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				logger.error("Script error: {}", e1.getLocalizedMessage(), e1);
 //				e1.printStackTrace();
 			}
+			throw e;
 		} finally {
 			QP.resetBatchProjectAndImage();
 		}
