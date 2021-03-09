@@ -254,7 +254,7 @@ class ScriptCommand implements Runnable {
 	@Parameters(index = "0", description = "Path to the script file (.groovy).", arity = "0..1", paramLabel = "script")
 	private String scriptFile;
 	
-	@Option(names = {"-c", "--cmd"}, description = "Groovy script passed a a string", paramLabel = "command")
+	@Option(names = {"-c", "--cmd"}, description = "Groovy script passed as a string", paramLabel = "command")
 	private String scriptCommand;
 	
 	@Option(names = {"-i", "--image"}, description = {"Apply the script to the specified image.",
@@ -266,11 +266,17 @@ class ScriptCommand implements Runnable {
 	private String projectPath;
 	
 	@Option(names = {"-s", "--save"}, description = "Request that data files are updated for each image in the project.", paramLabel = "save")
-	boolean save;
+	private boolean save;
 	
+	@Option(names = {"-a", "--args"}, description = "Arguments to pass to the script, stored in an 'args' array variable.")
+	private String[] args;
+
+	@Option(names = {"-e", "--server"}, description = "Arguments to pass when building an ImageSever (only relevant when using --image).")
+	private String[] serverArgs;
+
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
-	boolean usageHelpRequested;
-	
+	private boolean usageHelpRequested;
+		
 	@Override
 	public void run() {
 		try {
@@ -314,7 +320,7 @@ class ScriptCommand implements Runnable {
 				}
 			} else if (imagePath != null && !imagePath.equals("")) {
 				String path = QuPath.getEncodedPath(imagePath);
-				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class);
+				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class, parseArgs(serverArgs));
 				imageData = new ImageData<>(server);
 				Object result = runScript(null, imageData);
 				if (result != null)
@@ -330,6 +336,24 @@ class ScriptCommand implements Runnable {
 			logger.error(e.getLocalizedMessage(), e);
 			throw new RuntimeException(e);
 		}
+	}
+	
+	/**
+	 * Parse String arguments. If surrounded by square brackets, this is treated as a comma-separated list.
+	 * Otherwise, an array is returned containing a copy of the supplied args.
+	 * 
+	 * @param args
+	 * @return
+	 */
+	private static String[] parseArgs(String[] args) {
+		if (args == null)
+			return new String[0];
+		if (args.length == 1) {
+			String arg = args[0];
+			if (arg.startsWith("[") && arg.endsWith("]"))
+				return arg.substring(1, arg.length()-1).split(",");
+		}
+		return args.clone();
 	}
 	
 	
@@ -386,6 +410,7 @@ class ScriptCommand implements Runnable {
 		
 		// Try to make sure that the standard outputs are used
 		ScriptContext context = new SimpleScriptContext();
+		context.setAttribute("args", parseArgs(args), ScriptContext.ENGINE_SCOPE);
 		PrintWriter outWriter = new PrintWriter(System.out, true);
 		PrintWriter errWriter = new PrintWriter(System.err, true);
 		context.setWriter(outWriter);

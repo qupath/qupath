@@ -767,6 +767,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptEditorControl console = tab.getConsoleComponent();
 		
 		ScriptContext context = new SimpleScriptContext();
+		context.setAttribute("args", new String[0], ScriptContext.ENGINE_SCOPE);
 		var writer = new ScriptConsoleWriter(console, false);
 		context.setWriter(writer);
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
@@ -797,6 +798,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	private static ScriptContext createDefaultContext() {
 		ScriptContext context = new SimpleScriptContext();
+		context.setAttribute("args", new String[0], ScriptContext.ENGINE_SCOPE);
 		context.setWriter(new LoggerInfoWriter());
 		context.setErrorWriter(new LoggerErrorWriter());
 		return context;

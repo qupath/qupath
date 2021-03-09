@@ -37,6 +37,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.Builder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.CompressionType;
 import qupath.lib.regions.RegionRequest;
@@ -96,7 +97,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 	@Option(names = {"--overwrite"}, defaultValue = "false", description = "Overwrite any existing file with the same name as the output.")
 	private boolean overwrite = false;
 	
-	@Option(names = {"--series"}, defaultValue = "0", description = "Series number. This applies only to images opened using Bio-Formats.")
+	@Option(names = {"--series"}, defaultValue = "0", description = "Series number. Setting this will ensure the image is opened using Bio-Formats.")
 	private int series = 0;
 	
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
@@ -126,8 +127,8 @@ public class ConvertCommand implements Runnable, Subcommand {
 		}
 		
 		String[] args;
-		if (series > 0)
-			args = new String[]{"--series", Integer.toString(series)};
+		if (series >= 0)
+			args = new String[]{"--classname", BioFormatsServerBuilder.class.getName(), "--series", Integer.toString(series)};
 		else
 			args = new String[0];
 		

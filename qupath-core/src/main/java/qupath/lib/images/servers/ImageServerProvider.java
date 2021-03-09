@@ -178,6 +178,9 @@ public class ImageServerProvider {
 				try {
 					if (!cls.isAssignableFrom(provider.getImageType()))
 						continue;
+					// Check classnames
+					if (!requestedClassnames.isEmpty() && !requestedClassnames.contains(provider.getClass().getName()) && !requestedClassnames.contains(provider.getClass().getSimpleName()))
+						continue;
 					UriImageSupport<T> support = (UriImageSupport<T>)provider.checkImageSupport(uri, args);
 					if (support != null && support.getSupportLevel() > 0f)
 						supports.add(support);
