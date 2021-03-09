@@ -1,23 +1,3 @@
-package qupath.lib.gui;
-
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.scene.control.Control;
-import javafx.scene.control.Skin;
-import javafx.scene.control.SkinBase;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.input.ScrollEvent;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.LineTo;
-import javafx.scene.shape.MoveTo;
-import javafx.scene.shape.Path;
-import javafx.scene.text.Font;
-import javafx.scene.text.Text;
-import qupath.lib.gui.dialogs.Dialogs;
-
 /*-
  * #%L
  * This file is part of QuPath.
@@ -39,6 +19,25 @@ import qupath.lib.gui.dialogs.Dialogs;
  * #L%
  */
 
+package qupath.lib.gui;
+
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.scene.control.Control;
+import javafx.scene.control.Skin;
+import javafx.scene.control.SkinBase;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import qupath.lib.gui.dialogs.Dialogs;
 
 /**
  * A custom JavaFX circular-slider control
