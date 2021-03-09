@@ -29,7 +29,7 @@ List of bugs fixed:
 * Groovy 3.0.7
 * Guava 30.1-jre
 * ImageJ 1.53h
-* JavaFX 15.0.1
+* JavaFX 16
 * Java Topology suite 1.18.1
 * JavaCPP 1.5.5
 * JFreeSVG 4.2
