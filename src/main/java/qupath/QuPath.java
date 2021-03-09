@@ -268,10 +268,13 @@ class ScriptCommand implements Runnable {
 	@Option(names = {"-s", "--save"}, description = "Request that data files are updated for each image in the project.", paramLabel = "save")
 	private boolean save;
 	
-	@Option(names = {"-a", "--args"}, description = "Arguments to pass to the script, stored in an 'args' array variable.")
+	@Option(names = {"-a", "--args"}, description = "Arguments to pass to the script, stored in an 'args' array variable. "
+			+ "Multiple args can be passed by using --args multiple times, or by using a \"[quoted,comma,separated,list]\".", paramLabel = "arguments")
 	private String[] args;
 
-	@Option(names = {"-e", "--server"}, description = "Arguments to pass when building an ImageSever (only relevant when using --image).")
+	@Option(names = {"-e", "--server"}, description = "Arguments to pass when building an ImageSever (only relevant when using --image). "
+			+ "For example, --server \"[--classname,BioFormatsServerBuilder,--series,2]\" may be used to read the image with Bio-Formats and "
+			+ "extract the third series within the file.", paramLabel = "server-arguments")
 	private String[] serverArgs;
 
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
