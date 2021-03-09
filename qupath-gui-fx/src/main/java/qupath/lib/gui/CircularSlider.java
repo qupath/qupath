@@ -139,7 +139,7 @@ public class CircularSlider extends Control {
     }
 
     /**
-     * set rotation value
+     * Set rotation value
      *
      * @param rotation value
      */
@@ -155,7 +155,7 @@ public class CircularSlider extends Control {
     }
 
     /**
-     * set the number of degrees between tick marks
+     * Set the number of degrees between tick marks
      *
      * @param spacing the degrees between tick marks
      */
@@ -164,7 +164,7 @@ public class CircularSlider extends Control {
     }
 
     /**
-     * set whether to snap to ticks
+     * Set whether to snap to ticks
      *
      * @param enabled whether to snap to ticks
      */
@@ -173,7 +173,7 @@ public class CircularSlider extends Control {
     }
 
     /**
-     * set whether to show tick marks
+     * Set whether to show tick marks
      *
      * @param visible whether to show tick marks
      */
@@ -182,7 +182,7 @@ public class CircularSlider extends Control {
     }
 
     /**
-     * set whether to display the angle
+     * Set whether to display the angle
      *
      * @param visible whether to display the angle
      */
@@ -191,8 +191,6 @@ public class CircularSlider extends Control {
     }
 
     /**
-     * get the spacing between ticks
-     *
      * @return the spacing ticks
      */
     public double getTickSpacing() {
@@ -232,7 +230,7 @@ public class CircularSlider extends Control {
     }
 
     /**
-     * ensure that the rotation rules are followed (e.g. min, max, snaps, etc.)
+     * Ensure that the rotation rules are followed (e.g. min, max, snaps, etc.)
      */
     private void checkRotation() {
         if (getValue() < 0) {
@@ -278,7 +276,6 @@ public class CircularSlider extends Control {
 
         return product;
     }
-
 
     private static double length(double... vector) {
         return Math.sqrt(dot(vector, vector));
