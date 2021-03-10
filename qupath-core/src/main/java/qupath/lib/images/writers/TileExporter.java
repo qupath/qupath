@@ -339,9 +339,9 @@ public class TileExporter  {
 		RegionRequest fullRequest = RegionRequest.createInstance(server, downsample);
 
 		for (int t = 0; t < server.nTimepoints(); t++) {
-			fullRequest = fullRequest.updateT(t)
+			fullRequest = fullRequest.updateT(t);
 			for (int z = 0; z < server.nZSlices(); z++) {
-				fullRequest = fullRequest.updateZ(z)
+				fullRequest = fullRequest.updateZ(z);
 				requests.addAll(
 						splitRegionRequests(fullRequest, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
 						);
