@@ -1,13 +1,7 @@
 --------------------
 
-The original version of QuPath was created at Queen's University Belfast (up to v0.1.2).
-QuPath is now actively developed at the University of Edinburgh.
-
---------------------
-
+Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
 Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
-Contact: IP Management (ipmanagement@qub.ac.uk)
-Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
 
 QuPath is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
@@ -17,6 +11,17 @@ You should have received a copy of the GNU General Public License along with thi
 
 --------------------
 
-Important!  If you use QuPath for research, please include a citation in any publications.
+QuPath is actively developed at the University of Edinburgh.
+
+If you use QuPath for research, please include a citation in any publications.
 
 For more information, see https://qupath.readthedocs.io/en/latest/docs/intro/citing.html
+
+--------------------
+
+QuPath was originally created at Queen's University Belfast (up to v0.1.2), and released with the following notice:
+
+Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+Contact: IP Management (ipmanagement@qub.ac.uk)
+
+--------------------

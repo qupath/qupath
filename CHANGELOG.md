@@ -7,6 +7,10 @@ Enhancements:
   * Optionally skip TMA cores marked as 'ignored'
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
+* New 'ContourTracing' class to simplify converting thresholded images to object
+
+Other changes:
+* GeneralTools readAsString methods now assume UTF-8 encoding
 
 List of bugs fixed:
 * Exception when converting PathObject with name but no color to GeoJSON
@@ -25,7 +29,7 @@ List of bugs fixed:
 * Groovy 3.0.7
 * Guava 30.1-jre
 * ImageJ 1.53h
-* JavaFX 15.0.1
+* JavaFX 16
 * Java Topology suite 1.18.1
 * JavaCPP 1.5.5
 * JFreeSVG 4.2
