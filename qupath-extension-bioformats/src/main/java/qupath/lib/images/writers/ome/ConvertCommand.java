@@ -97,8 +97,9 @@ public class ConvertCommand implements Runnable, Subcommand {
 	@Option(names = {"--overwrite"}, defaultValue = "false", description = "Overwrite any existing file with the same name as the output.")
 	private boolean overwrite = false;
 	
-	@Option(names = {"--series"}, defaultValue = "0", description = "Series number. Setting this will ensure the image is opened using Bio-Formats.")
-	private int series = 0;
+	@Option(names = {"--series"}, description = "Series number. Setting this will ensure the image is opened using Bio-Formats and control which image is read from the file. "
+			+ "If it is not specified, the default image will be read (typically series 0).")
+	private int series = -1;
 	
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
 	private boolean usageHelpRequested;
