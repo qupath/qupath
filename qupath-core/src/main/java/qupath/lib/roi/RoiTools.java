@@ -169,6 +169,14 @@ public class RoiTools {
 		logger.trace("Applying affine transform {} to ROI {}", transform, roi);
 		if (roi == null || transform == null || transform.isIdentity())
 			return roi;
+		if (roi instanceof EllipseROI) {
+			var bounds = new Rectangle2D.Double(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
+			var shape = transform.createTransformedShape(bounds);
+			if (new Area(shape).isRectangular()) {
+				bounds.setRect(shape.getBounds2D());
+				return ROIs.createEllipseROI(bounds.x, bounds.y, bounds.width, bounds.height, roi.getImagePlane());
+			}
+		}
 		var t = GeometryTools.convertTransform(transform);
 		var geometry2 = t.transform(roi.getGeometry());
 		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());
