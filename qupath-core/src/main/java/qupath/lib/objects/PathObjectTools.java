@@ -966,9 +966,7 @@ public class PathObjectTools {
 		} else if (pathObject instanceof PathDetectionObject) {
 			newObject = PathObjects.createDetectionObject(roi, pathClass, null);			
 		} else if (pathObject instanceof PathAnnotationObject) {
-			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);
-		} else if (pathObject instanceof PathRootObject) {
-			newObject = new PathRootObject();
+			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);			
 		} else
 			throw new UnsupportedOperationException("Unable to transform object " + pathObject);
 		if (copyMeasurements && !pathObject.getMeasurementList().isEmpty()) {
