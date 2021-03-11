@@ -37,6 +37,7 @@ import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javafx.stage.StageStyle;
 
 import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
@@ -692,6 +693,8 @@ public class Commands {
 	public static Stage createRotateImageDialog(QuPathGUI qupath) {
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
+
+		dialog.initStyle(StageStyle.TRANSPARENT);
 		dialog.setTitle("Rotate view");
 
 		BorderPane pane = new BorderPane();
