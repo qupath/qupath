@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringExpression;
@@ -53,6 +54,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.util.Duration;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.commands.Commands;
@@ -188,7 +190,6 @@ public class PixelClassifierUI {
 	 */
 	public static Pane createSavePixelClassifierPane(ObjectExpression<Project<BufferedImage>> project, ObjectExpression<PixelClassifier> classifier, StringProperty savedName) {
 		
-		var tooltip = new Tooltip("Save classifier in the current project - this is required to use the classifier to use the classifier later (e.g. to create objects, measurements)");
 		var label = new Label("Classifier name");
 		var defaultName = savedName.get();
 		var tfClassifierName = new TextField(defaultName == null ? "" : defaultName);
@@ -211,17 +212,23 @@ public class PixelClassifierUI {
 				classifier.isNull()
 					.or(project.isNull())
 					.or(tfClassifierName.textProperty().isEmpty()));
-		
+		tfClassifierName.disableProperty().bind(project.isNull());
 		label.setLabelFor(tfClassifierName);
-		label.setTooltip(tooltip);
-		tfClassifierName.setTooltip(tooltip);
-		btnSave.setTooltip(tooltip);
+		
+		var tooltip = new Tooltip();
+		var tooltipTextYes = "Save classifier in the current project - this is required to use the classifier to use the classifier later (e.g. to create objects, measurements)";
+		var tooltipTextNo = "Cannot save a classifier outside a project. Please create a project to save the classifier.";
+		tooltip.setShowDelay(Duration.millis(500));
+		tooltip.textProperty().bind(Bindings
+				.when(project.isNull())
+				.then(Bindings.createStringBinding(() -> tooltipTextNo, project))
+				.otherwise(Bindings.createStringBinding(() -> tooltipTextYes, project)));
 		
 		var pane = new GridPane();
+		Tooltip.install(pane, tooltip);
 		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
 		PaneTools.setToExpandGridPaneWidth(tfClassifierName);
 		pane.setHgap(5);
-		
 		
 		ProjectClassifierBindings.bindPixelClassifierNameInput(tfClassifierName, project);
 		
