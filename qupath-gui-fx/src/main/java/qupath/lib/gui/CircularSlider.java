@@ -66,6 +66,8 @@ public class CircularSlider extends Control {
         getChildren().addAll(outerCircle, tickMarks, innerCircle, angle);
         //enable focus
         setFocusTraversable(true);
+        disabledProperty().addListener(e -> setMouseTransparent(!isDisabled()));
+
         //make sure circles are
         innerCircle.setManaged(false);
         outerCircle.setManaged(false);
@@ -96,23 +98,8 @@ public class CircularSlider extends Control {
         outerCircle.addEventHandler(MouseEvent.MOUSE_CLICKED, this::updateRotationWithMouseEvent);
 
         outerCircle.addEventHandler(ScrollEvent.ANY, e -> rotationProperty().set(rotationProperty().get() + (e.isShiftDown() ? e.getDeltaX() : e.getDeltaY()) * (isSnapToTicks() ? getTickSpacing() : 1)));
-        outerCircle.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> {
-            final double[] vector = new double[]{e.getX() - outerCircle.getCenterX(), e.getY() - outerCircle.getCenterY()};
-            if (!focusedProperty().get() && dot(vector, vector) <= outerCircle.getRadius() * outerCircle.getRadius()) {
-                requestFocus();
-            }
-        });
-        addEventHandler(KeyEvent.KEY_PRESSED, e -> {
-            switch (e.getCode()) {
-                case LEFT:
-                    rotationProperty().set(rotationProperty().get() - (isSnapToTicks() ? getTickSpacing() : 1));
-                    break;
-                case RIGHT:
-                    rotationProperty().set(rotationProperty().get() + (isSnapToTicks() ? getTickSpacing() : 1));
-                    break;
-
-            }
-        });
+        outerCircle.addEventHandler(MouseEvent.MOUSE_PRESSED, this::onMousePressed);
+        addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
         rotationProperty.addListener((observable, oldValue, newValue) -> checkRotation());
         tickSpacing.addListener((observable, oldValue, newValue) -> {
             if (oldValue.doubleValue() == newValue.doubleValue()) {
@@ -223,9 +210,13 @@ public class CircularSlider extends Control {
         if (isDisabled()) {
             return;
         }
-        final double[] currentVector = normalize(e.getX() - outerCircle.getCenterX(), e.getY() - outerCircle.getCenterY());
-        final double angle = Math.atan2(currentVector[0], -currentVector[1]);
+        double x = e.getX() - outerCircle.getCenterX(),
+                y = e.getY() - outerCircle.getCenterY();
+        double dot = (x * x) + (y * y);
+        double length = Math.sqrt(dot);
+        final double angle = Math.atan2(x / length, -y / length);
         rotationProperty.set(Math.toDegrees(angle >= 0 ? angle : Math.PI + Math.PI + angle));// atan2 of dot product and determinant of current vector verses up (0,-1). As x of up vector is 0, can simplify
+
     }
 
     /**
@@ -256,37 +247,12 @@ public class CircularSlider extends Control {
     private void updateTextAndInnerCircle() {
         angle.setText(String.format("%.1f\u00B0", getValue()));
         final double radians = Math.toRadians(rotationProperty.get());
-        final double[] currentVector = new double[]{
-                Math.sin(radians),
-                -Math.cos(radians)
-        };
-        final double x = outerCircle.getCenterX() + (outerCircle.getRadius() - innerCircle.getRadius() - 5) * currentVector[0];
-        final double y = outerCircle.getCenterY() + (outerCircle.getRadius() - innerCircle.getRadius() - 5) * currentVector[1];
+        double vecX = Math.sin(radians),
+                vecY = -Math.cos(radians);
+        final double x = outerCircle.getCenterX() + (outerCircle.getRadius() - innerCircle.getRadius() - 5) * vecX;
+        final double y = outerCircle.getCenterY() + (outerCircle.getRadius() - innerCircle.getRadius() - 5) * vecY;
         innerCircle.setCenterX(x);
         innerCircle.setCenterY(y);
-    }
-
-    private static double dot(double[] a, double[] b) {
-        double product = 0;
-        final int n = Math.min(a.length, b.length);
-        for (int i = 0; i < n; i++) {
-            product = a[i] * b[i] + product;
-        }
-
-        return product;
-    }
-
-    private static double length(double... vector) {
-        return Math.sqrt(dot(vector, vector));
-    }
-
-    private static double[] normalize(double... vector) {
-        final double[] result = new double[vector.length];
-        final double length = length(vector);
-        for (int i = 0; i < result.length; i++) {
-            result[i] = vector[i] / length;
-        }
-        return result;
     }
 
     @Override
@@ -306,4 +272,22 @@ public class CircularSlider extends Control {
 
     }
 
+    private void onMousePressed(MouseEvent e) {
+        double x = e.getX() - outerCircle.getCenterX();
+        double y = e.getY() - outerCircle.getCenterY();
+        if (!focusedProperty().get() && ((x * x) + (y * y)) <= outerCircle.getRadius() * outerCircle.getRadius()) {
+            requestFocus();
+        }
+    }
+
+    private void onKeyPressed(KeyEvent e) {
+        switch (e.getCode()) {
+            case LEFT:
+                rotationProperty().set(rotationProperty().get() - (isSnapToTicks() ? getTickSpacing() : 1));
+                break;
+            case RIGHT:
+                rotationProperty().set(rotationProperty().get() + (isSnapToTicks() ? getTickSpacing() : 1));
+                break;
+        }
+    }
 }

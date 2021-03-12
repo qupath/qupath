@@ -37,6 +37,8 @@ import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import javafx.scene.paint.Color;
 import javafx.stage.StageStyle;
 
 import org.controlsfx.control.CheckListView;
@@ -70,6 +72,8 @@ import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.input.KeyCode;
+import javafx.animation.FadeTransition;
+import javafx.util.Duration;
 
 import qupath.lib.gui.CircularSlider;
 import qupath.lib.analysis.DistanceTools;
@@ -697,12 +701,14 @@ public class Commands {
 		dialog.initStyle(StageStyle.TRANSPARENT);
 		dialog.setTitle("Rotate view");
 
-		BorderPane pane = new BorderPane();
+		StackPane pane = new StackPane();
+		pane.setPadding(new Insets(10));
 
 		final Label label = new Label("0 degrees");
 		label.setTextAlignment(TextAlignment.CENTER);
 		QuPathViewer viewerTemp = qupath.getViewer();
 		var slider = new CircularSlider();
+		slider.setPrefSize(160,160);
 		slider.setValue(viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
 		slider.setTickSpacing(10);
 		slider.setShowValue(true);
@@ -726,14 +732,51 @@ public class Commands {
 			double rotation = slider.getValue();
 			viewer.setRotation(Math.toRadians(rotation));
 		});
-		
+
 		slider.setPadding(new Insets(5, 0, 10, 0));
 		slider.setTooltip(new Tooltip("Double-click to manually set the rotation"));
-		pane.setCenter(slider);
+		final Button button = new Button("x");
+		button.setTooltip(new Tooltip("Close image rotation slider"));
+		button.setOnMouseClicked(e -> dialog.close());
+
+		pane.getChildren().addAll(slider, button);
+
+		final double[] delta = new double[2];
+		pane.setOnMousePressed(e -> {
+			delta[0] = dialog.getX() - e.getScreenX();
+			delta[1] = dialog.getY() - e.getScreenY();
+		});
+
+		pane.setOnMouseDragged(e -> {
+			dialog.setX(e.getScreenX() + delta[0]);
+			dialog.setY(e.getScreenY() + delta[1]);
+		});
+		StackPane.setAlignment(button, Pos.TOP_RIGHT);
+
+
+		pane.setStyle("-fx-background-color: derive(-fx-base, -10%); -fx-background-radius: 10;");
+		final double outOpacity = .5;
+		pane.setOpacity(outOpacity);
+		FadeTransition fade = new FadeTransition();
+		fade.setDuration(Duration.millis(150));
+		fade.setNode(pane);
+		pane.setOnMouseEntered(e -> {
+			fade.stop();
+			fade.setFromValue(pane.getOpacity());
+			fade.setToValue(1);
+			fade.play();
+		});
+		pane.setOnMouseExited(e -> {
+			fade.stop();
+			fade.setFromValue(pane.getOpacity());
+			fade.setToValue(outOpacity);
+			fade.play();
+		});
 
 		Scene scene = new Scene(pane);
+		scene.setFill(Color.TRANSPARENT);
 		dialog.setScene(scene);
-		dialog.setResizable(false);
+		dialog.setResizable(true);
 		return dialog;
 	}
 	
