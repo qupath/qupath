@@ -8,9 +8,11 @@ Enhancements:
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
   * Optionally skip TMA cores marked as 'ignored'
+* Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
 * New 'ContourTracing' class to simplify converting thresholded images to object
+* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
 
 Other changes:
 * GeneralTools readAsString methods now assume UTF-8 encoding
@@ -21,9 +23,11 @@ List of bugs fixed:
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
 * --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
 * Extremely long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
-* 'Selection mode' keyboard shortcut did not work; not activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
+* 'Selection mode' keyboard shortcut did not work; now activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
 * Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
 * Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)
+* The requestedPixelSize option for TileExporter calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
+* The TileExporter could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
 
 ### Dependency updates*
 * Apache Commons Text 1.9
