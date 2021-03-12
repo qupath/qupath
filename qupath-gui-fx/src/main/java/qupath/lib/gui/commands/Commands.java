@@ -702,13 +702,11 @@ public class Commands {
 		dialog.setTitle("Rotate view");
 
 		StackPane pane = new StackPane();
-		pane.setPadding(new Insets(10));
+		pane.setPadding(new Insets(5));
 
-		final Label label = new Label("0 degrees");
-		label.setTextAlignment(TextAlignment.CENTER);
 		QuPathViewer viewerTemp = qupath.getViewer();
 		var slider = new CircularSlider();
-		slider.setPrefSize(160,160);
+		slider.setPrefSize(150,150);
 		slider.setValue(viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
 		slider.setTickSpacing(10);
 		slider.setShowValue(true);
@@ -742,28 +740,27 @@ public class Commands {
 		pane.getChildren().addAll(slider, button);
 
 		final double[] delta = new double[2];
-		pane.setOnMousePressed(e -> {
+		slider.getTextArea().setOnMousePressed(e -> {
 			delta[0] = dialog.getX() - e.getScreenX();
 			delta[1] = dialog.getY() - e.getScreenY();
 		});
 
-		pane.setOnMouseDragged(e -> {
+		slider.getTextArea().setOnMouseDragged(e -> {
 			dialog.setX(e.getScreenX() + delta[0]);
 			dialog.setY(e.getScreenY() + delta[1]);
 		});
 		StackPane.setAlignment(button, Pos.TOP_RIGHT);
 
-
 		pane.setStyle("-fx-background-color: derive(-fx-base, -10%); -fx-background-radius: 10;");
-		final double outOpacity = .5;
+		final double outOpacity = .2;
 		pane.setOpacity(outOpacity);
-		FadeTransition fade = new FadeTransition();
+		final FadeTransition fade = new FadeTransition();
 		fade.setDuration(Duration.millis(150));
 		fade.setNode(pane);
 		pane.setOnMouseEntered(e -> {
 			fade.stop();
 			fade.setFromValue(pane.getOpacity());
-			fade.setToValue(1);
+			fade.setToValue(1.);
 			fade.play();
 		});
 		pane.setOnMouseExited(e -> {
@@ -773,7 +770,7 @@ public class Commands {
 			fade.play();
 		});
 
-		Scene scene = new Scene(pane);
+		final Scene scene = new Scene(pane);
 		scene.setFill(Color.TRANSPARENT);
 		dialog.setScene(scene);
 		dialog.setResizable(true);

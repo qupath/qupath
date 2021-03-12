@@ -25,6 +25,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Skin;
 import javafx.scene.control.SkinBase;
@@ -55,6 +56,7 @@ public class CircularSlider extends Control {
     private final DoubleProperty tickSpacing = new SimpleDoubleProperty(10);
     private final Circle outerCircle = new Circle();
     private final Circle innerCircle = new Circle(5);
+    private final Circle textCircle = new Circle();
     private final Path tickMarks = new Path();
     private final Text angle = new Text("0.0\u00B0");
 
@@ -63,7 +65,7 @@ public class CircularSlider extends Control {
      */
     public CircularSlider() {
         //add nodes
-        getChildren().addAll(outerCircle, tickMarks, innerCircle, angle);
+        getChildren().addAll(outerCircle, textCircle, tickMarks, innerCircle, angle);
         //enable focus
         setFocusTraversable(true);
         disabledProperty().addListener(e -> setMouseTransparent(!isDisabled()));
@@ -71,18 +73,21 @@ public class CircularSlider extends Control {
         //make sure circles are
         innerCircle.setManaged(false);
         outerCircle.setManaged(false);
+        textCircle.setManaged(false);
         //add CSS
         getStylesheets().add(getClass().getResource("/css/circular-slider.css").toExternalForm());
         // set style class
         getStyleClass().setAll("circular-slider");
         outerCircle.getStyleClass().setAll("circular-slider-outer");
         innerCircle.getStyleClass().setAll("circular-slider-inner");
+        textCircle.getStyleClass().setAll("circular-slider-text-area");
         angle.setFont(new Font(18));
         angle.getStyleClass().setAll("circular-slider-text");
         tickMarks.getStyleClass().setAll("circular-slider-track-mark");
         //prevent mouse events being trapped by some nodes
         innerCircle.setMouseTransparent(true);
-        angle.setOnMouseClicked(e -> {
+        angle.setMouseTransparent(true);
+        textCircle.setOnMouseClicked(e -> {
             if (e.getClickCount() == 2) {
                 e.consume();
                 final Double rotation = Dialogs.showInputDialog("Set image rotation", "Rotation (degrees)", getValue());
@@ -96,10 +101,10 @@ public class CircularSlider extends Control {
         //add event handlers
         outerCircle.addEventHandler(MouseEvent.MOUSE_DRAGGED, this::updateRotationWithMouseEvent);
         outerCircle.addEventHandler(MouseEvent.MOUSE_CLICKED, this::updateRotationWithMouseEvent);
-
         outerCircle.addEventHandler(ScrollEvent.ANY, e -> rotationProperty().set(rotationProperty().get() + (e.isShiftDown() ? e.getDeltaX() : e.getDeltaY()) * (isSnapToTicks() ? getTickSpacing() : 1)));
         outerCircle.addEventHandler(MouseEvent.MOUSE_PRESSED, this::onMousePressed);
         addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
+
         rotationProperty.addListener((observable, oldValue, newValue) -> checkRotation());
         tickSpacing.addListener((observable, oldValue, newValue) -> {
             if (oldValue.doubleValue() == newValue.doubleValue()) {
@@ -115,6 +120,13 @@ public class CircularSlider extends Control {
      */
     public DoubleProperty rotationProperty() {
         return rotationProperty;
+    }
+
+    /**
+     * @return the text area of the circular slide
+     */
+    public Node getTextArea() {
+        return textCircle;
     }
 
     /**
@@ -253,6 +265,8 @@ public class CircularSlider extends Control {
         final double y = outerCircle.getCenterY() + (outerCircle.getRadius() - innerCircle.getRadius() - 5) * vecY;
         innerCircle.setCenterX(x);
         innerCircle.setCenterY(y);
+        textCircle.setCenterX(outerCircle.getCenterX());
+        textCircle.setCenterY(outerCircle.getCenterY());
     }
 
     @Override
@@ -264,6 +278,7 @@ public class CircularSlider extends Control {
     protected void layoutChildren() {
         super.layoutChildren();
         outerCircle.setRadius((Math.min(getWidth(), getHeight()) * .5) - 5);
+        textCircle.setRadius((outerCircle.getRadius() * .8) - 2);
         outerCircle.setCenterX(getWidth() * .5);
         outerCircle.setCenterY(getHeight() * .5);
         innerCircle.setRadius(outerCircle.getRadius() * .05);
