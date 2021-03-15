@@ -690,7 +690,7 @@ public class Commands {
 	
 	
 	/**
-	 * Create a dialog for rotating the image in the current viewer (for display only.
+	 * Create a dialog for rotating the image in the current viewer (for display only).
 	 * @param qupath the {@link QuPathGUI} instance
 	 * @return a rotate image dialog
 	 */
@@ -751,23 +751,31 @@ public class Commands {
 		});
 		StackPane.setAlignment(button, Pos.TOP_RIGHT);
 
-		pane.setStyle("-fx-background-color: derive(-fx-base, -10%); -fx-background-radius: 10;");
-		final double outOpacity = .2;
-		pane.setOpacity(outOpacity);
-		final FadeTransition fade = new FadeTransition();
-		fade.setDuration(Duration.millis(150));
-		fade.setNode(pane);
+		// Set opacity for the close button
+		pane.setStyle("-fx-background-color: transparent; -fx-background-radius: 10;");
+        final double outOpacity = .2;
+        button.setOpacity(outOpacity);
+        FadeTransition fade = new FadeTransition();
+        fade.setDuration(Duration.millis(150));
+        fade.setNode(button);
+        
 		pane.setOnMouseEntered(e -> {
 			fade.stop();
-			fade.setFromValue(pane.getOpacity());
+			fade.setFromValue(button.getOpacity());
 			fade.setToValue(1.);
 			fade.play();
 		});
 		pane.setOnMouseExited(e -> {
 			fade.stop();
-			fade.setFromValue(pane.getOpacity());
+			fade.setFromValue(button.getOpacity());
 			fade.setToValue(outOpacity);
 			fade.play();
+		});
+		
+		// Update on viewer changes
+		qupath.viewerProperty().addListener((v, o, n) -> {
+			if (n != null)
+				slider.setValue(Math.toDegrees(n.getRotation()));
 		});
 
 		final Scene scene = new Scene(pane);
