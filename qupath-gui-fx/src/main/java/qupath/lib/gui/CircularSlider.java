@@ -41,7 +41,9 @@ import javafx.scene.text.Text;
 import qupath.lib.gui.dialogs.Dialogs;
 
 /**
- * A custom JavaFX circular-slider control
+ * A custom JavaFX circular-slider control.
+ * Currently, this only supports a rotation value in degrees. 
+ * This behavior may change in the future, e.g. to support other ranges.
  */
 public class CircularSlider extends Control {
 
@@ -90,7 +92,11 @@ public class CircularSlider extends Control {
         textCircle.setOnMouseClicked(e -> {
             if (e.getClickCount() == 2) {
                 e.consume();
-                final Double rotation = Dialogs.showInputDialog("Set image rotation", "Rotation (degrees)", getValue());
+                Double rotation;
+                if (e.isShiftDown())
+                	rotation = Double.valueOf(0);
+                else
+                	rotation = Dialogs.showInputDialog("Set rotation", "Rotation (degrees)", getValue());
                 if (rotation != null) {
                     setValue(rotation);
                 }
@@ -296,13 +302,15 @@ public class CircularSlider extends Control {
     }
 
     private void onKeyPressed(KeyEvent e) {
-        switch (e.getCode()) {
-            case LEFT:
-                rotationProperty().set(rotationProperty().get() - (isSnapToTicks() ? getTickSpacing() : 1));
-                break;
-            case RIGHT:
-                rotationProperty().set(rotationProperty().get() + (isSnapToTicks() ? getTickSpacing() : 1));
-                break;
-        }
+    	switch (e.getCode()) {
+    	case LEFT:
+    		rotationProperty().set(rotationProperty().get() - (isSnapToTicks() ? getTickSpacing() : 1));
+    		break;
+    	case RIGHT:
+    		rotationProperty().set(rotationProperty().get() + (isSnapToTicks() ? getTickSpacing() : 1));
+    		break;
+    	default:
+    		break;
+    	}
     }
 }

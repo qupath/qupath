@@ -313,9 +313,11 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 	
 	/**
 	 * Run a classifier (or composite classifier), and optionally log the fact that it was run in the workflow.
+	 * 
 	 * @param imageData
 	 * @param project
-	 * @param classifierNames
+	 * @param externalClassifiers
+	 * @param selectedClassifiersNames
 	 * @param logWorkflow
 	 */
 	private static void runClassifier(ImageData<BufferedImage> imageData, Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> selectedClassifiersNames, boolean logWorkflow) {
