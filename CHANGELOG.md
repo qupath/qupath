@@ -31,11 +31,12 @@ List of bugs fixed:
 * The TileExporter could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
 
 ### Dependency updates*
+* AdoptOpenJDK 16
 * Apache Commons Text 1.9
 * Bio-Formats 6.6.0
 * ControlsFX 11.1.0
 * Groovy 3.0.7
-* Guava 30.1-jre
+* Guava 30.1.1-jre
 * ImageJ 1.53h
 * JavaFX 16
 * Java Topology suite 1.18.1

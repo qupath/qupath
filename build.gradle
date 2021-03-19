@@ -6,6 +6,11 @@
  * ./gradlew clean build createPackage
  * or on Windows
  * gradlew.bat clean build createPackage
+ * <p>
+ * NOTE: At the time of writing, Gradle cannot be run with OpenJDK 16.
+ * However, creating a valid QuPath package requires OpenJDK 16 (since it contains jpackage).
+ * Gradle's toolchain options are used to overcome this: you should run Gradle with a valid
+ * JDK (e.g. 8-15) and the toolchain will use a different JDK for building QuPath itself.
  */
 
 /**
@@ -14,7 +19,7 @@
 buildscript {
 
   dependencies {
-    classpath 'com.github.jk1:gradle-license-report:1.14'
+    classpath 'com.github.jk1:gradle-license-report:1.16'
     classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
   }
 
@@ -34,7 +39,30 @@ buildscript {
  */
 plugins {
   id 'java-library'
+  id 'org.bytedeco.gradle-javacpp-platform' version '1.5.4' // 1.5.5 doesn't work currently (gets all platforms, not just the current one)
   id 'org.javamodularity.moduleplugin' version '1.6.0' apply false
+}
+
+/**
+ * Define the toolchain JDK.
+ * This separates the JDK used to run Gradle from that used to build QuPath.
+ */ 
+def targetJDK = JavaLanguageVersion.of(16)
+java {
+    toolchain {
+        languageVersion = targetJDK
+    }
+}
+def compiler = javaToolchains.compilerFor {
+    languageVersion = targetJDK
+}
+def jdkHome = compiler.get().metadata.installationPath.asFile.absolutePath
+println "JDK used to build QuPath: ${jdkHome}"
+
+
+tasks.withType(JavaCompile).configureEach {
+	// disable incremental compilation
+    options.incremental = false
 }
 
 /*
@@ -84,8 +112,9 @@ def buildTime = new Date().format("yyyy-MM-dd, HH:mm")
 /*
  * Good to know what JDK is (sometimes accidentally) being used
  */
-println 'Current Java version: ' + JavaVersion.current()
-println System.properties['java.home']
+println 'Java version used to run Gradle: ' + JavaVersion.current()
+if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16))
+	println 'WARNING! Your Java version may be too high. If you encounter errors, try running Gradle with Java <= 15.'
 
 
 // Request latest commit by a command line call to Git, if required
@@ -118,27 +147,22 @@ if (requestLatestCommit) {
  */
 import org.gradle.internal.os.OperatingSystem
 println 'Operating system: ' + OperatingSystem.current()
-def nativesCPP
 def platform
 def nativesClassifier
 String iconName
 if (OperatingSystem.current().isMacOsX()) {
   nativesClassifier = 'natives-osx'
-  nativesCPP = 'macosx-x86_64'
   platform = 'mac'
   iconName = 'macosx/qupath.icns'
 } else if (OperatingSystem.current().isLinux()) {
   nativesClassifier = 'natives-linux'
-  nativesCPP = 'linux-x86_64'
   platform = 'linux'
   iconName = 'linux/QuPath.png'
 } else if (OperatingSystem.current().isWindows()) {
   nativesClassifier = 'natives-windows'
   if (System.properties['sun.arch.data.model'] == '32') {
-	logger.warn("You appear to be using a 32-bit JDK - If I can't find a 32-bit version of JavaFX, this will fail! Probably at the 'test' stage.")
-	nativesCPP = 'windows-x86'
-  } else
-	nativesCPP = 'windows-x86_64'
+	logger.warn("You appear to be using a 32-bit JDK - the build will probably fail! At the very least, some things won't work.")
+  }
   platform = 'win'
   iconName = 'windows/QuPath.ico'
 } else {
@@ -203,10 +227,11 @@ allprojects {
 
   group = 'qupath'
   version = qupathVersion
-
+  
   ext {
     // Java compatibility version
-    javaVersion = 11
+    // (2021-03 - Now replaced by toolchain!)
+//    javaVersion = 11
   
     // Dependency versions
     bioformatsVersion  = '6.6.0'
@@ -215,7 +240,7 @@ allprojects {
     controlsfxVersion  = '11.1.0'
     groovyVersion      = '3.0.7'
     gsonVersion        = '2.8.6'
-    guavaVersion       = '30.1-jre'
+    guavaVersion       = '30.1.1-jre'
     imagejVersion      = '1.53h'
     jfxtrasVersion     = '11-r1'
     jpenVersion        = '2-150301'
@@ -311,18 +336,10 @@ allprojects {
 
     jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}"
 
-    opencv "org.bytedeco:opencv:${opencvVersion}"
-    if (nativesCPP != null) {
-  		opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
-  		opencv "org.bytedeco:javacpp:{$javacppVersion}:${nativesCPP}"
-  	}
   	if (useGPU) {
-  		logger.warn("Requested useGPU... so this will probably fail - please don't do that")
-    	opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
-    	// Isn't terribly clear if this is also needed when requesting GPU?
-        //opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
+    	opencv "org.bytedeco:opencv-platform-gpu:${opencvVersion}"
 	} else
-    	opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
+    	opencv "org.bytedeco:opencv-platform:${opencvVersion}"
 
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)
@@ -369,15 +386,6 @@ allprojects {
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
     
-    /*
-    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
-    if (includeTensorFlowGPU)
-	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}-gpu"
-	else
-	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}"
-    tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}"
-    tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}:${nativesCPP}"
-    */
     tensorflow "org.tensorflow:tensorflow:${tensorflowVersion}"
     tensorflow "org.tensorflow:proto:${tensorflowVersion}"
     if (includeTensorFlowGPU) {
@@ -477,8 +485,8 @@ subprojects {
  */
 allprojects {
 
-  sourceCompatibility = javaVersion
-  targetCompatibility = javaVersion
+//  sourceCompatibility = javaVersion
+//  targetCompatibility = javaVersion
 
   repositories {
     mavenLocal()
@@ -671,7 +679,7 @@ task mergedJavadocs(type: Javadoc) {
     
     options {
     	links += rootProject.ext.externalJavadocs
-    	source = javaVersion
+//    	source = javaVersion
     }
     
     destinationDir = new File(buildDir, 'merged-docs')
@@ -713,9 +721,10 @@ task createRuntime(dependsOn:build, type:Exec) {
     ]
     
     def usefulModules = [
-        'java.net.http',       // Add HttpClient support (may be used by scripts)
-    	'java.management',     // Useful to check memory usage
-    	'jdk.management.agent' // Enables VisualVM to connect and sample CPU use
+        'java.net.http',        // Add HttpClient support (may be used by scripts)
+    	'java.management',      // Useful to check memory usage
+    	'jdk.management.agent', // Enables VisualVM to connect and sample CPU use
+    	'jdk.jsobject'          // Needed to interact with WebView through JSObject
     ]
   
     def addModules
@@ -732,7 +741,7 @@ task createRuntime(dependsOn:build, type:Exec) {
       addModules = String.join(',', requiredModules + usefulModules)
     }
     
-    def params = ["${System.properties['java.home']}/bin/jlink"]
+    def params = ["${jdkHome}/bin/jlink"]
    
     params << '--output' << outputDir.getAbsolutePath()
     params << '--add-modules' << addModules
@@ -774,15 +783,17 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
    	}
    	boolean associateFiles = packageType != 'app-image'
 
-    def params = ["${System.properties['java.home']}/bin/jpackage"]
+    def params = ["${jdkHome}/bin/jpackage"]
 
     params << '--input' << new File(rootProject.buildDir, rootProject.libsDirName).getAbsolutePath()
     params << '--dest' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
 
     params << '--main-jar' << jar.archiveName
-    
-    String launcherName = 'QuPath-' + qupathVersion
-    params << '--name' << launcherName
+        
+    // Sadly, with JDK 16 including the version in the launcher name seems to break the build 
+    // with an unrecognized cfg file name
+    String versionedLauncherName = 'QuPath-' + qupathVersion
+    String launcherName = 'QuPath'
 //    params << '--name' << 'QuPath-' + qupathVersion
 
     // Default to using 50% available memory
@@ -797,6 +808,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 			params << '--type' << packageType
 		}
 		associateFiles = true // Should work for Mac
+		// Sadly, on a Mac we can't have an appVersion that starts with 0
+		if (appVersion && appVersion.startsWith('0'))
+			appVersion = null
 	} else if (OperatingSystem.current().isWindows()) {
 		if (packageType == 'installer') {
 			params << '--type' << 'msi'
@@ -823,8 +837,14 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 	} else
 		params << '--type' << packageType
 
+
+    params << '--name' << launcherName
+	
     // Store the app version (typically a simplified version of the full format)
-    params << '--app-version' << appVersion
+    if (appVersion)
+	    params << '--app-version' << appVersion
+
+	params << '--java-options' << '-Djava.library.path=$APPDIR'		
         
     // Try to find the icon
     def pathIcon = Paths.get(
