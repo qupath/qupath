@@ -37,11 +37,8 @@ import org.slf4j.LoggerFactory;
 import org.tensorflow.SavedModelBundle;
 import org.tensorflow.Session.Runner;
 import org.tensorflow.Tensor;
-import org.tensorflow.framework.MetaGraphDef;
-import org.tensorflow.framework.SignatureDef;
-import org.tensorflow.framework.TensorInfo;
-
-import com.google.protobuf.InvalidProtocolBufferException;
+import org.tensorflow.proto.framework.MetaGraphDef;
+import org.tensorflow.proto.framework.TensorInfo;
 
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.regions.Padding;
@@ -160,7 +157,7 @@ public class TensorFlowOp extends PaddedOp {
 		Mat result;
 		try (var tensor = TensorFlowTools.convertToTensor(mat)) {
 
-			List<Tensor<?>> outputs = runner
+			List<Tensor> outputs = runner
 					.feed(inputName, tensor)
 					.fetch(outputName)
 					.run();
@@ -227,7 +224,6 @@ public class TensorFlowOp extends PaddedOp {
         private List<SimpleTensorInfo> outputs;
 
     	private MetaGraphDef metaGraphDef;
-    	private SignatureDef sigDef;
 
     	private TensorFlowBundle(String pathModel) {
 
@@ -244,16 +240,12 @@ public class TensorFlowOp extends PaddedOp {
     		// Load the bundle
     		bundle = SavedModelBundle.load(pathModel, "serve");
 
-    		try {
-				metaGraphDef = MetaGraphDef.parseFrom(bundle.metaGraphDef());
-			} catch (InvalidProtocolBufferException e) {
-				throw new RuntimeException("Cannot parse MetaGraphDef!", e);
-			}
+    		metaGraphDef = bundle.metaGraphDef();
+			
     		for (var entry : metaGraphDef.getSignatureDefMap().entrySet()) {
     			var sigdef = entry.getValue();
     			if (inputs == null || inputs.isEmpty()) {
     				logger.info("Found SignatureDef: {} (method={})", entry.getKey(), sigdef.getMethodName());
-    				this.sigDef = sigdef;
     				inputs = sigdef.getInputsMap().values().stream().map(t -> new SimpleTensorInfo(t)).collect(Collectors.toList());
     				outputs = sigdef.getOutputsMap().values().stream().map(t -> new SimpleTensorInfo(t)).collect(Collectors.toList());
     			} else {
@@ -382,10 +374,18 @@ public class TensorFlowOp extends PaddedOp {
     		return info;
     	}
 
+    	/**
+    	 * Get any name associated with the tensor.
+    	 * @return
+    	 */
     	public String getName() {
     		return name;
     	}
 
+    	/**
+    	 * Get the tensor shape as an array of long.
+    	 * @return
+    	 */
     	public long[] getShape() {
     		return shape == null ? null : shape.clone();
     	}

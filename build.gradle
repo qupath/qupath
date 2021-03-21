@@ -93,8 +93,7 @@ def useGPU = false
 /*
  * Modules not yet supported because of various dependency troubles.
  * Specifially:
- *  - ImageJ contains MacAdapter outside of any package, this must be removed 
- *    (jarjar-gradle can do the job, but it seems to confuse eclipse)
+ *  - ImageJ contains MacAdapter outside of any package, this must be removed (fixed in 1.53d!)
  *  - RuntimeTypeAdapterFactory needs to be in a valid package
  *  - JPen's automatic module name is invalid (jpen.2)
  *  - Bio-Formats is not module-friendly
@@ -186,18 +185,6 @@ wrapper {
 }
 
 /*
- * jarjar makes it possible to remove the troublesome MacAdapter in ij.jar, 
- * which doesn't work for JDK 9+ and causes module issue because it is not contained 
- * within any package.
- *
- * Only required if building modules. Currently all instances commented out.
- */
-if (doModular) {
-  apply plugin: 'org.anarres.jarjar'
-}
-
-
-/*
  * Check command arguments to optional inclusions/exclusions
  */
 def includeTensorFlowGPU = (findProperty('tensorflow-gpu') ?: "false") != "false"
@@ -259,7 +246,7 @@ allprojects {
     junitVersion       = '5.6.2'
     
     // Optional versions
-    tensorflowVersion  = "1.15.0"
+    tensorflowVersion  = "0.3.0" // Really 2.4.1
 //    mkldnnVersion      = "0.21.4-${javacppVersion}"
     
     /*
@@ -334,7 +321,9 @@ allprojects {
     	exclude group: 'org.openjfx'
     }
 
-    jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}"
+    jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}", {
+    	exclude group: 'org.jfxtras', module: 'jfxtras-test-support'
+    }
 
   	if (useGPU) {
     	opencv "org.bytedeco:opencv-platform-gpu:${opencvVersion}"
@@ -345,13 +334,7 @@ allprojects {
     if (nativesClassifier != null)
       jpen "net.sourceforge.jpen:jpen:${jpenVersion}:${nativesClassifier}"
 
-    if (doModular) {
-	    imagej jarjar.repackage {
-	    	from "net.imagej:ij:${imagejVersion}"
-	    	classDelete 'MacAdapter'
-		}
-	} else
-	    imagej "net.imagej:ij:${imagejVersion}"
+	imagej "net.imagej:ij:${imagejVersion}"
 
 	bioformats "ome:formats-gpl:${bioformatsVersion}", {
 	  	exclude group: 'xalan', module: 'serializer'
@@ -386,12 +369,11 @@ allprojects {
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
     
-    tensorflow "org.tensorflow:tensorflow:${tensorflowVersion}"
-    tensorflow "org.tensorflow:proto:${tensorflowVersion}"
     if (includeTensorFlowGPU) {
-	    tensorflow "org.tensorflow:libtensorflow:${tensorflowVersion}"
-	    tensorflow "org.tensorflow:libtensorflow_jni_gpu:${tensorflowVersion}"
-    }
+	    tensorflow "org.tensorflow:tensorflow-core-platform-gpu:${tensorflowVersion}"
+	} else {
+	    tensorflow "org.tensorflow:tensorflow-core-platform:${tensorflowVersion}"
+	}
     
   }
   
