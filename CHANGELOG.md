@@ -1,23 +1,25 @@
 ## Version 0.3.0-SNAPSHOT
 *In progress*
 
-Enhancements:
-* Improved command line
+Main improvements:
+* Better command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
 * Improved image rotation (under 'View > Rotate image')
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
   * Optionally skip TMA cores marked as 'ignored'
+* Translucent overlay for live prediction (useful to identify if a tile has been processed when at least one class is transparent)
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
 * New 'ContourTracing' class to simplify converting thresholded images to object
-* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
 
 Other changes:
 * GeneralTools readAsString methods now assume UTF-8 encoding
-* When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
+* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
+* New 2D/3D thinning & interpolation classes
+* When building from source with TensorFlow support, we now use TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
 
 List of bugs fixed:
 * Exception when converting PathObject with name but no color to GeoJSON
