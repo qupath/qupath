@@ -34,7 +34,7 @@ List of bugs fixed:
 ### Dependency updates
 * AdoptOpenJDK 16
 * Apache Commons Text 1.9
-* Bio-Formats 6.6.0
+* Bio-Formats 6.6.1
 * ControlsFX 11.1.0
 * Groovy 3.0.7
 * Guava 30.1.1-jre
