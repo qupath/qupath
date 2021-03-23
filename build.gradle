@@ -787,8 +787,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     // Sadly, with JDK 16 including the version in the launcher name seems to break the build 
     // with an unrecognized cfg file name
     String versionedLauncherName = 'QuPath-' + qupathVersion
+    
+    // Including the version number seems to fail on Java 16 + macOS/Linux
     String launcherName = 'QuPath'
-//    params << '--name' << 'QuPath-' + qupathVersion
 
 	if (OperatingSystem.current().isMacOsX()) {
 		params << '--mac-package-name' << 'QuPath'
@@ -803,6 +804,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		if (appVersion && appVersion.startsWith('0'))
 			appVersion = null
 	} else if (OperatingSystem.current().isWindows()) {
+    // On Windows, including the version number seems to work
+    // This can help manage multiple versions
+    launcherName = 'QuPath-' + qupathVersion
 		if (packageType == 'installer') {
 			params << '--type' << 'msi'
 			params << '--win-menu'
