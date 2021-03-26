@@ -131,6 +131,72 @@ public class GsonTools {
 	
 	
 	/**
+	 * Create a {@link TypeAdapterFactory} that is suitable for handling class hierarchies.
+	 * This can be used to construct the appropriate subtype when parsing the JSON by using a specific field in the JSON representation.
+	 * 
+	 * @param <T>
+	 * @param baseType the base type, i.e. the class or interface that all types descend from
+	 * @param typeFieldName a field name to include within the serialized JSON object to identify the specific type
+	 * @return
+	 */
+	public static <T> SubTypeAdapterFactory<T> createSubTypeAdapterFactory(Class<T> baseType, String typeFieldName) {
+		return new SubTypeAdapterFactory<>(baseType, typeFieldName);
+	}
+
+	
+	/**
+	 * A {@link TypeAdapterFactory} that is suitable for handling class hierarchies.
+	 * This can be used to construct the appropriate subtype when parsing the JSON.
+	 * <p>
+	 * Currently, it is a wrapper for the {@code RuntimeTypeAdapterFactory} available as part of Gson extras 
+	 * (but not the main Gson library), however this implementation may change in the future.
+	 *
+	 * @param <T>
+	 */
+	public static class SubTypeAdapterFactory<T> implements TypeAdapterFactory {
+		
+		private RuntimeTypeAdapterFactory<T> factory;
+		
+		private SubTypeAdapterFactory(Class<T> baseType, String typeFieldName) {
+			factory = RuntimeTypeAdapterFactory.of(baseType, typeFieldName);
+		}
+		
+		@Override
+		public <R> TypeAdapter<R> create(Gson gson, TypeToken<R> type) {
+			return factory.create(gson, type);
+		}
+		
+		/**
+		 * Register a subtype using a custom label.
+		 * This allows objects to serialized to JSON and deserialized while retaining the same class.
+		 * 
+		 * @param subtype the subtype to register
+		 * @param label the label used to identify objects of this subtype; this must be unique
+		 * @return this {@link SubTypeAdapterFactory}
+		 * @see #registerSubtype(Class, String)
+		 */
+		public SubTypeAdapterFactory<T> registerSubtype(Class<? extends T> subtype, String label) {
+			factory.registerSubtype(subtype, label);
+			return this;
+		}
+		
+		/**
+		 * Register a subtype using the default label (the simple name of the class).
+		 * This allows objects to serialized to JSON and deserialized while retaining the same class.
+		 * 
+		 * @param subtype the subtype to register
+		 * @return this {@link SubTypeAdapterFactory}
+		 * @see #registerSubtype(Class, String)
+		 */
+		public SubTypeAdapterFactory<T> registerSubtype(Class<? extends T> subtype) {
+			factory.registerSubtype(subtype);
+			return this;
+		}
+		
+	}
+	
+	
+	/**
 	 * Wrap a collection of PathObjects as a FeatureCollection. The purpose of this is to enable 
 	 * exporting a GeoJSON FeatureCollection that may be reused in other software.
 	 * @param pathObjects
@@ -281,5 +347,6 @@ public class GsonTools {
 		}
 		
 	}
+
 	
 }

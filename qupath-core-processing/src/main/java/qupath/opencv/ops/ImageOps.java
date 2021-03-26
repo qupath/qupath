@@ -50,7 +50,6 @@ import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.RuntimeTypeAdapterFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
@@ -61,6 +60,7 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
@@ -92,7 +92,7 @@ public class ImageOps {
 	}
 	
 	@SuppressWarnings("unchecked")
-	private static <T> void registerTypes(RuntimeTypeAdapterFactory<T> factory, Class<T> factoryType, Class<?> cls, String base) {
+	private static <T> void registerTypes(SubTypeAdapterFactory<T> factory, Class<T> factoryType, Class<?> cls, String base) {
 		var annotation = cls.getAnnotation(OpType.class);
 		if (annotation != null) {
 			base = base + "." + annotation.value();
@@ -107,13 +107,13 @@ public class ImageOps {
 
 
 	static {
-		RuntimeTypeAdapterFactory<ImageOp> factoryOps = RuntimeTypeAdapterFactory.of(ImageOp.class, "type");
-		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
+		SubTypeAdapterFactory<ImageOp> factoryOps = GsonTools.createSubTypeAdapterFactory(ImageOp.class, "type");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryOps);
+		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
 
-		RuntimeTypeAdapterFactory<ImageDataOp> factoryDataOps = RuntimeTypeAdapterFactory.of(ImageDataOp.class, "type");
-		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
+		SubTypeAdapterFactory<ImageDataOp> factoryDataOps = GsonTools.createSubTypeAdapterFactory(ImageDataOp.class, "type");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryDataOps);
+		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
 	}
 	
 	/**
