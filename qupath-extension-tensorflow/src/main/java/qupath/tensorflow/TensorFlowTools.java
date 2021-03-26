@@ -26,16 +26,18 @@ import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import java.nio.LongBuffer;
-
-import org.bytedeco.javacpp.Loader;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tensorflow.Tensor;
 import org.tensorflow.TensorFlow;
-import org.tensorflow.types.UInt8;
+import org.tensorflow.ndarray.Shape;
+import org.tensorflow.ndarray.buffer.DataBuffers;
+import org.tensorflow.types.TFloat32;
+import org.tensorflow.types.TFloat64;
+import org.tensorflow.types.TInt32;
+import org.tensorflow.types.TUint8;
 
 import qupath.lib.regions.Padding;
 import qupath.opencv.ops.ImageOp;
@@ -50,7 +52,6 @@ public class TensorFlowTools {
 	private final static Logger logger = LoggerFactory.getLogger(TensorFlowTools.class);
 	
 	static {
-//		Loader.load(org.bytedeco.tensorflow.presets.tensorflow.class);
 		logger.info("TensorFlow version {}", TensorFlow.version());
 	}
 
@@ -74,11 +75,11 @@ public class TensorFlowTools {
 	 * 
 	 * @throws IllegalArgumentException if the depth is not supported
 	 */
-	public static <T> Tensor<T> convertToTensor(Mat mat) throws IllegalArgumentException {
+	public static <T> Tensor convertToTensor(Mat mat) throws IllegalArgumentException {
 	    int w = mat.cols();
 	    int h = mat.rows();
 	    int nBands = mat.channels();
-	    long[] shape = new long[] {1, h, w, nBands};
+	    var shape = Shape.of(1, h, w, nBands);
 	    
 	    if (!mat.isContinuous())
 	    	logger.warn("Converting non-continuous Mat to Tensor!");
@@ -86,19 +87,19 @@ public class TensorFlowTools {
 	    int depth = mat.depth();
 	    if (depth == opencv_core.CV_32F) {
 	    	FloatBuffer buffer = mat.createBuffer();
-	    	return (Tensor<T>)Tensor.create(shape, buffer);
+	    	return TFloat32.tensorOf(shape, DataBuffers.of(buffer));
 	    }
 	    if (depth == opencv_core.CV_64F) {
 	    	DoubleBuffer buffer = mat.createBuffer();
-	    	return (Tensor<T>)Tensor.create(shape, buffer);
+	    	return TFloat64.tensorOf(shape, DataBuffers.of(buffer));
 	    }
 	    if (depth == opencv_core.CV_32S) {
 	    	IntBuffer buffer = mat.createBuffer();
-	    	return (Tensor<T>)Tensor.create(shape, buffer);
+	    	return TInt32.tensorOf(shape, DataBuffers.of(buffer));
 	    }
 	    if (depth == opencv_core.CV_8U) {
 	    	ByteBuffer buffer = mat.createBuffer();
-	    	return (Tensor<T>)Tensor.create(UInt8.class, shape, buffer);
+	    	return TUint8.tensorOf(shape, DataBuffers.of(buffer));
 	    }
 	    throw new IllegalArgumentException("Unsupported Mat depth! Must be 8U, 32S, 32F or 64F.");
 	}
@@ -115,52 +116,110 @@ public class TensorFlowTools {
 	 * @param tensor
 	 * @return
 	 */
-	public static Mat convertToMat(Tensor<?> tensor) {
-		long[] shape = tensor.shape();
+	public static Mat convertToMat(Tensor tensor) {
+		long[] shape = tensor.shape().asArray();
 	    // Get the shape, stripping off the batch
 	    int n = shape.length;
 	    int[] dims = new int[Math.max(3, n-1)];
 	    for (int i = 1; i < n; i++) {
 	    	dims[i-1] = (int)shape[i];
 	    }
+	    // Get total number of elements (pixels)
+	    int size = 1;
+	    for (long d : dims)
+	    	size *= d;
 	    Mat mat = null;
 	    switch (tensor.dataType()) {
-		case DOUBLE:
+		case DT_BFLOAT16:
+			break;
+		case DT_BOOL:
+			break;
+		case DT_COMPLEX128:
+			break;
+		case DT_COMPLEX64:
+			break;
+		case DT_DOUBLE:
 		    mat = new Mat(dims[0], dims[1], opencv_core.CV_64FC(dims[2]));
 		    DoubleBuffer buffer64F = mat.createBuffer();
-		    tensor.writeTo(buffer64F);
+		    if (buffer64F.hasArray())
+			    tensor.asRawTensor().data().asDoubles().read(buffer64F.array());
+		    else {
+			    double[] values = new double[size];
+			    tensor.asRawTensor().data().asDoubles().read(values);
+			    buffer64F.put(values);
+		    }
 		    return mat;
-		case FLOAT:
+		case DT_FLOAT:
 		    mat = new Mat(dims[0], dims[1], opencv_core.CV_32FC(dims[2]));
 		    FloatBuffer buffer32F = mat.createBuffer();
-		    tensor.writeTo(buffer32F);
-			return mat;
-		case INT32:
+		    if (buffer32F.hasArray())
+			    tensor.asRawTensor().data().asFloats().read(buffer32F.array());
+		    else {
+			    float[] values = new float[size];
+			    tensor.asRawTensor().data().asFloats().read(values);
+			    buffer32F.put(values);
+		    }
+		    return mat;
+		case DT_HALF:
+			break;
+		case DT_INT16:
+			break;
+		case DT_INT32:
 			mat = new Mat(dims[0], dims[1], opencv_core.CV_32SC(dims[2]));
 		    IntBuffer buffer32S = mat.createBuffer();
-		    tensor.writeTo(buffer32S);
+		    if (buffer32S.hasArray())
+			    tensor.asRawTensor().data().asInts().read(buffer32S.array());
+		    else {
+		    	int[] values = new int[size];
+			    tensor.asRawTensor().data().asInts().read(values);
+			    buffer32S.put(values);
+		    }
 		    return mat;
-		case INT64:
-			// TODO: Consider the most sensible conversion
-		    logger.warn("Converting INT64 tensor to Double Mat");
-		    mat = new Mat(dims[0], dims[1], opencv_core.CV_64FC(dims[2]));
-		    buffer64F = mat.createBuffer();
-		    int length = buffer64F.limit();
-		    LongBuffer buffer64S = LongBuffer.allocate(length);
-		    tensor.writeTo(buffer64S);
-		    for (int i = 0; i < length; i++)
-		    	buffer64F.put(i, buffer64S.get(i));
-		    return mat;
-		case UINT8:
-		    mat = new Mat(dims[0], dims[1], opencv_core.CV_8UC(dims[2]));
+		case DT_INT64:
+			break;
+		case DT_INT8:
+			break;
+		case DT_INVALID:
+			break;
+		case DT_QINT16:
+			break;
+		case DT_QINT32:
+			break;
+		case DT_QINT8:
+			break;
+		case DT_QUINT16:
+			break;
+		case DT_QUINT8:
+			break;
+		case DT_RESOURCE:
+			break;
+		case DT_STRING:
+			break;
+		case DT_UINT16:
+			break;
+		case DT_UINT32:
+			break;
+		case DT_UINT64:
+			break;
+		case DT_UINT8:
+			mat = new Mat(dims[0], dims[1], opencv_core.CV_8UC(dims[2]));
 		    ByteBuffer buffer8U = mat.createBuffer();
-		    tensor.writeTo(buffer8U);
-			return mat;
-		case BOOL:
-		case STRING:
+		    if (buffer8U.hasArray())
+			    tensor.asRawTensor().data().read(buffer8U.array());
+		    else {
+		    	byte[] values = new byte[size];
+			    tensor.asRawTensor().data().read(values);
+			    buffer8U.put(values);
+		    }
+		    return mat;
+		case DT_VARIANT:
+			break;
+		case UNRECOGNIZED:
+			break;
 		default:
-		    throw new IllegalArgumentException("Cannot convert " + tensor.dataType() + " tensor to Mat!");
+			break;
 	    }
+	    throw new UnsupportedOperationException("Unsupported Tensor to Mat conversion for DataType " + tensor.dataType());
 	}
 
 	/**
