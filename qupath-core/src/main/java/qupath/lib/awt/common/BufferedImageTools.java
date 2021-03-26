@@ -52,9 +52,14 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class BufferedImageTools {
+public final class BufferedImageTools {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AbstractTileableImageServer.class);
+	
+	// Suppress default constructor for non-instantiability
+	private BufferedImageTools() {
+		throw new AssertionError();
+	}
 	
 	/**
 	 * Create a grayscale BufferedImage representing a mask for a specified ROI.
@@ -234,17 +239,20 @@ public class BufferedImageTools {
 				for (int i = 0; i < n; i++)
 					buffer.setElem(b, i, ival);
 			}
+			break;
 		case DataBuffer.TYPE_FLOAT:
 			float fval = (float)val;
 			for (int b = 0; b < nBanks; b++) {
 				for (int i = 0; i < n; i++)
 					buffer.setElemFloat(b, i, fval);
 			}
+			break;
 		case DataBuffer.TYPE_DOUBLE:
 			for (int b = 0; b < nBanks; b++) {
 				for (int i = 0; i < n; i++)
 					buffer.setElemDouble(b, i, val);
 			}
+			break;
 		default:
 			throw new IllegalArgumentException("Unable to set values for unknown data buffer type " + buffer.getDataType());
 		}
@@ -468,5 +476,4 @@ public class BufferedImageTools {
 //
 //		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
 //	}
-
 }

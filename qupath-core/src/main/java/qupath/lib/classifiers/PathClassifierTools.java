@@ -58,10 +58,15 @@ import qupath.lib.objects.hierarchy.TMAGrid;
  * @author Pete Bankhead
  *
  */
-public class PathClassifierTools {
+public final class PathClassifierTools {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathClassifierTools.class);
 
+	// Suppress default constructor for non-instantiability
+	private PathClassifierTools() {
+		throw new AssertionError();
+	}
+	
 	/**
 	 * Apply a classifier to the detection objects in a hierarchy.
 	 * @param hierarchy
@@ -286,7 +291,9 @@ public class PathClassifierTools {
 	/**
 	 * Assign cell classifications as positive or negative based upon a specified measurement, using up to 3 intensity bins.
 	 * 
-	 * An IllegalArgumentException is thrown if &lt; 1 or &gt; 3 intensity thresholds are provided.
+	 * An IllegalArgumentException is thrown if &lt; 1 or &gt; 3 intensity thresholds are provided.<p>
+	 * If the object does not have the required measurement, its {@link PathClass} will be set to its 
+	 * first 'non-intensity' ancestor {@link PathClass}.
 	 * 
 	 * @param pathObject 		the object to classify.
 	 * @param measurementName 	the name of the measurement to use for thresholding.
@@ -297,6 +304,10 @@ public class PathClassifierTools {
 		if (thresholds.length == 0 || thresholds.length > 3)
 			throw new IllegalArgumentException("Between 1 and 3 intensity thresholds required!");
 		
+		// Can't perform any classification if measurement is null or blank
+		if (measurementName == null || measurementName.isEmpty())
+			throw new IllegalArgumentException("Measurement name cannot be empty or null!");
+		
 		PathClass baseClass = PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
 		
 		// Don't do anything with the 'ignore' class
@@ -306,10 +317,12 @@ public class PathClassifierTools {
 		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
 		
 		boolean singleThreshold = thresholds.length == 1;
-		
-		if (intensityValue < thresholds[0]) {
+
+		if (Double.isNaN(intensityValue))	// If the measurement is missing, reset to base class
+			pathObject.setPathClass(PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass()));
+		else if (intensityValue < thresholds[0])
 			pathObject.setPathClass(PathClassFactory.getNegative(baseClass));
-		} else {
+		else {
 			if (singleThreshold)
 				pathObject.setPathClass(PathClassFactory.getPositive(baseClass));
 			else if (thresholds.length >= 3 && intensityValue >= thresholds[2])
@@ -363,6 +376,4 @@ public class PathClassifierTools {
 		}
 		return channels;
 	}
-	
-	
 }

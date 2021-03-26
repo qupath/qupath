@@ -36,7 +36,12 @@ import qupath.lib.roi.interfaces.ROI;
  * @author Pete Bankhead
  *
  */
-public class AwtTools {
+public final class AwtTools {
+
+	// Suppress default constructor for non-instantiability
+	private AwtTools() {
+		throw new AssertionError();
+	}
 
 	/**
 	 * Create a {@link Rectangle} corresponding to the x,y,width,height of an {@link ImageRegion}.

@@ -121,7 +121,7 @@ public class PathClassTools {
 	/**
 	 * Get the first ancestor class that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
 	 * <p>
-	 * This will return null if pathClass is null, or if no non-intensity classes are found.
+	 * This will return null if pathClass is null.
 	 * 
 	 * @param pathClass
 	 * @return
