@@ -91,14 +91,40 @@ public class ImageOps {
 		String value();
 	}
 	
+	/**
+	 * QuPath v0.2 failed to include op category labels for
+	 * {@code Filters, ML, Normalize, Threshold}.
+	 * <p>
+	 * This is important because it makes name clashes more likely when serializing/deserializing ops, 
+	 * therefore in v0.3 these categories are re-introduced with efforts to maintain backwards compatibility.
+	 */
+	private static List<String> LEGACY_CATEGORIES = Arrays.asList("op.filters.", "op.ml.", "op.normalize.", "op.threshold.");
+	
 	@SuppressWarnings("unchecked")
 	private static <T> void registerTypes(SubTypeAdapterFactory<T> factory, Class<T> factoryType, Class<?> cls, String base) {
 		var annotation = cls.getAnnotation(OpType.class);
 		if (annotation != null) {
-			base = base + "." + annotation.value();
+			String annotationValue = annotation.value();
+			if (!annotationValue.isEmpty())
+				base = base + "." + annotation.value();
 			if (factoryType.isAssignableFrom(cls)) {
+				logger.trace("Registering {} for class {}", base, cls);
 				factory.registerSubtype((Class<? extends T>)cls, base);
-			}
+				for (String cat : LEGACY_CATEGORIES) {
+					if (base.startsWith(cat)) {
+						String alias = base.replace(cat, "op.");
+						logger.trace("Registering alias {} for class {}", alias, cls);
+						factory.registerAlias((Class<? extends T>)cls, alias);
+					}
+				}
+				// 
+			} else
+				logger.trace("Cannot register {} for factory type {}", cls, factoryType);
+		} else if (!ImageOps.class.equals(cls)) {
+			// Don't look further if we don't have an OpType annotation
+			// (In v0.2, classes were wrongly not annotated... causing wrong op labels)
+			logger.trace("Skipping unannotated class {}", cls);
+			return;
 		}
 		for (var c : cls.getDeclaredClasses()) {
 			registerTypes(factory, factoryType, c, base);
@@ -323,7 +349,7 @@ public class ImageOps {
 	/**
 	 * Normalization operations.
 	 */
-	// TODO: This should have a name!
+	@OpType("normalize")
 	public static class Normalize {
 		
 		/**
@@ -532,6 +558,7 @@ public class ImageOps {
 	/**
 	 * Filtering operations.
 	 */
+	@OpType("filters")
 	public static class Filters {
 		
 		/**
@@ -964,6 +991,7 @@ public class ImageOps {
 	/**
 	 * Channel and color operations.
 	 */
+	@OpType("channels")
 	public static class Channels {
 		
 		/**
@@ -1092,6 +1120,7 @@ public class ImageOps {
 	/**
 	 * Thresholding operations.
 	 */
+	@OpType("threshold")
 	public static class Threshold {
 		
 		/**
@@ -1621,6 +1650,7 @@ public class ImageOps {
 	/**
 	 * Machine learning operations.
 	 */
+	@OpType("ml")
 	public static class ML {
 		
 		/**

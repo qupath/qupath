@@ -2,6 +2,8 @@
  * This file is from Gson extras, with very minor adaptions (non-public, javadocs, package name).
  * See https://github.com/google/gson
  * 
+ * It is not currently used in QuPath.
+ * 
  * Copyright (C) 2011 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -136,6 +138,7 @@ import com.google.gson.stream.JsonWriter;
  *   Shape shape = gson.fromJson(json, Shape.class);
  * }</pre>
  */
+@SuppressWarnings("javadoc")
 final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory {
   private final Class<?> baseType;
   private final String typeFieldName;

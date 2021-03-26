@@ -24,6 +24,9 @@ package qupath.lib.io;
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
@@ -31,6 +34,10 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
@@ -148,22 +155,97 @@ public class GsonTools {
 	 * A {@link TypeAdapterFactory} that is suitable for handling class hierarchies.
 	 * This can be used to construct the appropriate subtype when parsing the JSON.
 	 * <p>
-	 * Currently, it is a wrapper for the {@code RuntimeTypeAdapterFactory} available as part of Gson extras 
-	 * (but not the main Gson library), however this implementation may change in the future.
+	 * This is inspired and influenced by the {@code RuntimeTypeAdapterFactory} class available as part of Gson extras, 
+	 * but not the main Gson library 
+	 * (https://github.com/google/gson/blob/gson-parent-2.8.6/extras/src/main/java/com/google/gson/typeadapters/RuntimeTypeAdapterFactory.java),
+	 * which is Copyright (C) 2011 Google Inc. licensed under Apache License, Version 2.0.
+	 * <p>
+	 * This behavior of this class differs in several ways:
+	 * <ul>
+	 * 	<li>it supports alias labels for deserialization, which can be used to help achieve backwards compatibility</li>
+	 *  <li>it avoids use of the internal {@code Streams} class for Gson, which complicates modularity</li>
+	 *  <li>it does not support a {@code maintainLabel} option (the label field is always removed)</li>
+	 * </ul>
 	 *
 	 * @param <T>
 	 */
 	public static class SubTypeAdapterFactory<T> implements TypeAdapterFactory {
 		
-		private RuntimeTypeAdapterFactory<T> factory;
+		private final static Logger logger = LoggerFactory.getLogger(SubTypeAdapterFactory.class);
+		
+		private final Class<?> baseType;
+		private final String typeFieldName;
+		private final Map<String, Class<?>> labelToSubtype = new LinkedHashMap<>();
+		private final Map<Class<?>, String> subtypeToLabel = new LinkedHashMap<>();
+		private final Map<String, Class<?>> aliasToSubtype = new LinkedHashMap<>();
 		
 		private SubTypeAdapterFactory(Class<T> baseType, String typeFieldName) {
-			factory = RuntimeTypeAdapterFactory.of(baseType, typeFieldName);
+			Objects.requireNonNull(baseType, "baseType must not be null!");
+			Objects.requireNonNull(typeFieldName, "typeFieldName must not be null!");
+			this.typeFieldName = typeFieldName;
+			this.baseType = baseType;
 		}
 		
+		@SuppressWarnings("unchecked")
 		@Override
-		public <R> TypeAdapter<R> create(Gson gson, TypeToken<R> type) {
-			return factory.create(gson, type);
+		public synchronized <R> TypeAdapter<R> create(Gson gson, TypeToken<R> type) {
+			if (!Objects.equals(type.getRawType(), baseType)) {
+				return null;
+			}
+			return (TypeAdapter<R>)new SubTypeAdapter(gson).nullSafe();
+		}
+		
+		private class SubTypeAdapter extends TypeAdapter<T> {
+			
+			private final Gson gson;
+			private final Map<Class<?>, TypeAdapter<?>> subtypeToDelegate = new LinkedHashMap<>();
+			
+			private SubTypeAdapter(final Gson gson) {
+				this.gson = gson;
+				for (Map.Entry<String, Class<?>> entry : labelToSubtype.entrySet()) {
+					TypeAdapter<?> delegate = gson.getDelegateAdapter(SubTypeAdapterFactory.this, TypeToken.get(entry.getValue()));
+					subtypeToDelegate.put(entry.getValue(), delegate);
+				}
+			}
+
+			@Override
+			public void write(JsonWriter out, T value) throws IOException {
+				Class<?> srcType = value.getClass();
+				String label = subtypeToLabel.get(srcType);
+				TypeAdapter<T> delegate = (TypeAdapter<T>)subtypeToDelegate.get(srcType);
+				if (delegate == null)
+					throw new JsonParseException("Cannot serialize " + baseType + " subtype named " + srcType.getName() +
+							"; did you forget to register a subtype?");
+				JsonObject jsonObject = delegate.toJsonTree(value).getAsJsonObject();
+				if (jsonObject.has(typeFieldName))
+					throw new JsonParseException("Cannot serialize " + srcType.getName() + 
+							" because it already defines a field named " + typeFieldName);
+				JsonObject clone = new JsonObject();
+				clone.add(typeFieldName, new JsonPrimitive(label));
+				for (Map.Entry<String, JsonElement> entry : jsonObject.entrySet()) {
+					clone.add(entry.getKey(), entry.getValue());
+				}
+				logger.trace("Writing {} for {} ", label, value);
+				gson.toJson(clone, out);
+			}
+
+			@Override
+			public T read(JsonReader in) throws IOException {
+				JsonElement jsonElement = gson.fromJson(in, JsonElement.class);
+				JsonElement labelElement = jsonElement.getAsJsonObject().remove(typeFieldName);
+				if (labelElement == null)
+					throw new JsonParseException("Cannot deserialize " + baseType + " because there is no field named " + typeFieldName);
+				String label = labelElement.getAsString();
+				Class<?> subtype = labelToSubtype.get(label);
+				if (subtype == null)
+					subtype = aliasToSubtype.get(label);
+				TypeAdapter<T> delegate = (TypeAdapter<T>)subtypeToDelegate.get(subtype);
+				if (delegate == null)
+					throw new JsonParseException("Cannot deserialize " + baseType + " subtype named " + label);
+				logger.trace("Reading {} for {} ", label, baseType);
+				return delegate.fromJsonTree(jsonElement);
+			}
+			
 		}
 		
 		/**
@@ -175,8 +257,35 @@ public class GsonTools {
 		 * @return this {@link SubTypeAdapterFactory}
 		 * @see #registerSubtype(Class, String)
 		 */
-		public SubTypeAdapterFactory<T> registerSubtype(Class<? extends T> subtype, String label) {
-			factory.registerSubtype(subtype, label);
+		public synchronized SubTypeAdapterFactory<T> registerSubtype(Class<? extends T> subtype, String label) {
+			Objects.requireNonNull(subtype, "subtype must not be null!");
+			Objects.requireNonNull(label, "label must not be null!");
+			if (labelToSubtype.containsKey(label))
+				throw new IllegalArgumentException("Label " + label + " is already assigned! Did you want to register an alias instead?");
+			labelToSubtype.put(label, subtype);
+			subtypeToLabel.put(subtype, label);
+			return this;
+		}
+		
+		/**
+		 * Register an alias label for a specified subtype.
+		 * This can be used during deserialization for backwards compatibility, but will not be used 
+		 * for serializing new objects.
+		 * 
+		 * @param subtype the subtype to register
+		 * @param alias the alias used as an alternative label to identify objects of this subtype
+		 * @return this {@link SubTypeAdapterFactory}
+		 * @see #registerSubtype(Class, String)
+		 */
+		public synchronized SubTypeAdapterFactory<T> registerAlias(Class<? extends T> subtype, String alias) {
+			Objects.requireNonNull(subtype, "subtype must not be null!");
+			Objects.requireNonNull(alias, "label must not be null!");
+			if (aliasToSubtype.containsKey(alias)) {
+				if (Objects.equals(aliasToSubtype.get(alias), subtype))
+					return this;
+				logger.warn("Alias {} is already assigned to subtype {}, request will be ignored", alias, subtype);
+			}
+			aliasToSubtype.put(alias, subtype);
 			return this;
 		}
 		
@@ -188,9 +297,8 @@ public class GsonTools {
 		 * @return this {@link SubTypeAdapterFactory}
 		 * @see #registerSubtype(Class, String)
 		 */
-		public SubTypeAdapterFactory<T> registerSubtype(Class<? extends T> subtype) {
-			factory.registerSubtype(subtype);
-			return this;
+		public synchronized SubTypeAdapterFactory<T> registerSubtype(Class<? extends T> subtype) {
+			return registerSubtype(subtype, subtype.getSimpleName());
 		}
 		
 	}
