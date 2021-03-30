@@ -162,7 +162,9 @@ public class OMEPyramidWriter {
 			switch(this) {
 			case JPEG:
 				return server.isRGB() || 
-						(server.nChannels() == 1 && server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8);
+						//::dip
+						(server.nChannels() >= 1 && server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8);
+						//(server.nChannels() == 1 && server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8);
 			case J2K:
 			case J2K_LOSSY:
 				// It seems OME-TIFF can only write 8-bit or 16-bit J2K?

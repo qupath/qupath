@@ -101,6 +101,7 @@ import javafx.stage.Stage;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -550,6 +551,9 @@ public class ImageAlignmentPane {
 		List<ImageData<BufferedImage>> imagesToAdd = new ArrayList<>();
 		for (ProjectImageEntry<BufferedImage> temp : toSelect) {
 			ImageData<BufferedImage> imageData = null;
+			//::dip Support of viewer display settings
+			ImageRenderer renderer = null;
+			
 			// Read annotations from any data file
 			try {
 				// Try to get data from an open viewer first, if possible
@@ -557,6 +561,8 @@ public class ImageAlignmentPane {
 					var tempData = viewer.getImageData();
 					if (tempData != null && temp.equals(project.getEntry(viewer.getImageData()))) {
 						imageData = tempData;
+						//::dip Support of viewer display settings
+						renderer = viewer.getImageDisplay();
 						break;
 					}
 				}
@@ -578,6 +584,9 @@ public class ImageAlignmentPane {
 				continue;
 			}
 			ImageServerOverlay overlay = new ImageServerOverlay(viewer, imageData.getServer());
+			//::dip Support of viewer display settings
+			overlay.setRenderer(renderer);
+			
 			overlay.getAffine().addEventHandler(TransformChangedEvent.ANY, transformEventHandler);
 			mapOverlays.put(imageData, overlay);
 //			viewer.getCustomOverlayLayers().add(overlay);
