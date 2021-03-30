@@ -35,6 +35,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.controlsfx.control.CheckComboBox;
@@ -64,7 +66,6 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
-import javafx.scene.control.Spinner;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -110,6 +111,11 @@ import qupath.lib.roi.interfaces.ROI;
  *
  */
 public class GuiTools {
+	
+	/**
+	 * Pattern object to match any letter except E/e
+	 */
+	private static final Pattern pattern = Pattern.compile("[a-zA-Z&&[^Ee]]+");
 	
 	/**
 	 * Vertical ellipsis, which can be used to indicate a 'more' button.
@@ -663,11 +669,22 @@ public class GuiTools {
 	
 	
 	/**
-	 * Restrict the possible spinner input to integer (or double) format.
-	 * @param spinner
+	 * Restrict the {@link TextField} input to positive/negative integer (or double) format (including scientific notation).
+	 * <p>
+	 * N.B: the {@code TextArea} might still finds itself in an invalid state at any moment, as:
+	 * <li> character deletion is always permitted (e.g. -1.5e5 -> -1.5e; deletion of last character).</li>
+	 * <li>users are allowed to input a minus sign, in order to permit manual typing, which then needs to accept intermediate (invalid) states.</li>
+	 * <li>users are allowed to input an 'E'/'e' character, in order to permit manual typing as well, which then needs to accept intermediate (invalid) states.</li>
+	 * <li>copy-pasting is not as strictly restricted (e.g. -1.6e--5 and 1.6e4e9 are accepted, but won't be parsed).</li>
+	 * <p>
+	 * Some invalid states are accepted and should therefore be caught after this method returns.
+	 * <p>
+	 * P.S: 'copy-pasting' an entire value (e.g. {@code '' -> '1.2E-6'}) is regarded as the opposite of 'manual typing' (e.g. {@code '' -> '-', '-' -> '-1', ...}).
+	 * 
+	 * @param textField
 	 * @param allowDecimals
 	 */
-	public static void restrictSpinnerInputToNumber(Spinner<? extends Number> spinner, boolean allowDecimals) {
+	public static void restrictTextFieldInputToNumber(TextField textField, boolean allowDecimals) {
 		NumberFormat format;
 		if (allowDecimals)
 			format = NumberFormat.getNumberInstance();
@@ -676,7 +693,28 @@ public class GuiTools {
 		
 		UnaryOperator<TextFormatter.Change> filter = c -> {
 		    if (c.isContentChange()) {
-		    	String newText = c.getControlNewText();
+		    	String text = c.getControlText().toUpperCase();
+		    	String newText = c.getControlNewText().toUpperCase();
+		    	
+		    	// Check for invalid characters (weak check)
+		        Matcher matcher = pattern.matcher(newText);
+		        if (matcher.find())
+		        	return null;
+		    	
+		    	// Accept minus sign if starting character OR if following 'E'
+		    	if ((newText.length() == 1 || text.toUpperCase().endsWith("E")) && newText.endsWith("-"))
+		    		return c;
+		    	
+		    	// Accept 'E' (scientific notation) if not starting character
+		    	if ((newText.length() > 1 && !newText.startsWith("-") || (newText.length() > 2 && newText.startsWith("-"))) && 
+		    			!text.toUpperCase().contains("E") && 
+		    			newText.toUpperCase().contains("E"))
+		    		return c;
+		    	
+		    	// Accept any deletion of characters (which means the text area might be left in an invalid state)
+		    	if (newText.length() < text.length())
+		    		return c;
+
 		        ParsePosition parsePosition = new ParsePosition(0);
 		        format.parse(newText, parsePosition);
 		        if (parsePosition.getIndex() < c.getControlNewText().length()) {
@@ -686,7 +724,7 @@ public class GuiTools {
 		    return c;
 		};
 		TextFormatter<Integer> normalizeFormatter = new TextFormatter<Integer>(filter);
-		spinner.getEditor().setTextFormatter(normalizeFormatter);		
+		textField.setTextFormatter(normalizeFormatter);
 	}
 	
 

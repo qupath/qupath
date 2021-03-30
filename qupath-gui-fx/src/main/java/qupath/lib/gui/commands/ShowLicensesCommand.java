@@ -65,7 +65,7 @@ class ShowLicensesCommand {
 
 		// Create a suitable String to show for QuPath generally
 		StringBuilder sbQuPath = new StringBuilder();
-		String buildString = qupath.getBuildString();
+		String buildString = QuPathGUI.getBuildString();
 		if (buildString != null && !buildString.trim().isEmpty()) {
 			sbQuPath.append("QuPath").append("\n");
 			sbQuPath.append(buildString).append("\n\n");

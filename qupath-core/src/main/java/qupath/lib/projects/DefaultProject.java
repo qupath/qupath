@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -267,7 +268,12 @@ class DefaultProject implements Project<BufferedImage> {
 	List<String> listFilenames(Path path, String ext) throws IOException {
 		if (!Files.isDirectory(path))
 			return Collections.emptyList();
-		return Files.list(path).filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext)).map(p -> nameWithoutExtension(p, ext)).collect(Collectors.toList());
+		
+		try (var stream = Files.list(path)) {
+			return stream.filter(p -> Files.isRegularFile(p) && p.toString().endsWith(ext))
+					.map(p -> nameWithoutExtension(p, ext))
+					.collect(Collectors.toList());
+		}
 	}
 	
 	String nameWithoutExtension(Path path, String ext) {
@@ -758,6 +764,15 @@ class DefaultProject implements Project<BufferedImage> {
 			var pathBackup = getBackupImageDataPath();
 			if (Files.exists(pathData))
 				Files.move(pathData, pathBackup, StandardCopyOption.REPLACE_EXISTING);
+			
+			// Set the entry property, if needed
+			// This handles cases where an ImageData is being moved to become part of this project, 
+			// so that it can be recognized later in calls to Project.getEntry(entry)
+			String id = getFullProjectEntryID();
+			if (!Objects.equals(id, imageData.getProperty(IMAGE_ID))) {
+				logger.warn("Updating ID property to {}", id);
+				imageData.setProperty(IMAGE_ID, id);
+			}
 			
 			// Write to a temp file first
 			long timestamp = 0L;

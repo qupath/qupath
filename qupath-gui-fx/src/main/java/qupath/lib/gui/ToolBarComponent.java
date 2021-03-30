@@ -177,26 +177,24 @@ class ToolBarComponent {
 				return;
 			double fullMagnification = viewer.getServer().getMetadata().getMagnification();
 			boolean hasMagnification = !Double.isNaN(fullMagnification);
-			ParameterList params = new ParameterList();
 			if (hasMagnification) {
 				double defaultValue = Math.rint(viewer.getMagnification() * 1000) / 1000;
-				params.addDoubleParameter("magnification", "Enter magnification", defaultValue);
+				Double value = Dialogs.showInputDialog("Set magnification", "Enter magnification", defaultValue);
+				if (value == null)
+					return;
+				if (Double.isFinite(value) && value > 0)
+					viewer.setMagnification(value.doubleValue());
+				else
+					Dialogs.showErrorMessage("Set downsample factor", "Invalid magnification " + value + ". \nPlease use a value greater than 0.");
 			} else {
 				double defaultValue = Math.rint(viewer.getDownsampleFactor() * 1000) / 1000;
-				params.addDoubleParameter("downsample", "Enter downsample factor", defaultValue);			
-			}
-			
-			if (!Dialogs.showParameterDialog("Set magnification", params))
-				return;
-			
-			if (hasMagnification) {
-				double mag = params.getDoubleParameterValue("magnification");
-				if (!Double.isNaN(mag))
-					viewer.setMagnification(mag);
-			} else {
-				double downsample = params.getDoubleParameterValue("downsample");
-				if (!Double.isNaN(downsample))
-					viewer.setDownsampleFactor(downsample);
+				Double value = Dialogs.showInputDialog("Set downsample factor", "Enter downsample factor", defaultValue);
+				if (value == null)
+					return;
+				if (Double.isFinite(value) && value > 0)
+					viewer.setDownsampleFactor(value.doubleValue());
+				else
+					Dialogs.showErrorMessage("Set downsample factor", "Invalid downsample " + value + ". \nPlease use a value greater than 0.");
 			}
 		}
 		

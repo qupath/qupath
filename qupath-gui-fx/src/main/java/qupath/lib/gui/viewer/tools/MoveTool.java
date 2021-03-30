@@ -451,6 +451,21 @@ public class MoveTool extends AbstractPathTool {
 		}
 		
 		/**
+		 * Cancel either the x- or y-axis direction of the movement. 
+		 * <p>
+		 * E.g. This can be used to change the direction from diagonal to straight 
+		 * (horizontal/vertical) when releasing an arrow key while another arrow key 
+		 * is pressed.
+		 * @param xAxis 
+		 */
+		public void cancelDirection(final boolean xAxis) {
+			if (xAxis)
+				this.dx = 0;
+			else
+				this.dy = 0;
+		}
+		
+		/**
 		 * Stop moving, by smoothly decelerating.
 		 */
 		public void decelerate() {

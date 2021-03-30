@@ -227,21 +227,22 @@ public class PathPrefs {
 	
 	private static Path searchForConfigFile(Path dir) throws IOException {
 		String configRequest = System.getProperty("qupath.config");
-		var paths = Files.list(dir)
-				.filter(
-				p -> {
-					// Look for the .cfg file, filtering if we have a system property specified
-					String name = p.getFileName().toString();
-					if (configRequest != null && !configRequest.isBlank())
-						return name.toLowerCase().contains(configRequest.toLowerCase());
-					return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
-				})
-				.sorted(Comparator.comparingInt(p -> p.getFileName().toString().length()))
-				.collect(Collectors.toList());
-		if (paths.isEmpty())
-			return null;
-		// Return the shortest valid path found
-		return paths.get(0);
+		try (var stream = Files.list(dir)) {
+			var paths = stream.filter(
+					p -> {
+						// Look for the .cfg file, filtering if we have a system property specified
+						String name = p.getFileName().toString();
+						if (configRequest != null && !configRequest.isBlank())
+							return name.toLowerCase().contains(configRequest.toLowerCase());
+						return name.endsWith(".cfg") && !name.endsWith("(console).cfg");
+					})
+					.sorted(Comparator.comparingInt(p -> p.getFileName().toString().length()))
+					.collect(Collectors.toList());
+			if (paths.isEmpty())
+				return null;
+			// Return the shortest valid path found
+			return paths.get(0);
+		}
 	}
 	
 	
@@ -258,6 +259,13 @@ public class PathPrefs {
 	public synchronized static IntegerProperty maxMemoryMBProperty() {
 		if (maxMemoryMB == null) {
 			maxMemoryMB = createPersistentPreference("maxMemoryMB", -1);
+			long requestedMaxMemoryMB = maxMemoryMB.get();
+			long currentMaxMemoryMB = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
+			if (requestedMaxMemoryMB > 0 && requestedMaxMemoryMB != currentMaxMemoryMB) {
+				logger.debug("Requested max memory ({} MB) does not match the current max ({} MB) - resetting preference to default value", 
+						requestedMaxMemoryMB, currentMaxMemoryMB);
+				maxMemoryMB.set(-1);
+			}
 			// Update Java preferences for restart
 			maxMemoryMB.addListener((v, o, n) -> {
 				try {
@@ -265,7 +273,10 @@ public class PathPrefs {
 						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
 						n = 512;
 					}
-					String memory = "-Xmx" + n.intValue() + "M";
+					// Note: with jpackage 14, the following was used
+//					String memory = "-Xmx" + n.intValue() + "M";
+					// With jpackage 15+, this should work
+					String memory = "java-options=-Xmx" + n.intValue() + "M";
 					Path config = getConfigPath();
 					if (!Files.exists(config)) {
 						logger.error("Cannot find config file!");
@@ -379,6 +390,74 @@ public class PathPrefs {
 		if (!Double.isFinite(speed) || speed <= 0)
 			return 1;
 		return speed;
+	}
+	
+	
+	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 100);
+	
+	/**
+	 * Percentage to scale navigation speed.
+	 * 
+	 * @return navigationSpeedProperty
+	 */
+	public static IntegerProperty navigationSpeedProperty() {
+		return navigationSpeedProperty;
+	}
+	
+	
+	/**
+	 * Get navigation speed scaled as a proportion and forced to be in the range 0-1. For example, 100% becomes 1.
+	 * 
+	 * @return speed
+	 */
+	public static double getScaledNavigationSpeed() {
+		double speed = navigationSpeedProperty.get() / 100.0;
+		if (!Double.isFinite(speed) || speed <= 0)
+			return 1;
+		return speed;
+	}
+	
+	private static BooleanProperty navigationAccelerationProperty = createPersistentPreference("Navigation acceleration effects", true);
+	
+	/**
+	 * Apply acceleration/deceleration effects when holding and releasing navigation key.
+	 * 
+	 * @return navigationAccelerationProperty
+	 */
+	public static BooleanProperty navigationAccelerationProperty() {
+		return navigationAccelerationProperty;
+	}
+	
+	
+	/**
+	 * Get whether to apply the navigation acceleration (& deceleration) effects or not.
+	 * 
+	 * @return
+	 */
+	public static boolean getNavigationAccelerationProperty() {
+		return navigationAccelerationProperty.get();
+	}
+	
+	
+	private static BooleanProperty skipMissingCoresProperty = createPersistentPreference("Skip missing TMA cores", false);
+	
+	/**
+	 * Skip ('jump over') missing cores when navigating through TMA grids.
+	 * 
+	 * @return skipMissingCoresProperty
+	 */
+	public static BooleanProperty skipMissingCoresProperty() {
+		return skipMissingCoresProperty;
+	}
+	
+	/**
+	 * Return whether the viewer skips missing TMA cores when navigating TMA grids 
+	 * with arrow keys.
+	 * 
+	 * @return
+	 */
+	public static boolean getSkipMissingCoresProperty() {
+		return skipMissingCoresProperty.get();
 	}
 	
 	

@@ -520,7 +520,8 @@ public class PixelClassifierTools {
 				}
 			}
 			// We really want to lock objects so we don't end up with wrong measurements
-			pathObject.setLocked(true);
+			if (!pathObject.isRootObject())
+				pathObject.setLocked(true);
 		}
 		return true;
 	}

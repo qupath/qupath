@@ -237,7 +237,7 @@ public class SimpleThresholdCommand implements Runnable {
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(sigma.get(), 2), sigma)
 				);
 		labelSigma.setMinWidth(25); // Thanks to Melvin, to stop it jumping around
-		GuiTools.restrictSpinnerInputToNumber(sigmaSpinner, true);
+		GuiTools.restrictTextFieldInputToNumber(sigmaSpinner.getEditor(), true);
 		PaneTools.addGridRow(pane, row++, 0, "Select smoothing sigma value (higher values give a smoother result)", label, sigmaSpinner, labelSigma);
 
 		label = new Label("Threshold");
@@ -246,7 +246,7 @@ public class SimpleThresholdCommand implements Runnable {
 		labelThreshold.textProperty().bind(
 				Bindings.createStringBinding(() -> GeneralTools.formatNumber(threshold.get(), 2), threshold)
 				);
-		GuiTools.restrictSpinnerInputToNumber(spinner, true);
+		GuiTools.restrictTextFieldInputToNumber(spinner.getEditor(), true);
 		PaneTools.addGridRow(pane, row++, 0, "Select threshold value", label, spinner, labelThreshold);
 
 		Label labelAbove = new Label("Above threshold");

@@ -38,6 +38,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javafx.scene.paint.Color;
+import javafx.stage.StageStyle;
+
 import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
@@ -55,7 +58,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -69,6 +71,11 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.scene.input.KeyCode;
+import javafx.animation.FadeTransition;
+import javafx.util.Duration;
+
+import qupath.lib.gui.CircularSlider;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
@@ -683,95 +690,98 @@ public class Commands {
 	
 	
 	/**
-	 * Create a dialog for rotating the image in the current viewer (for display only.
+	 * Create a dialog for rotating the image in the current viewer (for display only).
 	 * @param qupath the {@link QuPathGUI} instance
 	 * @return a rotate image dialog
 	 */
 	public static Stage createRotateImageDialog(QuPathGUI qupath) {
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
+
+		dialog.initStyle(StageStyle.TRANSPARENT);
 		dialog.setTitle("Rotate view");
 
-		BorderPane pane = new BorderPane();
+		StackPane pane = new StackPane();
+		pane.setPadding(new Insets(5));
 
-		final Label label = new Label("0 degrees");
-		label.setTextAlignment(TextAlignment.CENTER);
 		QuPathViewer viewerTemp = qupath.getViewer();
-		var slider = new Slider(-90, 90, viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
-		slider.setMajorTickUnit(10);
-		slider.setMinorTickCount(5);
-		slider.setShowTickMarks(true);
-		slider.valueProperty().addListener((v, o, n) -> {
+		var slider = new CircularSlider();
+		slider.setPrefSize(150,150);
+		slider.setValue(viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
+		slider.setTickSpacing(10);
+		slider.setShowValue(true);
+		slider.setSnapToTicks(false);
+		slider.setOnKeyPressed(e -> {
+			if (e.getCode() == KeyCode.SHIFT) {
+				slider.setSnapToTicks(true);
+				slider.setShowTickMarks(true);
+			}
+		});
+		slider.setOnKeyReleased(e -> {
+			if (e.getCode() == KeyCode.SHIFT) {
+				slider.setSnapToTicks(false);
+				slider.setShowTickMarks(false);
+			}
+		});
+		slider.rotationProperty().addListener((v, o, n) -> {
 			QuPathViewer viewer = qupath.getViewer();
 			if (viewer == null)
 				return;
 			double rotation = slider.getValue();
-			label.setText(String.format("%.1f degrees", rotation));
 			viewer.setRotation(Math.toRadians(rotation));
 		});
 
-		Button btnReset = new Button("Reset");
-		btnReset.setOnAction(e -> slider.setValue(0));
+		slider.setPadding(new Insets(5, 0, 10, 0));
+		slider.setTooltip(new Tooltip("Double-click to manually set the rotation"));
+		final Button button = new Button("x");
+		button.setTooltip(new Tooltip("Close image rotation slider"));
+		button.setOnMouseClicked(e -> dialog.close());
 
-		Button btnTMAAlign = new Button("Straighten TMA");
-		btnTMAAlign.setOnAction(e -> {
+		pane.getChildren().addAll(slider, button);
 
-			QuPathViewer viewer = qupath.getViewer();
-			if (viewer == null)
-				return;
-			TMAGrid tmaGrid = viewer.getHierarchy().getTMAGrid();
-			if (tmaGrid == null || tmaGrid.getGridWidth() < 2)
-				return;
-			// Determine predominant angle
-			List<Double> angles = new ArrayList<>();
-			for (int y = 0; y < tmaGrid.getGridHeight(); y++) {
-				for (int x = 1; x < tmaGrid.getGridWidth(); x++) {
-					TMACoreObject core1 = tmaGrid.getTMACore(y, x-1);
-					TMACoreObject core2 = tmaGrid.getTMACore(y, x);
-					if (core1.isMissing() || core2.isMissing())
-						continue;
-					ROI roi1 = core1.getROI();
-					ROI roi2 = core2.getROI();
-					double angle = Double.NaN;
-					if (roi1 != null && roi2 != null) {
-						double dx = roi2.getCentroidX() - roi1.getCentroidX();
-						double dy = roi2.getCentroidY() - roi1.getCentroidY();
-						angle = Math.atan2(dy, dx);
-						//								angle = Math.atan(dy / dx);
-					}
-					if (!Double.isNaN(angle)) {
-						logger.debug("Angle :" + angle);
-						angles.add(angle);
-					}
-				}
-			}
-			// Compute median angle
-			if (angles.isEmpty())
-				return;
-			Collections.sort(angles);
-			double angleMedian = Math.toDegrees(angles.get(angles.size()/2));
-			slider.setValue(angleMedian);
-
-			logger.debug("Median angle: " + angleMedian);
-
+		final double[] delta = new double[2];
+		slider.getTextArea().setOnMousePressed(e -> {
+			delta[0] = dialog.getX() - e.getScreenX();
+			delta[1] = dialog.getY() - e.getScreenY();
 		});
 
-		GridPane panelButtons = PaneTools.createColumnGridControls(
-				btnReset,
-				btnTMAAlign
-				);
-		panelButtons.setPrefWidth(300);
+		slider.getTextArea().setOnMouseDragged(e -> {
+			dialog.setX(e.getScreenX() + delta[0]);
+			dialog.setY(e.getScreenY() + delta[1]);
+		});
+		StackPane.setAlignment(button, Pos.TOP_RIGHT);
+
+		// Set opacity for the close button
+		pane.setStyle("-fx-background-color: transparent; -fx-background-radius: 10;");
+        final double outOpacity = .2;
+        button.setOpacity(outOpacity);
+        FadeTransition fade = new FadeTransition();
+        fade.setDuration(Duration.millis(150));
+        fade.setNode(button);
+        
+		pane.setOnMouseEntered(e -> {
+			fade.stop();
+			fade.setFromValue(button.getOpacity());
+			fade.setToValue(1.);
+			fade.play();
+		});
+		pane.setOnMouseExited(e -> {
+			fade.stop();
+			fade.setFromValue(button.getOpacity());
+			fade.setToValue(outOpacity);
+			fade.play();
+		});
 		
-		slider.setPadding(new Insets(5, 0, 10, 0));
+		// Update on viewer changes
+		qupath.viewerProperty().addListener((v, o, n) -> {
+			if (n != null)
+				slider.setValue(Math.toDegrees(n.getRotation()));
+		});
 
-		pane.setTop(label);
-		pane.setCenter(slider);
-		pane.setBottom(panelButtons);
-		pane.setPadding(new Insets(10, 10, 10, 10));
-
-		Scene scene = new Scene(pane);
+		final Scene scene = new Scene(pane);
+		scene.setFill(Color.TRANSPARENT);
 		dialog.setScene(scene);
-		dialog.setResizable(false);
+		dialog.setResizable(true);
 		return dialog;
 	}
 	
