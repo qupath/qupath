@@ -52,6 +52,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
@@ -59,6 +60,8 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.Locale.Category;
+
+import org.apache.commons.math3.util.Precision;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +74,7 @@ import com.google.gson.reflect.TypeToken;
  * @author Pete Bankhead
  *
  */
-public class GeneralTools {
+public final class GeneralTools {
 	
 	final private static Logger logger = LoggerFactory.getLogger(GeneralTools.class);
 	
@@ -109,6 +112,11 @@ public class GeneralTools {
 			}
 		}
 		return version;
+	}
+	
+	// Suppressed default constructor for non-instantiability
+	private GeneralTools() {
+		throw new AssertionError();
 	}
 	
 	
@@ -229,7 +237,9 @@ public class GeneralTools {
 	 * @return
 	 */
 	public static boolean isMultipartExtension(String ext) {
-		if (ext.length() > 1 && ext.startsWith("."))
+		if (ext.length() <= 1)
+			return false;
+		if (ext.startsWith("."))
 			return isMultipartExtension(ext.substring(1));
 		return ext.length() - ext.replace(".", "").length() > 0;
 	}
@@ -242,7 +252,7 @@ public class GeneralTools {
 	 * @return True if the string is null or empty.
 	 */
 	public static boolean blankString(final String s, final boolean trim) {
-		return s == null || s.trim().length() == 0;
+		return s == null || (trim ? s.trim().length() == 0 : s.length() == 0);
 	}
 	
 	/**
@@ -282,10 +292,11 @@ public class GeneralTools {
 	/**
 	 * Test if two doubles are approximately equal, within a specified tolerance.
 	 * <p>
-	 * Returns true if the numbers are equal, or the absolute difference divided by the average is less than the specified tolerance.
+	 * Relies on apache.common's method as the history of this method proved this task not as straightforward as initially thought.
 	 * <p>
-	 * Note that this calculation changed in v0.2.0-m4. The previous behavior divided the absolute difference by the first value only, 
-	 * which is not robust to differences in the input order or if the first value is negative.
+	 * Note that this calculation changed in v0.2.0-m4 and in v0.3.0. The behavior prior to v0.2.0-m4 divided the absolute difference 
+	 * by the first value only, which is not robust to differences in the input order or if the first value is negative. The behavior 
+	 * before v0.3.0 returned whether the absolute difference divided by the average is less than the specified tolerance.
 	 * 
 	 * @param n1
 	 * @param n2
@@ -293,11 +304,13 @@ public class GeneralTools {
 	 * @return
 	 */
 	public static boolean almostTheSame(double n1, double n2, double tolerance) {
-		if (n1 == n2)
-			return true;
-		double difference = n1 - n2;
-		double average = (n1/2 + n2/2);
-		return Math.abs(difference / average) < tolerance;
+//		// Behavior prior to v0.3.0
+//		if (n1 == n2)
+//			return true;
+//		double difference = n1 - n2;
+//		double average = (n1/2 + n2/2);
+//		return Math.abs(difference / average) < tolerance;
+		return Precision.equalsWithRelativeTolerance(n1, n2, tolerance);
 	}
 	
 	
@@ -315,6 +328,8 @@ public class GeneralTools {
 	 * @see #toEncodedURI(String path)
 	 */
 	public static URI toURI(String path) throws URISyntaxException {
+		if (path == null || path.isEmpty())
+			return new URI("");
 		if (path.startsWith("http:") || path.startsWith("https:") || path.startsWith("file:"))
 			return new URI(path);
 		return new File(path).toURI();
@@ -327,7 +342,7 @@ public class GeneralTools {
 	 * {@code http:} and {@code https:} schemes at the beginning of the URI. It will then modify 
 	 * the Query (@see <a href=https://docs.oracle.com/javase/tutorial/networking/urls/urlInfo.html>Query</a>) 
 	 * to a valid form. Finally, a reconstructed valid URI is returned. Note: this method will 
-	 * only encode the Query part of the URI (i.e. it will not handle Fragments).
+	 * only encode the Query part of the URI (i.e. Fragments, if present, will be ignored ).
 	 * <p>
 	 * E.g. "{@code https://host?query=first|second}" will return "{@code https://host?query%3Dfirst%7Csecond}".
 	 * 
@@ -338,6 +353,8 @@ public class GeneralTools {
 	 * @throws MalformedURLException 
 	 */
 	public static URI toEncodedURI(String path) throws URISyntaxException, UnsupportedEncodingException, MalformedURLException {
+		if (path == null || path.isEmpty())
+			return new URI("");
 		if (path.startsWith("http:") || path.startsWith("https:")) {
 			String urlQuery = new URL(path).getQuery();
 			if (urlQuery != null && !urlQuery.isEmpty()) {
@@ -354,7 +371,8 @@ public class GeneralTools {
 	/**
 	 * Try to identify a Path from a URI, dropping any query or fragment elements.
 	 * <p>
-	 * This returns the Path if successful and null otherwise. There is no check whether the Path exists.
+	 * This returns the Path if successful and null otherwise (e.g. if not a file). 
+	 * There is no check whether the Path exists.
 	 * 
 	 * @param uri
 	 * @return
@@ -390,8 +408,8 @@ public class GeneralTools {
 			return "";
 		for (int i = 0; i < array.length; i++) {
 			sb.append(formatNumber(locale, array[i], nDecimalPlaces));
-			if (i < array.length)
-				sb.append(" ");
+			if (i < array.length-1)
+				sb.append(delimiter);
 		}
 		return sb.toString();
 	}
@@ -409,19 +427,19 @@ public class GeneralTools {
 	}
 	
 	/**
-	 * Convert a String array to a single string, with a specified separator string.
+	 * Convert a String array to a single string, with a specified delimiter string.
 	 * @param array
-	 * @param separator
+	 * @param delimiter
 	 * @return
 	 */
-	public static String arrayToString(final Object[] array, final String separator) {
+	public static String arrayToString(final Object[] array, final String delimiter) {
 		StringBuilder sb = new StringBuilder();
 		if (array.length == 0)
 			return "";
 		for (int i = 0; i < array.length; i++) {
 			sb.append(array[i]);
-			if (i < array.length - 1)
-				sb.append(separator);
+			if (i < array.length-1)
+				sb.append(delimiter);
 		}
 		return sb.toString();
 	}
@@ -556,7 +574,8 @@ public class GeneralTools {
 	
 	
 	/**
-	 * Read the entire contents of an InputStream into a single String.
+	 * Read the entire contents of an InputStream into a single String. 
+	 * A {@link NoSuchElementException} is thrown if the stream is empty.
 	 * 
 	 * @param stream
 	 * @return
@@ -589,7 +608,7 @@ public class GeneralTools {
 	}
 
 	/**
-	 * Returns true if running on macOS.
+	 * Return true if running on macOS.
 	 * @return
 	 */
 	public static boolean isMac() {
@@ -598,7 +617,7 @@ public class GeneralTools {
 	}
 
 	/**
-	 * Returns true if running on Linux.
+	 * Return true if running on Linux.
 	 * @return
 	 */
 	public static boolean isLinux() {
@@ -607,7 +626,7 @@ public class GeneralTools {
 	}
 
 	/**
-	 * Returnst true if running on Windows.
+	 * Return true if running on Windows.
 	 * @return
 	 */
 	public static boolean isWindows() {
@@ -702,12 +721,12 @@ public class GeneralTools {
 	 * for example providing {@code "name (1)"} as the base will yield the output {@code "name (2)"}, 
 	 * (assuming this name does not already exist), rather than {@code "name (1) (1)"}.
 	 * 
-	 * @param base the base from which the name should be derived
+	 * @param base the (non-empty) base from which the name should be derived
 	 * @param existingNames a collection of names that are already in use, and therefore must be avoided
 	 * @return the distinct name
 	 */
 	public static String generateDistinctName(String base, Collection<String> existingNames) {
-		if (!existingNames.contains(base))
+		if (!existingNames.contains(base) || base.isEmpty())
 			return base;
 		
 		// Check if we already end with a number, and if so strip that
@@ -849,6 +868,4 @@ public class GeneralTools {
 		}
 		
 	}
-	
-
 }

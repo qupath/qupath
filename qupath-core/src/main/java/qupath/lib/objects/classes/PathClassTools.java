@@ -121,11 +121,12 @@ public class PathClassTools {
 	/**
 	 * Get the first ancestor class that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
 	 * <p>
-	 * This will return null if pathClass is null.
+	 This will return null if pathClass is null or if no non-intensity class was found (e.g. 'Positive' instead of 'Tumor: Positive').
 	 * 
 	 * @param pathClass
 	 * @return
 	 */
+	// TODO: It only strips off intensity classes at the end, should look into that
 	public static PathClass getNonIntensityAncestorClass(PathClass pathClass) {
 		while (pathClass != null && (isPositiveOrGradedIntensityClass(pathClass) || isNegativeClass(pathClass)))
 			pathClass = pathClass.getParentClass();

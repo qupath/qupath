@@ -29,7 +29,12 @@ package qupath.lib.common;
  * @author Pete Bankhead
  *
  */
-public class ColorTools {
+public final class ColorTools {
+
+	// Suppressed default constructor for non-instantiability
+	private ColorTools() {
+		throw new AssertionError();
+	}
 	
 	/**
 	 * Packed int representing white.
