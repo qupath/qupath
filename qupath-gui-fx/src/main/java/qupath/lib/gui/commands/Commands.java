@@ -112,7 +112,6 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -732,11 +731,6 @@ public class Commands {
 			double rotation = slider.getValue();
 			viewer.setRotation(Math.toRadians(rotation));
 		});
-		
-		// Bind displayed string to the slider's value
-		label.textProperty().bind(Bindings.createStringBinding(() -> {
-			return String.format("%.1f degrees", Math.toDegrees(slider.getValue()));
-		}, slider.valueProperty()));
 
 		slider.setPadding(new Insets(5, 0, 10, 0));
 		slider.setTooltip(new Tooltip("Double-click to manually set the rotation"));
