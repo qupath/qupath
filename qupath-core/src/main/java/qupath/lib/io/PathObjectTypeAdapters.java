@@ -226,7 +226,7 @@ class PathObjectTypeAdapters {
 			}
 			
 			Integer color = value.getColorRGB();
-			if (name != null) {
+			if (color != null) {
 				out.name("color");
 				out.beginArray();
 				out.value(ColorTools.red(color));

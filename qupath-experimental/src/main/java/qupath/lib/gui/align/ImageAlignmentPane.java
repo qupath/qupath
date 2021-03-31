@@ -830,7 +830,7 @@ public class ImageAlignmentPane {
 			double result = opencv_video.findTransformECC(matBase, matOverlay, matTransform, motion, termCrit, null);
 			logger.info("Transformation result: {}", result);
 		} catch (Exception e) {
-			Dialogs.showErrorNotification("Estimate transform", "Unable to estimated transform - result did not converge");
+			Dialogs.showErrorNotification("Estimate transform", "Unable to estimate transform - result did not converge");
 			logger.error("Unable to estimate transform", e);
 			return;
 		}

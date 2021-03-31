@@ -642,8 +642,16 @@ public class StarDist2D {
 		}
 		
 		// Convert to detections, dilating to approximate cells if necessary
+		// Drop cells if they fail (rather than catastropically give up)
 		var detections = nuclei.parallelStream()
-				.map(n -> convertToObject(n, plane, expansion, constrainToParent ? mask : null))
+				.map(n -> {
+					try {
+						return convertToObject(n, plane, expansion, constrainToParent ? mask : null);
+					} catch (Exception e) {
+						logger.warn("Error converting to object: " + e.getLocalizedMessage(), e);
+						return null;
+					}
+				}).filter(n -> n != null)
 				.collect(Collectors.toList());
 		
 		// Resolve cell overlaps, if needed

@@ -1,0 +1,37 @@
+.circular-slider > .circular-slider-outer, .circular-slider > .circular-slider-text-area {
+    -fx-fill: linear-gradient(derive(-fx-base, 10%), derive(-fx-base, -10%));
+    -fx-stroke: -fx-text-base-color;
+
+}
+
+.circular-slider > .circular-slider-outer {
+    -fx-stroke-width: 1px;
+    -fx-opacity: 1;
+}
+
+.circular-slider > .circular-slider-inner {
+    -fx-effect: dropshadow(two-pass-box, -fx-base, 5, 0.2, 0, 0);
+    -fx-fill: -fx-text-base-color;
+}
+
+.circular-slider:disabled {
+    -fx-opacity: 0.4;
+}
+
+.circular-slider:focused > .circular-slider-text-area {
+    -fx-opacity: 0.9;
+    -fx-stroke-width: .25px;
+}
+
+.circular-slider:focused > .circular-slider-outer {
+    -fx-stroke: -fx-focus-color;
+    -fx-effect: dropshadow(two-pass-box, -fx-focus-color, 5, 0.2, 0, 0);
+}
+
+.circular-slider > .circular-slider-track-mark {
+    -fx-stroke: -fx-text-base-color;
+}
+
+.circular-slider > .circular-slider-text {
+    -fx-fill: -fx-text-base-color;
+}

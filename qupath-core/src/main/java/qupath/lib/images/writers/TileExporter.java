@@ -159,7 +159,7 @@ public class TileExporter  {
 	 * @return this exporter
 	 */
 	public TileExporter requestedPixelSize(double pixelSize) {
-		this.downsample = server.getPixelCalibration().getAveragedPixelSize().doubleValue() / pixelSize;
+		this.downsample = pixelSize / server.getPixelCalibration().getAveragedPixelSize().doubleValue();
 		return this;
 	}
 
@@ -336,10 +336,14 @@ public class TileExporter  {
 			int tileWidth, int tileHeight, int xOverlap, int yOverlap, boolean includePartialTiles) {
 		List<RegionRequest> requests = new ArrayList<>();
 
+		RegionRequest fullRequest = RegionRequest.createInstance(server, downsample);
+
 		for (int t = 0; t < server.nTimepoints(); t++) {
+			fullRequest = fullRequest.updateT(t);
 			for (int z = 0; z < server.nZSlices(); z++) {
+				fullRequest = fullRequest.updateZ(z);
 				requests.addAll(
-						splitRegionRequests(RegionRequest.createInstance(server, downsample), tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
+						splitRegionRequests(fullRequest, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
 						);
 			}
 		}
@@ -362,7 +366,7 @@ public class TileExporter  {
 	 * @return
 	 */
 	static Collection<RegionRequest> splitRegionRequests(
-			RegionRequest request, 
+			RegionRequest request,
 			int tileWidth, int tileHeight,
 			int xOverlap, int yOverlap,
 			boolean includePartialTiles) {
@@ -375,13 +379,15 @@ public class TileExporter  {
 		int fullWidth = request.getWidth();
 		int fullHeight = request.getHeight();
 
+		int minX = (int)(request.getMinX() / downsample);
+		int minY = (int)(request.getMinY() / downsample);
 		int maxX = (int)(request.getMaxX() / downsample);
 		int maxY = (int)(request.getMaxY() / downsample);
 
 		int z = request.getZ();
 		int t = request.getT();
 
-		for (int y = request.getY(); y < maxY; y += tileHeight-yOverlap) {
+		for (int y = minY; y < maxY; y += tileHeight-yOverlap) {
 			int th = tileHeight;
 			if (y + th > maxY)
 				th = maxY - y;
@@ -396,7 +402,7 @@ public class TileExporter  {
 			} else if (y2i == yi)
 				continue;
 
-			for (int x = request.getX(); x < maxX; x += tileWidth-xOverlap) {
+			for (int x = minX; x < maxX; x += tileWidth-xOverlap) {
 				int tw = tileWidth;
 				if (x + tw > maxX)
 					tw = maxX - x;

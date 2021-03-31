@@ -767,6 +767,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptEditorControl console = tab.getConsoleComponent();
 		
 		ScriptContext context = new SimpleScriptContext();
+		context.setAttribute("args", new String[0], ScriptContext.ENGINE_SCOPE);
 		var writer = new ScriptConsoleWriter(console, false);
 		context.setWriter(writer);
 		context.setErrorWriter(new ScriptConsoleWriter(console, true));
@@ -785,6 +786,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 			if (outputScriptStartTime.get())
 				printWriter.println(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
+		} catch (ScriptException e) {
+			// TODO: Consider exception logging here, rather than via the called method
 		} finally {
 			if (attachToLog)
 				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
@@ -795,6 +798,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	private static ScriptContext createDefaultContext() {
 		ScriptContext context = new SimpleScriptContext();
+		context.setAttribute("args", new String[0], ScriptContext.ENGINE_SCOPE);
 		context.setWriter(new LoggerInfoWriter());
 		context.setErrorWriter(new LoggerErrorWriter());
 		return context;
@@ -853,8 +857,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param importDefaultMethods
 	 * @param context
 	 * @return
+	 * @throws ScriptException 
 	 */
-	public static Object executeScript(final Language language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+	public static Object executeScript(final Language language, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
 		ScriptEngine engine = manager.getEngineByName(language.toString());
 		return executeScript(engine, script, project, imageData, importDefaultMethods, context);
 	}
@@ -870,8 +875,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param importDefaultMethods
 	 * @param context
 	 * @return
+	 * @throws ScriptException 
 	 */
-	public static Object executeScript(final ScriptEngine engine, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) {
+	public static Object executeScript(final ScriptEngine engine, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData, final boolean importDefaultMethods, final ScriptContext context) throws ScriptException {
 		
 		// Set the current ImageData if we can
 		QP.setBatchProjectAndImage(project, imageData);
@@ -986,6 +992,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 							sb.append("\n    import " + suggestedClass.getName() + "\nat the start of the script. Full error message below.\n");
 						}
 					}
+					
+					// Check if the error was to do with a special left quote character
+					var matcherQuotationMarks = Pattern.compile("Unexpected input: .*([\\x{2018}|\\x{201c}|\\x{2019}|\\x{201D}]+)' @ line (\\d+), column (\\d+).").matcher(message);
+					if (matcherQuotationMarks.find()) {
+						int nLine = Integer.parseInt(matcherQuotationMarks.group(2));
+						String quotationMark = matcherQuotationMarks.group(1);
+						String suggestion = quotationMark.equals("‘") || quotationMark.equals("’") ? "'" : "\"";
+						sb.append(String.format("At least one invalid quotation mark (%s) was found @ line %s column %s! ", quotationMark, importDefaultMethods ? nLine-1 : nLine, matcherQuotationMarks.group(3)));
+						sb.append(String.format("You can try replacing it with a straight quotation mark (%s).%n", suggestion));
+					}
 				}
 				if (sb.length() > 0)
 					errorWriter.append(sb.toString());
@@ -1014,6 +1030,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				logger.error("Script error: {}", e1.getLocalizedMessage(), e1);
 //				e1.printStackTrace();
 			}
+			throw e;
 		} finally {
 			QP.resetBatchProjectAndImage();
 		}

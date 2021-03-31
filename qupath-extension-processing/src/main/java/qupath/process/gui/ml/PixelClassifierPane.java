@@ -480,10 +480,10 @@ public class PixelClassifierPane {
 		btnFeatureAuto.setMaxHeight(Double.MAX_VALUE);
 		spinFeatureMin.disableProperty().bind(featureDisableBinding);
 		spinFeatureMin.setEditable(true);
-		GuiTools.restrictSpinnerInputToNumber(spinFeatureMin, true);
+		GuiTools.restrictTextFieldInputToNumber(spinFeatureMin.getEditor(), true);
 		spinFeatureMax.disableProperty().bind(featureDisableBinding);
 		spinFeatureMax.setEditable(true);
-		GuiTools.restrictSpinnerInputToNumber(spinFeatureMax, true);
+		GuiTools.restrictTextFieldInputToNumber(spinFeatureMax.getEditor(), true);
 		var paneFeatures = new GridPane();
 		comboDisplayFeatures.setTooltip(new Tooltip("Choose classification result or feature overlay to display (Warning: This requires a lot of memory & computation!)"));
 		spinFeatureMin.setTooltip(new Tooltip("Min display value for feature overlay"));

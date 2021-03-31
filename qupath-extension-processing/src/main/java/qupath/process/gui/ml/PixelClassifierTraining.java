@@ -524,7 +524,7 @@ public class PixelClassifierTraining {
     		int t = 0;
     		for (int i = 0; i < n; i++) {
     			for (int j = 0; j < nFeatures; j++) {
-    				idxFeatures.put(t, extracted.get(t));
+    				idxFeatures.put(i, j, extracted.get(t));
     				t++;
     			}
     			idxTargets.put(i, targets.get(i));

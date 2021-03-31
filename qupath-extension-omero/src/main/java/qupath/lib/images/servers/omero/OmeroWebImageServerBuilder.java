@@ -106,6 +106,12 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	private final static Pattern patternNewViewer = Pattern.compile("images=(\\d+)");
 	private final static Pattern patternWebViewer= Pattern.compile("/webclient/img_detail/(\\d+)");
 	private final static Pattern patternType = Pattern.compile("show=(\\w+-)");
+	
+	/**
+	 * Encoding differences
+	 */
+	private String equalSign = "%3D";
+	private String vertBarSign = "%7C";
 
 	@Override
 	public ImageServer<BufferedImage> buildServer(URI uri, String...args) {
@@ -235,7 +241,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 
 	@Override
 	public String getName() {
-		return "OMERO web";
+		return "OMERO web builder";
 	}
 
 	@Override
@@ -280,7 +286,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
         }
 
         // If no simple pattern was matched, check for the last possible one: /webclient/?show=
-        if (shortPath.startsWith("/webclient/show=")) {
+        if (shortPath.startsWith("/webclient/show")) {
         	URI newURI = getStandardURI(uri);
             var patternElem = Pattern.compile("image-(\\d+)");
             var matcherElem = patternElem.matcher(newURI.toString());
@@ -298,10 +304,15 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 		if (!canConnectToOmero(uri, args))
 			throw new IOException("Problem connecting to OMERO web server");
 		List<String> ids = new ArrayList<String>();
-		String vertBarSign = "%7C";
+		
 		// Identify the type of element shown (e.g. dataset)
         var type = "";
         String query = uri.getQuery() != null ? uri.getQuery() : "";
+
+        // Because of encoding, the equal sign might not be matched when loading .qpproj file
+        query = query.replace(equalSign, "=");
+
+        // Match pattern
         var matcherType = patternType.matcher(query);
         if (matcherType.find())
             type = matcherType.group(1);

@@ -25,13 +25,14 @@ import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.processing.SimpleThresholding;
+import qupath.lib.analysis.algorithms.ContourTracing;
+import qupath.lib.analysis.algorithms.ContourTracing.ChannelThreshold;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.TileRequest;
+import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
@@ -46,8 +47,6 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -217,8 +216,10 @@ public class PixelClassifierTools {
 				}
 			}
 			
-			var children = createObjectsFromPixelClassifier(server, pathObject.getROI(),
-					creator, minArea, minHoleArea, doSplit, includeIgnored);
+			var labels = parseClassificationLabels(server.getMetadata().getClassificationLabels(), includeIgnored);
+			
+			var children = createObjectsFromPixelClassifier(server, labels, pathObject.getROI(),
+					creator, minArea, minHoleArea, doSplit);
 			// Sanity check - don't allow non-detection objects to be added to detections
 			if (pathObject.isDetection() && children.stream().anyMatch(p -> !p.isDetection())) {
 				if (firstWarning) {
@@ -310,28 +311,55 @@ public class PixelClassifierTools {
 				options);
 	}
 	
+	
+	/**
+	 * Copy valid classification labels that are suitable for object creation.
+	 * @param labelsOrig
+	 * @param includeIgnored
+	 * @return
+	 */
+	private static Map<Integer, PathClass> parseClassificationLabels(Map<Integer, PathClass> labelsOrig, boolean includeIgnored) {
+		var labels = new LinkedHashMap<Integer, PathClass>();
+		for (var entry : labelsOrig.entrySet()) {
+			var pathClass = entry.getValue();
+			if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified() || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))				
+				continue;
+			labels.put(entry.getKey(), pathClass);
+		}
+		return labels;
+	}
+	
 
 	/**
 	 * Create objects based upon an {@link ImageServer} that provides classification or probability output.
 	 * 
 	 * @param server image server providing pixels from which objects should be created
+	 * @param labels classification labels; if null, these will be taken from ImageServer#getMetadata() and all non-ignored classifications will be used.
+	 * 		   Providing a map makes it possible to explicitly exclude some classifications.
 	 * @param roi region of interest in which objects should be created (optional; if null, the entire image is used)
 	 * @param creator function to create an object from a ROI (e.g. annotation or detection)
 	 * @param minArea minimum area for an object fragment to retain, in calibrated units based on the pixel calibration
 	 * @param minHoleArea minimum area for a hole to fill, in calibrated units based on the pixel calibration
      * @param doSplit if true, split connected regions into separate objects
-	 * @param includeIgnored if true, create object for (non-null) classes that are normally ignored; see {@link PathClassTools#isIgnoredClass(PathClass)}
 	 * @return the objects created within the ROI
 	 */
 	public static Collection<PathObject> createObjectsFromPixelClassifier(
-			ImageServer<BufferedImage> server, ROI roi, 
-			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, boolean doSplit, boolean includeIgnored) {
+			ImageServer<BufferedImage> server,
+			Map<Integer, PathClass> labels,
+			ROI roi, 
+			Function<ROI, ? extends PathObject> creator, 
+			double minArea, double minHoleArea, 
+			boolean doSplit) {
 		
 		// We need classification labels to do anything
-		var labels = server.getMetadata().getClassificationLabels();
+		if (labels == null)
+			labels = parseClassificationLabels(server.getMetadata().getClassificationLabels(), false);
+		
 		if (labels == null || labels.isEmpty())
 			throw new IllegalArgumentException("Cannot create objects for server - no classification labels are available!");
 		
+		ChannelThreshold[] thresholds = labels.entrySet().stream().map(e -> ChannelThreshold.create(e.getKey())).toArray(ChannelThreshold[]::new);
+
 		if (roi != null && !roi.isArea()) {
 			logger.warn("Cannot create objects for non-area ROIs");
 			return Collections.emptyList();
@@ -359,114 +387,50 @@ public class PixelClassifierTools {
 
 		// Loop through region requests (usually 1, unless we have a z-stack or time series)
 		for (RegionRequest regionRequest : regionRequests) {
-			Collection<TileRequest> tiles = server.getTileRequestManager().getTileRequests(regionRequest);
 			
-			Map<PathClass, List<GeometryWrapper>> pathObjectMap = tiles.parallelStream().map(t -> {
-				var list = new ArrayList<GeometryWrapper>();
-				try {
-					var img = server.readBufferedImage(t.getRegionRequest());
-					// Get raster containing classifications and integer values, by taking the argmax
-					var raster = img.getRaster();
-					if (server.getMetadata().getChannelType() != ImageServerMetadata.ChannelType.CLASSIFICATION) {
-						var nChannels = server.nChannels();
-						int h = raster.getHeight();
-						int w = raster.getWidth();
-						byte[] output = new byte[w * h];
-						for (int y = 0; y < h; y++) {
-							for (int x = 0; x < w; x++) {
-								int maxInd = 0;
-								float maxVal = raster.getSampleFloat(x, y, 0);
-								for (int c = 1; c < nChannels; c++) {
-									float val = raster.getSampleFloat(x, y, c);						
-									if (val > maxVal) {
-										maxInd = c;
-										maxVal = val;
-									}
-									output[y*w+x] = (byte)maxInd;
-								}
-							}
-						}
-						raster = WritableRaster.createPackedRaster(
-								new DataBufferByte(output, w*h), w, h, 8, null);
-					}
-					for (var entry : labels.entrySet()) {
-						int c = entry.getKey();
-						PathClass pathClass = entry.getValue();
-						if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified() || (!includeIgnored && PathClassTools.isIgnoredClass(pathClass)))
-							continue;
-//						if (pathClass == null || PathClassTools.isGradedIntensityClass(pathClass) || PathClassTools.isIgnoredClass(pathClass))
-//							continue;
-						ROI roiDetected = SimpleThresholding.thresholdToROI(raster, c-0.5, c+0.5, 0, t);
-										
-						if (roiDetected != null)  {
-							Geometry geometry = roiDetected.getGeometry();
-							if (clipArea != null)
-								geometry = geometry.intersection(clipArea);
-							if (!geometry.isEmpty() && geometry.getArea() > 0) {
-								// Exclude lines/points that can sometimes arise
-								list.add(new GeometryWrapper(geometry, pathClass, roiDetected.getImagePlane()));
-							}
-						}
-					}
-				} catch (Exception e) {
-					logger.error("Error requesting classified tile", e);
-				}
-				return list;
-			}).flatMap(p -> p.stream()).collect(Collectors.groupingBy(p -> p.pathClass, Collectors.toList()));
-		
-			// Merge objects with the same classification
-			for (var entry : pathObjectMap.entrySet()) {
-				var pathClass = entry.getKey();
-				var list = entry.getValue();
-				
-				// Merge to a single Geometry
-				var collection = list.stream().map(g -> g.geometry).collect(Collectors.toList());
-//				long start = System.currentTimeMillis();
-//				Geometry geometry = collection.get(0).getFactory().createGeometryCollection(collection.toArray(Geometry[]::new)).buffer(0);
-//				long middle = System.currentTimeMillis();
-				Geometry geometry = GeometryTools.union(collection);
-//				long end = System.currentTimeMillis();
-//				System.err.println("Buffer: " + (middle - start) + ", area = " + geometry.getArea());
-//				System.err.println("Union: " + (end - middle) + ", area = " + geometry2.getArea());
-				
-				// Apply size filters
-				geometry = GeometryTools.refineAreas(geometry, minAreaPixels, minHoleAreaPixels);
-				if (geometry == null || geometry.isEmpty())
-					continue;
-				
-				if (doSplit) {
-					for (int i = 0; i < geometry.getNumGeometries(); i++) {
-						var geom = geometry.getGeometryN(i);
-						var r = GeometryTools.geometryToROI(geom, regionRequest.getPlane());
-						var annotation = creator.apply(r);
-						annotation.setPathClass(pathClass);
-						pathObjects.add(annotation);
-					}
-				} else {
-					var r = GeometryTools.geometryToROI(geometry, regionRequest.getPlane());
-					var annotation = creator.apply(r);
-					annotation.setPathClass(pathClass);
-					pathObjects.add(annotation);				
-				}
-			}
+			Map<Integer, Geometry> geometryMap = ContourTracing.traceGeometries(server, regionRequest, clipArea, thresholds);
+			
+			var labelMap = labels;
+			pathObjects.addAll(
+					geometryMap.entrySet().parallelStream()
+						.flatMap(e -> geometryToObjects(e.getValue(), creator, labelMap.get(e.getKey()), minAreaPixels, minHoleAreaPixels, doSplit, regionRequest.getPlane()).stream())
+						.collect(Collectors.toList())
+						);
+			
 		}
+		pathObjects.sort(DefaultPathObjectComparator.getInstance());
 		return pathObjects;
 	}
 	
 	
-	private static class GeometryWrapper {
+	
+	private static List<PathObject> geometryToObjects(Geometry geometry, Function<ROI, ? extends PathObject> creator, PathClass pathClass, double minAreaPixels, double minHoleAreaPixels, boolean doSplit, ImagePlane plane) {
+		// Apply size filters
+		geometry = GeometryTools.refineAreas(geometry, minAreaPixels, minHoleAreaPixels);
+		if (geometry == null || geometry.isEmpty())
+			return Collections.emptyList();
 		
-		final Geometry geometry;
-		final PathClass pathClass;
-		final ImagePlane plane;
-		
-		GeometryWrapper(Geometry geometry, PathClass pathClass, ImagePlane plane) {
-			this.geometry = geometry;
-			this.pathClass = pathClass;
-			this.plane = plane;
+		if (doSplit) {
+			List<PathObject> pathObjects = new ArrayList<>();
+			for (int i = 0; i < geometry.getNumGeometries(); i++) {
+				var geom = geometry.getGeometryN(i);
+				var r = GeometryTools.geometryToROI(geom, plane);
+				var newObject = creator.apply(r);
+				newObject.setPathClass(pathClass);
+				pathObjects.add(newObject);
+			}
+			return pathObjects;
+		} else {
+			var r = GeometryTools.geometryToROI(geometry, plane);
+			var newObject = creator.apply(r);
+			newObject.setPathClass(pathClass);
+			return Collections.singletonList(newObject);				
 		}
-		
 	}
+	
+	
+	
+	
 	
 	/**
 	 * Create an {@link ImageServer} that displays the results of applying a {@link PixelClassifier} to an image.
@@ -556,7 +520,8 @@ public class PixelClassifierTools {
 				}
 			}
 			// We really want to lock objects so we don't end up with wrong measurements
-			pathObject.setLocked(true);
+			if (!pathObject.isRootObject())
+				pathObject.setLocked(true);
 		}
 		return true;
 	}
@@ -699,8 +664,7 @@ public class PixelClassifierTools {
 //			}).collect(Collectors.toList());
 //		reclassifiers.parallelStream().forEach(r -> r.apply());
 //		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
-//	}
-	
+//	}	
 	
 
 }

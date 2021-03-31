@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
+import qupath.lib.analysis.algorithms.ContourTracing;
 import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.awt.common.BufferedImageTools;
@@ -246,6 +247,8 @@ public class QP {
 			ImageOps.class,
 			DelaunayTools.class,
 			CellTools.class,
+			
+			ContourTracing.class,
 			
 			// IO classes
 			PointIO.class,
