@@ -3025,7 +3025,7 @@ public class QuPathGUI {
 		return installCommand(menuPath, () -> {
 			try {
 				runScript(file, getImageData());
-			} catch (IOException e) {
+			} catch (IOException | ScriptException e) {
 				Dialogs.showErrorMessage("Script error", e);
 			}
 		});
@@ -3041,7 +3041,13 @@ public class QuPathGUI {
 	 * @see #installGroovyCommand(String, File)
 	 */
 	public MenuItem installGroovyCommand(String menuPath, final String script) {
-		return installCommand(menuPath, () -> runScript(script, getImageData()));
+		return installCommand(menuPath, () -> {
+			try {
+				runScript(script, getImageData());
+			} catch (ScriptException e) {
+				Dialogs.showErrorMessage("Script error", e);
+			}
+		});
 	}
 	
 	/**
@@ -3130,8 +3136,9 @@ public class QuPathGUI {
 	 * @param script the script to run
 	 * @param imageData an {@link ImageData} object for the current image (may be null)
 	 * @return result of the script execution
+	 * @throws ScriptException 
 	 */
-	private Object runScript(final String script, final ImageData<BufferedImage> imageData) {
+	private Object runScript(final String script, final ImageData<BufferedImage> imageData) throws ScriptException {
 		return DefaultScriptEditor.executeScript(Language.GROOVY, script, getProject(), imageData, true, null);
 	}
 	
@@ -3142,8 +3149,9 @@ public class QuPathGUI {
 	 * @param imageData an {@link ImageData} object for the current image (may be null)
 	 * @return result of the script execution
 	 * @throws IOException 
+	 * @throws ScriptException 
 	 */
-	private Object runScript(final File file, final ImageData<BufferedImage> imageData) throws IOException {
+	private Object runScript(final File file, final ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		var script = GeneralTools.readFileAsString(file.getAbsolutePath());
 		return runScript(script, imageData);
 	}

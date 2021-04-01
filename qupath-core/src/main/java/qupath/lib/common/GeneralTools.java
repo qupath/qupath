@@ -65,6 +65,7 @@ import org.apache.commons.math3.util.Precision;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -560,32 +561,35 @@ public final class GeneralTools {
 	
 	/**
 	 * Read the entire contents of a file into a single String.
+	 * <p>
+	 * Note that from QuPath v0.3 this assumes UTF8 encoding. 
+	 * Previously, platform-specific encoding was assumed.
 	 * 
 	 * @param path
 	 * @return
 	 * @throws IOException
 	 */
 	public static String readFileAsString(final String path) throws IOException {
-		Scanner scanner = new Scanner(new File(path));
-		String contents = scanner.useDelimiter("\\Z").next();
-		scanner.close();
-		return contents;
+		return Files.readString(Paths.get(path), StandardCharsets.UTF_8);
 	}
 	
 	
 	/**
-	 * Read the entire contents of an InputStream into a single String. 
-	 * A {@link NoSuchElementException} is thrown if the stream is empty.
+	 * Read the entire contents of an InputStream into a single String.
+	 * <p>
+	 * Note that from QuPath v0.3 this assumes UTF8 encoding. 
+	 * Previously, platform-specific encoding was assumed.
 	 * 
 	 * @param stream
 	 * @return
 	 * @throws IOException
 	 */
 	public static String readInputStreamAsString(final InputStream stream) throws IOException {
-		Scanner scanner = new Scanner(stream);
-		String contents = scanner.useDelimiter("\\Z").next();
-		scanner.close();
-		return contents;
+		return CharStreams.toString(new InputStreamReader(stream, StandardCharsets.UTF_8));
+//		Scanner scanner = new Scanner(stream);
+//		String contents = scanner.useDelimiter("\\Z").next();
+//		scanner.close();
+//		return contents;
 	}
 	
 

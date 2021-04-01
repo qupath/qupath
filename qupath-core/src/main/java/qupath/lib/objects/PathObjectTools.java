@@ -946,7 +946,8 @@ public class PathObjectTools {
 	 * Create a(n optionally) transformed version of a {@link PathObject}.
 	 * <p>
 	 * Note: only detections (including tiles and cells) and annotations are supported by this method.
-	 * Other object types (e.g. TMA cores) result in an {@link UnsupportedOperationException} being thrown.
+	 * Root objects are duplicated and other object types (e.g. TMA cores) result in an 
+	 * {@link UnsupportedOperationException} being thrown.
 	 * 
 	 * @param pathObject the object to transform; this will be unchanged
 	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
@@ -962,11 +963,13 @@ public class PathObjectTools {
 			ROI roiNucleus = maybeTransformROI(((PathCellObject)pathObject).getNucleusROI(), transform);
 			newObject = PathObjects.createCellObject(roi, roiNucleus, pathClass, null);
 		} else if (pathObject instanceof PathTileObject) {
-			newObject = PathObjects.createTileObject(roi, pathClass, null);			
+			newObject = PathObjects.createTileObject(roi, pathClass, null);
 		} else if (pathObject instanceof PathDetectionObject) {
-			newObject = PathObjects.createDetectionObject(roi, pathClass, null);			
+			newObject = PathObjects.createDetectionObject(roi, pathClass, null);
 		} else if (pathObject instanceof PathAnnotationObject) {
-			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);			
+			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);
+		} else if (pathObject instanceof PathRootObject) {
+			newObject = new PathRootObject();
 		} else
 			throw new UnsupportedOperationException("Unable to transform object " + pathObject);
 		if (copyMeasurements && !pathObject.getMeasurementList().isEmpty()) {
@@ -981,12 +984,29 @@ public class PathObjectTools {
 		return newObject;
 	}
 	
+	/**
+	 * Create (optionally) transformed versions of the {@link PathObject} and all its descendants, recursively. 
+	 * This method can be applied to all objects in a hierarchy by supplying its root object. The parent-children 
+	 * relationships are kept after transformation.
+	 * 
+	 * @param pathObject
+	 * @param transform
+	 * @param copyMeasurements
+	 * @return
+	 */
+	public static PathObject transformObjectRecursive(PathObject pathObject, AffineTransform transform, boolean copyMeasurements) {
+		var newObj = transformObject(pathObject, transform, copyMeasurements);
+		for (var child: pathObject.getChildObjects()) {
+			newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements));
+		}
+		return newObj;
+	}
+	
 	private static ROI maybeTransformROI(ROI roi, AffineTransform transform) {
 		if (roi == null || transform == null || transform.isIdentity())
 			return roi;
 		return RoiTools.transformROI(roi, transform);
 	}
-	
 	
 	/**
 	 * Duplicate all the selected objects in a hierarchy.

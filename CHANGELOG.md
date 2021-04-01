@@ -1,18 +1,51 @@
 ## Version 0.3.0-SNAPSHOT
 *In progress*
 
+Enhancements:
+* Improved command line
+  * Specify script parameters with the --args option
+  * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
+* Improved image rotation (under 'View > Rotate image')
+* New preferences for slide navigation using arrow keys
+  * Control navigation speed & acceleration
+  * Optionally skip TMA cores marked as 'ignored'
+* Load object & pixel classifier dialogs support importing classifiers from other locations
+* Brightness/Contrast panel shows small min/max values to 2 decimal places
+* Better validation when entering numeric values in text fields
+* New 'ContourTracing' class to simplify converting thresholded images to object
+* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
+
+Other changes:
+* GeneralTools readAsString methods now assume UTF-8 encoding
+* When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
+
 List of bugs fixed:
 * Exception when converting PathObject with name but no color to GeoJSON
 * Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
+* --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
+* Extremely long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
+* 'Selection mode' keyboard shortcut did not work; now activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
+* Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
+* Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)
+* The requestedPixelSize option for TileExporter calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
+* The TileExporter could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
 
-### Dependency updates*
-* Java Topology suite 1.17.1
-* OpenCV 4.4.0
-* ControlsFX 11.0.2
-* ImageJ 1.53d
-* picocli 4.5.1
-* Groovy 3.0.5
+### Dependency updates
+* AdoptOpenJDK 16
+* Apache Commons Text 1.9
+* Bio-Formats 6.6.1
+* ControlsFX 11.1.0
+* Groovy 3.0.7
+* Guava 30.1.1-jre
+* ImageJ 1.53h
+* JavaFX 16
+* Java Topology suite 1.18.1
+* JavaCPP 1.5.5
+* JFreeSVG 4.2
+* jfxtras 11-r1
+* OpenCV 4.5.1
+* picocli 4.6.1
 
 
 ## Version 0.2.3
@@ -53,7 +86,7 @@ List of bugs fixed:
 * AbstractPlugin log messages emitted (at INFO level) when adding a step to the command history
 * Shift+tab and Shift+/ to indent or comment caused script editor to scroll to the top
 
-### Dependency updates:
+### Dependency updates
 * JavaFX 14.0.2.1
 * Bio-Formats 6.5.1; see https://docs.openmicroscopy.org/bio-formats/6.5.1/about/whats-new.html
 
@@ -115,6 +148,7 @@ This release contains the following (minor) changes since v0.2.0-m12:
   * 'Show TMA measurements' showed detection measurements instead
   * Fixed many typos (thanks to Cameron Lloyd)
 
+-----
 
 ## Version 0.2.0-m12
 
@@ -236,7 +270,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 ## Version 0.2.0-m9
 This is a *milestone* (i.e. still in development) version made available to try out new features early. Changes include:
 
-#### Multiplexed analysis & Object classification
+### Multiplexed analysis & Object classification
 * Completely rewritten object classifier (currently flagged with 'New'! in the menus)
   * Support for multi-class classification with composite classifiers
   * New command to create single-measurement classifiers
@@ -247,7 +281,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * Filter box to quickly find specific channels within long lists
   * New scripting methods to set display range, e.g. setChannelDisplayRange(channel, min, max)
 
-#### Classes & annotations
+### Classes & annotations
 * Revised 'Annotations' tab
   * New options to set the available class list (e.g. from existing objects, image channels)
   * Change class visibility with spacebar (toggle), s (show) or h (hide)
@@ -485,6 +519,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
   * _Many_ other fixes and performance improvements
 * See https://qupath.github.io/QuPath-v0.2.0 for full details
 
+-----
 
 ## Version 0.1.2
 
@@ -525,6 +560,7 @@ This is a *milestone* (i.e. still in development) version made available to try 
 * Removed pre-release notification
 * Switched build to request a system rather than user installation (mostly so as to automatically request admin privileges on Windows)
 
+-----
 
 ## Version 0.0.7
 

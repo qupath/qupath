@@ -124,6 +124,7 @@ public class QuPath {
 		for (var subcommand : ServiceLoader.load(Subcommand.class)) {
 			cmd.addSubcommand(subcommand);
 		}
+		cmd.setExitCodeExceptionMapper(t -> 1);
 		ParseResult pr;
 		try {
 			pr = cmd.parseArgs(args);
@@ -180,6 +181,8 @@ public class QuPath {
 		} else {
 			// Parse and execute subcommand with args
 			int exitCode = cmd.execute(args);
+			if (exitCode != 0)
+				logger.warn("Calling System.exit with exit code {}", exitCode);
 			System.exit(exitCode);
 		}
 	
@@ -251,7 +254,7 @@ class ScriptCommand implements Runnable {
 	@Parameters(index = "0", description = "Path to the script file (.groovy).", arity = "0..1", paramLabel = "script")
 	private String scriptFile;
 	
-	@Option(names = {"-c", "--cmd"}, description = "Groovy script passed a a string", paramLabel = "command")
+	@Option(names = {"-c", "--cmd"}, description = "Groovy script passed as a string", paramLabel = "command")
 	private String scriptCommand;
 	
 	@Option(names = {"-i", "--image"}, description = {"Apply the script to the specified image.",
@@ -263,11 +266,20 @@ class ScriptCommand implements Runnable {
 	private String projectPath;
 	
 	@Option(names = {"-s", "--save"}, description = "Request that data files are updated for each image in the project.", paramLabel = "save")
-	boolean save;
+	private boolean save;
 	
+	@Option(names = {"-a", "--args"}, description = "Arguments to pass to the script, stored in an 'args' array variable. "
+			+ "Multiple args can be passed by using --args multiple times, or by using a \"[quoted,comma,separated,list]\".", paramLabel = "arguments")
+	private String[] args;
+
+	@Option(names = {"-e", "--server"}, description = "Arguments to pass when building an ImageSever (only relevant when using --image). "
+			+ "For example, --server \"[--classname,BioFormatsServerBuilder,--series,2]\" may be used to read the image with Bio-Formats and "
+			+ "extract the third series within the file.", paramLabel = "server-arguments")
+	private String[] serverArgs;
+
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message and exit.")
-	boolean usageHelpRequested;
-	
+	private boolean usageHelpRequested;
+		
 	@Override
 	public void run() {
 		try {
@@ -301,12 +313,17 @@ class ScriptCommand implements Runnable {
 							entry.saveImageData(imageData);
 					} catch (Exception e) {
 						logger.error("Error running script for image: " + entry.getImageName(), e);
+						// Throw an exception if we have a single image
+						// Otherwise, try to recover and continue processing images
+						if (imagePath != null && imagePath.equals(entry.getImageName()))
+							throw new RuntimeException(e);
+					} finally {
+						imageData.getServer().close();						
 					}
-					imageData.getServer().close();
 				}
 			} else if (imagePath != null && !imagePath.equals("")) {
 				String path = QuPath.getEncodedPath(imagePath);
-				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class);
+				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class, parseArgs(serverArgs));
 				imageData = new ImageData<>(server);
 				Object result = runScript(null, imageData);
 				if (result != null)
@@ -319,8 +336,27 @@ class ScriptCommand implements Runnable {
 			}
 			
 		} catch (Exception e) {
-			logger.error(e.getLocalizedMessage());
+			logger.error(e.getLocalizedMessage(), e);
+			throw new RuntimeException(e);
 		}
+	}
+	
+	/**
+	 * Parse String arguments. If surrounded by square brackets, this is treated as a comma-separated list.
+	 * Otherwise, an array is returned containing a copy of the supplied args.
+	 * 
+	 * @param args
+	 * @return
+	 */
+	private static String[] parseArgs(String[] args) {
+		if (args == null)
+			return new String[0];
+		if (args.length == 1) {
+			String arg = args[0];
+			if (arg.startsWith("[") && arg.endsWith("]"))
+				return arg.substring(1, arg.length()-1).split(",");
+		}
+		return args.clone();
 	}
 	
 	
@@ -377,17 +413,21 @@ class ScriptCommand implements Runnable {
 		
 		// Try to make sure that the standard outputs are used
 		ScriptContext context = new SimpleScriptContext();
+		context.setAttribute("args", parseArgs(args), ScriptContext.ENGINE_SCOPE);
 		PrintWriter outWriter = new PrintWriter(System.out, true);
 		PrintWriter errWriter = new PrintWriter(System.err, true);
 		context.setWriter(outWriter);
 		context.setErrorWriter(errWriter);
 		
 		// Evaluate the script
-		result = DefaultScriptEditor.executeScript(engine, script, project, imageData, true, context);
+		try {
+			result = DefaultScriptEditor.executeScript(engine, script, project, imageData, true, context);
+		} finally {
+			// Ensure writers are flushed
+			outWriter.flush();
+			errWriter.flush();
+		}
 		
-		// Ensure writers are flushed
-		outWriter.flush();
-		errWriter.flush();
 		
 		// return output, which may be null
 		return result;

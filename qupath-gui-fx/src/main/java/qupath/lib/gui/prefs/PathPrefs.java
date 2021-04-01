@@ -273,7 +273,10 @@ public class PathPrefs {
 						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
 						n = 512;
 					}
-					String memory = "-Xmx" + n.intValue() + "M";
+					// Note: with jpackage 14, the following was used
+//					String memory = "-Xmx" + n.intValue() + "M";
+					// With jpackage 15+, this should work
+					String memory = "java-options=-Xmx" + n.intValue() + "M";
 					Path config = getConfigPath();
 					if (!Files.exists(config)) {
 						logger.error("Cannot find config file!");

@@ -6,6 +6,11 @@
  * ./gradlew clean build createPackage
  * or on Windows
  * gradlew.bat clean build createPackage
+ * <p>
+ * NOTE: At the time of writing, Gradle cannot be run with OpenJDK 16.
+ * However, creating a valid QuPath package requires OpenJDK 16 (since it contains jpackage).
+ * Gradle's toolchain options are used to overcome this: you should run Gradle with a valid
+ * JDK (e.g. 8-15) and the toolchain will use a different JDK for building QuPath itself.
  */
 
 /**
@@ -14,7 +19,7 @@
 buildscript {
 
   dependencies {
-    classpath 'com.github.jk1:gradle-license-report:1.14'
+    classpath 'com.github.jk1:gradle-license-report:1.16'
     classpath 'org.anarres.jarjar:jarjar-gradle:1.0.1'
   }
 
@@ -34,7 +39,30 @@ buildscript {
  */
 plugins {
   id 'java-library'
+  id 'org.bytedeco.gradle-javacpp-platform' version '1.5.4' // 1.5.5 doesn't work currently (gets all platforms, not just the current one)
   id 'org.javamodularity.moduleplugin' version '1.6.0' apply false
+}
+
+/**
+ * Define the toolchain JDK.
+ * This separates the JDK used to run Gradle from that used to build QuPath.
+ */ 
+def targetJDK = JavaLanguageVersion.of(16)
+java {
+    toolchain {
+        languageVersion = targetJDK
+    }
+}
+def compiler = javaToolchains.compilerFor {
+    languageVersion = targetJDK
+}
+def jdkHome = compiler.get().metadata.installationPath.asFile.absolutePath
+println "JDK used to build QuPath: ${jdkHome}"
+
+
+tasks.withType(JavaCompile).configureEach {
+	// disable incremental compilation
+    options.incremental = false
 }
 
 /*
@@ -55,7 +83,8 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
 /*
  * JavaFX version
  */
-def jfxVersion = '14.0.2.1'
+def jfxVersion = '16'
+def jfxModules = ['javafx.base', 'javafx.controls', 'javafx.graphics', 'javafx.media', 'javafx.web', 'javafx.swing']
 
 /*
  * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
@@ -65,8 +94,7 @@ def useGPU = false
 /*
  * Modules not yet supported because of various dependency troubles.
  * Specifially:
- *  - ImageJ contains MacAdapter outside of any package, this must be removed 
- *    (jarjar-gradle can do the job, but it seems to confuse eclipse)
+ *  - ImageJ contains MacAdapter outside of any package, this must be removed (fixed in 1.53d!)
  *  - RuntimeTypeAdapterFactory needs to be in a valid package
  *  - JPen's automatic module name is invalid (jpen.2)
  *  - Bio-Formats is not module-friendly
@@ -84,8 +112,9 @@ def buildTime = new Date().format("yyyy-MM-dd, HH:mm")
 /*
  * Good to know what JDK is (sometimes accidentally) being used
  */
-println 'Current Java version: ' + JavaVersion.current()
-println System.properties['java.home']
+println 'Java version used to run Gradle: ' + JavaVersion.current()
+if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16))
+	println 'WARNING! Your Java version may be too high. If you encounter errors, try running Gradle with Java <= 15.'
 
 
 // Request latest commit by a command line call to Git, if required
@@ -118,27 +147,22 @@ if (requestLatestCommit) {
  */
 import org.gradle.internal.os.OperatingSystem
 println 'Operating system: ' + OperatingSystem.current()
-def nativesCPP
 def platform
 def nativesClassifier
 String iconName
 if (OperatingSystem.current().isMacOsX()) {
   nativesClassifier = 'natives-osx'
-  nativesCPP = 'macosx-x86_64'
   platform = 'mac'
   iconName = 'macosx/qupath.icns'
 } else if (OperatingSystem.current().isLinux()) {
   nativesClassifier = 'natives-linux'
-  nativesCPP = 'linux-x86_64'
   platform = 'linux'
   iconName = 'linux/QuPath.png'
 } else if (OperatingSystem.current().isWindows()) {
   nativesClassifier = 'natives-windows'
   if (System.properties['sun.arch.data.model'] == '32') {
-	logger.warn("You appear to be using a 32-bit JDK - If I can't find a 32-bit version of JavaFX, this will fail! Probably at the 'test' stage.")
-	nativesCPP = 'windows-x86'
-  } else
-	nativesCPP = 'windows-x86_64'
+	logger.warn("You appear to be using a 32-bit JDK - the build will probably fail! At the very least, some things won't work.")
+  }
   platform = 'win'
   iconName = 'windows/QuPath.ico'
 } else {
@@ -160,18 +184,6 @@ if (OperatingSystem.current().isMacOsX()) {
 wrapper {
     distributionType = Wrapper.DistributionType.ALL
 }
-
-/*
- * jarjar makes it possible to remove the troublesome MacAdapter in ij.jar, 
- * which doesn't work for JDK 9+ and causes module issue because it is not contained 
- * within any package.
- *
- * Only required if building modules. Currently all instances commented out.
- */
-if (doModular) {
-  apply plugin: 'org.anarres.jarjar'
-}
-
 
 /*
  * Check command arguments to optional inclusions/exclusions
@@ -203,38 +215,39 @@ allprojects {
 
   group = 'qupath'
   version = qupathVersion
-
+  
   ext {
     // Java compatibility version
-    javaVersion = 11
+    // (2021-03 - Now replaced by toolchain!)
+//    javaVersion = 11
   
     // Dependency versions
-    bioformatsVersion  = '6.5.1'
+    bioformatsVersion  = '6.6.1'
     commonsMathVersion = '3.6.1'
-    commonsTextVersion = '1.8'
-    controlsfxVersion  = '11.0.2'
-    groovyVersion      = '3.0.5'
+    commonsTextVersion = '1.9'
+    controlsfxVersion  = '11.1.0'
+    groovyVersion      = '3.0.7'
     gsonVersion        = '2.8.6'
-    guavaVersion       = '29.0-jre'
-    imagejVersion      = '1.53d'
-    jfxtrasVersion     = '10.0-r1'
+    guavaVersion       = '30.1.1-jre'
+    imagejVersion      = '1.53h'
+    jfxtrasVersion     = '11-r1'
     jpenVersion        = '2-150301'
-    jtsVersion         = '1.17.1'
+    jtsVersion         = '1.18.1'
     openslideVersion   = '3.4.1_2'
     richtextVersion    = '0.10.5'
-    picocliVersion     = '4.5.1'
-    jfreesvgVersion    = '4.1'
+    picocliVersion     = '4.6.1'
+    jfreesvgVersion    = '4.2'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    javacppVersion     = '1.5.4'
-    opencvVersion      = "4.4.0-${javacppVersion}"
+    javacppVersion     = '1.5.5'
+    opencvVersion      = "4.5.1-${javacppVersion}"
     
     // Additional versions
     logbackVersion     = '1.2.3'
-    slf4jVersion       = '1.3.0'
-    junitVersion       = '5.6.2'
+    slf4jVersion       = '1.7.6'
+    junitVersion       = '5.7.1'
     
     // Optional versions
-    tensorflowVersion  = "1.15.0"
+    tensorflowVersion  = "0.3.0" // Really 2.4.1
 //    mkldnnVersion      = "0.21.4-${javacppVersion}"
     
     /*
@@ -291,10 +304,12 @@ allprojects {
     groovy "org.codehaus.groovy:groovy-jsr223:${groovyVersion}"
     groovy "org.codehaus.groovy:groovy-xml:${groovyVersion}"
 
-    for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
+	 
+	for (fx in jfxModules.collect{it.replace('.', '-')}) {
       javafx "org.openjfx:${fx}:${jfxVersion}"
       javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
     }
+    
 
     richtextfx "org.fxmisc.richtext:richtextfx:${richtextVersion}"
 
@@ -309,32 +324,20 @@ allprojects {
     	exclude group: 'org.openjfx'
     }
 
-    jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}"
+    jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}", {
+    	exclude group: 'org.jfxtras', module: 'jfxtras-test-support'
+    }
 
-    opencv "org.bytedeco:opencv:${opencvVersion}"
-    if (nativesCPP != null) {
-  		opencv "org.bytedeco:openblas::${nativesCPP}" // Required for OpenCV with JavaCPP >= 1.5.1
-  		opencv "org.bytedeco:javacpp:{$javacppVersion}:${nativesCPP}"
-  	}
   	if (useGPU) {
-  		logger.warn("Requested useGPU... so this will probably fail - please don't do that")
-    	opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}-gpu"
-    	// Isn't terribly clear if this is also needed when requesting GPU?
-        //opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
+    	opencv "org.bytedeco:opencv-platform-gpu:${opencvVersion}"
 	} else
-    	opencv "org.bytedeco:opencv:${opencvVersion}:${nativesCPP}"
+    	opencv "org.bytedeco:opencv-platform:${opencvVersion}"
 
     jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
     if (nativesClassifier != null)
       jpen "net.sourceforge.jpen:jpen:${jpenVersion}:${nativesClassifier}"
 
-    if (doModular) {
-	    imagej jarjar.repackage {
-	    	from "net.imagej:ij:${imagejVersion}"
-	    	classDelete 'MacAdapter'
-		}
-	} else
-	    imagej "net.imagej:ij:${imagejVersion}"
+	imagej "net.imagej:ij:${imagejVersion}"
 
 	bioformats "ome:formats-gpl:${bioformatsVersion}", {
 	  	exclude group: 'xalan', module: 'serializer'
@@ -369,21 +372,11 @@ allprojects {
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
     
-    /*
-    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
-    if (includeTensorFlowGPU)
-	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}-gpu"
-	else
-	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}"
-    tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}"
-    tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}:${nativesCPP}"
-    */
-    tensorflow "org.tensorflow:tensorflow:${tensorflowVersion}"
-    tensorflow "org.tensorflow:proto:${tensorflowVersion}"
     if (includeTensorFlowGPU) {
-	    tensorflow "org.tensorflow:libtensorflow:${tensorflowVersion}"
-	    tensorflow "org.tensorflow:libtensorflow_jni_gpu:${tensorflowVersion}"
-    }
+	    tensorflow "org.tensorflow:tensorflow-core-platform-gpu:${tensorflowVersion}"
+	} else {
+	    tensorflow "org.tensorflow:tensorflow-core-platform:${tensorflowVersion}"
+	}
     
   }
   
@@ -477,8 +470,8 @@ subprojects {
  */
 allprojects {
 
-  sourceCompatibility = javaVersion
-  targetCompatibility = javaVersion
+//  sourceCompatibility = javaVersion
+//  targetCompatibility = javaVersion
 
   repositories {
     mavenLocal()
@@ -671,7 +664,7 @@ task mergedJavadocs(type: Javadoc) {
     
     options {
     	links += rootProject.ext.externalJavadocs
-    	source = javaVersion
+//    	source = javaVersion
     }
     
     destinationDir = new File(buildDir, 'merged-docs')
@@ -712,10 +705,13 @@ task createRuntime(dependsOn:build, type:Exec) {
     	'jdk.zipfs',           // Needed for zip filesystem support
     ]
     
+    requiredModules.addAll(jfxModules)
+    
     def usefulModules = [
-        'java.net.http',       // Add HttpClient support (may be used by scripts)
-    	'java.management',     // Useful to check memory usage
-    	'jdk.management.agent' // Enables VisualVM to connect and sample CPU use
+        'java.net.http',        // Add HttpClient support (may be used by scripts)
+    	'java.management',      // Useful to check memory usage
+    	'jdk.management.agent', // Enables VisualVM to connect and sample CPU use
+    	'jdk.jsobject'          // Needed to interact with WebView through JSObject
     ]
   
     def addModules
@@ -732,9 +728,16 @@ task createRuntime(dependsOn:build, type:Exec) {
       addModules = String.join(',', requiredModules + usefulModules)
     }
     
-    def params = ["${System.properties['java.home']}/bin/jlink"]
+    def params = ["${jdkHome}/bin/jlink"]
    
     params << '--output' << outputDir.getAbsolutePath()
+    
+	// JavaFX should be on the module path, not the classpath (warning logged since Java 16)
+    def jfxModulePath = configurations.runtimeClasspath.files.findAll({ it.getName().startsWith('javafx-') }).collect {it.getAbsolutePath()}
+    jfxModulePath = String.join(File.pathSeparator, jfxModulePath)
+//    println("MODULE PATH: " + jfxModulePath)
+    params << '--module-path' << jfxModulePath
+    
     params << '--add-modules' << addModules
     
     if (jreModules == 'default')
@@ -773,20 +776,37 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     	logger.info("No package type specified, using default ${packageType}")
    	}
    	boolean associateFiles = packageType != 'app-image'
+    
+    // Set up the main Java options
+    def javaOptions = []
+    
+    // Default to using 50% available memory
+    javaOptions << '-XX:MaxRAMPercentage=50'
+    
+    // Set the library path to the app directory, for loading native libraries
+   	javaOptions << '-Djava.library.path=$APPDIR'		
 
-    def params = ["${System.properties['java.home']}/bin/jpackage"]
+    // Temp workaround for kyro and Bio-Formats memoization - see https://github.com/ome/bioformats/issues/3659
+   	javaOptions << '--add-opens=java.base/java.util.regex=ALL-UNNAMED'		
+   	// Needed to set style/theme
+   	javaOptions << '--add-opens=javafx.graphics/com.sun.javafx.css=ALL-UNNAMED'
+   	// Needed for ControlsFX/BreadcrumbBar (could export to org.controlsfx if it was on the module path)
+   	javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED'
+	javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED'
+
+    def params = ["${jdkHome}/bin/jpackage"]
 
     params << '--input' << new File(rootProject.buildDir, rootProject.libsDirName).getAbsolutePath()
     params << '--dest' << new File(rootProject.buildDir, 'dist').getAbsolutePath()
 
     params << '--main-jar' << jar.archiveName
+        
+    // Sadly, with JDK 16 including the version in the launcher name seems to break the build 
+    // with an unrecognized cfg file name
+    String versionedLauncherName = 'QuPath-' + qupathVersion
     
-    String launcherName = 'QuPath-' + qupathVersion
-    params << '--name' << launcherName
-//    params << '--name' << 'QuPath-' + qupathVersion
-
-    // Default to using 50% available memory
-	params << '--java-options' << '-XX:MaxRAMPercentage=50'
+    // Including the version number seems to fail on Java 16 + macOS/Linux
+    String launcherName = 'QuPath'
 
 	if (OperatingSystem.current().isMacOsX()) {
 		params << '--mac-package-name' << 'QuPath'
@@ -797,7 +817,13 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 			params << '--type' << packageType
 		}
 		associateFiles = true // Should work for Mac
+		// Sadly, on a Mac we can't have an appVersion that starts with 0
+		if (appVersion && appVersion.startsWith('0'))
+			appVersion = null
 	} else if (OperatingSystem.current().isWindows()) {
+    // On Windows, including the version number seems to work
+    // This can help manage multiple versions
+    launcherName = 'QuPath-' + qupathVersion
 		if (packageType == 'installer') {
 			params << '--type' << 'msi'
 			params << '--win-menu'
@@ -817,14 +843,22 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		def consoleLauncherName = launcherName + " (console)"
 		fileTemp.deleteOnExit()
 		fileTemp.text = 'win-console=true'
-		fileTemp << System.lineSeparator() << 'java-options=' << '-XX:MaxRAMPercentage=50' << ' -Dqupath.config=console'
-//		fileTemp << System.lineSeparator() << 'java-options=' << '-Dqupath.config=console'
+		fileTemp << System.lineSeparator()
+    fileTemp << 'java-options=' << '-Dqupath.config=console' << String.join(" ", javaOptions) << System.lineSeparator()
 		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
 	} else
 		params << '--type' << packageType
 
+    params << '--name' << launcherName
+    
+    // Add the java options
+    for (opt in javaOptions)
+      params << '--java-options' << opt
+	
     // Store the app version (typically a simplified version of the full format)
-    params << '--app-version' << appVersion
+    if (appVersion)
+	    params << '--app-version' << appVersion
+
         
     // Try to find the icon
     def pathIcon = Paths.get(

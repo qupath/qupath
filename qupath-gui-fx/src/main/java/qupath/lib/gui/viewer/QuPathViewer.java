@@ -2299,6 +2299,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Ensure within range, if necessary
 		if (clipToMinMax)
 			downsampleFactor = GeneralTools.clipValue(downsampleFactor, getMinDownsample(), getMaxDownsample());
+		else if (downsampleFactor <= 0 || !Double.isFinite(downsampleFactor)) {
+			logger.warn("Invalid downsample factor {}, will use {} instead", downsampleFactor, getMinDownsample());
+			downsampleFactor = getMinDownsample();
+		}
 		
 		setDownsampleFactorImpl(downsampleFactor, cx, cy);
 	}
