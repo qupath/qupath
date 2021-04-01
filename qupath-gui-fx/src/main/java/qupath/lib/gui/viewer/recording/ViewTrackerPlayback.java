@@ -88,11 +88,7 @@ class ViewTrackerPlayback {
 						)
 				);
 		timeline.setCycleCount(Timeline.INDEFINITE);
-
-		
-		
-		
-		this.playing.addListener((v, o, n) -> {
+		playing.addListener((v, o, n) -> {
 			if (n)
 				doStartPlayback();
 			else
@@ -122,7 +118,7 @@ class ViewTrackerPlayback {
 	
 	
 	static void resizeViewer(QuPathViewer viewer, Dimension newSize) {
-		if (DefaultViewTracker.getSize(viewer).equals(newSize))
+		if (ViewTrackerTools.getSize(viewer).equals(newSize))
 			return;
 		double dw = newSize.width - viewer.getView().getWidth();
 		double dh = newSize.height - viewer.getView().getHeight();

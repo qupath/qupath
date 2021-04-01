@@ -123,7 +123,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 	private double initialWidth = -1;
 	
 	/**
-	 * Constructor.
+	 * Create a view tracker analysis command.
 	 * @param parent the parent pane that this dialog belongs to
 	 * @param viewer the viewer being tracked
 	 * @param tracker the tracker doing the tracking
@@ -267,12 +267,12 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			
 			Label timeLabelLeft = new Label();
 			timeLabelLeft.textProperty().bind(
-					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeSlider.getValue() + startTime), timeSlider.valueProperty())
+					Bindings.createStringBinding(() -> ViewTrackerTools.getPrettyTimestamp(startTime, (long)timeSlider.getValue() + startTime), timeSlider.valueProperty())
 					);
 			
 			Label timeLabelRight = new Label();
 			timeLabelRight.textProperty().bind(
-					Bindings.createStringBinding(() -> "-" + ViewTrackers.getPrettyTimestamp((long)timeSlider.getValue() + startTime, endTime), timeSlider.valueProperty())
+					Bindings.createStringBinding(() -> "-" + ViewTrackerTools.getPrettyTimestamp((long)timeSlider.getValue() + startTime, endTime), timeSlider.valueProperty())
 					);
 			
 			
@@ -392,10 +392,10 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			});
 			
 			timeDisplayedLeftLabel.textProperty().bind(
-					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getLowValue() + startTime), timeDisplayedSlider.lowValueProperty())
+					Bindings.createStringBinding(() -> ViewTrackerTools.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getLowValue() + startTime), timeDisplayedSlider.lowValueProperty())
 					);
 			timeDisplayedRightLabel.textProperty().bind(
-					Bindings.createStringBinding(() -> ViewTrackers.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getHighValue() + startTime), timeDisplayedSlider.highValueProperty())
+					Bindings.createStringBinding(() -> ViewTrackerTools.getPrettyTimestamp(startTime, (long)timeDisplayedSlider.getHighValue() + startTime), timeDisplayedSlider.highValueProperty())
 					);
 			
 			
@@ -456,7 +456,6 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			downsampleLeftLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			downsampleRightLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			timeDisplayedSlider.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
-
 			
 			trackerDataOverlay = new ViewTrackerDataOverlay(server, viewer, tracker);
 			timeDisplayedSlider.lowValueProperty().addListener((v, o, n) -> updateOverlays());

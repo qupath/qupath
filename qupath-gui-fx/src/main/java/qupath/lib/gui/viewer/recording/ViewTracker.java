@@ -42,68 +42,67 @@ import javafx.beans.property.BooleanProperty;
  */
 public interface ViewTracker {
 
-	public BooleanProperty recordingProperty();
+	BooleanProperty recordingProperty();
 	
-	public void setRecording(boolean recording);
+	void setRecording(boolean recording);
 	
-	public boolean isRecording();	
+	boolean isRecording();	
 	
-	public void resetRecording();
+	void resetRecording();
 	
+	boolean hasCursorTrackingData();
 	
-	public boolean hasCursorTrackingData();
+	boolean hasActiveToolTrackingData();
 	
-	public boolean hasActiveToolTrackingData();
+	boolean hasEyeTrackingData();
 	
-	public boolean hasEyeTrackingData();
+	boolean hasZAndT();
 	
-	public boolean hasZAndT();
+	int getFrameIndexForTime(long t);
 	
-	public int getFrameIndexForTime(long t);
-	
-	public ViewRecordingFrame getFrameForTime(long timestamp);
+	ViewRecordingFrame getFrameForTime(long timestamp);
 
-	public boolean isLastFrame(ViewRecordingFrame frame);
+	boolean isLastFrame(ViewRecordingFrame frame);
 	
-	public void appendFrame(ViewRecordingFrame frame);
+	void appendFrame(ViewRecordingFrame frame);
 	
-	public int nFrames();
+	int nFrames();
 
-	public ViewRecordingFrame getFrame(int index);
+	ViewRecordingFrame getFrame(int index);
 
-	public boolean isEmpty();
+	boolean isEmpty();
 	
-	public String getName();
+	String getName();
 	
-	public void setName(String name);
+	void setName(String name);
 
-	public File getFile();
+	File getFile();
 
-	public void setFile(File file);
+	void setFile(File file);
 	
-	public long getStartTime();
+	long getStartTime();
 	
-	public long getLastTime();
+	long getLastTime();
 
-	public List<ViewRecordingFrame> getAllFrames();
+	List<ViewRecordingFrame> getAllFrames();
 
 	/**
 	 * Return the cursorTracking property of this tracker.
 	 * @return doCursorTracking
 	 */
-	public BooleanProperty cursorTrackingProperty();
+	BooleanProperty cursorTrackingProperty();
 	
 	/**
 	 * Return the activeTool property of this tracker.
 	 * @return doActiveToolTracking
 	 */
-	public BooleanProperty activeToolProperty();
+	BooleanProperty activeToolProperty();
 	
 	/**
 	 * Return the eyeTracking property of this tracker.
 	 * @return doEyeTracking
 	 */
-	public BooleanProperty eyeTrackingProperty();
+	BooleanProperty eyeTrackingProperty();
 
 	/**
 	 * Set optional parameter for the tracker.
@@ -116,5 +115,4 @@ public interface ViewTracker {
 	 * @param eyeTracking
 	 */
 	void includeOptionals(boolean ZandT, boolean cursorTracking, boolean activeToolTracking, boolean eyeTracking);
-	
 }

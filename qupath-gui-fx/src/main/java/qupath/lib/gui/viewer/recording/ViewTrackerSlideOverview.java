@@ -8,19 +8,17 @@ import java.awt.image.BufferedImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.regions.ImageRegion;
 
-public class ViewTrackerSlideOverview {
+class ViewTrackerSlideOverview {
 	// TODO: Make sure we reset the shapeVisible (I think?) when we change T or Z manually from the slider (because it should always correspond to a specific frame)
-	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerSlideOverview.class);
+	private final static Logger logger = LoggerFactory.getLogger(ViewTrackerSlideOverview.class);
 	
 	private QuPathViewer viewer;
 	private BufferedImage img;
@@ -28,18 +26,17 @@ public class ViewTrackerSlideOverview {
 	
 	private Canvas canvas;
 	
-	private int preferredWidth = 250; // Preferred component/image width - used for thumbnail scaling
+	private final int preferredWidth = 250; // Preferred component/image width - used for thumbnail scaling
+	private final Color color = Color.rgb(200, 0, 0, .8);
 	
-	private static Color color = Color.rgb(200, 0, 0, .8);
 	private Shape shapeVisible = null; // The visible shape (transformed already)
 	private AffineTransform transform = null;
 	
-	public ViewTrackerSlideOverview(QuPathViewer viewer, Canvas canvas) {
+	ViewTrackerSlideOverview(QuPathViewer viewer, Canvas canvas) {
 		this.viewer = viewer;
 		this.canvas = canvas;
 		
 		img = viewer.getRGBThumbnail();
-		
 		if (img == null)
 			return;
 
@@ -50,23 +47,20 @@ public class ViewTrackerSlideOverview {
 		paintCanvas();
 	}
 	
-	
 	void paintCanvas() {
 		GraphicsContext g = canvas.getGraphicsContext2D();
 		double w = canvas.getWidth();
 		double h = canvas.getHeight();
 		g.clearRect(0, 0, w, h);
 		
-		if (viewer == null || !viewer.hasServer()) {
+		if (viewer == null || !viewer.hasServer())
 			return;
-		}
 		
 		// Set img
 		img = viewer.getRGBThumbnail();
 		
 		// Draw image
 		drawImage(g, img);
-		
 		
 		// Draw overlay on top of image
 		if (overlay != null)
@@ -90,8 +84,7 @@ public class ViewTrackerSlideOverview {
 				else if (type == PathIterator.SEG_CLOSE) {
 					g.closePath();
 					g.stroke();
-				}
-				else
+				} else
 					logger.debug("Unknown PathIterator type: {}", type);
 				iterator.next();
 			}
@@ -110,20 +103,17 @@ public class ViewTrackerSlideOverview {
 		int preferredHeight = (int)(img.getHeight() * (double)(preferredWidth / (double)img.getWidth()));
 		var imgPreview = GuiTools.getScaledRGBInstance(imgToDraw, preferredWidth, preferredHeight);
 		g.drawImage(imgPreview, 0, 0);
-		
 	}
-	
 
-
-	public void setOverlay(BufferedImageOverlay overlay) {
+	void setOverlay(BufferedImageOverlay overlay) {
 		this.overlay = overlay;
 		paintCanvas();
 	}
 	
-	public void setVisibleShape(ViewRecordingFrame frame) {
+	void setVisibleShape(ViewRecordingFrame frame) {
 		double scale = (double)preferredWidth / viewer.getServer().getWidth();
-		Shape shape = frame.getShape();
 		double theta = frame.getRotation();
+		Shape shape = frame.getShape();
 		
 		if (transform == null)
 			transform = new AffineTransform();

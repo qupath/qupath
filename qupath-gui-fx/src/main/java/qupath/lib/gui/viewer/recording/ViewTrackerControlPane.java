@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -53,6 +54,7 @@ import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
@@ -133,20 +135,19 @@ public class ViewTrackerControlPane {
 	ViewTrackerPlayback playback;
 
 	/**
-	 * Constructor.
+	 * Create a ViewTrackerControlPane linked to the specified QuPath instance.
 	 * @param qupath instance of qupath
 	 */
 	public ViewTrackerControlPane(final QuPathGUI qupath) {
-		this(qupath, ViewTrackers.createViewTracker(qupath));
+		this(qupath, new DefaultViewTracker(qupath));
 	}
 
 	/**
-	 * Constructor.
+	 * Create a ViewTrackerControlPane linked to the specified ViewTracker object.
 	 * @param viewer the viewer to track
 	 * @param viewTracker the tracker to use
-	 * @throws IOException 
 	 */
-	ViewTrackerControlPane(final QuPathGUI qupath, final ViewTracker viewTracker) {
+	private ViewTrackerControlPane(final QuPathGUI qupath, final ViewTracker viewTracker) {
 		this.qupath = qupath;
 		this.viewer = qupath.getViewer();
 		
@@ -170,7 +171,7 @@ public class ViewTrackerControlPane {
 				
 				// Make sure titledPane is not clickable if no ImageData
 				titledPane.disableProperty().bind(Bindings.or(viewer.imageDataProperty().isNull(), isAnalysisActive));
-				refreshListView();
+				refreshTableView();
 			}
 		};
 		viewer.imageDataProperty().addListener(imageDataListener);
@@ -196,7 +197,7 @@ public class ViewTrackerControlPane {
 				
 				// Make sure titledPane is not clickable if no ImageData
 				titledPane.disableProperty().bind(Bindings.or(viewer.imageDataProperty().isNull(), isAnalysisActive));
-				refreshListView();
+				refreshTableView();
 			}
 		};
 		qupath.viewerProperty().addListener(viewerListener);
@@ -263,8 +264,8 @@ public class ViewTrackerControlPane {
 		// Create buttons
 		Button exportBtn = new Button("Export");
 		exportBtn.setOnAction(e -> {
-			ViewTrackers.handleExport(table.getSelectionModel().getSelectedItem());
-			refreshListView();
+			ViewTrackerTools.handleExport(table.getSelectionModel().getSelectedItem());
+			refreshTableView();
 		});
 		Button deleteBtn = new Button("Delete");
 		deleteBtn.setOnAction(e -> {
@@ -282,7 +283,7 @@ public class ViewTrackerControlPane {
 			}
 			// Remove all trackers to delete from ListView (even if exception when deleting file)
 			trackersList.removeAll(trackersToDelete);
-			refreshListView();
+			refreshTableView();
 		});
 		Button moreBtn = new Button("More...");
 		moreBtn.setOnAction(e -> openViewTrackingAnalysisCommand());
@@ -339,21 +340,51 @@ public class ViewTrackerControlPane {
 					for (File file: files) {
 						if (!GeneralTools.getExtension(file).get().equals(".tsv"))
 							continue;
-						var tracker = ViewTrackers.handleImport(file.toPath());
+						var tracker = ViewTrackerTools.handleImport(file.toPath());
 						trackersList.add(tracker);
 					}
 				} catch (Exception ex) {
 					Dialogs.showErrorMessage("Drag & Drop", ex);
 				}
 			}
-			refreshListView();
+			refreshTableView();
 			e.setDropCompleted(true);
 			e.consume();
         });
 		
 		// Handle the double-click
 		table.setRowFactory(e -> {
-		    TableRow<ViewTracker> recordingRow = new TableRow<>();
+		    final TableRow<ViewTracker> recordingRow = new TableRow<>();
+		    final ContextMenu menu = new ContextMenu();
+		    final MenuItem renameItem = new MenuItem("Rename");
+		    menu.getItems().add(renameItem);
+		    renameItem.setOnAction(ev -> {
+			    final ViewTracker value = recordingRow.getItem();
+		    	var newName = Dialogs.showInputDialog("Rename", "New name", value.getFile() == null ? "" : value.getFile().getName());
+		    	if (newName == null || newName.isEmpty() || newName.equals(value.getFile().getName()))
+		    		return;
+		    	Path tempPath = value.getFile().toPath();
+		    	value.setName(newName);
+		    	try {
+					Files.move(tempPath, tempPath.resolveSibling(newName + GeneralTools.getExtension(value.getFile().getName()).orElse("")));
+				} catch (IOException ex) {
+					Dialogs.showErrorMessage("Rename", "Could not rename recording!");
+		    		return;
+				} catch (NoSuchElementException ex) {
+					Dialogs.showErrorMessage("Rename", "Could not rename recording!" + System.lineSeparator() + "Did you forget the file extension?");
+					return;
+				}
+		    	// TODO: This refreshtableview line here does not refresh table, renamed files remain the same!
+		    	refreshTableView();
+		    });
+            
+            // only display context menu for non-empty rows:
+		    recordingRow.contextMenuProperty().bind(
+		    		Bindings.when(recordingRow.emptyProperty())
+		    		.then((ContextMenu) null)
+		    		.otherwise(menu)
+		    		);
+              
 		    recordingRow.setOnMouseClicked(event -> {
 		        if (event.getClickCount() == 2 && (!recordingRow.isEmpty()))
 		        	openViewTrackingAnalysisCommand();
@@ -373,7 +404,7 @@ public class ViewTrackerControlPane {
 			table.getColumns().add(column);
 		}
 		
-		refreshListView();
+		refreshTableView();
 			
 		
 		// Option Context Menu
@@ -478,8 +509,8 @@ public class ViewTrackerControlPane {
 		if (recordingDirectory.exists()) {
 			try (Stream<Path> walk = Files.walk(recordingDirectory.toPath())) {
 				trackers.addAll(walk.filter(Files::isRegularFile)
-												.filter(path -> GeneralTools.getExtension(path.toFile()).get().equals(".tsv"))
-												.map(path -> ViewTrackers.handleImport(path))
+												.filter(path -> GeneralTools.getExtension(path.toFile()).orElse("").equals(".tsv"))
+												.map(path -> ViewTrackerTools.handleImport(path))
 												.collect(Collectors.toList()));
 			} catch (IOException e) {
 				logger.error("Could not fetch existing recordings: ", e.getLocalizedMessage());
@@ -496,7 +527,7 @@ public class ViewTrackerControlPane {
 		if (tracker.isEmpty())
 			return;
 		trackersList.add(tracker);
-		refreshListView();
+		refreshTableView();
 	}
 	
 	
@@ -515,7 +546,7 @@ public class ViewTrackerControlPane {
 		}
 		
 		// Create new tracker
-		tracker = ViewTrackers.createViewTracker(qupath);
+		tracker = new DefaultViewTracker(qupath);
 		
 		// Bind properties
 		tracker.cursorTrackingProperty().bind(cursorTrackingProperty);
@@ -549,12 +580,12 @@ public class ViewTrackerControlPane {
 			else
 				return "*" + currentTracker.getName();
 		case 1: 
-			return ViewTrackers.getPrettyTimestamp(currentTracker.getStartTime(), currentTracker.getLastTime());
+			return ViewTrackerTools.getPrettyTimestamp(currentTracker.getStartTime(), currentTracker.getLastTime());
 		}
 		return null;
 	}
 	
-	private void refreshListView() {
+	private void refreshTableView() {
 		if (trackersList != null)
 			table.getItems().setAll(trackersList);
 	}
@@ -563,7 +594,7 @@ public class ViewTrackerControlPane {
 		recordingTime = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                String timeElapsed = ViewTrackers.getPrettyTimestamp(tracker.getStartTime(), System.currentTimeMillis());
+                String timeElapsed = ViewTrackerTools.getPrettyTimestamp(tracker.getStartTime(), System.currentTimeMillis());
                 duration.setText(timeElapsed);
             }
         };
@@ -586,7 +617,6 @@ public class ViewTrackerControlPane {
 	public void forceStopRecording() {
 		recordingMode.set(false);
 	}
-	
 	
 	public TitledPane getTitledPane() {
 		return titledPane;

@@ -23,7 +23,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;
 
 // TODO: What if the downsample is not rounded? (e.g. dwnsmple=1.5, then img will be rounded, and ImageRegion will be rounded again?)
-public class ViewTrackerDataOverlay{
+class ViewTrackerDataOverlay {
 	
 	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerDataOverlay.class);
 	
@@ -39,12 +39,11 @@ public class ViewTrackerDataOverlay{
 	private long timeStop;
 	private double downMin;
 	private double downMax;
-	private boolean timeNormalized;	// If False, it's magnification-normalized
+	private boolean timeNormalized;	// If false, it's magnification-normalized
 	
 	private Map<ImageRegion, BufferedImage> regions;
 
-
-	public ViewTrackerDataOverlay(ImageServer<?> server, QuPathViewer viewer, ViewTracker tracker) {
+	ViewTrackerDataOverlay(ImageServer<?> server, QuPathViewer viewer, ViewTracker tracker) {
 		this.tracker = tracker;
 		this.viewer = viewer;
 		this.server = server;
@@ -68,7 +67,6 @@ public class ViewTrackerDataOverlay{
 			imgHeight = (int)Math.round(server.getHeight() / divider);
 		}
 		downsample = divider;
-	
 	}
 	
 	public void updateDataImage(long timeStart, long timeStop, double downMin, double downMax, boolean timeNormalised) {
@@ -80,6 +78,10 @@ public class ViewTrackerDataOverlay{
 		
 		regions = getImageRegions();
 		viewer.repaint();
+	}
+	
+	BufferedImageOverlay getOverlay() {
+		return new BufferedImageOverlay(viewer, regions);
 	}
 	
 	private Map<ImageRegion, BufferedImage> getImageRegions() {
@@ -111,6 +113,9 @@ public class ViewTrackerDataOverlay{
 		byte[] imgBuffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
 		float[] buffer = new float[imgBuffer.length];
 		
+		if (relevantFrames.length <= 1)
+			return img;
+		
 
 		// Get max time (for normalization)
 		double maxValue;
@@ -118,12 +123,12 @@ public class ViewTrackerDataOverlay{
 			maxValue = IntStream.range(0, relevantFrames.length-1)
 					.map(index -> index < relevantFrames.length ? (int)(relevantFrames[index+1].getTimestamp() - relevantFrames[index].getTimestamp()) : 0)
 					.max()
-					.getAsInt();
+					.orElseThrow();
 		} else {
 			maxValue = Arrays.asList(relevantFrames).stream()
 					.mapToDouble(e -> e.getDownFactor())
 					.max()
-					.getAsDouble();
+					.orElseThrow();
 		}
 		
 		Arrays.fill(buffer, 0);
@@ -211,10 +216,6 @@ public class ViewTrackerDataOverlay{
 		return img;
 	}
 	
-	public BufferedImageOverlay getOverlay() {
-		return new BufferedImageOverlay(viewer, regions);
-	}
-	
 	/**
 	 * Scales the coordinates of the given rectangle according to the 
 	 * {@code img}'s {@code downsample}.
@@ -254,6 +255,4 @@ public class ViewTrackerDataOverlay{
 	    }
 	    return new IndexColorModel(8, 256, rgba, 0, true, 0, DataBuffer.TYPE_BYTE);
 	}
-	
-
 }

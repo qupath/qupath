@@ -47,7 +47,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -73,7 +72,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DefaultViewTracker.class);
 
-	static DecimalFormat df = new DecimalFormat("#.##");
+	protected static final DecimalFormat df = new DecimalFormat("#.##");
 	protected static final String LOG_DELIMITER = "\t";
 
 	transient private QuPathGUI qupath;
@@ -95,7 +94,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	private long startTime = -1;
 
 	private List<ViewRecordingFrame> frames = new ArrayList<>();
-	transient ViewRecordingFrame lastFrame = null;
+	private transient ViewRecordingFrame lastFrame = null;
 	private double rotation = 0;
 	
 	private boolean initialized = false;
@@ -124,14 +123,12 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		return frames.get(index);
 	}
 
-
 	@Override
 	public void setRecording(final boolean recording) {
 		if (isRecording() == recording)
 			return;
 		this.recording.set(recording);
 	}
-	
 	
 	private void doStartRecording() {
 		// Check we aren't recording already
@@ -151,10 +148,8 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 
 		logger.debug("--------------------------------------\n" + 
 					"View tracking for image: " + server.getPath() + "\n" +
-					ViewTrackers.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
+					ViewTrackerTools.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
 	}
-
-
 
 	private boolean setRecordingDirectory() {
 		Path entryPath = qupath.getProject().getEntry(viewer.getImageData()).getEntryPath();
@@ -168,7 +163,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		return false;
 	}
 	
-
 	private void createRecordingDir(Path entryPath) {
 		if (entryPath == null) {
 			logger.warn("Could not set recording directory.");
@@ -185,13 +179,11 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		return recording.get();
 	}
 
-
-	protected QuPathViewer getViewer() {
-		return viewer;
-	}
-
-
 	private void doStopRecording() {
+		// Add a last frame to the list
+		DefaultViewRecordingFrame frame = new DefaultViewRecordingFrame(System.currentTimeMillis()-startTime, viewer.getDisplayedRegionShape(), ViewTrackerTools.getSize(viewer), viewer.getDownsampleFactor(), viewer.getRotation(), null, getActiveToolIfRequired(), getEyePointIfRequired(), getEyeFixatedIfRequired(), getCurrentZ(), getCurrentT());
+		appendFrame(frame);
+		
 		logger.debug("--------------------------------------");
 		viewer.removeViewerListener(this);
 		if (doCursorTracking.get()) {
@@ -206,10 +198,8 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 			} catch (IOException e) {
 				logger.error("Error while closing back-up file: ", e);
 			}
-					
 		}
 	}
-
 
 	@Override
 	public void resetRecording() {
@@ -234,7 +224,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		recordingFile = recordingFile != null ? recordingFile : new File(recordingDirectory, name + ".tsv");
 		try {
 			fw = new OutputStreamWriter(new FileOutputStream(recordingFile), StandardCharsets.UTF_8);
-			fw.write(ViewTrackers.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
+			fw.write(ViewTrackerTools.getSummaryHeadings(LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT()));
 			fw.write(System.lineSeparator());
 		} catch (IOException e) {
 			logger.error("Could not create back-up file. Recording will not be saved.", e.getLocalizedMessage());
@@ -253,21 +243,25 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	}
 
 	/**
+	 * Create and add a frame to the list of frames.
 	 * 
 	 * @param timestamp
 	 * @param imageBounds
 	 * @param canvasSize
 	 * @param downFactor
 	 * @param cursorPoint
+	 * @param activeTool 
 	 * @param eyePoint
 	 * @param isFixated 
+	 * @param rotation 
 	 * @param z 
 	 * @param t 
 	 * @return The frame, if one was added, or null otherwise.
 	 */
 	protected synchronized ViewRecordingFrame addFrame(final long timestamp, final Shape imageBounds, final Dimension canvasSize, final double downFactor, final Point2D cursorPoint, final PathTool activeTool, final Point2D eyePoint, final Boolean isFixated, double rotation, int z, int t) {
 		if (!isRecording()) {
-			logger.error("Recording has not started!  Frame request will be ignored.");
+			logger.error("Recording has not started! Frame request will be ignored.");
+			return null;
 		}
 
 		if (lastFrame != null && lastFrame.getTimestamp() > timestamp) { // Shouldn't happen... but disregard out-of-order processing
@@ -277,11 +271,11 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	
 		DefaultViewRecordingFrame frame = new DefaultViewRecordingFrame(timestamp-startTime, imageBounds, canvasSize, downFactor, rotation, cursorPoint, activeTool, eyePoint, isFixated, z, t);
 		appendFrame(frame);
+		
 		// Log the frame
-		logger.debug(ViewTrackers.getSummary(lastFrame, LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT));
+		logger.debug(ViewTrackerTools.getSummary(lastFrame, LOG_DELIMITER, doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT));
 		return frame;
 	}
-
 
 	@Override
 	public synchronized void appendFrame(final ViewRecordingFrame frame) {
@@ -292,15 +286,13 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		
 		if (fw != null) {
 			try {
-				fw.write(ViewTrackers.getSummary(frame, "\t", doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT));
+				fw.write(ViewTrackerTools.getSummary(frame, "\t", doCursorTracking.get(), doActiveToolTracking.get(), doEyeTracking.get(), hasZAndT));
 				fw.write(System.lineSeparator());
 			} catch (IOException e) {
 				logger.error("Could not write frame to file. Frame will be ignored: ", e);
 			}			
 		}
 	}
-
-
 	
 	private int getCurrentZ() {
 		return viewer.getZPosition();
@@ -309,7 +301,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	private int getCurrentT() {
 		return viewer.getTPosition();
 	}
-
 	
 	/**
 	 * Return an unmodifiable list of all the frames stored by this view tracker.
@@ -352,21 +343,16 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		int index = getFrameIndexForTime(t);
 	    return frames.get(index);
 	}
-	
 
 	@Override
 	public void visibleRegionChanged(final QuPathViewer viewer, final Shape shape) {
 		// If the image has been updated, then it could be because a change of view that we want to track
-		if (lastFrame != null && lastFrame.getImageShape().equals(shape) && lastFrame.getSize().equals(getSize(viewer)))
+		if (lastFrame != null && lastFrame.getImageShape().equals(shape) && lastFrame.getSize().equals(ViewTrackerTools.getSize(viewer)))
 			return;
 		
 		rotation = viewer.getRotation() != rotation ? viewer.getRotation() : rotation;
 
-		addFrame(System.currentTimeMillis(), shape, getSize(viewer), viewer.getDownsampleFactor(), getMousePointIfRequired(), getActiveToolIfRequired(), null, null, rotation, getCurrentZ(), getCurrentT());
-	}
-
-	static Dimension getSize(QuPathViewer viewer) {
-		return new Dimension((int)Math.round(viewer.getView().getWidth()), (int)Math.round(viewer.getView().getHeight()));
+		addFrame(System.currentTimeMillis(), shape, ViewTrackerTools.getSize(viewer), viewer.getDownsampleFactor(), getMousePointIfRequired(), getActiveToolIfRequired(), null, null, rotation, getCurrentZ(), getCurrentT());
 	}
 
 	protected Point2D getMousePointIfRequired() {
@@ -412,25 +398,9 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	public BooleanProperty recordingProperty() {
 		return recording;
 	}
-	
-	
-	
-	class MouseMovementHandler implements EventHandler<MouseEvent> {
-
-		@Override
-		public void handle(MouseEvent event) {
-			Point2D p = viewer.componentPointToImagePoint(event.getX(), event.getY(), null, false);
-			addFrame(System.currentTimeMillis(), viewer.getDisplayedRegionShape(), getSize(viewer), viewer.getDownsampleFactor(), p, getActiveToolIfRequired(), getEyePointIfRequired(), getEyeFixatedIfRequired(), viewer.getRotation(), getCurrentZ(), getCurrentT());
-		}		
-		
-	}
-
 
 	@Override
-	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
-			ImageData<BufferedImage> imageDataNew) {}
-
-	
+	public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld, ImageData<BufferedImage> imageDataNew) {}
 
 	@Override
 	public File getFile() {
@@ -484,25 +454,16 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		return doEyeTracking.get();
 	}
 	
-	/**
-	 * Return the cursorTracking property of this tracker.
-	 * @return doCursorTracking
-	 */
 	@Override
 	public BooleanProperty cursorTrackingProperty() {
 		return doCursorTracking;
 	}
 	
-	/**
-	 * Return the activeToolTracking property of this tracker.
-	 * @return doActiveToolTracking
-	 */
 	@Override
 	public BooleanProperty activeToolProperty() {
 		return doActiveToolTracking;
 	}
 	
-
 	@Override
 	public BooleanProperty eyeTrackingProperty() {
 		return doEyeTracking;
@@ -519,5 +480,13 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 		doCursorTracking.set(cursorTracking);
 		doActiveToolTracking.set(activeToolTracking);
 		doEyeTracking.set(eyeTracking);
+	}
+	
+	class MouseMovementHandler implements EventHandler<MouseEvent> {
+		@Override
+		public void handle(MouseEvent event) {
+			Point2D p = viewer.componentPointToImagePoint(event.getX(), event.getY(), null, false);
+			addFrame(System.currentTimeMillis(), viewer.getDisplayedRegionShape(), ViewTrackerTools.getSize(viewer), viewer.getDownsampleFactor(), p, getActiveToolIfRequired(), getEyePointIfRequired(), getEyeFixatedIfRequired(), viewer.getRotation(), getCurrentZ(), getCurrentT());
+		}		
 	}
 }
