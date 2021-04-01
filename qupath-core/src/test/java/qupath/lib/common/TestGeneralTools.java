@@ -34,9 +34,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
@@ -46,7 +46,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Scanner;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -298,7 +297,7 @@ public class TestGeneralTools {
 	@Test
 	public void test_createFormatter() {
 		// TODO: Either change the code or javadocs -> Locale.fr_BE does print 1,234
-		// For now, the following lines are commented out as they won't pass.
+		// For now, the following lines are commented out as they will fail if ran with Locale above.
 //		var formatter = GeneralTools.createFormatter(5);
 //		assertEquals("5.00001", formatter.format(5.000006));
 //		assertEquals("-5.00001", formatter.format(-5.00006));
@@ -324,18 +323,20 @@ public class TestGeneralTools {
 	
 	@Test
 	public void test_readInputStreamAsString() {
-		String randomString = UUID.randomUUID().toString();
+		byte[] randomString = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
 		ByteArrayOutputStream baos1 = new ByteArrayOutputStream();
 		ByteArrayOutputStream baos2 = new ByteArrayOutputStream();
-		try (PrintWriter p = new PrintWriter(baos1)) {
-		    p.println(randomString);
-		}
-		
-		try {
+	    try {
+	    	// Write to stream
+			baos1.write(randomString);
+			
+			// Read from stream
 			var back = GeneralTools.readInputStreamAsString(new ByteArrayInputStream(baos1.toByteArray()));
-			assertArrayEquals(randomString.getBytes(), back.getBytes());
-			Assertions.assertThrows(NoSuchElementException.class, () -> GeneralTools.readInputStreamAsString(new ByteArrayInputStream(baos2.toByteArray())));
-		} catch (IOException e) {
+			assertArrayEquals(randomString, back.getBytes());
+
+			// Read from empty stream
+			assertEquals("", GeneralTools.readInputStreamAsString(new ByteArrayInputStream(baos2.toByteArray())));
+		} catch (IOException ex) {
 			throw new AssertionError();
 		}
 	}
@@ -399,14 +400,14 @@ public class TestGeneralTools {
 	
 	@Test
 	public void test_generateDistinctName() {
-		List<String> existingNames = Arrays.asList("Alpha", "alpha", "Alpha", "Alpha (1)", "Alpha (2)", "Alpha ()", "beta", "");
+		List<String> existingNames = Arrays.asList("Alpha", "alpha", "Alpha", "Alpha (1)", "Alpha (2)", "Alpha ()", "beta", "", "(1)");
 		assertEquals("alpha (1)", GeneralTools.generateDistinctName("alpha", existingNames));
 		assertEquals("Alpha (3)", GeneralTools.generateDistinctName("Alpha", existingNames));
 		assertEquals("Alpha (3)", GeneralTools.generateDistinctName("Alpha (1)", existingNames));
 		assertEquals("Alpha (3)", GeneralTools.generateDistinctName("Alpha (2)", existingNames));
 		assertEquals("Alpha () (1)", GeneralTools.generateDistinctName("Alpha ()", existingNames));
 		assertEquals("Alpha beta", GeneralTools.generateDistinctName("Alpha beta", existingNames));
-		assertEquals("", GeneralTools.generateDistinctName("", existingNames));
+		assertEquals("(2)", GeneralTools.generateDistinctName("", existingNames));
 		assertEquals(null, GeneralTools.generateDistinctName(null, existingNames));
 	}
 	

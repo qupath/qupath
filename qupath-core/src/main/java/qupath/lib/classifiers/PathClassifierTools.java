@@ -47,7 +47,6 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
@@ -294,6 +293,9 @@ public final class PathClassifierTools {
 	 * An IllegalArgumentException is thrown if &lt; 1 or &gt; 3 intensity thresholds are provided.<p>
 	 * If the object does not have the required measurement, its {@link PathClass} will be set to its 
 	 * first 'non-intensity' ancestor {@link PathClass}.
+	 * <p>
+	 * Note that as of v0.3.0, all ignored classes (see {@link PathClassTools#isIgnoredClass(PathClass)} are ignored and therefore 
+	 * will not be 'intensity classified'.
 	 * 
 	 * @param pathObject 		the object to classify.
 	 * @param measurementName 	the name of the measurement to use for thresholding.
@@ -311,7 +313,7 @@ public final class PathClassifierTools {
 		PathClass baseClass = PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass());
 		
 		// Don't do anything with the 'ignore' class
-		if (baseClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
+		if (!PathClassTools.isNullClass(baseClass) && PathClassTools.isIgnoredClass(baseClass))
 			return pathObject.getPathClass();
 		
 		double intensityValue = pathObject.getMeasurementList().getMeasurementValue(measurementName);
@@ -319,7 +321,7 @@ public final class PathClassifierTools {
 		boolean singleThreshold = thresholds.length == 1;
 
 		if (Double.isNaN(intensityValue))	// If the measurement is missing, reset to base class
-			pathObject.setPathClass(PathClassTools.getNonIntensityAncestorClass(pathObject.getPathClass()));
+			pathObject.setPathClass(baseClass);
 		else if (intensityValue < thresholds[0])
 			pathObject.setPathClass(PathClassFactory.getNegative(baseClass));
 		else {

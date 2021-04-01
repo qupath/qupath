@@ -52,7 +52,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
@@ -730,23 +729,30 @@ public final class GeneralTools {
 	 * @return the distinct name
 	 */
 	public static String generateDistinctName(String base, Collection<String> existingNames) {
-		if (!existingNames.contains(base) || base.isEmpty())
+		if (!existingNames.contains(base))
 			return base;
 		
 		// Check if we already end with a number, and if so strip that
-		if (Pattern.matches(".* (\\([\\d]+\\))$", base)) {
+		if (Pattern.matches(".* (\\([\\d]+\\))$", base))
 			base = base.substring(0, base.lastIndexOf(" ("));
-		}
 		
 		// Check for the highest number we currently have
 		int lastInd = 0;
-		var pattern = Pattern.compile(base + " \\(([\\d]+)\\)");
+		var pattern = base.isEmpty() ? Pattern.compile("\\(([\\d]+)\\)") : Pattern.compile(base + " \\(([\\d]+)\\)");
 		for (var existing : existingNames) {
 			var matcher = pattern.matcher(existing);
-			if (matcher.find())
-				lastInd = Math.max(lastInd, Integer.parseInt(matcher.group(1)));
+			if (base.isEmpty()) {
+				if (existing.stripLeading().length() == 3 && matcher.find())
+					lastInd = Math.max(lastInd, Integer.parseInt(matcher.group(1)));					
+			} else {
+				if (matcher.find())
+					lastInd = Math.max(lastInd, Integer.parseInt(matcher.group(1)));				
+			}
+				
 		}
-		return base + " (" + (lastInd + 1) + ")";
+        if (!base.isEmpty())
+            base = base + " ";
+		return base + "(" + (lastInd + 1) + ")";
 	}
 	
 	
