@@ -124,6 +124,8 @@ import qupath.opencv.tools.OpenCVTools;
  * 
  * @author Pete Bankhead
  *
+ * modified by @phaub , 04'2021 (Support of viewer display settings)
+ * 
  */
 public class ImageAlignmentPane {
 	
@@ -551,7 +553,6 @@ public class ImageAlignmentPane {
 		List<ImageData<BufferedImage>> imagesToAdd = new ArrayList<>();
 		for (ProjectImageEntry<BufferedImage> temp : toSelect) {
 			ImageData<BufferedImage> imageData = null;
-			//::dip Support of viewer display settings
 			ImageRenderer renderer = null;
 			
 			// Read annotations from any data file
@@ -561,7 +562,7 @@ public class ImageAlignmentPane {
 					var tempData = viewer.getImageData();
 					if (tempData != null && temp.equals(project.getEntry(viewer.getImageData()))) {
 						imageData = tempData;
-						//::dip Support of viewer display settings
+						//@phaub Support of viewer display settings
 						renderer = viewer.getImageDisplay();
 						break;
 					}
@@ -584,7 +585,7 @@ public class ImageAlignmentPane {
 				continue;
 			}
 			ImageServerOverlay overlay = new ImageServerOverlay(viewer, imageData.getServer());
-			//::dip Support of viewer display settings
+			//@phaub Support of viewer display settings
 			overlay.setRenderer(renderer);
 			
 			overlay.getAffine().addEventHandler(TransformChangedEvent.ANY, transformEventHandler);
