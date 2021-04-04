@@ -39,7 +39,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
@@ -55,6 +54,7 @@ import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerRegion;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerResolution;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.ImageRegion;
 
@@ -68,8 +68,8 @@ import qupath.lib.regions.ImageRegion;
  */
 public class ImageServers {
 	
-	private static RuntimeTypeAdapterFactory<ServerBuilder> serverBuilderFactory = 
-			RuntimeTypeAdapterFactory.of(ServerBuilder.class, "builderType")
+	private static SubTypeAdapterFactory<ServerBuilder> serverBuilderFactory = 
+			GsonTools.createSubTypeAdapterFactory(ServerBuilder.class, "builderType")
 			.registerSubtype(DefaultImageServerBuilder.class, "uri")
 			.registerSubtype(RotatedImageServerBuilder.class, "rotated")
 			.registerSubtype(ConcatChannelsImageServerBuilder.class, "channels")
@@ -80,6 +80,12 @@ public class ImageServers {
 			.registerSubtype(PyramidGeneratingServerBuilder.class, "pyramidize") // For consistency, this would ideally be pyramidalize... but need to keep backwards-compatibility
 			.registerSubtype(ColorDeconvolutionServerBuilder.class, "color_deconvolved")
 			;
+	
+	static {
+		GsonTools.getDefaultBuilder()
+			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
+			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory());
+	}
 	
 	/**
 	 * Get a TypeAdapterFactory to handle {@linkplain ServerBuilder ServerBuilders}.

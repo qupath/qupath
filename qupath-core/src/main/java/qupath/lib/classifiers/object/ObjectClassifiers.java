@@ -31,13 +31,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
-import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
@@ -60,15 +60,15 @@ public class ObjectClassifiers {
 		
 		private static String typeName = "object_classifier_type";
 		
-		private final static RuntimeTypeAdapterFactory<ObjectClassifier> objectClassifierTypeAdapter = 
-				RuntimeTypeAdapterFactory.of(ObjectClassifier.class, typeName)
+		private final static SubTypeAdapterFactory<ObjectClassifier> objectClassifierTypeAdapter = 
+				GsonTools.createSubTypeAdapterFactory(ObjectClassifier.class, typeName)
 //					.registerSubtype(OpenCVMLClassifier.class)
 					.registerSubtype(CompositeClassifier.class)
 					.registerSubtype(SimpleClassifier.class);
 //					.registerSubtype(ResetClassifier.class);
 		
-		private final static RuntimeTypeAdapterFactory<Function> classifierFunTypeAdapter = 
-				RuntimeTypeAdapterFactory.of(Function.class, "classifier_fun")
+		private final static SubTypeAdapterFactory<Function> classifierFunTypeAdapter = 
+				GsonTools.createSubTypeAdapterFactory(Function.class, "classifier_fun")
 					.registerSubtype(ClassifyByMeasurementFunction.class);
 		
 		/**

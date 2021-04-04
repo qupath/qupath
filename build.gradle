@@ -243,7 +243,7 @@ allprojects {
     
     // Additional versions
     logbackVersion     = '1.2.3'
-    slf4jVersion       = '1.7.6'
+    slf4jVersion       = '1.7.30'
     junitVersion       = '5.7.1'
     
     // Optional versions

@@ -24,13 +24,13 @@ package qupath.opencv.ml.objects.features;
 import java.util.List;
 
 import com.google.gson.Gson;
-import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
 import qupath.opencv.ml.objects.features.Preprocessing.PCAProjector;
@@ -49,8 +49,8 @@ public class FeatureExtractors {
 		
 		private static String typeName = "feature_extractor_type";
 		
-		private final static RuntimeTypeAdapterFactory<FeatureExtractor> featureCalculatorTypeAdapter = 
-				RuntimeTypeAdapterFactory.of(FeatureExtractor.class, typeName)
+		private final static SubTypeAdapterFactory<FeatureExtractor> featureCalculatorTypeAdapter = 
+				GsonTools.createSubTypeAdapterFactory(FeatureExtractor.class, typeName)
 					.registerSubtype(DefaultFeatureExtractor.class)
 					.registerSubtype(NormalizedFeatureExtractor.class)
 					.registerSubtype(PCAProjectFeatureExtractor.class);

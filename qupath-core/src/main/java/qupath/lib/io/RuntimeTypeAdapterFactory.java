@@ -1,4 +1,9 @@
 /*
+ * This file is from Gson extras, with very minor adaptions (non-public, javadocs, package name).
+ * See https://github.com/google/gson
+ * 
+ * It is not currently used in QuPath.
+ * 
  * Copyright (C) 2011 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +19,18 @@
  * limitations under the License.
  */
 
-package com.google.gson;
+package qupath.lib.io;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.internal.Streams;
 import com.google.gson.reflect.TypeToken;
@@ -87,7 +98,7 @@ import com.google.gson.stream.JsonWriter;
  * Both the type field name ({@code "type"}) and the type labels ({@code
  * "Rectangle"}) are configurable.
  *
- * <h2>Registering Types</h2>
+ * <h3>Registering Types</h3>
  * Create a {@code RuntimeTypeAdapterFactory} by passing the base type and type field
  * name to the {@link #of} factory method. If you don't supply an explicit type
  * field name, {@code "type"} will be used. <pre>   {@code
@@ -114,10 +125,21 @@ import com.google.gson.stream.JsonWriter;
  *       .registerSubtype(Circle.class)
  *       .registerSubtype(Diamond.class);
  * }</pre>
- * 
+ *
+ * <h2>Serialization and deserialization</h2>
+ * In order to serialize and deserialize a polymorphic object,
+ * you must specify the base type explicitly.
+ * <pre>   {@code
+ *   Diamond diamond = new Diamond();
+ *   String json = gson.toJson(diamond, Shape.class);
+ * }</pre>
+ * And then:
+ * <pre>   {@code
+ *   Shape shape = gson.fromJson(json, Shape.class);
+ * }</pre>
  */
 @SuppressWarnings("javadoc")
-public final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory {
+final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory {
   private final Class<?> baseType;
   private final String typeFieldName;
   private final Map<String, Class<?>> labelToSubtype = new LinkedHashMap<String, Class<?>>();
@@ -189,7 +211,7 @@ public final class RuntimeTypeAdapterFactory<T> implements TypeAdapterFactory {
   }
 
   @Override
-public <R> TypeAdapter<R> create(Gson gson, TypeToken<R> type) {
+  public <R> TypeAdapter<R> create(Gson gson, TypeToken<R> type) {
     if (type.getRawType() != baseType) {
       return null;
     }

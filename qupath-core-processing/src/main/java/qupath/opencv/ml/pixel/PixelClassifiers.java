@@ -31,7 +31,6 @@ import java.util.Map;
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
-import com.google.gson.RuntimeTypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -41,6 +40,7 @@ import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.objects.classes.PathClass;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.ops.ImageDataOp;
@@ -64,8 +64,8 @@ public class PixelClassifiers {
 		
 		private static String typeName = "pixel_classifier_type";
 		
-		private final static RuntimeTypeAdapterFactory<PixelClassifier> pixelClassifierTypeAdapter = 
-				RuntimeTypeAdapterFactory.of(PixelClassifier.class, typeName)
+		private final static SubTypeAdapterFactory<PixelClassifier> pixelClassifierTypeAdapter = 
+				GsonTools.createSubTypeAdapterFactory(PixelClassifier.class, typeName)
 				.registerSubtype(OpenCVPixelClassifier.class);
 		
 		/**
