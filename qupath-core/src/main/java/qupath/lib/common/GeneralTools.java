@@ -39,6 +39,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -371,8 +372,8 @@ public final class GeneralTools {
 	/**
 	 * Try to identify a Path from a URI, dropping any query or fragment elements.
 	 * <p>
-	 * This returns the Path if successful and null otherwise (e.g. if not a file). 
-	 * There is no check whether the Path exists.
+	 * This returns the Path if successful and null otherwise (e.g. if the URI does not correspond to a file). 
+	 * There is no check whether the Path exists, and support for an authority is platform-dependent.
 	 * 
 	 * @param uri
 	 * @return
@@ -385,8 +386,8 @@ public final class GeneralTools {
 			if (uri.getFragment() != null || uri.getQuery() != null)
 				uri = new URI(uri.getScheme(), uri.getHost(), uri.getPath(), null);
 			return Paths.get(uri);
-		} catch (URISyntaxException e) {
-			logger.warn("Problem parsing file from URI", e);
+		} catch (URISyntaxException | IllegalArgumentException | FileSystemNotFoundException e) {
+			logger.warn("Problem parsing file from URI " + uri + " (" + e.getLocalizedMessage() + ")", e);
 		}
 		return null;
 	}

@@ -263,10 +263,18 @@ public class TestGeneralTools {
 	public void test_toPath() {
 		try {
 			assertEquals(null, GeneralTools.toPath(new URI("https://host.com")));
-			assertEquals(Path.of(new URI("file://www.host.com/some/path")), GeneralTools.toPath(new URI("file://www.host.com/some/path")));
-			assertEquals(Path.of(new URI("file://users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file://users/user/path/to/file.ext")));
-			assertEquals(Path.of(new URI("file://users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file://users/user/path/to/file.ext#fragment")));
-			assertEquals(Path.of(new URI("file://users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file://users/user/path/to/file.ext/?query=test")));
+			assertEquals(Path.of(new URI("file:/www.host.com/some/path")), GeneralTools.toPath(new URI("file:/www.host.com/some/path")));
+			
+			// At time or writing https://en.wikipedia.org/wiki/File_URI_scheme#How_many_slashes?
+			// specifies that file:/ can have 1 or 3 slashes; 2 is often used but never correct
+			assertEquals(Path.of(new URI("file:/users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file:/users/user/path/to/file.ext")));
+			assertEquals(Path.of(new URI("file:/users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file:///users/user/path/to/file.ext")));
+			assertEquals(Path.of(new URI("file:///users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file:/users/user/path/to/file.ext")));
+			assertEquals(Path.of(new URI("file:///users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file:///users/user/path/to/file.ext")));
+			
+			// Fragment and query elements should be dropped
+			assertEquals(Path.of(new URI("file:/users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file:/users/user/path/to/file.ext#fragment")));
+			assertEquals(Path.of(new URI("file:/users/user/path/to/file.ext")), GeneralTools.toPath(new URI("file:/users/user/path/to/file.ext/?query=test")));
 		} catch (URISyntaxException e) {
 			throw new AssertionError();
 		}
