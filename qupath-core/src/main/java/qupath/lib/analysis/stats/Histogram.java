@@ -391,9 +391,10 @@ public class Histogram { // implements Serializable {
 			// Skip NaNs, or out of range values
 			if (Double.isNaN(v) || v < edgeMin || v > edgeMax)
 				continue;
-			int bin = (int)((v - edgeMin) / binWidth);
-			if (bin >= counts.length)
-				bin = counts.length - 1;
+			int bin = getBinIndexForValue(v);
+//			int bin = (int)((v - edgeMin) / binWidth);
+//			if (bin >= counts.length)
+//				bin = counts.length - 1;
 			long count = counts[bin] + 1;
 			counts[bin] = count;
 			if (count > maxCount)

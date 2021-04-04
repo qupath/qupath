@@ -30,6 +30,7 @@ List of bugs fixed:
 * Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)
 * The requestedPixelSize option for TileExporter calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
 * The TileExporter could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
+* setIntensityClassification method in PathClassifierTools now correctly ignores ignored classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
 
 ### Dependency updates
 * AdoptOpenJDK 16
