@@ -80,7 +80,9 @@ import qupath.lib.regions.RegionRequest;
  * Note this requires Bio-Formats v6.0.0 or later.
  * 
  * @author Pete Bankhead
- *
+ * 
+ * modified by @phaub , 04'2021 (JPEG support for nChannels>1, sanity check)
+ * 
  */
 public class OMEPyramidWriter {
 	
@@ -162,7 +164,8 @@ public class OMEPyramidWriter {
 			switch(this) {
 			case JPEG:
 				return server.isRGB() || 
-						(server.nChannels() == 1 && server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8);
+						//@phaub JPEG support for nChannels>1
+						(server.nChannels() >= 1 && server.getPixelType() == qupath.lib.images.servers.PixelType.UINT8);
 			case J2K:
 			case J2K_LOSSY:
 				// It seems OME-TIFF can only write 8-bit or 16-bit J2K?
@@ -1226,6 +1229,17 @@ public class OMEPyramidWriter {
 		 * @return the series
 		 */
 		public OMEPyramidSeries build() {
+			//@phaub Sanity check (JPEG support for nChannels>1)
+			int nChannels = series.server.nChannels();
+			if ( ( nChannels == 2 || nChannels > 3) 
+				 && (series.channelExportType == ChannelExportType.INTERLEAVED)
+				 && (series.compression == CompressionType.JPEG) ){
+				// Not sure if there is a better way to inform the user
+				logger.warn("JPEG compression not possible in INTERLEAVED mode for nChannel = 2 or > 3.Will be corrected to PLANAR");
+				logger.warn("CompressionType will be changed to PLANAR");
+				series.channelExportType = ChannelExportType.PLANAR;			
+			}
+					
 			// Sanity check downsamples, and remove those that are too much
 			Arrays.sort(series.downsamples);
 			int lastDownsample = 1;
