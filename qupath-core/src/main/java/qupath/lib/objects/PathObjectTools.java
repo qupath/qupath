@@ -468,24 +468,28 @@ public class PathObjectTools {
 	 */
 	public static Collection<PathObject> convertToPoints(Collection<PathObject> pathObjects, boolean preferNucleus) {
 		// Create Points lists for each class
-		Map<PathClass, List<Point2>> pointsMap = new HashMap<>();
+		Map<PathClass, Map<ImagePlane, List<Point2>>> pointsMap = new HashMap<>();
 		for (PathObject pathObject : pathObjects) {
-			PathClass pathClass = pathObject.getPathClass();
-			List<Point2> points = pointsMap.get(pathClass);
-			if (points == null) {
-				points = new ArrayList<>();
-				pointsMap.put(pathClass, points);
-			}
 			var roi = PathObjectTools.getROI(pathObject, preferNucleus);
+			if (roi == null)
+				continue;
+			var plane = roi.getImagePlane();
+			PathClass pathClass = pathObject.getPathClass();
+			var pointsMapByClass = pointsMap.computeIfAbsent(pathClass, p -> new HashMap<>());
+			var points = pointsMapByClass.computeIfAbsent(plane, p -> new ArrayList<>());
 			points.add(new Point2(roi.getCentroidX(), roi.getCentroidY()));
 		}
 		
 		// Create & add annotation objects to hierarchy
 		List<PathObject> annotations = new ArrayList<>();
-		for (Entry<PathClass, List<Point2>> entry : pointsMap.entrySet()) {
-			PathObject pointObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(entry.getValue(), ImagePlane.getDefaultPlane()));
-			pointObject.setPathClass(entry.getKey());
-			annotations.add(pointObject);
+		for (Entry<PathClass, Map<ImagePlane, List<Point2>>> entry : pointsMap.entrySet()) {
+			var pathClass = entry.getKey();
+			for (var entry2 : entry.getValue().entrySet()) {
+				var plane = entry2.getKey();
+				var points = entry2.getValue();
+				PathObject pointObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(points, plane), pathClass);
+				annotations.add(pointObject);
+			}
 		}
 		return annotations;
 	}
