@@ -44,7 +44,6 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
-import qupath.lib.images.servers.ImageServers;
 import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.PathObject;
@@ -78,8 +77,6 @@ public class GsonTools {
 			.setLenient()
 			.registerTypeAdapterFactory(new QuPathTypeAdapterFactory())
 			.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
-			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
-			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory())
 			.registerTypeAdapter(AffineTransform.class, AffineTransformTypeAdapter.INSTANCE);
 			//.create();
 	

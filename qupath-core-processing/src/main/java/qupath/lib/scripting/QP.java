@@ -77,6 +77,7 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
@@ -203,6 +204,8 @@ public class QP {
 		// Currently, the type adapters are registered within the class
 		@SuppressWarnings("unused")
 		var init = new ImageOps();
+		@SuppressWarnings("unused")
+		var servers = new ImageServers();
 	}
 
 	

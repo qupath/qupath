@@ -81,6 +81,12 @@ public class ImageServers {
 			.registerSubtype(ColorDeconvolutionServerBuilder.class, "color_deconvolved")
 			;
 	
+	static {
+		GsonTools.getDefaultBuilder()
+			.registerTypeAdapterFactory(ImageServers.getImageServerTypeAdapterFactory(true))
+			.registerTypeAdapterFactory(ImageServers.getServerBuilderFactory());
+	}
+	
 	/**
 	 * Get a TypeAdapterFactory to handle {@linkplain ServerBuilder ServerBuilders}.
 	 * @return
