@@ -20,7 +20,8 @@ Other changes:
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
 
 List of bugs fixed:
-* Exception when converting PathObject with name but no color to GeoJSON
+* 'Detect centroid distances 2D' doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
+* 'Convert detections to points' loses plane when applied to a z-stack (https://github.com/qupath/qupath/issues/696)
 * Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
 * --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
@@ -33,6 +34,7 @@ List of bugs fixed:
 * setIntensityClassification method in PathClassifierTools now correctly ignores ignored classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
 * Dialogs.showConfirmDialog(title, text) shows the text in the title bar, rather than the title (https://github.com/qupath/qupath/issues/662)
 * Error in StarDist intensity measurements for 8-bit RGB fluorescence images (https://github.com/qupath/qupath/issues/686)
+* Exception when converting PathObject with name but no color to GeoJSON
 
 ### Dependency updates
 * AdoptOpenJDK 16
