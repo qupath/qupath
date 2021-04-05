@@ -291,8 +291,14 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 				try {
 					objs = PathObjectIO.extractObjectsFromFile(file);
 					
+					if (objs.isEmpty()) {
+						logger.warn("Object object found in {}", file.getAbsolutePath());
+						return;
+					}
 					// Ask confirmation to user
-					var confirm = Dialogs.showConfirmDialog("Add to hierarchy", String.format("Add %d object(s) to the hierarchy?", objs.size()));
+					int nObjects = objs.size();
+					String message = nObjects == 1 ? "Add object to the hierarchy?" : String.format("Add %d objects to the hierarchy?", nObjects);
+					var confirm = Dialogs.showConfirmDialog("Add to hierarchy", message);
 					if (!confirm)
 						return;
 					

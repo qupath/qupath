@@ -173,7 +173,8 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 					
 					addClassifierFiles(files);
 				} catch (Exception ex) {
-					Dialogs.showErrorMessage("Error adding classifier(s)", ex.getLocalizedMessage());
+					String plural = dragboard.getFiles().size() == 1 ? "" : "s";
+					Dialogs.showErrorMessage("Error adding classifier" + plural, ex.getLocalizedMessage());
 				}
 			}
 			refreshNames(listClassifiers.getItems());
@@ -277,7 +278,9 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 		
 		if (!fails.isEmpty()) {
 			String failedClassifiers = fails.stream().map(e -> "- " + e.getName()).collect(Collectors.joining(System.lineSeparator()));
-			Dialogs.showErrorMessage("Error adding classifier(s)", String.format("Could not add the following classifier(s):%s%s", 
+			String pluralize = fails.size() == 1 ? "" : "s";
+			Dialogs.showErrorMessage("Error adding classifier" + pluralize, String.format("Could not add the following classifier%s:%s%s", 
+					pluralize,
 					System.lineSeparator(), 
 					failedClassifiers)
 			);

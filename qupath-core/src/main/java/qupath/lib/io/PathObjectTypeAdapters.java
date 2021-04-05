@@ -398,7 +398,7 @@ class PathObjectTypeAdapters {
 				if (properties.has("object_type")) {
 					type = properties.get("object_type").getAsString();
 				} else if (properties.has("type")) {
-					// For now, allow 'type' to be used as an alias
+					// Allow 'type' to be used as an alias
 					type = properties.get("type").getAsString();
 				}
 			}

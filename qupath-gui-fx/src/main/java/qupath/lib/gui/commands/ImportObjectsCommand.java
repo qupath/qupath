@@ -74,7 +74,14 @@ public final class ImportObjectsCommand {
 			return false;
 		}
 		
-		var confirm = Dialogs.showConfirmDialog("Add to hierarchy", String.format("Add %d object(s) to the hierarchy?", objs.size()));
+		if (objs.isEmpty()) {
+			Dialogs.showWarningNotification("Import objects", "No objects found in " + file.getAbsolutePath());
+			return false;
+		}
+		
+		int nObjects = objs.size();
+		String message = nObjects == 1 ? "Add 1 object to the hierarchy?" : String.format("Add %d objects to the hierarchy?", nObjects);
+		var confirm = Dialogs.showConfirmDialog("Add to hierarchy", message);
 		if (!confirm)
 			return false;
 		

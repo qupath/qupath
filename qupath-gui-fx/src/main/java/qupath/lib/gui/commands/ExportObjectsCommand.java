@@ -115,7 +115,8 @@ public final class ExportObjectsCommand {
 		// Check if includes ellipse(s), as they will need to be polygonized
 		var nEllipses = toProcess.stream().filter(ann -> isEllipse(ann)).count();
 		if (nEllipses > 0) {
-			var response = Dialogs.showYesNoDialog("Ellipse polygonization", String.format("%d ellipse(s) will be polygonized, continue?", nEllipses));
+			String message = nEllipses == 1 ? "1 ellipse will be polygonized, continue?" : String.format("%d ellipses will be polygonized, continue?", nEllipses);
+			var response = Dialogs.showYesNoDialog("Ellipse polygonization", message);
 			if (!response)
 				return false;
 		}
@@ -139,7 +140,9 @@ public final class ExportObjectsCommand {
 				);
 		
 		// Notify user of success
-		Dialogs.showInfoNotification("Succesful export", String.format("%d object(s) were successfully exported.", toProcess.size()));
+		int nObjects = toProcess.size();
+		String message = nObjects == 1 ? "1 object was sucessfully exported" : String.format("%d objects were successfully exported.", nObjects);
+		Dialogs.showInfoNotification("Succesful export", message);
 		
 		// Get history workflow
 		var historyWorkflow = imageData.getHistoryWorkflow();
