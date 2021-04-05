@@ -39,6 +39,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathCellObject;
@@ -51,24 +52,6 @@ import qupath.lib.roi.interfaces.ROI;
 
 @SuppressWarnings("javadoc")
 public class PathObjectIOTest {
-	
-	private static final ROI roiDetection = ROIs.createRectangleROI(0, 0, 10, 10, ImagePlane.getDefaultPlane());
-	private static final ROI roiAnnotation = ROIs.createRectangleROI(100, 100, 10, 10, ImagePlane.getDefaultPlane());
-	private static final ROI roiCell1 = ROIs.createRectangleROI(25, 25, 25, 25, ImagePlane.getDefaultPlane());
-	private static final ROI roiCell2 = ROIs.createRectangleROI(12, 12, 5, 5, ImagePlane.getDefaultPlane());
-	private static final ROI roiTile = ROIs.createRectangleROI(100, 100, 10, 10, ImagePlane.getDefaultPlane());
-	
-	private static final MeasurementList mlDetection = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
-	private static final MeasurementList mlCell = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
-	
-	private static final PathObject myPDO = PathObjects.createDetectionObject(roiDetection, PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK), mlDetection);
-	private static final PathObject myPAO = PathObjects.createAnnotationObject(roiAnnotation, PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
-	private static final PathObject myPCO = PathObjects.createCellObject(roiCell1, roiCell2,	PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN), mlCell);
-	private static final PathObject myPTO = PathObjects.createTileObject(roiTile, PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN), null);
-	private static final PathObject myTMA = PathObjects.createTMACoreObject(25, 25, 25, false);
-	
-//	private static final Collection<ROI> rois = Arrays.asList(roiDetection, roiAnnotation, roiCell1, roiCell2, roiTile);
-	private static final Collection<PathObject> objs = Arrays.asList(myPDO, myPCO, myPAO, myPTO, myTMA);
 	
 	/**
 	 * Test if importing back exported objects are unchanged (GeoJSON).
@@ -83,6 +66,31 @@ public class PathObjectIOTest {
 	 */
 	@Test
 	public void test_IOObjectsGeoJSON() throws IOException {
+		test_IOObjectsGeoJSONImpl(true); 
+		test_IOObjectsGeoJSONImpl(false, GeoJsonExportOptions.values()); 
+	}
+
+	
+	
+	private void test_IOObjectsGeoJSONImpl(boolean keepMeasurements, GeoJsonExportOptions... options) throws IOException {
+		ROI roiDetection = ROIs.createRectangleROI(0, 0, 10, 10, ImagePlane.getDefaultPlane());
+		ROI roiAnnotation = ROIs.createRectangleROI(100, 100, 10, 10, ImagePlane.getDefaultPlane());
+		ROI roiCell1 = ROIs.createRectangleROI(25, 25, 25, 25, ImagePlane.getDefaultPlane());
+		ROI roiCell2 = ROIs.createRectangleROI(12, 12, 5, 5, ImagePlane.getDefaultPlane());
+		ROI roiTile = ROIs.createRectangleROI(100, 100, 10, 10, ImagePlane.getDefaultPlane());
+		
+		MeasurementList mlDetection = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
+		MeasurementList mlCell = MeasurementListFactory.createMeasurementList(16, MeasurementList.MeasurementListType.GENERAL);
+		
+		PathObject myPDO = PathObjects.createDetectionObject(roiDetection, PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK), mlDetection);
+		PathObject myPAO = PathObjects.createAnnotationObject(roiAnnotation, PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
+		PathObject myPCO = PathObjects.createCellObject(roiCell1, roiCell2,	PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN), mlCell);
+		PathObject myPTO = PathObjects.createTileObject(roiTile, PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN), null);
+		PathObject myTMA = PathObjects.createTMACoreObject(25, 25, 25, false);
+		
+		Collection<PathObject> objs = Arrays.asList(myPDO, myPCO, myPAO, myPTO, myTMA);
+
+		
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		
 		// Add measurements
@@ -92,10 +100,10 @@ public class PathObjectIOTest {
 		mlCell.addMeasurement("TestMeasurement4", 20.0);
 		
 		// Export to GeoJSON
-		PathObjectIO.exportObjectsToGeoJson(objs, bos, true, true);
+		PathIO.exportObjectsAsGeoJSON(bos, objs, options);
 		
 		// Import from GeoJSON
-		List<PathObject> objsBack = new ArrayList<>(PathObjectIO.importObjectsFromGeoJson(new ByteArrayInputStream(bos.toByteArray())));
+		List<PathObject> objsBack = new ArrayList<>(PathIO.readObjectsFromGeoJSON(new ByteArrayInputStream(bos.toByteArray())));
 		
 		// Array to count number of each PathObject type
 		int[] countCheck = new int[] {0, 0, 0, 0, 0};
@@ -115,14 +123,20 @@ public class PathObjectIOTest {
 				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
 				assertSameROIs(po.getROI(), roiCell1);
 				assertSameROIs(((PathCellObject)po).getNucleusROI(), roiCell2);
-				assertTrue(po.hasMeasurements());
-				assertSameMeasurements(po.getMeasurementList(), myPCO.getMeasurementList());
+				if (keepMeasurements) {
+					assertTrue(po.hasMeasurements());
+					assertSameMeasurements(po.getMeasurementList(), myPCO.getMeasurementList());
+				} else
+					assertFalse(po.hasMeasurements());
 				countCheck[1]++;
 			} else if (po.isDetection()) {
 				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
 				assertSameROIs(po.getROI(), roiDetection);
-				assertTrue(po.hasMeasurements());
-				assertSameMeasurements(po.getMeasurementList(), myPDO.getMeasurementList());
+				if (keepMeasurements) {
+					assertTrue(po.hasMeasurements());
+					assertSameMeasurements(po.getMeasurementList(), myPDO.getMeasurementList());
+				} else
+					assertFalse(po.hasMeasurements());
 				countCheck[2]++;
 			} else if (po.isAnnotation()) {
 				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));

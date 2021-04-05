@@ -2,25 +2,26 @@
 *In progress*
 
 Enhancements:
-* Import/export objects as GeoJSON without scripting, via File -> Object data... ->
+* Import/export objects as GeoJSON without scripting, via 'File -> Object data... -> ...'
+* Import objects from .json, .geojson & .qpdata files via via 'File -> Object data... -> Import objects' or with drag & drop
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
-* Improved image rotation (under 'View > Rotate image')
+* Improved 360 degree image rotation (under 'View > Rotate image')
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
   * Optionally skip TMA cores marked as 'ignored'
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
-* New 'ContourTracing' class to simplify converting thresholded images to object
-* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
 
-Other changes:
+Code changes:
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * GeneralTools readAsString methods now assume UTF-8 encoding
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
+* New 'ContourTracing' class to simplify converting thresholded images to object
+* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
 
 List of bugs fixed:
 * 'Detect centroid distances 2D' doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)

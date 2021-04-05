@@ -25,31 +25,29 @@ package qupath.lib.gui.commands;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import javafx.collections.FXCollections;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
-import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.io.PathObjectIO;
+import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.scripting.QP;
 
 /**
  * Command to export object(s) in GeoJSON format to an output file.
  * 
  * @author Melvin Gelbard
+ * @author Pete Bankhead
  */
 // TODO make default dir the project one when choosing outFile?
 public final class ExportObjectsCommand {
@@ -74,32 +72,23 @@ public final class ExportObjectsCommand {
 		// Get hierarchy
 		PathObjectHierarchy hierarchy = imageData.getHierarchy();
 		
-		// Create comboBox for choice
-		ComboBox<String> combo = new ComboBox<>();
-		combo.setItems(FXCollections.observableArrayList("All objects", "Selected objects"));
+		String allObjects = "All objects";
+		String selectedObjects = "Selected objects";
+		String defaultObjects = hierarchy.getSelectionModel().noSelection() ? allObjects : selectedObjects;
 		
 		// Params
-		CheckBox compressedCheck = new CheckBox("Compress data");
-		CheckBox prettyGsonCheck = new CheckBox("Pretty GeoJSON");
-		CheckBox includeMeasurementsCheck = new CheckBox("Include measurements");
-		includeMeasurementsCheck.setSelected(true);
-		combo.getSelectionModel().selectFirst();
+		var parameterList = new ParameterList()
+				.addChoiceParameter("exportOptions", "Export ", defaultObjects, Arrays.asList(allObjects, selectedObjects), "Choose which objects to export - run a 'Select annotations/detections' command first if needed")
+				.addBooleanParameter("excludeMeasurements", "Exclude measurements", false, "Exclude object measurements during export - for large numbers of detections this can help reduce the file size")
+				.addBooleanParameter("doPretty", "Pretty JSON", false, "Pretty GeoJSON is more human-readable but results in larger file sizes")
+				.addBooleanParameter("doFeatureCollection", "Export as FeatureCollection", true, "Export as a 'FeatureCollection', which is a standard GeoJSON way to represent multiple objects; if not, a regular JSON object/array will be export")
+				.addBooleanParameter("doZip", "Compress data (zip)", false, "Compressed files take less memory");
 		
-		var sep = new Separator();
-		GridPane grid = new GridPane();
-		int row = 0;
-		PaneTools.addGridRow(grid, row++, 0, "Export objects", new Label("Export "), new HBox(5.0), combo);
-		PaneTools.addGridRow(grid, row++, 0, null, sep, sep, sep);
-		PaneTools.addGridRow(grid, row++, 0, "Export all measurements along with the objects", includeMeasurementsCheck, includeMeasurementsCheck, includeMeasurementsCheck);
-		PaneTools.addGridRow(grid, row++, 0, "Pretty GeoJSON is more human-readable but results in larger file sizes", prettyGsonCheck, prettyGsonCheck, prettyGsonCheck);
-		PaneTools.addGridRow(grid, row++, 0, "Compressed files take less memory", compressedCheck, compressedCheck, compressedCheck);
-		
-		grid.setVgap(5.0);
-		if (!Dialogs.showConfirmDialog("Export objects", grid))
+		if (!Dialogs.showParameterDialog("Export objects", parameterList))
 			return false;
 		
 		Collection<PathObject> toProcess;
-		var comboChoice = combo.getSelectionModel().getSelectedItem();
+		var comboChoice = parameterList.getChoiceParameterValue("exportOptions");
 		if (comboChoice.equals("Selected objects")) {
 			if (hierarchy.getSelectionModel().noSelection()) {
 				Dialogs.showErrorMessage("No selection", "No selection detected!");
@@ -123,20 +112,28 @@ public final class ExportObjectsCommand {
 
 		File outFile;
 		var project = qupath.getProject();
-		if (!compressedCheck.isSelected())
-			outFile = Dialogs.promptToSaveFile("Export to file", project != null && project.getPath() != null ? project.getPath().toFile() : null, "objects.geojson", "GeoJSON", ".geojson");
-		else
+		if (parameterList.getBooleanParameterValue("doZip"))
 			outFile = Dialogs.promptToSaveFile("Export to file", project != null && project.getPath() != null ? project.getPath().toFile() : null, "objects.zip", "ZIP archive", ".zip");
+		else
+			outFile = Dialogs.promptToSaveFile("Export to file", project != null && project.getPath() != null ? project.getPath().toFile() : null, "objects.geojson", "GeoJSON", ".geojson");
 			
 		// If user cancels
 		if (outFile == null)
 			return false;
 		
+		List<GeoJsonExportOptions> options = new ArrayList<>();
+		if (parameterList.getBooleanParameterValue("excludeMeasurements"))
+			options.add(GeoJsonExportOptions.EXCLUDE_MEASUREMENTS);
+		if (parameterList.getBooleanParameterValue("doPretty"))
+			options.add(GeoJsonExportOptions.PRETTY_JSON);
+		if (parameterList.getBooleanParameterValue("doFeatureCollection"))
+			options.add(GeoJsonExportOptions.FEATURE_COLLECTION);
+		
+		
 		// Export
-		PathObjectIO.exportObjectsToGeoJson(toProcess, 
-				outFile, 
-				(includeMeasurementsCheck.isSelected() && !includeMeasurementsCheck.isDisabled()), 
-				prettyGsonCheck.isSelected()
+		QP.exportObjectsToGeoJson(toProcess, 
+				outFile.getAbsolutePath(), 
+				options.toArray(GeoJsonExportOptions[]::new)
 				);
 		
 		// Notify user of success
@@ -148,18 +145,19 @@ public final class ExportObjectsCommand {
 		var historyWorkflow = imageData.getHistoryWorkflow();
 		
 		// args for workflow step
-		Map<String, String> map = new HashMap<>();
+		Map<String, String> map = new LinkedHashMap<>();
 		map.put("path", outFile.getPath());
-		map.put("prettyGson", prettyGsonCheck.isSelected() ? "true" : "false");
 
-		String method = comboChoice.equals("All objects") ? "exportAllObjectsToGeoJson" : "exportSelectedObjectsToGeoJson";
-		String methodTitle = comboChoice.equals("All objects") ? "Export all objects" : "Export selected objects";
-		map.put("includeMeasurements", includeMeasurementsCheck.isSelected() ? "true" : "false");
-		String methodString = String.format("%s(%s%s%s, %s, %s)", 
+		String method = comboChoice.equals(allObjects) ? "exportAllObjectsToGeoJson" : "exportSelectedObjectsToGeoJson";
+		String methodTitle = comboChoice.equals(allObjects) ? "Export all objects" : "Export selected objects";
+		String optionsString = options.stream().map(o -> "\"" + o.name() + "\"").collect(Collectors.joining(", "));
+		map.put("options", optionsString);
+		if (!optionsString.isEmpty())
+			optionsString = ", " + optionsString;
+		String methodString = String.format("%s(%s%s)", 
 				method, 
-				"\"", GeneralTools.escapeFilePath(outFile.getPath()), "\"",
-				String.valueOf(includeMeasurementsCheck.isSelected()),
-				String.valueOf(prettyGsonCheck.isSelected()));
+				"\"" + GeneralTools.escapeFilePath(outFile.getPath()) + "\"",
+				optionsString);
 
 		historyWorkflow.addStep(new DefaultScriptableWorkflowStep(methodTitle, map, methodString));		
 		return true;

@@ -290,9 +290,9 @@ class PathObjectTypeAdapters {
 				out.value(((TMACoreObject)value).isMissing());
 			}
 			
+			MeasurementList measurements = value.getMeasurementList();
 			if (flattenProperties) {
 				// Add measurements
-				MeasurementList measurements = value.getMeasurementList();
 				if (!measurements.isEmpty()) {
 					out.name("Measurement count");
 					out.value(measurements.size());
@@ -314,8 +314,10 @@ class PathObjectTypeAdapters {
 					}
 				}
 			} else {
-				out.name("measurements");
-				MeasurementListTypeAdapter.INSTANCE.write(out, value.getMeasurementList());
+				if (!measurements.isEmpty()) {
+					out.name("measurements");
+					MeasurementListTypeAdapter.INSTANCE.write(out, measurements);
+				}
 				
 				if (value instanceof MetadataStore) {
 					MetadataStore store = (MetadataStore)value;

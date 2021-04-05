@@ -57,6 +57,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools;
@@ -949,9 +950,11 @@ public class PathObjectTools {
 	/**
 	 * Create a(n optionally) transformed version of a {@link PathObject}.
 	 * <p>
-	 * Note: only detections (including tiles and cells) and annotations are supported by this method.
-	 * Root objects are duplicated and other object types (e.g. TMA cores) result in an 
-	 * {@link UnsupportedOperationException} being thrown.
+	 * Note: only detections (including tiles and cells) and annotations are fully supported by this method.
+	 * Root objects are duplicated.
+	 * TMA core objects are transformed only if the resulting transform creates an ellipse ROI, since this is 
+	 * currently the only ROI type supported for a TMA core (this behavior may change).
+	 * Any other object types result in an {@link UnsupportedOperationException} being thrown.
 	 * 
 	 * @param pathObject the object to transform; this will be unchanged
 	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
@@ -974,6 +977,9 @@ public class PathObjectTools {
 			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);
 		} else if (pathObject instanceof PathRootObject) {
 			newObject = new PathRootObject();
+		} else if (pathObject instanceof TMACoreObject && roi instanceof EllipseROI) {
+			var core = (TMACoreObject)pathObject;
+			newObject = PathObjects.createTMACoreObject(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight(), core.isMissing());
 		} else
 			throw new UnsupportedOperationException("Unable to transform object " + pathObject);
 		if (copyMeasurements && !pathObject.getMeasurementList().isEmpty()) {
