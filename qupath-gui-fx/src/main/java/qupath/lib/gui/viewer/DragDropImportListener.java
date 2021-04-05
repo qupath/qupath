@@ -39,6 +39,8 @@ import org.slf4j.LoggerFactory;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
@@ -50,6 +52,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.images.ImageData;
+import qupath.lib.io.PathIO;
 import qupath.lib.io.PathObjectIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
@@ -226,13 +229,34 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 
 				// If we have a different path, open as a new image
 				if (viewer == null) {
-					Dialogs.showErrorMessage("Open data", "Please drag the file onto a specific viewer to open!");
+					Dialogs.showErrorMessage("Load data", "Please drag the file onto a specific viewer to open!");
 					break;
 				}
 				try {
+					// Check if we should be importing objects or opening the file
+					if (imageData != null) {
+						var dialog = new Dialog<ButtonType>();
+						var btOpen = new ButtonType("Open image");
+						var btImport = new ButtonType("Import objects");
+						dialog.getDialogPane().getButtonTypes().setAll(btOpen, btImport, ButtonType.CANCEL);
+						dialog.setTitle("Open data");
+						dialog.setHeaderText("What do you want to do with the data file?");
+						dialog.setContentText("You can\n"
+								+ " 1. Open the image in the current viewer\n"
+								+ " 2. Import objects and add them to the current image");
+//						dialog.setHeaderText("What do you want to do?");
+						var choice = dialog.showAndWait().orElse(ButtonType.CANCEL);
+						if (choice == ButtonType.CANCEL)
+							return;
+						if (choice == btImport) {
+							var hierarchyImport = PathIO.readHierarchy(file);
+							hierarchy.addPathObjects(hierarchyImport.getRootObject().getChildObjects());
+							return;
+						}
+					}
 					qupath.openSavedData(viewer, file, false, true);
 				} catch (Exception e) {
-					Dialogs.showErrorMessage("Open image", e);
+					Dialogs.showErrorMessage("Load data", e);
 				}
 				return;
 			}
