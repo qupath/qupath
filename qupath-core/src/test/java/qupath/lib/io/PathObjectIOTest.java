@@ -1,6 +1,32 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License 
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.io;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -17,8 +43,6 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectIO;
-import qupath.lib.objects.PathObjectTestWrapper;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
@@ -26,7 +50,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
 @SuppressWarnings("javadoc")
-public class PathObjectIOTest extends PathObjectTestWrapper {
+public class PathObjectIOTest {
 	
 	private static final ROI roiDetection = ROIs.createRectangleROI(0, 0, 10, 10, ImagePlane.getDefaultPlane());
 	private static final ROI roiAnnotation = ROIs.createRectangleROI(100, 100, 10, 10, ImagePlane.getDefaultPlane());
@@ -80,37 +104,56 @@ public class PathObjectIOTest extends PathObjectTestWrapper {
 				continue;
 
 			// Test whether po has a ROI
-			test_hasROI(po, Boolean.TRUE);
+			assertTrue(po.hasROI());
 			
 			if (po.isTile()) {
-				test_getPathClass(po, PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
-				test_equalROIRegions(po.getROI(), roiTile);
-				test_hasMeasurements(po, Boolean.FALSE);
+				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
+				assertSameROIs(po.getROI(), roiTile);
+				assertFalse(po.hasMeasurements());
 				countCheck[0]++;
 			} else if (po.isCell()) {
-				test_getPathClass(po, PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
-				test_equalROIRegions(po.getROI(), roiCell1);
-				test_equalROIRegions(((PathCellObject)po).getNucleusROI(), roiCell2);
-				test_hasMeasurements(po, Boolean.TRUE);
-				test_equalMeasurementListContent(po.getMeasurementList(), myPCO.getMeasurementList());
+				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest2", ColorTools.GREEN));
+				assertSameROIs(po.getROI(), roiCell1);
+				assertSameROIs(((PathCellObject)po).getNucleusROI(), roiCell2);
+				assertTrue(po.hasMeasurements());
+				assertSameMeasurements(po.getMeasurementList(), myPCO.getMeasurementList());
 				countCheck[1]++;
 			} else if (po.isDetection()) {
-				test_getPathClass(po, PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
-				test_equalROIRegions(po.getROI(), roiDetection);
-				test_hasMeasurements(po, Boolean.TRUE);
-				test_equalMeasurementListContent(po.getMeasurementList(), myPDO.getMeasurementList());
+				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
+				assertSameROIs(po.getROI(), roiDetection);
+				assertTrue(po.hasMeasurements());
+				assertSameMeasurements(po.getMeasurementList(), myPDO.getMeasurementList());
 				countCheck[2]++;
 			} else if (po.isAnnotation()) {
-				test_getPathClass(po, PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
-				test_equalROIRegions(po.getROI(), roiAnnotation);
-				test_hasMeasurements(po, Boolean.FALSE);
+				assertEquals(po.getPathClass(), PathClassFactory.getPathClass("PathClassTest1", ColorTools.BLACK));
+				assertSameROIs(po.getROI(), roiAnnotation);
+				assertFalse(po.hasMeasurements());
 				countCheck[3]++;
 			} else if (po.isTMACore()) {
-				test_hasMeasurements(po, Boolean.FALSE);
-				test_equalROIRegions(po.getROI(), myTMA.getROI());
+				assertFalse(po.hasMeasurements());
+				assertSameROIs(po.getROI(), myTMA.getROI());
 				countCheck[4]++;
 			}
 		}
 		assertArrayEquals(countCheck, new int[] {1, 1, 1, 1, 1});
 	}
+	
+	private static void assertSameMeasurements(MeasurementList ml1, MeasurementList ml2) {
+		assertEquals(ml1.size(), ml2.size());
+		assertEquals(ml1.getMeasurementNames(), ml2.getMeasurementNames());
+		for (int i = 0; i < ml1.size(); i++) {
+			double val1 = ml1.getMeasurementValue(i);
+			double val2 = ml2.getMeasurementValue(i);
+			if (Double.isNaN(val1))
+				assertTrue(Double.isNaN(val2));
+			else
+				assertEquals(val1, val2, 1e-6);
+		}
+	}
+	
+	private static void assertSameROIs(ROI roi1, ROI roi2) {
+		assertEquals(roi1.getImagePlane(), roi2.getImagePlane());
+		assertEquals(roi1.getAllPoints(), roi2.getAllPoints());
+	}
+	
 }

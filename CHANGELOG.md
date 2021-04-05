@@ -2,6 +2,7 @@
 *In progress*
 
 Enhancements:
+* Import/export objects as GeoJSON without scripting, via File -> Object data... ->
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
