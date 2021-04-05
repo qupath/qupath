@@ -25,6 +25,7 @@ package qupath.lib.scripting;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -85,6 +86,7 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectIO;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
@@ -1239,15 +1241,30 @@ public class QP {
 	/**
 	 * Get an array of all objects in the current hierarchy.
 	 * 
+	 * @param includeRootObject
+	 * @return
+	 * @see #getCurrentHierarchy
+	 */
+	public static PathObject[] getAllObjects(boolean includeRootObject) {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return new PathObject[0];
+		var objList = hierarchy.getFlattenedObjectList(null);
+		if (includeRootObject)
+			return objList.toArray(new PathObject[0]);
+		return objList.parallelStream().filter(e -> !e.isRootObject()).toArray(PathObject[]::new);
+	}
+
+	/**
+	 * Get an array of all objects in the current hierarchy. 
+	 * Note that this includes the root object.
+	 * 
 	 * @return
 	 * 
 	 * @see #getCurrentHierarchy
 	 */
 	public static PathObject[] getAllObjects() {
-		PathObjectHierarchy hierarchy = getCurrentHierarchy();
-		if (hierarchy == null)
-			return new PathObject[0];
-		return hierarchy.getFlattenedObjectList(null).toArray(new PathObject[0]);
+		return getAllObjects(true);
 	}
 	
 	/**
@@ -1597,6 +1614,20 @@ public class QP {
 			return hierarchy.getFlattenedObjectList(null).stream().filter(predicate).collect(Collectors.toList());
 		return Collections.emptyList();
 	}
+	
+	/**
+	 * Set selected objects to contain all objects.
+	 * 
+	 * @param hierarchy 
+	 * @param includeRootObject 
+	 */
+	public static void selectAllObjects(PathObjectHierarchy hierarchy, boolean includeRootObject) {
+		var allObjs = hierarchy.getFlattenedObjectList(null);
+		if (!includeRootObject)
+			allObjs = allObjs.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
+		if (hierarchy != null)
+			hierarchy.getSelectionModel().setSelectedObjects(allObjs, null);
+	}	
 
 	/**
 	 * Set selected objects to contain (only) all objects in the current hierarchy according to a specified predicate.
@@ -1974,6 +2005,49 @@ public class QP {
 		hierarchy.fireObjectClassificationsChangedEvent(null, selected);
 	}
 
+	/**
+	 * Export all objects (excluding root object) to an output file as GeoJSON.
+	 * 
+	 * @param path 
+	 * @param includeMeasurements
+	 * @param prettyGson
+	 * @throws IOException
+	 */
+	public static void exportAllObjectsToGeoJson(String path, boolean includeMeasurements, boolean prettyGson) throws IOException {
+		PathObjectIO.exportObjectsToGeoJson(Arrays.asList(getAllObjects(false)), new File(path), includeMeasurements, prettyGson);
+	}
+	
+	/**
+	 * Export the selected objects to an output file as GeoJSON.
+	 * 
+	 * @param path 
+	 * @param includeMeasurements
+	 * @param prettyGson
+	 * @throws IOException
+	 */
+	public static void exportSelectedObjectsToGeoJson(String path, boolean includeMeasurements, boolean prettyGson) throws IOException {
+		PathObjectIO.exportObjectsToGeoJson(getSelectedObjects(), new File(path), includeMeasurements, prettyGson);
+	}
+
+	/**
+	 * Import all {@link PathObject}s from the given file. <p>
+	 * {@code IllegalArgumentException} is thrown if the file is not compatible. <br>
+	 * {@code FileNotFoundException} is thrown if the file is not found. <br>
+	 * {@code IOException} is thrown if an error occurs while reading the file. <br>
+	 * {@code ClassNotFoundException} should never occur naturally (except through a change in the code).
+	 * 
+	 * 
+	 * @param path
+	 * @return success
+	 * @throws FileNotFoundException
+	 * @throws IllegalArgumentException
+	 * @throws ClassNotFoundException
+	 * @throws IOException
+	 */
+	public static boolean importObjectsFromFile(String path) throws FileNotFoundException, IllegalArgumentException, IOException, ClassNotFoundException {
+		var objs = PathObjectIO.extractObjectsFromFile(new File(path));
+		return getCurrentHierarchy().addPathObjects(objs);
+	}
 	
 	/**
 	 * Clear the selection for the current hierarchy, so that no objects of any kind are selected.

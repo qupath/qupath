@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -1572,43 +1573,58 @@ public class Commands {
 	 * @param altitudeThreshold default altitude value for simplification
 	 */
 	public static void promptToSimplifySelectedAnnotations(ImageData<?> imageData, double altitudeThreshold) {
-			PathObjectHierarchy hierarchy = imageData.getHierarchy();
-			List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
-					.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
-					.collect(Collectors.toList());
-			if (pathObjects.isEmpty()) {
-				Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
-				return;
-			}
-	
-			String input = Dialogs.showInputDialog("Simplify shape", 
-					"Set altitude threshold in pixels (> 0; higher values give simpler shapes)", 
-					Double.toString(altitudeThreshold));
-			if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
-				return;
-			try {
-				altitudeThreshold = Double.parseDouble(((String)input).trim());
-			} catch (NumberFormatException e) {
-				logger.error("Could not parse altitude threshold from {}", input);
-				return;
-			}
-			
-			long startTime = System.currentTimeMillis();
-			for (var pathObject : pathObjects) {
-				ROI pathROI = pathObject.getROI();
-				if (pathROI instanceof PolygonROI) {
-					PolygonROI polygonROI = (PolygonROI)pathROI;
-					pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
-				} else {
-					pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
-				}
-				((PathAnnotationObject)pathObject).setROI(pathROI);
-			}
-			long endTime = System.currentTimeMillis();
-			logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
-			hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
+		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
+				.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
+				.collect(Collectors.toList());
+		if (pathObjects.isEmpty()) {
+			Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
+			return;
 		}
 
+		String input = Dialogs.showInputDialog("Simplify shape", 
+				"Set altitude threshold in pixels (> 0; higher values give simpler shapes)", 
+				Double.toString(altitudeThreshold));
+		if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
+			return;
+		try {
+			altitudeThreshold = Double.parseDouble(((String)input).trim());
+		} catch (NumberFormatException e) {
+			logger.error("Could not parse altitude threshold from {}", input);
+			return;
+		}
+		
+		long startTime = System.currentTimeMillis();
+		for (var pathObject : pathObjects) {
+			ROI pathROI = pathObject.getROI();
+			if (pathROI instanceof PolygonROI) {
+				PolygonROI polygonROI = (PolygonROI)pathROI;
+				pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
+			} else {
+				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
+			}
+			((PathAnnotationObject)pathObject).setROI(pathROI);
+		}
+		long endTime = System.currentTimeMillis();
+		logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
+		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+	}
+
+	/**
+	 * Select all objects (excluding the root object) in the imageData.
+	 * 
+	 * @param imageData
+	 */
+	public static void selectAllObjects(final ImageData<?> imageData) {
+		// Select all objects
+		QP.selectAllObjects(imageData.getHierarchy(), false);
+		
+		// Add this step to the history workflow
+		Map<String, String> map = new HashMap<>();
+		map.put("includeRootObject", "false");
+		WorkflowStep newStep = new DefaultScriptableWorkflowStep("Select all objects", map, "selectAllObjects(false)");
+		imageData.getHistoryWorkflow().addStep(newStep);
+	}
 
 
 	/**
@@ -1781,6 +1797,34 @@ public class Commands {
 			return;
 		MiniViewers.createDialog(viewer, true).show();
 	}
+	
+	/**
+	 * Show a dialog to import object(s) from a file.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void runObjectImport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		try {
+			ImportObjectsCommand.runObjectImport(qupath);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("Import error", e.getLocalizedMessage());
+		}
+
+	}
+
+	/**
+	 * Show a dialog to export object(s) to a GeoJSON file.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void runGeoJsonObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		try {
+			ExportObjectsCommand.runGeoJsonExport(qupath);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
+		}
+	}
+
 	
 	
 }

@@ -30,6 +30,7 @@ import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.text.NumberFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -116,6 +117,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
 import qupath.opencv.tools.OpenCVTools;
 
 
@@ -353,7 +355,17 @@ public class ImageAlignmentPane {
 			var affine = overlay == null ? null : overlay.getAffine();
 			if (affine == null)
 				return;
-			parseAffine(textArea.getText(), affine);
+			try {
+				// Parse String as AffineTransform
+				var newAffine = GeometryTools.parseTransformMatrix(textArea.getText());
+				var values = newAffine.getMatrixEntries();
+
+				// JavaFX's Affine has a different element ordering than awt's AffineTransform
+				affine.setToTransform(values[0], values[1], values[2], values[3], values[4], values[5]);
+			} catch (ParseException ex) {
+				Dialogs.showErrorMessage("Parse affine transform", "Unable to parse affine transform!");
+				logger.error("Error parsing transform: " + ex.getLocalizedMessage(), ex);
+			}
 		});
 		Button btnReset = new Button("Reset");
 		btnReset.setOnAction(e -> {
