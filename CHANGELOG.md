@@ -17,6 +17,8 @@ Enhancements:
 * New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
 
 Other changes:
+* GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
+  * 'id' is likely to be used as a unique identifier in a later QuPath version
 * GeneralTools readAsString methods now assume UTF-8 encoding
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
 
