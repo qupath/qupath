@@ -27,11 +27,14 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -512,16 +515,43 @@ public class ImageOps {
 
 			@Override
 			public Mat apply(Mat input) {
-				var matvec = new MatVector();
-				opencv_core.split(input, matvec);
-				for (int i = 0; i < matvec.size(); i++) {
-					var mat = matvec.get(i);
-					var range = percentiles(mat, percentiles);
-					double scale = 1./(range[1] - range[0]);
-					double offset = -range[0];
-					mat.convertTo(mat, mat.type(), scale, offset*scale);
+				// Pertentiles normalization based of histogram calculation.
+				// The following code assumes that input is a Mat with values range [0, 256)
+				final int NUM_COLORS = 256;
+				Mat hist = new Mat();
+				double range[] = new double[2];
+				Scalar scale = new Scalar();
+				Scalar offset = new Scalar();
+				for (int ch = 0; ch < input.channels(); ++ch) {
+					// Compute a histogram for a channel
+					opencv_imgproc.calcHist(input, 1, new int[ch], new Mat(), hist, 1, new int[]{NUM_COLORS}, new float[]{0, NUM_COLORS});
+
+					// Find two percentiles from colors distribution
+					long counter = 0;
+					int i = 0;
+					long ind = (long)(percentiles[i] / 100.0 * input.total());
+					try (var idx = hist.createIndexer()) {
+						for (int color = 0; color < NUM_COLORS; ++color) {
+							counter += idx.getDouble(color);
+							if (counter >= ind) {
+								range[i] = color;
+								if (i == 1) {
+									break;
+								}
+								i += 1;
+								ind = (long)(percentiles[i] / 100.0 * input.total());
+							}
+						}
+						scale.put(ch, 1./(range[1] - range[0]));
+						offset.put(ch, -range[0]);
+					}
 				}
-				opencv_core.merge(matvec, input);
+				hist.release();
+
+				Mat scales = new Mat(1, 1, opencv_core.CV_64F, scale);
+				input = opencv_core.add(input, offset).mul(scales).asMat();
+				scales.release();
+
 				return input;
 			}
 			
@@ -1764,6 +1794,78 @@ public class ImageOps {
 				return PixelType.FLOAT32;
 			}
 
+		}
+
+		@OpType("dl-op")
+		public static class DLPaddedOp {
+
+			public static Map<String, Class<? extends PaddedOp> > impls = new HashMap<>();
+
+			static {
+				Map<String, String> backends = Map.of(
+					"tensorflow", "qupath.tensorflow.TensorFlowOp",
+					"openvino", "qupath.openvino.OpenVINOOp"
+				);
+				for (Map.Entry<String, String> entry : backends.entrySet()) {
+					try {
+						Class op = Class.forName(entry.getValue());
+						impls.put(entry.getKey(), (Class<? extends PaddedOp>) op);
+						logger.info("Registered deep learning backend " + entry.getValue() + " for id \"" + entry.getKey() + "\"");
+					} catch (ClassNotFoundException ex) {
+					}
+				}
+			}
+
+			public static Class<? extends PaddedOp> getOp(String name) {
+				name = name.toLowerCase();
+				if (!impls.containsKey(name)) {
+					throw new IllegalArgumentException("Backend " + name + " not found!");
+				}
+				return impls.get(name);
+			}
+
+			/**
+			 * Create an {@link ImageOp} to run a deep learning model with a single image input and output,
+			 * optionally specifying the input tile width and height.
+			 *
+			 * @param modelPath
+			 * @param tileWidth input tile width; ignored if &le; 0
+			 * @param tileHeight input tile height; ignored if &le; 0
+			 * @param padding amount of padding to add to each request
+			 * @param backendId an identifier for computational backend
+			 * @return the {@link ImageOp}
+			 */
+			public static ImageOp createOp(String modelPath, int tileWidth, int tileHeight, Padding padding, String backendId) {
+				return createOp(modelPath, tileWidth, tileHeight, padding, null, backendId);
+			}
+
+			/**
+			 * Create an {@link ImageOp} to run a deep learning model with a single image input and output,
+			 * optionally specifying the input tile width and height.
+			 *
+			 * @param modelPath
+			 * @param tileWidth input tile width; ignored if &le; 0
+			 * @param tileHeight input tile height; ignored if &le; 0
+			 * @param padding amount of padding to add to each request
+			 * @param outputName optional name of the node to use for output (may be null)
+			 * @param backendId an identifier for computational backend
+			 * @return the {@link ImageOp}
+			 */
+			public static ImageOp createOp(String modelPath, int tileWidth, int tileHeight, Padding padding, String outputName, String backendId) {
+				try {
+					return getOp(backendId).getConstructor(String.class, int.class, int.class, Padding.class, String.class)
+										   .newInstance(modelPath, tileWidth, tileHeight, padding, outputName);
+				} catch (InstantiationException ex) {
+					ex.printStackTrace();
+				} catch (InvocationTargetException ex) {
+					ex.printStackTrace();
+				} catch (IllegalAccessException ex) {
+					ex.printStackTrace();
+				} catch (NoSuchMethodException ex) {
+					ex.printStackTrace();
+				}
+				return null;
+			}
 		}
 		
 		@OpType("opencv-statmodel")

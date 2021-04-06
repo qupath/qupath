@@ -80,8 +80,15 @@ public class TensorFlowOp extends PaddedOp {
 	private transient TensorFlowBundle bundle;
 	private transient Exception exception;
 
-	TensorFlowOp(String modelPath, int tileWidth, int tileHeight, Padding padding, String outputName) {
+	public TensorFlowOp(String modelPath, int tileWidth, int tileHeight, Padding padding, String outputName) {
 		super();
+		
+		var file = new File(modelPath);
+		if (!file.isDirectory()) {
+			logger.error("Invalid model path, not a directory! {}", modelPath);
+			throw new IllegalArgumentException("Model path should be a directory!");
+		}
+
 		logger.debug("Creating op from {}", modelPath);
 		this.modelPath = modelPath;
 		this.outputName = outputName;
