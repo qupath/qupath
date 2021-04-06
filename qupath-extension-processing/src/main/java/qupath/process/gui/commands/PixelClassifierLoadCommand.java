@@ -288,7 +288,9 @@ public final class PixelClassifierLoadCommand implements Runnable {
 		
 		if (!fails.isEmpty()) {
 			String failedClassifiers = fails.stream().map(e -> "- " + e.getName()).collect(Collectors.joining(System.lineSeparator()));
-			Dialogs.showErrorMessage("Error adding classifier(s)", String.format("Could not add the following classifier(s):%s%s", 
+			String pluralize = fails.size() == 1 ? "" : "s";
+			Dialogs.showErrorMessage("Error adding classifier" + pluralize, String.format("Could not add the following classifier%s:%s%s", 
+					pluralize,
 					System.lineSeparator(), 
 					failedClassifiers)
 			);

@@ -992,7 +992,9 @@ public class ClassifierBuilderPane<T extends PathObjectClassifier> implements Pa
 		miResetTrainingObjects.setOnAction(e -> {
 			if (retainedObjectsMap == null || retainedObjectsMap.isEmpty())
 				return;
-			if (Dialogs.showYesNoDialog("Remove retained objects", "Remove " + retainedObjectsMap.countRetainedObjects() + " retained object(s) from classifier training?")) {
+			int nObjects = retainedObjectsMap.countRetainedObjects();
+			String message = nObjects == 1 ? "Remove one retained object from classifier training?" : "Remove " + nObjects + " retained objects from classifier training?";
+			if (Dialogs.showYesNoDialog("Remove retained objects", message)) {
 				retainedObjectsMap.clear();
 				updateRetainedObjectsLabel();
 			}

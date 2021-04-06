@@ -32,26 +32,50 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Locale.Category;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.reflect.TypeToken;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.workflow.Workflow;
+import qupath.lib.regions.ImagePlane;
+import qupath.lib.roi.GeometryTools;
 
 /**
  * Primary class for loading/saving ImageData objects.
@@ -74,7 +98,11 @@ public class PathIO {
 	 * @throws IOException 
 	 * @throws FileNotFoundException 
 	 * @throws ClassNotFoundException 
+	 * @deprecated This was useful in QuPath v0.1.2 and earlier, since all information to construct a server was stored within its path. 
+	 *             In v0.2 and later, the server path is in general not sufficient to construct a server, and this method lingers 
+	 *             only for backwards compatibility.
 	 */
+	@Deprecated
 	public static String readSerializedServerPath(final File file) throws FileNotFoundException, IOException, ClassNotFoundException {
 		String serverPath = null;
 		try (FileInputStream fileIn = new FileInputStream(file)) {
@@ -408,17 +436,29 @@ public class PathIO {
 	 * @throws FileNotFoundException 
 	 */
 	public static PathObjectHierarchy readHierarchy(final File file) throws FileNotFoundException, IOException {
-		logger.info("Reading hierarchy from {}...", file.getName());
-		try (FileInputStream stream = new FileInputStream(file)) {
+		return readHierarchy(file.toPath());
+	}
+	
+	/**
+	 * Read a hierarchy from a .qpdata file.
+	 * 
+	 * @param path
+	 * @return
+	 * @throws IOException 
+	 * @throws FileNotFoundException 
+	 */
+	public static PathObjectHierarchy readHierarchy(final Path path) throws FileNotFoundException, IOException {
+		logger.info("Reading hierarchy from {}...", path.getFileName().toString());
+		try (var stream = Files.newInputStream(path)) {
 			var hierarchy = readHierarchy(stream);			
 			if (hierarchy == null)
-				logger.error("Unable to find object hierarchy in " + file);
+				logger.error("Unable to find object hierarchy in " + path);
 			return hierarchy;
 		}
 	}
 	
 	/**
-	 * Read a PathObjectHierarchy from a saved data file (omitting all other contents).
+	 * Read a {@link PathObjectHierarchy} from a saved data file (omitting all other contents).
 	 * 
 	 * @param fileIn
 	 * @return
@@ -466,7 +506,245 @@ public class PathIO {
 				Locale.setDefault(Category.FORMAT, locale);
 		}
 	}
+	
+	/**
+	 * Read a list of {@link PathObject} from a file.
+	 * In general {@link #readObjects(Path)} to be preferred for its more modern syntax.
+	 * This exists for consistency with other QuPath methods that accept a {@link File} object as input.
+	 * @param file
+	 * @return
+	 * @throws IOException
+	 * @see #readObjects(Path)
+	 */
+	public static List<PathObject> readObjects(File file) throws IOException {
+		return readObjects(file.toPath());
+	}
+	
+	/**
+	 * Read a list of {@link PathObject} from a file.
+	 * <p>
+	 * Currently, objects can be read from three main types of file:
+	 * <ul>
+	 * <li>GeoJSON, with extension .geojson or .json</li>
+	 * <li>QuPath data file, with extension .qpdata</li>
+	 * <li>A zip file containing one or more entries containing GeoJSON or QuPath serialized data</li>
+	 * </ul>
+	 * Note that this is subject to change, with support for other files possibly being added in the future.
+	 * 
+	 * @param path
+	 * @return
+	 * @throws IOException
+	 * @see #readObjectsFromGeoJSON(InputStream)
+	 */
+	public static List<PathObject> readObjects(Path path) throws IOException {
+		String name = path.getFileName().toString().toLowerCase();
+		if (name.endsWith(".zip")) {
+			// In case we have more than one compressed file, iterate through each entry
+			try (var zipfs = FileSystems.newFileSystem(path)) {
+				List<PathObject> allObjects = new ArrayList<>();
+				for (var root : zipfs.getRootDirectories()) {
+					var tempObjects = Files.walk(root).flatMap(p -> {
+						if (Files.isRegularFile(p)) {
+							try {
+								var pathObjects = readObjects(p);
+								if (pathObjects != null)
+									return pathObjects.stream();
+							} catch (Exception e) {
+								logger.debug("Exception reading objects from {}", p);
+							}
+						}
+						return new ArrayList<PathObject>().stream();
+					}).collect(Collectors.toList());
+					allObjects.addAll(tempObjects);
+				}
+				return allObjects;
+			}
+		}
+		if (name.endsWith(EXT_JSON) || name.endsWith(EXT_GEOJSON)) {
+			// Prepare template
+			try (var stream = Files.newInputStream(path)) {
+				return readObjectsFromGeoJSON(stream);
+			}
+		}
+		if (name.endsWith(EXT_DATA)) {
+			try (var stream = new BufferedInputStream(Files.newInputStream(path))) {
+				return new ArrayList<>(readHierarchy(stream).getRootObject().getChildObjects());	
+			}
+		}
+		logger.warn("Unable to read objects from {}", path.toString());
+		return Collections.emptyList();
+	}
+	
+	/**
+	 * Read a list of {@link PathObject} from an input stream.
+	 * <p>
+	 * This will attempt to handle different GeoJSON representations by first deserializing to a JSON element.
+	 * <p>
+	 * If the element is a JSON object, its "type" property is checked and handled as follows
+	 * <ul>
+	 *  <li>"Feature": a single PathObject will be read</li>
+	 *  <li>"FeatureCollection": a list of PathObject will be read</li>
+	 *  <li>a valid geometry type: a Geometry will be read, converted to a ROI and subsequently to an annotation</li>
+	 *  <li>anything else: the element is skipped, since a PathObject cannot be read from it
+	 * </ul>
+	 * If the element is a JSON array, its individual elements are handled as above.
+	 * 
+	 * @param stream the input stream containing JSON data to read
+	 * @return a list containing any PathObjects that could be parsed from the stream
+	 * @throws IOException
+	 */
+	public static List<PathObject> readObjectsFromGeoJSON(InputStream stream) throws IOException {
+		// Prepare template
+		var gson = GsonTools.getInstance();
+		try (var reader = new InputStreamReader(new BufferedInputStream(stream))) {
+			var element = gson.fromJson(reader, JsonElement.class);
+			var pathObjects = new ArrayList<PathObject>();
+			addPathObjects(element, pathObjects, gson);
+			return pathObjects;
+		}
+	}
+	
+	/**
+	 * Try to parse objects from GeoJSON.
+	 * This might involve a FeatureCollection, Feature or Geometry.
+	 * @param element
+	 * @param pathObjects
+	 * @param gson
+	 * @return
+	 */
+	private static boolean addPathObjects(JsonElement element, List<PathObject> pathObjects, Gson gson) {
+		if (element == null)
+			return false;
+		if (element.isJsonArray()) {
+			var array = element.getAsJsonArray();
+			boolean changes = false;
+			for (int i = 0; i < array.size(); i++) {
+				changes = changes | addPathObjects(array.get(i), pathObjects, gson);
+			}
+			return changes;
+		}
+		if (element.isJsonObject()) {
+			var jsonObject = element.getAsJsonObject();
+			if (jsonObject.has("type")) {
+				String type = jsonObject.get("type").getAsString();
+				switch (type) {
+				case "Feature":
+					var pathObject = gson.fromJson(jsonObject, PathObject.class);
+					if (pathObject == null)
+						return false;
+					return pathObjects.add(pathObject);
+				case "FeatureCollection":
+					var featureCollection = gson.fromJson(jsonObject, FeatureCollection.class);
+					return pathObjects.addAll(featureCollection.getPathObjects());
+				case "Point":
+				case "MultiPoint":
+				case "LineString":
+				case "MultiLineString":
+				case "Polygon":
+				case "MultiPolygon":
+				case "GeometryCollection":
+					logger.warn("Creating annotation from GeoJSON geometry {}", type);
+					var geometry = gson.fromJson(jsonObject, Geometry.class);
+					geometry = GeometryTools.homogenizeGeometryCollection(geometry);
+					var roi = GeometryTools.geometryToROI(geometry, ImagePlane.getDefaultPlane());
+					var annotation = PathObjects.createAnnotationObject(roi);
+					return pathObjects.add(annotation);
+				}
+			}
+		}
+		return false;
+	}
+	
+	
+	private static String EXT_JSON = ".json";
+	private static String EXT_GEOJSON = ".geojson";
+	private static String EXT_DATA = ".qpdata";
+	
+	/**
+	 * @return file extensions for files from which objects can be read.
+	 * @see #readObjects(Path)
+	 */
+	public static List<String> getObjectFileExtensions() {
+		return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, ".zip");
+	}
+	
+	/**
+	 * Options to customize the export of PathObjects as GeoJSON.
+	 */
+	public static enum GeoJsonExportOptions {
+		/**
+		 * Request pretty-printing for the JSON. This is more readable, but results in larger files.
+		 */
+		PRETTY_JSON,
+		/**
+		 * Optionally exclude measurements from objects. This can reduce the file size substantially if measurements are not needed.
+		 */
+		EXCLUDE_MEASUREMENTS,
+		/**
+		 * Request that objects are export as a FeatureCollection.
+		 * If this is not specified, individual objects will be export as Features - in an array if necessary.
+		 */
+		FEATURE_COLLECTION
+	}
 
+	/**
+	 * Export a collection of objects as a GeoJSON "FeatureCollection" to a file.
+	 * @param file
+	 * @param pathObjects
+	 * @param options
+	 * @throws IOException
+	 * @see #exportObjectsAsGeoJSON(Path, Collection, GeoJsonExportOptions...)
+	 */
+	public static void exportObjectsAsGeoJSON(File file, Collection<? extends PathObject> pathObjects, GeoJsonExportOptions... options) throws IOException {
+		exportObjectsAsGeoJSON(file.toPath(), pathObjects, options);
+	}
+
+	/**
+	 * Export a collection of objects as a GeoJSON "FeatureCollection" to a file specified by its path.
+	 * @param path
+	 * @param pathObjects
+	 * @param options
+	 * @throws IOException
+	 */
+	public static void exportObjectsAsGeoJSON(Path path, Collection<? extends PathObject> pathObjects, GeoJsonExportOptions... options) throws IOException {
+		String name = path.getFileName().toString();
+		if (name.toLowerCase().endsWith(".zip")) {
+			try (var zos = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(path)))) {
+				ZipEntry entry = new ZipEntry(GeneralTools.getNameWithoutExtension(name) + ".geojson");
+				zos.putNextEntry(entry);
+				exportObjectsAsGeoJSON(zos, pathObjects, options);
+				zos.closeEntry();
+			}
+		} else {
+			try (var stream = Files.newOutputStream(path)) {
+				exportObjectsAsGeoJSON(stream, pathObjects, options);
+			}
+		}
+	}
+
+	/**
+	 * Export a collection of objects as a GeoJSON "FeatureCollection" to an output stream.
+	 * @param stream
+	 * @param pathObjects
+	 * @param options
+	 * @throws IOException
+	 */
+	public static void exportObjectsAsGeoJSON(OutputStream stream, Collection<? extends PathObject> pathObjects, GeoJsonExportOptions... options) throws IOException {
+		Collection<GeoJsonExportOptions> optionList = Arrays.asList(options);
+		// If exclude measurements, 'transform' each PathObject to get rid of measurements
+		if (optionList.contains(GeoJsonExportOptions.EXCLUDE_MEASUREMENTS))
+			pathObjects = pathObjects.stream().map(e -> PathObjectTools.transformObject(e, null, false)).collect(Collectors.toList());
+		var writer = new OutputStreamWriter(new BufferedOutputStream(stream), StandardCharsets.UTF_8);
+		var gson = GsonTools.getInstance(optionList.contains(GeoJsonExportOptions.PRETTY_JSON));
+		if (optionList.contains(GeoJsonExportOptions.FEATURE_COLLECTION))
+			gson.toJson(GsonTools.wrapFeatureCollection(pathObjects), writer);
+		else if (pathObjects.size() == 1) {
+			gson.toJson(pathObjects.iterator().next(), writer);
+		} else {
+			gson.toJson(pathObjects, new TypeToken<List<PathObject>>() {}.getType(), writer);				
+		}
+		writer.flush();
+	}
 	
 	
 //	private static boolean serializePathObject(File file, PathObject pathObject) {
