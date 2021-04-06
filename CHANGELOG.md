@@ -29,6 +29,7 @@ Code changes:
 
 List of bugs fixed:
 * 'Detect centroid distances 2D' doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
+* Deleting a TMA grid deletes all objects (https://github.com/qupath/qupath/issues/646)
 * 'Convert detections to points' loses plane when applied to a z-stack (https://github.com/qupath/qupath/issues/696)
 * Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
