@@ -613,6 +613,8 @@ public class PathIO {
 	 * @return
 	 */
 	private static boolean addPathObjects(JsonElement element, List<PathObject> pathObjects, Gson gson) {
+		if (element == null)
+			return false;
 		if (element.isJsonArray()) {
 			var array = element.getAsJsonArray();
 			boolean changes = false;
@@ -732,16 +734,16 @@ public class PathIO {
 		// If exclude measurements, 'transform' each PathObject to get rid of measurements
 		if (optionList.contains(GeoJsonExportOptions.EXCLUDE_MEASUREMENTS))
 			pathObjects = pathObjects.stream().map(e -> PathObjectTools.transformObject(e, null, false)).collect(Collectors.toList());
-		try (var writer = new OutputStreamWriter(new BufferedOutputStream(stream), StandardCharsets.UTF_8)) {
-			var gson = GsonTools.getInstance(optionList.contains(GeoJsonExportOptions.PRETTY_JSON));
-			if (optionList.contains(GeoJsonExportOptions.FEATURE_COLLECTION))
-				gson.toJson(GsonTools.wrapFeatureCollection(pathObjects), writer);
-			else if (pathObjects.size() == 1) {
-				gson.toJson(pathObjects.iterator().next(), writer);
-			} else {
-				gson.toJson(pathObjects, new TypeToken<List<PathObject>>() {}.getType(), writer);				
-			}
+		var writer = new OutputStreamWriter(new BufferedOutputStream(stream), StandardCharsets.UTF_8);
+		var gson = GsonTools.getInstance(optionList.contains(GeoJsonExportOptions.PRETTY_JSON));
+		if (optionList.contains(GeoJsonExportOptions.FEATURE_COLLECTION))
+			gson.toJson(GsonTools.wrapFeatureCollection(pathObjects), writer);
+		else if (pathObjects.size() == 1) {
+			gson.toJson(pathObjects.iterator().next(), writer);
+		} else {
+			gson.toJson(pathObjects, new TypeToken<List<PathObject>>() {}.getType(), writer);				
 		}
+		writer.flush();
 	}
 	
 	

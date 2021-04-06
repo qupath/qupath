@@ -138,7 +138,8 @@ public final class ExportObjectsCommand {
 		
 		// Notify user of success
 		int nObjects = toProcess.size();
-		String message = nObjects == 1 ? "1 object was sucessfully exported" : String.format("%d objects were successfully exported.", nObjects);
+		String message = nObjects == 1 ? "1 object was exported to " + outFile.getAbsolutePath() : 
+			String.format("%d objects were exported to %s", nObjects, outFile.getAbsolutePath());
 		Dialogs.showInfoNotification("Succesful export", message);
 		
 		// Get history workflow
