@@ -20,4 +20,4 @@ jobs:
         java-version: '14.0.2'
 
     - name: Build
-      run: ./gradlew clean build createPackage -Ptensorflow-cpu=true -Pskip_tests
+      run: ./gradlew clean build createPackage -Ptensorflow-cpu=true -Puse_openvino=true -Pskip_tests
