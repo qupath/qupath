@@ -2,12 +2,16 @@
 *In progress*
 
 Enhancements:
-* Import/export objects as GeoJSON without scripting, via 'File -> Object data... -> ...'
-* Import objects from .json, .geojson & .qpdata files via via 'File -> Object data... -> Import objects' or with drag & drop
+* Support for importing & exporting objects without scripting
+  * Export objects as GeoJSON without via 'File -> Object data... -> ...'
+  * Import objects from .json, .geojson & .qpdata files via 'File -> Object data... -> Import objects' or with drag & drop
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
-* Improved 360 degree image rotation (under 'View > Rotate image')
+* Better support for setting pixel sizes & z-spacing in µm
+  * Access by double-clicking pixel size values under the 'Image' tab
+  * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
+* New 360 degree image rotation (under 'View > Rotate image')
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
   * Optionally skip TMA cores marked as 'ignored'
