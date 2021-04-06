@@ -111,11 +111,22 @@ public final class ExportObjectsCommand {
 		}
 
 		File outFile;
+		// Get default name & output directory
 		var project = qupath.getProject();
+		String defaultName = imageData.getServer().getMetadata().getName();
+		if (project != null) {
+			var entry = project.getEntry(imageData);
+			if (entry != null)
+				defaultName = entry.getImageName();
+		}
+		defaultName = GeneralTools.getNameWithoutExtension(defaultName);
+		File defaultDirectory = project == null || project.getPath() == null ? null : project.getPath().toFile();
+		while (defaultDirectory != null && !defaultDirectory.isDirectory())
+			defaultDirectory = defaultDirectory.getParentFile();
 		if (parameterList.getBooleanParameterValue("doZip"))
-			outFile = Dialogs.promptToSaveFile("Export to file", project != null && project.getPath() != null ? project.getPath().toFile() : null, "objects.zip", "ZIP archive", ".zip");
+			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName + ".zip", "ZIP archive", ".zip");
 		else
-			outFile = Dialogs.promptToSaveFile("Export to file", project != null && project.getPath() != null ? project.getPath().toFile() : null, "objects.geojson", "GeoJSON", ".geojson");
+			outFile = Dialogs.promptToSaveFile("Export to file", defaultDirectory, defaultName + ".geojson", "GeoJSON", ".geojson");
 			
 		// If user cancels
 		if (outFile == null)

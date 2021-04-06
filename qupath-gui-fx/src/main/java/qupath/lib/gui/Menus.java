@@ -399,12 +399,12 @@ class Menus {
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 
-		@ActionDescription("Import object(s) from a GeoJSON (or compressed ZIP) file.")
+		@ActionDescription("Import objects from GeoJSON or .qpdata files.")
 		@ActionMenu("Object data...>Import objects")
 		public final Action OBJECT_IMPORT= qupath.createImageDataAction(imageData -> Commands.runObjectImport(qupath, imageData));
 
-		@ActionDescription("Export object(s) in GeoJSON format to file.")
-		@ActionMenu("Object data...>Export objects...>GeoJSON")
+		@ActionDescription("Export objects in GeoJSON format to file.")
+		@ActionMenu("Object data...>Export as GeoJSON")
 		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJsonObjectExport(qupath, imageData));
 		
 		public final Action SEP_7 = ActionTools.createSeparator();
