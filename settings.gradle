@@ -11,8 +11,12 @@ include ':qupath-extension-pen'
 include ':qupath-extension-svg'
 include ':qupath-experimental'
 include ':qupath-extension-stardist'
-include ':qupath-extension-tensorflow'
-include ':qupath-extension-openvino'
+if (hasProperty('tensorflow-cpu') || hasProperty('tensorflow-gpu')) {
+    include ':qupath-extension-tensorflow'
+}
+if (hasProperty('use_openvino')) {
+    include ':qupath-extension-openvino'
+}
 
 project(':qupath-core').projectDir = "$rootDir/qupath-core" as File
 project(':qupath-core-processing').projectDir = "$rootDir/qupath-core-processing" as File
@@ -26,5 +30,9 @@ project(':qupath-extension-pen').projectDir = "$rootDir/qupath-extension-pen" as
 project(':qupath-extension-svg').projectDir = "$rootDir/qupath-extension-svg" as File
 project(':qupath-experimental').projectDir = "$rootDir/qupath-experimental" as File
 project(':qupath-extension-stardist').projectDir = "$rootDir/qupath-extension-stardist" as File
-project(':qupath-extension-tensorflow').projectDir = "$rootDir/qupath-extension-tensorflow" as File
-project(':qupath-extension-openvino').projectDir = "$rootDir/qupath-extension-openvino" as File
+if (hasProperty('tensorflow-cpu') || hasProperty('tensorflow-gpu')) {
+    project(':qupath-extension-tensorflow').projectDir = "$rootDir/qupath-extension-tensorflow" as File
+}
+if (hasProperty('use_openvino')) {
+    project(':qupath-extension-openvino').projectDir = "$rootDir/qupath-extension-openvino" as File
+}

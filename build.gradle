@@ -178,15 +178,23 @@ if (doModular) {
  */
 def includeTensorFlowGPU = (findProperty('tensorflow-gpu') ?: "false") != "false"
 def includeTensorFlow = includeTensorFlowGPU || (findProperty('tensorflow-cpu') ?: "false") != "false"
+def includeOpenVINO = (findProperty('use_openvino') ?: "false") != "false"
 
 def excludeSubprojects = []
 if (includeTensorFlowGPU) {
-	println 'Requesting TensorFlow (GPU) subproject'	
+  println 'Requesting TensorFlow (GPU) subproject'
 } else if (includeTensorFlow) {
-	println 'Requesting TensorFlow (CPU) subproject'	
+  println 'Requesting TensorFlow (CPU) subproject'
 } else {
-    excludeSubprojects << 'qupath-extension-tensorflow'
-	println "Use -Ptensorflow-cpu=true or -Ptensorflow-gpu=true if you wish to include experimental TensorFlow module"
+  excludeSubprojects << 'qupath-extension-tensorflow'
+}
+if (includeOpenVINO) {
+  println 'Requesting OpenVINO subproject'
+} else {
+  excludeSubprojects << 'qupath-extension-openvino'
+}
+if (!includeTensorFlowGPU && !includeTensorFlow && !includeOpenVINO) {
+  println "Use -Ptensorflow-cpu=true or -Ptensorflow-gpu=true if you wish to include experimental TensorFlow module or -Puse_openvino=true to include Intel OpenVINO"
 }
 
 
@@ -371,15 +379,19 @@ allprojects {
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
 
-    openvino "org.intel:openvino:${openvinoVersion}-${nativesCPP}"
+    if (includeOpenVINO) {
+      openvino "org.intel:openvino:${openvinoVersion}-${nativesCPP}"
+    }
 
-    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
-    if (includeTensorFlowGPU)
-	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}-gpu"
-	else
-	    tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}"
-    tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}"
-    tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}:${nativesCPP}"
+    if (includeTensorFlow) {
+      tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}"
+      if (includeTensorFlowGPU)
+        tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}-gpu"
+      else
+          tensorflow "org.bytedeco:tensorflow:${tensorflowVersion}:${nativesCPP}"
+      tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}"
+      tensorflow "org.bytedeco:mkl-dnn:${mkldnnVersion}:${nativesCPP}"
+    }
 
   }
   
