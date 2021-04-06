@@ -54,10 +54,12 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.control.Label;
 import javafx.scene.Scene;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -94,6 +96,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -529,17 +532,33 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		dialog.getDialogPane().setPrefWidth(400);
 		
 		var labelExplain = new Label("The image type influences some commands (e.g. cell detection) and should be set for every image. "
-				+ "\n\nUse the 'Set image type' item in the preferences to control prompts for the type to be set when opening an image.");
+				+ "\n\nSelect an option below or in the preferences to customize how QuPath handles setting the image type when opening an image."
+				+ "\n\n'Auto-estimate' is convenient to reduce annoying prompts, but the estimates are sometimes wrong. "
+				+ "When this happens you can correct them by double-clicking "
+				+ "the type under the 'Image' tab.");
 		labelExplain.setWrapText(true);
 		labelExplain.setPrefWidth(400);
 		labelExplain.setMinHeight(Label.USE_PREF_SIZE);
-		dialog.getDialogPane().setExpandableContent(labelExplain);
+		
+		var comboSetType = new ComboBox<ImageTypeSetting>();
+		comboSetType.getItems().setAll(ImageTypeSetting.values());
+		comboSetType.getSelectionModel().select(PathPrefs.imageTypeSettingProperty().get());
+		comboSetType.setMaxWidth(Double.MAX_VALUE);
+		labelExplain.setPadding(new Insets(0, 0, 10, 0));
+		var expandablePane = new BorderPane(labelExplain);
+		expandablePane.setBottom(comboSetType);
+		
+		dialog.getDialogPane().setExpandableContent(expandablePane);
 		
 		var result = dialog.showAndWait();
 		ImageType type = result.orElse(null);
+		if (type == null)
+			return false;
 		
-//		ImageType type = (ImageType)Dialogs.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
-		if (type != null && type != imageData.getImageType()) {
+		if (comboSetType.getSelectionModel().getSelectedItem() != null)
+			PathPrefs.imageTypeSettingProperty().set(comboSetType.getSelectionModel().getSelectedItem());
+
+		if (type != imageData.getImageType()) {
 			imageData.setImageType(type);
 			return true;
 		}

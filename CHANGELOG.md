@@ -15,6 +15,8 @@ Enhancements:
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
   * Optionally skip TMA cores marked as 'ignored'
+* When prompted to set the image type, 'Show details' gives an opportunity to turn off the prompts
+  * Previously this was only accessible in the preferences
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
