@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -74,8 +75,6 @@ import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.tensorflow.TensorFlowTools;
-import qupath.openvino.OpenVINOTools;
 
 /**
  * Cell detection based on the following method:
@@ -132,7 +131,6 @@ public class StarDist2D {
 		private List<ImageOp> ops = new ArrayList<>();
 		
 		private boolean includeProbability = false;
-		private boolean useOpenVINO = false;
 		
 		private Builder(String modelPath) {
 			this.modelPath = modelPath;
@@ -401,11 +399,6 @@ public class StarDist2D {
 			this.ops.add(ImageOps.Normalize.percentile(min, max));
 			return this;
 		}
-
-		public Builder useOpenVINO(boolean useOpenVINO) {
-			this.useOpenVINO = useOpenVINO;
-			return this;
-		}
 		
 		/**
 		 * Add an offset as a preprocessing step.
@@ -438,21 +431,29 @@ public class StarDist2D {
 			this.ops.add(ImageOps.Core.subtract(values));
 			return this;
 		}
-		
+
 		/**
 		 * Create a {@link StarDist2D}, all ready for detection.
 		 * @return
 		 */
-		public StarDist2D build() {
+		public StarDist2D build() throws Exception {
+			Set<String> backends = ImageOps.ML.DLPaddedOp.impls.keySet();
+			if (backends.isEmpty()) {
+				throw new Exception("No available deep learning backends for StarDist!");
+			}
+			return build(backends.iterator().next());
+		}
+
+		/**
+		 * Create a {@link StarDist2D}, all ready for detection.
+		 * @return
+		 */
+		public StarDist2D build(String backendId) {
 			var stardist = new StarDist2D();
 			
 			var padding = pad > 0 ? Padding.symmetric(pad) : Padding.empty();
 			var mergedOps = new ArrayList<>(ops);
-			if (useOpenVINO) {
-				mergedOps.add(OpenVINOTools.createOp(modelPath, tileWidth, tileHeight, padding));
-			} else {
-				mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding));
-			}
+			mergedOps.add(ImageOps.ML.DLPaddedOp.createOp(modelPath, tileWidth, tileHeight, padding, backendId));
 			mergedOps.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 			
 			stardist.op = ImageOps.buildImageDataOp(channels)

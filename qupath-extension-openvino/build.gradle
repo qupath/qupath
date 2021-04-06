@@ -1,0 +1,11 @@
+ext.moduleName = 'qupath.extension.openvino'
+
+description = 'qupath-openvino'
+
+configurations {
+  implementation.extendsFrom openvino
+}
+
+dependencies {
+    implementation project(':qupath-gui-fx')
+}

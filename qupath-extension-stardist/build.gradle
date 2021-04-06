@@ -1,0 +1,7 @@
+ext.moduleName = 'qupath.extension.stardist'
+
+description = 'qupath-stardist'
+
+dependencies {
+    implementation project(':qupath-gui-fx')
+}

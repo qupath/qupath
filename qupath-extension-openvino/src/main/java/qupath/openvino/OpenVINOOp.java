@@ -59,7 +59,7 @@ public class OpenVINOOp extends PaddedOp {
     private transient OpenVINOBundle bundle;
     private transient Exception exception;
 
-    OpenVINOOp(String modelPath, int tileWidth, int tileHeight, Padding padding, String outputName) {
+    public OpenVINOOp(String modelPath, int tileWidth, int tileHeight, Padding padding, String outputName) {
         super();
         logger.debug("Creating op from {}", modelPath);
         this.modelPath = modelPath;
