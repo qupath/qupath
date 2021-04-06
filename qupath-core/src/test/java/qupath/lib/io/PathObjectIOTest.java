@@ -104,6 +104,7 @@ public class PathObjectIOTest {
 		
 		// Import from GeoJSON
 		List<PathObject> objsBack = new ArrayList<>(PathIO.readObjectsFromGeoJSON(new ByteArrayInputStream(bos.toByteArray())));
+		assertEquals(objs.size(), objsBack.size());
 		
 		// Array to count number of each PathObject type
 		int[] countCheck = new int[] {0, 0, 0, 0, 0};

@@ -537,7 +537,8 @@ public class PathIO {
 	 * @see #readObjectsFromGeoJSON(InputStream)
 	 */
 	public static List<PathObject> readObjects(Path path) throws IOException {
-		if ("application/zip".equals(Files.probeContentType(path))) {
+		String name = path.getFileName().toString().toLowerCase();
+		if (name.endsWith(".zip")) {
 			// In case we have more than one compressed file, iterate through each entry
 			try (var zipfs = FileSystems.newFileSystem(path)) {
 				List<PathObject> allObjects = new ArrayList<>();
@@ -559,7 +560,6 @@ public class PathIO {
 				return allObjects;
 			}
 		}
-		String name = path.getFileName().toString().toLowerCase();
 		if (name.endsWith(EXT_JSON) || name.endsWith(EXT_GEOJSON)) {
 			// Prepare template
 			try (var stream = Files.newInputStream(path)) {
