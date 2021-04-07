@@ -36,24 +36,22 @@ public class OmeroExtension implements QuPathExtension {
 
 	@Override
 	public void installExtension(QuPathGUI qupath) {
-		var actionClients = ActionTools.createAction(new OmeroWebClientsCommand(qupath), "Manage clients");
-		var actionSendObjects = ActionTools.createAction(new OmeroWritePathObjectsCommand(qupath), "Send selection to OMERO server");
+		var actionClients = ActionTools.createAction(new OmeroWebClientsCommand(qupath), "Manage server connections");
+		var actionSendObjects = ActionTools.createAction(new OmeroWritePathObjectsCommand(qupath), "Send selected objects to OMERO");
 		Menu browseServerMenu = new Menu("Browse server...");
 		
 		actionClients.disabledProperty().bind(qupath.projectProperty().isNull());
 		actionSendObjects.disabledProperty().bind(qupath.imageDataProperty().isNull());
 		browseServerMenu.disableProperty().bind(qupath.projectProperty().isNull());
 		
-		
-		qupath.getMenu("OMERO", true);
-		MenuTools.addMenuItems(
-                qupath.getMenu("OMERO", true),
-                browseServerMenu,
-                actionClients,
-                null,
-                actionSendObjects
-        );
-		
+		MenuTools.addMenuItems(qupath.getMenu("Extensions", false), 
+				MenuTools.createMenu("OMERO", 
+                		browseServerMenu,
+    	                actionClients,
+    	                null,
+    	                actionSendObjects
+    	                )
+				);
 		createServerListMenu(qupath, browseServerMenu);
 	}
 
@@ -95,11 +93,12 @@ public class OmeroExtension implements QuPathExtension {
 			MenuItem customServerItem = new MenuItem("New server...");
 			customServerItem.setOnAction(e2 -> {
 				GridPane gp = new GridPane();
-				gp.setHgap(5.0);
+				gp.setVgap(5.0);
 		        TextField tf = new TextField();
 		        tf.setPrefWidth(400);
-		        PaneTools.addGridRow(gp, 0, 0, "Enter URL", new Label("Enter URL"), tf);
-		        var confirm = Dialogs.showConfirmDialog("Enter URL", gp);
+		        PaneTools.addGridRow(gp, 0, 0, "Enter OMERO URL", new Label("Enter an OMERO server URL to browse (e.g. http://idr.openmicroscopy.org/):"));
+		        PaneTools.addGridRow(gp, 1, 0, "Enter OMERO URL", tf, tf);
+		        var confirm = Dialogs.showConfirmDialog("Enter OMERO URL", gp);
 		        if (!confirm)
 		        	return;
 		        
