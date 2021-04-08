@@ -23,53 +23,60 @@
 
 package qupath.lib.common;
 
+import java.awt.Color;
+
 /**
  * Static functions to help work with RGB(A) colors using packed ints.
  * 
  * @author Pete Bankhead
  *
  */
-public class ColorTools {
+public final class ColorTools {
+
+	// Suppressed default constructor for non-instantiability
+	private ColorTools() {
+		throw new AssertionError();
+	}
 	
 	/**
 	 * Packed int representing white.
 	 */
-	final public static int WHITE = makeRGB(255, 255, 255);
+	final public static int WHITE = packRGB(255, 255, 255);
 
 	/**
 	 * Packed int representing black.
 	 */
-	final public static Integer BLACK = makeRGB(0, 0, 0);
+	final public static Integer BLACK = packRGB(0, 0, 0);
 
 	/**
 	 * Packed int representing red.
 	 */
-	final public static Integer RED = makeRGB(255, 0, 0);
+	final public static Integer RED = packRGB(255, 0, 0);
 
 	/**
 	 * Packed int representing green.
 	 */
-	final public static Integer GREEN = makeRGB(0, 255, 0);
+	final public static Integer GREEN = packRGB(0, 255, 0);
 
 	/**
 	 * Packed int representing blue.
 	 */
-	final public static Integer BLUE = makeRGB(0, 0, 255);
+	final public static Integer BLUE = packRGB(0, 0, 255);
 
 	/**
 	 * Packed int representing magenta.
 	 */
-	final public static Integer MAGENTA = makeRGB(255, 0, 255);
+	final public static Integer MAGENTA = packRGB(255, 0, 255);
 
 	/**
 	 * Packed int representing cyan.
 	 */
-	final public static Integer CYAN = makeRGB(0, 255, 255);
+	final public static Integer CYAN = packRGB(0, 255, 255);
 
 	/**
 	 * Packed int representing yellow.
 	 */
-	final public static Integer YELLOW = makeRGB(255, 255, 0);
+	final public static Integer YELLOW = packRGB(255, 255, 0);
 
 	/**
 	 * Mask for use when extracting the alpha component from a packed ARGB int value.
@@ -103,13 +110,54 @@ public class ColorTools {
 	 * @param g
 	 * @param b
 	 * @return
+	 * @deprecated Use {@link #packRGB(int, int, int)} or {@link #packClippedRGB(int, int, int)} instead.
 	 */
+	@Deprecated
 	public static int makeRGB(int r, int g, int b) {
 		return (255<<24) + (r<<16) + (g<<8) + b;
 	}
+	
+	/**
+	 * Make a packed RGB value from specified input values.
+	 * This is equivalent to an ARGB value with alpha set to 255, following Java {@link Color}.
+	 * <p>
+	 * Input r, g, and b should be in the range 0-255; only the lower 8 bits are used.
+	 * 
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return packed ARGB value
+	 * @see #packClippedRGB(int, int, int)
+	 */
+	public static int packRGB(int r, int g, int b) {
+		return ((255 & 0xff)<<24) + 
+			   ((r & 0xff)<<16) + 
+			   ((g & 0xff)<<8) + 
+			    (b & 0xff);
+	}
+	
+	/**
+	 * Make a packed RGB value from specified input values, clipping to the range 0-255.
+	 * This is equivalent to an ARGB value with alpha set to 255, following Java {@link Color}.
+	 * <p>
+	 * Input r, g, and b should be in the range 0-255, but if they are not they are clipped to the closest valid value.
+	 * 
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return packed ARGB value
+//	 * @see #packRGB(int, int, int)
+	 */
+	public static int packClippedRGB(int r, int g, int b) {
+		return packRGB(
+				   do8BitRangeCheck(r),
+				   do8BitRangeCheck(g), 
+				   do8BitRangeCheck(b)
+				   );
+	}
 
 	/**
-	 * Make a packed RGBA value from specified input values.
+	 * Make a packed ARGB value from specified input values.
 	 * <p>
 	 * Input r, g, b and a should be in the range 0-255 - but no checking is applied.
 	 * Rather, the input values are simply shifted as they are.
@@ -119,10 +167,69 @@ public class ColorTools {
 	 * @param b
 	 * @param a
 	 * @return
+	 * @deprecated The naming and order of arguments is misleading. The output is a packed ARGB value, 
+	 *             but arguments are provided in the order red, green, blue, alpha.
+	 * @see #packARGB(int, int, int, int)
 	 */
-	// TODO: RENAME! The order here may be misleading...
+	@Deprecated
 	public static int makeRGBA(int r, int g, int b, int a) {
 		return (a<<24) + (r<<16) + (g<<8) + b;
+	}
+	
+	/**
+	 * Make a packed ARGB value from specified input values.
+	 * <p>
+	 * Input a, r, g, and b should be in the range 0-255; only the lower 8 bits are used.
+	 * <p>
+	 * Warning! Note the order of the input values.
+	 * This differs from the (deprecated) method {@link #makeRGBA(int, int, int, int)}
+	 * 
+	 * @param a
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return packed ARGB value
+	 * @see #packClippedARGB(int, int, int, int)
+	 */
+	public static int packARGB(int a, int r, int g, int b) {
+		return ((a & 0xff)<<24) + 
+			   ((r & 0xff)<<16) + 
+			   ((g & 0xff)<<8) + 
+				(b & 0xff);
+	}
+	
+	/**
+	 * Make a packed ARGB value from specified input values, clipping to the range 0-255.
+	 * <p>
+	 * Input a, r, g, and b should be in the range 0-255, but if they are not they are clipped to the closest valid value.
+	 * <p>
+	 * Warning! Note the order of the input values.
+	 * This differs from the (deprecated) method {@link #makeRGBA(int, int, int, int)}
+	 * 
+	 * @param a
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return packed ARGB value
+	 * @see #packARGB(int, int, int, int)
+	 */
+	public static int packClippedARGB(int a, int r, int g, int b) {
+		return packARGB(
+				do8BitRangeCheck(a), 
+			    do8BitRangeCheck(r),
+			    do8BitRangeCheck(g), 
+			    do8BitRangeCheck(b)
+			    );
+	}
+	
+	/**
+	 * Clip an input value to be an integer in the range 0-255.
+	 * 
+	 * @param v
+	 * @return
+	 */
+	public static int do8BitRangeCheck(int v) {
+		return v < 0 ? 0 : (v > 255 ? 255 : v);
 	}
 
 	/**
@@ -195,7 +302,7 @@ public class ColorTools {
 	 * @return
 	 */
 	public static int makeScaledRGB(final int rgb, final double scale) {
-		return makeRGB(
+		return packRGB(
 				(int)Math.min(255, (ColorTools.red(rgb)*scale)),
 				(int)Math.min(255, (ColorTools.green(rgb)*scale)),
 				(int)Math.min(255, (ColorTools.blue(rgb)*scale)));

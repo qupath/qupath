@@ -84,6 +84,7 @@ def additionalResourcesDir = "build/${qupathOutputDir}"
  * JavaFX version
  */
 def jfxVersion = '16'
+def jfxModules = ['javafx.base', 'javafx.controls', 'javafx.graphics', 'javafx.media', 'javafx.web', 'javafx.swing']
 
 /*
  * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
@@ -221,7 +222,7 @@ allprojects {
 //    javaVersion = 11
   
     // Dependency versions
-    bioformatsVersion  = '6.6.0'
+    bioformatsVersion  = '6.6.1'
     commonsMathVersion = '3.6.1'
     commonsTextVersion = '1.9'
     controlsfxVersion  = '11.1.0'
@@ -242,8 +243,8 @@ allprojects {
     
     // Additional versions
     logbackVersion     = '1.2.3'
-    slf4jVersion       = '1.7.6'
-    junitVersion       = '5.6.2'
+    slf4jVersion       = '1.7.30'
+    junitVersion       = '5.7.1'
     
     // Optional versions
     tensorflowVersion  = "0.3.0" // Really 2.4.1
@@ -303,10 +304,12 @@ allprojects {
     groovy "org.codehaus.groovy:groovy-jsr223:${groovyVersion}"
     groovy "org.codehaus.groovy:groovy-xml:${groovyVersion}"
 
-    for (fx in ['javafx-base', 'javafx-controls', 'javafx-graphics', 'javafx-media', 'javafx-web', 'javafx-swing']) {
+	 
+	for (fx in jfxModules.collect{it.replace('.', '-')}) {
       javafx "org.openjfx:${fx}:${jfxVersion}"
       javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
     }
+    
 
     richtextfx "org.fxmisc.richtext:richtextfx:${richtextVersion}"
 
@@ -702,6 +705,8 @@ task createRuntime(dependsOn:build, type:Exec) {
     	'jdk.zipfs',           // Needed for zip filesystem support
     ]
     
+    requiredModules.addAll(jfxModules)
+    
     def usefulModules = [
         'java.net.http',        // Add HttpClient support (may be used by scripts)
     	'java.management',      // Useful to check memory usage
@@ -726,6 +731,13 @@ task createRuntime(dependsOn:build, type:Exec) {
     def params = ["${jdkHome}/bin/jlink"]
    
     params << '--output' << outputDir.getAbsolutePath()
+    
+	// JavaFX should be on the module path, not the classpath (warning logged since Java 16)
+    def jfxModulePath = configurations.runtimeClasspath.files.findAll({ it.getName().startsWith('javafx-') }).collect {it.getAbsolutePath()}
+    jfxModulePath = String.join(File.pathSeparator, jfxModulePath)
+//    println("MODULE PATH: " + jfxModulePath)
+    params << '--module-path' << jfxModulePath
+    
     params << '--add-modules' << addModules
     
     if (jreModules == 'default')
@@ -764,6 +776,23 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     	logger.info("No package type specified, using default ${packageType}")
    	}
    	boolean associateFiles = packageType != 'app-image'
+    
+    // Set up the main Java options
+    def javaOptions = []
+    
+    // Default to using 50% available memory
+    javaOptions << '-XX:MaxRAMPercentage=50'
+    
+    // Set the library path to the app directory, for loading native libraries
+   	javaOptions << '-Djava.library.path=$APPDIR'		
+
+    // Temp workaround for kyro and Bio-Formats memoization - see https://github.com/ome/bioformats/issues/3659
+   	javaOptions << '--add-opens=java.base/java.util.regex=ALL-UNNAMED'		
+   	// Needed to set style/theme
+   	javaOptions << '--add-opens=javafx.graphics/com.sun.javafx.css=ALL-UNNAMED'
+   	// Needed for ControlsFX/BreadcrumbBar (could export to org.controlsfx if it was on the module path)
+   	javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED'
+	javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED'
 
     def params = ["${jdkHome}/bin/jpackage"]
 
@@ -775,11 +804,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     // Sadly, with JDK 16 including the version in the launcher name seems to break the build 
     // with an unrecognized cfg file name
     String versionedLauncherName = 'QuPath-' + qupathVersion
+    
+    // Including the version number seems to fail on Java 16 + macOS/Linux
     String launcherName = 'QuPath'
-//    params << '--name' << 'QuPath-' + qupathVersion
-
-    // Default to using 50% available memory
-	params << '--java-options' << '-XX:MaxRAMPercentage=50'
 
 	if (OperatingSystem.current().isMacOsX()) {
 		params << '--mac-package-name' << 'QuPath'
@@ -794,6 +821,9 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		if (appVersion && appVersion.startsWith('0'))
 			appVersion = null
 	} else if (OperatingSystem.current().isWindows()) {
+    // On Windows, including the version number seems to work
+    // This can help manage multiple versions
+    launcherName = 'QuPath-' + qupathVersion
 		if (packageType == 'installer') {
 			params << '--type' << 'msi'
 			params << '--win-menu'
@@ -813,20 +843,22 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 		def consoleLauncherName = launcherName + " (console)"
 		fileTemp.deleteOnExit()
 		fileTemp.text = 'win-console=true'
-		fileTemp << System.lineSeparator() << 'java-options=' << '-XX:MaxRAMPercentage=50' << ' -Dqupath.config=console'
-//		fileTemp << System.lineSeparator() << 'java-options=' << '-Dqupath.config=console'
+		fileTemp << System.lineSeparator()
+    fileTemp << 'java-options=' << '-Dqupath.config=console' << String.join(" ", javaOptions) << System.lineSeparator()
 		params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
 	} else
 		params << '--type' << packageType
 
-
     params << '--name' << launcherName
+    
+    // Add the java options
+    for (opt in javaOptions)
+      params << '--java-options' << opt
 	
     // Store the app version (typically a simplified version of the full format)
     if (appVersion)
 	    params << '--app-version' << appVersion
 
-	params << '--java-options' << '-Djava.library.path=$APPDIR'		
         
     // Try to find the icon
     def pathIcon = Paths.get(

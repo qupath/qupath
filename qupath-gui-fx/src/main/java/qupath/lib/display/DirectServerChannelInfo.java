@@ -112,7 +112,7 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 		byte[] gb = new byte[256];
 		byte[] bb = new byte[256];
 		for (int i = 0; i < 256; i++) {
-			rgbLUT[i] = ColorTools.makeRGB(
+			rgbLUT[i] = ColorTools.packRGB(
 					ColorTools.do8BitRangeCheck(r / 255.0 * i),
 					ColorTools.do8BitRangeCheck(g / 255.0 * i),
 					ColorTools.do8BitRangeCheck(b / 255.0 * i)
@@ -124,7 +124,7 @@ public class DirectServerChannelInfo extends AbstractSingleChannelInfo {
 
 		cm = new IndexColorModel(8, 256, rb, gb, bb);
 
-		this.rgb = ColorTools.makeRGB(r, g, b);
+		this.rgb = ColorTools.packRGB(r, g, b);
 	}
 
 	@Override

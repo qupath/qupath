@@ -28,7 +28,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -37,9 +40,12 @@ import org.slf4j.LoggerFactory;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -47,8 +53,12 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.images.ImageData;
+import qupath.lib.io.PathIO;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.Projects;
@@ -190,7 +200,6 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 			logger.warn("No files given!");
 			return;
 		}
-
 		
 		// Check if we have only jar files
 		int nJars = 0;
@@ -211,119 +220,187 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		ImageData<BufferedImage> imageData = viewer == null ? null : viewer.getImageData();
 		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
 
-		boolean singleFile = list != null && list.size() == 1;
-		for (File file : list) {
-			String fileName = file.getName().toLowerCase();
+		// Some consumers can only handle one file
+		boolean singleFile = list.size() == 1;
+		
+		// Gather together the extensions - if this has length one, we know all the files have the same extension
+		Set<String> allExtensions = list.stream().map(f -> GeneralTools.getExtension(f).orElse("")).collect(Collectors.toSet());
+		
+		// Extract the first (and possibly only) file
+		File file = list.get(0);
+		
+		String fileName = file.getName().toLowerCase();
 
-			// Check if this is a hierarchy file
-			if (singleFile && (fileName.endsWith(PathPrefs.getSerializationExtension()))) {
+		// Check if this is a hierarchy file
+		if (singleFile && (fileName.endsWith(PathPrefs.getSerializationExtension()))) {
 
-				// If we have a different path, open as a new image
-				if (viewer == null) {
-					Dialogs.showErrorMessage("Open data", "Please drag the file onto a specific viewer to open!");
-					break;
-				}
-				try {
-					qupath.openSavedData(viewer, file, false, true);
-				} catch (Exception e) {
-					Dialogs.showErrorMessage("Open image", e);
-				}
+			// If we have a different path, open as a new image
+			if (viewer == null) {
+				Dialogs.showErrorMessage("Load data", "Please drag the file onto a specific viewer to open!");
 				return;
 			}
-			
-			// Check if this is a directory - if so, look for a single project file
-			if (singleFile && file.isDirectory()) {
-				// Identify all files in the directory, and also all potential project files
-				File[] filesInDirectory = file.listFiles(f -> !f.isHidden());
-				List<File> projectFiles = Arrays.stream(filesInDirectory).filter(f -> f.isFile() && 
-						f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).collect(Collectors.toList());
-				if (projectFiles.size() == 1) {
-					file = projectFiles.get(0);
-					logger.warn("Selecting project file {}", file);
-				} else if (projectFiles.size() > 1) {
-					// Prompt to select which project file to open
-					logger.debug("Multiple project files found in directory {}", file);
-					String[] fileNames = projectFiles.stream().map(f -> f.getName()).toArray(n -> new String[n]);
-					String selectedName = Dialogs.showChoiceDialog("Select project", "Select project to open", fileNames, fileNames[0]);
-					if (selectedName == null)
+			try {
+				// Check if we should be importing objects or opening the file
+				if (imageData != null) {
+					var dialog = new Dialog<ButtonType>();
+					var btOpen = new ButtonType("Open image");
+					var btImport = new ButtonType("Import objects");
+					dialog.getDialogPane().getButtonTypes().setAll(btOpen, btImport, ButtonType.CANCEL);
+					dialog.setTitle("Open data");
+					dialog.setHeaderText("What do you want to do with the data file?");
+					dialog.setContentText("You can\n"
+							+ " 1. Open the image in the current viewer\n"
+							+ " 2. Import objects and add them to the current image");
+//						dialog.setHeaderText("What do you want to do?");
+					var choice = dialog.showAndWait().orElse(ButtonType.CANCEL);
+					if (choice == ButtonType.CANCEL)
 						return;
-					file = new File(file, selectedName);
-				} else if (filesInDirectory.length == 0) {
-					// If we have an empty directory, offer to set it as a project
-					if (Dialogs.showYesNoDialog("Create project", "Create project for empty directory?")) {
-						Project<BufferedImage> project = Projects.createProject(file, BufferedImage.class);
-						qupath.setProject(project);
-						if (!project.isEmpty())
-							project.syncChanges();
+					if (choice == btImport) {
+						var pathObjects = PathIO.readObjects(file);
+						hierarchy.addPathObjects(pathObjects);
 						return;
-					} else
-						// Can't do anything else with an empty folder
-						return;
+					}
 				}
+				qupath.openSavedData(viewer, file, false, true);
+			} catch (Exception e) {
+				Dialogs.showErrorMessage("Load data", e);
 			}
-
-			// Check if this is a project
-			if (singleFile && (fileName.endsWith(ProjectIO.getProjectExtension()))) {
-				try {
-					Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
-					qupath.setProject(project);
-				} catch (Exception e) {
-					Dialogs.showErrorMessage("Project error", e);
-//					logger.error("Could not open as project file: {}", e);
-				}
-				return;
-			}
-			
-			// Check if this is TMA dearraying data file
-			if (singleFile && (fileName.endsWith(TMADataIO.TMA_DEARRAYING_DATA_EXTENSION))) {
-				if (hierarchy == null)
-					Dialogs.showErrorMessage("TMA grid import", "Please open an image first before importing a dearrayed TMA grid!");
-				else {
-					TMAGrid tmaGrid = TMADataIO.importDearrayedTMAData(file);
-					if (tmaGrid != null) {
-						if (hierarchy.isEmpty() || Dialogs.showYesNoDialog("TMA grid import", "Set TMA grid for existing hierarchy?"))
-							hierarchy.setTMAGrid(tmaGrid);
-					} else
-						Dialogs.showErrorMessage("TMA grid import", "Could not parse TMA grid from " + file.getName());
-				}
-				return;
-			}
-
-
-			// Open Javascript
-			ScriptEditor scriptEditor = qupath.getScriptEditor();
-			if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
-				scriptEditor.showScript(file);
-				return;
-			}
-
-			
-			// Check handlers
-			for (DropHandler<File> handler: dropHandlers) {
-				if (handler.handleDrop(viewer, list))
-					return;
-			}
-
-			// Assume we have images
-			if (singleFile && file.isFile()) {
-				// Try to open as an image, if the extension is known
-				if (viewer == null) {
-					Dialogs.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
-					return;
-				}
-				qupath.openImage(viewer, file.getAbsolutePath(), true, true);
-				return;
-			} else if (qupath.getProject() != null) {
-				// Try importing multiple images to a project
-				String[] potentialFiles = list.stream().filter(f -> f.isFile()).map(f -> f.getAbsolutePath()).toArray(String[]::new);
-				if (potentialFiles.length > 0) {
-					ProjectCommands.promptToImportImages(qupath, potentialFiles);
-					return;
-				}
-			}
-
-
+			return;
 		}
+		
+		// Check if this is a directory - if so, look for a single project file
+		if (singleFile && file.isDirectory()) {
+			// Identify all files in the directory, and also all potential project files
+			File[] filesInDirectory = file.listFiles(f -> !f.isHidden());
+			List<File> projectFiles = Arrays.stream(filesInDirectory).filter(f -> f.isFile() && 
+					f.getAbsolutePath().toLowerCase().endsWith(ProjectIO.getProjectExtension())).collect(Collectors.toList());
+			if (projectFiles.size() == 1) {
+				file = projectFiles.get(0);
+				logger.warn("Selecting project file {}", file);
+			} else if (projectFiles.size() > 1) {
+				// Prompt to select which project file to open
+				logger.debug("Multiple project files found in directory {}", file);
+				String[] fileNames = projectFiles.stream().map(f -> f.getName()).toArray(n -> new String[n]);
+				String selectedName = Dialogs.showChoiceDialog("Select project", "Select project to open", fileNames, fileNames[0]);
+				if (selectedName == null)
+					return;
+				file = new File(file, selectedName);
+			} else if (filesInDirectory.length == 0) {
+				// If we have an empty directory, offer to set it as a project
+				if (Dialogs.showYesNoDialog("Create project", "Create project for empty directory?")) {
+					Project<BufferedImage> project = Projects.createProject(file, BufferedImage.class);
+					qupath.setProject(project);
+					if (!project.isEmpty())
+						project.syncChanges();
+					return;
+				} else
+					// Can't do anything else with an empty folder
+					return;
+			}
+		}
+
+		// Check if this is a project
+		if (singleFile && (fileName.endsWith(ProjectIO.getProjectExtension()))) {
+			try {
+				Project<BufferedImage> project = ProjectIO.loadProject(file, BufferedImage.class);
+				qupath.setProject(project);
+			} catch (Exception e) {
+				Dialogs.showErrorMessage("Project error", e);
+//					logger.error("Could not open as project file: {}", e);
+			}
+			return;
+		}
+		
+		// Check if it is an object file in GeoJSON format (.geojson)
+		if (allExtensions.size() == 1 && PathIO.getObjectFileExtensions().contains(allExtensions.iterator().next())) {
+			if (imageData == null || hierarchy == null) {
+				Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
+				return;
+			}
+			
+			List<PathObject> pathObjects = new ArrayList<>();
+			List<WorkflowStep> steps = new ArrayList<>();
+			for (var tempFile : list) {
+				try {
+					var tempObjects = PathIO.readObjects(tempFile);
+					if (tempObjects.isEmpty()) {
+						logger.warn("No objects found in {}", tempFile.getAbsolutePath());
+						return;
+					}
+					pathObjects.addAll(tempObjects);
+					
+					// Add step to workflow
+					Map<String, String> map = new HashMap<>();
+					map.put("path", file.getPath());
+					String method = "Import objects";
+					String methodString = String.format("%s(%s%s%s)", "importObjectsFromFile", "\"", GeneralTools.escapeFilePath(tempFile.getPath()), "\"");
+					steps.add(new DefaultScriptableWorkflowStep(method, map, methodString));
+				} catch (IOException | IllegalArgumentException e) {
+					Dialogs.showErrorNotification("Object import", e.getLocalizedMessage());
+					return;
+				}
+			}
+			// Ask confirmation to user
+			int nObjects = pathObjects.size();
+			String message = nObjects == 1 ? "Add object to the hierarchy?" : String.format("Add %d objects to the hierarchy?", nObjects);
+			var confirm = Dialogs.showConfirmDialog("Add to hierarchy", message);
+			if (!confirm)
+				return;
+			
+			// Add objects to hierarchy
+			hierarchy.addPathObjects(pathObjects);
+			imageData.getHistoryWorkflow().addSteps(steps);
+			return;
+		}
+		
+		// Check if this is TMA dearraying data file
+		if (singleFile && (fileName.endsWith(TMADataIO.TMA_DEARRAYING_DATA_EXTENSION))) {
+			if (hierarchy == null)
+				Dialogs.showErrorMessage("TMA grid import", "Please open an image first before importing a dearrayed TMA grid!");
+			else {
+				TMAGrid tmaGrid = TMADataIO.importDearrayedTMAData(file);
+				if (tmaGrid != null) {
+					if (hierarchy.isEmpty() || Dialogs.showYesNoDialog("TMA grid import", "Set TMA grid for existing hierarchy?"))
+						hierarchy.setTMAGrid(tmaGrid);
+				} else
+					Dialogs.showErrorMessage("TMA grid import", "Could not parse TMA grid from " + file.getName());
+			}
+			return;
+		}
+
+
+		// Open Javascript
+		ScriptEditor scriptEditor = qupath.getScriptEditor();
+		if (scriptEditor instanceof DefaultScriptEditor && ((DefaultScriptEditor)scriptEditor).supportsFile(file)) {
+			scriptEditor.showScript(file);
+			return;
+		}
+
+		
+		// Check handlers
+		for (DropHandler<File> handler: dropHandlers) {
+			if (handler.handleDrop(viewer, list))
+				return;
+		}
+
+		// Assume we have images
+		if (singleFile && file.isFile()) {
+			// Try to open as an image, if the extension is known
+			if (viewer == null) {
+				Dialogs.showErrorMessage("Open image", "Please drag the file only a specific viewer to open!");
+				return;
+			}
+			qupath.openImage(viewer, file.getAbsolutePath(), true, true);
+			return;
+		} else if (qupath.getProject() != null) {
+			// Try importing multiple images to a project
+			String[] potentialFiles = list.stream().filter(f -> f.isFile()).map(f -> f.getAbsolutePath()).toArray(String[]::new);
+			if (potentialFiles.length > 0) {
+				ProjectCommands.promptToImportImages(qupath, potentialFiles);
+				return;
+			}
+		}
+
 		if (qupath.getProject() == null) {
 			if (list.size() > 1) {
 				Dialogs.showErrorMessage("Drag & drop", "Could not handle multiple file drop - if you want to handle multiple images, you need to create a project first");

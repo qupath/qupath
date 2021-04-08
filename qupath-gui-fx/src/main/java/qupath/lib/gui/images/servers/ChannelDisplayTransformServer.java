@@ -137,7 +137,7 @@ public class ChannelDisplayTransformServer extends TransformingImageServer<Buffe
 			colorModel = ColorModelFactory.createColorModel(PixelType.FLOAT32, channels.size(), false, channels.stream().mapToInt(c -> {
 				Integer color = c.getColor();
 				if (color == null)
-					color = ColorTools.makeRGB(255, 255, 255);
+					color = ColorTools.packRGB(255, 255, 255);
 				return color;
 			}).toArray());
 		

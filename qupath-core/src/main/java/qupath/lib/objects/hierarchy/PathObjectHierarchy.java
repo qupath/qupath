@@ -183,14 +183,20 @@ public final class PathObjectHierarchy implements Serializable {
 	
 	/**
 	 * Set the tma grid for this hierarchy.
+	 * If identical to the current TMA grid, nothing will happen.
+	 * Otherwise, if null then any existing TMA grid will be removed.
 	 * @param tmaGrid
 	 */
 	public synchronized void setTMAGrid(TMAGrid tmaGrid) {
-		clearTMAGrid();
-		if (tmaGrid == null)
+		if (this.tmaGrid == tmaGrid)
 			return;
+		if (this.tmaGrid != null) {
+			removeObjects(new ArrayList<>(this.tmaGrid.getTMACoreList()), false);
+		}
 		this.tmaGrid = tmaGrid;
-		updateTMAHierarchy();
+		if (tmaGrid != null)
+			addPathObjects(tmaGrid.getTMACoreList());
+		fireHierarchyChangedEvent(getRootObject());
 	}
 	
 
@@ -360,20 +366,6 @@ public final class PathObjectHierarchy implements Serializable {
 		return true;
 	}
 	
-	/**
-	 * Remove the TMA grid for this hierarchy.
-	 */
-	// TODO: Improve TMA grid modification whenever many detection objects already exist
-	synchronized void clearTMAGrid() {
-		if (tmaGrid == null)
-			return;
-		removeObjects(new ArrayList<>(tmaGrid.getTMACoreList()), true);
-//		for (TMACoreObject core : tmaGrid.getTMACoreList())
-//			removeObject(core, true);
-//		this.tmaGrid = null;
-		// Notify listeners of changes
-		fireHierarchyChangedEvent(getRootObject());
-	}
 	
 	/**
 	 * Remove a single object from the hierarchy, firing a remove event.
@@ -518,45 +510,6 @@ public final class PathObjectHierarchy implements Serializable {
 		return pathObject.equals(getRootObject());
 	}
 	
-	
-	private synchronized void updateTMAHierarchy() {
-		if (tmaGrid == null)
-			return;
-
-		// Assign annotations to cores
-		List<PathObject> pathObjectChildren = new ArrayList<>(rootObject.getChildObjects());
-		rootObject.clearPathObjects();
-		// Add cores to the start of the object list
-		rootObject.addPathObjects(tmaGrid.getTMACoreList());
-		// Add back any other objects
-		for (PathObject pathObject : pathObjectChildren)
-			addPathObject(pathObject, false);
-
-		// Notify listeners of changes
-		fireHierarchyChangedEvent(getRootObject());
-	}
-	
-	
-//J	synchronized boolean updateParent(final PathObject pathObject) {
-		// Could check if parent needs to be changed... however consider that update parent doesn't check if it should be made a child of another object inside its current parent
-//		// Check if the parent is still ok
-//		if (containsObject(pathObject.getParent(), pathObject)) {
-//			return false;
-//		}
-		
-		// If we have a TMA core, the parent can't change
-//J		if (pathObject.isTMACore())
-//J			return false;
-		
-		// Otherwise, if parent isn't ok, remove and then re-add this object
-//J		if (pathObject.getParent() != null) {
-//J			pathObject.getParent().removePathObject(pathObject);
-//J		}
-//J		addPathObject(pathObject, false, false);
-//J		fireHierarchyChangedEvent(this);
-//		addPathObjectToList(getRootObject(), pathObject, false);
-//J		return true;
-//J	}
 	
 	// TODO: Be very cautious about this!!!!  Use of tileCache inside a synchronized method might lead to deadlocks?
 	private synchronized boolean addPathObjectToList(PathObject pathObjectParent, PathObject pathObject, boolean fireChangeEvents) {
@@ -735,11 +688,13 @@ public final class PathObjectHierarchy implements Serializable {
 //		fireHierarchyChangedEvent(this, pathObject);
 	}
 	
-	
+
 	/**
-	 * Get a flattened list containing all PathObjects in the hierarchy (apart from the root object).
-	 * 
-	 * @param list optional list into which the objects should be added (may be null)
+	 * Get a flattened list containing all PathObjects in the hierarchy (including from the root object).
+	 * <p>
+	 * To get a flattened list containing all {@code PathObject}s <b>without</b> the root object, one can run the following:<br>
+	 * {@code getFlattenedObjectList(null).stream().filter(p -> !p.isRootObject()).collect(Collectors.toList())}
+	 * @param list
 	 * @return
 	 */
 	public synchronized List<PathObject> getFlattenedObjectList(List<PathObject> list) {

@@ -218,14 +218,26 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		// Determine spot size
 		ImageServer<BufferedImage> server = imageWrapper.getServer();
 		PixelCalibration cal = server.getPixelCalibration();
-		double spotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("spotSizeMicrons") : Double.NaN;
-		double minSpotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("minSpotSizeMicrons") : Double.NaN;
-		double maxSpotSizeMicrons = cal.hasPixelSizeMicrons() ? params.getDoubleParameterValue("maxSpotSizeMicrons") : Double.NaN;
-		double pixelWidth = cal.getPixelWidthMicrons() * downsample;
-		double pixelHeight = cal.getPixelHeightMicrons() * downsample;
-		double singleSpotArea = spotSizeMicrons / (pixelWidth * pixelHeight);
-		double minSpotArea = minSpotSizeMicrons / (pixelWidth * pixelHeight);
-		double maxSpotArea = maxSpotSizeMicrons / (pixelWidth * pixelHeight);
+		
+		double minSpotArea, maxSpotArea, singleSpotArea;
+		double pixelWidth, pixelHeight;
+		
+		if (cal.hasPixelSizeMicrons()) {
+			double spotSizeMicrons = params.getDoubleParameterValue("spotSizeMicrons");
+			double minSpotSizeMicrons = params.getDoubleParameterValue("minSpotSizeMicrons");
+			double maxSpotSizeMicrons = params.getDoubleParameterValue("maxSpotSizeMicrons");
+			pixelWidth = cal.getPixelWidthMicrons() * downsample;
+			pixelHeight = cal.getPixelHeightMicrons() * downsample;
+			singleSpotArea = spotSizeMicrons / (pixelWidth * pixelHeight);
+			minSpotArea = minSpotSizeMicrons / (pixelWidth * pixelHeight);
+			maxSpotArea = maxSpotSizeMicrons / (pixelWidth * pixelHeight);
+		} else {
+			singleSpotArea = params.getDoubleParameterValue("spotSizePixels");
+			minSpotArea = params.getDoubleParameterValue("minSpotSizePixels");
+			maxSpotArea = params.getDoubleParameterValue("maxSpotSizePixels");
+			pixelWidth = downsample;
+			pixelHeight = downsample;
+		}
 		boolean includeClusters = Boolean.TRUE.equals(params.getBooleanParameterValue("includeClusters"));
 		boolean doSmoothing = Boolean.TRUE.equals(params.getBooleanParameterValue("doSmoothing"));
 		boolean splitByIntensity = Boolean.TRUE.equals(params.getBooleanParameterValue("splitByIntensity"));
@@ -243,7 +255,10 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			return false;
 		}
 
-		RegionRequest region = RegionRequest.createInstance(server.getPath(), 1.0, xStart, yStart, width, height, pathROI.getT(), pathROI.getZ());
+		int z = pathROI.getZ();
+		int t = pathROI.getT();
+		int c = -1; // Don't associate with channel
+		RegionRequest region = RegionRequest.createInstance(server.getPath(), 1.0, xStart, yStart, width, height, z, t);
 
 		// Mask to indicate pixels within the cell
 		byte[] cellMask = null;
@@ -253,6 +268,10 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 			double detectionThreshold = params.getDoubleParameterValue("detection["+channelName+"]");
 			if (Double.isNaN(detectionThreshold) || detectionThreshold < 0)
 				continue;
+			
+//			// TODO: Consider whether to use channel numbers for non-brightfield images
+//			if (!imageWrapper.imageData.isBrightfield())
+//				c++;
 
 			SimpleImage img = imageWrapper.getRegion(region, channelName);
 
@@ -319,15 +338,18 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 				fpDetection.setRoi(spotRoi);
 				ImageStatistics stats = fpDetection.getStatistics();
 				
-				ImagePlane plane = ImagePlane.getPlaneWithChannel(spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
+				// In v0.2
+//				ImagePlane plane = ImagePlane.getPlaneWithChannel(spotRoi.getCPosition(), spotRoi.getZPosition(), spotRoi.getTPosition());
+				// In v0.3
+				ImagePlane plane = ImagePlane.getPlaneWithChannel(c, z, t);
 
 				PathObject cluster = null;
-				if (stats.pixelCount > minSpotArea && stats.pixelCount <= maxSpotArea) {
+				if (stats.pixelCount >= minSpotArea && stats.pixelCount <= maxSpotArea) {
 					ROI roi = IJTools.convertToROI(spotRoi, calIJ, downsample, plane);
 //					cluster = new SubcellularObject(roi, 1);
 					cluster = createSubcellularObject(roi, 1);
 					estimatedSpots += 1;
-				} else if (includeClusters && stats.pixelCount > minSpotArea) {
+				} else if (includeClusters && stats.pixelCount >= minSpotArea) {
 					// Add a cluster
 					ROI roi = IJTools.convertToROI(spotRoi, calIJ, downsample, plane);
 					double nSpots = stats.pixelCount / singleSpotArea;
@@ -381,14 +403,25 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		params.addBooleanParameter("splitByShape", "Split by shape", false, "Attempt to split merged spots according to shape (i.e. looking for rounder spots)");
 		
 		params.addTitleParameter("Spot & cluster parameters");
+		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
+		if (!hasMicrons) {
+			params.addEmptyParameter("Subcellular detection works best if the pixel size information is available in " + GeneralTools.micrometerSymbol() + "!");
+			params.addEmptyParameter("Because this information is missing, the following values are in pixels.");
+			params.addEmptyParameter("If you change the pixel sizes in the image, restart this command to see the changes.");
+		}
+		
 		params.addDoubleParameter("spotSizeMicrons", "Expected spot size", 1, GeneralTools.micrometerSymbol()+"^2", "Estimated area of a single spot - used to estimate total spot counts");
 		params.addDoubleParameter("minSpotSizeMicrons", "Min spot size", 0.5, GeneralTools.micrometerSymbol()+"^2", "Minimum spot area - smaller spots will be excluded");
 		params.addDoubleParameter("maxSpotSizeMicrons", "Max spot size", 2.0, GeneralTools.micrometerSymbol()+"^2", "Maximum spot area - larger spots will be counted as clusters");
-		
+
+		params.addDoubleParameter("spotSizePixels", "Expected spot size", 1, "px^2", "Estimated area of a single spot - used to estimate total spot counts");
+		params.addDoubleParameter("minSpotSizePixels", "Min spot size", 1, "px^2", "Minimum spot area - smaller spots will be excluded");
+		params.addDoubleParameter("maxSpotSizePixels", "Max spot size", 4.0, "px^2", "Maximum spot area - larger spots will be counted as clusters");
+
 		params.addBooleanParameter("includeClusters", "Include clusters", true, "Store anything larger than 'Max spot size' as a cluster, instead of ignoring it");
 		
-		boolean hasMicrons = imageData.getServer().getPixelCalibration().hasPixelSizeMicrons();
-		params.setHiddenParameters(!hasMicrons, "spotSizeMicrons", "minSpotSizeMicrons", "maxSpotSizeMicrons", "includeClusters");
+		params.setHiddenParameters(!hasMicrons, "spotSizeMicrons", "minSpotSizeMicrons", "maxSpotSizeMicrons");
+		params.setHiddenParameters(hasMicrons, "spotSizePixels", "minSpotSizePixels", "maxSpotSizePixels");
 		return params;
 	}
 
@@ -435,9 +468,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	static PathObject createSubcellularObject(final ROI roi, final double nSpots) {
 		var pathObject = PathObjects.createDetectionObject(roi);
 		if (nSpots != 1)
-			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.makeRGB(220, 200, 50)));
+			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
 		else
-			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.makeRGB(100, 220, 50)));
+			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
 		pathObject.getMeasurementList().putMeasurement("Num spots", nSpots);
 		pathObject.getMeasurementList().close();
 		return pathObject;
@@ -457,7 +490,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		
 		final private static long serialVersionUID = 1L;
 		
-		static Integer color = ColorTools.makeRGB(200, 200, 50);
+		static Integer color = ColorTools.packRGB(200, 200, 50);
 		
 		public SubcellularObject() {
 			super();
@@ -466,9 +499,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		SubcellularObject(final ROI roi, final double nSpots) {
 			super(roi, null);
 			if (nSpots != 1)
-				setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.makeRGB(220, 200, 50)));
+				setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
 			else
-				setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.makeRGB(100, 220, 50)));
+				setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
 			getMeasurementList().putMeasurement("Num spots", nSpots);
 			getMeasurementList().close();
 //			color = isCluster ? ColorTools.makeRGB(220, 200, 50) : ColorTools.makeRGB(100, 220, 50);

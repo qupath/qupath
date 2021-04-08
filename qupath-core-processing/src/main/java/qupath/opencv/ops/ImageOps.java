@@ -54,7 +54,6 @@ import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.RuntimeTypeAdapterFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
@@ -65,6 +64,7 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
@@ -95,15 +95,40 @@ public class ImageOps {
 		String value();
 	}
 	
+	/**
+	 * QuPath v0.2 failed to include op category labels for
+	 * {@code Filters, ML, Normalize, Threshold}.
+	 * <p>
+	 * This is important because it makes name clashes more likely when serializing/deserializing ops, 
+	 * therefore in v0.3 these categories are re-introduced with efforts to maintain backwards compatibility.
+	 */
+	private static List<String> LEGACY_CATEGORIES = Arrays.asList("op.filters.", "op.ml.", "op.normalize.", "op.threshold.");
+	
 	@SuppressWarnings("unchecked")
-	private static <T> void registerTypes(RuntimeTypeAdapterFactory<T> factory, Class<T> factoryType, Class<?> cls, String base) {
+	private static <T> void registerTypes(SubTypeAdapterFactory<T> factory, Class<T> factoryType, Class<?> cls, String base) {
 		var annotation = cls.getAnnotation(OpType.class);
 		if (annotation != null) {
-			base = base + "." + annotation.value();
+			String annotationValue = annotation.value();
+			if (!annotationValue.isEmpty())
+				base = base + "." + annotation.value();
 			if (factoryType.isAssignableFrom(cls)) {
-				logger.debug("Registering op {} with label {}", cls, base);
+				logger.trace("Registering {} for class {}", base, cls);
 				factory.registerSubtype((Class<? extends T>)cls, base);
-			}
+				for (String cat : LEGACY_CATEGORIES) {
+					if (base.startsWith(cat)) {
+						String alias = base.replace(cat, "op.");
+						logger.trace("Registering alias {} for class {}", alias, cls);
+						factory.registerAlias((Class<? extends T>)cls, alias);
+					}
+				}
+				// 
+			} else
+				logger.trace("Cannot register {} for factory type {}", cls, factoryType);
+		} else if (!ImageOps.class.equals(cls)) {
+			// Don't look further if we don't have an OpType annotation
+			// (In v0.2, classes were wrongly not annotated... causing wrong op labels)
+			logger.trace("Skipping unannotated class {}", cls);
+			return;
 		}
 		for (var c : cls.getDeclaredClasses()) {
 			registerTypes(factory, factoryType, c, base);
@@ -134,11 +159,13 @@ public class ImageOps {
 	}
 
 	static {
-		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
+		SubTypeAdapterFactory<ImageOp> factoryOps = GsonTools.createSubTypeAdapterFactory(ImageOp.class, "type");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryOps);
+		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
 
-		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
+		SubTypeAdapterFactory<ImageDataOp> factoryDataOps = GsonTools.createSubTypeAdapterFactory(ImageDataOp.class, "type");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryDataOps);
+		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
 	}
 	
 	/**
@@ -348,7 +375,7 @@ public class ImageOps {
 	/**
 	 * Normalization operations.
 	 */
-	// TODO: This should have a name!
+	@OpType("normalize")
 	public static class Normalize {
 		
 		/**
@@ -557,6 +584,7 @@ public class ImageOps {
 	/**
 	 * Filtering operations.
 	 */
+	@OpType("filters")
 	public static class Filters {
 		
 		/**
@@ -989,6 +1017,7 @@ public class ImageOps {
 	/**
 	 * Channel and color operations.
 	 */
+	@OpType("channels")
 	public static class Channels {
 		
 		/**
@@ -1117,6 +1146,7 @@ public class ImageOps {
 	/**
 	 * Thresholding operations.
 	 */
+	@OpType("threshold")
 	public static class Threshold {
 		
 		/**
@@ -1646,6 +1676,7 @@ public class ImageOps {
 	/**
 	 * Machine learning operations.
 	 */
+	@OpType("ml")
 	public static class ML {
 		
 		/**

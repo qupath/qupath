@@ -25,12 +25,17 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.AbstractCollection;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.Gson;
@@ -49,10 +54,13 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.measurements.MeasurementList.MeasurementListType;
 import qupath.lib.measurements.MeasurementListFactory;
 import qupath.lib.objects.MetadataStore;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathCellObject;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathRootObject;
+import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
@@ -189,7 +197,31 @@ class PathObjectTypeAdapters {
 	
 	static class PathObjectTypeAdapter extends TypeAdapter<PathObject> {
 		
+		private final static Logger logger = LoggerFactory.getLogger(PathObjectTypeAdapter.class);
+		
 		static PathObjectTypeAdapter INSTANCE = new PathObjectTypeAdapter();
+		
+		/**
+		 * In v0.2 we unwisely stored object type in an "id" property.
+		 */
+		private static Collection<String> LEGACY_TYPE_IDS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+				"PathTileObject",
+				"PathCellObject",
+				"TMACoreObject",
+				"PathDetectionObject",
+				"PathRootObject",
+				"PathAnnotationObject"
+				)));
+		
+		private static Map<Class<?>, String> MAP_TYPES = Map.of(
+				PathTileObject.class, "tile",
+				PathCellObject.class, "cell",
+				PathDetectionObject.class, "detection",
+				PathAnnotationObject.class, "annotation",
+				TMACoreObject.class, "tma_core",
+				PathRootObject.class, "root"
+				);
+		
 		
 		private boolean flattenProperties = false;
 
@@ -201,8 +233,9 @@ class PathObjectTypeAdapters {
 			out.name("type");
 			out.value("Feature");
 			
-			out.name("id");
-			out.value(value.getClass().getSimpleName());		
+			// Used in v0.2 (unwisely)
+//			out.name("id");
+//			out.value(value.getClass().getSimpleName());		
 	
 			// TODO: Write cell objects as a Geometry collection to include the nucleus as well
 			out.name("geometry");
@@ -218,6 +251,14 @@ class PathObjectTypeAdapters {
 			
 			out.name("properties");
 			out.beginObject();
+			
+			String objectType = MAP_TYPES.getOrDefault(value.getClass(), null);
+			if (objectType != null) {
+				out.name("object_type");
+				out.value(objectType);
+			} else {
+				logger.warn("Unknown object type {}", value.getClass().getSimpleName());
+			}
 			
 			String name = value.getName();
 			if (name != null) {
@@ -249,9 +290,9 @@ class PathObjectTypeAdapters {
 				out.value(((TMACoreObject)value).isMissing());
 			}
 			
+			MeasurementList measurements = value.getMeasurementList();
 			if (flattenProperties) {
 				// Add measurements
-				MeasurementList measurements = value.getMeasurementList();
 				if (!measurements.isEmpty()) {
 					out.name("Measurement count");
 					out.value(measurements.size());
@@ -273,8 +314,10 @@ class PathObjectTypeAdapters {
 					}
 				}
 			} else {
-				out.name("measurements");
-				MeasurementListTypeAdapter.INSTANCE.write(out, value.getMeasurementList());
+				if (!measurements.isEmpty()) {
+					out.name("measurements");
+					MeasurementListTypeAdapter.INSTANCE.write(out, measurements);
+				}
 				
 				if (value instanceof MetadataStore) {
 					MetadataStore store = (MetadataStore)value;
@@ -295,8 +338,18 @@ class PathObjectTypeAdapters {
 		public PathObject read(JsonReader in) throws IOException {
 			
 			JsonObject obj = gson.fromJson(in, JsonObject.class);
+						
+			// Object type (annotation, detection etc.)
+			String type = "unknown";
 			
-			String id = obj.get("id").getAsString();
+			// Get an ID
+			String id = null;
+			if (obj.has("id")) {
+				id = obj.get("id").getAsString();
+				// In v0.2, we (unwisely...) stored the type in an ID
+				if (LEGACY_TYPE_IDS.contains(id))
+					type = id;
+			}
 			
 			ROI roi = ROITypeAdapters.ROI_ADAPTER_INSTANCE.fromJsonTree(obj.get("geometry"));
 			
@@ -322,7 +375,7 @@ class PathObjectTypeAdapters {
 					else if (colorObj.isJsonArray()) {
 						var colorArray = colorObj.getAsJsonArray();
 						if (colorArray.size() == 3)
-							color = ColorTools.makeRGB(
+							color = ColorTools.packRGB(
 									colorArray.get(0).getAsInt(),
 									colorArray.get(1).getAsInt(),
 									colorArray.get(2).getAsInt()
@@ -344,6 +397,12 @@ class PathObjectTypeAdapters {
 				if (properties.has("metadata") && properties.get("metadata").isJsonObject()) {
 					metadata = properties.get("metadata").getAsJsonObject();
 				}
+				if (properties.has("object_type")) {
+					type = properties.get("object_type").getAsString();
+				} else if (properties.has("type")) {
+					// Allow 'type' to be used as an alias
+					type = properties.get("type").getAsString();
+				}
 			}
 			ROI roiNucleus = null;
 			if (obj.has("nucleusGeometry")) {
@@ -351,24 +410,36 @@ class PathObjectTypeAdapters {
 			}
 			
 			PathObject pathObject = null;
-			switch (id) {
+			switch (type) {
 			case ("PathTileObject"):
+			case ("tile"):
 				pathObject = PathObjects.createTileObject(roi, pathClass, measurementList);
 				break;
 			case ("PathCellObject"):
+			case ("cell"):
 				pathObject = PathObjects.createCellObject(roi, roiNucleus, pathClass, measurementList);
 				break;
 			case ("TMACoreObject"):
+			case ("tma_core"):
 				pathObject = PathObjects.createTMACoreObject(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight(), isMissing);
 				break;
 			case ("PathDetectionObject"):
+			case ("detection"):
 				pathObject = PathObjects.createDetectionObject(roi, pathClass, measurementList);
 				break;
 			case ("PathRootObject"):
+			case ("root"):
 				pathObject = new PathRootObject();
 				break;
-			default:
+			case ("PathAnnotationObject"):
+			case ("annotation"):
+			case ("unknown"):
 				// Default is to create an annotation
+				pathObject = PathObjects.createAnnotationObject(roi, pathClass);
+				break;
+			default:
+				// Should be called if the type has been specified as *something*, but not something we recognize
+				logger.warn("Unknown object type {}, I will create an annotation", type);
 				pathObject = PathObjects.createAnnotationObject(roi, pathClass);
 			}
 			if (name != null)

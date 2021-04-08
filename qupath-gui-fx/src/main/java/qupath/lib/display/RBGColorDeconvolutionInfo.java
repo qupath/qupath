@@ -66,7 +66,7 @@ class RBGColorDeconvolutionInfo extends AbstractSingleChannelInfo {
 		ImageData<BufferedImage> imageData = getImageData();
 		stains = imageData == null ? null : imageData.getColorDeconvolutionStains();
 		if (stainNumber < 0) {
-			color = ColorTools.makeRGB(255, 255, 255);
+			color = ColorTools.packRGB(255, 255, 255);
 			colorModel = ColorTransformer.getDefaultColorModel(method);
 		} else if (stains != null) {
 			color = stains.getStain(stainNumber).getColor();

@@ -122,25 +122,38 @@ public class SlideLabelView implements ChangeListener<ImageData<BufferedImage>> 
 		
 		// Try to get a label image
 		Image imgLabel = null;
+		String message = "No label available";
 		if (imageData != null) {
 			ImageServer<BufferedImage> server = imageData.getServer();
 			if (server != null) {
-				for (String name : server.getAssociatedImageList()) {
-					if ("label".equals(name.toLowerCase().trim())) {
-						try {
-							imgLabel = SwingFXUtils.toFXImage(server.getAssociatedImage(name), null);
-							break;
-						} catch (Exception e) {
-							logger.error("Unable to read label {} from {}", name, server.getPath());
-						}
+				var associatedNames = server.getAssociatedImageList();
+				if (!associatedNames.isEmpty()) {
+					try {
+						// Try to get a label from the associated images
+						// We start by looking for associated names equal to or containing label, and eventually broaden out to allow other associated images 
+						// as better than displaying nothing at all (since they might actually be label images).
+						// Adapted because of https://github.com/qupath/qupath/issues/643
+						String labelName = server.getAssociatedImageList().stream().filter(n -> n.toLowerCase().trim().equals("label")).findFirst().orElse(null);
+						if (labelName == null)
+							labelName = server.getAssociatedImageList().stream().filter(n -> n.toLowerCase().trim().contains("(label)")).findFirst().orElse(null);
+						if (labelName == null)
+							labelName = server.getAssociatedImageList().stream().filter(n -> n.toLowerCase().trim().contains("label")).findFirst().orElse(null);
+						if (labelName == null)
+							labelName = server.getAssociatedImageList().stream().filter(n -> n.toLowerCase().trim().contains("macro")).findFirst().orElse(null);
+						if (labelName == null)
+							labelName = associatedNames.get(0);
+						imgLabel = SwingFXUtils.toFXImage(server.getAssociatedImage(labelName), null);
+					} catch (Exception e) {
+						logger.error("Unable to read label from {}", server.getPath());
 					}
 				}
 			}
-		}
+		} else
+			message = "No image open in the current viewer";
 
 		// Update the component
 		if (imgLabel == null)
-			pane.setCenter(new Label("No label available"));
+			pane.setCenter(new Label(message));
 		else {
 			
 			ContextMenu popup = new ContextMenu();

@@ -93,21 +93,21 @@ public class PathClassFactory {
 		PathClass getPathClass() {
 			switch (this) {
 			case IGNORE:
-				return PathClassFactory.getPathClass("Ignore*", ColorTools.makeRGB(180, 180, 180));
+				return PathClassFactory.getPathClass("Ignore*", ColorTools.packRGB(180, 180, 180));
 			case IMAGE_ROOT:
-				return PathClassFactory.getPathClass("Image", ColorTools.makeRGB(128, 128, 128));
+				return PathClassFactory.getPathClass("Image", ColorTools.packRGB(128, 128, 128));
 			case IMMUNE_CELLS:
-				return PathClassFactory.getPathClass("Immune cells", ColorTools.makeRGB(160, 90, 160));
+				return PathClassFactory.getPathClass("Immune cells", ColorTools.packRGB(160, 90, 160));
 			case NECROSIS:
-				return PathClassFactory.getPathClass("Necrosis", ColorTools.makeRGB(50, 50, 50));
+				return PathClassFactory.getPathClass("Necrosis", ColorTools.packRGB(50, 50, 50));
 			case OTHER:
-				return PathClassFactory.getPathClass("Other", ColorTools.makeRGB(255, 200, 0));
+				return PathClassFactory.getPathClass("Other", ColorTools.packRGB(255, 200, 0));
 			case REGION:
-				return PathClassFactory.getPathClass("Region*", ColorTools.makeRGB(0, 0, 180));
+				return PathClassFactory.getPathClass("Region*", ColorTools.packRGB(0, 0, 180));
 			case STROMA:
-				return PathClassFactory.getPathClass("Stroma", ColorTools.makeRGB(150, 200, 150));
+				return PathClassFactory.getPathClass("Stroma", ColorTools.packRGB(150, 200, 150));
 			case TUMOR:
-				return PathClassFactory.getPathClass("Tumor", ColorTools.makeRGB(200, 0, 0));
+				return PathClassFactory.getPathClass("Tumor", ColorTools.packRGB(200, 0, 0));
 			case POSITIVE:
 				return PathClassFactory.getPositive(null);
 			case NEGATIVE:
@@ -130,11 +130,11 @@ public class PathClassFactory {
 	final static String THREE_PLUS = "3+";
 	static List<String> intensityClassNames = Arrays.asList(ONE_PLUS, TWO_PLUS, THREE_PLUS);
 	
-	private static final Integer COLOR_POSITIVE = ColorTools.makeRGB(200, 50, 50);
-	private static final Integer COLOR_NEGATIVE = ColorTools.makeRGB(90, 90, 180);
-	private static final Integer COLOR_ONE_PLUS = ColorTools.makeRGB(255, 215, 0);
-	private static final Integer COLOR_TWO_PLUS = ColorTools.makeRGB(225, 150, 50);
-	private static final Integer COLOR_THREE_PLUS = ColorTools.makeRGB(200, 50, 50);
+	private static final Integer COLOR_POSITIVE = ColorTools.packRGB(200, 50, 50);
+	private static final Integer COLOR_NEGATIVE = ColorTools.packRGB(90, 90, 180);
+	private static final Integer COLOR_ONE_PLUS = ColorTools.packRGB(255, 215, 0);
+	private static final Integer COLOR_TWO_PLUS = ColorTools.packRGB(225, 150, 50);
+	private static final Integer COLOR_THREE_PLUS = ColorTools.packRGB(200, 50, 50);
 	
 	
 	
@@ -198,7 +198,7 @@ public class PathClassFactory {
 						// Use the hashcode of the String as a seed - so that the same 
 						// color is generated reproducibly for the same name.
 						Random random = new Random(name.hashCode());
-						rgb = ColorTools.makeRGB(
+						rgb = ColorTools.packRGB(
 								random.nextInt(256),
 								random.nextInt(256),
 								random.nextInt(256));

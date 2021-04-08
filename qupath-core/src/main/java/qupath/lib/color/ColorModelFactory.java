@@ -83,13 +83,13 @@ public final class ColorModelFactory {
             for (var entry: channels.entrySet()) {
         		var pathClass = entry.getValue();
         		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified()) {
-        			cmap[entry.getKey()] = ColorTools.makeRGBA(255, 255, 255, 0);
+        			cmap[entry.getKey()] = ColorTools.packARGB(0, 255, 255, 255);
         		} else if (PathClassTools.isIgnoredClass(entry.getValue())) {
             		var color = pathClass == null ? 0 : pathClass.getColor();
             		int alpha = 192;
             		if (pathClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
             			alpha = 32;
-                	cmap[entry.getKey()] = ColorTools.makeRGBA(ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), alpha);
+                	cmap[entry.getKey()] = ColorTools.packARGB(alpha, ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color));
             	} else
             		cmap[entry.getKey()] = entry.getValue().getColor();
             }
@@ -122,7 +122,7 @@ public final class ColorModelFactory {
         	Integer value = entry.getValue();
         	if (value == null) {
         		logger.warn("No color specified for index {} - using default gray", entry.getKey());
-        		cmap[entry.getKey()] = includeAlpha ? ColorTools.makeRGBA(127, 127, 127, 127) : ColorTools.makeRGB(127, 127, 127);
+        		cmap[entry.getKey()] = includeAlpha ? ColorTools.packARGB(127, 127, 127, 127) : ColorTools.packRGB(127, 127, 127);
         	} else
         		cmap[entry.getKey()] = entry.getValue();
         }
@@ -219,7 +219,7 @@ public final class ColorModelFactory {
 		return new DefaultColorModel(type, channels.size(), false, channels.stream().mapToInt(c -> {
 			Integer color = c.getColor();
 			if (color == null)
-				color = ColorTools.makeRGB(255, 255, 255);
+				color = ColorTools.packRGB(255, 255, 255);
 			return color;
 		}).toArray());
 	}

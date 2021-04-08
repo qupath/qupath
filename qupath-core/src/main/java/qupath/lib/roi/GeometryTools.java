@@ -28,6 +28,8 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,7 +37,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.StringTokenizer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -74,7 +78,6 @@ import org.locationtech.jts.operation.valid.IsValidOp;
 import org.locationtech.jts.operation.valid.TopologyValidationError;
 import org.locationtech.jts.precision.GeometryPrecisionReducer;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
-import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
 import org.locationtech.jts.util.GeometricShapeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,7 +115,41 @@ public class GeometryTools {
     	return DEFAULT_FACTORY;
     }
     
-    
+    /**
+     * Parse the matrix (String) to create and return an {@link AffineTransformation}. 
+     * <p>
+     * The order of the matrix elements should be the following:<p>
+     * <li>{@code m00 m01 m02}<p></li>
+     * <li>{@code m10 m11 m12}<p></li>
+     * 
+     * @param text
+     * @return affineTransformation
+     * @throws ParseException 
+     */
+    public static AffineTransformation parseTransformMatrix(String text) throws ParseException {
+    	String delims = "\n\t ";
+		// If we have any periods, then use a comma as an acceptable delimiter as well
+		if (text.contains(".")) {
+			delims += ",";
+			// Flatten the matrix
+			text = text.replace(System.lineSeparator(), ",");
+		} else
+			text = text.replace(System.lineSeparator(), " ");
+
+		var nf = NumberFormat.getInstance(Locale.getDefault());
+		var tokens = new StringTokenizer(text, delims);
+		if (tokens.countTokens() != 6)
+			throw new IllegalArgumentException("Affine transform should be tab-delimited and contain 6 numbers only");
+
+		double m00 = nf.parse(tokens.nextToken()).doubleValue();
+		double m01 = nf.parse(tokens.nextToken()).doubleValue();
+		double m02 = nf.parse(tokens.nextToken()).doubleValue();
+		double m10 = nf.parse(tokens.nextToken()).doubleValue();
+		double m11 = nf.parse(tokens.nextToken()).doubleValue();
+		double m12 = nf.parse(tokens.nextToken()).doubleValue();
+		return new AffineTransformation(m00, m01, m02, m10, m11, m12);
+    }
+
     /**
      * Convert an {@link AffineTransformation} to an {@link AffineTransform}.
      * @param transform

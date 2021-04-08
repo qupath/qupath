@@ -119,9 +119,9 @@ public class TestColors {
 		
 		// Checked visually median calculations - testing on input RGB matrix with 3 pixels [r g b]: [1 2 3; 3 1 2; 2 3 1]. Expected output: [0.577 0.577 0.577] 
 		// Should median calculations not be created by using image histograms??? Just a suggestion...
-		int rgb1 = ColorTools.makeRGB(1, 2, 3);
-		int rgb2 = ColorTools.makeRGB(3, 1, 2);
-		int rgb3 = ColorTools.makeRGB(2, 3, 1);
+		int rgb1 = ColorTools.packRGB(1, 2, 3);
+		int rgb2 = ColorTools.packRGB(3, 1, 2);
+		int rgb3 = ColorTools.packRGB(2, 3, 1);
 		int[] rgb_buf_med_in = new int[]{ rgb1, rgb2, rgb3 };
 		StainVector median_SV = ColorDeconvolutionHelper.generateMedianStainVectorFromPixels("myMedian", rgb_buf_med_in, MAX_RGB, MAX_RGB, MAX_RGB);
 		assertEquals(median_SV.getRed(), 0.577, EPSILON2);

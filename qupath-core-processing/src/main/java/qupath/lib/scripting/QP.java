@@ -25,6 +25,7 @@ package qupath.lib.scripting;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -40,6 +41,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -54,6 +56,8 @@ import java.util.stream.Stream;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.ObjectArrays;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.DelaunayTools;
@@ -77,11 +81,13 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
+import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -203,6 +209,8 @@ public class QP {
 		// Currently, the type adapters are registered within the class
 		@SuppressWarnings("unused")
 		var init = new ImageOps();
+		@SuppressWarnings("unused")
+		var servers = new ImageServers();
 	}
 
 	
@@ -493,17 +501,45 @@ public class QP {
 	 * a shade of gray (RGB all with that value).  Otherwise, 3 or 4 values may be given to generate 
 	 * either an RGB or RGBA color.  Note: values are expected in order RGBA, but Java's packed ints are really ARGB.
 	 * @return
+	 * @deprecated Use instead {@link #makeRGB(int, int, int)} or {@link #makeARGB(int, int, int, int)}
 	 */
+	@Deprecated
 	public static Integer getColorRGB(final int... v) {
 		if (v.length == 1)
-			return ColorTools.makeRGB(v[0], v[0], v[0]);
+			return ColorTools.packRGB(v[0], v[0], v[0]);
 		if (v.length == 3)
-			return ColorTools.makeRGB(v[0], v[1], v[2]);
+			return ColorTools.packRGB(v[0], v[1], v[2]);
 		if (v.length == 4)
-			return ColorTools.makeRGBA(v[0], v[1], v[2], v[3]);
+			return ColorTools.packARGB(v[3], v[0], v[1], v[2]);
 		throw new IllegalArgumentException("Input to getColorRGB must be either 1, 3 or 4 integer values, between 0 and 255!");
 	}
 	
+	/**
+	 * Make a packed int representation of an RGB color.
+	 * Alpha defaults to 255.
+	 * Red, green and blue values should be in the range 0-255; if they are not, they will be clipped.
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return
+	 */
+	public static Integer makeRGB(int r, int g, int b) {
+		return ColorTools.packClippedRGB(r, g, b);
+	}
+
+	/**
+	 * Make a packed int representation of an ARGB color.
+	 * Alpha, red, green and blue values should be in the range 0-255; if they are not, they will be clipped.
+	 * @param a
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return
+	 */
+	public static Integer makeARGB(int a, int r, int g, int b) {
+		return ColorTools.packClippedARGB(a, r, g, b);
+	}
+
 	/**
 	 * Get the path to the {@code ImageServer} of the current {@code ImageData}.
 	 * @return
@@ -943,17 +979,27 @@ public class QP {
 			logger.debug("Cannot add shape measurements (no objects selected)");
 			return;
 		}
-		addShapeMeasurements(imageData, new ArrayList<>(selected), features);
+		if (features.length == 0)
+			addShapeMeasurements(imageData, new ArrayList<>(selected));
+		else if (features.length == 1)
+			addShapeMeasurements(imageData, new ArrayList<>(selected), features[0]);
+		else
+			addShapeMeasurements(imageData, new ArrayList<>(selected), features[0], Arrays.copyOfRange(features, 1, features.length));
 	}
 
 	/**
 	 * Add shape measurements to the specified objects.
+	 * <p>
+	 * Note {@link #addShapeMeasurements(ImageData, Collection, ShapeFeatures...)} can be used without specifying any features.
+	 * This method requires at least one feature so as to have a distinct method signature.
+	 * 
 	 * @param imageData the image to which the objects belong. This is used to determine pixel calibration and to fire an update event. May be null.
 	 * @param pathObjects the objects that should be measured
-	 * @param features optional array of Strings specifying the features to add. If none are specified, all available features will be added.
+	 * @param feature first feature to add
+	 * @param additionalFeatures optional array of Strings specifying the features to add
 	 */
-	public static void addShapeMeasurements(ImageData<?> imageData, Collection<? extends PathObject> pathObjects, String... features) {
-		addShapeMeasurements(imageData, pathObjects, parseFeatures(features));
+	public static void addShapeMeasurements(ImageData<?> imageData, Collection<? extends PathObject> pathObjects, String feature, String... additionalFeatures) {
+		addShapeMeasurements(imageData, pathObjects, parseEnumOptions(ShapeFeatures.class, feature, additionalFeatures));
 	}
 	
 	/**
@@ -974,21 +1020,32 @@ public class QP {
 		}
 	}
 	
-	private static ShapeFeatures[] parseFeatures(String... names) {
-		if (names == null || names.length == 0)
-			return new ShapeFeatures[0];
-		var objectOptions = new HashSet<ShapeFeatures>();
-		for (var optionName : names) {
+	/**
+	 * Parse an array of strings into a compatible enum.
+	 * @param <T>
+	 * @param classEnum
+	 * @param option
+	 * @param additionalOptions
+	 * @return
+	 */
+	static <T extends Enum<T>> T[] parseEnumOptions(Class<T> classEnum, String option, String... additionalOptions) {
+		if (option == null && additionalOptions.length == 0)
+			return (T[])java.lang.reflect.Array.newInstance(classEnum, 0);
+		var objectOptions = new LinkedHashSet<T>();
+		var allOptions = option == null ? additionalOptions : ObjectArrays.concat(option, additionalOptions);
+		for (var optionName : allOptions) {
+			if (optionName == null)
+				continue;
 			try {
-				var option = ShapeFeatures.valueOf(optionName);
-				objectOptions.add(option);
+				var temp = Enum.valueOf(classEnum, optionName);
+				objectOptions.add(temp);
 			} catch (Exception e) {
 				logger.warn("Could not parse option {}", optionName);
 			}
 		}
-		return objectOptions.toArray(ShapeFeatures[]::new);
+		var array = (T[])java.lang.reflect.Array.newInstance(classEnum, objectOptions.size());
+		return objectOptions.toArray(array);
 	}
-	
 	
 	/**
 	 * Set the channel names for the current ImageData.
@@ -1236,15 +1293,30 @@ public class QP {
 	/**
 	 * Get an array of all objects in the current hierarchy.
 	 * 
+	 * @param includeRootObject
+	 * @return
+	 * @see #getCurrentHierarchy
+	 */
+	public static PathObject[] getAllObjects(boolean includeRootObject) {
+		PathObjectHierarchy hierarchy = getCurrentHierarchy();
+		if (hierarchy == null)
+			return new PathObject[0];
+		var objList = hierarchy.getFlattenedObjectList(null);
+		if (includeRootObject)
+			return objList.toArray(new PathObject[0]);
+		return objList.parallelStream().filter(e -> !e.isRootObject()).toArray(PathObject[]::new);
+	}
+
+	/**
+	 * Get an array of all objects in the current hierarchy. 
+	 * Note that this includes the root object.
+	 * 
 	 * @return
 	 * 
 	 * @see #getCurrentHierarchy
 	 */
 	public static PathObject[] getAllObjects() {
-		PathObjectHierarchy hierarchy = getCurrentHierarchy();
-		if (hierarchy == null)
-			return new PathObject[0];
-		return hierarchy.getFlattenedObjectList(null).toArray(new PathObject[0]);
+		return getAllObjects(true);
 	}
 	
 	/**
@@ -1594,6 +1666,20 @@ public class QP {
 			return hierarchy.getFlattenedObjectList(null).stream().filter(predicate).collect(Collectors.toList());
 		return Collections.emptyList();
 	}
+	
+	/**
+	 * Set selected objects to contain all objects.
+	 * 
+	 * @param hierarchy 
+	 * @param includeRootObject 
+	 */
+	public static void selectAllObjects(PathObjectHierarchy hierarchy, boolean includeRootObject) {
+		var allObjs = hierarchy.getFlattenedObjectList(null);
+		if (!includeRootObject)
+			allObjs = allObjs.stream().filter(e -> !e.isRootObject()).collect(Collectors.toList());
+		if (hierarchy != null)
+			hierarchy.getSelectionModel().setSelectedObjects(allObjs, null);
+	}	
 
 	/**
 	 * Set selected objects to contain (only) all objects in the current hierarchy according to a specified predicate.
@@ -1970,7 +2056,97 @@ public class QP {
 			logger.info("{} objects classified as {}", selected.size(), pathClassName);
 		hierarchy.fireObjectClassificationsChangedEvent(null, selected);
 	}
+	
+	/**
+	 * Export all objects (excluding root object) to an output file as GeoJSON.
+	 * 
+	 * @param path 
+	 * @param option 
+	 * @param additionalOptions
+	 * @throws IOException
+	 */
+	public static void exportAllObjectsToGeoJson(String path, String option, String... additionalOptions) throws IOException {
+		exportAllObjectsToGeoJson(path, parseEnumOptions(GeoJsonExportOptions.class, option, additionalOptions));
+	}
+	
+	/**
+	 * Export all objects (excluding root object) to an output file as GeoJSON.
+	 * 
+	 * @param path 
+	 * @param options
+	 * @throws IOException
+	 */
+	public static void exportAllObjectsToGeoJson(String path, GeoJsonExportOptions... options) throws IOException {
+		exportObjectsToGeoJson(Arrays.asList(getAllObjects(false)), path, options);
+	}
+	
+	/**
+	 * Export the selected objects to an output file as GeoJSON.
+	 * 
+	 * @param path 
+	 * @param option 
+	 * @param additionalOptions
+	 * @throws IOException
+	 */
+	public static void exportSelectedObjectsToGeoJson(String path, String option, String... additionalOptions) throws IOException {
+		exportSelectedObjectsToGeoJson(path, parseEnumOptions(GeoJsonExportOptions.class, option, additionalOptions));
+	}
+	
+	/**
+	 * Export the selected objects to an output file as GeoJSON.
+	 * 
+	 * @param path 
+	 * @param options
+	 * @throws IOException
+	 */
+	public static void exportSelectedObjectsToGeoJson(String path, GeoJsonExportOptions... options) throws IOException {
+		exportObjectsToGeoJson(getSelectedObjects(), path, options);
+	}
+	
+	/**
+	 * Export specified objects to an output file as GeoJSON.
+	 * 
+	 * @param pathObjects 
+	 * @param path 
+	 * @param option
+	 * @param additionalOptions
+	 * @throws IOException
+	 */
+	public static void exportObjectsToGeoJson(Collection<? extends PathObject> pathObjects, String path, String option, String... additionalOptions) throws IOException {
+		exportObjectsToGeoJson(pathObjects, path, parseEnumOptions(GeoJsonExportOptions.class, option, additionalOptions));
+	}
+	
+	/**
+	 * Export specified objects to an output file as GeoJSON.
+	 * 
+	 * @param pathObjects 
+	 * @param path 
+	 * @param options
+	 * @throws IOException
+	 */
+	public static void exportObjectsToGeoJson(Collection<? extends PathObject> pathObjects, String path, GeoJsonExportOptions... options) throws IOException {
+		PathIO.exportObjectsAsGeoJSON(new File(path), pathObjects, options);
+	}
 
+	/**
+	 * Import all {@link PathObject}s from the given file. <p>
+	 * {@code IllegalArgumentException} is thrown if the file is not compatible. <br>
+	 * {@code FileNotFoundException} is thrown if the file is not found. <br>
+	 * {@code IOException} is thrown if an error occurs while reading the file. <br>
+	 * {@code ClassNotFoundException} should never occur naturally (except through a change in the code).
+	 * 
+	 * 
+	 * @param path
+	 * @return success
+	 * @throws FileNotFoundException
+	 * @throws IllegalArgumentException
+	 * @throws ClassNotFoundException
+	 * @throws IOException
+	 */
+	public static boolean importObjectsFromFile(String path) throws FileNotFoundException, IllegalArgumentException, IOException, ClassNotFoundException {
+		var objs = PathIO.readObjects(new File(path));
+		return getCurrentHierarchy().addPathObjects(objs);
+	}
 	
 	/**
 	 * Clear the selection for the current hierarchy, so that no objects of any kind are selected.
@@ -3079,22 +3255,7 @@ public class QP {
 	public static void createDetectionsFromPixelClassifier(
 			PixelClassifier classifier, double minArea, double minHoleArea, String... options) {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
-		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseCreateObjectOptions(options));
-	}
-	
-	private static CreateObjectOptions[] parseCreateObjectOptions(String... names) {
-		if (names == null || names.length == 0)
-			return new CreateObjectOptions[0];
-		var objectOptions = new HashSet<CreateObjectOptions>();
-		for (var optionName : names) {
-			try {
-				var option = CreateObjectOptions.valueOf(optionName);
-				objectOptions.add(option);
-			} catch (Exception e) {
-				logger.warn("Could not parse option {}", optionName);
-			}
-		}
-		return objectOptions.toArray(CreateObjectOptions[]::new);
+		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseEnumOptions(CreateObjectOptions.class, null, options));
 	}
 	 
 	
@@ -3125,7 +3286,7 @@ public class QP {
 	public static void createAnnotationsFromPixelClassifier(
 			PixelClassifier classifier, double minArea, double minHoleArea, String... options) {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
-		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseCreateObjectOptions(options));
+		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseEnumOptions(CreateObjectOptions.class, null, options));
 	}
 	
 	
