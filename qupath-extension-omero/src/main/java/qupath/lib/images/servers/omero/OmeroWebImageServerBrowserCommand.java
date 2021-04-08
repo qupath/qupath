@@ -1,3 +1,24 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License 
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.images.servers.omero;
 
 import java.awt.image.BufferedImage;
@@ -512,7 +533,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			}
 		});
 		
-		filter.setPromptText("Search project");
+		filter.setPromptText("Filter project names");
 		filter.textProperty().addListener((v, o, n) -> {
 			refreshTree();
 			if (n.isEmpty())
@@ -520,6 +541,11 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			else
 				expandTreeView(tree.getRoot());
 		});
+		
+		Button advancedSearchBtn = new Button("Advanced...");
+		advancedSearchBtn.setOnAction(e -> new AdvancedSearch());
+		GridPane searchAndAdvancedPane = new GridPane();
+		PaneTools.addGridRow(searchAndAdvancedPane, 0, 0, null, filter, advancedSearchBtn);
 		
 		importBtn = new Button("Import image");
 		
@@ -537,10 +563,10 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		// Disable import button if no item is selected or selected item is not compatible
 		importBtn.disableProperty().bind(
 				Bindings.size(tree.getSelectionModel().getSelectedItems()).lessThan(1).or(
-				Bindings.createBooleanBinding(() -> !tree.getSelectionModel().getSelectedItems().stream().allMatch(obj -> isSupported(obj.getValue())), 
-						tree.getSelectionModel().selectedItemProperty())
-				)
-		);
+						Bindings.createBooleanBinding(() -> !tree.getSelectionModel().getSelectedItems().stream().allMatch(obj -> isSupported(obj.getValue())),
+								tree.getSelectionModel().selectedItemProperty())
+						)
+				);
 		
 		// Import button will fetch all the images in the selected object(s)
 		importBtn.setOnMouseClicked(e -> {
@@ -548,15 +574,11 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			List<String> URIs = getObjectsURI(selected.stream().map(sub -> sub.getValue()).toArray(OmeroObject[]::new));
 			ProjectCommands.promptToImportImages(qupath, URIs.toArray(String[]::new));
 		});
-		
-		Button advancedSearchBtn = new Button("Advanced...");
-		advancedSearchBtn.setOnAction(e -> new AdvancedSearch());
-		
+
 		PaneTools.addGridRow(browseLeftPane, 0, 0, "Filter by", comboGroup, comboOwner);
 		PaneTools.addGridRow(browseLeftPane, 1, 0, null, tree, tree);
-		PaneTools.addGridRow(browseLeftPane, 2, 0, "Expand/collapse items");
-		PaneTools.addGridRow(browseLeftPane, 3, 0, null, filter, advancedSearchBtn);
-		PaneTools.addGridRow(browseLeftPane, 4, 0, null, importBtn, importBtn);
+		PaneTools.addGridRow(browseLeftPane, 2, 0, null, searchAndAdvancedPane, searchAndAdvancedPane);
+		PaneTools.addGridRow(browseLeftPane, 3, 0, null, importBtn, importBtn);
 		
 		canvas = new Canvas();
 		canvas.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0, 1, 1);");
@@ -570,12 +592,11 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		GridPane.setHalignment(canvas, HPos.CENTER);
 
 		// Set HGrow and VGrow
-		GridPane.setHgrow(comboOwner,  Priority.ALWAYS);
-		GridPane.setHgrow(comboGroup,  Priority.ALWAYS);
-		GridPane.setHgrow(description,  Priority.ALWAYS);
+		GridPane.setHgrow(comboOwner, Priority.ALWAYS);
+		GridPane.setHgrow(comboGroup, Priority.ALWAYS);
+		GridPane.setHgrow(description, Priority.ALWAYS);
 		GridPane.setHgrow(tree, Priority.ALWAYS);
 		GridPane.setHgrow(filter, Priority.ALWAYS);
-		GridPane.setHgrow(advancedSearchBtn, Priority.ALWAYS);
 		GridPane.setHgrow(importBtn, Priority.ALWAYS);
 		GridPane.setVgrow(description, Priority.ALWAYS);
 		GridPane.setVgrow(tree, Priority.ALWAYS);
@@ -583,7 +604,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		// Set max width & height
 		comboOwner.setMaxWidth(Double.MAX_VALUE);
 		comboGroup.setMaxWidth(Double.MAX_VALUE);
-        advancedSearchBtn.setMaxWidth(Double.MAX_VALUE);
+		filter.setMaxWidth(Double.MAX_VALUE);
         browseLeftPane.setMaxWidth(Double.MAX_VALUE);
         importBtn.setMaxWidth(Double.MAX_VALUE);
 		description.setMaxHeight(Double.MAX_VALUE);
@@ -1496,6 +1517,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			
 			Button importBtn = new Button("Import image");
 			importBtn.disableProperty().bind(resultsTableView.getSelectionModel().selectedItemProperty().isNull());
+			importBtn.setMaxWidth(Double.MAX_VALUE);
 			importBtn.setOnAction(e -> {
 				String[] URIs = resultsTableView.getSelectionModel().getSelectedItems().stream()
 						.flatMap(item -> {
