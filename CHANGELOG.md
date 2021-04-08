@@ -51,6 +51,7 @@ List of bugs fixed:
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
 * --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
 * Extremely long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
+* Occasional exceptions when concatenating channels for rotated images (https://github.com/qupath/qupath/issues/641)
 * 'Selection mode' keyboard shortcut did not work; now activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
 * Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
 * Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)
