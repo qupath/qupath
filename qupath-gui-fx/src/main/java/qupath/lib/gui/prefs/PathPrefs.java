@@ -78,10 +78,17 @@ import qupath.lib.projects.ProjectIO;
 public class PathPrefs {
 	
 	/**
-	 * Name for preference node - until 0.2.0 is stable, avoid using same storage as v0.1.2
+	 * Name for preference node
 	 */
-	final private static String NODE_NAME = "io.github.qupath.0.2.0";
-	
+	private final static String NODE_NAME = "io.github.qupath/0.3";
+
+	/**
+	 * Previous preference node, in case these need to be restored.
+	 * For now, this isn't supported.
+	 */
+	@SuppressWarnings("unused")
+	private final static String PREVIOUS_NODE_NAME = "io.github.qupath.0.2.0";
+
 	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
 	
 	/**
@@ -329,10 +336,24 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static Preferences getUserPreferences() {
-		Preferences prefs = Preferences.userRoot();
-		prefs = prefs.node(NODE_NAME);
-		return prefs;
+		return getUserPreferences(NODE_NAME, true);
 	}
+	
+	private static Preferences getUserPreferences(String nodeName, boolean createIfNotExists) {
+		Preferences prefs = Preferences.userRoot();
+		try {
+			for (var name : nodeName.split("/")) {
+				if (!createIfNotExists && !prefs.nodeExists(name))
+					return null;
+				prefs = prefs.node(name);
+			}
+			return prefs;
+		} catch (BackingStoreException e) {
+			logger.debug("Exception loading " + nodeName + " (" + e.getLocalizedMessage() + ")", e);
+			return null;
+		}
+	}
+	
 	
 	/**
 	 * Save the preferences.

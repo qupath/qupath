@@ -2,15 +2,21 @@
 *In progress*
 
 Enhancements:
-* Import/export objects as GeoJSON without scripting, via 'File -> Object data... -> ...'
-* Import objects from .json, .geojson & .qpdata files via via 'File -> Object data... -> Import objects' or with drag & drop
+* Support for importing & exporting objects without scripting
+  * Export objects as GeoJSON without via 'File -> Object data... -> ...'
+  * Import objects from .json, .geojson & .qpdata files via 'File -> Object data... -> Import objects' or with drag & drop
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
-* Improved 360 degree image rotation (under 'View > Rotate image')
+* Better support for setting pixel sizes & z-spacing in µm
+  * Access by double-clicking pixel size values under the 'Image' tab
+  * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
+* New 360 degree image rotation (under 'View > Rotate image')
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
   * Optionally skip TMA cores marked as 'ignored'
+* When prompted to set the image type, 'Show details' gives an opportunity to turn off the prompts
+  * Previously this was only accessible in the preferences
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
@@ -25,6 +31,9 @@ Code changes:
 
 List of bugs fixed:
 * 'Detect centroid distances 2D' doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
+* Deleting a TMA grid deletes all objects (https://github.com/qupath/qupath/issues/646)
+* 'Subcellular detection (experimental)' does't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)
+  * Note: Spots with an area exactly equal to the minimum spot size are now retained (previously they were discarded)
 * 'Convert detections to points' loses plane when applied to a z-stack (https://github.com/qupath/qupath/issues/696)
 * Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
@@ -34,6 +43,7 @@ List of bugs fixed:
 * Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
 * Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)
 * The requestedPixelSize option for TileExporter calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
+* Unable to find slide labels when reading images with Bio-Formats (https://github.com/qupath/qupath/issues/643)
 * The TileExporter could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
 * setIntensityClassification method in PathClassifierTools now correctly ignores ignored classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
 * Dialogs.showConfirmDialog(title, text) shows the text in the title bar, rather than the title (https://github.com/qupath/qupath/issues/662)
