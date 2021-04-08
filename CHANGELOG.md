@@ -21,6 +21,7 @@ Enhancements:
 * Better support for setting pixel sizes & z-spacing in µm
   * Access by double-clicking pixel size values under the 'Image' tab
   * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
+* 'Objects -> Annotations... -> Rotate annotation' now works with point annotations
 * New 360 degree image rotation (under 'View > Rotate image')
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
