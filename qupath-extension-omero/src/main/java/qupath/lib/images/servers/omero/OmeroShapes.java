@@ -39,7 +39,6 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.google.gson.annotations.SerializedName;
 
-import qupath.lib.common.ColorTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
@@ -140,7 +139,7 @@ class OmeroShapes {
 					shape = new Point(roiPoints.get(i).getX(), roiPoints.get(i).getY());
 					shape.setType("Point");
 					shape.setText(src.getName() != null ? src.getName() : "");
-					shape.setFillColor(pathClass != null ? ColorTools.ARGBToRGBA(src.getPathClass().getColor()) : -256);
+					shape.setFillColor(pathClass != null ? ARGBToRGBA(src.getPathClass().getColor()) : -256);
 					points[i] = context.serialize(shape, Point.class);;
 				}
 				return context.serialize(points);
@@ -159,7 +158,7 @@ class OmeroShapes {
 					shape = new Polygon(pointsToString(rois.get(i).getAllPoints()));
 					shape.setType("Polygon");
 					shape.setText(src.getName() != null ? src.getName() : "");
-					shape.setFillColor(pathClass != null ? ColorTools.ARGBToRGBA(pathClass.getColor()) : -256);
+					shape.setFillColor(pathClass != null ? ARGBToRGBA(pathClass.getColor()) : -256);
 					polygons[i] = context.serialize(shape, Polygon.class);
 				}
 				return context.serialize(polygons);
@@ -171,12 +170,12 @@ class OmeroShapes {
 			
 			// Set the appropriate colors
 			if (src.getPathClass() != null) {
-				int classColor = ColorTools.ARGBToRGBA(src.getPathClass().getColor());
+				int classColor = ARGBToRGBA(src.getPathClass().getColor());
 				shape.setFillColor(classColor);
 				shape.setStrokeColor(classColor);
 			} else {
 				shape.setFillColor(-256);	// Transparent
-				shape.setStrokeColor(ColorTools.ARGBToRGBA(PathPrefs.colorDefaultObjectsProperty().get())); // Default Qupath object color
+				shape.setStrokeColor(ARGBToRGBA(PathPrefs.colorDefaultObjectsProperty().get())); // Default Qupath object color
 			}
 			
 			shape.setText(src.getName() != null ? src.getName() : "");
@@ -184,6 +183,36 @@ class OmeroShapes {
 		}
 	}
 	
+	/**
+	 * Return the packed RGBA representation of the specified ARGB (packed) value.
+	 * <p>
+	 * This doesn't use the convenient method {@code makeRGBA()} as 
+	 * the order in the method is confusing.
+	 * @param argb
+	 * @return rgba
+	 */
+	private static int ARGBToRGBA(int argb) {
+		int a =  (argb >> 24) & 0xff;
+		int r =  (argb >> 16) & 0xff;
+		int g =  (argb >> 8) & 0xff;
+		int b =  argb & 0xff;
+		return (r<<24) + (g<<16) + (b<<8) + a;
+	}
+	
+//	/**
+//	 * Return the packed ARGB representation of the specified RGBA (packed) value.
+//	 * <p>
+//	 * This method is similar to {@code makeRGBA()} but with packed RGBA input.
+//	 * @param rgba
+//	 * @return argb
+//	 */
+//	private static int RGBAToARGB(int rgba) {
+//		int r =  (rgba >> 24) & 0xff;
+//		int g =  (rgba >> 16) & 0xff;
+//		int b =  (rgba >> 8) & 0xff;
+//		int a =  rgba & 0xff;
+//		return (a<<24) + (r<<16) + (g<<8) + b;
+//	}
 	
 	public static abstract class OmeroShape {
 		
