@@ -90,7 +90,7 @@ public class OmeroWebClient {
 	private Map<String, String> omeroURLs = new HashMap<>();
 	
 	/**
-	 * List of all URIs supported by this client. This list should be populated after calls to {@link #canAccessImage(URI)}.
+	 * List of all URIs supported by this client. This list should be populated after calls to {@link #canBeAccessed(URI, OmeroObjectType)}.
 	 */
 	private ObservableList<URI> uris = FXCollections.observableArrayList();
 	
@@ -241,7 +241,6 @@ public class OmeroWebClient {
 	 * 
 	 * @return success
 	 * @throws ConnectException 
-	 * @throws OperationNotSupportedException 
 	 */
 	boolean canBeAccessed(URI uri, OmeroObjectType type) throws IllegalArgumentException, ConnectException {
 		try {

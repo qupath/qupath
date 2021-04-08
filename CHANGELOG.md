@@ -1,6 +1,16 @@
 ## Version 0.3.0-SNAPSHOT
 *In progress*
 
+New features:
+* New OMERO support
+  * Log on/off OMERO servers with different credentials
+  * View the connection types of different OMERO servers and their status (public/private, connected/not connected)
+  * Browse any OMERO servers from within QuPath and open any project/dataset/image from the browser
+  * Retrieve OMERO project/dataset/image metadata (`More info..`)
+  * Advanced OMERO server search
+  * Import/send ROIs from/to the original image hosted on OMERO
+  * **Important!** This uses the OMERO web API: only RGB images are supported & are converted to JPEG before reaching QuPath. This approach may be unsuitable for some kinds of analysis.
+
 Enhancements:
 * Support for importing & exporting objects without scripting
   * Export objects as GeoJSON without via 'File -> Object data... -> ...'

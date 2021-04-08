@@ -856,7 +856,6 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	/**
 	 * Set the specified item and its children to the specified expanded mode
 	 * @param item
-	 * @param expanded
 	 */
 	private static void expandTreeView(TreeItem<OmeroObject> item){
 	    if (item != null && !item.isLeaf()) {

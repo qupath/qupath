@@ -78,6 +78,7 @@ public class OmeroWebClientsCommand implements Runnable {
 		this.clientsDisplayed = FXCollections.observableSet();
 	}
 
+	@Override
 	public void run() {
 		if (dialog == null) {
 			// Get connection status of each imageServer in separate thread

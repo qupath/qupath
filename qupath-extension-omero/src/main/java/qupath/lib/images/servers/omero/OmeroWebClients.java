@@ -66,7 +66,7 @@ public class OmeroWebClients {
 	/**
 	 * Return the client associated with the specified server URI. 
 	 * If no client is found, {@code null} is returned.
-	 * @param serverUri
+	 * @param serverURI
 	 * @return client
 	 */
 	static OmeroWebClient getClientFromServerURI(URI serverURI) {
@@ -76,7 +76,7 @@ public class OmeroWebClients {
 	/**
 	 * Return the client associated with the specified image URI. 
 	 * If no client is found, {@code null} is returned.
-	 * @param imageUri
+	 * @param imageURI
 	 * @return client
 	 */
 	static OmeroWebClient getClientFromImageURI(URI imageURI) {
@@ -109,7 +109,7 @@ public class OmeroWebClients {
 	/**
 	 * Return whether the specified server URI was processed before 
 	 * and had failed (to avoid unnecessary processing).
-	 * @param serverUri
+	 * @param serverURI
 	 * @return hasFailed
 	 */
 	static boolean hasFailed(URI serverURI) {
@@ -118,7 +118,7 @@ public class OmeroWebClients {
 	
 	/**
 	 * Add the specified host to the list of failed hosts.
-	 * @param host
+	 * @param serverURI
 	 */
 	static void addFailedHost(URI serverURI) {
 		if (!failedUris.contains(serverURI))
