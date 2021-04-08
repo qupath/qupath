@@ -221,7 +221,7 @@ public class StainVector implements Externalizable {
 		int r2 = ColorTools.clip255(255.0 - r * 255);
 		int g2 = ColorTools.clip255(255.0 - g * 255);
 		int b2 = ColorTools.clip255(255.0 - b * 255);
-		return ColorTools.makeRGB(r2, g2, b2);
+		return ColorTools.packRGB(r2, g2, b2);
 	}
 		
 	

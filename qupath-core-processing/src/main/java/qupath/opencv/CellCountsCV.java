@@ -271,7 +271,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			ArrayList<qupath.lib.geom.Point2> points = new ArrayList<>();
 
 			Shape shape = pathROI != null && pathROI.isArea() ? RoiTools.getShape(pathROI) : null;
-			Integer color = ColorTools.makeRGB(0, 255, 0);
+			Integer color = ColorTools.packRGB(0, 255, 0);
 			String stain2Name = stains.getStain(2).getName();
 			ROI area = pathROI != null && pathROI.isArea() ? pathROI : null;
 //			if (area instanceof AreaROI && !(area instanceof AWTAreaROI))

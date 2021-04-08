@@ -101,7 +101,7 @@ public class TestPathClassifierTools {
 		pathClass2 = PathClassFactory.getPathClass("TestClass2",  Color.GREEN.getRGB());
 		pathClass3 = PathClassFactory.getPathClass("TestClass3",  Color.BLUE.getRGB());
 		pathClass4 = PathClassFactory.getPathClass("test*",  Color.BLUE.getRGB());
-		pathClass5 = PathClassFactory.getPathClass("Ignore*", ColorTools.makeRGB(180, 180, 180));
+		pathClass5 = PathClassFactory.getPathClass("Ignore*", ColorTools.packRGB(180, 180, 180));
 		pathClassUnclassified = PathClassFactory.getPathClassUnclassified();
 		
 		pc1 = PathClassifierTools.createIntensityClassifier(pathClass1, "intensityMeasurement1", 0.5);

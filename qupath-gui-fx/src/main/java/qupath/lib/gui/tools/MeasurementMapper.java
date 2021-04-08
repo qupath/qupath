@@ -417,12 +417,12 @@ public class MeasurementMapper {
 			for (int i = 0; i < nColors; i++) {
 				int ind = (int)(i * scale);
 				double residual = (i * scale) - ind;
-				colors[i] = ColorTools.makeRGB(
+				colors[i] = ColorTools.packRGB(
 						r[ind] + (int)((r[ind+1] - r[ind]) * residual),
 						g[ind] + (int)((g[ind+1] - g[ind]) * residual),
 						b[ind] + (int)((b[ind+1] - b[ind]) * residual));
 			}
-			colors[nColors-1] = ColorTools.makeRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
+			colors[nColors-1] = ColorTools.packRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
 		}
 		
 		@Override
@@ -438,7 +438,7 @@ public class MeasurementMapper {
 		public Integer getColor(int ind) {
 			Integer color = colors[ind];
 			if (color == null) {
-				color = ColorTools.makeRGB(r[ind], g[ind], b[ind]);
+				color = ColorTools.packRGB(r[ind], g[ind], b[ind]);
 				colors[ind] = color;
 			}
 			return color;
@@ -485,12 +485,12 @@ public class MeasurementMapper {
 			for (int i = 0; i < nColors; i++) {
 				int ind = (int)(i * scale);
 				double residual = (i * scale) - ind;
-				colors[i] = ColorTools.makeRGB(
+				colors[i] = ColorTools.packRGB(
 						r[ind] + (int)((r[ind+1] - r[ind]) * residual),
 						g[ind] + (int)((g[ind+1] - g[ind]) * residual),
 						b[ind] + (int)((b[ind+1] - b[ind]) * residual));
 			}
-			colors[nColors-1] = ColorTools.makeRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
+			colors[nColors-1] = ColorTools.packRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
 		}
 		
 		@Override
@@ -506,7 +506,7 @@ public class MeasurementMapper {
 		public Integer getColor(int ind) {
 			Integer color = colors[ind];
 			if (color == null) {
-				color = ColorTools.makeRGB(r[ind], g[ind], b[ind]);
+				color = ColorTools.packRGB(r[ind], g[ind], b[ind]);
 				colors[ind] = color;
 			}
 			return color;
