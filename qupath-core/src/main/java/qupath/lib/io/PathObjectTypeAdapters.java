@@ -375,7 +375,7 @@ class PathObjectTypeAdapters {
 					else if (colorObj.isJsonArray()) {
 						var colorArray = colorObj.getAsJsonArray();
 						if (colorArray.size() == 3)
-							color = ColorTools.makeRGB(
+							color = ColorTools.packRGB(
 									colorArray.get(0).getAsInt(),
 									colorArray.get(1).getAsInt(),
 									colorArray.get(2).getAsInt()

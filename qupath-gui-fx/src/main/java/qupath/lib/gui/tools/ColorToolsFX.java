@@ -76,7 +76,7 @@ public class ColorToolsFX {
 	 * @return
 	 */
 	public static Color getCachedColor(final int r, final int g, final int b, final int a) {
-		return getCachedColor(ColorTools.makeRGBA(r, g, b, a), true);
+		return getCachedColor(ColorTools.packARGB(a, r, g, b), true);
 	}
 
 	/**
@@ -87,7 +87,7 @@ public class ColorToolsFX {
 	 * @return
 	 */
 	public static Color getCachedColor(final int r, final int g, final int b) {
-		return getCachedColor(ColorTools.makeRGB(r, g, b));
+		return getCachedColor(ColorTools.packRGB(r, g, b));
 	}
 
 	/**
@@ -139,7 +139,7 @@ public class ColorToolsFX {
 	 * @return
 	 */
 	public static int getRGB(final Color color) {
-		return ColorTools.makeRGB((int)(color.getRed() * 255), (int)(color.getGreen() * 255), (int)(color.getBlue() * 255));
+		return ColorTools.packRGB((int)(color.getRed() * 255), (int)(color.getGreen() * 255), (int)(color.getBlue() * 255));
 	}
 	
 	/**
@@ -148,7 +148,7 @@ public class ColorToolsFX {
 	 * @return
 	 */
 	public static int getARGB(final Color color) {
-		return ColorTools.makeRGBA((int)(color.getRed() * 255), (int)(color.getGreen() * 255), (int)(color.getBlue() * 255), (int)(color.getOpacity() * 255));
+		return ColorTools.packARGB((int)(color.getOpacity() * 255), (int)(color.getRed() * 255), (int)(color.getGreen() * 255), (int)(color.getBlue() * 255));
 	}
 	
 	

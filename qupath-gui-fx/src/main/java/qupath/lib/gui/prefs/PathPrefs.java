@@ -1042,7 +1042,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static IntegerProperty viewerBackgroundColor = createPersistentPreference("viewerBackgroundColor", ColorTools.makeRGB(0, 0, 0));
+	private static IntegerProperty viewerBackgroundColor = createPersistentPreference("viewerBackgroundColor", ColorTools.packRGB(0, 0, 0));
 	
 	/**
 	 * Color to paint behind any image.
@@ -1053,12 +1053,12 @@ public class PathPrefs {
 	}
 
 	
-	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
+	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.packRGB(255, 0, 0));
 		
-	private static IntegerProperty colorSelectedObject = createPersistentPreference("colorSelectedObject", ColorTools.makeRGB(255, 255, 0));
-	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.makeRGB(20, 20, 180));
-	private static IntegerProperty colorTMAMissing = createPersistentPreference("colorTMAMissing", ColorTools.makeRGBA(20, 20, 180, 50));
-	private static IntegerProperty colorTile = createPersistentPreference("colorTile", ColorTools.makeRGB(80, 80, 80));
+	private static IntegerProperty colorSelectedObject = createPersistentPreference("colorSelectedObject", ColorTools.packRGB(255, 255, 0));
+	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.packRGB(20, 20, 180));
+	private static IntegerProperty colorTMAMissing = createPersistentPreference("colorTMAMissing", ColorTools.packARGB(50, 20, 20, 180));
+	private static IntegerProperty colorTile = createPersistentPreference("colorTile", ColorTools.packRGB(80, 80, 80));
 	
 	/**
 	 * The default color used to display objects of any type, where a default has not otherwise been specified.

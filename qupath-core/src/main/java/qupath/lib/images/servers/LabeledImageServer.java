@@ -434,7 +434,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @return
 		 */
 		public Builder backgroundLabel(int label) {
-			return backgroundLabel(label, ColorTools.makeRGB(255, 255, 255));
+			return backgroundLabel(label, ColorTools.packRGB(255, 255, 255));
 		}
 		
 		/**

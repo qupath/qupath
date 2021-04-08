@@ -468,9 +468,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 	static PathObject createSubcellularObject(final ROI roi, final double nSpots) {
 		var pathObject = PathObjects.createDetectionObject(roi);
 		if (nSpots != 1)
-			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.makeRGB(220, 200, 50)));
+			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
 		else
-			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.makeRGB(100, 220, 50)));
+			pathObject.setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
 		pathObject.getMeasurementList().putMeasurement("Num spots", nSpots);
 		pathObject.getMeasurementList().close();
 		return pathObject;
@@ -490,7 +490,7 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		
 		final private static long serialVersionUID = 1L;
 		
-		static Integer color = ColorTools.makeRGB(200, 200, 50);
+		static Integer color = ColorTools.packRGB(200, 200, 50);
 		
 		public SubcellularObject() {
 			super();
@@ -499,9 +499,9 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 		SubcellularObject(final ROI roi, final double nSpots) {
 			super(roi, null);
 			if (nSpots != 1)
-				setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.makeRGB(220, 200, 50)));
+				setPathClass(PathClassFactory.getPathClass("Subcellular cluster", ColorTools.packRGB(220, 200, 50)));
 			else
-				setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.makeRGB(100, 220, 50)));
+				setPathClass(PathClassFactory.getPathClass("Subcellular spot", ColorTools.packRGB(100, 220, 50)));
 			getMeasurementList().putMeasurement("Num spots", nSpots);
 			getMeasurementList().close();
 //			color = isCluster ? ColorTools.makeRGB(220, 200, 50) : ColorTools.makeRGB(100, 220, 50);

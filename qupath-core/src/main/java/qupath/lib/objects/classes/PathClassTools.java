@@ -288,7 +288,7 @@ public final class PathClassTools {
 		int r = (ColorTools.red(rgb1) + ColorTools.red(rgb2)) / 2;
 		int g = (ColorTools.green(rgb1) + ColorTools.green(rgb2)) / 2;
 		int b = (ColorTools.blue(rgb1) + ColorTools.blue(rgb2)) / 2;
-		return ColorTools.makeRGB(r, g, b);
+		return ColorTools.packRGB(r, g, b);
 	}
 	
 	/**

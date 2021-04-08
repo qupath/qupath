@@ -21,6 +21,7 @@ Enhancements:
 * Better support for setting pixel sizes & z-spacing in µm
   * Access by double-clicking pixel size values under the 'Image' tab
   * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
+* 'Objects -> Annotations... -> Rotate annotation' now works with point annotations
 * New 360 degree image rotation (under 'View > Rotate image')
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
@@ -35,6 +36,7 @@ Code changes:
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * GeneralTools readAsString methods now assume UTF-8 encoding
+* Scripting method getColorRGB() has been replaced by makeRBG() and makeARGB(); further related changes in ColorTools class
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
 * New 'ContourTracing' class to simplify converting thresholded images to object
 * New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
@@ -49,6 +51,7 @@ List of bugs fixed:
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
 * --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
 * Extremely long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
+* Occasional exceptions when concatenating channels for rotated images (https://github.com/qupath/qupath/issues/641)
 * 'Selection mode' keyboard shortcut did not work; now activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
 * Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
 * Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)

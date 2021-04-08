@@ -85,13 +85,13 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 		DONE }
 	
 	private static PathClass pathClassPending = PathClassFactory.getPathClass(
-			"Tile-Pending", ColorTools.makeRGB(50, 50, 200));
+			"Tile-Pending", ColorTools.packRGB(50, 50, 200));
 
 	private static PathClass pathClassProcessing = PathClassFactory.getPathClass(
-			"Tile-Processing", ColorTools.makeRGB(50, 200, 50));
+			"Tile-Processing", ColorTools.packRGB(50, 200, 50));
 
 	private static PathClass pathClassDone = PathClassFactory.getPathClass(
-			"Tile-Done", ColorTools.makeRGB(100, 20, 20));
+			"Tile-Done", ColorTools.packRGB(100, 20, 20));
 
 	private ParallelDetectionTileManager manager;
 	
@@ -109,7 +109,7 @@ public class ParallelTileObject extends PathTileObject implements TemporaryObjec
 		this.bounds = getBounds2D(pathROI);
 		this.hierarchy = hierarchy;
 		this.countdown = countdown;
-		setColorRGB(ColorTools.makeRGB(128, 128, 128));
+		setColorRGB(ColorTools.packRGB(128, 128, 128));
 	}
 
 
