@@ -376,21 +376,21 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			var selected = tree.getSelectionModel().getSelectedItems();
 			if (selected != null && !selected.isEmpty()) {
 				ClipboardContent content = new ClipboardContent();
-				List<String> URIs = new ArrayList<>();
+				List<String> uris = new ArrayList<>();
 				for (var obj: selected) {
-					// If orphaned get all the children items and add them to list, else create URI for object
+					// If orphaned get all children items and add them to list, else create URI for object
 					if (obj.getValue().getType() == OmeroObjectType.ORPHANED_FOLDER)
-						URIs.addAll(getObjectsURI(obj.getValue()));
+						uris.addAll(getObjectsURI(obj.getValue()));
 					else
-						URIs.add(createObjectURI(obj.getValue()));
+						uris.add(createObjectURI(obj.getValue()));
 				}
 				
-				if (URIs.size() == 1)
-					content.putString(URIs.get(0));
+				if (uris.size() == 1)
+					content.putString(uris.get(0));
 				else
-					content.putString("[" + String.join(", ", URIs) + "]");
+					content.putString("[" + String.join(", ", uris) + "]");
 				Clipboard.getSystemClipboard().setContent(content);
-				Dialogs.showInfoNotification("Copy URI to clipboard", "URI(s) successfully copied to clipboard");
+				Dialogs.showInfoNotification("Copy URI to clipboard", "URI" + (uris.size() > 1 ? "s " : " ") + "successfully copied to clipboard");
 			} else
 				Dialogs.showWarningNotification("Copy URI to clipboard", "The item needs to be selected first!");
 	    });
@@ -568,11 +568,29 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 						)
 				);
 		
-		// Import button will fetch all the images in the selected object(s)
+		// Import button will fetch all the images in the selected object(s) and check their validity
 		importBtn.setOnMouseClicked(e -> {
 			var selected = tree.getSelectionModel().getSelectedItems();
-			List<String> URIs = getObjectsURI(selected.stream().map(sub -> sub.getValue()).toArray(OmeroObject[]::new));
-			ProjectCommands.promptToImportImages(qupath, URIs.toArray(String[]::new));
+			var validUris = selected.parallelStream()
+					.flatMap(uri -> {
+						if (uri.getValue().getType() == OmeroObjectType.PROJECT) {
+							var temp = getChildren(uri.getValue());
+							List<OmeroObject> out = new ArrayList<>();
+							for (var subTemp: temp) {
+								out.addAll(getChildren(subTemp));
+							}
+							return out.parallelStream();
+						} else
+							return getChildren(uri.getValue()).parallelStream();
+					})
+					.filter(obj -> isSupported(obj))
+					.map(obj -> createObjectURI(obj))
+					.toArray(String[]::new);
+			if (validUris.length == 0) {
+				Dialogs.showErrorMessage("No images", "No valid images found in selected item" + (selected.size() > 1 ? "s" : "") + "!");
+				return;
+			}
+			ProjectCommands.promptToImportImages(qupath, validUris);
 		});
 
 		PaneTools.addGridRow(browseLeftPane, 0, 0, "Filter by", comboGroup, comboOwner);
@@ -640,6 +658,53 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		});
 		dialog.showAndWait();
     }
+    
+	/**
+	 * Return a list of all children of the specified omeroObj, either by requesting them 
+	 * to the server or by retrieving the stored value from the maps. If a request was 
+	 * necessary, the value will be stored in the map to avoid future unnecessary computation.
+	 * <p>
+	 * No filter is applied to the object's children.
+	 * 
+	 * @param omeroObj
+	 * @return list of omeroObj's children
+	 */
+	private List<OmeroObject> getChildren(OmeroObject omeroObj) {
+		// Check if we already have the children for this OmeroObject (avoid sending request)
+		if (omeroObj.getType() == OmeroObjectType.SERVER && serverChildrenList.size() > 0)
+			return serverChildrenList;
+		else if (omeroObj.getType() == OmeroObjectType.ORPHANED_FOLDER && orphanedImageList.size() > 0)
+			return orphanedImageList;
+		else if (omeroObj.getType() == OmeroObjectType.PROJECT && projectMap.containsKey((Project)omeroObj))
+			return projectMap.get((Project)omeroObj);
+		else if (omeroObj.getType() == OmeroObjectType.DATASET && datasetMap.containsKey((Dataset)omeroObj))
+			return datasetMap.get((Dataset)omeroObj);
+		else if (omeroObj.getType() == OmeroObjectType.IMAGE)
+			return new ArrayList<OmeroObject>();
+		
+		List<OmeroObject> children;
+		try {
+			// If orphaned folder, return all orphaned images
+			if (omeroObj.getType() == OmeroObjectType.ORPHANED_FOLDER)
+				return orphanedImageList;
+			
+			// Read children and populate maps
+			children = OmeroTools.readOmeroObjects(serverURI, omeroObj);
+			
+			// If omeroObj is a Server, add all the orphaned datasets (orphaned images are in 'Orphaned images' folder)
+			if (omeroObj.getType() == OmeroObjectType.SERVER) {
+				children.addAll(OmeroTools.readOrphanedDatasets(serverURI, (Server)omeroObj));
+				serverChildrenList = children;
+			} else if (omeroObj .getType() == OmeroObjectType.PROJECT)
+				projectMap.put(omeroObj, children);
+			else if (omeroObj.getType() == OmeroObjectType.DATASET)
+				datasetMap.put(omeroObj, children);
+		} catch (IOException e) {
+			logger.error("Could not fetch server information: {}", e.getLocalizedMessage());
+			return new ArrayList<OmeroObject>();
+		}
+		return children;
+	}
 
 	private Map<OmeroObjectType, BufferedImage> getOmeroIcons() {
     	Map<OmeroObjectType, BufferedImage> map = new HashMap<>();
@@ -666,11 +731,12 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
     
     /**
      * Return a list of Strings representing the {@code OmeroObject}s in the parameter list.
-     * The returned Strings should be the lower level of OMERO object possible (giving a Dataset 
-     * object should return Images URI as Strings).
+     * The returned Strings are the lower level of OMERO object possible (giving a Dataset 
+     * object should return Images URI as Strings). The list is filter according to the current 
+     * group/owner and filter text.
      * 
      * @param list of OmeroObjects
-     * @return list of Strings
+     * @return list of constructed Strings
      * @see OmeroTools#getURIs(URI)
      */
     private List<String> getObjectsURI(OmeroObject... list) {
@@ -1010,7 +1076,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 					var omeroObj = this.getValue();
 					
 					// Get children and populate maps if necessary
-					List<OmeroObject> children = getChildren(omeroObj);
+					List<OmeroObject> children = OmeroWebImageServerBrowserCommand.this.getChildren(omeroObj);
 					
 					Group currentGroup = comboGroup.getSelectionModel().getSelectedItem();
 					Owner currentOwner = comboOwner.getSelectionModel().getSelectedItem();
@@ -1091,54 +1157,6 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 				return true;
 			return obj.getNChildren() == 0;
 		}
-		
-		/**
-		 * Return a list of all children of the specified omeroObj, either by requesting them 
-		 * to the server or by retrieving the stored value from the maps. If a request was 
-		 * necessary, the value will be stored in the map to avoid future unnecessary computation.
-		 * <p>
-		 * No filter is applied to the object's children.
-		 * 
-		 * @param omeroObj
-		 * @return list of omeroObj's children
-		 */
-		private List<OmeroObject> getChildren(OmeroObject omeroObj) {
-			// Check if we already have the children for this OmeroObject (avoid sending request)
-			if (omeroObj.getType() == OmeroObjectType.SERVER && serverChildrenList.size() > 0)
-				return serverChildrenList;
-			else if (omeroObj.getType() == OmeroObjectType.ORPHANED_FOLDER && orphanedImageList.size() > 0)
-				return orphanedImageList;
-			else if (omeroObj.getType() == OmeroObjectType.PROJECT && projectMap.containsKey((Project)omeroObj))
-				return projectMap.get((Project)omeroObj);
-			else if (omeroObj.getType() == OmeroObjectType.DATASET && datasetMap.containsKey((Dataset)omeroObj))
-				return datasetMap.get((Dataset)omeroObj);
-			else if (omeroObj.getType() == OmeroObjectType.IMAGE)
-				return new ArrayList<OmeroObject>();
-			
-			List<OmeroObject> children;
-			try {
-				// If orphaned folder, return all orphaned images
-				if (omeroObj.getType() == OmeroObjectType.ORPHANED_FOLDER)
-					return orphanedImageList;
-				
-				// Read children and populate maps
-				children = OmeroTools.readOmeroObjects(serverURI, omeroObj);
-				
-				// If omeroObj is a Server, add all the orphaned datasets (orphaned images are in 'Orphaned images' folder)
-				if (omeroObj.getType() == OmeroObjectType.SERVER) {
-					children.addAll(OmeroTools.readOrphanedDatasets(serverURI, (Server)omeroObj));
-					serverChildrenList = children;
-				} else if (omeroObj .getType() == OmeroObjectType.PROJECT)
-					projectMap.put(omeroObj, children);
-				else if (omeroObj.getType() == OmeroObjectType.DATASET)
-					datasetMap.put(omeroObj, children);
-			} catch (IOException e) {
-				logger.error("Could not fetch server information: {}", e.getLocalizedMessage());
-				return new ArrayList<OmeroObject>();
-			}
-			return children;
-		}
-		
 		
 		/**
 		 * See {@link "https://stackoverflow.com/questions/23699371/java-8-distinct-by-property"}

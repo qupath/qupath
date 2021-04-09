@@ -62,6 +62,7 @@ import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.TMACoreObject;
 
 
 /**
@@ -410,6 +411,7 @@ public final class OmeroTools {
 		String scheme = server.getScheme();
 		
 		// TODO: probably should do this in one line
+		Gson gsonTMAs  = new GsonBuilder().registerTypeAdapter(TMACoreObject.class, new OmeroShapes.GsonShapeSerializer()).serializeSpecialFloatingPointValues().setLenient().create();
 		Gson gsonAnnotation = new GsonBuilder().registerTypeAdapter(PathAnnotationObject.class, new OmeroShapes.GsonShapeSerializer()).setLenient().create();
 		Gson gsonDetection  = new GsonBuilder().registerTypeAdapter(PathDetectionObject.class, new OmeroShapes.GsonShapeSerializer()).serializeSpecialFloatingPointValues().setLenient().create();
 		
@@ -417,9 +419,11 @@ public final class OmeroTools {
 		List<String> jsonList = new ArrayList<>();
 		for (var pathObject: pathObjects) {
 			String myJson = "";
-			if (pathObject instanceof PathAnnotationObject)
+			if (pathObject.isTMACore())
+				myJson = gsonTMAs.toJson(pathObject);
+			else if (pathObject.isAnnotation())
 				myJson = gsonAnnotation.toJson(pathObject);
-			else {
+			else if (pathObject.isDetection()) {
 				// TODO: ugly design, should improve this
 				if (pathObject instanceof PathCellObject) {
 					var detTemp = PathObjects.createDetectionObject(pathObject.getROI());
@@ -429,12 +433,12 @@ public final class OmeroTools {
 					pathObject = detTemp;
 				}
 				myJson = gsonDetection.toJson(pathObject);				
-			}
+			} else
+				throw new IOException(String.format("Type not supported: %s", pathObject.getClass()));
 			
-			var gson = GsonTools.getInstance();
 			try {
 				// See if resulting JSON is a list (e.g. Points/MultiPolygon)
-				List<JsonElement> roiList = Arrays.asList(gson.fromJson(myJson, JsonElement[].class));
+				List<JsonElement> roiList = Arrays.asList(GsonTools.getInstance().fromJson(myJson, JsonElement[].class));
 				roiList.forEach(e -> jsonList.add(e.toString()));
 			} catch (Exception e) {
 				jsonList.add(myJson);
