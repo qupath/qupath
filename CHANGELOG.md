@@ -9,15 +9,19 @@ New features:
   * Retrieve OMERO project/dataset/image metadata (`More info..`)
   * Advanced OMERO server search
   * Import/send ROIs from/to the original image hosted on OMERO
-  * **Important!** This uses the OMERO web API: only RGB images are supported & are converted to JPEG before reaching QuPath. This approach may be unsuitable for some kinds of analysis.
+  * **Important!** This uses the OMERO web API: only RGB images are supported & are converted to JPEG before reaching QuPath. It is intended for viewing and annotating images; the JPEG compression may make it unsuitable for some kinds of analysis.
 
 Enhancements:
 * Support for importing & exporting objects without scripting
   * Export objects as GeoJSON without via 'File -> Object data... -> ...'
   * Import objects from .json, .geojson & .qpdata files via 'File -> Object data... -> Import objects' or with drag & drop
+* Script editor improvements
+  * New 'Auto clear cache (batch processing)' option to reduce memory use when running scripts across many images
+  * Default to project script directory when choosing a location to save a new script
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
+* Translucent overlay for live prediction (useful to identify if a tile has been processed when at least one class is transparent)
 * Better support for setting pixel sizes & z-spacing in µm
   * Access by double-clicking pixel size values under the 'Image' tab
   * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
@@ -37,6 +41,9 @@ Code changes:
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * GeneralTools readAsString methods now assume UTF-8 encoding
 * Scripting method getColorRGB() has been replaced by makeRBG() and makeARGB(); further related changes in ColorTools class
+* StarDist supports frozen models that are compatible with OpenCV's DNN module
+* New 2D/3D thinning & interpolation classes
+* New ImageOps for reducing channels
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
 * New 'ContourTracing' class to simplify converting thresholded images to object
 * New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects

@@ -32,6 +32,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -47,6 +48,7 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -543,7 +545,7 @@ public class PixelClassifierTools {
 					int x = (int)roi.getCentroidX();
 					int y = (int)roi.getCentroidY();
 					int ind = getClassification(classifierServer, x, y, roi.getZ(), roi.getT());
-					return new Reclassifier(p, labels.get(ind), false);
+					return new Reclassifier(p, labels.getOrDefault(ind, null), false);
 				} catch (Exception e) {
 					return new Reclassifier(p, null, false);
 				}
@@ -555,6 +557,9 @@ public class PixelClassifierTools {
 	
 	/**
 	 * Request the classification for a specific pixel.
+	 * <p>
+	 * If the output for the server is {@link ChannelType#PROBABILITY} and only one channel is available, 
+	 * the return value will be -1 if the probability is less than 0.5 (or 127.5 if 8-bit).
 	 * 
 	 * @param server
 	 * @param x
@@ -600,6 +605,7 @@ public class PixelClassifierTools {
 			int maxInd = -1;
 			double maxVal = Double.NEGATIVE_INFINITY;
 			var raster = img.getRaster();
+			double threshold = raster.getTransferType() == DataBuffer.TYPE_BYTE ? 127.5 : 0.5;
 			for (int b = 0; b < nBands; b++) {
 				double temp = raster.getSampleDouble(xx, yy, b);
 				if (temp > maxVal) {
@@ -607,6 +613,9 @@ public class PixelClassifierTools {
 					maxVal = temp;
 				}
 			}
+			// If we have a single band, we have to threshold it to get a classification
+			if (nBands == 1 && maxVal < threshold) 
+				return -1;
 			return maxInd;
 		}
 		return -1;

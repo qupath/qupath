@@ -46,6 +46,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.opencv.tools.OpenCVTools;
 
 /**
  * QuPath wrappers for OpenCV classifiers, which are instances of StatModel.
@@ -1382,7 +1383,7 @@ public class OpenCVClassifiers {
 				targets.put(targets2);
 				targets2.close();
 			} else {
-				IntBuffer buffer = targets.createBuffer();
+				IntBuffer buffer = OpenCVTools.ensureContinuous(targets, false).createBuffer();
 				int[] vals = new int[targets.rows()];
 				buffer.get(vals);
 				int max = Arrays.stream(vals).max().orElseGet(() -> 0) + 1;

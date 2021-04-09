@@ -30,8 +30,12 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -131,16 +135,39 @@ public class ImageOps {
 		}
 	}
 
+	private static SubTypeAdapterFactory<ImageOp> factoryOps;
+	private static SubTypeAdapterFactory<ImageDataOp> factoryDataOps;
 
 	static {
-		SubTypeAdapterFactory<ImageOp> factoryOps = GsonTools.createSubTypeAdapterFactory(ImageOp.class, "type");
+		factoryOps = GsonTools.createSubTypeAdapterFactory(ImageOp.class, "type");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryOps);
 		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
 
-		SubTypeAdapterFactory<ImageDataOp> factoryDataOps = GsonTools.createSubTypeAdapterFactory(ImageDataOp.class, "type");
+		factoryDataOps = GsonTools.createSubTypeAdapterFactory(ImageDataOp.class, "type");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryDataOps);
 		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
 	}
+	
+	/**
+	 * Register an {@link ImageOp} class for JSON serialization/deserialization.
+	 * <p>
+	 * Labels should typically be all lowercase and begin with "op." and include "ext" if the op is added via an extension.
+	 * <p>
+	 * For example, an "op.threshold.ext.triangle" would be a suitable label for an op added via an extension to apply a threshold 
+	 * using the triangle method.
+	 * 
+	 * @param cls the op to register; this must be compatible with JSON serialization.
+	 * @param label an identifying label; that this must be unique. If it does not start with "op." a warning will be logged.
+	 */
+	public static void registerOp(Class<? extends ImageOp> cls, String label) {
+		Objects.nonNull(cls);
+		Objects.nonNull(label);
+		logger.debug("Registering ImageOp {} with label {}", cls, label);
+		if (!label.startsWith("op."))
+			logger.warn("ImageOp label '{}' does not begin with 'op.'", label);
+		factoryOps.registerSubtype(cls, label);
+	}
+
 	
 	/**
 	 * Build an {@link ImageServer} that generates pixels on demand from an {@link ImageData} by applying an {@link ImageDataOp}.
@@ -988,6 +1015,7 @@ public class ImageOps {
 		
 	}
 	
+	
 	/**
 	 * Channel and color operations.
 	 */
@@ -1011,6 +1039,38 @@ public class ImageOps {
 		 */
 		public static ImageOp extract(int... channels) {
 			return new ExtractChannelsOp(channels);
+		}
+		
+		/**
+		 * Add all channels together, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp sum() {
+			return new SumChannelsOp();
+		}
+		
+		/**
+		 * Average all channels together using the mean, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp mean() {
+			return new MeanChannelsOp();
+		}
+		
+		/**
+		 * Calculate the minimum value along all channels, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp minimum() {
+			return new MinChannelsOp();
+		}
+		
+		/**
+		 * Calculate the maximum value along all channels, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp maximum() {
+			return new MaxChannelsOp();
 		}
 		
 		@OpType("color-deconvolution")
@@ -1082,6 +1142,8 @@ public class ImageOps {
 			private int[] channels;
 			
 			ExtractChannelsOp(int... channels) {
+				if (channels.length == 0)
+					throw new IllegalArgumentException("No channel indices provided to extract channels");
 				this.channels = channels.clone();
 			}
 			
@@ -1111,6 +1173,91 @@ public class ImageOps {
 				if (channels.length == 1)
 					return "Channel " + channels[0];
 				return "Channels [" + Arrays.stream(channels).mapToObj(c -> Integer.toString(c)).collect(Collectors.joining(",")) + "]";
+			}
+			
+		}
+		
+		static abstract class ReduceChannelsOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				if (input.channels() <= 1)
+					return input;
+				var temp = input.reshape(1, input.rows()*input.cols());
+				opencv_core.reduce(temp, temp, 1, getReduceOp());
+				temp = temp.reshape(1, input.rows());
+				return temp;
+			}
+			
+			protected abstract int getReduceOp();
+
+			protected abstract String reduceName();
+
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				List<String> allNames = channels.stream().map(c -> c.getName()).collect(Collectors.toList());
+				String name = reduceName() + " [" + String.join(", ", allNames) + "]";
+				return ImageChannel.getChannelList(name);
+			}
+			
+		}
+		
+		@OpType("mean")
+		static class MeanChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_AVG;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Mean";
+			}
+			
+		}
+		
+		@OpType("sum")
+		static class SumChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_SUM;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Sum";
+			}
+			
+		}
+		
+		@OpType("minimum")
+		static class MinChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_MIN;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Minimum";
+			}
+			
+		}
+		
+		@OpType("maximum")
+		static class MaxChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_MAX;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Maximum";
 			}
 			
 		}
@@ -1731,6 +1878,7 @@ public class ImageOps {
 			private transient Net net;
 			private transient ThreadLocal<Net> localNet = ThreadLocal.withInitial(() -> readNet());
 			private transient Exception exception;
+			private transient Map<Integer, List<ImageChannel>> outputChannels = Collections.synchronizedMap(new HashMap<>());
 			
 			/**
 			 * A DNN op.
@@ -1793,7 +1941,19 @@ public class ImageOps {
 			public PixelType getOutputType(PixelType inputType) {
 				return PixelType.FLOAT32;
 			}
-
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				var outChannels = outputChannels.get(channels.size());
+				if (outChannels == null) {
+					var mat = new Mat(inputHeight, inputWidth, opencv_core.CV_32FC(channels.size()), Scalar.ZERO);
+					var output = transformPadded(mat);
+					outChannels = ImageChannel.getDefaultChannelList(output.channels());					
+					outputChannels.put(channels.size(), outChannels);
+				}
+				return outChannels;
+			}
+			
 		}
 		
 		@OpType("opencv-statmodel")
@@ -1843,22 +2003,47 @@ public class ImageOps {
     	// since it appears that the result of calling model.forward() can become invalid later.
     	Mat matResult = null;
     	Mat blob = null;
-    	if (mat.channels() == 3) {
+   		int nChannels = mat.channels();
+   	    if (nChannels == 1 || nChannels == 3 || nChannels == 4) {
     		blob = opencv_dnn.blobFromImage(mat);
     	} else {
     		// TODO: Don't have any net to test this with currently...
-    		logger.warn("Attempting to reshape an image with channels != 3 - this may not work!");
-    		int[] shape = new int[mat.dims() + 1];
-    		shape[0] = 1;
-    		for (int s = 1; s < shape.length; s++) {
-    			shape[1] = mat.size(s-1);
+    		logger.warn("Attempting to reshape an image with " + nChannels + " channels - this may not work! "
+    				+ "Only 1, 3 and 4 supported.");
+    		// Blob is a 4D Tensor [NCHW]
+    		int[] shape = new int[4];
+    		Arrays.fill(shape, 1);
+    		int nRows = mat.size(0);
+    		int nCols = mat.size(1);
+    		shape[1] = nChannels;
+    		shape[2] = nRows;
+    		shape[3] = nCols;
+//    		for (int s = 1; s <= Math.min(nDims, 3); s++) {
+//    			shape[s] = mat.size(s-1);
+//    		}
+    		blob = new Mat(shape, opencv_core.CV_32F);
+    		var idxBlob = blob.createIndexer();
+    		var idxMat = mat.createIndexer();
+    		long[] indsBlob = new long[4];
+    		long[] indsMat = new long[4];
+    		for (int r = 0; r < nRows; r++) {
+    			indsMat[0] = r;
+    			indsBlob[2] = r;
+        		for (int c = 0; c < nCols; c++) {
+        			indsMat[1] = c;
+        			indsBlob[3] = c;
+            		for (int channel = 0; channel < nChannels; channel++) {
+            			indsMat[2] = channel;
+            			indsBlob[1] = channel;
+            			double val = idxMat.getDouble(indsMat);
+            			idxBlob.putDouble(indsBlob, val);
+            		}    			        			
+        		}    			
     		}
-    		if (mat.isContinuous())
-    			blob = new Mat(shape, opencv_core.CV_32F, mat);
-    		else
-        		blob = new Mat(shape, opencv_core.CV_32F, mat.clone());
+    		idxBlob.close();
+    		idxMat.close();
     	}
-    	synchronized(net) {
+   	    synchronized(net) {
     		long startTime = System.currentTimeMillis();
     		net.setInput(blob);
     		try {

@@ -239,8 +239,39 @@ public class OpenCVTools {
 	public static Mat mergeChannels(Collection<? extends Mat> channels, Mat dest) {
 		if (dest == null)
 			dest = new Mat();
+		// OpenCV documentation suggests input must be single-channel
+		if (channels.stream().anyMatch(m -> m.channels() > 1)) {
+			var tempList = new ArrayList<Mat>();
+			for (var m : channels)
+				tempList.addAll(splitChannels(m));
+			channels = tempList;
+		}
 		opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
 		return dest;
+	}
+	
+	
+	/**
+	 * Ensure a {@link Mat} is continuous, creating a copy of the data if necessary.
+	 * <p>
+	 * This can be necessary before calls to {@link Mat#createBuffer()} or {@link Mat#createIndexer()} for 
+	 * simpler interpretation of the results.
+	 * 
+	 * @param mat input Mat, which may or may not be continuous
+	 * @param inPlace if true, set {@code mat} to contain the cloned data if required
+	 * @return the original mat unchanged if it is already continuous, or cloned data that is continuous if required
+	 * @see Mat#isContinuous()
+	 */
+	public static Mat ensureContinuous(Mat mat, boolean inPlace) {
+		if (!mat.isContinuous()) {
+			var mat2 = mat.clone();
+			if (!inPlace) {
+				return mat2;
+			}
+			mat.put(mat2);
+		}
+		assert mat.isContinuous();
+		return mat;
 	}
 	
 	
@@ -682,8 +713,7 @@ public class OpenCVTools {
 	/**
 	 * Extract pixels as a float[] array.
 	 * <p>
-	 * Implementation note: In its current form, this is not terribly efficient. 
-	 * Also be wary if the Mat is not continuous.
+	 * Implementation note: In its current form, this is not terribly efficient.
 	 * 
 	 * @param mat
 	 * @param pixels
@@ -696,15 +726,17 @@ public class OpenCVTools {
 		if (mat.depth() != CV_32F) {
 			mat2 = new Mat();
 			mat.convertTo(mat2, CV_32F);
-			mat = mat2;
-		}
-		FloatIndexer idx = mat.createIndexer();
+			ensureContinuous(mat2, true);
+		} else
+			mat2 = ensureContinuous(mat, false);
+		
+		FloatIndexer idx = mat2.createIndexer();
 		idx.get(0L, pixels);
 		idx.release();
 		
 //		FloatBuffer buffer = mat.createBuffer();
 //		buffer.get(pixels);
-		if (mat2 != null)
+		if (mat2 != mat)
 			mat2.release();
 		return pixels;
 	}
@@ -995,26 +1027,45 @@ public class OpenCVTools {
 			dest.create(mats.get(0).size(), mats.get(0).type());
 			dest.put(Scalar.ZERO);
 		}
-		
-//		MatExpr expr = null;
+	}
+	
+	
+	// Alternative weighted sum code that converts to 32-bit
+//	static void weightedSum(List<Mat> mats, double[] weights, Mat dest) {
+//		boolean isFirst = true;
 //		for (int i = 0; i < weights.length; i++) {
 //			double w = weights[i];
 //			if (w == 0)
 //				continue;
-//			if (expr == null)
-//				expr = opencv_core.multiply(mats.get(i), w);
-//			else {
-//				MatExpr expr2 = opencv_core.add(expr, opencv_core.multiply(mats.get(i), w));
-//				expr.close();
-//				expr = expr2;
+//			var temp = mats.get(i);
+//			int type = temp.depth();
+//			if (type != opencv_core.CV_32F && type != opencv_core.CV_64F) {
+//				var temp2 = new Mat();
+//				temp.convertTo(temp2, opencv_core.CV_32F);
+//				temp = temp2;
 //			}
+//			if (isFirst) {
+//				dest.put(opencv_core.multiply(temp, w));
+//				isFirst = false;
+//			} else
+//				opencv_core.scaleAdd(temp, w, dest, dest);
+//			if (mats.get(i) != temp)
+//				temp.release();
 //		}
-//		dest.put(expr);
-	}
+//		// TODO: Check this does something sensible!
+//		if (isFirst) {
+//			dest.create(mats.get(0).size(), mats.get(0).type());
+//			dest.put(Scalar.ZERO);
+//		}
+//	}
 	
 	/**
 	 * Apply a filter along the 'list' dimension for a list of Mats, computing the value 
 	 * for a single entry. This is effectively computing a weighted sum of images in the list.
+	 * <p>
+	 * Note: this method does not change the depth of the input images.
+	 * If a floating point output is needed, the Mats should be converted before input.
+	 * 
 	 * @param mats
 	 * @param kernel
 	 * @param ind3D
