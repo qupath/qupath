@@ -43,7 +43,6 @@ import org.tensorflow.types.TUint8;
 
 import qupath.lib.regions.Padding;
 import qupath.opencv.ops.ImageOp;
-import qupath.opencv.tools.OpenCVTools;
 
 /**
  * Helper methods for working with TensorFlow and QuPath, with the help of OpenCV.

@@ -41,6 +41,7 @@ Code changes:
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * GeneralTools readAsString methods now assume UTF-8 encoding
 * Scripting method getColorRGB() has been replaced by makeRBG() and makeARGB(); further related changes in ColorTools class
+* StarDist supports frozen models that are compatible with OpenCV's DNN module
 * New 2D/3D thinning & interpolation classes
 * New ImageOps for reducing channels
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)

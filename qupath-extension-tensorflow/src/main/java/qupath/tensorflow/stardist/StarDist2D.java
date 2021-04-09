@@ -76,7 +76,6 @@ import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.tensorflow.TensorFlowTools;
 
 /**
  * Cell detection based on the following method:
@@ -108,6 +107,7 @@ public class StarDist2D {
 		private int nThreads = -1;
 		
 		private String modelPath = null;
+		private ImageOp predictionOp = null;
 		private ColorTransform[] channels = new ColorTransform[0];
 		
 		private double threshold = 0.5;
@@ -136,6 +136,11 @@ public class StarDist2D {
 		
 		private Builder(String modelPath) {
 			this.modelPath = modelPath;
+			this.ops.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
+		}
+		
+		private Builder(ImageOp predictionOp) {
+			this.predictionOp = predictionOp;
 			this.ops.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 		}
 		
@@ -366,8 +371,20 @@ public class StarDist2D {
 		 * @return this builder
 		 */
 		public Builder tileSize(int tileSize) {
-			this.tileWidth = tileSize;
-			this.tileHeight = tileSize;
+			return tileSize(tileSize, tileSize);
+		}
+		
+		/**
+		 * Size in pixels of a tile used for detection.
+		 * Note that tiles are independently normalized, and therefore tiling can impact 
+		 * the results. Default is 1024.
+		 * @param tileWidth
+		 * @param tileHeight
+		 * @return this builder
+		 */
+		public Builder tileSize(int tileWidth, int tileHeight) {
+			this.tileWidth = tileWidth;
+			this.tileHeight = tileHeight;
 			return this;
 		}
 		
@@ -443,13 +460,40 @@ public class StarDist2D {
 			
 			var padding = pad > 0 ? Padding.symmetric(pad) : Padding.empty();
 			var mergedOps = new ArrayList<>(ops);
-			if (new File(modelPath).isFile() && modelPath.endsWith(".pb")) {
-				var dnn = new OpenCVDNN.Builder(modelPath)
-						.build();
-				mergedOps.add(ImageOps.ML.dnn(dnn, tileWidth, tileHeight, padding));				
-			} else {
-				mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding));				
+			var mlOp = this.predictionOp;
+			if (mlOp == null) {
+				var file = new File(modelPath);
+				if (!file.exists()) {
+					throw new IllegalArgumentException("I couldn't find the model file " + file.getAbsolutePath());
+					// TODO: In the future, search within the user directory
+				}
+				if (file.isFile()) {
+					try {
+						var dnn = new OpenCVDNN.Builder(modelPath)
+								.build();
+						mlOp = ImageOps.ML.dnn(dnn, tileWidth, tileHeight, padding);
+						logger.debug("Loaded model {} with OpenCV DNN", modelPath);
+					} catch (Exception e) {
+						logger.error("Unable to load model file with OpenCV. If you intended to use TensorFlow, you need to have it on the classpath & provide the "
+								+ "path to the directory, not the .pb file.");
+						logger.error(e.getLocalizedMessage(), e);
+						throw new RuntimeException("Unable to load StarDist model from " + modelPath, e);
+					}
+				} else {
+					try {
+						var clsTF = Class.forName("qupath.tensorflow.TensorFlowTools");
+						var method = clsTF.getMethod("createOp", String.class, int.class, int.class, Padding.class);
+						mlOp = (ImageOp)method.invoke(null, modelPath, tileWidth, tileHeight, padding);
+						logger.debug("Loaded model {} with TensorFlow", modelPath);
+//						mlOp = TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding);				
+					} catch (Exception e) {
+						logger.error("Unable to load TensorFlow with reflection - are you sure it is available and on the classpath?");
+						logger.error(e.getLocalizedMessage(), e);
+						throw new RuntimeException("Unable to load StarDist model from " + modelPath, e);
+					}
+				}
 			}
+			mergedOps.add(mlOp);
 			mergedOps.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 			
 			stardist.op = ImageOps.buildImageDataOp(channels)
@@ -786,11 +830,25 @@ public class StarDist2D {
 	
 	/**
 	 * Create a builder to customize detection parameters.
+	 * This accepts either TensorFlow's savedmodel format (if TensorFlow is available) or alternatively a frozen 
+	 * .pb file compatible with OpenCV's DNN module.
 	 * @param modelPath path to the StarDist/TensorFlow model to use for prediction.
 	 * @return
 	 */
 	public static Builder builder(String modelPath) {
 		return new Builder(modelPath);
+	}
+	
+	
+	/**
+	 * Create a builder to customize detection parameters, using a provided op for prediction.
+	 * This provides a way to use an alternative machine learning library and model file, rather than the default 
+	 * (OpenCV or TensorFlow).
+	 * @param predictionOp the op to use for prediction
+	 * @return
+	 */
+	public static Builder builder(ImageOp predictionOp) {
+		return new Builder(predictionOp);		
 	}
 	
 	
