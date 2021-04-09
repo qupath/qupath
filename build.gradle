@@ -229,7 +229,7 @@ allprojects {
     groovyVersion      = '3.0.7'
     gsonVersion        = '2.8.6'
     guavaVersion       = '30.1.1-jre'
-    imagejVersion      = '1.53h'
+    imagejVersion      = '1.53i'
     jfxtrasVersion     = '11-r1'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.18.1'

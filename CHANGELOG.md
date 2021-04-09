@@ -77,7 +77,7 @@ List of bugs fixed:
 * ControlsFX 11.1.0
 * Groovy 3.0.7
 * Guava 30.1.1-jre
-* ImageJ 1.53h
+* ImageJ 1.53i
 * JavaFX 16
 * Java Topology suite 1.18.1
 * JavaCPP 1.5.5
