@@ -385,7 +385,7 @@ public class OmeroWebClient {
 			
 			PasswordAuthentication authentication;
 			if (usernameOld != null && password != null) {
-				logger.info("Username & password parsed from args");
+				logger.debug("Username & password parsed from args");
 				authentication = new PasswordAuthentication(usernameOld, password);
 			} else 
 				authentication = OmeroAuthenticatorFX.getPasswordAuthentication("Please enter your login details for OMERO server", serverURI.toString(), usernameOld);
@@ -416,7 +416,7 @@ public class OmeroWebClient {
 				username.set(authentication.getUserName());
 			});
 			
-			logger.info(result);
+			logger.debug(result);
 			return true;
 		} catch (Exception e) {
 			Dialogs.showErrorNotification("OMERO web server", "Could not connect to OMERO web server.\nCheck the following:\n- Valid credentials.\n- Access permission.\n- Correct URL.");

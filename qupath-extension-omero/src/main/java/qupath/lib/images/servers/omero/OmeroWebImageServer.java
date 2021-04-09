@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -86,9 +87,14 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	private final OmeroWebClient client;
 
 	/**
+	 * Default JPEG quality if none is specified in the args
+	 */
+	private static double DEFAULT_JPEG_QUALITY = 0.9;
+	
+	/**
 	 * Quality of requested JPEG.
 	 */
-	private static double QUALITY = 0.9;
+	private double quality = DEFAULT_JPEG_QUALITY;
 
 //	/**
 //	 * There appears to be a max size (hard-coded?) in OMERO, so we need to make sure we don't exceed that.
@@ -120,8 +126,30 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
 		this.client = client;
-		this.args = args;
 		this.originalMetadata = buildMetadata();
+		// Args are stored in the JSON - passwords and usernames must not be included!
+		// Do an extra check to ensure someone hasn't accidentally passed one
+		var invalid = Arrays.asList("--password", "-p", "-u", "--username", "-password");
+		for (int i = 0; i < args.length; i++) {
+			String arg = args[i].toLowerCase().strip();
+			if (invalid.contains(arg)) {
+				throw new IllegalArgumentException("Cannot build server with arg " + arg);
+			}
+			if (arg.equals("--quality") || arg.equals("-q")) {
+				if (i < args.length-1) {
+					try {
+						var parsedQuality = Double.parseDouble(args[i+1]);
+						if (parsedQuality > 0 && parsedQuality <= 1) {
+							quality = parsedQuality;
+						} else
+							logger.error("Requested JPEG quality '{}' is invalid, must be between 0 and 1. I will use {} instead.", parsedQuality, quality);
+					} catch (NumberFormatException ex) {
+						logger.error("Unable to parse JPEG quality from {}", args[i+1]);
+					}
+				}
+			}
+		}
+		this.args = args;
 		
 		// Add URI to the client's list of URIs
 		client.addURI(uri);
@@ -257,7 +285,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": " + uri.toString();
+		return getClass().getName() + ": " + uri.toString() + " quality=" + quality;
 	}
 
 	@Override
@@ -360,7 +388,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 					"/?tile=" + level + "," + x + "," + y + "," + width + "," + height +
 					"&c=1|0:255$FF0000,2|0:255$00FF00,3|0:255$0000FF" +
 					"&maps=[{%22inverted%22:{%22enabled%22:false}},{%22inverted%22:{%22enabled%22:false}},{%22inverted%22:{%22enabled%22:false}}]" +
-					"&m=c&p=normal&q=" + QUALITY;
+					"&m=c&p=normal&q=" + quality;
 
 			URL url = new URL(scheme, host, urlFile);
 
@@ -382,7 +410,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 					"/?region=" + x + "," + y + "," + width + "," + height +
 					"&c=1|0:255$FF0000,2|0:255$00FF00,3|0:255$0000FF" +
 					"&maps=[{%22inverted%22:{%22enabled%22:false}},{%22inverted%22:{%22enabled%22:false}},{%22inverted%22:{%22enabled%22:false}}]" +
-					"&m=c&p=normal&q=" + QUALITY;			
+					"&m=c&p=normal&q=" + quality;			
 		}
 
 
