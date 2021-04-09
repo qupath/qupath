@@ -135,9 +135,19 @@ public class ImageOps {
 		}
 	}
 
-	private static RuntimeTypeAdapterFactory<ImageOp> factoryOps = RuntimeTypeAdapterFactory.of(ImageOp.class, "type");
-	private static RuntimeTypeAdapterFactory<ImageDataOp> factoryDataOps = RuntimeTypeAdapterFactory.of(ImageDataOp.class, "type");
+	private static SubTypeAdapterFactory<ImageOp> factoryOps;
+	private static SubTypeAdapterFactory<ImageDataOp> factoryDataOps;
 
+	static {
+		factoryOps = GsonTools.createSubTypeAdapterFactory(ImageOp.class, "type");
+		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryOps);
+		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
+
+		factoryDataOps = GsonTools.createSubTypeAdapterFactory(ImageDataOp.class, "type");
+		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryDataOps);
+		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
+	}
+	
 	/**
 	 * Register an {@link ImageOp} class for JSON serialization/deserialization.
 	 * <p>
@@ -158,15 +168,6 @@ public class ImageOps {
 		factoryOps.registerSubtype(cls, label);
 	}
 
-	static {
-		SubTypeAdapterFactory<ImageOp> factoryOps = GsonTools.createSubTypeAdapterFactory(ImageOp.class, "type");
-		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryOps);
-		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
-
-		SubTypeAdapterFactory<ImageDataOp> factoryDataOps = GsonTools.createSubTypeAdapterFactory(ImageDataOp.class, "type");
-		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryDataOps);
-		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
-	}
 	
 	/**
 	 * Build an {@link ImageServer} that generates pixels on demand from an {@link ImageData} by applying an {@link ImageDataOp}.
