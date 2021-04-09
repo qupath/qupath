@@ -39,6 +39,7 @@ Code changes:
 * GeneralTools readAsString methods now assume UTF-8 encoding
 * Scripting method getColorRGB() has been replaced by makeRBG() and makeARGB(); further related changes in ColorTools class
 * New 2D/3D thinning & interpolation classes
+* New ImageOps for reducing channels
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
 * New 'ContourTracing' class to simplify converting thresholded images to object
 * New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects

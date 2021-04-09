@@ -1015,6 +1015,7 @@ public class ImageOps {
 		
 	}
 	
+	
 	/**
 	 * Channel and color operations.
 	 */
@@ -1038,6 +1039,38 @@ public class ImageOps {
 		 */
 		public static ImageOp extract(int... channels) {
 			return new ExtractChannelsOp(channels);
+		}
+		
+		/**
+		 * Add all channels together, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp sum() {
+			return new SumChannelsOp();
+		}
+		
+		/**
+		 * Average all channels together using the mean, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp mean() {
+			return new MeanChannelsOp();
+		}
+		
+		/**
+		 * Calculate the minimum value along all channels, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp minimum() {
+			return new MinChannelsOp();
+		}
+		
+		/**
+		 * Calculate the maximum value along all channels, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp maximum() {
+			return new MaxChannelsOp();
 		}
 		
 		@OpType("color-deconvolution")
@@ -1109,6 +1142,8 @@ public class ImageOps {
 			private int[] channels;
 			
 			ExtractChannelsOp(int... channels) {
+				if (channels.length == 0)
+					throw new IllegalArgumentException("No channel indices provided to extract channels");
 				this.channels = channels.clone();
 			}
 			
@@ -1138,6 +1173,91 @@ public class ImageOps {
 				if (channels.length == 1)
 					return "Channel " + channels[0];
 				return "Channels [" + Arrays.stream(channels).mapToObj(c -> Integer.toString(c)).collect(Collectors.joining(",")) + "]";
+			}
+			
+		}
+		
+		static abstract class ReduceChannelsOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				if (input.channels() <= 1)
+					return input;
+				var temp = input.reshape(1, input.rows()*input.cols());
+				opencv_core.reduce(temp, temp, 1, getReduceOp());
+				temp = temp.reshape(1, input.rows());
+				return temp;
+			}
+			
+			protected abstract int getReduceOp();
+
+			protected abstract String reduceName();
+
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				List<String> allNames = channels.stream().map(c -> c.getName()).collect(Collectors.toList());
+				String name = reduceName() + " [" + String.join(", ", allNames) + "]";
+				return ImageChannel.getChannelList(name);
+			}
+			
+		}
+		
+		@OpType("mean")
+		static class MeanChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_AVG;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Mean";
+			}
+			
+		}
+		
+		@OpType("sum")
+		static class SumChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_SUM;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Sum";
+			}
+			
+		}
+		
+		@OpType("minimum")
+		static class MinChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_MIN;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Minimum";
+			}
+			
+		}
+		
+		@OpType("maximum")
+		static class MaxChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_MAX;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Maximum";
 			}
 			
 		}
