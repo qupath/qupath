@@ -58,7 +58,7 @@ public class OmeroExtension implements QuPathExtension {
 	@Override
 	public void installExtension(QuPathGUI qupath) {
 		var actionClients = ActionTools.createAction(new OmeroWebClientsCommand(qupath), "Manage server connections");
-		var actionSendObjects = ActionTools.createAction(new OmeroWritePathObjectsCommand(qupath), "Send selected objects to OMERO");
+		var actionSendObjects = ActionTools.createAction(new OmeroWritePathAnnotationObjectsCommand(qupath), "Send selected annotations to OMERO");
 		Menu browseServerMenu = new Menu("Browse server...");
 		
 		actionClients.disabledProperty().bind(qupath.projectProperty().isNull());
