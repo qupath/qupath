@@ -119,7 +119,6 @@ import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
@@ -274,7 +273,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
 	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", true);
+	private BooleanProperty clearCache = PathPrefs.createPersistentPreference("scriptingClearCache", false);
 	
+
 	// Regex pattern used to identify whether a script should be run in the JavaFX Platform thread
 	// If so, this line should be included at the top of the script
 	private static Pattern patternGuiScript = Pattern.compile("guiscript *?= *?true");
@@ -632,7 +633,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console"))
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(clearCache, "Clear cache (batch processing)"))
 				);
 		menubar.getMenus().add(menuRun);
 
@@ -1080,6 +1082,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 							File dirProject = Projects.getBaseDirectory(project);
 							if (dirProject != null && dirProject.isDirectory()) {
 								File dirScripts = new File(dirProject, "scripts");
+								if (!dirScripts.exists()) {
+									try {
+										dirScripts.mkdir();
+									} catch (Exception e) {
+										logger.error("Unable to make script directory: " + e.getLocalizedMessage(), e);
+									}
+								}
 								if (dirScripts.isDirectory())
 									dir = dirScripts;
 							}
@@ -1446,6 +1455,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 					if (doSave)
 						entry.saveImageData(imageData);
 					imageData.getServer().close();
+					
+					if (clearCache.get()) {
+						try {
+							var store = qupath == null ? null : qupath.getImageRegionStore();
+							if (store != null)
+								store.clearCache();
+							System.gc();
+						} catch (Exception e) {
+							
+						}
+					}
 				} catch (Exception e) {
 					logger.error("Error running batch script: {}", e);
 				}

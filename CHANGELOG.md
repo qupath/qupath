@@ -9,12 +9,15 @@ New features:
   * Retrieve OMERO project/dataset/image metadata (`More info..`)
   * Advanced OMERO server search
   * Import/send ROIs from/to the original image hosted on OMERO
-  * **Important!** This uses the OMERO web API: only RGB images are supported & are converted to JPEG before reaching QuPath. This approach may be unsuitable for some kinds of analysis.
+  * **Important!** This uses the OMERO web API: only RGB images are supported & are converted to JPEG before reaching QuPath. It is intended for viewing and annotating images; the JPEG compression may make it unsuitable for some kinds of analysis.
 
 Enhancements:
 * Support for importing & exporting objects without scripting
   * Export objects as GeoJSON without via 'File -> Object data... -> ...'
   * Import objects from .json, .geojson & .qpdata files via 'File -> Object data... -> Import objects' or with drag & drop
+* Script editor improvements
+  * New 'Auto clear cache (batch processing)' option to reduce memory use when running scripts across many images
+  * Default to project script directory when choosing a location to save a new script
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
