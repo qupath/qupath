@@ -25,8 +25,7 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
-public class SimpleProcessing {
-
+class SimpleProcessing {
 
 	public static SimpleImage threshold(SimpleImage image, double threshold, float below, float equals, float above) {
 		int w = image.getWidth();
@@ -345,7 +344,7 @@ public class SimpleProcessing {
 					roiMask = RoiTools.buffer(roiMask, -radiusPixels);
 				}
 			}
-			if (roiMask.isEmpty()) {
+			if (roiMask != null && roiMask.isEmpty()) {
 				logger.error("ROI is too small - no hotspots can be found with radius " + radius);
 				return Collections.emptyList();
 			}

@@ -23,73 +23,113 @@
 package qupath.lib.analysis.heatmaps;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.Raster;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
 import java.util.function.DoubleFunction;
 import java.util.function.Predicate;
+import org.locationtech.jts.geom.Geometry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_imgproc;
-import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Point;
-import org.bytedeco.opencv.opencv_core.Scalar;
-
+import qupath.lib.analysis.algorithms.ContourTracing;
 import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.tools.OpenCVTools;
+import qupath.lib.roi.GeometryTools;
+import qupath.lib.roi.RoiTools;
 
 public class DensityMaps {
 	
+	private final static Logger logger = LoggerFactory.getLogger(DensityMaps.class);
+	
+	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.packRGB(200, 120, 20));
+
 	
 	public static DensityMapBuilder builder() {
 		return new DensityMapBuilder();
 	}
 	
 	
-	public static class DensityMapBuilder {
+	public static class DensityMapParameters {
 		
-		private double downsample = Double.NaN;
 		private double pixelSize = -1;
-		private int maxSize = 1024;
+		private int maxSize = 2048;
 		
 		private double radius = 0;
-		private boolean roundDownsample = false;
-		
+		private boolean gaussianFilter = false;
+
 		private Predicate<PathObject> primaryObjects;
-		private Predicate<PathObject> allObjects;
+		private Predicate<PathObject> denominatorObjects;
+		
+		private String primaryName = null;
+		
+		// Can't be JSON-serialized
+		private transient ColorModel colorModel;
+						
+		private DensityMapParameters() {}
+		
+		private DensityMapParameters(DensityMapParameters params) {
+			this.pixelSize = params.pixelSize;
+			this.maxSize = params.maxSize;
+			this.radius = params.radius;
+			this.gaussianFilter = params.gaussianFilter;
+			
+			this.primaryObjects = params.primaryObjects;
+			this.primaryName = params.primaryName;
+			this.denominatorObjects = params.denominatorObjects;			
+			
+			this.colorModel = params.colorModel;
+		}
+		
+	}
+	
+	
+	public static class DensityMapBuilder {
+		
+		private DensityMapParameters params = new DensityMapParameters();
 		
 		private DoubleFunction<String> stringFun;
 		
 		private DensityMapBuilder() {}
 		
 		public DensityMapBuilder pixelSize(double requestedPixelSize) {
-			this.pixelSize = requestedPixelSize;
+			params.pixelSize = requestedPixelSize;
+			return this;
+		}
+		
+		public DensityMapBuilder gaussianFilter(boolean gaussianFilter) {
+			params.gaussianFilter = gaussianFilter;
 			return this;
 		}
 		
 		public DensityMapBuilder maxSize(int maxSize) {
-			this.maxSize = maxSize;
-			return this;
-		}
-		
-		public DensityMapBuilder downsample(double downsample) {
-			this.downsample = downsample;
+			params.maxSize = maxSize;
 			return this;
 		}
 		
 		public DensityMapBuilder radius(double radius) {
-			this.radius = radius;
+			params.radius = radius;
 			return this;
 		}
 		
 		public DensityMapBuilder density(Predicate<PathObject> primaryObjects) {
-			this.primaryObjects = primaryObjects;
+			params.primaryObjects = primaryObjects;
 			return this;
 		}
 		
@@ -98,10 +138,13 @@ public class DensityMaps {
 		}
 		
 		public DensityMapBuilder density(PathClass pathClass, boolean baseClass) {
-			if (baseClass)
-				this.primaryObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> getBaseClass(p.getPathClass()) == pathClass);
-			else
-				this.primaryObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> p.getPathClass() == pathClass);
+			if (baseClass) {
+				params.primaryObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> getBaseClass(p.getPathClass()) == pathClass);
+			} else { 
+				params.primaryObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> p.getPathClass() == pathClass);
+			}
+			if (pathClass != null)
+				params.primaryName = pathClass.toString();
 			return this;
 		}
 		
@@ -112,37 +155,49 @@ public class DensityMaps {
 		public DensityMapBuilder pointAnnotations(PathClass pathClass, boolean baseClass) {
 			var filter = PathObjectFilter.ANNOTATIONS.and(PathObjectFilter.ROI_POINT);
 			if (baseClass)
-				this.primaryObjects = filter.and(p -> getBaseClass(p.getPathClass()) == pathClass);
+				params.primaryObjects = filter.and(p -> getBaseClass(p.getPathClass()) == pathClass);
 			else
-				this.primaryObjects = filter.and(p -> p.getPathClass() == pathClass);
+				params.primaryObjects = filter.and(p -> p.getPathClass() == pathClass);
+			if (pathClass != null)
+				params.primaryName = pathClass.toString();
 			return this;
 		}
 		
 		public DensityMapBuilder percentage(Predicate<PathObject> primaryObjects, Predicate<PathObject> allObjects) {
-			this.primaryObjects = primaryObjects;
-			this.allObjects = allObjects;
+			params.primaryObjects = primaryObjects;
+			params.denominatorObjects = allObjects;
 			stringFun = d -> GeneralTools.formatNumber(d, 1) + " %";
 			return this;
 		}
 		
 		
-		public DensityMapBuilder positivePercentage() {
-			this.allObjects = PathObjectFilter.DETECTIONS_ALL;
-			this.primaryObjects = allObjects.and(p -> p.hasROI() && PathClassTools.isPositiveClass(p.getPathClass()));
-			stringFun = d -> "Positive " + GeneralTools.formatNumber(d, 1) + " %";
+		public DensityMapBuilder positiveDetections() {
+			params.denominatorObjects = PathObjectFilter.DETECTIONS_ALL;
+			params.primaryObjects = params.denominatorObjects.and(p -> p.hasROI() && PathClassTools.isPositiveClass(p.getPathClass()));
+			stringFun = d -> "Positive " + GeneralTools.formatNumber(d, 1);// + " %";
+			params.primaryName = "Positive";
 			return this;
 		}
 		
-		public DensityMapBuilder positivePercentage(PathClass baseClass) {
-			this.allObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> p.hasROI() && getBaseClass(p.getPathClass()) == baseClass);
-			this.primaryObjects = allObjects.and(p -> PathClassTools.isPositiveClass(p.getPathClass()));
-			stringFun = d -> baseClass.toString() + " positive " + GeneralTools.formatNumber(d, 1) + " %";
+		public DensityMapBuilder positiveDetections(PathClass baseClass) {
+			params.denominatorObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> p.hasROI() && getBaseClass(p.getPathClass()) == baseClass);
+			params.primaryObjects = params.denominatorObjects.and(p -> PathClassTools.isPositiveClass(p.getPathClass()));
+			stringFun = d -> baseClass.toString() + " positive " + GeneralTools.formatNumber(d, 1);// + " %";
+			if (baseClass != null)
+				params.primaryName = baseClass.toString() + ": Positive";
+			else
+				params.primaryName = "Positive";
+			return this;
+		}
+		
+		public DensityMapBuilder colorModel(ColorModel colorModel) {
+			params.colorModel = colorModel;
 			return this;
 		}
 		
 		/**
 		 * Set the string function, which can be used to convert a density value into a readable string representation.
-		 * This should be called after any method that sets the density map type, e.g. {@link #positivePercentage()} to override the default.
+		 * This should be called after any method that sets the density map type, e.g. {@link #positiveDetections()} to override the default.
 		 * @param fun
 		 * @return
 		 */
@@ -155,144 +210,152 @@ public class DensityMaps {
 			return pathClass == null ? null : pathClass.getBaseClass();
 		}
 		
-		public DensityMap build(ImageData<BufferedImage> imageData) {
+		public DensityMapImageServer buildMap(ImageData<BufferedImage> imageData) {
+			return createMap(imageData, params);
+		}
+
+		public DensityMapParameters buildParameters() {			
+			return new DensityMapParameters(params);
+		}
+
+	}
+	
+	
+	
+	public static DensityMapImageServer createMap(ImageData<BufferedImage> imageData, DensityMapParameters params) {
+		String name = params.primaryName == null ? "Density" : params.primaryName;
+		return DensityMapImageServer.createDensityMapServer(
+				imageData,
+				params.pixelSize,
+				params.radius,
+				Map.of(name, params.primaryObjects),
+				params.denominatorObjects,
+				params.gaussianFilter,
+				params.colorModel
+				);
+	}
+	
+	
+	
+	public static PathClass getHotspotClass(PathClass baseClass) {
+		PathClass hotspotClass = DEFAULT_HOTSPOT_CLASS;
+		if (PathClassTools.isValidClass(baseClass)) {
+			hotspotClass = PathClassTools.mergeClasses(baseClass, hotspotClass);
+		}
+		return hotspotClass;
+	}
+	
+	
+	public static void traceContours(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> server, int channel, Collection<? extends PathObject> parents, double threshold, boolean doSplit, PathClass hotspotClass) {
+		// Get the selected objects
+		boolean changes = false;
+		if (hotspotClass == null)
+			hotspotClass = getHotspotClass(null);
+		for (var parent : parents) {
+			var annotations = new ArrayList<PathObject>();
+			var roiParent = parent.getROI();
 			
-			if (primaryObjects == null) {
-				throw new IllegalArgumentException("Primary object filter is not defined - no densities to calculate!");
+			var request = roiParent == null ? RegionRequest.createInstance(server) :
+				RegionRequest.createInstance(server.getPath(), server.getDownsampleForResolution(0), roiParent);
+//						boolean doErode = params.getBooleanParameterValue("erode");
+			BufferedImage img;
+			try {
+				img = server.readBufferedImage(request);					
+			} catch (IOException e) {
+				logger.error(e.getLocalizedMessage(), e);
+				continue;
+			}
+			if (img == null)
+				continue;
+			
+			var geometry = ContourTracing.createTracedGeometry(img.getRaster(), threshold, Double.POSITIVE_INFINITY, channel, request);
+			if (geometry == null || geometry.isEmpty()) {
+				continue;
 			}
 			
-			var server = imageData.getServer();
+			Geometry geomNew = null;
+			if (roiParent == null)
+				geomNew = geometry;
+			else
+				geomNew = GeometryTools.ensurePolygonal(geometry.intersection(roiParent.getGeometry()));
+			if (geomNew.isEmpty())
+				continue;
 			
-			double downsample = this.downsample;
-			if (!Double.isFinite(downsample)) {
-				if (pixelSize > 0) {
-					downsample = pixelSize / server.getPixelCalibration().getAveragedPixelSize().doubleValue();
-				} else {
-					downsample = Math.max(server.getWidth(), server.getHeight()) / maxSize;
-				}
-			}
-			if (roundDownsample)
-				downsample = Math.round(downsample);
-			
-			int width = (int)Math.round(server.getWidth() / downsample);
-			int height = (int)Math.round(server.getHeight() / downsample);
-			
-			int nChannels = allObjects == null ? 1 : 2;
-			
-			// Create density maps
-			var mat = new Mat(height, width, opencv_core.CV_32FC(nChannels), Scalar.ZERO);
-			var pathObjects = imageData.getHierarchy().getFlattenedObjectList(null);
-			try (FloatIndexer idx = mat.createIndexer()) {
-				for (var pathObject : pathObjects) {
-					if (primaryObjects.test(pathObject)) {
-						incrementCounts(idx, 0, pathObject.getROI(), downsample);
-					}
-					if (allObjects != null && allObjects.test(pathObject)) {
-						incrementCounts(idx, 1, pathObject.getROI(), downsample);
-					}
-				}
-			}
-			
-			if (radius > 0) {
-				double serverPixelSize = imageData.getServer().getMetadata().getPixelCalibration().getAveragedPixelSize().doubleValue();
-				int kernelRadius = (int)Math.round(radius / (downsample * serverPixelSize));
-				var kernel = new Mat(kernelRadius*2+1, kernelRadius*2+1, opencv_core.CV_32FC1, Scalar.ZERO);
-				opencv_imgproc.circle(kernel, new Point(kernelRadius, kernelRadius), kernelRadius, Scalar.ONE, opencv_imgproc.FILLED, opencv_imgproc.FILLED, 0);
-				// TODO: Note that I'm assuming the constant is 0... but can this be confirmed?!
-//				opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_REPLICATE);
-				opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_CONSTANT);
-			}
-			
-			// Compute ratios (if required) & apply rounding
-			// The rounding is needed because floating point errors can be introduced during the filtering 
-			// (probably connected to FFT?) - and int filtering won't necessarily work for all kernel sizes
-			boolean twoChannels = nChannels > 1;
-			try (FloatIndexer idx = mat.createIndexer()) {
-				for (int y = 0; y < height; y++) {
-					for (int x = 0; x < width; x++) {
-						float primary = Math.round(idx.get(y, x, 0));
-						idx.put(y, x, 0, primary);
-						if (twoChannels) {
-							float total = Math.round(idx.get(y, x, 1));
-							idx.put(y, x, 0, primary/total*100f);
-						}
-					}						
-				}
-			}
-			
-			SimpleImage values = OpenCVTools.matToSimpleImage(mat, 0);
-			SimpleImage alpha = nChannels > 1 ? OpenCVTools.matToSimpleImage(mat, 1) : null;
-			
-			mat.close();
-			
-			var region = RegionRequest.createInstance(imageData.getServer(), downsample);
-			
-			return new DefaultDensityMap(region, values, alpha, stringFun);
+			var roi = GeometryTools.geometryToROI(geomNew, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
+				
+			if (doSplit) {
+				for (var r : RoiTools.splitROI(roi))
+					annotations.add(PathObjects.createAnnotationObject(r, hotspotClass));
+			} else
+				annotations.add(PathObjects.createAnnotationObject(roi, hotspotClass));
+			parent.addPathObjects(annotations);
+			changes = true;
 		}
 		
-		
-		
-		private static void incrementCounts(FloatIndexer idx, int channel, ROI roi, double downsample) {
-			if (roi.isPoint()) {
-				for (var p : roi.getAllPoints()) {
-					int x = (int)(p.getX() / downsample);
-					int y = (int)(p.getY() / downsample);
-					idx.put(y, x, 0, idx.get(y, x, 0) + 1);
-				}
-			} else {
-				int x = (int)(roi.getCentroidX() / downsample);
-				int y = (int)(roi.getCentroidY() / downsample);
-				idx.put(y, x, channel, idx.get(y, x, channel) + 1);
-			}
-		}
-		
+		if (changes)
+			hierarchy.fireHierarchyChangedEvent(DensityMaps.class);
+		else
+			logger.warn("No thresholded hotspots found!");
 		
 	}
 	
 	
-	private static class DefaultDensityMap implements DensityMap {
-		
-		private SimpleImage values;
-		private SimpleImage alpha;
-		
-		private RegionRequest region;
-		private DoubleFunction<String> fun;
-		
-		private DefaultDensityMap(RegionRequest region, SimpleImage values, SimpleImage alpha, DoubleFunction<String> fun) {
-			this.region = region;
-			this.values = values;
-			this.alpha = alpha;
-			this.fun = fun;
-		}
-
-		@Override
-		public SimpleImage getValues() {
-			return values;
-		}
-
-		@Override
-		public SimpleImage getAlpha() {
-			return alpha;
-		}
-		
-		@Override
-		public String getText(double x, double y) {
-			if (fun == null)
-				return null;
-			int xi = (int)Math.floor((x - region.getMinX()) / region.getDownsample());
-			int yi = (int)Math.floor((y - region.getMinY()) / region.getDownsample());
-			if (xi >= 0 && xi < values.getWidth() && yi >= 0 && yi <= values.getHeight()) {
-				float val = values.getValue(xi, yi);
-				return fun.apply(val);
-			}
-			return null;
-		}
-
-		@Override
-		public RegionRequest getRegion() {
-			return region;
-		}
-		
+	private static SimpleImage toSimpleImage(Raster raster, int band) {
+		int w = raster.getWidth();
+		int h = raster.getHeight();
+		float[] pixels = raster.getSamples(0, 0, w, h, band, (float[])null);
+		return SimpleImages.createFloatImage(pixels, w, h);
 	}
+	
+	
+	private static int getCountsChannel(ImageServer<BufferedImage> server) {
+		if (server.getChannel(server.nChannels()-1).getName().equals("Counts"))
+			return server.nChannels()-1;
+		return -1;
+	}
+	
+	
+	public static void findHotspots(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> server, int channel, Collection<? extends PathObject> parents, int nHotspots, double radius, double minCount, boolean allowOverlapping, PathClass hotspotClass) throws IOException {
+		SimpleImage mask = null;
+		int countChannel = getCountsChannel(server);
+		
+		for (var parent : parents) {
+			
+			RegionRequest request;
+			if (parent.hasROI())
+				request = RegionRequest.createInstance(server.getPath(), server.getDownsampleForResolution(0), parent.getROI());
+			else
+				request = RegionRequest.createInstance(server);
+			
+			var img = server.readBufferedImage(request);
+			var raster = img.getRaster();
+			
+			var image = toSimpleImage(raster, channel);
+			
+			if (minCount > 0) {
+				mask = countChannel >= 0 ? toSimpleImage(raster, countChannel) : image;
+				mask = SimpleProcessing.threshold(mask, minCount, 0, 1, 1);
+			}
+			
+			var finder = new SimpleProcessing.PeakFinder(image)
+					.region(request)
+					.calibration(server.getPixelCalibration())
+					.peakClass(hotspotClass)
+					.minimumSeparation(allowOverlapping ? -1 : radius * 2)
+					.withinROI(parent.hasROI())
+					.radius(radius);
+			
+			if (mask != null)
+				finder.mask(mask);
+			
+			
+			var hotspots = finder.createObjects(parent.getROI(), nHotspots);
+			parent.addPathObjects(hotspots);
+		}
+		
+		hierarchy.fireHierarchyChangedEvent(DensityMaps.class);
+	}
+	
+	
 
 }

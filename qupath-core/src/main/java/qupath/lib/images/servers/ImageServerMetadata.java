@@ -1048,6 +1048,8 @@ public class ImageServerMetadata {
 			 * @return
 			 */
 			public Builder addLevel(double downsample, int levelWidth, int levelHeight) {
+				if (downsample <= 0)
+					throw new IllegalArgumentException("Downsample must be > 0, but this one is " + downsample);
 				levels.add(new ImageResolutionLevel(downsample, levelWidth, levelHeight));
 				return this;
 			}

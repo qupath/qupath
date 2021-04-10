@@ -51,6 +51,7 @@ import qupath.process.gui.commands.CreateChannelTrainingImagesCommand;
 import qupath.process.gui.commands.CreateCompositeClassifierCommand;
 import qupath.process.gui.commands.CreateRegionAnnotationsCommand;
 import qupath.process.gui.commands.CreateTrainingImageCommand;
+import qupath.process.gui.commands.DensityMapCommand;
 import qupath.process.gui.commands.ObjectClassifierCommand;
 import qupath.process.gui.commands.ObjectClassifierLoadCommand;
 import qupath.process.gui.commands.PixelClassifierCommand;
@@ -94,15 +95,25 @@ public class ProcessingExtension implements QuPathExtension {
 		@ActionDescription("Fast cell counting for hematoxylin and DAB images.")
 		@Deprecated
 		public final Action actionFastCellCounts;
+		
+		
+		@ActionMenu("Analyze>Create density map")
+		public final Action actionDensityMap;
 
 				
 		private OpenCVCommands(QuPathGUI qupath) {
 			actionDelaunay = qupath.createPluginAction("Delaunay cluster features 2D", DelaunayClusteringPlugin.class, null);
 //			actionCytokeratin = qupath.createPluginAction("Create cytokeratin annotations (experimental)", DetectCytokeratinCV.class, null);
 			actionFastCellCounts = qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null);
+			var densityMapCommand = new DensityMapCommand(qupath);
+			actionDensityMap = qupath.createImageDataAction(imageData -> densityMapCommand.run());
 		}
 
 	}
+	
+	
+	
+	
 	
 	@ActionMenu("Classify>Object classification")
 	@SuppressWarnings("javadoc")

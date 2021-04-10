@@ -154,29 +154,82 @@ public final class ColorModelFactory {
     	return new IndexColorModel(8, 256, ColorMaps.getColors(map, 256, false), 0, false, -1, DataBuffer.TYPE_BYTE);
     }
     
-    public static ColorModel createColorModel(PixelType pixelType, ColorMap map) {
-    	return createColorModel(pixelType, map, 0, pixelType.isFloatingPoint() ? 1.0 : pixelType.getUpperBound().doubleValue(), -1, null);
+    /**
+     * Create a color model from a {@link ColorMap}.
+     *  This is useful for heatmaps/density maps where lower values should be transparent.
+     * @param pixelType
+     * @param map
+     * @param band 
+     * @return
+     */
+    public static ColorModel createColorModel(PixelType pixelType, ColorMap map, int band) {
+    	return createColorModel(pixelType, map, band, 0, pixelType.isFloatingPoint() ? 1.0 : pixelType.getUpperBound().doubleValue(), -1, null);
     }
     
-    public static ColorModel createColorModel(PixelType pixelType, ColorMap map, double min, double max, int alphaChannel, DoubleToIntFunction alphaFun) {
+    /**
+     * Create a color model from a {@link ColorMap}, scaled within a defined range and with an optional additional alpha channel used to 
+     * determine opacity. This is useful for heatmaps/density maps where lower values should be transparent.
+     * @param pixelType
+     * @param map
+     * @param band the band of the image that defines the values used to index the color map (usually 0 for a single-channel image)
+     * @param min
+     * @param max
+     * @param alphaChannel
+     * @param alphaFun
+     * @return
+     */
+    public static ColorModel createColorModel(PixelType pixelType, ColorMap map, int band, double min, double max, int alphaChannel, DoubleToIntFunction alphaFun) {
     	Objects.nonNull(map);
     	if (alphaFun == null && alphaChannel >= 0)
     		alphaFun = createLinearFunction(pixelType);
-    	return new ColorMapModel(pixelType, map, min, max, alphaChannel, alphaFun);
+    	return new ColorMapModel(pixelType, map, band, min, max, alphaChannel, alphaFun);
     }
     
+    /**
+     * Create a linear function for a specific pixel type, which can be used to determine a suitable alpha value for an image 
+     * that should have opacity based upon pixel values.
+     * @param type
+     * @return
+     * @see #createColorModel(PixelType, ColorMap, int, double, double, int, DoubleToIntFunction)
+     */
     public static DoubleToIntFunction createLinearFunction(PixelType type) {
     	return createLinearFunction(0, type.isFloatingPoint() ? 1.0 : type.getUpperBound().doubleValue());
     }
 
+    
+    /**
+     * Create a linear function between a given range, which can be used to determine a suitable alpha value for an image 
+     * that should have opacity based upon pixel values.
+     * @param min
+     * @param max
+     * @return
+     * @see #createColorModel(PixelType, ColorMap, int, double, double, int, DoubleToIntFunction)
+     */
     public static DoubleToIntFunction createLinearFunction(double min, double max) {
     	return d -> (int)GeneralTools.clipValue(Math.round(255 * (d - min) / (max - min)), 0, 255);
     }
     
-    public static DoubleToIntFunction createLinearFunction(double gamma, PixelType type) {
+    /**
+     * Create a gamma function for a specific pixel type, which can be used to determine a suitable alpha value for an image 
+     * that should have opacity based upon pixel values.
+     * @param gamma
+     * @param type
+     * @return
+     * @see #createColorModel(PixelType, ColorMap, int, double, double, int, DoubleToIntFunction)
+     */
+    public static DoubleToIntFunction createGammaFunction(double gamma, PixelType type) {
     	return createGammaFunction(gamma, 0, type.isFloatingPoint() ? 1.0 : type.getUpperBound().doubleValue());
     }
     
+    /**
+     * Create a gamma function between a given range, which can be used to determine a suitable alpha value for an image 
+     * that should have opacity based upon pixel values.
+     * @param gamma
+     * @param min
+     * @param max
+     * @return
+     * @see #createColorModel(PixelType, ColorMap, int, double, double, int, DoubleToIntFunction)
+     */
     public static DoubleToIntFunction createGammaFunction(double gamma, double min, double max) {
     	return d -> gamma(d, min, max, gamma);
     }
@@ -287,6 +340,7 @@ public final class ColorModelFactory {
 		
 		private ColorMap map;
 		private double min, max;
+		private int band = 0;
 		
 		private int nBits;
 		private boolean hasAlphaChannel;
@@ -294,8 +348,9 @@ public final class ColorModelFactory {
 		private int alphaChannel;
 		private DoubleToIntFunction alphaFun;
 
-		public ColorMapModel(PixelType pixelType, ColorMap map, double min, double max, int alphaChannel, DoubleToIntFunction alphaFun) {
+		public ColorMapModel(PixelType pixelType, ColorMap map, int band, double min, double max, int alphaChannel, DoubleToIntFunction alphaFun) {
 			super(pixelType, Math.max(1, alphaChannel + 1));
+			this.band = band;
 			this.nBits = pixelType.getBitsPerPixel();
 			this.isSigned = pixelType.isSignedInteger();
 			this.map = map;
@@ -308,6 +363,7 @@ public final class ColorModelFactory {
 
 		@Override
 		public int getRed(int pixel) {
+			// TODO: Check about applying band here!
 			return ColorTools.red(map.getColor(pixel, min, max));
 		}
 
@@ -338,17 +394,17 @@ public final class ColorModelFactory {
 
 		@Override
 		protected int getRedByte(byte[] pixel) {
-			return getRed(extractByteValue(pixel[0]));
+			return getRed(extractByteValue(pixel[band]));
 		}
 
 		@Override
 		protected int getGreenByte(byte[] pixel) {
-			return getGreen(extractByteValue(pixel[0]));
+			return getGreen(extractByteValue(pixel[band]));
 		}
 
 		@Override
 		protected int getBlueByte(byte[] pixel) {
-			return getBlue(extractByteValue(pixel[0]));
+			return getBlue(extractByteValue(pixel[band]));
 		}
 
 		@Override
@@ -398,17 +454,17 @@ public final class ColorModelFactory {
 
 		@Override
 		protected int getRedShort(short[] pixel) {
-			return getRed(extractShortValue(pixel[0]));
+			return getRed(extractShortValue(pixel[band]));
 		}
 
 		@Override
 		protected int getGreenShort(short[] pixel) {
-			return getGreen(extractShortValue(pixel[0]));
+			return getGreen(extractShortValue(pixel[band]));
 		}
 
 		@Override
 		protected int getBlueShort(short[] pixel) {
-			return getBlue(extractShortValue(pixel[0]));
+			return getBlue(extractShortValue(pixel[band]));
 		}
 
 		@Override
@@ -418,17 +474,17 @@ public final class ColorModelFactory {
 
 		@Override
 		protected int getRedInt(int[] pixel) {
-			return getRed(pixel[0]);
+			return getRed(pixel[band]);
 		}
 
 		@Override
 		protected int getGreenInt(int[] pixel) {
-			return getGreen(pixel[0]);
+			return getGreen(pixel[band]);
 		}
 
 		@Override
 		protected int getBlueInt(int[] pixel) {
-			return getBlue(pixel[0]);
+			return getBlue(pixel[band]);
 		}
 
 		@Override

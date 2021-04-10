@@ -46,7 +46,6 @@ import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI.DefaultActions;
 import qupath.lib.gui.commands.Commands;
-import qupath.lib.gui.commands.DensityMapCommand;
 import qupath.lib.gui.commands.MeasurementExportCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
@@ -259,11 +258,6 @@ class Menus {
 				"For example, this may be used to identify the closest cell of a specified type.")
 		@ActionMenu("Spatial analysis>Detect centroid distances 2D")
 		public final Action DISTANCE_CENTROIDS = qupath.createImageDataAction(imageData -> Commands.detectionCentroidDistances2D(imageData));
-		
-		
-		@ActionMenu("Create density map")
-		public final Action DENSITY_MAP = createAction(new DensityMapCommand(qupath));
-		
 
 	}
 	

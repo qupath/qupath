@@ -70,7 +70,6 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.value.ObservableBooleanValue;
-import javafx.scene.paint.Color;
 
 /**
  * {@link PathOverlay} that gives the results of pixel classification.
