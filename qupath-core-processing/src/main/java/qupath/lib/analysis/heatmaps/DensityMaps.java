@@ -23,7 +23,6 @@
 package qupath.lib.analysis.heatmaps;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -42,6 +41,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjects;
@@ -54,22 +54,32 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
 
+/**
+ * Class for constructing and using density maps.
+ * 
+ * @author Pete Bankhead
+ */
 public class DensityMaps {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DensityMaps.class);
 	
 	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.packRGB(200, 120, 20));
 
-	
+	/**
+	 * Create a new {@link DensityMapBuilder} to create a customized density map.
+	 * @return the builder
+	 */
 	public static DensityMapBuilder builder() {
 		return new DensityMapBuilder();
 	}
 	
 	
+	/**
+	 * Helper class for storing parameters to build a {@link DensityMapImageServer}.
+	 */
 	public static class DensityMapParameters {
 		
 		private double pixelSize = -1;
-		private int maxSize = 2048;
 		
 		private double radius = 0;
 		private boolean gaussianFilter = false;
@@ -78,28 +88,24 @@ public class DensityMaps {
 		private Predicate<PathObject> denominatorObjects;
 		
 		private String primaryName = null;
-		
-		// Can't be JSON-serialized
-		private transient ColorModel colorModel;
 						
 		private DensityMapParameters() {}
 		
 		private DensityMapParameters(DensityMapParameters params) {
 			this.pixelSize = params.pixelSize;
-			this.maxSize = params.maxSize;
 			this.radius = params.radius;
 			this.gaussianFilter = params.gaussianFilter;
 			
 			this.primaryObjects = params.primaryObjects;
 			this.primaryName = params.primaryName;
-			this.denominatorObjects = params.denominatorObjects;			
-			
-			this.colorModel = params.colorModel;
+			this.denominatorObjects = params.denominatorObjects;
 		}
 		
 	}
 	
-	
+	/**
+	 * Builder for a {@link DensityMapImageServer} or {@link DensityMapParameters}.
+	 */
 	public static class DensityMapBuilder {
 		
 		private DensityMapParameters params = new DensityMapParameters();
@@ -108,21 +114,52 @@ public class DensityMaps {
 		
 		private DensityMapBuilder() {}
 		
+		/**
+		 * Requested pixel size to determine the resolution of the density map, in calibrated units.
+		 * <p>
+		 * The default is -1, which means a resolution will be determined automatically based upon 
+		 * the radius value and the image size.
+		 * <p>
+		 * It is recommended to keep the default in most cases, to avoid the risk of creating a map 
+		 * that is too large and causes performance or memory problems.
+		 * 
+		 * @param requestedPixelSize
+		 * @return this builder
+		 * @implNote The value is given in calibrated units at the time the density map is constructed. 
+		 *           Any changes to the calibration information of the image server will not impact this.
+		 * @see #radius(double)
+		 */
 		public DensityMapBuilder pixelSize(double requestedPixelSize) {
 			params.pixelSize = requestedPixelSize;
 			return this;
 		}
 		
+		/**
+		 * Request that a Gaussian filter is used, rather than the default mean (disk) filter.
+		 * <p>
+		 * A Gaussian filter gives a smoother result by using a weighted average, but the interpretation 
+		 * of the result is more difficult. 
+		 * Using a disk filter, the density map values are essentially the sum of the number of objects with centroids 
+		 * falling within a predefined radius.
+		 * With a Gaussian filter, these have been weighted.
+		 * <p>
+		 * @param gaussianFilter true if a Gaussian filter should be used, false otherwise (default is false)
+		 * @return this builder
+		 * @implNote The coefficients of the Gaussian filter are renormalized to have a maximum of 1, 
+		 *           with a sigma value equal to the specified filter radius.
+		 * @see #radius(double)
+		 */
 		public DensityMapBuilder gaussianFilter(boolean gaussianFilter) {
 			params.gaussianFilter = gaussianFilter;
 			return this;
 		}
 		
-		public DensityMapBuilder maxSize(int maxSize) {
-			params.maxSize = maxSize;
-			return this;
-		}
-		
+		/**
+		 * The radius of the filter used to calculate densities.
+		 * @param radius
+		 * @return this builder
+		 * @see #gaussianFilter(boolean)
+		 */
 		public DensityMapBuilder radius(double radius) {
 			params.radius = radius;
 			return this;
@@ -190,11 +227,6 @@ public class DensityMaps {
 			return this;
 		}
 		
-		public DensityMapBuilder colorModel(ColorModel colorModel) {
-			params.colorModel = colorModel;
-			return this;
-		}
-		
 		/**
 		 * Set the string function, which can be used to convert a density value into a readable string representation.
 		 * This should be called after any method that sets the density map type, e.g. {@link #positiveDetections()} to override the default.
@@ -210,10 +242,19 @@ public class DensityMaps {
 			return pathClass == null ? null : pathClass.getBaseClass();
 		}
 		
+		/**
+		 * Build a {@link DensityMapImageServer} using the current parameters and the specified {@link ImageData}.
+		 * @param imageData
+		 * @return the density map
+		 */
 		public DensityMapImageServer buildMap(ImageData<BufferedImage> imageData) {
 			return createMap(imageData, params);
 		}
 
+		/**
+		 * Build a {@link DensityMapParameters} objects that may be passed to {@link DensityMaps#createMap(ImageData, DensityMapParameters)}.
+		 * @return the parameters
+		 */
 		public DensityMapParameters buildParameters() {			
 			return new DensityMapParameters(params);
 		}
@@ -221,17 +262,25 @@ public class DensityMaps {
 	}
 	
 	
+	public static DensityMapImageServer createMap(ImageData<BufferedImage> imageData, String jsonParams) {
+		var params = GsonTools.getInstance().fromJson(jsonParams, DensityMapParameters.class);
+		return createMap(imageData, params);
+	}
+	
 	
 	public static DensityMapImageServer createMap(ImageData<BufferedImage> imageData, DensityMapParameters params) {
 		String name = params.primaryName == null ? "Density" : params.primaryName;
-		return DensityMapImageServer.createDensityMapServer(
+		
+		
+		
+		return DensityMapImageServer.createDensityMap(
 				imageData,
 				params.pixelSize,
 				params.radius,
 				Map.of(name, params.primaryObjects),
 				params.denominatorObjects,
 				params.gaussianFilter,
-				params.colorModel
+				null
 				);
 	}
 	

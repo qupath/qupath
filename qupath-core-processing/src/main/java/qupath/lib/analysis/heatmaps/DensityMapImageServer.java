@@ -37,10 +37,10 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
-import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +72,11 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 	
 	private final static Logger logger = LoggerFactory.getLogger(DensityMapImageServer.class);
 	
+	/**
+	 * Default maximum size in any dimension for the map.
+	 */
+	private static int defaultMaxSize = 1024;
+	
 	private ImageServerMetadata originalMetadata;
 	
 	private List<PointsWithPlane> primaryPoints;
@@ -98,7 +103,7 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 	}
 	
 	
-	public static DensityMapImageServer createDensityMapServer(
+	static DensityMapImageServer createDensityMap(
 			ImageData<BufferedImage> imageData,
 			double pixelSize,
 			double radius,
@@ -115,18 +120,20 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		var hierarchy = imageData.getHierarchy();
 		var flattenedObjects = hierarchy.getFlattenedObjectList(null);
 		
-		int maxSize = 1024;
-		
 		if (pixelSize <= 0) {
+			int maxSize = defaultMaxSize;
 			var server = imageData.getServer();
 			double actualPixelSize = server.getPixelCalibration().getAveragedPixelSize().doubleValue();
+			
 			double maxDownsample = Math.round(Math.max(1, Math.max(server.getWidth(), server.getHeight()) / maxSize));
 			double minPixelSize = maxDownsample * actualPixelSize;
-			if (radius > 0)
-				pixelSize = radius / 20;
+			if (radius > 0) {
+				double radiusPixels = radius / actualPixelSize;
+				double radiusDownsample = Math.round(radiusPixels / 10);
+				pixelSize = radiusDownsample * actualPixelSize;
+			}
 			if (pixelSize < minPixelSize)
 				pixelSize = minPixelSize;
-//			System.err.println("Pixel size: " + pixelSize);
 		}
 		
 		List<PointsWithPlane> primaryPoints = new ArrayList<>();
@@ -217,6 +224,28 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 				.build();
 	}
 	
+	
+	/**
+	 * Get the effective radius used to calculate the density map, in pixel units from the full resolution image.
+	 * This may be different from the radius provided when constructing the density map, which may use calibrated units.
+	 * <p>
+	 * The value returned here should be consistent, regardless of whether the pixel calibration information 
+	 * is adjusted.
+	 * @return
+	 */
+	public double getDensityRadius() {
+		return downsampledRadiusPixels * getDownsampleForResolution(0);
+	}
+	
+	/**
+	 * Query if a Gaussian filter is used for density calculations.
+	 * @return true if a Gaussian filter is used, false if a disk (mean) filter is used.
+	 */
+	public boolean useGaussianFilter() {
+		return gaussianFilter;
+	}
+	
+	
 	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
 		// We don't try anything fine-grained here... just check planes
@@ -294,6 +323,8 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 			requestPadding = 0;
 		} else {
 			requestPadding = (int)Math.ceil(downsampledRadiusPixels * downsample); 
+			if (gaussianFilter)
+				requestPadding *= 3;
 		}
 		var requestPadded = request.pad2D(requestPadding, requestPadding);
 		
@@ -329,20 +360,33 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		// Filter points to densities
 		int kernelRadius = (int)Math.round(downsampledRadiusPixels);
 		if (downsampledRadiusPixels > 0 && gaussianFilter) {
-			int kSize = (int)Math.ceil(downsampledRadiusPixels * 4) * 2 + 1;
-			var kernel = opencv_imgproc.getGaussianKernel(kSize, downsampledRadiusPixels);
+			double gaussianSigma = downsampledRadiusPixels;// / 2.0;
+			int kSize = (int)Math.ceil(gaussianSigma * 4) * 2 + 1;
+			var kernel = opencv_imgproc.getGaussianKernel(kSize, gaussianSigma);
 			double maxVal = SimpleProcessing.findMinAndMax(OpenCVTools.extractPixels(kernel, null)).maxVal;
 			opencv_core.dividePut(kernel, maxVal);
 			opencv_imgproc.sepFilter2D(mat, mat, -1, kernel, kernel);
-			
+			kernel.close();
 //			opencv_imgproc.GaussianBlur(mat, mat, new Size(kSize, kSize), downsampledRadiusPixels);
 		} else if (kernelRadius > 0) {
-			var kernel = new Mat(kernelRadius*2+1, kernelRadius*2+1, opencv_core.CV_32FC1, Scalar.ZERO);
-			opencv_imgproc.circle(kernel, new Point(kernelRadius, kernelRadius), kernelRadius, Scalar.ONE, opencv_imgproc.FILLED, opencv_imgproc.FILLED, 0);
+			var kernelCenter = new Mat(kernelRadius*2+1, kernelRadius*2+1, opencv_core.CV_8UC1, Scalar.WHITE);
+			try (UByteIndexer idxKernel = kernelCenter.createIndexer()) {
+				idxKernel.put(kernelRadius, kernelRadius, 0);
+			}
+			var kernel = new Mat();
+			opencv_imgproc.distanceTransform(kernelCenter, kernel, opencv_imgproc.DIST_L2, opencv_imgproc.DIST_MASK_PRECISE);
+			opencv_imgproc.threshold(kernel, kernel, kernelRadius, 1, opencv_imgproc.THRESH_BINARY_INV);
+			
+			// This seems to give weird shapes sometimes
+//			var kernelCircle = new Mat(kernelRadius*2+1, kernelRadius*2+1, opencv_core.CV_32FC1, Scalar.ZERO);
+//			opencv_imgproc.circle(kernelCircle, new Point(kernelRadius, kernelRadius), kernelRadius, Scalar.ONE, opencv_imgproc.FILLED, opencv_imgproc.FILLED, 0);
+			
 			// TODO: Note that I'm assuming the constant is 0... but can this be confirmed?!
 //			opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_REPLICATE);
 			opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_CONSTANT);
-//			OpenCVTools.matToImagePlus(kernel, "Kernel " + kernelRadius).show();
+//			OpenCVTools.matToImagePlus("Kernel " + kernelRadius, kernel, kernelCircle).show();
+			kernel.close();
+			kernelCenter.close();
 		}
 		
 		// Compute ratios (if required) & apply rounding
@@ -350,18 +394,26 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		// (probably connected to FFT?) - and int filtering won't necessarily work for all kernel sizes
 		int nPrimaryChannels = primaryPoints.size();
 		float normalize = 1.0f;
+		boolean roundValues = !gaussianFilter;
 		try (FloatIndexer idx = mat.createIndexer()) {
 			for (int y = 0; y < height; y++) {
 				for (int x = 0; x < width; x++) {
 					if (channelNormalize >= 0) {
-						normalize = Math.round(idx.get(y, x, channelNormalize));
-						idx.put(y, x, channelNormalize, normalize);
+						normalize = idx.get(y, x, channelNormalize);
+						if (roundValues) {
+							normalize = Math.round(normalize);
+							idx.put(y, x, channelNormalize, normalize);
+						} else if (Math.abs(normalize) < 1e-4)
+							normalize = 0;
 					}
 					for (int c = 0; c < nPrimaryChannels; c++) {
 						if (normalize == 0)
 							idx.put(y, x, c, Float.NaN);
 						else {
-							float val = Math.round(idx.get(y, x, c)) / normalize;
+							float val = idx.get(y, x, c);
+							if (roundValues)
+								val = Math.round(val);
+							val = val / normalize;
 							idx.put(y, x, c, val);
 						}
 					}

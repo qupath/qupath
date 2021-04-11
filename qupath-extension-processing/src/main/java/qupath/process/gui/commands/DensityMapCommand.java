@@ -40,9 +40,12 @@ import javax.imageio.ImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ij.CompositeImage;
 import javafx.application.Platform;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ChangeListener;
@@ -61,6 +64,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
+import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMapImageServer;
 import qupath.lib.analysis.heatmaps.DensityMaps;
@@ -114,6 +118,8 @@ public class DensityMapCommand implements Runnable {
 		
 		if (dialog == null) {
 			dialog = new DensityMapDialog();
+			if (qupath.getImageData() != null)
+				dialog.updateDefaults(qupath.getImageData());
 		}
 		
 		var stage = dialog.getStage();
@@ -151,7 +157,7 @@ public class DensityMapCommand implements Runnable {
 		private Stage stage;
 		
 		private ComboBox<DensityMapType> comboType = new ComboBox<>();
-		private ObservableValue<DensityMapType> densityType = comboType.getSelectionModel().selectedItemProperty();
+		private ReadOnlyObjectProperty<DensityMapType> densityType = comboType.getSelectionModel().selectedItemProperty();
 		
 		private ComboBox<PathClass> comboPrimary = new ComboBox<>(qupath.getAvailablePathClasses());
 		private ObservableValue<PathClass> selectedClass = comboPrimary.getSelectionModel().selectedItemProperty();
@@ -172,6 +178,9 @@ public class DensityMapCommand implements Runnable {
 		private DoubleProperty minDisplay = new SimpleDoubleProperty(0);
 		private DoubleProperty maxDisplay = new SimpleDoubleProperty(1);
 		private BooleanProperty autoUpdateDisplayRange = new SimpleBooleanProperty(true);
+		
+		// Property that controls whether display options can be adjusted
+		private BooleanBinding displayAdjustable = densityType.isEqualTo(DensityMapType.POSITIVE_DETECTIONS);
 		
 		/**
 		 * Automatically update the density maps and overlays.
@@ -207,8 +216,8 @@ public class DensityMapCommand implements Runnable {
 //			PaneTools.addGridRow(pane, row++, 0, null, labelDescription, labelDescription, labelDescription);
 
 			PaneTools.addGridRow(pane, row++, 0, "Select type of density map.\n"
-					+ "Use 'Detections' to look for the density of all detections with any classication.\n"
-					+ "Use 'Positive %' specifically if your detections are classified as positive & negative and you want to find a high density that is positive.\n"
+					+ "Use 'All detections' to look for the density of all detections with any classication.\n"
+					+ "Use 'Positive detections' specifically if your detections are classified as positive & negative and you want to find a high density that is positive.\n"
 					+ "Use 'Point annotations' to use annotated points rather than detections.",
 					new Label("Map type"), comboType, comboType);
 			PaneTools.addGridRow(pane, row++, 0, "Select object classifications to include.\n"
@@ -229,19 +238,9 @@ public class DensityMapCommand implements Runnable {
 					+ "This is defined in calibrated pixel units (e.g. µm if available).", new Label("Radius"), sliderRadius, tfRadius);
 			
 			
-			var sliderMinCount = new Slider(0, 1000, minCount.get());
-			sliderMinCount.valueProperty().bindBidirectional(minCount);
-			initializeSliderSnapping(sliderMinCount, 50, 1, 1);
-			var tfMinCount = new TextField();
-			GuiTools.bindSliderAndTextField(sliderMinCount, tfMinCount, expandSliderLimits, 0);
-			GuiTools.installRangePrompt(sliderMinCount);
-			PaneTools.addGridRow(pane, row++, 0, "Select minimum density of objects required for display in the density map.\n"
-					+ "This is used to avoid isolated detections dominating the map (i.e. lower density regions can be shown as transparent).",
-					new Label("Minimum density"), sliderMinCount, tfMinCount);
-			
 			var cbGaussianFilter = new CheckBox("Use Gaussian filter");
 			cbGaussianFilter.selectedProperty().bindBidirectional(gaussianFilter);
-			PaneTools.addGridRow(pane, row++, 0, "Use a Gaussian filter to estimate densities (weight sum rather than local mean).\n"
+			PaneTools.addGridRow(pane, row++, 0, "Use a Gaussian filter to estimate densities (weighted sum rather than local mean).\n"
 					+ "This gives a smoother result, but the output is less intuitive.", 
 					cbGaussianFilter, cbGaussianFilter, cbGaussianFilter);
 			cbGaussianFilter.setPadding(new Insets(0, 0, 10, 0));
@@ -266,7 +265,7 @@ public class DensityMapCommand implements Runnable {
 			var slideMin = new Slider(0, maxDisplay.get(), minDisplay.get());
 			slideMin.valueProperty().bindBidirectional(minDisplay);
 			initializeSliderSnapping(slideMin, 1, 1, 0.1);
-			slideMin.disableProperty().bind(autoUpdateDisplayRange);
+			slideMin.disableProperty().bind(autoUpdateDisplayRange.or(displayAdjustable.not()));
 			var tfMin = new TextField();
 			GuiTools.bindSliderAndTextField(slideMin, tfMin, expandSliderLimits);
 			GuiTools.installRangePrompt(slideMin);
@@ -275,11 +274,21 @@ public class DensityMapCommand implements Runnable {
 			var slideMax = new Slider(0, maxDisplay.get(), maxDisplay.get());
 			slideMax.valueProperty().bindBidirectional(maxDisplay);
 			initializeSliderSnapping(slideMax, 1, 1, 0.1);
-			slideMax.disableProperty().bind(autoUpdateDisplayRange);
+			slideMax.disableProperty().bind(autoUpdateDisplayRange.or(displayAdjustable.not()));
 			var tfMax = new TextField();
 			GuiTools.bindSliderAndTextField(slideMax, tfMax, expandSliderLimits);
 			GuiTools.installRangePrompt(slideMax);
 			PaneTools.addGridRow(pane, row++, 0, "Set the density value corresponding to the last entry in the colormap.", new Label("Max display"), slideMax, tfMax);
+
+			var sliderMinCount = new Slider(0, 1000, minCount.get());
+			sliderMinCount.valueProperty().bindBidirectional(minCount);
+			initializeSliderSnapping(sliderMinCount, 50, 1, 1);
+			var tfMinCount = new TextField();
+			GuiTools.bindSliderAndTextField(sliderMinCount, tfMinCount, expandSliderLimits, 0);
+			GuiTools.installRangePrompt(sliderMinCount);
+			PaneTools.addGridRow(pane, row++, 0, "Select minimum density of objects required for display in the density map.\n"
+					+ "This is used to avoid isolated detections dominating the map (i.e. lower density regions can be shown as transparent).",
+					new Label("Min density"), sliderMinCount, tfMinCount);
 
 			var sliderGamma = new Slider(0, 4, gamma.get());
 			sliderGamma.valueProperty().bindBidirectional(gamma);
@@ -289,11 +298,12 @@ public class DensityMapCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Control how the opacity of the density map changes between low & high values.\n"
 					+ "Choose zero for an opaque map.", new Label("Gamma"), sliderGamma, tfGamma);
 			
-			var cbAutoUpdateDisplayRange = new CheckBox("Use full display range");
-			cbAutoUpdateDisplayRange.selectedProperty().bindBidirectional(autoUpdateDisplayRange);
-			PaneTools.addGridRow(pane, row++, 0, "Automatically set the minimum & maximum display range for the colormap.", 
-					cbAutoUpdateDisplayRange, cbAutoUpdateDisplayRange, cbAutoUpdateDisplayRange);
-			cbAutoUpdateDisplayRange.setPadding(new Insets(0, 0, 10, 0));
+//			var cbAutoUpdateDisplayRange = new CheckBox("Use full display range");
+//			cbAutoUpdateDisplayRange.selectedProperty().bindBidirectional(autoUpdateDisplayRange);
+//			PaneTools.addGridRow(pane, row++, 0, "Automatically set the minimum & maximum display range for the colormap.", 
+//					cbAutoUpdateDisplayRange, cbAutoUpdateDisplayRange, cbAutoUpdateDisplayRange);
+//			cbAutoUpdateDisplayRange.disableProperty().bind(displayAdjustable.not());
+//			cbAutoUpdateDisplayRange.setPadding(new Insets(0, 0, 10, 0));
 			
 			
 			var btnAutoUpdate = new ToggleButton("Auto-update");
@@ -369,6 +379,25 @@ public class DensityMapCommand implements Runnable {
 			stage.initOwner(qupath.getStage());
 			stage.setTitle("Density map");
 			stage.setOnCloseRequest(e -> deregister());
+		}
+		
+		
+		/**
+		 * Update default parameters with a specified ImageData.
+		 * This gives better starting values.
+		 * @param imageData
+		 */
+		boolean updateDefaults(ImageData<BufferedImage> imageData) {
+			if (imageData == null)
+				return false;
+			var server = imageData.getServer();
+			double pixelSize = Math.round(server.getPixelCalibration().getAveragedPixelSize().doubleValue() * 10);
+			pixelSize *= 100;
+//			if (server.nResolutions() > 1)
+//				pixelSize *= 10;
+			pixelSize = Math.min(pixelSize, Math.min(server.getHeight(), server.getWidth())/20.0);
+			radius.set(pixelSize);
+			return true;
 		}
 		
 		
@@ -456,7 +485,11 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		
-		private int lastHotspotCount = 1;
+		private ParameterList paramsHotspots = new ParameterList()
+				.addIntParameter("nHotspots", "Number of hotspots to find", 1, null, "Specify the number of hotspots to identify; hotspots are peaks in the density map")
+				.addBooleanParameter("allowOverlaps", "Allow overlapping hotspots", false, "Allow hotspots to overlap; if false, peaks are discarded if the hotspot radius overlaps with a 'hotter' hotspot")
+				.addBooleanParameter("deletePrevious", "Delete existing hotspots", true, "Delete existing hotspot annotations with the same classification")
+				;
 		
 		
 		public void promptToFindHotspots() {
@@ -469,13 +502,19 @@ public class DensityMapCommand implements Runnable {
 				return;
 			}
 			
-			var response = Dialogs.showInputDialog(title, "How many hotspots do you want to find?", (double)lastHotspotCount);
-			boolean allowOverlapping = false;
-			if (response == null)
+			if (!Dialogs.showParameterDialog(title, paramsHotspots))
 				return;
 			
-			int n = response.intValue();
-			lastHotspotCount = n;
+			int n = paramsHotspots.getIntParameterValue("nHotspots");
+			boolean allowOverlapping = paramsHotspots.getBooleanParameterValue("allowOverlaps");
+			boolean deleteExisting = paramsHotspots.getBooleanParameterValue("deletePrevious");
+			
+//			var response = Dialogs.showInputDialog(title, "How many hotspots do you want to find?", (double)lastHotspotCount);
+//			boolean allowOverlapping = false;
+//			if (response == null)
+//				return;
+//			int n = response.intValue();
+//			lastHotspotCount = n;
 			
 			PathClass hotspotClass = DensityMaps.getHotspotClass(selectedClass.getValue());
 			
@@ -485,11 +524,13 @@ public class DensityMapCommand implements Runnable {
 				selected.add(imageData.getHierarchy().getRootObject());
 			
 			// Remove existing hotspots with the same classification
-			var hotspotClass2 = hotspotClass;
-			var existing = hierarchy.getAnnotationObjects().stream()
-					.filter(a -> a.getPathClass() == hotspotClass2)
-					.collect(Collectors.toList());
-			hierarchy.removeObjects(existing, true);
+			if (deleteExisting) {
+				var hotspotClass2 = hotspotClass;
+				var existing = hierarchy.getAnnotationObjects().stream()
+						.filter(a -> a.getPathClass() == hotspotClass2)
+						.collect(Collectors.toList());
+				hierarchy.removeObjects(existing, true);
+			}
 
 			
 			try {
@@ -596,6 +637,7 @@ public class DensityMapCommand implements Runnable {
 		}
 
 		public void promptToSaveColorImage(BufferedImageOverlay overlay) {
+			Dialogs.showErrorMessage(title, "Not implemented yet!");
 			var img = overlay.getRegionMap().values().iterator().next();
 			var file = Dialogs.promptToSaveFile(title, null, null, "PNG", ".png");
 			if (file != null) {
@@ -613,7 +655,11 @@ public class DensityMapCommand implements Runnable {
 				Dialogs.showErrorMessage(title, "No density map is available!");
 				return;
 			}
-			IJTools.extractHyperstack(densityMap, null).show();
+			IJExtension.getImageJInstance();
+			var imp = IJTools.extractHyperstack(densityMap, null);
+			if (imp instanceof CompositeImage)
+				((CompositeImage)imp).resetDisplayRanges();
+			imp.show();
 		}
 
 		
