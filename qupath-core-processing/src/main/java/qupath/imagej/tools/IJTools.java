@@ -221,7 +221,7 @@ public class IJTools {
 			    }
 			    // Append to original image stack
 			    for (int i = 1; i <= imp.getStack().getSize(); i++) {
-			        stack.addSlice(imp.getStack().getProcessor(i));
+			        stack.addSlice(imp.getStack().getSliceLabel(i), imp.getStack().getProcessor(i));
 			    }
 			    // Get the last calibration
 		    	cal = imp.getCalibration();
