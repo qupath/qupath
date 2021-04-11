@@ -27,8 +27,9 @@ import java.awt.image.Raster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.DoubleFunction;
+import java.util.Objects;
 import java.util.function.Predicate;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
@@ -38,12 +39,10 @@ import qupath.lib.analysis.algorithms.ContourTracing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.common.ColorTools;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -66,11 +65,62 @@ public class DensityMaps {
 	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.packRGB(200, 120, 20));
 
 	/**
+	 * Density map normalization methods.
+	 */
+	public static enum DensityMapNormalization {
+		
+		/**
+		 * No normalization; maps provide raw object counts in a defined radius.
+		 * This is equivalent to applying a circular sum filter to object counts per pixel.
+		 */
+		NONE,
+		
+//		/**
+//		 * Area normalization; maps provide averaged object counts in a defined radius.
+//		 * This is equivalent to applying a circular mean filter to object counts per pixel.
+//		 * 
+//		 * TODO: Consider normalization denominator; currently this uses downsampled pixel units.
+//		 */
+//		AREA,
+		
+		/**
+		 * Gaussian-weighted area normalization; maps provide weighted averaged object counts in a defined radius.
+		 * This is equivalent to applying a Gaussian filter to object counts per pixel.
+		 * 
+		 * TODO: Consider normalization denominator; currently this uses downsampled pixel units.
+		 */
+		GAUSSIAN,
+		
+		/**
+		 * Object normalization; maps provide 
+		 */
+		OBJECTS;
+		
+		@Override
+		public String toString() {
+			switch(this) {
+			case NONE:
+				return "None (raw counts)";
+			case OBJECTS:
+				return "Object counts";
+//			case AREA:
+//				return "Area";
+			case GAUSSIAN:
+				return "Gaussian-weighted";
+			default:
+				throw new IllegalArgumentException("Unknown enum " + this);
+			}
+		}
+		
+	}
+	
+	
+	/**
 	 * Create a new {@link DensityMapBuilder} to create a customized density map.
 	 * @return the builder
 	 */
-	public static DensityMapBuilder builder() {
-		return new DensityMapBuilder();
+	public static DensityMapBuilder builder(Predicate<PathObject> allObjects) {
+		return new DensityMapBuilder(allObjects);
 	}
 	
 	
@@ -82,23 +132,20 @@ public class DensityMaps {
 		private double pixelSize = -1;
 		
 		private double radius = 0;
-		private boolean gaussianFilter = false;
+		private DensityMapNormalization normalization = DensityMapNormalization.NONE;
 
-		private Predicate<PathObject> primaryObjects;
-		private Predicate<PathObject> denominatorObjects;
-		
-		private String primaryName = null;
-						
+		private Predicate<PathObject> allObjects;
+		private Map<String, Predicate<PathObject>> additionalFilters = new LinkedHashMap<>();
+								
 		private DensityMapParameters() {}
 		
 		private DensityMapParameters(DensityMapParameters params) {
 			this.pixelSize = params.pixelSize;
 			this.radius = params.radius;
-			this.gaussianFilter = params.gaussianFilter;
+			this.normalization = params.normalization;
 			
-			this.primaryObjects = params.primaryObjects;
-			this.primaryName = params.primaryName;
-			this.denominatorObjects = params.denominatorObjects;
+			this.allObjects = params.allObjects;
+			this.additionalFilters = new LinkedHashMap<>(params.additionalFilters);
 		}
 		
 	}
@@ -110,9 +157,10 @@ public class DensityMaps {
 		
 		private DensityMapParameters params = new DensityMapParameters();
 		
-		private DoubleFunction<String> stringFun;
-		
-		private DensityMapBuilder() {}
+		private DensityMapBuilder(Predicate<PathObject> allObjects) {
+			Objects.nonNull(allObjects);
+			params.allObjects = allObjects;
+		}
 		
 		/**
 		 * Requested pixel size to determine the resolution of the density map, in calibrated units.
@@ -134,113 +182,47 @@ public class DensityMaps {
 			return this;
 		}
 		
-		/**
-		 * Request that a Gaussian filter is used, rather than the default mean (disk) filter.
-		 * <p>
-		 * A Gaussian filter gives a smoother result by using a weighted average, but the interpretation 
-		 * of the result is more difficult. 
-		 * Using a disk filter, the density map values are essentially the sum of the number of objects with centroids 
-		 * falling within a predefined radius.
-		 * With a Gaussian filter, these have been weighted.
-		 * <p>
-		 * @param gaussianFilter true if a Gaussian filter should be used, false otherwise (default is false)
-		 * @return this builder
-		 * @implNote The coefficients of the Gaussian filter are renormalized to have a maximum of 1, 
-		 *           with a sigma value equal to the specified filter radius.
-		 * @see #radius(double)
-		 */
-		public DensityMapBuilder gaussianFilter(boolean gaussianFilter) {
-			params.gaussianFilter = gaussianFilter;
+		public DensityMapBuilder normalization(DensityMapNormalization normalization) {
+			params.normalization = normalization;
 			return this;
 		}
+		
+//		/**
+//		 * Request that a Gaussian filter is used, rather than the default mean (disk) filter.
+//		 * <p>
+//		 * A Gaussian filter gives a smoother result by using a weighted average, but the interpretation 
+//		 * of the result is more difficult. 
+//		 * Using a disk filter, the density map values are essentially the sum of the number of objects with centroids 
+//		 * falling within a predefined radius.
+//		 * With a Gaussian filter, these have been weighted.
+//		 * <p>
+//		 * @param gaussianFilter true if a Gaussian filter should be used, false otherwise (default is false)
+//		 * @return this builder
+//		 * @implNote The coefficients of the Gaussian filter are renormalized to have a maximum of 1, 
+//		 *           with a sigma value equal to the specified filter radius.
+//		 * @see #radius(double)
+//		 */
+//		public DensityMapBuilder gaussianFilter(boolean gaussianFilter) {
+//			params.gaussianFilter = gaussianFilter;
+//			return this;
+//		}
+		
+		public DensityMapBuilder addDensities(String name, Predicate<PathObject> filter) {
+			params.additionalFilters.put(name, filter);
+			return this;
+		}
+		
 		
 		/**
 		 * The radius of the filter used to calculate densities.
 		 * @param radius
 		 * @return this builder
-		 * @see #gaussianFilter(boolean)
 		 */
 		public DensityMapBuilder radius(double radius) {
 			params.radius = radius;
 			return this;
 		}
 		
-		public DensityMapBuilder density(Predicate<PathObject> primaryObjects) {
-			params.primaryObjects = primaryObjects;
-			return this;
-		}
-		
-		public DensityMapBuilder density(PathClass pathClass) {
-			return density(pathClass, false);
-		}
-		
-		public DensityMapBuilder density(PathClass pathClass, boolean baseClass) {
-			if (baseClass) {
-				params.primaryObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> getBaseClass(p.getPathClass()) == pathClass);
-			} else { 
-				params.primaryObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> p.getPathClass() == pathClass);
-			}
-			if (pathClass != null)
-				params.primaryName = pathClass.toString();
-			return this;
-		}
-		
-		public DensityMapBuilder pointAnnotations(PathClass pathClass) {
-			return pointAnnotations(pathClass, false);
-		}
-		
-		public DensityMapBuilder pointAnnotations(PathClass pathClass, boolean baseClass) {
-			var filter = PathObjectFilter.ANNOTATIONS.and(PathObjectFilter.ROI_POINT);
-			if (baseClass)
-				params.primaryObjects = filter.and(p -> getBaseClass(p.getPathClass()) == pathClass);
-			else
-				params.primaryObjects = filter.and(p -> p.getPathClass() == pathClass);
-			if (pathClass != null)
-				params.primaryName = pathClass.toString();
-			return this;
-		}
-		
-		public DensityMapBuilder percentage(Predicate<PathObject> primaryObjects, Predicate<PathObject> allObjects) {
-			params.primaryObjects = primaryObjects;
-			params.denominatorObjects = allObjects;
-			stringFun = d -> GeneralTools.formatNumber(d, 1) + " %";
-			return this;
-		}
-		
-		
-		public DensityMapBuilder positiveDetections() {
-			params.denominatorObjects = PathObjectFilter.DETECTIONS_ALL;
-			params.primaryObjects = params.denominatorObjects.and(p -> p.hasROI() && PathClassTools.isPositiveClass(p.getPathClass()));
-			stringFun = d -> "Positive " + GeneralTools.formatNumber(d, 1);// + " %";
-			params.primaryName = "Positive";
-			return this;
-		}
-		
-		public DensityMapBuilder positiveDetections(PathClass baseClass) {
-			params.denominatorObjects = PathObjectFilter.DETECTIONS_ALL.and(p -> p.hasROI() && getBaseClass(p.getPathClass()) == baseClass);
-			params.primaryObjects = params.denominatorObjects.and(p -> PathClassTools.isPositiveClass(p.getPathClass()));
-			stringFun = d -> baseClass.toString() + " positive " + GeneralTools.formatNumber(d, 1);// + " %";
-			if (baseClass != null)
-				params.primaryName = baseClass.toString() + ": Positive";
-			else
-				params.primaryName = "Positive";
-			return this;
-		}
-		
-		/**
-		 * Set the string function, which can be used to convert a density value into a readable string representation.
-		 * This should be called after any method that sets the density map type, e.g. {@link #positiveDetections()} to override the default.
-		 * @param fun
-		 * @return
-		 */
-		public DensityMapBuilder stringFunction(DoubleFunction<String> fun) {
-			this.stringFun = fun;
-			return this;
-		}
-		
-		private static PathClass getBaseClass(PathClass pathClass) {
-			return pathClass == null ? null : pathClass.getBaseClass();
-		}
 		
 		/**
 		 * Build a {@link DensityMapImageServer} using the current parameters and the specified {@link ImageData}.
@@ -269,17 +251,13 @@ public class DensityMaps {
 	
 	
 	public static DensityMapImageServer createMap(ImageData<BufferedImage> imageData, DensityMapParameters params) {
-		String name = params.primaryName == null ? "Density" : params.primaryName;
-		
-		
-		
 		return DensityMapImageServer.createDensityMap(
 				imageData,
 				params.pixelSize,
 				params.radius,
-				Map.of(name, params.primaryObjects),
-				params.denominatorObjects,
-				params.gaussianFilter,
+				params.additionalFilters,
+				params.allObjects,
+				params.normalization,
 				null
 				);
 	}

@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.Future;
 import java.util.function.DoubleToIntFunction;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -54,7 +55,6 @@ import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
@@ -69,6 +69,7 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMapImageServer;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapNormalization;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.color.ColorModelFactory;
@@ -83,11 +84,14 @@ import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.lib.plugins.parameters.DoubleParameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
@@ -149,6 +153,7 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 	}
+
 	
 	private class DensityMapDialog implements ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
 		
@@ -160,7 +165,10 @@ public class DensityMapCommand implements Runnable {
 		private ReadOnlyObjectProperty<DensityMapType> densityType = comboType.getSelectionModel().selectedItemProperty();
 		
 		private ComboBox<PathClass> comboPrimary = new ComboBox<>(qupath.getAvailablePathClasses());
-		private ObservableValue<PathClass> selectedClass = comboPrimary.getSelectionModel().selectedItemProperty();
+		private ReadOnlyObjectProperty<PathClass> selectedClass = comboPrimary.getSelectionModel().selectedItemProperty();
+
+		private ComboBox<DensityMapNormalization> comboNormalization = new ComboBox<>();
+		private ReadOnlyObjectProperty<DensityMapNormalization> selectedNormalization = comboNormalization.getSelectionModel().selectedItemProperty();
 
 		private ComboBox<ColorMap> comboColorMap = new ComboBox<>();
 		private ObservableValue<ColorMap> colorMap = comboColorMap.getSelectionModel().selectedItemProperty();
@@ -180,7 +188,16 @@ public class DensityMapCommand implements Runnable {
 		private BooleanProperty autoUpdateDisplayRange = new SimpleBooleanProperty(true);
 		
 		// Property that controls whether display options can be adjusted
-		private BooleanBinding displayAdjustable = densityType.isEqualTo(DensityMapType.POSITIVE_DETECTIONS);
+		private BooleanBinding displayAdjustable = selectedNormalization.isEqualTo(DensityMapNormalization.OBJECTS)
+				.and(selectedClass.isNotEqualTo(PathClassFactory.getPathClassUnclassified())
+						.or(densityType.isEqualTo(DensityMapType.POSITIVE_DETECTIONS))
+						);
+				
+//				densityType.isEqualTo(DensityMapType.POSITIVE_DETECTIONS)
+//				.or(
+//						selectedNormalization.isEqualTo(DensityMapNormalization.OBJECTS)
+//						.and(selectedClass.isNotNull())
+//						);
 		
 		/**
 		 * Automatically update the density maps and overlays.
@@ -197,7 +214,10 @@ public class DensityMapCommand implements Runnable {
 			
 			comboType.getItems().setAll(DensityMapType.values());
 			comboType.getSelectionModel().select(DensityMapType.DETECTIONS);
-			
+
+			comboNormalization.getItems().setAll(DensityMapNormalization.values());
+			comboNormalization.getSelectionModel().select(DensityMapNormalization.NONE);
+
 			comboInterpolation.getItems().setAll(ImageInterpolation.values());
 			comboInterpolation.getSelectionModel().select(ImageInterpolation.NEAREST);
 			
@@ -221,7 +241,16 @@ public class DensityMapCommand implements Runnable {
 					+ "Use 'Point annotations' to use annotated points rather than detections.",
 					new Label("Map type"), comboType, comboType);
 			PaneTools.addGridRow(pane, row++, 0, "Select object classifications to include.\n"
-					+ "Use this to filter out detections that should not contribute to the density map.", new Label("Classifications"), comboPrimary, comboPrimary);
+					+ "Use this to filter out detections that should not contribute to the density map.",
+					new Label("Classifications"), comboPrimary, comboPrimary);
+			
+			PaneTools.addGridRow(pane, row++, 0, "Select method of normalizing densities.\n"
+					+ "Choose whether to show raw counts, or normalize densities by area or the number of objects locally.\n"
+					+ "This can be used to distinguish between the total number of objects in an area with a given classification, "
+					+ "and the proportion of objects within the area with that classification.\n"
+					+ "Gaussian weighting gives a smoother result, but it can be harder to interpret.",
+					new Label("Normalize densities"), comboNormalization, comboNormalization);
+			
 			
 			var sliderRadius = new Slider(0, 1000, radius.get());
 			sliderRadius.valueProperty().bindBidirectional(radius);
@@ -238,13 +267,14 @@ public class DensityMapCommand implements Runnable {
 					+ "This is defined in calibrated pixel units (e.g. µm if available).", new Label("Radius"), sliderRadius, tfRadius);
 			
 			
-			var cbGaussianFilter = new CheckBox("Use Gaussian filter");
-			cbGaussianFilter.selectedProperty().bindBidirectional(gaussianFilter);
-			PaneTools.addGridRow(pane, row++, 0, "Use a Gaussian filter to estimate densities (weighted sum rather than local mean).\n"
-					+ "This gives a smoother result, but the output is less intuitive.", 
-					cbGaussianFilter, cbGaussianFilter, cbGaussianFilter);
-			cbGaussianFilter.setPadding(new Insets(0, 0, 10, 0));
+//			var cbGaussianFilter = new CheckBox("Normalize counts");
+//			cbGaussianFilter.selectedProperty().bindBidirectional(gaussianFilter);
+//			PaneTools.addGridRow(pane, row++, 0, "Use a Gaussian filter to estimate densities (weighted sum rather than local mean).\n"
+//					+ "This gives a smoother result, but the output is less intuitive.", 
+//					cbGaussianFilter, cbGaussianFilter, cbGaussianFilter);
+//			cbGaussianFilter.setPadding(new Insets(0, 0, 10, 0));
 			
+						
 			
 			var labelColor = new Label("Customize appearance");
 			labelColor.setStyle("-fx-font-weight: bold;");
@@ -262,10 +292,12 @@ public class DensityMapCommand implements Runnable {
 			
 			PaneTools.addGridRow(pane, row++, 0, "Choose how the density map should be interpolated (this impacts the visual smoothness, especially if the density radius is small)", new Label("Interpolation"), comboInterpolation, comboInterpolation);
 
+			autoUpdateDisplayRange.bind(displayAdjustable.not());
+			
 			var slideMin = new Slider(0, maxDisplay.get(), minDisplay.get());
 			slideMin.valueProperty().bindBidirectional(minDisplay);
 			initializeSliderSnapping(slideMin, 1, 1, 0.1);
-			slideMin.disableProperty().bind(autoUpdateDisplayRange.or(displayAdjustable.not()));
+			slideMin.disableProperty().bind(autoUpdateDisplayRange);
 			var tfMin = new TextField();
 			GuiTools.bindSliderAndTextField(slideMin, tfMin, expandSliderLimits);
 			GuiTools.installRangePrompt(slideMin);
@@ -274,7 +306,7 @@ public class DensityMapCommand implements Runnable {
 			var slideMax = new Slider(0, maxDisplay.get(), maxDisplay.get());
 			slideMax.valueProperty().bindBidirectional(maxDisplay);
 			initializeSliderSnapping(slideMax, 1, 1, 0.1);
-			slideMax.disableProperty().bind(autoUpdateDisplayRange.or(displayAdjustable.not()));
+			slideMax.disableProperty().bind(autoUpdateDisplayRange);
 			var tfMax = new TextField();
 			GuiTools.bindSliderAndTextField(slideMax, tfMax, expandSliderLimits);
 			GuiTools.installRangePrompt(slideMax);
@@ -286,9 +318,9 @@ public class DensityMapCommand implements Runnable {
 			var tfMinCount = new TextField();
 			GuiTools.bindSliderAndTextField(sliderMinCount, tfMinCount, expandSliderLimits, 0);
 			GuiTools.installRangePrompt(sliderMinCount);
-			PaneTools.addGridRow(pane, row++, 0, "Select minimum density of objects required for display in the density map.\n"
+			PaneTools.addGridRow(pane, row++, 0, "Select minimum number of objects required for display in the density map.\n"
 					+ "This is used to avoid isolated detections dominating the map (i.e. lower density regions can be shown as transparent).",
-					new Label("Min density"), sliderMinCount, tfMinCount);
+					new Label("Min object count"), sliderMinCount, tfMinCount);
 
 			var sliderGamma = new Slider(0, 4, gamma.get());
 			sliderGamma.valueProperty().bindBidirectional(gamma);
@@ -335,6 +367,7 @@ public class DensityMapCommand implements Runnable {
 						
 			densityType.addListener((v, o, n) -> requestAutoUpdate(true));
 			selectedClass.addListener((v, o, n) -> requestAutoUpdate(true));
+			selectedNormalization.addListener((v, o, n) -> requestAutoUpdate(true));
 			colorMap.addListener((v, o, n) -> requestAutoUpdate(false));
 			radius.addListener((v, o, n) -> requestAutoUpdate(true));
 			gaussianFilter.addListener((v, o, n) -> requestAutoUpdate(true));
@@ -363,7 +396,8 @@ public class DensityMapCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
 			PaneTools.setToExpandGridPaneWidth(btnHotspots, btnExport, btnContours);
 			
-			PaneTools.setToExpandGridPaneWidth(comboType, comboPrimary, comboColorMap, comboInterpolation, btnAutoUpdate, sliderRadius, sliderGamma, buttonPane);
+			PaneTools.setToExpandGridPaneWidth(comboType, comboPrimary, comboNormalization, comboColorMap, comboInterpolation, 
+					btnAutoUpdate, sliderRadius, sliderGamma, buttonPane);
 			
 			pane.setHgap(5);
 			pane.setVgap(5);
@@ -487,6 +521,7 @@ public class DensityMapCommand implements Runnable {
 		
 		private ParameterList paramsHotspots = new ParameterList()
 				.addIntParameter("nHotspots", "Number of hotspots to find", 1, null, "Specify the number of hotspots to identify; hotspots are peaks in the density map")
+				.addDoubleParameter("minDensity", "Min object count", 1, null, "Specify the minimum density of objects to accept within a hotspot")
 				.addBooleanParameter("allowOverlaps", "Allow overlapping hotspots", false, "Allow hotspots to overlap; if false, peaks are discarded if the hotspot radius overlaps with a 'hotter' hotspot")
 				.addBooleanParameter("deletePrevious", "Delete existing hotspots", true, "Delete existing hotspot annotations with the same classification")
 				;
@@ -502,10 +537,14 @@ public class DensityMapCommand implements Runnable {
 				return;
 			}
 			
+			// Update to the current minimum value
+			((DoubleParameter)paramsHotspots.getParameters().get("minDensity")).setValue(minCount.getValue());
+			
 			if (!Dialogs.showParameterDialog(title, paramsHotspots))
 				return;
 			
 			int n = paramsHotspots.getIntParameterValue("nHotspots");
+			double minDensity = paramsHotspots.getDoubleParameterValue("minDensity");
 			boolean allowOverlapping = paramsHotspots.getBooleanParameterValue("allowOverlaps");
 			boolean deleteExisting = paramsHotspots.getBooleanParameterValue("deletePrevious");
 			
@@ -534,7 +573,7 @@ public class DensityMapCommand implements Runnable {
 
 			
 			try {
-				DensityMaps.findHotspots(hierarchy, densityMap, 0, selected, n, radius.get(), minCount.get(), allowOverlapping, hotspotClass);
+				DensityMaps.findHotspots(hierarchy, densityMap, 0, selected, n, radius.get(), minDensity, allowOverlapping, hotspotClass);
 			} catch (IOException e) {
 				Dialogs.showErrorNotification(title, e);
 			}
@@ -711,45 +750,56 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		private DensityMapBuilder calculateDensityMapBuilder() {
-			var builder = DensityMaps.builder();
+			
+			var mapType = densityType.getValue();
+			var pathClass = comboPrimary.getSelectionModel().getSelectedItem();
+			
+			Predicate<PathObject> allObjectsFilter;
+			Predicate<PathObject> pathClassObjectsFilter;
+			String filterName;
+			if (PathClassTools.isValidClass(pathClass)) {
+				if (pathClass.isDerivedClass())
+					pathClassObjectsFilter = p -> p.getPathClass() == pathClass;
+				else
+					pathClassObjectsFilter = p -> PathClassTools.containsName(p.getPathClass(), pathClass.getName());
+//					pathClassObjectsFilter = p -> p.getPathClass() != null && p.getPathClass().getBaseClass() == pathClass;
+				filterName = pathClass.toString();
+			} else {
+				pathClassObjectsFilter = null;
+				filterName = null;
+			}
+			Predicate<PathObject> primaryObjectsFilter = pathClassObjectsFilter;
+			switch (mapType) {
+			case DETECTIONS:
+				allObjectsFilter = PathObjectFilter.DETECTIONS_ALL;
+				break;
+			case POINT_ANNOTATIONS:
+				allObjectsFilter = PathObjectFilter.ANNOTATIONS.and(PathObjectFilter.ROI_POINT);
+				break;
+			case POSITIVE_DETECTIONS:
+				allObjectsFilter = PathObjectFilter.DETECTIONS_ALL;
+				if (pathClassObjectsFilter != null) {
+					allObjectsFilter = allObjectsFilter.and(pathClassObjectsFilter);
+					filterName = pathClass.toString() + ": Positive";
+				} else {
+					filterName = "Positive";
+				}
+				primaryObjectsFilter = p -> PathClassTools.isPositiveClass(p.getPathClass());
+				break;
+			default:
+				throw new IllegalArgumentException("Unknown density map type " + mapType);
+			}
+			
+			var builder = DensityMaps.builder(allObjectsFilter);
 			
 			if (pixelSize.get() > 0)
 				builder.pixelSize(pixelSize.get());
 			
-			builder.gaussianFilter(gaussianFilter.get());
-			
-			var mapType = densityType.getValue();
-			var pathClass = comboPrimary.getSelectionModel().getSelectedItem();
-			if (PathClassTools.isValidClass(pathClass)) {
-				switch (mapType) {
-				case DETECTIONS:
-					builder.density(pathClass, !pathClass.isDerivedClass());
-					break;
-				case POINT_ANNOTATIONS:
-					builder.pointAnnotations(pathClass, !pathClass.isDerivedClass());
-					break;
-				case POSITIVE_DETECTIONS:
-					builder.positiveDetections(pathClass);
-					break;
-				default:
-					throw new IllegalArgumentException("Unknown density map type " + mapType);
-				}
-			} else {
-				switch (mapType) {
-				case DETECTIONS:
-					builder.density(PathObjectFilter.DETECTIONS_ALL);
-					break;
-				case POINT_ANNOTATIONS:
-					builder.density(PathObjectFilter.ANNOTATIONS.and(PathObjectFilter.ROI_POINT));
-					break;
-				case POSITIVE_DETECTIONS:
-					builder.positiveDetections();
-					break;
-				default:
-					throw new IllegalArgumentException("Unknown density map type " + mapType);
-				}
-			}
-//			builder.pixelSize(10);
+			var normalization = selectedNormalization.getValue();
+			builder.normalization(normalization);
+
+			if (primaryObjectsFilter != null)
+				builder.addDensities(filterName, primaryObjectsFilter);
 			
 			builder.radius(radius.get());
 			return builder;
@@ -769,9 +819,9 @@ public class DensityMapCommand implements Runnable {
 			if (img == null)
 				return null;
 			
-			var min = minDisplay.get();
-			var max = maxDisplay.get();
-			var minCount = this.minCount.get();
+			double min = minDisplay.get();
+			double max = maxDisplay.get();
+			double minCount = this.minCount.get();
 
 			// If the last channel is 'counts', then it is used for normalization
 			int alphaCountBand = -1;
@@ -798,14 +848,14 @@ public class DensityMapCommand implements Runnable {
 				// TODO: Check whether or not to always drop the count band
 				min = 0;//minMaxList.stream().filter(m -> m != alphaCountMinMax).mapToDouble(m -> m.minValue).min().orElse(Double.NaN);
 				max = minMaxList.stream().filter(m -> m != alphaCountMinMax).mapToDouble(m -> m.maxValue).max().orElse(Double.NaN);
-				if (Double.isFinite(min) && Double.isFinite(max)) {
-					double min2 = min;
-					double max2 = max;
-					Platform.runLater(() -> {
-						minDisplay.set(min2);
-						maxDisplay.set(max2);
-					});
-				}
+//				if (Double.isFinite(min) && Double.isFinite(max)) {
+//					double min2 = min;
+//					double max2 = max;
+//					Platform.runLater(() -> {
+//						minDisplay.set(min2);
+//						maxDisplay.set(max2);
+//					});
+//				}
 			}
 			
 			var g = gamma.get();

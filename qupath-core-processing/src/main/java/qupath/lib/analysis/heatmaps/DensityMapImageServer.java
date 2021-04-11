@@ -45,6 +45,7 @@ import org.bytedeco.opencv.opencv_core.Scalar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapNormalization;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -85,7 +86,10 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 	// This is the radius of the filter actually used, at the resolution where it is computed
 	private double downsampledRadiusPixels;
 	
-	private boolean gaussianFilter;
+	// Downsampled pixel area; this is calculated during construction and not impacted by later pixel size changes
+	private double downsampledPixelArea;
+	
+	private DensityMapNormalization normalization;
 	private ColorModel colorModel;
 	
 	
@@ -108,8 +112,8 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 			double pixelSize,
 			double radius,
 			Map<String, Predicate<PathObject>> primaryObjects,
-			Predicate<PathObject> denominatorObjects,
-			boolean gaussianFilter,
+			Predicate<PathObject> allObjects,
+			DensityMapNormalization normalization,
 			ColorModel colorModel
 			) {
 		
@@ -139,31 +143,34 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		List<PointsWithPlane> primaryPoints = new ArrayList<>();
 		PointsWithPlane allPoints = null;
 		
-		// Get points representing all the centroids of all the relevant objects we need for densities
+		// Get all the objects we can consider
+		var allPathObjects = flattenedObjects
+				.stream()
+				.filter(p -> p.hasROI())
+				.filter(allObjects)
+				.collect(Collectors.toList());
+		
+		// Get points representing the centroids of all objects we can access
+		var allROIs = allPathObjects
+				.stream()
+				.map(p -> PathObjectTools.getROI(p, true))
+				.collect(Collectors.toList());
+		allPoints = new PointsWithPlane("Counts", objectsToPoints(allROIs));
+
+		// Get points representing all the centroids of each subpopulation of object
 		for (var entry : primaryObjects.entrySet()) {
 			var predicate = entry.getValue();
-			var primaryROIs = flattenedObjects
+			var primaryROIs = allPathObjects
 					.stream()
-					.filter(p -> p.hasROI())
 					.filter(predicate)
 					.map(p -> PathObjectTools.getROI(p, true))
 					.collect(Collectors.toList());
 			primaryPoints.add(new PointsWithPlane(entry.getKey(), objectsToPoints(primaryROIs)));
 		}
-		
-		if (denominatorObjects != null) {
-			var allROIs = flattenedObjects
-					.stream()
-					.filter(p -> p.hasROI())
-					.filter(denominatorObjects)
-					.map(p -> PathObjectTools.getROI(p, true))
-					.collect(Collectors.toList());
-			allPoints = new PointsWithPlane("Counts", objectsToPoints(allROIs));
-		}
-					
+							
 		var server = imageData.getServer();
 		
-		return new DensityMapImageServer(server, pixelSize, radius, primaryPoints, allPoints, gaussianFilter, colorModel);
+		return new DensityMapImageServer(server, pixelSize, radius, primaryPoints, allPoints, normalization, colorModel);
 	}
 	
 	
@@ -185,17 +192,18 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 			double radius,
 			List<PointsWithPlane> primaryPoints,
 			PointsWithPlane denominatorPoints,
-			boolean gaussianFilter,
+			DensityMapNormalization normalization,
 			ColorModel colorModel) {
 		super();
 
 		this.colorModel = colorModel;
-		this.gaussianFilter = gaussianFilter;
+		this.normalization = normalization;
 		
 		this.primaryPoints = primaryPoints;
 		this.denominatorPoints = denominatorPoints;
 		
-		double downsample = pixelSize / server.getPixelCalibration().getAveragedPixelSize().doubleValue();
+		var cal = server.getPixelCalibration();
+		double downsample = pixelSize / cal.getAveragedPixelSize().doubleValue();
 		var levels = new ImageResolutionLevel.Builder(server.getWidth(), server.getHeight())
 			.addLevelByDownsample(downsample)
 			.build();
@@ -203,16 +211,25 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 //		System.err.println(downsample);
 		downsampledRadiusPixels = radius / pixelSize;
 		
+		downsampledPixelArea = cal.getPixelWidth().doubleValue() * downsample
+				* cal.getPixelHeight().doubleValue() * downsample;
+		
 		int maxTileSize = 4096;
 		int tileWidth = Math.min(maxTileSize, levels.get(0).getWidth());
 		int tileHeight = Math.min(maxTileSize, levels.get(0).getHeight());
 		
-		List<ImageChannel> channels;
-		if (denominatorPoints == null) {
-			channels = ImageChannel.getChannelList("Density counts");
-		} else {
-			channels = ImageChannel.getChannelList("Density", "Counts");
-		}
+		List<String> channelNames = new ArrayList<>();
+		for (var p : primaryPoints)
+			channelNames.add(p.name);
+		channelNames.add("Counts");
+		
+		List<ImageChannel> channels = ImageChannel.getChannelList(channelNames.toArray(String[]::new));
+		
+//		if (denominatorPoints == null) {
+//			channels = ImageChannel.getChannelList("Density counts");
+//		} else {
+//			channels = ImageChannel.getChannelList("Density", "Counts");
+//		}
 //			System.err.println(tileWidth + " x " + tileHeight);
 		// Set metadata, using the underlying server as a basis
 		this.originalMetadata = new ImageServerMetadata.Builder(server.getOriginalMetadata())
@@ -238,11 +255,11 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 	}
 	
 	/**
-	 * Query if a Gaussian filter is used for density calculations.
-	 * @return true if a Gaussian filter is used, false if a disk (mean) filter is used.
+	 * Query the normalization strategy for the density map.
+	 * @return
 	 */
-	public boolean useGaussianFilter() {
-		return gaussianFilter;
+	public DensityMapNormalization getNormalization() {
+		return normalization;
 	}
 	
 	
@@ -304,12 +321,10 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 	
 	private Mat buildDensityMap(RegionRequest request) {
 		
-		int nChannels = primaryPoints.size();
+		int nChannels = primaryPoints.size() + 1;
 		int channelNormalize = -1;
-		if (denominatorPoints != null) {
-			nChannels += 1;
-			channelNormalize = nChannels-1;
-		}
+		if (normalization == DensityMapNormalization.OBJECTS)
+			channelNormalize = nChannels - 1;
 
 		
 		var plane = request.getPlane();
@@ -323,7 +338,7 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 			requestPadding = 0;
 		} else {
 			requestPadding = (int)Math.ceil(downsampledRadiusPixels * downsample); 
-			if (gaussianFilter)
+			if (normalization == DensityMapNormalization.GAUSSIAN)
 				requestPadding *= 3;
 		}
 		var requestPadded = request.pad2D(requestPadding, requestPadding);
@@ -359,34 +374,18 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		
 		// Filter points to densities
 		int kernelRadius = (int)Math.round(downsampledRadiusPixels);
-		if (downsampledRadiusPixels > 0 && gaussianFilter) {
-			double gaussianSigma = downsampledRadiusPixels;// / 2.0;
-			int kSize = (int)Math.ceil(gaussianSigma * 4) * 2 + 1;
-			var kernel = opencv_imgproc.getGaussianKernel(kSize, gaussianSigma);
-			double maxVal = SimpleProcessing.findMinAndMax(OpenCVTools.extractPixels(kernel, null)).maxVal;
-			opencv_core.dividePut(kernel, maxVal);
-			opencv_imgproc.sepFilter2D(mat, mat, -1, kernel, kernel);
-			kernel.close();
-//			opencv_imgproc.GaussianBlur(mat, mat, new Size(kSize, kSize), downsampledRadiusPixels);
-		} else if (kernelRadius > 0) {
-			var kernelCenter = new Mat(kernelRadius*2+1, kernelRadius*2+1, opencv_core.CV_8UC1, Scalar.WHITE);
-			try (UByteIndexer idxKernel = kernelCenter.createIndexer()) {
-				idxKernel.put(kernelRadius, kernelRadius, 0);
-			}
-			var kernel = new Mat();
-			opencv_imgproc.distanceTransform(kernelCenter, kernel, opencv_imgproc.DIST_L2, opencv_imgproc.DIST_MASK_PRECISE);
-			opencv_imgproc.threshold(kernel, kernel, kernelRadius, 1, opencv_imgproc.THRESH_BINARY_INV);
-			
-			// This seems to give weird shapes sometimes
-//			var kernelCircle = new Mat(kernelRadius*2+1, kernelRadius*2+1, opencv_core.CV_32FC1, Scalar.ZERO);
-//			opencv_imgproc.circle(kernelCircle, new Point(kernelRadius, kernelRadius), kernelRadius, Scalar.ONE, opencv_imgproc.FILLED, opencv_imgproc.FILLED, 0);
-			
-			// TODO: Note that I'm assuming the constant is 0... but can this be confirmed?!
-//			opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_REPLICATE);
-			opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_CONSTANT);
-//			OpenCVTools.matToImagePlus("Kernel " + kernelRadius, kernel, kernelCircle).show();
-			kernel.close();
-			kernelCenter.close();
+		switch (normalization) {
+//		case AREA:
+//			diskFilter(mat, kernelRadius, true);
+//			break;
+		case GAUSSIAN:
+			gaussianFilter(mat, downsampledRadiusPixels);
+			break;
+		case OBJECTS:
+		case NONE:
+		default:
+			diskFilter(mat, kernelRadius, false);
+			break;
 		}
 		
 		// Compute ratios (if required) & apply rounding
@@ -394,7 +393,8 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		// (probably connected to FFT?) - and int filtering won't necessarily work for all kernel sizes
 		int nPrimaryChannels = primaryPoints.size();
 		float normalize = 1.0f;
-		boolean roundValues = !gaussianFilter;
+//		boolean roundValues = normalization != DensityMapNormalization.AREA && normalization != DensityMapNormalization.GAUSSIAN;
+		boolean roundValues = normalization != DensityMapNormalization.GAUSSIAN;
 		try (FloatIndexer idx = mat.createIndexer()) {
 			for (int y = 0; y < height; y++) {
 				for (int x = 0; x < width; x++) {
@@ -431,6 +431,51 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		}
 				
 		return mat;
+	}
+	
+	
+	private void gaussianFilter(Mat mat, double gaussianSigma) {
+		int kSize = (int)Math.ceil(gaussianSigma * 4) * 2 + 1;
+		var kernel = opencv_imgproc.getGaussianKernel(kSize, gaussianSigma);
+		double maxVal = SimpleProcessing.findMinAndMax(OpenCVTools.extractPixels(kernel, null)).maxVal;
+		opencv_core.dividePut(kernel, maxVal);
+		opencv_imgproc.sepFilter2D(mat, mat, -1, kernel, kernel);
+		kernel.close();
+	}
+	
+	private void diskFilter(Mat mat, int radius, boolean doMean) {
+		if (radius <= 0)
+			return;
+		var kernelCenter = new Mat(radius*2+1, radius*2+1, opencv_core.CV_8UC1, Scalar.WHITE);
+		try (UByteIndexer idxKernel = kernelCenter.createIndexer()) {
+			idxKernel.put(radius, radius, 0);
+		}
+		var kernel = new Mat();
+		opencv_imgproc.distanceTransform(kernelCenter, kernel, opencv_imgproc.DIST_L2, opencv_imgproc.DIST_MASK_PRECISE);
+		opencv_imgproc.threshold(kernel, kernel, radius, 1, opencv_imgproc.THRESH_BINARY_INV);
+		if (doMean) {
+			// Count nonzero pixels
+			double sum = opencv_core.sumElems(kernel).get();
+			// Normalize using the area of a pixel
+//			sum *= downsampledPixelArea;
+			
+//			System.err.println(sum.get());
+			opencv_core.dividePut(kernel, sum);
+//			var newSum = opencv_core.sumElems(kernel);
+//			System.err.println("New sum: " + newSum);
+		}
+		
+		// This seems to give weird shapes sometimes
+//		var kernelCircle = new Mat(kernelRadius*2+1, kernelRadius*2+1, opencv_core.CV_32FC1, Scalar.ZERO);
+//		opencv_imgproc.circle(kernelCircle, new Point(kernelRadius, kernelRadius), kernelRadius, Scalar.ONE, opencv_imgproc.FILLED, opencv_imgproc.FILLED, 0);
+		
+		// TODO: Note that I'm assuming the constant is 0... but can this be confirmed?!
+//		opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_REPLICATE);
+		opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_CONSTANT);
+//		OpenCVTools.matToImagePlus("Kernel " + kernelRadius, kernel, kernelCircle).show();
+		kernel.close();
+		kernelCenter.close();
+		
 	}
 	
 	
