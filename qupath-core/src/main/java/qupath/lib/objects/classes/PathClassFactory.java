@@ -40,7 +40,12 @@ import qupath.lib.common.ColorTools;
  * @author Pete Bankhead
  *
  */
-public class PathClassFactory {
+public final class PathClassFactory {
+	
+	// Suppressed default constructor for non-instantiability
+	private PathClassFactory() {
+		throw new AssertionError();
+	}
 	
 	/**
 	 * Enum representing standard classifications. Exists mostly to ensure consisting naming (including capitalization).
@@ -148,13 +153,14 @@ public class PathClassFactory {
 	 * @param name
 	 */
 	private static void validateName(String name) {
-		if (name.contains(":") || name.contains("\n"))
-			throw new IllegalArgumentException("PathClass names cannot contain new line or colon (:) characters!");
+		if (name.contains("\n"))
+			throw new IllegalArgumentException("PathClass names cannot contain new line characters!");
 	}
 	
 	/**
-	 * Get the PathClass object associated with a specific name.  Note that this name must not contain newline or 
-	 * colon characters; doing so will result in an IllegalArgumentException being thrown.
+	 * Get the PathClass object associated with a specific name. Note that this name must not contain newline; 
+	 * doing so will result in an {@link IllegalArgumentException} being thrown. If the name contains colon characters, 
+	 * it will be treated as a derived class.
 	 * 
 	 * @param name
 	 * @param rgb
