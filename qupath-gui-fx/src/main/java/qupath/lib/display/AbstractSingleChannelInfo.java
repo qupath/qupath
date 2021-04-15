@@ -77,7 +77,7 @@ abstract class AbstractSingleChannelInfo extends AbstractChannelInfo implements 
 
 	private int updateRGBAdditive(float value, int rgb, boolean useColorLUT) {
 		// Don't do anything with an existing pixel if display range is 0, or it is lower than the min display
-		if (maxDisplay == minDisplay || value <= minDisplay)
+		if (maxDisplay == minDisplay)// || value <= minDisplay)
 			return rgb;
 		// Just return the (scaled) RGB value for this pixel if we don't have to update anything
 		int rgbNew = getRGB(value, useColorLUT);
@@ -85,7 +85,7 @@ abstract class AbstractSingleChannelInfo extends AbstractChannelInfo implements 
 			return rgbNew;
 		if (rgbNew == 0)
 			return rgb;
-
+		
 		int r2 = ((rgbNew & ColorTools.MASK_RED) >> 16) + ((rgb & ColorTools.MASK_RED) >> 16);
 		int g2 = ((rgbNew & ColorTools.MASK_GREEN) >> 8) + ((rgb & ColorTools.MASK_GREEN) >> 8);
 		int b2 = (rgbNew & ColorTools.MASK_BLUE) + (rgb & ColorTools.MASK_BLUE);
