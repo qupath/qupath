@@ -207,7 +207,6 @@ public class OmeroWebClient {
 //	        try {
 //				System.err.println(client.send(request, BodyHandlers.ofString()).body());
 //			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
 //				e.printStackTrace();
 //			}
 
@@ -238,20 +237,21 @@ public class OmeroWebClient {
 	 * <p>
 	 * N.B. being logged on the server doesn't necessarily mean that the user has 
 	 * permission to access all the objects on the server.
-	 * 
+	 * @param uri
+	 * @param type
 	 * @return success
+	 * @throws IllegalArgumentException
 	 * @throws ConnectException 
 	 */
-	boolean canBeAccessed(URI uri, OmeroObjectType type) throws IllegalArgumentException, ConnectException {
+	static boolean canBeAccessed(URI uri, OmeroObjectType type) throws IllegalArgumentException, ConnectException {
 		try {
 			logger.debug("Attempting to access {}...", type.toString().toLowerCase());
 			int id = OmeroTools.parseOmeroObjectId(uri, type);
 			if (id == -1)
 				throw new NullPointerException("No object ID found in: " + uri);
-			
-			String query;
-			
+						
 			// Implementing this as a switch because of future plates/wells/.. implementations
+			String query;
 			switch (type) {
 			case PROJECT:
 			case DATASET:
@@ -322,10 +322,12 @@ public class OmeroWebClient {
 	 * @see #getURIs()
 	 */
 	void addURI(URI uri) {
-		if (!uris.contains(uri))
-			Platform.runLater(() -> uris.add(uri));
-		else
-			logger.debug("URI already exists in the list. Ignoring operation.");
+		Platform.runLater(() -> {
+			if (!uris.contains(uri))
+				uris.add(uri);
+			else
+				logger.debug("URI already exists in the list. Ignoring operation.");
+		});
 	}
 	
 	/**
@@ -499,12 +501,12 @@ public class OmeroWebClient {
 		}
 	}
 
-	private <T> T parseJSON(Class<T> cls, String base, String... query) throws JsonSyntaxException, MalformedURLException, IOException {
+	private static <T> T parseJSON(Class<T> cls, String base, String... query) throws JsonSyntaxException, MalformedURLException, IOException {
 		return GsonTools.getInstance().fromJson(getJSONString(base, query), cls);
 	}
 
 	@SuppressWarnings("unchecked")
-	private <T> T parseJSON(Type type, String base, String... query) throws JsonSyntaxException, MalformedURLException, IOException {
+	private static <T> T parseJSON(Type type, String base, String... query) throws JsonSyntaxException, MalformedURLException, IOException {
 		return (T) GsonTools.getInstance().fromJson(getJSONString(base, query), type);
 	}
 	

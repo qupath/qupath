@@ -47,6 +47,7 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +98,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -345,8 +347,12 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		tree.setOnMouseClicked(e -> {
 	        if (e.getClickCount() == 2) {
 	        	var selectedItem = tree.getSelectionModel().getSelectedItem();
-	        	if (selectedItem != null && selectedItem.getValue().getType() == OmeroObjectType.IMAGE && isSupported(selectedItem.getValue()))
-	        		ProjectCommands.promptToImportImages(qupath, createObjectURI(selectedItem.getValue()));
+	        	if (selectedItem != null && selectedItem.getValue().getType() == OmeroObjectType.IMAGE && isSupported(selectedItem.getValue())) {
+	        		if (qupath.getProject() == null)
+	        			qupath.openImage(createObjectURI(selectedItem.getValue()), true, true);
+	        		else
+	        			ProjectCommands.promptToImportImages(qupath, createObjectURI(selectedItem.getValue()));
+	        	}
 	        }
 	    });
 		
@@ -417,7 +423,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			
 			try {
 				var tempImageURI = server.getURIs().iterator().next();
-				if (OmeroTools.getServerURI(tempImageURI).equals(serverURI) && client.canBeAccessed(tempImageURI, OmeroObjectType.IMAGE)) {
+				if (OmeroTools.getServerURI(tempImageURI).equals(serverURI) && OmeroWebClient.canBeAccessed(tempImageURI, OmeroObjectType.IMAGE)) {
 					try {
 						JsonObject mapImageInfo = OmeroRequests.requestObjectInfo(serverURI.getScheme(), serverURI.getHost(), Integer.parseInt(server.getId()), OmeroObjectType.IMAGE);
 						
@@ -572,22 +578,31 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 		importBtn.setOnMouseClicked(e -> {
 			var selected = tree.getSelectionModel().getSelectedItems();
 			var validUris = selected.parallelStream()
-					.flatMap(uri -> {
-						if (uri.getValue().getType() == OmeroObjectType.PROJECT) {
-							var temp = getChildren(uri.getValue());
+					.flatMap(item -> {
+						OmeroObject uri = item.getValue();
+						if (uri.getType() == OmeroObjectType.PROJECT) {
+							var temp = getChildren(uri);
 							List<OmeroObject> out = new ArrayList<>();
 							for (var subTemp: temp) {
 								out.addAll(getChildren(subTemp));
 							}
 							return out.parallelStream();
-						} else
-							return getChildren(uri.getValue()).parallelStream();
+						} else if (uri.getType() == OmeroObjectType.DATASET)
+							return getChildren(uri).parallelStream();
+						return Stream.of(uri);
 					})
 					.filter(obj -> isSupported(obj))
 					.map(obj -> createObjectURI(obj))
 					.toArray(String[]::new);
 			if (validUris.length == 0) {
 				Dialogs.showErrorMessage("No images", "No valid images found in selected item" + (selected.size() > 1 ? "s" : "") + "!");
+				return;
+			}
+			if (qupath.getProject() == null) {
+				if (validUris.length == 1)
+					qupath.openImage(validUris[0], true, true);
+				else
+					Dialogs.showErrorMessage("Open OMERO images", "If you want to handle multiple images, you need to create a project first."); // Same as D&D for images
 				return;
 			}
 			ProjectCommands.promptToImportImages(qupath, validUris);
@@ -675,10 +690,10 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			return serverChildrenList;
 		else if (omeroObj.getType() == OmeroObjectType.ORPHANED_FOLDER && orphanedImageList.size() > 0)
 			return orphanedImageList;
-		else if (omeroObj.getType() == OmeroObjectType.PROJECT && projectMap.containsKey((Project)omeroObj))
-			return projectMap.get((Project)omeroObj);
-		else if (omeroObj.getType() == OmeroObjectType.DATASET && datasetMap.containsKey((Dataset)omeroObj))
-			return datasetMap.get((Dataset)omeroObj);
+		else if (omeroObj.getType() == OmeroObjectType.PROJECT && projectMap.containsKey(omeroObj))
+			return projectMap.get(omeroObj);
+		else if (omeroObj.getType() == OmeroObjectType.DATASET && datasetMap.containsKey(omeroObj))
+			return datasetMap.get(omeroObj);
 		else if (omeroObj.getType() == OmeroObjectType.IMAGE)
 			return new ArrayList<OmeroObject>();
 		
@@ -770,17 +785,15 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 				);
 	}
 	
-	private List<OmeroObject> filterList(List<OmeroObject> list, Group group, Owner owner, String filter) {
+	private static List<OmeroObject> filterList(List<OmeroObject> list, Group group, Owner owner, String filter) {
 		return list.stream()
 			.filter(e -> {
-				var currentGroup = comboGroup.getSelectionModel().getSelectedItem();
-				if (currentGroup == null) return true;
-				return currentGroup == Group.getAllGroupsGroup() ? true : e.getGroup().equals(currentGroup);
+				if (group == null) return true;
+				return group == Group.getAllGroupsGroup() ? true : e.getGroup().equals(group);
 			})
 			.filter(e -> {
-				var currentOwner = comboOwner.getSelectionModel().getSelectedItem();
-				if (currentOwner == null) return true;
-				return currentOwner == Owner.getAllMembersOwner() ? true : e.getOwner().equals(currentOwner);
+				if (owner == null) return true;
+				return owner == Owner.getAllMembersOwner() ? true : e.getOwner().equals(owner);
 			})
 			.filter(e -> matchesSearch(e, filter))
 			.collect(Collectors.toList());
@@ -809,7 +822,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	private static ObservableValue<String> getObjectInfo(Integer index, OmeroObject omeroObject) {
 		if (omeroObject == null)
 			return new ReadOnlyObjectWrapper<String>();
-		String[] outString = null;
+		String[] outString = new String[0];
 		String name = omeroObject.getName();
 		String id = omeroObject.getId() + "";
 		String owner = omeroObject.getOwner() == null ? null : omeroObject.getOwner().getName();
@@ -913,10 +926,21 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	 * @return isSupported
 	 */
 	private static boolean isSupported(OmeroObject omeroObj) {
-		if (omeroObj == null || !omeroObj.getType().equals(OmeroObjectType.IMAGE))
+		if (omeroObj == null || omeroObj.getType() != OmeroObjectType.IMAGE)
 			return true;
-		return ((Image)omeroObj).getPixelType().equals("uint8") && 
-				Integer.parseInt(getObjectInfo(7, omeroObj).getValue()) == 3;
+		return isUint8((Image)omeroObj) && has3Channels((Image)omeroObj);
+	}
+	
+	private static boolean isUint8(Image image) {
+		if (image == null)
+			return false;
+		return image.getPixelType().equals("uint8");
+	}
+	
+	private static boolean has3Channels(Image image) {
+		if (image == null)
+			return false;
+		return Integer.parseInt(getObjectInfo(7, image).getValue()) == 3;
 	}
 	
 	/**
@@ -998,9 +1022,31 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
         		setGraphic(label);
         		return;
         	} else if (item.getType() == OmeroObjectType.IMAGE) {
-            	name = item.getName();
-            	if (!isSupported(item))
+        		name = item.getName();
+        		GridPane gp = new GridPane();
+            	gp.addRow(0, tooltipCanvas, new Label(name));
+            	if (!isSupported(item)) {
             		setOpacity(0.5);
+            		Label notSupportedLabel = new Label("Image not supported:");
+            		notSupportedLabel.setStyle("-fx-text-fill: red;");
+            		
+            		// Clarify to the user WHY it's not supported
+            		Label uint8 = new Label();
+            		if (isUint8((Image)item)) {
+            			uint8.setText("- uint8 " + Character.toString((char)10003));
+            		} else {
+            			uint8.setText("- uint8 " + Character.toString((char)10007));
+            			uint8.setStyle("-fx-text-fill: red;");
+            		}
+            		Label has3Channels = new Label();
+            		if (has3Channels((Image)item)) {
+            			has3Channels.setText("- 3 channels " + Character.toString((char)10003));
+            		} else {
+            			has3Channels.setText("- 3 channels " + Character.toString((char)10007));
+            			has3Channels.setStyle("-fx-text-fill: red;");
+            		}
+            		gp.addRow(1, notSupportedLabel, new HBox(uint8, has3Channels));
+            	}
             	
             	tooltip.setOnShowing(e -> {
             		// Image tooltip shows the thumbnail (could show icon for other items, but icon is very low quality)
@@ -1017,6 +1063,9 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
             			});							
             		}
             	});
+            	setText(name);
+            	setTooltip(tooltip);
+            	tooltip.setGraphic(gp);
             } else {
             	name = item.getName();
             	if (!isSupported(item))
@@ -1029,8 +1078,10 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
     			setGraphic(iconCanvas);
     		}
         	
-        	tooltip.setText(name);
-        	tooltip.setGraphic(tooltipCanvas);
+        	if (item.getType() != OmeroObjectType.IMAGE) {
+        		tooltip.setText(name);
+        		tooltip.setGraphic(tooltipCanvas);        		
+        	}
         	setTooltip(tooltip);
         	setText(name);
         }
@@ -1250,7 +1301,10 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			TitledPane tp = new TitledPane();
 			tp.setText(title);
 			
-			if (omeroAnnotations.getAnnotations().isEmpty())
+			if (omeroAnnotations == null || 
+				omeroAnnotations.getAnnotations() == null || 
+				omeroAnnotations.getAnnotations().isEmpty() ||
+				omeroAnnotations.getType() == null)
 				return tp;
 
 			ScrollPane sp = new ScrollPane();
@@ -1262,11 +1316,6 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 			sp.setMinHeight(50.0);
 			sp.setMinWidth(50.0);
 			sp.setPadding(new Insets(5.0, 5.0, 5.0, 5.0));
-			
-			if (omeroAnnotations == null || 
-					omeroAnnotations.getAnnotations() == null ||
-					omeroAnnotations.getType() == null)
-				return gp;
 			
 			var anns = omeroAnnotations.getAnnotations();
 			String tooltip;

@@ -276,7 +276,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		if (Double.isFinite(zSpacingMicrons) && zSpacingMicrons > 0)
 			builder.zSpacingMicrons(zSpacingMicrons);
 
-		if (tileSize != null && tileSize.length >= 2) {
+		if (tileSize.length >= 2) {
 			builder.preferredTileSize(tileSize[0], tileSize[1]);
 		}
 
@@ -352,8 +352,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		String urlFile;
 
 		if (nResolutions() > 1) {
-			int x = (int)(request.getTileX() / getPreferredTileWidth());
-			int y = (int)(request.getTileY() / getPreferredTileHeight());
+			int x = request.getTileX() / getPreferredTileWidth();
+			int y = request.getTileY() / getPreferredTileHeight();
 
 			// Note!  It's important to use the preferred tile size so that the correct x & y can be used
 			//			int width = request.getTileWidth();

@@ -44,9 +44,7 @@ import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 
 /**
- * 
  * Extension to access images hosted on OMERO.
- * 
  */
 public class OmeroExtension implements QuPathExtension {
 	
@@ -61,9 +59,9 @@ public class OmeroExtension implements QuPathExtension {
 		var actionSendObjects = ActionTools.createAction(new OmeroWritePathObjectsCommand(qupath), "Send annotations to OMERO");
 		Menu browseServerMenu = new Menu("Browse server...");
 		
-		actionClients.disabledProperty().bind(qupath.projectProperty().isNull());
+//		actionClients.disabledProperty().bind(qupath.projectProperty().isNull());
+//		browseServerMenu.disableProperty().bind(qupath.projectProperty().isNull());
 		actionSendObjects.disabledProperty().bind(qupath.imageDataProperty().isNull());
-		browseServerMenu.disableProperty().bind(qupath.projectProperty().isNull());
 		
 		MenuTools.addMenuItems(qupath.getMenu("Extensions", false), 
 				MenuTools.createMenu("OMERO", 
@@ -86,7 +84,7 @@ public class OmeroExtension implements QuPathExtension {
 		return "Adds the ability to browse OMERO servers and open images hosted on OMERO servers.";
 	}
 	
-	private Menu createServerListMenu(QuPathGUI qupath, Menu browseServerMenu) {
+	private static Menu createServerListMenu(QuPathGUI qupath, Menu browseServerMenu) {
 		EventHandler<Event> validationHandler = e -> {
 			browseServerMenu.getItems().clear();
 			
@@ -172,7 +170,7 @@ public class OmeroExtension implements QuPathExtension {
 	}
 	
 	/**
-	 * Return map of currently opened browsers
+	 * Return map of currently opened browsers.
 	 * 
 	 * @return browsers
 	 */
