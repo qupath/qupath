@@ -1,3 +1,26 @@
+/*-
+ * #%L
+ * This file is part of QuPath.
+ * %%
+ * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
+ * Contact: IP Management (ipmanagement@qub.ac.uk)
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * %%
+ * QuPath is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * QuPath is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License 
+ * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
+ * #L%
+ */
+
 package qupath.lib.gui.viewer.recording;
 
 import java.awt.Rectangle;
@@ -25,7 +48,7 @@ import qupath.lib.regions.ImageRegion;
 // TODO: What if the downsample is not rounded? (e.g. dwnsmple=1.5, then img will be rounded, and ImageRegion will be rounded again?)
 class ViewTrackerDataOverlay {
 	
-	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerDataOverlay.class);
+	private final static Logger logger = LoggerFactory.getLogger(ViewTrackerDataOverlay.class);
 	
 	private ViewTracker tracker;
 	private QuPathViewer viewer;
@@ -50,7 +73,6 @@ class ViewTrackerDataOverlay {
 		this.imgWidth = server.getWidth();
 		this.imgHeight = server.getHeight();
 		this.regions = new HashMap<>();
-		
 		
 		// Set width and height of img
 		double[] preferredDownsamples = server.getPreferredDownsamples();
@@ -95,6 +117,7 @@ class ViewTrackerDataOverlay {
 				regions.put(region, img);
 			}
 		}
+		//TODO: remove next line
 		logger.info("Processing time for getImageRegions(): " + (System.currentTimeMillis()-startTime));
 		return regions;
 	}
@@ -116,7 +139,6 @@ class ViewTrackerDataOverlay {
 		if (relevantFrames.length <= 1)
 			return img;
 		
-
 		// Get max time (for normalization)
 		double maxValue;
 		if (timeNormalized) {
@@ -217,7 +239,7 @@ class ViewTrackerDataOverlay {
 	}
 	
 	/**
-	 * Scales the coordinates of the given rectangle according to the 
+	 * Scale the coordinates of the given rectangle according to the 
 	 * {@code img}'s {@code downsample}.
 	 * @param bounds
 	 * @return
@@ -231,7 +253,7 @@ class ViewTrackerDataOverlay {
 	}
 	
 	/**
-	 * Ensures that the coordinates of the given rectangle are within the
+	 * Ensure that the coordinates of the given rectangle are within the
 	 * bounds of {@code img}.
 	 * <p>
 	 * Note: bounds.x is used instead of bounds.getX() to avoid type casting.
@@ -246,7 +268,7 @@ class ViewTrackerDataOverlay {
 		return new Rectangle(x, y, width, height);
 	}
 	
-	private IndexColorModel createColorModel() {
+	private static IndexColorModel createColorModel() {
 	    var mapper = MeasurementMapper.loadColorMappers().get(0);
 	    int[] rgba = new int[256];
 	    for (int i = 0; i < 256; i++) {

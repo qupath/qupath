@@ -94,7 +94,6 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.GridLines;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.recording.ViewTracker;
 import qupath.lib.gui.viewer.recording.ViewTrackerControlPane;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -984,49 +983,7 @@ public class Commands {
 	 * @param qupath
 	 */
 	public static void showViewTracker(QuPathGUI qupath) {
-		var dialog = new Stage();
-		dialog.sizeToScene();
-		dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Tracking");
-		final ViewTrackerControlPane controller = new ViewTrackerControlPane(qupath);
-		StackPane pane = new StackPane(controller.getNode());
-		dialog.setScene(new Scene(pane));
-
-		// Necessary for window resizing when expanding the TitledPane
-		controller.getTitledPane().heightProperty().addListener((v, o, n) -> dialog.sizeToScene());
-		
-		dialog.setResizable(false);
-//		dialog.setAlwaysOnTop(true);
-		
-		// When user requests closing, make sure no data is lost
-		dialog.setOnCloseRequest(e -> {
-			// If currently recording
-			if (controller.recordingMode().get()) {
-				var response = Dialogs.showYesNoDialog("Shut down recording", "The current recording will be stopped." + System.lineSeparator() + "Continue?");
-				if (!response) {
-					e.consume();
-					return;
-				}
-			}
-			
-			// If some recordings are not saved
-			List<ViewTracker> unsaved = controller.getViewTrackerList().stream().filter(tracker -> tracker.getFile() == null).collect(Collectors.toList());
-			if (unsaved.isEmpty()) {
-				return;
-			}
-			var response = Dialogs.showYesNoDialog("Save recordings", "You will lose your unsaved recordings." + System.lineSeparator() + "Continue?");
-			if (!response)
-				e.consume();
-		});
-		
-		// Stop recording and remove listeners
-		dialog.setOnHidden(e -> {
-			if (controller != null) {
-				controller.forceStopRecording();
-				controller.removeListeners();				
-			}
-		});
-		dialog.show();
+		new ViewTrackerControlPane(qupath).run();
 	}
 
 	

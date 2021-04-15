@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -88,14 +88,14 @@ import qupath.lib.plugins.parameters.ParameterList;
  *
  */
 class ViewTrackerAnalysisCommand implements Runnable {
-	private final static Logger logger = (Logger) LoggerFactory.getLogger(ViewTrackerAnalysisCommand.class);
+	private final static Logger logger = LoggerFactory.getLogger(ViewTrackerAnalysisCommand.class);
 	
 	private ViewTrackerControlPane owner;
 	private QuPathViewer viewer;
 	private ViewTracker tracker;
 	private ImageServer<?> server;
 	private ObjectProperty<ViewRecordingFrame> currentFrame = new SimpleObjectProperty<>();
-	private BooleanProperty isActive = new SimpleBooleanProperty(true);
+	private BooleanProperty isOpened = new SimpleBooleanProperty(true);
 	
 	private Stage dialog;
 	private SplitPane mainPane;
@@ -143,12 +143,10 @@ class ViewTrackerAnalysisCommand implements Runnable {
 	public void run() {
 		if (dialog == null) {
 			dialog = new Stage();
-			// TODO: Change owner? To block previous windows
 			dialog.sizeToScene();
-//			if (QuPathGUI.getInstance() != null)
-//				dialog.initOwner(QuPathGUI.getInstance().getStage());
+			// TODO: Change owner? To block previous windows
 			dialog.initOwner(owner.getNode().getScene().getWindow());
-			dialog.setTitle("View tracker");
+			dialog.setTitle("Recording analysis");
 			dialog.setAlwaysOnTop(true);
 			
 			currentFrame.set(tracker.getFrame(0));
@@ -176,7 +174,6 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			refreshTracker();
 			
 			playback.getCurrentFrame().addListener((v, o, frame) -> currentFrame.set(frame));
-		
 			
 			currentFrame.addListener((v, o, frame) -> {
 				if (frame == null)
@@ -236,7 +233,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			});
 			zSlider.setOrientation(Orientation.VERTICAL);
 			
-			var timeSliderLength = (tracker.getLastTime()-tracker.getStartTime())-1;
+			var timeSliderLength = tracker.getLastTime() - tracker.getStartTime();
 			timeSlider = new Slider(0L, timeSliderLength, 0L);
 			
 			if (timeSliderLength > 0) {
@@ -534,7 +531,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			
 			//--------------------- BOTTOM BUTTON PANE---------------------//
 			Button btnExpand = new Button("Expand");
-			Button btnOpen = new Button("Open in System");
+			Button btnOpen = new Button("Open directory");
 			btnOpen.setDisable(tracker.getFile() == null);
 			List<Button> buttons = new ArrayList<>();
 			
@@ -568,7 +565,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		
 		dialog.setOnHiding(e -> {
 			viewer.getCustomOverlayLayers().clear();
-			isActive.set(false);
+			isOpened.set(false);
 		});
 		
 		dialog.show();
@@ -677,9 +674,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		slideOverview.setOverlay(trackerDataOverlay.getOverlay());
 	}
 	
-	BooleanProperty getActiveProperty() {
-		return isActive;
+	BooleanProperty getIsOpenedProperty() {
+		return isOpened;
 	}
-	
-	
 }

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -137,7 +137,7 @@ final class ViewTrackerTools {
 			}
 		}
 		// To indicate Z and T columns
-		tracker.includeOptionals(includeZAndT, includesCursorTracking, includesActiveToolTracking, includesEyeTracking);
+		tracker.setOptionalParameters(includeZAndT, includesCursorTracking, includesActiveToolTracking, includesEyeTracking);
 		return tracker;
 	}
 	
@@ -259,6 +259,7 @@ final class ViewTrackerTools {
 		try {
 			ViewTracker tracker = parseSummaryString(content, null, null);
 			tracker.setFile(in.toFile());
+			tracker.setName(GeneralTools.getNameWithoutExtension(in.toFile()));
 			return tracker;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage("View tracking import", "Unable to read tracking data from " + in + ": " + e.getLocalizedMessage());
