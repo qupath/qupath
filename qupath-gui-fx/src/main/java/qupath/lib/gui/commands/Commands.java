@@ -112,7 +112,6 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -693,9 +692,9 @@ public class Commands {
 	/**
 	 * Create a dialog for rotating the image in the current viewer (for display only).
 	 * @param qupath the {@link QuPathGUI} instance
-	 * @return a rotate image dialog
 	 */
-	public static Stage createRotateImageDialog(QuPathGUI qupath) {
+	// TODO: Restrict this command to an opened image
+	public static void createRotateImageDialog(QuPathGUI qupath) {
 		var dialog = new Stage();
 		dialog.initOwner(qupath.getStage());
 
@@ -724,13 +723,8 @@ public class Commands {
 				slider.setShowTickMarks(false);
 			}
 		});
-		slider.rotationProperty().addListener((v, o, n) -> {
-			QuPathViewer viewer = qupath.getViewer();
-			if (viewer == null)
-				return;
-			double rotation = slider.getValue();
-			viewer.setRotation(Math.toRadians(rotation));
-		});
+		if (viewerTemp != null)
+			slider.rotationProperty().bindBidirectional(viewerTemp.rotationProperty());
 
 		slider.setPadding(new Insets(5, 0, 10, 0));
 		slider.setTooltip(new Tooltip("Double-click to manually set the rotation"));
@@ -775,17 +769,18 @@ public class Commands {
 		
 		// Update on viewer changes
 		qupath.viewerProperty().addListener((v, o, n) -> {
+			slider.rotationProperty().unbindBidirectional(o.rotationProperty());
 			if (n != null)
-				slider.setValue(Math.toDegrees(n.getRotation()));
+				slider.rotationProperty().bindBidirectional(n.rotationProperty());
+//				slider.setValue(Math.toDegrees(n.getRotation()));
 		});
 
 		final Scene scene = new Scene(pane);
 		scene.setFill(Color.TRANSPARENT);
 		dialog.setScene(scene);
 		dialog.setResizable(true);
-		return dialog;
+		dialog.show();
 	}
-	
 	
 	/**
 	 * Create a zoom in/out command action.
