@@ -39,9 +39,9 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.regions.ImageRegion;
 
-class ViewTrackerSlideOverview {
+final class ViewTrackerSlideOverview {
 	// TODO: Make sure we reset the shapeVisible (I think?) when we change T or Z manually from the slider (because it should always correspond to a specific frame)
-	private final static Logger logger = LoggerFactory.getLogger(ViewTrackerSlideOverview.class);
+	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerSlideOverview.class);
 	
 	private QuPathViewer viewer;
 	private BufferedImage img;

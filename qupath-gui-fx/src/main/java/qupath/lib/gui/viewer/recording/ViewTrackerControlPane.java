@@ -45,7 +45,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Side;
@@ -152,47 +151,45 @@ public class ViewTrackerControlPane implements Runnable {
 		trackersList = FXCollections.observableArrayList(getExistingRecordings(qupath, viewer.getImageData()));
 		
 		// Create listener that will be triggered for every imageData change
-		imageDataListener = new ChangeListener<ImageData<?>>() {
-			@Override
-			public void changed(ObservableValue<? extends ImageData<?>> v, ImageData<?> o, ImageData<?> n) {
-				// Stop recording (if recording)
-				if (recordingMode.get())
-					recordingMode.set(false);
-				
-				// Empty TableView
-				trackersList.clear();
-				
-				// If the new ImageData is not null (e.g. 'close viewer'), get existing recordings
-				if (n != null)
-					getExistingRecordings(qupath, viewer.getImageData());
-				
-				// Make sure titledPane is not clickable if no ImageData
-				titledPane.disableProperty().bind(Bindings.or(viewer.imageDataProperty().isNull(), isAnalysisOpened));
-			}
+		imageDataListener = (v, o, n) -> {
+			// Stop recording (if recording)
+			if (recordingMode.get())
+				recordingMode.set(false);
+			
+			// Empty TableView
+			trackersList.clear();
+			
+			// If the new ImageData is not null (e.g. 'close viewer'), get existing recordings
+			if (n != null)
+				trackersList.setAll(getExistingRecordings(qupath, viewer.getImageData()));
+			
+			table.setItems(trackersList);
+			
+			// Make sure titledPane is not clickable if no ImageData
+			titledPane.disableProperty().bind(viewer.imageDataProperty().isNull().or(isAnalysisOpened));
 		};
 
 		// Create listener to stop recording if user changes the active viewer (e.g. multi-viewer)
-		viewerListener = new ChangeListener<QuPathViewer>() {
-			@Override
-			public void changed(ObservableValue<? extends QuPathViewer> v, QuPathViewer o, QuPathViewer n) {
-				// Stop recording (if recording)
-				if (recordingMode.get())
-					recordingMode.set(false);
-					
-				trackersList.clear();
+		viewerListener = (v, o, n) -> {
+			// Stop recording (if recording)
+			if (recordingMode.get())
+				recordingMode.set(false);
 				
-				// Add listener to the new viewer's imageData property (and remove previous one)
-				viewer.imageDataProperty().removeListener(imageDataListener);
-				viewer = n;
-				viewer.imageDataProperty().addListener(imageDataListener);
-				
-				// If the new ImageData is not null (e.g. 'close viewer'), get existing recordings
-				if (n.getImageData() != null)
-					getExistingRecordings(qupath, viewer.getImageData());
-				
-				// Make sure titledPane is not clickable if no ImageData
-				titledPane.disableProperty().bind(Bindings.or(viewer.imageDataProperty().isNull(), isAnalysisOpened));
-			}
+			trackersList.clear();
+			
+			// Add listener to the new viewer's imageData property (and remove previous one)
+			viewer.imageDataProperty().removeListener(imageDataListener);
+			viewer = n;
+			viewer.imageDataProperty().addListener(imageDataListener);
+			
+			// If the new ImageData is not null (e.g. 'close viewer'), get existing recordings
+			if (n.getImageData() != null)
+				trackersList.setAll(getExistingRecordings(qupath, viewer.getImageData()));
+			
+			table.setItems(trackersList);
+			
+			// Make sure titledPane is not clickable if no ImageData
+			titledPane.disableProperty().bind(Bindings.or(viewer.imageDataProperty().isNull(), isAnalysisOpened));
 		};
 		
 		// Add listeners
@@ -204,10 +201,6 @@ public class ViewTrackerControlPane implements Runnable {
 
 		Action actionRecord = ActionTools.createSelectableAction(recordingMode, "Record", iconRecord, null);
 		Action actionPlayback = ActionTools.createSelectableAction(playback.playingProperty(), "Play", iconPlay, null);
-		
-		// Can't select one while the other is selected
-		actionRecord.disabledProperty().bind(actionPlayback.selectedProperty());
-		
 		
 		// Ensure icons are correct
 		recordingMode.addListener((v, o, n) -> {
@@ -282,7 +275,8 @@ public class ViewTrackerControlPane implements Runnable {
 		Button deleteBtn = new Button("Delete");
 		deleteBtn.setOnAction(e -> {
 			var trackersToDelete = table.getSelectionModel().getSelectedItems();
-			var response = Dialogs.showConfirmDialog("Delete recording(s)", "Delete recording(s)? The data will be lost.");
+			String deleteRecording = "Delete recording" + (trackersToDelete.size() > 1 ? "s" : "");
+			var response = Dialogs.showConfirmDialog(deleteRecording, deleteRecording + "? The data will be lost.");
 			if (!response)
 				return;
 			
@@ -306,15 +300,17 @@ public class ViewTrackerControlPane implements Runnable {
 		moreBtn.setMaxWidth(Double.MAX_VALUE);
 		btnPane.addRow(0, exportBtn, deleteBtn, moreBtn);
 		
-		
 		// Disable all buttons if no recording is selected, disable 'Export' and 'More' if multiple selection
 		exportBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
 		deleteBtn.disableProperty().bind(Bindings.or(table.getSelectionModel().selectedItemProperty().isNull(), isAnalysisOpened));
 		moreBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
 //		btnPane.getChildren().forEach(e -> e.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull()));
 		
-		// Disable playback button if no ViewTracker is selected
-		actionPlayback.disabledProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
+		// Disable playback button if no ViewTracker or multiple ViewTrackers are selected
+		actionPlayback.disabledProperty().bind(Bindings.size(table.getSelectionModel().getSelectedItems()).isNotEqualTo(1).or(recordingMode).or(isAnalysisOpened));
+		
+		// Disable recording button if playback is playing
+		actionRecord.disabledProperty().bind(playing.or(isAnalysisOpened));
 		
 		
 		int row = 0;
@@ -457,8 +453,6 @@ public class ViewTrackerControlPane implements Runnable {
 		iconRecording.visibleProperty().bind(recordingMode);
 		
 		optionBtn.disableProperty().bind(Bindings.or(recordingMode, isAnalysisOpened));
-		toggleRecord.disableProperty().bind(isAnalysisOpened);
-		togglePlayback.disableProperty().bind(isAnalysisOpened);
 		table.disableProperty().bind(isAnalysisOpened);
 
 		GridPane topButtonGrid = new GridPane();
@@ -536,7 +530,7 @@ public class ViewTrackerControlPane implements Runnable {
 	}
 	
 	/**
-	 * Prepare the new ViewTracker for the next recording.
+	 * Prepare the new {@link ViewTracker} for the next recording.
 	 * This should be called every time a (previous) recording has ended.
 	 * 
 	 * @param viewer
@@ -575,7 +569,7 @@ public class ViewTrackerControlPane implements Runnable {
 
 	private void openViewTrackingAnalysisCommand() {
 		ViewTrackerAnalysisCommand activeTracker = new ViewTrackerAnalysisCommand(this, viewer, table.getSelectionModel().getSelectedItem());
-		isAnalysisOpened.bind(activeTracker.getIsOpenedProperty());
+		isAnalysisOpened.bind(activeTracker.isOpenedProperty());
 		activeTracker.run();
 	}
 

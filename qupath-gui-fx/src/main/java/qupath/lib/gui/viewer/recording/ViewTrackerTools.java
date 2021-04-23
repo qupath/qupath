@@ -114,10 +114,9 @@ final class ViewTrackerTools {
 	}
 	
 	static ViewTracker parseSummaryString(final String str, String delimiter, ViewTracker tracker) throws Exception { // TODO: Find out what exceptions!
-		if (tracker == null)
-			tracker = new DefaultViewTracker(null); // No viewer (so cannot record)
-		if (delimiter == null)
-			delimiter = estimateDelimiter(str);
+		// If tracker is null, create one with no viewer (so cannot record)
+		ViewTracker trackerOrDefault = tracker == null ? new DefaultViewTracker(null) : tracker;
+		String delimiterOrDefault = delimiter == null ? estimateDelimiter(str) : delimiter;
 		boolean includesCursorTracking = false;
 		boolean includesActiveToolTracking = false;
 		boolean includesEyeTracking = false;
@@ -131,14 +130,14 @@ final class ViewTrackerTools {
 				includeZAndT = s.toLowerCase().contains("z") && s.toLowerCase().contains("t");
 				firstLine = false;
 			} else {
-				ViewRecordingFrame frame = parseLogString(s, delimiter, includesCursorTracking, includesActiveToolTracking, includesEyeTracking, includeZAndT);
+				ViewRecordingFrame frame = parseLogString(s, delimiterOrDefault, includesCursorTracking, includesActiveToolTracking, includesEyeTracking, includeZAndT);
 				if (frame != null)
-					tracker.appendFrame(frame);
+					trackerOrDefault.appendFrame(frame);
 			}
 		}
 		// To indicate Z and T columns
-		tracker.setOptionalParameters(includeZAndT, includesCursorTracking, includesActiveToolTracking, includesEyeTracking);
-		return tracker;
+		trackerOrDefault.setOptionalParameters(includeZAndT, includesCursorTracking, includesActiveToolTracking, includesEyeTracking);
+		return trackerOrDefault;
 	}
 	
 	/**
@@ -247,7 +246,8 @@ final class ViewTrackerTools {
 		String content = null;
 		try (Scanner scanner =  new Scanner(in)) {
 			content = scanner.useDelimiter("\\Z").next();
-		} catch (IOException e) {
+		} catch (IOException ex) {
+			Dialogs.showErrorMessage("View tracking import", "Unable to read " + in + "." + System.lineSeparator() + ex.getLocalizedMessage());
 			return null;
 		}
 		
@@ -261,8 +261,8 @@ final class ViewTrackerTools {
 			tracker.setFile(in.toFile());
 			tracker.setName(GeneralTools.getNameWithoutExtension(in.toFile()));
 			return tracker;
-		} catch (Exception e) {
-			Dialogs.showErrorMessage("View tracking import", "Unable to read tracking data from " + in + ": " + e.getLocalizedMessage());
+		} catch (Exception ex) {
+			Dialogs.showErrorMessage("View tracking import", "Unable to read tracking data from " + in + ": " + ex.getLocalizedMessage());
 		}
 		return null;
 	}
@@ -297,13 +297,12 @@ final class ViewTrackerTools {
 	}
 
 	private static ViewRecordingFrame parseLogString(String logString, String delimiter, boolean includesCursorTracking, boolean includesActiveToolTracking, boolean includesEyeTracking, boolean includeZAndT) {
-		if (logString != null)
-			logString = logString.trim().toLowerCase();
+		String s = logString != null ? logString.trim().toLowerCase() : null;
 		// Check if we have anything, or if it is just a superfluous new line
-		if (logString == null || logString.isEmpty())
+		if (s == null || s.isEmpty())
 			return null;
 		// Should probably be using a Scanner here (?)
-		String[] columns = logString.split(delimiter);
+		String[] columns = s.split(delimiter);
 		int col = 0;
 		long timestamp = Long.parseLong(columns[col++]);
 		double x = Double.parseDouble(columns[col++]);

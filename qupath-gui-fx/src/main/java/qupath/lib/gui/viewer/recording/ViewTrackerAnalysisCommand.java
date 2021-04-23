@@ -41,6 +41,8 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -50,6 +52,7 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.SelectionMode;
@@ -62,6 +65,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
@@ -72,11 +76,14 @@ import javafx.stage.Stage;
 import javafx.util.Callback;
 import javafx.util.converter.DateTimeStringConverter;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.gui.ColorMapperCanvas;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
+import qupath.lib.gui.tools.MeasurementMapper;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.tools.MeasurementMapper.ColorMapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -85,17 +92,16 @@ import qupath.lib.plugins.parameters.ParameterList;
  * Command to export view tracking information.
  * 
  * @author Pete Bankhead
- *
  */
-class ViewTrackerAnalysisCommand implements Runnable {
-	private final static Logger logger = LoggerFactory.getLogger(ViewTrackerAnalysisCommand.class);
+final class ViewTrackerAnalysisCommand implements Runnable {
+	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerAnalysisCommand.class);
 	
 	private ViewTrackerControlPane owner;
 	private QuPathViewer viewer;
 	private ViewTracker tracker;
 	private ImageServer<?> server;
 	private ObjectProperty<ViewRecordingFrame> currentFrame = new SimpleObjectProperty<>();
-	private BooleanProperty isOpened = new SimpleBooleanProperty(true);
+	private BooleanProperty isOpenedProperty = new SimpleBooleanProperty(true);
 	
 	private Stage dialog;
 	private SplitPane mainPane;
@@ -106,6 +112,9 @@ class ViewTrackerAnalysisCommand implements Runnable {
 	private Slider zSlider;
 	private Slider tSlider;
 	private Slider timeSlider;
+	
+	private ObservableList<ColorMapper> colorMappers;
+	private ColorMapperCanvas colorMapCanvas;
 	
 	private RadioButton timeNormalizedRadio;
 	private RadioButton magnificationNormalizedRadio;
@@ -128,7 +137,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 	 * @param viewer the viewer being tracked
 	 * @param tracker the tracker doing the tracking
 	 */
-	public ViewTrackerAnalysisCommand(ViewTrackerControlPane parent, final QuPathViewer viewer, final ViewTracker tracker) {
+	ViewTrackerAnalysisCommand(ViewTrackerControlPane parent, final QuPathViewer viewer, final ViewTracker tracker) {
 		this.owner = parent;
 		this.viewer = viewer;
 		this.tracker = tracker;
@@ -172,7 +181,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 					currentFrame.set(frame);	
 			});
 			refreshTracker();
-			
+
 			playback.getCurrentFrame().addListener((v, o, frame) -> currentFrame.set(frame));
 			
 			currentFrame.addListener((v, o, frame) -> {
@@ -201,7 +210,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			
 			
 			//----------------------------------------------------------------------//
-			//--------------------- SLIDE OVERVIEW (TOP RIGHT) ---------------------//
+			//--------------------- SLIDE OVERVIEW (TOP LEFT) ----------------------//
 			//----------------------------------------------------------------------//
 			
 			GridPane analysisPane = new GridPane();
@@ -289,18 +298,22 @@ class ViewTrackerAnalysisCommand implements Runnable {
 				if (!playback.isPlaying()) {
 					// If it's not playing already, start playing
 					playback.setFirstFrame(currentFrame.get());
-					playback.setPlaying(true);
+					
+					// Set the visible shape for current frame
+					slideOverview.setVisibleShape(currentFrame.get());
+					slideOverview.paintCanvas();
+					
+					playback.doStartPlayback();
 				} else {
 					// If already playing, pause the playback where it currently is
 					playback.doStopPlayback();
 				}
-				
 			});
 			
 			Button btnStop = new Button();
 			btnStop.setGraphic(iconStop);
 			btnStop.setOnAction(e -> {
-				playback.setPlaying(false);
+				playback.doStopPlayback();
 				timeSlider.setValue(tracker.getFrame(0).getTimestamp());
 			});
 			
@@ -337,6 +350,17 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			
 			magnificationNormalizedRadio = new RadioButton("Magnification");
 			magnificationNormalizedRadio.setToggleGroup(toggleGroup);
+			
+			// Create a color mapper ComboBox
+			colorMappers = FXCollections.observableArrayList(MeasurementMapper.loadColorMappers());
+			ComboBox<ColorMapper> colorMapCombo = new ComboBox<>(colorMappers);
+			colorMapCombo.setMinWidth(80.0);
+			colorMapCanvas = new ColorMapperCanvas(10, colorMappers.get(0));
+			colorMapCombo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> colorMapCanvas.setColorMapper(n));
+			
+			if (colorMapCombo.getSelectionModel().isEmpty() && !colorMapCombo.getItems().isEmpty())
+				colorMapCombo.getSelectionModel().selectFirst();
+			colorMapCombo.setTooltip(new Tooltip("Select color map"));
 			
 			//------------------ TIME DISPLAYED RANGESLIDER ------------------//
 			Label timeDisplayedLeftLabel = new Label();
@@ -446,19 +470,21 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			//------------------ BINDINGS/LISTENERS ------------------//
 			normalizedByLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			timeNormalizedRadio.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
-			magnificationNormalizedRadio.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			magnificationNormalizedRadio.disableProperty().bind(visualizationCheckBox.selectedProperty().not().or(new SimpleBooleanProperty(minDownsample == maxDownsample)));
 			timeDisplayedLeftLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			timeDisplayedRightLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			downsampleSlider.disableProperty().bind(visualizationCheckBox.selectedProperty().not().or(new SimpleBooleanProperty(minDownsample == maxDownsample)));
 			downsampleLeftLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			downsampleRightLabel.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			timeDisplayedSlider.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
+			colorMapCombo.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			
 			trackerDataOverlay = new ViewTrackerDataOverlay(server, viewer, tracker);
 			timeDisplayedSlider.lowValueProperty().addListener((v, o, n) -> updateOverlays());
 			timeDisplayedSlider.highValueProperty().addListener((v, o, n) -> updateOverlays());
 			downsampleSlider.lowValueProperty().addListener((v, o, n) -> updateOverlays());
 			downsampleSlider.highValueProperty().addListener((v, o, n) -> updateOverlays());
+			colorMapCanvas.colorMapperProperty().addListener((v, o, n) -> updateOverlays());
 
 
 			visualizationCheckBox.selectedProperty().addListener((v, o, n) -> {
@@ -509,9 +535,10 @@ class ViewTrackerAnalysisCommand implements Runnable {
 			PaneTools.addGridRow(analysisPane, row++, 0, "Playback options", new HBox(), playbackPane);
 			PaneTools.addGridRow(analysisPane, row++, 0, null, sep, sep, sep);
 			PaneTools.addGridRow(analysisPane, row++, 0, "Enable live data visualization", visualizationCheckBox, visualizationCheckBox, visualizationCheckBox);
-			PaneTools.addGridRow(analysisPane, row++, 0, "Normalization type", normalizedByLabel, normalizedByPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Normalization type", normalizedByLabel, normalizedByPane, normalizedByPane);
 			PaneTools.addGridRow(analysisPane, row++, 0, "Choose a time range", timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
 			PaneTools.addGridRow(analysisPane, row++, 0, "Choose a magnification range", downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
+			PaneTools.addGridRow(analysisPane, row++, 0, null, colorMapCombo, colorMapCanvas, colorMapCanvas);
 			
 		    ColumnConstraints col1 = new ColumnConstraints();
 		    ColumnConstraints col2 = new ColumnConstraints();
@@ -565,7 +592,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		
 		dialog.setOnHiding(e -> {
 			viewer.getCustomOverlayLayers().clear();
-			isOpened.set(false);
+			isOpenedProperty.set(false);
 		});
 		
 		dialog.show();
@@ -575,7 +602,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		//dialog.toFront();
 	}
 
-	static Object getColumnValue(final ViewRecordingFrame frame, final String columnName) {
+	private static Object getColumnValue(final ViewRecordingFrame frame, final String columnName) {
 		switch (columnName) {
 		case "Timestamp (ms)": return frame.getTimestamp();
 		case "X": return frame.getImageBounds().x;
@@ -598,7 +625,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		return null;
 	}
 	
-	static String getColumnName(ViewTracker tracker, int col) {
+	private static String getColumnName(ViewTracker tracker, int col) {
 		switch (col) {
 		case 0: return "Timestamp (ms)";
 		case 1: return "X";
@@ -635,7 +662,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		return null;
 	}
 	
-	static int nCols(final ViewTracker tracker) {
+	private static int nCols(final ViewTracker tracker) {
 		if (tracker == null)
 			return 0;
 		
@@ -647,8 +674,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		return nCol;
 	}
 	
-	
-	void refreshTracker() {
+	private void refreshTracker() {
 		List<ViewRecordingFrame> frames = new ArrayList<>();
 		if (tracker == null)
 			return;
@@ -658,14 +684,14 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		table.getItems().setAll(frames);
 	}
 	
-	
 	private void updateOverlays() {
 		trackerDataOverlay.updateDataImage(
 				timeDisplayedSlider.lowValueProperty().longValue(),
 				timeDisplayedSlider.highValueProperty().longValue(),
 				downsampleSlider.lowValueProperty().doubleValue(),
 				downsampleSlider.highValueProperty().doubleValue(),
-				timeNormalizedRadio.selectedProperty().get()
+				timeNormalizedRadio.selectedProperty().get(),
+				colorMapCanvas.getColorMapper()
 				);
 		
 		// Update the viewer's custom overlay layer
@@ -674,7 +700,7 @@ class ViewTrackerAnalysisCommand implements Runnable {
 		slideOverview.setOverlay(trackerDataOverlay.getOverlay());
 	}
 	
-	BooleanProperty getIsOpenedProperty() {
-		return isOpened;
+	BooleanProperty isOpenedProperty() {
+		return isOpenedProperty;
 	}
 }

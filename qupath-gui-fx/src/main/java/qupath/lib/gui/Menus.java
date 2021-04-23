@@ -743,7 +743,7 @@ class Menus {
 		
 		@ActionDescription("Record zoom and panning movements within a viewer for later playback.")
 		@ActionMenu("Show view recorder")
-		public final Action VIEW_TRACKER = qupath.createProjectAction(project -> Commands.showViewTracker(qupath));
+		public final Action VIEW_TRACKER = qupath.createImageDataAction(imageData -> Commands.showViewTracker(qupath));
 
 		@ActionDescription("Show the slide label associated with the image in the active viewer (if available).")
 		@ActionMenu("Show slide label")

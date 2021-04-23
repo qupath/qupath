@@ -42,9 +42,8 @@ interface ViewRecordingFrame {
 	long getTimestamp();
 
 	/**
-	 * Returns the x- and y- align rectangle of the visible region.
+	 * Return the x- and y- align rectangle of the visible region.
 	 * The actual visible region is the returned rectangle rotated by theta.
-	 * @param theta
 	 * @return
 	 */
 	Rectangle getImageBounds();

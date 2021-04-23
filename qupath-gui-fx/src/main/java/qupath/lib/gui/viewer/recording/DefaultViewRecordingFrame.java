@@ -45,7 +45,7 @@ import qupath.lib.gui.viewer.tools.PathTool;
  */
 class DefaultViewRecordingFrame implements ViewRecordingFrame {
 	
-	private static DecimalFormat df = new DecimalFormat("#.##");
+	private static final DecimalFormat df = new DecimalFormat("#.##");
 	
 	private long timestamp;
 	private Shape region; // Store vertices 
@@ -62,19 +62,19 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 //		this(timestamp, imageBounds, canvasSize);
 //	}
 	
-	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize) {
+	DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize) {
 		this(timestamp, region, canvasSize, 1.0, null);
 	}
 	
-	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, double rotation, int z, int t) {
+	DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, double rotation, int z, int t) {
 		this(timestamp, region, canvasSize, downFactor, rotation, null, null, null, false, z, t);
 	}
 	
-	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, Point2D cursorPosition) {
+	DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, Point2D cursorPosition) {
 		this(timestamp, region, canvasSize, 0, downFactor, cursorPosition, null, null, false, -1, -1);
 	}
 	
-	public DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, double rotation, Point2D cursorPosition, PathTool activeTool, Point2D eyePosition, Boolean isFixated, Integer z, Integer t) {
+	DefaultViewRecordingFrame(long timestamp, Shape region, Dimension canvasSize, double downFactor, double rotation, Point2D cursorPosition, PathTool activeTool, Point2D eyePosition, Boolean isFixated, Integer z, Integer t) {
 		this.timestamp = timestamp;
 		this.region = region;
 		this.canvasSize = canvasSize;
@@ -91,7 +91,7 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 	
 	@Override
 	public String toString() {
-		String s = String.format("Timestamp: %d, Shape: %s, Canvas size: %d, %d, Rotation: %d", timestamp, region.toString(), canvasSize.width, canvasSize.height, rotation);
+		String s = String.format("Timestamp: %d, Shape: %s, Canvas size: %d, %d, Rotation: %f", timestamp, region.toString(), canvasSize.width, canvasSize.height, rotation);
 		if (cursorPosition != null)
 			s += ", Cursor position: " + df.format(cursorPosition.getX()) + ", " + df.format(cursorPosition.getY());
 		if (eyePosition != null)

@@ -30,6 +30,7 @@ import java.awt.geom.Point2D;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.animation.Animation;
 import javafx.animation.Animation.Status;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -52,11 +53,10 @@ import qupath.lib.roi.interfaces.ROI;
  * Controller for playback for view tracking data.
  * 
  * @author Pete Bankhead
- *
  */
 class ViewTrackerPlayback {
 	
-	final private static Logger logger = LoggerFactory.getLogger(ViewTrackerPlayback.class);
+	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerPlayback.class);
 	
 	private QuPathViewer viewer;
 	private ViewTracker tracker;
@@ -69,7 +69,7 @@ class ViewTrackerPlayback {
 	private ViewRecordingFrame firstFrame;
 	private ObjectProperty<ViewRecordingFrame> currentFrame = new SimpleObjectProperty<>();
 	
-	public ViewTrackerPlayback(final QuPathViewer viewer) {
+	ViewTrackerPlayback(final QuPathViewer viewer) {
 		this.viewer = viewer;
 		this.playing = new SimpleBooleanProperty(false);
 		
@@ -87,19 +87,21 @@ class ViewTrackerPlayback {
 						Duration.millis(50)
 						)
 				);
-		timeline.setCycleCount(Timeline.INDEFINITE);
+		timeline.setCycleCount(Animation.INDEFINITE);
 		playing.addListener((v, o, n) -> {
 			if (n)
 				doStartPlayback();
 			else
 				doStopPlayback();
 		});
-		
+	}
+	
+	boolean isPlaying() {
+		return timeline.getStatus() == Status.RUNNING;
 	}
 
 	/**
-	 * Returns true if playback is started, returns false otherwise (i.e. the tracker is empty, so got nothing to play back)
-	 * 
+	 * Return true if playback is started, false otherwise (i.e. the tracker is empty, so got nothing to play back)
 	 * @return
 	 */
 	boolean doStartPlayback() {
@@ -116,29 +118,23 @@ class ViewTrackerPlayback {
 		return true;
 	}
 	
+	void doStopPlayback() {
+		if (!isPlaying())
+			return;
+		timeline.stop();
+		playing.set(false);
+	}	
 	
 	static void resizeViewer(QuPathViewer viewer, Dimension newSize) {
 		if (ViewTrackerTools.getSize(viewer).equals(newSize))
 			return;
 		double dw = newSize.width - viewer.getView().getWidth();
 		double dh = newSize.height - viewer.getView().getHeight();
-//		System.out.println("DW: " + dw);
 		Window window = viewer.getView().getScene().getWindow();
 		window.setWidth(window.getWidth() + dw);
 		window.setHeight(window.getHeight() + dh);
 	}
-	
 
-	public boolean isPlaying() {
-		return timeline.getStatus() == Status.RUNNING;
-	}
-
-	void doStopPlayback() {
-		timeline.stop();
-		playing.set(false);
-	}
-		
-	
 	void handleUpdate() {
 		if (tracker.isEmpty())
 			return;
@@ -154,7 +150,6 @@ class ViewTrackerPlayback {
 			requestStop = tracker.isLastFrame(frame);
 		}
 		
-		
 		// Stop playback, if required
 		if (requestStop) {
 			timeline.stop();
@@ -162,17 +157,7 @@ class ViewTrackerPlayback {
 		}
 	}
 	
-	
-	
-	public void setPlaying(final boolean playing) {
-		if (isPlaying() == playing)
-			return;
-		this.playing.set(playing);
-	}
-	
-	
-	
-	public static void setViewerForFrame(final QuPathViewer viewer, final ViewRecordingFrame frame) {
+	static void setViewerForFrame(final QuPathViewer viewer, final ViewRecordingFrame frame) {
 		
 		// Resize the viewer (if necessary)
 		resizeViewer(viewer, frame.getSize());
@@ -220,11 +205,11 @@ class ViewTrackerPlayback {
 		}
 	}
 	
-	public BooleanProperty playingProperty() {
+	BooleanProperty playingProperty() {
 		return playing;
 	}
 	
-	public void setViewTracker(ViewTracker tracker) {
+	void setViewTracker(ViewTracker tracker) {
 		this.tracker = tracker;
 		if (!tracker.isEmpty()) {
 			firstFrame = tracker.getFrame(0);
@@ -232,13 +217,12 @@ class ViewTrackerPlayback {
 		}
 	}
 	
-	public void setFirstFrame(ViewRecordingFrame frame) {
+	void setFirstFrame(ViewRecordingFrame frame) {
 		firstFrame = frame;
 		currentFrame.set(frame);
 	}
 	
-	public ObjectProperty<ViewRecordingFrame> getCurrentFrame() {
+	ObjectProperty<ViewRecordingFrame> getCurrentFrame() {
 		return currentFrame;
 	}
-	
 }

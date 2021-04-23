@@ -66,15 +66,13 @@ import qupath.lib.objects.PathObject;
  * This tracks only viewer location and cursor position (no eye tracking... because it can't see you). 
  * It does <i>not</i> handle viewer rotations.
  * <p>
- * TODO: Deal with rotations in the tracker.
  * 
  * @author Pete Bankhead
- *
  */
 public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	// TODO: Set a max recording time limit?
 	
-	private final static Logger logger = LoggerFactory.getLogger(DefaultViewTracker.class);
+	private static final Logger logger = LoggerFactory.getLogger(DefaultViewTracker.class);
 
 	protected static final DecimalFormat df = new DecimalFormat("#.##");
 	protected static final String LOG_DELIMITER = "\t";
@@ -104,7 +102,6 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	private boolean initialized = false;
 	
 	private MouseMovementHandler mouseHandler = new MouseMovementHandler();
-
 
 	DefaultViewTracker(final QuPathGUI qupath) {
 		this.qupath = qupath;
@@ -169,7 +166,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 
 	private void doStopRecording() {
 		// Add a last frame to the list
-		DefaultViewRecordingFrame frame = new DefaultViewRecordingFrame(System.currentTimeMillis()-startTime, viewer.getDisplayedRegionShape(), ViewTrackerTools.getSize(viewer), viewer.getDownsampleFactor(), viewer.getRotation(), null, getActiveToolIfRequired(), getEyePointIfRequired(), getEyeFixatedIfRequired(), getCurrentZ(), getCurrentT());
+		DefaultViewRecordingFrame frame = new DefaultViewRecordingFrame(System.currentTimeMillis()-startTime, viewer.getDisplayedRegionShape(), ViewTrackerTools.getSize(viewer), viewer.getDownsampleFactor(), viewer.getRotation(), new Point2D.Double(-1, -1), getActiveToolIfRequired(), getEyePointIfRequired(), getEyeFixatedIfRequired(), getCurrentZ(), getCurrentT());
 		appendFrame(frame);
 		
 		logger.debug("--------------------------------------");
@@ -309,7 +306,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	 * Return an unmodifiable list of all the frames stored by this view tracker.
 	 * @return
 	 */
-	public List<ViewRecordingFrame> getFrames() {
+	protected List<ViewRecordingFrame> getFrames() {
 		return Collections.unmodifiableList(frames);
 	}
 
@@ -353,7 +350,9 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 			if (p != null)
 				return viewer.componentPointToImagePoint(p, p, false);
 		}
-		return null;
+		
+		// To avoid NPE, return a dummy Point2D with -1, -1 coordinates
+		return new Point2D.Double(-1, -1);
 	}
 	
 	protected PathTool getActiveToolIfRequired() {
@@ -362,26 +361,21 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	}
 	
 	protected Point2D getEyePointIfRequired() {
-		// TODO
 		return null;
 	}
 	
 	protected Boolean getEyeFixatedIfRequired() {
-		// TODO
 		return null;
 	}
 
-
 	@Override
 	public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
-
 
 	@Override
 	public void viewerClosed(QuPathViewer viewer) {
 		if (this.viewer == viewer)
 			setRecording(false);
 	}
-
 
 	@Override
 	public BooleanProperty recordingProperty() {
