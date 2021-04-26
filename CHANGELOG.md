@@ -44,6 +44,7 @@ Code changes:
 * StarDist supports frozen models that are compatible with OpenCV's DNN module
 * New 2D/3D thinning & interpolation classes
 * New ImageOps for reducing channels
+* ImageOps.Normalize.percentiles now warns if normalization values are equal; fixed exception if choosing '100'
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
 * New 'ContourTracing' class to simplify converting thresholded images to object
 * New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
