@@ -63,7 +63,7 @@ public class ColorToolsAwt {
 	 * @return
 	 */
 	public static Color getCachedColor(final int r, final int g, final int b, final int a) {
-		return ColorToolsAwt.getCachedColor(ColorTools.makeRGBA(r, g, b, a));
+		return ColorToolsAwt.getCachedColor(ColorTools.packARGB(a, r, g, b));
 	}
 
 	/**
@@ -74,7 +74,7 @@ public class ColorToolsAwt {
 	 * @return
 	 */
 	public static Color getCachedColor(final int r, final int g, final int b) {
-		return ColorToolsAwt.getCachedColor(ColorTools.makeRGB(r, g, b));
+		return ColorToolsAwt.getCachedColor(ColorTools.packRGB(r, g, b));
 	}
 
 	/**

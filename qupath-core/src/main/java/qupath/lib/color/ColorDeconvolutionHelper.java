@@ -254,7 +254,7 @@ public class ColorDeconvolutionHelper {
 			temp[i] = ColorTools.blue(rgb[i]);
 		int bMedian = getMedian(temp);
 
-		return ColorTools.makeRGB(rMedian, gMedian, bMedian);
+		return ColorTools.packRGB(rMedian, gMedian, bMedian);
 	}
 
 

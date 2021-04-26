@@ -1,16 +1,37 @@
 ## Version 0.3.0-SNAPSHOT
 *In progress*
 
+New features:
+* New OMERO support
+  * Log on/off OMERO servers with different credentials
+  * View the connection types of different OMERO servers and their status (public/private, connected/not connected)
+  * Browse any OMERO servers from within QuPath and open any project/dataset/image from the browser
+  * Retrieve OMERO project/dataset/image metadata (`More info..`)
+  * Advanced OMERO server search
+  * Import/send ROIs from/to the original image hosted on OMERO
+  * **Important!** This uses the OMERO web API: only RGB images are supported & are converted to JPEG before reaching QuPath. It is intended for viewing and annotating images; the JPEG compression may make it unsuitable for some kinds of analysis.
+
 Enhancements:
-* Import/export objects as GeoJSON without scripting, via 'File -> Object data... -> ...'
-* Import objects from .json, .geojson & .qpdata files via via 'File -> Object data... -> Import objects' or with drag & drop
+* Support for importing & exporting objects without scripting
+  * Export objects as GeoJSON without via 'File -> Object data... -> ...'
+  * Import objects from .json, .geojson & .qpdata files via 'File -> Object data... -> Import objects' or with drag & drop
+* Script editor improvements
+  * New 'Auto clear cache (batch processing)' option to reduce memory use when running scripts across many images
+  * Default to project script directory when choosing a location to save a new script
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
-* Improved 360 degree image rotation (under 'View > Rotate image')
+* Translucent overlay for live prediction (useful to identify if a tile has been processed when at least one class is transparent)
+* Better support for setting pixel sizes & z-spacing in µm
+  * Access by double-clicking pixel size values under the 'Image' tab
+  * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
+* 'Objects -> Annotations... -> Rotate annotation' now works with point annotations
+* New 360 degree image rotation (under 'View > Rotate image')
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
   * Optionally skip TMA cores marked as 'ignored'
+* When prompted to set the image type, 'Show details' gives an opportunity to turn off the prompts
+  * Previously this was only accessible in the preferences
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
@@ -19,25 +40,35 @@ Code changes:
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * GeneralTools readAsString methods now assume UTF-8 encoding
+* Scripting method getColorRGB() has been replaced by makeRBG() and makeARGB(); further related changes in ColorTools class
+* StarDist supports frozen models that are compatible with OpenCV's DNN module
+* New 2D/3D thinning & interpolation classes
+* New ImageOps for reducing channels
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
 * New 'ContourTracing' class to simplify converting thresholded images to object
 * New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
 
 List of bugs fixed:
 * 'Detect centroid distances 2D' doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
+* Deleting a TMA grid deletes all objects (https://github.com/qupath/qupath/issues/646)
+* 'Subcellular detection (experimental)' does't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)
+  * Note: Spots with an area exactly equal to the minimum spot size are now retained (previously they were discarded)
 * 'Convert detections to points' loses plane when applied to a z-stack (https://github.com/qupath/qupath/issues/696)
 * Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
 * --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
 * Extremely long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
+* Occasional exceptions when concatenating channels for rotated images (https://github.com/qupath/qupath/issues/641)
 * 'Selection mode' keyboard shortcut did not work; now activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
 * Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
 * Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)
 * The requestedPixelSize option for TileExporter calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
+* Unable to find slide labels when reading images with Bio-Formats (https://github.com/qupath/qupath/issues/643)
 * The TileExporter could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
 * setIntensityClassification method in PathClassifierTools now correctly ignores ignored classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
 * Dialogs.showConfirmDialog(title, text) shows the text in the title bar, rather than the title (https://github.com/qupath/qupath/issues/662)
 * Error in StarDist intensity measurements for 8-bit RGB fluorescence images (https://github.com/qupath/qupath/issues/686)
+* Not possible to view multiple channels simultaneously with inverted lookup tables (max display < min display)
 * Exception when converting PathObject with name but no color to GeoJSON
 
 ### Dependency updates
@@ -47,7 +78,7 @@ List of bugs fixed:
 * ControlsFX 11.1.0
 * Groovy 3.0.7
 * Guava 30.1.1-jre
-* ImageJ 1.53h
+* ImageJ 1.53i
 * JavaFX 16
 * Java Topology suite 1.18.1
 * JavaCPP 1.5.5
@@ -55,6 +86,7 @@ List of bugs fixed:
 * jfxtras 11-r1
 * OpenCV 4.5.1
 * picocli 4.6.1
+* RichTextFX 0.10.6
 
 
 ## Version 0.2.3

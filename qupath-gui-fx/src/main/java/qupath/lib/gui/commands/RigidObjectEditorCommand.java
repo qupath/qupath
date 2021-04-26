@@ -137,10 +137,10 @@ class RigidObjectEditorCommand implements Runnable, ChangeListener<ImageData<Buf
 			Dialogs.showErrorNotification("Rotate annotation", "Selected annotation is locked!");
 			return;
 		}
-		if (pathObject.getROI().isPoint()) {
-			Dialogs.showErrorNotification("Rotate annotation", "Point annotations cannot be rotated, sorry!");
-			return;
-		}
+//		if (pathObject.getROI().isPoint()) {
+//			Dialogs.showErrorNotification("Rotate annotation", "Point annotations cannot be rotated, sorry!");
+//			return;
+//		}
 		ImageRegion bounds = viewer.getServerBounds();
 		
 		if (pathObject.isTMACore()) {

@@ -501,17 +501,45 @@ public class QP {
 	 * a shade of gray (RGB all with that value).  Otherwise, 3 or 4 values may be given to generate 
 	 * either an RGB or RGBA color.  Note: values are expected in order RGBA, but Java's packed ints are really ARGB.
 	 * @return
+	 * @deprecated Use instead {@link #makeRGB(int, int, int)} or {@link #makeARGB(int, int, int, int)}
 	 */
+	@Deprecated
 	public static Integer getColorRGB(final int... v) {
 		if (v.length == 1)
-			return ColorTools.makeRGB(v[0], v[0], v[0]);
+			return ColorTools.packRGB(v[0], v[0], v[0]);
 		if (v.length == 3)
-			return ColorTools.makeRGB(v[0], v[1], v[2]);
+			return ColorTools.packRGB(v[0], v[1], v[2]);
 		if (v.length == 4)
-			return ColorTools.makeRGBA(v[0], v[1], v[2], v[3]);
+			return ColorTools.packARGB(v[3], v[0], v[1], v[2]);
 		throw new IllegalArgumentException("Input to getColorRGB must be either 1, 3 or 4 integer values, between 0 and 255!");
 	}
 	
+	/**
+	 * Make a packed int representation of an RGB color.
+	 * Alpha defaults to 255.
+	 * Red, green and blue values should be in the range 0-255; if they are not, they will be clipped.
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return
+	 */
+	public static Integer makeRGB(int r, int g, int b) {
+		return ColorTools.packClippedRGB(r, g, b);
+	}
+
+	/**
+	 * Make a packed int representation of an ARGB color.
+	 * Alpha, red, green and blue values should be in the range 0-255; if they are not, they will be clipped.
+	 * @param a
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return
+	 */
+	public static Integer makeARGB(int a, int r, int g, int b) {
+		return ColorTools.packClippedARGB(a, r, g, b);
+	}
+
 	/**
 	 * Get the path to the {@code ImageServer} of the current {@code ImageData}.
 	 * @return

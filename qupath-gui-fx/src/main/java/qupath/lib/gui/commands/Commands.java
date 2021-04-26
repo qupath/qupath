@@ -1150,7 +1150,7 @@ public class Commands {
 		if (TMACoreObject.class.equals(cls)) {
 			if (hierarchy.getTMAGrid() != null) {
 				if (Dialogs.showYesNoDialog("Delete objects", "Clear TMA grid?")) {
-					hierarchy.clearAll();
+					hierarchy.setTMAGrid(null);
 					
 					PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 					if (selected instanceof TMACoreObject)

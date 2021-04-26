@@ -48,15 +48,15 @@ class DefaultColorModel extends ColorModel {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DefaultColorModel.class);
 		
-	public static final int BACKGROUND_COLOR = ColorTools.makeRGBA(255, 253, 254, 0); // TODO: See PixelClassifierOutputChannel.TRANSPARENT;
+	public static final int BACKGROUND_COLOR = ColorTools.packARGB(0, 255, 253, 254); // TODO: See PixelClassifierOutputChannel.TRANSPARENT;
 
 	private static int[] DEFAULT_COLORS = new int[] {
-			ColorTools.makeRGB(255, 0, 0),
-			ColorTools.makeRGB(0, 255, 0),
-			ColorTools.makeRGB(0, 0, 255),
-			ColorTools.makeRGB(255, 0, 255),
-			ColorTools.makeRGB(0, 255, 255),
-			ColorTools.makeRGB(255, 255, 0)
+			ColorTools.packRGB(255, 0, 0),
+			ColorTools.packRGB(0, 255, 0),
+			ColorTools.packRGB(0, 0, 255),
+			ColorTools.packRGB(255, 0, 255),
+			ColorTools.packRGB(0, 255, 255),
+			ColorTools.packRGB(255, 255, 0)
 	};
 		
 	private PixelType pixelType;

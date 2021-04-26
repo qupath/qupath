@@ -93,7 +93,7 @@ public class GsonTools {
 	 * @return
 	 */
 	public static GsonBuilder getDefaultBuilder() {
-		logger.debug("Requesting GsonBuilder from " + Thread.currentThread().getStackTrace()[0]);
+		logger.trace("Requesting GsonBuilder from {}", Thread.currentThread().getStackTrace()[0]);
 		return builder;
 	}
 	

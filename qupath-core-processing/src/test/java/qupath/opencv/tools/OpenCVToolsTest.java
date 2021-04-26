@@ -22,6 +22,9 @@
 package qupath.opencv.tools;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
@@ -29,6 +32,9 @@ import java.util.Random;
 import java.util.stream.IntStream;
 
 import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.opencv_core.Mat;
 import org.junit.jupiter.api.Test;
 
 import qupath.imagej.tools.IJTools;
@@ -92,5 +98,49 @@ public class OpenCVToolsTest {
 			
 		}
 	}
+	
+	
+	@Test
+	public void testContinuous() {
+		try (var scope = new PointerScope()) {
+			var mat = Mat.eye(9, 7, opencv_core.CV_32F).asMat();
+			var mat2 = mat.col(5);
+			assertTrue(mat.isContinuous());
+			assertFalse(mat2.isContinuous());
+
+			// While we have a non-continuous array, best check that buffers & indexers still behave as expected
+			FloatIndexer idx = mat2.createIndexer();
+			assertEquals(idx.size(0), 9);
+			assertEquals(idx.size(1), 1);
+			float[] pixels = OpenCVTools.extractPixels(mat2, null);
+			
+			// Warning! Buffer does *not* work here, since it refers to the whole Mat, 
+			// with a limit of 63. This is one reason why it's important to use buffers 
+			// only with continuous Mats...
+//			FloatBuffer buffer = mat2.createBuffer();
+			for (int i = 0; i < 9; i++) {
+				float val = i == 5 ? 1f : 0f;
+				assertEquals(idx.get(i, 0), val);
+				assertEquals(pixels[i], val);
+//				assertEquals(buffer.get(i), val);
+			}
+			
+			var mat3 = OpenCVTools.ensureContinuous(mat2, false);
+			assertTrue(mat3.isContinuous());
+			assertFalse(mat2.isContinuous());
+			
+			OpenCVTools.ensureContinuous(mat2, true);
+			assertTrue(mat2.isContinuous());
+			assertEquals(mat2.rows(), 9);
+			assertEquals(mat2.cols(), 1);
+			
+			// Extracting a row maintains continuous data
+			var mat4 = mat.row(5);
+			assertTrue(mat4.isContinuous());
+			OpenCVTools.ensureContinuous(mat4, true);
+			assertTrue(mat4.isContinuous());
+		}
+	}
+	
 
 }

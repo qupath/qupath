@@ -42,7 +42,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	private static final long serialVersionUID = 1L;
 
 	private static String defaultName = "Unclassified";
-	private static Integer DEFAULT_COLOR = ColorTools.makeRGB(64, 64, 64);
+	private static Integer DEFAULT_COLOR = ColorTools.packRGB(64, 64, 64);
 	
 	private final PathClass parentClass;
 	private final String name;

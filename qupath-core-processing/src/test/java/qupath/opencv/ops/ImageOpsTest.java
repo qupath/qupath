@@ -24,19 +24,27 @@ package qupath.opencv.ops;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Arrays;
+import java.util.Map;
 
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.junit.jupiter.api.Test;
-
 import qupath.lib.io.GsonTools;
 import qupath.opencv.tools.OpenCVTools;
 
 @SuppressWarnings("javadoc")
 public class ImageOpsTest {
+	
+	static {
+		// Need to force class initialization
+		new ImageOps();
+	}
 	
 	/**
 	 * Test the application and serialization of ImageOps.
@@ -92,9 +100,66 @@ public class ImageOpsTest {
 			var jsonLegacyRecovered = GsonTools.getInstance(true).toJson(opLegacy, ImageOp.class);
 			assertEquals(json, jsonLegacyRecovered);
 		}
-
 				
 	}
+	
+	
+	@Test
+	public void testZOpNameSerialization() {
+		Map<ImageOp, String> ops = Map.of(
+				createOp(1, 2), "op.core.sequential",
+				ImageOps.Channels.extract(2, 3), "op.channels.extract-channels",
+				ImageOps.Channels.sum(), "op.channels.sum",
+				ImageOps.Channels.mean(), "op.channels.mean",
+				ImageOps.Channels.minimum(), "op.channels.minimum",
+				ImageOps.Channels.maximum(), "op.channels.maximum",
+				ImageOps.Filters.gaussianBlur(3), "op.filters.gaussian"
+				);
+		for (var entry : ops.entrySet()) {
+			var json = GsonTools.getInstance().toJsonTree(entry.getKey(), ImageOp.class).getAsJsonObject();
+			assertEquals(json.get("type").getAsString(), entry.getValue());
+		}
+	}
+	
+	
+	@Test
+	public void testChannels() {
+		int type = opencv_core.CV_32FC1;
+		int rows = 25;
+		int cols = 30;
+		var matList = Arrays.asList(
+				new Mat(rows, cols, type, Scalar.all(1)),
+				new Mat(rows, cols, type, Scalar.all(5)),				
+				new Mat(rows, cols, type, Scalar.all(2)),
+				new Mat(rows, cols, type, Scalar.all(4)),
+				new Mat(rows, cols, type, Scalar.all(3))
+				);
+		var mat = OpenCVTools.mergeChannels(matList, null);
+		
+		var matMean = ImageOps.Channels.mean().apply(mat.clone());
+		assertTrue(matsEqual(matMean, new Mat(rows, cols, type, Scalar.all(3)), 1e-6));
+		
+		var matSum = ImageOps.Channels.sum().apply(mat.clone());
+		assertTrue(matsEqual(matSum, new Mat(rows, cols, type, Scalar.all(15)), 1e-6));
+		
+		var matMax = ImageOps.Channels.maximum().apply(mat.clone());
+		assertTrue(matsEqual(matMax, new Mat(rows, cols, type, Scalar.all(5)), 1e-6));
+		
+		var matMin = ImageOps.Channels.minimum().apply(mat.clone());
+		assertTrue(matsEqual(matMin, new Mat(rows, cols, type, Scalar.all(1)), 1e-6));
+
+		var matChannels = ImageOps.Channels.extract(1).apply(mat.clone());
+		assertEquals(matChannels.channels(), 1);
+		assertTrue(matsEqual(matChannels, matList.get(1), 1e-6));
+
+		var matChannels2 = ImageOps.Channels.extract(2, 4).apply(mat.clone());
+		assertEquals(matChannels2.channels(), 2);
+
+		assertThrows(IllegalArgumentException.class, () -> ImageOps.Channels.extract().apply(mat.clone()));
+	}
+	
+	
+	
 	
 	/**
 	 * Compare if two Mats are equal in terms of dimensions and values.

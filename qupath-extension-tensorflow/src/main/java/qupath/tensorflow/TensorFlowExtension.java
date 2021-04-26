@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.opencv.ops.ImageOps;
 
 /**
  * Experimental extension to connect QuPath and TensorFlow.
@@ -39,8 +40,7 @@ public class TensorFlowExtension implements QuPathExtension {
 	@Override
 	public void installExtension(QuPathGUI qupath) {
 		logger.debug("Installing TensorFlow extension");
-		
-		// TODO Auto-generated method stub
+		ImageOps.registerOp(TensorFlowOp.class, "op.ml.ext.tensorflow");
 	}
 
 	@Override
