@@ -135,7 +135,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * Minimum tile size - smaller values will be ignored.
 	 */
 	private static int MIN_TILE_SIZE = 32;
-	
+
+	/**
+	 * Default tile size - when no other value is available.
+	 */
+	private static int DEFAULT_TILE_SIZE = 512;
+
 	/**
 	 * Maximum tile size - larger values will be ignored.
 	 */
@@ -457,14 +462,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			nChannels = reader.getSizeC();
 
 			// Make sure tile sizes are within range
-			if (tileWidth <= 0)
-				tileWidth = 256;
-			if (tileHeight <= 0)
-				tileHeight = 256;
-			if (tileWidth > width)
-				tileWidth = width;
-			if (tileHeight > height)
-				tileHeight = height;
+			if (tileWidth != width)
+				tileWidth = getDefaultTileLength(tileWidth, width);
+			if (tileHeight != height)
+				tileHeight = getDefaultTileLength(tileHeight, height);
 
 			// Prepared to set channel colors
 			List<ImageChannel> channels = new ArrayList<>();
@@ -699,8 +700,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				builder = builder.zSpacingMicrons(zSpacing);
 
 			// Check the tile size if it is reasonable
-			if (tileWidth >= MIN_TILE_SIZE && tileWidth <= MAX_TILE_SIZE && tileHeight >= MIN_TILE_SIZE && tileHeight <= MAX_TILE_SIZE)
+			if ((long)tileWidth * (long)tileHeight * (long)nChannels * (bpp/8) >= Integer.MAX_VALUE) {
+				builder.preferredTileSize(Math.min(DEFAULT_TILE_SIZE, width), Math.min(DEFAULT_TILE_SIZE, height));
+			} else
 				builder.preferredTileSize(tileWidth, tileHeight);
+
 			originalMetadata = builder.build();
 		}
 
@@ -711,6 +715,23 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		long endTime = System.currentTimeMillis();
 		logger.debug(String.format("Initialization time: %d ms", endTime-startTime));
 	}
+	
+	
+	/**
+	 * Get a sensible default tile size for a specified dimension.
+	 * @param tileLength tile width or height
+	 * @param imageLength corresponding image width or height
+	 * @return a sensible tile length, bounded by the image width or height
+	 */
+	static int getDefaultTileLength(int tileLength, int imageLength) {
+		if (tileLength <= 0) {
+			tileLength = DEFAULT_TILE_SIZE;
+		} else if (tileLength < MIN_TILE_SIZE) {
+			tileLength = (int)Math.ceil((double)MIN_TILE_SIZE / tileLength) * tileLength;
+		}
+		return Math.min(tileLength, imageLength);
+	}
+	
 	
 	
 	/**

@@ -68,6 +68,7 @@ List of bugs fixed:
 * setIntensityClassification method in PathClassifierTools now correctly ignores ignored classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
 * Dialogs.showConfirmDialog(title, text) shows the text in the title bar, rather than the title (https://github.com/qupath/qupath/issues/662)
 * Error in StarDist intensity measurements for 8-bit RGB fluorescence images (https://github.com/qupath/qupath/issues/686)
+* Opening images with very narrow tiles can fail with Bio-Formats (https://github.com/qupath/qupath/issues/715)
 * Not possible to view multiple channels simultaneously with inverted lookup tables (max display < min display)
 * Exception when converting PathObject with name but no color to GeoJSON
 
