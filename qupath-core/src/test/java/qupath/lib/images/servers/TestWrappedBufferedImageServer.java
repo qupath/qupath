@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 import qupath.lib.regions.RegionRequest;
 
 @SuppressWarnings("javadoc")
-public class WrappedBufferedImageServerTest {
+public class TestWrappedBufferedImageServer {
 
 	@Test
 	public void test() {
