@@ -561,6 +561,8 @@ public class ImageOps {
 			
 			NormalizePercentileOp(double percentileMin, double percentileMax) {
 				this.percentiles = new double[] {percentileMin, percentileMax};
+				if (percentileMin == percentileMax)
+					throw new IllegalArgumentException("Percentile min and max values cannot be identical!");
 			}
 
 			@Override
@@ -570,7 +572,12 @@ public class ImageOps {
 				for (int i = 0; i < matvec.size(); i++) {
 					var mat = matvec.get(i);
 					var range = percentiles(mat, percentiles);
-					double scale = 1./(range[1] - range[0]);
+					double scale;
+					if (range[1] == range[0]) {
+						logger.warn("Normalization percentiles give the same value ({}), scale will be Infinity", range[0]);
+						scale = Double.POSITIVE_INFINITY;
+					} else
+						scale = 1.0/(range[1] - range[0]);
 					double offset = -range[0];
 					mat.convertTo(mat, mat.type(), scale, offset*scale);
 				}
@@ -2224,7 +2231,7 @@ public class ImageOps {
 		opencv_core.sort(mat2, matSorted, opencv_core.CV_SORT_ASCENDING + opencv_core.CV_SORT_EVERY_COLUMN);
 		try (var idx = matSorted.createIndexer()) {
 			for (int i = 0; i < result.length; i++) {
-				long ind = (long)(percentiles[i] / 100.0 * n);
+				long ind = (long)(percentiles[i] / 100.0 * (n - 1));
 				result[i] = idx.getDouble(ind);
 			}
 		}

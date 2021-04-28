@@ -879,20 +879,32 @@ public class StarDist2D {
 	            if (prob < threshold)
 	                continue;
 	            var coords = new ArrayList<Coordinate>();
+	            Coordinate lastCoord = null;
 	            for (int a = 1; a <= nRays; a++) {
 	                inds[2] = a;
 	                double val = indexer.get(inds);
+	                // We can get NaN
+	                if (!Double.isFinite(val))
+	                	continue;
 	                double xx = precisionModel.makePrecise(request.getX() + (x + val * rayCosine[a-1]) * downsample);
 	                double yy = precisionModel.makePrecise(request.getY() + (y + val * raySine[a-1]) * downsample);
-	                coords.add(new Coordinate(xx, yy));
+	                var coord = new Coordinate(xx, yy);
+	                if (!Objects.equals(coord, lastCoord))
+	                	coords.add(coord);
 	            }
-	            coords.add(coords.get(0));
-	            var polygon = factory.createPolygon(coords.toArray(Coordinate[]::new));
-	            if (locator == null || locator.locate(new Centroid(polygon).getCentroid()) != Location.EXTERIOR) {
-	            	
-	            	var geom = simplify(polygon);
-	            	
-	            	nuclei.add(new PotentialNucleus(geom, prob));
+	            // We need at least 3 for a reasonable nucleus
+	            if (coords.size() < 3)
+	            	continue;
+	            else if (!coords.get(0).equals(coords.get(coords.size()-1)))
+	            	coords.add(coords.get(0));
+	            try {
+		            var polygon = factory.createPolygon(coords.toArray(Coordinate[]::new));
+		            if (locator == null || locator.locate(new Centroid(polygon).getCentroid()) != Location.EXTERIOR) {
+		            	var geom = simplify(polygon);
+		            	nuclei.add(new PotentialNucleus(geom, prob));
+		            }
+	            } catch (Exception e) {
+	            	logger.warn("Error creating nucleus: " + e.getLocalizedMessage(), e);
 	            }
 	        }
 	    }
