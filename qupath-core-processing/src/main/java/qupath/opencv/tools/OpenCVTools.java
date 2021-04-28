@@ -33,7 +33,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -62,14 +65,19 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Point;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 
+import qupath.lib.analysis.algorithms.ContourTracing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.interfaces.ROI;
 
 /**
  * Collection of static methods to help with using OpenCV from Java.
@@ -551,7 +559,6 @@ public class OpenCVTools {
 		}
 		return img;
 	}
-		
 	
 
 	/**
@@ -629,7 +636,9 @@ public class OpenCVTools {
 	 * @param matBinary
 	 * @param matLabels
 	 * @param contourRetrievalMode defined within OpenCV findContours
+	 * @deprecated Use {@link #label(Mat, Mat, int)} instead.
 	 */
+	@Deprecated
 	public static void labelImage(Mat matBinary, Mat matLabels, int contourRetrievalMode) {
 		MatVector contours = new MatVector();
 		Mat hierarchy = new Mat();
@@ -792,6 +801,10 @@ public class OpenCVTools {
 		else
 			temp = mat.reshape(1, mat.rows()*mat.cols()*mat.channels());
 		var matOutput = new Mat();
+		int depth = temp.depth();
+		// Not all depths are supported by reduce (only know for sure that CV_32S isn't...)
+		if (depth == opencv_core.CV_32S || depth == opencv_core.CV_8U || depth == opencv_core.CV_16S || depth == opencv_core.CV_16U || depth == opencv_core.CV_16F)
+			temp.convertTo(temp, opencv_core.CV_32F);
 		opencv_core.reduce(temp, matOutput, 0, reduction);
 		var output = extractDoubles(matOutput);
 		temp.close();
@@ -868,6 +881,11 @@ public class OpenCVTools {
 		return strel;
 	}
 	
+	// Since generating a disk filter can be quite expensive, cache where we can
+	private static Map<Integer, Mat> cachedSumDisks = Collections.synchronizedMap(new HashMap<>());
+	private static Map<Integer, Mat> cachedMeanDisks = Collections.synchronizedMap(new HashMap<>());
+
+	
 	/**
 	 * Create a disk filter.
 	 * This is a rasterized approximation of a filled circle with the specified radius.
@@ -877,15 +895,22 @@ public class OpenCVTools {
 	 *               If false, all 'inside' elements are 1 and all 'outside' elements are 0.
 	 * @return a Mat of size {@code radius*2+1} that depicts a filled circle
 	 * @implNote this uses a distance transform, and tends to get more predictable results than {@link #getCircularStructuringElement(int)}.
+	 *           Internally, expensive computations are reduced by caching previously calculated filters and returning only a clone.
 	 */
 	public static Mat createDisk(int radius, boolean doMean) {
 		if (radius <= 0)
 			throw new IllegalArgumentException("Radius must be > 0");
+		
+		Map<Integer, Mat> cache = doMean ? cachedMeanDisks : cachedSumDisks;
+		Mat kernel = cache.get(radius);
+		if (kernel != null)
+			return kernel.clone();
+		kernel = new Mat();
+		
 		var kernelCenter = new Mat(radius*2+1, radius*2+1, opencv_core.CV_8UC1, Scalar.WHITE);
 		try (UByteIndexer idxKernel = kernelCenter.createIndexer()) {
 			idxKernel.put(radius, radius, 0);
 		}
-		var kernel = new Mat();
 		opencv_imgproc.distanceTransform(kernelCenter, kernel, opencv_imgproc.DIST_L2, opencv_imgproc.DIST_MASK_PRECISE);
 		opencv_imgproc.threshold(kernel, kernel, radius, 1, opencv_imgproc.THRESH_BINARY_INV);
 		if (doMean) {
@@ -893,7 +918,8 @@ public class OpenCVTools {
 			double sum = opencv_core.sumElems(kernel).get();
 			opencv_core.dividePut(kernel, sum);
 		}
-		return kernel;
+		cache.put(radius, kernel);
+		return kernel.clone();
 	}
 
 	/**
@@ -1531,6 +1557,310 @@ public class OpenCVTools {
 	    }
 	    
 	    return matResult;
+	}
+	
+	
+	private static int DEFAULT_BORDER_TYPE = opencv_core.BORDER_REFLECT;
+	
+	private static Mat radiusToStrel(int radius) {
+		try (var size = new Size(radius*2+1, radius*2+1)) {
+			return opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size);			
+		}
+	}
+	
+	/**
+	 * Apply a separable filter to an image, with symmetric boundary padding.
+	 * @param mat input image
+	 * @param kx horizontal kernel
+	 * @param ky vertical kernel
+	 */
+	public static void sepFilter2D(Mat mat, Mat kx, Mat ky) {
+		sepFilter2D(mat, kx, ky, DEFAULT_BORDER_TYPE);
+	}
+
+	/**
+	 * Apply a separable filter to an image.
+	 * @param mat input image
+	 * @param kx horizontal kernel
+	 * @param ky vertical kernel
+	 * @param borderType OpenCV border type for boundary padding
+	 */
+	public static void sepFilter2D(Mat mat, Mat kx, Mat ky, int borderType) {
+		opencv_imgproc.sepFilter2D(mat, mat, -1, kx, ky, null, 0, borderType);
+	}
+	
+	/**
+	 * Apply a 2D filter to all channels of an image, with symmetric boundary padding.
+	 * @param mat input image
+	 * @param kernel filter kernel
+	 */
+	public static void filter2D(Mat mat, Mat kernel) {
+		filter2D(mat, kernel, DEFAULT_BORDER_TYPE);
+	}
+
+	/**
+	 * Apply a 2D filter to all channels of an image.
+	 * @param mat input image
+	 * @param kernel filter kernel
+	 * @param borderType OpenCV border type for boundary padding
+	 */
+	public static void filter2D(Mat mat, Mat kernel, int borderType) {
+		opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, borderType);
+	}
+	
+	/**
+	 * Apply a circular 2D mean filter to all channels of an image.
+	 * @param mat input image
+	 * @param radius filter radius
+	 * @param borderType OpenCV border type for boundary padding
+	 * @see #createDisk(int, boolean)
+	 */
+	public static void meanFilter(Mat mat, int radius, int borderType) {
+		var kernel = createDisk(radius, true);
+		filter2D(mat, kernel, borderType);
+	}
+	
+	/**
+	 * Apply a circular 2D mean filter to all channels of an image, with symmetric boundary padding.
+	 * @param mat input image
+	 * @param radius filter radius
+	 * @see #createDisk(int, boolean)
+	 */
+	public static void meanFilter(Mat mat, int radius) {
+		meanFilter(mat, radius, DEFAULT_BORDER_TYPE);
+	}
+	
+	/**
+	 * Apply a circular 2D sum filter to all channels of an image.
+	 * @param mat input image
+	 * @param radius filter radius
+	 * @param borderType OpenCV border type for boundary padding
+	 * @see #createDisk(int, boolean)
+	 */
+	public static void sumFilter(Mat mat, int radius, int borderType) {
+		var kernel = createDisk(radius, false);
+		filter2D(mat, kernel, borderType);
+	}
+	
+	/**
+	 * Apply a circular 2D sum filter to all channels of an image, with symmetric boundary padding.
+	 * @param mat input image
+	 * @param radius filter radius
+	 * @see #createDisk(int, boolean)
+	 */
+	public static void sumFilter(Mat mat, int radius) {
+		sumFilter(mat, radius, DEFAULT_BORDER_TYPE);
+	}
+	
+	/**
+	 * Apply a circular 2D local variance filter to all channels of an image.
+	 * @param mat input image
+	 * @param radius filter radius
+	 * @param borderType OpenCV border type for boundary padding
+	 * @see #createDisk(int, boolean)
+	 * @see #stdDevFilter(Mat, int, int)
+	 */
+	public static void varianceFilter(Mat mat, int radius, int borderType) {
+		var kernel = createDisk(radius, true);
+		var matSquared = mat.mul(mat).asMat();
+		opencv_imgproc.filter2D(matSquared, matSquared, -1, kernel, null, 0, borderType);
+		opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, borderType);
+		mat.put(opencv_core.subtract(matSquared, mat.mul(mat)));
+		matSquared.close();
+	}
+	
+	/**
+	 * Apply a circular 2D local variance filter to all channels of an image, with symmetric boundary padding.
+	 * @param mat input image
+	 * @param radius filter radius
+	 * @see #createDisk(int, boolean)
+	 * @see #stdDevFilter(Mat, int)
+	 */
+	public static void varianceFilter(Mat mat, int radius) {
+		varianceFilter(mat, radius, DEFAULT_BORDER_TYPE);
+	}
+	
+	/**
+	 * Apply a circular 2D local standard deviation filter to all channels of an image.
+	 * @param mat input image
+	 * @param radius filter radius
+	 * @param borderType OpenCV border type for boundary padding
+	 * @see #createDisk(int, boolean)
+	 * @see #varianceFilter(Mat, int, int)
+	 */	public static void stdDevFilter(Mat mat, int radius, int borderType) {
+		varianceFilter(mat, radius, borderType);
+		opencv_core.sqrt(mat, mat);
+	}
+	
+	 /**
+	 * Apply a circular 2D local standard deviation filter to all channels of an image, with symmetric boundary padding.
+	 * @param mat input image
+	 * @param radius filter radius
+	 * @see #createDisk(int, boolean)
+	 * @see #varianceFilter(Mat, int)
+	 */
+	 public static void stdDevFilter(Mat mat, int radius) {
+		stdDevFilter(mat, radius, DEFAULT_BORDER_TYPE);
+	}
+	
+	/**
+	 * Apply a 2D maximum filter (dilation) to all channels of an image.
+	 * @param mat input image
+	 * @param radius radius of the disk structuring element
+	 */ 
+	public static void maximumFilter(Mat mat, int radius) {
+		var strel = radiusToStrel(radius);
+		opencv_imgproc.dilate(mat, mat, strel);
+	}
+
+	/**
+	 * Apply a 2D minimum filter (erosion) to all channels of an image.
+	 * @param mat input image
+	 * @param radius radius of the disk structuring element
+	 */ 
+	public static void minimumFilter(Mat mat, int radius) {
+		var strel = radiusToStrel(radius);
+		opencv_imgproc.erode(mat, mat, strel);
+	}
+	
+	/**
+	 * Apply a 2D closing filter (dilation followed by erosion) to all channels of an image.
+	 * @param mat input image
+	 * @param radius radius of the disk structuring element
+	 */ 
+	public static void closingFilter(Mat mat, int radius) {
+		var strel = radiusToStrel(radius);
+		opencv_imgproc.morphologyEx(mat, mat, opencv_imgproc.MORPH_CLOSE, strel);
+	}
+
+	/**
+	 * Apply a 2D opening filter (erosion followed by dilation) to all channels of an image.
+	 * @param mat input image
+	 * @param radius radius of the disk structuring element
+	 */ 
+	public static void openingFilter(Mat mat, int radius) {
+		var strel = radiusToStrel(radius);
+		opencv_imgproc.morphologyEx(mat, mat, opencv_imgproc.MORPH_OPEN, strel);		
+	}
+
+	/**
+	 * Apply a 2D Gaussian filter to all channels of an image.
+	 * @param mat input image
+	 * @param sigma filter sigma value
+	 * @param borderType OpenCV border type for boundary padding
+	 */
+	public static void gaussianFilter(Mat mat, double sigma, int borderType) {
+		int s = (int)Math.ceil(sigma * 4) * 2 + 1;
+		try (var size = new Size(s, s)) {
+			opencv_imgproc.GaussianBlur(mat, mat, size, sigma, sigma, borderType);
+		}
+	}
+	
+	/**
+	 * Apply a 2D Gaussian filter to all channels of an image, with symmetric boundary padding.
+	 * @param mat input image
+	 * @param sigma filter sigma value
+	 */
+	public static void gaussianFilter(Mat mat, double sigma) {
+		gaussianFilter(mat, sigma, DEFAULT_BORDER_TYPE);
+	}
+	
+	/**
+	 * Label connected components for non-zero pixels in an image.
+	 * @param matBinary binary image to label
+	 * @param connectivity either 4 or 8
+	 * @return an integer labelled image (CV_32S)
+	 */
+	public static Mat label(Mat matBinary, int connectivity) {
+		var matLabels = new Mat();
+		label(matBinary, matLabels, connectivity);
+		return matLabels;
+	}
+	
+	/**
+	 * Label connected components for non-zero pixels in an image.
+	 * @param matBinary binary image to label
+	 * @param matLabels labelled image to store the output
+	 * @param connectivity either 4 or 8
+	 * @return number of connected components, equal to the value of the highest integer label
+	 */
+	public static int label(Mat matBinary, Mat matLabels, int connectivity) {
+		return opencv_imgproc.connectedComponents(matBinary, matLabels, connectivity, opencv_core.CV_32S) - 1;
+	}
+	
+	/**
+	 * Convert integer labels into ROIs.
+	 * 
+	 * @param matLabels labelled image; each label should be an integer value
+	 * @param region region used to convert coordinates into the full image space (optional)
+	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
+	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
+	 * @return an ordered map containing all the ROIs that could be found; corresponding labels are keys in the map
+//	 * @see #findROIs(Mat, RegionRequest, int, int)
+	 * @see ContourTracing#createROIs(SimpleImage, RegionRequest, int, int)
+	 */
+	public static Map<Number, ROI> createROIs(Mat matLabels, RegionRequest region, int minLabel, int maxLabel) {
+		if (matLabels.channels() != 1)
+			throw new IllegalArgumentException("Input to createROIs must be a single-channel Mat - current input has " + matLabels.channels() + " channels");
+		var image = matToSimpleImage(matLabels, 0);
+		return ContourTracing.createROIs(image, region, minLabel, maxLabel);
+	}
+	
+	/**
+	 * Create detection objects by tracing contours in a labelled image.
+	 * @param matLabels labelled image
+	 * @param region region used to convert coordinates into the full image space (optional)
+	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
+	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
+	 * @return detection objects generated by tracing contours
+	 * @see ContourTracing#createObjects(SimpleImage, RegionRequest, int, int, Function)
+	 */
+	public static List<PathObject> createDetections(Mat matLabels, RegionRequest region, int minLabel, int maxLabel) {
+		return createObjects(matLabels, region, minLabel, maxLabel, r -> PathObjects.createDetectionObject(r));
+	}
+	
+	/**
+	 * Create annotation objects by tracing contours in a labelled image.
+	 * @param matLabels labelled image
+	 * @param region region used to convert coordinates into the full image space (optional)
+	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
+	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
+	 * @return annotation objects generated by tracing contours
+	 * @see ContourTracing#createObjects(SimpleImage, RegionRequest, int, int, Function)
+	 */
+	public static List<PathObject> createAnnotations(Mat matLabels, RegionRequest region, int minLabel, int maxLabel) {
+		return createObjects(matLabels, region, minLabel, maxLabel, r -> PathObjects.createAnnotationObject(r));
+	}
+	
+	/**
+	 * Create objects by tracing contours in a labelled image.
+	 * @param matLabels labelled image
+	 * @param region region used to convert coordinates into the full image space (optional)
+	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
+	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
+	 * @param creator function used to generate objects from ROIs
+	 * @return objects generated by tracing contours
+	 * @see ContourTracing#createObjects(SimpleImage, RegionRequest, int, int, Function)
+	 */
+	public static List<PathObject> createObjects(Mat matLabels, RegionRequest region, int minLabel, int maxLabel, Function<ROI, PathObject> creator) {
+		var image = matToSimpleImage(matLabels, 0);
+		return ContourTracing.createObjects(image, region, minLabel, maxLabel, creator);
+	}
+	
+	/**
+	 * Create cell objects by tracing contours in a labelled image.
+	 * @param matLabelsNuclei labelled image for the cell nuclei
+	 * @param matLabelsCells labelled image for the full cell; labels must correspond to those in matLabelsNuclei
+	 * @param region region used to convert coordinates into the full image space (optional)
+	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
+	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
+	 * @return cell objects generated by tracing contours
+	 * @see ContourTracing#createCells(SimpleImage, SimpleImage, RegionRequest, int, int)
+	 */
+	public static List<PathObject> createCells(Mat matLabelsNuclei, Mat matLabelsCells, RegionRequest region, int minLabel, int maxLabel) {
+		var imageNuclei = matToSimpleImage(matLabelsNuclei, 0);
+		var imageCells = matToSimpleImage(matLabelsCells, 0);
+		return ContourTracing.createCells(imageNuclei, imageCells, region, minLabel, maxLabel);
 	}
 	
 

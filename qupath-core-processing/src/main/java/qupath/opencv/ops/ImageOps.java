@@ -683,7 +683,7 @@ public class ImageOps {
 		 * @return
 		 */
 		public static ImageOp mean(int radius) {
-			return new MeanFilterOp(radius, opencv_core.BORDER_REFLECT);
+			return new MeanFilterOp(radius);
 		}
 		
 //		/**
@@ -702,7 +702,7 @@ public class ImageOps {
 		 * @return
 		 */
 		public static ImageOp sum(int radius) {
-			return new SumFilterOp(radius, opencv_core.BORDER_REFLECT);
+			return new SumFilterOp(radius);
 		}
 		
 //		/**
@@ -721,7 +721,7 @@ public class ImageOps {
 		 * @return
 		 */
 		public static ImageOp variance(int radius) {
-			return new VarianceFilterOp(radius, opencv_core.BORDER_REFLECT);
+			return new VarianceFilterOp(radius);
 		}
 		
 //		/**
@@ -740,7 +740,7 @@ public class ImageOps {
 		 * @return
 		 */
 		public static ImageOp stdDev(int radius) {
-			return new StdDevFilterOp(radius, opencv_core.BORDER_REFLECT);
+			return new StdDevFilterOp(radius);
 		}
 		
 		/**
@@ -995,105 +995,88 @@ public class ImageOps {
 		static class SumFilterOp extends PaddedOp {
 			
 			private int radius;
-			private int borderType = opencv_core.BORDER_DEFAULT;
-			private transient Mat kernel;
 			
-			SumFilterOp(int radius, int borderType) {
+			SumFilterOp(int radius) {
 				super();
 				this.radius = radius;
-				this.borderType = borderType;
 			}
 
 			@Override
 			protected Padding calculatePadding() {
 				return Padding.symmetric(radius);
 			}
-			
-			protected int getRadius() {
-				return radius;
-			}
-			
-			protected int getBorderType() {
-				return borderType;
-			}
-			
-			protected Mat createKernel() {
-				return OpenCVTools.createDisk(radius, false);
-			}
-			
-			protected Mat getKernel() {
-				if (kernel == null)
-					kernel = createKernel();
-				return kernel;
-			}
-
 			@Override
 			protected Mat transformPadded(Mat input) {
-//				int c = input.channels();
-				var kernel = getKernel();
-				opencv_imgproc.filter2D(input, input, -1, kernel, null, 0, borderType);
-//				if (c == 1 || c == 3 || c == 4)
-//					opencv_imgproc.filter2D(input, input, -1, kernel);
-//				else
-//					OpenCVTools.applyToChannels(input, m -> opencv_imgproc.filter2D(m, m, -1, kernel));
+				OpenCVTools.sumFilter(input, radius);
 				return input;
 			}
 			
 		}
-		
 		
 		@OpType("mean")
-		static class MeanFilterOp extends SumFilterOp {
+		static class MeanFilterOp extends PaddedOp {
 			
-			MeanFilterOp(int radius, int borderType) {
-				super(radius, borderType);
+			private int radius;
+			
+			MeanFilterOp(int radius) {
+				super();
+				this.radius = radius;
 			}
 
 			@Override
-			protected Mat createKernel() {
-				return OpenCVTools.createDisk(getRadius(), true);
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
 			}
-			
-		}
-		
-		@OpType("variance")
-		static class VarianceFilterOp extends SumFilterOp {
-			
-			VarianceFilterOp(int radius, int borderType) {
-				super(radius, borderType);
-			}
-
-			@Override
-			protected Mat createKernel() {
-				return OpenCVTools.createDisk(getRadius(), true);
-			}
-			
 			@Override
 			protected Mat transformPadded(Mat input) {
-				var kernel = getKernel();
-				int borderType = getBorderType();
-				var inputSquared = input.mul(input).asMat();
-				opencv_imgproc.filter2D(inputSquared, inputSquared, -1, kernel, null, 0, borderType);
-				opencv_imgproc.filter2D(input, input, -1, kernel, null, 0, borderType);
-				input.put(opencv_core.subtract(inputSquared, input.mul(input)));
-				inputSquared.close();
+				OpenCVTools.meanFilter(input, radius);
 				return input;
 			}
 			
 		}
 		
-		@OpType("stddev")
-		static class StdDevFilterOp extends VarianceFilterOp {
-
-			StdDevFilterOp(int radius, int borderType) {
-				super(radius, borderType);
-			}
+		
+		@OpType("variance")
+		static class VarianceFilterOp extends PaddedOp {
 			
+			private int radius;
+			
+			VarianceFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
 			@Override
 			protected Mat transformPadded(Mat input) {
-				var output = super.transformPadded(input);
-				opencv_core.sqrt(output, output);
-				return output;
+				OpenCVTools.varianceFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
+		
+		@OpType("stddev")
+		static class StdDevFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			StdDevFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.stdDevFilter(input, radius);
+				return input;
 			}
 			
 		}

@@ -28,9 +28,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.image.BufferedImage;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.stream.IntStream;
+
+import javax.imageio.ImageIO;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.bytedeco.javacpp.PointerScope;
@@ -38,6 +41,10 @@ import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorModelFactory;
@@ -46,6 +53,8 @@ import qupath.lib.images.servers.PixelType;
 
 @SuppressWarnings("javadoc")
 public class TestOpenCVTools {
+	
+	private final static Logger logger = LoggerFactory.getLogger(TestOpenCVTools.class);
 
 	/**
 	 * Test creation of BufferedImages of different types, and conversions between BufferedImage, Mat and ImagePlus.
@@ -279,6 +288,35 @@ public class TestOpenCVTools {
 			OpenCVTools.ensureContinuous(mat4, true);
 			assertTrue(mat4.isContinuous());
 		}
+	}
+	
+	
+	
+	
+	@ParameterizedTest
+	@MethodSource("qupath.lib.analysis.algorithms.TestContourTracing#providePathsForTraceContours")
+	void testTraceContours(Path path) throws Exception {
+		long startTime = System.currentTimeMillis();
+		
+		var img = ImageIO.read(path.toUri().toURL());
+		var mat = OpenCVTools.imageToMat(img);
+						
+		var labels4 = OpenCVTools.label(mat, 4);
+		var objects4 = OpenCVTools.createDetections(labels4, null, 1, -1);
+		assertEquals(objects4.size(), OpenCVTools.maximum(labels4));
+		assertFalse(objects4.stream().anyMatch(p -> p.getROI().isEmpty()));
+		
+		long middleTime = System.currentTimeMillis();
+		logger.debug("Traced {} contours for {} in {} ms with 4-connectivity", objects4.size(), path.getFileName().toString(), middleTime - startTime);
+		
+		var labels8 = OpenCVTools.label(mat, 8);
+		var objects8 = OpenCVTools.createAnnotations(labels8, null, 1, -1);
+		assertEquals(objects8.size(), OpenCVTools.maximum(labels8));
+		assertFalse(objects8.stream().anyMatch(p -> p.getROI().isEmpty()));
+		
+		long endTime = System.currentTimeMillis();
+		logger.debug("Traced {} contours for {} in {} ms with 8-connectivity", objects8.size(), path.getFileName().toString(), endTime - middleTime);
+
 	}
 	
 
