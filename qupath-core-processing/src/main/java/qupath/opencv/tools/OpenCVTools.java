@@ -37,8 +37,6 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static org.bytedeco.opencv.global.opencv_core.*;
-
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.javacpp.indexer.ByteIndexer;
@@ -128,26 +126,26 @@ public class OpenCVTools {
 		int typeCV;
 		switch (buffer.getDataType()) {
 			case DataBuffer.TYPE_BYTE:
-				typeCV = CV_8UC(nChannels);
+				typeCV = opencv_core.CV_8UC(nChannels);
 				break;
 //			case DataBuffer.TYPE_DOUBLE:
 //				typeCV = CV_64FC(nChannels); 
 //				mat = new Mat(height, width, typeCV, Scalar.ZERO);
 //				break;
 			case DataBuffer.TYPE_FLOAT:
-				typeCV = CV_32FC(nChannels); 
+				typeCV = opencv_core.CV_32FC(nChannels); 
 				break;
 			case DataBuffer.TYPE_INT:
-				typeCV = CV_32SC(nChannels); // Assuming signed int
+				typeCV = opencv_core.CV_32SC(nChannels); // Assuming signed int
 				break;
 			case DataBuffer.TYPE_SHORT:
-				typeCV = CV_16SC(nChannels); 
+				typeCV = opencv_core.CV_16SC(nChannels); 
 				break;
 			case DataBuffer.TYPE_USHORT:
-				typeCV = CV_16UC(nChannels); 
+				typeCV = opencv_core.CV_16UC(nChannels); 
 				break;
 			default:
-				typeCV = CV_64FC(nChannels); // Assume 64-bit is as flexible as we can manage
+				typeCV = opencv_core.CV_64FC(nChannels); // Assume 64-bit is as flexible as we can manage
 		}
 		
 		// Create a new Mat & put the pixels
@@ -436,33 +434,33 @@ public class OpenCVTools {
 		int type;
 		int bpp = 0;
 		switch (mat.depth()) {
-			case CV_8U:
+			case opencv_core.CV_8U:
 				type = DataBuffer.TYPE_BYTE;
 				bpp = 8;
 				break;
-			case CV_8S:
+			case opencv_core.CV_8S:
 				type = DataBuffer.TYPE_SHORT; // Byte is unsigned
 				bpp = 16;
 				break;
-			case CV_16U:
+			case opencv_core.CV_16U:
 				type = DataBuffer.TYPE_USHORT;
 				bpp = 16;
 				break;
-			case CV_16S:
+			case opencv_core.CV_16S:
 				type = DataBuffer.TYPE_SHORT;
 				bpp = 16;
 				break;
-			case CV_32S:
+			case opencv_core.CV_32S:
 				type = DataBuffer.TYPE_INT;
 				bpp = 32;
 				break;
-			case CV_32F:
+			case opencv_core.CV_32F:
 				type = DataBuffer.TYPE_FLOAT;
 				bpp = 32;
 				break;
 			default:
-				logger.warn("Unknown Mat depth {}, will default to CV64F ({})", mat.depth(), CV_64F);
-			case CV_64F:
+				logger.warn("Unknown Mat depth {}, will default to CV64F ({})", mat.depth(), opencv_core.CV_64F);
+			case opencv_core.CV_64F:
 				type = DataBuffer.TYPE_DOUBLE;
 				bpp = 64;
 		}
@@ -507,7 +505,7 @@ public class OpenCVTools {
 			img = new BufferedImage(colorModel, raster, false, null);
 		}
 		MatVector matvector = new MatVector();
-		split(mat, matvector);
+		opencv_core.split(mat, matvector);
 		// We don't know which of the 3 supported array types will be needed yet...
 		int[] pixelsInt = null;
 		float[] pixelsFloat = null;
@@ -595,9 +593,9 @@ public class OpenCVTools {
 		
 		Mat mat;
 		if (includeAlpha)
-			mat = new Mat(height, width, CV_8UC4);
+			mat = new Mat(height, width, opencv_core.CV_8UC4);
 		else
-			mat = new Mat(height, width, CV_8UC3);
+			mat = new Mat(height, width, opencv_core.CV_8UC3);
 
 		UByteIndexer indexer = mat.createIndexer();
 		for (int y = 0; y < height; y++) {
@@ -645,6 +643,178 @@ public class OpenCVTools {
 	}
 	
 	
+	
+	/**
+	 * Add Gaussian noise with specified mean and standard deviation to all channels of a Mat.
+	 * This is similar to {@link opencv_core#randn(Mat, Mat, Mat)}, but supports any number of channels.
+	 * @param mat image to which noise should be added
+	 * @param mean noise mean
+	 * @param stdDev noise standard deviation
+	 */
+	public static void addNoise(Mat mat, double mean, double stdDev) {
+		if (!Double.isFinite(mean) || !Double.isFinite(stdDev)) {
+			throw new IllegalArgumentException("Noise mean and standard deviation must be finite (specified " + mean + " and " + stdDev + ")");
+		}
+		if (stdDev < 0) {
+			throw new IllegalArgumentException("Noise standard deviation must be >= 0, but specified value is " + stdDev);
+		}
+		var matMean = new Mat(1, 1, opencv_core.CV_32FC1, Scalar.all(mean));
+		var matStdDev = new Mat(1, 1, opencv_core.CV_32FC1, Scalar.all(stdDev));
+		int nChannels = mat.channels();
+		if (nChannels == 1)
+			opencv_core.randn(mat, matMean, matStdDev);
+		else
+			OpenCVTools.applyToChannels(mat, m -> opencv_core.randn(m, matMean, matStdDev));
+		matMean.close();
+		matStdDev.close();
+	}
+	
+	
+	/**
+	 * Get the mean of an image, across all pixels (regardless of channels).
+	 * @param mat
+	 * @return the mean of all pixels in the image
+	 */
+	public static double mean(Mat mat) {
+		if (mat.channels() == 1)
+			return opencv_core.mean(mat).get();
+		var temp = mat.reshape(1, mat.rows()*mat.cols());
+		var mean = opencv_core.mean(temp).get();
+		temp.close();
+		return mean;
+	}
+	
+	/**
+	 * Get the mean of an image channel.
+	 * @param mat
+	 * @return an array of channel means; the length equals mat.channels()
+	 */
+	public static double[] channelMean(Mat mat) {
+		return reduceChannels(mat, opencv_core.REDUCE_AVG, true);
+	}
+	
+	/**
+	 * Get the standard deviation of an image, across all pixels (regardless of channels).
+	 * @param mat
+	 * @return the standard deviation of all pixels in the image
+	 */
+	public static double stdDev(Mat mat) {
+		Mat temp;
+		if (mat.channels() == 1)
+			temp = mat;
+		else
+			temp = mat.reshape(1, mat.rows()*mat.cols());
+		var output = channelStdDev(temp);
+		assert output.length == 1;
+		return output[0];
+	}
+	
+	/**
+	 * Get the standard deviation of image channels.
+	 * @param mat
+	 * @return an array of channel standard deviation; the length equals mat.channels()
+	 * @implNote this uses OpenCV's meanStdDev method, which is not corrected for bias; 
+	 *           it provides the square root of the population variance.
+	 */
+	public static double[] channelStdDev(Mat mat) {
+		var mean = new Mat();
+		var stdDev = new Mat();
+		opencv_core.meanStdDev(mat, mean, stdDev);
+		double[] output = extractDoubles(stdDev);
+		mean.close();
+		stdDev.close();
+		return output;
+	}
+	
+	/**
+	 * Get the sum of an image, across all pixels (regardless of channels).
+	 * @param mat
+	 * @return the sum of all pixels in the image
+	 */
+	public static double sum(Mat mat) {
+		if (mat.channels() == 1)
+			return opencv_core.sumElems(mat).get();
+		var temp = mat.reshape(1, mat.rows()*mat.cols());
+		var sum = opencv_core.sumElems(temp).get();
+		temp.close();
+		return sum;
+	}
+	
+	/**
+	 * Get the sum of image channels.
+	 * @param mat
+	 * @return an array of channel sums; the length equals mat.channels()
+	 */
+	public static double[] channelSum(Mat mat) {
+		return reduceChannels(mat, opencv_core.REDUCE_SUM, true);
+	}
+	
+	/**
+	 * Get the minimum value in an image, across all pixels (regardless of channels).
+	 * @param mat
+	 * @return the minimum of all pixels in the image
+	 */
+	public static double minimum(Mat mat) {
+		return reduceChannels(mat, opencv_core.REDUCE_MIN, false)[0];
+	}
+	
+	/**
+	 * Get the minimum of an image channel.
+	 * @param mat
+	 * @return an array of channel minima; the length equals mat.channels()
+	 */
+	public static double[] channelMinimum(Mat mat) {
+		return reduceChannels(mat, opencv_core.REDUCE_MIN, true);
+	}
+	
+	/**
+	 * Get the maximum value in an image, across all pixels (regardless of channels).
+	 * @param mat
+	 * @return the maximum of all pixels in the image
+	 */
+	public static double maximum(Mat mat) {
+		return reduceChannels(mat, opencv_core.REDUCE_MAX, false)[0];
+	}
+	
+	/**
+	 * Get the minimum of an image channel.
+	 * @param mat
+	 * @return an array of channel minima; the length equals mat.channels()
+	 */
+	public static double[] channelMaximum(Mat mat) {
+		return reduceChannels(mat, opencv_core.REDUCE_MAX, true);
+	}
+	
+	private static double[] reduceChannels(Mat mat, int reduction, boolean byChannel) {
+		Mat temp;
+		if (byChannel)
+			temp = mat.reshape(1, mat.rows()*mat.cols());
+		else
+			temp = mat.reshape(1, mat.rows()*mat.cols()*mat.channels());
+		var matOutput = new Mat();
+		opencv_core.reduce(temp, matOutput, 0, reduction);
+		var output = extractDoubles(matOutput);
+		temp.close();
+		matOutput.close();
+		if (!byChannel)
+			assert output.length == 1;
+		return output;
+	}
+	
+	
+	/**
+	 * Create a 1x1 single-channel Mat with a specific value.
+	 * If necessary, clipping or rounding is applied.
+	 * 
+	 * @param value the value to include in the Mat
+	 * @param depth depth of the image; if a type is provided instead, it is converted to a depth.
+	 * @return a Mat with one pixel containing the closest value supported by the depth
+	 */
+	public static Mat scalarMat(double value, int depth) {
+		return new Mat(1, 1, opencv_core.CV_MAT_DEPTH(depth), Scalar.all(value));
+	}
+	
+	
 	/**
 	 * Set pixels from a byte array.
 	 * <p>
@@ -689,12 +859,41 @@ public class OpenCVTools {
 	 * 
 	 * @param radius
 	 * @return
+	 * @deprecated {@link #createDisk(int, boolean)} gives more reliable shapes.
 	 */
 	public static Mat getCircularStructuringElement(int radius) {
 		// TODO: Find out why this doesn't just call a standard request for a strel...
-		Mat strel = new Mat(radius*2+1, radius*2+1, CV_8UC1, Scalar.ZERO);
+		Mat strel = new Mat(radius*2+1, radius*2+1, opencv_core.CV_8UC1, Scalar.ZERO);
 		opencv_imgproc.circle(strel, new Point(radius, radius), radius, Scalar.ONE, -1, opencv_imgproc.LINE_8, 0);
 		return strel;
+	}
+	
+	/**
+	 * Create a disk filter.
+	 * This is a rasterized approximation of a filled circle with the specified radius.
+	 * 
+	 * @param radius radius of the disk; must be &gt; 0
+	 * @param doMean if true, normalize kernel by dividing by the sum of all elements.
+	 *               If false, all 'inside' elements are 1 and all 'outside' elements are 0.
+	 * @return a Mat of size {@code radius*2+1} that depicts a filled circle
+	 * @implNote this uses a distance transform, and tends to get more predictable results than {@link #getCircularStructuringElement(int)}.
+	 */
+	public static Mat createDisk(int radius, boolean doMean) {
+		if (radius <= 0)
+			throw new IllegalArgumentException("Radius must be > 0");
+		var kernelCenter = new Mat(radius*2+1, radius*2+1, opencv_core.CV_8UC1, Scalar.WHITE);
+		try (UByteIndexer idxKernel = kernelCenter.createIndexer()) {
+			idxKernel.put(radius, radius, 0);
+		}
+		var kernel = new Mat();
+		opencv_imgproc.distanceTransform(kernelCenter, kernel, opencv_imgproc.DIST_L2, opencv_imgproc.DIST_MASK_PRECISE);
+		opencv_imgproc.threshold(kernel, kernel, radius, 1, opencv_imgproc.THRESH_BINARY_INV);
+		if (doMean) {
+			// Count nonzero pixels
+			double sum = opencv_core.sumElems(kernel).get();
+			opencv_core.dividePut(kernel, sum);
+		}
+		return kernel;
 	}
 
 	/**
@@ -706,7 +905,7 @@ public class OpenCVTools {
 	 * @param matDest
 	 */
 	public static void invertBinary(Mat matBinary, Mat matDest) {
-		compare(matBinary, new Mat(1, 1, CV_32FC1, Scalar.ZERO), matDest, CMP_EQ);
+		opencv_core.compare(matBinary, new Mat(1, 1, opencv_core.CV_32FC1, Scalar.ZERO), matDest, opencv_core.CMP_EQ);
 	}
 	
 	
@@ -723,9 +922,9 @@ public class OpenCVTools {
 		if (pixels == null)
 			pixels = new float[(int)mat.total()];
 		Mat mat2 = null;
-		if (mat.depth() != CV_32F) {
+		if (mat.depth() != opencv_core.CV_32F) {
 			mat2 = new Mat();
-			mat.convertTo(mat2, CV_32F);
+			mat.convertTo(mat2, opencv_core.CV_32F);
 			ensureContinuous(mat2, true);
 		} else
 			mat2 = ensureContinuous(mat, false);
@@ -742,6 +941,50 @@ public class OpenCVTools {
 	}
 	
 	/**
+	 * Extract pixels as a double array.
+	 * @param mat
+	 * @param pixels
+	 * @return
+	 */
+	public static double[] extractPixels(Mat mat, double[] pixels) {
+		if (pixels == null)
+			pixels = new double[(int)mat.total()];
+		Mat mat2 = null;
+		if (mat.depth() != opencv_core.CV_64F) {
+			mat2 = new Mat();
+			mat.convertTo(mat2, opencv_core.CV_64F);
+			ensureContinuous(mat2, true);
+		} else
+			mat2 = ensureContinuous(mat, false);
+		
+		DoubleIndexer idx = mat2.createIndexer();
+		idx.get(0L, pixels);
+		idx.release();
+		
+		if (mat2 != mat)
+			mat2.release();
+		return pixels;
+	}
+	
+	/**
+	 * Extract pixels as a double array.
+	 * @param mat
+	 * @return
+	 */
+	public static double[] extractDoubles(Mat mat) {
+		return extractPixels(mat, (double[])null);
+	}
+	
+	/**
+	 * Extract pixels as a float array.
+	 * @param mat
+	 * @return
+	 */
+	public static float[] extractFloats(Mat mat) {
+		return extractPixels(mat, (float[])null);
+	}
+	
+	/**
 	 * Convert a Mat to a {@link SimpleImage}.
 	 * @param mat
 	 * @param channel
@@ -753,7 +996,7 @@ public class OpenCVTools {
 			temp = new Mat();
 			opencv_core.extractChannel(mat, temp, channel);
 		}
-		float[] pixels = extractPixels(temp, null);
+		float[] pixels = extractPixels(temp, (float[])null);
 		return SimpleImages.createFloatImage(pixels, mat.cols(), mat.rows());
 	}
 	
@@ -803,15 +1046,15 @@ public class OpenCVTools {
 		
 		Mat strel = getCircularStructuringElement(maximaRadius);
 		opencv_imgproc.dilate(matWatershedIntensities, matTemp, strel);
-		compare(matWatershedIntensities, matTemp, matTemp, CMP_EQ);
+		opencv_core.compare(matWatershedIntensities, matTemp, matTemp, opencv_core.CMP_EQ);
 		opencv_imgproc.dilate(matTemp, matTemp, getCircularStructuringElement(2));
 		Mat matWatershedSeedsBinary = matTemp;
 	
 		// Remove everything outside the thresholded region
-		min(matWatershedSeedsBinary, matBinary, matWatershedSeedsBinary);
+		opencv_core.min(matWatershedSeedsBinary, matBinary, matWatershedSeedsBinary);
 	
 		// Create labels for watershed
-		Mat matLabels = new Mat(matWatershedIntensities.size(), CV_32F, Scalar.ZERO);
+		Mat matLabels = new Mat(matWatershedIntensities.size(), opencv_core.CV_32F, Scalar.ZERO);
 		labelImage(matWatershedSeedsBinary, matLabels, opencv_imgproc.RETR_CCOMP);
 		
 		// Do watershed
@@ -819,7 +1062,7 @@ public class OpenCVTools {
 		ProcessingCV.doWatershed(matWatershedIntensities, matLabels, threshold, true);
 	
 		// Update the binary image to remove the watershed lines
-		multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
+		opencv_core.multiply(matBinary, matLabels, matBinary, 1, matBinary.type());
 	}
 	
 	

@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
 import qupath.opencv.tools.MultiscaleFeatures.Hessian;
 
 @SuppressWarnings("javadoc")
-public class MultiscaleFeaturesTest {
+public class TestMultiscaleFeatures {
 
 	@Test
 	public void test_eigenvalues() {

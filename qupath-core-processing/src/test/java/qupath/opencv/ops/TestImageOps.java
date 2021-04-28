@@ -39,7 +39,7 @@ import qupath.lib.io.GsonTools;
 import qupath.opencv.tools.OpenCVTools;
 
 @SuppressWarnings("javadoc")
-public class ImageOpsTest {
+public class TestImageOps {
 	
 	static {
 		// Need to force class initialization
@@ -120,42 +120,104 @@ public class ImageOpsTest {
 			assertEquals(json.get("type").getAsString(), entry.getValue());
 		}
 	}
+
+	
+	@Test
+	public void testFilters() {
+		int[] types = {opencv_core.CV_32FC1, opencv_core.CV_32FC(5), opencv_core.CV_64F};
+//		int[] types = {opencv_core.CV_64F};
+		int[] radii = {3, 5, 15};
+		double eps = 1e-4;
+		try (var scope = new PointerScope()) {
+			for (int type : types) {
+				var mat = new Mat(400, 300, type);
+				OpenCVTools.addNoise(mat, 10, 20);
+				
+				for (int radius : radii) {
+					var matMean = ImageOps.padAndApply(ImageOps.Filters.mean(radius), mat.clone());
+//					var matMean = ImageOps.padAndApply(ImageOps.Filters.gaussianBlur(radius), mat.clone());
+					var matVariance = ImageOps.padAndApply(ImageOps.Filters.variance(radius), mat.clone());
+					var matStdDev = ImageOps.padAndApply(ImageOps.Filters.stdDev(radius), mat.clone());
+										
+					// Check that standard deviation is the square root of the variance
+					double[] pxVariance = OpenCVTools.extractDoubles(matVariance);
+					double[] pxStdDev = OpenCVTools.extractDoubles(matStdDev);
+					assertEquals(pxVariance.length, pxStdDev.length);
+					for (int i = 0; i < pxVariance.length; i++) {
+						assertEquals(pxStdDev[i], Math.sqrt(pxVariance[i]), eps);
+					}
+					
+					// Check mean and standard deviation values match first filtered location
+					var kernel = OpenCVTools.createDisk(radius, false);
+					kernel.convertTo(kernel, opencv_core.CV_8U);
+//					kernel.convertTo(kernel, opencv_core.CV_8U, 255, 0);
+//					System.err.println(kernel.createIndexer());
+					var matLocalMean = new Mat();
+					var matLocalStd = new Mat();
+					var idxMean = matMean.createIndexer();
+					var idxStd = matStdDev.createIndexer();
+					var matOrig = new Mat();
+					for (int i = 0; i < mat.channels(); i++) {
+//						System.err.println("Channel " + i + ", radius " + radius);
+						// Extract channels
+						opencv_core.extractChannel(mat, matOrig, i);
+						// Extract first filtered location
+						matOrig = OpenCVTools.crop(matOrig, 0, 0, kernel.cols(), kernel.rows());
+						// Extract filtered measurements
+						double std = idxStd.getDouble(radius, radius, i);
+						double mean = idxMean.getDouble(radius, radius, i);
+						// Compute mean & standard deviation
+						opencv_core.meanStdDev(matOrig, matLocalMean, matLocalStd, kernel);
+						double localStd = OpenCVTools.extractDoubles(matLocalStd)[0];
+						double localMean = OpenCVTools.extractDoubles(matLocalMean)[0];
+//						OpenCVTools.matToImagePlus(""+radius, mat, matMean, matStdDev).show();
+//						System.err.println("Mean: " + localMean + ": " + mean);
+//						System.err.println("Std.dev: " + localStd + ": " + std);
+						assertEquals(localStd, std, eps);
+						assertEquals(localMean, mean, eps);
+					}
+				}
+			}
+		}
+	}
 	
 	
 	@Test
 	public void testChannels() {
-		int type = opencv_core.CV_32FC1;
-		int rows = 25;
-		int cols = 30;
-		var matList = Arrays.asList(
-				new Mat(rows, cols, type, Scalar.all(1)),
-				new Mat(rows, cols, type, Scalar.all(5)),				
-				new Mat(rows, cols, type, Scalar.all(2)),
-				new Mat(rows, cols, type, Scalar.all(4)),
-				new Mat(rows, cols, type, Scalar.all(3))
-				);
-		var mat = OpenCVTools.mergeChannels(matList, null);
-		
-		var matMean = ImageOps.Channels.mean().apply(mat.clone());
-		assertTrue(matsEqual(matMean, new Mat(rows, cols, type, Scalar.all(3)), 1e-6));
-		
-		var matSum = ImageOps.Channels.sum().apply(mat.clone());
-		assertTrue(matsEqual(matSum, new Mat(rows, cols, type, Scalar.all(15)), 1e-6));
-		
-		var matMax = ImageOps.Channels.maximum().apply(mat.clone());
-		assertTrue(matsEqual(matMax, new Mat(rows, cols, type, Scalar.all(5)), 1e-6));
-		
-		var matMin = ImageOps.Channels.minimum().apply(mat.clone());
-		assertTrue(matsEqual(matMin, new Mat(rows, cols, type, Scalar.all(1)), 1e-6));
-
-		var matChannels = ImageOps.Channels.extract(1).apply(mat.clone());
-		assertEquals(matChannels.channels(), 1);
-		assertTrue(matsEqual(matChannels, matList.get(1), 1e-6));
-
-		var matChannels2 = ImageOps.Channels.extract(2, 4).apply(mat.clone());
-		assertEquals(matChannels2.channels(), 2);
-
-		assertThrows(IllegalArgumentException.class, () -> ImageOps.Channels.extract().apply(mat.clone()));
+		try (var scope = new PointerScope()) {
+			int type = opencv_core.CV_32FC1;
+			int rows = 25;
+			int cols = 30;
+			var matList = Arrays.asList(
+					new Mat(rows, cols, type, Scalar.all(1)),
+					new Mat(rows, cols, type, Scalar.all(5)),				
+					new Mat(rows, cols, type, Scalar.all(2)),
+					new Mat(rows, cols, type, Scalar.all(4)),
+					new Mat(rows, cols, type, Scalar.all(3))
+					);
+			var mat = OpenCVTools.mergeChannels(matList, null);
+			
+			var matMean = ImageOps.Channels.mean().apply(mat.clone());
+			assertTrue(matsEqual(matMean, new Mat(rows, cols, type, Scalar.all(3)), 1e-6));
+			
+			var matSum = ImageOps.Channels.sum().apply(mat.clone());
+			assertTrue(matsEqual(matSum, new Mat(rows, cols, type, Scalar.all(15)), 1e-6));
+			
+			var matMax = ImageOps.Channels.maximum().apply(mat.clone());
+			assertTrue(matsEqual(matMax, new Mat(rows, cols, type, Scalar.all(5)), 1e-6));
+			
+			var matMin = ImageOps.Channels.minimum().apply(mat.clone());
+			assertTrue(matsEqual(matMin, new Mat(rows, cols, type, Scalar.all(1)), 1e-6));
+	
+			var matChannels = ImageOps.Channels.extract(1).apply(mat.clone());
+			assertEquals(matChannels.channels(), 1);
+			assertTrue(matsEqual(matChannels, matList.get(1), 1e-6));
+	
+			var matChannels2 = ImageOps.Channels.extract(2, 4).apply(mat.clone());
+			assertEquals(matChannels2.channels(), 2);
+	
+			assertThrows(IllegalArgumentException.class, () -> ImageOps.Channels.extract().apply(mat.clone()));
+		}
 	}
 	
 	
@@ -186,9 +248,10 @@ public class ImageOpsTest {
 	
 	private void addNoise(Mat mat, int seed) {
 		opencv_core.setRNGSeed(seed);
-		opencv_core.randn(mat, 
-				new Mat(1, 1, opencv_core.CV_32FC1, Scalar.ZERO),
-				new Mat(1, 1, opencv_core.CV_32FC1, Scalar.ONE));
+		OpenCVTools.addNoise(mat, 0, 1.0);
+//		opencv_core.randn(mat, 
+//				new Mat(1, 1, opencv_core.CV_32FC1, Scalar.ZERO),
+//				new Mat(1, 1, opencv_core.CV_32FC1, Scalar.ONE));
 	}
 	
 	private ImageOp createOp(int... channels) {

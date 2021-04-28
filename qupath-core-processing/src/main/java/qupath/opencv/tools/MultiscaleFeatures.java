@@ -1381,10 +1381,10 @@ public class MultiscaleFeatures {
 				float[] bufMinVec = new float[n * 2];
 				float[] bufMaxVec = new float[n * 2];
 				
-				float[] c = OpenCVTools.extractPixels(dxy, null);
-				float[] d = OpenCVTools.extractPixels(dyy, null);
-				float[] l1 = OpenCVTools.extractPixels(eigvalMax, null);
-				float[] l2 = OpenCVTools.extractPixels(eigvalMin, null);
+				float[] c = OpenCVTools.extractFloats(dxy);
+				float[] d = OpenCVTools.extractFloats(dyy);
+				float[] l1 = OpenCVTools.extractFloats(eigvalMax);
+				float[] l2 = OpenCVTools.extractFloats(eigvalMin);
 				
 				// TODO: Check the eigenvector order!
 				for (int i = 0; i < n; i++) {
@@ -1455,12 +1455,12 @@ public class MultiscaleFeatures {
 			Mat matEigenvalues = new Mat(3, 1, opencv_core.CV_32FC1);
 			Mat matEigenvectors = new Mat(3, 3, opencv_core.CV_32FC1);
 			
-			float[] pxDxx = OpenCVTools.extractPixels(dxx, null);
-			float[] pxDxy = OpenCVTools.extractPixels(dxy, null);
-			float[] pxDxz = OpenCVTools.extractPixels(dxz, null);
-			float[] pxDyy = OpenCVTools.extractPixels(dyy, null);
-			float[] pxDyz = OpenCVTools.extractPixels(dyz, null);
-			float[] pxDzz = OpenCVTools.extractPixels(dzz, null);
+			float[] pxDxx = OpenCVTools.extractFloats(dxx);
+			float[] pxDxy = OpenCVTools.extractFloats(dxy);
+			float[] pxDxz = OpenCVTools.extractFloats(dxz);
+			float[] pxDyy = OpenCVTools.extractFloats(dyy);
+			float[] pxDyz = OpenCVTools.extractFloats(dyz);
+			float[] pxDzz = OpenCVTools.extractFloats(dzz);
 			
 			// Buffer to contain values for each row of the Hessian matrices
 			float[] bufMin = new float[width * height];

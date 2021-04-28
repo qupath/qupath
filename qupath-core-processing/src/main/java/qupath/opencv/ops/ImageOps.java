@@ -234,6 +234,50 @@ public class ImageOps {
 		return buildImageDataOp(inputChannels.toArray(ColorTransform[]::new));
 	}
 	
+	
+	
+	/**
+	 * Apply an op after adding specified padding.
+	 * <p>
+	 * This is useful when applying padded ops to Mats directly, rather than via an {@link ImageDataOp}.
+	 * Because the op will strip off any padding, calling {@code op.apply(mat)} directly often results in a smaller 
+	 * output than the input image. Using this method instead gives an output image that is the same size as 
+	 * the input.
+	 * 
+	 * @param op the op to apply
+	 * @param mat the image to process
+	 * @param padType the OpenCV boundary padding type
+	 * @return the result of applying the op to the input image; note that this is often 
+	 *         a modified version of the input image itself, since many ops work in-place.
+	 * @see ImageOp#apply(Mat)
+	 */
+	public static Mat padAndApply(ImageOp op, Mat mat, int padType) {
+		var padding = op.getPadding();
+		if (padding.isEmpty())
+			return op.apply(mat);
+		opencv_core.copyMakeBorder(mat, mat, 
+				padding.getY1(), padding.getY2(),
+				padding.getX1(), padding.getX2(), padType);
+		return op.apply(mat);
+	}
+	
+	/**
+	 * Apply an op after adding symmetric (reflection) padding.
+	 * <p>
+	 * This is useful when applying padded ops to Mats directly, rather than via an {@link ImageDataOp}.
+	 * Because the op will strip off any padding, calling op.apply(mat) directly often results in a smaller 
+	 * output than the input image. Using this method instead gives an output image that is the same size as 
+	 * the input.
+	 * 
+	 * @param op the op to apply
+	 * @param mat the image to process
+	 * @return the result of applying the op to the input image; note that this is often 
+	 *         a modified version of the input image itself, since many ops work in-place.
+	 */
+	public static Mat padAndApply(ImageOp op, Mat mat) {
+		return padAndApply(op, mat, opencv_core.BORDER_REFLECT);
+	}
+	
 
 	
 	@OpType("default")
@@ -509,7 +553,7 @@ public class ImageOps {
 		
 		
 		/**
-		 * Normalize by rescaling channels into a fixed range (usually 0-1) using the min/max values.
+		 * Normalize by rescaling channels based on a Gaussian-weighted estimate of local mean and standard deviation.
 		 */
 		@OpType("local")
 		static class LocalNormalizationOp extends PaddedOp {
@@ -621,6 +665,82 @@ public class ImageOps {
 		 */
 		public static ImageOp filter2D(Mat kernel) {
 			return new FilterOp(kernel);
+		}
+		
+//		/**
+//		 * Apply a 2D circular mean filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp mean(int radius, int borderType) {
+//			return new MeanFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular mean filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp mean(int radius) {
+			return new MeanFilterOp(radius, opencv_core.BORDER_REFLECT);
+		}
+		
+//		/**
+//		 * Apply a 2D circular sum filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp sum(int radius, int borderType) {
+//			return new SumFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular sum filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp sum(int radius) {
+			return new SumFilterOp(radius, opencv_core.BORDER_REFLECT);
+		}
+		
+//		/**
+//		 * Apply a 2D circular variance filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp variance(int radius, int borderType) {
+//			return new VarianceFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular variance filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp variance(int radius) {
+			return new VarianceFilterOp(radius, opencv_core.BORDER_REFLECT);
+		}
+		
+//		/**
+//		 * Apply a 2D circular standard deviation filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp stdDev(int radius, int borderType) {
+//			return new StdDevFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular standard deviation filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp stdDev(int radius) {
+			return new StdDevFilterOp(radius, opencv_core.BORDER_REFLECT);
 		}
 		
 		/**
@@ -869,6 +989,115 @@ public class ImageOps {
 			else
 				return opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size);
 		}
+		
+		
+		@OpType("sum")
+		static class SumFilterOp extends PaddedOp {
+			
+			private int radius;
+			private int borderType = opencv_core.BORDER_DEFAULT;
+			private transient Mat kernel;
+			
+			SumFilterOp(int radius, int borderType) {
+				super();
+				this.radius = radius;
+				this.borderType = borderType;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			
+			protected int getRadius() {
+				return radius;
+			}
+			
+			protected int getBorderType() {
+				return borderType;
+			}
+			
+			protected Mat createKernel() {
+				return OpenCVTools.createDisk(radius, false);
+			}
+			
+			protected Mat getKernel() {
+				if (kernel == null)
+					kernel = createKernel();
+				return kernel;
+			}
+
+			@Override
+			protected Mat transformPadded(Mat input) {
+//				int c = input.channels();
+				var kernel = getKernel();
+				opencv_imgproc.filter2D(input, input, -1, kernel, null, 0, borderType);
+//				if (c == 1 || c == 3 || c == 4)
+//					opencv_imgproc.filter2D(input, input, -1, kernel);
+//				else
+//					OpenCVTools.applyToChannels(input, m -> opencv_imgproc.filter2D(m, m, -1, kernel));
+				return input;
+			}
+			
+		}
+		
+		
+		@OpType("mean")
+		static class MeanFilterOp extends SumFilterOp {
+			
+			MeanFilterOp(int radius, int borderType) {
+				super(radius, borderType);
+			}
+
+			@Override
+			protected Mat createKernel() {
+				return OpenCVTools.createDisk(getRadius(), true);
+			}
+			
+		}
+		
+		@OpType("variance")
+		static class VarianceFilterOp extends SumFilterOp {
+			
+			VarianceFilterOp(int radius, int borderType) {
+				super(radius, borderType);
+			}
+
+			@Override
+			protected Mat createKernel() {
+				return OpenCVTools.createDisk(getRadius(), true);
+			}
+			
+			@Override
+			protected Mat transformPadded(Mat input) {
+				var kernel = getKernel();
+				int borderType = getBorderType();
+				var inputSquared = input.mul(input).asMat();
+				opencv_imgproc.filter2D(inputSquared, inputSquared, -1, kernel, null, 0, borderType);
+				opencv_imgproc.filter2D(input, input, -1, kernel, null, 0, borderType);
+				input.put(opencv_core.subtract(inputSquared, input.mul(input)));
+				inputSquared.close();
+				return input;
+			}
+			
+		}
+		
+		@OpType("stddev")
+		static class StdDevFilterOp extends VarianceFilterOp {
+
+			StdDevFilterOp(int radius, int borderType) {
+				super(radius, borderType);
+			}
+			
+			@Override
+			protected Mat transformPadded(Mat input) {
+				var output = super.transformPadded(input);
+				opencv_core.sqrt(output, output);
+				return output;
+			}
+			
+		}
+		
 	
 		@OpType("median")
 		static class MedianFilterOp extends PaddedOp {
@@ -2185,6 +2414,8 @@ public class ImageOps {
 	static Mat stripPadding(Mat mat, Padding padding) {
 		if (padding.isEmpty())
 			return mat;
+//		return OpenCVTools.crop(mat, padding.getX1(), padding.getY1(),
+//				mat.cols()-padding.getXSum(), mat.rows()-padding.getYSum());
 		return mat.apply(new Rect(
 				padding.getX1(), padding.getY1(),
 				mat.cols()-padding.getXSum(), mat.rows()-padding.getYSum())).clone();
