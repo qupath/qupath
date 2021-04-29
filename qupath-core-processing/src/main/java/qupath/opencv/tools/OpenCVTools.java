@@ -42,6 +42,8 @@ import java.util.function.Function;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
+import org.apache.commons.math3.stat.StatUtils;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.bytedeco.javacpp.indexer.ByteIndexer;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -678,9 +680,71 @@ public class OpenCVTools {
 		matStdDev.close();
 	}
 	
+	/**
+	 * Get the median pixel value in a Mat, ignoring NaNs.
+	 * This does not distinguish between channels.
+	 * @param mat
+	 * @return
+	 */
+	public static double median(Mat mat) {
+		return percentiles(mat, 50.0)[0];
+	}
 	
 	/**
-	 * Get the mean of an image, across all pixels (regardless of channels).
+	 * Get percentile values for all pixels in a Mat, ignoring NaNs.
+	 * @param mat
+	 * @param percentiles requested percentiles, {@code 0 < percentile <= 100}
+	 * @return percentile values, in the same order as the input percentiles
+	 */
+	public static double[] percentiles(Mat mat, double... percentiles) {
+		double[] result = new double[percentiles.length];
+		if (result.length == 0)
+			return result;
+		
+		int n = (int)mat.total();
+//		var matSorted = new Mat();
+//		var mat2 = mat.reshape(1, n);
+//		opencv_core.sort(mat2, matSorted, opencv_core.CV_SORT_ASCENDING + opencv_core.CV_SORT_EVERY_COLUMN);
+		
+		var percentile = new Percentile();
+		
+		// Sort, then strip NaNs
+		double[] values = OpenCVTools.extractDoubles(mat);
+		Arrays.sort(values);
+		while (n >= 0) {
+			if (Double.isNaN(values[n-1]))
+				n--;
+			else
+				break;
+		}
+		if (n < values.length)
+			values = Arrays.copyOf(values, n);
+		
+		// Set data
+		// We can't rely on Percentile to strip NaNs (it appears not to)
+		percentile.setData(values);
+		for (int i = 0; i < percentiles.length; i++)
+			result[i] = percentile.evaluate(percentiles[i]);
+		return result;
+		
+//		int n = (int)mat.total();
+//		var mat2 = mat.reshape(1, n);
+//		var matSorted = new Mat();
+//		
+//		opencv_core.sort(mat2, matSorted, opencv_core.CV_SORT_ASCENDING + opencv_core.CV_SORT_EVERY_COLUMN);
+//		try (var idx = matSorted.createIndexer()) {
+//			for (int i = 0; i < result.length; i++) {
+//				long ind = (long)(percentiles[i] / 100.0 * (n - 1));
+//				result[i] = idx.getDouble(ind);
+//			}
+//		}
+//		matSorted.release();
+//		return result;
+	}
+	
+	
+	/**
+	 * Get the mean of an image, across all pixels (regardless of channels), ignoring NaNs.
 	 * @param mat
 	 * @return the mean of all pixels in the image
 	 */
@@ -694,16 +758,16 @@ public class OpenCVTools {
 	}
 	
 	/**
-	 * Get the mean of an image channel.
+	 * Get the mean of an image channel, ignoring NaNs.
 	 * @param mat
 	 * @return an array of channel means; the length equals mat.channels()
 	 */
 	public static double[] channelMean(Mat mat) {
-		return reduceChannels(mat, opencv_core.REDUCE_AVG, true);
+		return reduceMat(mat, opencv_core.REDUCE_AVG, true);
 	}
 	
 	/**
-	 * Get the standard deviation of an image, across all pixels (regardless of channels).
+	 * Get the standard deviation of an image, across all pixels (regardless of channels), ignoring NaNs.
 	 * @param mat
 	 * @return the standard deviation of all pixels in the image
 	 */
@@ -719,7 +783,7 @@ public class OpenCVTools {
 	}
 	
 	/**
-	 * Get the standard deviation of image channels.
+	 * Get the standard deviation of image channels, ignoring NaNs.
 	 * @param mat
 	 * @return an array of channel standard deviation; the length equals mat.channels()
 	 * @implNote this uses OpenCV's meanStdDev method, which is not corrected for bias; 
@@ -736,7 +800,7 @@ public class OpenCVTools {
 	}
 	
 	/**
-	 * Get the sum of an image, across all pixels (regardless of channels).
+	 * Get the sum of an image, across all pixels (regardless of channels), ignoring NaNs.
 	 * @param mat
 	 * @return the sum of all pixels in the image
 	 */
@@ -750,69 +814,93 @@ public class OpenCVTools {
 	}
 	
 	/**
-	 * Get the sum of image channels.
+	 * Get the sum of image channels, ignoring NaNs.
 	 * @param mat
 	 * @return an array of channel sums; the length equals mat.channels()
 	 */
 	public static double[] channelSum(Mat mat) {
-		return reduceChannels(mat, opencv_core.REDUCE_SUM, true);
+		return reduceMat(mat, opencv_core.REDUCE_SUM, true);
 	}
 	
 	/**
-	 * Get the minimum value in an image, across all pixels (regardless of channels).
+	 * Get the minimum value in an image, across all pixels (regardless of channels), ignoring NaNs.
 	 * @param mat
 	 * @return the minimum of all pixels in the image
 	 */
 	public static double minimum(Mat mat) {
-		return reduceChannels(mat, opencv_core.REDUCE_MIN, false)[0];
+		return reduceMat(mat, opencv_core.REDUCE_MIN, false)[0];
 	}
 	
 	/**
-	 * Get the minimum of an image channel.
+	 * Get the minimum of an image channel, ignoring NaNs.
 	 * @param mat
 	 * @return an array of channel minima; the length equals mat.channels()
 	 */
 	public static double[] channelMinimum(Mat mat) {
-		return reduceChannels(mat, opencv_core.REDUCE_MIN, true);
+		return reduceMat(mat, opencv_core.REDUCE_MIN, true);
 	}
 	
 	/**
-	 * Get the maximum value in an image, across all pixels (regardless of channels).
+	 * Get the maximum value in an image, across all pixels (regardless of channels), ignoring NaNs.
 	 * @param mat
 	 * @return the maximum of all pixels in the image
 	 */
 	public static double maximum(Mat mat) {
-		return reduceChannels(mat, opencv_core.REDUCE_MAX, false)[0];
+		return reduceMat(mat, opencv_core.REDUCE_MAX, false)[0];
 	}
 	
 	/**
-	 * Get the minimum of an image channel.
+	 * Get the minimum of an image channel, ignoring NaNs.
 	 * @param mat
 	 * @return an array of channel minima; the length equals mat.channels()
 	 */
 	public static double[] channelMaximum(Mat mat) {
-		return reduceChannels(mat, opencv_core.REDUCE_MAX, true);
+		return reduceMat(mat, opencv_core.REDUCE_MAX, true);
 	}
 	
-	private static double[] reduceChannels(Mat mat, int reduction, boolean byChannel) {
-		Mat temp;
-		if (byChannel)
-			temp = mat.reshape(1, mat.rows()*mat.cols());
+	private static double[] reduceMat(Mat mat, int reduction, boolean byChannel) {
+		if (byChannel && mat.channels() > 1)
+			return splitChannels(mat).stream().mapToDouble(m -> reduceMat(m, reduction)).toArray();
 		else
-			temp = mat.reshape(1, mat.rows()*mat.cols()*mat.channels());
-		var matOutput = new Mat();
-		int depth = temp.depth();
-		// Not all depths are supported by reduce (only know for sure that CV_32S isn't...)
-		if (depth == opencv_core.CV_32S || depth == opencv_core.CV_8U || depth == opencv_core.CV_16S || depth == opencv_core.CV_16U || depth == opencv_core.CV_16F)
-			temp.convertTo(temp, opencv_core.CV_32F);
-		opencv_core.reduce(temp, matOutput, 0, reduction);
-		var output = extractDoubles(matOutput);
-		temp.close();
-		matOutput.close();
-		if (!byChannel)
-			assert output.length == 1;
-		return output;
+			return new double[] {reduceMat(mat, reduction)};
 	}
+	
+	private static double reduceMat(Mat mat, int reduction) {
+		double[] values = OpenCVTools.extractDoubles(mat);
+//		System.err.println("Total: " + mat.total());
+//		System.err.println("Size: " + mat.arraySize()/mat.elemSize());
+//		System.err.println("Calculated: " + mat.cols() * mat.rows() * mat.channels());
+		
+		switch (reduction) {
+		case opencv_core.REDUCE_AVG:
+			return StatUtils.mean(values);
+		case opencv_core.REDUCE_MAX:
+			return StatUtils.max(values);
+		case opencv_core.REDUCE_MIN:
+			return StatUtils.min(values);
+		case opencv_core.REDUCE_SUM:
+			return StatUtils.sum(values);
+			default:
+				throw new IllegalArgumentException("Unknown reduction type " + reduction);
+		}
+	}
+	
+//	/*
+//	 * Method using OpenCV's reduce. The problem with this is that it doesn't ignore NaNs.
+//	 */
+//	private static double reduceMat(Mat mat, int reduction) {
+//		Mat temp = mat.reshape(1, mat.rows()*mat.cols()*mat.channels());
+//		var matOutput = new Mat();
+//		int depth = temp.depth();
+//		// Not all depths are supported by reduce (only know for sure that CV_32S isn't...)
+//		if (depth == opencv_core.CV_32S || depth == opencv_core.CV_8U || depth == opencv_core.CV_16S || depth == opencv_core.CV_16U || depth == opencv_core.CV_16F)
+//			temp.convertTo(temp, opencv_core.CV_32F);
+//		opencv_core.reduce(temp, matOutput, 0, reduction);
+//		var output = extractDoubles(matOutput);
+//		temp.close();
+//		matOutput.close();
+//		return output[0];
+//	}
 	
 	
 	/**
@@ -938,15 +1026,18 @@ public class OpenCVTools {
 	/**
 	 * Extract pixels as a float[] array.
 	 * <p>
-	 * Implementation note: In its current form, this is not terribly efficient.
+	 * <p>
+	 * In QuPath v0.2 this would return only the pixels in the first channel.
+	 * In v0.3+ it should return all pixels.
 	 * 
 	 * @param mat
 	 * @param pixels
 	 * @return
+	 * @implNote in its current form, this is not very efficient.
 	 */
 	public static float[] extractPixels(Mat mat, float[] pixels) {
 		if (pixels == null)
-			pixels = new float[(int)mat.total()];
+			pixels = new float[(int)totalPixels(mat)];
 		Mat mat2 = null;
 		if (mat.depth() != opencv_core.CV_32F) {
 			mat2 = new Mat();
@@ -966,6 +1057,21 @@ public class OpenCVTools {
 		return pixels;
 	}
 	
+	
+	/**
+	 * Return the total number of pixels in an image, counting each channel separately.
+	 * This is similar to Mat.total(), except that Mat.total() ignores multiple channels.
+	 * @param mat
+	 * @return
+	 */
+	static long totalPixels(Mat mat) {
+		int nChannels = mat.channels();
+		if (nChannels > 0)
+			return mat.total() * nChannels;
+		return mat.total();
+	}
+	
+	
 	/**
 	 * Extract pixels as a double array.
 	 * @param mat
@@ -974,7 +1080,7 @@ public class OpenCVTools {
 	 */
 	public static double[] extractPixels(Mat mat, double[] pixels) {
 		if (pixels == null)
-			pixels = new double[(int)mat.total()];
+			pixels = new double[(int)totalPixels(mat)];
 		Mat mat2 = null;
 		if (mat.depth() != opencv_core.CV_64F) {
 			mat2 = new Mat();
@@ -989,6 +1095,8 @@ public class OpenCVTools {
 		
 		if (mat2 != mat)
 			mat2.release();
+		
+//		assert mat.total() == pixels.length;
 		return pixels;
 	}
 	

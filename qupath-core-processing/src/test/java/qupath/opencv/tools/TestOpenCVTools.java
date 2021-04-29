@@ -31,6 +31,7 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 
 import javax.imageio.ImageIO;
@@ -40,6 +41,7 @@ import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Scalar;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -150,6 +152,34 @@ public class TestOpenCVTools {
 	
 	
 	@Test
+	public void testTotal() {
+		
+		try (var scope = new PointerScope()) {
+			
+			assertEquals(1, OpenCVTools.totalPixels(OpenCVTools.scalarMat(100, opencv_core.CV_32F)));
+			assertEquals(1, OpenCVTools.totalPixels(OpenCVTools.scalarMat(100, opencv_core.CV_32FC(10))));
+
+			assertEquals(6, OpenCVTools.totalPixels(new Mat(3, 2, opencv_core.CV_32F)));
+			assertEquals(30, OpenCVTools.totalPixels(new Mat(3, 2, opencv_core.CV_32FC(5))));
+
+			assertEquals(3, OpenCVTools.totalPixels(new Mat(3.0, 4.0, 100.0)));
+
+			// Check total works with multidimensional images & we can extract pixels
+			var matMultidim = new Mat(new int[] {2, 3, 4, 5, 6}, opencv_core.CV_32F, Scalar.all(5));
+			int len = 2*3*4*5*6;
+			assertEquals(len, OpenCVTools.totalPixels(matMultidim));
+			
+			var pixels = OpenCVTools.extractDoubles(matMultidim);
+			assertEquals(len, pixels.length);
+			for (double v : pixels)
+				assertEquals(5.0, v);
+			
+		}
+		
+	}
+	
+	
+	@Test
 	public void testStats() {
 		double[] values = new double[] {-7, 3, 0, -0, -20, 100, 45.3, 19.2};
 //		var stats = DoubleStream.of(values).summaryStatistics();
@@ -208,6 +238,47 @@ public class TestOpenCVTools {
 		
 		// Standard deviations should be zero
 		assertArrayEquals(new double[mat.channels()], OpenCVTools.channelStdDev(mat), eps);
+	}
+	
+	
+	@Test
+	public void testPercentiles() {
+		int[] minValues = {-2, 0, 1};
+		int[] maxValues = {1, 10, 101};
+		opencv_core.setRNGSeed(100);
+		for (int min : minValues) {
+			for (int max : maxValues) {
+				var values = IntStream.range(min, max+1).asDoubleStream().toArray();
+				var stats = new DescriptiveStatistics(values);
+				var mat = new Mat(values);
+				opencv_core.randShuffle(mat);
+				
+				assertEquals(stats.getPercentile(50), OpenCVTools.median(mat));
+				assertEquals((min + max)/2.0, OpenCVTools.median(mat));
+				assertEquals(max, OpenCVTools.maximum(mat));
+				assertEquals(min, OpenCVTools.minimum(mat));
+				assertArrayEquals(
+						new double[]{min, stats.getPercentile(50), max},
+						OpenCVTools.percentiles(mat, 1e-9, 50, 100));
+				
+				double[] newValues = new double[values.length + 30];
+				Arrays.fill(newValues, Double.NaN);
+				System.arraycopy(values, 0, newValues, 0, values.length);
+				mat.close();
+				mat = new Mat(newValues);
+				opencv_core.randShuffle(mat);
+				
+				assertEquals(stats.getPercentile(50), OpenCVTools.median(mat));
+				assertEquals((min + max)/2.0, OpenCVTools.median(mat));
+				assertEquals(max, OpenCVTools.maximum(mat));
+				assertEquals(min, OpenCVTools.minimum(mat));
+				assertArrayEquals(
+						new double[]{min, stats.getPercentile(50), max},
+						OpenCVTools.percentiles(mat, 1e-9, 50, 100));
+
+				mat.close();
+			}
+		}
 	}
 	
 	

@@ -615,7 +615,7 @@ public class ImageOps {
 				opencv_core.split(input, matvec);
 				for (int i = 0; i < matvec.size(); i++) {
 					var mat = matvec.get(i);
-					var range = percentiles(mat, percentiles);
+					var range = OpenCVTools.percentiles(mat, percentiles);
 					double scale;
 					if (range[1] == range[0]) {
 						logger.warn("Normalization percentiles give the same value ({}), scale will be Infinity", range[0]);
@@ -1605,9 +1605,9 @@ public class ImageOps {
 			
 			@Override
 			public double getThreshold(Mat mat, int channel) {
-				double median = median(mat);
+				double median = OpenCVTools.median(mat);
 				var matAbs = opencv_core.abs(opencv_core.subtract(mat, Scalar.all(median))).asMat();
-				double mad = median(matAbs) / 0.6750;
+				double mad = OpenCVTools.median(matAbs) / 0.6750;
 				var k = this.k[Math.min(channel,  this.k.length-1)];
 				return median + mad * k;
 			}
@@ -2427,30 +2427,6 @@ public class ImageOps {
 					);
 		}
 		opencv_core.merge(matvec, mat);
-	}
-	
-	
-
-	static double median(Mat mat) {
-		return percentiles(mat, 50.0)[0];
-	}
-	
-	static double[] percentiles(Mat mat, double... percentiles) {
-		double[] result = new double[percentiles.length];
-		if (result.length == 0)
-			return result;
-		int n = (int)mat.total();
-		var mat2 = mat.reshape(1, n);
-		var matSorted = new Mat();
-		opencv_core.sort(mat2, matSorted, opencv_core.CV_SORT_ASCENDING + opencv_core.CV_SORT_EVERY_COLUMN);
-		try (var idx = matSorted.createIndexer()) {
-			for (int i = 0; i < result.length; i++) {
-				long ind = (long)(percentiles[i] / 100.0 * (n - 1));
-				result[i] = idx.getDouble(ind);
-			}
-		}
-		matSorted.release();
-		return result;
 	}
 	
 
