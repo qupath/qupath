@@ -47,6 +47,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -156,6 +157,27 @@ public class RoiTools {
 		for (var geom : geometries)
 			first = first.intersection(geom);
 		return GeometryTools.geometryToROI(first, plane);
+	}
+	
+	/**
+	 * Test whether a {@link ROI} and an {@link ImageRegion} intersect.
+	 * <p>
+	 * This returns false quickly if the ROI and region do not share the same z-slice or timepoint,
+	 * or the ROI's bounding box does not intersect the region.
+	 * Otherwise, a more expensive geometry test is performed to check for intersection.
+	 * 
+	 * @param roi
+	 * @param region
+	 * @return true if the ROI and the region intersect, false otherwise
+	 */
+	public static boolean intersectsRegion(ROI roi, ImageRegion region) {
+		if (roi.getZ() != region.getZ() || roi.getT() != region.getT())
+			return false;
+		if (!region.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight()))
+			return false;
+		if (roi instanceof RectangleROI)
+			return true;
+		return GeometryTools.regionToGeometry(region).intersects(roi.getGeometry());
 	}
 	
 	
