@@ -72,6 +72,7 @@ List of bugs fixed:
 * Opening images with very narrow tiles can fail with Bio-Formats (https://github.com/qupath/qupath/issues/715)
 * Not possible to view multiple channels simultaneously with inverted lookup tables (max display < min display)
 * Exception when converting PathObject with name but no color to GeoJSON
+* Cannot write valid 16-bit PNG labelled images
 
 ### Dependency updates
 * AdoptOpenJDK 16

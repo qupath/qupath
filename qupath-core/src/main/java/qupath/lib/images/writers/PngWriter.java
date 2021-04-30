@@ -24,6 +24,7 @@
 package qupath.lib.images.writers;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
 import java.io.IOException;
 import java.util.Collection;
@@ -65,6 +66,16 @@ public class PngWriter extends AbstractImageIOWriter {
 			var cmNew = new IndexColorModel(
 					cm.getPixelSize(), n, reds, greens, blues);
 			img = new BufferedImage(cmNew, img.getRaster(), cmNew.isAlphaPremultiplied(), null);
+		}
+		// If writing 16-bit, we have to ensure the image type is set; the only way I can see to do that is to create a new grayscale image
+		if (img.getType() == BufferedImage.TYPE_CUSTOM && img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_USHORT) {
+			int width = img.getWidth();
+			int height = img.getHeight();
+			var imgShort = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
+			var shortRaster = imgShort.getRaster();
+			shortRaster.setDataElements(0, 0, img.getRaster());
+			img = imgShort;
+			
 		}
 		super.writeImage(img, pathOutput);
 	}
