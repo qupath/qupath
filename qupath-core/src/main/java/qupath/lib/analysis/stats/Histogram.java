@@ -203,7 +203,7 @@ public class Histogram { // implements Serializable {
 	 * @return bin index
 	 * @see #getBinIndexForValue(double, double)
 	 */
-	public int getBinIndexForValue(double value) {
+	int getBinIndexForValue(double value) {
 		// Return -1 if out of range
 		if (value > edgeMax || value < edgeMin)
 			return -1;
