@@ -29,12 +29,14 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -49,6 +51,7 @@ import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathAnnotationObject;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.RegionRequest;
@@ -65,6 +68,8 @@ public class TileExporter  {
 
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
+	
+	private List<PathObject> parentObjects = null;
 
 	private double downsample;
 	private int tileWidth = 512, tileHeight = 512;
@@ -92,6 +97,40 @@ public class TileExporter  {
 		this.imageData = imageData;
 		this.server = imageData.getServer();
 	}
+	
+	/**
+	 * Specify a filter to extract parent objects to define tiles. This overrides {@link #tileSize(int, int)}, 
+	 * giving tiles that match the parent ROI size instead.
+	 * @param filter
+	 * @return this exporter
+	 */
+	public TileExporter parentObjects(Predicate<PathObject> filter) {
+		this.parentObjects = imageData.getHierarchy().getFlattenedObjectList(null).stream()
+				.filter(filter)
+				.collect(Collectors.toList());
+		return this;
+	}
+	
+	/**
+	 * Specify parent objects to define tiles. This overrides {@link #tileSize(int, int)}, 
+	 * giving tiles that match the parent ROI size instead.
+	 * @param parentObjects
+	 * @return this exporter
+	 */
+	public TileExporter parentObjects(Collection<? extends PathObject> parentObjects) {
+		this.parentObjects = new ArrayList<>(parentObjects);
+		return this;
+	}
+	
+	/**
+	 * Specify that a single tile should be generated corresponding to the full image.
+	 * @return this exporter
+	 */
+	public TileExporter fullImageTile() {
+		this.parentObjects = Collections.singletonList(imageData.getHierarchy().getRootObject());
+		return this;
+	}
+	
 
 	/**
 	 * Define the tile size in pixel units at the export resolution.
@@ -341,9 +380,31 @@ public class TileExporter  {
 
 		var server = this.server;
 		var labeledServer = serverLabeled;
-		var requests = getTiledRegionRequests(server,
-				downsample, tileWidth, tileHeight, overlapX, overlapY, includePartialTiles);
-
+		Collection<RegionRequest> requests;
+		
+		// Work out which RegionRequests to use
+		if (parentObjects == null) {
+			requests = getTiledRegionRequests(server,
+					downsample, tileWidth, tileHeight, overlapX, overlapY, includePartialTiles);			
+		} else {
+			requests = new ArrayList<>();
+			for (var parent : parentObjects) {
+				if (parent.isRootObject()) {
+					for (int t = 0; t < server.nTimepoints(); t++) {
+						for (int z = 0; z < server.nZSlices(); z++) {
+							requests.add(RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), z, t));
+						}						
+					}
+				} else if (parent.hasROI()) {
+					requests.add(RegionRequest.createInstance(server.getPath(), downsample, parent.getROI()));
+				}
+			}
+		}
+		if (requests.isEmpty()) {
+			logger.warn("No regions to export!");
+			return;
+		}
+		
 		String imageName = GeneralTools.stripInvalidFilenameChars(
 				GeneralTools.getNameWithoutExtension(server.getMetadata().getName())
 				);
@@ -366,8 +427,8 @@ public class TileExporter  {
 //			pixelSize = pixelSize.createScaledInstance(downsample, downsample);
 		
 		
-		int tileWidth = includePartialTiles ? -1 : this.tileWidth;
-		int tileHeight = includePartialTiles ? -1 : this.tileHeight;
+		int tileWidth = includePartialTiles || parentObjects != null ? -1 : this.tileWidth;
+		int tileHeight = includePartialTiles || parentObjects != null ? -1 : this.tileHeight;
 		
 		// Maintain a record of what we exported
 		List<TileExportEntry> exportImages = new ArrayList<>();
