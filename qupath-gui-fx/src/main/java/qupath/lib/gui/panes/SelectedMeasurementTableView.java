@@ -39,6 +39,11 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
@@ -98,6 +103,14 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		});
 		tableMeasurements.getColumns().addAll(col1, col2);
 		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		tableMeasurements.setOnKeyPressed(e -> {
+	        if (new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_ANY).match(e)) {
+	        	ClipboardContent content = new ClipboardContent();
+	            content.putString(getSelectedObjectMeasurementValue(tableMeasurements.getSelectionModel().getSelectedItem()));
+	            Clipboard.getSystemClipboard().setContent(content);
+	        }
+	        e.consume();
+	    });
 
 		return tableMeasurements;
 	}
