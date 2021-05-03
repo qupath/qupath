@@ -29,6 +29,7 @@ import java.beans.PropertyChangeListener;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.input.Clipboard;
@@ -103,10 +105,14 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		});
 		tableMeasurements.getColumns().addAll(col1, col2);
 		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 		tableMeasurements.setOnKeyPressed(e -> {
-	        if (new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_ANY).match(e)) {
+	        if (new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN).match(e)) {
 	        	ClipboardContent content = new ClipboardContent();
-	            content.putString(getSelectedObjectMeasurementValue(tableMeasurements.getSelectionModel().getSelectedItem()));
+	        	String values = tableMeasurements.getSelectionModel().getSelectedItems().stream()
+	        			.map(item -> item + "\t" + getSelectedObjectMeasurementValue(item))
+	        			.collect(Collectors.joining(System.lineSeparator()));
+	            content.putString(values);
 	            Clipboard.getSystemClipboard().setContent(content);
 	        }
 	        e.consume();
