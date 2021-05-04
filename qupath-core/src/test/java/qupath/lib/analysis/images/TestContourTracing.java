@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * @author Pete Bankhead
  *
  */
-class TestContourTracing {
+public class TestContourTracing {
 	
 	private static final Logger logger = LoggerFactory.getLogger(TestContourTracing.class);
 	
