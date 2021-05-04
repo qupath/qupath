@@ -25,6 +25,7 @@ package qupath.lib.analysis.images;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -40,7 +41,12 @@ import java.util.TreeSet;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.imageio.ImageIO;
+
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -57,9 +63,11 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -74,6 +82,267 @@ import qupath.lib.roi.interfaces.ROI;
 public class ContourTracing {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ContourTracing.class);
+	
+	
+	/**
+	 * Convert labeled images to detection objects, determining the region from the filename if possible.
+	 * @param paths paths to image files (e.g. PNGs)
+	 * @param mergeByLabel if true, merge objects with the same ROI label
+	 * @return a list of objects generated from the labels
+	 * @throws IOException if there is an error reading the images
+	 */
+	public static List<PathObject> labelsToDetections(Collection<Path> paths, boolean mergeByLabel) throws IOException {
+		var list = paths.parallelStream().flatMap(p -> labelsToDetectionsStream(p)).collect(Collectors.toList());
+		if (mergeByLabel)
+			return mergeByName(list);
+		return list;
+	}
+	
+	/**
+	 * Convert 2-channel labeled images to cell objects, determining the region from the filename if possible.
+	 * @param paths paths to image files (e.g. PNGs)
+	 * @param mergeByLabel if true, merge objects with the same ROI label
+	 * @return a list of objects generated from the labels
+	 * @throws IOException if there is an error reading the images
+	 */
+	public static List<PathObject> labelsToCells(Collection<Path> paths, boolean mergeByLabel) throws IOException {
+		var list = paths.parallelStream().flatMap(p -> labelsToCellsStream(p)).collect(Collectors.toList());
+		if (mergeByLabel)
+			return mergeByName(list);
+		return list;
+	}
+	
+	private static <K> List<PathObject> mergeByName(Collection<? extends PathObject> pathObjects) {
+		return PathObjectTools.mergeObjects(pathObjects, p -> p.getName());
+	}
+	
+	private static Stream<PathObject> labelsToDetectionsStream(Path path) {
+		try {
+			return labelsToDetections(path, null).stream();
+		} catch (IOException e) {
+			logger.error("Error parsing detections from " + path + ": " + e.getLocalizedMessage(), e);
+			return Stream.empty();
+		}
+	}
+	
+	private static Stream<PathObject> labelsToCellsStream(Path path) {
+		try {
+			return labelsToCells(path, null).stream();
+		} catch (IOException e) {
+			logger.error("Error parsing cells from " + path + ": " + e.getLocalizedMessage(), e);
+			return Stream.empty();
+		}
+	}
+	
+	/**
+	 * Convert a labeled image to detection objects.
+	 * @param path path to labeled image file (e.g. PNGs)
+	 * @param request a {@link RegionRequest} representing the region or the full image, used to reposition and rescale ROIs.
+	 *        If not provided, this will be extracted from the filename, if possible.
+	 * @return a list of objects generated from the labels
+	 * @throws IOException if there is an error reading the images
+	 */
+	public static List<PathObject> labelsToDetections(Path path, RegionRequest request) throws IOException {
+		var requestImage = readImage(path, request);
+		var image = ContourTracing.extractBand(requestImage.getImage().getRaster(), 0);
+		return ContourTracing.createDetections(image, requestImage.getRequest(), 1, -1);
+	}
+	
+	
+	/**
+	 * Convert a 2-channel labeled image to cell objects.
+	 * @param path path to labeled image file (e.g. PNGs)
+	 * @param request a {@link RegionRequest} representing the region or the full image, used to reposition and rescale ROIs.
+	 *        If not provided, this will be extracted from the filename, if possible.
+	 * @return a list of objects generated from the labels
+	 * @throws IOException if there is an error reading the images
+	 */
+	public static List<PathObject> labelsToCells(Path path, RegionRequest request) throws IOException {
+		var requestImage = readImage(path, request);
+		var img = requestImage.getImage();
+		if (img.getRaster().getNumBands() < 2)
+			throw new IllegalArgumentException("labelsToCells requires an image with at least 2 channels, cannot convert " + path);
+		var imageNuclei = ContourTracing.extractBand(img.getRaster(), 0);
+		var imageCells = ContourTracing.extractBand(img.getRaster(), 1);
+		return ContourTracing.createCells(imageNuclei, imageCells, requestImage.getRequest(), 1, -1);
+	}
+
+	
+	/**
+	 * Convert labeled images to annotation objects, determining the region from the filename if possible.
+	 * @param paths paths to image files (e.g. PNGs)
+	 * @param mergeByLabel if true, merge objects with the same ROI label
+	 * @return a list of objects generated from the labels
+	 * @throws IOException if there is an error reading the images
+	 */
+	public static List<PathObject> labelsToAnnotations(Collection<Path> paths, boolean mergeByLabel) throws IOException {
+		var list = paths.parallelStream().flatMap(p -> labelsToAnnotationsStream(p)).collect(Collectors.toList());
+		if (mergeByLabel)
+			return mergeByName(list);
+		return list;
+	}
+	
+	private static Stream<PathObject> labelsToAnnotationsStream(Path path) {
+		try {
+			return labelsToAnnotations(path, null).stream();
+		} catch (IOException e) {
+			logger.error("Error parsing annotations from " + path + ": " + e.getLocalizedMessage(), e);
+			return Stream.empty();
+		}
+	}
+	/**
+	 * Convert a labeled image to annotation objects.
+	 * @param path path to labeled image file (e.g. PNGs)
+	 * @param request a {@link RegionRequest} representing the region or the full image, used to reposition and rescale ROIs.
+	 *        If not provided, this will be extracted from the filename, if possible.
+	 * @return a list of objects generated from the labels
+	 * @throws IOException if there is an error reading the images
+	 */
+	public static List<PathObject> labelsToAnnotations(Path path, RegionRequest request) throws IOException {
+		var requestImage = readImage(path, request);
+		var image = ContourTracing.extractBand(requestImage.getImage().getRaster(), 0);
+		return ContourTracing.createAnnotations(image, requestImage.getRequest(), 1, -1);
+	}
+	
+	/**
+	 * Convert a labeled image to objects.
+	 * @param path path to labeled image file (e.g. PNGs)
+	 * @param request a {@link RegionRequest} representing the region or the full image, used to reposition and rescale ROIs.
+	 *        If not provided, this will be extracted from the filename, if possible.
+	 * @param creator function used to convert a ROI and numeric label to an object
+	 * @return a list of objects generated from the labels
+	 * @throws IOException if there is an error reading the images
+	 */
+	public static List<PathObject> labelsToObjects(Path path, RegionRequest request, BiFunction<ROI, Number, PathObject> creator) throws IOException {
+		var requestImage = readImage(path, request);
+		var image = ContourTracing.extractBand(requestImage.getImage().getRaster(), 0);
+		return ContourTracing.createObjects(image, request, 1, -1, creator);
+	}
+	
+	
+	/**
+	 * Try to read {@link BufferedImage} from a file.
+	 * @param path path to the file
+	 * @return image, if it could be read
+	 * @throws IOException if the image could not be read
+	 */
+	private static RequestImage readImage(Path path, RegionRequest request) throws IOException {
+		var img = ImageIO.read(path.toFile());
+		if (request == null) {
+			String name = path.getFileName().toString();
+			request = parseRegion(name, img.getWidth(), img.getHeight());
+		}
+		if (img == null) {
+			var server = ImageServerProvider.buildServer(path.toUri().toString(), BufferedImage.class);
+			img = server.readBufferedImage(request);
+		}
+		return new RequestImage(request, img);
+	}
+	
+	private static class RequestImage {
+		
+		private RegionRequest request;
+		private BufferedImage img;
+		
+		public RequestImage(RegionRequest request, BufferedImage img) {
+			this.request = request;
+			this.img = img;
+		}
+		
+		public RegionRequest getRequest() {
+			return request;
+		}
+		
+		public BufferedImage getImage() {
+			return img;
+		}
+		
+	}
+	
+	
+	
+	/**
+	 * Attempt to parse a {@link RegionRequest} corresponding to an image region from the file name.
+	 * <p>
+	 * This is used whenever a tile has been extracted from a larger image for further processing, 
+	 * and then there is a need to get the information back to the full-resolution image later.
+	 * 
+	 * @param name file name
+	 * @param width labeled image width, used to calculate the downsample if required; use -1 to ignore this
+	 * @param height labeled image height, used to calculate the downsample if required; use -1 to ignore this
+	 * @return a {@link RegionRequest} that may be used to transform ROIs
+	 */
+	public static RegionRequest parseRegion(String name, int width, int height) {
+		int x = 0;
+		int y = 0;
+		int w = 0;
+		int h = 0;
+		int z = 0;
+		int t = 0;
+		double downsample = Double.NaN;
+		
+		// Region components are a letter=number, where x, y, w
+		String patternString = "\\[([a-zA-Z]=[\\d\\.]+,?)*\\]";
+
+		
+//		String patternString = "\\[x=(?<x>\\d+),y=(?<y>\\d+),w=(?<w>\\d+),h=(?<h>\\d+)[,z=(?<z>\\d+)]?[,t=(?<t>\\d+)]?\\]";
+		var pattern = Pattern.compile(patternString);
+		var matcher = pattern.matcher(name);
+		
+		if (matcher.find()) {
+			String group = matcher.group();
+			String[] parts = group.substring(1, group.length()-1).split(",");
+			for (String part : parts) {
+				var split = part.split("=");
+				switch (split[0]) {
+				case "x":
+					x = Integer.parseInt(split[1]);
+					break;
+				case "y":
+					y = Integer.parseInt(split[1]);
+					break;
+				case "w":
+					w = Integer.parseInt(split[1]);
+					break;
+				case "h":
+					h = Integer.parseInt(split[1]);
+					break;
+				case "z":
+					z = Integer.parseInt(split[1]);
+					break;
+				case "t":
+					t = Integer.parseInt(split[1]);
+					break;
+				case "d":
+					downsample = Double.parseDouble(split[1]);
+					break;
+				default:
+					logger.warn("Unknown region component '{}'", part);
+				}
+			}
+		} else
+			return null;
+		
+		// If we don't have a finite downsample, try to figure it out from the image size
+		if (!Double.isFinite(downsample)) {
+			if (w > 0 && h > 0 && width > 0 && height > 0) {
+				double downsampleX = (double)w / width;
+				double downsampleY = (double)h / height;
+				downsample = (downsampleX + downsampleY) / 2.0;
+				if (!GeneralTools.almostTheSame(downsampleX, downsampleY, 0.01))
+					logger.warn("Estimated downsample x={} and y={}, will use average {}", downsampleX, downsampleY, downsample);
+				else if (downsampleX != downsampleY)
+					logger.debug("Estimated downsample x={} and y={}, will use average {}", downsampleX, downsampleY, downsample);
+			} else {
+				logger.debug("Using default downsample of 1");
+				downsample = 1.0;
+			}
+		}
+		
+		return RegionRequest.createInstance(name, downsample, x, y, w, h, z, t);		
+	}
+	
+	
 	
 	/**
 	 * Create objects from one band of a raster containing integer labels.

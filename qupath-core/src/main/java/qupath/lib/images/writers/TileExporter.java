@@ -653,7 +653,7 @@ public class TileExporter  {
 	static String getRegionString(RegionRequest request) {
 		String s = "";
 		if (request.getDownsample() != 1.0)
-			s = "d=" + formatter.get().format(request.getDownsample());
+			s = "d=" + formatter.get().format(request.getDownsample()) + ",";
 		s += "x="+request.getX()+",y="+request.getY()+",w="+request.getWidth()+",h="+request.getHeight();
 		if (request.getZ() != 0)
 			s += ",z="+request.getZ();
