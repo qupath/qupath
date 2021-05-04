@@ -20,7 +20,7 @@
  */
 
 
-package qupath.lib.analysis.algorithms;
+package qupath.lib.analysis.images;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -126,7 +126,7 @@ class TestContourTracing {
 	}
 
 		
-	void testImage(BufferedImage img) throws Exception {
+	static void testImage(BufferedImage img) throws Exception {
 		
 		assertEquals(BufferedImage.TYPE_BYTE_GRAY, img.getType());
 		

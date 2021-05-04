@@ -27,12 +27,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -627,9 +629,32 @@ public class TileExporter  {
 		}
 
 	}
+	
+	
+	private static ThreadLocal<NumberFormat> formatter = ThreadLocal.withInitial(() -> createDefaultNumberFormat(5));
 
+	private static NumberFormat createDefaultNumberFormat(int maxFractionDigits) {
+		var formatter = NumberFormat.getNumberInstance(Locale.US);
+		formatter.setMinimumFractionDigits(0);
+		formatter.setMaximumFractionDigits(5);
+		return formatter;
+	}
+	
+	/**
+	 * Get a standardized string to represent a region.
+	 * This is of the form
+	 * <pre>
+	 *  d={downsample},x={x},y={y},w={w},h={h},z={z},t={t}
+	 * </pre>
+	 * where downsample, z and t are optional and omitted if their default values (1.0, 0 and 0 respectively). 
+	 * @param request
+	 * @return
+	 */
 	static String getRegionString(RegionRequest request) {
-		String s = "x="+request.getX()+",y="+request.getY()+",w="+request.getWidth()+",h="+request.getHeight();
+		String s = "";
+		if (request.getDownsample() != 1.0)
+			s = "d=" + formatter.get().format(request.getDownsample());
+		s += "x="+request.getX()+",y="+request.getY()+",w="+request.getWidth()+",h="+request.getHeight();
 		if (request.getZ() != 0)
 			s += ",z="+request.getZ();
 		if (request.getT() != 0)

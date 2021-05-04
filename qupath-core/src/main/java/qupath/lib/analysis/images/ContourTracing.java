@@ -20,7 +20,7 @@
  */
 
 
-package qupath.lib.analysis.algorithms;
+package qupath.lib.analysis.images;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
@@ -37,9 +37,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -53,8 +54,6 @@ import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.analysis.images.SimpleImage;
-import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -68,6 +67,7 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
+ * Class to convert labelled images to Geometry objects, ROIs and PathObjects.
  * 
  * @author Pete Bankhead
  */
@@ -83,10 +83,10 @@ public class ContourTracing {
 	 * @param region region used to convert coordinates into the full image space (optional)
 	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
 	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
-	 * @param creator function to convert the traced ROI into a {@link PathObject}
+	 * @param creator function to convert the traced ROI and associated numeric label into a {@link PathObject}
 	 * @return a list of all created objects
 	 */
-	public static List<PathObject> createObjects(Raster raster, int band, RegionRequest region, int minLabel, int maxLabel, Function<ROI, PathObject> creator) {
+	public static List<PathObject> createObjects(Raster raster, int band, RegionRequest region, int minLabel, int maxLabel, BiFunction<ROI, Number, PathObject> creator) {
 		var image = extractBand(raster, band);
 		return createObjects(image, region, minLabel, maxLabel, creator);
 	}
@@ -98,13 +98,88 @@ public class ContourTracing {
 	 * @param region region used to convert coordinates into the full image space (optional)
 	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
 	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
-	 * @param creator function to convert the traced ROI into a {@link PathObject}
+	 * @param creator function to convert the traced ROI and associated numeric label into a {@link PathObject}
 	 * @return a list of all created objects
 	 */
-	public static List<PathObject> createObjects(SimpleImage image, RegionRequest region, int minLabel, int maxLabel, Function<ROI, PathObject> creator) {
+	public static List<PathObject> createObjects(SimpleImage image, RegionRequest region, int minLabel, int maxLabel, BiFunction<ROI, Number, PathObject> creator) {
 		var rois = createROIs(image, region, minLabel, maxLabel);
-		return rois.values().stream().map(creator).toList();
+		List<PathObject> pathObjects = new ArrayList<>();
+		for (var entry : rois.entrySet()) {
+			var pathObject = creator.apply(entry.getValue(), entry.getKey());
+			pathObjects.add(pathObject);
+		}
+		return pathObjects;
 	}
+	
+	/**
+	 * Create detection objects from a labelled image.
+	 * 
+	 * @param image the labelled image
+	 * @param region region used to convert coordinates into the full image space (optional)
+	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
+	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
+	 * @return a list of all created objects
+	 */
+	public static List<PathObject> createDetections(SimpleImage image, RegionRequest region, int minLabel, int maxLabel) {
+		return createObjects(image, region, minLabel, maxLabel, createNumberedObjectFunction(r -> PathObjects.createDetectionObject(r)));
+	}
+	
+	/**
+	 * Create annotation objects from a labelled image.
+	 * 
+	 * @param image the labelled image
+	 * @param region region used to convert coordinates into the full image space (optional)
+	 * @param minLabel minimum label; usually 1, but may be 0 if a background ROI should be created
+	 * @param maxLabel maximum label; if less than minLabel, the maximum label will be found in the image and used
+	 * @return a list of all created objects
+	 */
+	public static List<PathObject> createAnnotations(SimpleImage image, RegionRequest region, int minLabel, int maxLabel) {
+		return createObjects(image, region, minLabel, maxLabel, createNumberedObjectFunction(r -> PathObjects.createAnnotationObject(r)));
+	}
+	
+	/**
+	 * Convert a number to a String, providing an integer if possible.
+	 * @param n
+	 * @return
+	 */
+	private static String numberToString(Number n) {
+		if (n == null)
+			return null;
+		double value = n.doubleValue();
+		if (value == Math.rint(value))
+			return Long.toString((long)value);
+		return Double.toString(value);
+	}
+	
+	/**
+	 * Create a (bi)function to generate an object from a ROI and a number, setting the name of the object to match the number.
+	 * @param creator
+	 * @return a function compatible with {@link #createObjects(SimpleImage, RegionRequest, int, int, BiFunction)}
+	 * @see #createObjectFunction(Function, BiConsumer)
+	 * @see #createObjects(SimpleImage, RegionRequest, int, int, BiFunction)
+	 */
+	public static BiFunction<ROI, Number, PathObject> createNumberedObjectFunction(Function<ROI, PathObject> creator) {
+		return createObjectFunction(creator, (p, n) -> p.setName(numberToString(n)));
+	}
+	
+	
+	/**
+	 * Create a (bi)function to generate an object from a ROI and a number.
+	 * @param creator the function to create the object from the ROI
+	 * @param numberer the function to manipulate the object based on the number (e.g. to set the name, classification or measurements)
+	 * @return a function compatible with {@link #createObjects(SimpleImage, RegionRequest, int, int, BiFunction)}
+	 * @see #createNumberedObjectFunction(Function)
+	 * @see #createObjects(SimpleImage, RegionRequest, int, int, BiFunction)
+	 */
+	public static BiFunction<ROI, Number, PathObject> createObjectFunction(Function<ROI, PathObject> creator, BiConsumer<PathObject, Number> numberer) {
+		return (ROI r, Number n) -> {
+			var pathObject = creator.apply(r);
+			if (numberer != null && n != null)
+				numberer.accept(pathObject, n);
+			return pathObject;
+		};
+	}
+	
 	
 	/**
 	 * Create cell objects from two bands of a raster representing a labelled image.
@@ -143,16 +218,8 @@ public class ContourTracing {
 						String.format("Labelled images for nuclei and cells don't match! Image dimensions are different (%d x %d, %d x %d).", 
 								imageNuclei.getWidth(), imageNuclei.getHeight(), imageCells.getWidth(), imageCells.getHeight()));
 			}
-			for (int y = 0; y < imageNuclei.getHeight(); y++) {
-				for (int x = 0; x < imageNuclei.getWidth(); x++) {
-					float val = imageNuclei.getValue(x, y);
-					if (val != 0f && val >= minLabel && val <= maxLabel) {
-						if (val != imageCells.getValue(x, y)) {
-							throw new IllegalArgumentException("Nucleus and cell labelled images don't match! Found " + val + " in nucleus image, with " + imageCells.getValue(x, y) + " at corresponding location in cell image.");
-						}
-					}
-				}
-			}
+			if (!maybeCellLabels(imageNuclei, imageCells, minLabel))
+				throw new IllegalArgumentException("Nucleus and cell labelled images don't match! All labels >= " + minLabel + " in imageNuclei must be the same as labels in imageCells.");
 		}
 		var nucleusROIs = createROIs(imageNuclei, region, minLabel, maxLabel);
 		var cellROIs = createROIs(imageCells, region, minLabel, maxLabel);
@@ -160,10 +227,57 @@ public class ContourTracing {
 		for (var entry : cellROIs.entrySet()) {
 			var roiCell = entry.getValue();
 			var roiNucleus = nucleusROIs.getOrDefault(entry.getKey(), null);
-			cells.add(PathObjects.createCellObject(roiCell, roiNucleus, null, null));
+			var cell = PathObjects.createCellObject(roiCell, roiNucleus, null, null);
+			cell.setName(numberToString(entry.getKey()));
+			cells.add(cell);
 		}
 		return cells;
 	}
+	
+	/**
+	 * Check whether a raster could be used to generate cell objects, by providing a nucleus and corresponding cell labels.
+	 * @param raster the image raster containing labelled images
+	 * @param bandNuclei band corresponding to the potential labeled image for nuclei
+	 * @param bandCells  band corresponding to the potential labeled image for cells
+	 * @param minLabel the minimum positive label (usually 1). All pixels in {@code imageNuclei} with a value &geq; minLabel must 
+	 *                 have the same value in {@code imageCells}.
+	 * @return true if the images could provide nuclei and cell regions, false otherwise
+	 * @implSpec this returns true if {@code bandNuclei == bandCells}, since this could potentially provide cell objects (with no cytoplasm).
+	 */
+	public static boolean maybeCellLabels(Raster raster, int bandNuclei, int bandCells, int minLabel) {
+		if (bandNuclei == bandCells)
+			return true;
+		var imageNuclei = extractBand(raster, bandNuclei);
+		var imageCells = extractBand(raster, bandCells);
+		return maybeCellLabels(imageNuclei, imageCells, minLabel);
+	}
+	
+	
+	/**
+	 * Check whether two images could be used to generate cell objects, by providing a nucleus and corresponding cell labels.
+	 * @param imageNuclei potential labeled image for nuclei
+	 * @param imageCells  potential labeled image for cells
+	 * @param minLabel the minimum positive label (usually 1). All pixels in {@code imageNuclei} with a value &geq; minLabel must 
+	 *                 have the same value in {@code imageCells}.
+	 * @return true if the images could provide nuclei and cell regions, false otherwise
+	 */
+	public static boolean maybeCellLabels(SimpleImage imageNuclei, SimpleImage imageCells, int minLabel) {
+		if (imageNuclei.getWidth() != imageCells.getWidth() || imageNuclei.getHeight() != imageCells.getHeight())
+			return false;
+		for (int y = 0; y < imageNuclei.getHeight(); y++) {
+			for (int x = 0; x < imageNuclei.getWidth(); x++) {
+				float val = imageNuclei.getValue(x, y);
+				if (val >= minLabel) {
+					if (val != imageCells.getValue(x, y)) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
+	}
+	
+	
 
 	/**
 	 * Extract a band from a a raster as a {@link SimpleImage}.
@@ -202,20 +316,34 @@ public class ContourTracing {
 	 */
 	public static Map<Number, ROI> createROIs(SimpleImage image, RegionRequest region, int minLabel, int maxLabel) {
 		// Check how many labels are needed
+		float[] pixels = SimpleImages.getPixels(image, true);
 		if (maxLabel < minLabel) {
 			float maxValue = minLabel;
-			float[] pixels = SimpleImages.getPixels(image, true);
 			for (float p : pixels) {
 				if (p > maxValue)
 					maxValue = p;
 			}
 			maxLabel = (int)maxValue;
 		}
+		// We don't want to search for all possible labels, since they might not be present in the image
+		// Therefore we loop through pixels & search only for labels that haven't previously been handled
 		Map<Number, ROI> rois = new TreeMap<>();
-		for (int i = minLabel; i <= maxLabel; i++) {
-			var roi = createTracedROI(image, i, i, region);
-			if (roi != null)
-				rois.put(i, roi);
+		if (maxLabel > minLabel) {
+			float lastLabel = Float.NaN;
+			for (float p : pixels) {
+				if (p >= minLabel && p <= maxLabel && p != lastLabel && !rois.containsKey(p)) {
+					var roi = createTracedROI(image, p, p, region);
+					if (roi != null && !roi.isEmpty())
+						rois.put(p, roi);
+					lastLabel = p;
+				}
+			}
+		} else {
+			for (int i = minLabel; i <= maxLabel; i++) {
+				var roi = createTracedROI(image, i, i, region);
+				if (roi != null && !roi.isEmpty())
+					rois.put(i, roi);
+			}
 		}
 		return rois;
 	}
@@ -250,7 +378,7 @@ public class ContourTracing {
 	 */
 	public static ROI createTracedROI(SimpleImage image, float minThresholdInclusive, float maxThresholdInclusive, RegionRequest request) {
 		var geom = createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request);
-		return GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
+		return geom == null ? null : GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
 	}
 	
 	/**
@@ -275,7 +403,7 @@ public class ContourTracing {
 		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset);
 		
 		// Handle rescaling if needed
-		if (request != null && request.getDownsample() != 1) {
+		if (request != null && request.getDownsample() != 1 && geom != null) {
 			double scale = request.getDownsample();
 			var transform = AffineTransformation.scaleInstance(scale, scale);
 			transform = transform.translate(request.getX(), request.getY());
@@ -485,7 +613,7 @@ public class ContourTracing {
 	 * @param server
 	 * @param regionRequest optional region defining the area within which geometries should be traced
 	 * @param clipArea optional clip region, intersected with the created geometries (may be null)
-	 * @param thresholds
+	 * @param thresholds min/max thresholds (inclusive) to apply to each channel to generate objects
 	 * @return
 	 */
 	public static Map<Integer, Geometry> traceGeometries(ImageServer<BufferedImage> server, RegionRequest regionRequest, Geometry clipArea, ChannelThreshold... thresholds) {
@@ -989,6 +1117,8 @@ public class ContourTracing {
 		}
 		
 		var geom = manager.getFinalGeometry();
+		if (geom == null)
+			return null;
 		
 		var area = geom.getArea();
 		if (pixelCount != area) {
@@ -1032,6 +1162,8 @@ public class ContourTracing {
 		}
 
 		public Geometry getFinalGeometry() {
+			if (lines.isEmpty())
+				return null;//factory.createEmpty(2);
 			var geomTemp = factory.buildGeometry(lines).union();
 			polygonizer.add(geomTemp);
 			return polygonizer.getGeometry();
