@@ -2070,29 +2070,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	Action createInsertAction(final String name) {
 		Action action = new Action(name, e -> {
-			var currentTextComponent = getCurrentTextComponent();
-			var selection = currentTextComponent.getSelection();
-			var currentText = currentTextComponent.getText();
-			
-			// Remove selection if applicable
-			if (selection.getLength() > 0)
-				currentTextComponent.deleteText(selection.getStart(), selection.getEnd());
+			var control = getCurrentTextComponent();
 
-			if (name.toLowerCase().endsWith(GeneralTools.SYMBOL_MU + ""))
-				currentTextComponent.insertText(currentTextComponent.getCaretPosition(), GeneralTools.SYMBOL_MU + "");
-			else if (name.toLowerCase().equals("qpex"))
-				currentTextComponent.setText("import static qupath.lib.gui.scripting.QPEx.*" + currentText);
-			else if (name.toLowerCase().equals("qp"))
-				currentTextComponent.setText("import static qupath.lib.gui.scripting.QP.*" + currentText);
-			else if (name.toLowerCase().equals("all default"))
-				currentTextComponent.setText(QPEx.getDefaultImports(false) + currentText);
-			
 			if (name.toLowerCase().equals("pixel classifiers")) {
 				try {
 					String classifiers = qupath.getProject().getPixelClassifiers().getNames().stream()
 							.map(classifierName -> "\"" + classifierName + "\"")
 							.collect(Collectors.joining(", "));
-					currentTextComponent.insertText(currentTextComponent.getCaretPosition(), "[" + classifiers + "]");
+					control.paste("[" + classifiers + "]");
 				} catch (IOException ex) {
 					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
 				}
@@ -2101,7 +2086,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					String classifiers = qupath.getProject().getObjectClassifiers().getNames().stream()
 							.map(classifierName -> "\"" + classifierName + "\"")
 							.collect(Collectors.joining(", "));
-					currentTextComponent.insertText(currentTextComponent.getCaretPosition(), "[" + classifiers + "]");
+					control.paste("[" + classifiers + "]");
 				} catch (IOException ex) {
 					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
 				}
@@ -2109,9 +2094,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
 				model.setImageData(qupath.getImageData(), qupath.getImageData().getHierarchy().getObjects(null, PathDetectionObject.class));
 				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, "\", \"", Arrays.asList());
-				currentTextComponent.insertText(currentTextComponent.getCaretPosition(), "[\"" + data.get(0) + "\"]");
+				control.paste("[\"" + data.get(0) + "\"]");
+			} else if (name.toLowerCase().equals(GeneralTools.SYMBOL_MU + ""))
+				control.paste(GeneralTools.SYMBOL_MU + "");
+			else {	
+				// Imports (end with a new line)
+				if (name.toLowerCase().equals("qpex"))
+					control.insertText(0, "import static qupath.lib.gui.scripting.QPEx.*");
+				else if (name.toLowerCase().equals("qp"))
+					control.insertText(0, "import static qupath.lib.gui.scripting.QP.*");
+				else if (name.toLowerCase().equals("all default"))
+					control.insertText(0, QPEx.getDefaultImports(false));
+				handleNewLine(control);
 			}
-
 			e.consume();
 		});
 		
@@ -2122,7 +2117,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		else if (name.toLowerCase().equals("detection"))
 			action.disabledProperty().bind(qupath.imageDataProperty().isNull());
 			
-		
 		return action;
 	}
 	
