@@ -21,6 +21,7 @@
 
 package qupath.opencv.ops;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -180,6 +181,83 @@ public class TestImageOps {
 			}
 		}
 	}
+	
+	
+	
+	@Test
+	public void testCore() {
+		
+		double[] values = {0, 0.5, 1, 2.3, 7, -3, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+		
+		try (var scope = new PointerScope()) {
+			
+			for (int type : new int[] {opencv_core.CV_64F, opencv_core.CV_32F}) {
+			
+				for (double v1 : values) {
+					for (double v2 : values) {
+						
+						var m1 = OpenCVTools.scalarMat(v1, type);
+						var m2 = OpenCVTools.scalarMat(v2, type);
+						
+						compareValues(m1, ImageOps.Core.add(v2), v1 + v2);
+						compareValues(m2, ImageOps.Core.add(v1), v2 + v1);
+	
+						compareValues(m1, ImageOps.Core.subtract(v2), v1 - v2);
+						compareValues(m2, ImageOps.Core.subtract(v1), v2 - v1);
+	
+						compareValues(m1, ImageOps.Core.multiply(v2), v1 * v2);
+						compareValues(m2, ImageOps.Core.multiply(v1), v2 * v1);
+	
+						compareValues(m1, ImageOps.Core.divide(v2), v1 / v2);
+						compareValues(m2, ImageOps.Core.divide(v1), v2 / v1);
+						
+						compareValues(m1, ImageOps.Core.splitAdd(null, null), v1 + v1);
+						compareValues(m2, ImageOps.Core.splitAdd(null, null), v2 + v2);
+	
+						compareValues(m1, ImageOps.Core.splitSubtract(null, null), v1 - v1);
+						compareValues(m2, ImageOps.Core.splitSubtract(null, null), v2 - v2);
+	
+						compareValues(m1, ImageOps.Core.splitMultiply(null, null), v1 * v1);
+						compareValues(m2, ImageOps.Core.splitMultiply(null, null), v2 * v2);
+	
+						compareValues(m1, ImageOps.Core.splitDivide(null, null), v1 / v1);
+						compareValues(m2, ImageOps.Core.splitDivide(null, null), v2 / v2);
+						
+	//					System.err.println("v1: " + v1);
+	//					System.err.println("v2: " + v2);
+						
+						compareValues(m1, ImageOps.Core.exp(), Math.exp(v1));
+						compareValues(m2, ImageOps.Core.exp(), Math.exp(v2));
+	
+						compareValues(m1, ImageOps.Core.log(), Math.log(v1));
+						compareValues(m2, ImageOps.Core.log(), Math.log(v2));
+						
+						compareValues(m1, ImageOps.Core.sqrt(), Math.sqrt(v1));
+						compareValues(m2, ImageOps.Core.sqrt(), Math.sqrt(v2));
+						
+						compareValues(m1, ImageOps.Core.power(v2), Math.pow(v1, v2));
+	
+					}
+				}
+				
+			}
+
+		}
+		
+	}
+	
+	/**
+	 * Apply an op to a (clone of a) Mat and check its values match the target.
+	 * @param mat
+	 * @param op
+	 * @param targetValues
+	 */
+	private static void compareValues(Mat mat, ImageOp op, double... targetValues) {
+		double[] values = OpenCVTools.extractDoubles(op.apply(mat.clone()));
+		assertArrayEquals(targetValues, values, 1e-3);
+	}
+	
+	
 	
 	
 	@Test

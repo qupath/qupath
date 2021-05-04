@@ -38,6 +38,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.DoublePredicate;
+import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 
 import org.bytedeco.opencv.global.opencv_core;
@@ -47,6 +49,7 @@ import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.bytedeco.javacpp.indexer.ByteIndexer;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.Index;
 import org.bytedeco.javacpp.indexer.Indexer;
 import org.bytedeco.javacpp.indexer.ShortIndexer;
 import org.bytedeco.javacpp.indexer.UByteIndexer;
@@ -213,6 +216,110 @@ public class OpenCVTools {
 			throw new IllegalArgumentException("Unknown pixel type " + pixelType);
 		}
 	}
+	
+	
+	/**
+	 * Apply an operation to the pixels of an image.
+	 * <p>
+	 * No type conversion is applied; it is recommended to use floating point images, or otherwise check 
+	 * that clipping, rounding and non-finite values are handled as expected.
+	 * 
+	 * @param mat image
+	 * @param operator operator to apply to pixels of the image, in-place
+	 */
+	public static void apply(Mat mat, DoubleUnaryOperator operator) {
+		Indexer indexer = mat.createIndexer();
+		long[] sizes = indexer.sizes();
+		long total = 1;
+		for (long dim : sizes)
+			total *= dim;
+		var indexer2 = indexer.reindex(Index.create(total));
+		long[] inds = new long[1];
+		for (long i = 0; i < total; i++) {
+			inds[0] = i;
+			double val = indexer2.getDouble(inds);
+			val = operator.applyAsDouble(val);
+			indexer2.putDouble(inds, val);
+		}
+		indexer2.close();
+		indexer.close();
+	}
+	
+	
+	/**
+	 * Create a binary mask (0, 1 values) by applying a predicate to pixel values.
+	 * @param mat the input image
+	 * @param predicate the predicate to apply to each pixel
+	 * @return the mask
+	 */
+	public static Mat createMask(Mat mat, DoublePredicate predicate) {
+		var matMask = mat.clone();
+		apply(matMask, d -> predicate.test(d) ? 1.0 : 0.0);
+		matMask.convertTo(matMask, opencv_core.CV_8U);
+		return matMask;
+	}
+	
+	/**
+	 * Replace a specific value in an array.
+	 * <p>
+	 * If the value to replace is NaN, use instead {@link #replaceNaNs(Mat, double)}.
+	 * 
+	 * @param mat array
+	 * @param originalValue value to replace
+	 * @param newValue value to include in the output
+	 * @see #replaceNaNs(Mat, double)
+	 * @see #fill(Mat, Mat, double)
+	 */
+	public static void replaceValues(Mat mat, double originalValue, double newValue) {
+		var mask = opencv_core.equals(mat, originalValue).asMat();
+		fill(mat, mask, newValue);
+		mask.close();
+	}
+	
+	/**
+	 * Replace NaNs in a floating point array.
+	 * @param mat array
+	 * @param newValue replacement value
+	 */
+	public static void replaceNaNs(Mat mat, double newValue) {
+		int depth = mat.depth();
+		if (depth == opencv_core.CV_32F)
+			// patchNaNs requires 32-bit input
+			opencv_core.patchNaNs(mat, newValue);
+		else if (depth == opencv_core.CV_64F) {
+			var mask = opencv_core.notEquals(mat, mat).asMat();
+			fill(mat, mask, newValue);
+			mask.close();
+		}
+	}
+
+	/**
+	 * Fill the pixels of an image with a specific value, corresponding to a mask.
+	 * @param mat input image
+	 * @param mask binary mask
+	 * @param value replacement value
+	 * @see #fill(Mat, double)
+	 */
+	public static void fill(Mat mat, Mat mask, double value) {
+		var val = scalarMat(value, opencv_core.CV_64F);
+		if (mask == null)
+			mat.setTo(val);
+		else
+			mat.setTo(val, mask);
+		val.close();
+		return;
+	}
+	
+	/**
+	 * Fill the pixels of an image with a specific value.
+	 * @param mat input image
+	 * @param value fill value
+	 * @see #fill(Mat, Mat, double)
+	 */
+	public static void fill(Mat mat, double value) {
+		fill(mat, null, value);
+	}
+
 	
 	/**
 	 * Split channels from a {@link Mat}.

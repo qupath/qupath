@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.imagej.tools.IJTools;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 
@@ -110,6 +111,92 @@ public class TestOpenCVTools {
 			}
 			
 		}
+	}
+	
+	
+	@Test
+	public void testReplaceNaNs() {
+		double[] values = new double[] {-2, 0, 0.43, 100, Double.NaN, Double.NaN, Double.POSITIVE_INFINITY};
+		double[] replacedValues = new double[] {-2, 0, 0.43, 100, 2, 2, Double.POSITIVE_INFINITY};
+		
+		for (int type : new int[] {opencv_core.CV_32F, opencv_core.CV_64F}) {
+			var mat = new Mat(values);
+			mat.convertTo(mat, type);
+			
+			assertArrayEquals(values, OpenCVTools.extractDoubles(mat), 1e-3);
+			
+			OpenCVTools.replaceNaNs(mat, 2.0);
+			assertArrayEquals(replacedValues, OpenCVTools.extractDoubles(mat), 1e-3);
+	
+			mat.close();
+		}
+	}
+	
+	
+	@Test
+	public void testApply() {
+		double[] values = new double[] {-2, 0, 0.43, 100, Double.NaN, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY};
+		int[] types = new int[] {opencv_core.CV_32FC1, opencv_core.CV_64FC2, opencv_core.CV_32FC(5), opencv_core.CV_8UC1};
+		
+		try (var scope = new PointerScope()) {
+			
+			for (int type : types) {
+			
+				for (double v1 : values) {
+					
+					for (double v2 : values) {
+							
+						var mat = new Mat(3, 4, type);
+						OpenCVTools.fill(mat, v1);
+						
+						OpenCVTools.apply(mat, d -> d * v2 + v1/2.0);
+
+						double result = v1 * v2 + v1/2.0;
+						
+						if (opencv_core.CV_MAT_DEPTH(type) == opencv_core.CV_8U) {
+							// Any non-finite double is converted to 0, even if POSITIVE_INFINITY
+							double v1c = !Double.isFinite(v1) ? 0 : (int)(GeneralTools.clipValue(v1, 0, 255));
+							result = Byte.toUnsignedInt((byte)(v1c * v2 + v1/2.0));
+						} else {
+							result = v1 * v2 + v1/2.0;
+						}
+						
+						if (opencv_core.CV_MAT_DEPTH(type) == opencv_core.CV_8U) {
+							result = GeneralTools.clipValue(result, 0, 255);
+						}
+						
+						int total = (int)OpenCVTools.totalPixels(mat);
+						assertTrue(total >= 12);
+						double[] pixels = new double[total];
+						Arrays.fill(pixels, result);
+						assertArrayEquals(pixels, OpenCVTools.extractDoubles(mat), 1e-6);
+	
+					}
+					
+				}
+				
+			}
+			
+		}
+		
+		// Test multidimensional
+		var mat = new Mat(new int[] {2, 3, 3, 2, 2}, opencv_core.CV_64F);
+		opencv_core.setRNGSeed(100);
+		OpenCVTools.addNoise(mat, 1.0, 2.5);
+		
+		// Use apply
+		var mat2 = mat.clone();
+		OpenCVTools.apply(mat2, d -> d * 4.0 + 5.0);
+		
+		// Use regular OpenCV ops
+		mat.put(opencv_core.multiply(mat, 4.0));
+		mat.put(opencv_core.add(mat, OpenCVTools.scalarMat(5.0, opencv_core.CV_64F)));
+		
+		int total = 2 * 3 * 3 * 2 * 2;
+		double[] pixelsCV = OpenCVTools.extractDoubles(mat);
+		double[] pixelsApply = OpenCVTools.extractDoubles(mat2);
+		assertEquals(total, pixelsCV.length);
+		assertArrayEquals(pixelsCV, pixelsApply, 1e-6);
 	}
 	
 	

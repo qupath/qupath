@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.math3.util.FastMath;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -1713,7 +1714,7 @@ public class ImageOps {
 		public static ImageOp splitMerge(Collection<? extends ImageOp> ops) {
 			return new SplitMergeOp(ops.toArray(ImageOp[]::new));
 		}
-		
+				
 		/**
 		 * Create an op that applies all the specified ops to the input {@link Mat}, concatenating the results as channels 
 		 * of the output.
@@ -1722,6 +1723,90 @@ public class ImageOps {
 		 */
 		public static ImageOp splitMerge(ImageOp...ops) {
 			return splitMerge(Arrays.asList(ops));
+		}
+
+		/**
+		 * Create an op that returns its input unchanged.
+		 * This is useful where an op is required, but no processing should be performed (e.g. with {@link #splitSubtract(ImageOp, ImageOp)}).
+		 * @return
+		 */
+		public static ImageOp identity() {
+			return new IdentityOp();
+		}
+		
+		/**
+		 * Create an op that returns Euler's number e raise to the power of the Mat values.
+		 * @return
+		 */
+		public static ImageOp exp() {
+			return new ExponentialOp();
+		}
+		
+		/**
+		 * Create an op that returns the natural logarithm of values.
+		 * @return
+		 */
+		public static ImageOp log() {
+			return new LogOp();
+		}
+		
+		private static enum SplitCombineType {ADD, SUBTRACT, MULTIPLY, DIVIDE};
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by adding corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitAdd(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.ADD);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by subtracting corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitSubtract(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.SUBTRACT);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by multiplying corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitMultiply(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.MULTIPLY);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by dividing corresponding values.
+		 * @param opTop op to apply to first duplicate
+		 * @param opBottom op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitDivide(ImageOp opTop, ImageOp opBottom) {
+			return new SplitCombineOp(opTop, opBottom, SplitCombineType.DIVIDE);
+		}
+		
+		
+		@OpType("identity")
+		static class IdentityOp implements ImageOp {
+
+			IdentityOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				return input;
+			}
+			
 		}
 		
 		
@@ -1870,6 +1955,52 @@ public class ImageOps {
 			
 		}
 		
+		
+		@OpType("log")
+		static class LogOp implements ImageOp {
+			
+			LogOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				// Use FastMath - there are too many caveats with OpenCV's log implementation
+				OpenCVTools.apply(input, d -> FastMath.log(d));
+				return input;
+//				System.err.println("BEFORE: " + input.createIndexer());
+//				
+//				Mat maskZero = opencv_core.equals(input, 0.0).asMat();
+//				Mat maskInvalid = OpenCVTools.createMask(input, d -> d < 0 || !Double.isFinite(d));
+//				
+//				
+//
+//				System.err.println("BEFORE LATER: " + input.createIndexer());
+//
+//				opencv_core.log(input, input);
+//				
+//				OpenCVTools.fill(input, maskZero, Double.NEGATIVE_INFINITY);
+//				OpenCVTools.fill(input, maskInvalid, Double.NaN);
+//				maskZero.close();
+//				maskInvalid.close();
+//				System.err.println(input.createIndexer());
+//				return input;
+			}
+			
+		}
+		
+		
+		@OpType("exp")
+		static class ExponentialOp implements ImageOp {
+			
+			ExponentialOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				opencv_core.exp(input, input);
+				return input;
+			}
+			
+		}
+		
 		@OpType("pow")
 		static class PowerOp implements ImageOp {
 			
@@ -1881,8 +2012,30 @@ public class ImageOps {
 			
 			@Override
 			public Mat apply(Mat input) {
-				opencv_core.pow(input, power, input);
+				// Use FastMath - there are too many caveats with OpenCV's pow implementation
+				OpenCVTools.apply(input, d -> FastMath.pow(d, power));
 				return input;
+//				opencv_core.pow(input, power, input);
+//				// For non-integer powers, OpenCV uses the absolute value
+//				if (power == Math.rint(power))
+//					opencv_core.pow(input, power, input);
+//				else {
+//					opencv_core.pow(input, power, input);
+//					Mat mask = opencv_core.lessThan(input, 0.0).asMat();			    
+//					if (opencv_core.countNonZero(mask) != 0) {
+//						if (power < 0) {
+//							var nan = OpenCVTools.scalarMat(Double.NaN, opencv_core.CV_64F);
+//							input.setTo(nan, mask);
+//							nan.close();
+//						} else {
+//							var temp = OpenCVTools.scalarMat(0.0, opencv_core.CV_64F);
+//							opencv_core.subtract(temp, input, input, mask, input.depth());
+//							temp.close();
+//						}
+//					}
+//				    mask.close();
+//				}
+//				return input;
 			}
 			
 		}
@@ -1942,7 +2095,7 @@ public class ImageOps {
 		
 		/**
 		 * Duplicate the input {@link Mat} and apply different ops to the duplicates, 
-		 * merging the result at the end.
+		 * merging the result at the end using channel concatenation.
 		 */
 		@OpType("split-merge")
 		static class SplitMergeOp extends PaddedOp {
@@ -2007,6 +2160,110 @@ public class ImageOps {
 				for (var t : ops)
 					inputType = t.getOutputType(inputType);
 				return inputType;
+			}
+
+		}
+		
+		
+		
+		@OpType("split-combine")
+		static class SplitCombineOp extends PaddedOp {
+						
+			private SplitCombineType combine;
+			private ImageOp op1;
+			private ImageOp op2;
+			
+			SplitCombineOp(ImageOp op1, ImageOp op2, SplitCombineType combine) {
+				Objects.nonNull(combine);
+				if (op1 == null)
+					this.op1 = new IdentityOp();
+				else
+					this.op1 = op1;
+				if (op2 == null)
+					this.op2 = new IdentityOp();
+				else
+					this.op2 = op2;
+				this.combine = combine;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				return transformPadded(input);
+			}
+			
+			private String getCombineStr() {
+				switch(combine) {
+				case ADD:
+					return "+";
+				case DIVIDE:
+					return "/";
+				case MULTIPLY:
+					return "*";
+				case SUBTRACT:
+					return "-";
+				default:
+					throw new IllegalArgumentException("Unknown combine type " + combine);
+				}
+			}
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				var c1 = op1.getChannels(channels);
+				var c2 = op2.getChannels(channels);
+				if (c1.size() != c2.size())
+					throw new IllegalArgumentException("Channel counts do not match!");
+				String combo = " " + getCombineStr() + " ";
+				List<ImageChannel> combinedChannels = new ArrayList<>();
+				for (int i = 0; i < c1.size(); i++)
+					combinedChannels.add(
+							ImageChannel.getInstance(
+									c1.get(i).getName() + combo + c2.get(i).getName(),
+									c1.get(i).getColor()));
+				return combinedChannels;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return op1.getPadding().max(op2.getPadding());
+			}
+
+			@Override
+			protected Mat transformPadded(Mat input) {
+				var mat2 = op2.apply(input.clone());
+				var mat1 = op1.apply(input);
+				
+				var padding = getPadding();
+				var padExtra1 = padding.subtract(op1.getPadding());
+				if (!padExtra1.isEmpty())
+					mat1.put(stripPadding(mat1, padExtra1));
+				var padExtra2 = padding.subtract(op2.getPadding());
+				if (!padExtra2.isEmpty())
+					mat2.put(stripPadding(mat2, padExtra2));
+				
+				switch(combine) {
+				case ADD:
+					opencv_core.add(mat1, mat2, mat1);
+					break;
+				case DIVIDE:
+					opencv_core.divide(mat1, mat2, mat1);
+					break;
+				case MULTIPLY:
+					mat1.put(mat1.mul(mat2));
+//					opencv_core.multiply(mat1, mat2, mat1);
+					break;
+				case SUBTRACT:
+					opencv_core.subtract(mat1, mat2, mat1);
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown combine type " + combine);
+				}
+				mat2.close();
+				return mat1;
+			}
+			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return op1.getOutputType(inputType);
 			}
 
 		}
