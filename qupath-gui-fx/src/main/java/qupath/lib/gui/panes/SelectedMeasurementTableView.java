@@ -35,9 +35,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -47,6 +50,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.control.TableColumn.CellDataFeatures;
+import javafx.scene.control.TableRow;
 import javafx.util.Callback;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
@@ -106,19 +110,38 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		tableMeasurements.getColumns().addAll(col1, col2);
 		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		tableMeasurements.setRowFactory(e -> {
+		    final TableRow<String> row = new TableRow<>();
+		    final ContextMenu menu = new ContextMenu();
+		    final MenuItem copyItem = new MenuItem("Copy");
+		    menu.getItems().add(copyItem);
+		    copyItem.setOnAction(ev -> copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems()));
+		    
+		    // Only display context menu for non-empty rows
+		    row.contextMenuProperty().bind(
+		    	Bindings.when(row.emptyProperty())
+		    	.then((ContextMenu) null)
+		    	.otherwise(menu)
+		    );
+		    
+		    return row;
+		});
 		tableMeasurements.setOnKeyPressed(e -> {
-	        if (new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN).match(e)) {
-	        	ClipboardContent content = new ClipboardContent();
-	        	String values = tableMeasurements.getSelectionModel().getSelectedItems().stream()
-	        			.map(item -> item + "\t" + getSelectedObjectMeasurementValue(item))
-	        			.collect(Collectors.joining(System.lineSeparator()));
-	            content.putString(values);
-	            Clipboard.getSystemClipboard().setContent(content);
-	        }
+	        if (new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN).match(e))
+	        	copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems());
 	        e.consume();
 	    });
 
 		return tableMeasurements;
+	}
+	
+	private void copyMeasurementsToClipboard(List<String> selectedMeasurements) {
+		ClipboardContent content = new ClipboardContent();
+    	String values = selectedMeasurements.stream()
+    			.map(item -> item + "\t" + getSelectedObjectMeasurementValue(item))
+    			.collect(Collectors.joining(System.lineSeparator()));
+        content.putString(values);
+        Clipboard.getSystemClipboard().setContent(content);
 	}
 	
 	private List<PathObject> getSelectedObjectList() {

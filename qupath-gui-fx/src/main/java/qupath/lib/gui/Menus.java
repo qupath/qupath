@@ -134,7 +134,6 @@ class Menus {
 
 		// Copy actions
 		@ActionMenu("Copy to clipboard...>Current viewer")
-		@ActionAccelerator("shortcut+c")
 		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
 				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
 		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
