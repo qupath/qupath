@@ -204,7 +204,7 @@ public class TestHistogram {
 					}).collect(Collectors.toList()));
 		}
 		
-		Map<Integer, List<Double>> countPerBin1 = new HashMap<>();	// 'getBinIndexForValue()' check
+		Map<Integer, List<Double>> countPerBin1 = new HashMap<>();	// 'getBinIndexForValue(double)' check
 		for (int i = 0; i < list.size(); i++) {
 			var bin = hist1.getBinIndexForValue(list.get(i));
 			if (countPerBin1.containsKey(bin))
@@ -214,26 +214,45 @@ public class TestHistogram {
 				countPerBin1.get(bin).add(list.get(i));
 			}
 		}
+		
+		Map<Integer, List<Double>> countPerBin2 = new HashMap<>();	// 'getBinIndexForValue(double, double)' check
+		for (int i = 0; i < list.size(); i++) {
+			var bin = hist1.getBinIndexForValue(list.get(i));
+			if (countPerBin2.containsKey(bin))
+				countPerBin2.get(bin).add(list.get(i));
+			else {
+				countPerBin2.put(bin, new ArrayList<>());
+				countPerBin2.get(bin).add(list.get(i));
+			}
+		}
 
 		// Check consistency between methods
 		for (int i = 0; i < nBins1; i++) {
 			assertEquals(manualCount1.get(i), countPerBin1.get(i));
+			assertEquals(manualCount1.get(i), countPerBin2.get(i));
 			assertEquals(manualCount1.get(i).size(), hist1.getCountsForBin(i));
 			assertEquals(countPerBin1.get(i).size(), hist1.getCountsForBin(i));
+			assertEquals(countPerBin2.get(i).size(), hist1.getCountsForBin(i));
 			assertEquals((double)manualCount1.get(i).size() / list.size(), hist1.getNormalizedCountsForBin(i));
 			assertEquals((double)countPerBin1.get(i).size() / list.size(), hist1.getNormalizedCountsForBin(i));
+			assertEquals((double)countPerBin2.get(i).size() / list.size(), hist1.getNormalizedCountsForBin(i));			
 		}
 
 		// Check sum & max count
 		int countPerBin1Sum = countPerBin1.values().stream().mapToInt(e -> e.size()).sum();
+		int countPerBin2Sum = countPerBin2.values().stream().mapToInt(e -> e.size()).sum();
 		int countPerBin1Max = countPerBin1.values().stream().mapToInt(e -> e.size()).max().getAsInt();
+		int countPerBin2Max = countPerBin2.values().stream().mapToInt(e -> e.size()).max().getAsInt();
 		int manualCount1Sum = manualCount1.values().stream().mapToInt(e -> e.size()).sum();
 		int manualCount1Max = manualCount1.values().stream().mapToInt(e -> e.size()).max().getAsInt();
 		assertEquals(countPerBin1Sum, hist1.getCountSum());
+		assertEquals(countPerBin2Sum, hist1.getCountSum());
 		assertEquals(manualCount1Sum, hist1.getCountSum());
 		assertEquals(countPerBin1Max, hist1.getMaxCount());
+		assertEquals(countPerBin2Max, hist1.getMaxCount());
 		assertEquals(manualCount1Max, hist1.getMaxCount());
 		assertEquals((double)countPerBin1Max / countPerBin1Sum, hist1.getMaxNormalizedCount());
+		assertEquals((double)countPerBin2Max / countPerBin2Sum, hist1.getMaxNormalizedCount());
 		assertEquals((double)manualCount1Max / manualCount1Sum, hist1.getMaxNormalizedCount());
 		
 		Map<Integer, List<Double>> manualCount2 = new HashMap<>();	// Manually gathers all values for each bin
@@ -249,36 +268,55 @@ public class TestHistogram {
 					}).collect(Collectors.toList()));
 		}
 		
-		Map<Integer, List<Double>> countPerBin2 = new HashMap<>();	// 'getBinIndexForValue()' check
+		Map<Integer, List<Double>> countPerBin3 = new HashMap<>();	// 'getBinIndexForValue(double)' check
 		for (int i = 0; i < list.size(); i++) {
 			var bin = hist2.getBinIndexForValue(list.get(i));
-			if (countPerBin2.containsKey(bin))
-				countPerBin2.get(bin).add(list.get(i));
+			if (countPerBin3.containsKey(bin))
+				countPerBin3.get(bin).add(list.get(i));
 			else {
-				countPerBin2.put(bin, new ArrayList<>());
-				countPerBin2.get(bin).add(list.get(i));
+				countPerBin3.put(bin, new ArrayList<>());
+				countPerBin3.get(bin).add(list.get(i));
+			}
+		}
+
+		Map<Integer, List<Double>> countPerBin4 = new HashMap<>();	// 'getBinIndexForValue(double, double)' check
+		for (int i = 0; i < list.size(); i++) {
+			var bin = hist2.getBinIndexForValue(list.get(i));
+			if (countPerBin4.containsKey(bin))
+				countPerBin4.get(bin).add(list.get(i));
+			else {
+				countPerBin4.put(bin, new ArrayList<>());
+				countPerBin4.get(bin).add(list.get(i));
 			}
 		}
 
 		// Check consistency between methods
 		for (int i = 0; i < nBins2; i++) {
-			assertEquals(manualCount2.get(i), countPerBin2.get(i));
+			assertEquals(manualCount2.get(i), countPerBin3.get(i));
+			assertEquals(manualCount2.get(i), countPerBin4.get(i));
 			assertEquals(manualCount2.get(i).size(), hist2.getCountsForBin(i));
-			assertEquals(countPerBin2.get(i).size(), hist2.getCountsForBin(i));
+			assertEquals(countPerBin3.get(i).size(), hist2.getCountsForBin(i));
+			assertEquals(countPerBin4.get(i).size(), hist2.getCountsForBin(i));
 			assertEquals((double)manualCount2.get(i).size() / list.size(), hist2.getNormalizedCountsForBin(i));
-			assertEquals((double)countPerBin2.get(i).size() / list.size(), hist2.getNormalizedCountsForBin(i));
+			assertEquals((double)countPerBin3.get(i).size() / list.size(), hist2.getNormalizedCountsForBin(i));
+			assertEquals((double)countPerBin4.get(i).size() / list.size(), hist2.getNormalizedCountsForBin(i));
 		}
 		
 		// Check sum & max count (+ normalized)
-		int countPerBin2Sum = countPerBin2.values().stream().mapToInt(e -> e.size()).sum();
-		int countPerBin2Max = countPerBin2.values().stream().mapToInt(e -> e.size()).max().getAsInt();
+		int countPerBin3Sum = countPerBin3.values().stream().mapToInt(e -> e.size()).sum();
+		int countPerBin4Sum = countPerBin4.values().stream().mapToInt(e -> e.size()).sum();
+		int countPerBin3Max = countPerBin3.values().stream().mapToInt(e -> e.size()).max().getAsInt();
+		int countPerBin4Max = countPerBin4.values().stream().mapToInt(e -> e.size()).max().getAsInt();
 		int manualCount2Sum = manualCount2.values().stream().mapToInt(e -> e.size()).sum();
 		int manualCount2Max = manualCount2.values().stream().mapToInt(e -> e.size()).max().getAsInt();
-		assertEquals(countPerBin2Sum, hist2.getCountSum());
+		assertEquals(countPerBin3Sum, hist2.getCountSum());
+		assertEquals(countPerBin4Sum, hist2.getCountSum());
 		assertEquals(manualCount2Sum, hist2.getCountSum());
-		assertEquals(countPerBin2Max, hist2.getMaxCount());
+		assertEquals(countPerBin3Max, hist2.getMaxCount());
+		assertEquals(countPerBin4Max, hist2.getMaxCount());
 		assertEquals(manualCount2Max, hist2.getMaxCount());
-		assertEquals((double)countPerBin2Max / countPerBin2Sum, hist2.getMaxNormalizedCount());
+		assertEquals((double)countPerBin3Max / countPerBin3Sum, hist2.getMaxNormalizedCount());
+		assertEquals((double)countPerBin4Max / countPerBin4Sum, hist2.getMaxNormalizedCount());
 		assertEquals((double)manualCount2Max / manualCount2Sum, hist2.getMaxNormalizedCount());
 	}
 }
