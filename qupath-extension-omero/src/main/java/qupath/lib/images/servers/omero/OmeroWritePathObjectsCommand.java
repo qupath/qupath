@@ -42,11 +42,13 @@ import qupath.lib.objects.PathObject;
  * @author Melvin Gelbard
  *
  */
-public class OmeroWritePathAnnotationObjectsCommand implements Runnable {
+public class OmeroWritePathObjectsCommand implements Runnable {
+	
+	private final String title = "Send objects to OMERO";
 	
 	private QuPathGUI qupath;
 	
-	OmeroWritePathAnnotationObjectsCommand(QuPathGUI qupath) {
+	OmeroWritePathObjectsCommand(QuPathGUI qupath) {
 		this.qupath = qupath;
 	}
 
@@ -57,7 +59,7 @@ public class OmeroWritePathAnnotationObjectsCommand implements Runnable {
 		
 		// Check if OMERO server
 		if (!(server instanceof OmeroWebImageServer)) {
-			Dialogs.showErrorMessage("Not an OMERO server", "The currently opened image is not an OMERO web server.");
+			Dialogs.showErrorMessage(title, "The current image is not from OMERO!");
 			return;
 		}
 		
@@ -68,12 +70,12 @@ public class OmeroWritePathAnnotationObjectsCommand implements Runnable {
 			// If no selection, get all annotation objects
 			objs = viewer.getHierarchy().getAnnotationObjects();
 			if (objs.size() == 0) {
-				Dialogs.showErrorMessage("No annotation objects", "No annotation objects to send!");
+				Dialogs.showErrorMessage(title, "No annotations to send!");
 				return;
 			}
 			
 			// Ask user if he/she wants to send all annotations instead
-			var confirm = Dialogs.showConfirmDialog("Send annotations", String.format("No selection detected. Send all annotations instead? (%d %s)", 
+			var confirm = Dialogs.showConfirmDialog("Send annotations", String.format("No annotations are selected. Send all annotations instead? (%d %s)", 
 					objs.size(),
 					(objs.size() == 1 ? "object" : "objects")));
 			
@@ -87,7 +89,7 @@ public class OmeroWritePathAnnotationObjectsCommand implements Runnable {
 			
 			// Give warning and filter out detection objects
 			if (detections.size() > 0) {
-				Dialogs.showWarningNotification("Cannot send detection objects", String.format("Sending detection objects is not supported (%d %s)", 
+				Dialogs.showWarningNotification(title, String.format("Sending detection objects is not supported (%d %s)", 
 						detections.size(),
 						(detections.size() == 1 ? "object" : "objects")));
 				
@@ -96,7 +98,7 @@ public class OmeroWritePathAnnotationObjectsCommand implements Runnable {
 			
 			// Output message if no annotation object was found
 			if (objs.size() == 0) {
-				Dialogs.showErrorMessage("No annotation objects", "No annotation objects to send!");
+				Dialogs.showErrorMessage(title, "No annotation objects to send!");
 				return;
 			}
 		}

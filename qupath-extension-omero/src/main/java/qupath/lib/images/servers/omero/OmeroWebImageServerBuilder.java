@@ -99,7 +99,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	 * @param args
 	 * @return success
 	 */
-	boolean canConnectToOmero(URI uri, String... args) {
+	static boolean canConnectToOmero(URI uri, String... args) {
 		try {
 			if (supportLevel(uri) <= 0) {
 				logger.debug("OMERO web server does not support {}", uri);
@@ -116,7 +116,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 			
 			// Check if client can reach the image. If not, prompt login
 			boolean isLoggedIn = true;
-			if (!client.canBeAccessed(uri, OmeroTools.parseOmeroObjectType(uri)))
+			if (!OmeroWebClient.canBeAccessed(uri, OmeroTools.parseOmeroObjectType(uri)))
 				isLoggedIn = client.logIn(args);
 			
 			if (!isLoggedIn)
@@ -126,7 +126,7 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 				OmeroWebClients.addClient(client);
 
 				// Check if client can reach the OMERO object while being logged in
-				if (!client.canBeAccessed(uri, OmeroTools.parseOmeroObjectType(uri)))
+				if (!OmeroWebClient.canBeAccessed(uri, OmeroTools.parseOmeroObjectType(uri)))
 					throw new AccessDeniedException(String.format("\"%s\" does not have permission to read %s", client.getUsername(), uri));
 			}
 			

@@ -38,7 +38,7 @@ import ij.plugin.ImageCalculator;
 import ij.process.StackStatistics;
 
 @SuppressWarnings("javadoc")
-public class ImageWriterIJTest {
+public class TestImageWriterIJ {
 
 	@Test
 	public void testTiffAndZip() {

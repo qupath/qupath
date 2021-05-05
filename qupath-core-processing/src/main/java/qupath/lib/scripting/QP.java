@@ -62,9 +62,9 @@ import com.google.common.collect.ObjectArrays;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
-import qupath.lib.analysis.algorithms.ContourTracing;
 import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
+import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.classifiers.PathObjectClassifier;
@@ -124,6 +124,7 @@ import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOps;
+import qupath.opencv.tools.GroovyCV;
 import qupath.opencv.tools.OpenCVTools;
 
 /**
@@ -257,6 +258,8 @@ public class QP {
 			CellTools.class,
 			
 			ContourTracing.class,
+			
+			GroovyCV.class,
 			
 			// IO classes
 			PointIO.class,

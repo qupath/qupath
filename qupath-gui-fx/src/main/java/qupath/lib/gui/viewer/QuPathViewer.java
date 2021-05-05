@@ -150,6 +150,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private final static Logger logger = LoggerFactory.getLogger(QuPathViewer.class);
 
+	private static final double MIN_ROTATION = 0;
+	private static final double MAX_ROTATION = 360 * Math.PI / 180;
+
 	private List<QuPathViewerListener> listeners = new ArrayList<>();
 
 	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
@@ -206,7 +209,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private double xCenter = 0;
 	private double yCenter = 0;
 	private DoubleProperty downsampleFactor = new SimpleDoubleProperty(1.0);
-	private double rotation = 0;
+	private DoubleProperty rotationProperty = new SimpleDoubleProperty(0);
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 	
 	// Affine transform used to apply rotation
@@ -850,6 +853,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				centerImage();
 			}
 			imageUpdated = true;
+			repaint();
+		});
+		
+		rotationProperty.addListener((v, o, n) -> {
+			imageUpdated = true;
+			updateAffineTransform();
 			repaint();
 		});
 	}
@@ -2722,8 +2731,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		double downsample = getDownsampleFactor();
 		transform.scale(1.0/downsample, 1.0/downsample);
 		transform.translate(-xCenter, -yCenter);
-		if (rotation != 0)
-			transform.rotate(rotation, xCenter, yCenter);
+		if (rotationProperty.get() != 0)
+			transform.rotate(rotationProperty.get(), xCenter, yCenter);
 
 		transformInverse.setTransform(transform);
 		try {
@@ -2749,17 +2758,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param theta
 	 */
 	public void setRotation(double theta) {
-		if (this.rotation == theta)
+		if (rotationProperty.get() == theta)
 			return;
-		this.rotation = theta;
-		imageUpdated = true;
-		updateAffineTransform();
-		repaint();
+		while (theta < MIN_ROTATION)
+			theta += MAX_ROTATION;
+		theta = (theta % MAX_ROTATION) + MIN_ROTATION;
+
+		rotationProperty.set(theta);
 	}
 
 	/**
 	 * Returns true if {@code viewer.getRotation() != 0}.
-	 * @return
+	 * @return isRotated
 	 */
 	public boolean isRotated() {
 		return getRotation() != 0;
@@ -2767,10 +2777,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Get the current rotation; angle in radians.
-	 * @return
+	 * @return rotation in radians
 	 */
 	public double getRotation() {
-		return rotation;
+		return rotationProperty.get();
+	}
+	
+	/**
+	 * Return the rotation property of this viewer.
+	 * @return rotation property
+	 */
+	public DoubleProperty rotationProperty() {
+		return rotationProperty;
 	}
 
 	@Override

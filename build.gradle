@@ -7,10 +7,9 @@
  * or on Windows
  * gradlew.bat clean build createPackage
  * <p>
- * NOTE: At the time of writing, Gradle cannot be run with OpenJDK 16.
- * However, creating a valid QuPath package requires OpenJDK 16 (since it contains jpackage).
- * Gradle's toolchain options are used to overcome this: you should run Gradle with a valid
- * JDK (e.g. 8-15) and the toolchain will use a different JDK for building QuPath itself.
+ * NOTE: This build requires OpenJDK 16 (since it contains jpackage).
+ * Gradle's toolchain options are used to overcome this: if you run gradlew with a different JDK,
+ * gradle will use a different JDK for building QuPath itself (downloading it if necessary).
  */
 
 /**
@@ -59,11 +58,12 @@ def compiler = javaToolchains.compilerFor {
 def jdkHome = compiler.get().metadata.installationPath.asFile.absolutePath
 println "JDK used to build QuPath: ${jdkHome}"
 
-
+/*
 tasks.withType(JavaCompile).configureEach {
 	// disable incremental compilation
     options.incremental = false
 }
+*/
 
 /*
  * Some metadata for the manifest
@@ -92,19 +92,6 @@ def jfxModules = ['javafx.base', 'javafx.controls', 'javafx.graphics', 'javafx.m
 def useGPU = false
 
 /*
- * Modules not yet supported because of various dependency troubles.
- * Specifially:
- *  - ImageJ contains MacAdapter outside of any package, this must be removed (fixed in 1.53d!)
- *  - RuntimeTypeAdapterFactory needs to be in a valid package
- *  - JPen's automatic module name is invalid (jpen.2)
- *  - Bio-Formats is not module-friendly
- *  - OpenSlide also seems module-unfriendly (at least within eclipse)
- * Setting the flag to false disables code that would otherwise try to move in a modular direction, 
- * while making it a bit easier to return to this later.
- */
-def doModular = false
-
-/*
  * Helps to output build time for reference later
  */
 def buildTime = new Date().format("yyyy-MM-dd, HH:mm")
@@ -113,8 +100,8 @@ def buildTime = new Date().format("yyyy-MM-dd, HH:mm")
  * Good to know what JDK is (sometimes accidentally) being used
  */
 println 'Java version used to run Gradle: ' + JavaVersion.current()
-if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_16))
-	println 'WARNING! Your Java version may be too high. If you encounter errors, try running Gradle with Java <= 15.'
+if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_1_8) || JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17))
+	println 'WARNING! Your Java version may be not be compatible. If you encounter errors, try running Gradle with Java >= 8 and <= 16.'
 
 
 // Request latest commit by a command line call to Git, if required
@@ -209,8 +196,14 @@ if (includeTensorFlowGPU) {
 allprojects {
   apply plugin: 'java-library'
   
-  if (doModular) {
-	  apply plugin: 'org.javamodularity.moduleplugin'
+  // Ensure we compile with the desired JDK
+  java {
+    toolchain {
+        languageVersion = targetJDK
+    }
+    // Not ready for modularity, I'm afraid
+    // Default changed to true in Gradle 7, but results in errors in eclipse
+	modularity.inferModulePath = false
   }
 
   group = 'qupath'
@@ -234,7 +227,7 @@ allprojects {
     jpenVersion        = '2-150301'
     jtsVersion         = '1.18.1'
     openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.5'
+    richtextVersion    = '0.10.6'
     picocliVersion     = '4.6.1'
     jfreesvgVersion    = '4.2'
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
@@ -405,6 +398,8 @@ allprojects {
 project(':qupath-core-processing') {
   dependencies {
 	  api project(':qupath-core')
+	  // Required to make TestContourTracing paths available
+	  testImplementation project(':qupath-core').sourceSets.test.output
   }
 }
 project(':qupath-gui-fx') {
@@ -428,17 +423,7 @@ subprojects {
     afterEvaluate {
 
 
-        compileJava {
-/*
-            inputs.property("moduleName", moduleName)
-            doFirst {
-                options.compilerArgs = [
-                        '--module-path', classpath.asPath,
-                ]
-                classpath = files()
-            }
-            */
-        }
+        compileJava {}
 
 
 
@@ -544,13 +529,14 @@ task copyLicenses(type: Copy) {
   def licenseDirs = []
   subprojects.each {
     def dir = new File(it.projectDir, 'src/main/resources/licenses')
-    if (dir.isDirectory())
+    if (dir.isDirectory() && !excludeSubprojects.contains(it.name))
       licenseDirs << dir
   }
   println 'Copying license directories: '
   licenseDirs.each { println '  ' + it }
   from licenseDirs
   into additionalResourcesDir + '/licenses'
+  duplicatesStrategy = 'warn'
 }
 
 /*
@@ -604,7 +590,7 @@ licenseReport {
   print("LICENSE PATH: " + new File(projectDir, 'license-unknown.txt').getAbsolutePath())
 //  filters = [new LicenseBundleNormalizer()] // May introduce errors
   renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
-               new CsvReportRenderer(),
+//               new CsvReportRenderer(),
                new InventoryHtmlReportRenderer('index.html', 'Third party licenses',
                		new File(projectDir, 'license-unknown.txt'))]
 }
@@ -763,10 +749,6 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
 
   doFirst {
   
-  	if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_14)) {
-  		throw new GradleException("Creating a package requires jpackage in JDK 14, but the current JDK version is ${JavaVersion.current()}.")
-  	}
-  
 	// Versioning rules can be strict on some platforms - may need to further change this
   	def appVersion = qupathVersion.replace('-SNAPSHOT', '')
 
@@ -785,14 +767,28 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     
     // Set the library path to the app directory, for loading native libraries
    	javaOptions << '-Djava.library.path=$APPDIR'		
+   	
+   	// Revert to pre-Java-16 behavior
+   	// See https://openjdk.java.net/jeps/396
+   	// If this is removed, things like adding metadata to a project entry will fail with errors such as
+   	//   ERROR: QuPath exception: class org.controlsfx.control.textfield.AutoCompletionBinding 
+   	//   (in unnamed module @0x298a5e20) cannot access class com.sun.javafx.event.EventHandlerManager 
+   	//   (in module javafx.base) because module javafx.base does not export com.sun.javafx.event to unnamed module
+   	// This Java option will hopefully be temporary, until dependencies are updated to make it unnecessary.
+   	javaOptions << '--illegal-access=permit'
 
-    // Temp workaround for kyro and Bio-Formats memoization - see https://github.com/ome/bioformats/issues/3659
-   	javaOptions << '--add-opens=java.base/java.util.regex=ALL-UNNAMED'		
-   	// Needed to set style/theme
-   	javaOptions << '--add-opens=javafx.graphics/com.sun.javafx.css=ALL-UNNAMED'
-   	// Needed for ControlsFX/BreadcrumbBar (could export to org.controlsfx if it was on the module path)
-   	javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED'
-	javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED'
+	/*
+	 * Previous attempts to avoid setting '--illegal-access' globally.
+	 * Errors still turned up intermittently.
+	 * 
+     * // Temp workaround for kyro and Bio-Formats memoization - see https://github.com/ome/bioformats/issues/3659
+   	 * javaOptions << '--add-opens=java.base/java.util.regex=ALL-UNNAMED'		
+   	 * // Needed to set style/theme
+   	 * javaOptions << '--add-opens=javafx.graphics/com.sun.javafx.css=ALL-UNNAMED'
+   	 * // Needed for ControlsFX/BreadcrumbBar (could export to org.controlsfx if it was on the module path)
+   	 * javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED'
+	 * javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED'
+	 */
 
     def params = ["${jdkHome}/bin/jpackage"]
 
