@@ -53,7 +53,10 @@ public class CircularSlider extends Control {
         }
     }
 
-    private final DoubleProperty rotationProperty = new SimpleDoubleProperty(0);
+    private static final int MAX_DISPLAYED_VALUE = 360;
+    private static final int MIN_DISPLAYED_VALUE = 0;
+
+    private final DoubleProperty rotationProperty = new SimpleDoubleProperty(MIN_DISPLAYED_VALUE);	// In radians
     private final BooleanProperty snapEnabled = new SimpleBooleanProperty(false);
     private final DoubleProperty tickSpacing = new SimpleDoubleProperty(10);
     private final Circle outerCircle = new Circle();
@@ -94,12 +97,11 @@ public class CircularSlider extends Control {
                 e.consume();
                 Double rotation;
                 if (e.isShiftDown())
-                	rotation = Double.valueOf(0);
+                	rotation = Double.valueOf(MIN_DISPLAYED_VALUE);
                 else
                 	rotation = Dialogs.showInputDialog("Set rotation", "Rotation (degrees)", getValue());
-                if (rotation != null) {
+                if (rotation != null && !rotation.isNaN())
                     setValue(rotation);
-                }
             }
         });
 
@@ -107,7 +109,7 @@ public class CircularSlider extends Control {
         //add event handlers
         outerCircle.addEventHandler(MouseEvent.MOUSE_DRAGGED, this::updateRotationWithMouseEvent);
         outerCircle.addEventHandler(MouseEvent.MOUSE_CLICKED, this::updateRotationWithMouseEvent);
-        outerCircle.addEventHandler(ScrollEvent.ANY, e -> rotationProperty().set(rotationProperty().get() + (e.isShiftDown() ? e.getDeltaX() : e.getDeltaY()) * (isSnapToTicks() ? getTickSpacing() : 1)));
+        outerCircle.addEventHandler(ScrollEvent.ANY, e -> setValue(getValue() + (e.isShiftDown() ? e.getDeltaX() : e.getDeltaY()) * (isSnapToTicks() ? getTickSpacing() : 1)));
         outerCircle.addEventHandler(MouseEvent.MOUSE_PRESSED, this::onMousePressed);
         addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
 
@@ -139,16 +141,16 @@ public class CircularSlider extends Control {
      * @return the current rotation in degrees
      */
     public double getValue() {
-        return rotationProperty.get();
+        return Math.toDegrees(rotationProperty.get());
     }
 
     /**
-     * Set rotation value
+     * Set rotation value in degrees
      *
-     * @param rotation value
+     * @param rotation value in degrees
      */
     public void setValue(double rotation) {
-        this.rotationProperty.set(rotation);
+        rotationProperty.set(Math.toRadians(rotation));
     }
 
     /**
@@ -225,15 +227,15 @@ public class CircularSlider extends Control {
      * @param e calculate the rotation based on the mouse event
      */
     private void updateRotationWithMouseEvent(MouseEvent e) {
-        if (isDisabled()) {
+        if (isDisabled())
             return;
-        }
+
         double x = e.getX() - outerCircle.getCenterX(),
                 y = e.getY() - outerCircle.getCenterY();
         double dot = (x * x) + (y * y);
         double length = Math.sqrt(dot);
         final double angle = Math.atan2(x / length, -y / length);
-        rotationProperty.set(Math.toDegrees(angle >= 0 ? angle : Math.PI + Math.PI + angle));// atan2 of dot product and determinant of current vector verses up (0,-1). As x of up vector is 0, can simplify
+        rotationProperty.set(angle >= 0 ? angle : Math.PI + Math.PI + angle);// atan2 of dot product and determinant of current vector verses up (0,-1). As x of up vector is 0, can simplify
 
     }
 
@@ -241,22 +243,22 @@ public class CircularSlider extends Control {
      * Ensure that the rotation rules are followed (e.g. min, max, snaps, etc.)
      */
     private void checkRotation() {
-        if (getValue() < 0) {
-            rotationProperty.set(360 + (getValue() % 360));
-        }
-        if (getValue() > 360) {
-            rotationProperty.set(getValue() % 360);
-        }
+        if (getValue() < 0)
+            setValue(MAX_DISPLAYED_VALUE + (getValue() % MAX_DISPLAYED_VALUE));
+
+        if (getValue() >= MAX_DISPLAYED_VALUE)
+            setValue(getValue() % MAX_DISPLAYED_VALUE);
+
         if (isSnapToTicks()) {
 
             final double halfSnap = tickSpacing.get() * .5;
 
-            if (getValue() < halfSnap || getValue() > 360 - halfSnap) {
-                rotationProperty.set(0);
-            } else {
-                rotationProperty.set(tickSpacing.get() * (Math.round(getValue() / tickSpacing.get())));
-            }
-            rotationProperty.set(tickSpacing.get() * (Math.round(getValue() / tickSpacing.get())));
+            if (getValue() < halfSnap || getValue() > 360 - halfSnap)
+                setValue(0);
+            else
+                setValue(tickSpacing.get() * (Math.round(getValue() / tickSpacing.get())));
+            
+            setValue(tickSpacing.get() * (Math.round(getValue() / tickSpacing.get())));
 
         }
         updateTextAndInnerCircle();
@@ -264,7 +266,7 @@ public class CircularSlider extends Control {
 
     private void updateTextAndInnerCircle() {
         angle.setText(String.format("%.1f\u00B0", getValue()));
-        final double radians = Math.toRadians(rotationProperty.get());
+        final double radians = rotationProperty.get();
         double vecX = Math.sin(radians),
                 vecY = -Math.cos(radians);
         final double x = outerCircle.getCenterX() + (outerCircle.getRadius() - innerCircle.getRadius() - 5) * vecX;
@@ -304,10 +306,10 @@ public class CircularSlider extends Control {
     private void onKeyPressed(KeyEvent e) {
     	switch (e.getCode()) {
     	case LEFT:
-    		rotationProperty().set(rotationProperty().get() - (isSnapToTicks() ? getTickSpacing() : 1));
+    		setValue(getValue() - (isSnapToTicks() ? getTickSpacing() : 1));
     		break;
     	case RIGHT:
-    		rotationProperty().set(rotationProperty().get() + (isSnapToTicks() ? getTickSpacing() : 1));
+    		setValue(getValue() + (isSnapToTicks() ? getTickSpacing() : 1));
     		break;
     	default:
     		break;

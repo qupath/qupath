@@ -698,7 +698,7 @@ class Menus {
 				
 		@ActionDescription("Rotate the image visually (this is only for display - the coordinate system remains unchanged).")
 		@ActionMenu("Rotate image")
-		public final Action ROTATE_IMAGE = Commands.createSingleStageAction(() -> Commands.createRotateImageDialog(qupath));
+		public final Action ROTATE_IMAGE = qupath.createImageDataAction(imageData -> Commands.createRotateImageDialog(qupath));
 
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
