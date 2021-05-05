@@ -45,7 +45,6 @@ import java.util.function.Function;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
-import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.bytedeco.javacpp.indexer.ByteIndexer;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
@@ -81,7 +80,6 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObject;
-import qupath.lib.objects.PathObjects;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -248,14 +246,29 @@ public class OpenCVTools {
 	
 	
 	/**
-	 * Create a binary mask (0, 1 values) by applying a predicate to pixel values.
+	 * Create a mask by applying a predicate to pixel values.
+	 * @param mat the input image
+	 * @param predicate the predicate to apply to each pixel
+	 * @param trueValue the value to include in the mask for pixels that match the predicate
+	 * @param falseValue the value to include in the mask for pixels that do not match the predicate
+	 * @return the mask
+	 * @see #createBinaryMask(Mat, DoublePredicate)
+	 */
+	public static Mat createMask(Mat mat, DoublePredicate predicate, double trueValue, double falseValue) {
+		var matMask = mat.clone();
+		apply(matMask, d -> predicate.test(d) ? trueValue : falseValue);
+		return matMask;
+	}
+	
+	/**
+	 * Create a binary mask (0, 255 values) by applying a predicate to pixel values.
 	 * @param mat the input image
 	 * @param predicate the predicate to apply to each pixel
 	 * @return the mask
+	 * @see #createMask(Mat, DoublePredicate, double, double)
 	 */
-	public static Mat createMask(Mat mat, DoublePredicate predicate) {
-		var matMask = mat.clone();
-		apply(matMask, d -> predicate.test(d) ? 1.0 : 0.0);
+	public static Mat createBinaryMask(Mat mat, DoublePredicate predicate) {
+		var matMask = createMask(mat, predicate, 255, 0);
 		matMask.convertTo(matMask, opencv_core.CV_8U);
 		return matMask;
 	}
@@ -857,12 +870,14 @@ public class OpenCVTools {
 	 * @return the mean of all pixels in the image
 	 */
 	public static double mean(Mat mat) {
-		if (mat.channels() == 1)
-			return opencv_core.mean(mat).get();
-		var temp = mat.reshape(1, mat.rows()*mat.cols());
-		var mean = opencv_core.mean(temp).get();
-		temp.close();
-		return mean;
+		return reduceMat(mat, opencv_core.REDUCE_AVG);
+		// Alternative implementation does not ignore NaNs
+//		if (mat.channels() == 1)
+//			return opencv_core.mean(mat).get();
+//		var temp = mat.reshape(1, mat.rows()*mat.cols());
+//		var mean = opencv_core.mean(temp).get();
+//		temp.close();
+//		return mean;
 	}
 	
 	/**
@@ -913,12 +928,14 @@ public class OpenCVTools {
 	 * @return the sum of all pixels in the image
 	 */
 	public static double sum(Mat mat) {
-		if (mat.channels() == 1)
-			return opencv_core.sumElems(mat).get();
-		var temp = mat.reshape(1, mat.rows()*mat.cols());
-		var sum = opencv_core.sumElems(temp).get();
-		temp.close();
-		return sum;
+		return reduceMat(mat, opencv_core.REDUCE_SUM);
+		// Alternative implementation doesn't ignore NaNs
+//		if (mat.channels() == 1)
+//			return opencv_core.sumElems(mat).get();
+//		var temp = mat.reshape(1, mat.rows()*mat.cols());
+//		var sum = opencv_core.sumElems(temp).get();
+//		temp.close();
+//		return sum;
 	}
 	
 	/**
@@ -979,15 +996,20 @@ public class OpenCVTools {
 //		System.err.println("Size: " + mat.arraySize()/mat.elemSize());
 //		System.err.println("Calculated: " + mat.cols() * mat.rows() * mat.channels());
 		
+		// If using StatUtils, average and sum have different behavior with NaNs
 		switch (reduction) {
 		case opencv_core.REDUCE_AVG:
-			return StatUtils.mean(values);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).average().orElseGet(() -> Double.NaN);
+//			return StatUtils.mean(values);
 		case opencv_core.REDUCE_MAX:
-			return StatUtils.max(values);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).max().orElseGet(() -> Double.NaN);
+//			return StatUtils.max(values);
 		case opencv_core.REDUCE_MIN:
-			return StatUtils.min(values);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).min().orElseGet(() -> Double.NaN);
+//			return StatUtils.min(values);
 		case opencv_core.REDUCE_SUM:
-			return StatUtils.sum(values);
+			return Arrays.stream(values).filter(d -> !Double.isNaN(d)).sum();
+//			return StatUtils.sum(values);
 			default:
 				throw new IllegalArgumentException("Unknown reduction type " + reduction);
 		}
@@ -1010,17 +1032,53 @@ public class OpenCVTools {
 //		return output[0];
 //	}
 	
+	/**
+	 * Determine the number of channels from a specified Mat type (which also encodes depth).
+	 * @param type
+	 * @return
+	 * @see #typeToDepth(int)
+	 */
+	public static int typeToChannels(int type) {
+		return opencv_core.CV_MAT_CN(type);
+	}
+	
+	/**
+	 * Determine the depth from a specified Mat type (which may also encode the number of channels).
+	 * @param type
+	 * @return
+	 * @see #typeToChannels(int)
+	 */
+	public static int typeToDepth(int type) {
+		return opencv_core.CV_MAT_DEPTH(type);
+	}
+	
+	
+	/**
+	 * Create a 1x1 Mat with a specific value, with 1 or more channels.
+	 * If necessary, clipping or rounding is applied.
+	 * 
+	 * @param value the value to include in the Mat
+	 * @param type type of the image; this may contain additional channels if required.
+	 * @return a Mat with one pixel containing the closest value supported by the type
+	 */
+	public static Mat scalarMatWithType(double value, int type) {
+		if (opencv_core.CV_MAT_CN(type) <= 4)
+			return new Mat(1, 1, type, Scalar.all(value));
+		var mat = new Mat(1, 1, type);
+		fill(mat, value);
+		return mat;
+	}
 	
 	/**
 	 * Create a 1x1 single-channel Mat with a specific value.
 	 * If necessary, clipping or rounding is applied.
 	 * 
 	 * @param value the value to include in the Mat
-	 * @param depth depth of the image; if a type is provided instead, it is converted to a depth.
-	 * @return a Mat with one pixel containing the closest value supported by the depth
+	 * @param depth depth of the image; if a type (including channels) is supplied instead, the channel information is removed.
+	 * @return a Mat with one pixel containing the closest value supported by the type
 	 */
 	public static Mat scalarMat(double value, int depth) {
-		return new Mat(1, 1, opencv_core.CV_MAT_DEPTH(depth), Scalar.all(value));
+		return new Mat(1, 1, OpenCVTools.typeToDepth(depth), Scalar.all(value));
 	}
 	
 	

@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 
@@ -203,38 +204,95 @@ public class TestOpenCVTools {
 	@Test
 	public void testScalar() {
 		double[] values = new double[] {-100, 123.4, 0, -0, 12023.423};
-		// Test floats
-		for (int type : new int[] {opencv_core.CV_32F, opencv_core.CV_32FC3, opencv_core.CV_64F}) {
-			for (double value : values) {
-				Mat mat = OpenCVTools.scalarMat(value, type);
-				assertEquals(1, mat.rows());
-				assertEquals(1, mat.cols());
-				assertEquals(1, mat.channels());
-				assertEquals(value, mat.createIndexer().getDouble(0L), 1e-3);
+		try (var scope = new PointerScope()) {
+			// Test floats
+			for (int type : new int[] {opencv_core.CV_32F, opencv_core.CV_64F}) {
+				for (double value : values) {
+					Mat mat = OpenCVTools.scalarMat(value, type);
+					assertEquals(1, mat.rows());
+					assertEquals(1, mat.cols());
+					assertEquals(1, mat.channels());
+					assertEquals(value, mat.createIndexer().getDouble(0L), 1e-3);
+				}
+			}
+			// Test floats with channels
+			for (int c : new int[] {1, 2, 3, 4, 5, 6, 7, 8}) {
+				for (double value : values) {
+					Mat mat = OpenCVTools.scalarMatWithType(value, opencv_core.CV_32FC(c));
+					assertEquals(1, mat.rows());
+					assertEquals(1, mat.cols());
+					assertEquals(c, mat.channels());
+					double[] doubles = new double[c];
+					Arrays.fill(doubles, value);
+					assertArrayEquals(doubles, OpenCVTools.extractDoubles(mat), 1e-3);
+				}
+			}
+			
+			// Test unsigned integers
+			for (int type : new int[] {opencv_core.CV_8U}) {
+				for (double value : values) {
+					Mat mat = OpenCVTools.scalarMat(value, type);
+					assertEquals(1, mat.rows());
+					assertEquals(1, mat.cols());
+					assertEquals(1, mat.channels());
+					double val = Math.min(255, Math.max(0, Math.round(value)));
+					assertEquals(val, mat.createIndexer().getDouble(0L));
+				}
+			}
+			// Test signed integers
+			for (int type : new int[] {opencv_core.CV_32S}) {
+				for (double value : values) {
+					Mat mat = OpenCVTools.scalarMat(value, type);
+					assertEquals(1, mat.rows());
+					assertEquals(1, mat.cols());
+					assertEquals(1, mat.channels());
+					double val = Math.round(value);
+					assertEquals(val, mat.createIndexer().getDouble(0L));
+				}
 			}
 		}
-		// Test unsigned integers
-		for (int type : new int[] {opencv_core.CV_8U}) {
-			for (double value : values) {
-				Mat mat = OpenCVTools.scalarMat(value, type);
-				assertEquals(1, mat.rows());
-				assertEquals(1, mat.cols());
-				assertEquals(1, mat.channels());
-				double val = Math.min(255, Math.max(0, Math.round(value)));
-				assertEquals(val, mat.createIndexer().getDouble(0L));
-			}
+	}
+	
+	
+	@Test
+	public void testTypesAndDepth() {
+		
+		for (int c = 1; c < 32; c++) {
+			
+			int type = opencv_core.CV_32F;
+			assertEquals(opencv_core.CV_32F, OpenCVTools.typeToDepth(type));
+			assertEquals(1, OpenCVTools.typeToChannels(type));
+			
+			type = opencv_core.CV_32FC2;
+			assertEquals(opencv_core.CV_32F, OpenCVTools.typeToDepth(type));
+			assertEquals(2, OpenCVTools.typeToChannels(type));
+			
+			type = opencv_core.CV_32FC(5);
+			assertEquals(opencv_core.CV_32F, OpenCVTools.typeToDepth(type));
+			assertEquals(5, OpenCVTools.typeToChannels(type));
+			
+			type = opencv_core.CV_32FC(50);
+			assertEquals(opencv_core.CV_32F, OpenCVTools.typeToDepth(type));
+			assertEquals(50, OpenCVTools.typeToChannels(type));
+			
+			type = opencv_core.CV_8U;
+			assertEquals(opencv_core.CV_8U, OpenCVTools.typeToDepth(type));
+			assertEquals(1, OpenCVTools.typeToChannels(type));
+			
+			type = opencv_core.CV_8UC(2);
+			assertEquals(opencv_core.CV_8U, OpenCVTools.typeToDepth(type));
+			assertEquals(2, OpenCVTools.typeToChannels(type));
+			
+			type = opencv_core.CV_8UC(5);
+			assertEquals(opencv_core.CV_8U, OpenCVTools.typeToDepth(type));
+			assertEquals(5, OpenCVTools.typeToChannels(type));
+			
+			type = opencv_core.CV_8UC(50);
+			assertEquals(opencv_core.CV_8U, OpenCVTools.typeToDepth(type));
+			assertEquals(50, OpenCVTools.typeToChannels(type));
+			
 		}
-		// Test signed integers
-		for (int type : new int[] {opencv_core.CV_32S}) {
-			for (double value : values) {
-				Mat mat = OpenCVTools.scalarMat(value, type);
-				assertEquals(1, mat.rows());
-				assertEquals(1, mat.cols());
-				assertEquals(1, mat.channels());
-				double val = Math.round(value);
-				assertEquals(val, mat.createIndexer().getDouble(0L));
-			}
-		}
+		
 	}
 	
 	
@@ -245,6 +303,9 @@ public class TestOpenCVTools {
 			
 			assertEquals(1, OpenCVTools.totalPixels(OpenCVTools.scalarMat(100, opencv_core.CV_32F)));
 			assertEquals(1, OpenCVTools.totalPixels(OpenCVTools.scalarMat(100, opencv_core.CV_32FC(10))));
+
+			assertEquals(1, OpenCVTools.totalPixels(OpenCVTools.scalarMatWithType(100, opencv_core.CV_32F)));
+			assertEquals(10, OpenCVTools.totalPixels(OpenCVTools.scalarMatWithType(100, opencv_core.CV_32FC(10))));
 
 			assertEquals(6, OpenCVTools.totalPixels(new Mat(3, 2, opencv_core.CV_32F)));
 			assertEquals(30, OpenCVTools.totalPixels(new Mat(3, 2, opencv_core.CV_32FC(5))));
