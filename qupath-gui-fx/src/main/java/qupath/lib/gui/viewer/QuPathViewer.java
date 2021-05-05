@@ -2760,11 +2760,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void setRotation(double theta) {
 		if (rotationProperty.get() == theta)
 			return;
-		if (theta < MIN_ROTATION)
-			theta = MIN_ROTATION;
-		if (theta > MAX_ROTATION)
-			theta = MAX_ROTATION;
-		
+		while (theta < MIN_ROTATION)
+			theta += MAX_ROTATION;
+		theta = (theta % MAX_ROTATION) + MIN_ROTATION;
+
 		rotationProperty.set(theta);
 	}
 
