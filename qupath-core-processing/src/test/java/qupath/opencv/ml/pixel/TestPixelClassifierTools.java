@@ -81,7 +81,7 @@ class TestPixelClassifierTools {
 
 	
 	@ParameterizedTest
-	@MethodSource("qupath.lib.analysis.algorithms.TestContourTracing#providePathsForTraceContours")
+	@MethodSource("qupath.lib.analysis.images.TestContourTracing#providePathsForTraceContours")
 	void testTraceContours(Path path) throws Exception {
 		long startTime = System.currentTimeMillis();
 		

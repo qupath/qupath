@@ -1070,6 +1070,7 @@ public class OpenCVTools {
 	 * @return
 	 * @deprecated {@link #createDisk(int, boolean)} gives more reliable shapes.
 	 */
+	@Deprecated
 	public static Mat getCircularStructuringElement(int radius) {
 		// TODO: Find out why this doesn't just call a standard request for a strel...
 		Mat strel = new Mat(radius*2+1, radius*2+1, opencv_core.CV_8UC1, Scalar.ZERO);
