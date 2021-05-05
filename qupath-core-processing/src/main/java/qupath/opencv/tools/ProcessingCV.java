@@ -105,7 +105,7 @@ public class ProcessingCV {
 			// Extract dimensions and pixels
 			this.width = mat.cols();
 			this.height = mat.rows();
-			pixels = OpenCVTools.extractPixels(mat, null);
+			pixels = OpenCVTools.extractPixels(mat, (float[])null);
 		}
 		
 		public void put(Mat mat) {

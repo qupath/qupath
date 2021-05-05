@@ -63,9 +63,9 @@ import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
  * @author Pete Bankhead
  *
  */
-class PixelClassifierToolsTest {
+class TestPixelClassifierTools {
 	
-	private static final Logger logger = LoggerFactory.getLogger(PixelClassifierToolsTest.class);
+	private static final Logger logger = LoggerFactory.getLogger(TestPixelClassifierTools.class);
 	
 	/**
 	 * Optionally print areas (not just check they match)
@@ -81,7 +81,7 @@ class PixelClassifierToolsTest {
 
 	
 	@ParameterizedTest
-	@MethodSource("qupath.lib.analysis.algorithms.TestContourTracing#providePathsForTraceContours")
+	@MethodSource("qupath.lib.analysis.images.TestContourTracing#providePathsForTraceContours")
 	void testTraceContours(Path path) throws Exception {
 		long startTime = System.currentTimeMillis();
 		

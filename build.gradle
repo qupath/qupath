@@ -398,6 +398,8 @@ allprojects {
 project(':qupath-core-processing') {
   dependencies {
 	  api project(':qupath-core')
+	  // Required to make TestContourTracing paths available
+	  testImplementation project(':qupath-core').sourceSets.test.output
   }
 }
 project(':qupath-gui-fx') {

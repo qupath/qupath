@@ -21,6 +21,9 @@ Enhancements:
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
+* New 'ContourTracing' class to simplify converting thresholded and labeled images to ROIs and objects
+* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
+* Many improvements to ImageOps and OpenCVTools to make scripting with OpenCV much easier
 * Translucent overlay for live prediction (useful to identify if a tile has been processed when at least one class is transparent)
 * Better support for setting pixel sizes & z-spacing in µm
   * Access by double-clicking pixel size values under the 'Image' tab
@@ -46,8 +49,6 @@ Code changes:
 * New ImageOps for reducing channels
 * ImageOps.Normalize.percentiles now warns if normalization values are equal; fixed exception if choosing '100'
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
-* New 'ContourTracing' class to simplify converting thresholded images to object
-* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
 
 List of bugs fixed:
 * 'Detect centroid distances 2D' doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
@@ -72,6 +73,7 @@ List of bugs fixed:
 * Opening images with very narrow tiles can fail with Bio-Formats (https://github.com/qupath/qupath/issues/715)
 * Not possible to view multiple channels simultaneously with inverted lookup tables (max display < min display)
 * Exception when converting PathObject with name but no color to GeoJSON
+* Cannot write valid 16-bit PNG labelled images
 
 ### Dependency updates
 * AdoptOpenJDK 16

@@ -42,8 +42,15 @@ public interface ImageOp {
 	/**
 	 * Apply operation to the image. The input may be modified (and the operation applied in-place), 
 	 * therefore should be duplicated if a copy is required to be kept.
+	 * <p>
+	 * Note that any non-empty padding will be removed, potentially giving an output image smaller than 
+	 * the input. If this is not desirable use {@link ImageOps#padAndApply(ImageOp, Mat)}.
+	 * 
 	 * @param input input image
 	 * @return output image, which may be the same as the input image
+	 * @see #getPadding()
+	 * @see ImageOps#padAndApply(ImageOp, Mat, int)
+	 * @see ImageOps#padAndApply(ImageOp, Mat)
 	 */
 	public Mat apply(Mat input);
 	

@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.math3.util.FastMath;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
@@ -232,6 +233,50 @@ public class ImageOps {
 	 */
 	public static ImageDataOp buildImageDataOp(Collection<? extends ColorTransform> inputChannels) {
 		return buildImageDataOp(inputChannels.toArray(ColorTransform[]::new));
+	}
+	
+	
+	
+	/**
+	 * Apply an op after adding specified padding.
+	 * <p>
+	 * This is useful when applying padded ops to Mats directly, rather than via an {@link ImageDataOp}.
+	 * Because the op will strip off any padding, calling {@code op.apply(mat)} directly often results in a smaller 
+	 * output than the input image. Using this method instead gives an output image that is the same size as 
+	 * the input.
+	 * 
+	 * @param op the op to apply
+	 * @param mat the image to process
+	 * @param padType the OpenCV boundary padding type
+	 * @return the result of applying the op to the input image; note that this is often 
+	 *         a modified version of the input image itself, since many ops work in-place.
+	 * @see ImageOp#apply(Mat)
+	 */
+	public static Mat padAndApply(ImageOp op, Mat mat, int padType) {
+		var padding = op.getPadding();
+		if (padding.isEmpty())
+			return op.apply(mat);
+		opencv_core.copyMakeBorder(mat, mat, 
+				padding.getY1(), padding.getY2(),
+				padding.getX1(), padding.getX2(), padType);
+		return op.apply(mat);
+	}
+	
+	/**
+	 * Apply an op after adding symmetric (reflection) padding.
+	 * <p>
+	 * This is useful when applying padded ops to Mats directly, rather than via an {@link ImageDataOp}.
+	 * Because the op will strip off any padding, calling op.apply(mat) directly often results in a smaller 
+	 * output than the input image. Using this method instead gives an output image that is the same size as 
+	 * the input.
+	 * 
+	 * @param op the op to apply
+	 * @param mat the image to process
+	 * @return the result of applying the op to the input image; note that this is often 
+	 *         a modified version of the input image itself, since many ops work in-place.
+	 */
+	public static Mat padAndApply(ImageOp op, Mat mat) {
+		return padAndApply(op, mat, opencv_core.BORDER_REFLECT);
 	}
 	
 
@@ -509,7 +554,7 @@ public class ImageOps {
 		
 		
 		/**
-		 * Normalize by rescaling channels into a fixed range (usually 0-1) using the min/max values.
+		 * Normalize by rescaling channels based on a Gaussian-weighted estimate of local mean and standard deviation.
 		 */
 		@OpType("local")
 		static class LocalNormalizationOp extends PaddedOp {
@@ -571,7 +616,7 @@ public class ImageOps {
 				opencv_core.split(input, matvec);
 				for (int i = 0; i < matvec.size(); i++) {
 					var mat = matvec.get(i);
-					var range = percentiles(mat, percentiles);
+					var range = OpenCVTools.percentiles(mat, percentiles);
 					double scale;
 					if (range[1] == range[0]) {
 						logger.warn("Normalization percentiles give the same value ({}), scale will be Infinity", range[0]);
@@ -621,6 +666,82 @@ public class ImageOps {
 		 */
 		public static ImageOp filter2D(Mat kernel) {
 			return new FilterOp(kernel);
+		}
+		
+//		/**
+//		 * Apply a 2D circular mean filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp mean(int radius, int borderType) {
+//			return new MeanFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular mean filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp mean(int radius) {
+			return new MeanFilterOp(radius);
+		}
+		
+//		/**
+//		 * Apply a 2D circular sum filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp sum(int radius, int borderType) {
+//			return new SumFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular sum filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp sum(int radius) {
+			return new SumFilterOp(radius);
+		}
+		
+//		/**
+//		 * Apply a 2D circular variance filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp variance(int radius, int borderType) {
+//			return new VarianceFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular variance filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp variance(int radius) {
+			return new VarianceFilterOp(radius);
+		}
+		
+//		/**
+//		 * Apply a 2D circular standard deviation filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp stdDev(int radius, int borderType) {
+//			return new StdDevFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular standard deviation filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp stdDev(int radius) {
+			return new StdDevFilterOp(radius);
 		}
 		
 		/**
@@ -869,6 +990,98 @@ public class ImageOps {
 			else
 				return opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size);
 		}
+		
+		
+		@OpType("sum")
+		static class SumFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			SumFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.sumFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
+		@OpType("mean")
+		static class MeanFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			MeanFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.meanFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
+		
+		@OpType("variance")
+		static class VarianceFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			VarianceFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.varianceFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
+		
+		@OpType("stddev")
+		static class StdDevFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			StdDevFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.stdDevFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
 	
 		@OpType("median")
 		static class MedianFilterOp extends PaddedOp {
@@ -1393,9 +1606,9 @@ public class ImageOps {
 			
 			@Override
 			public double getThreshold(Mat mat, int channel) {
-				double median = median(mat);
+				double median = OpenCVTools.median(mat);
 				var matAbs = opencv_core.abs(opencv_core.subtract(mat, Scalar.all(median))).asMat();
-				double mad = median(matAbs) / 0.6750;
+				double mad = OpenCVTools.median(matAbs) / 0.6750;
 				var k = this.k[Math.min(channel,  this.k.length-1)];
 				return median + mad * k;
 			}
@@ -1501,7 +1714,7 @@ public class ImageOps {
 		public static ImageOp splitMerge(Collection<? extends ImageOp> ops) {
 			return new SplitMergeOp(ops.toArray(ImageOp[]::new));
 		}
-		
+				
 		/**
 		 * Create an op that applies all the specified ops to the input {@link Mat}, concatenating the results as channels 
 		 * of the output.
@@ -1510,6 +1723,90 @@ public class ImageOps {
 		 */
 		public static ImageOp splitMerge(ImageOp...ops) {
 			return splitMerge(Arrays.asList(ops));
+		}
+
+		/**
+		 * Create an op that returns its input unchanged.
+		 * This is useful where an op is required, but no processing should be performed (e.g. with {@link #splitSubtract(ImageOp, ImageOp)}).
+		 * @return
+		 */
+		public static ImageOp identity() {
+			return new IdentityOp();
+		}
+		
+		/**
+		 * Create an op that returns Euler's number e raise to the power of the Mat values.
+		 * @return
+		 */
+		public static ImageOp exp() {
+			return new ExponentialOp();
+		}
+		
+		/**
+		 * Create an op that returns the natural logarithm of values.
+		 * @return
+		 */
+		public static ImageOp log() {
+			return new LogOp();
+		}
+		
+		private static enum SplitCombineType {ADD, SUBTRACT, MULTIPLY, DIVIDE};
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by adding corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitAdd(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.ADD);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by subtracting corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitSubtract(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.SUBTRACT);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by multiplying corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitMultiply(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.MULTIPLY);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by dividing corresponding values.
+		 * @param opTop op to apply to first duplicate
+		 * @param opBottom op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitDivide(ImageOp opTop, ImageOp opBottom) {
+			return new SplitCombineOp(opTop, opBottom, SplitCombineType.DIVIDE);
+		}
+		
+		
+		@OpType("identity")
+		static class IdentityOp implements ImageOp {
+
+			IdentityOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				return input;
+			}
+			
 		}
 		
 		
@@ -1658,6 +1955,52 @@ public class ImageOps {
 			
 		}
 		
+		
+		@OpType("log")
+		static class LogOp implements ImageOp {
+			
+			LogOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				// Use FastMath - there are too many caveats with OpenCV's log implementation
+				OpenCVTools.apply(input, d -> FastMath.log(d));
+				return input;
+//				System.err.println("BEFORE: " + input.createIndexer());
+//				
+//				Mat maskZero = opencv_core.equals(input, 0.0).asMat();
+//				Mat maskInvalid = OpenCVTools.createMask(input, d -> d < 0 || !Double.isFinite(d));
+//				
+//				
+//
+//				System.err.println("BEFORE LATER: " + input.createIndexer());
+//
+//				opencv_core.log(input, input);
+//				
+//				OpenCVTools.fill(input, maskZero, Double.NEGATIVE_INFINITY);
+//				OpenCVTools.fill(input, maskInvalid, Double.NaN);
+//				maskZero.close();
+//				maskInvalid.close();
+//				System.err.println(input.createIndexer());
+//				return input;
+			}
+			
+		}
+		
+		
+		@OpType("exp")
+		static class ExponentialOp implements ImageOp {
+			
+			ExponentialOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				opencv_core.exp(input, input);
+				return input;
+			}
+			
+		}
+		
 		@OpType("pow")
 		static class PowerOp implements ImageOp {
 			
@@ -1669,8 +2012,30 @@ public class ImageOps {
 			
 			@Override
 			public Mat apply(Mat input) {
-				opencv_core.pow(input, power, input);
+				// Use FastMath - there are too many caveats with OpenCV's pow implementation
+				OpenCVTools.apply(input, d -> FastMath.pow(d, power));
 				return input;
+//				opencv_core.pow(input, power, input);
+//				// For non-integer powers, OpenCV uses the absolute value
+//				if (power == Math.rint(power))
+//					opencv_core.pow(input, power, input);
+//				else {
+//					opencv_core.pow(input, power, input);
+//					Mat mask = opencv_core.lessThan(input, 0.0).asMat();			    
+//					if (opencv_core.countNonZero(mask) != 0) {
+//						if (power < 0) {
+//							var nan = OpenCVTools.scalarMat(Double.NaN, opencv_core.CV_64F);
+//							input.setTo(nan, mask);
+//							nan.close();
+//						} else {
+//							var temp = OpenCVTools.scalarMat(0.0, opencv_core.CV_64F);
+//							opencv_core.subtract(temp, input, input, mask, input.depth());
+//							temp.close();
+//						}
+//					}
+//				    mask.close();
+//				}
+//				return input;
 			}
 			
 		}
@@ -1730,7 +2095,7 @@ public class ImageOps {
 		
 		/**
 		 * Duplicate the input {@link Mat} and apply different ops to the duplicates, 
-		 * merging the result at the end.
+		 * merging the result at the end using channel concatenation.
 		 */
 		@OpType("split-merge")
 		static class SplitMergeOp extends PaddedOp {
@@ -1795,6 +2160,110 @@ public class ImageOps {
 				for (var t : ops)
 					inputType = t.getOutputType(inputType);
 				return inputType;
+			}
+
+		}
+		
+		
+		
+		@OpType("split-combine")
+		static class SplitCombineOp extends PaddedOp {
+						
+			private SplitCombineType combine;
+			private ImageOp op1;
+			private ImageOp op2;
+			
+			SplitCombineOp(ImageOp op1, ImageOp op2, SplitCombineType combine) {
+				Objects.nonNull(combine);
+				if (op1 == null)
+					this.op1 = new IdentityOp();
+				else
+					this.op1 = op1;
+				if (op2 == null)
+					this.op2 = new IdentityOp();
+				else
+					this.op2 = op2;
+				this.combine = combine;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				return transformPadded(input);
+			}
+			
+			private String getCombineStr() {
+				switch(combine) {
+				case ADD:
+					return "+";
+				case DIVIDE:
+					return "/";
+				case MULTIPLY:
+					return "*";
+				case SUBTRACT:
+					return "-";
+				default:
+					throw new IllegalArgumentException("Unknown combine type " + combine);
+				}
+			}
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				var c1 = op1.getChannels(channels);
+				var c2 = op2.getChannels(channels);
+				if (c1.size() != c2.size())
+					throw new IllegalArgumentException("Channel counts do not match!");
+				String combo = " " + getCombineStr() + " ";
+				List<ImageChannel> combinedChannels = new ArrayList<>();
+				for (int i = 0; i < c1.size(); i++)
+					combinedChannels.add(
+							ImageChannel.getInstance(
+									c1.get(i).getName() + combo + c2.get(i).getName(),
+									c1.get(i).getColor()));
+				return combinedChannels;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return op1.getPadding().max(op2.getPadding());
+			}
+
+			@Override
+			protected Mat transformPadded(Mat input) {
+				var mat2 = op2.apply(input.clone());
+				var mat1 = op1.apply(input);
+				
+				var padding = getPadding();
+				var padExtra1 = padding.subtract(op1.getPadding());
+				if (!padExtra1.isEmpty())
+					mat1.put(stripPadding(mat1, padExtra1));
+				var padExtra2 = padding.subtract(op2.getPadding());
+				if (!padExtra2.isEmpty())
+					mat2.put(stripPadding(mat2, padExtra2));
+				
+				switch(combine) {
+				case ADD:
+					opencv_core.add(mat1, mat2, mat1);
+					break;
+				case DIVIDE:
+					opencv_core.divide(mat1, mat2, mat1);
+					break;
+				case MULTIPLY:
+					mat1.put(mat1.mul(mat2));
+//					opencv_core.multiply(mat1, mat2, mat1);
+					break;
+				case SUBTRACT:
+					opencv_core.subtract(mat1, mat2, mat1);
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown combine type " + combine);
+				}
+				mat2.close();
+				return mat1;
+			}
+			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return op1.getOutputType(inputType);
 			}
 
 		}
@@ -2185,6 +2654,8 @@ public class ImageOps {
 	static Mat stripPadding(Mat mat, Padding padding) {
 		if (padding.isEmpty())
 			return mat;
+//		return OpenCVTools.crop(mat, padding.getX1(), padding.getY1(),
+//				mat.cols()-padding.getXSum(), mat.rows()-padding.getYSum());
 		return mat.apply(new Rect(
 				padding.getX1(), padding.getY1(),
 				mat.cols()-padding.getXSum(), mat.rows()-padding.getYSum())).clone();
@@ -2213,30 +2684,6 @@ public class ImageOps {
 					);
 		}
 		opencv_core.merge(matvec, mat);
-	}
-	
-	
-
-	static double median(Mat mat) {
-		return percentiles(mat, 50.0)[0];
-	}
-	
-	static double[] percentiles(Mat mat, double... percentiles) {
-		double[] result = new double[percentiles.length];
-		if (result.length == 0)
-			return result;
-		int n = (int)mat.total();
-		var mat2 = mat.reshape(1, n);
-		var matSorted = new Mat();
-		opencv_core.sort(mat2, matSorted, opencv_core.CV_SORT_ASCENDING + opencv_core.CV_SORT_EVERY_COLUMN);
-		try (var idx = matSorted.createIndexer()) {
-			for (int i = 0; i < result.length; i++) {
-				long ind = (long)(percentiles[i] / 100.0 * (n - 1));
-				result[i] = idx.getDouble(ind);
-			}
-		}
-		matSorted.release();
-		return result;
 	}
 	
 
