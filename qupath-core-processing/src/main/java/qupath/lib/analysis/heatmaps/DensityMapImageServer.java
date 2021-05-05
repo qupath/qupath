@@ -437,7 +437,7 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 	private void gaussianFilter(Mat mat, double gaussianSigma) {
 		int kSize = (int)Math.ceil(gaussianSigma * 4) * 2 + 1;
 		var kernel = opencv_imgproc.getGaussianKernel(kSize, gaussianSigma);
-		double maxVal = SimpleProcessing.findMinAndMax(OpenCVTools.extractPixels(kernel, null)).maxVal;
+		double maxVal = OpenCVTools.maximum(kernel);
 		opencv_core.dividePut(kernel, maxVal);
 		opencv_imgproc.sepFilter2D(mat, mat, -1, kernel, kernel);
 		kernel.close();
