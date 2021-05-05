@@ -124,6 +124,7 @@ import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOps;
+import qupath.opencv.tools.GroovyCV;
 import qupath.opencv.tools.OpenCVTools;
 
 /**
@@ -257,6 +258,8 @@ public class QP {
 			CellTools.class,
 			
 			ContourTracing.class,
+			
+			GroovyCV.class,
 			
 			// IO classes
 			PointIO.class,
