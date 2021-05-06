@@ -112,7 +112,6 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -693,99 +692,12 @@ public class Commands {
 	/**
 	 * Create a dialog for rotating the image in the current viewer (for display only).
 	 * @param qupath the {@link QuPathGUI} instance
-	 * @return a rotate image dialog
 	 */
-	public static Stage createRotateImageDialog(QuPathGUI qupath) {
-		var dialog = new Stage();
-		dialog.initOwner(qupath.getStage());
-
-		dialog.initStyle(StageStyle.TRANSPARENT);
-		dialog.setTitle("Rotate view");
-
-		StackPane pane = new StackPane();
-		pane.setPadding(new Insets(5));
-
-		QuPathViewer viewerTemp = qupath.getViewer();
-		var slider = new CircularSlider();
-		slider.setPrefSize(150,150);
-		slider.setValue(viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
-		slider.setTickSpacing(10);
-		slider.setShowValue(true);
-		slider.setSnapToTicks(false);
-		slider.setOnKeyPressed(e -> {
-			if (e.getCode() == KeyCode.SHIFT) {
-				slider.setSnapToTicks(true);
-				slider.setShowTickMarks(true);
-			}
-		});
-		slider.setOnKeyReleased(e -> {
-			if (e.getCode() == KeyCode.SHIFT) {
-				slider.setSnapToTicks(false);
-				slider.setShowTickMarks(false);
-			}
-		});
-		slider.rotationProperty().addListener((v, o, n) -> {
-			QuPathViewer viewer = qupath.getViewer();
-			if (viewer == null)
-				return;
-			double rotation = slider.getValue();
-			viewer.setRotation(Math.toRadians(rotation));
-		});
-
-		slider.setPadding(new Insets(5, 0, 10, 0));
-		slider.setTooltip(new Tooltip("Double-click to manually set the rotation"));
-		final Button button = new Button("x");
-		button.setTooltip(new Tooltip("Close image rotation slider"));
-		button.setOnMouseClicked(e -> dialog.close());
-
-		pane.getChildren().addAll(slider, button);
-
-		final double[] delta = new double[2];
-		slider.getTextArea().setOnMousePressed(e -> {
-			delta[0] = dialog.getX() - e.getScreenX();
-			delta[1] = dialog.getY() - e.getScreenY();
-		});
-
-		slider.getTextArea().setOnMouseDragged(e -> {
-			dialog.setX(e.getScreenX() + delta[0]);
-			dialog.setY(e.getScreenY() + delta[1]);
-		});
-		StackPane.setAlignment(button, Pos.TOP_RIGHT);
-
-		// Set opacity for the close button
-		pane.setStyle("-fx-background-color: transparent; -fx-background-radius: 10;");
-        final double outOpacity = .2;
-        button.setOpacity(outOpacity);
-        FadeTransition fade = new FadeTransition();
-        fade.setDuration(Duration.millis(150));
-        fade.setNode(button);
-        
-		pane.setOnMouseEntered(e -> {
-			fade.stop();
-			fade.setFromValue(button.getOpacity());
-			fade.setToValue(1.);
-			fade.play();
-		});
-		pane.setOnMouseExited(e -> {
-			fade.stop();
-			fade.setFromValue(button.getOpacity());
-			fade.setToValue(outOpacity);
-			fade.play();
-		});
-		
-		// Update on viewer changes
-		qupath.viewerProperty().addListener((v, o, n) -> {
-			if (n != null)
-				slider.setValue(Math.toDegrees(n.getRotation()));
-		});
-
-		final Scene scene = new Scene(pane);
-		scene.setFill(Color.TRANSPARENT);
-		dialog.setScene(scene);
-		dialog.setResizable(true);
-		return dialog;
+	// TODO: Restrict this command to an opened image
+	public static void createRotateImageDialog(QuPathGUI qupath) {
+		var rotationCommand = new RotateImageCommand(qupath).createDialog();
+		rotationCommand.show();
 	}
-	
 	
 	/**
 	 * Create a zoom in/out command action.

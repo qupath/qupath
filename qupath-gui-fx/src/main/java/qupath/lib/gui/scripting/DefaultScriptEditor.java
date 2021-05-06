@@ -113,14 +113,17 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.TextAppendable;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
@@ -262,6 +265,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action runSelectedAction;
 	protected Action runProjectScriptAction;
 	protected Action runProjectScriptNoSaveAction;
+
+	protected Action insertMuAction;
+	protected Action insertQPImportAction;
+	protected Action insertQPExImportAction;
+	protected Action insertAllDefaultImportAction;
+	protected Action insertPixelClassifiersAction;
+	protected Action insertObjectClassifiersAction;
+	protected Action insertDetectionMeasurementsAction;
 	
 	protected Action findAction;
 
@@ -332,6 +343,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
 		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without save)", false);
 		
+		insertMuAction = createInsertAction(GeneralTools.SYMBOL_MU + "");
+		insertQPImportAction = createInsertAction("QP");
+		insertQPExImportAction = createInsertAction("QPEx");
+		insertAllDefaultImportAction = createInsertAction("All default");
+		insertPixelClassifiersAction = createInsertAction("Pixel classifiers");
+		insertObjectClassifiersAction = createInsertAction("Object classifiers");
+		insertDetectionMeasurementsAction = createInsertAction("Detection");
+		
 		qupath.projectProperty().addListener((v, o, n) -> {
 			previousImages.clear();
 		});
@@ -359,10 +378,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 
 	void maybeRefreshTab(final ScriptTab tab) {
-		if (tab != null && autoRefreshFiles.get()) {
-			if (tab != null)
-				tab.refreshFileContents();
-		}
+		if (tab != null && autoRefreshFiles.get())
+			tab.refreshFileContents();
 	}
 	
 	/**
@@ -618,6 +635,36 @@ public class DefaultScriptEditor implements ScriptEditor {
 		menuLanguages.getItems().add(radioMenuItem);
 		
 		menubar.getMenus().add(menuLanguages);
+		
+		// Insert menu
+		Menu menuInsert = new Menu("Insert");
+		Menu subMenuSymbols = new Menu("Symbols");
+		Menu subMenuImports = new Menu("Imports");
+		Menu subMenuClassifiers = new Menu("Classifiers");
+		Menu subMenuMeasurements = new Menu("Measurements");
+		MenuTools.addMenuItems(
+			menuInsert,
+			MenuTools.addMenuItems(
+				subMenuSymbols,
+				insertMuAction
+				),
+			MenuTools.addMenuItems(
+				subMenuImports,
+				insertQPImportAction,
+				insertQPExImportAction,
+				insertAllDefaultImportAction
+				),
+			MenuTools.addMenuItems(
+				subMenuClassifiers,
+				insertPixelClassifiersAction,
+				insertObjectClassifiersAction
+				),
+			MenuTools.addMenuItems(
+				subMenuMeasurements,
+				insertDetectionMeasurementsAction
+				)
+		);
+		menubar.getMenus().add(menuInsert);
 
 		// Run menu
 		Menu menuRun = new Menu("Run");
@@ -1445,7 +1492,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					System.gc();
 
 					// Open saved data if there is any, or else the image itself
-					ImageData<BufferedImage> imageData = (ImageData<BufferedImage>)entry.readImageData();
+					ImageData<BufferedImage> imageData = entry.readImageData();
 					if (imageData == null) {
 						logger.warn("Unable to open {} - will be skipped", entry.getImageName());
 						continue;
@@ -2018,6 +2065,58 @@ public class DefaultScriptEditor implements ScriptEditor {
 			e.consume();
 		});
 		action.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.SHORTCUT_DOWN));
+		return action;
+	}
+	
+	Action createInsertAction(final String name) {
+		Action action = new Action(name, e -> {
+			var control = getCurrentTextComponent();
+
+			if (name.toLowerCase().equals("pixel classifiers")) {
+				try {
+					String classifiers = qupath.getProject().getPixelClassifiers().getNames().stream()
+							.map(classifierName -> "\"" + classifierName + "\"")
+							.collect(Collectors.joining(", "));
+					control.paste("[" + classifiers + "]");
+				} catch (IOException ex) {
+					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
+				}
+			} else if (name.toLowerCase().equals("object classifiers")) {
+				try {
+					String classifiers = qupath.getProject().getObjectClassifiers().getNames().stream()
+							.map(classifierName -> "\"" + classifierName + "\"")
+							.collect(Collectors.joining(", "));
+					control.paste("[" + classifiers + "]");
+				} catch (IOException ex) {
+					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
+				}
+			} else if (name.toLowerCase().equals("detection")) {
+				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
+				model.setImageData(qupath.getImageData(), qupath.getImageData().getHierarchy().getObjects(null, PathDetectionObject.class));
+				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, "\", \"", Arrays.asList());
+				control.paste("[\"" + data.get(0) + "\"]");
+			} else if (name.toLowerCase().equals(GeneralTools.SYMBOL_MU + ""))
+				control.paste(GeneralTools.SYMBOL_MU + "");
+			else {	
+				// Imports (end with a new line)
+				if (name.toLowerCase().equals("qpex"))
+					control.insertText(0, "import static qupath.lib.gui.scripting.QPEx.*");
+				else if (name.toLowerCase().equals("qp"))
+					control.insertText(0, "import static qupath.lib.gui.scripting.QP.*");
+				else if (name.toLowerCase().equals("all default"))
+					control.insertText(0, QPEx.getDefaultImports(false));
+				handleNewLine(control);
+			}
+			e.consume();
+		});
+		
+		if (name.equals(GeneralTools.SYMBOL_MU + ""))
+			action.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+		else if (name.toLowerCase().equals("pixel classifiers") || name.toLowerCase().equals("object classifiers"))
+			action.disabledProperty().bind(qupath.projectProperty().isNull());
+		else if (name.toLowerCase().equals("detection"))
+			action.disabledProperty().bind(qupath.imageDataProperty().isNull());
+			
 		return action;
 	}
 	

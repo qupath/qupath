@@ -25,8 +25,8 @@ import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.analysis.algorithms.ContourTracing;
-import qupath.lib.analysis.algorithms.ContourTracing.ChannelThreshold;
+import qupath.lib.analysis.images.ContourTracing;
+import qupath.lib.analysis.images.ContourTracing.ChannelThreshold;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;

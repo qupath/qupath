@@ -398,6 +398,8 @@ allprojects {
 project(':qupath-core-processing') {
   dependencies {
 	  api project(':qupath-core')
+	  // Required to make TestContourTracing paths available
+	  testImplementation project(':qupath-core').sourceSets.test.output
   }
 }
 project(':qupath-gui-fx') {
@@ -765,14 +767,28 @@ task createPackage(dependsOn:createRuntime, type:Exec) {
     
     // Set the library path to the app directory, for loading native libraries
    	javaOptions << '-Djava.library.path=$APPDIR'		
+   	
+   	// Revert to pre-Java-16 behavior
+   	// See https://openjdk.java.net/jeps/396
+   	// If this is removed, things like adding metadata to a project entry will fail with errors such as
+   	//   ERROR: QuPath exception: class org.controlsfx.control.textfield.AutoCompletionBinding 
+   	//   (in unnamed module @0x298a5e20) cannot access class com.sun.javafx.event.EventHandlerManager 
+   	//   (in module javafx.base) because module javafx.base does not export com.sun.javafx.event to unnamed module
+   	// This Java option will hopefully be temporary, until dependencies are updated to make it unnecessary.
+   	javaOptions << '--illegal-access=permit'
 
-    // Temp workaround for kyro and Bio-Formats memoization - see https://github.com/ome/bioformats/issues/3659
-   	javaOptions << '--add-opens=java.base/java.util.regex=ALL-UNNAMED'		
-   	// Needed to set style/theme
-   	javaOptions << '--add-opens=javafx.graphics/com.sun.javafx.css=ALL-UNNAMED'
-   	// Needed for ControlsFX/BreadcrumbBar (could export to org.controlsfx if it was on the module path)
-   	javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED'
-	javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED'
+	/*
+	 * Previous attempts to avoid setting '--illegal-access' globally.
+	 * Errors still turned up intermittently.
+	 * 
+     * // Temp workaround for kyro and Bio-Formats memoization - see https://github.com/ome/bioformats/issues/3659
+   	 * javaOptions << '--add-opens=java.base/java.util.regex=ALL-UNNAMED'		
+   	 * // Needed to set style/theme
+   	 * javaOptions << '--add-opens=javafx.graphics/com.sun.javafx.css=ALL-UNNAMED'
+   	 * // Needed for ControlsFX/BreadcrumbBar (could export to org.controlsfx if it was on the module path)
+   	 * javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene=ALL-UNNAMED'
+	 * javaOptions << '--add-exports=javafx.graphics/com.sun.javafx.scene.traversal=ALL-UNNAMED'
+	 */
 
     def params = ["${jdkHome}/bin/jpackage"]
 

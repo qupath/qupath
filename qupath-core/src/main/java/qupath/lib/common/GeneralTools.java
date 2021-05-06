@@ -112,7 +112,7 @@ public final class GeneralTools {
 				}
 			}
 		}
-		return version;
+		return version == null ? null : version.strip();
 	}
 	
 	// Suppressed default constructor for non-instantiability
