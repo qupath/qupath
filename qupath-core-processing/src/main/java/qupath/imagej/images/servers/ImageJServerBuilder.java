@@ -94,5 +94,18 @@ public class ImageJServerBuilder implements ImageServerBuilder<BufferedImage> {
 	public Class<BufferedImage> getImageType() {
 		return BufferedImage.class;
 	}
+	
+	@Override
+	public boolean matchClassName(String... classNames) {
+		for (var className : classNames) {
+			if (this.getClass().getName().equals(className) ||
+					this.getClass().getSimpleName().equals(className) ||
+					ImageJServer.class.getName().equals(className) ||
+					ImageJServer.class.getSimpleName().equals(className) ||
+					"imagej".equalsIgnoreCase(className))
+				return true;			
+		}
+		return false;
+	}
 
 }

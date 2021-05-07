@@ -220,6 +220,10 @@ public class ImageServerProvider {
 	
 	/**
 	 * Attempt to create {@code ImageServer<T>} from the specified path and arguments.
+	 * <p>
+	 * In general, since v0.3 {@link ImageServers#buildServer(URI, String...)} is usually preferable to this method because it parses 
+	 * and applies known args (e.g. to reorder RGB channels or rotate the image). 
+	 * Here, all args apart from {@code --classname} are passed to builders - which may or may not do anything with them.
 	 * 
 	 * @param path path to an image - typically a URI
 	 * @param cls desired generic type for the ImageServer, e.g. BufferedImage.class
@@ -285,7 +289,7 @@ public class ImageServerProvider {
 	 *
 	 * @param <T>
 	 */
-	private static class UriImageSupportComparator<T> implements Comparator<UriImageSupport<T>> {
+	static class UriImageSupportComparator<T> implements Comparator<UriImageSupport<T>> {
 
 		@Override
 		public int compare(UriImageSupport<T> o1, UriImageSupport<T> o2) {

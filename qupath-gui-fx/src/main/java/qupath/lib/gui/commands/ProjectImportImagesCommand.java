@@ -31,7 +31,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -90,7 +89,6 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.projects.Project;
@@ -283,12 +281,21 @@ class ProjectImportImagesCommand {
 		
 		ImageServerBuilder<BufferedImage> requestedBuilder = comboBuilder.getSelectionModel().getSelectedItem();
 		
+		List<String> argsList = new ArrayList<>();
+		
 		String argsString = tfArgs.getText();
 		// TODO: Use a smarter approach to splitting! Currently we support so few arguments that splitting on spaces should be ok... for now.
-		String args[] = argsString == null || argsString.isBlank() ? new String[0] : argsString.split(" ");
-		if (args.length > 0) {
-			logger.info("Args: [{}]", Arrays.stream(args).collect(Collectors.joining(", ")));
+		String[] argsSplit = argsString == null || argsString.isBlank() ? new String[0] : argsString.split(" ");
+		for (var a : argsSplit) {
+			argsList.add(a);
 		}
+		if (rotation != null && rotation != Rotation.ROTATE_NONE) {
+			argsList.add("--rotate");
+			argsList.add(rotation.toString());
+		}
+		if (!argsList.isEmpty())
+			logger.debug("Args: [{}]", argsList.stream().collect(Collectors.joining(", ")));
+		String[] args = argsList.toArray(String[]::new);
 		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
@@ -321,15 +328,17 @@ class ProjectImportImagesCommand {
 					}
 					results.add(pool.submit(() -> {
 						try {
+							var uri = GeneralTools.toURI(item);
 							UriImageSupport<BufferedImage> support;
 							if (requestedBuilder == null)
-								support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, item, args);
+								support = ImageServers.getImageSupport(uri, args);
 							else
-								support = requestedBuilder.checkImageSupport(GeneralTools.toURI(item), args);
+								support = ImageServers.getImageSupport(requestedBuilder, uri, args);
 							if (support != null)
 								return support.getBuilders();
 						} catch (Exception e) {
-							logger.error("Unable to add {} ({})", item, e.getLocalizedMessage());
+							logger.error("Unable to add {}");
+							logger.error(e.getLocalizedMessage(), e);
 						}
 						return new ArrayList<ServerBuilder<BufferedImage>>();
 					}));
@@ -372,10 +381,11 @@ class ProjectImportImagesCommand {
 					// Add everything in order first
 					List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
 					for (var builder : builders) {
-						if (rotation == null || rotation == Rotation.ROTATE_NONE)
-							entries.add(project.addImage(builder));
-						else
-							entries.add(project.addImage(RotatedImageServer.getRotatedBuilder(builder, rotation)));
+//						if (rotation != null && rotation != Rotation.ROTATE_NONE)
+//							builder = RotatedImageServer.getRotatedBuilder(builder, rotation);
+//						if (swapRedBlue)
+//							builder = RearrangeRGBImageServer.getSwapRedBlueBuilder(builder);
+						entries.add(project.addImage(builder));
 					}
 					
 					// Initialize (the slow bit)

@@ -84,6 +84,26 @@ public interface ImageServerBuilder<T> {
 	 */
 	public Class<T> getImageType();
 	
+	/**
+	 * Check if this provider matches one or more specified classnames.
+	 * <p>
+	 * The default implementation checks the full and simple name of the class.
+	 * Subclasses may override this behavior to support more intuitive names, 
+	 * e.g. "bioformats", "openslide", "imagej", "imageio".
+	 * However, this should not be overused, so as to prevent future conflicts.
+	 * 
+	 * @param classNames
+	 * @return true if there is any classname match, false otherwise
+	 */
+	public default boolean matchClassName(String... classNames) {
+		for (var className : classNames) {
+			if (this.getClass().getName().equals(className) ||
+					this.getClass().getSimpleName().equals(className))
+				return true;			
+		}
+		return false;
+	}
+	
 	
 	
 	/**
