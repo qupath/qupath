@@ -1529,7 +1529,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		@Option(names = {"--name", "-n"}, defaultValue = "", description = "Series name (legacy option, please use --series instead)")
 		String seriesName = "";
 		
-		@Option(names = {"--dims", "-d"}, defaultValue = "", description = "Swap dimensions. "
+		@Option(names = {"--dims"}, defaultValue = "", description = "Swap dimensions. "
 				+ "This should be a String of the form XYCZT, ordered according to how the image plans should be interpreted.")
 		String swapDimensions = null;
 
