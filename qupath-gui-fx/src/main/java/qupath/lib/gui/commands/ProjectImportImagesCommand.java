@@ -31,6 +31,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -61,6 +62,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.Dragboard;
@@ -180,15 +182,20 @@ class ProjectImportImagesCommand {
 		labelRotate.setLabelFor(comboRotate);
 		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
 		
+		TextField tfArgs = new TextField();
+		Label labelArgs = new Label("Optional args");
+		labelArgs.setLabelFor(tfArgs);
+		labelArgs.setMinWidth(Label.USE_PREF_SIZE);
+		
 		CheckBox cbPyramidalize = new CheckBox("Auto-generate pyramids");
 		cbPyramidalize.setSelected(pyramidalizeProperty.get());
 		
 		CheckBox cbImportObjects = new CheckBox("Import objects");
 		cbImportObjects.setSelected(importObjectsProperty.get());
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
-		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
+		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
@@ -198,6 +205,7 @@ class ProjectImportImagesCommand {
 		PaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
 		PaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
 		PaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		PaneTools.addGridRow(paneType, row++, 0, "Optionally pass reader-specific arguments to the image provider.\nUsually this should just be left empty.", labelArgs, tfArgs);
 		PaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidalize, cbPyramidalize);
 		PaneTools.addGridRow(paneType, row++, 0, "Read and import objects (e.g. annotations) from the image file, if possible", cbImportObjects, cbImportObjects);
 		
@@ -275,6 +283,13 @@ class ProjectImportImagesCommand {
 		
 		ImageServerBuilder<BufferedImage> requestedBuilder = comboBuilder.getSelectionModel().getSelectedItem();
 		
+		String argsString = tfArgs.getText();
+		// TODO: Use a smarter approach to splitting! Currently we support so few arguments that splitting on spaces should be ok... for now.
+		String args[] = argsString == null || argsString.isBlank() ? new String[0] : argsString.split(" ");
+		if (args.length > 0) {
+			logger.info("Args: [{}]", Arrays.stream(args).collect(Collectors.joining(", ")));
+		}
+		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
 		List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
@@ -308,9 +323,9 @@ class ProjectImportImagesCommand {
 						try {
 							UriImageSupport<BufferedImage> support;
 							if (requestedBuilder == null)
-								support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, item);
+								support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, item, args);
 							else
-								support = requestedBuilder.checkImageSupport(GeneralTools.toURI(item));
+								support = requestedBuilder.checkImageSupport(GeneralTools.toURI(item), args);
 							if (support != null)
 								return support.getBuilders();
 						} catch (Exception e) {

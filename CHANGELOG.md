@@ -21,6 +21,8 @@ Enhancements:
 * Improved command line
   * Specify script parameters with the --args option
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
+* New 'Optional args' when importing images
+  * This allows options such as `--swap XYTZC --series 2` to be passed to Bio-Formats to customize image import
 * New 'ContourTracing' class to simplify converting thresholded and labeled images to ROIs and objects
 * New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
 * Many improvements to ImageOps and OpenCVTools to make scripting with OpenCV much easier
