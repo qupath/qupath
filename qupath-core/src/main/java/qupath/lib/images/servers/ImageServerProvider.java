@@ -126,8 +126,8 @@ public class ImageServerProvider {
 		return builders;
 	}
 	
-
-	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
+	
+	static URI pathToUri(String path) throws IOException {
 		URI uriTemp;
 		try {
 			if (path.startsWith("file:")) { 
@@ -156,8 +156,12 @@ public class ImageServerProvider {
 		} catch (URISyntaxException e) {
 			throw new IOException(e.getLocalizedMessage());
 		}
+		return uriTemp;
+	}
+	
 
-		URI uri = uriTemp;
+	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
+		URI uri = pathToUri(path);
 
 		Collection<String> requestedClassnames = new HashSet<>();
 		String key = "--classname";

@@ -202,12 +202,12 @@ public class PathIO {
 						logger.warn("Unsupported object of class {} will be skipped: {}", input.getClass().getName(), input);
 
 				} catch (ClassNotFoundException e) {
-					logger.error("Unable to find class", e);
+					logger.error("Unable to find class: " + e.getLocalizedMessage(), e);
 				} catch (EOFException e) {
 					// Try to recover from EOFExceptions - we may already have enough info
 					logger.error("Reached end of file...");
 					if (hierarchy == null)
-						e.printStackTrace();
+						logger.error(e.getLocalizedMessage(), e);
 					break;
 				}
 			}

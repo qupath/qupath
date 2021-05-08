@@ -25,7 +25,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,7 +54,6 @@ import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Unmatched;
 import qupath.lib.color.ColorDeconvolutionStains;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServerBuilder.AbstractServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
@@ -252,10 +250,9 @@ public class ImageServers {
 	 * @param args
 	 * @return
 	 * @throws IOException
-	 * @throws URISyntaxException 
 	 */
-	public static ImageServer<BufferedImage> buildServer(String path, String... args) throws IOException, URISyntaxException {
-		return buildServer(GeneralTools.toURI(path), args);
+	public static ImageServer<BufferedImage> buildServer(String path, String... args) throws IOException {
+		return buildServer(ImageServerProvider.pathToUri(path), args);
 	}
 	
 	/**

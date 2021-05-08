@@ -3214,7 +3214,7 @@ public class QuPathGUI {
 			server = imageData.getServer();
 		else {
 			try {
-				server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
+				server = ImageServers.buildServer(serverPath);
 			} catch (IOException e) {
 				logger.error("Unable to open server path " + serverPath, e);
 			}
@@ -3224,7 +3224,7 @@ public class QuPathGUI {
 					serverPath = Dialogs.promptForFilePathOrURL("Set path to missing file", serverPath, new File(serverPath).getParentFile(), null);
 					if (serverPath == null)
 						return false;
-					server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
+					server = ImageServers.buildServer(serverPath);
 					if (server == null)
 						return false;
 //				}
