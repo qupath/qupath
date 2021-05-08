@@ -49,7 +49,7 @@ Code changes:
 * New 2D/3D thinning & interpolation classes
 * New ImageOps for reducing channels
 * ImageOps.Normalize.percentiles now warns if normalization values are equal; fixed exception if choosing '100'
-* When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
+* When building from source with TensorFlow support, now uses TensorFlow Java 0.3.1 (corresponding to TensorFlow v2.4.1)
 
 List of bugs fixed:
 * 'Detect centroid distances 2D' doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
@@ -81,14 +81,14 @@ List of bugs fixed:
 * Apache Commons Text 1.9
 * Bio-Formats 6.6.1
 * ControlsFX 11.1.0
-* Groovy 3.0.7
+* Groovy 3.0.8
 * Guava 30.1.1-jre
 * ImageJ 1.53i
 * JavaFX 16
 * Java Topology suite 1.18.1
 * JavaCPP 1.5.5
 * JFreeSVG 4.2
-* jfxtras 11-r1
+* jfxtras 11-r2
 * OpenCV 4.5.1
 * picocli 4.6.1
 * RichTextFX 0.10.6
