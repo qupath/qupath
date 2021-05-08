@@ -127,7 +127,15 @@ public class ImageServerProvider {
 	}
 	
 	
-	static URI pathToUri(String path) throws IOException {
+	/**
+	 * Method to help with converting legacy image paths to URIs.
+	 * This is intended for compatibility with data files used in QuPath v0.1.2, where servers 
+	 * were represented using paths only (rather than JSON).
+	 * @param path
+	 * @return a URI parsed from a path, if possible
+	 * @throws IOException
+	 */
+	public static URI legacyPathToURI(String path) throws IOException {
 		URI uriTemp;
 		try {
 			if (path.startsWith("file:")) { 
@@ -150,9 +158,9 @@ public class ImageServerProvider {
 					uriTemp = new URI(uriTemp.getScheme(), uriTemp.getAuthority(), uriTemp.getPath(), "name="+seriesName, null);
 				}
 			}
-			if ("file".equals(uriTemp.getScheme()) && !new File(uriTemp).exists()) {
-				throw new IOException(uriTemp.toString() + " does not exist!");
-			}
+//			if ("file".equals(uriTemp.getScheme()) && !new File(uriTemp).exists()) {
+//				throw new IOException(uriTemp.toString() + " does not exist!");
+//			}
 		} catch (URISyntaxException e) {
 			throw new IOException(e.getLocalizedMessage());
 		}
@@ -161,7 +169,10 @@ public class ImageServerProvider {
 	
 
 	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
-		URI uri = pathToUri(path);
+		URI uri = legacyPathToURI(path);
+		if ("file".equals(uri.getScheme()) && !new File(uri).exists()) {
+			throw new IOException(uri.toString() + " does not exist!");
+		}
 
 		Collection<String> requestedClassnames = new HashSet<>();
 		String key = "--classname";

@@ -252,7 +252,7 @@ public class ImageServers {
 	 * @throws IOException
 	 */
 	public static ImageServer<BufferedImage> buildServer(String path, String... args) throws IOException {
-		return buildServer(ImageServerProvider.pathToUri(path), args);
+		return buildServer(ImageServerProvider.legacyPathToURI(path), args);
 	}
 	
 	/**

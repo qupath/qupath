@@ -38,6 +38,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -52,6 +53,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Locale.Category;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -67,6 +69,8 @@ import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.io.PathObjectTypeAdapters.FeatureCollection;
 import qupath.lib.objects.PathObject;
@@ -78,7 +82,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.GeometryTools;
 
 /**
- * Primary class for loading/saving ImageData objects.
+ * Primary class for loading/saving {@link ImageData} objects.
  * 
  * @author Pete Bankhead
  *
@@ -86,7 +90,15 @@ import qupath.lib.roi.GeometryTools;
 public class PathIO {
 	
 	final private static Logger logger = LoggerFactory.getLogger(PathIO.class);
-		
+	
+	/**
+	 * Data file version identifier, written within the .qpdata file.
+	 * Version 1.0 was the first...
+	 * Version 2 switched to integers, and includes Locale information
+	 * Version 3 stores JSON instead of a server path
+	 */
+	private final static String DATA_FILE_VERSION = "3";
+	
 	private PathIO() {}
 	
 	
@@ -117,15 +129,87 @@ public class PathIO {
 		return serverPath;
 	}
 	
-	private static <T> ImageData<T> readImageDataSerialized(final File file, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws FileNotFoundException, IOException {
-		if (file == null)
+	
+	/**
+	 * Extract a {@link ServerBuilder} from a serialized .qpdata file. 
+	 * @param file
+	 * @return
+	 * @throws IOException if there is an error creating a {@link ServerBuilder}, or the file is not a valid QuPath data file.
+	 */
+	public static <T> ServerBuilder<T> extractServerBuilder(Path file) throws IOException {
+		try (InputStream fileIn = Files.newInputStream(file)) {
+			ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(fileIn));
+			// Check the first line, then read the server path if it is valid
+			String firstLine = inStream.readUTF();
+			if (firstLine.startsWith("Data file version")) {
+				return extractServerBuilder((String)inStream.readObject());
+			} else {
+				throw new IOException(file + " does not appear to be a valid QuPath data file");
+			}
+		} catch (ClassNotFoundException e) {
+			throw new IOException(e);
+		} catch (IOException e) {
+			throw e;
+		}
+	}
+	
+	
+	/**
+	 * Extract a {@link ServerBuilder} from a String.
+	 * This may represent an image path (for v0.2 and earlier) or JSON (from v0.3).
+	 * 
+	 * @param <T>
+	 * @param serverString
+	 * @return
+	 * @throws IOException
+	 */
+	private static <T> ServerBuilder<T> extractServerBuilder(String serverString) throws IOException {
+		if (serverString.startsWith("Image path: ")) {
+			String serverPath = serverString.substring("Image path: ".length()).trim();
+			URI uri = ImageServerProvider.legacyPathToURI(serverPath);
+			return DefaultImageServerBuilder.createInstance(null, uri);
+		} else {
+			String json = serverString;
+			var wrapper = GsonTools.getInstance().fromJson(json, ServerBuilderWrapper.class);
+			return (ServerBuilder<T>)wrapper.server;
+		}
+	}
+	
+	
+	/**
+	 * Helper class for serializing a server builder to JSON.
+	 * By storing this as a separate object (rather than  {@link ServerBuilder} directly) it is easier 
+	 * to maintain compatibility across versions.
+	 * 
+	 * @param <T>
+	 */
+	static class ServerBuilderWrapper<T> {
+		
+		private String dataVersion = DATA_FILE_VERSION;
+		private String qupathVersion = GeneralTools.getVersion();
+		private ServerBuilder<T> server;
+		private String id;
+		
+		static <T> ServerBuilderWrapper<T>  create(ServerBuilder<T> builder, String id) {
+			var wrapper = new ServerBuilderWrapper<T>();
+			wrapper.server = builder;
+			wrapper.id = id;
+			return wrapper;
+		}
+		
+	}
+	
+	
+	
+	private static <T> ImageData<T> readImageDataSerialized(final Path path, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws FileNotFoundException, IOException {
+		if (path == null)
 			return null;
-		logger.info("Reading data from {}...", file.getName());
-		try (FileInputStream stream = new FileInputStream(file)) {
+		logger.info("Reading data from {}...", path.getFileName().toString());
+		try (InputStream stream = Files.newInputStream(path)) {
 			imageData = readImageDataSerialized(stream, imageData, server, cls);	
 			// Set the last saved path (actually the path from which this was opened)
 			if (imageData != null)
-				imageData.setLastSavedPath(file.getAbsolutePath(), true);
+				imageData.setLastSavedPath(path.toAbsolutePath().toString(), true);
 			return imageData;
 //		} catch (IOException e) {
 //			logger.error("Error reading ImageData from file", e);
@@ -141,7 +225,7 @@ public class PathIO {
 		boolean localeChanged = false;
 
 		try (ObjectInputStream inStream = new ObjectInputStream(new BufferedInputStream(stream))) {
-			String serverPath = null;
+			ServerBuilder<T> serverBuilder = null;
 			PathObjectHierarchy hierarchy = null;
 			ImageData.ImageType imageType = null;
 			ColorDeconvolutionStains stains = null;
@@ -162,8 +246,8 @@ public class PathIO {
 			//					}
 			//				}
 
-			serverPath = (String)inStream.readObject();
-			serverPath = serverPath.substring("Image path: ".length()).trim();
+			String serverString = (String)inStream.readObject();
+			serverBuilder = extractServerBuilder(serverString);
 
 
 			while (true) {
@@ -213,16 +297,17 @@ public class PathIO {
 			}
 
 			// Create an entirely new ImageData if necessary
-			if (imageData == null || !(imageData.getServer().equals(server) || imageData.getServerPath().equals(serverPath))) {
+			var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
+			if (imageData == null || !Objects.equals(serverBuilder, existingBuilder)) {
 				// Create a new server if we need to
 				if (server == null) {
 					try {
-						server = ImageServerProvider.buildServer(serverPath, cls);
+						server = serverBuilder.build();
 					} catch (Exception e) {
 						logger.error(e.getLocalizedMessage());
 					};
 					if (server == null) {
-						logger.error("Warning: Unable to create server for path " + serverPath);
+						logger.error("Warning: Unable to build server with " + serverBuilder);
 						//							throw new RuntimeException("Warning: Unable to create server for path " + serverPath);
 					}
 				}
@@ -321,12 +406,40 @@ public class PathIO {
 	 * @throws IOException 
 	 */
 	public static <T> ImageData<T> readImageData(final File file, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
-		return readImageDataSerialized(file, imageData, server, cls);
+		return readImageData(file.toPath(), imageData, server, cls);
 	}
 	
+	/**
+	 * Read {@link ImageData} from a File into an existing ImageData object, or create a new one if required.
+	 * @param <T> 
+	 * 
+	 * @param path
+	 * @param imageData
+	 * @param server an ImageServer to use rather than any that might be stored within the serialized data.  Should be null to use the serialized path to build a new server.
+	 * 								The main purpose of this is to make it possible to open ImageData where the original image location has been moved, so the
+	 * 								stored path is no longer accurate.
+	 * @param cls 
+	 * @return
+	 * @throws IOException 
+	 */
+	public static <T> ImageData<T> readImageData(final Path path, ImageData<T> imageData, ImageServer<T> server, Class<T> cls) throws IOException {
+		return readImageDataSerialized(path, imageData, server, cls);
+	}
+
+	/**
+	 * Write (binary) file containing {@link ImageData} for later use.
+	 * 
+	 * @param path
+	 * @param imageData
+	 * @throws FileNotFoundException 
+	 * @throws IOException 
+	 */
+	public static void writeImageData(final Path path, final ImageData<?> imageData) throws FileNotFoundException, IOException {
+		writeImageData(path.toFile(), imageData);
+	}
 	
 	/**
-	 * Write (binary) file containing ImageData for later use.
+	 * Write (binary) file containing {@link ImageData} for later use.
 	 * 
 	 * @param file
 	 * @param imageData
@@ -376,24 +489,31 @@ public class PathIO {
 			ObjectOutputStream outStream = new ObjectOutputStream(outputStream);
 			
 			// Write the identifier
-			// Version 1.0 was the first...
-			// Version 2 switched to integers, and includes Locale information
-			outStream.writeUTF("Data file version 2");
+			outStream.writeUTF("Data file version " + DATA_FILE_VERSION);
 			
 			// Try to write a backwards-compatible image path
 			var server = imageData.getServer();
-			var uris = server.getURIs();
-			String path;
-			if (uris.size() == 1) {
-				var uri = uris.iterator().next();
-				var serverPath = GeneralTools.toPath(uri);
-				if (serverPath != null && Files.exists(serverPath))
-					path = serverPath.toFile().getAbsolutePath();
-				else
-					path = uri.toString();
-			} else
-				path = server.getPath();
-			outStream.writeObject("Image path: " + path);
+//			var uris = server.getURIs();
+//			String path;
+//			if (uris.size() == 1) {
+//				var uri = uris.iterator().next();
+//				var serverPath = GeneralTools.toPath(uri);
+//				if (serverPath != null && Files.exists(serverPath))
+//					path = serverPath.toFile().getAbsolutePath();
+//				else
+//					path = uri.toString();
+//			} else
+//				path = server.getPath();
+//			outStream.writeObject("Image path: " + path);
+			
+			// Write JSON object including QuPath version and ServerBuilder
+			// Note that the builder may be null, in which case the server cannot be recreated
+			var builder = server.getBuilder();
+			if (builder == null)
+				logger.warn("Server {} does not provide a builder - it will not be possible to recover the ImageServer from this data file", server);
+			var wrapper = ServerBuilderWrapper.create(builder, server.getPath());
+			String json = GsonTools.getInstance().toJson(wrapper);
+			outStream.writeObject(json);
 			
 			// Write the current locale
 			outStream.writeObject(Locale.getDefault(Category.FORMAT));

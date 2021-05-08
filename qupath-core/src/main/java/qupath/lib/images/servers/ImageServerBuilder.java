@@ -295,7 +295,7 @@ public interface ImageServerBuilder<T> {
 		}
 
 		private DefaultImageServerBuilder(Class<? extends ImageServerBuilder<T>> providerClass, URI uri, String[] args, ImageServerMetadata metadata) {
-			this(providerClass.getName(), uri, args, metadata);
+			this(providerClass == null ? null : providerClass.getName(), uri, args, metadata);
 		}
 		
 		/**
@@ -342,14 +342,18 @@ public interface ImageServerBuilder<T> {
 		@Override
 		protected ImageServer<T> buildOriginal() throws Exception {
 			boolean failedWithRequestedProvider = false;
-			for (ImageServerBuilder<?> provider : ImageServerProvider.getInstalledImageServerBuilders()) {
-				if (provider.getClass().getName().equals(providerClassName)) {
-					ImageServer<T> server = (ImageServer<T>)provider.buildServer(uri, args);
-					if (server != null)
-						return server;
-					else
-						failedWithRequestedProvider = true;
+			if (providerClassName != null) {
+				for (ImageServerBuilder<?> provider : ImageServerProvider.getInstalledImageServerBuilders()) {
+					if (provider.getClass().getName().equals(providerClassName)) {
+						ImageServer<T> server = (ImageServer<T>)provider.buildServer(uri, args);
+						if (server != null)
+							return server;
+						else
+							failedWithRequestedProvider = true;
+					}
 				}
+			} else {
+				return (ImageServer<T>)ImageServers.buildServer(uri, args);
 			}
 			String msg = "Unable to build ImageServer for " + uri + " (args=" + Arrays.asList(args) + ")";
 			if (providerClassName != null) {
