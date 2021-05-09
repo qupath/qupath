@@ -300,7 +300,7 @@ public class OpenCVTools {
 		if (depth == opencv_core.CV_32F)
 			// patchNaNs requires 32-bit input
 			opencv_core.patchNaNs(mat, newValue);
-		else if (depth == opencv_core.CV_64F) {
+		else if (depth == opencv_core.CV_64F || depth == opencv_core.CV_16F) {
 			var mask = opencv_core.notEquals(mat, mat).asMat();
 			fill(mat, mask, newValue);
 			mask.close();
@@ -377,6 +377,72 @@ public class OpenCVTools {
 		}
 		opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
 		return dest;
+	}
+	
+	/**
+	 * Returns true if a Mat is a floating point (rather than int) type.
+	 * @param mat
+	 * @return
+	 */
+	public static boolean isFloat(Mat mat) {
+		int depth = mat.depth();
+		return depth == opencv_core.CV_16F ||
+				depth == opencv_core.CV_32F ||
+				depth == opencv_core.CV_64F;
+	}
+	
+	private static double round(double v) {
+		if (Double.isFinite(v))
+			return Math.round(v);
+		return v;
+	}
+
+	private static double ceil(double v) {
+		if (Double.isFinite(v))
+			return Math.ceil(v);
+		return v;		
+	}
+
+	private static double floor(double v) {
+		if (Double.isFinite(v))
+			return Math.floor(v);
+		return v;		
+	}
+	
+	/**
+	 * Floor values in a floating point Mat.
+	 * Non-floating point Mats are unchanged.
+	 * This resembles {@link Math#floor(double)} except that non-finite values are left unchanged.
+	 * @param mat
+	 */
+	public static void floor(Mat mat) {
+		if (!isFloat(mat))
+			return;
+		apply(mat, OpenCVTools::floor);
+	}
+	
+	/**
+	 * Round values in a floating point Mat.
+	 * Non-floating point Mats are unchanged.
+	 * This resembles {@link Math#round(double)} except that non-finite values are left unchanged.
+	 * @param mat
+	 */
+	public static void round(Mat mat) {
+		if (!isFloat(mat))
+			return;
+		apply(mat, OpenCVTools::round);
+	}
+	
+	/**
+	 * Ceil values in a floating point Mat.
+	 * Non-floating point Mats are unchanged.
+	 * This resembles {@link Math#ceil(double)} except that non-finite values are left unchanged.
+	 * @param mat
+	 */
+	public static void ceil(Mat mat) {
+		if (!isFloat(mat))
+			return;
+		apply(mat, OpenCVTools::ceil);
 	}
 	
 	
