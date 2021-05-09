@@ -212,6 +212,11 @@ public class PixelClassifierTraining {
 
         logger.debug("Training data: {} x {}, Target data: {} x {}", matTraining.rows(), matTraining.cols(), matTargets.rows(), matTargets.cols());
         
+        if (matTraining.rows() == 0) {
+        	logger.warn("No training data found - if you have training annotations, check the features are compatible with the current image.");
+        	return null;
+        }
+        
         return new ClassifierTrainingData(labels, matTraining, matTargets);
     }
     
