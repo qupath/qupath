@@ -82,6 +82,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
@@ -90,6 +91,8 @@ import qupath.lib.io.PathIO;
 import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
@@ -227,6 +230,8 @@ public class QP {
 			RegionRequest.class,
 			ImagePlane.class,
 			Padding.class,
+			
+			PixelType.class,
 
 			// Static constructors
 			PathObjects.class,
@@ -256,12 +261,17 @@ public class QP {
 			ImageOps.class,
 			DelaunayTools.class,
 			CellTools.class,
-			
+						
 			ContourTracing.class,
 			
 			GroovyCV.class,
 			
+			// Predicates & filters
+			PathObjectFilter.class,
+			PathObjectPredicates.class,
+			
 			// IO classes
+			PathIO.class,
 			PointIO.class,
 			ProjectIO.class,
 			
