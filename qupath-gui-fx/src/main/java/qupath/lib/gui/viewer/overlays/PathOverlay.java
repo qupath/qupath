@@ -26,6 +26,7 @@ package qupath.lib.gui.viewer.overlays;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+
 import qupath.lib.images.ImageData;
 import qupath.lib.regions.ImageRegion;
 
@@ -53,5 +54,22 @@ public interface PathOverlay {
 	 */
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageData<BufferedImage> imageData, boolean paintCompletely);
 
+	/**
+	 * Get a location string to display when showing a specified image.
+	 * <p>
+	 * The default implementation returns null.
+	 * If subclasses override this method, they <b>must</b> return quickly, as it may be used to determine text to display as the mouse 
+	 * moves over an image.
+	 * 
+	 * @param imageData
+	 * @param x x-coordinate, in the image space (not the viewer component space)
+	 * @param y y-coordinate, in the image space (not the viewer component space)
+	 * @param z z-index for the region currently being viewed
+	 * @param t t-index for the region currently being viewed
+	 * @return
+	 */
+	public default String getLocationString(ImageData<BufferedImage> imageData, double x, double y, int z, int t) {
+		return null;
+	}
 
 }

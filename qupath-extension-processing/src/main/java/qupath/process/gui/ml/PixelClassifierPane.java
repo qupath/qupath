@@ -22,7 +22,6 @@
 package qupath.process.gui.ml;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -1109,7 +1108,7 @@ public class PixelClassifierPane {
 		for (var viewer : qupath.getViewers()) {
 			var imageData = viewer.getImageData();
 			if (overlay != null) {
-				if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.getPixelClassificationServer(imageData))
+				if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.createPixelClassificationServer(imageData))
 					PixelClassificationImageServer.setPixelLayer(imageData, null);
 			}
 			viewer.resetCustomPixelLayerOverlay();
@@ -1164,7 +1163,7 @@ public class PixelClassifierPane {
 		}
 		var viewer = qupath.getViewer();
 		var imageData = viewer.getImageData();
-		var server = imageData == null ? null : overlay.getPixelClassificationServer(imageData);
+		var server = imageData == null ? null : overlay.createPixelClassificationServer(imageData);
 		if (server == null)
 			return false;
 		var selected = viewer.getSelectedObject();
@@ -1376,10 +1375,10 @@ public class PixelClassifierPane {
 		
 		void updateCursorLocation(QuPathViewer viewer, Point2D localPoint) {
 			var p = viewer.componentPointToImagePoint(localPoint.getX(), localPoint.getY(), null, false);
-			var server = overlay.getPixelClassificationServer(viewer.getImageData());
+			var server = overlay.createPixelClassificationServer(viewer.getImageData());
 			String results = null;
 			if (server != null)
-				results = getResultsString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
+				results = PixelClassificationOverlay.getDefaultLocationString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
 			if (results == null)
 				cursorLocation.set("");
 			else
@@ -1390,53 +1389,6 @@ public class PixelClassifierPane {
 		
 	}
 	
-	
-	/**
-	 * Get a String summarizing the pixel classification values at a specified pixel location.
-	 * 
-	 * @param classifierServer
-	 * @param x
-	 * @param y
-	 * @param z
-	 * @param t
-	 * @return
-	 */
-	private static String getResultsString(ImageServer<BufferedImage> classifierServer, double x, double y, int z, int t) {
-    	if (classifierServer == null)
-    		return null;
-    	
-    	int level = 0;
-    	var tile = classifierServer.getTileRequestManager().getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
-    	if (tile == null)
-    		return null;
-    	var img = classifierServer.getCachedTile(tile);
-    	if (img == null)
-    		return null;
-
-    	int xx = (int)Math.floor((x - tile.getImageX()) / tile.getDownsample());
-    	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
-    	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
-    		return null;
-    	
-//    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
-    	
-    	if (classifierServer.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
-        	var classificationLabels = classifierServer.getMetadata().getClassificationLabels();
-        	int sample = img.getRaster().getSample(xx, yy, 0); 		
-        	return String.format("Classification: %s", classificationLabels.get(sample).getName());
-//        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
-    	} else {
-        	var channels = classifierServer.getMetadata().getChannels();
-    		String[] array = new String[channels.size()];
-    		for (int c = 0; c < channels.size(); c++) {
-    			float sample = img.getRaster().getSampleFloat(xx, yy, c);
-    			if (img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_BYTE)
-    				sample /= 255f;
-    			array[c] = channels.get(c).getName() + ": " + GeneralTools.formatNumber(sample, 2);
-    		}
-        	return String.format("Prediction: %s", String.join(", ", array));
-    	}
-    }
 	
 	
 	class HierarchyListener implements PathObjectHierarchyListener {

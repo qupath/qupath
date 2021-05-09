@@ -25,6 +25,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorToolsAwt;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRenderer;
@@ -52,6 +53,7 @@ import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -271,6 +273,9 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 //    		viewer.repaint();
     }    
     
+    private ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
+    	return imageData == null ? null : cachedServers.computeIfAbsent(imageData, data -> createPixelClassificationServer(data));
+    }
     
     @Override
 	public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageData<BufferedImage> imageData, boolean paintCompletely) {
@@ -282,7 +287,7 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
             return;
         
 //        ImageServer<BufferedImage> server = imageData.getServer();
-        var server = cachedServers.computeIfAbsent(imageData, data -> getPixelClassificationServer(data));
+        var server = getPixelClassificationServer(imageData);
         if (server == null)
         	return;
 
@@ -419,7 +424,7 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
      * @param imageData 
      * @return
      */
-    synchronized ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
+    synchronized ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData) {
     	return fun.apply(imageData);
     }
     
@@ -465,6 +470,93 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
                 }
             });
         }
+    }
+    
+    
+    @Override
+    public String getLocationString(ImageData<BufferedImage> imageData, double x, double y, int z, int t) {
+    	if (getLocationStringFunction() == null) {
+	    	var classifierServer = imageData == null ? null : getPixelClassificationServer(imageData);
+	    	if (classifierServer == null)
+	    		return null;
+	    	return getDefaultLocationString(classifierServer, x, y, z, t);
+    	} else
+    		return super.getLocationString(imageData, x, y, z, t);
+    }
+    	
+    
+    /**
+     * Default method for getting a location string from an {@link ImageServer} using cached tiles.
+     * If tiles are not cached, no string is returned.
+     * <p>
+     * May be used by classes implementing {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
+     * 
+     * @param server
+     * @param x
+     * @param y
+     * @param z
+     * @param t
+     * @return location String based upon pixel values and cached tiles, or null if no String is available
+     */
+    public static String getDefaultLocationString(ImageServer<BufferedImage> server, double x, double y, int z, int t) {
+    	
+    	int level = 0;
+    	var tile = server.getTileRequestManager().getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
+    	if (tile == null)
+    		return null;
+    	var img = server.getCachedTile(tile);
+    	if (img == null)
+    		return null;
+
+    	int xx = (int)Math.floor((x - tile.getImageX()) / tile.getDownsample());
+    	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
+    	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
+    		return null;
+    	
+//    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
+    	var channelType = server.getMetadata().getChannelType();
+    	
+    	double scale = 1.0;
+    	double probabilityScale = 1.0;
+    	if (img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_BYTE)
+    		probabilityScale = 1.0/255.0;
+    	String defaultName = "";
+    	
+    	switch (channelType) {
+		case CLASSIFICATION:
+        	var classificationLabels = server.getMetadata().getClassificationLabels();
+        	int sample = img.getRaster().getSample(xx, yy, 0); 
+        	var pathClass = classificationLabels.get(sample);
+        	String name = pathClass == null ? null : pathClass.toString();
+        	if (name == null)
+        		return null;
+        	return String.format("Classification: %s", name);
+		case MULTICLASS_PROBABILITY:
+		case PROBABILITY:
+			defaultName = "Prediction: ";
+			scale = probabilityScale;
+		case FEATURE:
+		case DEFAULT:
+		default:
+        	var channels = server.getMetadata().getChannels();
+        	StringBuilder sb = new StringBuilder(defaultName);
+        	StringBuilder sbWithNames = new StringBuilder(defaultName);
+    		for (int c = 0; c < channels.size(); c++) {
+    			double sampleDouble = img.getRaster().getSampleDouble(xx, yy, c) * scale;
+    			String num = GeneralTools.formatNumber(sampleDouble, 2);
+    			if (c != 0) {	
+    				sb.append(", ");
+    				sbWithNames.append(", ");
+    			}
+				sb.append(num);
+				sbWithNames.append(channels.get(c).getName()).append(": ").append(num);
+    		}
+    		// Include names only if the string is short enough
+    		if (sbWithNames.length() < 50)
+    			return sbWithNames.toString();
+    		else
+    			return sb.toString();
+    	}
     }
 	
 

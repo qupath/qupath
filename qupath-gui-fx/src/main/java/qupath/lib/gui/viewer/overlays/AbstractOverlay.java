@@ -26,9 +26,12 @@ package qupath.lib.gui.viewer.overlays;
 import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.viewer.OverlayOptions;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
 
 /**
  * Abstract class to help with implementing PathOverlays.
@@ -42,6 +45,8 @@ public abstract class AbstractOverlay implements PathOverlay {
 	private Color overlayColor = ColorToolsAwt.TRANSLUCENT_BLACK;
 	private double opacity = 1.0;
 	private AlphaComposite composite = null;
+	
+	private LocationStringFunction locationFun;
 	
 	protected AbstractOverlay(OverlayOptions options) {
 		this.overlayOptions = options;
@@ -115,5 +120,45 @@ public abstract class AbstractOverlay implements PathOverlay {
 		else
 			composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float)opacity);
 	}
+	
+	/**
+	 * Set a custom function to calculate a location string for the overlay.
+	 * @param fun
+	 */
+	protected void setLocationStringFunction(LocationStringFunction fun) {
+		this.locationFun = fun;
+	}
+	
+	protected LocationStringFunction getLocationStringFunction() {
+		return locationFun;
+	}
+	
+	@Override
+	public String getLocationString(ImageData<BufferedImage> imageData, double x, double y, int z, int t) {
+		if (locationFun != null)
+			return locationFun.getLocationString(imageData, x, y, z, t);
+		return null;
+	}
+	
+	
+	/**
+	 * Define a function to perform the task of {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
+	 */
+	@FunctionalInterface
+	public static interface LocationStringFunction {
+		
+		/**
+		 * See {@link PathOverlay#getLocationString(ImageData, double, double, int, int)}
+		 * @param imageData
+		 * @param x
+		 * @param y
+		 * @param z
+		 * @param t
+		 * @return
+		 */
+		public String getLocationString(ImageData<BufferedImage> imageData, double x, double y, int z, int t);
+		
+	}
+	
 	
 }
