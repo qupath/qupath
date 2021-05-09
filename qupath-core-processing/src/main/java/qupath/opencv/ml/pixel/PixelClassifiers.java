@@ -140,6 +140,17 @@ public class PixelClassifiers {
 		
 		return new OpenCVPixelClassifier(op, metadata);
 	}
+	
+	/**
+	 * Convert an {@link ImageDataOp} into a simple classifier.
+	 * @param op
+	 * @param metadata
+	 * @return
+	 */
+	public static PixelClassifier createClassifier(ImageDataOp op, PixelClassifierMetadata metadata) {
+		return new OpenCVPixelClassifier(op, metadata);
+	}
+			
 
 	/**
 	 * Create a PixelClassifier based on an OpenCV StatModel and feature calculator.

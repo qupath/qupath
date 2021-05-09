@@ -30,7 +30,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Predicate;
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,11 +37,15 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
+import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
@@ -52,6 +55,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
+import qupath.opencv.ml.pixel.PixelClassifiers;
 
 /**
  * Class for constructing and using density maps.
@@ -92,7 +96,7 @@ public class DensityMaps {
 		GAUSSIAN,
 		
 		/**
-		 * Object normalization; maps provide 
+		 * Object normalization; maps provide local proportions of objects (e.g. may be used to get a Positive %, after scaling by 100)
 		 */
 		OBJECTS;
 		
@@ -117,25 +121,26 @@ public class DensityMaps {
 	
 	/**
 	 * Create a new {@link DensityMapBuilder} to create a customized density map.
+	 * @param allObjects predicate to identify which objects will be included in the density map
 	 * @return the builder
 	 */
-	public static DensityMapBuilder builder(Predicate<PathObject> allObjects) {
+	public static DensityMapBuilder builder(PathObjectPredicate allObjects) {
 		return new DensityMapBuilder(allObjects);
 	}
 	
 	
 	/**
-	 * Helper class for storing parameters to build a {@link DensityMapImageServer}.
+	 * Helper class for storing parameters to build a {@link ImageServer} representing a density map.
 	 */
-	public static class DensityMapParameters {
+	private static class DensityMapParameters {
 		
 		private double pixelSize = -1;
 		
 		private double radius = 0;
 		private DensityMapNormalization normalization = DensityMapNormalization.NONE;
 
-		private Predicate<PathObject> allObjects;
-		private Map<String, Predicate<PathObject>> additionalFilters = new LinkedHashMap<>();
+		private PathObjectPredicate allObjects;
+		private Map<String, PathObjectPredicate> additionalFilters = new LinkedHashMap<>();
 								
 		private DensityMapParameters() {}
 		
@@ -151,13 +156,13 @@ public class DensityMaps {
 	}
 	
 	/**
-	 * Builder for a {@link DensityMapImageServer} or {@link DensityMapParameters}.
+	 * Builder for an {@link ImageServer} representing a density map or for {@link DensityMapParameters}.
 	 */
 	public static class DensityMapBuilder {
 		
 		private DensityMapParameters params = new DensityMapParameters();
 		
-		private DensityMapBuilder(Predicate<PathObject> allObjects) {
+		private DensityMapBuilder(PathObjectPredicate allObjects) {
 			Objects.nonNull(allObjects);
 			params.allObjects = allObjects;
 		}
@@ -207,7 +212,7 @@ public class DensityMaps {
 //			return this;
 //		}
 		
-		public DensityMapBuilder addDensities(String name, Predicate<PathObject> filter) {
+		public DensityMapBuilder addDensities(String name, PathObjectPredicate filter) {
 			params.additionalFilters.put(name, filter);
 			return this;
 		}
@@ -225,41 +230,81 @@ public class DensityMaps {
 		
 		
 		/**
-		 * Build a {@link DensityMapImageServer} using the current parameters and the specified {@link ImageData}.
+		 * Build a {@link ImageServer} for a density map using the current parameters and the specified {@link ImageData}.
 		 * @param imageData
 		 * @return the density map
 		 */
-		public DensityMapImageServer buildMap(ImageData<BufferedImage> imageData) {
+		public ImageServer<BufferedImage> buildMap(ImageData<BufferedImage> imageData) {
 			return createMap(imageData, params);
 		}
 
-		/**
-		 * Build a {@link DensityMapParameters} objects that may be passed to {@link DensityMaps#createMap(ImageData, DensityMapParameters)}.
-		 * @return the parameters
-		 */
-		public DensityMapParameters buildParameters() {			
-			return new DensityMapParameters(params);
-		}
+//		/**
+//		 * Build a {@link DensityMapParameters} objects that may be passed to {@link DensityMaps#createMap(ImageData, DensityMapParameters)}.
+//		 * @return the parameters
+//		 */
+//		private DensityMapParameters buildParameters() {			
+//			return new DensityMapParameters(params);
+//		}
 
 	}
 	
 	
-	public static DensityMapImageServer createMap(ImageData<BufferedImage> imageData, String jsonParams) {
+	private static ImageServer<BufferedImage> createMap(ImageData<BufferedImage> imageData, String jsonParams) {
 		var params = GsonTools.getInstance().fromJson(jsonParams, DensityMapParameters.class);
 		return createMap(imageData, params);
 	}
 	
 	
-	public static DensityMapImageServer createMap(ImageData<BufferedImage> imageData, DensityMapParameters params) {
-		return DensityMapImageServer.createDensityMap(
-				imageData,
-				params.pixelSize,
-				params.radius,
-				params.additionalFilters,
-				params.allObjects,
-				params.normalization,
-				null
-				);
+	private static ImageServer<BufferedImage> createMap(ImageData<BufferedImage> imageData, DensityMapParameters params) {
+		var cal = imageData.getServer().getPixelCalibration();
+		
+		double pixelSize = params.pixelSize;
+		if (params.pixelSize <= 0) {
+			int defaultMaxSize = 1024;
+			int maxSize = defaultMaxSize;
+			double radius = params.radius;
+			var server = imageData.getServer();
+			double actualPixelSize = server.getPixelCalibration().getAveragedPixelSize().doubleValue();
+			
+			double maxDownsample = Math.round(Math.max(1, Math.max(server.getWidth(), server.getHeight()) / maxSize));
+			double minPixelSize = maxDownsample * actualPixelSize;
+			if (radius > 0) {
+				double radiusPixels = radius / actualPixelSize;
+				double radiusDownsample = Math.round(radiusPixels / 10);
+				pixelSize = radiusDownsample * actualPixelSize;
+			}
+			if (pixelSize < minPixelSize)
+				pixelSize = minPixelSize;
+		}
+		double downsample = pixelSize / cal.getAveragedPixelSize().doubleValue();
+		int radiusInt = (int)Math.round(params.radius / pixelSize);
+					    
+		var dataOp = new DensityMapDataOp(
+		        radiusInt,
+		        params.additionalFilters,
+		        params.allObjects,
+		        params.normalization
+		);
+		
+		var metadata = new PixelClassifierMetadata.Builder()
+			    .inputShape(2048, 2048)
+			    .inputResolution(cal.createScaledInstance(downsample, downsample))
+			    .setChannelType(ImageServerMetadata.ChannelType.MULTICLASS_PROBABILITY)
+			    .outputChannels(dataOp.getChannels(imageData))
+			    .build();
+
+		var classifier = PixelClassifiers.createClassifier(dataOp, metadata);
+		
+		return new PixelClassificationImageServer(imageData, classifier);
+//		return DensityMapImageServer.createDensityMap(
+//				imageData,
+//				params.pixelSize,
+//				params.radius,
+//				params.additionalFilters,
+//				params.allObjects,
+//				params.normalization,
+//				null
+//				);
 	}
 	
 	
@@ -336,7 +381,7 @@ public class DensityMaps {
 	
 	
 	private static int getCountsChannel(ImageServer<BufferedImage> server) {
-		if (server.getChannel(server.nChannels()-1).getName().equals("Counts"))
+		if (server.getChannel(server.nChannels()-1).getName().equals(DensityMapDataOp.CHANNEL_ALL_OBJECTS))
 			return server.nChannels()-1;
 		return -1;
 	}

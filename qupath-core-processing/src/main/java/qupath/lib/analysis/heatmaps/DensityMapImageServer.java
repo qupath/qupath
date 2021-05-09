@@ -37,7 +37,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.indexer.FloatIndexer;
-import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -68,7 +67,9 @@ import qupath.opencv.tools.OpenCVTools;
  * An {@link ImageServer} that can be used to display the density of objects.
  * 
  * @author Pete Bankhead
+ * @deprecated No longer used, in favor of {@link DensityMapDataOp}. To be removed.
  */
+@Deprecated
 public class DensityMapImageServer extends AbstractTileableImageServer implements GeneratingImageServer<BufferedImage> {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DensityMapImageServer.class);
@@ -384,7 +385,7 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		case OBJECTS:
 		case NONE:
 		default:
-			diskFilter(mat, kernelRadius, false);
+			OpenCVTools.sumFilter(mat, kernelRadius, opencv_core.BORDER_CONSTANT);
 			break;
 		}
 		
@@ -443,40 +444,6 @@ public class DensityMapImageServer extends AbstractTileableImageServer implement
 		kernel.close();
 	}
 	
-	private void diskFilter(Mat mat, int radius, boolean doMean) {
-		if (radius <= 0)
-			return;
-		var kernelCenter = new Mat(radius*2+1, radius*2+1, opencv_core.CV_8UC1, Scalar.WHITE);
-		try (UByteIndexer idxKernel = kernelCenter.createIndexer()) {
-			idxKernel.put(radius, radius, 0);
-		}
-		var kernel = new Mat();
-		opencv_imgproc.distanceTransform(kernelCenter, kernel, opencv_imgproc.DIST_L2, opencv_imgproc.DIST_MASK_PRECISE);
-		opencv_imgproc.threshold(kernel, kernel, radius, 1, opencv_imgproc.THRESH_BINARY_INV);
-		if (doMean) {
-			// Count nonzero pixels
-			double sum = opencv_core.sumElems(kernel).get();
-			// Normalize using the area of a pixel
-//			sum *= downsampledPixelArea;
-			
-//			System.err.println(sum.get());
-			opencv_core.dividePut(kernel, sum);
-//			var newSum = opencv_core.sumElems(kernel);
-//			System.err.println("New sum: " + newSum);
-		}
-		
-		// This seems to give weird shapes sometimes
-//		var kernelCircle = new Mat(kernelRadius*2+1, kernelRadius*2+1, opencv_core.CV_32FC1, Scalar.ZERO);
-//		opencv_imgproc.circle(kernelCircle, new Point(kernelRadius, kernelRadius), kernelRadius, Scalar.ONE, opencv_imgproc.FILLED, opencv_imgproc.FILLED, 0);
-		
-		// TODO: Note that I'm assuming the constant is 0... but can this be confirmed?!
-//		opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_REPLICATE);
-		opencv_imgproc.filter2D(mat, mat, -1, kernel, null, 0, opencv_core.BORDER_CONSTANT);
-//		OpenCVTools.matToImagePlus("Kernel " + kernelRadius, kernel, kernelCircle).show();
-		kernel.close();
-		kernelCenter.close();
-		
-	}
 	
 	
 	private static void incrementCounts(FloatIndexer idx, int channel, List<Point2> points, double downsample, double xOrigin, double yOrigin) {

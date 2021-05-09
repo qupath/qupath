@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.Future;
 import java.util.function.DoubleToIntFunction;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -66,7 +65,7 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.analysis.heatmaps.DensityMapImageServer;
+import qupath.lib.analysis.heatmaps.DensityMapDataOp;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapNormalization;
@@ -84,8 +83,9 @@ import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
-import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectPredicates;
+import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
@@ -206,7 +206,7 @@ public class DensityMapCommand implements Runnable {
 		
 		private Future<?> currentTask;
 		
-		private Map<QuPathViewer, DensityMapImageServer> densityMapMap = new WeakHashMap<>();
+		private Map<QuPathViewer, ImageServer<BufferedImage>> densityMapMap = new WeakHashMap<>();
 		private Map<QuPathViewer, PathOverlay> overlayMap = new WeakHashMap<>();
 		private Map<String, List<MinMax>> densityMapRanges = new HashMap<>();
 		
@@ -669,7 +669,7 @@ public class DensityMapCommand implements Runnable {
 			}
 		}
 		
-		public void promptToSaveRawImage(DensityMapImageServer densityMap) throws IOException {
+		public void promptToSaveRawImage(ImageServer<BufferedImage> densityMap) throws IOException {
 			var file = Dialogs.promptToSaveFile(title, null, null, "ImageJ tif", ".tif");
 			if (file != null)
 				QP.writeImage(densityMap, file.getAbsolutePath());
@@ -689,7 +689,7 @@ public class DensityMapCommand implements Runnable {
 			}
 		}
 
-		public void sendToImageJ(DensityMapImageServer densityMap) throws IOException {
+		public void sendToImageJ(ImageServer<BufferedImage> densityMap) throws IOException {
 			if (densityMap == null) {
 				Dialogs.showErrorMessage(title, "No density map is available!");
 				return;
@@ -743,7 +743,7 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		
-		private DensityMapImageServer calculateDensityMap(ImageData<BufferedImage> imageData) {
+		private ImageServer<BufferedImage> calculateDensityMap(ImageData<BufferedImage> imageData) {
 			var builder = calculateDensityMapBuilder();
 			return builder.buildMap(imageData);
 		}
@@ -754,37 +754,41 @@ public class DensityMapCommand implements Runnable {
 			var mapType = densityType.getValue();
 			var pathClass = comboPrimary.getSelectionModel().getSelectedItem();
 			
-			Predicate<PathObject> allObjectsFilter;
-			Predicate<PathObject> pathClassObjectsFilter;
+			PathObjectPredicate allObjectsFilter;
+			PathObjectPredicate pathClassObjectsFilter;
 			String filterName;
 			if (PathClassTools.isValidClass(pathClass)) {
 				if (pathClass.isDerivedClass())
-					pathClassObjectsFilter = p -> p.getPathClass() == pathClass;
+					pathClassObjectsFilter = PathObjectPredicates.exactClassification(pathClass);
+//					pathClassObjectsFilter = p -> p.getPathClass() == pathClass;
 				else
-					pathClassObjectsFilter = p -> PathClassTools.containsName(p.getPathClass(), pathClass.getName());
+					pathClassObjectsFilter = PathObjectPredicates.containsClassification(pathClass.getName());
+//					pathClassObjectsFilter = p -> PathClassTools.containsName(p.getPathClass(), pathClass.getName());
 //					pathClassObjectsFilter = p -> p.getPathClass() != null && p.getPathClass().getBaseClass() == pathClass;
 				filterName = pathClass.toString();
 			} else {
 				pathClassObjectsFilter = null;
 				filterName = null;
 			}
-			Predicate<PathObject> primaryObjectsFilter = pathClassObjectsFilter;
+			PathObjectPredicate primaryObjectsFilter = pathClassObjectsFilter;
 			switch (mapType) {
 			case DETECTIONS:
-				allObjectsFilter = PathObjectFilter.DETECTIONS_ALL;
+				allObjectsFilter = PathObjectPredicates.filter(PathObjectFilter.DETECTIONS_ALL);
 				break;
 			case POINT_ANNOTATIONS:
-				allObjectsFilter = PathObjectFilter.ANNOTATIONS.and(PathObjectFilter.ROI_POINT);
+				allObjectsFilter = PathObjectPredicates.filter(PathObjectFilter.ANNOTATIONS)
+					.and(PathObjectPredicates.filter(PathObjectFilter.ROI_POINT));
 				break;
 			case POSITIVE_DETECTIONS:
-				allObjectsFilter = PathObjectFilter.DETECTIONS_ALL;
+				allObjectsFilter = PathObjectPredicates.filter(PathObjectFilter.DETECTIONS_ALL);
 				if (pathClassObjectsFilter != null) {
 					allObjectsFilter = allObjectsFilter.and(pathClassObjectsFilter);
 					filterName = pathClass.toString() + ": Positive";
 				} else {
 					filterName = "Positive";
 				}
-				primaryObjectsFilter = p -> PathClassTools.isPositiveClass(p.getPathClass());
+				primaryObjectsFilter = PathObjectPredicates.positiveClassification(true);
+//				primaryObjectsFilter = p -> PathClassTools.isPositiveClass(p.getPathClass());
 				break;
 			default:
 				throw new IllegalArgumentException("Unknown density map type " + mapType);
@@ -806,7 +810,7 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 		
-		private PathOverlay createOverlay(QuPathViewer viewer, DensityMapImageServer map) throws IOException {
+		private PathOverlay createOverlay(QuPathViewer viewer, ImageServer<BufferedImage> map) throws IOException {
 //			requestQuickUpdate = false;
 			
 			if (map == null)
@@ -825,7 +829,7 @@ public class DensityMapCommand implements Runnable {
 
 			// If the last channel is 'counts', then it is used for normalization
 			int alphaCountBand = -1;
-			if (map.getChannel(map.nChannels()-1).getName().equals("Counts"))
+			if (map.getChannel(map.nChannels()-1).getName().equals(DensityMapDataOp.CHANNEL_ALL_OBJECTS))
 				alphaCountBand = map.nChannels()-1;
 			
 			String key = map.getPath() + "?countBand=" + alphaCountBand + "&minCount=" + minCount;
