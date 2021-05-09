@@ -53,11 +53,40 @@ public class PathObjectPredicates {
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(typeAdapterFactory);
 	}
 	
-
+	
+	/**
+	 * A JSON-serializable {@link Predicate} for use with {@link PathObject}s.
+	 */
 	public static interface PathObjectPredicate extends Predicate<PathObject> {
 		
+		/**
+		 * Combine with another {@link PathObjectPredicate} through AND.
+		 * <p>
+		 * This should be used in preference of the {@link Predicate#and(Predicate)} method 
+		 * to retain a {@link PathObjectPredicate} as a result.
+		 * <p>
+		 * Providing no default implementation also has the effect of meaning that a 
+		 * {@link PathObjectPredicate} no longer works as a {@link FunctionalInterface}, 
+		 * which would otherwise make it too easy to inadvertently create a general {@link Predicate}.
+		 * 
+		 * @param p
+		 * @return
+		 */
 		public PathObjectPredicate and(PathObjectPredicate p);
 		
+		/**
+		 * Combine with another {@link PathObjectPredicate} through OR.
+		 * <p>
+		 * This should be used in preference of the {@link Predicate#and(Predicate)} method 
+		 * to retain a {@link PathObjectPredicate} as a result.
+		 * <p>
+		 * Providing no default implementation also has the effect of meaning that a 
+		 * {@link PathObjectPredicate} no longer works as a {@link FunctionalInterface}, 
+		 * which would otherwise make it too easy to inadvertently create a general {@link Predicate}.
+		 * 
+		 * @param p
+		 * @return
+		 */
 		public PathObjectPredicate or(PathObjectPredicate p);
 		
 		@Override
@@ -119,7 +148,7 @@ public class PathObjectPredicates {
 		public boolean test(PathObject t) {
 			PathClass pathClass = t.getPathClass();
 			if (allowGradedIntensity)
-				return PathClassTools.isPositiveClass(pathClass) || PathClassTools.isGradedIntensityClass(pathClass);
+				return PathClassTools.isPositiveOrGradedIntensityClass(pathClass);
 			else
 				return PathClassTools.isPositiveClass(pathClass);
 		}
@@ -230,26 +259,58 @@ public class PathObjectPredicates {
 		
 	}
 	
+	/**
+	 * Predicate that returns true of an object has a positive classification.
+	 * @param allowGradedIntensity if true, 1+, 2+ and 3+ are also interpreted as positive; 
+	 *                             otherwise, only a final class component of "Positive" returns true.
+	 * @return
+	 * @see PathClassTools#isPositiveClass(PathClass)
+	 * @see PathClassTools#isGradedIntensityClass(PathClass)
+	 * @see PathClassTools#isPositiveOrGradedIntensityClass(PathClass)
+	 */
 	public static PathObjectPredicate positiveClassification(boolean allowGradedIntensity) {
 		return new PathObjectClassPositivePredicate(allowGradedIntensity);
 	}
 	
+	/**
+	 * Wrap a {@link PathObjectFilter} as a {@link PathObjectPredicate} so that it can remain JSON-serializable 
+	 * when used in combination with other predicates.
+	 * @param filter
+	 * @return
+	 */
 	public static PathObjectPredicate filter(PathObjectFilter filter) {
 		return new PathObjectFilterPredicate(filter);
 	}
 	
+	/**
+	 * Predicate that returns true if a {@link PathObject} has at least one of the specified {@link PathClass}es.
+	 * @param pathClasses list of acceptable classifications; must be greater than 0.
+	 * @return
+	 */
 	public static PathObjectPredicate exactClassification(PathClass... pathClasses) {
 		if (pathClasses.length == 0)
 			throw new IllegalArgumentException("No PathClasses specified!");
 		return new PathObjectClassPredicate(false, pathClasses);
 	}
 	
+	/**
+	 * Predicate that returns true if any component of its classification has any of the specified names.
+	 * @param names
+	 * @return
+	 * @see PathClassTools#containsName(PathClass, String)
+	 */
 	public static PathObjectPredicate containsClassification(String... names) {
 		if (names.length == 0)
 			throw new IllegalArgumentException("No PathClasses specified!");
 		return new PathObjectClassNamePredicate(names);
 	}
 	
+	/**
+	 * Predicate that returns true if an object has any of the specified base classifications, regardless of any subclassification.
+	 * @param pathClasses
+	 * @return
+	 * @see PathClass#getBaseClass()
+	 */
 	public static PathObjectPredicate baseClassification(PathClass... pathClasses) {
 		if (pathClasses.length == 0)
 			throw new IllegalArgumentException("No PathClasses specified!");

@@ -169,6 +169,22 @@ public class ImageOps {
 		factoryOps.registerSubtype(cls, label);
 	}
 
+	/**
+	 * Register an {@link ImageDataOp} class for JSON serialization/deserialization.
+	 * <p>
+	 * Labels should typically be all lowercase and begin with "data.op." and include "ext" if the op is added via an extension.
+	 * 
+	 * @param cls the op to register; this must be compatible with JSON serialization.
+	 * @param label an identifying label; that this must be unique. If it does not start with "data.op." a warning will be logged.
+	 */
+	public static void registerDataOp(Class<? extends ImageDataOp> cls, String label) {
+		Objects.nonNull(cls);
+		Objects.nonNull(label);
+		logger.debug("Registering ImageOp {} with label {}", cls, label);
+		if (!label.startsWith("data.op."))
+			logger.warn("ImageDataOp label '{}' does not begin with 'data.op.'", label);
+		factoryDataOps.registerSubtype(cls, label);
+	}
 	
 	/**
 	 * Build an {@link ImageServer} that generates pixels on demand from an {@link ImageData} by applying an {@link ImageDataOp}.

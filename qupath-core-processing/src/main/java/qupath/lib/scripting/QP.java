@@ -210,11 +210,13 @@ public class QP {
 			.registerTypeAdapterFactory(ObjectClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
 		
-		// Currently, the type adapters are registered within the class
+		// Currently, the type adapters are registered within the class... so we need to initialize the class
 		@SuppressWarnings("unused")
 		var init = new ImageOps();
 		@SuppressWarnings("unused")
 		var servers = new ImageServers();
+		@SuppressWarnings("unused")
+		var predicates = new PathObjectPredicates();
 	}
 
 	

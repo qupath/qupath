@@ -65,6 +65,10 @@ public class DensityMapDataOp implements ImageDataOp {
 	 */
 	public final static String CHANNEL_ALL_OBJECTS = "All object counts";
 	
+	static {
+		ImageOps.registerDataOp(DensityMapDataOp.class, "data.op.density");
+	}
+	
 	private DensityMapNormalization normalization;
 	private int radius;
 	
@@ -124,6 +128,12 @@ public class DensityMapDataOp implements ImageDataOp {
 			}
 			
 			if (extractInds.length > 0) {
+				// Duplicate the image, then
+				// - On the first duplicate, remove the last channel and divide all the other channels by its values
+				// - On the second duplicate, extract the last channel (so as to retain its values)
+				// Finally merge the last channel back
+				// The outcome should be that the last channel is unchanged, while the other channels are divided by the last 
+				// channel elementwise.
 				sequentialOps.addAll(Arrays.asList(
 						ImageOps.Core.splitMerge(
 							ImageOps.Core.splitDivide(
@@ -138,7 +148,7 @@ public class DensityMapDataOp implements ImageDataOp {
 						)
 						);
 			} else {
-				// Values will be 0 and NaN
+				// Values will be 1 and NaN (a possibly-zero value being divided by itself)
 				sequentialOps.add(
 						ImageOps.Core.splitDivide(
 								null,
