@@ -287,9 +287,10 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
         	return;
 
         // Show classified tiles. Without this, opacity can make it hard to see which regions have been processed.
+        // Note that if the alpha value is too large, tile boundaries can appear at some viewing magnifications (previous default was 32)
         var colorComplete = imageData.getImageType() == ImageData.ImageType.FLUORESCENCE ? 
-        		ColorToolsAwt.getCachedColor(255, 255, 255, 32) :
-        		ColorToolsAwt.getCachedColor(0, 0, 0, 32);
+        		ColorToolsAwt.getCachedColor(255, 255, 255, 1) :
+        		ColorToolsAwt.getCachedColor(0, 0, 0, 1);
         
         // Get the displayed clip bounds for fast checking if ROIs need to be drawn
         RegionRequest fullRequest;
