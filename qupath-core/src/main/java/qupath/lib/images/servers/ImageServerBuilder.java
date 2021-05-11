@@ -137,7 +137,7 @@ public interface ImageServerBuilder<T> {
 		
 		private ImageServerMetadata metadata;
 		
-		public AbstractServerBuilder(ImageServerMetadata metadata) {
+		AbstractServerBuilder(ImageServerMetadata metadata) {
 			this.metadata = metadata;
 		}
 		
