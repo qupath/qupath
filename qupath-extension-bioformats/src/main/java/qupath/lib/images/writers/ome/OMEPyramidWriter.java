@@ -303,7 +303,10 @@ public class OMEPyramidWriter {
 	}
 	
 	
-	static class OMEPyramidSeries {
+	/**
+	 * Class representing a single series to write to an OME-TIFF.
+	 */
+	public static class OMEPyramidSeries {
 		
 		private OMEPyramidSeries() {}
 		
@@ -330,7 +333,7 @@ public class OMEPyramidWriter {
 	
 		private CompressionType compression = CompressionType.DEFAULT;
 		
-		public void initializeMetadata(IMetadata meta, int series) throws IOException {
+		void initializeMetadata(IMetadata meta, int series) throws IOException {
 			
 			meta.setImageID("Image:"+series, series);
 			meta.setPixelsID("Pixels:"+series, series);
@@ -852,7 +855,7 @@ public class OMEPyramidWriter {
 	}
 	
 	/**
-	 * Create a writer capable of writing an image with a collection ofseries.
+	 * Create a writer capable of writing an image with a collection of series.
 	 * @param series
 	 * @return
 	 */
