@@ -59,7 +59,7 @@ public class TestPathClass {
 		assertEquals(null, pathClass1.getParentClass());
 		assertEquals(null, pathClass1.getColor());
 		
-		// Two-arg constructor		
+		// Two-arg constructor
 		pathClass2 = new PathClass("", Color.RED.getRGB());
 		assertEquals("", pathClass2.getName());
 		assertEquals(null, pathClass2.getParentClass());
@@ -285,7 +285,7 @@ public class TestPathClass {
 	
 	@Test
 	public void test_equality() {
-		// Test to assert that the compareTo() method works as intended (see javadoc for the method)
-		assertNotEquals(0, new PathClass("Tumor: Positive", null).compareTo(new PathClass("Stroma: Positive", null)));
+		// Test to assert that the compareTo() method works as intended (see method's javadoc)
+		assertNotEquals(0, PathClassFactory.getPathClass("Tumor: Positive", Color.GREEN.getRGB()).compareTo(PathClassFactory.getPathClass("Stroma: Positive", Color.GREEN.getRGB())));
 	}
 }

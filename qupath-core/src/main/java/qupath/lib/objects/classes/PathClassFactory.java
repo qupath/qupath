@@ -146,17 +146,7 @@ public final class PathClassFactory {
 	static boolean classExists(String classString) {
 		return mapPathClasses.containsKey(classString);
 	}
-	
-	
-	/**
-	 * Validate a non-null name, throwing an IllegalArgumentException if the name contains invalid characters.
-	 * @param name
-	 */
-	private static void validateName(String name) {
-		if (name.contains("\n"))
-			throw new IllegalArgumentException("PathClass names cannot contain new line characters!");
-	}
-	
+		
 	/**
 	 * Get the PathClass object associated with a specific name. Note that this name must not contain newline; 
 	 * doing so will result in an {@link IllegalArgumentException} being thrown. If the name contains colon characters, 
@@ -167,7 +157,11 @@ public final class PathClassFactory {
 	 * @return
 	 */
 	public static PathClass getPathClass(String name, Integer rgb) {
-		if (name == null || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
+		if (name == null)
+			return NULL_CLASS;
+		
+		name = name.trim();
+		if (name.isEmpty() || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
 			return NULL_CLASS;
 		
 		// Handle requests for derived classes
@@ -181,8 +175,6 @@ public final class PathClassFactory {
 			}
 			return pathClass;
 		}
-		
-		validateName(name);
 		
 		synchronized (mapPathClasses) {
 			PathClass pathClass = mapPathClasses.get(name);

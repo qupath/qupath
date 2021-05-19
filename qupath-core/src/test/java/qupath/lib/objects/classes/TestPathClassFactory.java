@@ -24,7 +24,6 @@
 package qupath.lib.objects.classes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.Color;
 import java.util.Arrays;
@@ -39,23 +38,20 @@ public class TestPathClassFactory {
 	
 	@Test
 	public void test_getPathClass1() {
-		sameClass(new PathClass("Ignore*", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE));
-		sameClass(new PathClass("Image", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT));
-		sameClass(new PathClass("Immune cells", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMMUNE_CELLS));
-		sameClass(new PathClass("Necrosis", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NECROSIS));
-		sameClass(new PathClass("Negative", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NEGATIVE));
-		sameClass(new PathClass("Other", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.OTHER));
-		sameClass(new PathClass("Positive", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.POSITIVE));
-		sameClass(new PathClass("Region*", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION));
-		sameClass(new PathClass("Stroma", ColorTools.makeRGB(180, 180, 180)), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.STROMA));
-		
-		// Can't use PathClass' constructor for 'Tumor' as getDerivedPathClass() creates an instance of 'Tumor' already.
-		sameClass(PathClassFactory.getPathClass("Tumor"), PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.TUMOR));
+		assertEquals("Ignore*", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IGNORE).getName());
+		assertEquals("Image", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMAGE_ROOT).getName());
+		assertEquals("Immune cells", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.IMMUNE_CELLS).getName());
+		assertEquals("Necrosis", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NECROSIS).getName());
+		assertEquals("Negative", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.NEGATIVE).getName());
+		assertEquals("Other", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.OTHER).getName());
+		assertEquals("Positive", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.POSITIVE).getName());
+		assertEquals("Region*", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.REGION).getName());
+		assertEquals("Stroma", PathClassFactory.getPathClass(PathClassFactory.StandardPathClasses.STROMA).getName());
 	}
 	
 	@Test
 	public void test_getPathClass2() {
-		Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass("Class with" + System.lineSeparator() + "new line", Color.RED.getRGB()));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass("Class with\nnew line", Color.RED.getRGB()));
 		
 		assertEquals("Third", PathClassFactory.getPathClass("First", "Second", "Third").getName());
 		assertEquals("First: Second: Third", PathClassFactory.getPathClass("First", "Second", "Third").toString());
@@ -66,28 +62,52 @@ public class TestPathClassFactory {
 	
 	@Test
 	public void test_getPathClass3() {
-		var color1 = ColorTools.makeRGB(180, 180, 180);
-		var colorOnePlus = ColorTools.makeScaledRGB(ColorTools.makeRGB(255, 215, 0), 1.25);
-		var colorTwoPlus = ColorTools.makeScaledRGB(ColorTools.makeRGB(225, 150, 50), 1.25);
-		var colorThreePlus = ColorTools.makeScaledRGB(ColorTools.makeRGB(200, 50, 50), 1.25);
+		var color1 = ColorTools.packRGB(180, 180, 180);
+		var colorOnePlus = ColorTools.makeScaledRGB(ColorTools.packRGB(255, 215, 0), 1.25);
+		var colorTwoPlus = ColorTools.makeScaledRGB(ColorTools.packRGB(225, 150, 50), 1.25);
+		var colorThreePlus = ColorTools.makeScaledRGB(ColorTools.packRGB(200, 50, 50), 1.25);
 		checkFields("test", "test", color1, new PathClass("test", color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(null, color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().getName(), color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().getName(), color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().toString(), color1));
 		
-		checkFields("Child", "Parent: Child", color1, PathClassFactory.getPathClass("Parent: Child", color1));
-		checkFields("Child", ": Child", color1, PathClassFactory.getPathClass(": Child", color1));
+		checkFields("Child", "Parent: Child", color1, PathClassFactory.getPathClass("Parent:Child", color1));
+		checkFields("Child", "Child", color1, PathClassFactory.getPathClass(":Child", color1));
 		
 		checkFields("1+", "1+", colorOnePlus, PathClassFactory.getPathClass(PathClassFactory.ONE_PLUS));
 		checkFields("2+", "2+", colorTwoPlus, PathClassFactory.getPathClass(PathClassFactory.TWO_PLUS));
 		checkFields("3+", "3+", colorThreePlus, PathClassFactory.getPathClass(PathClassFactory.THREE_PLUS));
 
-		checkFields(PathClassFactory.ONE_PLUS, ": " + PathClassFactory.ONE_PLUS, PathClassFactory.getPathClass("", PathClassFactory.ONE_PLUS));
-		checkFields(PathClassFactory.TWO_PLUS, ": " + PathClassFactory.TWO_PLUS, PathClassFactory.getPathClass("", PathClassFactory.TWO_PLUS));
-		checkFields(PathClassFactory.THREE_PLUS, ": " + PathClassFactory.THREE_PLUS, PathClassFactory.getPathClass("", PathClassFactory.THREE_PLUS));
-		checkFields(PathClassFactory.POSITIVE, ": " + PathClassFactory.POSITIVE, PathClassFactory.getPathClass("", PathClassFactory.POSITIVE));
-		checkFields(PathClassFactory.NEGATIVE, ": " + PathClassFactory.NEGATIVE, PathClassFactory.getPathClass("", PathClassFactory.NEGATIVE));
+		checkFields(PathClassFactory.ONE_PLUS, PathClassFactory.ONE_PLUS, PathClassFactory.getPathClass("", PathClassFactory.ONE_PLUS));
+		checkFields(PathClassFactory.TWO_PLUS, PathClassFactory.TWO_PLUS, PathClassFactory.getPathClass("", PathClassFactory.TWO_PLUS));
+		checkFields(PathClassFactory.THREE_PLUS, PathClassFactory.THREE_PLUS, PathClassFactory.getPathClass("", PathClassFactory.THREE_PLUS));
+		checkFields(PathClassFactory.POSITIVE, PathClassFactory.POSITIVE, PathClassFactory.getPathClass("", PathClassFactory.POSITIVE));
+		checkFields(PathClassFactory.NEGATIVE, PathClassFactory.NEGATIVE, PathClassFactory.getPathClass("", PathClassFactory.NEGATIVE));
+		
+		var sameClasses = Arrays.asList(
+				"My:Class",
+				"My: Class",
+				"My:\tClass",
+				"My:     Class",
+				" My:Class ",
+				"My::Class",
+				"My: :Class",
+				"My::\nClass"
+		);
+		var unclassifiedClasses = Arrays.asList(": :", ":\n:");
+		var invalidClasses = Arrays.asList(":\n", "My::Invalid\nClass");
+		
+		for (var clazz: sameClasses) {
+			assertEquals("My", PathClassFactory.getPathClass(clazz, Color.CYAN.getRGB()).getParentClass().getName());
+			assertEquals("Class", PathClassFactory.getPathClass(clazz, Color.CYAN.getRGB()).getName());
+		}
+		for (var clazz: unclassifiedClasses) {
+			assertEquals(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(clazz, Color.CYAN.getRGB()));
+		}
+		for (var clazz: invalidClasses) {
+			Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass(clazz, Color.CYAN.getRGB()));
+		}
 	}
 	
 	@Test
@@ -110,10 +130,7 @@ public class TestPathClassFactory {
 	
 	@Test
 	public void test_getDerivedPathClass() {
-		// TODO: Investigate whether PathClassFactory.validateName() should behave the same as 
-		// PathClass.isValid(), as one restricts new lines and the other doesn't. See next 2 lines.
-		assertTrue(new PathClass("invalid" + System.lineSeparator() + "class", Color.RED.getRGB()).isValid());
-		Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass("invalid" + System.lineSeparator() + "class", Color.RED.getRGB()));
+		// TODO
 	}
 	
 	@Test

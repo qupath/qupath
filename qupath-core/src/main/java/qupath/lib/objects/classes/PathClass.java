@@ -69,10 +69,13 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	 * @param colorRGB
 	 */
 	PathClass(PathClass parent, String name, Integer colorRGB) {
+		if (PathClassTools.isValidName(name))
+			throw new IllegalArgumentException("PathClass names cannot contain colon (:) or new line characters!");
 		if (parent != null && name == null)
 			throw new IllegalArgumentException("Cannot create a derived PathClass with name == null");
+		
 		this.parentClass = parent;
-		this.name = name;
+		this.name = name == null ? null : name.trim();
 		if (colorRGB == null)
 			this.colorRGB = DEFAULT_COLOR;
 		else
