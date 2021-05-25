@@ -21,7 +21,9 @@
 
 package qupath.process.gui.commands;
 
+import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,13 +31,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.Future;
 import java.util.function.DoubleToIntFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +48,11 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
@@ -69,22 +73,24 @@ import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMapDataOp;
 import qupath.lib.analysis.heatmaps.DensityMaps;
-import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapNormalization;
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
-import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
@@ -97,6 +103,7 @@ import qupath.lib.plugins.parameters.DoubleParameter;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
+import qupath.process.gui.ml.PixelClassificationOverlay;
 
 
 /**
@@ -189,6 +196,28 @@ public class DensityMapCommand implements Runnable {
 		private DoubleProperty maxDisplay = new SimpleDoubleProperty(1);
 		private BooleanProperty autoUpdateDisplayRange = new SimpleBooleanProperty(true);
 		
+		/**
+		 * Density map is implemented as a {@link PixelClassifier}.
+		 */
+		private ObjectProperty<PixelClassifier> classifier = new SimpleObjectProperty<>();
+		
+		
+		/**
+		 * Automatically update the density maps and overlays.
+		 */
+		private BooleanProperty autoUpdate = new SimpleBooleanProperty(true);
+		
+		private Future<?> currentTask;
+		
+		/**
+		 * Corresponding density map
+		 */
+		private Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> densityMapMap = new WeakHashMap<>();
+		
+		private Map<QuPathViewer, PixelClassificationOverlay> overlayMap = new WeakHashMap<>();
+		private Map<String, List<MinMax>> densityMapRanges = new HashMap<>();
+
+		
 		// Property that controls whether display options can be adjusted
 		private BooleanBinding displayAdjustable = selectedNormalization.isEqualTo(DensityMapNormalization.OBJECTS)
 				.and(selectedClass.isNotEqualTo(PathClassFactory.getPathClassUnclassified())
@@ -201,16 +230,6 @@ public class DensityMapCommand implements Runnable {
 //						.and(selectedClass.isNotNull())
 //						);
 		
-		/**
-		 * Automatically update the density maps and overlays.
-		 */
-		private BooleanProperty autoUpdate = new SimpleBooleanProperty(true);
-		
-		private Future<?> currentTask;
-		
-		private Map<QuPathViewer, ImageServer<BufferedImage>> densityMapMap = new WeakHashMap<>();
-		private Map<QuPathViewer, PathOverlay> overlayMap = new WeakHashMap<>();
-		private Map<String, List<MinMax>> densityMapRanges = new HashMap<>();
 		
 		public DensityMapDialog() {
 			
@@ -531,7 +550,7 @@ public class DensityMapCommand implements Runnable {
 				for (var viewer : qupath.getViewers()) {
 					if (Thread.currentThread().isInterrupted())
 						return;
-					updateHeatmap(viewer);
+					updateDensityMapClassifier(viewer);
 				}
 			});
 		}
@@ -550,7 +569,7 @@ public class DensityMapCommand implements Runnable {
 			
 			var viewer = qupath.getViewer();
 			var imageData = viewer.getImageData();
-			var densityMap = densityMapMap.get(viewer);
+			var densityMap = densityMapMap.get(viewer.getImageData());
 			if (imageData == null || densityMap == null) {
 				Dialogs.showErrorMessage(title, "No density map found!");
 				return;
@@ -604,8 +623,18 @@ public class DensityMapCommand implements Runnable {
 			for (var viewer : qupath.getViewers()) {
 				var overlay = overlayMap.getOrDefault(viewer, null);
 				if (overlay != null) {
-					if (overlay instanceof BufferedImageOverlay)
-						((BufferedImageOverlay)overlay).setInterpolation(interpolation.getValue());
+					overlay.setInterpolation(interpolation.getValue());
+					viewer.repaint();
+				}
+			}
+		}
+		
+		private void updateColorMap() {
+			for (var viewer : qupath.getViewers()) {
+				var overlay = overlayMap.getOrDefault(viewer, null);
+				if (overlay != null) {
+					// TODO: Support updating the colormap (or remove this)
+//					overlay.setInterpolation(interpolation.getValue());
 					viewer.repaint();
 				}
 			}
@@ -620,7 +649,7 @@ public class DensityMapCommand implements Runnable {
 		public void promptToTraceContours() {
 
 			var viewer = qupath.getViewer();
-			var densityMap = densityMapMap.getOrDefault(viewer, null);
+			var densityMap = densityMapMap.getOrDefault(viewer.getImageData(), null);
 
 			if (densityMap == null) {
 				Dialogs.showErrorMessage(title, "No density map is available!");
@@ -654,7 +683,7 @@ public class DensityMapCommand implements Runnable {
 
 			var viewer = qupath.getViewer();
 			var imageData = viewer.getImageData();
-			var densityMap = densityMapMap.getOrDefault(viewer, null);
+			var densityMap = densityMapMap.getOrDefault(imageData, null);
 			var overlay = overlayMap.getOrDefault(viewer, null);
 			
 			if (imageData == null || densityMap == null || overlay == null) {
@@ -676,9 +705,10 @@ public class DensityMapCommand implements Runnable {
 				if (btOrig.equals(response)) {
 					promptToSaveRawImage(densityMap);
 				} else if (btColor.equals(response)) {
-					if (overlay instanceof BufferedImageOverlay)
-						promptToSaveColorImage((BufferedImageOverlay)overlay);
-					else
+					// TODO: SUPPORT WRITING COLOR IMAGES
+//					if (overlay instanceof BufferedImageOverlay)
+//						promptToSaveColorImage((BufferedImageOverlay)overlay);
+//					else
 						Dialogs.showErrorMessage(title, "Not implemented yet!");
 				} else if (btImageJ.equals(response)) {
 					sendToImageJ(densityMap);
@@ -694,18 +724,31 @@ public class DensityMapCommand implements Runnable {
 				QP.writeImage(densityMap, file.getAbsolutePath());
 		}
 
-		public void promptToSaveColorImage(BufferedImageOverlay overlay) {
+		public void promptToSaveColorImage(QuPathViewer viewer, PixelClassificationOverlay overlay) {
 			Dialogs.showErrorMessage(title, "Not implemented yet!");
-			var img = overlay.getRegionMap().values().iterator().next();
-			var file = Dialogs.promptToSaveFile(title, null, null, "PNG", ".png");
-			if (file != null) {
-				try {
-					ImageIO.write(img, "PNG", file);
-				} catch (IOException e) {
-					Dialogs.showErrorMessage(title, "Unable to write file: " + e.getLocalizedMessage());
-					logger.error(e.getLocalizedMessage(), e);
-				}
-			}
+//			var img = overlay.getRegionMap().values().iterator().next();
+//			var file = Dialogs.promptToSaveFile(title, null, null, "PNG", ".png");
+			
+			/*
+			 * TODO: RenderedImageServer to write the overlay only.
+			 * Need to add:
+			 * - Optionally skip base server
+			 * - Background (white, black, transparent)
+			 */
+//			var imageData = viewer.getImageData();
+//			var renderedServer = new RenderedImageServer.Builder(imageData)
+//					.layers(overlay)
+//					.store(viewer.getImageRegionStore())
+//					.build();
+				
+//			if (file != null) {
+//				try {
+//					ImageIO.write(img, "PNG", file);
+//				} catch (IOException e) {
+//					Dialogs.showErrorMessage(title, "Unable to write file: " + e.getLocalizedMessage());
+//					logger.error(e.getLocalizedMessage(), e);
+//				}
+//			}
 		}
 
 		public void sendToImageJ(ImageServer<BufferedImage> densityMap) throws IOException {
@@ -721,35 +764,49 @@ public class DensityMapCommand implements Runnable {
 		}
 
 		
-		private void updateHeatmap(QuPathViewer viewer) {
-			PathOverlay overlay;
+		private void updateDensityMapClassifier(QuPathViewer viewer) {
+			PixelClassificationOverlay overlay = null;
 			// Get a cached density map if we can
-			var densityMap = densityMapMap.getOrDefault(viewer, null);
 			try {
 				// Generate a new density map if we need to
 				var imageData = viewer.getImageData();
-				if (densityMap == null) {
-					if (imageData == null)
-						densityMap = null;
-					else
-						densityMap = calculateDensityMap(viewer.getImageData());
+				
+				var pixelClassifier = calculateDensityMap(imageData);
+				this.classifier.set(pixelClassifier);
+				
+				// Function to generate an ImageServer providing a density map, using a unique ID
+				var id = UUID.randomUUID().toString();
+				Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> serverFun = 
+						(ImageData<BufferedImage> data) -> new PixelClassificationImageServer(data, pixelClassifier, id, null);
+
+				ImageServer<BufferedImage> densityMap = null;
+				if (imageData != null && pixelClassifier != null) {
+					densityMap = serverFun.apply(imageData);
+					var tiles = getAllTiles(densityMap, 0, false);
+					if (tiles == null)
+						return;
+
+					// Don't update anything if we are interrupted - that can cause flickering of the display
+					if (Thread.currentThread().isInterrupted())
+						return;
+
+					ColorModel cm = createOverlay(densityMap);
+					if (cm == null)
+						return;
+					
+					var renderer = new ColorModelRenderer(cm);
+					overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer.getOverlayOptions(), serverFun, renderer);
+					overlay.setLivePrediction(true);
 				}
-				// Don't update anything if we are interrupted - that can cause flickering of the display
-				if (Thread.currentThread().isInterrupted())
-					return;
-				// Create a new overlay (or null if we have no density map)
-				overlay = densityMap == null ? null : createOverlay(viewer, densityMap);
-				if (Thread.currentThread().isInterrupted())
-					return;
-				densityMapMap.put(viewer, densityMap);
+				densityMapMap.put(imageData, densityMap);
 				overlayMap.put(viewer, overlay);
+				
 			} catch (Exception e) {
 				Dialogs.showErrorNotification(title, "Error creating density map: " + e.getLocalizedMessage());
 				logger.error(e.getLocalizedMessage(), e);
-				densityMapMap.remove(viewer);
+				densityMapMap.remove(viewer.getImageData());
 				overlayMap.remove(viewer);
 				overlay = null;
-				densityMap = null;
 			}
 			
 			if (Platform.isFxApplicationThread()) {
@@ -762,14 +819,7 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		
-		private ImageServer<BufferedImage> calculateDensityMap(ImageData<BufferedImage> imageData) {
-			var builder = calculateDensityMapBuilder();
-			return builder.buildMap(imageData);
-		}
-		
-		
-		private DensityMapBuilder calculateDensityMapBuilder() {
-			
+		private PixelClassifier calculateDensityMap(ImageData<BufferedImage> imageData) {
 			var mapType = densityType.getValue();
 			var pathClass = comboPrimary.getSelectionModel().getSelectedItem();
 			
@@ -825,13 +875,13 @@ public class DensityMapCommand implements Runnable {
 				builder.addDensities(filterName, primaryObjectsFilter);
 			
 			builder.radius(radius.get());
-			return builder;
+			return builder.buildMap(imageData);
 		}
 		
 		
-		private PathOverlay createOverlay(QuPathViewer viewer, ImageServer<BufferedImage> map) throws IOException {
+		private ColorModel createOverlay(ImageServer<BufferedImage> map) throws IOException {
 //			requestQuickUpdate = false;
-			
+
 			if (map == null)
 				return null;
 			
@@ -913,16 +963,9 @@ public class DensityMapCommand implements Runnable {
 					alphaFun = ColorModelFactory.createGammaFunction(g, Math.max(0, minCount), alphaCountMinMax.maxValue);
 			}
 			
-			var cm = ColorModelFactory.createColorModel(PixelType.FLOAT32, colorMap, 0, min, max, alphaCountBand, alphaFun);
+			var cm = ColorModelFactory.createColorModel(PixelType.FLOAT32, colorMap, 0, min, max, alphaCountBand, alphaFun);			
 			
-			var tiles = getAllTiles(map, 0, false);
-			if (tiles == null)
-				return null;
-			
-			var overlay = new BufferedImageOverlay(viewer, viewer.getOverlayOptions(), tiles);
-			overlay.setInterpolation(comboInterpolation.getSelectionModel().getSelectedItem());
-			overlay.setColorModel(cm);
-			return overlay;
+			return cm;
 		}
 		
 		
@@ -1031,6 +1074,7 @@ public class DensityMapCommand implements Runnable {
     	}
     	return map;
 	}
+	
 	
 
 }

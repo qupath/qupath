@@ -24,7 +24,6 @@
 package qupath.lib.gui.viewer.overlays;
 
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.IndexColorModel;
@@ -37,11 +36,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -55,14 +51,13 @@ import qupath.lib.regions.ImageRegion;
  * 
  * @author Pete Bankhead
  */
-public class BufferedImageOverlay extends AbstractOverlay implements ChangeListener<ImageData<BufferedImage>> {
+public class BufferedImageOverlay extends AbstractImageOverlay implements ChangeListener<ImageData<BufferedImage>> {
 	
 	private static Logger logger = LoggerFactory.getLogger(BufferedImageOverlay.class);
     
     private Map<ImageRegion, BufferedImage> regions = new LinkedHashMap<>();
     
     private QuPathViewer viewer;
-    private ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
     
     private ColorModel colorModel;
     private Map<BufferedImage, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
@@ -186,33 +181,6 @@ public class BufferedImageOverlay extends AbstractOverlay implements ChangeListe
     		viewer = null;
     	}
 	}
-
-    
-    
-    /**
-     * Set the preferred method of interpolation to use for display.
-     * 
-     * @param interpolation
-     */
-    public void setInterpolation(ImageInterpolation interpolation) {
-    		this.interpolation.set(interpolation);
-    }
-
-    /**
-     * Get the preferred method of interpolation to use for display.
-     * @return 
-     */
-    public ImageInterpolation getInterpolation() {
-		return interpolation.get();
-    }
-
-    /**
-     * The preferred method of interpolation to use for display.
-     * @return 
-     */
-    public ObjectProperty<ImageInterpolation> interpolationProperty() {
-    	return interpolation;
-    }
     
     
     /**
@@ -240,23 +208,13 @@ public class BufferedImageOverlay extends AbstractOverlay implements ChangeListe
 
     @Override
     public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageData<BufferedImage> imageData, boolean paintCompletely) {
-        // Don't show if pixel classifications aren't being shown
-        if (!getOverlayOptions().getShowPixelClassification())
+    	// Don't show if pixel classifications aren't being shown
+        if (!isVisible() || !getOverlayOptions().getShowPixelClassification())
             return;
 
-        // Paint the regions we have
-        ImageInterpolation interp = getInterpolation();
-        switch (interp) {
-			case BILINEAR:
-	            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-				break;
-			case NEAREST:
-	            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-				break;
-			default:
-				logger.debug("Unknown interpolation value {}", interp);
-	    }
-        
+        super.paintOverlay(g2d, imageRegion, downsampleFactor, imageData, paintCompletely);
+
+        // Paint the regions we have        
         for (Map.Entry<ImageRegion, BufferedImage> entry : regions.entrySet()) {
             ImageRegion region = entry.getKey();
             // Check if the region intersects or not

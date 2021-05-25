@@ -28,10 +28,11 @@ import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.overlays.AbstractOverlay;
+import qupath.lib.gui.viewer.overlays.AbstractImageOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -79,7 +80,7 @@ import javafx.beans.value.ObservableBooleanValue;
  * @author Pete Bankhead
  *
  */
-public class PixelClassificationOverlay extends AbstractOverlay  {
+public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
 
@@ -149,7 +150,9 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
      * @return
      */
     public static PixelClassificationOverlay createPixelClassificationOverlay(final OverlayOptions options, final PixelClassifier classifier, final ColorModel colorModel, final int nThreads) {
-    	return new PixelClassificationOverlay(options, Math.max(1, nThreads), new ClassifierServerFunction(classifier, colorModel));
+    	var overlay = new PixelClassificationOverlay(options, Math.max(1, nThreads), new ClassifierServerFunction(classifier, colorModel));
+    	overlay.setRenderer(new ColorModelRenderer(colorModel));
+    	return overlay;
     }
     
     
@@ -179,6 +182,23 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
      * @param renderer rendered used to create an RGB image
      * @return the {@link PixelClassificationOverlay}
      */
+    public static PixelClassificationOverlay createPixelClassificationOverlay(final OverlayOptions options,
+    		final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun, ImageRenderer renderer) {
+    	var overlay = new PixelClassificationOverlay(options, 1, fun);
+    	overlay.setRenderer(renderer);
+    	return overlay;
+    }
+    
+    /**
+     * Create an overlay to display a live image that can be created from an existing {@link ImageData}.
+     * 
+     * @param options options to control the overlay display
+     * @param fun function to create an {@link ImageServer} from the {@link ImageData}
+     * @param renderer rendered used to create an RGB image
+     * @return the {@link PixelClassificationOverlay}
+     * @deprecated Use {@link #createPixelClassificationOverlay(OverlayOptions, Function, ImageRenderer)} instead.
+     */
+    @Deprecated
     public static PixelClassificationOverlay createFeatureDisplayOverlay(final OverlayOptions options,
     		final Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun, ImageRenderer renderer) {
     	var overlay = new PixelClassificationOverlay(options, 1, fun);
@@ -239,7 +259,7 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 			if (server != null && server.getImageData() != imageData)
 				server = null;
 			if (server == null && classifier.supportsImage(imageData)) {
-				server = new PixelClassificationImageServer(imageData, classifier, colorModel);
+				server = new PixelClassificationImageServer(imageData, classifier, null, colorModel);
 	    		PixelClassificationImageServer.setPixelLayer(imageData, server);
 	    	}
 	    	return server;
@@ -285,7 +305,7 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 
         if (imageData == null)
             return;
-        
+                
 //        ImageServer<BufferedImage> server = imageData.getServer();
         var server = getPixelClassificationServer(imageData);
         if (server == null)
@@ -312,7 +332,7 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 //    		return;
         
         if (renderer != null && rendererLastTimestamp != renderer.getLastChangeTimestamp()) {
-        	cacheRGB.clear();
+        	clearCache();
         	rendererLastTimestamp = renderer.getLastChangeTimestamp();
         }
         
@@ -320,11 +340,13 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 		double requestedDownsample = ServerTools.getPreferredDownsampleFactor(server, downsampleFactor);
 
 		var gCopy = (Graphics2D)g2d.create();
-		
+				
         if (requestedDownsample > server.getDownsampleForResolution(0))
         	gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         else
-        	gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        	// Only use specified interpolation when upsampling
+    		setInterpolation(gCopy);
+//        	gCopy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
 
         var comp = getAlphaComposite();
     	var previousComposite = gCopy.getComposite();
@@ -409,13 +431,21 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
         return imgRGB;
     }
     
+     
+     /**
+      * Clear any cached tiles.
+      */
+     public void clearCache() {
+    	 cacheRGB.clear();
+     }
+
     
     /**
      * Stop the overlap, halting any pending tile requests.
      */
     public void stop() {
     	List<Runnable> pending = this.pool.shutdownNow();
-    	cacheRGB.clear();
+    	clearCache();
     	logger.debug("Stopped classification overlay, dropped {} requests", pending.size());
     }
     
@@ -552,12 +582,12 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
 				sbWithNames.append(channels.get(c).getName()).append(": ").append(num);
     		}
     		// Include names only if the string is short enough
-    		if (sbWithNames.length() < 50)
+    		if (sbWithNames.length() < 100)
     			return sbWithNames.toString();
     		else
     			return sb.toString();
     	}
     }
-	
+    
 
 }

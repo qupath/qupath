@@ -63,7 +63,7 @@ public class DensityMapDataOp implements ImageDataOp {
 	/**
 	 * Channel name for the channel with all object counts (not always present).
 	 */
-	public final static String CHANNEL_ALL_OBJECTS = "All object counts";
+	public final static String CHANNEL_ALL_OBJECTS = "Counts";
 	
 	static {
 		ImageOps.registerDataOp(DensityMapDataOp.class, "data.op.density");
@@ -157,7 +157,7 @@ public class DensityMapDataOp implements ImageDataOp {
 						);
 			}
 			
-			baseChannelName = "Object normalized counts ";
+			baseChannelName = "Density ";
 			if (!primaryObjects.isEmpty())
 				lastChannel = ImageChannel.getInstance(CHANNEL_ALL_OBJECTS, null);
 			break;
@@ -167,7 +167,7 @@ public class DensityMapDataOp implements ImageDataOp {
 				sequentialOps.add(ImageOps.Filters.sum(radius));
 				sequentialOps.add(ImageOps.Core.round());
 			}
-			baseChannelName = "Counts ";
+			baseChannelName = "";
 		}
 
 		var channelNames = primaryObjects.keySet().stream().map(n -> baseChannelName + n).toArray(String[]::new);

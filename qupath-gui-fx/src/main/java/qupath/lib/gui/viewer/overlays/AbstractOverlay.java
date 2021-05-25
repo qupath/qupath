@@ -30,7 +30,6 @@ import java.awt.image.BufferedImage;
 
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
 
 /**

@@ -28,6 +28,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +63,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
+	
+	private String customID;
 	
 	private PixelClassifier classifier;
 	private ColorModel colorModel;
@@ -109,13 +112,22 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 * @param classifier
 	 */
 	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		this(imageData, classifier, null);
+		this(imageData, classifier, null, null);
 	}
 		
-	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier, ColorModel colorModel) {
+	/**
+	 * Constructor.
+	 * @param imageData
+	 * @param classifier
+	 * @param customID optionally provide a custom ID (path). This is when the default (based upon the {@link ImageData} and {@link PixelClassifier} isn't sufficient), 
+	 *                 e.g. because the classifier can change output based upon {@link ImageData} status.
+	 * @param colorModel
+	 */
+	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier, String customID, ColorModel colorModel) {
 		super();
 		this.classifier = classifier;
 		this.imageData = imageData;
+		this.customID = customID;
 		this.server = imageData.getServer();
 		this.colorModel = colorModel;
 		
@@ -187,6 +199,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 */
 	@Override
 	protected String createID() {
+		if (customID != null)
+			return customID;
 		try {
 			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
 			return getClass().getName() + ": " + server.getPath() + "::" + GsonTools.getInstance().toJson(classifier);

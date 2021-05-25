@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -37,13 +37,12 @@ import org.slf4j.LoggerFactory;
 import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
+import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.PathObjects;
@@ -234,28 +233,14 @@ public class DensityMaps {
 		 * @param imageData
 		 * @return the density map
 		 */
-		public ImageServer<BufferedImage> buildMap(ImageData<BufferedImage> imageData) {
-			return createMap(imageData, params);
+		public PixelClassifier buildMap(ImageData<BufferedImage> imageData) {
+			return createClassifier(imageData, params);
 		}
-
-//		/**
-//		 * Build a {@link DensityMapParameters} objects that may be passed to {@link DensityMaps#createMap(ImageData, DensityMapParameters)}.
-//		 * @return the parameters
-//		 */
-//		private DensityMapParameters buildParameters() {			
-//			return new DensityMapParameters(params);
-//		}
-
+		
 	}
 	
 	
-	private static ImageServer<BufferedImage> createMap(ImageData<BufferedImage> imageData, String jsonParams) {
-		var params = GsonTools.getInstance().fromJson(jsonParams, DensityMapParameters.class);
-		return createMap(imageData, params);
-	}
-	
-	
-	private static ImageServer<BufferedImage> createMap(ImageData<BufferedImage> imageData, DensityMapParameters params) {
+	private static PixelClassifier createClassifier(ImageData<BufferedImage> imageData, DensityMapParameters params) {
 		var cal = imageData.getServer().getPixelCalibration();
 		
 		double pixelSize = params.pixelSize;
@@ -293,18 +278,7 @@ public class DensityMaps {
 			    .outputChannels(dataOp.getChannels(imageData))
 			    .build();
 
-		var classifier = PixelClassifiers.createClassifier(dataOp, metadata);
-		
-		return new PixelClassificationImageServer(imageData, classifier);
-//		return DensityMapImageServer.createDensityMap(
-//				imageData,
-//				params.pixelSize,
-//				params.radius,
-//				params.additionalFilters,
-//				params.allObjects,
-//				params.normalization,
-//				null
-//				);
+		return PixelClassifiers.createClassifier(dataOp, metadata);
 	}
 	
 	

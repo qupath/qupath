@@ -2682,7 +2682,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					.filter(s -> s != null)
 					.collect(Collectors.joining("\n"));
 			
-			if (classString != null && !classString.isBlank())
+//			if (classString != null && !classString.isBlank())
+//				classString = classString + "\n";
+			
+			if (classString == null)
+				classString = "\n";
+			else
 				classString = classString + "\n";
 			
 			if (!overlayStrings.isBlank())
