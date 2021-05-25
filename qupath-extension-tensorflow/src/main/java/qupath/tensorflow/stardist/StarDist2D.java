@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.PointerScope;
@@ -67,6 +68,7 @@ import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.objects.CellTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
@@ -121,6 +123,9 @@ public class StarDist2D {
 				
 		private int tileWidth = 1024;
 		private int tileHeight = 1024;
+		
+		private Function<ROI, PathObject> creatorFun;
+		private PathClass pathClass;
 		
 		private boolean measureShape = false;
 		private Collection<Compartments> compartments = Arrays.asList(Compartments.values());
@@ -254,6 +259,28 @@ public class StarDist2D {
 		 */
 		public Builder cellConstrainScale(double scale) {
 			this.cellConstrainScale = scale;
+			return this;
+		}
+		
+		/**
+		 * Create annotations rather than detections (the default).
+		 * If cell expansion is not zero, the nucleus will be included as a child object.
+		 * 
+		 * @return this builder
+		 */
+		public Builder createAnnotations() {
+			this.creatorFun = r -> PathObjects.createAnnotationObject(r);
+			return this;
+		}
+		
+		/**
+		 * Request that a classification is applied to all created objects.
+		 * 
+		 * @param pathClass
+		 * @return this builder
+		 */
+		public Builder classify(PathClass pathClass) {
+			this.pathClass = pathClass;
 			return this;
 		}
 		
@@ -511,6 +538,8 @@ public class StarDist2D {
 			stardist.simplifyDistance = simplifyDistance;
 			stardist.nThreads = nThreads;
 			stardist.constrainToParent = constrainToParent;
+			stardist.creatorFun = creatorFun;
+			stardist.pathClass = pathClass;
 			
 			stardist.compartments = new LinkedHashSet<>(compartments);
 			
@@ -535,6 +564,9 @@ public class StarDist2D {
 	private double cellExpansion;
 	private double cellConstrainScale;
 	private boolean ignoreCellOverlaps;
+	
+	private Function<ROI, PathObject> creatorFun;
+	private PathClass pathClass;
 	
 	private boolean constrainToParent = true;
 	
@@ -768,19 +800,31 @@ public class StarDist2D {
 			geomCell = simplify(geomCell);
 			var roiCell = GeometryTools.geometryToROI(geomCell, plane);
 			var roiNucleus = GeometryTools.geometryToROI(geomNucleus, plane);
-			pathObject = PathObjects.createCellObject(roiCell, roiNucleus, null, null);
+			if (creatorFun == null)
+				pathObject = PathObjects.createCellObject(roiCell, roiNucleus, null, null);
+			else {
+				pathObject = creatorFun.apply(roiCell);
+				if (roiNucleus != null) {
+					pathObject.addPathObject(creatorFun.apply(roiNucleus));
+				}
+			}
 		} else {
 			if (mask != null) {
 				geomNucleus = GeometryTools.attemptOperation(geomNucleus, g -> g.intersection(mask));
 			}
 			var roiNucleus = GeometryTools.geometryToROI(geomNucleus, plane);
-			pathObject = PathObjects.createDetectionObject(roiNucleus);
+			if (creatorFun == null)
+				pathObject = PathObjects.createDetectionObject(roiNucleus);
+			else
+				pathObject = creatorFun.apply(roiNucleus);
 		}
 		if (includeProbability) {
         	try (var ml = pathObject.getMeasurementList()) {
         		ml.putMeasurement("Detection probability", nucleus.getProbability());
         	}
         }
+		if (pathClass != null)
+			pathObject.setPathClass(pathClass);
 		return pathObject;
 	}
 	
