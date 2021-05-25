@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import ij.CompositeImage;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -59,6 +60,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
@@ -224,6 +226,7 @@ public class DensityMapCommand implements Runnable {
 			var pane = new GridPane();
 			int row = 0;
 			
+			
 			var labelTitle = new Label("Define density map");
 			labelTitle.setStyle("-fx-font-weight: bold;");
 			labelTitle.setPadding(new Insets(0, 0, 5, 0));
@@ -236,8 +239,8 @@ public class DensityMapCommand implements Runnable {
 //			PaneTools.addGridRow(pane, row++, 0, null, labelDescription, labelDescription, labelDescription);
 
 			PaneTools.addGridRow(pane, row++, 0, "Select type of density map.\n"
-					+ "Use 'All detections' to look for the density of all detections with any classication.\n"
-					+ "Use 'Positive detections' specifically if your detections are classified as positive & negative and you want to find a high density that is positive.\n"
+					+ "Use 'All detections' to look for the density of all detections (regardless of any intensity classification, e.g. Positive/Negative).\n"
+					+ "Use 'Positive detections' specifically if your detections are classified as Positive & Negative and you want to find a high density that is positive.\n"
 					+ "Use 'Point annotations' to use annotated points rather than detections.",
 					new Label("Map type"), comboType, comboType);
 			PaneTools.addGridRow(pane, row++, 0, "Select object classifications to include.\n"
@@ -274,23 +277,19 @@ public class DensityMapCommand implements Runnable {
 //					cbGaussianFilter, cbGaussianFilter, cbGaussianFilter);
 //			cbGaussianFilter.setPadding(new Insets(0, 0, 10, 0));
 			
+			double hGap = 5;
+			double vGap = 5;
 						
-			
-			var labelColor = new Label("Customize appearance");
-			labelColor.setStyle("-fx-font-weight: bold;");
-			labelColor.setPadding(new Insets(5, 0, 5, 0));
-			labelColor.setPadding(new Insets(10, 0, 0, 0));
-			PaneTools.addGridRow(pane, row++, 0,
-					"Options to customize how the density map is displayed",
-					labelColor, labelColor, labelColor);
+			var paneDisplay = new GridPane();
 			
 //			var labelAppearance = new Label("These options change the appearance of the density map only.");
 //			labelAppearance.setAlignment(Pos.CENTER);
 //			PaneTools.addGridRow(pane, row++, 0, null, labelAppearance, labelAppearance, labelAppearance);
 			
-			PaneTools.addGridRow(pane, row++, 0, "Choose the colormap to use for display", new Label("Colormap"), comboColorMap, comboColorMap);
+			int rowDisplay = 0;
+			PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Choose the colormap to use for display", new Label("Colormap"), comboColorMap, comboColorMap);
 			
-			PaneTools.addGridRow(pane, row++, 0, "Choose how the density map should be interpolated (this impacts the visual smoothness, especially if the density radius is small)", new Label("Interpolation"), comboInterpolation, comboInterpolation);
+			PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Choose how the density map should be interpolated (this impacts the visual smoothness, especially if the density radius is small)", new Label("Interpolation"), comboInterpolation, comboInterpolation);
 
 			autoUpdateDisplayRange.bind(displayAdjustable.not());
 			
@@ -301,7 +300,7 @@ public class DensityMapCommand implements Runnable {
 			var tfMin = new TextField();
 			GuiTools.bindSliderAndTextField(slideMin, tfMin, expandSliderLimits);
 			GuiTools.installRangePrompt(slideMin);
-			PaneTools.addGridRow(pane, row++, 0, "Set the density value corresponding to the first entry in the colormap.", new Label("Min display"), slideMin, tfMin);
+			PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Set the density value corresponding to the first entry in the colormap.", new Label("Min display"), slideMin, tfMin);
 
 			var slideMax = new Slider(0, maxDisplay.get(), maxDisplay.get());
 			slideMax.valueProperty().bindBidirectional(maxDisplay);
@@ -310,7 +309,7 @@ public class DensityMapCommand implements Runnable {
 			var tfMax = new TextField();
 			GuiTools.bindSliderAndTextField(slideMax, tfMax, expandSliderLimits);
 			GuiTools.installRangePrompt(slideMax);
-			PaneTools.addGridRow(pane, row++, 0, "Set the density value corresponding to the last entry in the colormap.", new Label("Max display"), slideMax, tfMax);
+			PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Set the density value corresponding to the last entry in the colormap.", new Label("Max display"), slideMax, tfMax);
 
 			var sliderMinCount = new Slider(0, 1000, minCount.get());
 			sliderMinCount.valueProperty().bindBidirectional(minCount);
@@ -318,7 +317,7 @@ public class DensityMapCommand implements Runnable {
 			var tfMinCount = new TextField();
 			GuiTools.bindSliderAndTextField(sliderMinCount, tfMinCount, expandSliderLimits, 0);
 			GuiTools.installRangePrompt(sliderMinCount);
-			PaneTools.addGridRow(pane, row++, 0, "Select minimum number of objects required for display in the density map.\n"
+			PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Select minimum number of objects required for display in the density map.\n"
 					+ "This is used to avoid isolated detections dominating the map (i.e. lower density regions can be shown as transparent).",
 					new Label("Min object count"), sliderMinCount, tfMinCount);
 
@@ -327,7 +326,7 @@ public class DensityMapCommand implements Runnable {
 			initializeSliderSnapping(sliderGamma, 0.1, 1, 0.1);
 			var tfGamma = new TextField();
 			GuiTools.bindSliderAndTextField(sliderGamma, tfGamma, false, 1);
-			PaneTools.addGridRow(pane, row++, 0, "Control how the opacity of the density map changes between low & high values.\n"
+			PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Control how the opacity of the density map changes between low & high values.\n"
 					+ "Choose zero for an opaque map.", new Label("Gamma"), sliderGamma, tfGamma);
 			
 //			var cbAutoUpdateDisplayRange = new CheckBox("Use full display range");
@@ -337,6 +336,14 @@ public class DensityMapCommand implements Runnable {
 //			cbAutoUpdateDisplayRange.disableProperty().bind(displayAdjustable.not());
 //			cbAutoUpdateDisplayRange.setPadding(new Insets(0, 0, 10, 0));
 			
+			var titledPaneDisplay = new TitledPane("Customize appearance", paneDisplay);
+			titledPaneDisplay.setExpanded(false);
+			PaneTools.simplifyTitledPane(titledPaneDisplay, true);
+			
+//			titledPaneDisplay.lookup(".title").setStyle("-fx-font-weight: bold;");
+//			System.err.println(titledPaneDisplay.lookup(".title").getStyle());
+			PaneTools.addGridRow(pane, row++, 0, "Options to customize how the density map is displayed", titledPaneDisplay, titledPaneDisplay, titledPaneDisplay);
+
 			
 			var btnAutoUpdate = new ToggleButton("Auto-update");
 			btnAutoUpdate.setSelected(autoUpdate.get());
@@ -351,7 +358,7 @@ public class DensityMapCommand implements Runnable {
 //					+ "Press this button when something changes (e.g. objects added/removed), or you just want to ensure everything is"
 //					+ "up-to-date.",
 //					btnRefresh, btnRefresh, btnRefresh);
-			
+						
 			double tfw = 80;
 			tfRadius.setMaxWidth(tfw);
 			tfGamma.setMaxWidth(tfw);
@@ -383,7 +390,7 @@ public class DensityMapCommand implements Runnable {
 			btnHotspots.setTooltip(new Tooltip("Find the hotspots in the density map with highest values"));
 			btnHotspots.setOnAction(e -> promptToFindHotspots());
 			
-			var btnContours = new Button("Threshold regions");
+			var btnContours = new Button("Threshold");
 			btnContours.setTooltip(new Tooltip("Threshold to identify high-density regions"));
 			btnContours.setOnAction(e -> promptToTraceContours());
 			
@@ -392,13 +399,15 @@ public class DensityMapCommand implements Runnable {
 			btnExport.setOnAction(e -> promptToSaveImage());
 			
 			var buttonPane = PaneTools.createColumnGrid(btnHotspots, btnContours, btnExport);
-			buttonPane.setHgap(5);
+			buttonPane.setHgap(hGap);
 			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
 			PaneTools.setToExpandGridPaneWidth(btnHotspots, btnExport, btnContours);
 			
 			PaneTools.setToExpandGridPaneWidth(comboType, comboPrimary, comboNormalization, comboColorMap, comboInterpolation, 
 					btnAutoUpdate, sliderRadius, sliderGamma, buttonPane);
 			
+			paneDisplay.setHgap(hGap);
+			paneDisplay.setVgap(vGap);
 			pane.setHgap(5);
 			pane.setVgap(5);
 			pane.setPadding(new Insets(10));
@@ -410,9 +419,19 @@ public class DensityMapCommand implements Runnable {
 			
 			stage = new Stage();
 			stage.setScene(new Scene(pane));
+			stage.setResizable(false);
 			stage.initOwner(qupath.getStage());
 			stage.setTitle("Density map");
 			stage.setOnCloseRequest(e -> deregister());
+			
+//			stage.minHeightProperty().bind(
+//					Bindings.createDoubleBinding(
+//							() -> Math.max(100, pane.getPrefHeight()),
+//							pane.prefHeightProperty()
+//						)
+//					);
+			
+			titledPaneDisplay.heightProperty().addListener((v, o, n) -> stage.sizeToScene());
 		}
 		
 		
