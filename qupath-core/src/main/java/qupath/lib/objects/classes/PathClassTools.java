@@ -298,7 +298,7 @@ public final class PathClassTools {
 	 * @param name
 	 */
 	static boolean isValidName(String name) {
-		return name != null && (name.contains("\n") || name.contains(":"));
+		return name == null || (!name.contains("\n") && !name.contains(":"));
 	}
 	
 	/**
