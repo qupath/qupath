@@ -837,6 +837,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 				printWriter.println(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
 		} catch (ScriptException e) {
 			// TODO: Consider exception logging here, rather than via the called method
+		} catch (Throwable t) {
+			// This can happen when something goes very wrong - like attempting to load a missing native library
+			// We need to somehow let the user know, rather than swallowing the problem silently
+			logger.error(t.getLocalizedMessage(), t);
 		} finally {
 			if (attachToLog)
 				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
