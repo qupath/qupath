@@ -26,6 +26,7 @@ package qupath.lib.objects.classes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Arrays;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -65,7 +66,8 @@ public class TestPathClassFactory {
 		var colorOnePlus = ColorTools.makeScaledRGB(ColorTools.packRGB(255, 215, 0), 1.25);
 		var colorTwoPlus = ColorTools.makeScaledRGB(ColorTools.packRGB(225, 150, 50), 1.25);
 		var colorThreePlus = ColorTools.makeScaledRGB(ColorTools.packRGB(200, 50, 50), 1.25);
-		checkFields("test", "test", color1, PathClass.getInstance(null, "test", color1));
+		String uniqueName = UUID.randomUUID().toString();
+		checkFields(uniqueName, uniqueName, color1, PathClassFactory.getPathClass(uniqueName, color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(null, color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().getName(), color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().getName(), color1));
