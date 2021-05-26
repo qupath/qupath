@@ -40,7 +40,12 @@ import qupath.lib.common.ColorTools;
  * @author Pete Bankhead
  *
  */
-public class PathClassFactory {
+public final class PathClassFactory {
+	
+	// Suppressed default constructor for non-instantiability
+	private PathClassFactory() {
+		throw new AssertionError();
+	}
 	
 	/**
 	 * Enum representing standard classifications. Exists mostly to ensure consisting naming (including capitalization).
@@ -141,27 +146,22 @@ public class PathClassFactory {
 	static boolean classExists(String classString) {
 		return mapPathClasses.containsKey(classString);
 	}
-	
-	
+		
 	/**
-	 * Validate a non-null name, throwing an IllegalArgumentException if the name contains invalid characters.
-	 * @param name
-	 */
-	private static void validateName(String name) {
-		if (name.contains(":") || name.contains("\n"))
-			throw new IllegalArgumentException("PathClass names cannot contain new line or colon (:) characters!");
-	}
-	
-	/**
-	 * Get the PathClass object associated with a specific name.  Note that this name must not contain newline or 
-	 * colon characters; doing so will result in an IllegalArgumentException being thrown.
+	 * Get the PathClass object associated with a specific name. Note that this name must not contain newline; 
+	 * doing so will result in an {@link IllegalArgumentException} being thrown. If the name contains colon characters, 
+	 * it will be treated as a derived class.
 	 * 
 	 * @param name
 	 * @param rgb
 	 * @return
 	 */
 	public static PathClass getPathClass(String name, Integer rgb) {
-		if (name == null || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
+		if (name == null)
+			return NULL_CLASS;
+		
+		name = name.trim();
+		if (name.isEmpty() || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
 			return NULL_CLASS;
 		
 		// Handle requests for derived classes
@@ -175,8 +175,6 @@ public class PathClassFactory {
 			}
 			return pathClass;
 		}
-		
-		validateName(name);
 		
 		synchronized (mapPathClasses) {
 			PathClass pathClass = mapPathClasses.get(name);

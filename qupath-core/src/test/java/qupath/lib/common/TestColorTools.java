@@ -101,5 +101,79 @@ public class TestColorTools {
 		assertEquals(ColorTools.packClippedARGB(0, 511, 511, 511), Integer.parseUnsignedInt("00ffffff", 16));
 		assertEquals(ColorTools.packClippedARGB(0, 512, 512, 512), Integer.parseUnsignedInt("00ffffff", 16));
 	}
+	
+	@Test
+	public void test_do8BitRangeCheck() {
+		// int
+		assertEquals(0, ColorTools.do8BitRangeCheck(-5));
+		assertEquals(0, ColorTools.do8BitRangeCheck(0));
+		assertEquals(255, ColorTools.do8BitRangeCheck(256));
+		assertEquals(255, ColorTools.do8BitRangeCheck(255));
+		assertEquals(0, ColorTools.do8BitRangeCheck(-5));
+		
+		// float
+		assertEquals(0, ColorTools.do8BitRangeCheck(-5.0));
+		assertEquals(0, ColorTools.do8BitRangeCheck(0.0));
+		assertEquals(255, ColorTools.do8BitRangeCheck(256.0));
+		assertEquals(255, ColorTools.do8BitRangeCheck(255.0));
+		assertEquals(0, ColorTools.do8BitRangeCheck(-5.0));
+		
+		// double
+		assertEquals(0, ColorTools.do8BitRangeCheck((float)-5));
+		assertEquals(0, ColorTools.do8BitRangeCheck((float)0));
+		assertEquals(255, ColorTools.do8BitRangeCheck((float)256));
+		assertEquals(255, ColorTools.do8BitRangeCheck((float)255));
+		assertEquals(0, ColorTools.do8BitRangeCheck((float)-5));
+	}
+	
+	@Test
+	public void test_red() {
+		assertEquals(125, ColorTools.red(ColorTools.packRGB(125, 0, 250)));
+		assertEquals(125, ColorTools.red(ColorTools.packRGB(125, 0, 250)));
+		assertEquals(0, ColorTools.red(ColorTools.packRGB(0, 125, 200)));
+		assertEquals(255, ColorTools.red(ColorTools.YELLOW));
+	}
+	
+	@Test
+	public void test_green() {
+		assertEquals(0, ColorTools.green(ColorTools.packRGB(125, 0, 250)));
+		assertEquals(125, ColorTools.green(ColorTools.packRGB(0, 125, 200)));
+		assertEquals(255, ColorTools.green(ColorTools.YELLOW));
+	}
 
+	@Test
+	public void test_blue() {
+		assertEquals(250, ColorTools.blue(ColorTools.packRGB(125, 0, 250)));
+		assertEquals(200, ColorTools.blue(ColorTools.packRGB(0, 125, 200)));
+		assertEquals(0, ColorTools.blue(ColorTools.YELLOW));
+	}
+	
+	@Test
+	public void test_alpha() {
+		assertEquals(0, ColorTools.alpha(ColorTools.packARGB(0, 125, 0, 250)));
+		assertEquals(255, ColorTools.alpha(ColorTools.packARGB(255, 125, 0, 250)));
+		assertEquals(125, ColorTools.alpha(ColorTools.packARGB(125, 125, 0, 250)));
+		assertEquals(0, ColorTools.blue(ColorTools.YELLOW));
+	}
+	
+	@Test
+	public void test_makeScaledRGB() {
+		int r = 0;
+		int g = 125;
+		int b = 255;
+		double scale1 = 2.0;
+		double scale2 = 1.5;
+		assertEquals(ColorTools.packRGB((int)(r*scale1), (int)(g*scale1), b), ColorTools.makeScaledRGB(ColorTools.packRGB(r, g, b), scale1));
+		assertEquals(ColorTools.packRGB((int)(r*scale2), (int)(g*scale2), b), ColorTools.makeScaledRGB(ColorTools.packRGB(r, g, b), scale2));
+	}
+	
+	@Test
+	public void test_clip255() {
+		assertEquals(124, ColorTools.clip255(124.9));
+		assertEquals(255, ColorTools.clip255(255.0));
+		assertEquals(255, ColorTools.clip255(255.1));
+		assertEquals(255, ColorTools.clip255(300.0));
+		assertEquals(0, ColorTools.clip255(0.0));
+		assertEquals(0, ColorTools.clip255(-5));
+	}
 }
