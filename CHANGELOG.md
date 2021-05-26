@@ -38,6 +38,7 @@ Enhancements:
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
+* Bio-Formats now optionally accepts URLs, not only local files (requires opt-in through the preferences)
 
 Code changes:
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
