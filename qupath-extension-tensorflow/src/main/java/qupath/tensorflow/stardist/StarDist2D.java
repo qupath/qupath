@@ -66,9 +66,11 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.objects.CellTools;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
@@ -282,6 +284,17 @@ public class StarDist2D {
 		public Builder classify(PathClass pathClass) {
 			this.pathClass = pathClass;
 			return this;
+		}
+		
+		/**
+		 * Request that a classification is applied to all created objects.
+		 * This is a convenience method that get a {@link PathClass} from  {@link PathClassFactory}.
+		 * 
+		 * @param pathClassName
+		 * @return this builder
+		 */
+		public Builder classify(String pathClassName) {
+			return classify(PathClassFactory.getPathClass(pathClassName, (Integer)null));
 		}
 		
 		/**
@@ -741,7 +754,13 @@ public class StarDist2D {
 		// Resolve cell overlaps, if needed
 		if (expansion > 0 && !ignoreCellOverlaps) {
 			log("Resolving cell overlaps");
-			detections = CellTools.constrainCellOverlaps(detections);
+			if (creatorFun != null) {
+				// It's awkward, but we need to temporarily convert to cells and back
+				var cells = detections.stream().map(c -> objectToCell(c)).collect(Collectors.toList());
+				cells = CellTools.constrainCellOverlaps(cells);
+				detections = cells.stream().map(c -> cellToObject(c, creatorFun)).collect(Collectors.toList());
+			} else
+				detections = CellTools.constrainCellOverlaps(detections);
 		}
 		
 		// Add shape measurements, if needed
@@ -778,6 +797,36 @@ public class StarDist2D {
 		log("Detected {} cells", detections.size());
 
 		return detections;
+	}
+	
+	
+	private static PathObject objectToCell(PathObject pathObject) {
+		ROI roiNucleus = null;
+		var children = pathObject.getChildObjects();
+		if (children.size() == 1)
+			roiNucleus = children.iterator().next().getROI();
+		else if (children.size() > 1)
+			throw new IllegalArgumentException("Cannot convert object with multiple child objects to a cell!");
+		return PathObjects.createCellObject(pathObject.getROI(), roiNucleus, pathObject.getPathClass(), pathObject.getMeasurementList());
+	}
+	
+	private static PathObject cellToObject(PathObject cell, Function<ROI, PathObject> creator) {
+		var parent = creator.apply(cell.getROI());
+		var nucleusROI = cell instanceof PathCellObject ? ((PathCellObject)cell).getNucleusROI() : null;
+		if (nucleusROI != null) {
+			var nucleus = creator.apply(nucleusROI);
+			nucleus.setPathClass(cell.getPathClass());
+			parent.addPathObject(nucleus);
+		}
+		parent.setPathClass(cell.getPathClass());
+		var cellMeasurements = cell.getMeasurementList();
+		if (!cellMeasurements.isEmpty()) {
+			try (var ml = parent.getMeasurementList()) {
+				for (int i = 0; i < cellMeasurements.size(); i++)
+					ml.addMeasurement(cellMeasurements.getMeasurementName(i), cellMeasurements.getMeasurementValue(i));
+			}
+		}
+		return parent;
 	}
 	
 	
