@@ -126,7 +126,7 @@ public final class PathClassFactory {
 
 	private static Map<String, PathClass> mapPathClasses = new HashMap<>();
 
-	private final static PathClass NULL_CLASS = new PathClass();
+	private final static PathClass NULL_CLASS = PathClass.getNullClass();
 	
 	final static String POSITIVE = "Positive";
 	final static String NEGATIVE = "Negative";
@@ -146,6 +146,15 @@ public final class PathClassFactory {
 	static boolean classExists(String classString) {
 		return mapPathClasses.containsKey(classString);
 	}
+	
+	/**
+	 * Get a {@link PathClass}, without specifying any color.
+	 * @param name
+	 * @return
+	 */
+	public static PathClass getPathClass(String name) {
+		return getPathClass(name, (Integer)null);
+	}
 		
 	/**
 	 * Get the PathClass object associated with a specific name. Note that this name must not contain newline; 
@@ -160,7 +169,8 @@ public final class PathClassFactory {
 		if (name == null)
 			return NULL_CLASS;
 		
-		name = name.trim();
+		
+		name = name.strip();
 		if (name.isEmpty() || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
 			return NULL_CLASS;
 		
@@ -169,7 +179,7 @@ public final class PathClassFactory {
 		if (split.length > 1) {
 			var pathClass = getPathClass(split[0], rgb);
 			for (int i = 1; i < split.length; i++) {
-				var temp = split[i].trim();
+				var temp = split[i].strip();
 				if (!temp.isBlank())
 					pathClass = getDerivedPathClass(pathClass, temp, rgb);
 			}
@@ -202,7 +212,7 @@ public final class PathClassFactory {
 								random.nextInt(256));
 					}
 				}
-				pathClass = new PathClass(null, name, rgb);
+				pathClass = PathClass.getInstance(null, name, rgb);
 				mapPathClasses.put(pathClass.toString(), pathClass);
 			}
 			return pathClass;
@@ -293,7 +303,7 @@ public final class PathClassFactory {
 					}
 				}
 	//				rgb = new Color(parentClass.getColor()).brighter().getRGB();
-				pathClass = new PathClass(parentClass, name, rgb);
+				pathClass = PathClass.getInstance(parentClass, name, rgb);
 				mapPathClasses.put(pathClass.toString(), pathClass);
 			}
 			return pathClass;

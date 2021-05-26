@@ -41,6 +41,7 @@ Enhancements:
 * Bio-Formats now optionally accepts URLs, not only local files (requires opt-in through the preferences)
 
 Code changes:
+* Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * GeneralTools readAsString methods now assume UTF-8 encoding

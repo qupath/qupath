@@ -291,16 +291,6 @@ public final class PathClassTools {
 		return ColorTools.packRGB(r, g, b);
 	}
 	
-	
-	/**
-	 * Return whether the specified name is a valid name for a PathClass. <p>
-	 * I.e. a name that does not contain a line break or colons (:).
-	 * @param name
-	 */
-	static boolean isValidName(String name) {
-		return name == null || (!name.contains("\n") && !name.contains(":"));
-	}
-	
 	/**
 	 * Query whether a {@link PathClass} or any of its ancestor classes contains a specified name.
 	 * <p>

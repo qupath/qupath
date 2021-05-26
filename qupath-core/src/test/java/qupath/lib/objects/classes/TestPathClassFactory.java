@@ -25,7 +25,6 @@ package qupath.lib.objects.classes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.awt.Color;
 import java.util.Arrays;
 
 import org.junit.jupiter.api.Assertions;
@@ -51,7 +50,7 @@ public class TestPathClassFactory {
 	
 	@Test
 	public void test_getPathClass2() {
-		Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass("Class with\nnew line", Color.RED.getRGB()));
+		Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass("Class with\nnew line", ColorTools.RED));
 		
 		assertEquals("Third", PathClassFactory.getPathClass("First", "Second", "Third").getName());
 		assertEquals("First: Second: Third", PathClassFactory.getPathClass("First", "Second", "Third").toString());
@@ -66,7 +65,7 @@ public class TestPathClassFactory {
 		var colorOnePlus = ColorTools.makeScaledRGB(ColorTools.packRGB(255, 215, 0), 1.25);
 		var colorTwoPlus = ColorTools.makeScaledRGB(ColorTools.packRGB(225, 150, 50), 1.25);
 		var colorThreePlus = ColorTools.makeScaledRGB(ColorTools.packRGB(200, 50, 50), 1.25);
-		checkFields("test", "test", color1, new PathClass("test", color1));
+		checkFields("test", "test", color1, PathClass.getInstance(null, "test", color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(null, color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().getName(), color1));
 		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(PathClassFactory.getPathClassUnclassified().getName(), color1));
@@ -99,14 +98,15 @@ public class TestPathClassFactory {
 		var invalidClasses = Arrays.asList(":\n", "My::Invalid\nClass");
 		
 		for (var clazz: sameClasses) {
-			assertEquals("My", PathClassFactory.getPathClass(clazz, Color.CYAN.getRGB()).getParentClass().getName());
-			assertEquals("Class", PathClassFactory.getPathClass(clazz, Color.CYAN.getRGB()).getName());
+			assertEquals("My", PathClassFactory.getPathClass(clazz, ColorTools.CYAN).getParentClass().getName());
+			assertEquals("Class", PathClassFactory.getPathClass(clazz, ColorTools.CYAN).getName());
+			assertEquals("My: Class", PathClassFactory.getPathClass(clazz, ColorTools.RED).toString());
 		}
 		for (var clazz: unclassifiedClasses) {
-			assertEquals(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(clazz, Color.CYAN.getRGB()));
+			assertEquals(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClass(clazz, ColorTools.CYAN));
 		}
 		for (var clazz: invalidClasses) {
-			Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass(clazz, Color.CYAN.getRGB()));
+			Assertions.assertThrows(IllegalArgumentException.class, () -> PathClassFactory.getPathClass(clazz, ColorTools.CYAN));
 		}
 	}
 	
@@ -140,7 +140,8 @@ public class TestPathClassFactory {
 	
 	@Test
 	public void test_getPathClassUnclassified() {
-		sameClass(new PathClass(), PathClassFactory.getPathClassUnclassified().getBaseClass());
+		sameClass(PathClassFactory.getPathClassUnclassified(), PathClassFactory.getPathClassUnclassified().getBaseClass());
+		sameClass(PathClassFactory.getPathClass((String)null), PathClassFactory.getPathClassUnclassified().getBaseClass());
 	}
 	
 	private static void sameClass(PathClass expected, PathClass actual) {
