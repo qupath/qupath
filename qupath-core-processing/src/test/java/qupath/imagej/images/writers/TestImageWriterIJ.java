@@ -43,7 +43,10 @@ public class TestImageWriterIJ {
 	@Test
 	public void testTiffAndZip() {
 		var imp = IJ.createImage("Temp", 128, 256, 4, 32);
-		IJ.run(imp, "Add Specified Noise...", "standard=500 stack");
+		// Need to call without using a macro, to avoid java.awt.HeadlessException 
+		for (int s = 1; s < imp.getStackSize(); s++)
+			imp.getStack().getProcessor(s).noise(500);
+//		IJ.run(imp, "Add Specified Noise...", "standard=500 stack");
 		testTiff(imp);
 		testZip(imp);
 	}
