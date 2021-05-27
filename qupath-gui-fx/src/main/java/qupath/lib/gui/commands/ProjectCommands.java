@@ -47,6 +47,7 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
@@ -80,13 +81,24 @@ public class ProjectCommands {
 	}
 	
 	/**
-	 * Show prompt for the user to select images to import into the current project in QuPath.
+	 * Show prompt for the user to select images to import into the current project in QuPath, choosing a suitable {@link ImageServerBuilder}.
 	 * @param qupath the QuPath instance
 	 * @param defaultPaths image paths to include when the dialog is shown (useful when the dialog is shown with some paths already known)
 	 * @return a list of project entries for all images that were successfully added to the project
 	 */
 	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
-		return ProjectImportImagesCommand.promptToImportImages(qupath, defaultPaths);
+		return promptToImportImages(qupath, null, defaultPaths);
+	}
+	
+	/**
+	 * Show prompt for the user to select images to import into the current project in QuPath.
+	 * @param qupath the QuPath instance
+	 * @param builder if not null, this will be used to create the servers. If null, a combobox will be shown to choose an installed builder.
+	 * @param defaultPaths image paths to include when the dialog is shown (useful when the dialog is shown with some paths already known)
+	 * @return a list of project entries for all images that were successfully added to the project
+	 */
+	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, ImageServerBuilder<BufferedImage> builder, String... defaultPaths) {
+		return ProjectImportImagesCommand.promptToImportImages(qupath, builder, defaultPaths);
 	}
 	
 	/**

@@ -111,6 +111,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.omero.OmeroAnnotations.CommentAnnotation;
 import qupath.lib.images.servers.omero.OmeroAnnotations.FileAnnotation;
 import qupath.lib.images.servers.omero.OmeroAnnotations.LongAnnotation;
@@ -127,6 +128,7 @@ import qupath.lib.images.servers.omero.OmeroObjects.Owner;
 import qupath.lib.images.servers.omero.OmeroObjects.Project;
 import qupath.lib.images.servers.omero.OmeroObjects.Server;
 import qupath.lib.io.GsonTools;
+import qupath.lib.projects.ProjectImageEntry;
 
 /**
  * Command to browse a specified OMERO server.
@@ -351,7 +353,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	        		if (qupath.getProject() == null)
 	        			qupath.openImage(createObjectURI(selectedItem.getValue()), true, true);
 	        		else
-	        			ProjectCommands.promptToImportImages(qupath, createObjectURI(selectedItem.getValue()));
+	        			promptToImportOmeroImages(createObjectURI(selectedItem.getValue()));
 	        	}
 	        }
 	    });
@@ -605,7 +607,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 					Dialogs.showErrorMessage("Open OMERO images", "If you want to handle multiple images, you need to create a project first."); // Same as D&D for images
 				return;
 			}
-			ProjectCommands.promptToImportImages(qupath, validUris);
+			promptToImportOmeroImages(validUris);
 		});
 
 		PaneTools.addGridRow(browseLeftPane, 0, 0, "Filter by", comboGroup, comboOwner);
@@ -894,6 +896,17 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	}
 	
 	/**
+	 * Prompt to import images, specifying the {@link OmeroWebImageServerBuilder} if possible.
+	 * @param validUris
+	 * @return
+	 */
+	private List<ProjectImageEntry<BufferedImage>> promptToImportOmeroImages(String... validUris) {
+		var builder = ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream().filter(b -> b instanceof OmeroWebImageServerBuilder).findFirst().orElse(null);
+		return ProjectCommands.promptToImportImages(qupath, builder, validUris);
+	}
+
+	
+	/**
 	 * Paint the specified image onto the specified canvas (of the preferred size).
 	 * Additionally, it returns the {@code WritableImage} for further use.
 	 * @param img
@@ -970,6 +983,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 	    }
 	}
 	
+		
 	/**
 	 * Display an OMERO object using its name.
 	 */
@@ -1596,7 +1610,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 						}).map(item -> item.toString())
 						  .toArray(String[]::new);
 				if (URIs.length > 0)
-					ProjectCommands.promptToImportImages(qupath, URIs);
+					promptToImportOmeroImages(URIs);
 				else
 					Dialogs.showErrorMessage("No image found", "No image found in OMERO object.");
 			});
@@ -1714,7 +1728,7 @@ public class OmeroWebImageServerBrowserCommand implements Runnable {
 							List<URI> URIs = OmeroTools.getURIs(selectedItem.link.toURI());
 							var uriStrings = URIs.parallelStream().map(uriTemp -> uriTemp.toString()).toArray(String[]::new);
 							if (URIs.size() > 0)
-								ProjectCommands.promptToImportImages(qupath, uriStrings);
+								promptToImportOmeroImages(uriStrings);
 							else
 								Dialogs.showErrorMessage("No image found", "No image found in OMERO object.");
 						} catch (IOException | URISyntaxException ex) {
