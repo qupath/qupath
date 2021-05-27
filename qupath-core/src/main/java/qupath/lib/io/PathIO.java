@@ -97,7 +97,7 @@ public class PathIO {
 	 * Version 2 switched to integers, and includes Locale information
 	 * Version 3 stores JSON instead of a server path
 	 */
-	private final static String DATA_FILE_VERSION = "3";
+	private final static int DATA_FILE_VERSION = 3;
 	
 	private PathIO() {}
 	
@@ -112,7 +112,8 @@ public class PathIO {
 	 * @throws ClassNotFoundException 
 	 * @deprecated This was useful in QuPath v0.1.2 and earlier, since all information to construct a server was stored within its path. 
 	 *             In v0.2 and later, the server path is in general not sufficient to construct a server, and this method lingers 
-	 *             only for backwards compatibility.
+	 *             only for backwards compatibility. It will be removed in a later version.
+	 * @see #extractServerBuilder(Path)
 	 */
 	@Deprecated
 	public static String readSerializedServerPath(final File file) throws FileNotFoundException, IOException, ClassNotFoundException {
@@ -135,6 +136,7 @@ public class PathIO {
 	 * @param file
 	 * @return
 	 * @throws IOException if there is an error creating a {@link ServerBuilder}, or the file is not a valid QuPath data file.
+	 * @since 0.3
 	 */
 	public static <T> ServerBuilder<T> extractServerBuilder(Path file) throws IOException {
 		try (InputStream fileIn = Files.newInputStream(file)) {
@@ -142,7 +144,7 @@ public class PathIO {
 			// Check the first line, then read the server path if it is valid
 			String firstLine = inStream.readUTF();
 			if (firstLine.startsWith("Data file version")) {
-				return extractServerBuilder((String)inStream.readObject());
+				return extractServerBuilder((String)inStream.readObject(), true);
 			} else {
 				throw new IOException(file + " does not appear to be a valid QuPath data file");
 			}
@@ -160,17 +162,23 @@ public class PathIO {
 	 * 
 	 * @param <T>
 	 * @param serverString
+	 * @param warnIfInvalid log warnings if the server is a different version
 	 * @return
 	 * @throws IOException
 	 */
-	private static <T> ServerBuilder<T> extractServerBuilder(String serverString) throws IOException {
+	private static <T> ServerBuilder<T> extractServerBuilder(String serverString, boolean warnIfInvalid) throws IOException {
 		if (serverString.startsWith("Image path: ")) {
 			String serverPath = serverString.substring("Image path: ".length()).trim();
 			URI uri = ImageServerProvider.legacyPathToURI(serverPath);
+			if (warnIfInvalid)
+				logger.warn("Attempting to extract server from legacy data file - this may result in errors");
 			return DefaultImageServerBuilder.createInstance(null, uri);
 		} else {
 			String json = serverString;
 			var wrapper = GsonTools.getInstance().fromJson(json, ServerBuilderWrapper.class);
+			if (warnIfInvalid && !Objects.equals(wrapper.dataVersion, DATA_FILE_VERSION)) {
+				logger.warn("Attempting to read data file version {} written by QuPath {} (expected data file version {})", wrapper.dataVersion, wrapper.qupathVersion, DATA_FILE_VERSION);
+			}
 			return (ServerBuilder<T>)wrapper.server;
 		}
 	}
@@ -185,13 +193,15 @@ public class PathIO {
 	 */
 	static class ServerBuilderWrapper<T> {
 		
-		private String dataVersion = DATA_FILE_VERSION;
-		private String qupathVersion = GeneralTools.getVersion();
+		private int dataVersion = -1;
+		private String qupathVersion = null;
 		private ServerBuilder<T> server;
 		private String id;
 		
 		static <T> ServerBuilderWrapper<T>  create(ServerBuilder<T> builder, String id) {
 			var wrapper = new ServerBuilderWrapper<T>();
+			wrapper.dataVersion = DATA_FILE_VERSION;
+			wrapper.qupathVersion = GeneralTools.getVersion();
 			wrapper.server = builder;
 			wrapper.id = id;
 			return wrapper;
@@ -247,8 +257,8 @@ public class PathIO {
 			//				}
 
 			String serverString = (String)inStream.readObject();
-			serverBuilder = extractServerBuilder(serverString);
-
+			// Don't log warnings if we are provided with a server
+			serverBuilder = extractServerBuilder(serverString, server == null);
 
 			while (true) {
 				//					logger.debug("Starting read: " + inStream.available());
