@@ -195,6 +195,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 //		TextArea textDescription = new TextArea();
 		TextArea textDescription = new TextArea();
 		textDescription.textProperty().bind(descriptionText);
+		textDescription.setWrapText(true);
 		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
 		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
 		
