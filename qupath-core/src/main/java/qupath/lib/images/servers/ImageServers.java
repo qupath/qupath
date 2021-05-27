@@ -26,11 +26,16 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,11 +50,16 @@ import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Unmatched;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServerBuilder.AbstractServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.DefaultImageServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
+import qupath.lib.images.servers.ImageServerProvider.UriImageSupportComparator;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerRegion;
 import qupath.lib.images.servers.SparseImageServer.SparseImageServerManagerResolution;
@@ -78,6 +88,7 @@ public class ImageServers {
 			.registerSubtype(SparseImageServerBuilder.class, "sparse")
 			.registerSubtype(CroppedImageServerBuilder.class, "cropped")
 			.registerSubtype(PyramidGeneratingServerBuilder.class, "pyramidize") // For consistency, this would ideally be pyramidalize... but need to keep backwards-compatibility
+			.registerSubtype(ReorderRGBServerBuilder.class, "swapRedBlue")
 			.registerSubtype(ColorDeconvolutionServerBuilder.class, "color_deconvolved")
 			;
 	
@@ -228,6 +239,222 @@ public class ImageServers {
 		}
 		return new PyramidGeneratingImageServer(server, tileWidth, tileHeight, downsamples);
 	}
+	
+	
+	/**
+	 * Build a {@link ImageServer} for the specified URI path and optional args.
+	 * <p>
+	 * See {@link #buildServer(URI, String...)} for more information about how args are applied.
+	 * 
+	 * @param path path for the image; it should be possible to convert this to a URI
+	 * @param args
+	 * @return
+	 * @throws IOException
+	 */
+	public static ImageServer<BufferedImage> buildServer(String path, String... args) throws IOException {
+		return buildServer(ImageServerProvider.legacyPathToURI(path), args);
+	}
+	
+	/**
+	 * Build a {@link ImageServer} for the specified URI and optional args.
+	 * This differs from {@link ImageServerProvider#buildServer(String, Class, String...)} in two main ways:
+	 * <ol>
+	 *   <li>it always uses {@link BufferedImage} as the server class</li>
+	 *   <li>where possible, args that request a transformed server are applied</li>
+	 * </ol>
+	 * 
+	 * Supported arguments include
+	 * <ol>
+	 *   <li>{@code --classname} to request an image provider class</li>
+	 *   <li>{@code --order RGB/BGR} etc. to request reordering for RGB channels</li>
+	 *   <li>{@code --rotate ROTATE_90/ROTATE_180/ROTATE_270} to request rotation</li>
+	 * </ol>
+	 * More arguments are likely to be added in future versions. All unmatched arguments are passed to the 
+	 * image reading library.
+	 * 
+	 * @param uri
+	 * @param args
+	 * @return
+	 * @throws IOException
+	 */
+	public static ImageServer<BufferedImage> buildServer(URI uri, String... args) throws IOException {
+		var supports = getAllImageSupports(uri, args);
+		List<Exception> exceptions = new ArrayList<>();
+		for (var support : supports) {
+			try {
+				return support.getBuilders().iterator().next().build();
+			} catch (Exception e) {
+				exceptions.add(e);
+			}
+		}
+		var exception = new IOException(buildBaseExceptionMessage(uri, args));
+		for (var e : exceptions)
+			exception.addSuppressed(e);
+		throw exception;
+	}
+	
+	private static String buildBaseExceptionMessage(URI uri, String... args) {
+		if (args.length == 0)
+			return "Unable to open " + uri;
+		else
+			return "Unable to open " + uri + " with args [" + Arrays.stream(args).collect(Collectors.joining(", ")) + "]";
+	}
+	
+	/**
+	 * Get all {@link UriImageSupport} that claim to be able to open the specified URI with optional args.
+	 * <p>
+	 * See {@link #buildServer(URI, String...)} for more information about how args are applied.
+	 * 
+	 * @param uri
+	 * @param args
+	 * @return a list or {@link UriImageSupport}, ranked in descending order of support level.
+	 * @throws IOException
+	 */
+	public static List<UriImageSupport<BufferedImage>> getAllImageSupports(URI uri, String... args) throws IOException {
+		
+		var serverArgs = parseServerArgs(args);
+		String[] requestedClassnames = serverArgs.requestedClassnames;
+		
+		List<UriImageSupport<BufferedImage>> supports = new ArrayList<>();
+		var availableBuilders = ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class);
+		List<Exception> exceptions = new ArrayList<>();
+		
+		// If we've requested a particular builder, only check that
+		if (requestedClassnames.length > 0) {
+			for (var builder : availableBuilders) {
+				if (builder.matchClassName(requestedClassnames)) {
+					try {
+						var support = getImageSupport(builder, uri, serverArgs);
+						if (support != null)
+							supports.add(support);
+						else
+							exceptions.add(new IOException("Unable to open " + uri + " with " + builder));
+					} catch (IOException e) {
+						exceptions.add(e);
+					}
+				}
+			}
+			if (supports.isEmpty()) {
+				throw new IOException("No compatible readers found with classnames [" + Arrays.stream(requestedClassnames).collect(Collectors.joining(", ")) + "]");
+			}
+		} else {
+			// If we don't know what builder we want, check all of them
+			for (var builder : availableBuilders) {
+				try {
+					var support = getImageSupport(builder, uri, serverArgs);
+					if (support != null && support.getSupportLevel() > 0f)
+						supports.add(support);
+				} catch (IOException e) {
+					exceptions.add(e);
+				}
+			}
+		}
+		if (supports.isEmpty()) {
+			var exception = new IOException(buildBaseExceptionMessage(uri, args));
+			for (var e : exceptions)
+				exception.addSuppressed(e);
+			throw exception;
+		}
+		Comparator<UriImageSupport<BufferedImage>> comparator = Collections.reverseOrder(new UriImageSupportComparator<>());
+		supports.sort(comparator);
+		return supports;
+	}
+	
+	private static UriImageSupport<BufferedImage> getImageSupport(ImageServerBuilder<BufferedImage> builder, URI uri, ServerArgs serverArgs) throws IOException {
+		var extraArgs = serverArgs.unmatched.clone();
+		var support = builder.checkImageSupport(uri, extraArgs);
+		return transformSupport(support, serverArgs);
+	}
+	
+	/**
+	 * Get the {@link UriImageSupport} that is best able to open the specified image with optional args.
+	 * <p>
+	 * See {@link #buildServer(URI, String...)} for more information about how args are applied.
+	 * 
+	 * @param uri
+	 * @param args
+	 * @return a list or {@link UriImageSupport}, ranked in descending order of support level.
+	 * @throws IOException
+	 */
+	public static UriImageSupport<BufferedImage> getImageSupport(URI uri, String... args) throws IOException {
+		var supports = getAllImageSupports(uri, args);
+		return supports.isEmpty() ? null : supports.get(0);
+	}
+	
+	/**
+	 * Get the {@link UriImageSupport} associated with an {@link ImageServerBuilder}, or null if the builder does not support the image.
+	 * <p>
+	 * See {@link #buildServer(URI, String...)} for more information about how args are applied.
+	 * 
+	 * @param builder
+	 * @param uri
+	 * @param args
+	 * @return
+	 * @throws IOException
+	 */
+	public static UriImageSupport<BufferedImage> getImageSupport(ImageServerBuilder<BufferedImage> builder, URI uri, String... args) throws IOException {
+		var serverArgs = parseServerArgs(args);
+		return getImageSupport(builder, uri, serverArgs);
+	}
+	
+	
+	private static ServerArgs parseServerArgs(String... args) {
+		var serverArgs = new ServerArgs();
+		new CommandLine(serverArgs).parseArgs(args);
+		return serverArgs;
+	}
+	
+	
+	/**
+	 * In the case that we are working with BufferedImages, we can apply some default operations based on 
+	 * requested arguments.
+	 * @param support
+	 * @param args
+	 * @return
+	 */
+	static UriImageSupport<BufferedImage> transformSupport(UriImageSupport<BufferedImage> support, ServerArgs args) {
+		if (support == null)
+			return null;
+		List<Function<ServerBuilder<BufferedImage>, ServerBuilder<BufferedImage>>> functions = new ArrayList<>();
+		if (args.rotation != null && args.rotation != Rotation.ROTATE_NONE)
+			functions.add(b -> RotatedImageServer.getRotatedBuilder(b, args.rotation));
+		String orderRGB = args.getOrderRGB();
+		if (orderRGB != null) {
+			functions.add(b -> RearrangeRGBImageServer.getSwapRedBlueBuilder(b, orderRGB));
+		}
+		if (functions.isEmpty())
+			return support;
+		List<ServerBuilder<BufferedImage>> buildersNew = new ArrayList<>();
+		for (var builder : support.getBuilders()) {
+			for (var fun : functions)
+				builder = fun.apply(builder);
+			buildersNew.add(builder);
+		}
+		return new UriImageSupport<>(support.getProviderClass(), support.getSupportLevel(), buildersNew);
+	}
+	
+	
+	
+	static class ServerArgs {
+		
+		@Option(names = {"--classname"}, description = "Requested classnames for the ImageServerProvider")
+		String[] requestedClassnames = new String[0];
+
+		@Option(names = {"--rotate"}, description = "Rotate the image during reading by an increment of 90 degrees.")
+		Rotation rotation = Rotation.ROTATE_NONE;
+		
+		@Option(names = {"--order"}, description = "Rearrange the channels of an RGB image (to correct errors in the image reader)")
+		String orderRGB = null;
+		
+		@Unmatched
+		String[] unmatched = new String[0];
+		
+		String getOrderRGB() {
+			return orderRGB == null || orderRGB.isBlank() ? null : orderRGB.trim().toUpperCase();
+		}
+		
+	}
+	
 	
 	
 	static class CroppedImageServerBuilder extends AbstractServerBuilder<BufferedImage> {
@@ -447,6 +674,37 @@ public class ImageServers {
 			return new RotatedImageServerBuilder(getMetadata(), newBuilder, rotation);
 		}
 	
+	}
+	
+	static class ReorderRGBServerBuilder extends AbstractServerBuilder<BufferedImage> {
+		
+		private ServerBuilder<BufferedImage> builder;
+		private String order;
+		
+		ReorderRGBServerBuilder(ImageServerMetadata metadata, ServerBuilder<BufferedImage> builder, String order) {
+			super(metadata);
+			this.builder = builder;
+			this.order = order;
+		}
+		
+		@Override
+		protected ImageServer<BufferedImage> buildOriginal() throws Exception {
+			return new RearrangeRGBImageServer(builder.build(), order);
+		}
+		
+		@Override
+		public Collection<URI> getURIs() {
+			return builder.getURIs();
+		}
+
+		@Override
+		public ServerBuilder<BufferedImage> updateURIs(Map<URI, URI> updateMap) {
+			ServerBuilder<BufferedImage> newBuilder = builder.updateURIs(updateMap);
+			if (newBuilder == builder)
+				return this;
+			return new ReorderRGBServerBuilder(getMetadata(), newBuilder, order);
+		}
+		
 	}
 	
 	static class ImageServerTypeAdapterFactory implements TypeAdapterFactory {

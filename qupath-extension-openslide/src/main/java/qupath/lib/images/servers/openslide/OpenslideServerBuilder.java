@@ -161,4 +161,17 @@ public class OpenslideServerBuilder implements ImageServerBuilder<BufferedImage>
 		return BufferedImage.class;
 	}
 	
+	@Override
+	public boolean matchClassName(String... classNames) {
+		for (var className : classNames) {
+			if (this.getClass().getName().equals(className) ||
+					this.getClass().getSimpleName().equals(className) ||
+					OpenslideImageServer.class.getName().equals(className) ||
+					OpenslideImageServer.class.getSimpleName().equals(className) ||
+					"openslide".equalsIgnoreCase(className))
+				return true;			
+		}
+		return false;
+	}
+	
 }

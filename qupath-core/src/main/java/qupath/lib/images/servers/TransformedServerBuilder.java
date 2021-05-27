@@ -91,6 +91,17 @@ public class TransformedServerBuilder {
 	}
 	
 	/**
+	 * Rearrange the channel order of an RGB image.
+	 * This is intended for cases where an image has wrongly been interpreted as RGB or BGR.
+	 * @param order
+	 * @return
+	 */
+	public TransformedServerBuilder reorderRGB(String order) {
+		server = new RearrangeRGBImageServer(server, order);
+		return this;
+	}
+	
+	/**
 	 * Rotate the image, using an increment of 90 degrees.
 	 * @param rotation
 	 * @return

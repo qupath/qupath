@@ -126,8 +126,16 @@ public class ImageServerProvider {
 		return builders;
 	}
 	
-
-	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
+	
+	/**
+	 * Method to help with converting legacy image paths to URIs.
+	 * This is intended for compatibility with data files used in QuPath v0.1.2, where servers 
+	 * were represented using paths only (rather than JSON).
+	 * @param path
+	 * @return a URI parsed from a path, if possible
+	 * @throws IOException
+	 */
+	public static URI legacyPathToURI(String path) throws IOException {
 		URI uriTemp;
 		try {
 			if (path.startsWith("file:")) { 
@@ -150,14 +158,21 @@ public class ImageServerProvider {
 					uriTemp = new URI(uriTemp.getScheme(), uriTemp.getAuthority(), uriTemp.getPath(), "name="+seriesName, null);
 				}
 			}
-			if ("file".equals(uriTemp.getScheme()) && !new File(uriTemp).exists()) {
-				throw new IOException(uriTemp.toString() + " does not exist!");
-			}
+//			if ("file".equals(uriTemp.getScheme()) && !new File(uriTemp).exists()) {
+//				throw new IOException(uriTemp.toString() + " does not exist!");
+//			}
 		} catch (URISyntaxException e) {
 			throw new IOException(e.getLocalizedMessage());
 		}
+		return uriTemp;
+	}
+	
 
-		URI uri = uriTemp;
+	private static <T> List<UriImageSupport<T>> getServerBuilders(final Class<T> cls, final String path, String...args) throws IOException {
+		URI uri = legacyPathToURI(path);
+		if ("file".equals(uri.getScheme()) && !new File(uri).exists()) {
+			throw new IOException(uri.toString() + " does not exist!");
+		}
 
 		Collection<String> requestedClassnames = new HashSet<>();
 		String key = "--classname";
@@ -220,6 +235,10 @@ public class ImageServerProvider {
 	
 	/**
 	 * Attempt to create {@code ImageServer<T>} from the specified path and arguments.
+	 * <p>
+	 * In general, since v0.3 {@link ImageServers#buildServer(URI, String...)} is usually preferable to this method because it parses 
+	 * and applies known args (e.g. to reorder RGB channels or rotate the image). 
+	 * Here, all args apart from {@code --classname} are passed to builders - which may or may not do anything with them.
 	 * 
 	 * @param path path to an image - typically a URI
 	 * @param cls desired generic type for the ImageServer, e.g. BufferedImage.class
@@ -285,7 +304,7 @@ public class ImageServerProvider {
 	 *
 	 * @param <T>
 	 */
-	private static class UriImageSupportComparator<T> implements Comparator<UriImageSupport<T>> {
+	static class UriImageSupportComparator<T> implements Comparator<UriImageSupport<T>> {
 
 		@Override
 		public int compare(UriImageSupport<T> o1, UriImageSupport<T> o2) {

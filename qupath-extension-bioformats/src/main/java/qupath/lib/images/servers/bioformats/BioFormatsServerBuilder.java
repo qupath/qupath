@@ -185,6 +185,20 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		return BufferedImage.class;
 	}
 	
+	@Override
+	public boolean matchClassName(String... classNames) {
+		for (var className : classNames) {
+			if (this.getClass().getName().equals(className) ||
+					this.getClass().getSimpleName().equals(className) ||
+					BioFormatsImageServer.class.getName().equals(className) ||
+					BioFormatsImageServer.class.getSimpleName().equals(className) ||
+					"bioformats".equalsIgnoreCase(className))
+				return true;			
+		}
+		return false;
+	}
+	
+	
 	/**
 	 * Request the Bio-Formats version number from {@code loci.formats.FormatTools.VERSION}.
 	 * <p>

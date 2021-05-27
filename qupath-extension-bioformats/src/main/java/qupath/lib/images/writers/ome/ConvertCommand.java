@@ -36,7 +36,7 @@ import picocli.CommandLine.Parameters;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.extensions.Subcommand;
 import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.Builder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.CompressionType;
@@ -133,7 +133,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 		else
 			args = new String[0];
 		
-		try (ImageServer<BufferedImage> server = ImageServerProvider.buildServer(inputFile.getPath(), BufferedImage.class, args)) {
+		try (ImageServer<BufferedImage> server = ImageServers.buildServer(inputFile.toURI(), args)) {
 			
 			// Get compression from user (or CompressionType.DEFAULT)
 //			CompressionType compressionType = stringToCompressionType(compression);

@@ -27,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,6 +65,7 @@ import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 
@@ -323,7 +325,8 @@ class ScriptCommand implements Runnable {
 				}
 			} else if (imagePath != null && !imagePath.equals("")) {
 				String path = QuPath.getEncodedPath(imagePath);
-				ImageServer<BufferedImage> server = ImageServerProvider.buildServer(path, BufferedImage.class, parseArgs(serverArgs));
+				URI uri = GeneralTools.toURI(path);
+				ImageServer<BufferedImage> server = ImageServers.buildServer(uri, parseArgs(serverArgs));
 				imageData = new ImageData<>(server);
 				Object result = runScript(null, imageData);
 				if (result != null)

@@ -34,6 +34,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.imagej.images.servers.ImageJServer;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -180,5 +181,18 @@ public class OmeroWebImageServerBuilder implements ImageServerBuilder<BufferedIm
 	@Override
 	public Class<BufferedImage> getImageType() {
 		return BufferedImage.class;
+	}
+	
+	@Override
+	public boolean matchClassName(String... classNames) {
+		for (var className : classNames) {
+			if (this.getClass().getName().equals(className) ||
+					this.getClass().getSimpleName().equals(className) ||
+					OmeroWebImageServer.class.getName().equals(className) ||
+					OmeroWebImageServer.class.getSimpleName().equals(className) ||
+					"omero-web".equalsIgnoreCase(className))
+				return true;			
+		}
+		return false;
 	}
 }

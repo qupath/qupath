@@ -32,6 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -1440,7 +1441,7 @@ public class QP {
 	}
 
 	/**
-	 * Build an {@link ImageServer} with the class {@link BufferedImage}.
+	 * Build an {@link ImageServer} with a specified class.
 	 * 
 	 * @param path image path (usually a file path or URI)
 	 * @param args optional arguments
@@ -1448,7 +1449,11 @@ public class QP {
 	 * @return an {@link ImageServer}, if one could be build from the supplied arguments
 	 * 
 	 * @throws IOException if unable to build the server
+	 * @deprecated In the usual case where {@link BufferedImage} is the class, use {@link #buildServer(String, String...)} instead 
+	 *             because it handles default args.
+	 * @see ImageServers#buildServer(URI, String...)
 	 */
+	@Deprecated
 	public static <T> ImageServer<T> buildServer(String path, Class<T> cls, String... args) throws IOException {
 		return ImageServerProvider.buildServer(path, cls, args);
 	}
@@ -1461,9 +1466,26 @@ public class QP {
 	 * @return an {@link ImageServer}, if one could be build from the supplied arguments
 	 * 
 	 * @throws IOException if unable to build the server
+	 * @apiNote In v0.3 the behavior of this method changed to support more default arguments.
+	 * @see ImageServers#buildServer(URI, String...)
 	 */
 	public static ImageServer<BufferedImage> buildServer(String path, String... args) throws IOException {
-		return buildServer(path, BufferedImage.class, args);
+		return ImageServers.buildServer(path, args);
+	}
+	
+	/**
+	 * Build an {@link ImageServer} with the class {@link BufferedImage}.
+	 * 
+	 * @param uri image URI
+	 * @param args optional arguments
+	 * @return an {@link ImageServer}, if one could be build from the supplied arguments
+	 * 
+	 * @throws IOException if unable to build the server
+	 * @since v0.3
+	 * @see ImageServers#buildServer(URI, String...)
+	 */
+	public static ImageServer<BufferedImage> buildServer(URI uri, String... args) throws IOException {
+		return ImageServers.buildServer(uri, args);
 	}
 	
 	
