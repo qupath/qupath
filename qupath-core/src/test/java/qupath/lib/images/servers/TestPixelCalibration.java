@@ -28,7 +28,7 @@ import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("javadoc")
-public class PixelCalibrationTest {
+public class TestPixelCalibration {
 
 	@Test
 	public void test() {

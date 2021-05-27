@@ -51,7 +51,6 @@ import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -143,10 +142,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private static int DEFAULT_TILE_SIZE = 512;
 
-	/**
-	 * Maximum tile size - larger values will be ignored.
-	 */
-	private static int MAX_TILE_SIZE = 4096;
+//	/**
+//	 * Maximum tile size - larger values will be ignored.
+//	 */
+//	private static int MAX_TILE_SIZE = 4096;
 	
 	/**
 	 * Image names (in lower case) normally associated with 'extra' images, but probably not representing the main image in the file.
@@ -294,8 +293,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		if (requestedSeriesName.isBlank())
 			requestedSeriesName = null;
 		
-		// This appears to work more reliably than converting to a File
-		filePath = Paths.get(uri).toString();
+		// Try to get a local file path, but accept something else (since Bio-Formats handles other URIs)
+		try {
+			var path = GeneralTools.toPath(uri);
+			if (path != null)
+				filePath = path.toString();
+//			filePath = Paths.get(uri).toString();
+		} catch (Exception e) {
+			logger.error(e.getLocalizedMessage(), e);
+		} finally {
+			if (filePath == null) {
+				logger.debug("Using URI as file path: {}", uri);
+				filePath = uri.toString();
+			}
+		}
 
 		// Create a reader & extract the metadata
 		readerWrapper = manager.getPrimaryReaderWrapper(options, filePath, bfArgs);
@@ -1317,7 +1328,8 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			Memoizer memoizer = null;
 			int memoizationTimeMillis = options.getMemoizationTimeMillis();
 			File dir = null;
-			if (memoizationTimeMillis >= 0) {
+			// We can only use memoization if we don't have an illegal character
+			if (memoizationTimeMillis >= 0 && !id.contains(":")) {
 				// Try to use a specified directory
 				String pathMemoization = options.getPathMemoization();
 				if (pathMemoization != null && !pathMemoization.trim().isEmpty()) {

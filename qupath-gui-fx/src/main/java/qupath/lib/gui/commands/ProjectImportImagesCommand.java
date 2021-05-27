@@ -110,7 +110,16 @@ class ProjectImportImagesCommand {
 	private final static BooleanProperty importObjectsProperty = PathPrefs.createPersistentPreference("projectImportObjects", false);
 
 	
-	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
+	/**
+	 * Prompt to import images to the current project.
+	 * 
+	 * 
+	 * @param qupath QuPath instance, used to access the current project and stage
+	 * @param builder if not null, this will be used to create the servers. If null, a combobox will be shown to choose an installed builder.
+	 * @param defaultPaths URIs to use to prepopulate the list
+	 * @return
+	 */
+	static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, ImageServerBuilder<BufferedImage> builder, String... defaultPaths) {
 		var project = qupath.getProject();
 		if (project == null) {
 			Dialogs.showNoProjectError(commandName);
@@ -156,17 +165,20 @@ class ProjectImportImagesCommand {
 	         }
 		}
 		
+		boolean requestBuilder = builder == null;
 		ComboBox<ImageServerBuilder<BufferedImage>> comboBuilder = new ComboBox<>();
-		comboBuilder.setCellFactory(p -> new BuilderListCell());
-		comboBuilder.setButtonCell(new BuilderListCell());
-		List<ImageServerBuilder<BufferedImage>> availableBuilders = new ArrayList<>(ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class));
-		if (!availableBuilders.contains(null))
-			availableBuilders.add(0, null);
-		comboBuilder.getItems().setAll(availableBuilders);
-		comboBuilder.getSelectionModel().selectFirst();
 		Label labelBuilder = new Label("Image provider");
-		labelBuilder.setLabelFor(comboBuilder);
-		labelBuilder.setMinWidth(Label.USE_PREF_SIZE);
+		if (requestBuilder) {
+			comboBuilder.setCellFactory(p -> new BuilderListCell());
+			comboBuilder.setButtonCell(new BuilderListCell());
+			List<ImageServerBuilder<BufferedImage>> availableBuilders = new ArrayList<>(ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class));
+			if (!availableBuilders.contains(null))
+				availableBuilders.add(0, null);
+			comboBuilder.getItems().setAll(availableBuilders);
+			comboBuilder.getSelectionModel().selectFirst();
+			labelBuilder.setLabelFor(comboBuilder);
+			labelBuilder.setMinWidth(Label.USE_PREF_SIZE);
+		}
 		
 		ComboBox<ImageType> comboType = new ComboBox<>();
 		comboType.getItems().setAll(ImageType.values());
@@ -200,7 +212,8 @@ class ProjectImportImagesCommand {
 		paneType.setHgap(5);
 		paneType.setVgap(5);
 		int row = 0;
-		PaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
+		if (requestBuilder)
+			PaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
 		PaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
 		PaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
 		PaneTools.addGridRow(paneType, row++, 0, "Optionally pass reader-specific arguments to the image provider.\nUsually this should just be left empty.", labelArgs, tfArgs);
@@ -250,6 +263,7 @@ class ProjectImportImagesCommand {
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.setResizable(true);
+		dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Import images to project");
 		ButtonType typeImport = new ButtonType("Import", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
@@ -279,7 +293,7 @@ class ProjectImportImagesCommand {
 		pyramidalizeProperty.set(pyramidalize);
 		importObjectsProperty.set(importObjects);
 		
-		ImageServerBuilder<BufferedImage> requestedBuilder = comboBuilder.getSelectionModel().getSelectedItem();
+		ImageServerBuilder<BufferedImage> requestedBuilder = requestBuilder ? comboBuilder.getSelectionModel().getSelectedItem() : builder;
 		
 		List<String> argsList = new ArrayList<>();
 		

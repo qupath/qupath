@@ -56,6 +56,7 @@ public class BioFormatsServerOptions {
 	private Set<String> useExtensions = new TreeSet<>();
 	
 	private boolean requestParallelization = true;
+	private boolean filesOnly = true;
 	private int memoizationTimeMillis = 500;
 //	private boolean requestParallelizeMultichannel = false;
 	private String pathMemoization;
@@ -108,7 +109,7 @@ public class BioFormatsServerOptions {
 	}
 
 	/**
-	 * Set additional arguments that should be passed to viewers.
+	 * Set additional arguments that should be passed to readers.
 	 * Example:
 	 * <pre>
 	 * 	BioFormatsServerOptions.setReaderOptions(Map.of("zeissczi.autostitch", "false"));
@@ -150,6 +151,22 @@ public class BioFormatsServerOptions {
 	 */
 	public void setBioformatsEnabled(final boolean bioformatsEnabled) {
 		this.bioformatsEnabled = bioformatsEnabled;
+	}
+	
+	/**
+	 * Set whether Bio-Formats should support only local files (rather than any URL).
+	 * @param filesOnly
+	 */
+	public void setFilesOnly(boolean filesOnly) {
+		this.filesOnly = filesOnly;
+	}
+	
+	/**
+	 * Returns true if Bio-Formats is restricted to support only local files, not other URLs.
+	 * @return
+	 */
+	public boolean getFilesOnly() {
+		return filesOnly;
 	}
 	
 	/**

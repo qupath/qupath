@@ -41,8 +41,10 @@ Enhancements:
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
+* Bio-Formats now optionally accepts URLs, not only local files (requires opt-in through the preferences)
 
 Code changes:
+* Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * GeneralTools readAsString methods now assume UTF-8 encoding
@@ -74,6 +76,7 @@ List of bugs fixed:
 * Dialogs.showConfirmDialog(title, text) shows the text in the title bar, rather than the title (https://github.com/qupath/qupath/issues/662)
 * Error in StarDist intensity measurements for 8-bit RGB fluorescence images (https://github.com/qupath/qupath/issues/686)
 * Opening images with very narrow tiles can fail with Bio-Formats (https://github.com/qupath/qupath/issues/715)
+* OMEPyramidSeries is not public (https://github.com/qupath/qupath/issues/726)
 * Not possible to view multiple channels simultaneously with inverted lookup tables (max display < min display)
 * Exception when converting PathObject with name but no color to GeoJSON
 * Cannot write valid 16-bit PNG labelled images

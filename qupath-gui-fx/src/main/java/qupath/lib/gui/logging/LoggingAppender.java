@@ -176,6 +176,7 @@ class LoggingAppender extends AppenderBase<ILoggingEvent> {
 		if (isActive && event.getLevel().isGreaterOrEqual(minLevel)) {
 			String message = event.getLevel() + ": " + event.getFormattedMessage() + "\n";
 			if (event.getThrowableProxy() != null && event.getLevel().isGreaterOrEqual(Level.ERROR)) {
+				message += event.getThrowableProxy().getClassName() + ": " + event.getThrowableProxy().getMessage() + "\n";
 				for (StackTraceElementProxy element : event.getThrowableProxy().getStackTraceElementProxyArray())
 					message += "    " + element.getSTEAsString() + "\n";
 				

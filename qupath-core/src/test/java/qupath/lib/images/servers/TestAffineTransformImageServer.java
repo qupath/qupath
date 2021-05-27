@@ -36,9 +36,9 @@ import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 
 @SuppressWarnings("javadoc")
-public class AffineTransformImageServerTest {
+public class TestAffineTransformImageServer {
 	
-	private final static Logger logger = LoggerFactory.getLogger(AffineTransformImageServerTest.class);
+	private final static Logger logger = LoggerFactory.getLogger(TestAffineTransformImageServer.class);
 
 	@Test
 	public void test() {
