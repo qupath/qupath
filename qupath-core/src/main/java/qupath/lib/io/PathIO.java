@@ -670,7 +670,7 @@ public class PathIO {
 		String name = path.getFileName().toString().toLowerCase();
 		if (name.endsWith(".zip")) {
 			// In case we have more than one compressed file, iterate through each entry
-			try (var zipfs = FileSystems.newFileSystem(path)) {
+			try (var zipfs = FileSystems.newFileSystem(path, (ClassLoader) null)) {
 				List<PathObject> allObjects = new ArrayList<>();
 				for (var root : zipfs.getRootDirectories()) {
 					var tempObjects = Files.walk(root).flatMap(p -> {
