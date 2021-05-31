@@ -1,6 +1,11 @@
-ext.moduleName = 'qupath.extension.scripteditor'
+plugins {
+  id 'qupath.extension-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-extension-script-editor'
+ext.moduleName = 'qupath.extension.scripteditor'
+archivesBaseName = 'qupath-extension-script-editor'
+description = "QuPath extension to provide an alternative script editor using RichTextFX."
 
 configurations {
   implementation.extendsFrom controlsfx

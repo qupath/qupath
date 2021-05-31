@@ -1,17 +1,25 @@
-rootProject.name = 'qupath'
-include ':qupath-core'
-include ':qupath-core-processing'
-include ':qupath-gui-fx'
-include ':qupath-extension-script-editor'
-include ':qupath-extension-processing'
-include ':qupath-extension-bioformats'
-include ':qupath-extension-omero'
-include ':qupath-extension-openslide'
-include ':qupath-extension-pen'
-include ':qupath-extension-svg'
-include ':qupath-experimental'
-include ':qupath-extension-tensorflow'
+pluginManagement {
+    plugins {
+        id 'org.bytedeco.gradle-javacpp-platform' version '1.5.4'
+    }
+}
 
+rootProject.name = 'qupath'
+include 'qupath-app'
+include 'qupath-core'
+include 'qupath-core-processing'
+include 'qupath-gui-fx'
+include 'qupath-extension-script-editor'
+include 'qupath-extension-processing'
+include 'qupath-extension-bioformats'
+include 'qupath-extension-omero'
+include 'qupath-extension-openslide'
+include 'qupath-extension-pen'
+include 'qupath-extension-svg'
+include 'qupath-experimental'
+include 'qupath-extension-tensorflow'
+
+/*
 project(':qupath-core').projectDir = "$rootDir/qupath-core" as File
 project(':qupath-core-processing').projectDir = "$rootDir/qupath-core-processing" as File
 project(':qupath-gui-fx').projectDir = "$rootDir/qupath-gui-fx" as File
@@ -24,3 +32,4 @@ project(':qupath-extension-pen').projectDir = "$rootDir/qupath-extension-pen" as
 project(':qupath-extension-svg').projectDir = "$rootDir/qupath-extension-svg" as File
 project(':qupath-experimental').projectDir = "$rootDir/qupath-experimental" as File
 project(':qupath-extension-tensorflow').projectDir = "$rootDir/qupath-extension-tensorflow" as File
+ */

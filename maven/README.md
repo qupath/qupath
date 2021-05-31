@@ -7,7 +7,6 @@ This directory contains a local Maven repository, used for storing a small numbe
 
 Currently, it is used for:
 
-* OpenCV
 * OpenSlide
 * JPen
 
