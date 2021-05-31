@@ -38,13 +38,13 @@ afterEvaluate {
                 standardOutput = stdout
             }
             latestGitCommit = stdout.toString().trim()
-//            println 'Latest commit: ' + latestGitCommit
+//            logger.info('Latest commit: {}', latestGitCommit)
         } catch (Exception e) {
             logger.warn('Unable to get latest commit: ' + e.getLocalizedMessage())
             latestGitCommit = 'Unknown (is Git installed?)'
         }
     } else {
-        println "I won't try to get the last commit - consider running with '-Prequest-git-tag=true' if you want this next time (assuming Git is installed)"
+        logger.info("I won't try to get the last commit - consider running with '-Pgit-commit=true' if you want this next time (assuming Git is installed)")
     }
 
     jar {

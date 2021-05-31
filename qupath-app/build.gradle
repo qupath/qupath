@@ -106,7 +106,6 @@ distributions {
         include 'CHANGELOG.md'
         include 'STARTUP.md'
         include 'LICENSE.txt'
-        include 'VERSION'
       }
       // Get the core licenses associated with the app
       into('lib') {
@@ -220,7 +219,7 @@ runtime {
 jpackage {
   doLast {
     for (dir in outputs?.getFiles()?.files) {
-      def extensions = ['.app', '.dmg', '.pkg']
+      def extensions = ['.app', '.dmg', '.pkg', '.exe', '.msi']
       def packageFiles = dir.listFiles()
       for (f in packageFiles) {
         for (ext in extensions) {
@@ -321,7 +320,7 @@ JPackageParams buildParameters() {
   params.outputDir = project.rootProject.file("build/dist")
   params.appVersion = appVersion
   params.imageName = qupathAppName // Will need to be removed for some platforms
-  params.installerName = params.imageName
+  params.installerName = "QuPath"
   params.jvmArgs += buildDefaultJvmArgs()
 
   // Configure according to the current platform
@@ -333,7 +332,7 @@ JPackageParams buildParameters() {
   else if (platform == Platform.LINUX)
     configureJPackageLinux(params)
   else
-    logger.log(LogLevel.WARN, "Unknown platform ${os} - may be unable to generate a package")
+    logger.log(LogLevel.WARN, "Unknown platform ${platform} - may be unable to generate a package")
 
   params.resourceDir = project.file("jpackage/${platform}")
 
@@ -387,6 +386,10 @@ def configureJPackageWindows(JPackageParams params) {
     params.installerOptions += ['--win-menu-group', 'QuPath']
   }
 
+  // Can't have any -SNAPSHOT or similar added
+  params.appVersion = stripSnapshotVersion(params.appVersion)
+
+
   // Create a separate launcher with a console - this can help with debugging
   def fileTemp = File.createTempFile('qupath-building', '.properties')
   def consoleLauncherName = params.imageName + " (console)"
@@ -394,11 +397,9 @@ def configureJPackageWindows(JPackageParams params) {
   fileTemp.deleteOnExit()
   fileTemp.text = 'win-console=true'
   fileTemp << System.lineSeparator()
-  fileTemp << 'java-options=' << '-Dqupath.config=console' << String.join(" ", javaOptions) << System.lineSeparator()
-  params << '--add-launcher' << "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""
-
-  // Can't have any -SNAPSHOT or similar added
-  params.appVersion = stripSnapshotVersion(params.appVersion)
+  fileTemp << 'java-options=' << '-Dqupath.config=console ' << String.join(" ", javaOptions) << System.lineSeparator()
+  params.imageOptions += ['--add-launcher',
+            "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""]
 }
 
 /**
