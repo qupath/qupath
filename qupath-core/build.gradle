@@ -15,3 +15,6 @@ configurations {
   implementation.extendsFrom opencv
   implementation.extendsFrom picocli
 }
+
+// Preserve the version number
+project.file('src/main/resources/VERSION').setText(gradle.ext.qupathVersion, 'UTF-8')

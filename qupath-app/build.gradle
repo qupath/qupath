@@ -40,14 +40,14 @@ description = "Main QuPath application."
  */
 ext {
   macOSDefaultVersion = "1"
-  qupathVersion = rootProject.file('VERSION').text.strip()
+  qupathVersion = gradle.ext.qupathVersion
   qupathAppName = "QuPath-${qupathVersion}"
 }
 
 application {
   mainClass = "qupath.QuPath"
   applicationName = qupathAppName
-  applicationDefaultJvmArgs = buildDefaultJvmArgs('build/natives')
+  applicationDefaultJvmArgs = buildDefaultJvmArgs('../build/natives')
 }
 
 configurations {
@@ -62,26 +62,25 @@ dependencies {
   implementation includedProjects
 }
 
-/*
- * Extract native libraries where necessary
+/**
+ * Extract native libraries.
+ * This happens early, because it is useful to ensure the native libraries are
+ * available if launching QuPath from an IDE.
  */
-tasks.register("extractNativeLibraries") {
+afterEvaluate {project ->
   String nativesClassifier = Platform.classifierMap[Platform.current()]
   if (nativesClassifier == null)
     return
-  String additionalResourcesDir = 'build/natives'
+  String additionalResourcesDir = rootProject.file('build/natives').getAbsolutePath()
   configurations.runtimeClasspath.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
-    println 'Extracting native libraries from ' + file + " into " + additionalResourcesDir
-    doLast {
-      copy {
-        from zipTree(file)
-        into additionalResourcesDir
-        exclude "/META-INF/"
-      }
+    logger.info("Extracting native libraries from {} into {}", file, additionalResourcesDir)
+    copy {
+      from zipTree(file)
+      into additionalResourcesDir
+      exclude "/META-INF/"
     }
   }
 }
-tasks.jar.dependsOn("extractNativeLibraries")
 
 /**
  * Create license report
@@ -94,6 +93,7 @@ licenseReport {
                new InventoryHtmlReportRenderer('index.html', 'Third party licenses', fileUnknown)]
 }
 tasks.startScripts.dependsOn("generateLicenseReport")
+
 
 /**
  * Copy key files into the distribution.
@@ -128,7 +128,7 @@ distributions {
       }
       // Copy native libraries
       into('lib') {
-        from 'build/natives'
+        from rootProject.file('build/natives')
       }
     }
   }
@@ -148,12 +148,12 @@ List<String> getExcludedProjects() {
 
   def excludeSubprojects = []
   if (includeTensorFlowGPU) {
-    println 'Requesting TensorFlow (GPU) subproject'
+    logger.info('Requesting TensorFlow (GPU) subproject')
   } else if (includeTensorFlow) {
-    println 'Requesting TensorFlow (CPU) subproject'
+    logger.info('Requesting TensorFlow (CPU) subproject')
   } else {
     excludeSubprojects << 'qupath-extension-tensorflow'
-    println "Use -Ptensorflow-cpu=true or -Ptensorflow-gpu=true if you wish to include experimental TensorFlow module"
+    logger.info("Use -Ptensorflow-cpu=true or -Ptensorflow-gpu=true if you wish to include experimental TensorFlow module")
   }
   return excludeSubprojects
 }

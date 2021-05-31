@@ -99,20 +99,39 @@ public final class GeneralTools {
 	 * @return
 	 */
 	private static String getLatestVersion() {
+		// Version should be preserved in the manifest
 		String version = GeneralTools.class.getPackage().getImplementationVersion();
 		if (version == null) {
-			var path = Paths.get("VERSION");
-			if (!Files.exists(path))
-				path = Paths.get("app/VERSION");
-			if (Files.exists(path)) {
-				try {
-					version = Files.readString(path);
-				} catch (IOException e) {
-					logger.error("Unable to read version from {}", path);
+			// From v0.3 onwards, the version should also be stored as a resource
+			try {
+				var stream = GeneralTools.class.getResourceAsStream("/VERSION");
+				if (stream != null) {
+					version = readInputStreamAsString(stream);
+					if (version != null)
+						version = version.strip();
+				}
+			} catch (Exception e) {
+				logger.error("Error reading version: " + e.getLocalizedMessage(), e);
+			}
+			// v0.2, less reliable way
+			if (version == null) {
+				var path = Paths.get("VERSION");
+				if (!Files.exists(path))
+					path = Paths.get("app/VERSION");
+				if (Files.exists(path)) {
+					try {
+						version = Files.readString(path);
+					} catch (IOException e) {
+						logger.error("Unable to read version from {}", path);
+					}
 				}
 			}
 		}
-		return version == null ? null : version.strip();
+		if (version == null) {
+			logger.warn("QuPath version is unknown! Proceed with caution: this may cause problems with reading/writing projects.");
+			return null;
+		}
+		return version.strip();
 	}
 	
 	// Suppressed default constructor for non-instantiability

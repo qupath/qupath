@@ -36,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -1067,8 +1068,12 @@ class DefaultProject implements Project<BufferedImage> {
 			if (element.has("version"))
 				version = element.get("version").getAsString();
 			
-			if (version == null || version.equals("v0.2.0-m1") || version.equals("v0.2.0-m2") || !element.has("lastID"))
-				throw new IOException("Older projects are not supported in this version of QuPath, sorry!");
+			if (Arrays.asList("v0.2.0-m2", "v0.2.0-m1").contains(version)) {
+				throw new IOException("Older projects written with " + version + " are not compatible with this version of QuPath, sorry!");				
+			}
+			if (version == null && !element.has("lastID")) {
+				throw new IOException("QuPath project is missing a version number and last ID (was it written with an old version?)");
+			}
 						
 			long lastID = 0;
 			List<DefaultProjectImageEntry> images = element.has("images") ? gson.fromJson(element.get("images"), new TypeToken<ArrayList<DefaultProjectImageEntry>>() {}.getType()) : Collections.emptyList();

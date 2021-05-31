@@ -29,8 +29,7 @@ repositories {
 /*
  * Some metadata for the manifest
  */
-project.version = project.file('../VERSION').text.strip()
-
+project.version = gradle.ext.qupathVersion
 
 /*
  * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
@@ -47,22 +46,18 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 def platform
 def nativesClassifier
-String iconName
 if (Os.isFamily(Os.FAMILY_WINDOWS)) {
     nativesClassifier = 'natives-windows'
     if (System.properties['sun.arch.data.model'] == '32') {
         logger.warn("You appear to be using a 32-bit JDK - the build will probably fail! At the very least, some things won't work.")
     }
     platform = 'win'
-    iconName = 'windows/QuPath.ico'
 } else if (Os.isFamily(Os.FAMILY_MAC)) {
     nativesClassifier = 'natives-osx'
     platform = 'mac'
-    iconName = 'macosx/qupath.icns'
 } else if (Os.isFamily(Os.FAMILY_UNIX)) {
     nativesClassifier = 'natives-linux'
     platform = 'linux'
-    iconName = 'linux/QuPath.png'
 } else {
     logger.warn('Unknown operating system!')
 }
