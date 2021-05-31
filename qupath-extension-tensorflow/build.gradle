@@ -1,6 +1,11 @@
-ext.moduleName = 'qupath.extension.tensorflow'
+plugins {
+    id 'qupath.extension-conventions'
+    id 'java-library'
+}
 
-description = 'qupath-tensorflow'
+ext.moduleName = 'qupath.extension.tensorflow'
+archivesBaseName = 'qupath-extension-tensorflow'
+description = "QuPath extension to add TensorFlow support (experimental)."
 
 configurations {
   implementation.extendsFrom tensorflow

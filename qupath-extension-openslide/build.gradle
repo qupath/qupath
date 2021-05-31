@@ -1,6 +1,12 @@
-ext.moduleName = 'qupath.extension.openslide'
+plugins {
+  // Technically not needed for OpenSlide (since it doesn't rely on the UI)
+  id 'qupath.extension-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-extension-openslide'
+ext.moduleName = 'qupath.extension.openslide'
+archivesBaseName = 'qupath-extension-openslide'
+description = "QuPath extension to support image reading using OpenSlide."
 
 configurations {
   implementation.extendsFrom openslide

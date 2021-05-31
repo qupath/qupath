@@ -1,6 +1,11 @@
-ext.moduleName = 'qupath.extension.experimental'
+plugins {
+    id 'qupath.extension-conventions'
+    id 'java-library'
+}
 
-description = 'qupath-experimental'
+ext.moduleName = 'qupath.extension.experimental'
+archivesBaseName = 'qupath-extension-experimental'
+description = "QuPath extension containing experimental functionality, which may later be added to another module."
 
 configurations {
   implementation.extendsFrom jfxtras
