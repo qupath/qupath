@@ -366,6 +366,8 @@ void updatePackageType(JPackageParams params, String... defaultInstallers) {
   } else if (packageType == 'installer') {
     params.skipInstaller = false
     params.installerTypes = defaultInstallers as List
+  } else {
+    params.installerTypes = [packageType]
   }
 }
 
