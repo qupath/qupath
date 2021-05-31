@@ -1,35 +1,22 @@
-pluginManagement {
-    plugins {
-        id 'org.bytedeco.gradle-javacpp-platform' version '1.5.4'
-    }
-}
+gradle.ext.qupathVersion = "0.3.0-SNAPSHOT"
 
 rootProject.name = 'qupath'
+
+// Core modules
 include 'qupath-app'
 include 'qupath-core'
 include 'qupath-core-processing'
 include 'qupath-gui-fx'
-include 'qupath-extension-script-editor'
+
+// Core extensions
 include 'qupath-extension-processing'
+include 'qupath-extension-script-editor'
+include 'qupath-extension-openslide'
 include 'qupath-extension-bioformats'
 include 'qupath-extension-omero'
-include 'qupath-extension-openslide'
+
+// Extra extensions
 include 'qupath-extension-pen'
 include 'qupath-extension-svg'
-include 'qupath-experimental'
+include 'qupath-extension-experimental'
 include 'qupath-extension-tensorflow'
-
-/*
-project(':qupath-core').projectDir = "$rootDir/qupath-core" as File
-project(':qupath-core-processing').projectDir = "$rootDir/qupath-core-processing" as File
-project(':qupath-gui-fx').projectDir = "$rootDir/qupath-gui-fx" as File
-project(':qupath-extension-script-editor').projectDir = "$rootDir/qupath-extension-script-editor" as File
-project(':qupath-extension-processing').projectDir = "$rootDir/qupath-extension-processing" as File
-project(':qupath-extension-bioformats').projectDir = "$rootDir/qupath-extension-bioformats" as File
-project(':qupath-extension-omero').projectDir = "$rootDir/qupath-extension-omero" as File
-project(':qupath-extension-openslide').projectDir = "$rootDir/qupath-extension-openslide" as File
-project(':qupath-extension-pen').projectDir = "$rootDir/qupath-extension-pen" as File
-project(':qupath-extension-svg').projectDir = "$rootDir/qupath-extension-svg" as File
-project(':qupath-experimental').projectDir = "$rootDir/qupath-experimental" as File
-project(':qupath-extension-tensorflow').projectDir = "$rootDir/qupath-extension-tensorflow" as File
- */
