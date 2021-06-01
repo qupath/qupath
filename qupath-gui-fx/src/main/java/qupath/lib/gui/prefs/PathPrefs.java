@@ -451,7 +451,7 @@ public class PathPrefs {
 	
 	
 	/**
-	 * Get whether to apply the navigation acceleration (& deceleration) effects or not.
+	 * Get whether to apply the navigation acceleration (&amp; deceleration) effects or not.
 	 * 
 	 * @return
 	 */

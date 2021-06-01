@@ -1,6 +1,11 @@
-ext.moduleName = 'qupath.extension.omero'
+plugins {
+  id 'qupath.extension-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-extension-omero'
+ext.moduleName = 'qupath.extension.omero'
+archivesBaseName = 'qupath-extension-omero'
+description = "QuPath extension to support image reading using OMERO's web API."
 
 configurations {
   implementation.extendsFrom commonstext

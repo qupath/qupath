@@ -1,6 +1,11 @@
-ext.moduleName = 'qupath.core'
+plugins {
+  id 'qupath.common-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-core'
+ext.moduleName = 'qupath.core'
+archivesBaseName = 'qupath-core'
+description = "Core QuPath module containing the main classes and datastructures."
 
 configurations {
   api.extendsFrom gson
@@ -10,3 +15,6 @@ configurations {
   implementation.extendsFrom opencv
   implementation.extendsFrom picocli
 }
+
+// Preserve the version number
+project.file('src/main/resources/VERSION').setText(gradle.ext.qupathVersion, 'UTF-8')

@@ -1,6 +1,11 @@
-ext.moduleName = 'qupath.extension.jpen'
+plugins {
+  id 'qupath.extension-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-extension-pen'
+ext.moduleName = 'qupath.extension.jpen'
+archivesBaseName = 'qupath-extension-pen'
+description = "QuPath extension to support graphic tablet input using JPen."
 
 configurations {
   implementation.extendsFrom jpen
