@@ -79,7 +79,7 @@ ext {
     groovyVersion      = '3.0.8'
     gsonVersion        = '2.8.6'
     guavaVersion       = '30.1.1-jre'
-    imagejVersion      = '1.53j'
+    imagejVersion      = '1.53i'
     jfxtrasVersion     = '11-r2'
     jpenVersion        = '2-150301'
     jtsVersion         = '1.18.1'
