@@ -5,12 +5,21 @@
 
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 java {
     // TODO: Support command line toolchain specification
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(16)
+    def version = project.findProperty('toolchain')
+    if (!version)
+        version = 16
+    else if (version.strip() == 'skip')
+        version = null
+    if (version != null) {
+        logger.info("Setting toolchain to {}", version)
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(version)
+        }
     }
     withSourcesJar()
     withJavadocJar()
@@ -76,4 +85,35 @@ if (!strictJavadoc) {
     tasks.withType(Javadoc) {
         options.addStringOption('Xdoclint:none', '-quiet')
     }
+}
+
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/petebankhead/qupath")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+
+    publications {
+        gpr(MavenPublication) {
+            groupId = 'io.github.qupath'
+            from components.java
+
+            pom {
+                licenses {
+                    license {
+                        name = 'GNU General Public License, Version 3'
+                        url = 'https://www.gnu.org/licenses/gpl-3.0.txt'
+                    }
+                }
+            }
+        }
+    }
+
 }
