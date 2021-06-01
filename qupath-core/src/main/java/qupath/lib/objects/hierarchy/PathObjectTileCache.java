@@ -237,6 +237,8 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 				locator = new IndexedPointInAreaLocator(geometry);
 			else
 				locator = new SimplePointInAreaLocator(geometry);
+			// Workaround for multithreading bug in JTS 1.17.0 - see https://github.com/locationtech/jts/issues/571
+			locator.locate(new Coordinate());
 			locatorMap.put(roi, locator);
 		}
 		return locator;
@@ -363,7 +365,6 @@ class PathObjectTileCache implements PathObjectHierarchyListener {
 		if (mapObjects instanceof Quadtree) {
 			Envelope envelope = lastEnvelopeMap.get(pathObject);
 			envelope = MAX_ENVELOPE;
-//				System.err.println("Before: " + mapObjects.query(MAX_ENVELOPE).size());
 			if (envelope != null) {
 				if (mapObjects.remove(envelope, pathObject)) {
 					logger.debug("Removed {} from cache", pathObject);

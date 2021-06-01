@@ -84,6 +84,26 @@ public interface ImageServerBuilder<T> {
 	 */
 	public Class<T> getImageType();
 	
+	/**
+	 * Check if this provider matches one or more specified classnames.
+	 * <p>
+	 * The default implementation checks the full and simple name of the class.
+	 * Subclasses may override this behavior to support more intuitive names, 
+	 * e.g. "bioformats", "openslide", "imagej", "imageio".
+	 * However, this should not be overused, so as to prevent future conflicts.
+	 * 
+	 * @param classNames
+	 * @return true if there is any classname match, false otherwise
+	 */
+	public default boolean matchClassName(String... classNames) {
+		for (var className : classNames) {
+			if (this.getClass().getName().equals(className) ||
+					this.getClass().getSimpleName().equals(className))
+				return true;			
+		}
+		return false;
+	}
+	
 	
 	
 	/**
@@ -275,7 +295,7 @@ public interface ImageServerBuilder<T> {
 		}
 
 		private DefaultImageServerBuilder(Class<? extends ImageServerBuilder<T>> providerClass, URI uri, String[] args, ImageServerMetadata metadata) {
-			this(providerClass.getName(), uri, args, metadata);
+			this(providerClass == null ? null : providerClass.getName(), uri, args, metadata);
 		}
 		
 		/**
@@ -322,14 +342,18 @@ public interface ImageServerBuilder<T> {
 		@Override
 		protected ImageServer<T> buildOriginal() throws Exception {
 			boolean failedWithRequestedProvider = false;
-			for (ImageServerBuilder<?> provider : ImageServerProvider.getInstalledImageServerBuilders()) {
-				if (provider.getClass().getName().equals(providerClassName)) {
-					ImageServer<T> server = (ImageServer<T>)provider.buildServer(uri, args);
-					if (server != null)
-						return server;
-					else
-						failedWithRequestedProvider = true;
+			if (providerClassName != null) {
+				for (ImageServerBuilder<?> provider : ImageServerProvider.getInstalledImageServerBuilders()) {
+					if (provider.getClass().getName().equals(providerClassName)) {
+						ImageServer<T> server = (ImageServer<T>)provider.buildServer(uri, args);
+						if (server != null)
+							return server;
+						else
+							failedWithRequestedProvider = true;
+					}
 				}
+			} else {
+				return (ImageServer<T>)ImageServers.buildServer(uri, args);
 			}
 			String msg = "Unable to build ImageServer for " + uri + " (args=" + Arrays.asList(args) + ")";
 			if (providerClassName != null) {

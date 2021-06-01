@@ -8,4 +8,5 @@ configurations {
   implementation.extendsFrom commonsmath
   implementation.extendsFrom guava
   implementation.extendsFrom opencv
+  implementation.extendsFrom picocli
 }

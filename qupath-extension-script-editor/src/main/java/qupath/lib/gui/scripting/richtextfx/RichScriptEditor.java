@@ -240,7 +240,22 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	protected ScriptEditorControl getNewEditor() {
 		try {
 			CodeArea codeArea = new CustomCodeArea();
-			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+			
+			/*
+			 * Using LineNumberFactory.get(codeArea) gives errors related to the new paragraph folding introduced in RichTextFX 0.10.6.
+			 *  java.lang.IllegalArgumentException: Visible paragraphs' last index is [-1] but visibleParIndex was [0]
+			 *  
+			 * To replicate
+			 *  - Run using codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
+			 *  - Add some code (including line breaks) to the code area
+			 *  - Select all text (Ctrl/Cmd + A)
+			 *  - Delete text (backspace)
+			 *  - Add more text
+			 *  
+			 * The change below avoids code folding being used.
+			 */
+			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea, digits -> "%1$" + digits + "s", null, null));
+//			codeArea.setParagraphGraphicFactory(LineNumberFactory.get(codeArea));
 			
 			codeArea.setStyle("-fx-background-color: -fx-control-inner-background;");
 			

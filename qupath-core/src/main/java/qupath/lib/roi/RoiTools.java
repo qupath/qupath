@@ -47,6 +47,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -158,6 +159,27 @@ public class RoiTools {
 		return GeometryTools.geometryToROI(first, plane);
 	}
 	
+	/**
+	 * Test whether a {@link ROI} and an {@link ImageRegion} intersect.
+	 * <p>
+	 * This returns false quickly if the ROI and region do not share the same z-slice or timepoint,
+	 * or the ROI's bounding box does not intersect the region.
+	 * Otherwise, a more expensive geometry test is performed to check for intersection.
+	 * 
+	 * @param roi
+	 * @param region
+	 * @return true if the ROI and the region intersect, false otherwise
+	 */
+	public static boolean intersectsRegion(ROI roi, ImageRegion region) {
+		if (roi.getZ() != region.getZ() || roi.getT() != region.getT())
+			return false;
+		if (!region.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight()))
+			return false;
+		if (roi instanceof RectangleROI)
+			return true;
+		return GeometryTools.regionToGeometry(region).intersects(roi.getGeometry());
+	}
+	
 	
 	/**
 	 * Apply an affine transform to a ROI, returning the result.
@@ -169,6 +191,14 @@ public class RoiTools {
 		logger.trace("Applying affine transform {} to ROI {}", transform, roi);
 		if (roi == null || transform == null || transform.isIdentity())
 			return roi;
+		if (roi instanceof EllipseROI) {
+			var bounds = new Rectangle2D.Double(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight());
+			var shape = transform.createTransformedShape(bounds);
+			if (new Area(shape).isRectangular()) {
+				bounds.setRect(shape.getBounds2D());
+				return ROIs.createEllipseROI(bounds.x, bounds.y, bounds.width, bounds.height, roi.getImagePlane());
+			}
+		}
 		var t = GeometryTools.convertTransform(transform);
 		var geometry2 = t.transform(roi.getGeometry());
 		return GeometryTools.geometryToROI(geometry2, roi.getImagePlane());

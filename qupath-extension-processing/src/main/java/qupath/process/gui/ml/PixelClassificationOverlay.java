@@ -24,6 +24,7 @@ package qupath.process.gui.ml;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRenderer;
@@ -68,6 +69,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.scene.paint.Color;
 
 /**
  * {@link PathOverlay} that gives the results of pixel classification.
@@ -270,6 +272,10 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
         if (server == null)
         	return;
 
+        // Show classified tiles. Without this, opacity can make it hard to see which regions have been processed.
+        var colorComplete = imageData.getImageType() == ImageData.ImageType.FLUORESCENCE ? 
+        		ColorToolsAwt.getCachedColor(255, 255, 255, 32) :
+        		ColorToolsAwt.getCachedColor(0, 0, 0, 32);
         
         // Get the displayed clip bounds for fast checking if ROIs need to be drawn
         RegionRequest fullRequest;
@@ -328,6 +334,8 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
         	// Try to get an RGB image, supplying a server that can be queried for a corresponding non-RGB cached tile if needed
             BufferedImage imgRGB = getCachedTileRGB(tile, server);
             if (imgRGB != null) {
+            	gCopy.setColor(colorComplete);
+            	gCopy.fillRect(request.getX(), request.getY(), request.getWidth(), request.getHeight());
             	// Get the cached RGB painted version (since painting can be a fairly expensive operation)
             	gCopy.drawImage(imgRGB, request.getX(), request.getY(), request.getWidth(), request.getHeight(), null);
 //                g2d.setColor(Color.RED);
@@ -337,8 +345,9 @@ public class PixelClassificationOverlay extends AbstractOverlay  {
             }
             
             // Request a tile
-            if (livePrediction)
+            if (livePrediction) {
             	requestTile(tile, imageData, server);
+            }
         }
         gCopy.dispose();
     }

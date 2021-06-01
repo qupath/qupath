@@ -30,6 +30,7 @@ import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.text.NumberFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -101,6 +102,7 @@ import javafx.stage.Stage;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -115,6 +117,7 @@ import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectImageEntry;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.GeometryTools;
 import qupath.opencv.tools.OpenCVTools;
 
 
@@ -123,6 +126,8 @@ import qupath.opencv.tools.OpenCVTools;
  * 
  * @author Pete Bankhead
  *
+ * modified by @phaub , 04'2021 (Support of viewer display settings)
+ * 
  */
 public class ImageAlignmentPane {
 	
@@ -350,7 +355,17 @@ public class ImageAlignmentPane {
 			var affine = overlay == null ? null : overlay.getAffine();
 			if (affine == null)
 				return;
-			parseAffine(textArea.getText(), affine);
+			try {
+				// Parse String as AffineTransform
+				var newAffine = GeometryTools.parseTransformMatrix(textArea.getText());
+				var values = newAffine.getMatrixEntries();
+
+				// JavaFX's Affine has a different element ordering than awt's AffineTransform
+				affine.setToTransform(values[0], values[1], values[2], values[3], values[4], values[5]);
+			} catch (ParseException ex) {
+				Dialogs.showErrorMessage("Parse affine transform", "Unable to parse affine transform!");
+				logger.error("Error parsing transform: " + ex.getLocalizedMessage(), ex);
+			}
 		});
 		Button btnReset = new Button("Reset");
 		btnReset.setOnAction(e -> {
@@ -550,6 +565,8 @@ public class ImageAlignmentPane {
 		List<ImageData<BufferedImage>> imagesToAdd = new ArrayList<>();
 		for (ProjectImageEntry<BufferedImage> temp : toSelect) {
 			ImageData<BufferedImage> imageData = null;
+			ImageRenderer renderer = null;
+			
 			// Read annotations from any data file
 			try {
 				// Try to get data from an open viewer first, if possible
@@ -557,6 +574,8 @@ public class ImageAlignmentPane {
 					var tempData = viewer.getImageData();
 					if (tempData != null && temp.equals(project.getEntry(viewer.getImageData()))) {
 						imageData = tempData;
+						//@phaub Support of viewer display settings
+						renderer = viewer.getImageDisplay();
 						break;
 					}
 				}
@@ -578,6 +597,9 @@ public class ImageAlignmentPane {
 				continue;
 			}
 			ImageServerOverlay overlay = new ImageServerOverlay(viewer, imageData.getServer());
+			//@phaub Support of viewer display settings
+			overlay.setRenderer(renderer);
+			
 			overlay.getAffine().addEventHandler(TransformChangedEvent.ANY, transformEventHandler);
 			mapOverlays.put(imageData, overlay);
 //			viewer.getCustomOverlayLayers().add(overlay);

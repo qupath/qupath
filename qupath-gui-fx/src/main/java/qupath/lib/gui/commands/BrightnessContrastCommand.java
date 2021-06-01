@@ -101,6 +101,7 @@ import qupath.lib.gui.charts.HistogramPanelFX.ThresholdedChartWrapper;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
@@ -204,7 +205,8 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		labelMinValue.textProperty().bind(Bindings.createStringBinding(() -> {
 //			if (table.getSelectionModel().getSelectedItem() == null)
 //				return blank;
-			return String.format("%.1f", sliderMin.getValue());
+			// If value < 10, return 2 dp, otherwise 1 dp. Should be more useful for 16-/32-bit images.
+			return sliderMin.getValue() < 10 ? String.format("%.2f", sliderMin.getValue()) : String.format("%.1f", sliderMin.getValue());
 		}, table.getSelectionModel().selectedItemProperty(), sliderMin.valueProperty()));
 		box.add(labelMin, 0, 0);
 		box.add(sliderMin, 1, 0);
@@ -217,7 +219,8 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 		labelMaxValue.textProperty().bind(Bindings.createStringBinding(() -> {
 //				if (table.getSelectionModel().getSelectedItem() == null)
 //					return blank;
-				return String.format("%.1f", sliderMax.getValue());
+			// If value < 10, return 2 dp, otherwise 1 dp. Should be more useful for 16-/32-bit images.
+			return sliderMax.getValue() < 10 ? String.format("%.2f", sliderMax.getValue()) : String.format("%.1f", sliderMax.getValue());
 			}, table.getSelectionModel().selectedItemProperty(), sliderMax.valueProperty()));
 		box.add(labelMax, 0, 1);
 		box.add(sliderMax, 1, 1);
@@ -246,6 +249,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 						imageDisplay.setMinMaxDisplay(infoVisible, (float)value.floatValue(), (float)infoVisible.getMaxDisplay());
 //						infoVisible.setMinDisplay(value.floatValue());
 //						viewer.updateThumbnail();
+						updateSliders();
 						viewer.repaintEntireImage();
 					}
 				}
@@ -265,6 +269,7 @@ public class BrightnessContrastCommand implements Runnable, ChangeListener<Image
 						imageDisplay.setMinMaxDisplay(infoVisible, (float)infoVisible.getMinDisplay(), (float)value.floatValue());
 //						infoVisible.setMaxDisplay(value.floatValue());
 //						viewer.updateThumbnail();
+						updateSliders();
 						viewer.repaintEntireImage();
 					}
 				}

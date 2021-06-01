@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -53,10 +54,12 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Insets;
 import javafx.geometry.Side;
 import javafx.scene.control.Label;
 import javafx.scene.Scene;
 import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -93,6 +96,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -101,6 +105,8 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.WrappedBufferedImageServer;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.interfaces.ROI;
@@ -127,7 +133,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 
 	private enum ImageDetailRow {
 		NAME, URI, PIXEL_TYPE, MAGNIFICATION, WIDTH, HEIGHT, DIMENSIONS,
-		PIXEL_WIDTH, PIXEL_HEIGHT, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID,
+		PIXEL_WIDTH, PIXEL_HEIGHT, Z_SPACING, UNCOMPRESSED_SIZE, SERVER_TYPE, PYRAMID,
 		METADATA_CHANGED, IMAGE_TYPE,
 		STAIN_1, STAIN_2, STAIN_3, BACKGROUND;
 	};
@@ -192,7 +198,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 						} else {
 							var type = getTableRow().getItem();
 							if (type != null) {
-								if (type.equals(ImageDetailRow.PIXEL_WIDTH) || type.equals(ImageDetailRow.PIXEL_HEIGHT)) {
+								if (type.equals(ImageDetailRow.PIXEL_WIDTH) || type.equals(ImageDetailRow.PIXEL_HEIGHT) || type.equals(ImageDetailRow.Z_SPACING)) {
 									if ("Unknown".equals(item))
 										style = "-fx-text-fill: red;";
 									tooltipText = "Double-click to set pixel calibration (can use a selected line or area ROI in the image)";
@@ -222,8 +228,9 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 						var type = c.getTableRow().getItem();
 						boolean metadataChanged = false;
 						if (type == ImageDetailRow.PIXEL_WIDTH ||
-								type == ImageDetailRow.PIXEL_HEIGHT) {
-							metadataChanged = promptToSetPixelSize(imageData, false);
+								type == ImageDetailRow.PIXEL_HEIGHT ||
+								type == ImageDetailRow.Z_SPACING) {
+							metadataChanged = promptToSetPixelSize(imageData, type == ImageDetailRow.Z_SPACING);
 						} else if (type == ImageDetailRow.MAGNIFICATION) {
 							metadataChanged = promptToSetMagnification(imageData);
 						} else if (type == ImageDetailRow.METADATA_CHANGED) {
@@ -402,6 +409,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			boolean setPixelHeight = true;
 			boolean setPixelWidth = true;	
 			String message;
+			String units = GeneralTools.micrometerSymbol();
 			
 			double pixelWidth = cal.getPixelWidthMicrons();
 			double pixelHeight = cal.getPixelHeightMicrons();
@@ -414,10 +422,11 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			if (roi.isLine()) {
 				setPixelHeight = roi.getBoundsHeight() != 0;
 				setPixelWidth = roi.getBoundsWidth() != 0;
-				message = "Enter selected line length in " + GeneralTools.micrometerSymbol();
+				message = "Enter selected line length";
 				defaultValue = roi.getScaledLength(pixelWidth, pixelHeight);
 			} else {
-				message = "Enter selected ROI area in " + GeneralTools.micrometerSymbol() + "^2";
+				message = "Enter selected ROI area";
+				units = units + "^2";
 				defaultValue = roi.getScaledArea(pixelWidth, pixelHeight);
 			}
 //			if (setPixelHeight && setPixelWidth) {
@@ -429,9 +438,19 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 //			}
 			if (Double.isNaN(defaultValue))
 				defaultValue = 1.0;
-			Double result = Dialogs.showInputDialog("Set pixel size", message, defaultValue);
-			if (result == null)
+			var params = new ParameterList()
+					.addDoubleParameter("inputValue", message, defaultValue, units, "Enter calibrated value in " + units + " for the selected ROI to calculate the pixel size")
+					.addBooleanParameter("squarePixels", "Assume square pixels", true, "Set the pixel width to match the pixel height");
+			params.setHiddenParameters(setPixelHeight && setPixelWidth, "squarePixels");
+			if (!Dialogs.showParameterDialog("Set pixel size", params))
 				return false;
+			Double result = params.getDoubleParameterValue("inputValue");
+			setPixelHeight = setPixelHeight || params.getBooleanParameterValue("squarePixels");
+			setPixelWidth = setPixelWidth || params.getBooleanParameterValue("squarePixels");
+			
+//			Double result = Dialogs.showInputDialog("Set pixel size", message, defaultValue);
+//			if (result == null)
+//				return false;
 			
 			double sizeMicrons;
 			if (roi.isLine())
@@ -468,7 +487,25 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				pixelHeightMicrons = Double.NaN;
 			}
 		}
-		return QP.setPixelSizeMicrons(imageData, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
+		if (QP.setPixelSizeMicrons(imageData, pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons)) {
+			// Log for scripts
+			WorkflowStep step;
+			if (server.nZSlices() == 1) {
+				var map = Map.of("pixelWidthMicrons", pixelWidthMicrons,
+						"pixelHeightMicrons", pixelHeightMicrons);
+				String script = String.format("setPixelSizeMicrons(%f, %f)", pixelWidthMicrons, pixelHeightMicrons);
+				step = new DefaultScriptableWorkflowStep("Set pixel size " + GeneralTools.micrometerSymbol(), map, script);
+			} else {
+				var map = Map.of("pixelWidthMicrons", pixelWidthMicrons,
+						"pixelHeightMicrons", pixelHeightMicrons,
+						"zSpacingMicrons", zSpacingMicrons);
+				String script = String.format("setPixelSizeMicrons(%f, %f, %f)", pixelWidthMicrons, pixelHeightMicrons, zSpacingMicrons);
+				step = new DefaultScriptableWorkflowStep("Set pixel size " + GeneralTools.micrometerSymbol(), map, script);
+			}
+			imageData.getHistoryWorkflow().addStep(step);
+			return true;
+		} else
+			return false;
 	}
 	
 	
@@ -495,17 +532,33 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		dialog.getDialogPane().setPrefWidth(400);
 		
 		var labelExplain = new Label("The image type influences some commands (e.g. cell detection) and should be set for every image. "
-				+ "\n\nUse the 'Set image type' item in the preferences to control prompts for the type to be set when opening an image.");
+				+ "\n\nSelect an option below or in the preferences to customize how QuPath handles setting the image type when opening an image."
+				+ "\n\n'Auto-estimate' is convenient to reduce annoying prompts, but the estimates are sometimes wrong. "
+				+ "When this happens you can correct them by double-clicking "
+				+ "the type under the 'Image' tab.");
 		labelExplain.setWrapText(true);
 		labelExplain.setPrefWidth(400);
 		labelExplain.setMinHeight(Label.USE_PREF_SIZE);
-		dialog.getDialogPane().setExpandableContent(labelExplain);
+		
+		var comboSetType = new ComboBox<ImageTypeSetting>();
+		comboSetType.getItems().setAll(ImageTypeSetting.values());
+		comboSetType.getSelectionModel().select(PathPrefs.imageTypeSettingProperty().get());
+		comboSetType.setMaxWidth(Double.MAX_VALUE);
+		labelExplain.setPadding(new Insets(0, 0, 10, 0));
+		var expandablePane = new BorderPane(labelExplain);
+		expandablePane.setBottom(comboSetType);
+		
+		dialog.getDialogPane().setExpandableContent(expandablePane);
 		
 		var result = dialog.showAndWait();
 		ImageType type = result.orElse(null);
+		if (type == null)
+			return false;
 		
-//		ImageType type = (ImageType)Dialogs.showChoiceDialog("Image type", "Set image type", values, imageData.getImageType());
-		if (type != null && type != imageData.getImageType()) {
+		if (comboSetType.getSelectionModel().getSelectedItem() != null)
+			PathPrefs.imageTypeSettingProperty().set(comboSetType.getSelectionModel().getSelectedItem());
+
+		if (type != imageData.getImageType()) {
 			imageData.setImageType(type);
 			return true;
 		}
@@ -698,10 +751,14 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 	private List<ImageDetailRow> getRows() {
 		if (imageData == null || imageData.getServer() == null)
 			return Collections.emptyList();
+		var list = new ArrayList<ImageDetailRow>();
 		if (imageData.isBrightfield())
-			return brightfieldRows;
+			list.addAll(brightfieldRows);
 		else
-			return otherRows;
+			list.addAll(otherRows);
+		if (imageData.getServer().nZSlices() == 1)
+			list.remove(ImageDetailRow.Z_SPACING);
+		return list;
 	}
 
 	private String getName(ImageDetailRow row) {
@@ -730,6 +787,8 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			return "Pixel width";
 		case PIXEL_HEIGHT:
 			return "Pixel height";
+		case Z_SPACING:
+			return "Z-spacing";
 		case UNCOMPRESSED_SIZE:
 			return "Uncompressed size";
 		case SERVER_TYPE:
@@ -811,6 +870,11 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		case PIXEL_HEIGHT:
 			if (cal.hasPixelSizeMicrons())
 				return String.format("%.4f %s", cal.getPixelHeightMicrons(), GeneralTools.micrometerSymbol());
+			else
+				return "Unknown";
+		case Z_SPACING:
+			if (cal.hasZSpacingMicrons())
+				return String.format("%.4f %s", cal.getZSpacingMicrons(), GeneralTools.micrometerSymbol());
 			else
 				return "Unknown";
 		case UNCOMPRESSED_SIZE:

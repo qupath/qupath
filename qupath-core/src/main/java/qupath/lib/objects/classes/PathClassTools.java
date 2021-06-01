@@ -37,10 +37,15 @@ import qupath.lib.common.ColorTools;
  * 
  * @author Pete Bankhead
  */
-public class PathClassTools {
+public final class PathClassTools {
+	
+	// Suppressed default constructor for non-instantiability
+	private PathClassTools() {
+		throw new AssertionError();
+	}
 
 	/**
-	 * Returns true if the PathClass represents a built-in intensity class.
+	 * Return true if the PathClass represents a built-in intensity class.
 	 * Here, this means its name is equal to "1+", "2+" or "3+".
 	 * 
 	 * @param pathClass
@@ -51,19 +56,35 @@ public class PathClassTools {
 	}
 	
 	/**
-	 * Returns true if the PathClass should be ignored from some operations.
-	 * In practice, this checks if the name ends with an asterisk.
+	 * Return true if the PathClass should be ignored from some operations, or is null. 
+	 * In practice, this checks if the PathClass is null or if the name is either null or ends with an asterisk.
 	 * It is useful to avoid generating objects for certain classes (e.g. Ignore*, Artefact*, Background*) 
 	 * where these would not be meaningful.
+	 * <p>
+	 * <b>Warning</b>: the 'ignored' status is ambiguous if the PathClass is null. 
+	 * In a future version this method may throw an exception rather than accepting null classifications. 
+	 * Code that calls this method therefore should explicitly handle cases where the PathClass is 
+	 * null (or its name is null) to avoid ambiguity and potential exceptions in the future.
 	 * @param pathClass
-	 * @return
+	 * @return 
+	 * @see #isNullClass(PathClass)
 	 */
 	public static boolean isIgnoredClass(final PathClass pathClass) {
-		return pathClass == null || pathClass.getName() == null || pathClass.getName().endsWith("*");
+		return isNullClass(pathClass) || pathClass.getName().endsWith("*");
+	}
+
+	/**
+	 * Return true if the PathClass is null, its name is null or if it is equal 
+	 * to the special case of 'Unclassified' path object.
+	 * @param pathClass
+	 * @return 
+	 */
+	public static boolean isNullClass(final PathClass pathClass) {
+		return pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified() || pathClass.getName() == null;
 	}
 	
 	/**
-	 * Returns true if the name of the class is "1+", indicating a weakly-positive staining.
+	 * Return true if the name of the class is "1+", indicating a weakly-positive staining.
 	 * @param pathClass
 	 * @return
 	 */
@@ -72,7 +93,7 @@ public class PathClassTools {
 	}
 
 	/**
-	 * Returns true if the name of the class is "2+", indicating a moderately-positive staining.
+	 * Return true if the name of the class is "2+", indicating a moderately-positive staining.
 	 * @param pathClass
 	 * @return
 	 */
@@ -81,7 +102,7 @@ public class PathClassTools {
 	}
 
 	/**
-	 * Returns true if the name of the class is "3+", indicating a weakly-positive staining.
+	 * Return true if the name of the class is "3+", indicating a weakly-positive staining.
 	 * @param pathClass
 	 * @return
 	 */
@@ -90,7 +111,7 @@ public class PathClassTools {
 	}
 
 	/**
-	 * Returns {@code true} if the PathClass has the name "Positive".
+	 * Return {@code true} if the PathClass has the name "Positive".
 	 * 
 	 * @param pathClass
 	 * @return
@@ -100,16 +121,16 @@ public class PathClassTools {
 	}
 	
 	/**
-	 * Returns true if the name of the class is "Positive", "1+", "2+" or "3+", indicating positive staining.
+	 * Return true if the name of the class is "Positive", "1+", "2+" or "3+", indicating positive staining.
 	 * @param pathClass
 	 * @return
 	 */
 	public static boolean isPositiveOrGradedIntensityClass(final PathClass pathClass) {
-		return pathClass != null && (isPositiveClass(pathClass) || isOnePlus(pathClass) || isTwoPlus(pathClass) || isThreePlus(pathClass));
+		return pathClass != null && (isPositiveClass(pathClass) || isGradedIntensityClass(pathClass));
 	}
 	
 	/**
-	 * Returns true if the PathClass has the name "Negative".
+	 * Return true if the PathClass has the name "Negative".
 	 * 
 	 * @param pathClass
 	 * @return
@@ -121,11 +142,12 @@ public class PathClassTools {
 	/**
 	 * Get the first ancestor class that is not an intensity class (i.e. not negative, positive, 1+, 2+ or 3+).
 	 * <p>
-	 * This will return null if pathClass is null, or if no non-intensity classes are found.
+	 This will return null if pathClass is null or if no non-intensity class was found (e.g. 'Positive' instead of 'Tumor: Positive').
 	 * 
 	 * @param pathClass
 	 * @return
 	 */
+	// TODO: It only strips off intensity classes at the end, should look into that
 	public static PathClass getNonIntensityAncestorClass(PathClass pathClass) {
 		while (pathClass != null && (isPositiveOrGradedIntensityClass(pathClass) || isNegativeClass(pathClass)))
 			pathClass = pathClass.getParentClass();
@@ -133,7 +155,7 @@ public class PathClassTools {
 	}
 	
 	/**
-	 * Get a list containing the distinct names of all constituent parts of a {@link PathClass}.
+	 * Get a list containing the names of all constituent parts of a {@link PathClass}.
 	 * 
 	 * @param pathClass the {@link PathClass} to split
 	 * @return an empty list if the class has no name or is null, otherwise an ordered list containing 
@@ -259,13 +281,14 @@ public class PathClassTools {
 		return output;
 	}
 	
+	// TODO: Consider moving this to ColorToolsAwt?
 	static Integer averageColors(Integer rgb1, Integer rgb2) {
 		if (Objects.equals(rgb1, rgb2))
 			return rgb1;
 		int r = (ColorTools.red(rgb1) + ColorTools.red(rgb2)) / 2;
 		int g = (ColorTools.green(rgb1) + ColorTools.green(rgb2)) / 2;
 		int b = (ColorTools.blue(rgb1) + ColorTools.blue(rgb2)) / 2;
-		return ColorTools.makeRGB(r, g, b);
+		return ColorTools.packRGB(r, g, b);
 	}
 	
 	/**

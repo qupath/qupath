@@ -308,7 +308,7 @@ public class ProcessingExtension implements QuPathExtension {
 	    	
 			// Install the Wand tool
 			Loader.load(opencv_core.class);
-			var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand tool",
+			var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand",
 					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
 			Platform.runLater(() -> {

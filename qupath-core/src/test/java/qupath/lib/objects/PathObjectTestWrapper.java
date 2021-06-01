@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,6 +23,7 @@
 
 package qupath.lib.objects;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,8 +34,7 @@ import qupath.lib.measurements.MeasurementList;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.roi.interfaces.ROI;
 
-@SuppressWarnings("javadoc")
-public class PathObjectTestWrapper {
+class PathObjectTestWrapper {
 	private final Double epsilon = 1e-15; // error for double comparison
 	
 	//@Test
@@ -62,6 +62,14 @@ public class PathObjectTestWrapper {
 	public void test_getMeasurementList(PathObject myPO, MeasurementList ML) {
 		MeasurementList myPOML = myPO.getMeasurementList();
 		assertEquals(myPOML, ML);
+	}
+	//@Test
+	public void test_equalMeasurementListContent(MeasurementList ML, MeasurementList ML2) {
+		var keys = ML.getMeasurementNames();
+		assertArrayEquals(keys.toArray(), ML2.getMeasurementNames().toArray());
+		for (String name: keys) {
+			assertEquals(ML.getMeasurementValue(name), ML2.getMeasurementValue(name));
+		}
 	}
 	//@Test
 	public void test_nMeasurements(PathObject myPO, Integer nmeasurements) {
@@ -187,6 +195,11 @@ public class PathObjectTestWrapper {
 	//@Test
 	public void test_getROI(PathObject myPO, ROI roi) {
 		assertEquals(myPO.getROI(), roi); 
+	}
+	//@Test
+	public void test_equalROIRegions(ROI roi, ROI roi2) {
+		assertEquals(roi.getAllPoints(), roi2.getAllPoints());
+		assertEquals(roi.getImagePlane(), roi.getImagePlane());
 	}
 	//@Test
 	public void test_getColorRGB(PathObject myPO, Integer colorrgb) {

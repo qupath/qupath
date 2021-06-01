@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -23,13 +23,14 @@ package qupath.lib.images.servers.omero;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,7 +39,6 @@ import javax.imageio.ImageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -53,8 +53,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.omero.OmeroShapes.OmeroShape;
-import qupath.lib.images.servers.omero.OmeroWebImageServerBuilder.OmeroWebClient;
-import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 
@@ -71,27 +69,37 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 
 	private static final Logger logger = LoggerFactory.getLogger(OmeroWebImageServer.class);
 
-	private ImageServerMetadata originalMetadata;
-	private URI uri;
-	private String[] args;
-
-	/**
-	 * Image ID
-	 */
-	private String id;
-	
+	private final URI uri;
+	private final String[] args;	
 	private final String host;
 	private final String scheme;
 
+	private ImageServerMetadata originalMetadata;
+
+	/**
+	 * Image OMERO ID
+	 */
+	private String id;
+	
+	/**
+	 * Client used to open this image.
+	 */
+	private final OmeroWebClient client;
+
+	/**
+	 * Default JPEG quality if none is specified in the args
+	 */
+	private static double DEFAULT_JPEG_QUALITY = 0.9;
+	
 	/**
 	 * Quality of requested JPEG.
 	 */
-	private static double QUALITY = 0.9;
+	private double quality = DEFAULT_JPEG_QUALITY;
 
-	/**
-	 * There appears to be a max size (hard-coded?) in OMERO, so we need to make sure we don't exceed that.
-	 * Requesting anything larger just returns a truncated image.
-	 */
+//	/**
+//	 * There appears to be a max size (hard-coded?) in OMERO, so we need to make sure we don't exceed that.
+//	 * Requesting anything larger just returns a truncated image.
+//	 */
 //	private static int OMERO_MAX_SIZE = 1024;
 
 	/**
@@ -114,11 +122,40 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	 */
 	OmeroWebImageServer(URI uri, OmeroWebClient client, String...args) throws IOException {
 		super();
-		
 		this.uri = uri;
 		this.scheme = uri.getScheme();
 		this.host = uri.getHost();
-
+		this.client = client;
+		this.originalMetadata = buildMetadata();
+		// Args are stored in the JSON - passwords and usernames must not be included!
+		// Do an extra check to ensure someone hasn't accidentally passed one
+		var invalid = Arrays.asList("--password", "-p", "-u", "--username", "-password");
+		for (int i = 0; i < args.length; i++) {
+			String arg = args[i].toLowerCase().strip();
+			if (invalid.contains(arg)) {
+				throw new IllegalArgumentException("Cannot build server with arg " + arg);
+			}
+			if (arg.equals("--quality") || arg.equals("-q")) {
+				if (i < args.length-1) {
+					try {
+						var parsedQuality = Double.parseDouble(args[i+1]);
+						if (parsedQuality > 0 && parsedQuality <= 1) {
+							quality = parsedQuality;
+						} else
+							logger.error("Requested JPEG quality '{}' is invalid, must be between 0 and 1. I will use {} instead.", parsedQuality, quality);
+					} catch (NumberFormatException ex) {
+						logger.error("Unable to parse JPEG quality from {}", args[i+1]);
+					}
+				}
+			}
+		}
+		this.args = args;
+		
+		// Add URI to the client's list of URIs
+		client.addURI(uri);
+	}
+	
+	protected ImageServerMetadata buildMetadata() throws IOException {
 		String uriQuery = uri.getQuery();
 		if (uriQuery != null && !uriQuery.isEmpty() && uriQuery.startsWith("show=image-")) {
 			Pattern pattern = Pattern.compile("show=image-(\\d+)");
@@ -143,16 +180,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		PixelType pixelType = PixelType.UINT8;
 		boolean isRGB = true;
 		double magnification = Double.NaN;
-
-
-		URL urlMetadata = new URL(
-				scheme, host, -1, "/webgateway/imgData/" + id
-				);
-
-		InputStreamReader reader = new InputStreamReader(urlMetadata.openStream());
-		JsonObject map = new Gson().fromJson(reader, JsonObject.class);
-		reader.close();
-
+		
+		JsonObject map = OmeroRequests.requestMetadata(scheme, host, Integer.parseInt(id));
 		JsonObject size = map.getAsJsonObject("size");
 
 		sizeX = size.getAsJsonPrimitive("width").getAsInt();
@@ -230,7 +259,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		if (map.has("nominalMagnification"))
 			magnification = map.getAsJsonPrimitive("nominalMagnification").getAsDouble();
 		
-		this.args = args;
 		ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(getClass(), uri.toString(), sizeX, sizeY)
 				.sizeT(sizeT)
 				.channels(ImageChannel.getDefaultRGBChannels())
@@ -248,16 +276,16 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		if (Double.isFinite(zSpacingMicrons) && zSpacingMicrons > 0)
 			builder.zSpacingMicrons(zSpacingMicrons);
 
-		if (tileSize != null && tileSize.length >= 2) {
+		if (tileSize.length >= 2) {
 			builder.preferredTileSize(tileSize[0], tileSize[1]);
 		}
 
-		originalMetadata = builder.build();
+		return builder.build();
 	}
 
 	@Override
 	protected String createID() {
-		return getClass().getName() + ": " + uri.toString();
+		return getClass().getName() + ": " + uri.toString() + " quality=" + quality;
 	}
 
 	@Override
@@ -282,11 +310,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		//				);
 
 		// Options are: Rectangle, Ellipse, Point, Line, Polyline, Polygon and Label
-		URL urlROIs = new URL(
-				scheme, host, -1, "/api/v0/m/rois/?image=" + id
-				);
-
-		var data = readPaginated(urlROIs);
+		var data = OmeroRequests.requestROIs(scheme, host, id);
 		List<PathObject> list = new ArrayList<>();
 		var gson = new GsonBuilder().registerTypeAdapter(OmeroShape.class, new OmeroShapes.GsonShapeDeserializer()).setLenient().create();
 			
@@ -304,10 +328,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				}
 			}
 		}
-
 		return list;
-	}
-	
+	}	
 	
 	@Override
 	public String getServerType() {
@@ -318,46 +340,6 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 	public ImageServerMetadata getOriginalMetadata() {
 		return originalMetadata;
 	}
-	
-	int getPreferredTileWidth() {
-		return getMetadata().getPreferredTileWidth();
-	}
-
-	int getPreferredTileHeight() {
-		return getMetadata().getPreferredTileHeight();
-	}
-	
-    /**
-     * OMERO requests that return a list of items are paginated 
-     * (see <a href="https://docs.openmicroscopy.org/omero/5.6.1/developers/json-api.html#pagination">OMERO API docs</a>).
-     * Using this helper method ensures that all the requested data is retrieved.
-     * @param url
-     * @return list of {@code Json Element}s
-     * @throws IOException
-     */
-	// TODO: Consider using parallel/asynchronous requests
-    static List<JsonElement> readPaginated(URL url) throws IOException {
-        String symbol = (url.getQuery() != null && !url.getQuery().isEmpty()) ? "&" : "?";
-
-        InputStreamReader reader = new InputStreamReader(url.openStream());
-        JsonObject map = GsonTools.getInstance().fromJson(reader, JsonObject.class);
-        List<JsonElement> jsonList = new ArrayList<>();
-        map.get("data").getAsJsonArray().forEach(jsonList::add);
-        reader.close();
-
-        JsonObject meta = map.getAsJsonObject("meta");
-        int offset = 0;
-        int totalCount = meta.get("totalCount").getAsInt();
-        int limit = meta.get("limit").getAsInt();
-        while (offset + limit < totalCount) {
-            offset += limit;
-            URL nextURL = new URL(url + symbol + "offset=" + offset);
-            InputStreamReader newPageReader = new InputStreamReader(nextURL.openStream());
-            JsonObject newPageMap = GsonTools.getInstance().fromJson(newPageReader, JsonObject.class);
-            newPageMap.get("data").getAsJsonArray().forEach(jsonList::add);
-        }
-        return jsonList;
-    }
 
 	@Override
 	protected BufferedImage readTile(TileRequest request) throws IOException {
@@ -370,8 +352,8 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 		String urlFile;
 
 		if (nResolutions() > 1) {
-			int x = (int)(request.getTileX() / getPreferredTileWidth());
-			int y = (int)(request.getTileY() / getPreferredTileHeight());
+			int x = request.getTileX() / getPreferredTileWidth();
+			int y = request.getTileY() / getPreferredTileHeight();
 
 			// Note!  It's important to use the preferred tile size so that the correct x & y can be used
 			//			int width = request.getTileWidth();
@@ -406,7 +388,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 					"/?tile=" + level + "," + x + "," + y + "," + width + "," + height +
 					"&c=1|0:255$FF0000,2|0:255$00FF00,3|0:255$0000FF" +
 					"&maps=[{%22inverted%22:{%22enabled%22:false}},{%22inverted%22:{%22enabled%22:false}},{%22inverted%22:{%22enabled%22:false}}]" +
-					"&m=c&p=normal&q=" + QUALITY;
+					"&m=c&p=normal&q=" + quality;
 
 			URL url = new URL(scheme, host, urlFile);
 
@@ -428,7 +410,7 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 					"/?region=" + x + "," + y + "," + width + "," + height +
 					"&c=1|0:255$FF0000,2|0:255$00FF00,3|0:255$0000FF" +
 					"&maps=[{%22inverted%22:{%22enabled%22:false}},{%22inverted%22:{%22enabled%22:false}},{%22inverted%22:{%22enabled%22:false}}]" +
-					"&m=c&p=normal&q=" + QUALITY;			
+					"&m=c&p=normal&q=" + quality;			
 		}
 
 
@@ -448,5 +430,70 @@ public class OmeroWebImageServer extends AbstractTileableImageServer implements 
 				uri,
 				args);
 	}
+	
+	/**
+	 * Return the preferred tile width of this {@code ImageServer}.
+	 * @return preferredTileWidth
+	 */
+	public int getPreferredTileWidth() {
+		return getMetadata().getPreferredTileWidth();
+	}
 
+	/**
+	 * Return the preferred tile height of this {@code ImageServer}.
+	 * @return preferredTileHeight
+	 */
+	public int getPreferredTileHeight() {
+		return getMetadata().getPreferredTileHeight();
+	}
+
+	
+	/**
+	 * Return the web client used for this image server.
+	 * @return client
+	 */
+	public OmeroWebClient getWebclient() {
+		return client;
+	}
+	
+	/**
+	 * Return the OMERO ID of the image
+	 * @return id
+	 */
+	public String getId() {
+		return id;
+	}
+	
+	/**
+	 * Return the URI host used by this image server
+	 * @return host
+	 */
+	public String getHost() {
+		return host;
+	}
+	
+	/**
+	 * Return the URI scheme used by this image server
+	 * @return scheme
+	 */
+	public String getScheme() {
+		return scheme;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(host, client);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this)
+            return true;
+		
+		if (!(obj instanceof OmeroWebImageServer))
+			return false;
+		
+		return host.equals(((OmeroWebImageServer)obj).getHost()) &&
+				client.getUsername().equals(((OmeroWebImageServer)obj).getWebclient().getUsername());
+	}
 }

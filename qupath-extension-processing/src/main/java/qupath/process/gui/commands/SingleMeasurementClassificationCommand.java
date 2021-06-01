@@ -483,7 +483,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 					.filter(d -> Double.isFinite(d)).toArray();
 			var stats = new DescriptiveStatistics(allValues);
 			var histogram = new Histogram(allValues, 100, stats.getMin(), stats.getMax());
-			histogramPane.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, ColorTools.makeRGBA(200, 20, 20, 100)));
+			histogramPane.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, ColorTools.packARGB(100, 200, 20, 20)));
 			
 			double value = previousThresholds.getOrDefault(measurement, stats.getMean());
 			sliderThreshold.setMin(stats.getMin());

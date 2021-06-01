@@ -158,7 +158,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 					.filter(d -> Double.isFinite(d)).toArray();
 			var stats = new DescriptiveStatistics(measurementValues);
 			var histogram = new Histogram(measurementValues, 100, stats.getMin(), stats.getMax());
-			histogramPanel.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, ColorTools.makeRGBA(200, 20, 20, 100)));
+			histogramPanel.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, ColorTools.packARGB(100, 200, 20, 20)));
 			
 			double[] values = map.get(n);
 			for (int i = 0; i < sliders.size(); i++) {

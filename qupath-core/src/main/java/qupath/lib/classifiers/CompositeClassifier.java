@@ -43,6 +43,7 @@ import qupath.lib.objects.classes.PathClass;
  * @author Pete Bankhead
  *
  */
+// TODO: Guarding more against invalid classifiers
 class CompositeClassifier implements PathObjectClassifier, Serializable {
 	
 	private static final long serialVersionUID = 1L;
@@ -96,6 +97,10 @@ class CompositeClassifier implements PathObjectClassifier, Serializable {
 //			c.updateClassifier(imageData, measurements, maxTrainingInstances);
 //	}
 
+	/**
+	 * Classify a list of PathObjects, setting their {@link PathClass}es accordingly.
+	 * @return the number of objects classified successfully by the last classifier.
+	 */
 	@Override
 	public int classifyPathObjects(Collection<PathObject> pathObjects) {
 		int n = 0;
@@ -151,5 +156,4 @@ class CompositeClassifier implements PathObjectClassifier, Serializable {
 			changed = changed || c.updateClassifier(map, measurements, null);
 		return changed;
 	}
-
 }

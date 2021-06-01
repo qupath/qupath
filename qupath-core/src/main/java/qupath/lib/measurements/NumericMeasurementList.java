@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * can be rather slow.  Therefore while 'adding' is fast, 'putting' is not.
  * <p>
  * However, upon calling {@code close()}, name lists are shared between similarly closed NumericMeasurementLists,
- * and a map used to improve random access of measurements.  Therefore if many lists of the same measurements
+ * and a map used to improve random access of measurements. Therefore if many lists of the same measurements
  * are made, remembering to close each list when it is fully populated can improve performance and greatly
  * reduce memory requirements.
  * <p>

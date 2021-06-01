@@ -22,6 +22,7 @@
 package qupath.tensorflow.stardist;
 
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.PointerScope;
@@ -64,17 +66,20 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TransformedServerBuilder;
 import qupath.lib.objects.CellTools;
+import qupath.lib.objects.PathCellObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.classes.PathClass;
+import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.tensorflow.TensorFlowTools;
 
 /**
  * Cell detection based on the following method:
@@ -106,6 +111,7 @@ public class StarDist2D {
 		private int nThreads = -1;
 		
 		private String modelPath = null;
+		private ImageOp predictionOp = null;
 		private ColorTransform[] channels = new ColorTransform[0];
 		
 		private double threshold = 0.5;
@@ -119,6 +125,9 @@ public class StarDist2D {
 				
 		private int tileWidth = 1024;
 		private int tileHeight = 1024;
+		
+		private Function<ROI, PathObject> creatorFun;
+		private PathClass pathClass;
 		
 		private boolean measureShape = false;
 		private Collection<Compartments> compartments = Arrays.asList(Compartments.values());
@@ -134,6 +143,11 @@ public class StarDist2D {
 		
 		private Builder(String modelPath) {
 			this.modelPath = modelPath;
+			this.ops.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
+		}
+		
+		private Builder(ImageOp predictionOp) {
+			this.predictionOp = predictionOp;
 			this.ops.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 		}
 		
@@ -251,6 +265,39 @@ public class StarDist2D {
 		}
 		
 		/**
+		 * Create annotations rather than detections (the default).
+		 * If cell expansion is not zero, the nucleus will be included as a child object.
+		 * 
+		 * @return this builder
+		 */
+		public Builder createAnnotations() {
+			this.creatorFun = r -> PathObjects.createAnnotationObject(r);
+			return this;
+		}
+		
+		/**
+		 * Request that a classification is applied to all created objects.
+		 * 
+		 * @param pathClass
+		 * @return this builder
+		 */
+		public Builder classify(PathClass pathClass) {
+			this.pathClass = pathClass;
+			return this;
+		}
+		
+		/**
+		 * Request that a classification is applied to all created objects.
+		 * This is a convenience method that get a {@link PathClass} from  {@link PathClassFactory}.
+		 * 
+		 * @param pathClassName
+		 * @return this builder
+		 */
+		public Builder classify(String pathClassName) {
+			return classify(PathClassFactory.getPathClass(pathClassName, (Integer)null));
+		}
+		
+		/**
 		 * If true, ignore overlaps when computing cell expansion.
 		 * @param ignore
 		 * @return this builder
@@ -364,8 +411,20 @@ public class StarDist2D {
 		 * @return this builder
 		 */
 		public Builder tileSize(int tileSize) {
-			this.tileWidth = tileSize;
-			this.tileHeight = tileSize;
+			return tileSize(tileSize, tileSize);
+		}
+		
+		/**
+		 * Size in pixels of a tile used for detection.
+		 * Note that tiles are independently normalized, and therefore tiling can impact 
+		 * the results. Default is 1024.
+		 * @param tileWidth
+		 * @param tileHeight
+		 * @return this builder
+		 */
+		public Builder tileSize(int tileWidth, int tileHeight) {
+			this.tileWidth = tileWidth;
+			this.tileHeight = tileHeight;
 			return this;
 		}
 		
@@ -441,7 +500,40 @@ public class StarDist2D {
 			
 			var padding = pad > 0 ? Padding.symmetric(pad) : Padding.empty();
 			var mergedOps = new ArrayList<>(ops);
-			mergedOps.add(TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding));
+			var mlOp = this.predictionOp;
+			if (mlOp == null) {
+				var file = new File(modelPath);
+				if (!file.exists()) {
+					throw new IllegalArgumentException("I couldn't find the model file " + file.getAbsolutePath());
+					// TODO: In the future, search within the user directory
+				}
+				if (file.isFile()) {
+					try {
+						var dnn = new OpenCVDNN.Builder(modelPath)
+								.build();
+						mlOp = ImageOps.ML.dnn(dnn, tileWidth, tileHeight, padding);
+						logger.debug("Loaded model {} with OpenCV DNN", modelPath);
+					} catch (Exception e) {
+						logger.error("Unable to load model file with OpenCV. If you intended to use TensorFlow, you need to have it on the classpath & provide the "
+								+ "path to the directory, not the .pb file.");
+						logger.error(e.getLocalizedMessage(), e);
+						throw new RuntimeException("Unable to load StarDist model from " + modelPath, e);
+					}
+				} else {
+					try {
+						var clsTF = Class.forName("qupath.tensorflow.TensorFlowTools");
+						var method = clsTF.getMethod("createOp", String.class, int.class, int.class, Padding.class);
+						mlOp = (ImageOp)method.invoke(null, modelPath, tileWidth, tileHeight, padding);
+						logger.debug("Loaded model {} with TensorFlow", modelPath);
+//						mlOp = TensorFlowTools.createOp(modelPath, tileWidth, tileHeight, padding);				
+					} catch (Exception e) {
+						logger.error("Unable to load TensorFlow with reflection - are you sure it is available and on the classpath?");
+						logger.error(e.getLocalizedMessage(), e);
+						throw new RuntimeException("Unable to load StarDist model from " + modelPath, e);
+					}
+				}
+			}
+			mergedOps.add(mlOp);
 			mergedOps.add(ImageOps.Core.ensureType(PixelType.FLOAT32));
 			
 			stardist.op = ImageOps.buildImageDataOp(channels)
@@ -459,6 +551,8 @@ public class StarDist2D {
 			stardist.simplifyDistance = simplifyDistance;
 			stardist.nThreads = nThreads;
 			stardist.constrainToParent = constrainToParent;
+			stardist.creatorFun = creatorFun;
+			stardist.pathClass = pathClass;
 			
 			stardist.compartments = new LinkedHashSet<>(compartments);
 			
@@ -483,6 +577,9 @@ public class StarDist2D {
 	private double cellExpansion;
 	private double cellConstrainScale;
 	private boolean ignoreCellOverlaps;
+	
+	private Function<ROI, PathObject> creatorFun;
+	private PathClass pathClass;
 	
 	private boolean constrainToParent = true;
 	
@@ -657,7 +754,13 @@ public class StarDist2D {
 		// Resolve cell overlaps, if needed
 		if (expansion > 0 && !ignoreCellOverlaps) {
 			log("Resolving cell overlaps");
-			detections = CellTools.constrainCellOverlaps(detections);
+			if (creatorFun != null) {
+				// It's awkward, but we need to temporarily convert to cells and back
+				var cells = detections.stream().map(c -> objectToCell(c)).collect(Collectors.toList());
+				cells = CellTools.constrainCellOverlaps(cells);
+				detections = cells.stream().map(c -> cellToObject(c, creatorFun)).collect(Collectors.toList());
+			} else
+				detections = CellTools.constrainCellOverlaps(detections);
 		}
 		
 		// Add shape measurements, if needed
@@ -697,6 +800,36 @@ public class StarDist2D {
 	}
 	
 	
+	private static PathObject objectToCell(PathObject pathObject) {
+		ROI roiNucleus = null;
+		var children = pathObject.getChildObjects();
+		if (children.size() == 1)
+			roiNucleus = children.iterator().next().getROI();
+		else if (children.size() > 1)
+			throw new IllegalArgumentException("Cannot convert object with multiple child objects to a cell!");
+		return PathObjects.createCellObject(pathObject.getROI(), roiNucleus, pathObject.getPathClass(), pathObject.getMeasurementList());
+	}
+	
+	private static PathObject cellToObject(PathObject cell, Function<ROI, PathObject> creator) {
+		var parent = creator.apply(cell.getROI());
+		var nucleusROI = cell instanceof PathCellObject ? ((PathCellObject)cell).getNucleusROI() : null;
+		if (nucleusROI != null) {
+			var nucleus = creator.apply(nucleusROI);
+			nucleus.setPathClass(cell.getPathClass());
+			parent.addPathObject(nucleus);
+		}
+		parent.setPathClass(cell.getPathClass());
+		var cellMeasurements = cell.getMeasurementList();
+		if (!cellMeasurements.isEmpty()) {
+			try (var ml = parent.getMeasurementList()) {
+				for (int i = 0; i < cellMeasurements.size(); i++)
+					ml.addMeasurement(cellMeasurements.getMeasurementName(i), cellMeasurements.getMeasurementValue(i));
+			}
+		}
+		return parent;
+	}
+	
+	
 	
 	private void log(String message, Object... arguments) {
 		if (doLog)
@@ -716,19 +849,31 @@ public class StarDist2D {
 			geomCell = simplify(geomCell);
 			var roiCell = GeometryTools.geometryToROI(geomCell, plane);
 			var roiNucleus = GeometryTools.geometryToROI(geomNucleus, plane);
-			pathObject = PathObjects.createCellObject(roiCell, roiNucleus, null, null);
+			if (creatorFun == null)
+				pathObject = PathObjects.createCellObject(roiCell, roiNucleus, null, null);
+			else {
+				pathObject = creatorFun.apply(roiCell);
+				if (roiNucleus != null) {
+					pathObject.addPathObject(creatorFun.apply(roiNucleus));
+				}
+			}
 		} else {
 			if (mask != null) {
 				geomNucleus = GeometryTools.attemptOperation(geomNucleus, g -> g.intersection(mask));
 			}
 			var roiNucleus = GeometryTools.geometryToROI(geomNucleus, plane);
-			pathObject = PathObjects.createDetectionObject(roiNucleus);
+			if (creatorFun == null)
+				pathObject = PathObjects.createDetectionObject(roiNucleus);
+			else
+				pathObject = creatorFun.apply(roiNucleus);
 		}
 		if (includeProbability) {
         	try (var ml = pathObject.getMeasurementList()) {
         		ml.putMeasurement("Detection probability", nucleus.getProbability());
         	}
         }
+		if (pathClass != null)
+			pathObject.setPathClass(pathClass);
 		return pathObject;
 	}
 	
@@ -778,11 +923,25 @@ public class StarDist2D {
 	
 	/**
 	 * Create a builder to customize detection parameters.
+	 * This accepts either TensorFlow's savedmodel format (if TensorFlow is available) or alternatively a frozen 
+	 * .pb file compatible with OpenCV's DNN module.
 	 * @param modelPath path to the StarDist/TensorFlow model to use for prediction.
 	 * @return
 	 */
 	public static Builder builder(String modelPath) {
 		return new Builder(modelPath);
+	}
+	
+	
+	/**
+	 * Create a builder to customize detection parameters, using a provided op for prediction.
+	 * This provides a way to use an alternative machine learning library and model file, rather than the default 
+	 * (OpenCV or TensorFlow).
+	 * @param predictionOp the op to use for prediction
+	 * @return
+	 */
+	public static Builder builder(ImageOp predictionOp) {
+		return new Builder(predictionOp);		
 	}
 	
 	
@@ -813,20 +972,32 @@ public class StarDist2D {
 	            if (prob < threshold)
 	                continue;
 	            var coords = new ArrayList<Coordinate>();
+	            Coordinate lastCoord = null;
 	            for (int a = 1; a <= nRays; a++) {
 	                inds[2] = a;
 	                double val = indexer.get(inds);
+	                // We can get NaN
+	                if (!Double.isFinite(val))
+	                	continue;
 	                double xx = precisionModel.makePrecise(request.getX() + (x + val * rayCosine[a-1]) * downsample);
 	                double yy = precisionModel.makePrecise(request.getY() + (y + val * raySine[a-1]) * downsample);
-	                coords.add(new Coordinate(xx, yy));
+	                var coord = new Coordinate(xx, yy);
+	                if (!Objects.equals(coord, lastCoord))
+	                	coords.add(coord);
 	            }
-	            coords.add(coords.get(0));
-	            var polygon = factory.createPolygon(coords.toArray(Coordinate[]::new));
-	            if (locator == null || locator.locate(new Centroid(polygon).getCentroid()) != Location.EXTERIOR) {
-	            	
-	            	var geom = simplify(polygon);
-	            	
-	            	nuclei.add(new PotentialNucleus(geom, prob));
+	            // We need at least 3 for a reasonable nucleus
+	            if (coords.size() < 3)
+	            	continue;
+	            else if (!coords.get(0).equals(coords.get(coords.size()-1)))
+	            	coords.add(coords.get(0));
+	            try {
+		            var polygon = factory.createPolygon(coords.toArray(Coordinate[]::new));
+		            if (locator == null || locator.locate(new Centroid(polygon).getCentroid()) != Location.EXTERIOR) {
+		            	var geom = simplify(polygon);
+		            	nuclei.add(new PotentialNucleus(geom, prob));
+		            }
+	            } catch (Exception e) {
+	            	logger.warn("Error creating nucleus: " + e.getLocalizedMessage(), e);
 	            }
 	        }
 	    }

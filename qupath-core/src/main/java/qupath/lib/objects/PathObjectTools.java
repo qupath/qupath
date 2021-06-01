@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -57,6 +58,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.ImageRegion;
+import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools;
@@ -468,24 +470,28 @@ public class PathObjectTools {
 	 */
 	public static Collection<PathObject> convertToPoints(Collection<PathObject> pathObjects, boolean preferNucleus) {
 		// Create Points lists for each class
-		Map<PathClass, List<Point2>> pointsMap = new HashMap<>();
+		Map<PathClass, Map<ImagePlane, List<Point2>>> pointsMap = new HashMap<>();
 		for (PathObject pathObject : pathObjects) {
-			PathClass pathClass = pathObject.getPathClass();
-			List<Point2> points = pointsMap.get(pathClass);
-			if (points == null) {
-				points = new ArrayList<>();
-				pointsMap.put(pathClass, points);
-			}
 			var roi = PathObjectTools.getROI(pathObject, preferNucleus);
+			if (roi == null)
+				continue;
+			var plane = roi.getImagePlane();
+			PathClass pathClass = pathObject.getPathClass();
+			var pointsMapByClass = pointsMap.computeIfAbsent(pathClass, p -> new HashMap<>());
+			var points = pointsMapByClass.computeIfAbsent(plane, p -> new ArrayList<>());
 			points.add(new Point2(roi.getCentroidX(), roi.getCentroidY()));
 		}
 		
 		// Create & add annotation objects to hierarchy
 		List<PathObject> annotations = new ArrayList<>();
-		for (Entry<PathClass, List<Point2>> entry : pointsMap.entrySet()) {
-			PathObject pointObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(entry.getValue(), ImagePlane.getDefaultPlane()));
-			pointObject.setPathClass(entry.getKey());
-			annotations.add(pointObject);
+		for (Entry<PathClass, Map<ImagePlane, List<Point2>>> entry : pointsMap.entrySet()) {
+			var pathClass = entry.getKey();
+			for (var entry2 : entry.getValue().entrySet()) {
+				var plane = entry2.getKey();
+				var points = entry2.getValue();
+				PathObject pointObject = PathObjects.createAnnotationObject(ROIs.createPointsROI(points, plane), pathClass);
+				annotations.add(pointObject);
+			}
 		}
 		return annotations;
 	}
@@ -945,8 +951,11 @@ public class PathObjectTools {
 	/**
 	 * Create a(n optionally) transformed version of a {@link PathObject}.
 	 * <p>
-	 * Note: only detections (including tiles and cells) and annotations are supported by this method.
-	 * Other object types (e.g. TMA cores) result in an {@link UnsupportedOperationException} being thrown.
+	 * Note: only detections (including tiles and cells) and annotations are fully supported by this method.
+	 * Root objects are duplicated.
+	 * TMA core objects are transformed only if the resulting transform creates an ellipse ROI, since this is 
+	 * currently the only ROI type supported for a TMA core (this behavior may change).
+	 * Any other object types result in an {@link UnsupportedOperationException} being thrown.
 	 * 
 	 * @param pathObject the object to transform; this will be unchanged
 	 * @param transform optional affine transform; if {@code null}, this effectively acts to duplicate the object
@@ -962,11 +971,16 @@ public class PathObjectTools {
 			ROI roiNucleus = maybeTransformROI(((PathCellObject)pathObject).getNucleusROI(), transform);
 			newObject = PathObjects.createCellObject(roi, roiNucleus, pathClass, null);
 		} else if (pathObject instanceof PathTileObject) {
-			newObject = PathObjects.createTileObject(roi, pathClass, null);			
+			newObject = PathObjects.createTileObject(roi, pathClass, null);
 		} else if (pathObject instanceof PathDetectionObject) {
-			newObject = PathObjects.createDetectionObject(roi, pathClass, null);			
+			newObject = PathObjects.createDetectionObject(roi, pathClass, null);
 		} else if (pathObject instanceof PathAnnotationObject) {
-			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);			
+			newObject = PathObjects.createAnnotationObject(roi, pathClass, null);
+		} else if (pathObject instanceof PathRootObject) {
+			newObject = new PathRootObject();
+		} else if (pathObject instanceof TMACoreObject && roi instanceof EllipseROI) {
+			var core = (TMACoreObject)pathObject;
+			newObject = PathObjects.createTMACoreObject(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight(), core.isMissing());
 		} else
 			throw new UnsupportedOperationException("Unable to transform object " + pathObject);
 		if (copyMeasurements && !pathObject.getMeasurementList().isEmpty()) {
@@ -981,12 +995,29 @@ public class PathObjectTools {
 		return newObject;
 	}
 	
+	/**
+	 * Create (optionally) transformed versions of the {@link PathObject} and all its descendants, recursively. 
+	 * This method can be applied to all objects in a hierarchy by supplying its root object. The parent-children 
+	 * relationships are kept after transformation.
+	 * 
+	 * @param pathObject
+	 * @param transform
+	 * @param copyMeasurements
+	 * @return
+	 */
+	public static PathObject transformObjectRecursive(PathObject pathObject, AffineTransform transform, boolean copyMeasurements) {
+		var newObj = transformObject(pathObject, transform, copyMeasurements);
+		for (var child: pathObject.getChildObjects()) {
+			newObj.addPathObject(transformObjectRecursive(child, transform, copyMeasurements));
+		}
+		return newObj;
+	}
+	
 	private static ROI maybeTransformROI(ROI roi, AffineTransform transform) {
 		if (roi == null || transform == null || transform.isIdentity())
 			return roi;
 		return RoiTools.transformROI(roi, transform);
 	}
-	
 	
 	/**
 	 * Duplicate all the selected objects in a hierarchy.
@@ -1178,6 +1209,62 @@ public class PathObjectTools {
 			}
 		}
 		output.removeAll(toRemove);
+		return output;
+	}
+
+	/**
+	 * Merge objects by calculating the union of their ROIs.
+	 * @param pathObjects a collection of annotations, cells, detections or tiles. Note that all objects must be of the same type.
+	 * @return a single object with ROI(s) determined by union. The classification and name will be taken from the first ROI in the collection.
+	 * @throws IllegalArgumentException if no objects are provided (either null or empty list)
+	 */
+	public static PathObject mergeObjects(Collection<? extends PathObject> pathObjects) {
+		if (pathObjects == null || pathObjects.isEmpty())
+			throw new IllegalArgumentException("No objects provided to merge!");
+		var first = pathObjects.iterator().next();
+		if (pathObjects.size() == 1)
+			return first;
+		var rois = pathObjects.stream().map(p -> p.getROI()).filter(r -> r != null && !r.isEmpty()).collect(Collectors.toList());
+		var roi = RoiTools.union(rois);
+		PathObject result;
+		if (pathObjects.stream().allMatch(p -> p.isCell())) {
+			var nucleusRois = pathObjects.stream().map(p -> ((PathCellObject)p).getNucleusROI()).filter(r -> r != null && !r.isEmpty()).collect(Collectors.toList());
+			var nucleusROI = RoiTools.union(nucleusRois);			
+			result = PathObjects.createCellObject(roi, nucleusROI, first.getPathClass(), null);
+		} else if (pathObjects.stream().allMatch(p -> p.isAnnotation())) {
+			result = PathObjects.createAnnotationObject(roi);
+		} else if (pathObjects.stream().allMatch(p -> p.isTile())) {
+			result = PathObjects.createTileObject(roi);
+		} else if (pathObjects.stream().allMatch(p -> p.isDetection())) {
+			result = PathObjects.createDetectionObject(roi);
+		} else
+			throw new IllegalArgumentException("Unknow or mixed object types - cannot merge ROIs for " + pathObjects);
+		result.setPathClass(first.getPathClass());
+		result.setName(first.getName());
+		return result;
+	}
+
+	/**
+	 * Merge objects that share a property in common.
+	 * <p>
+	 * Note that objects must all be of the same type (e.g. cells, detections, annotations).
+	 * @param pathObjects
+	 * @param classifier function extracting the shared property, e.g. {@code p -> p.getName()}
+	 * @return a new list of objects generated by merging grouped objects.
+	 * @see #mergeObjects(Collection)
+	 */
+	public static <K> List<PathObject> mergeObjects(Collection<? extends PathObject> pathObjects, 
+			Function<? super PathObject, ? extends K> classifier) {
+		var groups = pathObjects.stream().collect(Collectors.groupingBy(classifier));
+		List<PathObject> output = new ArrayList<>();
+		for (var entry : groups.entrySet()) {
+			var group = entry.getValue();
+			if (group.size() <= 1)
+				output.addAll(group);
+			else {
+				output.add(mergeObjects(group));
+			}
+		}
 		return output;
 	}
 	

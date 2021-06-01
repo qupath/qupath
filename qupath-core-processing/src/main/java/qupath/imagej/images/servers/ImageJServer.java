@@ -404,11 +404,14 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 			SampleModel model;
 			if (colorModel == null) {
 				if (ip instanceof ByteProcessor)
-					colorModel = ColorModelFactory.getDummyColorModel(8);
+					colorModel = ColorModelFactory.createColorModel(PixelType.UINT8, ImageChannel.getDefaultChannelList(nChannels));
+//					colorModel = ColorModelFactory.getDummyColorModel(8);
 				else if (ip instanceof ShortProcessor)
-					colorModel = ColorModelFactory.getDummyColorModel(16);
+					colorModel = ColorModelFactory.createColorModel(PixelType.UINT16, ImageChannel.getDefaultChannelList(nChannels));
+//					colorModel = ColorModelFactory.getDummyColorModel(16);
 				else
-					colorModel = ColorModelFactory.getDummyColorModel(32);
+					colorModel = ColorModelFactory.createColorModel(PixelType.FLOAT32, ImageChannel.getDefaultChannelList(nChannels));
+//					colorModel = ColorModelFactory.getDummyColorModel(32);
 			}
 
 			if (ip instanceof ByteProcessor) {

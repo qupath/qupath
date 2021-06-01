@@ -21,6 +21,7 @@
 
 package qupath.opencv.tools;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,8 +29,12 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.bytedeco.javacpp.FloatPointer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -222,6 +227,8 @@ public class MultiscaleFeatures {
 //		private boolean hessianEigenvectors = false;
 		private boolean hessianDeterminant = false;
 		
+		private boolean retainHessian = false;
+		
 		private int paddingXY = 0;
 		
 		private int border = BORDER_DEFAULT.getOpenCVCode();
@@ -361,6 +368,18 @@ public class MultiscaleFeatures {
 			return this;
 		}
 		
+		/**
+		 * Optionally retain the Hessian matrix per pixel.
+		 * This provides an opportunity to request eigenvectors, and/or to sort 
+		 * eigenvalues by absolute value.
+		 * @param retain
+		 * @return
+		 */
+		public MultiscaleResultsBuilder retainHessian(boolean retain) {
+			this.retainHessian = retain;
+			return this;
+		}
+		
 //		public HessianResultsBuilder hessianEigenvectors(boolean calculate) {
 //			this.hessianEigenvectors = calculate;
 //			return this;
@@ -494,7 +513,7 @@ public class MultiscaleFeatures {
 		 * @param mat
 		 * @return
 		 */
-		public Map<MultiscaleFeature, Mat> build(Mat mat) {
+		public FeatureMap build(Mat mat) {
 			if (sigmaZ > 0) {
 				return build3D(Collections.singletonList(mat), 0).get(0);
 			}
@@ -507,7 +526,7 @@ public class MultiscaleFeatures {
 		 * @param ind the index of the slice to use
 		 * @return
 		 */
-		public Map<MultiscaleFeature, Mat> build(List<Mat> mats, int ind) {
+		public FeatureMap build(List<Mat> mats, int ind) {
 			if (sigmaZ > 0) {
 				return build3D(mats, ind).get(0);
 			}
@@ -518,7 +537,8 @@ public class MultiscaleFeatures {
 		 * Calculate results as a list of maps connecting features and Mats for all slices of a z-stack.
 		 * @param mats
 		 * @return
-		 */		public List<Map<MultiscaleFeature, Mat>> build(List<Mat> mats) {
+		 */	
+		public List<FeatureMap> build(List<Mat> mats) {
 			if (sigmaZ > 0) {
 				return build3D(mats, -1);
 			}
@@ -539,7 +559,7 @@ public class MultiscaleFeatures {
 		}
 		
 		
-		private List<Map<MultiscaleFeature, Mat>> build2D(List<Mat> mats) {
+		private List<FeatureMap> build2D(List<Mat> mats) {
 			
 			double sigmaX = this.sigmaX;
 			double sigmaY = this.sigmaY;
@@ -566,7 +586,7 @@ public class MultiscaleFeatures {
 //			boolean doStructureTensor = structureTensorEigenvalues;
 			boolean doHessian = hessianDeterminant || hessianEigenvalues || laplacianOfGaussian; // || hessianEigenvectors;
 
-			List<Map<MultiscaleFeature, Mat>> results = new ArrayList<>();
+			List<FeatureMap> results = new ArrayList<>();
 			
 			Hessian2D hessian = null;
 			
@@ -574,7 +594,9 @@ public class MultiscaleFeatures {
 			
 			// TODO: Consder if some calculations need to be done in 64-bit
 //			int depth = structureTensorEigenvalues || doHessian ? opencv_core.CV_64F : opencv_core.CV_32F;
-			int depth = opencv_core.CV_32F;
+			
+			int depth = mats.stream().allMatch(m -> m.depth() == opencv_core.CV_64F) ? opencv_core.CV_64F : opencv_core.CV_32F;
+
 
 			
 			for (Mat mat : mats) {
@@ -642,7 +664,7 @@ public class MultiscaleFeatures {
 					stripPadding(dxy);
 					stripPadding(dyy);
 					
-					hessian = new Hessian2D(dxx, dxy, dyy, false);
+					hessian = new Hessian2D(dxx, dxy, dyy, retainHessian);
 					if (laplacianOfGaussian) {
 						Mat temp = hessian.getLaplacian();
 //						if (scaleNormalize)
@@ -658,7 +680,7 @@ public class MultiscaleFeatures {
 					}
 					
 					if (hessianEigenvalues) {
-						List<Mat> eigenvalues = hessian.getEigenvalues();
+						List<Mat> eigenvalues = hessian.getEigenvalues(false);
 						assert eigenvalues.size() == 2;
 						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MAX, eigenvalues.get(0));
 						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIN, eigenvalues.get(1));
@@ -673,7 +695,7 @@ public class MultiscaleFeatures {
 					}
 				}
 				
-				results.add(features);
+				results.add(new FeatureMap(features, retainHessian ? hessian : null));
 			}
 			
 //			if (hessian != null)
@@ -689,9 +711,56 @@ public class MultiscaleFeatures {
 			return results;
 		}
 		
-		private List<Map<MultiscaleFeature, Mat>> build3D(List<Mat> mats, int ind3D) {
+		
+		/**
+		 * Helper map implementation that provides access to {@link Hessian} if needed.
+		 */
+		public static class FeatureMap extends AbstractMap<MultiscaleFeature, Mat> implements Map<MultiscaleFeature, Mat> {
+			
+			private Hessian hessian;
+			private Map<MultiscaleFeature, Mat> features;
+			
+			private FeatureMap(Map<MultiscaleFeature, Mat> features, Hessian hessian) {
+				this.features = features;
+				this.hessian = hessian;
+				
+			}
+			
+			/**
+			 * Get the {@link Hessian} associated with these features.
+			 * This may be used to request eigenvectors and eigenvalues.
+			 * <p>
+			 * Note: this will only be available if {@link MultiscaleResultsBuilder#retainHessian(boolean)} has been set to true.
+			 * @return the Hessian if available, or null otherwise
+			 */
+			public Hessian getHessian() {
+				return hessian;
+			}
+
+			@Override
+			public Set<Entry<MultiscaleFeature, Mat>> entrySet() {
+				return features.entrySet();
+			}
+			
+		}
+		
+		
+		static Mat ensureDepth(Mat mat, int requestedDepth) {
+			int depth = mat.depth();
+			if (depth == requestedDepth)
+				return mat;
+			Mat out = new Mat();
+			mat.convertTo(out, requestedDepth);
+			return out;
+		}
+		
+		private List<FeatureMap> build3D(List<Mat> mats, int ind3D) {
 			if (mats.size() == 0)
 				return Collections.emptyList();
+						
+			// We need to ensure images are floating point (prefer 32-bit unless all are already 64-bit)
+			int depth = mats.stream().allMatch(m -> m.depth() == opencv_core.CV_64F) ? opencv_core.CV_64F : opencv_core.CV_32F;
+			mats = mats.stream().map(m -> ensureDepth(m, depth)).collect(Collectors.toList());
 			
 			double sigmaX = this.sigmaX;
 			double sigmaY = this.sigmaY;
@@ -733,6 +802,10 @@ public class MultiscaleFeatures {
 			if (doHessian)
 				matsZ2 = OpenCVTools.filterZ(mats, kz2, ind3D, border);
 			
+//			OpenCVTools.matToImagePlus("Z0", matsZ0.toArray(new Mat[0])).show();
+//			OpenCVTools.matToImagePlus("Z1", matsZ1.toArray(new Mat[0])).show();
+//			OpenCVTools.matToImagePlus("Z2", matsZ2.toArray(new Mat[0])).show();
+			
 			// Handle structure tensor (which is *much* more memory-hungry and computationally expensive)
 			List<Mat> matSTxx = null;
 			List<Mat> matSTxy = null;
@@ -754,8 +827,8 @@ public class MultiscaleFeatures {
 					var tempZ = new Mat();
 					
 					var mat = mats.get(i);
-					opencv_imgproc.Sobel(mat, tempX, opencv_core.CV_32F, 1, 0);
-					opencv_imgproc.Sobel(mat, tempY, opencv_core.CV_32F, 0, 1);
+					opencv_imgproc.Sobel(mat, tempX, depth, 1, 0);
+					opencv_imgproc.Sobel(mat, tempY, depth, 0, 1);
 					
 					// Use centred difference for z-dimension
 					int iNext = Math.min(i+1, mats.size()-1);
@@ -783,7 +856,7 @@ public class MultiscaleFeatures {
 				// Apply 2D Gaussian filters
 				for (List<Mat> list : Arrays.asList(matSTxx, matSTxy, matSTxz, matSTyy, matSTyz, matSTzz)) {
 					for (Mat temp : list)
-						opencv_imgproc.sepFilter2D(temp, temp, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(temp, temp, depth, kx0, ky0, null, 0.0, border);
 				}
 			}
 			
@@ -812,7 +885,7 @@ public class MultiscaleFeatures {
 			
 			// Loop through and handle the remaining 2D filtering
 			// We do this 1 plane at a time so that we don't need to retain all filtered images in memory
-			List<Map<MultiscaleFeature, Mat>> output = new ArrayList<>();
+			List<FeatureMap> output = new ArrayList<>();
 			for (int i = 0; i < nSlices; i++) {
 				
 				Map<MultiscaleFeature, Mat> features = new LinkedHashMap<>();
@@ -820,7 +893,7 @@ public class MultiscaleFeatures {
 				if (doSmoothed) {
 					Mat z0 = matsZ0.get(i);
 					Mat matSmooth = new Mat();
-					opencv_imgproc.sepFilter2D(z0, matSmooth, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z0, matSmooth, depth, kx0, ky0, null, 0.0, border);
 					stripPadding(matSmooth);
 					if (gaussianSmoothed)
 						features.put(MultiscaleFeature.GAUSSIAN, matSmooth);
@@ -828,7 +901,7 @@ public class MultiscaleFeatures {
 					if (weightedStdDev) {
 						// Note that here we modify the original images in-place, since from now on we just need 2D planes
 						Mat matSquaredSmoothed = matsSquaredZ0.get(i);
-						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, depth, kx0, ky0, null, 0.0, border);
 						stripPadding(matSquaredSmoothed);
 						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
 						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
@@ -863,9 +936,9 @@ public class MultiscaleFeatures {
 				if (gradientMagnitude) {
 					Mat z0 = matsZ0.get(i);
 					Mat z1 = matsZ1.get(i);
-					opencv_imgproc.sepFilter2D(z0, dxx, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(z0, dyy, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);					
-					opencv_imgproc.sepFilter2D(z1, dzz, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z0, dxx, depth, kx1, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z0, dyy, depth, kx0, ky1, null, 0.0, border);					
+					opencv_imgproc.sepFilter2D(z1, dzz, depth, kx0, ky0, null, 0.0, border);
 					Mat magnitude = opencv_core.add(opencv_core.add(dxx.mul(dxx), dyy.mul(dyy)), dzz.mul(dzz)).asMat();
 					features.put(MultiscaleFeature.GRADIENT_MAGNITUDE, stripPadding(magnitude));
 				}
@@ -876,14 +949,14 @@ public class MultiscaleFeatures {
 					Mat z1 = matsZ1.get(i);
 					Mat z2 = matsZ2.get(i);
 					
-					opencv_imgproc.sepFilter2D(z0, dxx, opencv_core.CV_32F, kx2, ky0, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(z0, dxy, opencv_core.CV_32F, kx1, ky1, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(z1, dxz, opencv_core.CV_32F, kx1, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z0, dxx, depth, kx2, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z0, dxy, depth, kx1, ky1, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z1, dxz, depth, kx1, ky0, null, 0.0, border);
 					
-					opencv_imgproc.sepFilter2D(z0, dyy, opencv_core.CV_32F, kx0, ky2, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(z1, dyz, opencv_core.CV_32F, kx0, ky1, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z0, dyy, depth, kx0, ky2, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z1, dyz, depth, kx0, ky1, null, 0.0, border);
 					
-					opencv_imgproc.sepFilter2D(z2, dzz, opencv_core.CV_32F, kx0, ky0, null, 0.0, border);
+					opencv_imgproc.sepFilter2D(z2, dzz, depth, kx0, ky0, null, 0.0, border);
 					
 					// Strip padding now to reduce necessary calculations
 					stripPadding(dxx);
@@ -893,7 +966,11 @@ public class MultiscaleFeatures {
 					stripPadding(dyz);
 					stripPadding(dzz);
 				
-					hessian = new Hessian3D(dxx, dxy, dxz, dyy, dyz, dzz, true);
+					if (retainHessian)
+						hessian = new Hessian3D(dxx.clone(), dxy.clone(), dxz.clone(), dyy.clone(), dyz.clone(), dzz.clone(), true);
+					else
+						hessian = new Hessian3D(dxx, dxy, dxz, dyy, dyz, dzz, false);
+					
 					if (laplacianOfGaussian)
 						features.put(MultiscaleFeature.LAPLACIAN, hessian.getLaplacian());
 					
@@ -901,15 +978,22 @@ public class MultiscaleFeatures {
 						features.put(MultiscaleFeature.HESSIAN_DETERMINANT, hessian.getDeterminant());
 					
 					if (hessianEigenvalues) {
-						List<Mat> eigenvalues = hessian.getEigenvalues();
+						List<Mat> eigenvalues = hessian.getEigenvalues(false);
 						assert eigenvalues.size() == 3;
 						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MAX, eigenvalues.get(0));
 						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIDDLE, eigenvalues.get(1));
 						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIN, eigenvalues.get(2));
+						
+//						int c = 2;
+//						var eigenvectors = hessian.getEigenvectors(hessianSortByAbsValue);
+//						OpenCVTools.matToImagePlus("Max eigen " + c, eigenvectors.get(0)).show();
+//						OpenCVTools.matToImagePlus("Middle eigen" + c, eigenvectors.get(1)).show();
+//						OpenCVTools.matToImagePlus("Min eigen " + c, eigenvectors.get(2)).show();
 					}
 
 				}
-				output.add(features);
+				output.add(new FeatureMap(features, retainHessian ? hessian : null));
+//				output.add(features);
 			}
 			
 			dxx.close();
@@ -918,6 +1002,7 @@ public class MultiscaleFeatures {
 			dyz.close();
 			dyy.close();
 			dzz.close();
+			
 //			if (hessian != null)
 //				hessian.close();
 			
@@ -1007,13 +1092,13 @@ public class MultiscaleFeatures {
 //	}
 	
 	
-	static interface StructureTensor extends AutoCloseable {
-		
-		Mat getEigenvalues(int n);
-		
-		Mat getCoherence();
-		
-	}
+//	static interface StructureTensor extends AutoCloseable {
+//		
+//		Mat getEigenvalues(int n);
+//		
+//		Mat getCoherence();
+//		
+//	}
 	
 //	static class StructureTensor2D implements StructureTensor {
 //		
@@ -1049,7 +1134,7 @@ public class MultiscaleFeatures {
 	/**
 	 * Helper class for storing and computing pixel features from Hessian matrices.
 	 */
-	static interface Hessian extends AutoCloseable {
+	public static interface Hessian extends AutoCloseable {
 		
 		/**
 		 * Get Laplacian of Gaussian image (calculated by summation without requiring eigenvalues).
@@ -1065,24 +1150,31 @@ public class MultiscaleFeatures {
 		
 		/**
 		 * Get the eigenvalues, ranked from highest to lowest.
+		 * @param sortByAbs if true, return eigenvalues sorted by absolute value; otherwise return sorted by value
 		 * @return
 		 */
-		List<Mat> getEigenvalues();
+		List<Mat> getEigenvalues(boolean sortByAbs);
 		
 		/**
 		 * Get the eigenvectors, returned in the same order as the eigenvalues.
 		 * Vector elements are stored along the 'channels' dimension.
+		 * @param sortByAbs if true, return eigenvectors corresponding to eigenvalues sorted by absolute value
 		 * @return
 		 */
-		List<Mat> getEigenvectors();
+		List<Mat> getEigenvectors(boolean sortByAbs);
 
 	}
 	
-	static class Hessian2D implements Hessian {
+	/**
+	 * Hessian matrix values for 2D images.
+	 */
+	public static class Hessian2D implements Hessian {
 		
 		private boolean doEigenvectors;
 		private Mat dxx, dxy, dyy;
 		private EigenSymm2 eigen;
+		
+		private Mat sortedByAbs;
 		
 		Hessian2D(Mat dxx, Mat dxy, Mat dyy, boolean doEigenvectors) {
 			this.dxx = dxx;
@@ -1102,19 +1194,39 @@ public class MultiscaleFeatures {
 			}
 		}
 		
-		@Override
-		public List<Mat> getEigenvalues() {
-			ensureEigenvalues();
-			return Arrays.asList(eigen.eigvalMax, eigen.eigvalMin);
+		private Mat getSortedByAbsInds() {
+			if (sortedByAbs == null) {
+				sortedByAbs = sortedIndsByAbsoluteValue(getEigenvalues(false));
+			}
+			return sortedByAbs;
 		}
 		
 		@Override
-		public List<Mat> getEigenvectors() {
+		public List<Mat> getEigenvectors(boolean sortByAbs) {
 			ensureEigenvalues();
 			if (eigen.eigvecMax == null)
 				throw new UnsupportedOperationException("Eigenvectors were not calculated!");
-			return Arrays.asList(eigen.eigvecMax, eigen.eigvecMin);
+			var list = Arrays.asList(eigen.eigvecMax, eigen.eigvecMin);
+			if (sortByAbs) {
+				return applySortedIndsToElements(
+						list,
+						getSortedByAbsInds());
+			} else
+				return list;
 		}
+		
+		@Override
+		public List<Mat> getEigenvalues(boolean sortByAbs) {
+			ensureEigenvalues();
+			var list = Arrays.asList(eigen.eigvalMax, eigen.eigvalMin);
+			if (sortByAbs) {
+				return applySortedIndsToElements(
+						list,
+						getSortedByAbsInds());
+			} else
+				return list;
+		}
+		
 		
 		@Override
 		public Mat getDeterminant() {
@@ -1133,11 +1245,16 @@ public class MultiscaleFeatures {
 		
 	}
 	
-	static class Hessian3D implements Hessian {
+	/**
+	 * Hessian matrix values for 3D images (z-stacks).
+	 */
+	public static class Hessian3D implements Hessian {
 		
 		private boolean doEigenvectors;
 		private Mat dxx, dxy, dxz, dyy, dyz, dzz;
 		private EigenSymm3 eigen;
+		
+		private Mat sortedByAbs;
 		
 		Hessian3D(Mat dxx, Mat dxy, Mat dxz, Mat dyy, Mat dyz, Mat dzz, boolean doEigenvectors) {
 			this.dxx = dxx;
@@ -1160,18 +1277,37 @@ public class MultiscaleFeatures {
 			}
 		}
 		
-		@Override
-		public List<Mat> getEigenvectors() {
-			ensureEigenvalues();
-			if (eigen.eigvecMax == null)
-				throw new UnsupportedOperationException("Eigenvectors were not calculated!");
-			return Arrays.asList(eigen.eigvecMax, eigen.eigvecMiddle, eigen.eigvecMin);
+		private Mat getSortedByAbsInds() {
+			if (sortedByAbs == null) {
+				sortedByAbs = sortedIndsByAbsoluteValue(getEigenvalues(false));
+			}
+			return sortedByAbs;
 		}
 		
 		@Override
-		public List<Mat> getEigenvalues() {
+		public List<Mat> getEigenvectors(boolean sortByAbs) {
 			ensureEigenvalues();
-			return Arrays.asList(eigen.eigvalMax, eigen.eigvalMiddle, eigen.eigvalMin);
+			if (eigen.eigvecMax == null)
+				throw new UnsupportedOperationException("Eigenvectors were not calculated!");
+			var list = Arrays.asList(eigen.eigvecMax, eigen.eigvecMiddle, eigen.eigvecMin);
+			if (sortByAbs) {
+				return applySortedIndsToElements(
+						list,
+						getSortedByAbsInds());
+			} else
+				return list;
+		}
+		
+		@Override
+		public List<Mat> getEigenvalues(boolean sortByAbs) {
+			ensureEigenvalues();
+			var list = Arrays.asList(eigen.eigvalMax, eigen.eigvalMiddle, eigen.eigvalMin);
+			if (sortByAbs) {
+				return applySortedIndsToElements(
+						list,
+						getSortedByAbsInds());
+			} else
+				return list;
 		}
 		
 		@Override
@@ -1217,6 +1353,10 @@ public class MultiscaleFeatures {
 			eigvalMin = opencv_core.subtract(t1, t2).asMat();
 			eigvalMax = opencv_core.add(t1, t2).asMat();
 			
+			// Need 32-bit values for patch NaNs
+			eigvalMin.convertTo(eigvalMin, opencv_core.CV_32F);
+			eigvalMax.convertTo(eigvalMax, opencv_core.CV_32F);
+			
 			// NaNs can occur! Remove these to prevent downstream problems (e.g. with any further filtering)
 			opencv_core.patchNaNs(eigvalMin, 0.0);
 			opencv_core.patchNaNs(eigvalMax, 0.0);
@@ -1241,10 +1381,12 @@ public class MultiscaleFeatures {
 				float[] bufMinVec = new float[n * 2];
 				float[] bufMaxVec = new float[n * 2];
 				
-				float[] c = OpenCVTools.extractPixels(dxy, null);
-				float[] d = OpenCVTools.extractPixels(dyy, null);
-				float[] l1 = OpenCVTools.extractPixels(eigvalMax, null);
-				float[] l2 = OpenCVTools.extractPixels(eigvalMin, null);
+				float[] c = OpenCVTools.extractFloats(dxy);
+				float[] d = OpenCVTools.extractFloats(dyy);
+				float[] l1 = OpenCVTools.extractFloats(eigvalMax);
+				float[] l2 = OpenCVTools.extractFloats(eigvalMin);
+				
+				// TODO: Check the eigenvector order!
 				for (int i = 0; i < n; i++) {
 					float offDiag = c[i];
 					if (offDiag == 0f) {
@@ -1313,12 +1455,12 @@ public class MultiscaleFeatures {
 			Mat matEigenvalues = new Mat(3, 1, opencv_core.CV_32FC1);
 			Mat matEigenvectors = new Mat(3, 3, opencv_core.CV_32FC1);
 			
-			float[] pxDxx = OpenCVTools.extractPixels(dxx, null);
-			float[] pxDxy = OpenCVTools.extractPixels(dxy, null);
-			float[] pxDxz = OpenCVTools.extractPixels(dxz, null);
-			float[] pxDyy = OpenCVTools.extractPixels(dyy, null);
-			float[] pxDyz = OpenCVTools.extractPixels(dyz, null);
-			float[] pxDzz = OpenCVTools.extractPixels(dzz, null);
+			float[] pxDxx = OpenCVTools.extractFloats(dxx);
+			float[] pxDxy = OpenCVTools.extractFloats(dxy);
+			float[] pxDxz = OpenCVTools.extractFloats(dxz);
+			float[] pxDyy = OpenCVTools.extractFloats(dyy);
+			float[] pxDyz = OpenCVTools.extractFloats(dyz);
+			float[] pxDzz = OpenCVTools.extractFloats(dzz);
 			
 			// Buffer to contain values for each row of the Hessian matrices
 			float[] bufMin = new float[width * height];
@@ -1374,17 +1516,30 @@ public class MultiscaleFeatures {
 					if (doEigenvectors) {
 						idxEigenvectors.get(0L, eigenvectors);
 						
-						bufMinVec[ind * 3] = eigenvectors[0];
-						bufMinVec[ind * 3 + 1] = eigenvectors[1];
-						bufMinVec[ind * 3 + 2] = eigenvectors[2];
+//						bufMinVec[ind * 3] = eigenvectors[0];
+//						bufMinVec[ind * 3 + 1] = eigenvectors[3];
+//						bufMinVec[ind * 3 + 2] = eigenvectors[6];
+//						
+//						bufMiddleVec[ind * 3] = eigenvectors[1];
+//						bufMiddleVec[ind * 3 + 1] = eigenvectors[4];
+//						bufMiddleVec[ind * 3 + 2] = eigenvectors[7];
+//						
+//						bufMaxVec[ind * 3] = eigenvectors[2];
+//						bufMaxVec[ind * 3 + 1] = eigenvectors[5];
+//						bufMaxVec[ind * 3 + 2] = eigenvectors[8];
+						
+						bufMaxVec[ind * 3] = eigenvectors[0];
+						bufMaxVec[ind * 3 + 1] = eigenvectors[1];
+						bufMaxVec[ind * 3 + 2] = eigenvectors[2];
 						
 						bufMiddleVec[ind * 3] = eigenvectors[3];
 						bufMiddleVec[ind * 3 + 1] = eigenvectors[4];
 						bufMiddleVec[ind * 3 + 2] = eigenvectors[5];
-						
-						bufMaxVec[ind * 3] = eigenvectors[6];
-						bufMaxVec[ind * 3 + 1] = eigenvectors[7];
-						bufMaxVec[ind * 3 + 2] = eigenvectors[8];
+
+						bufMinVec[ind * 3] = eigenvectors[6];
+						bufMinVec[ind * 3 + 1] = eigenvectors[7];
+						bufMinVec[ind * 3 + 2] = eigenvectors[8];
+
 					}
 					
 					ind++;
@@ -1426,5 +1581,93 @@ public class MultiscaleFeatures {
 		}
 		
 	}
+	
+	static Mat toColumns(Mat m) {
+		return m.reshape(m.channels(), m.rows()*m.cols());
+	}
+	
+	static List<Mat> toColumns(List<Mat> mats) {
+		return mats.stream().map(m ->toColumns(m)).collect(Collectors.toList());
+	}
+	
+	static Mat sortedIndsByAbsoluteValue(List<Mat> mats) {
+		// Concatenate by columns
+		var mat = OpenCVTools.hConcat(toColumns(mats), null);
+		// Compute absolute values
+		var matAbs = opencv_core.abs(mat).asMat();
+		// Get sorted indices
+		opencv_core.sortIdx(matAbs, matAbs, opencv_core.CV_SORT_DESCENDING + opencv_core.CV_SORT_EVERY_ROW);
+		mat.release();
+		return matAbs;
+	}
+	
+	static List<Mat> applySortedIndsToElements(List<Mat> mats, Mat sortedInds) {
+		int nChannels = mats.get(0).channels();
+		int nRows = mats.get(0).rows();
+		int nCols = mats.get(0).cols();
+		int nImages = mats.size();
+		
+		assert sortedInds.cols() == nImages;
+		assert sortedInds.rows() == nRows * nCols;
+		IntIndexer idx = sortedInds.createIndexer();
+		
+		List<Mat> outputMats = new ArrayList<>();
+		List<FloatIndexer> outputIndexers = new ArrayList<>();
+		List<FloatIndexer> indexers = new ArrayList<>();
+		for (int i = 0; i < nImages; i++) {
+			var temp = new Mat(nRows, nCols, opencv_core.CV_32FC(nChannels));
+			outputMats.add(temp);
+			outputIndexers.add(temp.createIndexer());
+			indexers.add(mats.get(i).createIndexer());
+		}
+		
+		long[] inds = new long[3];
+		for (int i = 0; i < nImages; i++) {
+			var outputIdx = outputIndexers.get(i);
+			for (int r = 0; r < nRows; r++) {
+				inds[0] = r;
+				for (int c = 0; c < nCols; c++) {
+					inds[1] = c;
+					int ind = idx.get(r*nCols+c, i);
+					var tempIdx = indexers.get(ind);
+					for (int channel = 0; channel < nChannels; channel++) {
+						inds[2] = channel;
+						outputIdx.put(inds, tempIdx.get(inds));
+					}
+				}
+			}			
+		}
+		outputIndexers.forEach(FloatIndexer::close);
+		indexers.forEach(FloatIndexer::close);
+		
+		return outputMats;
+	}
+	
+	// Ludicrously slow...
+//	static List<Mat> applySortedIndsToElements(List<Mat> mats, Mat sortedInds) {
+//		int nChannels = mats.get(0).channels();
+//		int nRowsOrig = mats.get(0).rows();
+//		
+//		var matCols = OpenCVTools.hConcat(toColumns(mats), null);
+//		IntIndexer idx = sortedInds.createIndexer();
+//		int nRows = sortedInds.rows();
+//		int nCols = sortedInds.cols();
+//		
+//		List<List<Mat>> output = new ArrayList<>();
+//		for (int i = 0; i < nCols; i++)
+//			output.add(new ArrayList<>());
+//		
+//		for (int r = 0; r < nRows; r++) {
+//			for (int c = 0; c < nCols; c++) {
+//				int ind = idx.get(r, c);
+//				output.get(c).add(matCols.row(r).col(ind));
+//			}			
+//		}
+//		
+//		return output.stream().map(l -> {
+//			var mat = OpenCVTools.vConcat(l, null);
+//			return mat.reshape(nChannels, nRowsOrig);
+//		}).collect(Collectors.toList());
+//	}
 	
 }

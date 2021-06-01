@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,9 @@ import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import javafx.scene.paint.Color;
+import javafx.stage.StageStyle;
 
 import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
@@ -55,7 +59,6 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -69,6 +72,11 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+import javafx.scene.input.KeyCode;
+import javafx.animation.FadeTransition;
+import javafx.util.Duration;
+
+import qupath.lib.gui.CircularSlider;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
@@ -104,7 +112,6 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.lib.objects.hierarchy.TMAGrid;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -683,98 +690,14 @@ public class Commands {
 	
 	
 	/**
-	 * Create a dialog for rotating the image in the current viewer (for display only.
+	 * Create a dialog for rotating the image in the current viewer (for display only).
 	 * @param qupath the {@link QuPathGUI} instance
-	 * @return a rotate image dialog
 	 */
-	public static Stage createRotateImageDialog(QuPathGUI qupath) {
-		var dialog = new Stage();
-		dialog.initOwner(qupath.getStage());
-		dialog.setTitle("Rotate view");
-
-		BorderPane pane = new BorderPane();
-
-		final Label label = new Label("0 degrees");
-		label.setTextAlignment(TextAlignment.CENTER);
-		QuPathViewer viewerTemp = qupath.getViewer();
-		var slider = new Slider(-90, 90, viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
-		slider.setMajorTickUnit(10);
-		slider.setMinorTickCount(5);
-		slider.setShowTickMarks(true);
-		slider.valueProperty().addListener((v, o, n) -> {
-			QuPathViewer viewer = qupath.getViewer();
-			if (viewer == null)
-				return;
-			double rotation = slider.getValue();
-			label.setText(String.format("%.1f degrees", rotation));
-			viewer.setRotation(Math.toRadians(rotation));
-		});
-
-		Button btnReset = new Button("Reset");
-		btnReset.setOnAction(e -> slider.setValue(0));
-
-		Button btnTMAAlign = new Button("Straighten TMA");
-		btnTMAAlign.setOnAction(e -> {
-
-			QuPathViewer viewer = qupath.getViewer();
-			if (viewer == null)
-				return;
-			TMAGrid tmaGrid = viewer.getHierarchy().getTMAGrid();
-			if (tmaGrid == null || tmaGrid.getGridWidth() < 2)
-				return;
-			// Determine predominant angle
-			List<Double> angles = new ArrayList<>();
-			for (int y = 0; y < tmaGrid.getGridHeight(); y++) {
-				for (int x = 1; x < tmaGrid.getGridWidth(); x++) {
-					TMACoreObject core1 = tmaGrid.getTMACore(y, x-1);
-					TMACoreObject core2 = tmaGrid.getTMACore(y, x);
-					if (core1.isMissing() || core2.isMissing())
-						continue;
-					ROI roi1 = core1.getROI();
-					ROI roi2 = core2.getROI();
-					double angle = Double.NaN;
-					if (roi1 != null && roi2 != null) {
-						double dx = roi2.getCentroidX() - roi1.getCentroidX();
-						double dy = roi2.getCentroidY() - roi1.getCentroidY();
-						angle = Math.atan2(dy, dx);
-						//								angle = Math.atan(dy / dx);
-					}
-					if (!Double.isNaN(angle)) {
-						logger.debug("Angle :" + angle);
-						angles.add(angle);
-					}
-				}
-			}
-			// Compute median angle
-			if (angles.isEmpty())
-				return;
-			Collections.sort(angles);
-			double angleMedian = Math.toDegrees(angles.get(angles.size()/2));
-			slider.setValue(angleMedian);
-
-			logger.debug("Median angle: " + angleMedian);
-
-		});
-
-		GridPane panelButtons = PaneTools.createColumnGridControls(
-				btnReset,
-				btnTMAAlign
-				);
-		panelButtons.setPrefWidth(300);
-		
-		slider.setPadding(new Insets(5, 0, 10, 0));
-
-		pane.setTop(label);
-		pane.setCenter(slider);
-		pane.setBottom(panelButtons);
-		pane.setPadding(new Insets(10, 10, 10, 10));
-
-		Scene scene = new Scene(pane);
-		dialog.setScene(scene);
-		dialog.setResizable(false);
-		return dialog;
+	// TODO: Restrict this command to an opened image
+	public static void createRotateImageDialog(QuPathGUI qupath) {
+		var rotationCommand = new RotateImageCommand(qupath).createDialog();
+		rotationCommand.show();
 	}
-	
 	
 	/**
 	 * Create a zoom in/out command action.
@@ -1139,7 +1062,7 @@ public class Commands {
 		if (TMACoreObject.class.equals(cls)) {
 			if (hierarchy.getTMAGrid() != null) {
 				if (Dialogs.showYesNoDialog("Delete objects", "Clear TMA grid?")) {
-					hierarchy.clearAll();
+					hierarchy.setTMAGrid(null);
 					
 					PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 					if (selected instanceof TMACoreObject)
@@ -1562,43 +1485,58 @@ public class Commands {
 	 * @param altitudeThreshold default altitude value for simplification
 	 */
 	public static void promptToSimplifySelectedAnnotations(ImageData<?> imageData, double altitudeThreshold) {
-			PathObjectHierarchy hierarchy = imageData.getHierarchy();
-			List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
-					.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
-					.collect(Collectors.toList());
-			if (pathObjects.isEmpty()) {
-				Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
-				return;
-			}
-	
-			String input = Dialogs.showInputDialog("Simplify shape", 
-					"Set altitude threshold in pixels (> 0; higher values give simpler shapes)", 
-					Double.toString(altitudeThreshold));
-			if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
-				return;
-			try {
-				altitudeThreshold = Double.parseDouble(((String)input).trim());
-			} catch (NumberFormatException e) {
-				logger.error("Could not parse altitude threshold from {}", input);
-				return;
-			}
-			
-			long startTime = System.currentTimeMillis();
-			for (var pathObject : pathObjects) {
-				ROI pathROI = pathObject.getROI();
-				if (pathROI instanceof PolygonROI) {
-					PolygonROI polygonROI = (PolygonROI)pathROI;
-					pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
-				} else {
-					pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
-				}
-				((PathAnnotationObject)pathObject).setROI(pathROI);
-			}
-			long endTime = System.currentTimeMillis();
-			logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
-			hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
+		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
+				.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
+				.collect(Collectors.toList());
+		if (pathObjects.isEmpty()) {
+			Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
+			return;
 		}
 
+		String input = Dialogs.showInputDialog("Simplify shape", 
+				"Set altitude threshold in pixels (> 0; higher values give simpler shapes)", 
+				Double.toString(altitudeThreshold));
+		if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
+			return;
+		try {
+			altitudeThreshold = Double.parseDouble(((String)input).trim());
+		} catch (NumberFormatException e) {
+			logger.error("Could not parse altitude threshold from {}", input);
+			return;
+		}
+		
+		long startTime = System.currentTimeMillis();
+		for (var pathObject : pathObjects) {
+			ROI pathROI = pathObject.getROI();
+			if (pathROI instanceof PolygonROI) {
+				PolygonROI polygonROI = (PolygonROI)pathROI;
+				pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
+			} else {
+				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
+			}
+			((PathAnnotationObject)pathObject).setROI(pathROI);
+		}
+		long endTime = System.currentTimeMillis();
+		logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
+		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+	}
+
+	/**
+	 * Select all objects (excluding the root object) in the imageData.
+	 * 
+	 * @param imageData
+	 */
+	public static void selectAllObjects(final ImageData<?> imageData) {
+		// Select all objects
+		QP.selectAllObjects(imageData.getHierarchy(), false);
+		
+		// Add this step to the history workflow
+		Map<String, String> map = new HashMap<>();
+		map.put("includeRootObject", "false");
+		WorkflowStep newStep = new DefaultScriptableWorkflowStep("Select all objects", map, "selectAllObjects(false)");
+		imageData.getHistoryWorkflow().addStep(newStep);
+	}
 
 
 	/**
@@ -1771,6 +1709,34 @@ public class Commands {
 			return;
 		MiniViewers.createDialog(viewer, true).show();
 	}
+	
+	/**
+	 * Show a dialog to import object(s) from a file.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void runObjectImport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		try {
+			ImportObjectsCommand.runObjectImport(qupath);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("Import error", e.getLocalizedMessage());
+		}
+
+	}
+
+	/**
+	 * Show a dialog to export object(s) to a GeoJSON file.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void runGeoJsonObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		try {
+			ExportObjectsCommand.runGeoJsonExport(qupath);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
+		}
+	}
+
 	
 	
 }

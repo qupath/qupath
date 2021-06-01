@@ -27,7 +27,6 @@ import java.awt.image.IndexColorModel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,7 +51,7 @@ public final class ColorModelFactory {
 	
 	private final static Logger logger = LoggerFactory.getLogger(ColorModelFactory.class);
 	
-	private static Map<Map<Integer, PathClass>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
+//	private static Map<Map<Integer, PathClass>, IndexColorModel> classificationModels = Collections.synchronizedMap(new HashMap<>());
 
 	private static Map<List<ImageChannel>, ColorModel> probabilityModels8 = Collections.synchronizedMap(new HashMap<>());
 	private static Map<List<ImageChannel>, ColorModel> probabilityModels32 = Collections.synchronizedMap(new HashMap<>());
@@ -64,44 +63,37 @@ public final class ColorModelFactory {
 	
 	/**
 	 * Get a ColorModel suitable for showing output pixel classifications, using an 8-bit or 16-bit labeled image.
-     * A cached model may be retrieved if possible, rather than generating a new one.
 	 * 
 	 * @param channels
 	 * @return
 	 */
     public static ColorModel getIndexedClassificationColorModel(Map<Integer, PathClass> channels) {
-    	var map = classificationModels.get(channels);
-
     	var stats = channels.keySet().stream().mapToInt(c -> c).summaryStatistics();
     	if (stats.getMin() < 0)
     		throw new IllegalArgumentException("Minimum label must be >= 0");
     	int length = stats.getMax() + 1;
     	
-    	if (map == null) {
-            int[] cmap = new int[length];
-            
-            for (var entry: channels.entrySet()) {
-        		var pathClass = entry.getValue();
-        		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified()) {
-        			cmap[entry.getKey()] = ColorTools.makeRGBA(255, 255, 255, 0);
-        		} else if (PathClassTools.isIgnoredClass(entry.getValue())) {
-            		var color = pathClass == null ? 0 : pathClass.getColor();
-            		int alpha = 192;
-            		if (pathClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
-            			alpha = 32;
-                	cmap[entry.getKey()] = ColorTools.makeRGBA(ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color), alpha);
-            	} else
-            		cmap[entry.getKey()] = entry.getValue().getColor();
-            }
-            if (cmap.length <= 256)
-                map = new IndexColorModel(8, length, cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
-            else if (cmap.length <= 65536)
-                map = new IndexColorModel(16, length, cmap, 0, true, -1, DataBuffer.TYPE_USHORT);
-            else
-            	throw new IllegalArgumentException("Only 65536 possible classifications supported!");
-            classificationModels.put(new LinkedHashMap<>(channels), map);
-    	}
-    	return map;
+        int[] cmap = new int[length];
+        
+        for (var entry: channels.entrySet()) {
+    		var pathClass = entry.getValue();
+    		if (pathClass == null || pathClass == PathClassFactory.getPathClassUnclassified()) {
+    			cmap[entry.getKey()] = ColorTools.packARGB(0, 255, 255, 255);
+    		} else if (PathClassTools.isIgnoredClass(entry.getValue())) {
+        		var color = pathClass == null ? 0 : pathClass.getColor();
+        		int alpha = 192;
+        		if (pathClass == PathClassFactory.getPathClass(StandardPathClasses.IGNORE))
+        			alpha = 32;
+            	cmap[entry.getKey()] = ColorTools.packARGB(alpha, ColorTools.red(color), ColorTools.green(color), ColorTools.blue(color));
+        	} else
+        		cmap[entry.getKey()] = entry.getValue().getColor();
+        }
+        if (cmap.length <= 256)
+            return new IndexColorModel(8, length, cmap, 0, true, -1, DataBuffer.TYPE_BYTE);    		
+        else if (cmap.length <= 65536)
+            return new IndexColorModel(16, length, cmap, 0, true, -1, DataBuffer.TYPE_USHORT);
+        else
+        	throw new IllegalArgumentException("Only 65536 possible classifications supported!");
     }
     
     /**
@@ -122,7 +114,7 @@ public final class ColorModelFactory {
         	Integer value = entry.getValue();
         	if (value == null) {
         		logger.warn("No color specified for index {} - using default gray", entry.getKey());
-        		cmap[entry.getKey()] = includeAlpha ? ColorTools.makeRGBA(127, 127, 127, 127) : ColorTools.makeRGB(127, 127, 127);
+        		cmap[entry.getKey()] = includeAlpha ? ColorTools.packARGB(127, 127, 127, 127) : ColorTools.packRGB(127, 127, 127);
         	} else
         		cmap[entry.getKey()] = entry.getValue();
         }
@@ -219,7 +211,7 @@ public final class ColorModelFactory {
 		return new DefaultColorModel(type, channels.size(), false, channels.stream().mapToInt(c -> {
 			Integer color = c.getColor();
 			if (color == null)
-				color = ColorTools.makeRGB(255, 255, 255);
+				color = ColorTools.packRGB(255, 255, 255);
 			return color;
 		}).toArray());
 	}

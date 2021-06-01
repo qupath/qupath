@@ -38,6 +38,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
@@ -54,8 +55,6 @@ import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.AbstractTileableImageServer;
-import qupath.lib.images.servers.GeneratingImageServer;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.objects.PathObject;
@@ -64,13 +63,15 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 
 /**
  * A special ImageServer implementation that doesn't have a backing image, but rather
- * constructs tiles from a PathObjectHierarchy where pixel values are integer labels corresponding 
+ * constructs tiles from a {@link PathObjectHierarchy} where pixel values are integer labels corresponding 
  * stored and classified annotations.
  * <p>
  * <i>Warning!</i> This is intend for temporary use when exporting labelled images. No attempt is made to 
@@ -243,14 +244,38 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		return getPathClass(pathObject.getPathClass());
 	}
 	
+	/**
+	 * Get an unmodifiable map of classifications and their corresponding labels.
+	 * Note that multiple classifications may use the same integer label.
+	 * @return a map of labels, or empty map if none are available or {@code useUniqueLabels()} was selected.
+	 */
+	public Map<PathClass, Integer> getLabels() {
+		if (params.createUniqueLabels)
+			return Collections.emptyMap();
+		return Collections.unmodifiableMap(params.labels);
+	}
+	
+	/**
+	 * Get an unmodifiable map of classifications and their corresponding boundary labels, if available.
+	 * Note that multiple classifications may use the same integer label.
+	 * @return a map of boundary labels, or empty map if none are available or {@code useUniqueLabels()} was selected.
+	 */
+	public Map<PathClass, Integer> getBoundaryLabels() {
+		if (params.createUniqueLabels)
+			return Collections.emptyMap();
+		return Collections.unmodifiableMap(params.boundaryLabels);
+	}
+		
 	
 	
 	private static class LabeledServerParameters {
 		
 		/**
 		 * Background class (name must not clash with any 'real' class)
+		 * Previously, this was achieved with a UUID - although this looks strange if exporting classes.
 		 */
-		private PathClass unannotatedClass = PathClassFactory.getPathClass("Unannotated " + UUID.randomUUID().toString());
+//		private PathClass unannotatedClass = PathClassFactory.getPathClass("Unannotated " + UUID.randomUUID().toString());
+		private PathClass unannotatedClass = PathClassFactory.getPathClass("*Background*");
 		
 		private Predicate<PathObject> objectFilter = PathObjectFilter.ANNOTATIONS;
 		private Function<PathObject, ROI> roiFunction = p -> p.getROI();
@@ -434,7 +459,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @return
 		 */
 		public Builder backgroundLabel(int label) {
-			return backgroundLabel(label, ColorTools.makeRGB(255, 255, 255));
+			return backgroundLabel(label, ColorTools.packRGB(255, 255, 255));
 		}
 		
 		/**
@@ -610,6 +635,13 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @return
 		 */
 		public LabeledImageServer build() {
+			if (params.createUniqueLabels) {
+				if (!(params.labels.isEmpty() || (params.labels.size() == 1 && params.labels.containsKey(params.unannotatedClass))))
+					throw new IllegalArgumentException("You cannot use both useUniqueLabels() and addLabel() - please choose one or the other!");
+				if (params.objectFilter == null)
+					throw new IllegalArgumentException("Please specify an object filter with useUniqueLabels(), for example useDetections(), useCells(), useAnnotations(), useFilter()");
+			}
+			
 			return new LabeledImageServer(
 					imageData, downsample, tileWidth, tileHeight,
 					new LabeledServerParameters(params),
@@ -618,6 +650,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 
 	}
 	
+		
 	/**
 	 * Returns null (does not support ServerBuilders).
 	 */
@@ -641,13 +674,39 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	
 	/**
 	 * Returns true if there are no objects to be painted within the requested region.
+	 * <p>
+	 * @apiNote In v0.2 this performed a fast bounding box check only. In v0.3 it was updated to test ROIs fully for 
+	 *          an intersection.
+	 * @implNote Since v0.3 the request is expanded by the line thickness before testing intersection. In some edge cases, this might result 
+	 *           in returning true even if nothing is drawn within the region. There remains a balance between returning quickly and 
+	 *           giving an exact result.
 	 */
 	@Override
 	public boolean isEmptyRegion(RegionRequest request) {
-		return !hierarchy.getObjectsForRegion(null, request, null).stream()
+		double thicknessScale = request.getDownsample() / getDownsampleForResolution(0);
+		int pad = (int)Math.ceil(params.lineThickness * thicknessScale);
+		var request2 = pad > 0 ? request.pad2D(pad, pad) : request;
+		return !getObjectsForRegion(request2)
+				.stream()
+				.anyMatch(p -> RoiTools.intersectsRegion(p.getROI(), request2));
+	}
+	
+	/**
+	 * Get the objects to be painted that fall within a specified region.
+	 * Note that this does not take into consideration line thickness, and therefore results are not guaranteed 
+	 * to match {@link #isEmptyRegion(RegionRequest)}; in other worse, an object might fall outside the region 
+	 * but still influence an image type because of thick lines being drawn.
+	 * If thicker lines should influence the result, the region should be padded accordingly.
+	 * 
+	 * @param region
+	 * 
+	 * @return a list of objects with ROIs that intersect the specified region
+	 */
+	public List<PathObject> getObjectsForRegion(ImageRegion region) {
+		return hierarchy.getObjectsForRegion(null, region, null).stream()
 				.filter(params.objectFilter)
-				.map(p -> getPathClass(p))
-				.anyMatch(p -> params.labels.containsKey(p) || params.boundaryLabels.containsKey((p)));
+				.filter(p -> params.createUniqueLabels || params.labels.containsKey(p.getPathClass()) || params.boundaryLabels.containsKey(p.getPathClass()))
+				.collect(Collectors.toList());
 	}
 	
 	@Override
@@ -877,14 +936,14 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		if (doRGB) {
 			// Resort to RGB if we have to
 			if (maxLabel >= 65536)
-				return img;			
+				return img;
 			// Convert to unsigned short if we can
 			var shortRaster = WritableRaster.createBandedRaster(DataBuffer.TYPE_USHORT, width, height, 1, null);
 			int[] samples = img.getRGB(0, 0, width, height, null, 0, width);
 			shortRaster.setSamples(0, 0, width, height, 0, samples);
 //			System.err.println("Before: " + Arrays.stream(samples).summaryStatistics());
 			raster = shortRaster;
-			samples = raster.getSamples(0, 0, width, height, 0, (int[])null);
+//			samples = raster.getSamples(0, 0, width, height, 0, (int[])null);
 //			System.err.println("After: " + Arrays.stream(samples).summaryStatistics());
 		}
 		return new BufferedImage((IndexColorModel)colorModel, raster, false, null);

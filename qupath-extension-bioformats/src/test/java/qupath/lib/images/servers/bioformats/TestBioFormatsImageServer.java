@@ -86,6 +86,19 @@ public class TestBioFormatsImageServer {
 		}
 		
 	}
+	
+	
+	/**
+	 * Test default tile lengths generated.
+	 */
+	@Test
+	public void test_BioFormatsDefaultTile() {
+		assertEquals(BioFormatsImageServer.getDefaultTileLength(256, 512), 256);
+		assertEquals(BioFormatsImageServer.getDefaultTileLength(4, 512), 32);		
+		assertEquals(BioFormatsImageServer.getDefaultTileLength(12, 512), 36);		
+		assertEquals(BioFormatsImageServer.getDefaultTileLength(700, 500), 500);
+		assertEquals(BioFormatsImageServer.getDefaultTileLength(-1, 100_000), 512);
+	}
 
 	
 	

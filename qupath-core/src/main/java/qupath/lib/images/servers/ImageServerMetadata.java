@@ -54,7 +54,7 @@ public class ImageServerMetadata {
 	/**
 	 * Default channel to use with images where the channel type is {@link ChannelType#CLASSIFICATION}.
 	 */
-	public static final ImageChannel DEFAULT_CLASSIFICATION_LABELS_CHANNEL = ImageChannel.getInstance("Labels", ColorTools.makeRGB(255, 255, 255));
+	public static final ImageChannel DEFAULT_CLASSIFICATION_LABELS_CHANNEL = ImageChannel.getInstance("Labels", ColorTools.packRGB(255, 255, 255));
 	
 	/**
 	 * Enum representing possible channel (band) types for an image.

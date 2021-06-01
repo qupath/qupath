@@ -49,9 +49,11 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -148,6 +150,9 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	private final static Logger logger = LoggerFactory.getLogger(QuPathViewer.class);
 
+	private static final double MIN_ROTATION = 0;
+	private static final double MAX_ROTATION = 360 * Math.PI / 180;
+
 	private List<QuPathViewerListener> listeners = new ArrayList<>();
 
 	private ObjectProperty<ImageData<BufferedImage>> imageDataProperty = new SimpleObjectProperty<>();
@@ -204,7 +209,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private double xCenter = 0;
 	private double yCenter = 0;
 	private DoubleProperty downsampleFactor = new SimpleDoubleProperty(1.0);
-	private double rotation = 0;
+	private DoubleProperty rotationProperty = new SimpleDoubleProperty(0);
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 	
 	// Affine transform used to apply rotation
@@ -848,6 +853,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				centerImage();
 			}
 			imageUpdated = true;
+			repaint();
+		});
+		
+		rotationProperty.addListener((v, o, n) -> {
+			imageUpdated = true;
+			updateAffineTransform();
 			repaint();
 		});
 	}
@@ -2297,6 +2308,10 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		// Ensure within range, if necessary
 		if (clipToMinMax)
 			downsampleFactor = GeneralTools.clipValue(downsampleFactor, getMinDownsample(), getMaxDownsample());
+		else if (downsampleFactor <= 0 || !Double.isFinite(downsampleFactor)) {
+			logger.warn("Invalid downsample factor {}, will use {} instead", downsampleFactor, getMinDownsample());
+			downsampleFactor = getMinDownsample();
+		}
 		
 		setDownsampleFactorImpl(downsampleFactor, cx, cy);
 	}
@@ -2716,8 +2731,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		double downsample = getDownsampleFactor();
 		transform.scale(1.0/downsample, 1.0/downsample);
 		transform.translate(-xCenter, -yCenter);
-		if (rotation != 0)
-			transform.rotate(rotation, xCenter, yCenter);
+		if (rotationProperty.get() != 0)
+			transform.rotate(rotationProperty.get(), xCenter, yCenter);
 
 		transformInverse.setTransform(transform);
 		try {
@@ -2743,17 +2758,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param theta
 	 */
 	public void setRotation(double theta) {
-		if (this.rotation == theta)
+		if (rotationProperty.get() == theta)
 			return;
-		this.rotation = theta;
-		imageUpdated = true;
-		updateAffineTransform();
-		repaint();
+		while (theta < MIN_ROTATION)
+			theta += MAX_ROTATION;
+		theta = (theta % MAX_ROTATION) + MIN_ROTATION;
+
+		rotationProperty.set(theta);
 	}
 
 	/**
 	 * Returns true if {@code viewer.getRotation() != 0}.
-	 * @return
+	 * @return isRotated
 	 */
 	public boolean isRotated() {
 		return getRotation() != 0;
@@ -2761,10 +2777,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Get the current rotation; angle in radians.
-	 * @return
+	 * @return rotation in radians
 	 */
 	public double getRotation() {
-		return rotation;
+		return rotationProperty.get();
+	}
+	
+	/**
+	 * Return the rotation property of this viewer.
+	 * @return rotation property
+	 */
+	public DoubleProperty rotationProperty() {
+		return rotationProperty;
 	}
 
 	@Override
@@ -2972,6 +2996,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 */
 	class KeyEventHandler implements EventHandler<KeyEvent> {
 
+		private KeyCode lastPressed = null;
+		private Set<KeyCode> keysPressed = new HashSet<>();
 		private long keyDownTime = Long.MIN_VALUE;
 		private double scale = 1.0;
 
@@ -3016,6 +3042,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				return;
 
 			// Use arrow keys to navigate, either or directly or using a TMA grid
+			boolean skipMissingTMACores = PathPrefs.getSkipMissingCoresProperty();
 			TMAGrid tmaGrid = hierarchy.getTMAGrid();
 			List<TMACoreObject> cores = tmaGrid == null ? Collections.emptyList() : new ArrayList<>(tmaGrid.getTMACoreList());
 			if (!event.isShiftDown() && tmaGrid != null && tmaGrid.nCores() > 0) {
@@ -3032,8 +3059,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				if (ind < 0) {
 					// Find the closest TMA core to the current position
 					double minDisplacementSq = Double.POSITIVE_INFINITY;
-					int i = 0;
+					int i = -1;
 					for (TMACoreObject core : cores) {
+						i++;
+						if (core.isMissing() && skipMissingTMACores)
+							continue;
+						
 						ROI coreROI = core.getROI();
 						double dx = coreROI.getCentroidX() - getCenterPixelX();
 						double dy = coreROI.getCentroidY() - getCenterPixelY();
@@ -3042,38 +3073,36 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 							ind = i;
 							minDisplacementSq = displacementSq;
 						}
-						i++;
+						
 					}
 				}
 
+				int temp;
 				switch (code) {
 				case LEFT:
-					if (ind >= 0)
-						ind--;
-					else
-						ind = 0;
+					temp = ind-1 < 0 ? 0 : ind-1;
+					while (skipMissingTMACores && cores.get(temp).isMissing() && temp > 0)
+						temp = temp-1 < 0 ? 0 : temp-1;
 					break;
 				case UP:
-					if (ind >= 0)
-						ind -= w;
-					else
-						ind = 0;
+					temp = ind == 0 ? ind : ind-w < 0 ? (w*h)-(w-ind+1) : ind-w;
+					while (skipMissingTMACores && cores.get(temp).isMissing() && temp != 0) 
+						temp = ind == 0 ? ind : temp-w <= 0 ? (w*h)-(w-temp+1) : temp-w;
 					break;
 				case RIGHT:
-					if (ind >= 0)
-						ind++;
-					else
-						ind = 0;
+					temp = ind+1 >= w*h ? (w*h)-1 : ind+1;
+					while (skipMissingTMACores && cores.get(temp).isMissing() && temp < (w*h)-1)
+						temp = temp+1 >= w*h ? (w*h)-1 : temp+1;
 					break;
 				case DOWN:
-					if (ind >= 0)
-						ind += w;
-					else
-						ind = 0;
+					temp = ind == (w*h)-1 ? ind : ind+w >= (w*h) ? ind%w + 1 : ind+w;
+					while (skipMissingTMACores && cores.get(temp).isMissing() && temp != (w*h)-1) 
+						temp = temp+w >= (w*h) ? temp%w + 1 : temp+w;
 					break;
 				default:
 					return;
 				}
+				ind = !skipMissingTMACores ? temp : cores.get(temp).isMissing() ? ind : temp;
 				// Set the selected object & center the viewer
 				if (ind >= 0 && ind < w*h) {
 					PathObject selectedObject = cores.get(ind);
@@ -3086,7 +3115,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 				
 			} else if (event.getEventType() == KeyEvent.KEY_PRESSED) {
-
+				
+				if (keysPressed.isEmpty()) {
+					keysPressed.add(code);
+					lastPressed = code;
+				} else if (!keysPressed.contains(code)) {
+					keysPressed.add(code);
+					if (keysPressed.size() == 3)
+						keysPressed.remove(lastPressed);
+				}
 
 				if (event.isShiftDown()) {
 					switch (code) {
@@ -3111,8 +3148,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				//				double dt = 0.1*currentTime - 0.1*keyDownTime;
 				//				double scale = 5 * Math.pow(20 + dt, 0.5);
 
-				scale = scale * 1.05;
-				double d = getDownsampleFactor() * scale * 20;
+				// Apply acceleration effects if required
+				if (PathPrefs.getNavigationAccelerationProperty())
+					scale = scale * 1.05;
+				
+				double d = getDownsampleFactor() * scale * 20 * PathPrefs.getScaledNavigationSpeed();
 				double dx = 0;
 				double dy = 0;
 				int nZSlices = hasServer() ? getServer().nZSlices() : 1;
@@ -3125,6 +3165,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						return;
 					}
 					dx = d;
+					if (lastPressed != code) {
+						if (lastPressed == KeyCode.RIGHT)
+							dx = 0;
+						else
+							dy = lastPressed == KeyCode.UP ? d : -d;
+					}
 					break;
 				case UP:
 					if (nZSlices > 1) {
@@ -3133,6 +3179,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						return;
 					}
 					dy = d;
+					if (lastPressed != code) {
+						if (lastPressed == KeyCode.DOWN)
+							dy = 0;
+						else
+							dx = lastPressed == KeyCode.LEFT ? d : -d;
+					}
 					break;
 				case RIGHT:
 					if (nTimepoints > 1) {
@@ -3141,6 +3193,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						return;
 					}
 					dx = -d;
+					if (lastPressed != code) {
+						if (lastPressed == KeyCode.LEFT)
+							dx = 0;
+						else
+							dy = lastPressed == KeyCode.UP ? d : -d;							
+					}
 					break;
 				case DOWN:
 					if (nZSlices > 1) {
@@ -3149,6 +3207,12 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 						return;
 					}
 					dy = -d;
+					if (lastPressed != code) {
+						if (lastPressed == KeyCode.UP)
+							dy = 0;
+						else
+							dx = lastPressed == KeyCode.LEFT ? d : -d;
+					}
 					break;
 				default:
 					return;
@@ -3159,15 +3223,31 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 
 			} else if (event.getEventType() == KeyEvent.KEY_RELEASED) {
+				keysPressed.remove(code);
+				if (lastPressed == code) {
+					if (keysPressed.size() == 1)
+						lastPressed = keysPressed.iterator().next();
+					else
+						lastPressed = null;
+				}
+				
+				if (keysPressed.size() == 1)
+					requestCancelDirection(code == KeyCode.LEFT || code == KeyCode.RIGHT);
+				
 				switch (code) {
 				case LEFT:
 				case UP:
 				case RIGHT:
 				case DOWN:
-					mover.decelerate();
-					setDoFasterRepaint(false);
-					keyDownTime = Long.MIN_VALUE;
-					scale = 1;
+					if (lastPressed == null) {
+						if (!PathPrefs.getNavigationAccelerationProperty())
+							mover.stopMoving();
+						else 
+							mover.decelerate();
+						setDoFasterRepaint(false);
+						keyDownTime = Long.MIN_VALUE;
+						scale = 1;
+					}
 					event.consume();
 					break;
 				default:
@@ -3215,6 +3295,14 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void requestStartMoving(final double dx, final double dy) {
 		mover.startMoving(dx, dy, true);
 		this.setDoFasterRepaint(true);
+	}
+	
+	/**
+	 * Requests that the viewer cancels either the x- or y-axis direction.
+	 * @param xAxis 
+	 */
+	public void requestCancelDirection(final boolean xAxis) {
+		mover.cancelDirection(xAxis);
 	}
 
 }

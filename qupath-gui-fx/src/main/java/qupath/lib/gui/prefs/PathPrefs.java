@@ -78,10 +78,17 @@ import qupath.lib.projects.ProjectIO;
 public class PathPrefs {
 	
 	/**
-	 * Name for preference node - until 0.2.0 is stable, avoid using same storage as v0.1.2
+	 * Name for preference node
 	 */
-	final private static String NODE_NAME = "io.github.qupath.0.2.0";
-	
+	private final static String NODE_NAME = "io.github.qupath/0.3";
+
+	/**
+	 * Previous preference node, in case these need to be restored.
+	 * For now, this isn't supported.
+	 */
+	@SuppressWarnings("unused")
+	private final static String PREVIOUS_NODE_NAME = "io.github.qupath.0.2.0";
+
 	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
 	
 	/**
@@ -273,7 +280,10 @@ public class PathPrefs {
 						logger.warn("Cannot set memory to {}, must be >= 512 MB", n);
 						n = 512;
 					}
-					String memory = "-Xmx" + n.intValue() + "M";
+					// Note: with jpackage 14, the following was used
+//					String memory = "-Xmx" + n.intValue() + "M";
+					// With jpackage 15+, this should work
+					String memory = "java-options=-Xmx" + n.intValue() + "M";
 					Path config = getConfigPath();
 					if (!Files.exists(config)) {
 						logger.error("Cannot find config file!");
@@ -326,10 +336,24 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static Preferences getUserPreferences() {
-		Preferences prefs = Preferences.userRoot();
-		prefs = prefs.node(NODE_NAME);
-		return prefs;
+		return getUserPreferences(NODE_NAME, true);
 	}
+	
+	private static Preferences getUserPreferences(String nodeName, boolean createIfNotExists) {
+		Preferences prefs = Preferences.userRoot();
+		try {
+			for (var name : nodeName.split("/")) {
+				if (!createIfNotExists && !prefs.nodeExists(name))
+					return null;
+				prefs = prefs.node(name);
+			}
+			return prefs;
+		} catch (BackingStoreException e) {
+			logger.debug("Exception loading " + nodeName + " (" + e.getLocalizedMessage() + ")", e);
+			return null;
+		}
+	}
+	
 	
 	/**
 	 * Save the preferences.
@@ -387,6 +411,74 @@ public class PathPrefs {
 		if (!Double.isFinite(speed) || speed <= 0)
 			return 1;
 		return speed;
+	}
+	
+	
+	private static IntegerProperty navigationSpeedProperty = createPersistentPreference("Navigation speed %", 100);
+	
+	/**
+	 * Percentage to scale navigation speed.
+	 * 
+	 * @return navigationSpeedProperty
+	 */
+	public static IntegerProperty navigationSpeedProperty() {
+		return navigationSpeedProperty;
+	}
+	
+	
+	/**
+	 * Get navigation speed scaled as a proportion and forced to be in the range 0-1. For example, 100% becomes 1.
+	 * 
+	 * @return speed
+	 */
+	public static double getScaledNavigationSpeed() {
+		double speed = navigationSpeedProperty.get() / 100.0;
+		if (!Double.isFinite(speed) || speed <= 0)
+			return 1;
+		return speed;
+	}
+	
+	private static BooleanProperty navigationAccelerationProperty = createPersistentPreference("Navigation acceleration effects", true);
+	
+	/**
+	 * Apply acceleration/deceleration effects when holding and releasing navigation key.
+	 * 
+	 * @return navigationAccelerationProperty
+	 */
+	public static BooleanProperty navigationAccelerationProperty() {
+		return navigationAccelerationProperty;
+	}
+	
+	
+	/**
+	 * Get whether to apply the navigation acceleration (& deceleration) effects or not.
+	 * 
+	 * @return
+	 */
+	public static boolean getNavigationAccelerationProperty() {
+		return navigationAccelerationProperty.get();
+	}
+	
+	
+	private static BooleanProperty skipMissingCoresProperty = createPersistentPreference("Skip missing TMA cores", false);
+	
+	/**
+	 * Skip ('jump over') missing cores when navigating through TMA grids.
+	 * 
+	 * @return skipMissingCoresProperty
+	 */
+	public static BooleanProperty skipMissingCoresProperty() {
+		return skipMissingCoresProperty;
+	}
+	
+	/**
+	 * Return whether the viewer skips missing TMA cores when navigating TMA grids 
+	 * with arrow keys.
+	 * 
+	 * @return
+	 */
+	public static boolean getSkipMissingCoresProperty() {
+		return skipMissingCoresProperty.get();
 	}
 	
 	
@@ -950,7 +1042,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static IntegerProperty viewerBackgroundColor = createPersistentPreference("viewerBackgroundColor", ColorTools.makeRGB(0, 0, 0));
+	private static IntegerProperty viewerBackgroundColor = createPersistentPreference("viewerBackgroundColor", ColorTools.packRGB(0, 0, 0));
 	
 	/**
 	 * Color to paint behind any image.
@@ -961,12 +1053,12 @@ public class PathPrefs {
 	}
 
 	
-	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
+	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.packRGB(255, 0, 0));
 		
-	private static IntegerProperty colorSelectedObject = createPersistentPreference("colorSelectedObject", ColorTools.makeRGB(255, 255, 0));
-	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.makeRGB(20, 20, 180));
-	private static IntegerProperty colorTMAMissing = createPersistentPreference("colorTMAMissing", ColorTools.makeRGBA(20, 20, 180, 50));
-	private static IntegerProperty colorTile = createPersistentPreference("colorTile", ColorTools.makeRGB(80, 80, 80));
+	private static IntegerProperty colorSelectedObject = createPersistentPreference("colorSelectedObject", ColorTools.packRGB(255, 255, 0));
+	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.packRGB(20, 20, 180));
+	private static IntegerProperty colorTMAMissing = createPersistentPreference("colorTMAMissing", ColorTools.packARGB(50, 20, 20, 180));
+	private static IntegerProperty colorTile = createPersistentPreference("colorTile", ColorTools.packRGB(80, 80, 80));
 	
 	/**
 	 * The default color used to display objects of any type, where a default has not otherwise been specified.

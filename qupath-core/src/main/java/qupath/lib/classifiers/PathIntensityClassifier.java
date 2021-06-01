@@ -75,7 +75,8 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 	}
 	
 	/**
-	 * Classify the intensity of a collection of objects, based on the current thresholds.
+	 * Classify the intensity of a collection of objects, based on the current thresholds. <p>
+	 * If an object is missing the required measurement, its {@link PathClass} remains unchanged.
 	 * 
 	 * @param pathObjects
 	 */
@@ -91,11 +92,10 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 		
 		// If there is no class specified, apply to all
 		if (classSelected == null) {
-			if (singleThreshold) {
+			if (singleThreshold)
 				PathClassifierTools.setIntensityClassifications(pathObjects, intensityMeasurement, t1);
-			} else {
+			else
 				PathClassifierTools.setIntensityClassifications(pathObjects, intensityMeasurement, t1, t2, t3);
-			}
 			return pathObjects.size();
 		}
 		
@@ -117,7 +117,10 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 			if (!(value instanceof Number))
 				continue;
 			double val = ((Number)value).doubleValue();
-			if (singleThreshold) {
+			// If measurement is missing, do not change it
+			if (Double.isNaN(val))
+				continue;
+			else if (singleThreshold) {
 				if (val > t1)
 					pathObjectTemp.setPathClass(classPositive, pathObjectTemp.getClassProbability());
 				else
@@ -147,7 +150,7 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 	@Override
 	public List<String> getRequiredMeasurements() {
 		if (intensityMeasurement == null)
-			return null;
+			return Collections.emptyList();	// To avoid NPE in CompositeClassifier class
 		return Collections.singletonList(intensityMeasurement);
 	}
 
@@ -217,9 +220,8 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 
 	/**
 	 * Does nothing - intensity classifiers require no training.
-	 * <p>
-	 * Returns true if this is the first time updateClassifier was called, false otherwise.
 	 * 
+	 * @return true if this is the first time updateClassifier was called, false otherwise.
 	 */
 	@Override
 	public boolean updateClassifier(Map<PathClass, List<PathObject>> map, List<String> measurements, Normalization normalization) {
@@ -227,6 +229,4 @@ class PathIntensityClassifier implements Serializable, PathObjectClassifier {
 		updateCalled = true;
 		return !previouslyUpdated;
 	}
-	
-
 }

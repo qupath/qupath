@@ -59,6 +59,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.Optional;
@@ -67,6 +68,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
@@ -196,7 +198,7 @@ import qupath.lib.gui.tools.CommandFinderTools;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
-import qupath.lib.gui.viewer.DragDropFileImportListener;
+import qupath.lib.gui.viewer.DragDropImportListener;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
@@ -264,6 +266,8 @@ public class QuPathGUI {
 			);
 	
 	private BooleanProperty selectedToolLocked = new SimpleBooleanProperty(false);
+
+	private BooleanProperty readOnly = new SimpleBooleanProperty(false);
 	
 	// ExecutorServices for single & multiple threads
 	private Map<Object, ExecutorService> mapSingleThreadPools = new HashMap<>();
@@ -323,7 +327,7 @@ public class QuPathGUI {
 	private boolean isStandalone = false;
 	private ScriptMenuLoader sharedScriptMenuLoader;
 	
-	private DragDropFileImportListener dragAndDrop = new DragDropFileImportListener(this);
+	private DragDropImportListener dragAndDrop = new DragDropImportListener(this);
 	
 	private UndoRedoManager undoRedoManager;
 	
@@ -515,7 +519,7 @@ public class QuPathGUI {
 		/**
 		 * Toggle 'selection mode' on/off for all drawing tools.
 		 */
-		@ActionAccelerator("shortcut+alt+s")
+		@ActionAccelerator("shift+s")
 		@ActionIcon(PathIcons.SELECTION_MODE)
 		public final Action SELECTION_MODE = ActionTools.createSelectableAction(PathPrefs.selectionModeProperty(), "Selection mode");
 		
@@ -699,8 +703,10 @@ public class QuPathGUI {
 	 * @return
 	 */
 	public synchronized DefaultActions getDefaultActions() {
-		if (defaultActions == null)
+		if (defaultActions == null) {
 			defaultActions = new DefaultActions();
+			installActions(ActionTools.getAnnotatedActions(defaultActions));
+		}
 		return defaultActions;
 	}
 	
@@ -1200,6 +1206,7 @@ public class QuPathGUI {
 	
 	private void refreshToolsMenu(List<PathTool> tools, Menu menu) {
 		menu.getItems().setAll(tools.stream().map(t -> ActionTools.createCheckMenuItem(getToolAction(t))).collect(Collectors.toList()));
+		MenuTools.addMenuItems(menu, null, ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE));
 	}
 	
 	
@@ -1933,7 +1940,10 @@ public class QuPathGUI {
 			logger.error("Error saving classes", e);
 		}
 		byte[] bytes = stream.toByteArray();
-		PathPrefs.getUserPreferences().putByteArray("defaultPathClasses", bytes);
+		if (bytes.length < 0.75*Preferences.MAX_VALUE_LENGTH)
+			PathPrefs.getUserPreferences().putByteArray("defaultPathClasses", bytes);
+		else
+			logger.error("Classification list too long ({} bytes) - cannot save it to the preferences.", bytes.length);
 	}
 	
 	
@@ -2116,7 +2126,7 @@ public class QuPathGUI {
 	 * 
 	 * @return
 	 */
-	public DragDropFileImportListener getDefaultDragDropListener() {
+	public DragDropImportListener getDefaultDragDropListener() {
 		return dragAndDrop;
 	}
 	
@@ -2390,7 +2400,9 @@ public class QuPathGUI {
 				ActionTools.createCheckMenuItem(defaultActions.POLYGON_TOOL, groupTools),
 				ActionTools.createCheckMenuItem(defaultActions.POLYLINE_TOOL, groupTools),
 				ActionTools.createCheckMenuItem(defaultActions.BRUSH_TOOL, groupTools),
-				ActionTools.createCheckMenuItem(defaultActions.POINTS_TOOL, groupTools)
+				ActionTools.createCheckMenuItem(defaultActions.POINTS_TOOL, groupTools),
+				null,
+				ActionTools.createCheckMenuItem(defaultActions.SELECTION_MODE)
 //				ActionTools.getActionCheckBoxMenuItem(actionManager.WAND_TOOL, groupTools)
 				);
 
@@ -2729,7 +2741,7 @@ public class QuPathGUI {
 	 * @return
 	 */
 	boolean checkSaveChanges(ImageData<BufferedImage> imageData) {
-		if (!imageData.isChanged())
+		if (!imageData.isChanged() || isReadOnly())
 			return true;
 		ProjectImageEntry<BufferedImage> entry = getProjectImageEntry(imageData);
 		String name = entry == null ? ServerTools.getDisplayableImageName(imageData.getServer()) : entry.getImageName();
@@ -3016,7 +3028,7 @@ public class QuPathGUI {
 		return installCommand(menuPath, () -> {
 			try {
 				runScript(file, getImageData());
-			} catch (IOException e) {
+			} catch (IOException | ScriptException e) {
 				Dialogs.showErrorMessage("Script error", e);
 			}
 		});
@@ -3032,7 +3044,13 @@ public class QuPathGUI {
 	 * @see #installGroovyCommand(String, File)
 	 */
 	public MenuItem installGroovyCommand(String menuPath, final String script) {
-		return installCommand(menuPath, () -> runScript(script, getImageData()));
+		return installCommand(menuPath, () -> {
+			try {
+				runScript(script, getImageData());
+			} catch (ScriptException e) {
+				Dialogs.showErrorMessage("Script error", e);
+			}
+		});
 	}
 	
 	/**
@@ -3121,8 +3139,9 @@ public class QuPathGUI {
 	 * @param script the script to run
 	 * @param imageData an {@link ImageData} object for the current image (may be null)
 	 * @return result of the script execution
+	 * @throws ScriptException 
 	 */
-	private Object runScript(final String script, final ImageData<BufferedImage> imageData) {
+	private Object runScript(final String script, final ImageData<BufferedImage> imageData) throws ScriptException {
 		return DefaultScriptEditor.executeScript(Language.GROOVY, script, getProject(), imageData, true, null);
 	}
 	
@@ -3133,8 +3152,9 @@ public class QuPathGUI {
 	 * @param imageData an {@link ImageData} object for the current image (may be null)
 	 * @return result of the script execution
 	 * @throws IOException 
+	 * @throws ScriptException 
 	 */
-	private Object runScript(final File file, final ImageData<BufferedImage> imageData) throws IOException {
+	private Object runScript(final File file, final ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		var script = GeneralTools.readFileAsString(file.getAbsolutePath());
 		return runScript(script, imageData);
 	}
@@ -3174,16 +3194,17 @@ public class QuPathGUI {
 			}
 		}
 		
-		String serverPath = null;
+		ServerBuilder<BufferedImage> serverBuilder = null;
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		
 		// If we are loading data related to the same image server, load into that - otherwise open a new image if we can find it
 		try {
-			serverPath = PathIO.readSerializedServerPath(file);
+			serverBuilder = PathIO.extractServerBuilder(file.toPath());
 		} catch (Exception e) {
 			logger.warn("Unable to read server path from file: {}", e.getLocalizedMessage());
 		}
-		boolean sameServer = serverPath == null || (imageData != null && imageData.getServerPath().equals(serverPath));			
+		var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
+		boolean sameServer = Objects.equals(existingBuilder, serverBuilder);			
 		
 		
 		// If we don't have the same server, try to check the path is valid.
@@ -3195,22 +3216,40 @@ public class QuPathGUI {
 			server = imageData.getServer();
 		else {
 			try {
-				server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
-			} catch (IOException e) {
-				logger.error("Unable to open server path " + serverPath, e);
+				server = serverBuilder.build();
+			} catch (Exception e) {
+				logger.error("Unable to build server " + serverBuilder, e);
 			}
-			if (server == null) {
-//				boolean pathValid = new File(serverPath).isFile() || URLHelpers.checkURL(serverPath);
-//				if (!pathValid) {
-					serverPath = Dialogs.promptForFilePathOrURL("Set path to missing file", serverPath, new File(serverPath).getParentFile(), null);
-					if (serverPath == null)
+			// TODO: Ideally we would use an interface like ProjectCheckUris instead
+			if (server == null && serverBuilder != null) {
+				var uris = serverBuilder.getURIs();
+				var urisUpdated = new HashMap<URI, URI>();
+				for (var uri : uris) {
+					var pathUri = GeneralTools.toPath(uri);
+					if (pathUri != null && Files.exists(pathUri)) {
+						urisUpdated.put(uri, uri);
+						continue;
+					}
+					String currentPath = pathUri == null ? uri.toString() : pathUri.toString();
+					var newPath = Dialogs.promptForFilePathOrURL("Set path to missing image", currentPath, file.getParentFile(), null);
+					if (newPath == null)
 						return false;
-					server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
-					if (server == null)
-						return false;
-//				}
+					try {
+						urisUpdated.put(uri, GeneralTools.toURI(newPath));
+					} catch (URISyntaxException e) {
+						throw new IOException(e);
+					}
+				}
+				serverBuilder = serverBuilder.updateURIs(urisUpdated);
+				try {
+					server = serverBuilder.build();
+				} catch (Exception e) {
+					logger.error("Unable to build server " + serverBuilder, e);
+				}
 			}
-			
+			if (server == null)
+				return false;
+//			
 			// Small optimization... put in a thumbnail request early in a background thread.
 			// This way that it will be fetched while the image data is being read -
 			// generally leading to improved performance in the viewer's setImageData method
@@ -3223,7 +3262,7 @@ public class QuPathGUI {
 		
 		
 		if (promptToSaveChanges && imageData != null && imageData.isChanged()) {
-			if (!promptToSaveChangesOrCancel("Save changes", imageData))
+			if (!isReadOnly() && !promptToSaveChangesOrCancel("Save changes", imageData))
 				return false;
 		}
 		
@@ -3577,6 +3616,36 @@ public class QuPathGUI {
 		return !selectedToolLocked.get();
 	}
 	
+	/**
+	 * Query whether QuPath is in 'read-only' mode. This suppresses dialogs that ask about saving changes.
+	 * @return
+	 * @apiNote Read only mode is an experimental feature; its behavior is subject to change in future versions.
+	 * @see #setReadOnly(boolean)
+	 */
+	public boolean isReadOnly() {
+		return readOnly.get();
+	}
+	
+	/**
+	 * Property indicating whether QuPath is in 'read-only' mode.
+	 * @return
+	 * @apiNote Read only mode is an experimental feature; its behavior is subject to change in future versions.
+	 * @see #isReadOnly()
+	 * @see #setReadOnly(boolean)
+	 */
+	public ReadOnlyBooleanProperty readOnlyProperty() {
+		return readOnly;
+	}
+	
+	/**
+	 * Specify whether QuPath should be in 'read-only' mode.
+	 * @param readOnly
+	 * @apiNote Read only mode is an experimental feature; its behavior is subject to change in future versions.
+	 * @see #isReadOnly()
+	 */
+	public void setReadOnly(boolean readOnly) {
+		this.readOnly.set(readOnly);
+	}
 	
 	/**
 	 * Get a list of the current available tools.
@@ -4389,7 +4458,7 @@ public class QuPathGUI {
 				return true;
 			// Deal with saving, if necessary
 			if (imageData.isChanged()) {
-				if (!promptToSaveChangesOrCancel(dialogTitle, imageData))
+				if (!isReadOnly() && !promptToSaveChangesOrCancel(dialogTitle, imageData))
 					return false;
 			}
 			viewer.setImageData(null);
