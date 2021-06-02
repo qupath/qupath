@@ -99,6 +99,7 @@ import javafx.scene.transform.MatrixType;
 import javafx.scene.transform.NonInvertibleTransformException;
 import javafx.scene.transform.TransformChangedEvent;
 import javafx.stage.Stage;
+import qupath.lib.display.ImageDisplay;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -126,7 +127,8 @@ import qupath.opencv.tools.OpenCVTools;
  * 
  * @author Pete Bankhead
  *
- * modified by @phaub , 04'2021 (Support of viewer display settings)
+ * modified by @phaub (#1), 04'2021 (Support of viewer display settings for image overlay)
+ * modified by @phaub (#2), 04'2021 (Support of viewer display settings in autoAlign)
  * 
  */
 public class ImageAlignmentPane {
@@ -139,6 +141,10 @@ public class ImageAlignmentPane {
 	private ObservableList<ImageData<BufferedImage>> images = FXCollections.observableArrayList();
 	private ObjectProperty<ImageData<BufferedImage>> selectedImageData = new SimpleObjectProperty<>();
 	private DoubleProperty rotationIncrement = new SimpleDoubleProperty(1.0);
+	
+	// @phaub (#2)
+	private ArrayList<ImageDisplay> displays;
+
 		
 	private StringProperty affineStringProperty;
 	
@@ -202,6 +208,8 @@ public class ImageAlignmentPane {
 	 * @param qupath QuPath instance
 	 */
 	public ImageAlignmentPane(final QuPathGUI qupath) {
+		//:: @phaub (#2)
+		initDislayList();
 		
 		this.qupath = qupath;
 		this.viewer = qupath.getViewer();
@@ -574,7 +582,7 @@ public class ImageAlignmentPane {
 					var tempData = viewer.getImageData();
 					if (tempData != null && temp.equals(project.getEntry(viewer.getImageData()))) {
 						imageData = tempData;
-						//@phaub Support of viewer display settings
+						//@phaub  (#1) Support of viewer display settings
 						renderer = viewer.getImageDisplay();
 						break;
 					}
@@ -597,7 +605,7 @@ public class ImageAlignmentPane {
 				continue;
 			}
 			ImageServerOverlay overlay = new ImageServerOverlay(viewer, imageData.getServer());
-			//@phaub Support of viewer display settings
+			//@phaub (#1) Support of viewer display settings
 			overlay.setRenderer(renderer);
 			
 			overlay.getAffine().addEventHandler(TransformChangedEvent.ANY, transformEventHandler);
@@ -607,9 +615,39 @@ public class ImageAlignmentPane {
 		}
 		images.addAll(0, imagesToAdd);
 		
+		getDisplaysList();
+	}
+	
+	//@phaub (#2)
+	private void getDisplaysList() {
+		initDislayList();
+
+		for (int i=0; i<images.size(); i++) {
+			ImageData<BufferedImage> imageData = images.get(i);			
+			ImageServerOverlay overlayTmp = mapOverlays.get(imageData);
+			
+			if (overlayTmp != null) { 
+				ImageDisplay displayTmp = null;
+				// Try to get the viewer for the image
+				for (var viewerTmp : qupath.getViewers()) {
+					var viewerImageData = viewerTmp.getImageData();
+					if (viewerImageData != null && imageData.equals(viewerImageData)) {
+						displayTmp = viewerTmp.getImageDisplay();
+						break;
+					}
+				}
+				displays.add(displayTmp);				
+			}
+		}
+		
 	}
 	
 	
+	//@phaub (#2)
+	private void initDislayList() {
+		displays = new ArrayList<ImageDisplay>();
+	}
+
 	void addImageData(final ImageData<BufferedImage> imageData) {
 		ImageServerOverlay overlay = new ImageServerOverlay(viewer, imageData.getServer());
 		mapOverlays.put(imageData, overlay);
@@ -770,7 +808,12 @@ public class ImageAlignmentPane {
 			serverSelected = imageDataSelected.getServer();			
 		}
 		
-		autoAlign(serverBase, serverSelected, registrationType.get(), affine, requestedPixelSizeMicrons);
+		//@phaub (#2)
+		int idxSelected = images.indexOf(imageDataSelected);
+		ImageDisplay overlayDisplay = displays.get(idxSelected);
+		
+		//autoAlign(serverBase, serverSelected, registrationType.get(), affine, requestedPixelSizeMicrons);	
+		autoAlign(serverBase, serverSelected, registrationType.get(), affine, requestedPixelSizeMicrons, viewer, overlayDisplay);
 	}
 	
 	
@@ -787,8 +830,10 @@ public class ImageAlignmentPane {
 		return mat;
 	}
 	
-
-	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, RegistrationType registrationType, Affine affine, double requestedPixelSizeMicrons) throws IOException {
+	
+	//@phaub (#2)
+	//static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, RegistrationType registrationType, Affine affine, double requestedPixelSizeMicrons) throws IOException {
+	static void autoAlign(ImageServer<BufferedImage> serverBase, ImageServer<BufferedImage> serverOverlay, RegistrationType registrationType, Affine affine, double requestedPixelSizeMicrons, QuPathViewer viewerTmp, ImageDisplay overlayDisplay) throws IOException {
 		PixelCalibration calBase = serverBase.getPixelCalibration();
 		double pixelSize = calBase.getAveragedPixelSizeMicrons();
 		double downsample = 1;
@@ -803,6 +848,13 @@ public class ImageAlignmentPane {
 		BufferedImage imgBase = serverBase.readBufferedImage(RegionRequest.createInstance(serverBase.getPath(), downsample, 0, 0, serverBase.getWidth(), serverBase.getHeight()));
 		BufferedImage imgOverlay = serverOverlay.readBufferedImage(RegionRequest.createInstance(serverOverlay.getPath(), downsample, 0, 0, serverOverlay.getWidth(), serverOverlay.getHeight()));
 		
+		//@phaub (#2)
+		if (viewerTmp != null)
+			imgBase = viewerTmp.getImageDisplay().applyTransforms(imgBase, null);
+		
+		if (overlayDisplay != null)
+			imgOverlay = overlayDisplay.applyTransforms(imgOverlay, null);
+
 		imgBase = ensureGrayScale(imgBase);
 		imgOverlay = ensureGrayScale(imgOverlay);
 		
