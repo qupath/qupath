@@ -5,12 +5,21 @@
 
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 java {
     // TODO: Support command line toolchain specification
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(16)
+    def version = project.findProperty('toolchain')
+    if (!version)
+        version = 16
+    else if (version.strip() == 'skip')
+        version = null
+    if (version != null) {
+        logger.info("Setting toolchain to {}", version)
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(version)
+        }
     }
     withSourcesJar()
     withJavadocJar()
