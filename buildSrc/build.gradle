@@ -16,10 +16,20 @@
 
 plugins {
     id 'groovy-gradle-plugin'
+    id 'java-gradle-plugin'
 }
 
 repositories {
     mavenCentral()
+}
+
+gradlePlugin {
+    plugins {
+        simplePlugin {
+            id = 'io.github.qupath.platform'
+            implementationClass = 'io.github.qupath.gradle.PlatformPlugin'
+        }
+    }
 }
 
 dependencies {

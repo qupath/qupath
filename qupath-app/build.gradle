@@ -24,6 +24,8 @@ plugins {
   id 'com.github.jk1.dependency-license-report' version '1.16'
 }
 
+
+
 ext.moduleName = 'qupath.app'
 archivesBaseName = 'qupath-app'
 description = "Main QuPath application."
@@ -54,8 +56,10 @@ configurations {
   implementation.extendsFrom picocli
 }
 
+project.buildDir = rootProject.file('build')
+
 // Determine which projects to include/exclude as dependencies
-def excludedProjects = [project.name] + getExcludedProjects()
+def excludedProjects = [project.name]
 def includedProjects = rootProject.subprojects.findAll {!excludedProjects.contains(it.name)}
 
 dependencies {
@@ -68,7 +72,7 @@ dependencies {
  * available if launching QuPath from an IDE.
  */
 afterEvaluate {project ->
-  String nativesClassifier = Platform.classifierMap[Platform.current()]
+  String nativesClassifier = properties['platform.classifier']
   if (nativesClassifier == null)
     return
   String additionalResourcesDir = rootProject.file('build/natives').getAbsolutePath()
@@ -136,25 +140,6 @@ distributions {
 // Creating the zip is slow (and generally unnecessary)
 distZip {
   enabled = false
-}
-
-/**
- * Get the names of projects to exclude from the build
- */
-List<String> getExcludedProjects() {
-  def includeTensorFlowGPU = (findProperty('tensorflow-gpu') ?: "false") != "false"
-  def includeTensorFlow = includeTensorFlowGPU || (findProperty('tensorflow-cpu') ?: "false") != "false"
-
-  def excludeSubprojects = []
-  if (includeTensorFlowGPU) {
-    logger.info('Requesting TensorFlow (GPU) subproject')
-  } else if (includeTensorFlow) {
-    logger.info('Requesting TensorFlow (CPU) subproject')
-  } else {
-    excludeSubprojects << 'qupath-extension-tensorflow'
-    logger.info("Use -Ptensorflow-cpu=true or -Ptensorflow-gpu=true if you wish to include experimental TensorFlow module")
-  }
-  return excludeSubprojects
 }
 
 /**
@@ -235,43 +220,6 @@ jpackage {
 }
 
 /**
- * Customize behavior according to current platform
- */
-class Platform {
-
-  public final static String WINDOWS = "windows"
-  public final static String MAC     = "macosx"
-  public final static String LINUX   = "linux"
-  public final static String UNKNOWN = "unknown"
-
-  // Define map of platforms to extensions
-  public final static Map<String, String> iconExtMap = Map.of(
-          WINDOWS, "ico",
-          MAC, "icns",
-          LINUX, "png"
-  )
-
-  // Define map of natives classifiers
-  public final static Map<String, String> classifierMap = Map.of(
-          WINDOWS, "natives-windows",
-          MAC, "natives-osx",
-          LINUX, "natives-linux"
-  )
-
-  static String current() {
-    def os = System.getProperty("os.name").toLowerCase()
-    if (os.indexOf("win") >= 0)
-      return WINDOWS
-    else if (os.indexOf("nix") >= 0 || os.indexOf("nux") >= 0)
-      return LINUX
-    else if (os.indexOf("mac") >= 0)
-      return MAC
-    else
-      return UNKNOWN
-  }
-}
-
-/**
  * Encapsulate key parameters to pass to jpackage
  */
 class JPackageParams {
@@ -324,19 +272,20 @@ JPackageParams buildParameters() {
   params.jvmArgs += buildDefaultJvmArgs()
 
   // Configure according to the current platform
-  def platform = Platform.current()
-  if (platform == Platform.MAC)
+  def platform = properties['platform.name']
+  def iconExt = properties['platform.iconExt']
+  if (platform == 'macosx')
     configureJPackageMac(params)
-  else if (platform == Platform.WINDOWS)
+  else if (platform == 'windows')
     configureJPackageWindows(params)
-  else if (platform == Platform.LINUX)
+  else if (platform == 'linux')
     configureJPackageLinux(params)
   else
     logger.log(LogLevel.WARN, "Unknown platform ${platform} - may be unable to generate a package")
 
   params.resourceDir = project.file("jpackage/${platform}")
 
-  File iconFile = project.file("jpackage/${platform}/QuPath.${Platform.iconExtMap[platform]}")
+  File iconFile = project.file("jpackage/${platform}/QuPath.${iconExt}")
   if (iconFile.exists())
     params.imageOptions += ['--icon', iconFile.getAbsolutePath()]
   else
@@ -376,7 +325,7 @@ void updatePackageType(JPackageParams params, String... defaultInstallers) {
  * @return
  */
 def configureJPackageWindows(JPackageParams params) {
-  updatePackageType(params, 'msi')
+  updatePackageType(params, properties['platform.installerExt'])
 
   if (params.installerTypes.contains('msi')) {
     params.installerOptions += ['--win-menu']
@@ -408,7 +357,7 @@ def configureJPackageWindows(JPackageParams params) {
  * @return
  */
 def configureJPackageMac(JPackageParams params) {
-  updatePackageType(params, 'pkg')
+  updatePackageType(params, properties['platform.installerExt'])
 
   params.installerOptions += ['--mac-package-name', 'QuPath']
   params.installerOptions += ['--mac-package-identifier', 'QuPath']
@@ -436,7 +385,7 @@ def configureJPackageMac(JPackageParams params) {
  * @return
  */
 def configureJPackageLinux(JPackageParams params) {
-  updatePackageType(params, 'deb', 'rpm')
+  updatePackageType(params, properties['platform.installerExt'])
   // TODO: Check if this has the same issues as on macOS, requiring another name
 //  params.imageName = "QuPath"
 }
