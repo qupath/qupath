@@ -2,27 +2,37 @@ plugins {
     id 'qupath.java-conventions'
     id 'org.bytedeco.gradle-javacpp-platform'
     id 'jacoco'
+    id 'io.github.qupath.platform'
 }
 
 repositories {
-    mavenLocal()
     mavenCentral()
 
     // May be required for snapshot ImageJ2 jars
-    maven { url 'https://maven.imagej.net/content/groups/public' }
+    maven { 
+        name 'ImageJ'
+        url 'https://maven.imagej.net/content/groups/public' 
+    }
 
     // Required for Bio-Formats
     maven {
         name 'Unidata'
         url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
     }
-    maven { url 'https://artifacts.openmicroscopy.org/artifactory/maven/' }
+    maven {
+        name 'Open Microscopy'
+        url 'https://artifacts.openmicroscopy.org/artifactory/maven/' 
+    }
 
     // May be required for snapshot JavaCPP jars
-    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    maven { 
+        name 'Sonatype snapshots'
+        url 'https://oss.sonatype.org/content/repositories/snapshots' 
+    }
 
     // Currently required for OpenSlide
     maven { url "../maven/repo" }
+    
 }
 
 
@@ -35,33 +45,16 @@ project.version = gradle.ext.qupathVersion
  * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
  */
 def useGPU = false
-// TODO separate out TensorFlow extension
-def includeTensorFlowGPU = (findProperty('tensorflow-gpu') ?: "false") != "false"
 
 /*
  * Handle OS-specific decisions
  */
-
-import org.apache.tools.ant.taskdefs.condition.Os
-
-def platform
-def nativesClassifier
-if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-    nativesClassifier = 'natives-windows'
-    if (System.properties['sun.arch.data.model'] == '32') {
-        logger.warn("You appear to be using a 32-bit JDK - the build will probably fail! At the very least, some things won't work.")
-    }
-    platform = 'win'
-} else if (Os.isFamily(Os.FAMILY_MAC)) {
-    nativesClassifier = 'natives-osx'
-    platform = 'mac'
-} else if (Os.isFamily(Os.FAMILY_UNIX)) {
-    nativesClassifier = 'natives-linux'
-    platform = 'linux'
-} else {
+String platform = properties['platform.shortName']
+if (properties['platform.name'] == null)
     logger.warn('Unknown operating system!')
+if ("32".equals(System.getProperty("sun.arch.data.model"))) {
+    logger.warn("You appear to be using a 32-bit JDK - the build will probably fail! At the very least, some things won't work.")
 }
-
 
 /*
  * JavaFX version
@@ -69,10 +62,8 @@ if (Os.isFamily(Os.FAMILY_WINDOWS)) {
 def jfxVersion = '16'
 def jfxModules = ['javafx.base', 'javafx.controls', 'javafx.graphics', 'javafx.media', 'javafx.web', 'javafx.swing']
 
-
 ext {
     // Dependency versions
-    bioformatsVersion  = '6.6.1'
     commonsMathVersion = '3.6.1'
     commonsTextVersion = '1.9'
     controlsfxVersion  = '11.1.0'
@@ -81,12 +72,9 @@ ext {
     guavaVersion       = '30.1.1-jre'
     imagejVersion      = '1.53i'
     jfxtrasVersion     = '11-r2'
-    jpenVersion        = '2-150301'
     jtsVersion         = '1.18.1'
-    openslideVersion   = '3.4.1_2'
-    richtextVersion    = '0.10.6'
     picocliVersion     = '4.6.1'
-    jfreesvgVersion    = '4.2'
+    
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     javacppVersion     = '1.5.5'
     opencvVersion      = "4.5.1-${javacppVersion}"
@@ -95,37 +83,25 @@ ext {
     logbackVersion     = '1.2.3'
     slf4jVersion       = '1.7.30'
     junitVersion       = '5.7.1'
-
-    // Optional versions
-    tensorflowVersion  = "0.3.1" // Really 2.4.1
 }
 
 configurations {
     jts
     groovy
-    richtextfx
     commonsmath
     commonstext
     gson
     controlsfx
     jfxtras
     opencv
-    jpen
     imagej
-    bioformats
-    openslide
     javafx
-    nativeloader
     guava
     picocli
-    jfreesvg
     logback
 
     // Testing
     junit
-
-    // Optional
-    tensorflow
 }
 
 dependencies {
@@ -143,8 +119,6 @@ dependencies {
         javafx "org.openjfx:${fx}:${jfxVersion}"
         javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
     }
-
-    richtextfx "org.fxmisc.richtext:richtextfx:${richtextVersion}"
 
     commonsmath "org.apache.commons:commons-math3:${commonsMathVersion}"
 
@@ -166,27 +140,8 @@ dependencies {
     } else
         opencv "org.bytedeco:opencv-platform:${opencvVersion}"
 
-    jpen "net.sourceforge.jpen:jpen:${jpenVersion}"
-    if (nativesClassifier != null)
-        jpen "net.sourceforge.jpen:jpen:${jpenVersion}:${nativesClassifier}"
-
     imagej "net.imagej:ij:${imagejVersion}"
-
-    bioformats "ome:formats-gpl:${bioformatsVersion}", {
-        exclude group: 'xalan', module: 'serializer'
-        exclude group: 'xalan', module: 'xalan'
-        exclude group: 'io.minio', module: 'minio'
-        exclude group: 'commons-codec', module: 'commons-codec'
-        exclude group: 'commons-logging', module: 'commons-logging'
-//        exclude group: 'edu.ucar', module: 'cdm'
-        exclude group: 'com.google.code.findbugs', module: 'jsr305'
-        exclude group: 'com.google.code.findbugs', module: 'annotations'
-    }
-
-    openslide "org.openslide:openslide:${openslideVersion}"
-    if (nativesClassifier != null)
-        openslide "org.openslide:openslide:${openslideVersion}:${nativesClassifier}"
-
+    
     guava "com.google.guava:guava:${guavaVersion}", {
         exclude group: 'com.google.code.findbugs'
         exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
@@ -197,19 +152,11 @@ dependencies {
 
     picocli "info.picocli:picocli:${picocliVersion}"
 
-    jfreesvg "org.jfree:org.jfree.svg:${jfreesvgVersion}"
-
     junit "org.junit.jupiter:junit-jupiter:${junitVersion}"
 //    junit "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
 
     logback "ch.qos.logback:logback-classic:${logbackVersion}"
     logback "org.slf4j:slf4j-api:${slf4jVersion}"
-
-    if (includeTensorFlowGPU) {
-        tensorflow "org.tensorflow:tensorflow-core-platform-gpu:${tensorflowVersion}"
-    } else {
-        tensorflow "org.tensorflow:tensorflow-core-platform:${tensorflowVersion}"
-    }
 
 }
 

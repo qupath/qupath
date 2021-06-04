@@ -8,6 +8,5 @@ archivesBaseName = 'qupath-extension-processing'
 description = "QuPath extension to support processing (including many common commands)."
 
 configurations {
-  implementation.extendsFrom controlsfx
   implementation.extendsFrom commonsmath
 }
