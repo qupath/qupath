@@ -1395,7 +1395,11 @@ public class QuPathGUI {
 	 * @return
 	 */
 	private static File getDefaultQuPathUserDirectory() {
-		return new File(System.getProperty("user.home"), "QuPath");
+		Version version = getVersion();
+		if (version != null)
+			return Paths.get(System.getProperty("user.home"), "QuPath", String.format("v%d.%d", version.getMajor(), version.getMinor())).toFile();
+		else
+			return Paths.get(System.getProperty("user.home"), "QuPath").toFile();
 	}
 	
 	
@@ -1578,20 +1582,35 @@ public class QuPathGUI {
 			}
 		}
 		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
+		Version qupathVersion = getVersion();
 		for (QuPathExtension extension : extensions) {
 			if (!loadedExtensions.containsKey(extension.getClass())) {
+				Version version = getRequestedVersion(extension);
 				try {
 					long startTime = System.currentTimeMillis();
 					extension.installExtension(this);
 					long endTime = System.currentTimeMillis();
 					logger.info("Loaded extension {} ({} ms)", extension.getName(), endTime - startTime);
+					if (version != null)
+						logger.debug("{} was written for QuPath {}", extension.getName(), version);
+					else
+						logger.debug("{} does not report a compatible QuPath version", extension.getName());						
 					loadedExtensions.put(extension.getClass(), extension);
 					if (showNotification)
 						Dialogs.showInfoNotification("Extension loaded",  extension.getName());
 				} catch (Exception | LinkageError e) {
+					String message = "Unable to load " + extension.getName();
 					if (showNotification)
-						Dialogs.showErrorNotification("Extension error", "Unable to load " + extension.getName());
+						Dialogs.showErrorNotification("Extension error", message);
 					logger.error("Error loading extension " + extension + ": " + e.getLocalizedMessage(), e);
+					if (!Objects.equals(qupathVersion, version)) {
+						if (version == null)
+							logger.warn("QuPath version for which the '{}' was written is unknown!", extension.getName());
+						else if (version.equals(qupathVersion))
+							logger.warn("'{}' reports that it is compatible with the current QuPath version {}", extension.getName(), qupathVersion);
+						else
+							logger.warn("'{}' was written for QuPath {} but current version is {}", extension.getName(), version, qupathVersion);
+					}
 					try {
 						logger.error("It is recommended that you delete {} and restart QuPath",
 								URLDecoder.decode(
@@ -1616,9 +1635,19 @@ public class QuPathGUI {
 				Dialogs.showInfoNotification("Image server loaded",  builderName);
 			}
 		}
-		
 		initializingMenus.set(initializing);
 	}
+	
+	private Version getRequestedVersion(QuPathExtension extension) {
+		try {
+			var version = extension.getQuPathVersion();
+			return version == null || version.isBlank() ? null : Version.parse(version);
+		} catch (Exception e) {
+			logger.error("Unable to parse version for {}", extension);
+			return null;
+		}
+	}
+	
 	
 	/**
 	 * Install extensions while QuPath is running.
@@ -1641,11 +1670,11 @@ public class QuPathGUI {
 			File dirDefault = getDefaultQuPathUserDirectory();
 			String msg;
 			if (dirDefault.exists()) {
-				msg = "An directory already exists at " + dirDefault.getAbsolutePath() + 
-						"\n\nDo you want to use this default, or specify another directory?";
+				msg = dirDefault.getAbsolutePath() + " already exists.\n" +
+						"Do you want to use this default, or specify another directory?";
 			} else {
-				msg = "QuPath can automatically create one at\n" + dirDefault.getAbsolutePath() + 
-						"\n\nDo you want to use this default, or specify another directory?";
+				msg = String.format("Do you want to create a new user directory at %s?\n",
+						dirDefault.getAbsolutePath());
 			}
 			
 			Dialog<ButtonType> dialog = new Dialog<>();
@@ -1658,7 +1687,8 @@ public class QuPathGUI {
 
 			dialog.setHeaderText(null);
 			dialog.setTitle("Choose extensions directory");
-			dialog.setContentText("No extensions directory is set.\n\n" + msg);
+			dialog.setHeaderText("No user directory set.");
+			dialog.setContentText(msg);
 			Optional<ButtonType> result = dialog.showAndWait();
 			if (!result.isPresent() || result.get() == btCancel) {
 				logger.info("No extension directory set - extensions not installed");

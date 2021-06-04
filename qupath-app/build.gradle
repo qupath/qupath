@@ -46,17 +46,18 @@ ext {
   qupathAppName = "QuPath-${qupathVersion}"
 }
 
+// Put the output in the main directory so it is easier to find
+project.buildDir = rootProject.file('build')
+
 application {
   mainClass = "qupath.QuPath"
   applicationName = qupathAppName
-  applicationDefaultJvmArgs = buildDefaultJvmArgs('../build/natives')
+  applicationDefaultJvmArgs = buildDefaultJvmArgs("${project.buildDir}/natives")
 }
 
 configurations {
   implementation.extendsFrom picocli
 }
-
-project.buildDir = rootProject.file('build')
 
 // Determine which projects to include/exclude as dependencies
 def excludedProjects = [project.name]
@@ -71,20 +72,31 @@ dependencies {
  * This happens early, because it is useful to ensure the native libraries are
  * available if launching QuPath from an IDE.
  */
-afterEvaluate {project ->
-  String nativesClassifier = properties['platform.classifier']
-  if (nativesClassifier == null)
-    return
-  String additionalResourcesDir = rootProject.file('build/natives').getAbsolutePath()
-  configurations.runtimeClasspath.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
-    logger.info("Extracting native libraries from {} into {}", file, additionalResourcesDir)
-    copy {
-      from zipTree(file)
-      into additionalResourcesDir
-      exclude "/META-INF/"
-    }
+tasks.register("extractNatives") {
+  description "Extract native libraries"
+  group "QuPath"
+  
+  doLast {
+	  def nativesClassifier = project.properties['platform.classifier']
+	  if (nativesClassifier == null) {
+	  	logger.warn("No natives classifier found!")
+	    return
+	  }
+	  def additionalResourcesDir = file("${project.buildDir}/natives")
+	  configurations.runtimeClasspath.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
+	  	println file
+	  	println additionalResourcesDir
+	    logger.info("Extracting native libraries from {} into {}", file, additionalResourcesDir)
+	    copy {
+	      from zipTree(file)
+	      into additionalResourcesDir.getAbsolutePath()
+	      exclude "/META-INF/"
+	    }
+	  }
   }
 }
+compileJava.dependsOn extractNatives
+
 
 /**
  * Create license report
@@ -95,6 +107,7 @@ licenseReport {
   renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
 //               new CsvReportRenderer(),
                new InventoryHtmlReportRenderer('index.html', 'Third party licenses', fileUnknown)]
+  outputDir = "${project.buildDir}/reports/dependency-license"
 }
 tasks.startScripts.dependsOn("generateLicenseReport")
 
@@ -126,18 +139,20 @@ distributions {
       }
       // Copy license report
       into('lib/licenses') {
-        from 'build/reports/dependency-license/'
+        from "${project.buildDir}/reports/dependency-license/"
         include 'THIRD-PARTY.txt'
       }
       // Copy native libraries
       into('lib') {
-        from rootProject.file('build/natives')
+        from "${project.buildDir}/natives"
       }
     }
   }
 }
 
-// Creating the zip is slow (and generally unnecessary)
+/*
+ * Creating the zip is slow (and generally unnecessary)
+ */
 distZip {
   enabled = false
 }
@@ -151,7 +166,8 @@ runtime {
           '--no-header-files',
           '--no-man-pages',
           '--strip-native-commands',
-          '--compress', '2'
+          '--compress', '2',
+          '--bind-services'
   ]
   modules = [
           'java.desktop',
@@ -198,7 +214,7 @@ runtime {
 
 
 /**
- * Try to resolve annoying macOS renaming with an invalid version
+ * Try to resolve annoying macOS/Windows renaming with an invalid version
  * (I realise this is very awkward...)
  */
 jpackage {
@@ -265,7 +281,7 @@ JPackageParams buildParameters() {
 
   def params = new JPackageParams()
   params.mainJar = project.jar.getArchiveFileName().get()
-  params.outputDir = project.rootProject.file("build/dist")
+  params.outputDir = file("${project.buildDir}/dist")
   params.appVersion = appVersion
   params.imageName = qupathAppName // Will need to be removed for some platforms
   params.installerName = "QuPath"

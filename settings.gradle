@@ -2,21 +2,19 @@ gradle.ext.qupathVersion = "0.3.0-SNAPSHOT"
 
 rootProject.name = 'qupath'
 
-// Core modules
+// Main application
 include 'qupath-app'
+
+// Core modules
 include 'qupath-core'
 include 'qupath-core-processing'
 include 'qupath-gui-fx'
 
-// Core extensions
+// Core extension
 include 'qupath-extension-processing'
+
+// Extra extensions
+include 'qupath-extension-svg'
 include 'qupath-extension-script-editor'
 include 'qupath-extension-openslide'
 include 'qupath-extension-bioformats'
-//include 'qupath-extension-omero'
-
-// Extra extensions
-//include 'qupath-extension-pen'
-include 'qupath-extension-svg'
-//include 'qupath-extension-experimental'
-//include 'qupath-extension-tensorflow'
