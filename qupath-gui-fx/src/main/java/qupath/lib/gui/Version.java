@@ -45,13 +45,29 @@ public class Version implements Comparable<Version> {
 	private static Pattern PATTERN = Pattern.compile(
 			"(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-([\\w.]+))?");
 	
-	private final static Comparator<Version> COMPARATOR_MAIN = Comparator.comparingInt(Version::getMajor)
-			.thenComparingInt(Version::getMinor)
-			.thenComparingInt(Version::getPatch);
-	
-	private final static Comparator<Version> COMPARATOR_FULL = COMPARATOR_MAIN
-			.thenComparing(Version::getSuffix, (s1, s2) -> compareSuffixes(s1, s2));
-	
+	/**
+	 * Compare major versions only.
+	 */
+	public final static Comparator<Version> COMPARATOR_MAJOR = Comparator.comparingInt(Version::getMajor);
+
+	/**
+	 * Compare major then minor versions.
+	 */
+	public final static Comparator<Version> COMPARATOR_MAJOR_MINOR = COMPARATOR_MAJOR
+																			.thenComparing(Version::getMinor);
+
+	/**
+	 * Compare major then minor then patch versions (ignoring suffixes).
+	 */
+	public final static Comparator<Version> COMPARATOR_MAJOR_MINOR_PATCH = COMPARATOR_MAJOR_MINOR
+																			.thenComparing(Version::getPatch);
+
+	/**
+	 * Compare full version, including any suffixes.
+	 */
+	public final static Comparator<Version> COMPARATOR_FULL = COMPARATOR_MAJOR_MINOR_PATCH
+																		.thenComparing(Version::getSuffix, (s1, s2) -> compareSuffixes(s1, s2));
+
 	private final static Comparator<String> COMPARATOR_SUFFIX = GeneralTools.smartStringComparator();
 	
 	private int major;
@@ -185,7 +201,7 @@ public class Version implements Comparable<Version> {
 	public int compareTo(Version o) {
 		return COMPARATOR_FULL.compare(this, o);
 	}
-
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;

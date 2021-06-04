@@ -24,6 +24,7 @@
 package qupath.lib.gui.extensions;
 
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.Version;
 
 /**
  * Simple interface for QuPath extensions.
@@ -39,10 +40,14 @@ public interface QuPathExtension {
 	 * Install the extension for a QuPathGUI instance.
 	 * 
 	 * This generally involves adding new commands to appropriate menus.
-	 * 
-	 * (Where multiple extensions are present, the order in which they will be installed is undefined.)
+	 * <p>
+	 * Note that if an extension is only expected to be compatible with a specific QuPath version, 
+	 * this method provides an opportunity to test version compatibility before making any changes.
 	 * 
 	 * @param qupath
+	 * @see QuPathGUI#getVersion()
+	 * 
+	 * @implNote When multiple extensions are present, the order in which they will be installed is undefined.
 	 */
 	public void installExtension(QuPathGUI qupath);
 	
@@ -61,5 +66,19 @@ public interface QuPathExtension {
 	 * @return
 	 */
 	public String getDescription();
+	
+	/**
+	 * Get a QuPath version for which this extension was written.
+	 * 
+	 * This is used to provide an explanation if the extension could not be loaded.
+	 * It has a default implementation that returns null to allow backwards compatibility, 
+	 * however it strongly recommended to return the actual QuPath version against which 
+	 * the extension was developed and tested.
+	 * @return a semantic version corresponding to a QuPath version, e.g. "0.3.0".
+	 * @see Version
+	 */
+	public default String getQuPathVersion() {
+		return null;
+	}
 
 }

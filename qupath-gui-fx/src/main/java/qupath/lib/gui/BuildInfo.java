@@ -34,6 +34,8 @@ import java.util.jar.Manifest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.GeneralTools;
+
 /**
  * Basic version information about the current QuPath build.
  * 
@@ -84,11 +86,12 @@ public class BuildInfo {
 					logger.error("Error determining version: " + e.getLocalizedMessage(), e);					
 				}
 			}
-			var file = new File("VERSION");
-			if (versionString == null && file.exists()) {
-				logger.trace("Parsing version from {}", file);
-				versionString = Files.readString(file.toPath(), StandardCharsets.UTF_8).strip();
-				version = Version.parse(versionString);
+			if (versionString == null) {
+				versionString = GeneralTools.getVersion();
+				if (versionString != null) {
+					logger.trace("Parsing version from {}", versionString);
+					version = Version.parse(versionString);
+				}
 			}
 		} catch (Exception e) {
 			logger.error("Error searching for build string", e);

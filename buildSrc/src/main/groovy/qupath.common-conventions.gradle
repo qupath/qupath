@@ -57,6 +57,12 @@ if ("32".equals(System.getProperty("sun.arch.data.model"))) {
 }
 
 /*
+ * Preserve the version number
+ */
+project.file('src/main/resources/VERSION').setText(gradle.ext.qupathVersion, 'UTF-8')
+
+
+/*
  * JavaFX version
  */
 def jfxVersion = '16'
