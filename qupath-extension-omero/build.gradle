@@ -1,7 +1,0 @@
-ext.moduleName = 'qupath.extension.omero'
-
-description = 'qupath-extension-omero'
-
-configurations {
-  implementation.extendsFrom commonstext
-}

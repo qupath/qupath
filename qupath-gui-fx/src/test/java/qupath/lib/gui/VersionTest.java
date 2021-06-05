@@ -84,5 +84,67 @@ public class VersionTest {
 		Collections.sort(shuffledList);
 		assertEquals(orderedList, shuffledList);
 	}
+	
+	
+	@Test
+	public void testComparators() {
+		
+		Version versionBase = Version.parse("1.2.3-m1");
+		
+		for (int major = 0; major < 5; major++) {
+			for (int minor = 0; minor < 5; minor++) {
+				for (int patch = 0; patch < 5; patch++) {
+					
+					Version version = Version.parse(String.format("%d.%d.%d", major, minor, patch));
+					
+					int cmpMajor = Version.COMPARATOR_MAJOR.compare(version, versionBase);
+					int cmpMajorMinor = Version.COMPARATOR_MAJOR_MINOR.compare(version, versionBase);
+					int cmpMajorMinorPatch = Version.COMPARATOR_MAJOR_MINOR_PATCH.compare(version, versionBase);
+					int cmpFull = Version.COMPARATOR_FULL.compare(version, versionBase);
+					
+					if (major > 1) {
+						assertEquals(1, cmpMajor);
+						assertEquals(1, cmpMajorMinor);
+						assertEquals(1, cmpMajorMinorPatch);
+						assertEquals(1, cmpFull);
+					} else if (major < 1) {
+						assertEquals(-1, cmpMajor);
+						assertEquals(-1, cmpMajorMinor);
+						assertEquals(-1, cmpMajorMinorPatch);
+						assertEquals(-1, cmpFull);
+					} else {
+						assertEquals(0, cmpMajor);
+						if (minor > 2) {
+							assertEquals(1, cmpMajorMinor);							
+							assertEquals(1, cmpMajorMinorPatch);
+							assertEquals(1, cmpFull);
+						} else if (minor < 2) {
+							assertEquals(-1, cmpMajorMinor);							
+							assertEquals(-1, cmpMajorMinorPatch);
+							assertEquals(-1, cmpFull);							
+						} else {
+							assertEquals(0, cmpMajorMinor);							
+							if (patch > 3) {
+								assertEquals(1, cmpMajorMinorPatch);
+								assertEquals(1, cmpFull);					
+							} else if (patch < 3) {
+								assertEquals(-1, cmpMajorMinorPatch);
+								assertEquals(-1, cmpFull);									
+							} else {
+								assertEquals(0, cmpMajorMinorPatch);
+								// No suffix should be considered 'higher'
+								assertEquals(1, cmpFull);
+							}
+						}
+					}
+					
+					
+				}				
+			}
+		}
+				
+		
+	}
+	
 
 }

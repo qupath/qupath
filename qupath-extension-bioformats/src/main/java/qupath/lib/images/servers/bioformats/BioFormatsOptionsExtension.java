@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -81,6 +82,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		
 		// Create persistent properties
 		BooleanProperty enableBioformats = PathPrefs.createPersistentPreference("bfEnableBioformats", options.bioformatsEnabled());
+		BooleanProperty filesOnly = PathPrefs.createPersistentPreference("bfFilesOnly", options.getFilesOnly());
 		BooleanProperty useParallelization = PathPrefs.createPersistentPreference("bfUseParallelization", options.requestParallelization());
 		IntegerProperty memoizationTimeMillis = PathPrefs.createPersistentPreference("bfMemoizationTimeMS", options.getMemoizationTimeMillis());
 //		BooleanProperty parallelizeMultichannel = PathPrefs.createPersistentPreference("bfParallelizeMultichannel", options.requestParallelizeMultichannel());
@@ -92,6 +94,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		StringProperty skipExtensions = PathPrefs.createPersistentPreference("bfSkipAlwaysExtensions", String.join(" ", options.getSkipAlwaysExtensions()));
 		
 		// Set options using any values previously stored
+		options.setFilesOnly(filesOnly.get());
 		options.setPathMemoization(pathMemoization.get());
 		options.setBioformatsEnabled(enableBioformats.get());
 		options.setRequestParallelization(useParallelization.get());
@@ -103,6 +106,7 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 
 		// Listen for property changes
 		enableBioformats.addListener((v, o, n) -> options.setBioformatsEnabled(n));
+		filesOnly.addListener((v, o, n) -> options.setFilesOnly(n));
 		useParallelization.addListener((v, o, n) -> options.setRequestParallelization(n));
 		memoizationTimeMillis.addListener((v, o, n) -> options.setMemoizationTimeMillis(n.intValue()));
 //		parallelizeMultichannel.addListener((v, o, n) -> options.setRequestParallelizeMultichannel(n));
@@ -116,6 +120,8 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		// Add preferences to QuPath GUI
 		PreferencePane prefs = QuPathGUI.getInstance().getPreferencePane();
 		prefs.addPropertyPreference(enableBioformats, Boolean.class, "Enable Bio-Formats", "Bio-Formats", "Allow QuPath to use Bio-Formats for image reading");
+		prefs.addPropertyPreference(filesOnly, Boolean.class, "Local files only", "Bio-Formats", "Limit Bio-Formats to only opening local files, not other URLs.\n"
+				+ "Allowing Bio-Formats to open URLs can cause performance issues if this results in attempting to open URLs intended to be read using other image servers.");
 		prefs.addPropertyPreference(useParallelization, Boolean.class, "Enable Bio-Formats tile parallelization", "Bio-Formats", "Enable reading image tiles in parallel when using Bio-Formats");
 //		prefs.addPropertyPreference(parallelizeMultichannel, Boolean.class, "Enable Bio-Formats channel parallelization (experimental)", "Bio-Formats", "Request multiple image channels in parallel, even if parallelization of tiles is turned off - "
 //				+ "only relevant for multichannel images, and may fail for some image formats");
@@ -158,6 +164,14 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 		} else {
 			return "Installs options for the Bio-Formats image server in the QuPath preference pane";			
 		}
+	}
+	
+	/**
+	 * Returns the version stored within this jar, because it is matched to the QuPath version.
+	 */
+	@Override
+	public String getQuPathVersion() {
+		return GeneralTools.getPackageVersion(BioFormatsOptionsExtension.class);
 	}
 
 }

@@ -61,6 +61,7 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.Dragboard;
@@ -88,7 +89,6 @@ import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.images.servers.ImageServerBuilder.UriImageSupport;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
-import qupath.lib.images.servers.RotatedImageServer;
 import qupath.lib.images.servers.RotatedImageServer.Rotation;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.projects.Project;
@@ -110,7 +110,16 @@ class ProjectImportImagesCommand {
 	private final static BooleanProperty importObjectsProperty = PathPrefs.createPersistentPreference("projectImportObjects", false);
 
 	
-	public static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, String... defaultPaths) {
+	/**
+	 * Prompt to import images to the current project.
+	 * 
+	 * 
+	 * @param qupath QuPath instance, used to access the current project and stage
+	 * @param builder if not null, this will be used to create the servers. If null, a combobox will be shown to choose an installed builder.
+	 * @param defaultPaths URIs to use to prepopulate the list
+	 * @return
+	 */
+	static List<ProjectImageEntry<BufferedImage>> promptToImportImages(QuPathGUI qupath, ImageServerBuilder<BufferedImage> builder, String... defaultPaths) {
 		var project = qupath.getProject();
 		if (project == null) {
 			Dialogs.showNoProjectError(commandName);
@@ -156,17 +165,20 @@ class ProjectImportImagesCommand {
 	         }
 		}
 		
+		boolean requestBuilder = builder == null;
 		ComboBox<ImageServerBuilder<BufferedImage>> comboBuilder = new ComboBox<>();
-		comboBuilder.setCellFactory(p -> new BuilderListCell());
-		comboBuilder.setButtonCell(new BuilderListCell());
-		List<ImageServerBuilder<BufferedImage>> availableBuilders = new ArrayList<>(ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class));
-		if (!availableBuilders.contains(null))
-			availableBuilders.add(0, null);
-		comboBuilder.getItems().setAll(availableBuilders);
-		comboBuilder.getSelectionModel().selectFirst();
 		Label labelBuilder = new Label("Image provider");
-		labelBuilder.setLabelFor(comboBuilder);
-		labelBuilder.setMinWidth(Label.USE_PREF_SIZE);
+		if (requestBuilder) {
+			comboBuilder.setCellFactory(p -> new BuilderListCell());
+			comboBuilder.setButtonCell(new BuilderListCell());
+			List<ImageServerBuilder<BufferedImage>> availableBuilders = new ArrayList<>(ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class));
+			if (!availableBuilders.contains(null))
+				availableBuilders.add(0, null);
+			comboBuilder.getItems().setAll(availableBuilders);
+			comboBuilder.getSelectionModel().selectFirst();
+			labelBuilder.setLabelFor(comboBuilder);
+			labelBuilder.setMinWidth(Label.USE_PREF_SIZE);
+		}
 		
 		ComboBox<ImageType> comboType = new ComboBox<>();
 		comboType.getItems().setAll(ImageType.values());
@@ -180,24 +192,31 @@ class ProjectImportImagesCommand {
 		labelRotate.setLabelFor(comboRotate);
 		labelRotate.setMinWidth(Label.USE_PREF_SIZE);
 		
+		TextField tfArgs = new TextField();
+		Label labelArgs = new Label("Optional args");
+		labelArgs.setLabelFor(tfArgs);
+		labelArgs.setMinWidth(Label.USE_PREF_SIZE);
+		
 		CheckBox cbPyramidalize = new CheckBox("Auto-generate pyramids");
 		cbPyramidalize.setSelected(pyramidalizeProperty.get());
 		
 		CheckBox cbImportObjects = new CheckBox("Import objects");
 		cbImportObjects.setSelected(importObjectsProperty.get());
 
-		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
-		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
-		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects);
+		PaneTools.setMaxWidth(Double.MAX_VALUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
+		PaneTools.setFillWidth(Boolean.TRUE, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
+		PaneTools.setHGrowPriority(Priority.ALWAYS, comboBuilder, comboType, comboRotate, cbPyramidalize, cbImportObjects, tfArgs);
 		
 		GridPane paneType = new GridPane();
 		paneType.setPadding(new Insets(5));
 		paneType.setHgap(5);
 		paneType.setVgap(5);
 		int row = 0;
-		PaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
+		if (requestBuilder)
+			PaneTools.addGridRow(paneType, row++, 0, "Specify the library used to open images", labelBuilder, comboBuilder);
 		PaneTools.addGridRow(paneType, row++, 0, "Specify the default image type for all images being imported (required for analysis, can be changed later under the 'Image' tab)", labelType, comboType);
 		PaneTools.addGridRow(paneType, row++, 0, "Optionally rotate images on import", labelRotate, comboRotate);
+		PaneTools.addGridRow(paneType, row++, 0, "Optionally pass reader-specific arguments to the image provider.\nUsually this should just be left empty.", labelArgs, tfArgs);
 		PaneTools.addGridRow(paneType, row++, 0, "Dynamically create image pyramids for large, single-resolution images", cbPyramidalize, cbPyramidalize);
 		PaneTools.addGridRow(paneType, row++, 0, "Read and import objects (e.g. annotations) from the image file, if possible", cbImportObjects, cbImportObjects);
 		
@@ -244,6 +263,7 @@ class ProjectImportImagesCommand {
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
 		dialog.setResizable(true);
+		dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Import images to project");
 		ButtonType typeImport = new ButtonType("Import", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
@@ -273,7 +293,23 @@ class ProjectImportImagesCommand {
 		pyramidalizeProperty.set(pyramidalize);
 		importObjectsProperty.set(importObjects);
 		
-		ImageServerBuilder<BufferedImage> requestedBuilder = comboBuilder.getSelectionModel().getSelectedItem();
+		ImageServerBuilder<BufferedImage> requestedBuilder = requestBuilder ? comboBuilder.getSelectionModel().getSelectedItem() : builder;
+		
+		List<String> argsList = new ArrayList<>();
+		
+		String argsString = tfArgs.getText();
+		// TODO: Use a smarter approach to splitting! Currently we support so few arguments that splitting on spaces should be ok... for now.
+		String[] argsSplit = argsString == null || argsString.isBlank() ? new String[0] : argsString.split(" ");
+		for (var a : argsSplit) {
+			argsList.add(a);
+		}
+		if (rotation != null && rotation != Rotation.ROTATE_NONE) {
+			argsList.add("--rotate");
+			argsList.add(rotation.toString());
+		}
+		if (!argsList.isEmpty())
+			logger.debug("Args: [{}]", argsList.stream().collect(Collectors.joining(", ")));
+		String[] args = argsList.toArray(String[]::new);
 		
 		List<String> pathSucceeded = new ArrayList<>();
 		List<String> pathFailed = new ArrayList<>();
@@ -306,15 +342,17 @@ class ProjectImportImagesCommand {
 					}
 					results.add(pool.submit(() -> {
 						try {
+							var uri = GeneralTools.toURI(item);
 							UriImageSupport<BufferedImage> support;
 							if (requestedBuilder == null)
-								support = ImageServerProvider.getPreferredUriImageSupport(BufferedImage.class, item);
+								support = ImageServers.getImageSupport(uri, args);
 							else
-								support = requestedBuilder.checkImageSupport(GeneralTools.toURI(item));
+								support = ImageServers.getImageSupport(requestedBuilder, uri, args);
 							if (support != null)
 								return support.getBuilders();
 						} catch (Exception e) {
-							logger.error("Unable to add {} ({})", item, e.getLocalizedMessage());
+							logger.error("Unable to add {}");
+							logger.error(e.getLocalizedMessage(), e);
 						}
 						return new ArrayList<ServerBuilder<BufferedImage>>();
 					}));
@@ -357,10 +395,11 @@ class ProjectImportImagesCommand {
 					// Add everything in order first
 					List<ProjectImageEntry<BufferedImage>> entries = new ArrayList<>();
 					for (var builder : builders) {
-						if (rotation == null || rotation == Rotation.ROTATE_NONE)
-							entries.add(project.addImage(builder));
-						else
-							entries.add(project.addImage(RotatedImageServer.getRotatedBuilder(builder, rotation)));
+//						if (rotation != null && rotation != Rotation.ROTATE_NONE)
+//							builder = RotatedImageServer.getRotatedBuilder(builder, rotation);
+//						if (swapRedBlue)
+//							builder = RearrangeRGBImageServer.getSwapRedBlueBuilder(builder);
+						entries.add(project.addImage(builder));
 					}
 					
 					// Initialize (the slow bit)

@@ -1,12 +1,20 @@
-ext.moduleName = 'qupath.extension.bioformats'
+plugins {
+  id 'qupath.extension-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-extension-bioformats'
+ext.moduleName = 'qupath.extension.bioformats'
+archivesBaseName = 'qupath-extension-bioformats'
+description = "QuPath extension to support image reading and writing using Bio-Formats."
+
+def bioformatsVersion = "6.6.1"
 
 configurations {
   // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately
   implementation.extendsFrom bioformats
   implementation.extendsFrom controlsfx
   implementation.extendsFrom picocli
+  
 //  testImplementation.extendsFrom bioformats
 //  testImplementation.extendsFrom bioformatsTest
   testImplementation.extendsFrom imagej
@@ -17,7 +25,18 @@ dependencies {
 //  implementation("ome:bioformats_package:${bioformatsVersion}") {
 //  	transitive = false
 //  }
-//  testImplementation("ome:bioformats_package:${bioformatsVersion}")
 
-  testImplementation("ome:bio-formats_plugins:${bioformatsVersion}")
+  implementation "ome:formats-gpl:${bioformatsVersion}", {
+    exclude group: 'xalan', module: 'serializer'
+    exclude group: 'xalan', module: 'xalan'
+    exclude group: 'io.minio', module: 'minio'
+    exclude group: 'commons-codec', module: 'commons-codec'
+    exclude group: 'commons-logging', module: 'commons-logging'
+//        exclude group: 'edu.ucar', module: 'cdm'
+    exclude group: 'com.google.code.findbugs', module: 'jsr305'
+    exclude group: 'com.google.code.findbugs', module: 'annotations'
+  }
+
+//  testImplementation("ome:bioformats_package:${bioformatsVersion}")
+  testImplementation "ome:bio-formats_plugins:${bioformatsVersion}"
 }

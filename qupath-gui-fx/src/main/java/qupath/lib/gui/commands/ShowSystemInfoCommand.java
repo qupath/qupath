@@ -34,6 +34,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 
 /**
@@ -139,11 +140,12 @@ class ShowSystemInfoCommand {
 	}
 	
 	private static void updateText(QuPathGUI qupath, TextArea textArea) {
-		String buildString = qupath.getBuildString();
-		if (buildString == null)
-			textArea.setText(getInfoString());
-		else
-			textArea.setText(buildString + "\n\n" + getInfoString());
+		String buildString = QuPathGUI.getBuildString();
+		if (buildString == null || buildString.isBlank())
+			buildString = GeneralTools.getVersion();
+		if (buildString == null || buildString.isBlank())
+			buildString = "Unknown QuPath version!";
+		textArea.setText(buildString + "\n\n" + getInfoString());
 	}
 
 }

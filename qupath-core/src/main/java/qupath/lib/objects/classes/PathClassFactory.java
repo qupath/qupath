@@ -40,7 +40,12 @@ import qupath.lib.common.ColorTools;
  * @author Pete Bankhead
  *
  */
-public class PathClassFactory {
+public final class PathClassFactory {
+	
+	// Suppressed default constructor for non-instantiability
+	private PathClassFactory() {
+		throw new AssertionError();
+	}
 	
 	/**
 	 * Enum representing standard classifications. Exists mostly to ensure consisting naming (including capitalization).
@@ -121,7 +126,7 @@ public class PathClassFactory {
 
 	private static Map<String, PathClass> mapPathClasses = new HashMap<>();
 
-	private final static PathClass NULL_CLASS = new PathClass();
+	private final static PathClass NULL_CLASS = PathClass.getNullClass();
 	
 	final static String POSITIVE = "Positive";
 	final static String NEGATIVE = "Negative";
@@ -142,26 +147,31 @@ public class PathClassFactory {
 		return mapPathClasses.containsKey(classString);
 	}
 	
-	
 	/**
-	 * Validate a non-null name, throwing an IllegalArgumentException if the name contains invalid characters.
+	 * Get a {@link PathClass}, without specifying any color.
 	 * @param name
+	 * @return
 	 */
-	private static void validateName(String name) {
-		if (name.contains(":") || name.contains("\n"))
-			throw new IllegalArgumentException("PathClass names cannot contain new line or colon (:) characters!");
+	public static PathClass getPathClass(String name) {
+		return getPathClass(name, (Integer)null);
 	}
-	
+		
 	/**
-	 * Get the PathClass object associated with a specific name.  Note that this name must not contain newline or 
-	 * colon characters; doing so will result in an IllegalArgumentException being thrown.
+	 * Get the PathClass object associated with a specific name. Note that this name must not contain newline; 
+	 * doing so will result in an {@link IllegalArgumentException} being thrown. If the name contains colon characters, 
+	 * it will be treated as a derived class.
 	 * 
 	 * @param name
 	 * @param rgb
 	 * @return
 	 */
 	public static PathClass getPathClass(String name, Integer rgb) {
-		if (name == null || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
+		if (name == null)
+			return NULL_CLASS;
+		
+		
+		name = name.strip();
+		if (name.isEmpty() || name.equals(NULL_CLASS.toString()) || name.equals(NULL_CLASS.getName()))
 			return NULL_CLASS;
 		
 		// Handle requests for derived classes
@@ -169,14 +179,12 @@ public class PathClassFactory {
 		if (split.length > 1) {
 			var pathClass = getPathClass(split[0], rgb);
 			for (int i = 1; i < split.length; i++) {
-				var temp = split[i].trim();
+				var temp = split[i].strip();
 				if (!temp.isBlank())
 					pathClass = getDerivedPathClass(pathClass, temp, rgb);
 			}
 			return pathClass;
 		}
-		
-		validateName(name);
 		
 		synchronized (mapPathClasses) {
 			PathClass pathClass = mapPathClasses.get(name);
@@ -204,7 +212,7 @@ public class PathClassFactory {
 								random.nextInt(256));
 					}
 				}
-				pathClass = new PathClass(null, name, rgb);
+				pathClass = PathClass.getInstance(null, name, rgb);
 				mapPathClasses.put(pathClass.toString(), pathClass);
 			}
 			return pathClass;
@@ -295,7 +303,7 @@ public class PathClassFactory {
 					}
 				}
 	//				rgb = new Color(parentClass.getColor()).brighter().getRGB();
-				pathClass = new PathClass(parentClass, name, rgb);
+				pathClass = PathClass.getInstance(parentClass, name, rgb);
 				mapPathClasses.put(pathClass.toString(), pathClass);
 			}
 			return pathClass;

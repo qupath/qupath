@@ -80,7 +80,7 @@ public final class GeneralTools {
 	final private static Logger logger = LoggerFactory.getLogger(GeneralTools.class);
 	
 	
-	private final static String LATEST_VERSION = getLatestVersion();
+	private final static String LATEST_VERSION = getCurrentVersion();
 	
 	/**
 	 * Request the version of QuPath.
@@ -91,15 +91,13 @@ public final class GeneralTools {
 		return LATEST_VERSION;
 	}
 	
-	
 	/**
-	 * Try to determine latest QuPath version, first from the manifest and then from the source 
-	 * (useful if running from an IDE, for example).
-	 * 
+	 * Get the current QuPath version.
 	 * @return
 	 */
-	private static String getLatestVersion() {
-		String version = GeneralTools.class.getPackage().getImplementationVersion();
+	private static String getCurrentVersion() {
+		var version = getPackageVersion(GeneralTools.class);
+		// v0.2, less reliable way
 		if (version == null) {
 			var path = Paths.get("VERSION");
 			if (!Files.exists(path))
@@ -112,7 +110,37 @@ public final class GeneralTools {
 				}
 			}
 		}
-		return version == null ? null : version.strip();
+		if (version == null) {
+			logger.warn("QuPath version is unknown! Proceed with caution: this may cause problems with reading/writing projects.");
+			return null;
+		}
+		return version.strip();
+	}
+	
+	/**
+	 * Try to determine the version of a jar containing a specified class.
+	 * This first checks the implementation version in the package, then looks for a VERSION 
+	 * file stored as a resource.
+	 * 
+	 * @return the version, if available, or null if no version is known.
+	 */
+	public static String getPackageVersion(Class<?> cls) {
+		// Version should be preserved in the manifest
+		String version = cls.getPackage().getImplementationVersion();
+		if (version == null) {
+			// From v0.3 onwards, the version should also be stored as a resource
+			try {
+				var stream = GeneralTools.class.getResourceAsStream("/VERSION");
+				if (stream != null) {
+					version = readInputStreamAsString(stream);
+				}
+			} catch (Exception e) {
+				logger.error("Error reading version: " + e.getLocalizedMessage(), e);
+			}
+		}
+		if (version == null || version.isBlank())
+			return null;
+		return version.strip();
 	}
 	
 	// Suppressed default constructor for non-instantiability

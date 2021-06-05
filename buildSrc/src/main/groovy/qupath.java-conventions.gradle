@@ -1,0 +1,88 @@
+/**
+ * Define jar manifests and the toolchain JDK.
+ * This separates the JDK used to run Gradle from that used to build QuPath.
+ */
+
+plugins {
+    id 'java'
+    id 'maven-publish'
+}
+
+java {
+    // TODO: Support command line toolchain specification
+    def version = project.findProperty('toolchain')
+    if (!version)
+        version = 16
+    else if (version.strip() == 'skip')
+        version = null
+    if (version != null) {
+        logger.info("Setting toolchain to {}", version)
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(version)
+        }
+    }
+    withSourcesJar()
+    withJavadocJar()
+}
+
+// Avoid 'Entry .gitkeep is a duplicate but no duplicate handling strategy has been set.'
+// when using withSourcesJar()
+tasks.withType(org.gradle.jvm.tasks.Jar) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+afterEvaluate {
+
+    // Including the latest commit when building can help traceability - but requires git being available
+    // TODO: Don't compute this separately for separate libraries
+    ext {
+        latestGitCommit = null
+    }
+    def requestLatestCommit = project.findProperty('git-commit') == 'true'
+    if (requestLatestCommit) {
+        try {
+            def stdout = new ByteArrayOutputStream()
+            def result = exec {
+                commandLine 'git', 'log', "--pretty=format:'%h'", "-n 1"
+                standardOutput = stdout
+            }
+            latestGitCommit = stdout.toString().trim()
+//            logger.info('Latest commit: {}', latestGitCommit)
+        } catch (Exception e) {
+            logger.warn('Unable to get latest commit: ' + e.getLocalizedMessage())
+            latestGitCommit = 'Unknown (is Git installed?)'
+        }
+    } else {
+        logger.info("I won't try to get the last commit - consider running with '-Pgit-commit=true' if you want this next time (assuming Git is installed)")
+    }
+
+    jar {
+        // Important to set version so this can be queried within QuPath
+        inputs.property("moduleName", moduleName)
+        manifest {
+            def manifestAttributes = [
+                    "Implementation-Vendor": "QuPath developers",
+                    "Implementation-Version": project.version,
+                    'Automatic-Module-Name': "io.github." + moduleName,
+                    "QuPath-build-time": new Date().format("yyyy-MM-dd, HH:mm")
+            ]
+
+            if (latestGitCommit != null)
+                manifestAttributes["QuPath-latest-commit"] = latestGitCommit
+
+            attributes(manifestAttributes)
+        }
+    }
+}
+
+
+/*
+ * Create javadocs for all modules/packages in one place.
+ * Use -PstrictJavadoc=true to fail on error with doclint (which is rather strict).
+ */
+def strictJavadoc = findProperty('strictJavadoc')
+if (!strictJavadoc) {
+    tasks.withType(Javadoc) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}

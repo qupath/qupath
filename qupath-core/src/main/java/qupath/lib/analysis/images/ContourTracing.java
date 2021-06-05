@@ -233,7 +233,7 @@ public class ContourTracing {
 			request = parseRegion(name, img.getWidth(), img.getHeight());
 		}
 		if (img == null) {
-			var server = ImageServerProvider.buildServer(path.toUri().toString(), BufferedImage.class);
+			var server = ImageServers.buildServer(path.toUri());
 			img = server.readBufferedImage(request);
 		}
 		return new RequestImage(request, img);

@@ -1,0 +1,38 @@
+/**
+ * Gradle script for building QuPath.
+ * <p>
+ * To create a complete build including associated license files, try the following:
+ * <p>
+ *     ./gradlew clean jpackage
+ * <p>
+ * or on Windows
+ * <p>
+ *     gradlew.bat clean jpackage
+ * <p>
+ * NOTE: This build requires OpenJDK 16 (since it contains jpackage).
+ * Gradle's toolchain options are used to overcome this: if you run gradlew with a different JDK,
+ * gradle will use a different JDK for building QuPath itself (downloading it if necessary).
+ */
+
+plugins {
+    id 'groovy-gradle-plugin'
+    id 'java-gradle-plugin'
+}
+
+repositories {
+    mavenCentral()
+}
+
+gradlePlugin {
+    plugins {
+        simplePlugin {
+            id = 'io.github.qupath.platform'
+            implementationClass = 'io.github.qupath.gradle.PlatformPlugin'
+        }
+    }
+}
+
+dependencies {
+    // Make Gradle plugin available to limit platform jars
+    implementation 'org.bytedeco:gradle-javacpp:1.5.5'
+}

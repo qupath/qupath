@@ -21,6 +21,7 @@
 
 package qupath.lib.extension.svg;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.extension.svg.SvgExportCommand.SvgExportType;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
@@ -63,4 +64,13 @@ public class SvgExtension implements QuPathExtension {
     public String getDescription() {
         return "Export snapshots and images in SVG format";
     }
+    
+	/**
+	 * Returns the version stored within this jar, because it is matched to the QuPath version.
+	 */
+	@Override
+	public String getQuPathVersion() {
+		return GeneralTools.getPackageVersion(SvgExtension.class);
+	}
+	
 }

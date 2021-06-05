@@ -251,6 +251,16 @@ public final class ColorTools {
 	public static int do8BitRangeCheck(double v) {
 		return v < 0 ? 0 : (v > 255 ? 255 : (int)v);
 	}
+	
+	/**
+	 * Extract the 8-bit alpha value from a packed ARGB value.
+	 * 
+	 * @param argb
+	 * @return
+	 */
+	public static int alpha(int argb) {
+		return (argb >> 24) & 0xff;
+	}
 
 	/**
 	 * Extract the 8-bit red value from a packed RGB value.
@@ -261,17 +271,7 @@ public final class ColorTools {
 	public static int red(int rgb) {
 		return (rgb >> 16) & 0xff;
 	}
-
-	/**
-	 * Extract the 8-bit blue value from a packed RGB value.
-	 * 
-	 * @param rgb
-	 * @return
-	 */
-	public static int blue(int rgb) {
-		return (rgb & 0xff);
-	}
-
+	
 	/**
 	 * Extract the 8-bit green value from a packed RGB value.
 	 * 
@@ -283,13 +283,13 @@ public final class ColorTools {
 	}
 
 	/**
-	 * Extract the 8-bit alpha value from a packed RGB value.
+	 * Extract the 8-bit blue value from a packed RGB value.
 	 * 
 	 * @param rgb
 	 * @return
 	 */
-	public static int alpha(int rgb) {
-		return (rgb >> 24) & 0xff;
+	public static int blue(int rgb) {
+		return (rgb & 0xff);
 	}
 	
 	/**

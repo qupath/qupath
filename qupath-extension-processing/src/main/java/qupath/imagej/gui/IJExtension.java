@@ -673,6 +673,13 @@ public class IJExtension implements QuPathExtension {
 		return "QuPath commands that enable integration with ImageJ - https://imagej.nih.gov/ij/";
 	}
 
+	/**
+	 * Returns the version stored within this jar, because it is matched to the QuPath version.
+	 */
+	@Override
+	public String getQuPathVersion() {
+		return GeneralTools.getPackageVersion(IJExtension.class);
+	}
 
 
 }

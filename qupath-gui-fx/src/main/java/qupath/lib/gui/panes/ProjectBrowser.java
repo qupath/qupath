@@ -106,6 +106,7 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -195,6 +196,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 //		TextArea textDescription = new TextArea();
 		TextArea textDescription = new TextArea();
 		textDescription.textProperty().bind(descriptionText);
+		textDescription.setWrapText(true);
 		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
 		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
 		
@@ -788,42 +790,6 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		return false;
 	}
 	
-	
-	
-	
-	Image requestThumbnail(final String serverPath, final File fileThumbnail) throws IOException {
-//		serversRequested.clear();
-		
-		// Check if we've already asked for this server... if so, stop
-		if (serversRequested.contains(serverPath))
-			return null;
-		// Put in the request now
-		serversRequested.add(serverPath);
-		// Check if it exists
-		if (fileThumbnail.exists())
-			return SwingFXUtils.toFXImage(ImageIO.read(fileThumbnail), null);
-		// Try to load the server
-		ImageData<BufferedImage> imageData = getCurrentImageData();
-		ImageServer<BufferedImage> server = null;
-		boolean newServer = false;
-		if (imageData != null && imageData.getServerPath().equals(serverPath))
-			server = imageData.getServer();
-		else {
-			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
-			newServer = true;
-		}
-		BufferedImage img2 = ProjectCommands.getThumbnailRGB(server);
-		if (newServer) {
-			try {
-				server.close();
-			} catch (Exception e) {
-				logger.warn("Problem closing server", e);
-			}
-		}
-		ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
-		return SwingFXUtils.toFXImage(img2, null);
-	}
-
 	
 	/**
 	 * Resize an image so that its dimensions fit inside thumbnailWidth x thumbnailHeight.

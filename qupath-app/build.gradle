@@ -1,0 +1,459 @@
+/**
+ * Build QuPath application.
+ * This involves creating a jpackage task.
+ */
+
+buildscript {
+  repositories {
+    maven {
+      url 'https://plugins.gradle.org/m2/'
+    }
+  }
+
+  dependencies {
+    classpath "org.beryx:badass-runtime-plugin:1.12.5"
+    classpath 'com.github.jk1:gradle-license-report:1.16'
+  }
+}
+
+plugins {
+  id 'qupath.common-conventions'
+  id 'application'
+  id 'org.beryx.runtime' version '1.12.5'
+//    id 'org.beryx.jlink' version '2.24.0'  // Can use this when QuPath is modular...
+  id 'com.github.jk1.dependency-license-report' version '1.16'
+}
+
+
+
+ext.moduleName = 'qupath.app'
+archivesBaseName = 'qupath-app'
+description = "Main QuPath application."
+
+/*
+ * There are several problems with jpackage on macOS:
+ * - The major version must be > 0, or a 'wrong' version needs to be applied
+ * - The wrong version is appended to the end of any installer filenames
+ * - The .cfg file generated can be invalid (e.g. QuPath-0.3.cfg for QuPath-v0.3.0),
+ *   which results in the app being unable to launch.
+ *
+ * These variables are used to help overcome this by specifying the defaults to use
+ * up-front, so that a later action can rename any generated packages.
+ */
+ext {
+  macOSDefaultVersion = "1"
+  qupathVersion = gradle.ext.qupathVersion
+  qupathAppName = "QuPath-${qupathVersion}"
+}
+
+// Put the output in the main directory so it is easier to find
+project.buildDir = rootProject.file('build')
+
+application {
+  mainClass = "qupath.QuPath"
+  applicationName = qupathAppName
+  applicationDefaultJvmArgs = buildDefaultJvmArgs("${project.buildDir}/natives")
+}
+
+configurations {
+  implementation.extendsFrom picocli
+}
+
+// Determine which projects to include/exclude as dependencies
+def excludedProjects = [project.name]
+def includedProjects = rootProject.subprojects.findAll {!excludedProjects.contains(it.name)}
+
+dependencies {
+  implementation includedProjects
+}
+
+/**
+ * Extract native libraries.
+ * This happens early, because it is useful to ensure the native libraries are
+ * available if launching QuPath from an IDE.
+ */
+tasks.register("extractNatives") {
+  description "Extract native libraries"
+  group "QuPath"
+  
+  doLast {
+	  def nativesClassifier = project.properties['platform.classifier']
+	  if (nativesClassifier == null) {
+	  	logger.warn("No natives classifier found!")
+	    return
+	  }
+	  def additionalResourcesDir = file("${project.buildDir}/natives")
+	  configurations.runtimeClasspath.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
+	  	println file
+	  	println additionalResourcesDir
+	    logger.info("Extracting native libraries from {} into {}", file, additionalResourcesDir)
+	    copy {
+	      from zipTree(file)
+	      into additionalResourcesDir.getAbsolutePath()
+	      exclude "/META-INF/"
+	    }
+	  }
+  }
+}
+compileJava.dependsOn extractNatives
+
+
+/**
+ * Create license report
+ */
+import com.github.jk1.license.render.*
+licenseReport {
+  File fileUnknown = rootProject.file('license-unknown.txt')
+  renderers = [new TextReportRenderer('THIRD-PARTY.txt'),
+//               new CsvReportRenderer(),
+               new InventoryHtmlReportRenderer('index.html', 'Third party licenses', fileUnknown)]
+  outputDir = "${project.buildDir}/reports/dependency-license"
+}
+tasks.startScripts.dependsOn("generateLicenseReport")
+
+
+/**
+ * Copy key files into the distribution.
+ */
+distributions {
+  main {
+    contents {
+      into('lib') {
+        from project.rootDir
+        include 'CHANGELOG.md'
+        include 'STARTUP.md'
+        include 'LICENSE.txt'
+      }
+      // Get the core licenses associated with the app
+      into('lib') {
+        from '.'
+        include 'licenses/**'
+      }
+      // Check if we have licenses stored with other extensions,
+      // either directly in the project directory or under 'resources'
+      into('lib') {
+        from includedProjects.projectDir
+        from includedProjects.projectDir.collect {f -> new File(f, 'src/main/resources')}
+        include 'licenses/**'
+        includeEmptyDirs = false
+      }
+      // Copy license report
+      into('lib/licenses') {
+        from "${project.buildDir}/reports/dependency-license/"
+        include 'THIRD-PARTY.txt'
+      }
+      // Copy native libraries
+      into('lib') {
+        from "${project.buildDir}/natives"
+      }
+    }
+  }
+}
+
+/*
+ * Creating the zip is slow (and generally unnecessary)
+ */
+distZip {
+  enabled = false
+}
+
+/**
+ * Create Java Runtime & call jpackage
+ */
+runtime {
+  options = [
+          '--strip-debug',
+          '--no-header-files',
+          '--no-man-pages',
+          '--strip-native-commands',
+          '--compress', '2',
+          '--bind-services'
+  ]
+  modules = [
+          'java.desktop',
+          'java.xml',
+          'java.scripting',
+          'java.sql',
+          'java.naming',
+          'jdk.unsupported',
+
+          'jdk.zipfs',           // Needed for zip filesystem support
+
+          'java.net.http',        // Add HttpClient support (may be used by scripts)
+          'java.management',      // Useful to check memory usage
+          'jdk.management.agent', // Enables VisualVM to connect and sample CPU use
+          'jdk.jsobject'          // Needed to interact with WebView through JSObject
+  ]
+
+  def params = buildParameters()
+//  println params
+  ext {
+    preferredName = 'QuPath'
+  }
+
+  for (installer in params.installerTypes) {
+    if (installer != null)
+      println "Calling JPackage for '${installer}'"
+
+    jpackage {
+      mainJar = params.mainJar
+      jvmArgs = params.jvmArgs
+      imageName = params.imageName
+      appVersion = params.appVersion
+      resourceDir = params.resourceDir
+      imageOptions = params.imageOptions
+      skipInstaller = params.skipInstaller
+      installerType = installer
+      installerOptions = params.installerOptions
+      installerName = params.installerName
+      imageOutputDir = params.outputDir
+      installerOutputDir = params.outputDir
+    }
+  }
+}
+
+
+/**
+ * Try to resolve annoying macOS/Windows renaming with an invalid version
+ * (I realise this is very awkward...)
+ */
+jpackage {
+  doLast {
+    for (dir in outputs?.getFiles()?.files) {
+      def extensions = ['.app', '.dmg', '.pkg', '.exe', '.msi']
+      def packageFiles = dir.listFiles()
+      for (f in packageFiles) {
+        for (ext in extensions) {
+          if (!f.name.endsWith(ext))
+            continue
+          String correctName = "${qupathAppName}${ext}"
+          if (!f.name.equals(correctName))
+            f.renameTo(new File(f.getParent(), correctName))
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Encapsulate key parameters to pass to jpackage
+ */
+class JPackageParams {
+
+  String mainJar
+  List<String> jvmArgs = []
+  String imageName = "QuPath"
+  String appVersion
+  List<String> imageOptions = []
+
+  List<String> installerTypes
+  boolean skipInstaller = false
+  String installerName = "QuPath"
+  List<String> installerOptions = []
+
+  File resourceDir
+  File outputDir
+
+  @Override
+  String toString() {
+    return "JPackageParams{" +
+            "mainJar='" + mainJar + '\'' +
+            ", jvmArgs=" + jvmArgs +
+            ", imageName='" + imageName + '\'' +
+            ", appVersion='" + appVersion + '\'' +
+            ", imageOptions=" + imageOptions +
+            ", installerTypes=" + installerTypes +
+            ", skipInstaller=" + skipInstaller +
+            ", installerName='" + installerName + '\'' +
+            ", installerOptions=" + installerOptions +
+            ", resourceDir=" + resourceDir +
+            ", outputDir=" + outputDir +
+            '}'
+  }
+}
+
+/**
+ * Build default parameters for jpackage, customizing these according to the current platform
+ * @return
+ */
+JPackageParams buildParameters() {
+  String appVersion = qupathVersion.replace('-SNAPSHOT', '')
+
+  def params = new JPackageParams()
+  params.mainJar = project.jar.getArchiveFileName().get()
+  params.outputDir = file("${project.buildDir}/dist")
+  params.appVersion = appVersion
+  params.imageName = qupathAppName // Will need to be removed for some platforms
+  params.installerName = "QuPath"
+  params.jvmArgs += buildDefaultJvmArgs()
+
+  // Configure according to the current platform
+  def platform = properties['platform.name']
+  def iconExt = properties['platform.iconExt']
+  if (platform == 'macosx')
+    configureJPackageMac(params)
+  else if (platform == 'windows')
+    configureJPackageWindows(params)
+  else if (platform == 'linux')
+    configureJPackageLinux(params)
+  else
+    logger.log(LogLevel.WARN, "Unknown platform ${platform} - may be unable to generate a package")
+
+  params.resourceDir = project.file("jpackage/${platform}")
+
+  File iconFile = project.file("jpackage/${platform}/QuPath.${iconExt}")
+  if (iconFile.exists())
+    params.imageOptions += ['--icon', iconFile.getAbsolutePath()]
+  else
+    logger.log(LogLevel.WARN, "No icon file found at ${iconFile}")
+
+  return params
+}
+
+/**
+ * Update package type according to 'qupath.package' parameter.
+ * By default, we just create an image because that's faster
+ * (although the jpackage default is to create all installers).
+ * @param params
+ * @param defaultInstallers
+ */
+void updatePackageType(JPackageParams params, String... defaultInstallers) {
+  // Define platform-specific jpackage configuration options
+  def packageType = findProperty('qupath.package')?.toLowerCase()
+  if (!packageType || ['image', 'app-image'].contains(packageType)) {
+    params.skipInstaller = true
+    params.installerTypes = [null]
+    logger.info("No package type specified, using default ${packageType}")
+  } else if (packageType == 'all') {
+    params.skipInstaller = false
+    params.installerTypes = [null]
+  } else if (packageType == 'installer') {
+    params.skipInstaller = false
+    params.installerTypes = defaultInstallers as List
+  } else {
+    params.installerTypes = [packageType]
+  }
+}
+
+/**
+ * Custom configurations for Windows
+ * @param params
+ * @return
+ */
+def configureJPackageWindows(JPackageParams params) {
+  updatePackageType(params, properties['platform.installerExt'])
+
+  if (params.installerTypes.contains('msi')) {
+    params.installerOptions += ['--win-menu']
+    params.installerOptions += ['--win-dir-chooser']
+    params.installerOptions += ['--win-shortcut']
+    params.installerOptions += ['--win-per-user-install']
+    params.installerOptions += ['--win-menu-group', 'QuPath']
+  }
+
+  // Can't have any -SNAPSHOT or similar added
+  params.appVersion = stripSnapshotVersion(params.appVersion)
+
+
+  // Create a separate launcher with a console - this can help with debugging
+  def fileTemp = File.createTempFile('qupath-building', '.properties')
+  def consoleLauncherName = params.imageName + " (console)"
+  def javaOptions = params.jvmArgs
+  fileTemp.deleteOnExit()
+  fileTemp.text = 'win-console=true'
+  fileTemp << System.lineSeparator()
+  fileTemp << 'java-options=' << '-Dqupath.config=console ' << String.join(" ", javaOptions) << System.lineSeparator()
+  params.imageOptions += ['--add-launcher',
+            "\"${consoleLauncherName}\"=\"${fileTemp.getAbsolutePath()}\""]
+}
+
+/**
+ * Custom configurations for macOS
+ * @param params
+ * @return
+ */
+def configureJPackageMac(JPackageParams params) {
+  updatePackageType(params, properties['platform.installerExt'])
+
+  params.installerOptions += ['--mac-package-name', 'QuPath']
+  params.installerOptions += ['--mac-package-identifier', 'QuPath']
+  params.installerOptions += ['--mac-package-identifier', 'QuPath']
+
+  // File associations supported on Mac
+  setFileAssociations(params)
+
+  // Can't have any -SNAPSHOT or similar added
+  params.appVersion = stripSnapshotVersion(params.appVersion)
+
+  params.imageName = 'QuPath'
+  params.installerName = 'QuPath'
+
+  // Sadly, on a Mac we can't have an appVersion that starts with 0
+  // See https://github.com/openjdk/jdk/blob/jdk-16+36/src/jdk.jpackage/macosx/classes/jdk/jpackage/internal/CFBundleVersion.java
+  if (params.appVersion && params.appVersion.startsWith('0')) {
+    params.appVersion = macOSDefaultVersion
+  }
+}
+
+/**
+ * Custom configurations for Linux
+ * @param params
+ * @return
+ */
+def configureJPackageLinux(JPackageParams params) {
+  updatePackageType(params, properties['platform.installerExt'])
+  // TODO: Check if this has the same issues as on macOS, requiring another name
+//  params.imageName = "QuPath"
+}
+
+/**
+ * Strip '-SNAPSHOT' from any version (sometimes required)
+ * @param version
+ * @return
+ */
+static String stripSnapshotVersion(String version) {
+  int lastDash = version.lastIndexOf('-SNAPSHOT')
+  if (lastDash > 0) {
+    return version.substring(0, lastDash)
+  } else
+    return version
+}
+
+/**
+ * Set file associations according to contents of a .properties file
+ * @param params
+ */
+def setFileAssociations(JPackageParams params) {
+  def associations = project.file("jpackage/associations")
+          .listFiles()
+          .findAll {it.isFile() && it.name.endsWith('.properties')}
+  for (file in associations)
+      params.installerOptions += ['--file-associations', file.getAbsolutePath()]
+}
+
+/**
+ * Get default JVM arguments (e.g. to set memory, library path)
+ * @return
+ */
+static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR') {
+  // Set up the main Java options
+  def javaOptions = []
+
+  // Set the library path to the app directory, for loading native libraries
+  if (libraryPath != null)
+    javaOptions << "-Djava.library.path=${libraryPath}"
+
+  // Revert to pre-Java-16 behavior
+  // See https://openjdk.java.net/jeps/396
+  // If this is removed, things like adding metadata to a project entry will fail with errors such as
+  //   ERROR: QuPath exception: class org.controlsfx.control.textfield.AutoCompletionBinding
+  //   (in unnamed module @0x298a5e20) cannot access class com.sun.javafx.event.EventHandlerManager
+  //   (in module javafx.base) because module javafx.base does not export com.sun.javafx.event to unnamed module
+  // This Java option will hopefully be temporary, until dependencies are updated to make it unnecessary.
+  javaOptions << '--illegal-access=permit'
+
+  // Default to using 50% available memory
+  javaOptions << '-XX:MaxRAMPercentage=50'
+
+  return javaOptions
+}

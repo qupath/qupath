@@ -44,6 +44,7 @@ import java.util.SplittableRandom;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.ROIs;
@@ -91,6 +92,131 @@ public class TestBufferedImageTools {
 		// Random image
 		RGBImage = new BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB);
 	}
+	
+	
+//	@Test
+//	public void test_swapRedBlue() {
+//		int[] types = new int[] {BufferedImage.TYPE_INT_RGB, BufferedImage.TYPE_INT_ARGB
+//				// These do work
+////				BufferedImage.TYPE_INT_BGR, BufferedImage.TYPE_3BYTE_BGR, BufferedImage.TYPE_4BYTE_ABGR,
+//				// These don't work
+////				BufferedImage.TYPE_INT_ARGB_PRE, BufferedImage.TYPE_4BYTE_ABGR_PRE
+//				};
+//		var rand = new Random(100L);
+//		int w = 100;
+//		int h = 200;
+//		for (int type : types) {
+//			var img = new BufferedImage(w, h, type);
+//			int[] rgb = rand.ints(w * h).toArray();
+//			img.setRGB(0, 0, w, h, rgb, 0, w);
+//			boolean hasAlpha = img.getAlphaRaster() != null;
+//			BufferedImageTools.swapRedBlue(img);
+//			int[] rgb2 = img.getRGB(0, 0, w, h, null, 0, w);
+//			for (int i = 0; i < w*h; i++) {
+//				int v1 = rgb[i];
+//				int v2 = rgb2[i];
+//				// Check that alpha is preserved, if available
+//				if (hasAlpha)
+//					assertEquals(ColorTools.alpha(v1), ColorTools.alpha(v2));
+//				else
+//					assertEquals(255, ColorTools.alpha(v2));
+//				assertEquals(ColorTools.green(v1), ColorTools.green(v2));
+//				assertEquals(ColorTools.red(v1), ColorTools.blue(v2));
+//				assertEquals(ColorTools.blue(v1), ColorTools.red(v2));
+//			}
+//		}
+//	}
+	
+	
+	@Test
+	public void test_swapRGBOrder() {
+		int[] types = new int[] {BufferedImage.TYPE_INT_RGB, BufferedImage.TYPE_INT_ARGB};
+		var rand = new Random(100L);
+		int w = 100;
+		int h = 200;
+		for (int type : types) {
+			var img = new BufferedImage(w, h, type);
+			int[] rgb = rand.ints(w * h).toArray();
+			img.setRGB(0, 0, w, h, rgb, 0, w);
+			boolean hasAlpha = img.getAlphaRaster() != null;
+			// If we have alpha, need to mask it
+			if (!hasAlpha)
+				rgb = getRGB(img);
+			
+			// Conversion to RGB should have no change
+			var imgRGB = BufferedImageTools.duplicate(img);
+			assertArrayEquals(rgb, getOrderedPixels(imgRGB, "RGB"));
+			
+			// Conversion to RBG
+			int[] rbg = getOrderedPixels(img, "RBG");
+			for (int i = 0; i < w*h; i++) {
+				int v1 = rgb[i];
+				int v2 = rbg[i];
+				assertEquals(ColorTools.alpha(v2), ColorTools.alpha(v2));
+				assertEquals(ColorTools.red(v2), ColorTools.red(v1));
+				assertEquals(ColorTools.green(v2), ColorTools.blue(v1));
+				assertEquals(ColorTools.blue(v2), ColorTools.green(v1));
+			}
+			
+			// Conversion to GRB
+			int[] grb = getOrderedPixels(img, "GRB");
+			for (int i = 0; i < w*h; i++) {
+				int v1 = rgb[i];
+				int v2 = grb[i];
+				assertEquals(ColorTools.alpha(v2), ColorTools.alpha(v2));
+				assertEquals(ColorTools.red(v2), ColorTools.green(v1));
+				assertEquals(ColorTools.green(v2), ColorTools.red(v1));
+				assertEquals(ColorTools.blue(v2), ColorTools.blue(v1));
+			}
+			
+			// Conversion to GBR
+			int[] gbr = getOrderedPixels(img, "GBR");
+			for (int i = 0; i < w*h; i++) {
+				int v1 = rgb[i];
+				int v2 = gbr[i];
+				assertEquals(ColorTools.alpha(v2), ColorTools.alpha(v2));
+				assertEquals(ColorTools.red(v2), ColorTools.green(v1));
+				assertEquals(ColorTools.green(v2), ColorTools.blue(v1));
+				assertEquals(ColorTools.blue(v2), ColorTools.red(v1));
+			}
+			
+			// Conversion to BRG
+			int[] brg = getOrderedPixels(img, "BRG");
+			for (int i = 0; i < w*h; i++) {
+				int v1 = rgb[i];
+				int v2 = brg[i];
+				assertEquals(ColorTools.alpha(v2), ColorTools.alpha(v2));
+				assertEquals(ColorTools.red(v2), ColorTools.blue(v1));
+				assertEquals(ColorTools.green(v2), ColorTools.red(v1));
+				assertEquals(ColorTools.blue(v2), ColorTools.green(v1));
+			}
+			
+			// Conversion to BGR
+			int[] bgr = getOrderedPixels(img, "BGR");
+			for (int i = 0; i < w*h; i++) {
+				int v1 = rgb[i];
+				int v2 = bgr[i];
+				assertEquals(ColorTools.alpha(v2), ColorTools.alpha(v2));
+				assertEquals(ColorTools.red(v2), ColorTools.blue(v1));
+				assertEquals(ColorTools.green(v2), ColorTools.green(v1));
+				assertEquals(ColorTools.blue(v2), ColorTools.red(v1));
+			}
+			
+			
+		}
+	}
+	
+	private static int[] getOrderedPixels(BufferedImage img, String order) {
+		var img2 = BufferedImageTools.duplicate(img);
+		BufferedImageTools.swapRGBOrder(img2, order);
+		return getRGB(img2);
+	}
+	
+	private static int[] getRGB(BufferedImage img) {
+		return img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+	}
+	
+	
 
 	@Test
 	public void test_createROIMask() {

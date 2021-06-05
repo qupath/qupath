@@ -1,8 +1,12 @@
-ext.moduleName = 'qupath.extension.processing'
+plugins {
+  id 'qupath.extension-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-extension-processing'
+ext.moduleName = 'qupath.extension.processing'
+archivesBaseName = 'qupath-extension-processing'
+description = "QuPath extension to support processing (including many common commands)."
 
 configurations {
-  implementation.extendsFrom controlsfx
   implementation.extendsFrom commonsmath
 }

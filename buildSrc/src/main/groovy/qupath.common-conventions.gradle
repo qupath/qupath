@@ -1,0 +1,182 @@
+plugins {
+    id 'qupath.java-conventions'
+    id 'org.bytedeco.gradle-javacpp-platform'
+    id 'jacoco'
+    id 'io.github.qupath.platform'
+}
+
+repositories {
+    mavenCentral()
+
+    // May be required for snapshot ImageJ2 jars
+    maven { 
+        name 'ImageJ'
+        url 'https://maven.imagej.net/content/groups/public' 
+    }
+
+    // Required for Bio-Formats
+    maven {
+        name 'Unidata'
+        url 'https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases'
+    }
+    maven {
+        name 'Open Microscopy'
+        url 'https://artifacts.openmicroscopy.org/artifactory/maven/' 
+    }
+
+    // May be required for snapshot JavaCPP jars
+    maven { 
+        name 'Sonatype snapshots'
+        url 'https://oss.sonatype.org/content/repositories/snapshots' 
+    }
+
+    // Currently required for OpenSlide
+    maven { url "../maven/repo" }
+    
+}
+
+
+/*
+ * Some metadata for the manifest
+ */
+project.version = gradle.ext.qupathVersion
+
+/*
+ * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
+ */
+def useGPU = false
+
+/*
+ * Handle OS-specific decisions
+ */
+String platform = properties['platform.shortName']
+if (properties['platform.name'] == null)
+    logger.warn('Unknown operating system!')
+if ("32".equals(System.getProperty("sun.arch.data.model"))) {
+    logger.warn("You appear to be using a 32-bit JDK - the build will probably fail! At the very least, some things won't work.")
+}
+
+/*
+ * Preserve the version number
+ */
+project.file('src/main/resources/VERSION').setText(gradle.ext.qupathVersion, 'UTF-8')
+
+
+/*
+ * JavaFX version
+ */
+def jfxVersion = '16'
+def jfxModules = ['javafx.base', 'javafx.controls', 'javafx.graphics', 'javafx.media', 'javafx.web', 'javafx.swing']
+
+ext {
+    // Dependency versions
+    commonsMathVersion = '3.6.1'
+    commonsTextVersion = '1.9'
+    controlsfxVersion  = '11.1.0'
+    groovyVersion      = '3.0.8'
+    gsonVersion        = '2.8.6'
+    guavaVersion       = '30.1.1-jre'
+    imagejVersion      = '1.53i'
+    jfxtrasVersion     = '11-r2'
+    jtsVersion         = '1.18.1'
+    picocliVersion     = '4.6.1'
+    
+    // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
+    javacppVersion     = '1.5.5'
+    opencvVersion      = "4.5.1-${javacppVersion}"
+
+    // Additional versions
+    logbackVersion     = '1.2.3'
+    slf4jVersion       = '1.7.30'
+    junitVersion       = '5.7.1'
+}
+
+configurations {
+    jts
+    groovy
+    commonsmath
+    commonstext
+    gson
+    controlsfx
+    jfxtras
+    opencv
+    imagej
+    javafx
+    guava
+    picocli
+    logback
+
+    // Testing
+    junit
+}
+
+dependencies {
+
+    jts "org.locationtech.jts:jts-core:${jtsVersion}"
+    // Optionally add GeoJSON support (brings in json-simple as sub-dependency)
+    // However, the use of simple-json is troublesome since it brings in an old version of junit
+//   jts "org.locationtech.jts.io:jts-io-common:${jtsVersion}"
+
+    groovy "org.codehaus.groovy:groovy:${groovyVersion}"
+    groovy "org.codehaus.groovy:groovy-jsr223:${groovyVersion}"
+    groovy "org.codehaus.groovy:groovy-xml:${groovyVersion}"
+
+    for (fx in jfxModules.collect{it.replace('.', '-')}) {
+        javafx "org.openjfx:${fx}:${jfxVersion}"
+        javafx "org.openjfx:${fx}:${jfxVersion}:${platform}"
+    }
+
+    commonsmath "org.apache.commons:commons-math3:${commonsMathVersion}"
+
+    commonstext "org.apache.commons:commons-text:${commonsTextVersion}"
+
+    gson "com.google.code.gson:gson:${gsonVersion}"
+
+    controlsfx "org.controlsfx:controlsfx:${controlsfxVersion}",  {
+        // ControlsFX 11.0.1 uses a linux classifier to bring in more JavaFX than it may need
+        exclude group: 'org.openjfx'
+    }
+
+    jfxtras "org.jfxtras:jfxtras-menu:${jfxtrasVersion}", {
+        exclude group: 'org.jfxtras', module: 'jfxtras-test-support'
+    }
+
+    if (useGPU) {
+        opencv "org.bytedeco:opencv-platform-gpu:${opencvVersion}"
+    } else
+        opencv "org.bytedeco:opencv-platform:${opencvVersion}"
+
+    imagej "net.imagej:ij:${imagejVersion}"
+    
+    guava "com.google.guava:guava:${guavaVersion}", {
+        exclude group: 'com.google.code.findbugs'
+        exclude group: 'org.codehaus.mojo', module: 'animal-sniffer-annotations'
+        exclude group: 'com.google.errorprone', module: 'error_prone_annotations'
+        exclude group: 'com.google.j2objc', module: 'j2objc-annotations'
+        exclude group: 'org.checkerframework', module: 'checker-qual'
+    }
+
+    picocli "info.picocli:picocli:${picocliVersion}"
+
+    junit "org.junit.jupiter:junit-jupiter:${junitVersion}"
+//    junit "org.junit.jupiter:junit-jupiter-engine:${junitVersion}"
+
+    logback "ch.qos.logback:logback-classic:${logbackVersion}"
+    logback "org.slf4j:slf4j-api:${slf4jVersion}"
+
+}
+
+
+configurations {
+    implementation.extendsFrom logback
+    testImplementation.extendsFrom junit
+}
+
+dependencies {
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${junitVersion}"
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

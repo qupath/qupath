@@ -28,6 +28,7 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.WritableRaster;
 import java.util.Hashtable;
@@ -40,6 +41,7 @@ import org.bytedeco.opencv.opencv_core.Size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -201,6 +203,109 @@ public final class BufferedImageTools {
 				img.isAlphaPremultiplied(),
 				extractProperties(img));
 	}
+	
+	// This was written before the more general swapRGBOrder; it should no longer be needed.
+//	/**
+//	 * Swap the red and blue channels of an INT_RGB or INT_ARGB image, in-place.
+//	 * This does not change the image type. It is intended for cases where the data has been wrongly interpreted.
+//	 * Premultiplied alpha is not supported.
+//	 * @param img
+//	 * @implNote This currently uses {@link BufferedImage#getRGB(int, int, int, int, int[], int, int)} and 
+//	 *           {@link BufferedImage#setRGB(int, int, int, int, int[], int, int)}, which goes through a 
+//	 *           {@link ColorModel}.
+//	 */
+//	public static void swapRedBlue(BufferedImage img) {
+//		if (img.getType() != BufferedImage.TYPE_INT_ARGB && img.getType() != BufferedImage.TYPE_INT_RGB)
+//			throw new IllegalArgumentException("I can only swap red-blue for INT_ARGB and INT_RGB images");
+////		if (!BufferedImageTools.is8bitColorType(img.getType()))
+////			throw new IllegalArgumentException("Cannot swap red-blue for image with type " + img.getType());
+//		int w = img.getWidth();
+//		int h = img.getHeight();
+//		// Alternative approach (via ColorModel)
+//		int[] rgb = img.getRGB(0, 0, w, h, null, 0, img.getWidth());
+//		int i = 0;
+//		for (int val : rgb) {
+//			rgb[i++] = swapRedBlue(val);
+//		}
+//		img.setRGB(0, 0, w, h, rgb, 0, img.getWidth());
+//	}
+	
+	/**
+	 * Swap the order of pixels in an RGB image.
+	 * Specify the order in which each channel should appear in the output image.
+	 * The color model is unchanged; the purpose of this method is to 'fix' problems that may occur when an RGB image 
+	 * has channels wrongly interpreted (normally BGR rather than RGB).
+	 * @param img input image
+	 * @param order a String that is one of "RGB", "RBG", "GRB", "GBR", "BRG", "BGR".
+	 * @throws IllegalArgumentException if the image type is not TYPE_INT_ARGB or TYPE_INT_RGB.
+	 */
+	public static void swapRGBOrder(BufferedImage img, String order) {
+		if (img.getType() != BufferedImage.TYPE_INT_ARGB && img.getType() != BufferedImage.TYPE_INT_RGB)
+			throw new IllegalArgumentException("I can only reorder channels for INT_ARGB and INT_RGB images");
+		if ("RGB".equals(order))
+			return;
+		int[] inds;
+		switch (order) {
+		case "RBG":
+			inds = new int[]{0, 1, 3, 2};
+			break;
+		case "BRG":
+			inds = new int[]{0, 3, 1, 2};
+			break;
+		case "BGR":
+			inds = new int[]{0, 3, 2, 1};
+			break;
+		case "GRB":
+			inds = new int[]{0, 2, 1, 3};
+			break;
+		case "GBR":
+			inds = new int[]{0, 2, 3, 1};
+			break;
+		default:
+			throw new IllegalArgumentException("Unknown RGB order '" + order + "'");
+		}
+		int w = img.getWidth();
+		int h = img.getHeight();
+		int[] rgb = img.getRGB(0, 0, w, h, null, 0, img.getWidth());
+		int[] pixel = new int[4];
+		int i = 0;
+		for (int val : rgb) {
+			pixel[0] = ColorTools.alpha(val);
+			pixel[1] = ColorTools.red(val);
+			pixel[2] = ColorTools.green(val);
+			pixel[3] = ColorTools.blue(val);
+			rgb[i++] = ColorTools.packARGB(
+					pixel[inds[0]],
+					pixel[inds[1]],
+					pixel[inds[2]],
+					pixel[inds[3]]
+					);
+		}
+		img.setRGB(0, 0, w, h, rgb, 0, img.getWidth());
+	}
+	
+//	public static void reorderBands(BufferedImage img, int... bands) {
+//		var raster = img.getRaster();
+//		int w = img.getWidth();
+//		int h = img.getHeight();
+//		var raster2 = WritableRaster.createBandedRaster(raster.getDataBuffer().getDataType(), w, h, bands.length, null);
+//		double[] values = null;
+//		int count = 0;
+//		for (int b : bands) {
+//			values = raster.getSamples(0, 0, w, h, b, values);
+//			raster2.setSamples(0, 0, w, h, count++, values);
+//		}
+//		var cm = ColorModelFactory. // Need to determine pixel type
+//		return new BufferedImage(cm, raster, img.isAlphaPremultiplied(), null);
+//	}
+	
+//	private static int swapRedBlue(int val) {
+//		int a = ColorTools.alpha(val);
+//		int r = ColorTools.red(val);
+//		int g = ColorTools.green(val);
+//		int b = ColorTools.blue(val);
+//		return ColorTools.packARGB(a, b, g, r);
+//	}
 	
 	/**
 	 * Extract a Hashtable of image properties, which can be passed to a constructor for BufferedImage.

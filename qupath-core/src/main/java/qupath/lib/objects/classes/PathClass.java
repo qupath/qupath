@@ -24,13 +24,21 @@
 package qupath.lib.objects.classes;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 import qupath.lib.common.ColorTools;
 
 /**
  * Representation of an object's classification - which can be defined using any unique string identifier (e.g. tumour, lymphocyte, gland, benign, malignant).
  * <p>
- * In order to keep the construction of PathClasses under control, they should be generated using the static methods within PathClassFactory.
+ * The constructors in this class should never be called directly.
+ * In order to keep the construction of PathClasses under control, they should be accessed using the static methods within {@link PathClassFactory}.
  * 
  * @see PathClassFactory
  * 
@@ -48,15 +56,30 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	private final String name;
 	private Integer colorRGB;
 	
+	private final static UUID secret = UUID.randomUUID();
+	
 	/**
 	 * Cached String representation
 	 */
 	private transient String stringRep = null;
+	
+	private static PathClass NULL_CLASS = new PathClass(secret);
+	
+	private static List<String> illegalCharacters = Arrays.asList("\n", ":", "\r");
+	
+	private static Map<String, PathClass> existingClasses = Collections.synchronizedMap(new HashMap<>());
 
-	PathClass() {
+	private PathClass(UUID mySecret) {
+		if (!Objects.equals(secret, mySecret))
+			throw new IllegalStateException("You should not access the PathClass constructor!");
+		if (NULL_CLASS != null) {
+			throw new IllegalStateException("The NULL PathClass should not be created more than once!");
+		}
 		parentClass = null;
 		name = null;
 		colorRGB = null;
+//		if (!existingClasses.add(null))
+//			throw new IllegalArgumentException("PathClass constructor has been called multiple times!");
 	}
 
 	/**
@@ -68,23 +91,62 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 	 * @param name
 	 * @param colorRGB
 	 */
-	PathClass(PathClass parent, String name, Integer colorRGB) {
-		if (parent != null && name == null)
-			throw new IllegalArgumentException("Cannot create a derived PathClass with name == null");
+	private PathClass(UUID mySecret, PathClass parent, String name, Integer colorRGB) {
+		if (!Objects.equals(secret, mySecret))
+			throw new IllegalStateException("You should not access the PathClass constructor!");
+		
+		if (name != null)
+			name = name.strip();
+
+		if (!isValidName(name))
+			throw new IllegalArgumentException(name + " is not a valid PathClass name!");
+		
 		this.parentClass = parent;
 		this.name = name;
+		
 		if (colorRGB == null)
 			this.colorRGB = DEFAULT_COLOR;
 		else
 			this.colorRGB = colorRGB;
 		
 		if (PathClassFactory.classExists(toString()))
-			throw new UnsupportedOperationException("PathClass '" + toString() + "' already exists! Use PathClassFactory.getPathClass() instead of calling the the PathClass constructor directly.");
+			throw new IllegalStateException("Cannot create the same PathClass more than once!");
+		
 	}
 	
-	PathClass(String name, Integer colorRGB) {
-		this(null, name, colorRGB);
+	/**
+	 * Return whether the specified name is a valid name for a PathClass.
+	 * To be valid, it should be non-null, non-blank, and not contain any illegal characters (colons, linebreaks).
+	 * @param name
+	 */
+	private static boolean isValidName(String name) {
+		if (name == null || name.isBlank())
+			return false;
+		for (var illegal : illegalCharacters)
+			if (name.contains(illegal))
+				return false;
+		return true;
 	}
+	
+	synchronized static PathClass getNullClass() {
+		return NULL_CLASS;
+	}
+	
+	synchronized static PathClass getInstance(PathClass parent, String name, Integer colorRGB) {
+		if (parent == getNullClass())
+			parent = null;
+		
+		if (parent == null && name == null)
+			return getNullClass();
+		
+		var pathClass = new PathClass(secret, parent, name, colorRGB);
+		var s = pathClass.toString();
+		
+		// Make a last attempt to return an existing class with the same name, if we can
+		var previous = existingClasses.putIfAbsent(s, pathClass);
+		return previous == null ? pathClass : previous;
+	}
+	
 	
 	/**
 	 * Get the parent classification, or null if this classification has no parent.
@@ -234,5 +296,7 @@ public class PathClass implements Comparable<PathClass>, Serializable {
 //			return 1;
 //		return name.compareTo(o.getName());
 	}
+	
+	
 	
 }

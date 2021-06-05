@@ -59,6 +59,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.Optional;
@@ -1394,7 +1395,11 @@ public class QuPathGUI {
 	 * @return
 	 */
 	private static File getDefaultQuPathUserDirectory() {
-		return new File(System.getProperty("user.home"), "QuPath");
+		Version version = getVersion();
+		if (version != null)
+			return Paths.get(System.getProperty("user.home"), "QuPath", String.format("v%d.%d", version.getMajor(), version.getMinor())).toFile();
+		else
+			return Paths.get(System.getProperty("user.home"), "QuPath").toFile();
 	}
 	
 	
@@ -1577,20 +1582,35 @@ public class QuPathGUI {
 			}
 		}
 		Collections.sort(extensions, Comparator.comparing(QuPathExtension::getName));
+		Version qupathVersion = getVersion();
 		for (QuPathExtension extension : extensions) {
 			if (!loadedExtensions.containsKey(extension.getClass())) {
+				Version version = getRequestedVersion(extension);
 				try {
 					long startTime = System.currentTimeMillis();
 					extension.installExtension(this);
 					long endTime = System.currentTimeMillis();
 					logger.info("Loaded extension {} ({} ms)", extension.getName(), endTime - startTime);
+					if (version != null)
+						logger.debug("{} was written for QuPath {}", extension.getName(), version);
+					else
+						logger.debug("{} does not report a compatible QuPath version", extension.getName());						
 					loadedExtensions.put(extension.getClass(), extension);
 					if (showNotification)
 						Dialogs.showInfoNotification("Extension loaded",  extension.getName());
 				} catch (Exception | LinkageError e) {
+					String message = "Unable to load " + extension.getName();
 					if (showNotification)
-						Dialogs.showErrorNotification("Extension error", "Unable to load " + extension.getName());
+						Dialogs.showErrorNotification("Extension error", message);
 					logger.error("Error loading extension " + extension + ": " + e.getLocalizedMessage(), e);
+					if (!Objects.equals(qupathVersion, version)) {
+						if (version == null)
+							logger.warn("QuPath version for which the '{}' was written is unknown!", extension.getName());
+						else if (version.equals(qupathVersion))
+							logger.warn("'{}' reports that it is compatible with the current QuPath version {}", extension.getName(), qupathVersion);
+						else
+							logger.warn("'{}' was written for QuPath {} but current version is {}", extension.getName(), version, qupathVersion);
+					}
 					try {
 						logger.error("It is recommended that you delete {} and restart QuPath",
 								URLDecoder.decode(
@@ -1615,9 +1635,19 @@ public class QuPathGUI {
 				Dialogs.showInfoNotification("Image server loaded",  builderName);
 			}
 		}
-		
 		initializingMenus.set(initializing);
 	}
+	
+	private Version getRequestedVersion(QuPathExtension extension) {
+		try {
+			var version = extension.getQuPathVersion();
+			return version == null || version.isBlank() ? null : Version.parse(version);
+		} catch (Exception e) {
+			logger.error("Unable to parse version for {}", extension);
+			return null;
+		}
+	}
+	
 	
 	/**
 	 * Install extensions while QuPath is running.
@@ -1640,11 +1670,11 @@ public class QuPathGUI {
 			File dirDefault = getDefaultQuPathUserDirectory();
 			String msg;
 			if (dirDefault.exists()) {
-				msg = "An directory already exists at " + dirDefault.getAbsolutePath() + 
-						"\n\nDo you want to use this default, or specify another directory?";
+				msg = dirDefault.getAbsolutePath() + " already exists.\n" +
+						"Do you want to use this default, or specify another directory?";
 			} else {
-				msg = "QuPath can automatically create one at\n" + dirDefault.getAbsolutePath() + 
-						"\n\nDo you want to use this default, or specify another directory?";
+				msg = String.format("Do you want to create a new user directory at %s?\n",
+						dirDefault.getAbsolutePath());
 			}
 			
 			Dialog<ButtonType> dialog = new Dialog<>();
@@ -1657,7 +1687,8 @@ public class QuPathGUI {
 
 			dialog.setHeaderText(null);
 			dialog.setTitle("Choose extensions directory");
-			dialog.setContentText("No extensions directory is set.\n\n" + msg);
+			dialog.setHeaderText("No user directory set.");
+			dialog.setContentText(msg);
 			Optional<ButtonType> result = dialog.showAndWait();
 			if (!result.isPresent() || result.get() == btCancel) {
 				logger.info("No extension directory set - extensions not installed");
@@ -3193,16 +3224,17 @@ public class QuPathGUI {
 			}
 		}
 		
-		String serverPath = null;
+		ServerBuilder<BufferedImage> serverBuilder = null;
 		ImageData<BufferedImage> imageData = viewer.getImageData();
 		
 		// If we are loading data related to the same image server, load into that - otherwise open a new image if we can find it
 		try {
-			serverPath = PathIO.readSerializedServerPath(file);
+			serverBuilder = PathIO.extractServerBuilder(file.toPath());
 		} catch (Exception e) {
 			logger.warn("Unable to read server path from file: {}", e.getLocalizedMessage());
 		}
-		boolean sameServer = serverPath == null || (imageData != null && imageData.getServerPath().equals(serverPath));			
+		var existingBuilder = imageData == null || imageData.getServer() == null ? null : imageData.getServer().getBuilder();
+		boolean sameServer = Objects.equals(existingBuilder, serverBuilder);			
 		
 		
 		// If we don't have the same server, try to check the path is valid.
@@ -3214,22 +3246,40 @@ public class QuPathGUI {
 			server = imageData.getServer();
 		else {
 			try {
-				server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
-			} catch (IOException e) {
-				logger.error("Unable to open server path " + serverPath, e);
+				server = serverBuilder.build();
+			} catch (Exception e) {
+				logger.error("Unable to build server " + serverBuilder, e);
 			}
-			if (server == null) {
-//				boolean pathValid = new File(serverPath).isFile() || URLHelpers.checkURL(serverPath);
-//				if (!pathValid) {
-					serverPath = Dialogs.promptForFilePathOrURL("Set path to missing file", serverPath, new File(serverPath).getParentFile(), null);
-					if (serverPath == null)
+			// TODO: Ideally we would use an interface like ProjectCheckUris instead
+			if (server == null && serverBuilder != null) {
+				var uris = serverBuilder.getURIs();
+				var urisUpdated = new HashMap<URI, URI>();
+				for (var uri : uris) {
+					var pathUri = GeneralTools.toPath(uri);
+					if (pathUri != null && Files.exists(pathUri)) {
+						urisUpdated.put(uri, uri);
+						continue;
+					}
+					String currentPath = pathUri == null ? uri.toString() : pathUri.toString();
+					var newPath = Dialogs.promptForFilePathOrURL("Set path to missing image", currentPath, file.getParentFile(), null);
+					if (newPath == null)
 						return false;
-					server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
-					if (server == null)
-						return false;
-//				}
+					try {
+						urisUpdated.put(uri, GeneralTools.toURI(newPath));
+					} catch (URISyntaxException e) {
+						throw new IOException(e);
+					}
+				}
+				serverBuilder = serverBuilder.updateURIs(urisUpdated);
+				try {
+					server = serverBuilder.build();
+				} catch (Exception e) {
+					logger.error("Unable to build server " + serverBuilder, e);
+				}
 			}
-			
+			if (server == null)
+				return false;
+//			
 			// Small optimization... put in a thumbnail request early in a background thread.
 			// This way that it will be fetched while the image data is being read -
 			// generally leading to improved performance in the viewer's setImageData method

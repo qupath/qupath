@@ -30,15 +30,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;
-import java.util.Arrays;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
-import qupath.lib.common.GeneralTools;
 
 /**
  * Read QuPath projects.
@@ -86,14 +79,7 @@ public class ProjectIO {
 		if (cls.equals(BufferedImage.class)) {
 			logger.debug("Loading project from {}", fileProject);
 			try (Reader fileReader = new BufferedReader(new FileReader(fileProject))){
-				Gson gson = new Gson();
-				JsonObject element = gson.fromJson(fileReader, JsonObject.class);
-				// Didn't have the foresight to add a version number from the start...
-				String version = element.has("version") ? element.get("version").getAsString() : null;
-				if (version == null || Arrays.asList("v0.2.0-m2", "v0.2.0-m1").contains(version)) {
-					throw new IllegalArgumentException("Older-style project is not compatible with QuPath " + GeneralTools.getVersion());
-	//				return LegacyProject.readFromFile(fileProject, cls);
-				}
+				// Try to read the project - note that this can fail if it was written with an old version of QuPath
 				return (Project<T>)DefaultProject.loadFromFile(fileProject);
 			}
 		} else

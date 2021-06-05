@@ -5,11 +5,7 @@ Maven Repository
 
 This directory contains a local Maven repository, used for storing a small number of (third-party) artifacts that could not be found elsewhere.
 
-Currently, it is used for:
-
-* OpenCV
-* OpenSlide
-* JPen
+Currently, it is used only for OpenSlide.
 
 **Since maintaining this repository is awkward (and potentially error-prone), if 'official', cross-platform distributions of these libraries become available then they should be used instead.**
 

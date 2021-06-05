@@ -1,6 +1,12 @@
-ext.moduleName = 'qupath.gui.fx'
+plugins {
+  id 'qupath.common-conventions'
+  id 'qupath.publishing-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-gui-fx'
+ext.moduleName = 'qupath.gui.fx'
+archivesBaseName = 'qupath-gui-fx'
+description = "Main QuPath user interface."
 
 configurations {
   api.extendsFrom javafx
@@ -9,4 +15,9 @@ configurations {
   implementation.extendsFrom jfxtras
   implementation.extendsFrom commonstext
   implementation.extendsFrom commonsmath
+}
+
+dependencies {
+  api project(':qupath-core')
+  api project(':qupath-core-processing')
 }
