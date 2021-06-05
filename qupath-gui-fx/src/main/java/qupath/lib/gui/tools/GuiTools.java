@@ -674,7 +674,7 @@ public class GuiTools {
 	 * Restrict the {@link TextField} input to positive/negative integer (or double) format (including scientific notation).
 	 * <p>
 	 * N.B: the {@code TextArea} might still finds itself in an invalid state at any moment, as:
-	 * <li> character deletion is always permitted (e.g. -1.5e5 -> -1.5e; deletion of last character).</li>
+	 * <li> character deletion is always permitted (e.g. -1.5e5 -&gt; -1.5e; deletion of last character).</li>
 	 * <li>users are allowed to input a minus sign, in order to permit manual typing, which then needs to accept intermediate (invalid) states.</li>
 	 * <li>users are allowed to input an 'E'/'e' character, in order to permit manual typing as well, which then needs to accept intermediate (invalid) states.</li>
 	 * <li>copy-pasting is not as strictly restricted (e.g. -1.6e--5 and 1.6e4e9 are accepted, but won't be parsed).</li>
