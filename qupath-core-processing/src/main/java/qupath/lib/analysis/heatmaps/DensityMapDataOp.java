@@ -58,12 +58,8 @@ import qupath.opencv.ops.ImageOps;
  * 
  * @author Pete Bankhead
  */
-public class DensityMapDataOp implements ImageDataOp {
+class DensityMapDataOp implements ImageDataOp {
 	
-	/**
-	 * Channel name for the channel with all object counts (not always present).
-	 */
-	public final static String CHANNEL_ALL_OBJECTS = "Counts";
 	
 	static {
 		ImageOps.registerDataOp(DensityMapDataOp.class, "data.op.density");
@@ -79,6 +75,20 @@ public class DensityMapDataOp implements ImageDataOp {
 	private transient ImageOp op;
 	private transient List<ImageChannel> channels;
 	
+	/**
+	 *  * This involves filters (predicates) for:
+	 * <ul>
+	 *   <li><b>All objects:</b> identifying all objects under consideration (e.g. all detections, all cells, tumor cells)</li>
+	 *   <li><b>Primary objects:</b> identifying one or more subsets of 'all objects' where the density is of interest (e.g. Positive cells)</li>
+	 * </ul>
+	 * The output is an image where each channel provides a relevant density value.
+	 * The channels are ordered so densities of primary object filters are given first, and all objects last.
+	 * 
+	 * @param radius the radius (in downsampled pixel units) within which densities should be calculated
+	 * @param primaryObjects zero or more primary object filters, with an associated name (used for the channel name)
+	 * @param allObjects a single all objects filter to identify all objects of interest
+	 * @param normalization a normalization method used to convert object counts within the defined radius into density values
+	 */
 	public DensityMapDataOp(
 			int radius,
 			Map<String, PathObjectPredicate> primaryObjects,
@@ -159,7 +169,7 @@ public class DensityMapDataOp implements ImageDataOp {
 			
 			baseChannelName = "Density ";
 			if (!primaryObjects.isEmpty())
-				lastChannel = ImageChannel.getInstance(CHANNEL_ALL_OBJECTS, null);
+				lastChannel = ImageChannel.getInstance(DensityMaps.CHANNEL_ALL_OBJECTS, null);
 			break;
 		case NONE:
 		default:
@@ -175,7 +185,7 @@ public class DensityMapDataOp implements ImageDataOp {
 		if (lastChannel != null)
 			channels.add(lastChannel);
 		if (channels.isEmpty())
-			this.channels = Collections.singletonList(ImageChannel.getInstance(CHANNEL_ALL_OBJECTS, null));
+			this.channels = Collections.singletonList(ImageChannel.getInstance(DensityMaps.CHANNEL_ALL_OBJECTS, null));
 		else
 			this.channels = Collections.unmodifiableList(channels);		
 		sequentialOps.add(

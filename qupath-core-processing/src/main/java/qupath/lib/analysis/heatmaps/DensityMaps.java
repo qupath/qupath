@@ -65,6 +65,11 @@ public class DensityMaps {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DensityMaps.class);
 	
+	/**
+	 * Channel name for the channel with all object counts (not always present).
+	 */
+	public final static String CHANNEL_ALL_OBJECTS = "Counts";
+	
 	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.packRGB(200, 120, 20));
 
 	/**
@@ -355,7 +360,7 @@ public class DensityMaps {
 	
 	
 	private static int getCountsChannel(ImageServer<BufferedImage> server) {
-		if (server.getChannel(server.nChannels()-1).getName().equals(DensityMapDataOp.CHANNEL_ALL_OBJECTS))
+		if (server.getChannel(server.nChannels()-1).getName().equals(CHANNEL_ALL_OBJECTS))
 			return server.nChannels()-1;
 		return -1;
 	}

@@ -21,7 +21,6 @@
 
 package qupath.process.gui.commands;
 
-import java.awt.Shape;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
@@ -44,7 +43,6 @@ import org.slf4j.LoggerFactory;
 
 import ij.CompositeImage;
 import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -71,7 +69,6 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
-import qupath.lib.analysis.heatmaps.DensityMapDataOp;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapNormalization;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
@@ -86,11 +83,9 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
-import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
@@ -898,7 +893,7 @@ public class DensityMapCommand implements Runnable {
 
 			// If the last channel is 'counts', then it is used for normalization
 			int alphaCountBand = -1;
-			if (map.getChannel(map.nChannels()-1).getName().equals(DensityMapDataOp.CHANNEL_ALL_OBJECTS))
+			if (map.getChannel(map.nChannels()-1).getName().equals(DensityMaps.CHANNEL_ALL_OBJECTS))
 				alphaCountBand = map.nChannels()-1;
 			
 			String key = map.getPath() + "?countBand=" + alphaCountBand + "&minCount=" + minCount;
