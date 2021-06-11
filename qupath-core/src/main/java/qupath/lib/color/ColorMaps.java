@@ -34,16 +34,20 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 
 /**
  * Helper class to manage colormaps, which are rather like lookup tables but easily support interpolation.
@@ -55,9 +59,20 @@ public class ColorMaps {
 	private final static Logger logger = LoggerFactory.getLogger(ColorMaps.class);
 	
 	private static ColorMap LEGACY_COLOR_MAP = new PseudoColorMap();
-	private static Map<String, ColorMap> maps = new TreeMap<>(loadDefaultColorMaps());
-	private static Map<String, ColorMap> mapsUnmodifiable = Collections.unmodifiableMap(maps);
 	
+	private static List<ColorMap> SINGLE_COLOR_MAPS = Arrays.asList(
+			createColorMap("Gray", 255, 255, 255),
+			createColorMap("Red", 255, 0, 0),
+			createColorMap("Green", 0, 255, 0),
+			createColorMap("Blue", 0, 0, 255),
+			createColorMap("Magenta", 255, 0, 255),
+			createColorMap("Yellow", 255, 255, 0),
+			createColorMap("Cyan", 0, 255, 255)
+			);
+
+	private static Map<String, ColorMap> maps = new LinkedHashMap<>(loadDefaultColorMaps());
+	private static Map<String, ColorMap> mapsUnmodifiable = Collections.unmodifiableMap(maps);
+
 	/**
 	 * colormap, which acts as an interpolating lookup table with an arbitrary range.
 	 */
@@ -91,6 +106,7 @@ public class ColorMaps {
 	 * @return
 	 */
 	private static Map<String, ColorMap> loadDefaultColorMaps() {
+	    Map<String, ColorMap> maps = new LinkedHashMap<>();
 		try {
 			Path pathColorMaps;
 			URI uri = ColorMaps.class.getResource("/colormaps").toURI();
@@ -100,15 +116,17 @@ public class ColorMaps {
 		    } else {
 		    	pathColorMaps = Paths.get(uri);
 		    }
-		    Map<String, ColorMap> maps = new TreeMap<>();
-		    maps.put(LEGACY_COLOR_MAP.getName(), LEGACY_COLOR_MAP);
 		    for (var cm : loadColorMapsFromDirectory(pathColorMaps))
 		    	maps.put(cm.getName(), cm);
-		    return maps;
 		} catch (Exception e) {
 			logger.error("Error loading default colormaps: " + e.getLocalizedMessage(), e);
 			return new TreeMap<>();
+		} finally {
+		    for (var cm: SINGLE_COLOR_MAPS)
+		    	maps.put(cm.getName(), cm);
+		    maps.put(LEGACY_COLOR_MAP.getName(), LEGACY_COLOR_MAP);
 		}
+	    return maps;
 	}
 	
 	
@@ -197,7 +215,10 @@ public class ColorMaps {
 	
 	private static List<ColorMap> loadColorMapsFromDirectory(Path path) throws IOException {
 		List<ColorMap> list = new ArrayList<>();
-		Iterator<Path> iter = Files.list(path).filter(p -> p.getFileName().toString().endsWith(".tsv")).iterator();
+		Iterator<Path> iter = Files.list(path)
+				.filter(p -> p.getFileName().toString().endsWith(".tsv"))
+				.sorted(Comparator.comparing(p -> p.getFileName().toString()))
+				.iterator();
 	    while (iter.hasNext()) {
     		var temp = iter.next();
 	    	try {
@@ -262,16 +283,18 @@ public class ColorMaps {
 	}
 	
 	private static int[] convertToInt(double[] arr) {
-		int[] arr2 = new int[arr.length];
-		for (int i = 0; i < arr.length; i++) {
-			arr2[i] = (int)Math.round(arr[i] * 255.0);
-		}
-		return arr2;
+		return DoubleStream.of(arr).mapToInt(d -> convertToInt(d)).toArray();
+	}
+	
+	private static int convertToInt(double d) {
+		if (!Double.isFinite(d) || d > 1 || d < 0)
+			throw new IllegalArgumentException("Color value must be between 0 and 1, but actual value is " + d);
+		return (int)Math.round(d * 255.0);
 	}
 
 	/**
 	 * Create a colormap using integer values for red, green and blue.
-	 * These should be in the range 0-155.
+	 * These should be in the range 0-255.
 	 * @param name
 	 * @param r
 	 * @param g
@@ -280,6 +303,48 @@ public class ColorMaps {
 	 */
 	public static ColorMap createColorMap(String name, int[] r, int[] g, int[] b) {
 		return new DefaultColorMap(name, r, g, b);
+	}
+	
+//	/**
+//	 * Create a colormap using double values for red, green and blue.
+//	 * These should be in the range 0-1.
+//	 * @param name
+//	 * @param r
+//	 * @param g
+//	 * @param b
+//	 * @return
+//	 * @throws IllegalArgumentException if r, g or b values are out of range.
+//	 */
+//	public static ColorMap createDoubleColorMap(String name, double r, double g, double b) {
+//		return createColorMap(name, convertToInt(r), convertToInt(g), convertToInt(b));
+//	}
+	
+	/**
+	 * Create a colormap using int values for red, green and blue corresponding to the maximum value; 
+	 * the minimum color will be black.
+	 * These should be in the range 0-255.
+	 * @param name
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return
+	 */
+	public static ColorMap createColorMap(String name, int r, int g, int b) {
+		return new SingleColorMap(name, 0, r, 0, g, 0, b);
+	}
+	
+	/**
+	 * Apply gamma to a colormap.
+	 * The resulting colormap normalizes the input value according to the specified min and max, 
+	 * then applies {@code value = Math.pow(value, gamma)} before passing this to the 
+	 * wrapped {@link ColorMap}.
+	 * 
+	 * @param map base colormap
+	 * @param gamma gamma value
+	 * @return transformed colormap
+	 */
+	public static ColorMap gammaColorMap(ColorMap map, double gamma) {
+		return new GammaColorMap(map, gamma);
 	}
 
 	private static class DefaultColorMap implements ColorMap {
@@ -301,12 +366,12 @@ public class ColorMaps {
 			for (int i = 0; i < nColors; i++) {
 				int ind = (int)(i * scale);
 				double residual = (i * scale) - ind;
-				colors[i] = ColorTools.makeRGB(
+				colors[i] = ColorTools.packRGB(
 						r[ind] + (int)((r[ind+1] - r[ind]) * residual),
 						g[ind] + (int)((g[ind+1] - g[ind]) * residual),
 						b[ind] + (int)((b[ind+1] - b[ind]) * residual));
 			}
-			colors[nColors-1] = ColorTools.makeRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
+			colors[nColors-1] = ColorTools.packRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
 		}
 		
 		@Override
@@ -319,10 +384,10 @@ public class ColorMaps {
 			return getName();
 		}
 
-		public Integer getColor(int ind) {
+		private Integer getColor(int ind) {
 			Integer color = colors[ind];
 			if (color == null) {
-				color = ColorTools.makeRGB(r[ind], g[ind], b[ind]);
+				color = ColorTools.packRGB(r[ind], g[ind], b[ind]);
 				colors[ind] = color;
 			}
 			return color;
@@ -369,12 +434,12 @@ public class ColorMaps {
 			for (int i = 0; i < nColors; i++) {
 				int ind = (int)(i * scale);
 				double residual = (i * scale) - ind;
-				colors[i] = ColorTools.makeRGB(
+				colors[i] = ColorTools.packRGB(
 						r[ind] + (int)((r[ind+1] - r[ind]) * residual),
 						g[ind] + (int)((g[ind+1] - g[ind]) * residual),
 						b[ind] + (int)((b[ind+1] - b[ind]) * residual));
 			}
-			colors[nColors-1] = ColorTools.makeRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
+			colors[nColors-1] = ColorTools.packRGB(r[r.length-1], g[g.length-1], b[b.length-1]);
 		}
 		
 		@Override
@@ -387,10 +452,10 @@ public class ColorMaps {
 			return "Jet";
 		}
 
-		public Integer getColor(int ind) {
+		private Integer getColor(int ind) {
 			Integer color = colors[ind];
 			if (color == null) {
-				color = ColorTools.makeRGB(r[ind], g[ind], b[ind]);
+				color = ColorTools.packRGB(r[ind], g[ind], b[ind]);
 				colors[ind] = color;
 			}
 			return color;
@@ -413,6 +478,93 @@ public class ColorMaps {
 //		public boolean hasAlpha() {
 //			return false;
 //		}
+
+	}
+	
+	
+	
+	private static class GammaColorMap implements ColorMap {
+		
+		private final ColorMap map;
+		private final double gamma;
+		
+		public GammaColorMap(ColorMap map, double gamma) {
+			this.map = map;
+			this.gamma = gamma;
+		}
+
+		@Override
+		public String getName() {
+			return String.format("%s (gamma=%s)", map.getName(), GeneralTools.formatNumber(gamma, 3));
+		}
+
+		@Override
+		public Integer getColor(double value, double minValue, double maxValue) {
+			if (gamma == 1)
+				return map.getColor(value, minValue, maxValue);
+			double val = 0;
+			if (gamma == 0)
+				 val = 1;
+			else if (maxValue != minValue)
+				val = (value - minValue) / (maxValue - minValue);
+			val = Math.pow(val, gamma);
+			return map.getColor(val, 0, 1);
+		}
+		
+	}
+	
+	
+	private static class SingleColorMap implements ColorMap {
+		
+		private String name;
+		
+		private final int minRed, maxRed;
+		private final int minGreen, maxGreen;
+		private final int minBlue, maxBlue;
+		
+		SingleColorMap(String name, int minRed, int maxRed, int minGreen, int maxGreen, int minBlue, int maxBlue) {
+			this.name = name;
+			this.minRed = minRed;
+			this.maxRed = maxRed;
+			this.minGreen = minGreen;
+			this.maxGreen = maxGreen;
+			this.minBlue = minBlue;
+			this.maxBlue = maxBlue;
+		}
+		
+		@Override
+		public String getName() {
+			return name;
+		}
+		
+		@Override
+		public String toString() {
+			return getName();
+		}
+
+		@Override
+		public Integer getColor(double value, double minValue, double maxValue) {
+			if (minValue == maxValue)
+				return ColorTools.packRGB(maxRed, maxGreen, maxBlue);
+			
+			double val = (value - minValue) / (maxValue - minValue);
+			if (val >= 1)
+				return ColorTools.packRGB(maxRed, maxGreen, maxBlue);
+			if (val <= 0)
+				return ColorTools.packRGB(minRed, minGreen, minBlue);
+			
+			int r = (int)Math.round(linearInterp1D(minRed, maxRed, val));
+			int g = (int)Math.round(linearInterp1D(minGreen, maxGreen, val));
+			int b = (int)Math.round(linearInterp1D(minBlue, maxBlue, val));
+			
+			return ColorTools.packRGB(r, g, b);
+		}
+
+		
+		private static double linearInterp1D(double fx0, double fx1, double x) {
+			assert x >= 0 && x <= 1;
+			return fx0 * (1 - x) + x * fx1;
+		}
 
 	}
 
