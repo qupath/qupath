@@ -119,7 +119,7 @@ class ImageOverview implements QuPathViewerListener {
 
 	private void updateTransform() {
 		if (imgPreview != null && viewer != null && viewer.getServer() != null) {
-			double scale = (double)preferredWidth / viewer.getServer().getWidth();
+			double scale = imgPreview.getWidth() / viewer.getServer().getWidth();
 			if (scale > 0) {
 				// Reuse an existing transform if we have one
 				if (transform == null)
