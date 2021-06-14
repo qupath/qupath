@@ -4306,19 +4306,6 @@ public class QuPathGUI {
 		}
 		
 		/**
-		 * Return a list of viewers which currently have an ImageData object set
-		 * @return
-		 */
-		public List<QuPathViewerPlus> getOpenViewers() {
-			List<QuPathViewerPlus> openViewers = new ArrayList<>();
-			for (QuPathViewerPlus v : viewers) {
-				if (v.getImageData() != null)
-					openViewers.add(v);
-			}
-			return openViewers;
-		}
-		
-		/**
 		 * Match the display resolutions (downsamples) of all viewers to match the current viewer.
 		 * This uses calibrated pixel size information if available.
 		 */
