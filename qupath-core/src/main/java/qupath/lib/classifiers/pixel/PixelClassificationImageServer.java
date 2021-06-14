@@ -27,8 +27,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
-import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +71,12 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private ColorModel colorModel;
 	
 	private ImageServerMetadata originalMetadata;
+	
+	/**
+	 *  Some classifiers cache all their tiles.
+	 *  This is useful for classifiers that depend upon {@link ImageData} that may change.
+	 */
+	private Map<TileRequest, BufferedImage> tileMap;
 	
 	/**
 	 * Set an ImageServer as a property in the ImageData.
@@ -121,7 +128,7 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	 * @param classifier
 	 * @param customID optionally provide a custom ID (path). This is when the default (based upon the {@link ImageData} and {@link PixelClassifier} isn't sufficient), 
 	 *                 e.g. because the classifier can change output based upon {@link ImageData} status.
-	 * @param colorModel
+	 * @param colorModel optional colormodel
 	 */
 	public PixelClassificationImageServer(ImageData<BufferedImage> imageData, PixelClassifier classifier, String customID, ColorModel colorModel) {
 		super();
@@ -185,7 +192,45 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 		originalMetadata = builder.build();
 		
+		
 	}
+	
+	/**
+	 * Read all the tiles.
+	 * This is useful for a classifier that can be applied in full to an image without causing memory issues 
+	 * (e.g. a density map), particularly if it is is dependent upon a changing property of the image 
+	 * (e.g. its object hierarchy).
+	 * After calling this method, tiles will be returned from an internal cache rather than being computed anew.
+	 */
+	public synchronized void readAllTiles() {
+		if (tileMap != null)
+			return;
+		
+		var tempTileMap = getTileRequestManager()
+					.getAllTileRequests()
+					.parallelStream()
+					.filter(t -> !isEmptyRegion(t.getRegionRequest()))
+					.collect(Collectors.toMap(t -> t, t -> tryToReadTile(t)));
+		
+		var iter = tempTileMap.entrySet().iterator();
+		while (iter.hasNext()) {
+			var next = iter.next();
+			if (next.getValue() == null)
+				iter.remove();
+		}
+		tileMap = tempTileMap;
+	}
+	
+	
+	private BufferedImage tryToReadTile(TileRequest tile) {
+		try {
+			return readTile(tile);
+		} catch (IOException e) {
+			logger.debug("Unable to read tile: " + e.getLocalizedMessage(), e);
+			return null;
+		}
+	}
+	
 	
 	@Override
 	protected ColorModel getDefaultColorModel() throws IOException {
@@ -247,6 +292,14 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	@Override
 	public void setMetadata(ImageServerMetadata metadata) throws UnsupportedOperationException {
 		throw new UnsupportedOperationException("Setting metadata is not allowed!");
+	}
+	
+	
+	@Override
+	public BufferedImage getCachedTile(TileRequest tile) {
+		if (tileMap != null && tileMap.containsKey(tile))
+			return tileMap.get(tile);
+		return super.getCachedTile(tile);
 	}
 
 
