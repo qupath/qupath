@@ -48,6 +48,7 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -158,7 +159,7 @@ public class PixelClassifierTools {
 			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
 		return createDetectionsFromPixelClassifier(
 				imageData.getHierarchy(),
-				new PixelClassificationImageServer(imageData, classifier),
+				createPixelClassificationServer(imageData, classifier),
 				minArea, minHoleArea, options);
 	}
 	
@@ -277,7 +278,7 @@ public class PixelClassifierTools {
 			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
 		return createAnnotationsFromPixelClassifier(
 				imageData.getHierarchy(),
-				new PixelClassificationImageServer(imageData, classifier),
+				createPixelClassificationServer(imageData, classifier),
 				minArea, minHoleArea, options);
 	}
 	
@@ -441,7 +442,24 @@ public class PixelClassifierTools {
 	 * @return the classification {@link ImageServer}
 	 */
 	public static ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		return new PixelClassificationImageServer(imageData, classifier);
+		return createPixelClassificationServer(imageData, classifier, null, null, false);
+	}
+	
+	/**
+	 * Create an {@link ImageServer} that displays the results of applying a {@link PixelClassifier} to an image.
+	 * @param imageData the image to which the classifier should apply
+	 * @param classifier the pixel classifier
+	 * @param id an ID to use for the {@link ImageServer}; this may be null, in which case an ID will be derived (if possible from a JSON representation of the classifier)
+	 * @param colorModel optional colormodel for the classifier (may be null to use the default)
+	 * @param cacheAllTiles optionally request that all tiles are computed immediately as the classifier is created. This is useful for images that are 'small' and where 
+	 *                      the classification can comfortably be held in RAM.
+	 * @return the classification {@link ImageServer}
+	 */
+	public static ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData, PixelClassifier classifier, String id, ColorModel colorModel, boolean cacheAllTiles) {
+		var server = new PixelClassificationImageServer(imageData, classifier, id, colorModel);
+		if (cacheAllTiles)
+			server.readAllTiles();
+		return server;
 	}
 	
 	
@@ -651,7 +669,7 @@ public class PixelClassifierTools {
 	 * @param preferNucleusROI use the nucleus ROI in the case of cells; ignored for all other object types
 	 */
 	public static void classifyObjectsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
-		classifyObjectsByCentroid(new PixelClassificationImageServer(imageData, classifier), pathObjects, preferNucleusROI);
+		classifyObjectsByCentroid(createPixelClassificationServer(imageData, classifier), pathObjects, preferNucleusROI);
 		imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
 	}
 	

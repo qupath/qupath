@@ -132,7 +132,7 @@ public final class PixelClassifierLoadCommand implements Runnable {
 		var selectedOverlay = Bindings.createObjectBinding(() -> {
 			if (selectedClassifier.get() == null)
 				return null;
-			return PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), selectedClassifier.get());
+			return PixelClassificationOverlay.create(qupath.getOverlayOptions(), selectedClassifier.get());
 		}, selectedClassifier);
 		
 		selectedOverlay.addListener((v, o, n) -> {

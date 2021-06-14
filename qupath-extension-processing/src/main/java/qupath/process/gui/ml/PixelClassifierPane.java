@@ -1028,7 +1028,7 @@ public class PixelClassifierPane {
 
 		 currentClassifier.set(PixelClassifiers.createClassifier(model, featureCalculator, metadata, true));
 
-		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), currentClassifier.get());
+		 var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), currentClassifier.get());
 		 replaceOverlay(overlay);
 	}
 		

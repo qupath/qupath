@@ -21,8 +21,8 @@
 
 package qupath.process.gui.commands;
 
+import java.awt.Shape;
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,10 +32,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.WeakHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.DoubleToIntFunction;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -46,15 +46,12 @@ import com.google.gson.Gson;
 
 import ij.CompositeImage;
 import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -75,10 +72,10 @@ import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapNormalization;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -88,10 +85,12 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.QuPathViewerListener;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
@@ -104,6 +103,7 @@ import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.process.gui.commands.DensityMapCommand.MinMaxFinder.MinMax;
 import qupath.process.gui.ml.PixelClassificationOverlay;
 
 
@@ -197,7 +197,7 @@ public class DensityMapCommand implements Runnable {
 	}
 	
 	
-	static class DensityMapDialog implements ChangeListener<ImageData<BufferedImage>>, PathObjectHierarchyListener {
+	static class DensityMapDialog {
 		
 		private QuPathGUI qupath;
 				
@@ -211,15 +211,8 @@ public class DensityMapCommand implements Runnable {
 		 */
 		private final BooleanProperty autoUpdate = new SimpleBooleanProperty(true);
 		
-		private Future<?> currentTask;
-		
-		/**
-		 * Corresponding density map
-		 */
-		private final Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> densityMapMap = new WeakHashMap<>();
-		
-		private final Map<QuPathViewer, PixelClassificationOverlay> overlayMap = new WeakHashMap<>();
-		
+		private HierarchyPixelClassifierManager manager;
+				
 		private final double textFieldWidth = 80;
 		private final double hGap = 5;
 		private final double vGap = 5;
@@ -228,7 +221,7 @@ public class DensityMapCommand implements Runnable {
 			this.qupath = qupath;
 			
 			densityBuilder = new ObservableDensityMapBuilder(qupath.imageDataProperty());
-			displayBuilder = new ObservableColorMapBuilder();
+			displayBuilder = new ObservableColorMapBuilder(qupath);
 			
 			var paneParams = buildAllObjectsPane(densityBuilder);
 			var titledPaneParams = new TitledPane("Define density map", paneParams);
@@ -255,20 +248,23 @@ public class DensityMapCommand implements Runnable {
 			var btnAutoUpdate = new ToggleButton("Auto-update");
 			btnAutoUpdate.setSelected(autoUpdate.get());
 			btnAutoUpdate.selectedProperty().bindBidirectional(autoUpdate);
+			autoUpdate.addListener((v, o, n) -> {
+				if (n)
+					displayBuilder.updateDisplayRanges(manager.currentDensityMap.get());
+			});
 			
 			PaneTools.addGridRow(pane, row++, 0, "Automatically update the heatmap. Turn this off if changing parameters and heatmap generation is slow.", btnAutoUpdate, btnAutoUpdate, btnAutoUpdate);
 			
-			displayBuilder.colorMap.addListener((v, o, n) -> requestAutoUpdate(false));
-			displayBuilder.minCount.addListener((v, o, n) -> requestAutoUpdate(false));
-			displayBuilder.gamma.addListener((v, o, n) -> requestAutoUpdate(false));
-			displayBuilder.minDisplay.addListener((v, o, n) -> requestAutoUpdate(false));
-			displayBuilder.maxDisplay.addListener((v, o, n) -> requestAutoUpdate(false));
-			displayBuilder.interpolation.addListener((v, o, n) -> updateInterpolation());
-			autoUpdate.addListener((v, o, n) -> {
-				if (n)
-					requestAutoUpdate(n);
-			});
-			displayBuilder.autoUpdateDisplayRange.addListener((v, o, n) -> requestAutoUpdate(false));
+			displayBuilder.colorMap.addListener((v, o, n) -> refreshViewers());
+			displayBuilder.gamma.addListener((v, o, n) -> refreshViewers());
+			displayBuilder.minDisplay.addListener((v, o, n) -> refreshViewers());
+			displayBuilder.maxDisplay.addListener((v, o, n) -> refreshViewers());
+			// TODO: Add autoupdate control
+//			autoUpdate.addListener((v, o, n) -> {
+//				if (n)
+//					requestAutoUpdate(n);
+//			});
+			displayBuilder.autoUpdateDisplayRange.addListener((v, o, n) -> refreshViewers());
 			
 			var buttonPane = buildButtonPane();
 			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
@@ -276,21 +272,18 @@ public class DensityMapCommand implements Runnable {
 						
 			pane.setPadding(new Insets(10));
 
-			qupath.imageDataProperty().addListener(this);
-			var imageData = qupath.getImageData();
-			if (imageData != null)
-				imageData.getHierarchy().addPathObjectListener(this);
-			
 			stage = new Stage();
 			stage.setScene(new Scene(pane));
 			stage.setResizable(false);
 			stage.initOwner(qupath.getStage());
 			stage.setTitle("Density map");
 			
-			densityBuilder.classifier.addListener((v, o, n) -> requestAutoUpdate(false));
-			
 			// Update stage height when display options expanded/collapsed
 			titledPaneDisplay.heightProperty().addListener((v, o, n) -> stage.sizeToScene());
+			
+			// Create new overlays for the viewers
+			manager = new HierarchyPixelClassifierManager(qupath, densityBuilder.classifier, displayBuilder.interpolation, displayBuilder.renderer);
+			manager.currentDensityMap.addListener((v, o, n) -> displayBuilder.updateDisplayRanges(n));
 		}
 		
 		
@@ -340,9 +333,8 @@ public class DensityMapCommand implements Runnable {
 			var viewer = qupath.getViewer();
 			var imageData = viewer.getImageData();
 			var classifier = densityBuilder.classifier.get();
-			var overlay = overlayMap.getOrDefault(viewer, null);
 			if (imageData != null && classifier != null) {
-				exporter.promptToSaveImage(imageData, classifier, overlay);
+				exporter.promptToSaveImage(imageData, classifier, manager.overlay);
 			}
 		}
 		
@@ -467,16 +459,6 @@ public class DensityMapCommand implements Runnable {
 			GuiTools.installRangePrompt(slideMax);
 			PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Set the density value corresponding to the last entry in the colormap.", new Label("Max display"), slideMax, tfMax);
 
-			var sliderMinCount = new Slider(0, 1000, displayParams.minCount.get());
-			sliderMinCount.valueProperty().bindBidirectional(displayParams.minCount);
-			initializeSliderSnapping(sliderMinCount, 50, 1, 1);
-			var tfMinCount = createTextField();
-			GuiTools.bindSliderAndTextField(sliderMinCount, tfMinCount, expandSliderLimits, 0);
-			GuiTools.installRangePrompt(sliderMinCount);
-			PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, "Select minimum number of objects required for display in the density map.\n"
-					+ "This is used to avoid isolated detections dominating the map (i.e. lower density regions can be shown as transparent).",
-					new Label("Min object count"), sliderMinCount, tfMinCount);
-
 			var sliderGamma = new Slider(0, 4, displayParams.gamma.get());
 			sliderGamma.valueProperty().bindBidirectional(displayParams.gamma);
 			initializeSliderSnapping(sliderGamma, 0.1, 1, 0.1);
@@ -560,141 +542,16 @@ public class DensityMapCommand implements Runnable {
 		 * Deregister listeners. This should be called when the stage is closed if it will not be used again.
 		 */
 		public void deregister() {
-			var currentImageData = qupath.getImageData();
-			if (currentImageData != null)
-				currentImageData.getHierarchy().removePathObjectListener(this);
-			qupath.imageDataProperty().removeListener(this);
-			for (var viewer : qupath.getViewers()) {
-				var hierarchy = viewer.getHierarchy();
-				if (hierarchy != null)
-					hierarchy.removePathObjectListener(this);
-//				viewer.imageDataProperty().removeListener(this);
-				if (viewer.getCustomPixelLayerOverlay() == overlayMap.getOrDefault(viewer, null))
-					viewer.resetCustomPixelLayerOverlay();
-			}
+			manager.shutdown();
 		}
 		
 		public Stage getStage() {
 			return stage;
 		}
 		
-		/**
-		 * Request that the density maps and/or overlays are updated.
-		 * Note that this only has an effect if autoUpdate is turned on.
-		 * @param fullUpdate if true, recalculate the density map entirely
-		 */
-		private void requestAutoUpdate(boolean fullUpdate) {
-			if (!autoUpdate.get())
-				return;
-			requestUpdate(fullUpdate);
-		}
 		
-		/**
-		 * Request that the density maps and/or overlays are updated.
-		 * @param fullUpdate if true, recalculate the density map entirely
-		 */
-		private void requestUpdate(boolean fullUpdate) {
-			if (currentTask != null)
-				currentTask.cancel(true);
-			if (fullUpdate) {
-				densityMapMap.clear();
-//				densityMapRanges.clear();
-			}
-			var executor = qupath.createSingleThreadExecutor(this);
-			currentTask = executor.submit(() -> {
-				for (var viewer : qupath.getViewers()) {
-					if (Thread.currentThread().isInterrupted())
-						return;
-					updateDensityMapClassifier(viewer);
-				}
-			});
-		}
-		
-		
-		
-		private void updateInterpolation() {
-			for (var viewer : qupath.getViewers()) {
-				var overlay = overlayMap.getOrDefault(viewer, null);
-				if (overlay != null) {
-					overlay.setInterpolation(displayBuilder.interpolation.getValue());
-					viewer.repaint();
-				}
-			}
-		}
-
-		
-		private void updateDensityMapClassifier(QuPathViewer viewer) {
-			PixelClassificationOverlay overlay = null;
-			// Get a cached density map if we can
-			try {
-				// Generate a new density map if we need to
-				var imageData = viewer.getImageData();
-				
-				var pixelClassifier = densityBuilder.classifier.get();
-				
-				// Function to generate an ImageServer providing a density map, using a unique ID
-				var id = UUID.randomUUID().toString();
-				Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> serverFun = 
-						(ImageData<BufferedImage> data) -> new PixelClassificationImageServer(data, pixelClassifier, id, null);
-
-				ImageServer<BufferedImage> densityMap = null;
-				if (imageData != null && pixelClassifier != null) {
-					densityMap = serverFun.apply(imageData);
-					var tiles = MinMaxFinder.getAllTiles(densityMap, 0, false);
-					if (tiles == null)
-						return;
-
-					// Don't update anything if we are interrupted - that can cause flickering of the display
-					if (Thread.currentThread().isInterrupted())
-						return;
-
-					ColorModel cm = displayBuilder.createColorModel(densityMap);
-					if (cm == null)
-						return;
-					
-					var renderer = new ColorModelRenderer(cm);
-					overlay = PixelClassificationOverlay.createPixelClassificationOverlay(viewer.getOverlayOptions(), serverFun, renderer);
-					overlay.setLivePrediction(true);
-				}
-				densityMapMap.put(imageData, densityMap);
-				overlayMap.put(viewer, overlay);
-				
-			} catch (Exception e) {
-				Dialogs.showErrorNotification(title, "Error creating density map: " + e.getLocalizedMessage());
-				logger.error(e.getLocalizedMessage(), e);
-				densityMapMap.remove(viewer.getImageData());
-				overlayMap.remove(viewer);
-				overlay = null;
-			}
-			
-			if (Platform.isFxApplicationThread()) {
-				viewer.setCustomPixelLayerOverlay(overlay);
-			} else {
-				var overlay2 = overlay;
-				Platform.runLater(() -> viewer.setCustomPixelLayerOverlay(overlay2));
-			}
-		}
-		
-		/**
-		 * Listen for changes to the currently open image
-		 */
-		@Override
-		public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
-				ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
-			if (oldValue != null)
-				oldValue.getHierarchy().removePathObjectListener(this);
-			if (newValue != null) {
-				newValue.getHierarchy().addPathObjectListener(this);
-				requestAutoUpdate(true);
-			}
-		}
-
-
-		@Override
-		public void hierarchyChanged(PathObjectHierarchyEvent event) {
-			if (event.isChanging())
-				return;
-			requestAutoUpdate(true);
+		private void refreshViewers() {
+			qupath.repaintViewers();
 		}
 		
 		
@@ -702,6 +559,9 @@ public class DensityMapCommand implements Runnable {
 	
 	
 	static class MinMaxFinder {
+		
+		private static Map<String, List<MinMax>> cache = Collections.synchronizedMap(new HashMap<>());
+		
 	
 		static class MinMax {
 			
@@ -721,6 +581,7 @@ public class DensityMapCommand implements Runnable {
 		
 		/**
 		 * Get the minimum and maximum values for all pixels across all channels of an image.
+		 * Note that this will use a cached value, therefore it is assumed that the server cannot change.
 		 * 
 		 * @param server server containing pixels
 		 * @param countBand optional band that can be thresholded and used for masking; if -1, then the same band is used for counts
@@ -729,6 +590,16 @@ public class DensityMapCommand implements Runnable {
 		 * @throws IOException 
 		 */
 		private static List<MinMax> getMinMax(ImageServer<BufferedImage> server, int countBand, float minCount) throws IOException {
+			String key = server.getPath() + "?count=" + countBand + "&minCount=" + minCount;
+			var minMax = cache.get(key);
+			if (minMax == null) {
+				minMax = calculateMinMax(server, countBand, minCount);
+				cache.put(key, minMax);
+			}
+			return minMax;
+		}
+		
+		private static List<MinMax> calculateMinMax(ImageServer<BufferedImage> server, int countBand, float minCount) throws IOException {
 			var tiles = getAllTiles(server, 0, false);
 			if (tiles == null)
 				return null;
@@ -874,7 +745,7 @@ public class DensityMapCommand implements Runnable {
 			}
 			
 			builder.radius(radius.get());
-			return builder.buildMap(imageData);
+			return builder.buildClassifier(imageData);
 			
 		}
 		
@@ -882,130 +753,111 @@ public class DensityMapCommand implements Runnable {
 	
 	
 	
+	
 	static class ObservableColorMapBuilder {
 		
+		private QuPathGUI qupath;
+				
 		private final ObjectProperty<ColorMap> colorMap = new SimpleObjectProperty<>();
 		private final ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
 		
+		// Not observable, since the user can't adjust them (and we don't want unnecessary events fired)
+		private int alphaCountBand = -1;
+		private double minAlpha = 0;
+		private double maxAlpha = 1;
+		
+		// Observable, so we can update them in the UI
 		private final DoubleProperty gamma = new SimpleDoubleProperty(1.0);
-		private final DoubleProperty minCount = new SimpleDoubleProperty(0);
 
 		private final DoubleProperty minDisplay = new SimpleDoubleProperty(0);
 		private final DoubleProperty maxDisplay = new SimpleDoubleProperty(1);
 		private final BooleanProperty autoUpdateDisplayRange = new SimpleBooleanProperty(true);
 		
-		// Property that controls whether display options can be adjusted
-		// TODO: Reinstate adjustable display
-		private BooleanBinding displayAdjustable = Bindings.createBooleanBinding(() -> false);
-//		private BooleanBinding displayAdjustable = selectedNormalization.isEqualTo(DensityMapNormalization.OBJECTS)
-//				.and(selectedClass.isNotEqualTo(PathClassFactory.getPathClassUnclassified())
-//						.or(densityType.isEqualTo(DensityMapType.POSITIVE_DETECTIONS))
-//						);
+		private final ColorModelRenderer renderer = new ColorModelRenderer(null);
 		
-//		private Map<ImageData<BufferedImage>, MinMax> minMaxValues = new WeakHashMap<>();
+		ObservableColorMapBuilder(QuPathGUI qupath) {
+			this.qupath = qupath;
+			colorMap.addListener((v, o, n) -> updateRenderer());
+			gamma.addListener((v, o, n) -> updateRenderer());
+			minDisplay.addListener((v, o, n) -> updateRenderer());
+			maxDisplay.addListener((v, o, n) -> updateRenderer());
+			// TODO: Ensure interpolation works with overlay
+			interpolation.addListener((v, o, n) -> refreshViewers());
+		}
 		
-		
-		private final ImageRenderer renderer = new ColorModelRenderer(null);
-		
-		/**
-		 * Cache min/max values, because computing them is quite expensive
-		 */
-		private final Map<String, List<MinMaxFinder.MinMax>> densityMapRanges = new HashMap<>();
-
-
-		ObservableColorMapBuilder() {
-			// TODO: Set the display adjustable binding
-			autoUpdateDisplayRange.bind(displayAdjustable.not());
+		private void updateDisplayRanges(ImageServer<BufferedImage> densityMapServer) {
+			if (densityMapServer == null || !autoUpdateDisplayRange.get())
+				return;
+			
+			boolean autoUpdate = autoUpdateDisplayRange.get();
+			
+			// If the last channel is 'counts', then it is used for normalization
+			int alphaCountBand = -1;
+			if (densityMapServer.getChannel(densityMapServer.nChannels()-1).getName().equals(DensityMaps.CHANNEL_ALL_OBJECTS))
+				alphaCountBand = densityMapServer.nChannels()-1;
+			
+			// Compute min/max values if we need them
+			List<MinMax> minMax = null;
+			if (alphaCountBand > 0 || autoUpdate) {
+				try {
+					minMax = MinMaxFinder.getMinMax(densityMapServer, alphaCountBand, 1);
+				} catch (IOException e) {
+					logger.warn("Error setting display ranges: " + e.getLocalizedMessage(), e);
+				}
+			}
+			
+			// Determine min/max values for alpha in count channel, if needed
+			minAlpha = minDisplay.get();
+			if (alphaCountBand <= 0) {
+				maxAlpha = maxDisplay.get();
+			} else {
+				maxAlpha = minMax.get(alphaCountBand).maxValue;
+			}
+			this.alphaCountBand = alphaCountBand;
+			
+			double maxDisplayValue = minMax == null ? maxDisplay.get() : minMax.get(0).maxValue;
+//			GuiTools.runOnApplicationThread(() -> {
+				if (autoUpdate) {
+					maxDisplay.set(maxDisplayValue);
+				}
+				updateRenderer();
+//			});
 		}
 		
 		
-		private ColorModel createColorModel(ImageServer<BufferedImage> map) throws IOException {
-//			requestQuickUpdate = false;
-
-			if (map == null)
-				return null;
-			
+		private void updateRenderer() {
 			var colorMap = this.colorMap.get();
-			
-			var request = RegionRequest.createInstance(map);
-			var img = map.readBufferedImage(request);
-			if (img == null)
-				return null;
 			
 			double min = this.minDisplay.get();
 			double max = this.maxDisplay.get();
-			double minCount = this.minCount.get();
 
-			// If the last channel is 'counts', then it is used for normalization
-			int alphaCountBand = -1;
-			if (map.getChannel(map.nChannels()-1).getName().equals(DensityMaps.CHANNEL_ALL_OBJECTS))
-				alphaCountBand = map.nChannels()-1;
-			
-			String key = map.getPath() + "?countBand=" + alphaCountBand + "&minCount=" + minCount;
-			
-			var minMaxList = densityMapRanges.get(key);
-			if (minMaxList == null) {
-				minMaxList = MinMaxFinder.getMinMax(map, alphaCountBand, (float)minCount);
-				if (minMaxList == null)
-					return null;
-				densityMapRanges.put(key, minMaxList);
-			}
-			var alphaCountMinMax = alphaCountBand > 0 ? minMaxList.get(alphaCountBand) : null;
-			
-			if (Thread.currentThread().isInterrupted())
-				return null;
-			
-			// Calculate the min/max values if needed; these define the bounds for the colormap
-			// Use all channels, unless one is being used for masking
-			if (this.autoUpdateDisplayRange.get()) {
-				// TODO: Check whether or not to always drop the count band
-				min = 0;//minMaxList.stream().filter(m -> m != alphaCountMinMax).mapToDouble(m -> m.minValue).min().orElse(Double.NaN);
-				max = minMaxList.stream().filter(m -> m != alphaCountMinMax).mapToDouble(m -> m.maxValue).max().orElse(Double.NaN);
-//				if (Double.isFinite(min) && Double.isFinite(max)) {
-//					double min2 = min;
-//					double max2 = max;
-//					Platform.runLater(() -> {
-//						minDisplay.set(min2);
-//						maxDisplay.set(max2);
-//					});
-//				}
-			}
-			
 			var g = gamma.get();
 			DoubleToIntFunction alphaFun = null;
 			
-			// Everything <= minCount should be transparent
-			// Everything else should derive opacity from the alpha value
-			if (minCount > 0) {
-				if (alphaCountBand < 0) {
-					if (g <= 0) {
-						alphaFun = ColorModelFactory.createLinearFunction(minCount, minCount+1);
-					} else {
-						alphaFun = ColorModelFactory.createGammaFunction(g, minCount, max);
-					}
-				}
-			}
-
-			if (alphaCountMinMax == null) {
+			if (alphaCountBand < 0) {
 				if (g <= 0) {
 					alphaFun = null;
 					alphaCountBand = -1;
 				} else {
-					alphaFun = ColorModelFactory.createGammaFunction(g, Math.max(0, minCount), max);
+					alphaFun = ColorModelFactory.createGammaFunction(g, min, max);
 					alphaCountBand = 0;
 				}
 			} else if (alphaFun == null) {
 				if (g <= 0)
-					alphaFun = ColorModelFactory.createLinearFunction(Math.max(0, minCount), Math.max(0, minCount)+1);
-				else if (minCount >= alphaCountMinMax.maxValue)
-					alphaFun = v -> 0;
+					alphaFun = ColorModelFactory.createLinearFunction(minAlpha, minAlpha+1);
 				else
-					alphaFun = ColorModelFactory.createGammaFunction(g, Math.max(0, minCount), alphaCountMinMax.maxValue);
+					alphaFun = ColorModelFactory.createGammaFunction(g, minAlpha, maxAlpha);
 			}
 			
-			var cm = ColorModelFactory.createColorModel(PixelType.FLOAT32, colorMap, 0, min, max, alphaCountBand, alphaFun);			
+			var cm = ColorModelFactory.createColorModel(PixelType.FLOAT32, colorMap, 0, min, max, alphaCountBand, alphaFun);
+			renderer.setColorModel(cm);
 			
-			return cm;
+			refreshViewers();
+		}
+		
+		private void refreshViewers() {
+			for (var viewer : qupath.getViewers())
+				viewer.repaint();
 		}
 		
 		
@@ -1206,6 +1058,132 @@ public class DensityMapCommand implements Runnable {
 		
 		PathClass baseClass = channelName == null || channelName.isBlank() || DensityMaps.CHANNEL_ALL_OBJECTS.equals(channelName) ? null : PathClassFactory.getPathClass(channelName);
 		return DensityMaps.getHotspotClass(baseClass);
+		
+	}
+	
+		
+	/**
+	 * Manage the density map associated with the image in a viewer.
+	 * This is written to potentially support different kinds of classifier that require updates on a hierarchy change.
+	 */
+	static class HierarchyPixelClassifierManager implements PathObjectHierarchyListener, QuPathViewerListener {
+		
+		private final QuPathGUI qupath;
+		
+		private final PixelClassificationOverlay overlay;
+		private final ObservableValue<PixelClassifier> classifier;
+		// Cache a server
+		private Map<ImageData<BufferedImage>, ImageServer<BufferedImage>> classifierServerMap = Collections.synchronizedMap(new HashMap<>());
+		
+		private ExecutorService pool = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("density-maps", true));;
+		private Map<QuPathViewer, Future<?>> tasks = Collections.synchronizedMap(new HashMap<>());
+		
+		private ObjectProperty<ImageServer<BufferedImage>> currentDensityMap = new SimpleObjectProperty<>();
+		
+		HierarchyPixelClassifierManager(QuPathGUI qupath, ObservableValue<PixelClassifier> classifier, ObservableValue<ImageInterpolation> interpolation, ImageRenderer renderer) {
+			this.qupath = qupath;
+			this.classifier = classifier;
+			var options = qupath.getOverlayOptions();
+			overlay = PixelClassificationOverlay.create(options, classifierServerMap, renderer);
+			for (var viewer : qupath.getViewers()) {
+				viewer.addViewerListener(this);
+				viewer.setCustomPixelLayerOverlay(overlay);
+				var hierarchy = viewer.getHierarchy();
+				if (hierarchy != null)
+					hierarchy.addPathObjectListener(this);
+			}
+			overlay.interpolationProperty().bind(interpolation);
+			overlay.interpolationProperty().addListener((v, o, n) -> qupath.repaintViewers());
+			overlay.setLivePrediction(true);
+			classifier.addListener((v, o, n) -> updateDensityServers());
+			updateDensityServers();
+		}
+
+		@Override
+		public void hierarchyChanged(PathObjectHierarchyEvent event) {
+			if (event.isChanging())
+				return;
+			qupath.getViewers().stream().filter(v -> v.getHierarchy() == event.getHierarchy()).forEach(v -> updateDensityServer(v));
+		}
+
+		@Override
+		public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
+				ImageData<BufferedImage> imageDataNew) {
+			
+			if (imageDataOld != null)
+				imageDataOld.getHierarchy().removePathObjectListener(this);
+			
+			if (imageDataNew != null) {
+				imageDataNew.getHierarchy().addPathObjectListener(this);
+			}
+			updateDensityServer(viewer);
+		}
+		
+		private void updateDensityServers() {
+			classifierServerMap.clear(); // TODO: Check if this causes any flickering
+			for (var viewer : qupath.getViewers())
+				updateDensityServer(viewer);
+		}
+		
+		private void updateDensityServer(QuPathViewer viewer) {
+			if (Platform.isFxApplicationThread()) {
+				synchronized (tasks) {
+					var task = tasks.get(viewer);
+					if (task != null && !task.isDone())
+						task.cancel(true);
+					if (!pool.isShutdown())
+						task = pool.submit(() -> updateDensityServer(viewer));
+					tasks.put(viewer, task);
+				}
+				return;
+			}
+			var imageData = viewer.getImageData();
+			var classifier = this.classifier.getValue();
+			if (imageData == null || classifier == null) {
+				classifierServerMap.remove(imageData);
+			} else {
+				if (Thread.interrupted())
+					return;
+				// Create server with a unique ID, because it may change with the object hierarchy & we don't want caching to mask this
+				var id = UUID.randomUUID().toString();
+				var tempServer = PixelClassifierTools.createPixelClassificationServer(imageData, classifier, id, null, true);
+				if (Thread.interrupted())
+					return;
+				if (viewer == qupath.getViewer())
+					Platform.runLater(() -> currentDensityMap.set(tempServer));
+				classifierServerMap.put(imageData, tempServer);
+				if (viewer == qupath.getViewer())
+					currentDensityMap.set(tempServer);
+				viewer.repaint();
+			}
+		}
+
+		@Override
+		public void visibleRegionChanged(QuPathViewer viewer, Shape shape) {}
+
+		@Override
+		public void selectedObjectChanged(QuPathViewer viewer, PathObject pathObjectSelected) {}
+
+		@Override
+		public void viewerClosed(QuPathViewer viewer) {
+			imageDataChanged(viewer, viewer.getImageData(), null);
+			viewer.removeViewerListener(this);
+		}
+
+		public void shutdown() {
+			tasks.values().stream().forEach(t -> t.cancel(true));
+			pool.shutdown();
+			for (var viewer : qupath.getViewers()) {
+				imageDataChanged(viewer, viewer.getImageData(), null);
+				viewer.removeViewerListener(this);
+				if (viewer.getCustomPixelLayerOverlay() == overlay)
+					viewer.resetCustomPixelLayerOverlay();				
+			}
+			if (overlay != null) {
+				overlay.stop();
+			}
+		}
+		
 		
 	}
 	

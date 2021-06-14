@@ -453,7 +453,7 @@ public class SimpleThresholdCommand implements Runnable {
 				classifications);
 
 		// Create classifier
-		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), classifier);
+		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), classifier);
 		overlay.setLivePrediction(true);
 		selectedOverlay.set(overlay);
 		this.currentClassifier.set(classifier);

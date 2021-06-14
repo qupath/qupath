@@ -143,8 +143,14 @@ public class DensityMaps {
 		private double radius = 0;
 		private DensityMapNormalization normalization = DensityMapNormalization.NONE;
 
-		private PathObjectPredicate allObjects;
-		private Map<String, PathObjectPredicate> additionalFilters = new LinkedHashMap<>();
+		private PathObjectPredicate allObjectsFilter;
+		private Map<String, PathObjectPredicate> densityFilters = new LinkedHashMap<>();
+		
+		// Display parameters
+		private String colormap;
+		private double minValue = 0;
+		private double maxValue = 1;
+		private double alpha = 1;
 								
 		private DensityMapParameters() {}
 		
@@ -153,8 +159,8 @@ public class DensityMaps {
 			this.radius = params.radius;
 			this.normalization = params.normalization;
 			
-			this.allObjects = params.allObjects;
-			this.additionalFilters = new LinkedHashMap<>(params.additionalFilters);
+			this.allObjectsFilter = params.allObjectsFilter;
+			this.densityFilters = new LinkedHashMap<>(params.densityFilters);
 		}
 		
 	}
@@ -168,7 +174,7 @@ public class DensityMaps {
 		
 		private DensityMapBuilder(PathObjectPredicate allObjects) {
 			Objects.nonNull(allObjects);
-			params.allObjects = allObjects;
+			params.allObjectsFilter = allObjects;
 		}
 		
 		/**
@@ -217,7 +223,7 @@ public class DensityMaps {
 //		}
 		
 		public DensityMapBuilder addDensities(String name, PathObjectPredicate filter) {
-			params.additionalFilters.put(name, filter);
+			params.densityFilters.put(name, filter);
 			return this;
 		}
 		
@@ -238,7 +244,7 @@ public class DensityMaps {
 		 * @param imageData
 		 * @return the density map
 		 */
-		public PixelClassifier buildMap(ImageData<BufferedImage> imageData) {
+		public PixelClassifier buildClassifier(ImageData<BufferedImage> imageData) {
 			return createClassifier(imageData, params);
 		}
 		
@@ -271,8 +277,8 @@ public class DensityMaps {
 					    
 		var dataOp = new DensityMapDataOp(
 		        radiusInt,
-		        params.additionalFilters,
-		        params.allObjects,
+		        params.densityFilters,
+		        params.allObjectsFilter,
 		        params.normalization
 		);
 		
@@ -280,7 +286,7 @@ public class DensityMaps {
 			    .inputShape(2048, 2048)
 			    .inputResolution(cal.createScaledInstance(downsample, downsample))
 			    .setChannelType(ImageServerMetadata.ChannelType.MULTICLASS_PROBABILITY)
-			    .outputChannels(dataOp.getChannels(imageData))
+			    .outputChannels(dataOp.getChannels())
 			    .build();
 
 		return PixelClassifiers.createClassifier(dataOp, metadata);

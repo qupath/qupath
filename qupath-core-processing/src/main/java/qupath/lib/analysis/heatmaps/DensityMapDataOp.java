@@ -317,8 +317,19 @@ class DensityMapDataOp implements ImageDataOp {
 		return true;
 	}
 
+	/**
+	 * Get the channels. In this case, the {@link ImageData} is irrelevant and may be null.
+	 */
 	@Override
 	public List<ImageChannel> getChannels(ImageData<BufferedImage> imageData) {
+		return getChannels();
+	}
+	
+	/**
+	 * The {@link ImageData} is really irrelevant to the channels.
+	 * @return
+	 */
+	List<ImageChannel> getChannels() {
 		ensureInitialized();
 		return channels;
 	}
