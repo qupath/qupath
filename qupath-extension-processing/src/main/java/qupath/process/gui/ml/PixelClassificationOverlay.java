@@ -570,28 +570,31 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 		case PROBABILITY:
 			defaultName = "Prediction: ";
 			scale = probabilityScale;
+			break;
+		case DENSITY:
+			defaultName = "Density: ";
 		case FEATURE:
 		case DEFAULT:
 		default:
-        	var channels = server.getMetadata().getChannels();
-        	StringBuilder sb = new StringBuilder(defaultName);
-        	StringBuilder sbWithNames = new StringBuilder(defaultName);
-    		for (int c = 0; c < channels.size(); c++) {
-    			double sampleDouble = img.getRaster().getSampleDouble(xx, yy, c) * scale;
-    			String num = GeneralTools.formatNumber(sampleDouble, 2);
-    			if (c != 0) {	
-    				sb.append(", ");
-    				sbWithNames.append(", ");
-    			}
-				sb.append(num);
-				sbWithNames.append(channels.get(c).getName()).append(": ").append(num);
-    		}
-    		// Include names only if the string is short enough
-    		if (sbWithNames.length() < 100)
-    			return sbWithNames.toString();
-    		else
-    			return sb.toString();
     	}
+    	var channels = server.getMetadata().getChannels();
+    	StringBuilder sb = new StringBuilder(defaultName);
+    	StringBuilder sbWithNames = new StringBuilder(defaultName);
+		for (int c = 0; c < channels.size(); c++) {
+			double sampleDouble = img.getRaster().getSampleDouble(xx, yy, c) * scale;
+			String num = GeneralTools.formatNumber(sampleDouble, 2);
+			if (c != 0) {	
+				sb.append(", ");
+				sbWithNames.append(", ");
+			}
+			sb.append(num);
+			sbWithNames.append(channels.get(c).getName()).append(": ").append(num);
+		}
+		// Include names only if the string is short enough
+		if (sbWithNames.length() < 100)
+			return sbWithNames.toString();
+		else
+			return sb.toString();
     }
     
 

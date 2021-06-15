@@ -81,7 +81,12 @@ public class ImageServerMetadata {
 		/**
 		 * Each channel represents a classification, such as in a labelled image.
 		 */
-		CLASSIFICATION;
+		CLASSIFICATION,
+		/**
+		 * Each channel represents a density value, such as in a density map (e.g. % positive cells).
+		 */
+		DENSITY;
+		;
 		
 		@Override
 		public String toString() {
@@ -96,6 +101,8 @@ public class ImageServerMetadata {
 				return "Multiclass probability";
 			case CLASSIFICATION:
 				return "Classification";
+			case DENSITY:
+				return "Density";
 			default:
 				return super.toString();
 			}

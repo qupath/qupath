@@ -129,7 +129,7 @@ class DensityMapDataOp implements ImageDataOp {
 						);
 			baseChannelName = "Gaussian weighted counts ";
 			break;
-		case OBJECTS:
+		case PERCENT:
 			int[] extractInds = IntStream.range(0, primaryObjects.size()).toArray();
 			
 			if (radius > 0) {
@@ -146,12 +146,15 @@ class DensityMapDataOp implements ImageDataOp {
 				// channel elementwise.
 				sequentialOps.addAll(Arrays.asList(
 						ImageOps.Core.splitMerge(
-							ImageOps.Core.splitDivide(
-									ImageOps.Channels.extract(extractInds),
-									ImageOps.Core.sequential(
-											ImageOps.Channels.extract(extractInds.length),
-											ImageOps.Channels.repeat(extractInds.length)
-											)
+								ImageOps.Core.sequential(
+									ImageOps.Core.splitDivide(
+											ImageOps.Channels.extract(extractInds),
+											ImageOps.Core.sequential(
+													ImageOps.Channels.extract(extractInds.length),
+													ImageOps.Channels.repeat(extractInds.length)
+													)
+											),
+									ImageOps.Core.multiply(100.0) // Convert to percent
 									),
 							ImageOps.Channels.extract(extractInds.length)
 							)
@@ -167,7 +170,7 @@ class DensityMapDataOp implements ImageDataOp {
 						);
 			}
 			
-			baseChannelName = "Density ";
+			baseChannelName = "";
 			if (!primaryObjects.isEmpty())
 				lastChannel = ImageChannel.getInstance(DensityMaps.CHANNEL_ALL_OBJECTS, null);
 			break;
@@ -198,7 +201,7 @@ class DensityMapDataOp implements ImageDataOp {
 	private int getChannelCount() {
 		if (primaryObjects.size() == 0)
 			return 1;
-		if (normalization == DensityMapNormalization.OBJECTS)
+		if (normalization == DensityMapNormalization.PERCENT)
 			return primaryObjects.size() + 1;
 		return primaryObjects.size();
 	}

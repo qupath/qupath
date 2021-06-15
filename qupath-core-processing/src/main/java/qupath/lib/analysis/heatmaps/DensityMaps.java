@@ -39,6 +39,7 @@ import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
@@ -100,17 +101,17 @@ public class DensityMaps {
 		GAUSSIAN,
 		
 		/**
-		 * Object normalization; maps provide local proportions of objects (e.g. may be used to get a Positive %, after scaling by 100)
+		 * Object normalization; maps provide local proportions of objects (e.g. may be used to get a Positive %)
 		 */
-		OBJECTS;
+		PERCENT;
 		
 		@Override
 		public String toString() {
 			switch(this) {
 			case NONE:
 				return "None (raw counts)";
-			case OBJECTS:
-				return "Object counts";
+			case PERCENT:
+				return "Objects %";
 //			case AREA:
 //				return "Area";
 			case GAUSSIAN:
@@ -147,10 +148,14 @@ public class DensityMaps {
 		private Map<String, PathObjectPredicate> densityFilters = new LinkedHashMap<>();
 		
 		// Display parameters
-		private String colormap;
+		private ColorMap colormap;
+		private String colormapName;
 		private double minValue = 0;
 		private double maxValue = 1;
-		private double alpha = 1;
+		
+		private double minAlpha = 0;
+		private double maxAlpha = 1;
+		private double alphaGamma = 1;
 								
 		private DensityMapParameters() {}
 		
@@ -161,7 +166,29 @@ public class DensityMaps {
 			
 			this.allObjectsFilter = params.allObjectsFilter;
 			this.densityFilters = new LinkedHashMap<>(params.densityFilters);
+			
+			this.colormap = params.colormap;
+			this.colormapName = params.colormapName;
+			this.minValue = params.minValue;
+			this.maxValue = params.maxValue;
+			this.minAlpha = params.minAlpha;
+			this.maxAlpha = params.maxAlpha;
+			this.alphaGamma = params.alphaGamma;
 		}
+		
+		
+//		static class DensityMapChannel {
+//			
+//			private PathObjectPredicate predicate;
+//			
+//			private ColorMap colormap;
+//			private String colormapName;
+//			
+//			private double minValue = -1;
+//			private double maxValue = -1;
+//			
+//		}
+		
 		
 	}
 	
@@ -285,7 +312,7 @@ public class DensityMaps {
 		var metadata = new PixelClassifierMetadata.Builder()
 			    .inputShape(2048, 2048)
 			    .inputResolution(cal.createScaledInstance(downsample, downsample))
-			    .setChannelType(ImageServerMetadata.ChannelType.MULTICLASS_PROBABILITY)
+			    .setChannelType(ImageServerMetadata.ChannelType.DENSITY)
 			    .outputChannels(dataOp.getChannels())
 			    .build();
 
