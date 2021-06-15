@@ -30,9 +30,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,6 +59,9 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener.Change;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -103,7 +108,6 @@ import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -272,6 +276,25 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 		
+		private ObservableList<PathClass> createObservablePathClassList(PathClass... defaultClasses) {
+			var available = qupath.getAvailablePathClasses();
+			if (defaultClasses.length == 0)
+				return available;
+			var list = FXCollections.observableArrayList(defaultClasses);
+			available.addListener((Change<? extends PathClass> c) -> updateList(list, available, defaultClasses));
+			updateList(list, available, defaultClasses);
+			return list;
+		}
+		
+		private static <T> void updateList(ObservableList<T> mainList, ObservableList<T> originalList, T... additionalItems) {
+			Set<T> temp = new LinkedHashSet<>();
+			for (var t : additionalItems)
+				temp.add(t);
+			temp.addAll(originalList);
+			mainList.setAll(temp);
+		}
+		
+		
 		private Pane buildButtonPane() {
 			var hotspotFinder = new HotspotFinder();			
 			var btnHotspots = new Button("Find hotspots");
@@ -330,20 +353,16 @@ public class DensityMapCommand implements Runnable {
 			comboType.getSelectionModel().select(DensityMapType.DETECTIONS);
 			params.allObjectTypes.bind(comboType.getSelectionModel().selectedItemProperty());
 
-			ComboBox<PathClass> comboAllObjects = new ComboBox<>();
-			comboAllObjects.getItems().setAll(qupath.getAvailablePathClasses());
-			comboAllObjects.getSelectionModel().select(PathClassFactory.getPathClassUnclassified());
+			ComboBox<PathClass> comboAllObjects = new ComboBox<>(createObservablePathClassList(ANY_CLASS));
 			comboAllObjects.setButtonCell(GuiTools.createCustomListCell(p -> classificationText(p)));
 			comboAllObjects.setCellFactory(c -> GuiTools.createCustomListCell(p -> classificationText(p)));
 			params.allObjectClass.bind(comboAllObjects.getSelectionModel().selectedItemProperty());
+			comboAllObjects.getSelectionModel().selectFirst();
 			
-			ComboBox<PathClass> comboPrimary = new ComboBox<>();
-			comboPrimary.getItems().setAll(qupath.getAvailablePathClasses());
-			comboPrimary.getSelectionModel().select(PathClassFactory.getPathClassUnclassified());
-			params.densityObjectClass.bind(comboPrimary.getSelectionModel().selectedItemProperty());
-			
+			ComboBox<PathClass> comboPrimary = new ComboBox<>(createObservablePathClassList(ANY_CLASS, ANY_POSITIVE_CLASS));
 			comboPrimary.setButtonCell(GuiTools.createCustomListCell(p -> classificationText(p)));
 			comboPrimary.setCellFactory(c -> GuiTools.createCustomListCell(p -> classificationText(p)));
+			params.densityObjectClass.bind(comboPrimary.getSelectionModel().selectedItemProperty());
 			comboPrimary.getSelectionModel().selectFirst();
 			
 			ComboBox<DensityMapNormalization> comboNormalization = new ComboBox<>();
@@ -574,10 +593,13 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		private String classificationText(PathClass pathClass) {
-			if (PathClassTools.isValidClass(pathClass))
-				return pathClass.toString();
-			else
+			if (pathClass == null)
+				pathClass = PathClassFactory.getPathClassUnclassified();
+			if (pathClass == ANY_CLASS)
 				return "Any";
+			if (pathClass == ANY_POSITIVE_CLASS)
+				return "Positive (inc. 1+, 2+, 3+)";
+			return pathClass.toString();
 		}
 
 		
@@ -693,7 +715,19 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 	}
-		
+	
+	/**
+	 * Ignore classification (accept all objects).
+	 * Generated with a UUID for uniqueness, and because it should not be serialized.
+	 */
+	public static final PathClass ANY_CLASS = PathClassFactory.getPathClass(UUID.randomUUID().toString());
+	
+	/**
+	 * Accept any positive classification, including 1+, 2+, 3+.
+	 * Generated with a UUID for uniqueness, and because it should not be serialized.
+	 */
+	public static final PathClass ANY_POSITIVE_CLASS = PathClassFactory.getPathClass(UUID.randomUUID().toString());
+
 	
 	/**
 	 * Encapsulate the parameters needed to generate a density map in a JavaFX-friendly way.
@@ -701,8 +735,8 @@ public class DensityMapCommand implements Runnable {
 	static class ObservableDensityMapBuilder {
 		
 		private ObjectProperty<DensityMapType> allObjectTypes = new SimpleObjectProperty<>(DensityMapType.DETECTIONS);
-		private ObjectProperty<PathClass> allObjectClass = new SimpleObjectProperty<>(null);
-		private ObjectProperty<PathClass> densityObjectClass = new SimpleObjectProperty<>(null);
+		private ObjectProperty<PathClass> allObjectClass = new SimpleObjectProperty<>(ANY_CLASS);
+		private ObjectProperty<PathClass> densityObjectClass = new SimpleObjectProperty<>(ANY_CLASS);
 		private ObjectProperty<DensityMapNormalization> normalization = new SimpleObjectProperty<>(DensityMapNormalization.NONE);
 		
 		private DoubleProperty pixelSize = new SimpleDoubleProperty(-1);
@@ -751,10 +785,14 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 		private PathObjectPredicate updatePredicate(PathObjectPredicate predicate, PathClass pathClass) {
-			if (pathClass == null || pathClass.getName() == null)
+			if (pathClass == ANY_CLASS)
 				return predicate;
 			PathObjectPredicate pathClassPredicate;
-			if (pathClass.isDerivedClass())
+			if (pathClass == ANY_POSITIVE_CLASS)
+				pathClassPredicate = PathObjectPredicates.positiveClassification(true);
+			else if (pathClass == null || pathClass.getName() == null)
+				pathClassPredicate = PathObjectPredicates.exactClassification((PathClass)null);
+			else if (pathClass.isDerivedClass())
 				pathClassPredicate = PathObjectPredicates.exactClassification(pathClass);
 			else
 				pathClassPredicate = PathObjectPredicates.containsClassification(pathClass.getName());
@@ -771,6 +809,10 @@ public class DensityMapCommand implements Runnable {
 			// Determine density objects filter
 			var densityClass = densityObjectClass.get();
 			PathObjectPredicate densityObjectsFilter = updatePredicate(null, densityClass);
+			
+			// Sometimes the density class is null - in which case we can't build
+			if (densityClass == null)
+				densityClass = ANY_CLASS;
 			
 			// Create map
 			var builder = DensityMaps.builder(allObjectsFilter);
@@ -801,7 +843,7 @@ public class DensityMapCommand implements Runnable {
 	 * Encapsulate the stuff we need to build an {@link ImageRenderer}.
 	 */
 	static class ObservableColorMapBuilder {
-		
+				
 		private QuPathGUI qupath;
 				
 		private final ObjectProperty<ColorMap> colorMap = new SimpleObjectProperty<>();
