@@ -416,6 +416,8 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
      */
     public Object setProperty(String key, Object value) {
 	    	Object oldValue = propertiesMap.put(key, value);
+	    	if (oldValue == value)
+	    		return oldValue;
 	    	if (oldValue == null)
 	    		changes = value != null;
 	    	else

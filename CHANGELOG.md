@@ -2,6 +2,7 @@
 *In progress*
 
 ### Release highlights
+* **New 'Create density map' command** to visualize hotspots & generate annotations
 * **_Many_ code fixes** & **performance improvements**
 * **Revised code structure**, with non-core features now separated out as optional **extensions**, including:
   * **OMERO**
@@ -29,6 +30,9 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Support for importing & exporting objects without scripting
   * Export objects as GeoJSON without via *File > Object data... > ...*
   * Import objects from .json, .geojson & .qpdata files via *File > Object data... > Import objects* or with drag & drop
+* Pixel classifier usability improvements
+  * New 'Show as text' option to check classifier parameters
+  * Switch between pixel classifiers & density maps by bringing the corresponding window into focus
 * Script editor improvements
   * New 'Auto clear cache (batch processing)' option to reduce memory use when running scripts across many images
   * Default to project script directory when choosing a location to save a new script

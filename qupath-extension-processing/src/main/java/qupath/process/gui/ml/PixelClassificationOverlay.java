@@ -315,6 +315,10 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         var server = getPixelClassificationServer(imageData);
         if (server == null)
         	return;
+        
+        // TODO: Consider setting the pixel layer elsewhere (this could result in too frequent changes when multiple overlays are used)
+        if (getLivePrediction())
+        	PixelClassificationImageServer.setPixelLayer(imageData, server);
 
         // Show classified tiles. Without this, opacity can make it hard to see which regions have been processed.
         // Note that if the alpha value is too large, tile boundaries can appear at some viewing magnifications (previous default was 32)

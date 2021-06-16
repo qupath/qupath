@@ -432,7 +432,7 @@ public class PixelClassifierPane {
 		selectedResolution.addListener((v, o, n) -> {
 			updateResolution(n);
 			updateClassifier();
-			updateFeatureOverlay();
+			ensureOverlaySet();
 		});
 		if (!comboResolutions.getItems().isEmpty())
 			comboResolutions.getSelectionModel().clearAndSelect(resolutions.size()/2);
@@ -455,7 +455,7 @@ public class PixelClassifierPane {
 		
 		var viewerBorderPane = new BorderPane(viewerPane);
 		
-		comboDisplayFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureOverlay());
+		comboDisplayFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> ensureOverlaySet());
 		comboDisplayFeatures.setMaxWidth(Double.MAX_VALUE);
 		spinFeatureMin.setPrefWidth(100);
 		spinFeatureMax.setPrefWidth(100);
@@ -563,6 +563,18 @@ public class PixelClassifierPane {
 		qupath.imageDataProperty().addListener(imageDataListener);
 		if (qupath.getImageData() != null)
 			qupath.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
+		
+		stage.focusedProperty().addListener((v, o, n) -> {
+			if (n) {
+				for (var viewer : qupath.getViewers()) {
+					var currentOverlay = viewer.getCustomPixelLayerOverlay();
+					if (currentOverlay != this.featureOverlay && currentOverlay != this.overlay) {
+						ensureOverlaySet();
+						break;
+					}
+				}
+			}
+		});
 		
 	}
 	
@@ -717,7 +729,7 @@ public class PixelClassifierPane {
 		}
 	}
 	
-	private void updateFeatureOverlay() {
+	private void ensureOverlaySet() {
 		if (featureOverlay != null) {
 			featureOverlay.stop();
 			featureOverlay = null;
@@ -748,7 +760,7 @@ public class PixelClassifierPane {
 			}
 			if (channel >= 0) {
 				featureRenderer.setChannel(featureServer, channel, spinFeatureMin.getValue(), spinFeatureMax.getValue());
-				featureOverlay = PixelClassificationOverlay.createFeatureDisplayOverlay(qupath.getOverlayOptions(), data -> helper.getFeatureServer(data), featureRenderer);
+				featureOverlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), data -> helper.getFeatureServer(data), featureRenderer);
 				((PixelClassificationOverlay)featureOverlay).setLivePrediction(true);
 				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
 				featureOverlay.setLivePrediction(livePrediction.get());
@@ -759,11 +771,6 @@ public class PixelClassifierPane {
 			for (var viewer : qupath.getViewers())
 				viewer.setCustomPixelLayerOverlay(featureOverlay);
 		}
-	}
-	
-	
-	private void ensureOverlaySet() {
-		updateFeatureOverlay();
 	}
 	
 	

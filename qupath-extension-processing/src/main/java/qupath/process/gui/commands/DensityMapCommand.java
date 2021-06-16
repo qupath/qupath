@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -82,7 +83,7 @@ import javafx.stage.Stage;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMaps;
-import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapNormalization;
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
@@ -165,7 +166,7 @@ public class DensityMapCommand implements Runnable {
 	/**
 	 * Supported input objects.
 	 */
-	private static enum DensityMapType {
+	private static enum DensityMapObjects {
 		
 		DETECTIONS(PathObjectFilter.DETECTIONS_ALL),
 		CELLS(PathObjectFilter.CELLS),
@@ -175,11 +176,11 @@ public class DensityMapCommand implements Runnable {
 		
 		private final PathObjectPredicate predicate;
 		
-		private DensityMapType(PathObjectFilter filter) {
+		private DensityMapObjects(PathObjectFilter filter) {
 			this(PathObjectPredicates.filter(filter));
 		}
 		
-		private DensityMapType(PathObjectPredicate predicate) {
+		private DensityMapObjects(PathObjectPredicate predicate) {
 			this.predicate = predicate;
 		}
 		
@@ -273,6 +274,10 @@ public class DensityMapCommand implements Runnable {
 			// Create new overlays for the viewers
 			manager = new HierarchyClassifierOverlayManager(qupath, densityBuilder.classifier, displayBuilder.interpolation, displayBuilder.renderer);
 			manager.currentDensityMap.addListener((v, o, n) -> displayBuilder.updateDisplayRanges(n));
+			stage.focusedProperty().addListener((v, o, n) -> {
+				if (n)
+					manager.updateViewers();
+			});
 		}
 		
 		
@@ -286,8 +291,8 @@ public class DensityMapCommand implements Runnable {
 			return list;
 		}
 		
-		private static <T> void updateList(ObservableList<T> mainList, ObservableList<T> originalList, T... additionalItems) {
-			Set<T> temp = new LinkedHashSet<>();
+		private static void updateList(ObservableList<PathClass> mainList, ObservableList<PathClass> originalList, PathClass... additionalItems) {
+			Set<PathClass> temp = new LinkedHashSet<>();
 			for (var t : additionalItems)
 				temp.add(t);
 			temp.addAll(originalList);
@@ -312,7 +317,7 @@ public class DensityMapCommand implements Runnable {
 			btnExport.setOnAction(e -> promptToSaveImage(exporter));
 			
 			var buttonPane = PaneTools.createColumnGrid(btnHotspots, btnContours, btnExport);
-			buttonPane.setHgap(hGap);
+//			buttonPane.setHgap(hGap);
 			PaneTools.setToExpandGridPaneWidth(btnHotspots, btnExport, btnContours);
 			return buttonPane;
 		}
@@ -348,10 +353,10 @@ public class DensityMapCommand implements Runnable {
 		
 		
 		private Pane buildAllObjectsPane(ObservableDensityMapBuilder params) {
-			ComboBox<DensityMapType> comboType = new ComboBox<>();
-			comboType.getItems().setAll(DensityMapType.values());
-			comboType.getSelectionModel().select(DensityMapType.DETECTIONS);
-			params.allObjectTypes.bind(comboType.getSelectionModel().selectedItemProperty());
+			ComboBox<DensityMapObjects> comboObjectType = new ComboBox<>();
+			comboObjectType.getItems().setAll(DensityMapObjects.values());
+			comboObjectType.getSelectionModel().select(DensityMapObjects.DETECTIONS);
+			params.allObjectTypes.bind(comboObjectType.getSelectionModel().selectedItemProperty());
 
 			ComboBox<PathClass> comboAllObjects = new ComboBox<>(createObservablePathClassList(ANY_CLASS));
 			comboAllObjects.setButtonCell(GuiTools.createCustomListCell(p -> classificationText(p)));
@@ -365,22 +370,22 @@ public class DensityMapCommand implements Runnable {
 			params.densityObjectClass.bind(comboPrimary.getSelectionModel().selectedItemProperty());
 			comboPrimary.getSelectionModel().selectFirst();
 			
-			ComboBox<DensityMapNormalization> comboNormalization = new ComboBox<>();
-			comboNormalization.getItems().setAll(DensityMapNormalization.values());
-			comboNormalization.getSelectionModel().select(DensityMapNormalization.NONE);
-			params.normalization.bind(comboNormalization.getSelectionModel().selectedItemProperty());
+			ComboBox<DensityMapType> comboDensityType = new ComboBox<>();
+			comboDensityType.getItems().setAll(DensityMapType.values());
+			comboDensityType.getSelectionModel().select(DensityMapType.SUM);
+			params.densityType.bind(comboDensityType.getSelectionModel().selectedItemProperty());
 			
 			var pane = createGridPane();
 			int row = 0;
 			
-			var labelObjects = createTitleLabel("Choose objects to include");
+			var labelObjects = createTitleLabel("Choose all objects to include");
 			PaneTools.addGridRow(pane, row++, 0, null, labelObjects, labelObjects, labelObjects);
 			
 			PaneTools.addGridRow(pane, row++, 0, "Select objects used to generate the density map.\n"
 					+ "Use 'All detections' to include all detection objects (including cells and tiles).\n"
 					+ "Use 'All cells' to include cell objects only.\n"
 					+ "Use 'Point annotations' to use annotated points rather than detections.",
-					new Label("Object type"), comboType, comboType);
+					new Label("Object type"), comboObjectType, comboObjectType);
 			
 			PaneTools.addGridRow(pane, row++, 0, "Select object classifications to include.\n"
 					+ "Use this to filter out detections that should not contribute to the density map at all.\n"
@@ -401,7 +406,7 @@ public class DensityMapCommand implements Runnable {
 					+ "This can be used to distinguish between the total number of objects in an area with a given classification, "
 					+ "and the proportion of objects within the area with that classification.\n"
 					+ "Gaussian weighting gives a smoother result, but it can be harder to interpret.",
-					new Label("Density type"), comboNormalization, comboNormalization);
+					new Label("Density type"), comboDensityType, comboDensityType);
 			
 			
 			var sliderRadius = new Slider(0, 1000, params.radius.get());
@@ -416,7 +421,7 @@ public class DensityMapCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Select smoothing radius used to calculate densities.\n"
 					+ "This is defined in calibrated pixel units (e.g. µm if available).", new Label("Density radius"), sliderRadius, tfRadius);
 			
-			PaneTools.setToExpandGridPaneWidth(comboType, comboPrimary, comboAllObjects, comboNormalization, sliderRadius);
+			PaneTools.setToExpandGridPaneWidth(comboObjectType, comboPrimary, comboAllObjects, comboDensityType, sliderRadius);
 
 			return pane;
 		}
@@ -734,10 +739,10 @@ public class DensityMapCommand implements Runnable {
 	 */
 	static class ObservableDensityMapBuilder {
 		
-		private ObjectProperty<DensityMapType> allObjectTypes = new SimpleObjectProperty<>(DensityMapType.DETECTIONS);
+		private ObjectProperty<DensityMapObjects> allObjectTypes = new SimpleObjectProperty<>(DensityMapObjects.DETECTIONS);
 		private ObjectProperty<PathClass> allObjectClass = new SimpleObjectProperty<>(ANY_CLASS);
 		private ObjectProperty<PathClass> densityObjectClass = new SimpleObjectProperty<>(ANY_CLASS);
-		private ObjectProperty<DensityMapNormalization> normalization = new SimpleObjectProperty<>(DensityMapNormalization.NONE);
+		private ObjectProperty<DensityMapType> densityType = new SimpleObjectProperty<>(DensityMapType.SUM);
 		
 		private DoubleProperty pixelSize = new SimpleDoubleProperty(-1);
 		private DoubleProperty radius = new SimpleDoubleProperty(10.0);
@@ -757,7 +762,7 @@ public class DensityMapCommand implements Runnable {
 			allObjectTypes.addListener((v, o, n) -> updateClassifier());
 			allObjectClass.addListener((v, o, n) -> updateClassifier());
 			densityObjectClass.addListener((v, o, n) -> updateClassifier());
-			normalization.addListener((v, o, n) -> updateClassifier());
+			densityType.addListener((v, o, n) -> updateClassifier());
 			pixelSize.addListener((v, o, n) -> updateClassifier());
 			radius.addListener((v, o, n) -> updateClassifier());
 			autoUpdate.addListener((v, o, n) -> updateClassifier());
@@ -819,7 +824,7 @@ public class DensityMapCommand implements Runnable {
 			if (pixelSize.get() > 0)
 				builder.pixelSize(pixelSize.get());
 			
-			builder.normalization(normalization.get());
+			builder.type(densityType.get());
 
 			if (densityObjectsFilter != null) {
 				String filterName;
@@ -1213,6 +1218,8 @@ public class DensityMapCommand implements Runnable {
 		
 		private final QuPathGUI qupath;
 		
+		private final Set<QuPathViewer> currentViewers = new HashSet<>();
+		
 		private final PixelClassificationOverlay overlay;
 		private final ObservableValue<PixelClassifier> classifier;
 		// Cache a server
@@ -1228,19 +1235,31 @@ public class DensityMapCommand implements Runnable {
 			this.classifier = classifier;
 			var options = qupath.getOverlayOptions();
 			overlay = PixelClassificationOverlay.create(options, classifierServerMap, renderer);
-			for (var viewer : qupath.getViewers()) {
-				viewer.addViewerListener(this);
-				viewer.setCustomPixelLayerOverlay(overlay);
-				var hierarchy = viewer.getHierarchy();
-				if (hierarchy != null)
-					hierarchy.addPathObjectListener(this);
-			}
+			updateViewers();
 			overlay.interpolationProperty().bind(interpolation);
 			overlay.interpolationProperty().addListener((v, o, n) -> qupath.repaintViewers());
 			overlay.setLivePrediction(true);
 			classifier.addListener((v, o, n) -> updateDensityServers());
 			updateDensityServers();
 		}
+		
+		/**
+		 * Ensure the overlay is present on all viewers
+		 */
+		void updateViewers() {
+			for (var viewer : qupath.getViewers()) {
+				viewer.setCustomPixelLayerOverlay(overlay);
+				if (!currentViewers.contains(viewer)) {
+					viewer.addViewerListener(this);
+					var hierarchy = viewer.getHierarchy();
+					if (hierarchy != null)
+						hierarchy.addPathObjectListener(this);
+					currentViewers.add(viewer);
+					updateDensityServer(viewer);
+				}
+			}
+		}
+		
 
 		@Override
 		public void hierarchyChanged(PathObjectHierarchyEvent event) {
@@ -1310,6 +1329,7 @@ public class DensityMapCommand implements Runnable {
 		public void viewerClosed(QuPathViewer viewer) {
 			imageDataChanged(viewer, viewer.getImageData(), null);
 			viewer.removeViewerListener(this);
+			currentViewers.remove(viewer);
 		}
 
 		public void shutdown() {

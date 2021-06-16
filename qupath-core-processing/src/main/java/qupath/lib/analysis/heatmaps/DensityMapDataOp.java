@@ -39,7 +39,7 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 
-import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapNormalization;
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
@@ -65,7 +65,7 @@ class DensityMapDataOp implements ImageDataOp {
 		ImageOps.registerDataOp(DensityMapDataOp.class, "data.op.density");
 	}
 	
-	private DensityMapNormalization normalization;
+	private DensityMapType densityType;
 	private int radius;
 	
 	private Map<String, PathObjectPredicate> primaryObjects;
@@ -87,21 +87,21 @@ class DensityMapDataOp implements ImageDataOp {
 	 * @param radius the radius (in downsampled pixel units) within which densities should be calculated
 	 * @param primaryObjects zero or more primary object filters, with an associated name (used for the channel name)
 	 * @param allObjects a single all objects filter to identify all objects of interest
-	 * @param normalization a normalization method used to convert object counts within the defined radius into density values
+	 * @param densityType the density map type, which defines how object counts within the defined radius are converted into density values
 	 */
 	public DensityMapDataOp(
 			int radius,
 			Map<String, PathObjectPredicate> primaryObjects,
 			PathObjectPredicate allObjects,
-			DensityMapNormalization normalization) {
+			DensityMapType densityType) {
 		
-		Objects.nonNull(normalization);
+		Objects.nonNull(densityType);
 		if (radius < 0)
 			throw new IllegalArgumentException("Density map radius must be >= 0!");
 		
 		this.primaryObjects = new LinkedHashMap<>(primaryObjects);
 		this.allObjects = allObjects;
-		this.normalization = normalization;
+		this.densityType = densityType;
 		this.radius = radius;
 		
 		ensureInitialized();
@@ -121,7 +121,7 @@ class DensityMapDataOp implements ImageDataOp {
 		String baseChannelName;
 		ImageChannel lastChannel = null;
 		List<ImageOp> sequentialOps = new ArrayList<>();
-		switch (normalization) {
+		switch (densityType) {
 		case GAUSSIAN:
 			if (radius > 0)
 				sequentialOps.add(
@@ -174,7 +174,7 @@ class DensityMapDataOp implements ImageDataOp {
 			if (!primaryObjects.isEmpty())
 				lastChannel = ImageChannel.getInstance(DensityMaps.CHANNEL_ALL_OBJECTS, null);
 			break;
-		case NONE:
+		case SUM:
 		default:
 			if (radius > 0) {
 				sequentialOps.add(ImageOps.Filters.sum(radius));
@@ -201,7 +201,7 @@ class DensityMapDataOp implements ImageDataOp {
 	private int getChannelCount() {
 		if (primaryObjects.size() == 0)
 			return 1;
-		if (normalization == DensityMapNormalization.PERCENT)
+		if (densityType == DensityMapType.PERCENT)
 			return primaryObjects.size() + 1;
 		return primaryObjects.size();
 	}
@@ -347,7 +347,7 @@ class DensityMapDataOp implements ImageDataOp {
 		else
 			opNew = ops[0];
 		
-		var dataOp = new DensityMapDataOp(radius, primaryObjects, allObjects, normalization);
+		var dataOp = new DensityMapDataOp(radius, primaryObjects, allObjects, densityType);
 		dataOp.op = ImageOps.Core.sequential(dataOp.op, opNew);
 		dataOp.channels = opNew.getChannels(dataOp.channels);
 		return dataOp;

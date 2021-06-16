@@ -73,24 +73,19 @@ public class DensityMaps {
 	
 	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.packRGB(200, 120, 20));
 
+	private static int preferredTileSize = 2048;
+	
+	
 	/**
-	 * Density map normalization methods.
+	 * Density map types.
 	 */
-	public static enum DensityMapNormalization {
+	public static enum DensityMapType {
 		
 		/**
 		 * No normalization; maps provide raw object counts in a defined radius.
 		 * This is equivalent to applying a circular sum filter to object counts per pixel.
 		 */
-		NONE,
-		
-//		/**
-//		 * Area normalization; maps provide averaged object counts in a defined radius.
-//		 * This is equivalent to applying a circular mean filter to object counts per pixel.
-//		 * 
-//		 * TODO: Consider normalization denominator; currently this uses downsampled pixel units.
-//		 */
-//		AREA,
+		SUM,
 		
 		/**
 		 * Gaussian-weighted area normalization; maps provide weighted averaged object counts in a defined radius.
@@ -108,12 +103,10 @@ public class DensityMaps {
 		@Override
 		public String toString() {
 			switch(this) {
-			case NONE:
-				return "None (raw counts)";
+			case SUM:
+				return "By area (raw counts)";
 			case PERCENT:
 				return "Objects %";
-//			case AREA:
-//				return "Area";
 			case GAUSSIAN:
 				return "Gaussian-weighted";
 			default:
@@ -142,7 +135,7 @@ public class DensityMaps {
 		private double pixelSize = -1;
 		
 		private double radius = 0;
-		private DensityMapNormalization normalization = DensityMapNormalization.NONE;
+		private DensityMapType densityType = DensityMapType.SUM;
 
 		private PathObjectPredicate allObjectsFilter;
 		private Map<String, PathObjectPredicate> densityFilters = new LinkedHashMap<>();
@@ -162,7 +155,7 @@ public class DensityMaps {
 		private DensityMapParameters(DensityMapParameters params) {
 			this.pixelSize = params.pixelSize;
 			this.radius = params.radius;
-			this.normalization = params.normalization;
+			this.densityType = params.densityType;
 			
 			this.allObjectsFilter = params.allObjectsFilter;
 			this.densityFilters = new LinkedHashMap<>(params.densityFilters);
@@ -224,8 +217,8 @@ public class DensityMaps {
 			return this;
 		}
 		
-		public DensityMapBuilder normalization(DensityMapNormalization normalization) {
-			params.normalization = normalization;
+		public DensityMapBuilder type(DensityMapType type) {
+			params.densityType = type;
 			return this;
 		}
 		
@@ -306,11 +299,11 @@ public class DensityMaps {
 		        radiusInt,
 		        params.densityFilters,
 		        params.allObjectsFilter,
-		        params.normalization
+		        params.densityType
 		);
 		
 		var metadata = new PixelClassifierMetadata.Builder()
-			    .inputShape(2048, 2048)
+			    .inputShape(preferredTileSize, preferredTileSize)
 			    .inputResolution(cal.createScaledInstance(downsample, downsample))
 			    .setChannelType(ImageServerMetadata.ChannelType.DENSITY)
 			    .outputChannels(dataOp.getChannels())

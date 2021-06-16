@@ -341,6 +341,11 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.minHeightProperty().bind(stage.heightProperty());
 		stage.setResizable(true);
 		
+		stage.focusedProperty().addListener((v, o, n) -> {
+			if (n)
+				ensureOverlays();
+		});
+		
 		stage.setOnHiding(e -> {
 			dim = new Dimension2D(stage.getWidth(), stage.getHeight());
 			resetOverlays();
@@ -458,6 +463,12 @@ public class SimpleThresholdCommand implements Runnable {
 		selectedOverlay.set(overlay);
 		this.currentClassifier.set(classifier);
 		
+		ensureOverlays();
+	}
+	
+	
+	private void ensureOverlays() {
+		var overlay = selectedOverlay.get();
 		// Try (admittedly unsuccessfully) to reduce flicker
 		for (var viewer : qupath.getViewers()) {
 			var imageData = viewer.getImageData();
@@ -470,15 +481,10 @@ public class SimpleThresholdCommand implements Runnable {
 			viewer.repaint();
 			
 			viewer.setCustomPixelLayerOverlay(overlay);
-			map.put(viewer, overlay);
-//			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects(), true);
-	
+			map.put(viewer, overlay);	
 			viewer.resetMinimumRepaintSpacingMillis();
 		}
 	}
-	
-	
-	
 	
 
 	/**

@@ -47,6 +47,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -153,9 +154,9 @@ public final class PixelClassifierLoadCommand implements Runnable {
 		
 		// Add file chooser
 		var menu = new ContextMenu();
-		var loadClassifierMI = new MenuItem("Add existing classifiers");
-		loadClassifierMI.setOnAction(e -> {
-			List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier file", "json");
+		var miLoadClassifier = new MenuItem("Add external classifiers");
+		miLoadClassifier.setOnAction(e -> {
+			List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier (JSON)", "json");
 			if (files == null || files.isEmpty())
 				return;
 
@@ -169,8 +170,22 @@ public final class PixelClassifierLoadCommand implements Runnable {
 				Dialogs.showErrorMessage(title, ex);
 			}
 		});
+		var miOpenAsText = new MenuItem("Show as text");
+		miOpenAsText.setOnAction(e -> {
+			var name = comboClassifiers.getSelectionModel().getSelectedItem();
+			var classifier = selectedClassifier.get();
+			if (classifier == null)
+				return;
+			try {
+				var json = GsonTools.getInstance(true).toJson(classifier);
+				Dialogs.showTextWindow(qupath.getStage(), name, json, Modality.NONE, false);
+			} catch (Exception ex) {
+				Dialogs.showErrorMessage("Show model as text", "Unable to create a text representation of '" + name + "', sorry!");
+			}
+		});
+		miOpenAsText.disableProperty().bind(selectedClassifier.isNull());
 		
-		menu.getItems().add(loadClassifierMI);
+		menu.getItems().addAll(miLoadClassifier, miOpenAsText);
 		var btnLoadExistingClassifier = GuiTools.createMoreButton(menu, Side.RIGHT);
 		
 		var classifierName = new SimpleStringProperty(null);
@@ -249,6 +264,12 @@ public final class PixelClassifierLoadCommand implements Runnable {
 				var data = viewer.getImageData();
 				if (data != null)
 					PixelClassificationImageServer.setPixelLayer(data, null);
+			}
+		});
+		
+		stage.focusedProperty().addListener((v, o, n) -> {
+			if (n && selectedOverlay.get() != null) {
+				viewer.setCustomPixelLayerOverlay(selectedOverlay.get());
 			}
 		});
 		
