@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.ml;
+package qupath.lib.gui.viewer.overlays;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
@@ -31,8 +31,6 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.viewer.OverlayOptions;
-import qupath.lib.gui.viewer.overlays.AbstractImageOverlay;
-import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelCalibration;
@@ -263,7 +261,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 				server = null;
 			if (server == null && classifier.supportsImage(imageData)) {
 				server = new PixelClassificationImageServer(imageData, classifier);
-	    		PixelClassificationImageServer.setPixelLayer(imageData, server);
 	    	}
 	    	return server;
 		}
@@ -296,7 +293,13 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 //    		viewer.repaint();
     }    
     
-    private ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
+    /**
+     * Get the {@link ImageServer} that would be used by this overlay for the specified {@link ImageData}.
+     * Note that the servers are cached internally.
+     * @param imageData
+     * @return
+     */
+    public ImageServer<BufferedImage> getPixelClassificationServer(ImageData<BufferedImage> imageData) {
     	// TODO: Support not caching servers (e.g. if the caching is performed externally) - probably by accepting a map in a create method (so the map becomes the cache)
 //    	return imageData == null ? null : createPixelClassificationServer(imageData);
     	return imageData == null ? null : cachedServers.computeIfAbsent(imageData, data -> createPixelClassificationServer(data));
@@ -316,10 +319,6 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         if (server == null)
         	return;
         
-        // TODO: Consider setting the pixel layer elsewhere (this could result in too frequent changes when multiple overlays are used)
-        if (getLivePrediction())
-        	PixelClassificationImageServer.setPixelLayer(imageData, server);
-
         // Show classified tiles. Without this, opacity can make it hard to see which regions have been processed.
         // Note that if the alpha value is too large, tile boundaries can appear at some viewing magnifications (previous default was 32)
         var colorComplete = imageData.getImageType() == ImageData.ImageType.FLUORESCENCE ? 

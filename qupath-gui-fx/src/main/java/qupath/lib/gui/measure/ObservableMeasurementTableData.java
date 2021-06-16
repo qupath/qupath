@@ -54,7 +54,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import qupath.lib.classifiers.PathClassifierTools;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.measure.ObservableMeasurementTableData.ROICentroidMeasurementBuilder.CentroidType;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -102,6 +101,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 	private DerivedMeasurementManager manager;
 	private Map<String, MeasurementBuilder<?>> builderMap = new LinkedHashMap<>();
 	
+	private static final String KEY_PIXEL_LAYER = "PIXEL_LAYER";
+	
 	/**
 	 * Set the {@link ImageData} and a collection of objects to measure.
 	 * @param imageData the {@link ImageData}, required to determine many dynamic measurements
@@ -117,6 +118,38 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		updateMeasurementList();
 //		else
 //			Platform.runLater(() -> updateMeasurementList());
+	}
+	
+	
+	/**
+	 * Set an {@link ImageServer} as a property in the {@link ImageData}.
+	 * This is intended for use as a temporary (non-persistent) property, used by {@link ObservableMeasurementTableData} to create live measurements.
+	 * <p>
+	 * Note that this method is subject to change (in location and behavior).
+	 * 
+	 * @param imageData
+	 * @param layerServer server to return the pixel layer data; if null, the property will be removed
+	 */
+	public static void setPixelLayer(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> layerServer) {
+		if (layerServer == null)
+			imageData.removeProperty(KEY_PIXEL_LAYER);
+		else
+			imageData.setProperty(KEY_PIXEL_LAYER, layerServer);			
+	}
+	
+	/**
+	 * Request the pixel layer from an {@link ImageData}.
+	 * <p>
+	 * Note that this method is subject to change (in location and behavior).
+	 * 
+	 * @param imageData
+	 * @return
+	 */
+	public static ImageServer<BufferedImage> getPixelLayer(ImageData<?> imageData) {
+		var layer = imageData.getProperty(KEY_PIXEL_LAYER);
+		if (layer instanceof ImageServer)
+			return (ImageServer<BufferedImage>)layer;
+		return null;
 	}
 	
 	
@@ -290,7 +323,7 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		}
 		
 		if (containsAnnotations || containsTMACores || containsRoot) {
-			var pixelClassifier = PixelClassificationImageServer.getPixelLayer(imageData);
+			var pixelClassifier = getPixelLayer(imageData);
 			if (pixelClassifier instanceof ImageServer<?>) {
 				ImageServer<BufferedImage> server = (ImageServer<BufferedImage>)pixelClassifier;
 				if (server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION || server.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.PROBABILITY) {

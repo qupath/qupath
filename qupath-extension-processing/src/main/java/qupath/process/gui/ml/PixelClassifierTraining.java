@@ -146,13 +146,14 @@ public class PixelClassifierTraining {
         
         Map<PathClass, Integer> labels = new LinkedHashMap<>();
         
+        boolean hasLockedAnnotations = false;
         if (labelMap == null) {
             Set<PathClass> pathClasses = new TreeSet<>((p1, p2) -> p1.toString().compareTo(p2.toString()));
         	for (var imageData : imageDataCollection) {
 	        	// Get labels for all annotations
 	            Collection<PathObject> annotations = imageData.getHierarchy().getAnnotationObjects();
 	            for (var annotation : annotations) {
-	            	if (isTrainableAnnotation(annotation)) {
+	            	if (isTrainableAnnotation(annotation, true)) {
 	            		var pathClass = annotation.getPathClass();
 	            		pathClasses.add(pathClass);
 	            		// We only use boundary classes for areas
@@ -161,7 +162,8 @@ public class PixelClassifierTraining {
 		            		if (boundaryClass != null)
 		            			pathClasses.add(boundaryClass);
 	            		}
-	            	}
+	            	} else if (isTrainableAnnotation(annotation, false))
+	            		hasLockedAnnotations = true;
 	            }
         	}
             int lab = 0;
@@ -199,6 +201,8 @@ public class PixelClassifierTraining {
         int nTargets = labels.size();
         if (nTargets <= 1) {
         	logger.warn("Unlocked annotations for at least two classes are required to train a classifier!");
+        	if (hasLockedAnnotations)
+        		logger.warn("Image contains annotations that *could* be used for training, except they are currently locked. Please unlock them if they should be used.");
             resetTrainingData();
             return null;
         }
@@ -230,12 +234,12 @@ public class PixelClassifierTraining {
      * @param pathObject
      * @return
      */
-    static boolean isTrainableAnnotation(PathObject pathObject) {
+    static boolean isTrainableAnnotation(PathObject pathObject, boolean checkLocked) {
     	return pathObject != null &&
     			pathObject.hasROI() &&
     			!pathObject.getROI().isEmpty() &&
     			pathObject.isAnnotation() &&
-    			!pathObject.isLocked() &&
+    			(!pathObject.isLocked() || !checkLocked) &&
     			pathObject.getPathClass() != null && 
     			pathObject.getPathClass() != REGION_CLASS;
     }
@@ -351,7 +355,7 @@ public class PixelClassifierTraining {
     		rois = new HashMap<>();
     		for (var annotation : annotations) {
     			// Don't train from locked annotations
-    			if (!isTrainableAnnotation(annotation))
+    			if (!isTrainableAnnotation(annotation, true))
     				continue;
     			
     			var roi = annotation.getROI();

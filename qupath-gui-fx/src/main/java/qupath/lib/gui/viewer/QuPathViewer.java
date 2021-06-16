@@ -99,6 +99,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.awt.common.AwtTools;
+import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -109,6 +110,7 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
@@ -116,6 +118,7 @@ import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
 import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -138,6 +141,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.pixel.PixelClassifiers;
 
 
 /**
@@ -1186,6 +1190,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void setCustomPixelLayerOverlay(PathOverlay pathOverlay) {
 		if (this.customPixelLayerOverlay == pathOverlay)
 			return;
+		
 		// Get existing custom overlay
 		var previousOverlay = getCurrentPixelLayerOverlay();
 		int ind = coreOverlayLayers.indexOf(previousOverlay);
@@ -1197,6 +1202,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			coreOverlayLayers.add(0, this.customPixelLayerOverlay);
 		} else {
 			coreOverlayLayers.set(ind, this.customPixelLayerOverlay);
+		}
+		
+		var imageData = getImageData();
+		if (imageData != null) {
+			if (pathOverlay instanceof PixelClassificationOverlay) {
+				var server = ((PixelClassificationOverlay) pathOverlay).getPixelClassificationServer(imageData);
+				ObservableMeasurementTableData.setPixelLayer(imageData, server);
+			} else
+				ObservableMeasurementTableData.setPixelLayer(imageData, null);
 		}
 				
 //		// Get existing custom overlay
@@ -1211,6 +1225,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //			coreOverlayLayers.set(ind, getCurrentPixelLayerOverlay());
 //		}
 	}
+	
 	
 	/**
 	 * Reset the custom pixel layer overlay to null.

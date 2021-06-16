@@ -55,6 +55,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
@@ -64,7 +65,6 @@ import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
 import qupath.process.gui.ml.ClassificationResolution;
-import qupath.process.gui.ml.PixelClassificationOverlay;
 import qupath.process.gui.ml.PixelClassifierUI;
 
 /**
@@ -357,9 +357,6 @@ public class SimpleThresholdCommand implements Runnable {
 	private void resetOverlay(QuPathViewer viewer, PathOverlay overlay) {
 		if (viewer.getCustomPixelLayerOverlay() == overlay) {
 			viewer.resetCustomPixelLayerOverlay();
-			var imageData = viewer.getImageData();
-			if (imageData != null)
-				PixelClassificationImageServer.setPixelLayer(imageData, null);
 		}
 	}
 	

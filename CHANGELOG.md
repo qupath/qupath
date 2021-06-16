@@ -67,6 +67,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * `GeneralTools.readAsString` methods now assume UTF-8 encoding
+* `PixelClassificationOverlay` has moved to the main GUI module
 * Scripting method `getColorRGB()` has been replaced by `makeRBG()` and `makeARGB()`; further related changes in ColorTools class
 * StarDist supports frozen models that are compatible with OpenCV's DNN module
 * New 2D/3D thinning & interpolation classes

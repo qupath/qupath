@@ -105,6 +105,7 @@ import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -1113,13 +1114,7 @@ public class PixelClassifierPane {
 		qupath.imageDataProperty().removeListener(imageDataListener);
 
 		for (var viewer : qupath.getViewers()) {
-			var imageData = viewer.getImageData();
-			if (overlay != null) {
-				if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.createPixelClassificationServer(imageData))
-					PixelClassificationImageServer.setPixelLayer(imageData, null);
-			}
 			viewer.resetCustomPixelLayerOverlay();
-
 			if (featureOverlay != null) {
 				viewer.getCustomOverlayLayers().remove(featureOverlay);
 				featureOverlay.stop();
@@ -1170,7 +1165,7 @@ public class PixelClassifierPane {
 		}
 		var viewer = qupath.getViewer();
 		var imageData = viewer.getImageData();
-		var server = imageData == null ? null : overlay.createPixelClassificationServer(imageData);
+		var server = imageData == null ? null : overlay.getPixelClassificationServer(imageData);
 		if (server == null)
 			return false;
 		var selected = viewer.getSelectedObject();
@@ -1382,7 +1377,7 @@ public class PixelClassifierPane {
 		
 		void updateCursorLocation(QuPathViewer viewer, Point2D localPoint) {
 			var p = viewer.componentPointToImagePoint(localPoint.getX(), localPoint.getY(), null, false);
-			var server = overlay.createPixelClassificationServer(viewer.getImageData());
+			var server = overlay.getPixelClassificationServer(viewer.getImageData());
 			String results = null;
 			if (server != null)
 				results = PixelClassificationOverlay.getDefaultLocationString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());

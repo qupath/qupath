@@ -57,9 +57,9 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.io.GsonTools;
 import qupath.lib.projects.Project;
-import qupath.process.gui.ml.PixelClassificationOverlay;
 import qupath.process.gui.ml.PixelClassifierUI;
 
 /**
@@ -261,9 +261,6 @@ public final class PixelClassifierLoadCommand implements Runnable {
 				current.stop();
 				logger.info("Resetting pixel classifier overlay");
 				viewer.resetCustomPixelLayerOverlay();
-				var data = viewer.getImageData();
-				if (data != null)
-					PixelClassificationImageServer.setPixelLayer(data, null);
 			}
 		});
 		

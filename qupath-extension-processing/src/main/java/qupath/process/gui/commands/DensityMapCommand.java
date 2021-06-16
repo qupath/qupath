@@ -99,6 +99,7 @@ import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.ImageInterpolation;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerListener;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
@@ -116,7 +117,6 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.process.gui.commands.DensityMapCommand.MinMaxFinder.MinMax;
-import qupath.process.gui.ml.PixelClassificationOverlay;
 
 
 /**
