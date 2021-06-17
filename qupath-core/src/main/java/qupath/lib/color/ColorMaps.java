@@ -39,6 +39,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -69,10 +70,21 @@ public class ColorMaps {
 			createColorMap("Yellow", 255, 255, 0),
 			createColorMap("Cyan", 0, 255, 255)
 			);
+	
+	private static ColorMap defaultColorMap = LEGACY_COLOR_MAP;
+	
+	/**
+	 * Ordered list of preferred default colormaps; the first that is found will be used
+	 */
+	private static List<String> preferredDefaultColorMaps = Arrays.asList(
+			"Inferno", "Plasma", "Magma", "Viridis"
+			);
+
 
 	private static Map<String, ColorMap> maps = new LinkedHashMap<>(loadDefaultColorMaps());
 	private static Map<String, ColorMap> mapsUnmodifiable = Collections.unmodifiableMap(maps);
-
+	
+		
 	/**
 	 * colormap, which acts as an interpolating lookup table with an arbitrary range.
 	 */
@@ -125,6 +137,12 @@ public class ColorMaps {
 		    for (var cm: SINGLE_COLOR_MAPS)
 		    	maps.put(cm.getName(), cm);
 		    maps.put(LEGACY_COLOR_MAP.getName(), LEGACY_COLOR_MAP);
+		    for (var preferred : preferredDefaultColorMaps) {
+		    	if (maps.containsKey(preferred)) {
+		    		defaultColorMap = maps.get(preferred);
+		    		break;
+		    	}
+		    }
 		}
 	    return maps;
 	}
@@ -195,6 +213,25 @@ public class ColorMaps {
 			vals[i] = map.getColor(value, 0, max);
 		}
 		return vals;
+	}
+	
+	/**
+	 * Get a default, general-purpose {@link ColorMap}.
+	 * @return
+	 * @see #setDefaultColorMap()
+	 */
+	public static ColorMap getDefaultColorMap() {
+		return defaultColorMap;
+	}
+	
+	/**
+	 * Set the default {@link ColorMap}.
+	 * @param colorMap
+	 * @see #getDefaultColorMap()
+	 */
+	public static void setDefaultColorMap(ColorMap colorMap) {
+		Objects.nonNull(colorMap);
+		defaultColorMap = colorMap;
 	}
 	
 	

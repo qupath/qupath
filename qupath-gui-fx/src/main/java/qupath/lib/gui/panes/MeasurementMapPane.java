@@ -115,7 +115,7 @@ public class MeasurementMapPane {
 	private boolean updatingSliders = false;
 	
 	
-	private static StringProperty preferredMapperName = PathPrefs.createPersistentPreference("measurementMapperLUT", "viridis");
+	private static StringProperty preferredMapperName = PathPrefs.createPersistentPreference("measurementMapperLUT", ColorMaps.getDefaultColorMap().getName());
 	
 	/**
 	 * Constructor.
