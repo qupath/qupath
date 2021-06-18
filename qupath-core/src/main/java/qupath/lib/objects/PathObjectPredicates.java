@@ -132,8 +132,6 @@ public class PathObjectPredicates {
 			return filter.test(t);
 		}
 		
-		public void dummy() {}
-		
 	}
 	
 	static class PathObjectClassPositivePredicate extends AbstractPathObjectPredicate {

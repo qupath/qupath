@@ -68,6 +68,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 
 /**
@@ -80,7 +82,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 	
 	private static Logger logger = LoggerFactory.getLogger(PixelClassificationOverlay.class);
 
-    private ImageRenderer renderer;
+    private ObjectProperty<ImageRenderer> renderer = new SimpleObjectProperty<>();
     private long rendererLastTimestamp = 0L;
 
     private Map<RegionRequest, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
@@ -110,6 +112,8 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         pool = Executors.newFixedThreadPool(
         		nThreads, ThreadTools.createThreadFactory(
         				"classifier-overlay", true, Thread.NORM_PRIORITY-2));
+        
+        this.renderer.addListener((v, o, n) -> cacheRGB.clear());
         
         this.fun = fun;
     }
@@ -266,12 +270,29 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 		}
     	
     }
+    
+    /**
+     * Get the {@link ImageRenderer} property used with this overlay.
+     * @return
+     */
+    public ObjectProperty<ImageRenderer> rendererProperty() {
+    	return renderer;
+    }
+    
+    /**
+     * Get the {@link ImageRenderer} used with this overlay, which may be null.
+     * @return
+     */
+    public ImageRenderer getRenderer() {
+    	return renderer.get();
+    }
 
-    private synchronized void setRenderer(ImageRenderer renderer) {
-    	if (this.renderer == renderer)
-    		return;
-    	this.renderer = renderer;
-    	cacheRGB.clear();
+    /**
+     * Set the {@link ImageRenderer} to be used with this overlay.
+     * @param renderer
+     */
+    public void setRenderer(ImageRenderer renderer) {
+    	this.renderer.set(renderer);
     }
     
     /**
@@ -339,6 +360,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
 //    	if (!filter.test(imageData, fullRequest))
 //    		return;
         
+    	var renderer = this.renderer.get();
         if (renderer != null && rendererLastTimestamp != renderer.getLastChangeTimestamp()) {
         	clearCache();
         	rendererLastTimestamp = renderer.getLastChangeTimestamp();
@@ -416,6 +438,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     		return imgRGB;
         // If we have a tile that isn't RGB, then create the RGB version we need
     	var img = server.getCachedTile(request);
+    	var renderer = this.renderer.get();
         if (img != null) {
             if (img.getType() == BufferedImage.TYPE_INT_ARGB ||
             		img.getType() == BufferedImage.TYPE_INT_RGB ||

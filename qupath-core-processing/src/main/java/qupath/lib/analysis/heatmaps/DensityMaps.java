@@ -23,13 +23,18 @@
 package qupath.lib.analysis.heatmaps;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.function.DoubleToIntFunction;
+
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,11 +44,15 @@ import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
+import qupath.lib.color.ColorMaps;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.PathObjects;
@@ -55,6 +64,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.RoiTools;
+import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 
 /**
@@ -90,8 +100,6 @@ public class DensityMaps {
 		/**
 		 * Gaussian-weighted area normalization; maps provide weighted averaged object counts in a defined radius.
 		 * This is equivalent to applying a Gaussian filter to object counts per pixel.
-		 * 
-		 * TODO: Consider normalization denominator; currently this uses downsampled pixel units.
 		 */
 		GAUSSIAN,
 		
@@ -126,13 +134,26 @@ public class DensityMaps {
 		return new DensityMapBuilder(allObjects);
 	}
 	
+	/**
+	 * Create a new {@link DensityMapBuilder} initialized with the same properties as an existing builder.
+	 * @param builder the existing builder
+	 * @return the new builder
+	 */
+	public static DensityMapBuilder builder(DensityMapBuilder builder) {
+		return new DensityMapBuilder(builder.params);
+	}
+	
+	
 	
 	/**
 	 * Helper class for storing parameters to build a {@link ImageServer} representing a density map.
 	 */
-	private static class DensityMapParameters {
+	public static class DensityMapParameters {
 		
-		private double pixelSize = -1;
+		private PixelCalibration pixelSize = null;
+		
+		private int maxWidth = 1536;
+		private int maxHeight = maxWidth;
 		
 		private double radius = 0;
 		private DensityMapType densityType = DensityMapType.SUM;
@@ -140,110 +161,112 @@ public class DensityMaps {
 		private PathObjectPredicate allObjectsFilter;
 		private Map<String, PathObjectPredicate> densityFilters = new LinkedHashMap<>();
 		
-		// Display parameters
-		private ColorMap colormap;
-		private String colormapName;
-		private double minValue = 0;
-		private double maxValue = 1;
-		
-		private double minAlpha = 0;
-		private double maxAlpha = 1;
-		private double alphaGamma = 1;
-								
 		private DensityMapParameters() {}
 		
 		private DensityMapParameters(DensityMapParameters params) {
 			this.pixelSize = params.pixelSize;
 			this.radius = params.radius;
 			this.densityType = params.densityType;
+			this.maxWidth = params.maxWidth;
+			this.maxHeight = params.maxHeight;
 			
 			this.allObjectsFilter = params.allObjectsFilter;
 			this.densityFilters = new LinkedHashMap<>(params.densityFilters);
-			
-			this.colormap = params.colormap;
-			this.colormapName = params.colormapName;
-			this.minValue = params.minValue;
-			this.maxValue = params.maxValue;
-			this.minAlpha = params.minAlpha;
-			this.maxAlpha = params.maxAlpha;
-			this.alphaGamma = params.alphaGamma;
 		}
 		
+		public double getRadius() {
+			return radius;
+		}
 		
-//		static class DensityMapChannel {
-//			
-//			private PathObjectPredicate predicate;
-//			
-//			private ColorMap colormap;
-//			private String colormapName;
-//			
-//			private double minValue = -1;
-//			private double maxValue = -1;
-//			
-//		}
+		public PixelCalibration getPixelSize() {
+			return pixelSize;
+		}
 		
+		public DensityMapType getDensityType() {
+			return densityType;
+		}
+		
+		public PathObjectPredicate getAllObjectsFilter() {
+			return allObjectsFilter;
+		}
+		
+		public Map<String, PathObjectPredicate> getDensityFilters() {
+			return Collections.unmodifiableMap(densityFilters);
+		}
 		
 	}
+	
 	
 	/**
 	 * Builder for an {@link ImageServer} representing a density map or for {@link DensityMapParameters}.
 	 */
 	public static class DensityMapBuilder {
 		
-		private DensityMapParameters params = new DensityMapParameters();
+		private DensityMapParameters params = null;
+		private ColorModelBuilder colorModelBuilder = null;
+		
+		private DensityMapBuilder(DensityMapParameters params) {
+			Objects.nonNull(params);
+			this.params = new DensityMapParameters(params);
+		}
 		
 		private DensityMapBuilder(PathObjectPredicate allObjects) {
 			Objects.nonNull(allObjects);
+			params = new DensityMapParameters();
 			params.allObjectsFilter = allObjects;
 		}
 		
 		/**
 		 * Requested pixel size to determine the resolution of the density map, in calibrated units.
 		 * <p>
-		 * The default is -1, which means a resolution will be determined automatically based upon 
-		 * the radius value and the image size.
+		 * If this is not specified, an {@link ImageData} should be provided to {@link #buildClassifier(ImageData)} 
+		 * and used to determine a suitable pixel size based upon the radius value and the image dimensions.
 		 * <p>
-		 * It is recommended to keep the default in most cases, to avoid the risk of creating a map 
-		 * that is too large and causes performance or memory problems.
+		 * This is recommended, since specifying a pixel size could potentially result in creating maps 
+		 * that are too large or too small, causing performance or memory problems.
 		 * 
 		 * @param requestedPixelSize
 		 * @return this builder
-		 * @implNote The value is given in calibrated units at the time the density map is constructed. 
-		 *           Any changes to the calibration information of the image server will not impact this.
 		 * @see #radius(double)
 		 */
-		public DensityMapBuilder pixelSize(double requestedPixelSize) {
+		public DensityMapBuilder pixelSize(PixelCalibration requestedPixelSize) {
 			params.pixelSize = requestedPixelSize;
 			return this;
 		}
 		
+		/**
+		 * The type of the density map, which determines any associated normalization.
+		 * @param type
+		 * @return this builder
+		 */
 		public DensityMapBuilder type(DensityMapType type) {
 			params.densityType = type;
 			return this;
 		}
 		
-//		/**
-//		 * Request that a Gaussian filter is used, rather than the default mean (disk) filter.
-//		 * <p>
-//		 * A Gaussian filter gives a smoother result by using a weighted average, but the interpretation 
-//		 * of the result is more difficult. 
-//		 * Using a disk filter, the density map values are essentially the sum of the number of objects with centroids 
-//		 * falling within a predefined radius.
-//		 * With a Gaussian filter, these have been weighted.
-//		 * <p>
-//		 * @param gaussianFilter true if a Gaussian filter should be used, false otherwise (default is false)
-//		 * @return this builder
-//		 * @implNote The coefficients of the Gaussian filter are renormalized to have a maximum of 1, 
-//		 *           with a sigma value equal to the specified filter radius.
-//		 * @see #radius(double)
-//		 */
-//		public DensityMapBuilder gaussianFilter(boolean gaussianFilter) {
-//			params.gaussianFilter = gaussianFilter;
-//			return this;
-//		}
-		
+		/**
+		 * Add a filter for computing densities.
+		 * This is added on top of the filter specified in {@link DensityMaps#builder(PathObjectPredicate)} to 
+		 * extract a subset of objects for which densities are determined.
+		 * 
+		 * @param name name of the filter; usually this is the name of a classification that the objects should have
+		 * @param filter the filter itself (predicate that must be JSON-serializable)
+		 * @return this builder
+		 */
 		public DensityMapBuilder addDensities(String name, PathObjectPredicate filter) {
 			params.densityFilters.put(name, filter);
+			return this;
+		}
+			
+		/**
+		 * Set a {@link ColorModelBuilder} that can be used in conjunction with {@link #buildServer(ImageData)}.
+		 * If this is not set, the default {@link ColorModel} used with {@link #buildServer(ImageData)} may not 
+		 * convert well to RGB.
+		 * @param colorModelBuilder
+		 * @return
+		 */
+		public DensityMapBuilder colorModel(ColorModelBuilder colorModelBuilder) {
+			this.colorModelBuilder = colorModelBuilder;
 			return this;
 		}
 		
@@ -258,42 +281,195 @@ public class DensityMaps {
 			return this;
 		}
 		
+		/**
+		 * Build a {@link DensityMapParameters} object containing the main density map parameters.
+		 * @return
+		 */
+		public DensityMapParameters buildParameters() {
+			return new DensityMapParameters(params);
+		}
+		
 		
 		/**
 		 * Build a {@link ImageServer} for a density map using the current parameters and the specified {@link ImageData}.
 		 * @param imageData
 		 * @return the density map
+		 * @see #buildServer(ImageData)
 		 */
 		public PixelClassifier buildClassifier(ImageData<BufferedImage> imageData) {
 			return createClassifier(imageData, params);
 		}
 		
+		/**
+		 * Build an {@link ImageServer} representing this density map.
+		 * <p>
+		 * Note that this involved generating a unique ID and caching all tiles.
+		 * The reason is that density maps can change over time as the object hierarchy changes, 
+		 * and therefore one should be generated that represents a snapshot in time.
+		 * However, this imposes a limit on the size of density map that can be generated to 
+		 * avoid memory errors.
+		 * @param imageData
+		 * @return
+		 * @see #buildClassifier(ImageData)
+		 */
+		public ImageServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData) {
+			var classifier = createClassifier(imageData, params);
+			
+			var id = UUID.randomUUID().toString();
+			var sb = new StringBuilder();
+			sb.append("Density map (radius=");
+			sb.append(params.radius);
+			sb.append(")-");
+			sb.append(imageData.getServerPath());
+			sb.append("-");
+			sb.append(id);
+			
+			var colorModel = colorModelBuilder == null ? null : colorModelBuilder.build();
+			return PixelClassifierTools.createPixelClassificationServer(imageData, classifier, sb.toString(), colorModel, true);
+		}
+		
+	}
+	
+	
+	public static interface ColorModelBuilder {
+		
+		public ColorModel build();
+		
+	}
+	
+	public static ColorModelBuilder createColorModelBuilder(DisplayBand mainChannel, DisplayBand alphaChannel) {
+		return new SingleChannelColorModelBuilder(mainChannel, alphaChannel);
+	}
+	
+	public static DisplayBand createBand(String colorMapName, int band, double minDisplay, double maxDisplay) {
+		return createBand(colorMapName, band, minDisplay, maxDisplay, 1);
+	}
+	
+	public static DisplayBand createBand(String colorMapName, int band, double minDisplay, double maxDisplay, double gamma) {
+		return new DisplayBand(colorMapName, null, band, minDisplay, maxDisplay, gamma);
+	}
+	
+	static class DisplayBand {
+		
+		private String colorMapName;
+		private ColorMap colorMap;
+		
+		private int band;
+		private double minDisplay;
+		private double maxDisplay;
+		private double gamma = 1;
+		
+		private DisplayBand(String colorMapName, ColorMap colorMap, int band, double minDisplay, double maxDisplay, double gamma) {
+			this.colorMapName = colorMapName;
+			this.colorMap = colorMap;
+			this.band = band;
+			this.minDisplay = minDisplay;
+			this.maxDisplay = maxDisplay;
+			this.gamma = gamma;
+		}
+		
+		public ColorMap getColorMap() {
+			if (colorMap != null)
+				return colorMap;
+			else if (colorMapName != null)
+				return ColorMaps.getColorMaps().getOrDefault(colorMapName, null);
+			else
+				return null;
+		}
+		
+	}
+	
+	static class SingleChannelColorModelBuilder implements ColorModelBuilder {
+		
+		private DisplayBand band;
+		private DisplayBand alphaBand;
+		
+		private SingleChannelColorModelBuilder(DisplayBand band, DisplayBand alphaBand) {
+			Objects.nonNull(band);
+			this.band = band;
+			this.alphaBand = alphaBand;
+		}
+		
+		@Override
+		public ColorModel build() {
+			var map = band.getColorMap();
+			if (map == null)
+				map = ColorMaps.getDefaultColorMap();
+			if (band.gamma != 1)
+				map = ColorMaps.gammaColorMap(map, band.gamma);
+			
+			int alphaBandInd = -1;
+			double alphaMin = 0;
+			double alphaMax = 1;
+			double alphaGamma = -1;
+			if (alphaBand != null) {
+				alphaBandInd = alphaBand.band;
+				alphaMin = alphaBand.minDisplay;
+				alphaMax = alphaBand.maxDisplay;
+				alphaGamma = alphaBand.gamma;				
+			}
+			return buildColorModel(map, band.band, band.minDisplay, band.maxDisplay, alphaBandInd, alphaMin, alphaMax, alphaGamma);
+		}
+		
+	}
+	
+	
+	
+	private static ColorModel buildColorModel(ColorMap colorMap, int band, double minDisplay, double maxDisplay, int alphaCountBand, double minAlpha, double maxAlpha, double alphaGamma) {
+		DoubleToIntFunction alphaFun = null;
+		if (alphaCountBand < 0) {
+			if (alphaGamma <= 0) {
+				alphaFun = null;
+				alphaCountBand = -1;
+			} else {
+				alphaFun = ColorModelFactory.createGammaFunction(alphaGamma, minAlpha, maxAlpha);
+				alphaCountBand = 0;
+			}
+		} else if (alphaFun == null) {
+			if (alphaGamma < 0)
+				alphaFun = d -> 255;
+			else if (alphaGamma == 0)
+				alphaFun = d -> d > minAlpha ? 255 : 0;
+			else
+				alphaFun = ColorModelFactory.createGammaFunction(alphaGamma, minAlpha, maxAlpha);
+		}
+		return ColorModelFactory.createColorModel(PixelType.FLOAT32, colorMap, band, minDisplay, maxDisplay, alphaCountBand, alphaFun);
 	}
 	
 	
 	private static PixelClassifier createClassifier(ImageData<BufferedImage> imageData, DensityMapParameters params) {
-		var cal = imageData.getServer().getPixelCalibration();
 		
-		double pixelSize = params.pixelSize;
-		if (params.pixelSize <= 0) {
-			int defaultMaxSize = 1024;
-			int maxSize = defaultMaxSize;
+		var pixelSize = params.pixelSize;
+		if (pixelSize == null) {
+			if (imageData == null) {
+				throw new IllegalArgumentException("You need to specify a pixel size or provide an ImageData to generate a density map!");
+			}
+			var cal = imageData.getServer().getPixelCalibration();
 			double radius = params.radius;
 			var server = imageData.getServer();
-			double actualPixelSize = server.getPixelCalibration().getAveragedPixelSize().doubleValue();
 			
-			double maxDownsample = Math.round(Math.max(1, Math.max(server.getWidth(), server.getHeight()) / maxSize));
-			double minPixelSize = maxDownsample * actualPixelSize;
+			double maxDownsample = Math.round(
+					Math.max(
+							server.getWidth() / (double)params.maxWidth,
+							server.getHeight() / (double)params.maxHeight
+							)
+					);
+			
+			if (maxDownsample < 1)
+				maxDownsample = 1;
+			
+			var minPixelSize = cal.createScaledInstance(maxDownsample, maxDownsample);
 			if (radius > 0) {
-				double radiusPixels = radius / actualPixelSize;
+				double radiusPixels = radius / cal.getAveragedPixelSize().doubleValue();
 				double radiusDownsample = Math.round(radiusPixels / 10);
-				pixelSize = radiusDownsample * actualPixelSize;
+				pixelSize = cal.createScaledInstance(radiusDownsample, radiusDownsample);
 			}
-			if (pixelSize < minPixelSize)
+			if (pixelSize == null || pixelSize.getAveragedPixelSize().doubleValue() < minPixelSize.getAveragedPixelSize().doubleValue())
 				pixelSize = minPixelSize;
 		}
-		double downsample = pixelSize / cal.getAveragedPixelSize().doubleValue();
-		int radiusInt = (int)Math.round(params.radius / pixelSize);
+		
+		int radiusInt = (int)Math.round(params.radius / pixelSize.getAveragedPixelSize().doubleValue());
+		logger.debug("Creating classiier with pixel size {}, radius = {}", pixelSize, radiusInt);
 					    
 		var dataOp = new DensityMapDataOp(
 		        radiusInt,
@@ -304,7 +480,7 @@ public class DensityMaps {
 		
 		var metadata = new PixelClassifierMetadata.Builder()
 			    .inputShape(preferredTileSize, preferredTileSize)
-			    .inputResolution(cal.createScaledInstance(downsample, downsample))
+			    .inputResolution(pixelSize)
 			    .setChannelType(ImageServerMetadata.ChannelType.DENSITY)
 			    .outputChannels(dataOp.getChannels())
 			    .build();
