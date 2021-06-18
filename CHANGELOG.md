@@ -70,6 +70,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.1 (corresponding to TensorFlow v2.4.1)
 
 ### Bugs fixed
+* Multithreading issue with creation or removal of objects (https://github.com/qupath/qupath/issues/744)
 * *Detect centroid distances 2D* doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
 * Deleting a TMA grid deletes all objects (https://github.com/qupath/qupath/issues/646)
 * *Subcellular detection (experimental)* does't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)
