@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -70,6 +70,7 @@ public class TileExporter  {
 
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
+	private RegionRequest region = null;
 	
 	private List<PathObject> parentObjects = null;
 
@@ -80,6 +81,9 @@ public class TileExporter  {
 	private boolean includePartialTiles = false;
 	private boolean annotatedTilesOnly = false;
 	private boolean annotatedCentroidTilesOnly = false;
+	
+	private int minZ, minT = 0;
+	private int maxZ, maxT = 1;
 
 	private String ext = ".tif";
 	private String extLabeled = null;
@@ -238,7 +242,43 @@ public class TileExporter  {
 		this.includePartialTiles = includePartialTiles;
 		return this;
 	}
+	
+	/**
+	 * Define the region to be processed. Default is the full image.
+	 * @param region
+	 * @return this exporter
+	 */
+	public TileExporter region(RegionRequest region) {
+		this.region = region;
+		return this;
+	}
+	
+	/**
+	 * Define the range of Z-slices to process. Default is 0 to 1.<p>
+	 * Note: the range is from {@code minZ} (included) to {@code maxZ} (excluded).
+	 * @param minZ the lower value (included)
+	 * @param maxZ the higher value (excluded)
+	 * @return this exporter
+	 */
+	public TileExporter zRange(int minZ, int maxZ) {
+		this.minZ = minZ;
+		this.maxZ = maxZ;
+		return this;
+	}
 
+	/**
+	 * Define the range of time-points to process. Default is 0 to 1.<p>
+	 * Note: the range is from {@code minT} (included) to {@code maxT} (excluded).
+	 * @param minT the lower value (included)
+	 * @param maxT the higher value (excluded)
+	 * @return this exporter
+	 */
+	public TileExporter tRange(int minT, int maxT) {
+		this.minT = minT;
+		this.maxT = maxT;
+		return this;
+	}
+	
 	/**
 	 * Specify whether tiles that do not overlap with any annotations should be included.
 	 * This is a weaker criterion than {@link #annotatedCentroidTilesOnly(boolean)}.
@@ -636,7 +676,7 @@ public class TileExporter  {
 	private static NumberFormat createDefaultNumberFormat(int maxFractionDigits) {
 		var formatter = NumberFormat.getNumberInstance(Locale.US);
 		formatter.setMinimumFractionDigits(0);
-		formatter.setMaximumFractionDigits(5);
+		formatter.setMaximumFractionDigits(maxFractionDigits);
 		return formatter;
 	}
 	
@@ -664,19 +704,20 @@ public class TileExporter  {
 
 
 
-	static Collection<RegionRequest> getTiledRegionRequests(
+	Collection<RegionRequest> getTiledRegionRequests(
 			ImageServer<?> server, double downsample, 
 			int tileWidth, int tileHeight, int xOverlap, int yOverlap, boolean includePartialTiles) {
 		List<RegionRequest> requests = new ArrayList<>();
 
-		RegionRequest fullRequest = RegionRequest.createInstance(server, downsample);
+		if (region == null)
+			region = RegionRequest.createInstance(server, downsample);
 
-		for (int t = 0; t < server.nTimepoints(); t++) {
-			fullRequest = fullRequest.updateT(t);
-			for (int z = 0; z < server.nZSlices(); z++) {
-				fullRequest = fullRequest.updateZ(z);
+		for (int t = minT; t < maxT; t++) {
+			region = region.updateT(t);
+			for (int z = minZ; z < maxZ; z++) {
+				region = region.updateZ(z);
 				requests.addAll(
-						splitRegionRequests(fullRequest, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
+						splitRegionRequests(region, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
 						);
 			}
 		}
@@ -709,9 +750,6 @@ public class TileExporter  {
 		double downsample = request.getDownsample();
 		String path = request.getPath();
 
-		int fullWidth = request.getWidth();
-		int fullHeight = request.getHeight();
-
 		int minX = (int)(request.getMinX() / downsample);
 		int minY = (int)(request.getMinY() / downsample);
 		int maxX = (int)(request.getMaxX() / downsample);
@@ -728,10 +766,10 @@ public class TileExporter  {
 			int yi = (int)Math.round(y * downsample);
 			int y2i = (int)Math.round((y + tileHeight) * downsample);
 
-			if (y2i > fullHeight) {
+			if (y2i > maxY) {
 				if (!includePartialTiles)
 					continue;
-				y2i = fullHeight;
+				y2i = maxY;
 			} else if (y2i == yi)
 				continue;
 
@@ -743,10 +781,10 @@ public class TileExporter  {
 				int xi = (int)Math.round(x * downsample);
 				int x2i = (int)Math.round((x + tileWidth) * downsample);
 
-				if (x2i > fullWidth) {
+				if (x2i > maxX) {
 					if (!includePartialTiles)
 						continue;
-					x2i = fullWidth;
+					x2i = maxX;
 				} else if (x2i == xi)
 					continue;
 
