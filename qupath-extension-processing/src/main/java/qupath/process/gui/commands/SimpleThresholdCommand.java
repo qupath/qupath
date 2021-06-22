@@ -64,8 +64,8 @@ import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
-import qupath.process.gui.ml.ClassificationResolution;
-import qupath.process.gui.ml.PixelClassifierUI;
+import qupath.process.gui.commands.ml.ClassificationResolution;
+import qupath.process.gui.commands.ml.PixelClassifierUI;
 
 /**
  * Apply simple thresholding to an image via the pixel classification framework to support 

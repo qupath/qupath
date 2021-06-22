@@ -28,6 +28,7 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -250,20 +251,8 @@ class DefaultProject implements Project<BufferedImage> {
 		return getBaseDirectory().toPath();
 	}
 	
-	private Path getScriptsPath() {
-		return Paths.get(getBasePath().toString(), "scripts");
-	}
-	
 	private Path getClassifiersPath() {
 		return Paths.get(getBasePath().toString(), "classifiers");
-	}
-	
-	private Path getPixelClassifiersPath() {
-		return Paths.get(getClassifiersPath().toString(), "pixel_classifiers");
-	}
-
-	private Path getObjectClassifiersPath() {
-		return Paths.get(getClassifiersPath().toString(), "object_classifiers");
 	}
 	
 	List<String> listFilenames(Path path, String ext) throws IOException {
@@ -419,22 +408,6 @@ class DefaultProject implements Project<BufferedImage> {
 		if (!Files.isDirectory(path))
 			Files.createDirectories(path);
 		return path;
-	}
-	
-	public List<String> listScripts() throws IOException {
-		return listFilenames(getScriptsPath(), EXT_SCRIPT);
-	}
-	
-	public String loadScript(String name) throws IOException {
-		var path = Paths.get(getScriptsPath().toString(), name + EXT_SCRIPT);
-		if (Files.exists(path))
-			return Files.readString(path);
-		throw new IOException("No script found with name '" + name + "'");
-	}
-	
-	public void saveScript(String name, String script) throws IOException {
-		var path = Paths.get(ensureDirectoryExists(getScriptsPath()).toString(), name + EXT_SCRIPT);
-		Files.writeString(path, script);
 	}
 	
 	private AtomicLong counter = new AtomicLong(0L);
@@ -1162,21 +1135,36 @@ class DefaultProject implements Project<BufferedImage> {
 		return version;
 	}
 	
+//	@Override
+//	public Manager<String> getScripts() {
+//		return new ResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
+//	}
+//
+//
+//	@Override
+//	public Manager<ObjectClassifier<BufferedImage>> getObjectClassifiers() {
+//		return new ResourceManager.JsonFileResourceManager(getObjectClassifiersPath(), ObjectClassifier.class);
+//	}
+//
+//
+//	@Override
+//	public Manager<PixelClassifier> getPixelClassifiers() {
+//		return new ResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
+//	}
+		
 	@Override
-	public Manager<String> getScripts() {
-		return new ResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
-	}
-
-
-	@Override
-	public Manager<ObjectClassifier<BufferedImage>> getObjectClassifiers() {
-		return new ResourceManager.JsonFileResourceManager(getObjectClassifiersPath(), ObjectClassifier.class);
-	}
-
-
-	@Override
-	public Manager<PixelClassifier> getPixelClassifiers() {
-		return new ResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
+	public <S, R extends S> Manager<R> getResources(String location, Class<S> cls, String ext) {
+		var path = Paths.get(getBasePath().toString(), location);
+		ext = ext.toLowerCase().strip();
+		if (ext.startsWith("."))
+			ext = ext.substring(1);
+		switch (ext) {
+		case "json":
+			return new ResourceManager.JsonFileResourceManager(path, cls);
+		}
+		if (String.class.equals(cls))
+			return (Manager<R>)new ResourceManager.StringFileResourceManager(path, ext); 
+		return null;
 	}
 
 

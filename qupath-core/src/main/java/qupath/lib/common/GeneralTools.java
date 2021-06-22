@@ -122,6 +122,8 @@ public final class GeneralTools {
 	 * This first checks the implementation version in the package, then looks for a VERSION 
 	 * file stored as a resource.
 	 * 
+	 * @param cls class used to identify the package
+	 * 
 	 * @return the version, if available, or null if no version is known.
 	 */
 	public static String getPackageVersion(Class<?> cls) {

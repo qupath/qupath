@@ -61,6 +61,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener.Change;
@@ -81,9 +82,11 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import qupath.imagej.gui.IJExtension;
+import qupath.imagej.gui.commands.density.DensityMapUI;
 import qupath.imagej.tools.IJTools;
+import qupath.lib.analysis.heatmaps.ColorModels;
+import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
 import qupath.lib.analysis.heatmaps.DensityMaps;
-import qupath.lib.analysis.heatmaps.DensityMaps.ColorModelBuilder;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
 import qupath.lib.color.ColorMaps;
@@ -232,7 +235,8 @@ public class DensityMapCommand implements Runnable {
 			var c = colorModelBuilder.builder.get();
 			if (b == null || c == null)
 				return b;
-			return DensityMaps.builder(b).colorModel(c);
+			var builder2 = DensityMaps.builder(b).colorModel(c);
+			return builder2;
 		}, densityMapBuilder.builder, colorModelBuilder.builder);
 
 		private final ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
@@ -243,6 +247,10 @@ public class DensityMapCommand implements Runnable {
 		private final double hGap = 5;
 		private final double vGap = 5;
 		
+		/**
+		 * Constructor.
+		 * @param qupath
+		 */
 		public DensityMapDialog(QuPathGUI qupath) {
 			this.qupath = qupath;
 			
@@ -272,10 +280,15 @@ public class DensityMapCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Automatically update the density map. "
 					+ "Turn this off if changing parameters and heatmap generation is slow.", btnAutoUpdate, btnAutoUpdate, btnAutoUpdate);
 			
+			
+			var savePane = DensityMapUI.createSaveDensityMapPane(qupath.projectProperty(), combinedBuilder, new SimpleStringProperty());
+			PaneTools.addGridRow(pane, row++, 0, null, savePane, savePane, savePane);
+			PaneTools.setToExpandGridPaneWidth(savePane);
+
 			var buttonPane = buildButtonPane(qupath.imageDataProperty(), combinedBuilder);
 			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
 			PaneTools.setToExpandGridPaneWidth(btnAutoUpdate, buttonPane);
-						
+
 			pane.setPadding(new Insets(10));
 
 			stage = new Stage();
@@ -376,7 +389,7 @@ public class DensityMapCommand implements Runnable {
 					+ "Use this to filter out detections that should not contribute to the density map at all.\n"
 					+ "For example, this can be used to selectively consider tumor cells and ignore everything else.\n"
 					+ "If used in combination with 'Density class' and 'Density type: Objects %', the 'Density class' defines the numerator and the 'Object class' defines the denominator.",
-					new Label("Object class"), comboAllObjects, comboAllObjects);
+					new Label("Main class"), comboAllObjects, comboAllObjects);
 
 			var labelDensities = createTitleLabel("Define density map");
 			PaneTools.addGridRow(pane, row++, 0, null, labelDensities);
@@ -384,7 +397,7 @@ public class DensityMapCommand implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Calculate the density of objects containing a specified classification.\n"
 					+ "If used in combination with 'Object class' and 'Density type: Objects %', the 'Density class' defines the numerator and the 'Object class' defines the denominator.\n"
 					+ "For example, choose 'Object class: Tumor', 'Density class: Positive' and 'Density type: Objects %' to define density as the proportion of tumor cells that are positive.",
-					new Label("Density class"), comboPrimary, comboPrimary);
+					new Label("Secondary class"), comboPrimary, comboPrimary);
 			
 			PaneTools.addGridRow(pane, row++, 0, "Select method of normalizing densities.\n"
 					+ "Choose whether to show raw counts, or normalize densities by area or the number of objects locally.\n"
@@ -929,9 +942,9 @@ public class DensityMapCommand implements Runnable {
 				return;
 			
 			int band = 0;
-			builder.set(DensityMaps.createColorModelBuilder(
-					DensityMaps.createBand(colorMap.get().getName(), band, minDisplay.get(), maxDisplay.get()),
-					DensityMaps.createBand(null, alphaCountBand, minAlpha.get(), maxAlpha.get(), gamma.get()))
+			builder.set(ColorModels.createColorModelBuilder(
+					ColorModels.createBand(colorMap.get().getName(), band, minDisplay.get(), maxDisplay.get()),
+					ColorModels.createBand(null, alphaCountBand, minAlpha.get(), maxAlpha.get(), gamma.get()))
 					);
 		}
 		

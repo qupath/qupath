@@ -65,6 +65,7 @@ import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
+import qupath.lib.analysis.heatmaps.ColorModels;
 import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
@@ -218,6 +219,8 @@ public class QP {
 		var servers = new ImageServers();
 		@SuppressWarnings("unused")
 		var predicates = new PathObjectPredicates();
+		@SuppressWarnings("unused")
+		var colorModels = new ColorModels();
 	}
 
 	

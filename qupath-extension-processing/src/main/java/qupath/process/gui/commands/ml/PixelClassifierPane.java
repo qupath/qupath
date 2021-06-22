@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.ml;
+package qupath.process.gui.commands.ml;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -92,7 +92,6 @@ import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassifierTools;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
@@ -125,7 +124,7 @@ import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.process.gui.ml.PixelClassifierTraining.ClassifierTrainingData;
+import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTrainingData;
 
 /**
  * Main user interface for interactively training a {@link PixelClassifier}.

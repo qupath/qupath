@@ -50,7 +50,7 @@ import qupath.lib.objects.classes.PathClassFactory;
  * @author Pete Bankhead
  */
 public class ObjectClassifiers {
-	
+
 	/**
 	 * {@link TypeAdapterFactory} to help with serializing {@linkplain ObjectClassifier ObjectClassifiers} to and from JSON.
 	 */

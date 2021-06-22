@@ -30,29 +30,25 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.DoubleToIntFunction;
-
 import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
 import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.color.ColorMaps;
-import qupath.lib.color.ColorModelFactory;
-import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
-import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.PathObjects;
@@ -60,6 +56,7 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
+import qupath.lib.projects.Project;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
@@ -84,6 +81,12 @@ public class DensityMaps {
 	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.packRGB(200, 120, 20));
 
 	private static int preferredTileSize = 2048;
+	
+	/**
+	 * Default location to use when storing density maps in a project.
+	 * @see Project#getResources(String, Class, String)
+	 */
+	public static final String PROJECT_LOCATION = "classifiers/density_maps";
 	
 	
 	/**
@@ -331,111 +334,6 @@ public class DensityMaps {
 	}
 	
 	
-	public static interface ColorModelBuilder {
-		
-		public ColorModel build();
-		
-	}
-	
-	public static ColorModelBuilder createColorModelBuilder(DisplayBand mainChannel, DisplayBand alphaChannel) {
-		return new SingleChannelColorModelBuilder(mainChannel, alphaChannel);
-	}
-	
-	public static DisplayBand createBand(String colorMapName, int band, double minDisplay, double maxDisplay) {
-		return createBand(colorMapName, band, minDisplay, maxDisplay, 1);
-	}
-	
-	public static DisplayBand createBand(String colorMapName, int band, double minDisplay, double maxDisplay, double gamma) {
-		return new DisplayBand(colorMapName, null, band, minDisplay, maxDisplay, gamma);
-	}
-	
-	static class DisplayBand {
-		
-		private String colorMapName;
-		private ColorMap colorMap;
-		
-		private int band;
-		private double minDisplay;
-		private double maxDisplay;
-		private double gamma = 1;
-		
-		private DisplayBand(String colorMapName, ColorMap colorMap, int band, double minDisplay, double maxDisplay, double gamma) {
-			this.colorMapName = colorMapName;
-			this.colorMap = colorMap;
-			this.band = band;
-			this.minDisplay = minDisplay;
-			this.maxDisplay = maxDisplay;
-			this.gamma = gamma;
-		}
-		
-		public ColorMap getColorMap() {
-			if (colorMap != null)
-				return colorMap;
-			else if (colorMapName != null)
-				return ColorMaps.getColorMaps().getOrDefault(colorMapName, null);
-			else
-				return null;
-		}
-		
-	}
-	
-	static class SingleChannelColorModelBuilder implements ColorModelBuilder {
-		
-		private DisplayBand band;
-		private DisplayBand alphaBand;
-		
-		private SingleChannelColorModelBuilder(DisplayBand band, DisplayBand alphaBand) {
-			Objects.nonNull(band);
-			this.band = band;
-			this.alphaBand = alphaBand;
-		}
-		
-		@Override
-		public ColorModel build() {
-			var map = band.getColorMap();
-			if (map == null)
-				map = ColorMaps.getDefaultColorMap();
-			if (band.gamma != 1)
-				map = ColorMaps.gammaColorMap(map, band.gamma);
-			
-			int alphaBandInd = -1;
-			double alphaMin = 0;
-			double alphaMax = 1;
-			double alphaGamma = -1;
-			if (alphaBand != null) {
-				alphaBandInd = alphaBand.band;
-				alphaMin = alphaBand.minDisplay;
-				alphaMax = alphaBand.maxDisplay;
-				alphaGamma = alphaBand.gamma;				
-			}
-			return buildColorModel(map, band.band, band.minDisplay, band.maxDisplay, alphaBandInd, alphaMin, alphaMax, alphaGamma);
-		}
-		
-	}
-	
-	
-	
-	private static ColorModel buildColorModel(ColorMap colorMap, int band, double minDisplay, double maxDisplay, int alphaCountBand, double minAlpha, double maxAlpha, double alphaGamma) {
-		DoubleToIntFunction alphaFun = null;
-		if (alphaCountBand < 0) {
-			if (alphaGamma <= 0) {
-				alphaFun = null;
-				alphaCountBand = -1;
-			} else {
-				alphaFun = ColorModelFactory.createGammaFunction(alphaGamma, minAlpha, maxAlpha);
-				alphaCountBand = 0;
-			}
-		} else if (alphaFun == null) {
-			if (alphaGamma < 0)
-				alphaFun = d -> 255;
-			else if (alphaGamma == 0)
-				alphaFun = d -> d > minAlpha ? 255 : 0;
-			else
-				alphaFun = ColorModelFactory.createGammaFunction(alphaGamma, minAlpha, maxAlpha);
-		}
-		return ColorModelFactory.createColorModel(PixelType.FLOAT32, colorMap, band, minDisplay, maxDisplay, alphaCountBand, alphaFun);
-	}
-	
 	
 	private static PixelClassifier createClassifier(ImageData<BufferedImage> imageData, DensityMapParameters params) {
 		
@@ -501,9 +399,10 @@ public class DensityMaps {
 	
 	public static void traceContours(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> server, int channel, Collection<? extends PathObject> parents, double threshold, boolean doSplit, PathClass hotspotClass) {
 		// Get the selected objects
-		boolean changes = false;
 		if (hotspotClass == null)
 			hotspotClass = getHotspotClass(null);
+		
+		List<PathObject> newObjects = new ArrayList<>();
 		for (var parent : parents) {
 			var annotations = new ArrayList<PathObject>();
 			var roiParent = parent.getROI();
@@ -542,14 +441,15 @@ public class DensityMaps {
 			} else
 				annotations.add(PathObjects.createAnnotationObject(roi, hotspotClass));
 			parent.addPathObjects(annotations);
-			changes = true;
+			newObjects.addAll(annotations);
 		}
 		
-		if (changes)
-			hierarchy.fireHierarchyChangedEvent(DensityMaps.class);
-		else
+		if (newObjects.isEmpty())
 			logger.warn("No thresholded hotspots found!");
-		
+		else {
+			hierarchy.fireHierarchyChangedEvent(DensityMaps.class);
+			hierarchy.getSelectionModel().setSelectedObjects(newObjects, newObjects.iterator().next());
+		}		
 	}
 	
 	

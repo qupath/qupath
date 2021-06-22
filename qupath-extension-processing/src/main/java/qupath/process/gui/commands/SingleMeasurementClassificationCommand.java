@@ -74,7 +74,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.process.gui.ml.ProjectClassifierBindings;
+import qupath.process.gui.commands.ml.ProjectClassifierBindings;
 
 /**
  * Command to (sub)classify objects based on a single measurement.

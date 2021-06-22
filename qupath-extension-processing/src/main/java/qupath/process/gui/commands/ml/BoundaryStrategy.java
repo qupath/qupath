@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.ml;
+package qupath.process.gui.commands.ml;
 
 import qupath.lib.common.ColorTools;
 import qupath.lib.objects.classes.PathClass;

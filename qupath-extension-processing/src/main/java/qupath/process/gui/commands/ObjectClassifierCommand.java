@@ -129,7 +129,7 @@ import qupath.opencv.ml.objects.features.FeatureExtractor;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.objects.features.Preprocessing;
 import qupath.opencv.tools.OpenCVTools;
-import qupath.process.gui.ml.ProjectClassifierBindings;
+import qupath.process.gui.commands.ml.ProjectClassifierBindings;
 
 
 /**
