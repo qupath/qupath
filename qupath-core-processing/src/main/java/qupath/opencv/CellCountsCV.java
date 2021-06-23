@@ -229,7 +229,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 				Mat matValid = new Mat();
 				compare(mat, matStain2, matValid, CMP_GE);
 				min(matThresh, matValid, matThresh);
-				matValid.release();
+				matValid.close();
 			}
 			
 			// Do Difference of Gaussians, if required
@@ -267,7 +267,7 @@ public class CellCountsCV extends AbstractTileableDetectionPlugin<BufferedImage>
 			MatVector contours = new MatVector();
 			Mat temp = new Mat();
 			opencv_imgproc.findContours(matMaxima, contours, temp, opencv_imgproc.RETR_EXTERNAL, opencv_imgproc.CHAIN_APPROX_SIMPLE);
-			temp.release();
+			temp.close();
 			ArrayList<qupath.lib.geom.Point2> points = new ArrayList<>();
 
 			Shape shape = pathROI != null && pathROI.isArea() ? RoiTools.getShape(pathROI) : null;

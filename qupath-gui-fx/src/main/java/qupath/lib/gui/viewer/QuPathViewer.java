@@ -3219,7 +3219,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				switch (code) {
 				case LEFT:
 					if (nTimepoints > 1) {
-						setTPosition(Math.max(nTimepoints-1, 0));
+						setTPosition(Math.max(getTPosition()-1, 0));
 						event.consume();
 						return;
 					}
@@ -3233,7 +3233,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					break;
 				case UP:
 					if (nZSlices > 1) {
-						setZPosition(Math.max(0, getZPosition() - 1));	
+						int inc = PathPrefs.invertZSliderProperty().get() ? -1 : 1;
+						setZPosition(GeneralTools.clipValue(getZPosition() + inc, 0, nZSlices));	
 						event.consume();
 						return;
 					}
@@ -3261,7 +3262,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					break;
 				case DOWN:
 					if (nZSlices > 1) {
-						setZPosition(Math.min(nZSlices-1, getZPosition() + 1));						
+						int inc = PathPrefs.invertZSliderProperty().get() ? 1 : -1;
+						setZPosition(GeneralTools.clipValue(getZPosition() + inc, 0, nZSlices));	
 						event.consume();
 						return;
 					}

@@ -1200,7 +1200,7 @@ public class ImageOps {
 				Mat temp = new Mat();
 				opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_DILATE, getKernel());
 				input.put(opencv_core.equals(input, temp));
-				temp.release();
+				temp.close();
 				return input;
 			}
 			
@@ -1232,7 +1232,7 @@ public class ImageOps {
 				Mat temp = new Mat();
 				opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_ERODE, getKernel());
 				input.put(opencv_core.equals(input, temp));
-				temp.release();
+				temp.close();
 				return input;
 			}
 			
@@ -2631,7 +2631,7 @@ public class ImageOps {
 				if (requestProbabilities) {
 					var temp = new Mat();
 					model.predict(input, temp, matResult);
-					temp.release();
+					temp.close();
 				} else
 					model.predict(input, matResult, null);
 				input.put(matResult.reshape(matResult.cols(), h));

@@ -34,6 +34,7 @@ import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.tools.OpenCVTools;
 
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,23 +93,26 @@ class OpenCVPixelClassifier implements PixelClassifier {
     @Override
     public BufferedImage applyClassification(final ImageData<BufferedImage> imageData, final RegionRequest request) throws IOException {
     	
-    	var matResult = getOp().apply(imageData, request);
-    	
-    	var type = getMetadata().getOutputType();
-    	ColorModel colorModelLocal = null;
-    	if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
-    		colorModelLocal = getProbabilityColorModel(matResult.depth() == opencv_core.CV_8U);
-    	} else if (type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
-    		colorModelLocal = getClassificationsColorModel();
+    	try (@SuppressWarnings("unchecked")
+		var scope = new PointerScope()) {
+	    	var matResult = getOp().apply(imageData, request);
+	    	
+	    	var type = getMetadata().getOutputType();
+	    	ColorModel colorModelLocal = null;
+	    	if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
+	    		colorModelLocal = getProbabilityColorModel(matResult.depth() == opencv_core.CV_8U);
+	    	} else if (type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+	    		colorModelLocal = getClassificationsColorModel();
+	    	}
+	
+	        // Create & return BufferedImage
+	        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
+	
+	        // Free matrix
+	        matResult.close();
+	        
+	        return imgResult;
     	}
-
-        // Create & return BufferedImage
-        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
-
-        // Free matrix
-        matResult.release();
-
-        return imgResult;
     }
     
     

@@ -479,9 +479,9 @@ public class LocalNormalization {
 				
 				opencv_core.divide(mat, matSmooth, mat);
 				
-				matSquaredSmooth.release();
+				matSquaredSmooth.close();
 			}
-			matSmooth.release();
+			matSmooth.close();
 		}
 		
 		// Give 32-bit output, unless the input was 64-bit

@@ -1286,7 +1286,7 @@ public class OpenCVTools {
 //		FloatBuffer buffer = mat.createBuffer();
 //		buffer.get(pixels);
 		if (mat2 != mat)
-			mat2.release();
+			mat2.close();
 		return pixels;
 	}
 	
@@ -1327,7 +1327,7 @@ public class OpenCVTools {
 		idx.release();
 		
 		if (mat2 != mat)
-			mat2.release();
+			mat2.close();
 		
 //		assert mat.total() == pixels.length;
 		return pixels;
@@ -1469,7 +1469,7 @@ public class OpenCVTools {
 	    	Mat mat2 = new Mat();
 	        mat.convertTo(mat2, opencv_core.CV_32F);
 	        ImageProcessor ip = matToImageProcessor(mat2);
-	        mat2.release();
+	        mat2.close();
 	        return ip;
 	    }
 	}
