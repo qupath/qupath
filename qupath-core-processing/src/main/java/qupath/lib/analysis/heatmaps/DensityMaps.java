@@ -130,11 +130,11 @@ public class DensityMaps {
 	
 	/**
 	 * Create a new {@link DensityMapBuilder} to create a customized density map.
-	 * @param allObjects predicate to identify which objects will be included in the density map
+	 * @param mainObjectFilter predicate to identify which objects will be included in the density map
 	 * @return the builder
 	 */
-	public static DensityMapBuilder builder(PathObjectPredicate allObjects) {
-		return new DensityMapBuilder(allObjects);
+	public static DensityMapBuilder builder(PathObjectPredicate mainObjectFilter) {
+		return new DensityMapBuilder(mainObjectFilter);
 	}
 	
 	/**
@@ -149,7 +149,8 @@ public class DensityMaps {
 	
 	
 	/**
-	 * Helper class for storing parameters to build a {@link ImageServer} representing a density map.
+	 * Class for storing parameters to build a {@link ImageServer} representing a density map.
+	 * @see DensityMapBuilder
 	 */
 	public static class DensityMapParameters {
 		
@@ -161,8 +162,8 @@ public class DensityMaps {
 		private double radius = 0;
 		private DensityMapType densityType = DensityMapType.SUM;
 
-		private PathObjectPredicate allObjectsFilter;
-		private Map<String, PathObjectPredicate> densityFilters = new LinkedHashMap<>();
+		private PathObjectPredicate mainObjectFilter;
+		private Map<String, PathObjectPredicate> secondaryObjectFilters = new LinkedHashMap<>();
 		
 		private DensityMapParameters() {}
 		
@@ -173,28 +174,48 @@ public class DensityMaps {
 			this.maxWidth = params.maxWidth;
 			this.maxHeight = params.maxHeight;
 			
-			this.allObjectsFilter = params.allObjectsFilter;
-			this.densityFilters = new LinkedHashMap<>(params.densityFilters);
+			this.mainObjectFilter = params.mainObjectFilter;
+			this.secondaryObjectFilters = new LinkedHashMap<>(params.secondaryObjectFilters);
 		}
 		
+		/**
+		 * Get the radius for the density map, in calibrated units.
+		 * @return
+		 */
 		public double getRadius() {
 			return radius;
 		}
 		
+		/**
+		 * Get the requested pixel size for the density map. This may be null if an appropriate resolution can be generated automatically.
+		 * @return
+		 */
 		public PixelCalibration getPixelSize() {
 			return pixelSize;
 		}
 		
+		/**
+		 * Get the normalization type of the density map.
+		 * @return
+		 */
 		public DensityMapType getDensityType() {
 			return densityType;
 		}
 		
-		public PathObjectPredicate getAllObjectsFilter() {
-			return allObjectsFilter;
+		/**
+		 * Get the primary object filter.
+		 * @return
+		 */
+		public PathObjectPredicate getMainObjectFilter() {
+			return mainObjectFilter;
 		}
 		
-		public Map<String, PathObjectPredicate> getDensityFilters() {
-			return Collections.unmodifiableMap(densityFilters);
+		/**
+		 * Get the secondary object filters.
+		 * @return
+		 */
+		public Map<String, PathObjectPredicate> getSecondaryObjectFilters() {
+			return Collections.unmodifiableMap(secondaryObjectFilters);
 		}
 		
 	}
@@ -216,7 +237,7 @@ public class DensityMaps {
 		private DensityMapBuilder(PathObjectPredicate allObjects) {
 			Objects.nonNull(allObjects);
 			params = new DensityMapParameters();
-			params.allObjectsFilter = allObjects;
+			params.mainObjectFilter = allObjects;
 		}
 		
 		/**
@@ -257,7 +278,7 @@ public class DensityMaps {
 		 * @return this builder
 		 */
 		public DensityMapBuilder addDensities(String name, PathObjectPredicate filter) {
-			params.densityFilters.put(name, filter);
+			params.secondaryObjectFilters.put(name, filter);
 			return this;
 		}
 			
@@ -294,7 +315,7 @@ public class DensityMaps {
 		
 		
 		/**
-		 * Build a {@link ImageServer} for a density map using the current parameters and the specified {@link ImageData}.
+		 * Build a {@link PixelClassifier} for a density map using the current parameters and the specified {@link ImageData}.
 		 * @param imageData
 		 * @return the density map
 		 * @see #buildServer(ImageData)
@@ -311,6 +332,9 @@ public class DensityMaps {
 		 * and therefore one should be generated that represents a snapshot in time.
 		 * However, this imposes a limit on the size of density map that can be generated to 
 		 * avoid memory errors.
+		 * <p>
+		 * If greater control is needed over when and how the density map is created, using {@link #buildClassifier(ImageData)} instead.
+		 * 
 		 * @param imageData
 		 * @return
 		 * @see #buildClassifier(ImageData)
@@ -371,8 +395,8 @@ public class DensityMaps {
 					    
 		var dataOp = new DensityMapDataOp(
 		        radiusInt,
-		        params.densityFilters,
-		        params.allObjectsFilter,
+		        params.secondaryObjectFilters,
+		        params.mainObjectFilter,
 		        params.densityType
 		);
 		

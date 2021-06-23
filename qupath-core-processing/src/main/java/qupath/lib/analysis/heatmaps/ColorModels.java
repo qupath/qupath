@@ -21,6 +21,7 @@
 
 package qupath.lib.analysis.heatmaps;
 
+import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.util.Objects;
 import java.util.function.DoubleToIntFunction;
@@ -52,24 +53,56 @@ public class ColorModels {
 	 */
 	public static interface ColorModelBuilder {
 		
+		/**
+		 * Build a {@link ColorModel}.
+		 * @return
+		 */
 		public ColorModel build();
 		
 	}
 	
+	/**
+	 * Create a {@link ColorModelBuilder} with a main channel and an optional alpha channel.
+	 * @param mainChannel the main channel to display (colormap will be used)
+	 * @param alphaChannel an optional alpha channel (colormap will be ignored)
+	 * @return the {@link ColorModelBuilder}
+	 */
 	public static ColorModelBuilder createColorModelBuilder(DisplayBand mainChannel, DisplayBand alphaChannel) {
 		return new SingleChannelColorModelBuilder(mainChannel, alphaChannel);
 	}
 	
+	/**
+	 * Create a {@link DisplayBand} to define the colormap associated with an image band (channel).
+	 * @param colorMapName name of the {@link ColorMap}
+	 * @param band image band (the {@link BufferedImage} term - QuPath often refers to this as a channel)
+	 * @param minDisplay value associated with the first entry in the {@link ColorMap}
+	 * @param maxDisplay value associated with the last entry in the {@link ColorMap}
+	 * @return
+	 * @see {@link #createColorModelBuilder(DisplayBand, DisplayBand)}
+	 * @see ColorMaps#getColorMaps()
+	 */
 	public static DisplayBand createBand(String colorMapName, int band, double minDisplay, double maxDisplay) {
 		return createBand(colorMapName, band, minDisplay, maxDisplay, 1);
 	}
 	
+	/**
+	 * Create a {@link DisplayBand} to define the colormap associated with an image band (channel).
+	 * @param colorMapName name of the {@link ColorMap}
+	 * @param band image band (the {@link BufferedImage} term - QuPath often refers to this as a channel)
+	 * @param minDisplay value associated with the first entry in the {@link ColorMap}
+	 * @param maxDisplay value associated with the last entry in the {@link ColorMap}, used to adjust the value nonlinearly when requesting a color
+	 * @param gamma gamma value associated with the {@link ColorMap}
+	 * @return
+	 * @see {@link #createColorModelBuilder(DisplayBand, DisplayBand)}
+	 * @see ColorMaps#getColorMaps()
+	 */
 	public static DisplayBand createBand(String colorMapName, int band, double minDisplay, double maxDisplay, double gamma) {
 		return new DisplayBand(colorMapName, null, band, minDisplay, maxDisplay, gamma);
 	}
 	
 	/**
 	 * Helper class to the display of a single channel (band) in a {@link ColorModel}.
+	 * This exists to avoid passing a plethora of parameters to {@link ColorModels#createColorModelBuilder(DisplayBand, DisplayBand)}
 	 */
 	public static class DisplayBand {
 		
@@ -90,7 +123,7 @@ public class ColorModels {
 			this.gamma = gamma;
 		}
 		
-		public ColorMap getColorMap() {
+		private ColorMap getColorMap() {
 			if (colorMap != null)
 				return colorMap;
 			else if (colorMapName != null)

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -54,6 +54,7 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.imagej.gui.commands.density.DensityMapUI;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -159,7 +160,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		
 		// Add file chooser
 		var menu = new ContextMenu();
-		var miLoadClassifier = new MenuItem("Add external...");
+		var miLoadClassifier = new MenuItem("Import from files");
 		miLoadClassifier.setOnAction(e -> {
 			List<File> files = Dialogs.promptForMultipleFiles(title, null, resourceType.filePrompt(), "json");
 			if (files == null || files.isEmpty())
@@ -215,6 +216,11 @@ public final class LoadResourceCommand<S> implements Runnable {
 			PaneTools.addGridRow(pane, row++, 0, "Apply pixel classification", tilePane, tilePane, tilePane);
 
 			PaneTools.setToExpandGridPaneWidth(tilePane);
+		} else if (resourceType.getResourceClass().equals(DensityMapBuilder.class)) {
+			@SuppressWarnings("unchecked")
+			var buttonPane = DensityMapUI.createButtonPane(qupath.imageDataProperty(), (ObjectExpression<DensityMapBuilder>)selectedResource);
+			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
+			PaneTools.setToExpandGridPaneWidth(buttonPane);
 		}
 						
 
@@ -423,7 +429,6 @@ public final class LoadResourceCommand<S> implements Runnable {
 
 		@Override
 		public Manager<DensityMapBuilder> getManager(Project<?> project) {
-			// TODO: Find a better location for this
 			return project.getResources(DensityMaps.PROJECT_LOCATION, getResourceClass(), "json");
 		}
 		
