@@ -701,12 +701,12 @@ public class MultiscaleFeatures {
 //			if (hessian != null)
 //				hessian.close();
 
-			kx0.release();
-			kx1.release();
-			kx2.release();
-			ky0.release();
-			ky1.release();
-			ky2.release();
+			kx0.close();
+			kx1.close();
+			kx2.close();
+			ky0.close();
+			ky1.close();
+			ky2.close();
 			
 			return results;
 		}
@@ -1597,7 +1597,7 @@ public class MultiscaleFeatures {
 		var matAbs = opencv_core.abs(mat).asMat();
 		// Get sorted indices
 		opencv_core.sortIdx(matAbs, matAbs, opencv_core.CV_SORT_DESCENDING + opencv_core.CV_SORT_EVERY_ROW);
-		mat.release();
+		mat.close();
 		return matAbs;
 	}
 	

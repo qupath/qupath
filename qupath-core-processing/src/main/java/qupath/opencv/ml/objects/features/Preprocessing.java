@@ -107,7 +107,7 @@ public class Preprocessing {
 		indexer.release();
 
 		if (features != samples)
-			features.release();
+			features.close();
 
 		return Normalizer.createNormalizer(offsets, scales, missingValue);
 	}
@@ -254,11 +254,11 @@ public class Preprocessing {
 
 		@Override
 		public void close() throws Exception {
-			mean.release();
-			eigenvectors.release();
-			eigenvalues.release();
+			mean.close();
+			eigenvectors.close();
+			eigenvalues.close();
 			if (eigenvaluesSqrt != null)
-				eigenvaluesSqrt.release();
+				eigenvaluesSqrt.close();
 		}
 
 	}

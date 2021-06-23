@@ -318,7 +318,7 @@ public class WandToolCV extends BrushTool {
 		
 		// Ensure we have Mats & the correct channel number
 		if (mat != null && (mat.channels() != nChannels || mat.depth() != opencv_core.CV_8U)) {
-			mat.release();
+			mat.close();
 			mat = null;
 		}
 		if (mat == null || mat.empty())

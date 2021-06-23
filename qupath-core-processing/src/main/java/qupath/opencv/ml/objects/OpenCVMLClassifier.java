@@ -253,10 +253,10 @@ public class OpenCVMLClassifier<T> extends AbstractObjectClassifier<T> {
 				predictTime, pathObjects.size(),
 				GeneralTools.formatNumber((double)predictTime/pathObjects.size() * 1000.0, 2));
 
-		samples.release();
-		results.release();
+		samples.close();
+		results.close();
 		if (probabilities != null)
-			probabilities.release();
+			probabilities.close();
 
 		// Apply classifications now
 		reclassifiers.stream().forEach(p -> p.apply());

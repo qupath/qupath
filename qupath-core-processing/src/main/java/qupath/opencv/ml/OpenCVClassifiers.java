@@ -832,7 +832,7 @@ public class OpenCVClassifiers {
 				idxResults.put(i, prediction);
 				row++;
 			}
-			votes.release();
+			votes.close();
 		}
 		
 		
