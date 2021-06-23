@@ -53,7 +53,6 @@ import com.google.gson.Gson;
 import ij.CompositeImage;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.ObjectExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -74,7 +73,6 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.Spinner;
-import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
@@ -515,27 +513,13 @@ public class DensityMapCommand implements Runnable {
 		}
 		
 		Spinner<Double> createSpinner(ObjectProperty<Double> property, double step) {
-			var factory = new SpinnerValueFactory.DoubleSpinnerValueFactory(0, Double.MAX_VALUE, 1, step);
-			factory.amountToStepByProperty().bind(createStepBinding(factory.valueProperty(), 0.1, 1));
-			var spinner = new Spinner<>(factory);
-			property.bindBidirectional(factory.valueProperty());
+			var spinner = GuiTools.createDynamicStepSpinner(0, Double.MAX_VALUE, 1, 0.1);
+			property.bindBidirectional(spinner.getValueFactory().valueProperty());
 			spinner.setEditable(true);
 			spinner.getEditor().setPrefColumnCount(6);
 			GuiTools.restrictTextFieldInputToNumber(spinner.getEditor(), true);
 			return spinner;
 		}
-		
-		
-		static DoubleBinding createStepBinding(ObservableValue<Double> value, double minStep, int scale) {
-			return Bindings.createDoubleBinding(() -> {
-				double val= value.getValue();
-				if (!Double.isFinite(val))
-					return 1.0;
-				val = Math.abs(val);
-				return Math.max(Math.pow(10, Math.floor(Math.log10(val) - scale)), minStep);
-			}, value);
-		}
-		
 		
 		Label createTitleLabel(String text) {
 			var label = new Label(text);

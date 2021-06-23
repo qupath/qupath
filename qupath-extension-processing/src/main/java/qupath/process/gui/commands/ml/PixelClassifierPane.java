@@ -150,8 +150,10 @@ public class PixelClassifierPane {
 	// To display features as overlays across the image
 	private ComboBox<String> comboDisplayFeatures = new ComboBox<>();
 	private Slider sliderFeatureOpacity = new Slider(0.0, 1.0, 1.0);
-	private Spinner<Double> spinFeatureMin = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 0);
-	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
+	private Spinner<Double> spinFeatureMin = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.1);
+	private Spinner<Double> spinFeatureMax = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.1);
+//	private Spinner<Double> spinFeatureMin = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 0);
+//	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
 	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
 
 	/**

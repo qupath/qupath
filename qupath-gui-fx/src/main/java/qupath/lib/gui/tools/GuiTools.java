@@ -44,11 +44,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -67,6 +70,9 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -1222,6 +1228,41 @@ public class GuiTools {
 			}
 		}
 		
+	}
+
+	/**
+	 * Create a new {@link Spinner} for double values with a step size that adapts according to the absolute value of 
+	 * the current spinner value. This is useful for cases where the possible values cover a wide range 
+	 * (e.g. potential brightness/contrast values).
+	 * @param minValue
+	 * @param maxValue
+	 * @param minStepValue
+	 * @return
+	 */
+	public static Spinner<Double> createDynamicStepSpinner(double minValue, double maxValue, double defaultValue, double minStepValue) {
+		var factory = new SpinnerValueFactory.DoubleSpinnerValueFactory(minValue, maxValue, defaultValue);
+		factory.amountToStepByProperty().bind(GuiTools.createStepBinding(factory.valueProperty(), minStepValue, 1));
+		var spinner = new Spinner<>(factory);
+		return spinner;
+	}
+
+	/**
+	 * Create a binding that may be used with a {@link Spinner} to adjust the step size dynamically 
+	 * based upon the absolute value of the input.
+	 * 
+	 * @param value current value for the {@link Spinner}
+	 * @param minStep minimum step size (should be &gt; 0)
+	 * @param scale number of decimal places to shift the step size relative to the log10 of the value (suggested default = 1)
+	 * @return a binding that may be attached to a {@link DoubleSpinnerValueFactory#amountToStepByProperty()}
+	 */
+	public static DoubleBinding createStepBinding(ObservableValue<Double> value, double minStep, int scale) {
+		return Bindings.createDoubleBinding(() -> {
+			double val= value.getValue();
+			if (!Double.isFinite(val))
+				return 1.0;
+			val = Math.abs(val);
+			return Math.max(Math.pow(10, Math.floor(Math.log10(val) - scale)), minStep);
+		}, value);
 	}
 	
 	

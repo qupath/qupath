@@ -46,7 +46,6 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -192,10 +191,7 @@ public class SimpleThresholdCommand implements Runnable {
 	private Spinner<Double> sigmaSpinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(0, 16.0, 0.0, 0.5));
 	private ReadOnlyObjectProperty<Double> sigma = sigmaSpinner.valueProperty();
 
-	private Map<ColorTransform, Double> availableTransforms = new LinkedHashMap<>();
-	
-	private SpinnerValueFactory.DoubleSpinnerValueFactory thresholdValueFactory = new SpinnerValueFactory.DoubleSpinnerValueFactory(-Double.MAX_VALUE, Double.MAX_VALUE, 0.0, 0.5);
-	private Spinner<Double> spinner = new Spinner<>(thresholdValueFactory);
+	private Spinner<Double> spinner = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.05);
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
@@ -299,7 +295,7 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		selectedPrefilter.addListener((v, o, n) -> updateClassification());
 		transforms.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			thresholdValueFactory.setAmountToStepBy(availableTransforms.getOrDefault(n, 0.5));
+//			thresholdValueFactory.setAmountToStepBy(availableTransforms.getOrDefault(n, 0.5));
 			updateClassification();
 		});
 		sigma.addListener((v, o, n) -> updateClassification());
@@ -509,7 +505,7 @@ public class SimpleThresholdCommand implements Runnable {
 			validChannels.put(ColorTransforms.createMaximumChannelTransform(), increment);
 			validChannels.put(ColorTransforms.createMinimumChannelTransform(), increment);
 		}
-		availableTransforms = validChannels;
+//		availableTransforms = validChannels;
 		return validChannels.keySet();
 	}
 	
