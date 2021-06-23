@@ -71,6 +71,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 
 ### Bugs fixed
 * Multithreading issue with creation or removal of objects (https://github.com/qupath/qupath/issues/744)
+* Excessive memory use during pixel classification (https://github.com/qupath/qupath/issues/753)
 * *Detect centroid distances 2D* doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
 * Deleting a TMA grid deletes all objects (https://github.com/qupath/qupath/issues/646)
 * *Subcellular detection (experimental)* does't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)
@@ -84,7 +85,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * *Selection mode* keyboard shortcut did not work; now activate it with `Shift + S` (https://github.com/qupath/qupath/issues/638)
 * Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
 * Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)
-* The requestedPixelSize option for TileExporter calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
+* The requestedPixelSize option for `TileExporter` calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
 * Unable to find slide labels when reading images with Bio-Formats (https://github.com/qupath/qupath/issues/643)
 * The `TileExporter` could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
 * `PathClassifierTools.setIntensityClassification` method now correctly ignores ignored classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
