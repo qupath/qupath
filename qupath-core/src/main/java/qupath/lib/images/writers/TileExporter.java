@@ -56,6 +56,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 
@@ -70,7 +71,7 @@ public class TileExporter  {
 
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
-	private RegionRequest region = null;
+	private ImageRegion region = null;
 	
 	private List<PathObject> parentObjects = null;
 
@@ -82,8 +83,8 @@ public class TileExporter  {
 	private boolean annotatedTilesOnly = false;
 	private boolean annotatedCentroidTilesOnly = false;
 	
-	private int minZ, minT = 0;
-	private int maxZ, maxT = 1;
+	private int minZ = 0, minT = 0;
+	private int maxZ = -1, maxT = -1;
 
 	private String ext = ".tif";
 	private String extLabeled = null;
@@ -250,12 +251,24 @@ public class TileExporter  {
 	 */
 	public TileExporter region(RegionRequest region) {
 		this.region = region;
+		this.downsample = region.getDownsample();
+		return this;
+	}
+
+	/**
+	 * Define the region to be processed. Default is the full image.
+	 * @param region
+	 * @return this exporter
+	 */
+	public TileExporter region(ImageRegion region) {
+		this.region = region;
 		return this;
 	}
 	
 	/**
-	 * Define the range of Z-slices to process. Default is 0 to 1.<p>
-	 * Note: the range is from {@code minZ} (included) to {@code maxZ} (excluded).
+	 * Define the range of Z-slices to process. Default is all Z-slices (0 to nZSlices).<p>
+	 * Note: the range is from {@code minZ} (included) to {@code maxZ} (excluded). -1 can be 
+	 * used for {@code maxZ} to process all Z-slices without having to indicate the exact max number.
 	 * @param minZ the lower value (included)
 	 * @param maxZ the higher value (excluded)
 	 * @return this exporter
@@ -267,8 +280,9 @@ public class TileExporter  {
 	}
 
 	/**
-	 * Define the range of time-points to process. Default is 0 to 1.<p>
-	 * Note: the range is from {@code minT} (included) to {@code maxT} (excluded).
+	 * Define the range of timepoints to process. Default is all timepoints (0 to nTimepoints).<p>
+	 * Note: the range is from {@code minT} (included) to {@code maxT} (excluded). -1 can be 
+	 * used for {@code maxT} to process all timepoints without having to indicate the exact max number.
 	 * @param minT the lower value (included)
 	 * @param maxT the higher value (excluded)
 	 * @return this exporter
@@ -708,16 +722,29 @@ public class TileExporter  {
 			ImageServer<?> server, double downsample, 
 			int tileWidth, int tileHeight, int xOverlap, int yOverlap, boolean includePartialTiles) {
 		List<RegionRequest> requests = new ArrayList<>();
+		
+		if (downsample == 0)
+			throw new IllegalArgumentException("No downsample was specified!");
 
 		if (region == null)
 			region = RegionRequest.createInstance(server, downsample);
+		
+		// Z and T shouldn't be lower than 0
+		minZ = minZ < 0 ? 0 : minZ;
+		minT = minT < 0 ? 0 : minT;
+		
+		// Cap Z and T variables to their maximum possible value if needed
+		maxZ = maxZ > server.nZSlices() || maxZ == -1 ? server.nZSlices() : maxZ;
+		maxT = maxT > server.nTimepoints() || maxT == -1 ? server.nTimepoints() : maxT;
 
+		// Create another region to account for ImageRegion and RegionRequest params simultaneously
+		var region2 = RegionRequest.createInstance(server.getPath(), downsample, region);
 		for (int t = minT; t < maxT; t++) {
-			region = region.updateT(t);
+			region2 = region2.updateT(t);
 			for (int z = minZ; z < maxZ; z++) {
-				region = region.updateZ(z);
+				region2 = region2.updateZ(z);
 				requests.addAll(
-						splitRegionRequests(region, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
+						splitRegionRequests(region2, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
 						);
 			}
 		}
