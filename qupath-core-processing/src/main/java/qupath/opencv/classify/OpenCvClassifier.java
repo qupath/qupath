@@ -270,8 +270,8 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 			classifier.train(matTraining, ROW_SAMPLE, matResponses);			
 		}
 		
-		matTraining.release();
-		matResponses.release();
+		matTraining.close();
+		matResponses.close();
 		
 		logger.info("Classifier trained with " + arrayResponses.length + " samples");
 	}
@@ -341,8 +341,8 @@ public abstract class OpenCvClassifier<T extends StatModel> implements PathObjec
 			counter++;
 		}
 		
-		samples.release();
-		results.release();
+		samples.close();
+		results.close();
 				
 		return counter;
 	}

@@ -235,10 +235,10 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 			}
 
 
-			matOD.release();
-			matDAB.release();
-			matBinaryDAB.release();
-			matBinaryTissue.release();
+			matOD.close();
+			matDAB.close();
+			matBinaryDAB.close();
+			matBinaryTissue.close();
 			
 			lastResultsDescription = String.format("Detected %s", pathObjects.toString());
 
@@ -271,14 +271,14 @@ public class DetectCytokeratinCV extends AbstractDetectionPlugin<BufferedImage> 
 		Mat hierarchy = new Mat();
 		opencv_imgproc.findContours(mat, contours, hierarchy, opencv_imgproc.RETR_TREE, opencv_imgproc.CHAIN_APPROX_SIMPLE);
 		if (contours.empty()) {
-			hierarchy.release();
+			hierarchy.close();
 			return null;
 		}
 
 		Area area = new Area();
 		updateArea(contours, hierarchy, area, 0, 0);
 
-		hierarchy.release();
+		hierarchy.close();
 
 		return area;
 	}
