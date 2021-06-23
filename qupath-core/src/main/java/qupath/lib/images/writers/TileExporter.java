@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -56,6 +56,7 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RoiTools;
 
@@ -70,6 +71,7 @@ public class TileExporter  {
 
 	private ImageData<BufferedImage> imageData;
 	private ImageServer<BufferedImage> server;
+	private ImageRegion region = null;
 	
 	private List<PathObject> parentObjects = null;
 
@@ -80,6 +82,9 @@ public class TileExporter  {
 	private boolean includePartialTiles = false;
 	private boolean annotatedTilesOnly = false;
 	private boolean annotatedCentroidTilesOnly = false;
+	
+	private int minZ = 0, minT = 0;
+	private int maxZ = -1, maxT = -1;
 
 	private String ext = ".tif";
 	private String extLabeled = null;
@@ -238,7 +243,56 @@ public class TileExporter  {
 		this.includePartialTiles = includePartialTiles;
 		return this;
 	}
+	
+	/**
+	 * Define the region to be processed. Default is the full image.
+	 * @param region
+	 * @return this exporter
+	 */
+	public TileExporter region(RegionRequest region) {
+		this.region = region;
+		this.downsample = region.getDownsample();
+		return this;
+	}
 
+	/**
+	 * Define the region to be processed. Default is the full image.
+	 * @param region
+	 * @return this exporter
+	 */
+	public TileExporter region(ImageRegion region) {
+		this.region = region;
+		return this;
+	}
+	
+	/**
+	 * Define the range of Z-slices to process. Default is all Z-slices (0 to nZSlices).<p>
+	 * Note: the range is from {@code minZ} (included) to {@code maxZ} (excluded). -1 can be 
+	 * used for {@code maxZ} to process all Z-slices without having to indicate the exact max number.
+	 * @param minZ the lower value (included)
+	 * @param maxZ the higher value (excluded)
+	 * @return this exporter
+	 */
+	public TileExporter zRange(int minZ, int maxZ) {
+		this.minZ = minZ;
+		this.maxZ = maxZ;
+		return this;
+	}
+
+	/**
+	 * Define the range of timepoints to process. Default is all timepoints (0 to nTimepoints).<p>
+	 * Note: the range is from {@code minT} (included) to {@code maxT} (excluded). -1 can be 
+	 * used for {@code maxT} to process all timepoints without having to indicate the exact max number.
+	 * @param minT the lower value (included)
+	 * @param maxT the higher value (excluded)
+	 * @return this exporter
+	 */
+	public TileExporter tRange(int minT, int maxT) {
+		this.minT = minT;
+		this.maxT = maxT;
+		return this;
+	}
+	
 	/**
 	 * Specify whether tiles that do not overlap with any annotations should be included.
 	 * This is a weaker criterion than {@link #annotatedCentroidTilesOnly(boolean)}.
@@ -636,7 +690,7 @@ public class TileExporter  {
 	private static NumberFormat createDefaultNumberFormat(int maxFractionDigits) {
 		var formatter = NumberFormat.getNumberInstance(Locale.US);
 		formatter.setMinimumFractionDigits(0);
-		formatter.setMaximumFractionDigits(5);
+		formatter.setMaximumFractionDigits(maxFractionDigits);
 		return formatter;
 	}
 	
@@ -664,19 +718,33 @@ public class TileExporter  {
 
 
 
-	static Collection<RegionRequest> getTiledRegionRequests(
+	Collection<RegionRequest> getTiledRegionRequests(
 			ImageServer<?> server, double downsample, 
 			int tileWidth, int tileHeight, int xOverlap, int yOverlap, boolean includePartialTiles) {
 		List<RegionRequest> requests = new ArrayList<>();
+		
+		if (downsample == 0)
+			throw new IllegalArgumentException("No downsample was specified!");
 
-		RegionRequest fullRequest = RegionRequest.createInstance(server, downsample);
+		if (region == null)
+			region = RegionRequest.createInstance(server, downsample);
+		
+		// Z and T shouldn't be lower than 0
+		minZ = minZ < 0 ? 0 : minZ;
+		minT = minT < 0 ? 0 : minT;
+		
+		// Cap Z and T variables to their maximum possible value if needed
+		maxZ = maxZ > server.nZSlices() || maxZ == -1 ? server.nZSlices() : maxZ;
+		maxT = maxT > server.nTimepoints() || maxT == -1 ? server.nTimepoints() : maxT;
 
-		for (int t = 0; t < server.nTimepoints(); t++) {
-			fullRequest = fullRequest.updateT(t);
-			for (int z = 0; z < server.nZSlices(); z++) {
-				fullRequest = fullRequest.updateZ(z);
+		// Create another region to account for ImageRegion and RegionRequest params simultaneously
+		var region2 = RegionRequest.createInstance(server.getPath(), downsample, region);
+		for (int t = minT; t < maxT; t++) {
+			region2 = region2.updateT(t);
+			for (int z = minZ; z < maxZ; z++) {
+				region2 = region2.updateZ(z);
 				requests.addAll(
-						splitRegionRequests(fullRequest, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
+						splitRegionRequests(region2, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
 						);
 			}
 		}
@@ -709,9 +777,6 @@ public class TileExporter  {
 		double downsample = request.getDownsample();
 		String path = request.getPath();
 
-		int fullWidth = request.getWidth();
-		int fullHeight = request.getHeight();
-
 		int minX = (int)(request.getMinX() / downsample);
 		int minY = (int)(request.getMinY() / downsample);
 		int maxX = (int)(request.getMaxX() / downsample);
@@ -728,10 +793,10 @@ public class TileExporter  {
 			int yi = (int)Math.round(y * downsample);
 			int y2i = (int)Math.round((y + tileHeight) * downsample);
 
-			if (y2i > fullHeight) {
+			if (y2i > maxY) {
 				if (!includePartialTiles)
 					continue;
-				y2i = fullHeight;
+				y2i = maxY;
 			} else if (y2i == yi)
 				continue;
 
@@ -743,10 +808,10 @@ public class TileExporter  {
 				int xi = (int)Math.round(x * downsample);
 				int x2i = (int)Math.round((x + tileWidth) * downsample);
 
-				if (x2i > fullWidth) {
+				if (x2i > maxX) {
 					if (!includePartialTiles)
 						continue;
-					x2i = fullWidth;
+					x2i = maxX;
 				} else if (x2i == xi)
 					continue;
 
