@@ -321,7 +321,7 @@ public class WandToolCV extends BrushTool {
 			mat.close();
 			mat = null;
 		}
-		if (mat == null || mat.empty())
+		if (mat == null || mat.isNull() || mat.empty())
 			mat = new Mat(w, w, CV_8UC(nChannels));
 //		if (matMask == null)
 //			matMask = new Mat(w+2, w+2, CV_8U);

@@ -1224,7 +1224,7 @@ public class OpenCVTools {
 		
 		Map<Integer, Mat> cache = doMean ? cachedMeanDisks : cachedSumDisks;
 		Mat kernel = cache.get(radius);
-		if (kernel != null)
+		if (kernel != null && !kernel.isNull())
 			return kernel.clone();
 		kernel = new Mat();
 		
