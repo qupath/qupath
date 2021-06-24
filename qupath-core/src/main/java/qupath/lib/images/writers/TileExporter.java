@@ -439,10 +439,9 @@ public class TileExporter  {
 		Collection<RegionRequest> requests;
 		
 		// Work out which RegionRequests to use
-		if (parentObjects == null) {
-			requests = getTiledRegionRequests(server,
-					downsample, tileWidth, tileHeight, overlapX, overlapY, includePartialTiles);			
-		} else {
+		if (parentObjects == null)
+			requests = getTiledRegionRequests();			
+		else {
 			requests = new ArrayList<>();
 			for (var parent : parentObjects) {
 				if (parent.isRootObject()) {
@@ -718,33 +717,30 @@ public class TileExporter  {
 
 
 
-	Collection<RegionRequest> getTiledRegionRequests(
-			ImageServer<?> server, double downsample, 
-			int tileWidth, int tileHeight, int xOverlap, int yOverlap, boolean includePartialTiles) {
+	Collection<RegionRequest> getTiledRegionRequests() {
 		List<RegionRequest> requests = new ArrayList<>();
 		
 		if (downsample == 0)
 			throw new IllegalArgumentException("No downsample was specified!");
 
-		if (region == null)
-			region = RegionRequest.createInstance(server, downsample);
+		ImageRegion regionLocal = region == null ? RegionRequest.createInstance(server, downsample) : region;
 		
 		// Z and T shouldn't be lower than 0
-		minZ = minZ < 0 ? 0 : minZ;
-		minT = minT < 0 ? 0 : minT;
+		int minZLocal = minZ < 0 ? 0 : minZ;
+		int minTLocal = minT < 0 ? 0 : minT;
 		
 		// Cap Z and T variables to their maximum possible value if needed
-		maxZ = maxZ > server.nZSlices() || maxZ == -1 ? server.nZSlices() : maxZ;
-		maxT = maxT > server.nTimepoints() || maxT == -1 ? server.nTimepoints() : maxT;
+		int maxZLocal = maxZ > server.nZSlices() || maxZ == -1 ? server.nZSlices() : maxZ;
+		int maxTLocal = maxT > server.nTimepoints() || maxT == -1 ? server.nTimepoints() : maxT;
 
 		// Create another region to account for ImageRegion and RegionRequest params simultaneously
-		var region2 = RegionRequest.createInstance(server.getPath(), downsample, region);
-		for (int t = minT; t < maxT; t++) {
-			region2 = region2.updateT(t);
-			for (int z = minZ; z < maxZ; z++) {
-				region2 = region2.updateZ(z);
+		var regionLocal2 = RegionRequest.createInstance(server.getPath(), downsample, regionLocal);
+		for (int t = minTLocal; t < maxTLocal; t++) {
+			regionLocal2 = regionLocal2.updateT(t);
+			for (int z = minZLocal; z < maxZLocal; z++) {
+				regionLocal2 = regionLocal2.updateZ(z);
 				requests.addAll(
-						splitRegionRequests(region2, tileWidth, tileHeight, xOverlap, yOverlap, includePartialTiles)
+						splitRegionRequests(regionLocal2, tileWidth, tileHeight, overlapX, overlapY, includePartialTiles)
 						);
 			}
 		}
@@ -793,10 +789,10 @@ public class TileExporter  {
 			int yi = (int)Math.round(y * downsample);
 			int y2i = (int)Math.round((y + tileHeight) * downsample);
 
-			if (y2i > maxY) {
+			if (y2i > request.getMaxY()) {
 				if (!includePartialTiles)
 					continue;
-				y2i = maxY;
+				y2i = request.getMaxY();
 			} else if (y2i == yi)
 				continue;
 
@@ -808,10 +804,10 @@ public class TileExporter  {
 				int xi = (int)Math.round(x * downsample);
 				int x2i = (int)Math.round((x + tileWidth) * downsample);
 
-				if (x2i > maxX) {
+				if (x2i > request.getMaxX()) {
 					if (!includePartialTiles)
 						continue;
-					x2i = maxX;
+					x2i = request.getMaxX();
 				} else if (x2i == xi)
 					continue;
 
