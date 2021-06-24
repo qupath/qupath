@@ -971,7 +971,7 @@ public class ImageOps {
 			protected abstract int getOp();
 			
 			private Mat getKernel() {
-				if (kernel == null)
+				if (kernel == null || kernel.isNull())
 					kernel = createDefaultKernel(radius);
 				return kernel;
 			}
@@ -1189,7 +1189,7 @@ public class ImageOps {
 			}
 			
 			private Mat getKernel() {
-				if (kernel == null)
+				if (kernel == null || kernel.isNull())
 					kernel = createDefaultKernel(radius);
 				return kernel;
 			}
@@ -1221,7 +1221,7 @@ public class ImageOps {
 			}
 			
 			private Mat getKernel() {
-				if (kernel == null)
+				if (kernel == null || kernel.isNull())
 					kernel = createDefaultKernel(radius);
 				return kernel;
 			}
@@ -1332,7 +1332,7 @@ public class ImageOps {
 			}
 			
 			private Mat getMatInv() {
-				if (matInv == null) {
+				if (matInv == null || matInv.isNull()) {
 					matInv = new Mat(3, 3, opencv_core.CV_64FC1, Scalar.ZERO);
 					var inv = stains.getMatrixInverse();
 					try (DoubleIndexer idx = matInv.createIndexer()) {
