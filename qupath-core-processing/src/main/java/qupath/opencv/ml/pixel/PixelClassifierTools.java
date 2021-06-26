@@ -30,8 +30,11 @@ import qupath.lib.analysis.images.ContourTracing.ChannelThreshold;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ColorTransforms;
+import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
@@ -46,6 +49,9 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ops.ImageDataOp;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -671,6 +677,49 @@ public class PixelClassifierTools {
 	public static void classifyObjectsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
 		classifyObjectsByCentroid(createPixelClassificationServer(imageData, classifier), pathObjects, preferNucleusROI);
 		imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
+	}
+	
+	
+	// TODO: Check if greaterThanEquals
+	public static ImageServer<BufferedImage> threshold(ImageServer<BufferedImage> server, int channel, double threshold, PathClass lessThan, PathClass greaterThan) {
+		return threshold(server, ColorTransforms.createChannelExtractor(channel), threshold, lessThan, greaterThan);
+	}
+	
+	public static ImageServer<BufferedImage> threshold(ImageServer<BufferedImage> server, ColorTransform channel, double threshold, PathClass lessThan, PathClass greaterThan) {
+		return threshold(server, channel, null, null, threshold, lessThan, greaterThan);
+	}
+	
+	public static ImageServer<BufferedImage> threshold(ImageServer<BufferedImage> server, ColorTransform channel, ImageOp preprocessing, PixelCalibration cal, double threshold, PathClass lessThan, PathClass greaterThan) {
+		
+		var dataOp = channel == null ? ImageOps.buildImageDataOp() : ImageOps.buildImageDataOp(channel);
+		if (preprocessing != null)
+			dataOp = dataOp.appendOps(preprocessing);
+		
+		if (cal == null) {
+			cal = server.getPixelCalibration();
+			double scale = server.getDownsampleForResolution(0);
+			if (scale != 1)
+				cal = cal.createScaledInstance(scale, scale);
+		}
+
+		var classifier = threshold(dataOp, cal, threshold, lessThan, greaterThan);
+
+		return createPixelClassificationServer(new ImageData<>(server), classifier);
+	}
+	
+	private static PixelClassifier threshold(ImageDataOp dataOp, PixelCalibration cal, double threshold, PathClass lessThan, PathClass greaterThan) {
+		
+		Map<Integer, PathClass> classifications = new LinkedHashMap<>();
+		classifications.put(0, lessThan);
+		classifications.put(1, greaterThan);
+		
+		var thresholdOp = ImageOps.Threshold.threshold(threshold);
+		var transformer = dataOp.appendOps(thresholdOp);
+		
+		return PixelClassifiers.createClassifier(
+				transformer,
+				cal,
+				classifications);
 	}
 	
 	

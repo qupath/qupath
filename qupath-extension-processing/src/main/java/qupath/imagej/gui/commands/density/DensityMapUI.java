@@ -21,8 +21,11 @@
 
 package qupath.imagej.gui.commands.density;
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.Raster;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -43,20 +46,37 @@ import org.slf4j.LoggerFactory;
 import ij.CompositeImage;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectExpression;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.StringProperty;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Dialog;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.stage.Modality;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.gui.commands.ui.SaveResourcePaneBuilder;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.ActionTools;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
+import qupath.lib.gui.scripting.QPEx;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObjectFilter;
@@ -64,10 +84,13 @@ import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
+import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
+import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
 /**
  * UI elements associated with density maps.
@@ -99,7 +122,7 @@ public class DensityMapUI {
 
 		return new SaveResourcePaneBuilder<>(DensityMapBuilder.class, densityMap)
 				.project(project)
-				.labelText("Density map name")
+				.labelText("Save map")
 				.textFieldPrompt("Enter name")
 				.savedName(savedName)
 				.tooltip(tooltipText)
@@ -360,9 +383,353 @@ public class DensityMapUI {
 
 	static class ContourTracer implements BiConsumer<ImageData<BufferedImage>, DensityMapBuilder> {
 
-		private ParameterList paramsTracing = new ParameterList()
-				.addDoubleParameter("threshold", "Density threshold", 0.5, null, "Define the density threshold to detection regions")
-				.addBooleanParameter("split", "Split regions", false, "Split disconnected regions into separate annotations");
+		
+		private QuPathGUI qupath;
+		
+		private DoubleProperty threshold = new SimpleDoubleProperty(Double.NaN);
+		private DoubleProperty thresholdCounts = new SimpleDoubleProperty(1);
+		
+		private BooleanProperty deleteExisting = new SimpleBooleanProperty(false);
+		private BooleanProperty split = new SimpleBooleanProperty(false);
+		private BooleanProperty select = new SimpleBooleanProperty(true);
+		
+		private int bandThreshold = 0;
+		private int bandCounts = -1;
+		
+		ContourTracer(QuPathGUI qupath) {
+			this.qupath = qupath;
+		}
+		
+		boolean showDialog(ImageServer<BufferedImage> densityServer, ColorModelRenderer renderer) throws IOException {
+					
+			bandThreshold = 0;
+			bandCounts = -1;
+					
+			var channel = densityServer.getChannel(bandThreshold);
+			var aboveThreshold = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
+			
+			var minMaxAll = getMinMax(densityServer);
+			
+			if (renderer != null) {
+				threshold.addListener((v, o, n) -> updateRenderer(renderer, aboveThreshold));
+				thresholdCounts.addListener((v, o, n) -> updateRenderer(renderer, aboveThreshold));
+			}
+			
+			var minMax = minMaxAll.get(bandThreshold);
+			var slider = new Slider(0, (int)Math.ceil(minMax.getMaxValue()), (int)(minMax.getMaxValue()/2.0));
+			slider.setMinorTickCount((int)(slider.getMax() + 1));
+			var tfThreshold = new TextField();
+			tfThreshold.setPrefColumnCount(6);
+			GuiTools.bindSliderAndTextField(slider, tfThreshold, false, 2);
+			double t = threshold.get();
+			if (!Double.isFinite(t) || t > slider.getMax() || t < slider.getMin())
+				threshold.set(slider.getValue());
+			slider.valueProperty().bindBidirectional(threshold);
+			
+			int row = 0;
+			var pane = new GridPane();
+			
+			var labelThreshold = new Label("Density threshold");
+			PaneTools.addGridRow(pane, row++, 0, "Threshold to identify high-density regions.", labelThreshold, slider, tfThreshold);
+
+			boolean includeCounts = densityServer.nChannels() > 1;
+			if (includeCounts) {
+				bandCounts = densityServer.nChannels()-1;
+				var minMaxCounts = minMaxAll.get(bandCounts);
+				int max = (int)Math.ceil(minMaxCounts.getMaxValue());
+				var sliderCounts = new Slider(0, max, (int)(minMaxCounts.getMaxValue()/2.0));
+				sliderCounts.setMinorTickCount(max+1);
+				sliderCounts.setSnapToTicks(true);
+				
+				var tfThresholdCounts = new TextField();
+				tfThresholdCounts.setPrefColumnCount(6);
+				GuiTools.bindSliderAndTextField(sliderCounts, tfThresholdCounts, false, 1);
+				double tc = thresholdCounts.get();
+				if (tc > sliderCounts.getMax())
+					thresholdCounts.set(1);
+				sliderCounts.valueProperty().bindBidirectional(thresholdCounts);				
+				
+				var labelCounts = new Label("Count threshold");
+				PaneTools.addGridRow(pane, row++, 0, "The minimum number of objects required.\n"
+						+ "Used in combination with the density threshold to remove outliers (i.e. high density based on just 1 or 2 objects).", labelCounts, sliderCounts, tfThresholdCounts);
+			}
+			
+			var cbDeleteExisting = new CheckBox("Delete existing annotations");
+			cbDeleteExisting.selectedProperty().bindBidirectional(deleteExisting);
+			PaneTools.addGridRow(pane, row++, 0, null, cbDeleteExisting, cbDeleteExisting, cbDeleteExisting);
+			
+			var cbSplit = new CheckBox("Split new annotations");
+			cbSplit.selectedProperty().bindBidirectional(split);
+			PaneTools.addGridRow(pane, row++, 0, null, cbSplit, cbSplit, cbSplit);
+
+			var cbSelect = new CheckBox("Select new annotations");
+			cbSelect.selectedProperty().bindBidirectional(select);
+			PaneTools.addGridRow(pane, row++, 0, null, cbSelect, cbSelect, cbSelect);
+			
+			PaneTools.setToExpandGridPaneWidth(slider, cbDeleteExisting, cbSplit, cbSelect);
+			
+			var titledPane = new TitledPane("Threshold parameters", pane);
+			titledPane.setExpanded(true);
+			titledPane.setCollapsible(false);
+			PaneTools.simplifyTitledPane(titledPane, true);
+
+			
+			// Opacity slider
+			var paneMain = new BorderPane(titledPane);
+			if (renderer != null) {
+				var paneOverlay = new GridPane();
+
+				int row2 = 0;
+
+				var cbLayer = new CheckBox("Show overlay");
+				cbLayer.selectedProperty().bindBidirectional(qupath.getOverlayOptions().showPixelClassificationProperty());
+				PaneTools.addGridRow(paneOverlay, row2++, 0, null, cbLayer, cbLayer);	
+
+				var cbDetections = new CheckBox("Show detections");
+				cbDetections.selectedProperty().bindBidirectional(qupath.getOverlayOptions().showDetectionsProperty());
+				PaneTools.addGridRow(paneOverlay, row2++, 0, null, cbDetections, cbDetections);	
+
+				var sliderOpacity = new Slider(0.0, 1.0, 0.5);
+				sliderOpacity.valueProperty().bindBidirectional(qupath.getOverlayOptions().opacityProperty());
+				var labelOpacity = new Label("Opacity");
+				PaneTools.addGridRow(paneOverlay, row2++, 0, null, labelOpacity, sliderOpacity);	
+
+				
+				PaneTools.setToExpandGridPaneWidth(paneOverlay, sliderOpacity, cbLayer, cbDetections);
+				paneOverlay.setHgap(5);
+				paneOverlay.setVgap(5);
+				
+				var titledOverlay = new TitledPane("Overlay", paneOverlay);
+				titledOverlay.setExpanded(false);
+				PaneTools.simplifyTitledPane(titledOverlay, true);
+				
+				titledOverlay.heightProperty().addListener((v, o, n) -> titledOverlay.getScene().getWindow().sizeToScene());
+				
+				paneMain.setBottom(titledOverlay);
+//				PaneTools.addGridRow(pane, row++, 0, null, titledOverlay, titledOverlay, titledOverlay);
+			}
+
+			pane.setVgap(5);
+			pane.setHgap(5);
+			
+			
+			if (Dialogs.builder()
+				.modality(Modality.WINDOW_MODAL)
+				.content(paneMain)
+				.title(title)
+				.owner(QPEx.getWindow("Density map"))
+//				.expandableContent(expandable)
+				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+				.build()
+				.showAndWait()
+				.orElse(ButtonType.CANCEL) != ButtonType.APPLY)
+				return false;
+//			if (!Dialogs.showConfirmDialog(title, pane))
+//				return false;
+			
+			return true;
+		}
+		
+		private static Color TRANSPARENT = new Color(0, 0, 0, 0);
+		
+		private void updateRenderer(ColorModelRenderer renderer, PathClass aboveThreshold) {
+			// Create a translucent overlay showing thresholded regions
+			ColorModelThreshold colorModelThreshold;
+			if (bandCounts >= 0) {
+				colorModelThreshold = ColorModelThreshold.create(DataBuffer.TYPE_FLOAT, Map.of(bandThreshold, threshold.get(), bandCounts, thresholdCounts.get()));
+			} else {
+				colorModelThreshold = ColorModelThreshold.create(DataBuffer.TYPE_FLOAT, bandThreshold, threshold.get());
+			}
+			var above = ColorToolsAwt.getCachedColor(aboveThreshold.getColor());
+			var colorModel = new ThresholdColorModel(colorModelThreshold, TRANSPARENT, TRANSPARENT, above);
+			
+			renderer.setColorModel(colorModel);
+			qupath.repaintViewers();
+		}
+		
+		static abstract class ColorModelThreshold {
+			
+			private int transferType;
+						
+			static ColorModelThreshold create(int transferType, int band, double threshold) {
+				return new SingleBandThreshold(transferType, band, threshold);
+			}
+			
+			static ColorModelThreshold create(int transferType, Map<Integer, ? extends Number> thresholds) {
+				if (thresholds.size() == 1) {
+					var entry = thresholds.entrySet().iterator().next();
+					return create(transferType, entry.getKey(), entry.getValue().doubleValue());
+				}
+				return new MultiBandThreshold(transferType, thresholds);
+			}
+			
+			ColorModelThreshold(int transferType) {
+				this.transferType = transferType;
+			}
+			
+			
+			protected int getTransferType() {
+				return transferType;
+			}
+			
+			protected int getBits() {
+				return DataBuffer.getDataTypeSize(transferType);
+			}
+			
+			protected double getValue(Object input, int band) {
+					
+				if (input instanceof float[])
+					return ((float[])input)[band];
+				
+				if (input instanceof double[])
+					return ((double[])input)[band];
+				
+				if (input instanceof int[])
+					return ((int[])input)[band];
+
+				if (input instanceof byte[])
+					return ((byte[])input)[band] & 0xFF;
+
+				if (input instanceof short[]) {
+					int val = ((short[])input)[band];
+					if (transferType == DataBuffer.TYPE_SHORT)
+						return val;
+					return val & 0xFFFF;
+				}
+				
+				return Double.NaN;
+			}
+			
+			protected abstract int threshold(Object input);
+			
+		}
+		
+		static class SingleBandThreshold extends ColorModelThreshold {
+			
+			private int band;
+			private double threshold;
+			
+			SingleBandThreshold(int transferType, int band, double threshold) {
+				super(transferType);
+				this.band = band;
+				this.threshold = threshold;
+			}
+			
+			@Override
+			protected int threshold(Object input) {
+				return Double.compare(getValue(input, band), threshold);
+			}			
+			
+		}
+		
+		static class MultiBandThreshold  extends ColorModelThreshold {
+			
+			private int n;
+			private int[] bands;
+			private double[] thresholds;
+			
+			MultiBandThreshold(int transferType, Map<Integer, ? extends Number> thresholds) {
+				super(transferType);
+				this.n = thresholds.size();
+				this.bands = new int[n];
+				this.thresholds = new double[n];
+				int i = 0;
+				for (var entry : thresholds.entrySet()) {
+					bands[i] = entry.getKey();
+					this.thresholds[i] = entry.getValue().doubleValue();
+					i++;
+				}
+			}
+			
+			@Override
+			protected int threshold(Object input) {
+				int sum = 0;
+				for (int i = 0; i < n; i++) {
+					double val = getValue(input, bands[i]);
+					int cmp = Double.compare(val, thresholds[i]);
+					if (cmp < 0)
+						return -1;
+					sum += cmp;
+				}
+				return sum;
+			}	
+			
+		}
+		
+		
+		static class ThresholdColorModel extends ColorModel {
+
+			private ColorModelThreshold threshold;
+			
+			protected Color above;
+			protected Color equals;
+			protected Color below;
+
+			public ThresholdColorModel(ColorModelThreshold threshold, Color below, Color equals, Color above) {
+				super(threshold.getBits());
+				this.threshold = threshold;
+				this.below = below;
+				this.equals = equals;
+				this.above = above;
+			}
+
+			@Override
+			public int getRed(int pixel) {
+				throw new IllegalArgumentException();
+			}
+
+			@Override
+			public int getGreen(int pixel) {
+				throw new IllegalArgumentException();
+			}
+
+			@Override
+			public int getBlue(int pixel) {
+				throw new IllegalArgumentException();
+			}
+
+			@Override
+			public int getAlpha(int pixel) {
+				throw new IllegalArgumentException();
+			}
+			
+			@Override
+			public int getRed(Object pixel) {
+				return getColor(pixel).getRed();
+			}
+
+			@Override
+			public int getGreen(Object pixel) {
+				return getColor(pixel).getGreen();
+			}
+
+			@Override
+			public int getBlue(Object pixel) {
+				return getColor(pixel).getBlue();
+			}
+
+			@Override
+			public int getAlpha(Object pixel) {
+				return getColor(pixel).getAlpha();
+			}
+			
+			public Color getColor(Object input) {
+				int cmp = threshold.threshold(input);
+				if (cmp > 0)
+					return above;
+				else if (cmp < 0)
+					return below;
+				return equals;
+			}
+			
+			@Override
+			public boolean isCompatibleRaster(Raster raster) {
+				return raster.getTransferType() == threshold.getTransferType();
+			}
+			
+			
+		}
+		
 
 		@Override
 		public void accept(ImageData<BufferedImage> imageData, DensityMapBuilder builder) {
@@ -376,25 +743,90 @@ public class DensityMapUI {
 				Dialogs.showErrorMessage(title, "No density map is available!");
 				return;
 			}
+			
+			var densityServer = builder.buildServer(imageData);
 
-			if (!Dialogs.showParameterDialog("Trace contours from density map", paramsTracing))
+			// TODO: Find a better way to pass the renderer rather than trying to find it later
+			PixelClassificationOverlay overlay = null;
+			if (qupath != null) {
+				var temp = qupath.getViewer().getCustomPixelLayerOverlay();
+				if (temp instanceof PixelClassificationOverlay)
+					overlay = (PixelClassificationOverlay)temp;
+			}
+			ColorModelRenderer renderer = null;
+			if (overlay != null) {
+				var temp = overlay.getRenderer();
+				if (temp instanceof ColorModelRenderer)
+					renderer = (ColorModelRenderer)temp;
+			}
+			ColorModel previousColorModel = renderer == null ? null : renderer.getColorModel();
+			
+
+			try {
+				if (!showDialog(densityServer, renderer))
+					return;
+//				if (!Dialogs.showParameterDialog("Trace contours from density map", paramsTracing))
+//					return;
+			} catch (IOException e) {
+				logger.error(e.getLocalizedMessage(), e);
 				return;
+			} finally {
+				if (previousColorModel != null) {
+					renderer.setColorModel(previousColorModel);
+					qupath.repaintViewers();
+				}
+			}
+			
+			double threshold = this.threshold.get();
+			boolean doDelete = deleteExisting.get();
+			boolean doSplit = split.get();
+			boolean doSelect = select.get();
+			
+////			PixelClassifierUI.promptToCreateObjects(imageData, builder.buildClassifier(imageData), "Density map");
+//
+//			var threshold = paramsTracing.getDoubleParameterValue("threshold");
+//			boolean doDelete = paramsTracing.getBooleanParameterValue("deleteExisting");
+//			boolean doSplit = paramsTracing.getBooleanParameterValue("split");
+//			boolean doSelect = paramsTracing.getBooleanParameterValue("select");
+//			
+			List<CreateObjectOptions> options = new ArrayList<>();
+			if (doDelete)
+				options.add(CreateObjectOptions.DELETE_EXISTING);
+			if (doSplit)
+				options.add(CreateObjectOptions.SPLIT);
+			if (doSelect)
+				options.add(CreateObjectOptions.SELECT_NEW);
 
-			var threshold = paramsTracing.getDoubleParameterValue("threshold");
-			boolean doSplit = paramsTracing.getBooleanParameterValue("split");
-
-			var hierarchy = imageData.getHierarchy();
-			var selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-			if (selected.isEmpty())
-				selected.add(imageData.getHierarchy().getRootObject());
-
-			int channel = 0;
-			var server = builder.buildServer(imageData);
-			PathClass hotspotClass = getHotpotClass(server.getMetadata().getChannels().get(channel).getName());
-			DensityMaps.traceContours(hierarchy, server, channel, selected, threshold, doSplit, hotspotClass);
+			threshold(imageData.getHierarchy(), densityServer, 0, threshold, options.toArray(CreateObjectOptions[]::new));
+			
+//			var hierarchy = imageData.getHierarchy();
+//			var selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+//			if (selected.isEmpty())
+//				selected.add(imageData.getHierarchy().getRootObject());
+//
+//			int channel = 0;
+//			var server = builder.buildServer(imageData);
+//			PathClass hotspotClass = getHotpotClass(server.getMetadata().getChannels().get(channel).getName());
+//			DensityMaps.traceContours(hierarchy, server, channel, selected, threshold, doSplit, hotspotClass);
+			
+//			PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)
 		}
 
 	}
+	
+	
+	static void threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, int channel, double threshold, CreateObjectOptions... options) {
+
+		// Apply threshold to densities
+		PathClass lessThan = null;
+		var densityChannel = densityServer.getChannel(channel);
+		PathClass greaterThan = PathClassFactory.getPathClass(densityChannel.getName(), densityChannel.getColor());
+				
+		var thresholdedServer = PixelClassifierTools.threshold(densityServer, channel, threshold, lessThan, greaterThan);
+		
+		PixelClassifierTools.createAnnotationsFromPixelClassifier(hierarchy, thresholdedServer, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, options);
+	}
+	
 
 	static class DensityMapExporter implements BiConsumer<ImageData<BufferedImage>, DensityMapBuilder> {
 
@@ -492,7 +924,8 @@ public class DensityMapUI {
 				"Find the hotspots in the density map with highest values");
 		var btnHotspots = ActionTools.createButton(actionHotspots, false);
 
-		var actionThreshold = createDensityMapAction("Threshold", imageData, builder, new ContourTracer(),
+		// TODO: Don't provide QuPath in this way...
+		var actionThreshold = createDensityMapAction("Threshold", imageData, builder, new ContourTracer(QuPathGUI.getInstance()),
 				"Threshold to identify high-density regions");
 		var btnThreshold = ActionTools.createButton(actionThreshold, false);
 

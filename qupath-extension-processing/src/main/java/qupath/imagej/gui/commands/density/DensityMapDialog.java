@@ -123,7 +123,7 @@ public class DensityMapDialog {
 	private final ObservableColorModelBuilder colorModelBuilder = new ObservableColorModelBuilder();
 	
 	/**
-	 * DensityMapBuilder that combines the observable builder and colormodels
+	 * DensityMapBuilder that combines the observable builder and colormodel
 	 */
 	private final ObjectExpression<DensityMapBuilder> combinedBuilder = Bindings.createObjectBinding(() -> {
 		var b = densityMapBuilder.getBuilderProperty().get();
@@ -331,6 +331,7 @@ public class DensityMapDialog {
 		toggleAuto.selectedProperty().bindBidirectional(displayParams.autoUpdateDisplayRange);
 		spinnerMin.disableProperty().bind(toggleAuto.selectedProperty());
 		spinnerMax.disableProperty().bind(toggleAuto.selectedProperty());
+		PaneTools.setToExpandGridPaneWidth(spinnerMin, spinnerMax);
 		
 		PaneTools.addGridRow(spinnerGrid, spinnerRow++, 0, null, new Label("Min"), spinnerMin, new Label("Max"), spinnerMax, toggleAuto);
 		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0, 
@@ -356,6 +357,8 @@ public class DensityMapDialog {
 		toggleAutoAlpha.selectedProperty().bindBidirectional(displayParams.autoUpdateAlphaRange);
 		spinnerMinAlpha.disableProperty().bind(toggleAutoAlpha.selectedProperty());
 		spinnerMaxAlpha.disableProperty().bind(toggleAutoAlpha.selectedProperty());
+		PaneTools.setToExpandGridPaneWidth(spinnerMinAlpha, spinnerMaxAlpha);
+//		PaneTools.setToExpandGridPaneWidth(toggleAutoAlpha);
 
 		PaneTools.addGridRow(spinnerGridAlpha, spinnerRow++, 0, null, new Label("Min"), spinnerMinAlpha, new Label("Max"), spinnerMaxAlpha, toggleAutoAlpha);
 		PaneTools.addGridRow(paneDisplay, rowDisplay++, 0,
@@ -587,6 +590,8 @@ public class DensityMapDialog {
 				this.alphaCountBand = alphaCountBand;
 
 				double maxDisplayValue = minMax == null ? maxDisplay.get() : minMax.get(0).getMaxValue();
+				if (maxDisplayValue <= 0)
+					maxDisplayValue = 1;
 				double minDisplayValue = 0;
 				if (autoUpdateDisplayRange.get()) {
 					minDisplay.set(minDisplayValue);
@@ -690,29 +695,48 @@ public class DensityMapDialog {
 			PathObjectPredicate allObjectsFilter = allObjectTypes.get().getPredicate();
 			PathClass primaryClass = allObjectClass.get();
 			allObjectsFilter = updatePredicate(allObjectsFilter, primaryClass);
+			
+			var densityType = this.densityType.get();
+			boolean isPercent = densityType == DensityMapType.PERCENT;
 
 			// Determine density objects filter
 			var densityClass = densityObjectClass.get();
-			PathObjectPredicate densityObjectsFilter = updatePredicate(null, densityClass);
 
 			// Sometimes the density class is null - in which case we can't build
-			if (densityClass == null)
+			if (densityClass == null) {
 				densityClass = DensityMapUI.ANY_CLASS;
+			}
+			
+			// If the density class is 'anything' & we're looking at object percentages
+			// match the density class it to the main class, 
+			// since basically that's what the filter will end up accepting
+			if (densityClass == DensityMapUI.ANY_CLASS && primaryClass != null)
+				densityClass = primaryClass;
+
+			PathObjectPredicate densityObjectsFilter = updatePredicate(null, densityClass);
 
 			// Create map
 			var builder = DensityMaps.builder(allObjectsFilter);
 
-			builder.type(densityType.get());
+			builder.type(densityType);
 
 			if (densityObjectsFilter != null) {
 				String filterName;
 				String densityClassName = densityClass.toString();
 				if (densityClass == DensityMapUI.ANY_POSITIVE_CLASS)
 					densityClassName = "Positive";
-				if (primaryClass == null || primaryClass == PathClassFactory.getPathClassUnclassified())
-					filterName = densityClassName + " %";
+				
+				String primaryClassName = primaryClass == null ? PathClassFactory.getPathClassUnclassified().toString()
+						                                       : primaryClass.toString();
+				
+				if (primaryClass == DensityMapUI.ANY_CLASS)
+					filterName = densityClassName;
+				else if (!isPercent && densityClass == primaryClass)
+					filterName = densityClassName;
 				else
-					filterName = primaryClass.toString() + "+" + densityClassName + " %";
+					filterName = primaryClassName + ": " + densityClassName;
+//				if (isPercent)
+//					filterName += " %";
 				builder.addDensities(filterName, densityObjectsFilter);
 			}
 

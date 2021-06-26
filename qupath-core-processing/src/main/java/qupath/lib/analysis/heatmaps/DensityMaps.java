@@ -187,6 +187,22 @@ public class DensityMaps {
 		}
 		
 		/**
+		 * Get the maximum width of the density map. Ignored if {@link #getPixelSize()} is not null.
+		 * @return
+		 */
+		public int getMaxWidth() {
+			return maxWidth;
+		}
+		
+		/**
+		 * Get the maximum height of the density map. Ignored if {@link #getPixelSize()} is not null.
+		 * @return
+		 */
+		public int getMaxHeight() {
+			return maxHeight;
+		}
+		
+		/**
 		 * Get the requested pixel size for the density map. This may be null if an appropriate resolution can be generated automatically.
 		 * @return
 		 */

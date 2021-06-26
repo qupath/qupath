@@ -51,7 +51,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import javafx.util.Duration;
 import qupath.imagej.gui.commands.ui.SaveResourcePaneBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.gui.commands.Commands;
@@ -285,7 +284,7 @@ public class PixelClassifierUI {
 	 * 						 workflow of the {@link ImageData} for later scripting.
 	 * @return true if changes were made, false otherwise
 	 */
-	private static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
+	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(classifier);
 
@@ -310,7 +309,7 @@ public class PixelClassifierUI {
 				"Annotation", "Detection"
 				);
 		
-		// To avoid confusing the user unnecessary, if we *only* have ignored classes then set default for includeIgnored to true
+		// To avoid confusing the user unnecessarily, if we *only* have ignored classes then set default for includeIgnored to true
 		boolean includeIgnored = false;
 		var labels = classifier.getMetadata().getClassificationLabels();
 		if (!labels.isEmpty() && labels.values().stream().allMatch(p -> p == null || PathClassTools.isIgnoredClass(p)))

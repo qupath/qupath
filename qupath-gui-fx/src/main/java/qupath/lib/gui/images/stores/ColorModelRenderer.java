@@ -64,6 +64,14 @@ public class ColorModelRenderer implements ImageRenderer {
 		this.colorModel = model;
 		this.timestamp = System.currentTimeMillis();
 	}
+	
+	/**
+	 * Get the {@link ColorModel} for this renderer (may be null).
+	 * @return
+	 */
+	public ColorModel getColorModel() {
+		return this.colorModel;
+	}
 
 	@Override
 	public long getLastChangeTimestamp() {
