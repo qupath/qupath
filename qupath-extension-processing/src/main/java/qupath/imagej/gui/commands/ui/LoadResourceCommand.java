@@ -54,7 +54,6 @@ import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.imagej.gui.commands.density.DensityMapUI;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -71,6 +70,7 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ResourceManager.Manager;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
+import qupath.process.gui.commands.density.DensityMapUI;
 import qupath.process.gui.commands.ml.PixelClassifierUI;
 
 /**

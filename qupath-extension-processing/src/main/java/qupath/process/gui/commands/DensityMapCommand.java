@@ -24,8 +24,8 @@ package qupath.process.gui.commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.imagej.gui.commands.density.DensityMapDialog;
 import qupath.lib.gui.QuPathGUI;
+import qupath.process.gui.commands.density.DensityMapDialog;
 
 
 /**

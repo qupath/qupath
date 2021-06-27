@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.imagej.gui.commands.density;
+package qupath.process.gui.commands.density;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;

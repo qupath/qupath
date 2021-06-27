@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.imagej.gui.commands.density;
+package qupath.process.gui.commands.density;
 
 import java.awt.Shape;
 import java.awt.image.BufferedImage;
@@ -68,8 +68,6 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
-import qupath.imagej.gui.commands.density.DensityMapUI.DensityMapObjects;
-import qupath.imagej.gui.commands.density.DensityMapUI.MinMax;
 import qupath.lib.analysis.heatmaps.ColorModels;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
@@ -97,6 +95,8 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyEvent;
 import qupath.lib.objects.hierarchy.events.PathObjectHierarchyListener;
+import qupath.process.gui.commands.density.DensityMapUI.DensityMapObjects;
+import qupath.process.gui.commands.density.DensityMapUI.MinMax;
 
 /**
  * Dialog for interactively generating a custom density map.
