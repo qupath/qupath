@@ -64,6 +64,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
@@ -750,6 +751,10 @@ class DefaultProject implements Project<BufferedImage> {
 			
 			if (imageData == null)
 				imageData = new ImageData<>(server);
+			// Ensure the names match
+			var name = getOriginalImageName();
+			if (name != null)
+				ServerTools.setImageName(server, name);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
 			imageData.setChanged(false);
 			return imageData;

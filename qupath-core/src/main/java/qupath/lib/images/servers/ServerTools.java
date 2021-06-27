@@ -30,6 +30,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import qupath.lib.common.GeneralTools;
@@ -136,6 +137,25 @@ public class ServerTools {
 			return server.getPath();
 		} else
 			return name;
+	}
+	
+	
+	/**
+	 * Set the name property of the metadata for an {@link ImageServer}.
+	 * @param server the server to update
+	 * @param name the new name to use
+	 * @return true if the metadata was updated, false otherwise (i.e. if the name is unchanged)
+	 */
+	public static boolean setImageName(ImageServer<?> server, String name) {
+		Objects.nonNull(server);
+		Objects.nonNull(name);
+		if (name.equals(server.getMetadata().getName()))
+			return false;
+		var metadata2 = new ImageServerMetadata.Builder(server.getMetadata())
+				.name(name)
+				.build();
+		server.setMetadata(metadata2);
+		return true;
 	}
 	
 	
