@@ -26,20 +26,23 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.Raster;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import org.locationtech.jts.geom.Geometry;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
-import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.classifiers.pixel.PixelClassifier;
@@ -49,20 +52,21 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.io.GsonTools;
+import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
-import qupath.lib.objects.PathObjects;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.classes.PathClassTools;
+import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
-import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
-import qupath.lib.roi.GeometryTools;
-import qupath.lib.roi.RoiTools;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ml.pixel.PixelClassifiers;
+import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
 /**
  * Class for constructing and using density maps.
@@ -129,7 +133,7 @@ public class DensityMaps {
 	
 	
 	/**
-	 * Create a new {@link DensityMapBuilder} to create a customized density map.
+	 * Create a new {@link DensityMapBuilder} to generate a customized density map.
 	 * @param mainObjectFilter predicate to identify which objects will be included in the density map
 	 * @return the builder
 	 */
@@ -426,6 +430,79 @@ public class DensityMaps {
 		return PixelClassifiers.createClassifier(dataOp, metadata);
 	}
 	
+	/**
+	 * Load a {@link DensityMapBuilder} from the specified path.
+	 * @param path
+	 * @return
+	 * @throws IOException
+	 */
+	public static DensityMapBuilder loadDensityMap(Path path) throws IOException {
+		try (var reader = Files.newBufferedReader(path)) {
+			return GsonTools.getInstance().fromJson(reader, DensityMapBuilder.class);
+		}
+	}
+	
+	/**
+	 * Threshold a single channel of a density map to generate new annotations.
+	 * 
+	 * @param hierarchy hierarchy to which objects should be added
+	 * @param densityServer density map
+	 * @param channel channel to threshold; this is also used to determine the class name for the created annotations
+	 * @param threshold threshold value
+	 * @param options additional objects when creating the annotations
+	 * @return true if changes were made, false otherwise
+	 */
+	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, int channel, double threshold, CreateObjectOptions... options) {
+		var pathClassName = densityServer.getChannel(channel).getName();
+		return threshold(hierarchy, densityServer, Map.of(channel, threshold), pathClassName, options);
+	}
+	
+	/**
+	 * Threshold one or more channels of a density map to generate new annotations.
+	 * 
+	 * @param hierarchy hierarchy to which objects should be added
+	 * @param densityServer density map
+	 * @param thresholds map between channel numbers and thresholds
+	 * @param pathClassName name of the classification to apply to the generated annotations
+	 * @param options additional options to customize how annotations are created
+	 * @return true if changes were made, false otherwise
+	 */
+	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) {
+
+		// Apply threshold to densities
+		PathClass lessThan = PathClassFactory.getPathClass(StandardPathClasses.IGNORE);
+		PathClass greaterThan = PathClassFactory.getPathClass(pathClassName);
+		
+		// If we request to delete existing objects, apply this only to annotations with the target class
+		var optionsList = Arrays.asList(options);
+		boolean changes = false;
+		if (optionsList.contains(CreateObjectOptions.DELETE_EXISTING)) {
+			Collection<PathObject> toRemove;
+			if (hierarchy.getSelectionModel().noSelection())
+				toRemove = hierarchy.getAnnotationObjects().stream().filter(p -> p.getPathClass() == greaterThan).collect(Collectors.toList());
+			else {
+				toRemove = new HashSet<>();
+				var selectedObjects = new LinkedHashSet<>(hierarchy.getSelectionModel().getSelectedObjects());
+				for (var selected : selectedObjects) {
+					PathObjectTools.getDescendantObjects(selected, toRemove, PathAnnotationObject.class);
+				}
+				// Don't remove selected objects
+				toRemove.removeAll(selectedObjects);
+			}
+			if (!toRemove.isEmpty()) {
+				hierarchy.removeObjects(toRemove, true);
+				changes = true;
+			}
+
+			// Remove option
+			options = optionsList.stream().filter(o -> o != CreateObjectOptions.DELETE_EXISTING).toArray(CreateObjectOptions[]::new);
+		}
+				
+		var thresholdedServer = PixelClassifierTools.createThresholdServer(densityServer, thresholds, lessThan, greaterThan);
+		
+		return PixelClassifierTools.createAnnotationsFromPixelClassifier(hierarchy, thresholdedServer, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, options) | changes;
+	}
+	
 	
 	
 	public static PathClass getHotspotClass(PathClass baseClass) {
@@ -434,62 +511,6 @@ public class DensityMaps {
 			hotspotClass = PathClassTools.mergeClasses(baseClass, hotspotClass);
 		}
 		return hotspotClass;
-	}
-	
-	
-	public static void traceContours(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> server, int channel, Collection<? extends PathObject> parents, double threshold, boolean doSplit, PathClass hotspotClass) {
-		// Get the selected objects
-		if (hotspotClass == null)
-			hotspotClass = getHotspotClass(null);
-		
-		List<PathObject> newObjects = new ArrayList<>();
-		for (var parent : parents) {
-			var annotations = new ArrayList<PathObject>();
-			var roiParent = parent.getROI();
-			
-			var request = roiParent == null ? RegionRequest.createInstance(server) :
-				RegionRequest.createInstance(server.getPath(), server.getDownsampleForResolution(0), roiParent);
-//						boolean doErode = params.getBooleanParameterValue("erode");
-			BufferedImage img;
-			try {
-				img = server.readBufferedImage(request);					
-			} catch (IOException e) {
-				logger.error(e.getLocalizedMessage(), e);
-				continue;
-			}
-			if (img == null)
-				continue;
-			
-			var geometry = ContourTracing.createTracedGeometry(img.getRaster(), threshold, Double.POSITIVE_INFINITY, channel, request);
-			if (geometry == null || geometry.isEmpty()) {
-				continue;
-			}
-			
-			Geometry geomNew = null;
-			if (roiParent == null)
-				geomNew = geometry;
-			else
-				geomNew = GeometryTools.ensurePolygonal(geometry.intersection(roiParent.getGeometry()));
-			if (geomNew.isEmpty())
-				continue;
-			
-			var roi = GeometryTools.geometryToROI(geomNew, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
-				
-			if (doSplit) {
-				for (var r : RoiTools.splitROI(roi))
-					annotations.add(PathObjects.createAnnotationObject(r, hotspotClass));
-			} else
-				annotations.add(PathObjects.createAnnotationObject(roi, hotspotClass));
-			parent.addPathObjects(annotations);
-			newObjects.addAll(annotations);
-		}
-		
-		if (newObjects.isEmpty())
-			logger.warn("No thresholded hotspots found!");
-		else {
-			hierarchy.fireHierarchyChangedEvent(DensityMaps.class);
-			hierarchy.getSelectionModel().setSelectedObjects(newObjects, newObjects.iterator().next());
-		}		
 	}
 	
 	

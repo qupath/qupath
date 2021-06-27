@@ -30,11 +30,8 @@ import qupath.lib.analysis.images.ContourTracing.ChannelThreshold;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ColorTransforms;
-import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
@@ -49,9 +46,7 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ops.ImageDataOp;
-import qupath.opencv.ops.ImageOp;
-import qupath.opencv.ops.ImageOps;
+import qupath.opencv.ml.pixel.PixelClassifiers.ClassifierFunction;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -468,7 +463,52 @@ public class PixelClassifierTools {
 		return server;
 	}
 	
+	/**
+	 * Create a new {@link ImageServer} by applying a threshold to one or more channels of another server.
+	 * This is particularly useful where one channel represents intensities to threshold, and one channel should be used as a mask.
+	 * 
+	 * @param server the server to threshold
+	 * @param thresholds map between channel numbers (zero-based) and thresholds
+	 * @param below the classification for pixels whose values are below the threshold in any channel
+	 * @param aboveEquals the classification for pixels whose values are greater than or equal to the threshold in all channels
+	 * @return the thresholded server
+	 */
+	public static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, Map<Integer, ? extends Number> thresholds, PathClass below, PathClass aboveEquals) {
+		var fun = PixelClassifiers.createThresholdFunction(thresholds);
+		var labels = Map.of(0, below, 1, aboveEquals);
+		return createThresholdServer(server, labels, fun);
+	}
 	
+	
+	/**
+	 * Create a new {@link ImageServer} by applying a threshold to one channel of another server.
+	 * 
+	 * @param server the server to threshold
+	 * @param channel the channel to threshold (zero-based)
+	 * @param threshold the threshold value to apply
+	 * @param below the classification for pixels below the threshold (must not be null)
+	 * @param aboveEquals the classification for pixels greater than or equal to the threshold (must not be null)
+	 * @return the thresholded server
+	 */
+	public static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, int channel, double threshold, PathClass below, PathClass aboveEquals) {
+		var fun = PixelClassifiers.createThresholdFunction(channel, threshold);
+		var labels = Map.of(0, below, 1, aboveEquals);
+		return createThresholdServer(server, labels, fun);
+	}
+
+	
+	private static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, Map<Integer, PathClass> labels, ClassifierFunction fun) {
+		
+		var inputResolution = server.getPixelCalibration();
+		double scale = server.getDownsampleForResolution(0);
+		if (scale > 1)
+			inputResolution = inputResolution.createScaledInstance(scale, scale);
+		
+		var classifier = PixelClassifiers.createThresholdClassifier(inputResolution, labels, fun);
+		return PixelClassifierTools.createPixelClassificationServer(new ImageData<>(server), classifier);
+	}
+
+
 	/**
 	 * Create a {@link PixelClassificationMeasurementManager} that can be used to generate measurements from applying a pixel classifier to an image.
 	 * @param imageData the image to which the classifier should be applied
@@ -679,68 +719,6 @@ public class PixelClassifierTools {
 		imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
 	}
 	
-	
-	// TODO: Check if greaterThanEquals
-	public static ImageServer<BufferedImage> threshold(ImageServer<BufferedImage> server, int channel, double threshold, PathClass lessThan, PathClass greaterThan) {
-		return threshold(server, ColorTransforms.createChannelExtractor(channel), threshold, lessThan, greaterThan);
-	}
-	
-	public static ImageServer<BufferedImage> threshold(ImageServer<BufferedImage> server, ColorTransform channel, double threshold, PathClass lessThan, PathClass greaterThan) {
-		return threshold(server, channel, null, null, threshold, lessThan, greaterThan);
-	}
-	
-	public static ImageServer<BufferedImage> threshold(ImageServer<BufferedImage> server, ColorTransform channel, ImageOp preprocessing, PixelCalibration cal, double threshold, PathClass lessThan, PathClass greaterThan) {
-		
-		var dataOp = channel == null ? ImageOps.buildImageDataOp() : ImageOps.buildImageDataOp(channel);
-		if (preprocessing != null)
-			dataOp = dataOp.appendOps(preprocessing);
-		
-		if (cal == null) {
-			cal = server.getPixelCalibration();
-			double scale = server.getDownsampleForResolution(0);
-			if (scale != 1)
-				cal = cal.createScaledInstance(scale, scale);
-		}
-
-		var classifier = threshold(dataOp, cal, threshold, lessThan, greaterThan);
-
-		return createPixelClassificationServer(new ImageData<>(server), classifier);
-	}
-	
-	private static PixelClassifier threshold(ImageDataOp dataOp, PixelCalibration cal, double threshold, PathClass lessThan, PathClass greaterThan) {
-		
-		Map<Integer, PathClass> classifications = new LinkedHashMap<>();
-		classifications.put(0, lessThan);
-		classifications.put(1, greaterThan);
-		
-		var thresholdOp = ImageOps.Threshold.threshold(threshold);
-		var transformer = dataOp.appendOps(thresholdOp);
-		
-		return PixelClassifiers.createClassifier(
-				transformer,
-				cal,
-				classifications);
-	}
-	
-	
-	
-	
-//	public static void classifyObjectsByAreaOverlap(PixelClassificationImageServer server, Collection<PathObject> pathObjects, double overlapProportion, boolean preferNucleusROI) {
-//		var reclassifiers = pathObjects.parallelStream().map(p -> {
-//				try {
-//					var roi = PathObjectTools.getROI(p, preferNucleusROI);
-//					PixelClassificationMeasurementManager.
-//					int x = (int)roi.getCentroidX();
-//					int y = (int)roi.getCentroidY();
-//					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
-//					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannel(ind).getName()), false);
-//				} catch (Exception e) {
-//					return new Reclassifier(p, null, false);
-//				}
-//			}).collect(Collectors.toList());
-//		reclassifiers.parallelStream().forEach(r -> r.apply());
-//		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
-//	}	
 	
 
 }

@@ -77,7 +77,7 @@ public final class ColorModelFactory {
 	 * @param channels
 	 * @return
 	 */
-    public static ColorModel getIndexedClassificationColorModel(Map<Integer, PathClass> channels) {
+    public static IndexColorModel getIndexedClassificationColorModel(Map<Integer, PathClass> channels) {
     	var stats = channels.keySet().stream().mapToInt(c -> c).summaryStatistics();
     	if (stats.getMin() < 0)
     		throw new IllegalArgumentException("Minimum label must be >= 0");

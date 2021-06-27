@@ -218,7 +218,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 			PaneTools.setToExpandGridPaneWidth(tilePane);
 		} else if (resourceType.getResourceClass().equals(DensityMapBuilder.class)) {
 			@SuppressWarnings("unchecked")
-			var buttonPane = DensityMapUI.createButtonPane(qupath.imageDataProperty(), (ObjectExpression<DensityMapBuilder>)selectedResource);
+			var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), (ObjectExpression<DensityMapBuilder>)selectedResource, classifierName);
 			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
 			PaneTools.setToExpandGridPaneWidth(buttonPane);
 		}

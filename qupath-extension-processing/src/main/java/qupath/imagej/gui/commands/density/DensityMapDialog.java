@@ -167,7 +167,7 @@ public class DensityMapDialog {
 		PaneTools.addGridRow(pane, row++, 0, null, titledPaneDisplay, titledPaneDisplay, titledPaneDisplay);
 
 		
-		var btnAutoUpdate = new ToggleButton("Auto-update");
+		var btnAutoUpdate = new ToggleButton("Live update");
 		btnAutoUpdate.setSelected(densityMapBuilder.autoUpdate.get());
 		btnAutoUpdate.setMaxWidth(Double.MAX_VALUE);
 		btnAutoUpdate.selectedProperty().bindBidirectional(densityMapBuilder.autoUpdate);
@@ -176,11 +176,12 @@ public class DensityMapDialog {
 				+ "Turn this off if changing parameters and heatmap generation is slow.", btnAutoUpdate, btnAutoUpdate, btnAutoUpdate);
 		
 		
-		var savePane = DensityMapUI.createSaveDensityMapPane(qupath.projectProperty(), combinedBuilder, new SimpleStringProperty());
+		var densityMapName = new SimpleStringProperty();
+		var savePane = DensityMapUI.createSaveDensityMapPane(qupath.projectProperty(), combinedBuilder, densityMapName);
 		PaneTools.addGridRow(pane, row++, 0, null, savePane, savePane, savePane);
 		PaneTools.setToExpandGridPaneWidth(savePane);
 
-		var buttonPane = DensityMapUI.createButtonPane(qupath.imageDataProperty(), combinedBuilder);
+		var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), combinedBuilder, densityMapName);
 		PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
 		PaneTools.setToExpandGridPaneWidth(btnAutoUpdate, buttonPane);
 

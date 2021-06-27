@@ -317,6 +317,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		return backgroundColor != null && backgroundColor.getTransparency() != Color.OPAQUE;
 	}
 	
+	@Override
 	protected BufferedImage createDefaultRGBImage(int width, int height) {
 		if (hasAlpha())
 			return new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
