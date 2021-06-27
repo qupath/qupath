@@ -70,6 +70,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.1 (corresponding to TensorFlow v2.4.1)
 
 ### Bugs fixed
+* Sometimes `getSelectedObject()` returns null unexpectedly (https://github.com/qupath/qupath/issues/758)
 * Multithreading issue with creation or removal of objects (https://github.com/qupath/qupath/issues/744)
 * Excessive memory use during pixel classification (https://github.com/qupath/qupath/issues/753)
 * *Detect centroid distances 2D* doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)

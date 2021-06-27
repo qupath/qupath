@@ -32,6 +32,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -44,6 +47,8 @@ import qupath.lib.roi.interfaces.ROI;
  * 
  */
 public class PathObjectSelectionModel {
+	
+	private final static Logger logger = LoggerFactory.getLogger(PathObjectSelectionModel.class);
 	
 	private List<PathObjectSelectionListener> listeners = Collections.synchronizedList(new ArrayList<>());
 	
@@ -58,6 +63,12 @@ public class PathObjectSelectionModel {
 	 * 
 	 * @param pathObjects
 	 * @param primarySelectedObject
+	 * 
+	 * @implNote In v0.3.0 this changes to always set a primary selected object whenever a collection is supplied. 
+	 *           If no primary object is specified, the previous primary object is retained if its selected status is 
+	 *           unchanged, otherwise the first object in the collection is chosen.
+	 *           The reason for this is to avoid confusion whenever scripters sometimes set selected objects, knowing 
+	 *           there to only be one, and then find getSelectedObject() still returns null.
 	 */
 	public synchronized void setSelectedObjects(Collection<? extends PathObject> pathObjects, final PathObject primarySelectedObject) {
 		if (pathObjects == null || pathObjects.isEmpty()) {
@@ -72,11 +83,29 @@ public class PathObjectSelectionModel {
 		PathObject previousSelected = pathObjectSelected;
 		selectedSet.clear();
 		selectedSet.addAll(pathObjects);
-		selectedSet.remove(null); // This shouldn't be needed... and yet it is?
+		
+		// This shouldn't be needed... and yet it is?
+		if (selectedSet.remove(null))
+			logger.warn("setSelectedObjects collection contained null!");
+		
+		if (primarySelectedObject == null) {
+			// If no primary object is provided, try to keep the old one or else take the first in the set
+			if (previousSelected != null && selectedSet.contains(previousSelected))
+				pathObjectSelected = previousSelected;
+			else {
+				for (var temp : pathObjects) {
+					if (temp != null) {
+						pathObjectSelected = temp;
+						break;
+					}
+				}
+			}
+		} else
+			pathObjectSelected = primarySelectedObject;
+			
 //		if (selectedObject == null) {
 //			updateToLastSelectedObject();
 //		} else
-			pathObjectSelected = primarySelectedObject;
 		firePathObjectSelectionChangedEvent(pathObjectSelected, previousSelected);
 	}
 	
@@ -123,6 +152,7 @@ public class PathObjectSelectionModel {
 		}
 		if (pathObject == null)
 			return;
+		logger.trace("Adding object {} to selection", pathObject);
 		PathObject previousSelected = pathObjectSelected;
 		selectedSet.add(pathObject);
 		pathObjectSelected = pathObject;
@@ -192,6 +222,7 @@ public class PathObjectSelectionModel {
 	 * @param pathObject
 	 */
 	public void setSelectedObject(PathObject pathObject) {
+		logger.trace("Setting selected object to {}", pathObject);
 		// Here we fire even when the object is the same... this is because sometimes the object is selected but not
 		// in the hierarchy - and some listeners respond differently depending upon which is the case
 //		if (this.pathObjectSelected == pathObject)
@@ -257,6 +288,7 @@ public class PathObjectSelectionModel {
 	 * @param listener
 	 */
 	public synchronized void addPathObjectSelectionListener(PathObjectSelectionListener listener) {
+		logger.debug("Adding selection listener {}", listener);
 		listeners.add(listener);
 	}
 	
@@ -265,6 +297,7 @@ public class PathObjectSelectionModel {
 	 * @param listener
 	 */
 	public synchronized void removePathObjectSelectionListener(PathObjectSelectionListener listener) {
+		logger.debug("Removing selection listener {}", listener);
 		listeners.remove(listener);
 	}
 	
