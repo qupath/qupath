@@ -78,6 +78,9 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 ### Bugs fixed
 * Multithreading issue with creation or removal of objects (https://github.com/qupath/qupath/issues/744)
 * Excessive memory use during pixel classification (https://github.com/qupath/qupath/issues/753)
+* Measurement export ignores the image name in the project (https://github.com/qupath/qupath/issues/593)
+* Cannot reload a KNN classifier (https://github.com/qupath/qupath/issues/752)
+  * Note! This change means classifiers written with v0.3 cannot be used in v0.2 (but v0.2 classifiers should work in v0.3)
 * *Detect centroid distances 2D* doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
 * Deleting a TMA grid deletes all objects (https://github.com/qupath/qupath/issues/646)
 * *Subcellular detection (experimental)* does't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)

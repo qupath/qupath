@@ -168,7 +168,8 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 		builderMap.clear();
 		
 		// Add the image name
-		builderMap.put("Image", new ImageNameMeasurementBuilder(imageData));
+		if (!PathPrefs.maskImageNamesProperty().get())
+			builderMap.put("Image", new ImageNameMeasurementBuilder(imageData));
 				
 		// Check if we have any annotations / TMA cores
 		boolean containsDetections = false;
@@ -1335,8 +1336,9 @@ public class ObservableMeasurementTableData implements PathTableData<PathObject>
 			if (imageData == null)
 				return null;
 			var hierarchy = imageData.getHierarchy();
-			if (PathObjectTools.hierarchyContainsObject(hierarchy, pathObject))
+			if (PathObjectTools.hierarchyContainsObject(hierarchy, pathObject)) {
 				return imageData.getServer().getMetadata().getName();
+			}
 			return null;
 		}
 		
