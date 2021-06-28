@@ -49,15 +49,16 @@ import javafx.beans.binding.ObjectExpression;
 import javafx.beans.binding.StringExpression;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.event.ActionEvent;
 import javafx.geometry.Side;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
@@ -93,7 +94,6 @@ import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
@@ -317,15 +317,35 @@ public class DensityMapUI {
 	 */
 	public static final PathClass ANY_POSITIVE_CLASS = PathClassFactory.getPathClass(UUID.randomUUID().toString());
 
+	
+	
+	static Action createDensityMapAction(String text, ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<DensityMapBuilder> builder, ObservableStringValue densityMapName,
+			ObservableBooleanValue disableButtons, DensityMapButtonCommand consumer, String tooltip) {
+		var action = new Action(text, e -> consumer.fire(e, imageData.get(), builder.get(), densityMapName.get()));
+		if (tooltip != null)
+			action.setLongText(tooltip);
+		if (disableButtons != null)
+			action.disabledProperty().bind(disableButtons);
+		return action;
+	}
 
-	static abstract class DensityMapButtonCommand {
+	
+	/**
+	 * Abstract base class for an action that operates on a density map.
+	 * Only intended for internal use.
+	 */
+	private static abstract class DensityMapButtonCommand {
 		
 		protected QuPathGUI qupath;
 		protected ObjectExpression<PixelClassificationOverlay> overlay;
 		
+		private BooleanProperty previewThreshold = new SimpleBooleanProperty(true);
+		private ColorModel previousColorModel;
+		
 		public DensityMapButtonCommand(QuPathGUI qupath, ObjectExpression<PixelClassificationOverlay> overlay) {
 			this.qupath = qupath;
 			this.overlay = overlay;
+			previewThreshold.addListener((v, o, n) -> updateRenderer());
 		}
 				
 		protected ColorModelRenderer getRenderer() {
@@ -354,26 +374,212 @@ public class DensityMapUI {
 			return null;
 		}
 		
+		/**
+		 * Custom event handling for the command.
+		 * @param event
+		 * @param imageData
+		 * @param builder
+		 * @param densityMapName
+		 */
 		public abstract void fire(ActionEvent event, ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName);
 		
+		/**
+		 * Save the current colormodel for {@link #getRenderer()}, if available.
+		 */
+		protected void saveColorModel() {
+			var renderer = getRenderer();
+			if (renderer != null)
+				previousColorModel = renderer.getColorModel();
+		}
 		
+		/**
+		 * Restore the last saved colormodel for {@link #getRenderer()}, if available.
+		 */
+		protected void restoreColorModel() {
+			var renderer = getRenderer();
+			if (renderer != null) {
+				renderer.setColorModel(previousColorModel);
+				qupath.repaintViewers();
+			}
+		}
+		
+		protected void updateRenderer() {
+			if (!previewThreshold.get()) {
+				restoreColorModel();
+				return;
+			}
+			var renderer = getRenderer();
+			if (renderer != null)
+				customUpdateRenderer(renderer);
+		}
+		
+		/**
+		 * Provide custom updates to the colormodel.
+		 */
+		protected abstract void customUpdateRenderer(ColorModelRenderer renderer);
+		
+		
+		/**
+		 * Update the renderer to display a threshold.
+		 * @param renderer
+		 * @param aboveThreshold
+		 * @param threshold
+		 */
+		protected void updateRenderer(ColorModelRenderer renderer, PathClass aboveThreshold, ThresholdColorModels.ColorModelThreshold threshold) {
+			var transparent = ColorToolsAwt.getCachedColor(Integer.valueOf(0), true);
+			var above = ColorToolsAwt.getCachedColor(aboveThreshold.getColor());
+			var colorModel = new ThresholdColorModels.ThresholdColorModel(threshold, transparent, transparent, above);
+			
+			renderer.setColorModel(colorModel);
+			qupath.repaintViewers();
+		}
+		
+		
+		/**
+		 * Create a standard pane for adjusting the overlay display.
+		 * @return
+		 */
+		protected TitledPane createOverlayPane() {
+			var paneOverlay = new GridPane();
+
+			int row2 = 0;
+
+			var cbLayer = new CheckBox("Show overlay");
+			cbLayer.selectedProperty().bindBidirectional(qupath.getOverlayOptions().showPixelClassificationProperty());
+			PaneTools.addGridRow(paneOverlay, row2++, 0, "Show or hide the overlay", cbLayer, cbLayer);	
+
+			var cbPreviewThreshold = new CheckBox("Preview threshold");
+			cbPreviewThreshold.selectedProperty().bindBidirectional(previewThreshold);
+			PaneTools.addGridRow(paneOverlay, row2++, 0, "Override the main density map overlay to preview the current thresholds", cbPreviewThreshold, cbPreviewThreshold);	
+
+			var cbDetections = new CheckBox("Show detections");
+			cbDetections.selectedProperty().bindBidirectional(qupath.getOverlayOptions().showDetectionsProperty());
+			PaneTools.addGridRow(paneOverlay, row2++, 0, "Show or hide detections on the image", cbDetections, cbDetections);	
+
+			var sliderOpacity = new Slider(0.0, 1.0, 0.5);
+			sliderOpacity.valueProperty().bindBidirectional(qupath.getOverlayOptions().opacityProperty());
+			var labelOpacity = new Label("Opacity");
+			PaneTools.addGridRow(paneOverlay, row2++, 0, "Control the overlay opacity", labelOpacity, sliderOpacity);	
+
+			
+			PaneTools.setToExpandGridPaneWidth(paneOverlay, sliderOpacity, cbLayer, cbDetections, cbPreviewThreshold);
+			paneOverlay.setHgap(5);
+			paneOverlay.setVgap(5);
+			
+			var titledOverlay = new TitledPane("Overlay", paneOverlay);
+			titledOverlay.setExpanded(false);
+			PaneTools.simplifyTitledPane(titledOverlay, true);
+			
+			titledOverlay.heightProperty().addListener((v, o, n) -> titledOverlay.getScene().getWindow().sizeToScene());
+			return titledOverlay;
+		}
 		
 	}
 
 
+	/**
+	 * Find (circular) hotspots within a density map.
+	 */
 	static class HotspotFinder extends DensityMapButtonCommand {
 		
-		private ParameterList paramsHotspots = new ParameterList()
-				.addIntParameter("nHotspots", "Number of hotspots to find", 1, null, "Specify the number of hotspots to identify; hotspots are peaks in the density map")
-				.addDoubleParameter("minDensity", "Min object count", 1, null, "Specify the minimum density of objects to accept within a hotspot")
-				.addBooleanParameter("allowOverlaps", "Allow overlapping hotspots", false, "Allow hotspots to overlap; if false, peaks are discarded if the hotspot radius overlaps with a 'hotter' hotspot")
-				.addBooleanParameter("deletePrevious", "Delete existing hotspots", true, "Delete existing hotspot annotations with the same classification")
-				;
+		private IntegerProperty nHotspots = new SimpleIntegerProperty(1);
+		private DoubleProperty thresholdCounts = new SimpleDoubleProperty(1);
+		private BooleanProperty deletePrevious = new SimpleBooleanProperty(false);
+		
+		private int band = 0;
+		private int bandCounts = -1;
+		private PathClass aboveThreshold;
 		
 		public HotspotFinder(QuPathGUI qupath, ObjectExpression<PixelClassificationOverlay> overlay) {
 			super(qupath, overlay);
+			thresholdCounts.addListener((v, o, n) -> updateRenderer());
 		}
+		
+		boolean showDialog(ImageServer<BufferedImage> densityServer, ColorModelRenderer renderer, Window owner) throws IOException {
+						
+			int tfWidth = 6;
+			
+			// Slider for the number of hotspots
+			var labelNum = new Label("Num hotspots");
+			var sliderNum = new Slider(1, 10, 1);
+			sliderNum.setMajorTickUnit(1);
+			sliderNum.setMinorTickCount(0);
+			sliderNum.setSnapToTicks(true);
+			sliderNum.valueProperty().bindBidirectional(nHotspots);
+			var tfNum = new TextField();
+			tfNum.setPrefColumnCount(tfWidth);
+			GuiTools.bindSliderAndTextField(sliderNum, tfNum, false, 0);
+			labelNum.setLabelFor(sliderNum);
+			
+			// Slider for the minimum counts
+			var labelCounts = new Label("Min object count");
+			var minMaxAll = getMinMax(densityServer);
+			int max = (int)Math.ceil(minMaxAll.get(bandCounts).maxValue);
+			var sliderCounts = new Slider(0, max, 1);
+			sliderCounts.setMajorTickUnit(10);
+			sliderCounts.setMinorTickCount(9);
+			sliderCounts.setSnapToTicks(true);
+			sliderCounts.valueProperty().bindBidirectional(thresholdCounts);
+			var tfCounts = new TextField();
+			tfCounts.setPrefColumnCount(tfWidth);
+			GuiTools.bindSliderAndTextField(sliderCounts, tfCounts, false, 0);
+			labelCounts.setLabelFor(sliderCounts);
+			
+			// Other options
+			var cbDeletePrevious = new CheckBox("Delete existing hotspots");
+			cbDeletePrevious.selectedProperty().bindBidirectional(deletePrevious);
+			
+			// Create pane
+			var pane = new GridPane();
+			int row = 0;
 
+			PaneTools.addGridRow(pane, row++, 0, "Maximum number of hotspots to create", labelNum, sliderNum, tfNum);
+			
+			PaneTools.addGridRow(pane, row++, 0, "The minimum number of objects required.\n"
+					+ "This can eliminate hotspots based on just 1 or 2 objects.", labelCounts, sliderCounts, tfCounts);
+
+			PaneTools.addGridRow(pane, row++, 0, "Delete existing hotspots similar to those being created.", cbDeletePrevious, cbDeletePrevious, cbDeletePrevious);
+			
+			PaneTools.setToExpandGridPaneWidth(sliderNum, sliderCounts, cbDeletePrevious);
+			
+						
+			var titledPane = new TitledPane("Hotspot parameters", pane);
+			titledPane.setExpanded(true);
+			titledPane.setCollapsible(false);
+			PaneTools.simplifyTitledPane(titledPane, true);
+			
+			// Opacity slider
+			var paneMain = new BorderPane(titledPane);
+			if (renderer != null) {
+				paneMain.setBottom(createOverlayPane());
+				updateRenderer();
+			}
+
+			pane.setVgap(5);
+			pane.setHgap(5);
+			
+			if (Dialogs.builder()
+				.modality(Modality.WINDOW_MODAL)
+				.content(paneMain)
+				.title(title)
+				.owner(owner)
+				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
+				.build()
+				.showAndWait()
+				.orElse(ButtonType.CANCEL) != ButtonType.APPLY)
+				return false;
+						
+			return true;
+		}
+		
+		@Override
+		protected void customUpdateRenderer(ColorModelRenderer renderer) {
+			if (renderer == null || aboveThreshold == null || bandCounts < 0)
+				return;
+			ThresholdColorModels.ColorModelThreshold threshold = ThresholdColorModels.ColorModelThreshold.create(DataBuffer.TYPE_FLOAT, bandCounts, thresholdCounts.get());
+			this.updateRenderer(renderer, aboveThreshold, threshold);
+		}
+				
 		@Override
 		public void fire(ActionEvent event, ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName) {
 
@@ -381,18 +587,33 @@ public class DensityMapUI {
 				Dialogs.showErrorMessage(title, "No density map found!");
 				return;
 			}
+			
+			var densityServer = builder.buildServer(imageData);
 
-			if (!Dialogs.showParameterDialog(title, paramsHotspots))
+			ColorModelRenderer renderer = getRenderer();
+			saveColorModel();
+
+			try {
+				bandCounts = densityServer.nChannels() - 1;
+				var channel = densityServer.getChannel(band);
+				aboveThreshold = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
+				
+				if (!showDialog(densityServer, renderer, getOwner(event)))
+					return;
+			} catch (IOException e) {
+				logger.error(e.getLocalizedMessage(), e);
 				return;
-
+			} finally {
+				restoreColorModel();
+				aboveThreshold = null;
+			}
+			
 			double radius = builder.buildParameters().getRadius();
 
-			int n = paramsHotspots.getIntParameterValue("nHotspots");
-			double minDensity = paramsHotspots.getDoubleParameterValue("minDensity");
-			boolean allowOverlapping = paramsHotspots.getBooleanParameterValue("allowOverlaps");
-			boolean deleteExisting = paramsHotspots.getBooleanParameterValue("deletePrevious");
-
-			int channel = 0; // TODO: Allow changing channel (if multiple channels available)
+			int n = nHotspots.get();
+			double minDensity = thresholdCounts.get();
+			boolean allowOverlapping = false;
+			boolean deleteExisting = deletePrevious.get();
 
 			var hierarchy = imageData.getHierarchy();
 			var selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
@@ -403,7 +624,7 @@ public class DensityMapUI {
 				var server = builder.buildServer(imageData);
 
 				// Remove existing hotspots with the same classification
-				PathClass hotspotClass = getHotpotClass(server.getChannel(channel).getName());
+				PathClass hotspotClass = aboveThreshold;
 				if (deleteExisting) {
 					var hotspotClass2 = hotspotClass;
 					var existing = hierarchy.getAnnotationObjects().stream()
@@ -412,7 +633,7 @@ public class DensityMapUI {
 					hierarchy.removeObjects(existing, true);
 				}
 
-				DensityMaps.findHotspots(hierarchy, server, channel, selected, n, radius, minDensity, allowOverlapping, hotspotClass);
+				DensityMaps.findHotspots(hierarchy, server, band, selected, n, radius, minDensity, allowOverlapping, hotspotClass);
 			} catch (IOException e) {
 				Dialogs.showErrorNotification(title, e);
 			}
@@ -423,18 +644,9 @@ public class DensityMapUI {
 
 
 
-	static Action createDensityMapAction(String text, ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<DensityMapBuilder> builder, ObservableStringValue densityMapName,
-			ObservableBooleanValue disableButtons, DensityMapButtonCommand consumer, String tooltip) {
-		var action = new Action(text, e -> consumer.fire(e, imageData.get(), builder.get(), densityMapName.get()));
-		if (tooltip != null)
-			action.setLongText(tooltip);
-		if (disableButtons != null)
-			action.disabledProperty().bind(disableButtons);
-		return action;
-	}
-
-
-
+	/**
+	 * Threshold a density map to identify high-density regions, optionally eliminating areas containing low object counts.
+	 */
 	static class ContourTracer extends DensityMapButtonCommand {
 
 		private DoubleProperty threshold = new SimpleDoubleProperty(Double.NaN);
@@ -444,23 +656,20 @@ public class DensityMapUI {
 		private BooleanProperty split = new SimpleBooleanProperty(false);
 		private BooleanProperty select = new SimpleBooleanProperty(false);
 		
+		private PathClass aboveThreshold;
 		private int bandThreshold = 0;
 		private int bandCounts = -1;
 		
 		ContourTracer(QuPathGUI qupath, ObjectExpression<PixelClassificationOverlay> overlay) {
 			super(qupath, overlay);
+			threshold.addListener((v, o, n) -> updateRenderer());
+			thresholdCounts.addListener((v, o, n) -> updateRenderer());
 		}
 		
 		boolean showDialog(ImageServer<BufferedImage> densityServer, ColorModelRenderer renderer, Window owner) throws IOException {
 					
-			bandThreshold = 0;
-			bandCounts = -1;
-					
-			var channel = densityServer.getChannel(bandThreshold);
-			var aboveThreshold = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
-			
 			var minMaxAll = getMinMax(densityServer);
-						
+			
 			var minMax = minMaxAll.get(bandThreshold);
 			var slider = new Slider(0, (int)Math.ceil(minMax.getMaxValue()), (int)(minMax.getMaxValue()/2.0));
 			slider.setMinorTickCount((int)(slider.getMax() + 1));
@@ -525,48 +734,13 @@ public class DensityMapUI {
 			// Opacity slider
 			var paneMain = new BorderPane(titledPane);
 			if (renderer != null) {
-				var paneOverlay = new GridPane();
-
-				int row2 = 0;
-
-				var cbLayer = new CheckBox("Show overlay");
-				cbLayer.selectedProperty().bindBidirectional(qupath.getOverlayOptions().showPixelClassificationProperty());
-				PaneTools.addGridRow(paneOverlay, row2++, 0, null, cbLayer, cbLayer);	
-
-				var cbDetections = new CheckBox("Show detections");
-				cbDetections.selectedProperty().bindBidirectional(qupath.getOverlayOptions().showDetectionsProperty());
-				PaneTools.addGridRow(paneOverlay, row2++, 0, null, cbDetections, cbDetections);	
-
-				var sliderOpacity = new Slider(0.0, 1.0, 0.5);
-				sliderOpacity.valueProperty().bindBidirectional(qupath.getOverlayOptions().opacityProperty());
-				var labelOpacity = new Label("Opacity");
-				PaneTools.addGridRow(paneOverlay, row2++, 0, null, labelOpacity, sliderOpacity);	
-
-				
-				PaneTools.setToExpandGridPaneWidth(paneOverlay, sliderOpacity, cbLayer, cbDetections);
-				paneOverlay.setHgap(5);
-				paneOverlay.setVgap(5);
-				
-				var titledOverlay = new TitledPane("Overlay", paneOverlay);
-				titledOverlay.setExpanded(false);
-				PaneTools.simplifyTitledPane(titledOverlay, true);
-				
-				titledOverlay.heightProperty().addListener((v, o, n) -> titledOverlay.getScene().getWindow().sizeToScene());
-				
-				paneMain.setBottom(titledOverlay);
-//				PaneTools.addGridRow(pane, row++, 0, null, titledOverlay, titledOverlay, titledOverlay);
+				paneMain.setBottom(createOverlayPane());
+				updateRenderer();
 			}
 
 			pane.setVgap(5);
 			pane.setHgap(5);
 			
-			if (renderer != null) {
-				threshold.addListener((v, o, n) -> updateRenderer(renderer, aboveThreshold));
-				thresholdCounts.addListener((v, o, n) -> updateRenderer(renderer, aboveThreshold));
-				updateRenderer(renderer, aboveThreshold);
-			}
-
-						
 			if (Dialogs.builder()
 				.modality(Modality.WINDOW_MODAL)
 				.content(paneMain)
@@ -581,7 +755,12 @@ public class DensityMapUI {
 			return true;
 		}
 		
-		private void updateRenderer(ColorModelRenderer renderer, PathClass aboveThreshold) {
+		
+		@Override
+		protected void customUpdateRenderer(ColorModelRenderer renderer) {
+			if (renderer == null || aboveThreshold == null)
+				return;
+			
 			// Create a translucent overlay showing thresholded regions
 			ThresholdColorModels.ColorModelThreshold colorModelThreshold;
 			if (bandCounts >= 0) {
@@ -589,39 +768,38 @@ public class DensityMapUI {
 			} else {
 				colorModelThreshold = ThresholdColorModels.ColorModelThreshold.create(DataBuffer.TYPE_FLOAT, bandThreshold, threshold.get());
 			}
-			DensityMapUI.updateRenderer(qupath, renderer, aboveThreshold, colorModelThreshold);
+			updateRenderer(renderer, aboveThreshold, colorModelThreshold);
 		}
 		
 		
 		@Override
 		public void fire(ActionEvent event, ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName) {
 
-			if (imageData == null) {
+			if (imageData == null || builder == null) {
 				Dialogs.showErrorMessage(title, "No image available!");
-				return;
-			}
-
-			if (builder == null) {
-				Dialogs.showErrorMessage(title, "No density map is available!");
 				return;
 			}
 			
 			var densityServer = builder.buildServer(imageData);
 
 			ColorModelRenderer renderer = getRenderer();
-			ColorModel previousColorModel = renderer == null ? null : renderer.getColorModel();
+			saveColorModel();
 
 			try {
+				bandThreshold = 0;
+				bandCounts = -1;
+						
+				var channel = densityServer.getChannel(bandThreshold);
+				aboveThreshold = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
+
 				if (!showDialog(densityServer, renderer, getOwner(event)))
 					return;
 			} catch (IOException e) {
 				logger.error(e.getLocalizedMessage(), e);
 				return;
 			} finally {
-				if (renderer != null) {
-					renderer.setColorModel(previousColorModel);
-					qupath.repaintViewers();
-				}
+				restoreColorModel();
+				aboveThreshold = null;
 			}
 			
 			double countThreshold = this.thresholdCounts.get();
@@ -671,24 +849,10 @@ public class DensityMapUI {
 
 	}
 	
+	
 	/**
-	 * Update the renderer to display a threshold.
-	 * @param qupath
-	 * @param renderer
-	 * @param aboveThreshold
-	 * @param threshold
+	 * Export the raw values or rendered image of a density map.
 	 */
-	private static void updateRenderer(QuPathGUI qupath, ColorModelRenderer renderer, PathClass aboveThreshold, ThresholdColorModels.ColorModelThreshold threshold) {
-		var transparent = ColorToolsAwt.getCachedColor(Integer.valueOf(0), true);
-		var above = ColorToolsAwt.getCachedColor(aboveThreshold.getColor());
-		var colorModel = new ThresholdColorModels.ThresholdColorModel(threshold, transparent, transparent, above);
-		
-		renderer.setColorModel(colorModel);
-		qupath.repaintViewers();
-	}
-	
-	
-
 	static class DensityMapExporter extends DensityMapButtonCommand {
 
 		public DensityMapExporter(QuPathGUI qupath, ObjectExpression<PixelClassificationOverlay> overlay) {
@@ -726,6 +890,11 @@ public class DensityMapUI {
 			} catch (IOException e) {
 				Dialogs.showErrorNotification(title, e);
 			}
+		}
+		
+		@Override
+		protected void customUpdateRenderer(ColorModelRenderer renderer) {
+			// Does nothing
 		}
 
 		private void promptToSaveRawImage(ImageData<BufferedImage> imageData, ImageServer<BufferedImage> densityMap, String densityMapName) throws IOException {
@@ -850,7 +1019,11 @@ public class DensityMapUI {
 	}
 	
 
-	// TODO: Generalize these classes for use elsewhere and move to ColorModels or ColorModelFactory
+	/**
+	 * Color models to quickly display the result of thresholding.
+	 * 
+	 * TODO: Generalize these classes for use elsewhere and move to ColorModels or ColorModelFactory if they prove useful.
+	 */
 	static class ThresholdColorModels {
 	
 		static abstract class ColorModelThreshold {
