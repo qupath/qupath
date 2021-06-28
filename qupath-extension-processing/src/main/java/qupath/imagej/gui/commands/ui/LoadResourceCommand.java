@@ -61,6 +61,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.lib.gui.images.stores.ColorModelRenderer;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
@@ -124,7 +125,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 		String title = resourceType.getDialogTitle();
 
 		var cachedServers = new WeakHashMap<ImageData<BufferedImage>, ImageServer<BufferedImage>>();
-		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), cachedServers, null);
+		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), cachedServers, new ColorModelRenderer(null));
 		for (var viewer : qupath.getViewers())
 			viewer.setCustomPixelLayerOverlay(overlay);
 		
@@ -218,7 +219,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 			PaneTools.setToExpandGridPaneWidth(tilePane);
 		} else if (resourceType.getResourceClass().equals(DensityMapBuilder.class)) {
 			@SuppressWarnings("unchecked")
-			var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), (ObjectExpression<DensityMapBuilder>)selectedResource, classifierName);
+			var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), (ObjectExpression<DensityMapBuilder>)selectedResource, classifierName, Bindings.createObjectBinding(() -> overlay), false);
 			PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
 			PaneTools.setToExpandGridPaneWidth(buttonPane);
 		}

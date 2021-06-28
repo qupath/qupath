@@ -181,7 +181,7 @@ public class DensityMapDialog {
 		PaneTools.addGridRow(pane, row++, 0, null, savePane, savePane, savePane);
 		PaneTools.setToExpandGridPaneWidth(savePane);
 
-		var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), combinedBuilder, densityMapName);
+		var buttonPane = DensityMapUI.createButtonPane(qupath, qupath.imageDataProperty(), combinedBuilder, densityMapName, Bindings.createObjectBinding(() -> manager == null ? null : manager.overlay), true);
 		PaneTools.addGridRow(pane, row++, 0, null, buttonPane, buttonPane, buttonPane);
 		PaneTools.setToExpandGridPaneWidth(btnAutoUpdate, buttonPane);
 
@@ -715,6 +715,12 @@ public class DensityMapDialog {
 				densityClass = primaryClass;
 
 			PathObjectPredicate densityObjectsFilter = updatePredicate(null, densityClass);
+			
+			// There is an awkward corner case where both classes are 'Any' and the density type is %
+			// For this, we need to make sure we still retain a count channel
+			boolean bothAnyObject = isPercent && densityClass == DensityMapUI.ANY_CLASS && primaryClass == DensityMapUI.ANY_CLASS;
+			if (densityObjectsFilter == null && bothAnyObject)
+				densityObjectsFilter = allObjectsFilter;
 
 			// Create map
 			var builder = DensityMaps.builder(allObjectsFilter);
@@ -726,6 +732,8 @@ public class DensityMapDialog {
 				String densityClassName = densityClass.toString();
 				if (densityClass == DensityMapUI.ANY_POSITIVE_CLASS)
 					densityClassName = "Positive";
+				else if (bothAnyObject)
+					densityClassName = "Density";
 				
 				String primaryClassName = primaryClass == null ? PathClassFactory.getPathClassUnclassified().toString()
 						                                       : primaryClass.toString();

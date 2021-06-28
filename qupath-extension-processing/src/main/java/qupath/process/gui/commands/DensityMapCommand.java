@@ -37,8 +37,6 @@ public class DensityMapCommand implements Runnable {
 	
 	private final static Logger logger = LoggerFactory.getLogger(DensityMapCommand.class);
 	
-	private final static String title = "Density map";
-	
 	private QuPathGUI qupath;
 	private DensityMapDialog dialog;
 	
@@ -54,6 +52,7 @@ public class DensityMapCommand implements Runnable {
 	public void run() {
 		
 		if (dialog == null) {
+			logger.trace("Creating density map dialog");
 			dialog = new DensityMapDialog(qupath);
 			if (qupath.getImageData() != null)
 				dialog.updateDefaults(qupath.getImageData());

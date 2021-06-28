@@ -51,6 +51,7 @@ import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.io.GsonTools;
 import qupath.lib.objects.PathAnnotationObject;
@@ -70,6 +71,12 @@ import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
 /**
  * Class for constructing and using density maps.
+ * <p>
+ * A density map is an {@link ImageServer} with the channel type {@link ChannelType#DENSITY}.
+ * The pixel values relate to the density of objects of some kind, based upon applying one or more predicates.
+ * <p>
+ * Currently, only 2D density maps are supported.
+ * There are several supported density map types, defined with {@link DensityMapType}.
  * 
  * @author Pete Bankhead
  */
@@ -111,7 +118,12 @@ public class DensityMaps {
 		GAUSSIAN,
 		
 		/**
-		 * Object normalization; maps provide local proportions of objects (e.g. may be used to get a Positive %)
+		 * Maps contain at least two channels. The last channel contains the total count of objects within 
+		 * the density region.
+		 * All other channels contain the proportion of objects meeting specific criteria, expressed as a 
+		 * percentage of the corresponding total object count.
+		 * <p>
+		 * This is useful, for example, to identify the Positive % cells.
 		 */
 		PERCENT;
 		

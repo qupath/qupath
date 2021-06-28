@@ -54,7 +54,10 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableStringValue;
+import javafx.event.ActionEvent;
 import javafx.geometry.Side;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
@@ -68,6 +71,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
+import javafx.stage.Window;
 import qupath.imagej.gui.IJExtension;
 import qupath.imagej.gui.commands.ui.SaveResourcePaneBuilder;
 import qupath.imagej.tools.IJTools;
@@ -79,7 +83,6 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
-import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
@@ -315,24 +318,64 @@ public class DensityMapUI {
 	public static final PathClass ANY_POSITIVE_CLASS = PathClassFactory.getPathClass(UUID.randomUUID().toString());
 
 
-	static interface DensityMapButtonCommand {
+	static abstract class DensityMapButtonCommand {
 		
-		public void accept(ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName);
+		protected QuPathGUI qupath;
+		protected ObjectExpression<PixelClassificationOverlay> overlay;
+		
+		public DensityMapButtonCommand(QuPathGUI qupath, ObjectExpression<PixelClassificationOverlay> overlay) {
+			this.qupath = qupath;
+			this.overlay = overlay;
+		}
+				
+		protected ColorModelRenderer getRenderer() {
+			var o = overlay == null ? null : overlay.get();
+			if (o == null)
+				return null;
+			var renderer = o == null ? null : o.getRenderer();
+			if (renderer == null && !o.rendererProperty().isBound()) {
+				renderer = new ColorModelRenderer(null);
+				o.setRenderer(renderer);
+			}
+			return renderer instanceof ColorModelRenderer ? (ColorModelRenderer)renderer : null;
+		}
+		
+		/**
+		 * Attempt to get the owner window for the button firing the event.
+		 * @param event
+		 * @return
+		 */
+		protected Window getOwner(ActionEvent event) {
+			var source = event.getSource();
+			if (source instanceof Node) {
+				var scene = ((Node)source).getScene();
+				return scene == null ? null : scene.getWindow();
+			}
+			return null;
+		}
+		
+		public abstract void fire(ActionEvent event, ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName);
+		
+		
 		
 	}
 
 
-	static class HotspotFinder implements DensityMapButtonCommand {
-
+	static class HotspotFinder extends DensityMapButtonCommand {
+		
 		private ParameterList paramsHotspots = new ParameterList()
 				.addIntParameter("nHotspots", "Number of hotspots to find", 1, null, "Specify the number of hotspots to identify; hotspots are peaks in the density map")
 				.addDoubleParameter("minDensity", "Min object count", 1, null, "Specify the minimum density of objects to accept within a hotspot")
 				.addBooleanParameter("allowOverlaps", "Allow overlapping hotspots", false, "Allow hotspots to overlap; if false, peaks are discarded if the hotspot radius overlaps with a 'hotter' hotspot")
 				.addBooleanParameter("deletePrevious", "Delete existing hotspots", true, "Delete existing hotspot annotations with the same classification")
 				;
+		
+		public HotspotFinder(QuPathGUI qupath, ObjectExpression<PixelClassificationOverlay> overlay) {
+			super(qupath, overlay);
+		}
 
 		@Override
-		public void accept(ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName) {
+		public void fire(ActionEvent event, ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName) {
 
 			if (imageData == null || builder == null) {
 				Dialogs.showErrorMessage(title, "No density map found!");
@@ -382,7 +425,7 @@ public class DensityMapUI {
 
 	static Action createDensityMapAction(String text, ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<DensityMapBuilder> builder, ObservableStringValue densityMapName,
 			ObservableBooleanValue disableButtons, DensityMapButtonCommand consumer, String tooltip) {
-		var action = new Action(text, e -> consumer.accept(imageData.get(), builder.get(), densityMapName.get()));
+		var action = new Action(text, e -> consumer.fire(e, imageData.get(), builder.get(), densityMapName.get()));
 		if (tooltip != null)
 			action.setLongText(tooltip);
 		if (disableButtons != null)
@@ -392,11 +435,8 @@ public class DensityMapUI {
 
 
 
-	static class ContourTracer implements DensityMapButtonCommand {
+	static class ContourTracer extends DensityMapButtonCommand {
 
-		
-		private QuPathGUI qupath;
-		
 		private DoubleProperty threshold = new SimpleDoubleProperty(Double.NaN);
 		private DoubleProperty thresholdCounts = new SimpleDoubleProperty(1);
 		
@@ -407,11 +447,11 @@ public class DensityMapUI {
 		private int bandThreshold = 0;
 		private int bandCounts = -1;
 		
-		ContourTracer(QuPathGUI qupath) {
-			this.qupath = qupath;
+		ContourTracer(QuPathGUI qupath, ObjectExpression<PixelClassificationOverlay> overlay) {
+			super(qupath, overlay);
 		}
 		
-		boolean showDialog(ImageServer<BufferedImage> densityServer, ColorModelRenderer renderer) throws IOException {
+		boolean showDialog(ImageServer<BufferedImage> densityServer, ColorModelRenderer renderer, Window owner) throws IOException {
 					
 			bandThreshold = 0;
 			bandCounts = -1;
@@ -420,12 +460,7 @@ public class DensityMapUI {
 			var aboveThreshold = PathClassFactory.getPathClass(channel.getName(), channel.getColor());
 			
 			var minMaxAll = getMinMax(densityServer);
-			
-			if (renderer != null) {
-				threshold.addListener((v, o, n) -> updateRenderer(renderer, aboveThreshold));
-				thresholdCounts.addListener((v, o, n) -> updateRenderer(renderer, aboveThreshold));
-			}
-			
+						
 			var minMax = minMaxAll.get(bandThreshold);
 			var slider = new Slider(0, (int)Math.ceil(minMax.getMaxValue()), (int)(minMax.getMaxValue()/2.0));
 			slider.setMinorTickCount((int)(slider.getMax() + 1));
@@ -449,33 +484,35 @@ public class DensityMapUI {
 				var minMaxCounts = minMaxAll.get(bandCounts);
 				int max = (int)Math.ceil(minMaxCounts.getMaxValue());
 				var sliderCounts = new Slider(0, max, (int)(minMaxCounts.getMaxValue()/2.0));
-				sliderCounts.setMinorTickCount(max+1);
+				sliderCounts.setMajorTickUnit(10);
+				sliderCounts.setMinorTickCount(9);
 				sliderCounts.setSnapToTicks(true);
 				
 				var tfThresholdCounts = new TextField();
 				tfThresholdCounts.setPrefColumnCount(6);
-				GuiTools.bindSliderAndTextField(sliderCounts, tfThresholdCounts, false, 1);
+				GuiTools.bindSliderAndTextField(sliderCounts, tfThresholdCounts, false, 0);
 				double tc = thresholdCounts.get();
 				if (tc > sliderCounts.getMax())
 					thresholdCounts.set(1);
 				sliderCounts.valueProperty().bindBidirectional(thresholdCounts);				
 				
-				var labelCounts = new Label("Count threshold");
+				var labelCounts = new Label("Min object count");
 				PaneTools.addGridRow(pane, row++, 0, "The minimum number of objects required.\n"
 						+ "Used in combination with the density threshold to remove outliers (i.e. high density based on just 1 or 2 objects).", labelCounts, sliderCounts, tfThresholdCounts);
 			}
 			
-			var cbDeleteExisting = new CheckBox("Delete existing annotations that share the same classification as the new annotations");
+			var cbDeleteExisting = new CheckBox("Delete existing similar annotations");
 			cbDeleteExisting.selectedProperty().bindBidirectional(deleteExisting);
-			PaneTools.addGridRow(pane, row++, 0, null, cbDeleteExisting, cbDeleteExisting, cbDeleteExisting);
+			PaneTools.addGridRow(pane, row++, 0, "Delete existing annotations that share the same classification as the new annotations", cbDeleteExisting, cbDeleteExisting, cbDeleteExisting);
 			
 			var cbSplit = new CheckBox("Split new annotations");
 			cbSplit.selectedProperty().bindBidirectional(split);
-			PaneTools.addGridRow(pane, row++, 0, null, cbSplit, cbSplit, cbSplit);
+			PaneTools.addGridRow(pane, row++, 0, "Split new, multi-part annotations into separate polygons", cbSplit, cbSplit, cbSplit);
 
 			var cbSelect = new CheckBox("Select new annotations");
 			cbSelect.selectedProperty().bindBidirectional(select);
-			PaneTools.addGridRow(pane, row++, 0, null, cbSelect, cbSelect, cbSelect);
+			PaneTools.addGridRow(pane, row++, 0, "Automatically set new annotations to be selected."
+					+ "\nThis is useful if the next step involves manipulating the annotations (e.g. setting another classification).", cbSelect, cbSelect, cbSelect);
 			
 			PaneTools.setToExpandGridPaneWidth(slider, cbDeleteExisting, cbSplit, cbSelect);
 			
@@ -523,20 +560,23 @@ public class DensityMapUI {
 			pane.setVgap(5);
 			pane.setHgap(5);
 			
-			
+			if (renderer != null) {
+				threshold.addListener((v, o, n) -> updateRenderer(renderer, aboveThreshold));
+				thresholdCounts.addListener((v, o, n) -> updateRenderer(renderer, aboveThreshold));
+				updateRenderer(renderer, aboveThreshold);
+			}
+
+						
 			if (Dialogs.builder()
 				.modality(Modality.WINDOW_MODAL)
 				.content(paneMain)
 				.title(title)
-				.owner(QPEx.getWindow("Density map"))
-//				.expandableContent(expandable)
+				.owner(owner)
 				.buttons(ButtonType.APPLY, ButtonType.CANCEL)
 				.build()
 				.showAndWait()
 				.orElse(ButtonType.CANCEL) != ButtonType.APPLY)
 				return false;
-//			if (!Dialogs.showConfirmDialog(title, pane))
-//				return false;
 			
 			return true;
 		}
@@ -549,16 +589,12 @@ public class DensityMapUI {
 			} else {
 				colorModelThreshold = ThresholdColorModels.ColorModelThreshold.create(DataBuffer.TYPE_FLOAT, bandThreshold, threshold.get());
 			}
-			var transparent = ColorToolsAwt.getCachedColor(Integer.valueOf(0), true);
-			var above = ColorToolsAwt.getCachedColor(aboveThreshold.getColor());
-			var colorModel = new ThresholdColorModels.ThresholdColorModel(colorModelThreshold, transparent, transparent, above);
-			
-			renderer.setColorModel(colorModel);
-			qupath.repaintViewers();
+			DensityMapUI.updateRenderer(qupath, renderer, aboveThreshold, colorModelThreshold);
 		}
 		
+		
 		@Override
-		public void accept(ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName) {
+		public void fire(ActionEvent event, ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName) {
 
 			if (imageData == null) {
 				Dialogs.showErrorMessage(title, "No image available!");
@@ -572,31 +608,12 @@ public class DensityMapUI {
 			
 			var densityServer = builder.buildServer(imageData);
 
-			// TODO: Find a better way to pass the renderer rather than trying to find it later
-			PixelClassificationOverlay overlay = null;
-			if (qupath != null) {
-				var temp = qupath.getViewer().getCustomPixelLayerOverlay();
-				if (temp instanceof PixelClassificationOverlay)
-					overlay = (PixelClassificationOverlay)temp;
-			}
-			ColorModelRenderer renderer = null;
-			if (overlay != null) {
-				var temp = overlay.getRenderer();
-				if (temp instanceof ColorModelRenderer)
-					renderer = (ColorModelRenderer)temp;
-				else if (temp == null) {
-					renderer = new ColorModelRenderer(null);
-					overlay.setRenderer(renderer);
-				}
-			}
+			ColorModelRenderer renderer = getRenderer();
 			ColorModel previousColorModel = renderer == null ? null : renderer.getColorModel();
-			
 
 			try {
-				if (!showDialog(densityServer, renderer))
+				if (!showDialog(densityServer, renderer, getOwner(event)))
 					return;
-//				if (!Dialogs.showParameterDialog("Trace contours from density map", paramsTracing))
-//					return;
 			} catch (IOException e) {
 				logger.error(e.getLocalizedMessage(), e);
 				return;
@@ -654,14 +671,32 @@ public class DensityMapUI {
 
 	}
 	
-
+	/**
+	 * Update the renderer to display a threshold.
+	 * @param qupath
+	 * @param renderer
+	 * @param aboveThreshold
+	 * @param threshold
+	 */
+	private static void updateRenderer(QuPathGUI qupath, ColorModelRenderer renderer, PathClass aboveThreshold, ThresholdColorModels.ColorModelThreshold threshold) {
+		var transparent = ColorToolsAwt.getCachedColor(Integer.valueOf(0), true);
+		var above = ColorToolsAwt.getCachedColor(aboveThreshold.getColor());
+		var colorModel = new ThresholdColorModels.ThresholdColorModel(threshold, transparent, transparent, above);
+		
+		renderer.setColorModel(colorModel);
+		qupath.repaintViewers();
+	}
 	
 	
 
-	static class DensityMapExporter implements DensityMapButtonCommand {
+	static class DensityMapExporter extends DensityMapButtonCommand {
+
+		public DensityMapExporter(QuPathGUI qupath, ObjectExpression<PixelClassificationOverlay> overlay) {
+			super(qupath, overlay);
+		}
 
 		@Override
-		public void accept(ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName) {
+		public void fire(ActionEvent event, ImageData<BufferedImage> imageData, DensityMapBuilder builder, String densityMapName) {
 
 			if (imageData == null || builder == null) {
 				Dialogs.showErrorMessage(title, "No density map is available!");
@@ -766,27 +801,30 @@ public class DensityMapUI {
 	 * @param imageData expression returning the {@link ImageData} to use
 	 * @param builder expression returning the {@link DensityMapBuilder} to use
 	 * @param densityMapName name of the density map, if it has been saved (otherwise null). This is used for writing workflow steps.
+	 * @param overlay optional overlay; if present, this could be used by commands to update display (e.g. by temporarily setting a color model).
+	 * @param enableUnsavedButton add button to enable buttons even if no name is available (indicating the map has not been saved).
 	 * @return a pane that may be added to a stage
 	 */
-	public static Pane createButtonPane(QuPathGUI qupath, ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<DensityMapBuilder> builder, StringExpression densityMapName) {
+	public static Pane createButtonPane(QuPathGUI qupath, ObjectExpression<ImageData<BufferedImage>> imageData, ObjectExpression<DensityMapBuilder> builder, 
+			StringExpression densityMapName, ObjectExpression<PixelClassificationOverlay> overlay, boolean enableUnsavedButton) {
 		logger.trace("Creating button pane");
 		
-		BooleanProperty allowWithoutSaving = new SimpleBooleanProperty(false);
+		BooleanProperty allowWithoutSaving = new SimpleBooleanProperty(!enableUnsavedButton);
 		
 		BooleanBinding disableButtons = imageData.isNull()
 				.or(builder.isNull())
 				.or(densityMapName.isEmpty().and(allowWithoutSaving.not()));
 		
-		var actionHotspots = createDensityMapAction("Find hotspots", imageData, builder, densityMapName, disableButtons, new HotspotFinder(),
+		var actionHotspots = createDensityMapAction("Find hotspots", imageData, builder, densityMapName, disableButtons, new HotspotFinder(qupath, overlay),
 				"Find the hotspots in the density map with highest values");
 		var btnHotspots = ActionTools.createButton(actionHotspots, false);
 
 		// TODO: Don't provide QuPath in this way...
-		var actionThreshold = createDensityMapAction("Threshold", imageData, builder, densityMapName, disableButtons, new ContourTracer(qupath),
+		var actionThreshold = createDensityMapAction("Threshold", imageData, builder, densityMapName, disableButtons, new ContourTracer(qupath, overlay),
 				"Threshold to identify high-density regions");
 		var btnThreshold = ActionTools.createButton(actionThreshold, false);
 
-		var actionExport = createDensityMapAction("Export map", imageData, builder, densityMapName, disableButtons, new DensityMapExporter(),
+		var actionExport = createDensityMapAction("Export map", imageData, builder, densityMapName, disableButtons, new DensityMapExporter(qupath, overlay),
 				"Export the density map as an image");
 		var btnExport = ActionTools.createButton(actionExport, false);
 
@@ -794,20 +832,20 @@ public class DensityMapUI {
 //		buttonPane.setHgap(hGap);
 		PaneTools.setToExpandGridPaneWidth(btnHotspots, btnExport, btnThreshold);
 		
+		var pane = new BorderPane(buttonPane);
 		
 		// Add some more options
-		var menu = new ContextMenu();
-		var miWithoutSaving = new CheckMenuItem("Enable buttons for unsaved density maps");
-		miWithoutSaving.selectedProperty().bindBidirectional(allowWithoutSaving);
-		
-		menu.getItems().addAll(
-				miWithoutSaving
-				);
-		
-		var btnAdvanced = GuiTools.createMoreButton(menu, Side.RIGHT);
-		
-		var pane = new BorderPane(buttonPane);
-		pane.setRight(btnAdvanced);
+		if (enableUnsavedButton) {
+			var menu = new ContextMenu();
+			var miWithoutSaving = new CheckMenuItem("Enable buttons for unsaved density maps");
+			miWithoutSaving.selectedProperty().bindBidirectional(allowWithoutSaving);
+			
+			menu.getItems().addAll(
+					miWithoutSaving
+					);
+			var btnAdvanced = GuiTools.createMoreButton(menu, Side.RIGHT);
+			pane.setRight(btnAdvanced);
+		}
 		return pane;
 	}
 	
