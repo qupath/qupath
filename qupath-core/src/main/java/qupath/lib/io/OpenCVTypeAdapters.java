@@ -22,7 +22,6 @@
 package qupath.lib.io;
 
 import java.io.IOException;
-
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.*;
 import org.bytedeco.opencv.opencv_ml.*;
@@ -193,7 +192,10 @@ public class OpenCVTypeAdapters {
 		public void write(JsonWriter out, StatModel value) throws IOException {
 			try (FileStorage fs = new FileStorage()) {
 				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
-				value.write(fs);
+//				value.write(fs);
+				
+				// Change v0.3.0 - for KNearest (at least) it's important to write using the default name, otherwise the model cannot be loaded again
+				value.write(fs, value.getDefaultName());
 				String json = fs.releaseAndGetString().getString();
 				
 				out.beginObject();
@@ -203,9 +205,8 @@ public class OpenCVTypeAdapters {
 				
 				// jsonValue works for JsonWriter but not JsonTreeWriter, so we try to work around this...
 				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
+				
 				gson.toJson(element, out);
-//				out.jsonValue(obj.toString());
-//				out.jsonValue(json);
 				out.endObject();
 			}
 		}
@@ -224,7 +225,12 @@ public class OpenCVTypeAdapters {
 				
 				// It's a bit roundabout... but toString() gives Strings that are too long and unsupported 
 				// by OpenCV, so we take another tour through Gson.
-				String modelString = new GsonBuilder().setPrettyPrinting().create().toJson(obj.get("statmodel"));
+				var objStatModel = obj.get("statmodel");
+				String modelString = new GsonBuilder().setPrettyPrinting().create().toJson(objStatModel);
+				
+				// In QuPath v0.2 we didn't use OpenCV's default name for the classifier, in which case it would be insert as the root - 
+				// but this failed for KNearest, so now we need to use the name & cope with old classifiers
+				boolean useRoot = objStatModel.isJsonObject() && objStatModel.getAsJsonObject().has("format");
 				
 				StatModel model = null;
 				
@@ -254,7 +260,11 @@ public class OpenCVTypeAdapters {
 				// Load from the JSON data
 				try (FileStorage fs = new FileStorage()) {
 					fs.open(modelString, FileStorage.FORMAT_JSON + FileStorage.READ + FileStorage.MEMORY);
-					FileNode fn = fs.root();
+					FileNode fn;
+					if (useRoot)
+						fn = fs.root();
+					else
+						fn = fs.getFirstTopLevelNode();
 					model.read(fn);
 					return model;
 				}
