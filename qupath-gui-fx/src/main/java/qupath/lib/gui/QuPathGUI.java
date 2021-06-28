@@ -2757,6 +2757,8 @@ public class QuPathGUI {
 	
 	
 	ProjectImageEntry<BufferedImage> getProjectImageEntry(ImageData<BufferedImage> imageData) {
+		if (imageData == null)
+			return null;
 		var project = getProject();
 		return project == null ? null : project.getEntry(imageData);
 	}

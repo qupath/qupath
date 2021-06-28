@@ -187,7 +187,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		tableModel.setImageData(this.imageData, getSelectedObjectList());
 		tableMeasurements.getItems().setAll(tableModel.getAllNames());
 		
-//		tableMeasurements.refresh();
+		tableMeasurements.refresh();
 		
 //		// Check if objects are outside hierarchy
 //		if (imageData != null) {
