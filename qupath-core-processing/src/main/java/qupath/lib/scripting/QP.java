@@ -3272,6 +3272,58 @@ public class QP {
 	}
 	
 	/**
+	 * Find hotspots in a density map for the current image.
+	 * 
+	 * @param densityMapName name of the density map builder, see {@link #loadDensityMap(String)}
+	 * @param channel channel number (usually 0)
+	 * @param numHotspots the maximum number of hotspots to generate within each selected object
+	 * @param minCounts the minimum value in the 'counts' channel; this is used to avoid generating hotspots in areas with few objects
+	 * @param deleteExisting if true, similar annotations will be deleted from the image
+	 * @param peaksOnly if true, hotspots will only be generated at intensity peaks in the density map
+	 * @throws IOException
+	 */
+	public static void findDensityMapHotspots(String densityMapName, int channel, int numHotspots, double minCounts, boolean deleteExisting, boolean peaksOnly) throws IOException {
+		findDensityMapHotspots(getCurrentImageData(), loadDensityMap(densityMapName), channel, numHotspots, minCounts, deleteExisting, peaksOnly);
+	}
+	
+	/**
+	 * Find hotspots in a density map.
+	 * 
+	 * @param imageData the image data
+	 * @param densityMapName name of the density map builder, see {@link #loadDensityMap(String)}
+	 * @param channel channel number (usually 0)
+	 * @param numHotspots the maximum number of hotspots to generate within each selected object
+	 * @param minCounts the minimum value in the 'counts' channel; this is used to avoid generating hotspots in areas with few objects
+	 * @param deleteExisting if true, similar annotations will be deleted from the image
+	 * @param peaksOnly if true, hotspots will only be generated at intensity peaks in the density map
+	 * @throws IOException
+	 */
+	public static void findDensityMapHotspots(ImageData<BufferedImage> imageData, String densityMapName, int channel, int numHotspots, double minCounts, boolean deleteExisting, boolean peaksOnly) throws IOException {
+		findDensityMapHotspots(imageData, loadDensityMap(densityMapName), channel, numHotspots, minCounts, deleteExisting, peaksOnly);
+	}
+	
+	/**
+	 * Find hotspots in a density map.
+	 * 
+	 * @param imageData the image data
+	 * @param densityMap builder to generate a density map
+	 * @param channel channel number (usually 0)
+	 * @param numHotspots the maximum number of hotspots to generate within each selected object
+	 * @param minCounts the minimum value in the 'counts' channel; this is used to avoid generating hotspots in areas with few objects
+	 * @param deleteExisting if true, similar annotations will be deleted from the image
+	 * @param peaksOnly if true, hotspots will only be generated at intensity peaks in the density map
+	 * @throws IOException
+	 */
+	public static void findDensityMapHotspots(ImageData<BufferedImage> imageData, DensityMapBuilder densityMap, int channel, int numHotspots, double minCounts, boolean deleteExisting, boolean peaksOnly) throws IOException {
+		var densityServer = densityMap.buildServer(imageData);
+		double radius = densityMap.buildParameters().getRadius();
+		var pathClass = PathClassFactory.getPathClass(densityServer.getChannel(channel).getName());
+		DensityMaps.findHotspots(imageData.getHierarchy(), densityServer, channel, numHotspots, radius, minCounts, pathClass, deleteExisting, peaksOnly);
+	}
+
+	
+	
+	/**
 	 * Create annotations from a density map for the current image.
 	 * 
 	 * @param densityMapName the name of the density map within the current project, or file path to a density map to load from disk

@@ -485,6 +485,7 @@ public class DensityMapUI {
 		private IntegerProperty nHotspots = new SimpleIntegerProperty(1);
 		private DoubleProperty thresholdCounts = new SimpleDoubleProperty(1);
 		private BooleanProperty deletePrevious = new SimpleBooleanProperty(false);
+		private BooleanProperty strictPeaks = new SimpleBooleanProperty(true);
 		
 		private int band = 0;
 		private int bandCounts = -1;
@@ -526,6 +527,9 @@ public class DensityMapUI {
 			labelCounts.setLabelFor(sliderCounts);
 			
 			// Other options
+			var cbPeaks = new CheckBox("Density peaks only");
+			cbPeaks.selectedProperty().bindBidirectional(strictPeaks);
+			
 			var cbDeletePrevious = new CheckBox("Delete existing hotspots");
 			cbDeletePrevious.selectedProperty().bindBidirectional(deletePrevious);
 			
@@ -538,9 +542,12 @@ public class DensityMapUI {
 			PaneTools.addGridRow(pane, row++, 0, "The minimum number of objects required.\n"
 					+ "This can eliminate hotspots based on just 1 or 2 objects.", labelCounts, sliderCounts, tfCounts);
 
+			PaneTools.addGridRow(pane, row++, 0, "Limit hotspots to peaks in the density map only.\n"
+					+ "This is a stricter criteria that can result in fewer hotspots being found, however those that *are* found are more distinct.", cbPeaks, cbPeaks, cbPeaks);
+
 			PaneTools.addGridRow(pane, row++, 0, "Delete existing hotspots similar to those being created.", cbDeletePrevious, cbDeletePrevious, cbDeletePrevious);
 			
-			PaneTools.setToExpandGridPaneWidth(sliderNum, sliderCounts, cbDeletePrevious);
+			PaneTools.setToExpandGridPaneWidth(sliderNum, sliderCounts, cbDeletePrevious, cbPeaks);
 			
 						
 			var titledPane = new TitledPane("Hotspot parameters", pane);
@@ -600,6 +607,35 @@ public class DensityMapUI {
 				
 				if (!showDialog(densityServer, renderer, getOwner(event)))
 					return;
+				
+				
+				double radius = builder.buildParameters().getRadius();
+
+				int numHotspots = nHotspots.get();
+				double minDensity = thresholdCounts.get();
+				boolean peaksOnly = strictPeaks.get();
+				boolean deleteExisting = deletePrevious.get();
+
+				try {
+					var hierarchy = imageData.getHierarchy();
+					DensityMaps.findHotspots(hierarchy, densityServer, band, numHotspots, radius, minDensity, aboveThreshold, deleteExisting, peaksOnly);
+					
+					if (densityMapName != null) {
+						imageData.getHistoryWorkflow().addStep(
+								new DefaultScriptableWorkflowStep("Density map find hotspots",
+										String.format("findDensityMapHotspots(\"%s\", %d, %d, %f, $s, %s)",
+												densityMapName,
+												band, numHotspots,
+												minDensity, deleteExisting, peaksOnly)
+										)
+								);
+					} else
+						logger.warn("Density map not saved - cannot log step to workflow");
+					
+				} catch (IOException e) {
+					Dialogs.showErrorNotification(title, e);
+				}
+				
 			} catch (IOException e) {
 				logger.error(e.getLocalizedMessage(), e);
 				return;
@@ -608,40 +644,10 @@ public class DensityMapUI {
 				aboveThreshold = null;
 			}
 			
-			double radius = builder.buildParameters().getRadius();
-
-			int n = nHotspots.get();
-			double minDensity = thresholdCounts.get();
-			boolean allowOverlapping = false;
-			boolean deleteExisting = deletePrevious.get();
-
-			var hierarchy = imageData.getHierarchy();
-			var selected = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
-			if (selected.isEmpty())
-				selected.add(imageData.getHierarchy().getRootObject());
-
-			try {
-				var server = builder.buildServer(imageData);
-
-				// Remove existing hotspots with the same classification
-				PathClass hotspotClass = aboveThreshold;
-				if (deleteExisting) {
-					var hotspotClass2 = hotspotClass;
-					var existing = hierarchy.getAnnotationObjects().stream()
-							.filter(a -> a.getPathClass() == hotspotClass2)
-							.collect(Collectors.toList());
-					hierarchy.removeObjects(existing, true);
-				}
-
-				DensityMaps.findHotspots(hierarchy, server, band, selected, n, radius, minDensity, allowOverlapping, hotspotClass);
-			} catch (IOException e) {
-				Dialogs.showErrorNotification(title, e);
-			}
 		}
 
 
-	}
-
+	}	
 
 
 	/**
@@ -945,17 +951,6 @@ public class DensityMapUI {
 				((CompositeImage)imp).resetDisplayRanges();
 			imp.show();
 		}
-
-	}
-
-	/**
-	 * Get a classification to use for hotspots based upon an image channel / classification name.
-	 * @param channelName
-	 * @return
-	 */
-	static PathClass getHotpotClass(String channelName) {		
-		PathClass baseClass = channelName == null || channelName.isBlank() || DensityMaps.CHANNEL_ALL_OBJECTS.equals(channelName) ? null : PathClassFactory.getPathClass(channelName);
-		return DensityMaps.getHotspotClass(baseClass);
 
 	}
 

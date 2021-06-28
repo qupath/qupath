@@ -123,10 +123,16 @@ class DensityMapDataOp implements ImageDataOp {
 		List<ImageOp> sequentialOps = new ArrayList<>();
 		switch (densityType) {
 		case GAUSSIAN:
-			if (radius > 0)
+			if (radius > 0) {
+				double sigma = radius;
 				sequentialOps.add(
-						ImageOps.Filters.gaussianBlur(radius)
+						ImageOps.Filters.gaussianBlur(sigma)
 						);
+				// Scale so that central value ~1 - this is a closer match to the alternative sum filter
+				sequentialOps.add(
+						ImageOps.Core.multiply(2 * Math.PI * sigma * sigma)
+						);
+			}
 			baseChannelName = "Gaussian weighted counts ";
 			break;
 		case PERCENT:

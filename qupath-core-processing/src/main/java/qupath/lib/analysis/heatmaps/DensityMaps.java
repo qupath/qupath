@@ -24,13 +24,14 @@ package qupath.lib.analysis.heatmaps;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
-import java.awt.image.Raster;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -39,15 +40,16 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.bytedeco.javacpp.PointerScope;
+import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.analysis.heatmaps.ColorModels.ColorModelBuilder;
-import qupath.lib.analysis.images.SimpleImage;
-import qupath.lib.analysis.images.SimpleImages;
+import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
-import qupath.lib.common.ColorTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -58,15 +60,21 @@ import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectPredicates.PathObjectPredicate;
 import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
-import qupath.lib.objects.classes.PathClassTools;
 import qupath.lib.objects.classes.PathClassFactory.StandardPathClasses;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.Project;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
+import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
+import qupath.lib.roi.interfaces.ROI;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ml.pixel.PixelClassifiers;
+import qupath.opencv.tools.OpenCVTools;
+import qupath.opencv.tools.OpenCVTools.IndexedPixel;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 
 /**
@@ -89,8 +97,6 @@ public class DensityMaps {
 	 */
 	public final static String CHANNEL_ALL_OBJECTS = "Counts";
 	
-	private static final PathClass DEFAULT_HOTSPOT_CLASS = PathClassFactory.getPathClass("Hotspot", ColorTools.packRGB(200, 120, 20));
-
 	private static int preferredTileSize = 2048;
 	
 	/**
@@ -517,69 +523,138 @@ public class DensityMaps {
 	
 	
 	
-	public static PathClass getHotspotClass(PathClass baseClass) {
-		PathClass hotspotClass = DEFAULT_HOTSPOT_CLASS;
-		if (PathClassTools.isValidClass(baseClass)) {
-			hotspotClass = PathClassTools.mergeClasses(baseClass, hotspotClass);
+	
+	public static void findHotspots(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> server, int channel, 
+			int nHotspots, double radius, double minCount, PathClass hotspotClass, boolean deleteExisting, boolean peaksOnly) throws IOException {
+
+		if (nHotspots <= 0) {
+			logger.warn("Number of hotspots requested is {}!", nHotspots);
+			return;
 		}
-		return hotspotClass;
-	}
-	
-	
-	private static SimpleImage toSimpleImage(Raster raster, int band) {
-		int w = raster.getWidth();
-		int h = raster.getHeight();
-		float[] pixels = raster.getSamples(0, 0, w, h, band, (float[])null);
-		return SimpleImages.createFloatImage(pixels, w, h);
-	}
-	
-	
-	private static int getCountsChannel(ImageServer<BufferedImage> server) {
-		if (server.getChannel(server.nChannels()-1).getName().equals(CHANNEL_ALL_OBJECTS))
-			return server.nChannels()-1;
-		return -1;
-	}
-	
-	
-	public static void findHotspots(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> server, int channel, Collection<? extends PathObject> parents, int nHotspots, double radius, double minCount, boolean allowOverlapping, PathClass hotspotClass) throws IOException {
-		SimpleImage mask = null;
-		int countChannel = getCountsChannel(server);
 		
-		for (var parent : parents) {
+		Collection<PathObject> parents = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
+		if (parents.isEmpty())
+			parents = Collections.singleton(hierarchy.getRootObject());
+		
+		double downsample = server.getDownsampleForResolution(0);
+		var toDelete = new HashSet<PathObject>();
+		
+		// Handle deleting existing hotspots
+		if (deleteExisting) {
+			toDelete.addAll(hierarchy.getAnnotationObjects()
+					.stream()
+					.filter(p -> p.getPathClass() == hotspotClass && p.isAnnotation() && p.getName() != null && p.getName().startsWith("Hotspot"))
+					.collect(Collectors.toList()));
+		}
+
+		
+		// Convert radius to pixels
+		double radiusPixels = radius / server.getPixelCalibration().getAveragedPixelSize().doubleValue();
+		
+		try (@SuppressWarnings("unchecked")
+		var scope = new PointerScope()) {
 			
-			RegionRequest request;
-			if (parent.hasROI())
-				request = RegionRequest.createInstance(server.getPath(), server.getDownsampleForResolution(0), parent.getROI());
-			else
-				request = RegionRequest.createInstance(server);
-			
-			var img = server.readBufferedImage(request);
-			var raster = img.getRaster();
-			
-			var image = toSimpleImage(raster, channel);
-			
-			if (minCount > 0) {
-				mask = countChannel >= 0 ? toSimpleImage(raster, countChannel) : image;
-				mask = SimpleProcessing.threshold(mask, minCount, 0, 1, 1);
+			for (var parent : parents) {
+				
+				ROI roi = parent.getROI();
+												
+				// We need a ROI to define the area of interest
+				if (roi == null) {
+					if (server.nTimepoints() > 1 || server.nZSlices() > 1) {
+						logger.warn("Hotspot detection without a parent object not supported for images with multiple z-slices/timepoints.");
+						logger.warn("I will apply detection to the first plane only. If you need hotspots elsewhere, create an annotation first and use it to define the ROI.");
+					}
+					roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
+				}
+				
+				// Erode the ROI & see if any hotspot could fit
+				var roiEroded = RoiTools.buffer(roi, -radiusPixels);
+				if (roiEroded.isEmpty() || roiEroded.getArea() == 0) {
+					logger.warn("ROI is too small! Cannot detected hotspots with radius {} in {}", radius, parent);
+					continue;
+				}
+
+				// Read the image
+				var plane = roi.getImagePlane();
+				RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), plane.getZ(), plane.getT());
+				var img = server.readBufferedImage(request);
+								
+				// Create a mask
+				var imgMask = BufferedImageTools.createROIMask(img.getWidth(), img.getHeight(), roiEroded, request);
+
+				// Switch to OpenCV
+				var mat = OpenCVTools.imageToMat(img);
+				var matMask = OpenCVTools.imageToMat(imgMask);
+				
+				// Find hotspots
+				var channels = OpenCVTools.splitChannels(mat);
+				var density = channels.get(channel);
+				if (minCount > 0) {
+					var thresholdMask = opencv_core.greaterThan(channels.get(channels.size()-1), minCount).asMat();
+					opencv_core.bitwise_and(matMask, thresholdMask, matMask);
+					thresholdMask.close();
+				}
+
+				// TODO: Limit to peaks
+				if (peaksOnly) {
+					var matMaxima = OpenCVTools.findRegionalMaxima(density);
+					var matPeaks = OpenCVTools.shrinkLabels(matMaxima);
+					matPeaks.put(opencv_core.greaterThan(matPeaks, 0));
+					opencv_core.bitwise_and(matMask, matPeaks, matMask);
+					matPeaks.close();
+					matMaxima.close();
+				}
+
+				// Sort in descending order
+				var maxima = new ArrayList<>(OpenCVTools.getMaskedPixels(density, matMask));
+				Collections.sort(maxima, Comparator.comparingDouble((IndexedPixel p) -> p.getValue()).reversed());
+				
+				// Try to get as many maxima as we need
+				// Impose minimum separation
+				var points = maxima.stream().map(p -> new Point2(p.getX()*downsample, p.getY()*downsample)).collect(Collectors.toList());
+				var hotspotCentroids = new ArrayList<Point2>();
+				double distSqThreshold = radiusPixels * radiusPixels * 4;
+				for (var p : points) {
+					// Check not too close to an existing hotspot
+					boolean skip = false;
+					for (var p2 : hotspotCentroids) {
+						if (p.distanceSq(p2) < distSqThreshold) {
+							skip = true;
+							break;
+						}
+					}
+					if (!skip) {
+						hotspotCentroids.add(p);
+						if (hotspotCentroids.size() == nHotspots)
+							break;
+					}
+				}
+				
+				var hotspots = new ArrayList<PathObject>();
+				int i = 0;
+				for (var p : hotspotCentroids) {
+					i++;
+					var ellipse = ROIs.createEllipseROI(p.getX()-radiusPixels, p.getY()-radiusPixels, radiusPixels*2, radiusPixels*2, roi.getImagePlane());
+					var hotspot = PathObjects.createAnnotationObject(ellipse, hotspotClass);
+					hotspot.setName("Hotspot " + i);
+					hotspots.add(hotspot);
+				}
+				
+				if (hotspots.isEmpty())
+					logger.warn("No hotspots found in {}", parent);
+				else if (hotspots.size() < nHotspots) {
+					logger.warn("Only {}/{} hotspots could be found in {}", hotspots.size(), nHotspots, parent);
+				}
+				parent.addPathObjects(hotspots);
 			}
 			
-			var finder = new SimpleProcessing.PeakFinder(image)
-					.region(request)
-					.calibration(server.getPixelCalibration())
-					.peakClass(hotspotClass)
-					.minimumSeparation(allowOverlapping ? -1 : radius * 2)
-					.withinROI(parent.hasROI())
-					.radius(radius);
-			
-			if (mask != null)
-				finder.mask(mask);
-			
-			
-			var hotspots = finder.createObjects(parent.getROI(), nHotspots);
-			parent.addPathObjects(hotspots);
+			hierarchy.fireHierarchyChangedEvent(DensityMaps.class);
+
+			if (!toDelete.isEmpty())
+				hierarchy.removeObjects(toDelete, true);
 		}
 		
-		hierarchy.fireHierarchyChangedEvent(DensityMaps.class);
+		
 	}
 	
 	
