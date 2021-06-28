@@ -32,7 +32,6 @@ import java.util.Map;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.workflow.ScriptableWorkflowStep;
 
 /**
  * Updated version of DefaultPluginWorkflowStep, adapted to use Externalizable and to avoid storing the plugin class as a class object 

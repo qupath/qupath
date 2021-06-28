@@ -99,7 +99,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.text.TextAlignment;
 import qupath.lib.awt.common.AwtTools;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
@@ -141,7 +140,6 @@ import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiEditor;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ml.pixel.PixelClassifiers;
 
 
 /**

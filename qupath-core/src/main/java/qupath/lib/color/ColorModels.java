@@ -26,8 +26,6 @@ import java.awt.image.ColorModel;
 import java.util.Objects;
 import java.util.function.DoubleToIntFunction;
 
-import qupath.lib.color.ColorMaps;
-import qupath.lib.color.ColorModelFactory;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.io.GsonTools;

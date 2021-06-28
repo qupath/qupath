@@ -44,7 +44,6 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.dialogs.QuPathChooser;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import javafx.stage.Window;

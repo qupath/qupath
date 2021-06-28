@@ -2,7 +2,7 @@
 *In progress*
 
 ### Release highlights
-* **New 'Create density map' command** to visualize hotspots & generate annotations
+* **New 'Create density map' command** to visualize hotspots & generate annotations based on object densities
 * **_Many_ code fixes** & **performance improvements**
 * **Revised code structure**, with non-core features now separated out as optional **extensions**, including:
   * **OMERO**

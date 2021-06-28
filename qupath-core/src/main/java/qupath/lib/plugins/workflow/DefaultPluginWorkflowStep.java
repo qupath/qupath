@@ -29,7 +29,6 @@ import java.util.Map;
 
 import qupath.lib.common.GeneralTools;
 import qupath.lib.plugins.PathPlugin;
-import qupath.lib.plugins.workflow.ScriptableWorkflowStep;
 
 
 /**

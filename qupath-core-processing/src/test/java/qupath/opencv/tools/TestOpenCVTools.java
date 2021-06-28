@@ -30,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 
