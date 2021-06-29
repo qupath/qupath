@@ -1,17 +1,18 @@
-# This workflow will publish jars to GitHub Packages.
+# This workflow will publish jars to maven.scijava.org.
 # Currently, it must be triggered manually and uses Java 11
 # (because there is no requirement for jpackage).
 
-name: Publish to GitHub Packages
+name: Publish to SciJava Maven
 
-on: [workflow_dispatch]
+on: 
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-java@v2
@@ -21,4 +22,5 @@ jobs:
       - name: Publish package
         run: ./gradlew publish -P toolchain=11
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_PASS: ${{ secrets.MAVEN_PASS }}
