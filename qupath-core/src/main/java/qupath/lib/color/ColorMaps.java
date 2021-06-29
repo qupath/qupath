@@ -218,7 +218,7 @@ public class ColorMaps {
 	/**
 	 * Get a default, general-purpose {@link ColorMap}.
 	 * @return
-	 * @see #setDefaultColorMap()
+	 * @see #setDefaultColorMap(ColorMap)
 	 */
 	public static ColorMap getDefaultColorMap() {
 		return defaultColorMap;

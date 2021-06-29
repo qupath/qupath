@@ -74,9 +74,9 @@ ext {
     commonsTextVersion = '1.9'
     controlsfxVersion  = '11.1.0'
     groovyVersion      = '3.0.8'
-    gsonVersion        = '2.8.6'
+    gsonVersion        = '2.8.7'
     guavaVersion       = '30.1.1-jre'
-    imagejVersion      = '1.53i'
+    imagejVersion      = '1.53j'
     jfxtrasVersion     = '11-r2'
     jtsVersion         = '1.18.1'
     picocliVersion     = '4.6.1'
@@ -87,7 +87,7 @@ ext {
 
     // Additional versions
     logbackVersion     = '1.2.3'
-    slf4jVersion       = '1.7.30'
+    slf4jVersion       = '1.7.31'
     junitVersion       = '5.7.1'
 }
 
