@@ -21,12 +21,9 @@
 
 package qupath.lib.gui;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.Collections;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;

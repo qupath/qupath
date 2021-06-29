@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.ml;
+package qupath.process.gui.commands.ml;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 

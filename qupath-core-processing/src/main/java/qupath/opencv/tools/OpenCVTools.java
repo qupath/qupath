@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +43,7 @@ import java.util.function.Consumer;
 import java.util.function.DoublePredicate;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
@@ -51,6 +53,7 @@ import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.javacpp.indexer.Index;
 import org.bytedeco.javacpp.indexer.Indexer;
+import org.bytedeco.javacpp.indexer.IntIndexer;
 import org.bytedeco.javacpp.indexer.ShortIndexer;
 import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.javacpp.indexer.UShortIndexer;
@@ -300,7 +303,7 @@ public class OpenCVTools {
 		if (depth == opencv_core.CV_32F)
 			// patchNaNs requires 32-bit input
 			opencv_core.patchNaNs(mat, newValue);
-		else if (depth == opencv_core.CV_64F) {
+		else if (depth == opencv_core.CV_64F || depth == opencv_core.CV_16F) {
 			var mask = opencv_core.notEquals(mat, mat).asMat();
 			fill(mat, mask, newValue);
 			mask.close();
@@ -377,6 +380,72 @@ public class OpenCVTools {
 		}
 		opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
 		return dest;
+	}
+	
+	/**
+	 * Returns true if a Mat is a floating point (rather than int) type.
+	 * @param mat
+	 * @return
+	 */
+	public static boolean isFloat(Mat mat) {
+		int depth = mat.depth();
+		return depth == opencv_core.CV_16F ||
+				depth == opencv_core.CV_32F ||
+				depth == opencv_core.CV_64F;
+	}
+	
+	private static double round(double v) {
+		if (Double.isFinite(v))
+			return Math.round(v);
+		return v;
+	}
+
+	private static double ceil(double v) {
+		if (Double.isFinite(v))
+			return Math.ceil(v);
+		return v;		
+	}
+
+	private static double floor(double v) {
+		if (Double.isFinite(v))
+			return Math.floor(v);
+		return v;		
+	}
+	
+	/**
+	 * Floor values in a floating point Mat.
+	 * Non-floating point Mats are unchanged.
+	 * This resembles {@link Math#floor(double)} except that non-finite values are left unchanged.
+	 * @param mat
+	 */
+	public static void floor(Mat mat) {
+		if (!isFloat(mat))
+			return;
+		apply(mat, OpenCVTools::floor);
+	}
+	
+	/**
+	 * Round values in a floating point Mat.
+	 * Non-floating point Mats are unchanged.
+	 * This resembles {@link Math#round(double)} except that non-finite values are left unchanged.
+	 * @param mat
+	 */
+	public static void round(Mat mat) {
+		if (!isFloat(mat))
+			return;
+		apply(mat, OpenCVTools::round);
+	}
+	
+	/**
+	 * Ceil values in a floating point Mat.
+	 * Non-floating point Mats are unchanged.
+	 * This resembles {@link Math#ceil(double)} except that non-finite values are left unchanged.
+	 * @param mat
+	 */
+	public static void ceil(Mat mat) {
+		if (!isFloat(mat))
+			return;
+		apply(mat, OpenCVTools::ceil);
 	}
 	
 	
@@ -2141,4 +2210,371 @@ public class OpenCVTools {
 	}
 	
 
+	
+	private static MaxLabelStat[] updateMaxLabelStats(Mat mat, Mat matLabels, int nLabels, int connectivity) {
+		
+		int n = nLabels;
+		var stats = new MaxLabelStat[n+1];
+		for (int i = 0; i <= n; i++)
+			stats[i] = new MaxLabelStat(i);
+		
+		int h = mat.rows();
+		int w = mat.cols();
+		long[] inds = new long[3];
+		
+		try (var idx = mat.createIndexer()) {
+			try (IntIndexer idxLabels = matLabels.createIndexer()) {
+				
+				for (int y = 1; y < h-1; y++) {
+					for (int x = 1; x < w-1; x++) {
+						// Get the current pixel & label
+						int lab = idxLabels.get(y, x);
+						double val = getValue(idx, y, x, 0, inds);
+						
+						// Update inside stats
+//						if (lab > 0 && lab <= n) {
+							stats[lab].inside(val);
+//						}
+						
+						// Update neigbors as well for boundary stats
+						for (int y2 = y-1; y2 <= y+1; y2++) {
+							for (int x2 = x-1; x2 <= x+1; x2++) {
+								if (x == x2 && y == y2)
+									continue;
+								if (connectivity == 4 && (x != x2 && y != y2))
+									continue;
+								int lab2 = idxLabels.get(y2, x2);
+//								double val2 = getValue(idx, y2, x2, 0, inds);
+								// Record if we're on a boundary
+								if (lab2 != lab)
+									stats[lab2].boundary(val);
+							}
+						}
+					}
+				}
+			}
+		}
+		return stats;
+	}
+	
+	
+	/**
+	 * Get the regional maxima within a Mat, providing the output as a labeled image.
+	 * @param mat image containing maxima; must be 2D and single-channel
+	 * @return
+	 * @implNote the labels are not guaranteed to be consecutive; the behavior of this function may change in a future release.
+	 */
+	public static Mat findRegionalMaxima(Mat mat) {
+		
+		checkSingleChannel(mat);
+		
+		int connectivity = 8;
+		
+		// Apply 3x3 maximum filter & check equality
+		var matMax = new Mat();
+		var kernel = Mat.ones(3, 3, opencv_core.CV_32FC1).asMat();
+		opencv_imgproc.dilate(mat, matMax, kernel);
+		kernel.close();
+		
+		matMax.put(opencv_core.equals(mat, matMax));
+		
+		// Find connected components
+		var matLabels = label(matMax, connectivity);
+
+		// Calculate stats for labels
+		int nLabels = (int)Math.ceil(maximum(matLabels));
+		MaxLabelStat[] stats = updateMaxLabelStats(mat, matLabels, nLabels, connectivity);
+		
+		// If boundaries labels are >= inner labels, they can't correspond to regional max - so remove them
+		var nonMaxima = Arrays.stream(stats).filter(s -> s.maxBoundary >= s.maxInside).map(s -> s.label).collect(Collectors.toSet());
+		if (!nonMaxima.isEmpty()) {
+			// TODO: Make this more efficient...
+			for (var nonMax : nonMaxima)
+				replaceValues(matLabels, nonMax, 0);
+		}
+		
+		return matLabels;
+	}
+	
+	
+	/**
+	 * Find maxima within an image.
+	 * @param mat image containing maxima; must be 2D and single-channel
+	 * @param mask optional mask
+	 * @return
+	 */
+	public static Collection<IndexedPixel> findMaxima(Mat mat, Mat mask) {
+		
+		var matMax = findRegionalMaxima(mat);
+		var points = labelsToPoints(matMax);
+		
+		// Update points to have the value of the maximum
+		try (var idx = mat.createIndexer()) {
+			for (var p : points) {
+				p.value = idx.getDouble(p.inds);
+			}
+		}
+		
+		// Sort in descending order of value
+		Collections.sort(points, Comparator.comparingDouble((IndexedPixel p) -> p.getValue()).reversed());
+		
+		// Mask if we have to
+		if (mask == null)
+			return points;
+		try (var idx = mask.createIndexer()) {
+			return points.stream().filter(p -> idx.getDouble(p.inds) != 0).collect(Collectors.toList());
+		}
+		
+	}
+	
+	
+	private static void checkSingleChannel(Mat mat) {
+		if (mat.channels() != 1)
+			throw new IllegalArgumentException("Method requires a single-channel mat, but input has " + mat.channels() + " channels");
+	}
+	
+	/**
+	 * Extract all the masked pixels within an image.
+	 * @param mat input image; must be single-channel
+	 * @param mask mask of the same size as mat
+	 * @return list of pixels, including their indices and values
+	 */
+	public static List<IndexedPixel> getMaskedPixels(Mat mat, Mat mask) {
+		checkSingleChannel(mat);
+		checkSingleChannel(mask);
+		
+		var pixels = new ArrayList<IndexedPixel>();
+
+		int height = mat.rows();
+		int width = mat.cols();
+		
+		long[] inds = new long[2];
+		try (var idx = mat.createIndexer()) {
+			try (var idxMask = mask.createIndexer()) {
+				for (int y = 0; y < height; y++) {
+					inds[0] = y;
+					for (int x = 0; x < width; x++) {
+						inds[1] = x;
+						if (idxMask.getDouble(inds) != 0)
+							pixels.add(new IndexedPixel(x, y, idx.getDouble(inds)));
+					}					
+				}
+			}
+		}
+		return pixels;
+	}
+	
+	
+	/**
+	 * Class representing the indices of a pixel and its value.
+	 * This has considerable overhead, so should be used sparingly.
+	 */
+	public static class IndexedPixel {
+		
+		private long[] inds;
+		private double value;
+		
+		IndexedPixel(long[] inds, double value) {
+			this.inds = inds.clone();
+			this.value = value;
+		}
+		
+		IndexedPixel(int x, int y, double value) {
+			this.inds = new long[]{y, x};
+			this.value = value;
+		}
+		
+		/**
+		 * Get x index.
+		 * @return
+		 */
+		public int getX() {
+			return (int)inds[1];
+		}
+		
+		/**
+		 * Get y index.
+		 * @return
+		 */
+		public int getY() {
+			return (int)inds[0];
+		}
+		
+		/**
+		 * Get channel index.
+		 * @return
+		 */
+		public int getC() {
+			return inds.length < 3 ? 0 : (int)inds[2];
+		}
+		
+		/**
+		 * Get the index array. Note that this returns a clone of the array.
+		 * @return
+		 * @see #getValue(Indexer)
+		 */
+		public long[] getInds() {
+			return inds.clone();
+		}
+		
+		/**
+		 * Get the value stored internally for this pixel.
+		 * @return
+		 */
+		public double getValue() {
+			return value;
+		}
+		
+		/**
+		 * Get the value from another image via its {@link Indexer}.
+		 * This is equivalent to {@code Indexer.getDouble(IndexedPixel.getInds())} but avoids copying the inds array.
+		 * @param idx
+		 * @return
+		 */
+		public double getValue(Indexer idx) {
+			return idx.getDouble(inds);
+		}
+		
+		/**
+		 * Get the euclidean distance to another pixel, based upon the inds array and assuming unit spacing for all dimensions.
+		 * @param p2
+		 * @return
+		 */
+		public long distanceSq(IndexedPixel p2) {
+			if (inds.length != p2.inds.length)
+				throw new IllegalArgumentException("Cannot compute distance between points with different numbers of indices!");
+			long sumSq = 0L;
+			for (int i = 0; i < inds.length; i++) {
+				long d = inds[i] - p2.inds[i];
+				sumSq += d*d;
+			}
+			return sumSq;
+		}
+		
+	}
+	
+	
+	/**
+	 * Shrink labels to a single point.
+	 * This works by effectively iterating through each label, and retaining only the labeled pixel that is closest to the centroid 
+	 * of all pixels with the same label - setting all other pixels within the component to zero.
+	 * 
+	 * @param mat label mat (must be CV_32S)
+	 * @return the labeled image, with only one pixel per label greater than zero
+	 */
+	public static Mat shrinkLabels(Mat mat) {
+
+		if (mat.channels() != 1)
+			throw new IllegalArgumentException("shrinkLabels requires a single-channel mat, but input has " + mat.channels() + " channels");
+
+		var points = labelsToPoints(mat);
+
+		var mat2 = new Mat(mat.rows(), mat.cols(), mat.type(), Scalar.ZERO);
+		try (IntIndexer idx2 = mat2.createIndexer()) {
+			for (var p : points) {
+				idx2.putDouble(p.inds, p.getValue());
+			}
+		}
+		
+		return mat2;
+	}
+	
+	
+	private static List<IndexedPixel> labelsToPoints(Mat mat) {
+
+		if (mat.channels() != 1)
+			throw new IllegalArgumentException("labelsToPoints requires a single-channel mat, but input has " + mat.channels() + " channels");
+
+		int w = mat.cols();
+		int h = mat.rows();
+
+		var pixels = new ArrayList<IndexedPixel>();
+		try (IntIndexer idx = mat.createIndexer()) {
+			for (int y = 0; y < h; y++) {
+				for (int x = 0; x < w; x++) {
+					int lab = idx.get(y, x);
+					if (lab != 0) {
+						pixels.add(new IndexedPixel(x, y, lab));
+					}
+				}				
+			}
+		}
+		
+		// Group by label
+		var groups = pixels.stream().collect(Collectors.groupingBy(p -> p.value));
+		
+		return groups.values().stream().map(l-> closestToCentroid(l)).collect(Collectors.toList());
+	}
+	
+	/**
+	 * Get the closest pixel to the centroid of all pixels.
+	 * @param pixels
+	 * @return
+	 */
+	private static IndexedPixel closestToCentroid(Collection<IndexedPixel> pixels) {
+		// If only 2 pixels, can take either
+		if (pixels.size() <= 2)
+			return pixels.iterator().next();
+		
+		double cx = pixels.stream().mapToDouble(p -> p.getX()).average().getAsDouble();
+		double cy = pixels.stream().mapToDouble(p -> p.getY()).average().getAsDouble();
+		
+		IndexedPixel closest = null;
+		double minDistanceSq = Double.POSITIVE_INFINITY;
+		for (var p : pixels) {
+			double dx = cx - p.getX();
+			double dy = cy - p.getY();
+			double dist = dx*dx + dy*dy;
+			if (dist < minDistanceSq) {
+				minDistanceSq = dist;
+				closest = p;
+			}
+		}
+		return closest;
+	}
+	
+	
+	/**
+	 * For a labeled image, store the min/max intensity values within the labeled region 
+	 * and one pixel outside its boundary. This can be used to determine if the region is a local maximum.
+	 */
+	private static class MaxLabelStat {
+		
+		int label;
+		double minInside = Double.POSITIVE_INFINITY;
+		double maxInside = Double.NEGATIVE_INFINITY;
+		
+		double minBoundary = Double.POSITIVE_INFINITY;
+		double maxBoundary = Double.NEGATIVE_INFINITY;
+		
+		MaxLabelStat(int label) {
+			this.label = label;
+		}
+		
+		public void inside(double value) {
+			if (value < minInside)
+				minInside = value;
+			if (value > maxInside)
+				maxInside = value;
+		}
+		
+		public void boundary(double value) {
+			if (value < minBoundary)
+				minBoundary = value;
+			if (value > maxBoundary)
+				maxBoundary = value;
+		}
+		
+		
+	}
+	
+	
+	private static double getValue(Indexer idx, long i, long j, long k, long[] inds) {
+		inds[0] = i;
+		inds[1] = j;
+		inds[2] = k;
+		return idx.getDouble(inds);
+	}
+	
+	
 }

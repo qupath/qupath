@@ -2,6 +2,7 @@
 *In progress*
 
 ### Release highlights
+* **New 'Create density map' command** to visualize hotspots & generate annotations based on object densities
 * **_Many_ code fixes** & **performance improvements**
 * **Revised code structure**, with non-core features now separated out as optional **extensions**, including:
   * **OMERO**
@@ -29,6 +30,9 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Support for importing & exporting objects without scripting
   * Export objects as GeoJSON without via *File > Object data... > ...*
   * Import objects from .json, .geojson & .qpdata files via *File > Object data... > Import objects* or with drag & drop
+* Pixel classifier usability improvements
+  * New 'Show as text' option to check classifier parameters
+  * Switch between pixel classifiers & density maps by bringing the corresponding window into focus
 * Script editor improvements
   * New 'Auto clear cache (batch processing)' option to reduce memory use when running scripts across many images
   * Default to project script directory when choosing a location to save a new script
@@ -55,6 +59,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
+* BufferedImageOverlays are now tied to the the pixel classification display setting (rather than the detection display)
 * Bio-Formats now optionally accepts URLs, not only local files (requires opt-in through the preferences)
 
 ### Code changes
@@ -62,6 +67,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
 * `GeneralTools.readAsString` methods now assume UTF-8 encoding
+* `PixelClassificationOverlay` has moved to the main GUI module
 * Scripting method `getColorRGB()` has been replaced by `makeRBG()` and `makeARGB()`; further related changes in ColorTools class
 * StarDist supports frozen models that are compatible with OpenCV's DNN module
 * New 2D/3D thinning & interpolation classes

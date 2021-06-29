@@ -169,6 +169,22 @@ public class ImageOps {
 		factoryOps.registerSubtype(cls, label);
 	}
 
+	/**
+	 * Register an {@link ImageDataOp} class for JSON serialization/deserialization.
+	 * <p>
+	 * Labels should typically be all lowercase and begin with "data.op." and include "ext" if the op is added via an extension.
+	 * 
+	 * @param cls the op to register; this must be compatible with JSON serialization.
+	 * @param label an identifying label; that this must be unique. If it does not start with "data.op." a warning will be logged.
+	 */
+	public static void registerDataOp(Class<? extends ImageDataOp> cls, String label) {
+		Objects.nonNull(cls);
+		Objects.nonNull(label);
+		logger.debug("Registering ImageOp {} with label {}", cls, label);
+		if (!label.startsWith("data.op."))
+			logger.warn("ImageDataOp label '{}' does not begin with 'data.op.'", label);
+		factoryDataOps.registerSubtype(cls, label);
+	}
 	
 	/**
 	 * Build an {@link ImageServer} that generates pixels on demand from an {@link ImageData} by applying an {@link ImageDataOp}.
@@ -1262,6 +1278,16 @@ public class ImageOps {
 		}
 		
 		/**
+		 * Repeat the channels a specified number of times.
+		 * This is useful when wishing to apply arithmetic between a single channel and a multi-channel image.
+		 * @param numRepeats
+		 * @return
+		 */
+		public static ImageOp repeat(int numRepeats) {
+			return new RepeatChannelsOp(numRepeats);
+		}
+		
+		/**
 		 * Add all channels together, to give a single-channel output.
 		 * @return
 		 */
@@ -1393,6 +1419,44 @@ public class ImageOps {
 				if (channels.length == 1)
 					return "Channel " + channels[0];
 				return "Channels [" + Arrays.stream(channels).mapToObj(c -> Integer.toString(c)).collect(Collectors.joining(",")) + "]";
+			}
+			
+		}
+		
+		@OpType("repeat-channels")
+		static class RepeatChannelsOp implements ImageOp {
+			
+			private int numRepeats;
+			
+			RepeatChannelsOp(int numRepeats) {
+				this.numRepeats = numRepeats;
+			}
+			
+			@Override
+			public Mat apply(Mat input) {
+				List<Mat> originalChannels = OpenCVTools.splitChannels(input);
+				List<Mat> outputChannels = new ArrayList<>();
+				for (int i = 0; i < numRepeats; i++) {
+					// TODO: Check if need to clone?
+					outputChannels.addAll(originalChannels);
+				}
+				return OpenCVTools.mergeChannels(outputChannels, input);
+			}
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				List<ImageChannel> newChannels = new ArrayList<>(channels);
+				for (int i = 1; i < numRepeats; i++) {
+					for (var c : channels) {
+						newChannels.add(ImageChannel.getInstance(c.getName() + "(" + i + ")", c.getColor()));
+					}
+				}
+				return newChannels;
+			}
+			
+			@Override
+			public String toString() {
+				return "Repeat channels " + numRepeats;
 			}
 			
 		}
@@ -1750,6 +1814,52 @@ public class ImageOps {
 			return new LogOp();
 		}
 		
+		/**
+		 * Create an op that rounds floating point values.
+		 * Non-finite input values are left unchanged.
+		 * @return
+		 */
+		public static ImageOp round() {
+			return new RoundOp();
+		}
+		
+		/**
+		 * Create an op that floors floating point values.
+		 * Non-finite input values are left unchanged.
+		 * @return
+		 */
+		public static ImageOp floor() {
+			return new FloorOp();
+		}
+		
+		/**
+		 * Create an op that ceils floating point values.
+		 * Non-finite input values are left unchanged.
+		 * @return
+		 */
+		public static ImageOp ceil() {
+			return new CeilOp();
+		}
+		
+		/**
+		 * Create an op that replaces NaNs with a specified value.
+		 * @param replaceValue the value to replace NaNs
+		 * @return
+		 */
+		public static ImageOp replaceNaNs(double replaceValue) {
+			return new ReplaceNaNsOp(replaceValue);
+		}
+		
+		/**
+		 * Create an op that replaces one pixel value in an image with another.
+		 * @param originalValue the value in the input image to replace
+		 * @param newValue      the value to use in the output image
+		 * @return
+		 */
+		public static ImageOp replace(double originalValue, double newValue) {
+			return new ReplaceValueOp(originalValue, newValue);
+		}
+		
 		private static enum SplitCombineType {ADD, SUBTRACT, MULTIPLY, DIVIDE};
 		
 		/**
@@ -1855,6 +1965,75 @@ public class ImageOps {
 					OpenCVTools.mergeChannels(channels, input);
 				} else
 					throw new IllegalArgumentException("Multiply requires " + values.length + " channels, but Mat has " + input.channels());
+				return input;
+			}
+			
+		}
+		
+		@OpType("replace-values")
+		static class ReplaceValueOp implements ImageOp {
+			
+			private double originalValue;
+			private double newValue;
+			
+			ReplaceValueOp(double originalValue, double newValue) {
+				this.originalValue = newValue;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.replaceValues(input, originalValue, newValue);
+				return input;
+			}
+			
+		}
+		
+		@OpType("replace-nans")
+		static class ReplaceNaNsOp implements ImageOp {
+			
+			private double value;
+			
+			ReplaceNaNsOp(double value) {
+				this.value = value;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.replaceNaNs(input, value);
+				return input;
+			}
+			
+		}
+		
+		
+		@OpType("round")
+		static class RoundOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.round(input);
+				return input;
+			}
+			
+		}
+		
+		@OpType("ceil")
+		static class CeilOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.ceil(input);
+				return input;
+			}
+			
+		}
+		
+		@OpType("floor")
+		static class FloorOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.floor(input);
 				return input;
 			}
 			

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -25,9 +25,11 @@ import java.util.function.Predicate;
 
 /**
  * Enumeration of filters (predicates) that can be used to select objects based on their type.
+ * <p>
+ * See also {@link PathObjectPredicates} for more complex JSON-serializable predicates.
  * 
  * @author Pete Bankhead
- *
+ * @see PathObjectPredicates
  */
 public enum PathObjectFilter implements Predicate<PathObject> {
 	/**

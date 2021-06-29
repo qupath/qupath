@@ -46,8 +46,10 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.pixel.PixelClassifiers.ClassifierFunction;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -158,7 +160,7 @@ public class PixelClassifierTools {
 			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
 		return createDetectionsFromPixelClassifier(
 				imageData.getHierarchy(),
-				new PixelClassificationImageServer(imageData, classifier),
+				createPixelClassificationServer(imageData, classifier),
 				minArea, minHoleArea, options);
 	}
 	
@@ -277,7 +279,7 @@ public class PixelClassifierTools {
 			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
 		return createAnnotationsFromPixelClassifier(
 				imageData.getHierarchy(),
-				new PixelClassificationImageServer(imageData, classifier),
+				createPixelClassificationServer(imageData, classifier),
 				minArea, minHoleArea, options);
 	}
 	
@@ -441,10 +443,72 @@ public class PixelClassifierTools {
 	 * @return the classification {@link ImageServer}
 	 */
 	public static ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		return new PixelClassificationImageServer(imageData, classifier);
+		return createPixelClassificationServer(imageData, classifier, null, null, false);
+	}
+	
+	/**
+	 * Create an {@link ImageServer} that displays the results of applying a {@link PixelClassifier} to an image.
+	 * @param imageData the image to which the classifier should apply
+	 * @param classifier the pixel classifier
+	 * @param id an ID to use for the {@link ImageServer}; this may be null, in which case an ID will be derived (if possible from a JSON representation of the classifier)
+	 * @param colorModel optional colormodel for the classifier (may be null to use the default)
+	 * @param cacheAllTiles optionally request that all tiles are computed immediately as the classifier is created. This is useful for images that are 'small' and where 
+	 *                      the classification can comfortably be held in RAM.
+	 * @return the classification {@link ImageServer}
+	 */
+	public static ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData, PixelClassifier classifier, String id, ColorModel colorModel, boolean cacheAllTiles) {
+		var server = new PixelClassificationImageServer(imageData, classifier, id, colorModel);
+		if (cacheAllTiles)
+			server.readAllTiles();
+		return server;
+	}
+	
+	/**
+	 * Create a new {@link ImageServer} by applying a threshold to one or more channels of another server.
+	 * This is particularly useful where one channel represents intensities to threshold, and one channel should be used as a mask.
+	 * 
+	 * @param server the server to threshold
+	 * @param thresholds map between channel numbers (zero-based) and thresholds
+	 * @param below the classification for pixels whose values are below the threshold in any channel
+	 * @param aboveEquals the classification for pixels whose values are greater than or equal to the threshold in all channels
+	 * @return the thresholded server
+	 */
+	public static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, Map<Integer, ? extends Number> thresholds, PathClass below, PathClass aboveEquals) {
+		var fun = PixelClassifiers.createThresholdFunction(thresholds);
+		var labels = Map.of(0, below, 1, aboveEquals);
+		return createThresholdServer(server, labels, fun);
 	}
 	
 	
+	/**
+	 * Create a new {@link ImageServer} by applying a threshold to one channel of another server.
+	 * 
+	 * @param server the server to threshold
+	 * @param channel the channel to threshold (zero-based)
+	 * @param threshold the threshold value to apply
+	 * @param below the classification for pixels below the threshold (must not be null)
+	 * @param aboveEquals the classification for pixels greater than or equal to the threshold (must not be null)
+	 * @return the thresholded server
+	 */
+	public static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, int channel, double threshold, PathClass below, PathClass aboveEquals) {
+		var fun = PixelClassifiers.createThresholdFunction(channel, threshold);
+		var labels = Map.of(0, below, 1, aboveEquals);
+		return createThresholdServer(server, labels, fun);
+	}
+
+	
+	private static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, Map<Integer, PathClass> labels, ClassifierFunction fun) {
+		
+		var inputResolution = server.getPixelCalibration();
+		double scale = server.getDownsampleForResolution(0);
+		if (scale > 1)
+			inputResolution = inputResolution.createScaledInstance(scale, scale);
+		
+		var classifier = PixelClassifiers.createThresholdClassifier(inputResolution, labels, fun);
+		return PixelClassifierTools.createPixelClassificationServer(new ImageData<>(server), classifier);
+	}
+
+
 	/**
 	 * Create a {@link PixelClassificationMeasurementManager} that can be used to generate measurements from applying a pixel classifier to an image.
 	 * @param imageData the image to which the classifier should be applied
@@ -651,29 +715,10 @@ public class PixelClassifierTools {
 	 * @param preferNucleusROI use the nucleus ROI in the case of cells; ignored for all other object types
 	 */
 	public static void classifyObjectsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
-		classifyObjectsByCentroid(new PixelClassificationImageServer(imageData, classifier), pathObjects, preferNucleusROI);
+		classifyObjectsByCentroid(createPixelClassificationServer(imageData, classifier), pathObjects, preferNucleusROI);
 		imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
 	}
 	
-	
-	
-	
-//	public static void classifyObjectsByAreaOverlap(PixelClassificationImageServer server, Collection<PathObject> pathObjects, double overlapProportion, boolean preferNucleusROI) {
-//		var reclassifiers = pathObjects.parallelStream().map(p -> {
-//				try {
-//					var roi = PathObjectTools.getROI(p, preferNucleusROI);
-//					PixelClassificationMeasurementManager.
-//					int x = (int)roi.getCentroidX();
-//					int y = (int)roi.getCentroidY();
-//					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
-//					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannel(ind).getName()), false);
-//				} catch (Exception e) {
-//					return new Reclassifier(p, null, false);
-//				}
-//			}).collect(Collectors.toList());
-//		reclassifiers.parallelStream().forEach(r -> r.apply());
-//		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
-//	}	
 	
 
 }

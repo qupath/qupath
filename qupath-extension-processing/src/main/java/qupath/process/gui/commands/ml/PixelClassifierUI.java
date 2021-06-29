@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.process.gui.ml;
+package qupath.process.gui.commands.ml;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -47,16 +47,12 @@ import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
-import javafx.util.Duration;
+import qupath.imagej.gui.commands.ui.SaveResourcePaneBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
@@ -187,80 +183,31 @@ public class PixelClassifierUI {
 	 *                  Otherwise, if classifier is changed, this will be set to null. Therefore it provides a way to determine if the  
 	 *                  current classifier has been saved and, if so, what is its name.
 	 * @return a pane that may be added to a scene 
-	 */
+	 */	
 	public static Pane createSavePixelClassifierPane(ObjectExpression<Project<BufferedImage>> project, ObjectExpression<PixelClassifier> classifier, StringProperty savedName) {
-		
-		var label = new Label("Classifier name");
-		var defaultName = savedName.get();
-		var tfClassifierName = new TextField(defaultName == null ? "" : defaultName);
-		tfClassifierName.setPromptText("Enter pixel classifier name");
-		
-		// Reset the saved name if the classifier changes
-		classifier.addListener((v, o, n) -> savedName.set(null));
-		
-		var btnSave = new Button("Save");
-		btnSave.setOnAction(e -> {
-			var name = tryToSave(project.get(), classifier.get(), tfClassifierName.getText(), false);
-			if (name != null) {
-				Dialogs.showInfoNotification("Pixel classifier", "Classifier saved as \"" + name + "\"");
-				savedName.set(name);
-				tfClassifierName.requestFocus();
-				btnSave.requestFocus();
-			}
-		});
-		btnSave.disableProperty().bind(
-				classifier.isNull()
-					.or(project.isNull())
-					.or(tfClassifierName.textProperty().isEmpty()));
-		tfClassifierName.disableProperty().bind(project.isNull());
-		label.setLabelFor(tfClassifierName);
-		
-		var tooltip = new Tooltip();
-		var tooltipTextYes = "Save classifier in the current project - this is required to use the classifier to use the classifier later (e.g. to create objects, measurements)";
+		var tooltipTextYes = "Save classifier in the current project - this is required to use the classifier later (e.g. to create objects, measurements)";
 		var tooltipTextNo = "Cannot save a classifier outside a project. Please create a project to save the classifier.";
-		tooltip.setShowDelay(Duration.millis(500));
-		tooltip.textProperty().bind(Bindings
+		var tooltipText = Bindings
 				.when(project.isNull())
 				.then(Bindings.createStringBinding(() -> tooltipTextNo, project))
-				.otherwise(Bindings.createStringBinding(() -> tooltipTextYes, project)));
-		
-		var pane = new GridPane();
-		Tooltip.install(pane, tooltip);
-		PaneTools.addGridRow(pane, 0, 0, null, label, tfClassifierName, btnSave);
-		PaneTools.setToExpandGridPaneWidth(tfClassifierName);
-		pane.setHgap(5);
-		
-		ProjectClassifierBindings.bindPixelClassifierNameInput(tfClassifierName, project);
-		
-		return pane;
+				.otherwise(Bindings.createStringBinding(() -> tooltipTextYes, project));
+		return new SaveResourcePaneBuilder<>(PixelClassifier.class, classifier)
+				.project(project)
+				.labelText("Classifier name")
+				.tooltip(tooltipText)
+				.savedName(savedName)
+				.title("Pixel classifier")
+				.build();
 	}
 	
 	
-	
-	private static String tryToSave(Project<?> project, PixelClassifier classifier, String name, boolean overwriteQuietly) {
-		if (project == null) {
-			Dialogs.showWarningNotification("Pixel classifier", "You need a project to be able to save the pixel classifier");
-			return null;
-		}
-		name = GeneralTools.stripInvalidFilenameChars(name);
-		if (name.isBlank()) {
-			Dialogs.showErrorMessage("Pixel classifier", "Please enter a valid classifier name!");
-			return null;
-		}
-		try {
-			var classifiers = project.getPixelClassifiers();
-			if (!overwriteQuietly && classifiers.contains(name)) {
-				if (!Dialogs.showYesNoDialog("Pixel classifier", "Overwrite existing classifier '" + name + "'?"))
-					return null;
-			}
-			classifiers.put(name, classifier);
-			return name;
-		} catch (IOException ex) {
-			Dialogs.showErrorMessage("Pixel classifier", ex);
-			return null;
-		}
-	}
-	
+//	public static Pane createSaveObjectClassifierPane(ObjectExpression<Project<BufferedImage>> project, ObjectExpression<ObjectClassifier<BufferedImage>> classifier, StringProperty savedName) {
+//		return new SaveResourcePaneBuilder<>(ObjectClassifier.class, classifier)
+//				.project(project)
+//				.savedName(savedName)
+//				.title("Object classifier")
+//				.build();
+//	}
 	
 	private static boolean promptToSavePredictionImage(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		Objects.requireNonNull(imageData);
@@ -337,7 +284,7 @@ public class PixelClassifierUI {
 	 * 						 workflow of the {@link ImageData} for later scripting.
 	 * @return true if changes were made, false otherwise
 	 */
-	private static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
+	public static boolean promptToCreateObjects(ImageData<BufferedImage> imageData, PixelClassifier classifier, String classifierName) {
 		Objects.requireNonNull(imageData);
 		Objects.requireNonNull(classifier);
 
@@ -362,7 +309,7 @@ public class PixelClassifierUI {
 				"Annotation", "Detection"
 				);
 		
-		// To avoid confusing the user unnecessary, if we *only* have ignored classes then set default for includeIgnored to true
+		// To avoid confusing the user unnecessarily, if we *only* have ignored classes then set default for includeIgnored to true
 		boolean includeIgnored = false;
 		var labels = classifier.getMetadata().getClassificationLabels();
 		if (!labels.isEmpty() && labels.values().stream().allMatch(p -> p == null || PathClassTools.isIgnoredClass(p)))

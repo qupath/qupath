@@ -51,6 +51,7 @@ import javafx.stage.Stage;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
@@ -94,12 +95,10 @@ class ShowInstalledExtensionsCommand {
 			row += inc;
 		}
 		
-		String titledPlainCSS = ShowInstalledExtensionsCommand.class.getClassLoader().getResource("css/titled_plain.css").toExternalForm();
-		
 		TitledPane titledExtensions = new TitledPane("Extensions", paneExtensions);
-		titledExtensions.getStylesheets().add(titledPlainCSS);
+		PaneTools.simplifyTitledPane(titledExtensions, false);
 		TitledPane titledServers = new TitledPane("Image Servers", paneServers);
-		titledServers.getStylesheets().add(titledPlainCSS);
+		PaneTools.simplifyTitledPane(titledServers, false);
 		
 		VBox vbox = new VBox(
 				titledExtensions,
@@ -155,7 +154,7 @@ class ShowInstalledExtensionsCommand {
 		paneEntry.setExpanded(false);
 		paneEntry.setBorder(null);
 		// Remove borders
-		paneEntry.getStylesheets().add(ShowInstalledExtensionsCommand.class.getClassLoader().getResource("css/titled_plain.css").toExternalForm());
+		PaneTools.simplifyTitledPane(paneEntry, false);
 
 		
 //		Tooltip tooltip = new Tooltip(entry.getPathToJar());

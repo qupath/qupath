@@ -65,6 +65,9 @@ import qupath.lib.analysis.DelaunayTools;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
+import qupath.lib.analysis.heatmaps.ColorModels;
+import qupath.lib.analysis.heatmaps.DensityMaps;
+import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.analysis.images.ContourTracing;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.classifiers.PathClassifierTools;
@@ -83,6 +86,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.images.writers.TileExporter;
@@ -91,6 +95,8 @@ import qupath.lib.io.PathIO;
 import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.io.PointIO;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectFilter;
+import qupath.lib.objects.PathObjectPredicates;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.PathTileObject;
@@ -208,11 +214,15 @@ public class QP {
 			.registerTypeAdapterFactory(ObjectClassifiers.getTypeAdapterFactory())
 			.registerTypeAdapter(ColorTransforms.ColorTransform.class, new ColorTransforms.ColorTransformTypeAdapter());
 		
-		// Currently, the type adapters are registered within the class
+		// Currently, the type adapters are registered within the class... so we need to initialize the class
 		@SuppressWarnings("unused")
 		var init = new ImageOps();
 		@SuppressWarnings("unused")
 		var servers = new ImageServers();
+		@SuppressWarnings("unused")
+		var predicates = new PathObjectPredicates();
+		@SuppressWarnings("unused")
+		var colorModels = new ColorModels();
 	}
 
 	
@@ -228,6 +238,8 @@ public class QP {
 			RegionRequest.class,
 			ImagePlane.class,
 			Padding.class,
+			
+			PixelType.class,
 
 			// Static constructors
 			PathObjects.class,
@@ -257,12 +269,17 @@ public class QP {
 			ImageOps.class,
 			DelaunayTools.class,
 			CellTools.class,
-			
+						
 			ContourTracing.class,
 			
 			GroovyCV.class,
 			
+			// Predicates & filters
+			PathObjectFilter.class,
+			PathObjectPredicates.class,
+			
 			// IO classes
+			PathIO.class,
 			PointIO.class,
 			ProjectIO.class,
 			
@@ -2638,6 +2655,30 @@ public class QP {
 	}
 	
 	/**
+	 * Write the output of applying a density map to an image. The writer will be determined based on the file extension.
+	 * @param imageData image to which the classifier should be applied
+	 * @param densityMap the density map
+	 * @param path output file path
+	 * @throws IOException
+	 */
+	public static void writeDensityMapImage(ImageData<BufferedImage> imageData, DensityMapBuilder densityMap, String path) throws IOException {
+		if (imageData == null)
+			imageData = getCurrentImageData();
+		var server = densityMap.buildServer(imageData);
+		ImageWriterTools.writeImage(server, path);
+	}
+	
+	/**
+	 * Write the output of applying a density map to the current image image.
+	 * @param densityMapName name of the density map, see {@link #loadDensityMap(String)}
+	 * @param path output file path
+	 * @throws IOException
+	 */
+	public static void writeDensityMapImage(String densityMapName, String path) throws IOException {
+		writeDensityMapImage(getCurrentImageData(), loadDensityMap(densityMapName), path);
+	}
+	
+	/**
 	 * Write a full image to the specified path. The writer will be determined based on the file extension.
 	 * @param server
 	 * @param path
@@ -3199,6 +3240,135 @@ public class QP {
 	}
 	
 	
+	/**
+	 * Load a density map for a project or file path.
+	 * 
+	 * @param name the name of the density map within the current project, or file path to a density map to load from disk.
+	 * @return the requested {@link DensityMapBuilder}
+	 * @throws IllegalArgumentException if the density map cannot be found
+	 */
+	public static DensityMapBuilder loadDensityMap(String name) throws IllegalArgumentException {
+		var project = getProject();
+		Exception exception = null;
+		if (project != null) {
+			try {
+				var densityMaps = project.getResources(DensityMaps.PROJECT_LOCATION, DensityMapBuilder.class, "json");
+				if (densityMaps.contains(name))
+					return densityMaps.get(name);
+			} catch (Exception e) {
+				exception = e;
+				logger.debug("Density map '{}' not found in project", name);
+			}
+		}
+		try {
+			var path = Paths.get(name);
+			if (Files.exists(path))
+				return DensityMaps.loadDensityMap(path);
+		} catch (Exception e) {
+			exception = e;
+			logger.debug("Density map '{}' cannot be read from file", name);
+		}
+		throw new IllegalArgumentException("Unable to find density map " + name, exception);
+	}
+	
+	/**
+	 * Find hotspots in a density map for the current image.
+	 * 
+	 * @param densityMapName name of the density map builder, see {@link #loadDensityMap(String)}
+	 * @param channel channel number (usually 0)
+	 * @param numHotspots the maximum number of hotspots to generate within each selected object
+	 * @param minCounts the minimum value in the 'counts' channel; this is used to avoid generating hotspots in areas with few objects
+	 * @param deleteExisting if true, similar annotations will be deleted from the image
+	 * @param peaksOnly if true, hotspots will only be generated at intensity peaks in the density map
+	 * @throws IOException
+	 */
+	public static void findDensityMapHotspots(String densityMapName, int channel, int numHotspots, double minCounts, boolean deleteExisting, boolean peaksOnly) throws IOException {
+		findDensityMapHotspots(getCurrentImageData(), loadDensityMap(densityMapName), channel, numHotspots, minCounts, deleteExisting, peaksOnly);
+	}
+	
+	/**
+	 * Find hotspots in a density map.
+	 * 
+	 * @param imageData the image data
+	 * @param densityMapName name of the density map builder, see {@link #loadDensityMap(String)}
+	 * @param channel channel number (usually 0)
+	 * @param numHotspots the maximum number of hotspots to generate within each selected object
+	 * @param minCounts the minimum value in the 'counts' channel; this is used to avoid generating hotspots in areas with few objects
+	 * @param deleteExisting if true, similar annotations will be deleted from the image
+	 * @param peaksOnly if true, hotspots will only be generated at intensity peaks in the density map
+	 * @throws IOException
+	 */
+	public static void findDensityMapHotspots(ImageData<BufferedImage> imageData, String densityMapName, int channel, int numHotspots, double minCounts, boolean deleteExisting, boolean peaksOnly) throws IOException {
+		findDensityMapHotspots(imageData, loadDensityMap(densityMapName), channel, numHotspots, minCounts, deleteExisting, peaksOnly);
+	}
+	
+	/**
+	 * Find hotspots in a density map.
+	 * 
+	 * @param imageData the image data
+	 * @param densityMap builder to generate a density map
+	 * @param channel channel number (usually 0)
+	 * @param numHotspots the maximum number of hotspots to generate within each selected object
+	 * @param minCounts the minimum value in the 'counts' channel; this is used to avoid generating hotspots in areas with few objects
+	 * @param deleteExisting if true, similar annotations will be deleted from the image
+	 * @param peaksOnly if true, hotspots will only be generated at intensity peaks in the density map
+	 * @throws IOException
+	 */
+	public static void findDensityMapHotspots(ImageData<BufferedImage> imageData, DensityMapBuilder densityMap, int channel, int numHotspots, double minCounts, boolean deleteExisting, boolean peaksOnly) throws IOException {
+		var densityServer = densityMap.buildServer(imageData);
+		double radius = densityMap.buildParameters().getRadius();
+		var pathClass = PathClassFactory.getPathClass(densityServer.getChannel(channel).getName());
+		DensityMaps.findHotspots(imageData.getHierarchy(), densityServer, channel, numHotspots, radius, minCounts, pathClass, deleteExisting, peaksOnly);
+	}
+
+	
+	
+	/**
+	 * Create annotations from a density map for the current image.
+	 * 
+	 * @param densityMapName the name of the density map within the current project, or file path to a density map to load from disk
+	 * @param thresholds map between channels to threshold (zero-based index) and thresholds to apply
+	 * @param pathClassName name of the classification for the annotations that will be created
+	 * @param options additional options when creating the annotations
+	 * @see #loadDensityMap(String)
+	 * @see CreateObjectOptions
+	 */
+	public static void createAnnotationsFromDensityMap(String densityMapName, Map<Integer, ? extends Number> thresholds, String pathClassName, String... options) {
+		createAnnotationsFromDensityMap(getCurrentImageData(), densityMapName, thresholds, pathClassName, options);
+	}
+	
+	/**
+	 * Create annotations from a density map for the specified image.
+	 * 
+	 * @param imageData image for which the density map should be generated
+	 * @param densityMapName the name of the density map within the current project, or file path to a density map to load from disk
+	 * @param thresholds map between channels to threshold (zero-based index) and thresholds to apply
+	 * @param pathClassName name of the classification for the annotations that will be created
+	 * @param options additional options when creating the annotations
+	 * @see #loadDensityMap(String)
+	 * @see CreateObjectOptions
+	 */
+	public static void createAnnotationsFromDensityMap(ImageData<BufferedImage> imageData, String densityMapName, Map<Integer, ? extends Number> thresholds, String pathClassName, String... options) {
+		var densityMap = loadDensityMap(densityMapName);
+		createAnnotationsFromDensityMap(imageData, densityMap, thresholds, pathClassName, parseEnumOptions(CreateObjectOptions.class, null, options));
+	}
+	
+	/**
+	 * Create annotations from a density map for the specified image.
+	 * 
+	 * @param imageData image to which the density map corresponds
+	 * @param densityMap the density map to use
+	 * @param thresholds map between channels to threshold (zero-based index) and thresholds to apply
+	 * @param pathClassName name of the classification for the annotations that will be created
+	 * @param options additional options when creating the annotations
+	 * @see #loadDensityMap(String)
+	 * @see CreateObjectOptions
+	 */
+	public static void createAnnotationsFromDensityMap(ImageData<BufferedImage> imageData, DensityMapBuilder densityMap, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) {
+		var densityServer = densityMap.buildServer(imageData);
+		DensityMaps.threshold(imageData.getHierarchy(), densityServer, thresholds, pathClassName, options);
+	}
+	
 	
 	
 	/**
@@ -3229,7 +3399,7 @@ public class QP {
 			exception = e;
 			logger.debug("Pixel classifier '{}' cannot be read from file", name);
 		}
-		throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
+		throw new IllegalArgumentException("Unable to find pixel classifier " + name, exception);
 	}
 	
 	

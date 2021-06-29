@@ -30,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 
@@ -117,17 +116,28 @@ public class TestOpenCVTools {
 	
 	@Test
 	public void testReplaceNaNs() {
-		double[] values = new double[] {-2, 0, 0.43, 100, Double.NaN, Double.NaN, Double.POSITIVE_INFINITY};
-		double[] replacedValues = new double[] {-2, 0, 0.43, 100, 2, 2, Double.POSITIVE_INFINITY};
-		
+		double[] values = new double[] {-2, 0, 0.43, 100, Double.NaN, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+		double[] replacedNaNs = new double[] {-2, 0, 0.43, 100, 2, 2, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+		double[] replacedPositive = new double[] {-2, 0, 0.43, 100, Double.NaN, Double.NaN, 2, Double.NEGATIVE_INFINITY};
+		double[] replacedNegative = new double[] {-2, 0, 0.43, 100, Double.NaN, Double.NaN, Double.POSITIVE_INFINITY, 2};
+
 		for (int type : new int[] {opencv_core.CV_32F, opencv_core.CV_64F}) {
 			var mat = new Mat(values);
 			mat.convertTo(mat, type);
 			
 			assertArrayEquals(values, OpenCVTools.extractDoubles(mat), 1e-3);
 			
-			OpenCVTools.replaceNaNs(mat, 2.0);
-			assertArrayEquals(replacedValues, OpenCVTools.extractDoubles(mat), 1e-3);
+			var temp = mat.clone();
+			OpenCVTools.replaceNaNs(temp, 2.0);
+			assertArrayEquals(replacedNaNs, OpenCVTools.extractDoubles(temp), 1e-3);
+			
+			temp = mat.clone();
+			OpenCVTools.replaceValues(temp, Double.POSITIVE_INFINITY, 2.0);
+			assertArrayEquals(replacedPositive, OpenCVTools.extractDoubles(temp), 1e-3);
+			
+			temp = mat.clone();
+			OpenCVTools.replaceValues(temp, Double.NEGATIVE_INFINITY, 2.0);
+			assertArrayEquals(replacedNegative, OpenCVTools.extractDoubles(temp), 1e-3);
 	
 			mat.close();
 		}
@@ -198,6 +208,74 @@ public class TestOpenCVTools {
 		double[] pixelsApply = OpenCVTools.extractDoubles(mat2);
 		assertEquals(total, pixelsCV.length);
 		assertArrayEquals(pixelsCV, pixelsApply, 1e-6);
+	}
+	
+	@Test
+	public void testConverting() {
+		// Used to explore OpenCV's convertTo
+		// This can give some surprises (rounding up/down, with non-finite values)
+		
+		// From the OpenCV docs for cvRound: 'If the value is outside of INT_MIN ... INT_MAX range, the result is not defined.'
+		
+		double[] values = new double[] {-100.001, 123.4, 0, -0, 0.5, 1.5, 12023.423};
+		double[] uint8Values = new double[] {0, 123, 0, 0, 0, 2, 255};
+		double[] int8Values = new double[] {-100, 123, 0, 0, 0, 2, 127};
+		double[] uint16Values = new double[] {0, 123, 0, 0, 0, 2, 12023};
+		
+		try (var scope = new PointerScope()) {
+			
+			var mat = new Mat(values);
+			
+			var mat8U = new Mat();
+			mat.convertTo(mat8U, opencv_core.CV_8U);
+
+			var mat8S = new Mat();
+			mat.convertTo(mat8S, opencv_core.CV_8S);
+
+			var mat16U = new Mat();
+			mat.convertTo(mat16U, opencv_core.CV_16U);
+			assertArrayEquals(uint8Values, OpenCVTools.extractDoubles(mat8U));
+			assertArrayEquals(int8Values, OpenCVTools.extractDoubles(mat8S));
+			assertArrayEquals(uint16Values, OpenCVTools.extractDoubles(mat16U));
+			
+		}
+		
+	}
+	
+	
+	@Test
+	public void testRounding() {
+		double[] values = new double[] {-100.001, 123.4, 0, -0, 0.5, 1.5, 12023.423, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+		double[] floorValues = new double[] {-101, 123, 0, 0, 0, 1, 12023, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+		double[] roundValues = new double[] {-100, 123, 0, 0, 1, 2, 12023, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+		double[] ceilValues = new double[] {-100, 124, 0, 0, 1, 2, 12024, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY};
+		
+		double eps = 1e-3;
+		
+		// Test floats
+		try (var scope = new PointerScope()) {
+			
+			for (int type : new int[] {opencv_core.CV_32F, opencv_core.CV_64F}) {
+				var mat = new Mat(values);
+				mat.convertTo(mat, type);
+				
+				var temp = mat.clone();
+				assertArrayEquals(values, OpenCVTools.extractDoubles(temp), eps);
+				
+				temp = mat.clone();
+				OpenCVTools.floor(temp);
+				assertArrayEquals(floorValues, OpenCVTools.extractDoubles(temp), 0);
+
+				temp = mat.clone();
+				OpenCVTools.round(temp);
+				assertArrayEquals(roundValues, OpenCVTools.extractDoubles(temp), 0);
+
+				temp = mat.clone();
+				OpenCVTools.ceil(temp);
+				assertArrayEquals(ceilValues, OpenCVTools.extractDoubles(temp), 0);
+
+			}
+		}
 	}
 	
 	

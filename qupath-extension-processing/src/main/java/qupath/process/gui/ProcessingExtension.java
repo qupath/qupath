@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
+import qupath.imagej.gui.commands.ui.LoadResourceCommand;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
@@ -51,10 +52,10 @@ import qupath.process.gui.commands.CreateChannelTrainingImagesCommand;
 import qupath.process.gui.commands.CreateCompositeClassifierCommand;
 import qupath.process.gui.commands.CreateRegionAnnotationsCommand;
 import qupath.process.gui.commands.CreateTrainingImageCommand;
+import qupath.process.gui.commands.DensityMapCommand;
 import qupath.process.gui.commands.ObjectClassifierCommand;
 import qupath.process.gui.commands.ObjectClassifierLoadCommand;
 import qupath.process.gui.commands.PixelClassifierCommand;
-import qupath.process.gui.commands.PixelClassifierLoadCommand;
 import qupath.process.gui.commands.SimpleThresholdCommand;
 import qupath.process.gui.commands.SingleMeasurementClassificationCommand;
 import qupath.process.gui.commands.SplitProjectTrainingCommand;
@@ -94,15 +95,32 @@ public class ProcessingExtension implements QuPathExtension {
 		@ActionDescription("Fast cell counting for hematoxylin and DAB images.")
 		@Deprecated
 		public final Action actionFastCellCounts;
+		
+		
+		@ActionMenu("Analyze>Density maps>Create density map")
+		public final Action actionDensityMap;
+
+		@ActionMenu("Analyze>Density maps>Load density map")
+		public final Action actionDensityMapLoad;
 
 				
 		private OpenCVCommands(QuPathGUI qupath) {
 			actionDelaunay = qupath.createPluginAction("Delaunay cluster features 2D", DelaunayClusteringPlugin.class, null);
 //			actionCytokeratin = qupath.createPluginAction("Create cytokeratin annotations (experimental)", DetectCytokeratinCV.class, null);
 			actionFastCellCounts = qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null);
+			var densityMapCommand = new DensityMapCommand(qupath);
+			actionDensityMap = qupath.createImageDataAction(imageData -> densityMapCommand.run());
+			
+			var commandLoad = LoadResourceCommand.createLoadDensityMapCommand(qupath);
+			actionDensityMapLoad = qupath.createImageDataAction(imageData -> commandLoad.run());
+
 		}
 
 	}
+	
+	
+	
+	
 	
 	@ActionMenu("Classify>Object classification")
 	@SuppressWarnings("javadoc")
@@ -159,7 +177,7 @@ public class ProcessingExtension implements QuPathExtension {
 			var commandPixel = new PixelClassifierCommand();
 			actionPixelClassifier = qupath.createImageDataAction(imageData -> commandPixel.run());
 			
-			var commandLoad = new PixelClassifierLoadCommand(qupath);
+			var commandLoad = LoadResourceCommand.createLoadPixelClassifierCommand(qupath);
 			actionLoadPixelClassifier = qupath.createImageDataAction(imageData -> commandLoad.run());
 			
 			var commandThreshold = new SimpleThresholdCommand(qupath);

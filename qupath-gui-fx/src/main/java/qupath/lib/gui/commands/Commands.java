@@ -39,9 +39,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import javafx.scene.paint.Color;
-import javafx.stage.StageStyle;
-
 import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
@@ -72,11 +69,6 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.scene.input.KeyCode;
-import javafx.animation.FadeTransition;
-import javafx.util.Duration;
-
-import qupath.lib.gui.CircularSlider;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;

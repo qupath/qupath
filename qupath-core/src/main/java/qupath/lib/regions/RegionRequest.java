@@ -310,6 +310,24 @@ public class RegionRequest extends ImageRegion {
 		return RegionRequest.createInstance(getPath(), getDownsample(), getX()-xPad, getY()-yPad, getWidth()+xPad*2, getHeight()+yPad*2, getZ(), getT());
 	}
 	
+	/**
+	 * Add symmetric padding to the x and y dimensions of a request.
+	 * @param padding padding to add
+	 * @return {@link RegionRequest} with the specified padding (may be this object unchanged if the padding is zero).
+	 */
+	public RegionRequest pad2D(Padding padding) {
+		if (padding.isEmpty())
+			return this;
+		return RegionRequest.createInstance(
+				getPath(),
+				getDownsample(),
+				getX()-padding.getX1(),
+				getY()-padding.getY1(),
+				getWidth()+padding.getXSum(),
+				getHeight()+padding.getYSum(),
+				getZ(), getT());
+	}
+	
 
 
 	/* (non-Javadoc)

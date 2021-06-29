@@ -109,6 +109,7 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
@@ -116,6 +117,7 @@ import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
 import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -1186,6 +1188,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void setCustomPixelLayerOverlay(PathOverlay pathOverlay) {
 		if (this.customPixelLayerOverlay == pathOverlay)
 			return;
+		
 		// Get existing custom overlay
 		var previousOverlay = getCurrentPixelLayerOverlay();
 		int ind = coreOverlayLayers.indexOf(previousOverlay);
@@ -1197,6 +1200,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			coreOverlayLayers.add(0, this.customPixelLayerOverlay);
 		} else {
 			coreOverlayLayers.set(ind, this.customPixelLayerOverlay);
+		}
+		
+		var imageData = getImageData();
+		if (imageData != null) {
+			if (pathOverlay instanceof PixelClassificationOverlay) {
+				var server = ((PixelClassificationOverlay) pathOverlay).getPixelClassificationServer(imageData);
+				ObservableMeasurementTableData.setPixelLayer(imageData, server);
+			} else
+				ObservableMeasurementTableData.setPixelLayer(imageData, null);
 		}
 				
 //		// Get existing custom overlay
@@ -1211,6 +1223,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //			coreOverlayLayers.set(ind, getCurrentPixelLayerOverlay());
 //		}
 	}
+	
 	
 	/**
 	 * Reset the custom pixel layer overlay to null.
@@ -2504,8 +2517,38 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (hierarchy == null)
 			return "";
 		var p2 = componentPointToImagePoint(x, y, null, false);
+		return getImageObjectClassificationString(p2.getX(), p2.getY());
+	}
+	
+//	/**
+//	 * Get a string representing the image coordinates for a particular x &amp; y location in the viewer component.
+//	 * 
+//	 * @param x x-coordinate in the component space (not image space)
+//	 * @param y y-coordinate in the component space (not image space)
+//	 * @param useCalibratedUnits 
+//	 * @return a String to display representing the cursor location
+//	 */
+//	private String getLocationString(double x, double y, boolean useCalibratedUnits) {
+//		Point2D p = componentPointToImagePoint(x, y, null, false);
+//		double xx = p.getX();
+//		double yy = p.getY();
+//		return getImageLocationString(xx, yy, useCalibratedUnits);
+//	}
+
+	/**
+	 * Get a string representing the object classification x &amp; y location in the viewer component,
+	 * or an empty String if no object is found.
+	 * 
+	 * @param x x-coordinate in the image space (not the component/viewer space)
+	 * @param y y-coordinate in the image space (not the component/viewer space)
+	 * @return a String to display representing the object classification
+	 */
+	public String getImageObjectClassificationString(double x, double y) {
+		var hierarchy = getHierarchy();
+		if (hierarchy == null)
+			return "";
 		var pathObjects = PathObjectTools.getObjectsForLocation(hierarchy,
-				p2.getX(), p2.getY(),
+				x, y,
 				getZPosition(),
 				getTPosition(),
 				0);
@@ -2520,25 +2563,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		return "";
 	}
 	
+	
 	/**
-	 * Get a string representing the image coordinates for a particular x &amp; y location in the viewer component.
-	 * 
-	 * @param x x-coordinate in the component space (not image space)
-	 * @param y y-coordinate in the component space (not image space)
-	 * @param useCalibratedUnits 
-	 * @return a String to display representing the cursor location
+	 * Get a string representing the image coordinates for a particular x &amp; y location.
+	 * @param xx x-coordinate in the image space (not the component/viewer space)
+	 * @param yy y-coordinate in the image space (not the component/viewer space)
+	 * @param useCalibratedUnits
+	 * @return
 	 */
-	public String getLocationString(double x, double y, boolean useCalibratedUnits) {
+	private String getImageLocationString(double xx, double yy, boolean useCalibratedUnits) {
 		ImageServer<BufferedImage> server = getServer();
 		if (server == null)
 			return "";
 		String units;
-		Point2D p = componentPointToImagePoint(x, y, null, false);
-		//		double xx = (int)(p.getX() + .5);
-		//		double yy = (int)(p.getY() + .5);
-		double xx = p.getX();
-		double yy = p.getY();
-
 		if (xx < 0 || yy < 0 || xx > server.getWidth()-1 || yy > server.getHeight()-1)
 			return "";
 
@@ -2643,13 +2680,33 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 */
 	protected String getFullLocationString(boolean useCalibratedUnits) {
 		if (componentContains(mouseX, mouseY)) {
-			String classString = getObjectClassificationString(mouseX, mouseY).trim();
-			String locationString = getLocationString(mouseX, mouseY, useCalibratedUnits);
+			Point2D p = componentPointToImagePoint(mouseX, mouseY, null, false);
+			double x = p.getX();
+			double y = p.getY();
+			String locationString = getImageLocationString(x, y, useCalibratedUnits);
 			if (locationString == null || locationString.isBlank())
 				return "";
-			if (classString != null && !classString.isBlank())
+			
+			int z = getZPosition();
+			int t = getTPosition();
+			String classString = getImageObjectClassificationString(x, y).trim();
+			var overlayStrings = allOverlayLayers.stream()
+					.map(o -> o.getLocationString(getImageData(), x, y, z, t))
+					.filter(s -> s != null)
+					.collect(Collectors.joining("\n"));
+			
+//			if (classString != null && !classString.isBlank())
+//				classString = classString + "\n";
+			
+			if (classString == null)
+				classString = "\n";
+			else
 				classString = classString + "\n";
-			return classString + locationString;
+			
+			if (!overlayStrings.isBlank())
+				overlayStrings = overlayStrings + "\n";
+			
+			return overlayStrings + classString + locationString;
 		} else
 			return "";
 	}

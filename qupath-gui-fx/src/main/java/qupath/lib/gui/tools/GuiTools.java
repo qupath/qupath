@@ -44,10 +44,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -66,6 +70,9 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -99,6 +106,7 @@ import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools.CombineOp;
@@ -1006,6 +1014,23 @@ public class GuiTools {
 	
 	
 	/**
+	 * Bind the value of a slider and contents of a text field with a default number of decimal places,
+	 * so that both may be used to set a numeric (double) value.
+	 * <p>
+	 * This aims to overcome the challenge of keeping both synchronized, while also quietly handling 
+	 * parsing errors that may occur whenever the text field is being edited.
+	 * 
+	 * @param slider slider that may be used to adjust the value
+	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @param expandLimits optionally expand slider min/max range to suppose the text field input; if this is false, the text field 
+	 *                     may contain a different value that is unsupported by the slider
+	 * @return a property representing the value represented by the slider and text field
+	 */
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, boolean expandLimits) {
+		return bindSliderAndTextField(slider, tf, expandLimits, -1);
+	}
+	
+	/**
 	 * Bind the value of a slider and contents of a text field, so that both may be used to 
 	 * set a numeric (double) value.
 	 * <p>
@@ -1014,11 +1039,63 @@ public class GuiTools {
 	 * 
 	 * @param slider slider that may be used to adjust the value
 	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @param expandLimits optionally expand slider min/max range to suppose the text field input; if this is false, the text field 
+	 *                     may contain a different value that is unsupported by the slider
+	 * @param ndp if &ge; 0, this will be used to define the number of decimal places shown in the text field
 	 * @return a property representing the value represented by the slider and text field
 	 */
-	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf) {
-		new NumberAndText(slider.valueProperty(), tf.textProperty()).synchronizeTextToNumber();
-		return slider.valueProperty();
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, boolean expandLimits, int ndp) {
+		var numberProperty = new SimpleDoubleProperty(slider.getValue());
+		new NumberAndText(numberProperty, tf.textProperty(), ndp).synchronizeTextToNumber();
+		if (expandLimits) {
+			numberProperty.addListener((v, o, n) -> {
+				double val = n.doubleValue();
+				if (Double.isFinite(val)) {
+					if (val < slider.getMin())
+						slider.setMin(val);
+					if (val > slider.getMax())
+						slider.setMax(val);
+					slider.setValue(val);
+				}
+			});
+			slider.valueProperty().addListener((v, o, n) -> numberProperty.setValue(n));
+		} else {
+			slider.valueProperty().bindBidirectional(numberProperty);
+		}
+		return numberProperty;	
+//		new NumberAndText(slider.valueProperty(), tf.textProperty(), ndp).synchronizeTextToNumber();
+//		return slider.valueProperty();		
+	}
+	
+	/**
+	 * Install a mouse click listener to prompt the user to input min/max values for a slider.
+	 * @param slider
+	 * @see #promptForSliderRange(Slider)
+	 */
+	public static void installRangePrompt(Slider slider) {
+		slider.setOnMouseClicked(e -> {
+			if (e.getClickCount() == 2)
+				promptForSliderRange(slider);
+		});
+	}
+	
+	/**
+	 * Prompt the user to input min/max values for a slider.
+	 * @param slider
+	 * @return true if the user may have made changes, false if they cancelled the dialog
+	 */
+	public static boolean promptForSliderRange(Slider slider) {
+		
+		var params = new ParameterList()
+				.addEmptyParameter("Specify the min/max values supported by the slider")
+				.addDoubleParameter("minValue", "Slider minimum", slider.getMin())
+				.addDoubleParameter("maxValue", "Slider maximum", slider.getMax());
+		if (!Dialogs.showParameterDialog("Slider range", params))
+			return false;
+		
+		slider.setMin(params.getDoubleParameterValue("minValue"));
+		slider.setMax(params.getDoubleParameterValue("maxValue"));
+		return true;
 	}
 	
 	
@@ -1035,12 +1112,14 @@ public class GuiTools {
 		private DoubleProperty number;
 		private StringProperty text;
 		private NumberFormat format = GeneralTools.createFormatter(5);
+		private int ndp;
 		
-		NumberAndText(DoubleProperty number, StringProperty text) {
+		NumberAndText(DoubleProperty number, StringProperty text, int ndp) {
 			this.number = number;
 			this.text = text;
 			this.number.addListener((v, o, n) -> synchronizeTextToNumber());
 			this.text.addListener((v, o, n) -> synchronizeNumberToText());
+			this.ndp = ndp;
 		}
 		
 		public void synchronizeNumberToText() {
@@ -1069,9 +1148,12 @@ public class GuiTools {
 			if (Double.isNaN(value))
 				s = "";
 			else if (Double.isFinite(value)) {
-				double log10 = Math.round(Math.log10(value));
-				int ndp = (int)Math.max(4, -log10 + 2);
-				s = GeneralTools.formatNumber(value, ndp);
+				if (ndp < 0) {
+					double log10 = Math.round(Math.log10(value));
+					int ndp2 = (int)Math.max(4, -log10 + 2);
+					s = GeneralTools.formatNumber(value, ndp2);
+				} else
+					s = GeneralTools.formatNumber(value, ndp);
 			} else
 				s = Double.toString(value);
 			text.set(s);
@@ -1146,6 +1228,41 @@ public class GuiTools {
 			}
 		}
 		
+	}
+
+	/**
+	 * Create a new {@link Spinner} for double values with a step size that adapts according to the absolute value of 
+	 * the current spinner value. This is useful for cases where the possible values cover a wide range 
+	 * (e.g. potential brightness/contrast values).
+	 * @param minValue
+	 * @param maxValue
+	 * @param minStepValue
+	 * @return
+	 */
+	public static Spinner<Double> createDynamicStepSpinner(double minValue, double maxValue, double defaultValue, double minStepValue) {
+		var factory = new SpinnerValueFactory.DoubleSpinnerValueFactory(minValue, maxValue, defaultValue);
+		factory.amountToStepByProperty().bind(GuiTools.createStepBinding(factory.valueProperty(), minStepValue, 1));
+		var spinner = new Spinner<>(factory);
+		return spinner;
+	}
+
+	/**
+	 * Create a binding that may be used with a {@link Spinner} to adjust the step size dynamically 
+	 * based upon the absolute value of the input.
+	 * 
+	 * @param value current value for the {@link Spinner}
+	 * @param minStep minimum step size (should be &gt; 0)
+	 * @param scale number of decimal places to shift the step size relative to the log10 of the value (suggested default = 1)
+	 * @return a binding that may be attached to a {@link DoubleSpinnerValueFactory#amountToStepByProperty()}
+	 */
+	public static DoubleBinding createStepBinding(ObservableValue<Double> value, double minStep, int scale) {
+		return Bindings.createDoubleBinding(() -> {
+			double val= value.getValue();
+			if (!Double.isFinite(val))
+				return 1.0;
+			val = Math.abs(val);
+			return Math.max(Math.pow(10, Math.floor(Math.log10(val) - scale)), minStep);
+		}, value);
 	}
 	
 	

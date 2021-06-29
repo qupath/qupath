@@ -19,10 +19,9 @@
  * #L%
  */
 
-package qupath.process.gui.ml;
+package qupath.process.gui.commands.ml;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
@@ -93,7 +92,6 @@ import qupath.imagej.gui.IJExtension;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.classifiers.Normalization;
 import qupath.lib.classifiers.PathClassifierTools;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.common.GeneralTools;
@@ -106,6 +104,7 @@ import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -125,7 +124,7 @@ import qupath.opencv.ml.OpenCVClassifiers.RTreesClassifier;
 import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
-import qupath.process.gui.ml.PixelClassifierTraining.ClassifierTrainingData;
+import qupath.process.gui.commands.ml.PixelClassifierTraining.ClassifierTrainingData;
 
 /**
  * Main user interface for interactively training a {@link PixelClassifier}.
@@ -151,8 +150,10 @@ public class PixelClassifierPane {
 	// To display features as overlays across the image
 	private ComboBox<String> comboDisplayFeatures = new ComboBox<>();
 	private Slider sliderFeatureOpacity = new Slider(0.0, 1.0, 1.0);
-	private Spinner<Double> spinFeatureMin = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 0);
-	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
+	private Spinner<Double> spinFeatureMin = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.1);
+	private Spinner<Double> spinFeatureMax = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.1);
+//	private Spinner<Double> spinFeatureMin = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 0);
+//	private Spinner<Double> spinFeatureMax = new Spinner<>(-Double.MAX_VALUE, Double.MAX_VALUE, 1.0);
 	private String DEFAULT_CLASSIFICATION_OVERLAY = "Show classification";
 
 	/**
@@ -433,7 +434,7 @@ public class PixelClassifierPane {
 		selectedResolution.addListener((v, o, n) -> {
 			updateResolution(n);
 			updateClassifier();
-			updateFeatureOverlay();
+			ensureOverlaySet();
 		});
 		if (!comboResolutions.getItems().isEmpty())
 			comboResolutions.getSelectionModel().clearAndSelect(resolutions.size()/2);
@@ -456,7 +457,7 @@ public class PixelClassifierPane {
 		
 		var viewerBorderPane = new BorderPane(viewerPane);
 		
-		comboDisplayFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> updateFeatureOverlay());
+		comboDisplayFeatures.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> ensureOverlaySet());
 		comboDisplayFeatures.setMaxWidth(Double.MAX_VALUE);
 		spinFeatureMin.setPrefWidth(100);
 		spinFeatureMax.setPrefWidth(100);
@@ -564,6 +565,18 @@ public class PixelClassifierPane {
 		qupath.imageDataProperty().addListener(imageDataListener);
 		if (qupath.getImageData() != null)
 			qupath.getImageData().getHierarchy().addPathObjectListener(hierarchyListener);
+		
+		stage.focusedProperty().addListener((v, o, n) -> {
+			if (n) {
+				for (var viewer : qupath.getViewers()) {
+					var currentOverlay = viewer.getCustomPixelLayerOverlay();
+					if (currentOverlay != this.featureOverlay && currentOverlay != this.overlay) {
+						ensureOverlaySet();
+						break;
+					}
+				}
+			}
+		});
 		
 	}
 	
@@ -718,7 +731,7 @@ public class PixelClassifierPane {
 		}
 	}
 	
-	private void updateFeatureOverlay() {
+	private void ensureOverlaySet() {
 		if (featureOverlay != null) {
 			featureOverlay.stop();
 			featureOverlay = null;
@@ -749,7 +762,7 @@ public class PixelClassifierPane {
 			}
 			if (channel >= 0) {
 				featureRenderer.setChannel(featureServer, channel, spinFeatureMin.getValue(), spinFeatureMax.getValue());
-				featureOverlay = PixelClassificationOverlay.createFeatureDisplayOverlay(qupath.getOverlayOptions(), data -> helper.getFeatureServer(data), featureRenderer);
+				featureOverlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), data -> helper.getFeatureServer(data), featureRenderer);
 				((PixelClassificationOverlay)featureOverlay).setLivePrediction(true);
 				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
 				featureOverlay.setLivePrediction(livePrediction.get());
@@ -760,11 +773,6 @@ public class PixelClassifierPane {
 			for (var viewer : qupath.getViewers())
 				viewer.setCustomPixelLayerOverlay(featureOverlay);
 		}
-	}
-	
-	
-	private void ensureOverlaySet() {
-		updateFeatureOverlay();
 	}
 	
 	
@@ -1029,7 +1037,7 @@ public class PixelClassifierPane {
 
 		 currentClassifier.set(PixelClassifiers.createClassifier(model, featureCalculator, metadata, true));
 
-		 var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), currentClassifier.get());
+		 var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), currentClassifier.get());
 		 replaceOverlay(overlay);
 	}
 		
@@ -1107,13 +1115,7 @@ public class PixelClassifierPane {
 		qupath.imageDataProperty().removeListener(imageDataListener);
 
 		for (var viewer : qupath.getViewers()) {
-			var imageData = viewer.getImageData();
-			if (overlay != null) {
-				if (imageData != null && PixelClassificationImageServer.getPixelLayer(imageData) == overlay.getPixelClassificationServer(imageData))
-					PixelClassificationImageServer.setPixelLayer(imageData, null);
-			}
 			viewer.resetCustomPixelLayerOverlay();
-
 			if (featureOverlay != null) {
 				viewer.getCustomOverlayLayers().remove(featureOverlay);
 				featureOverlay.stop();
@@ -1379,7 +1381,7 @@ public class PixelClassifierPane {
 			var server = overlay.getPixelClassificationServer(viewer.getImageData());
 			String results = null;
 			if (server != null)
-				results = getResultsString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
+				results = PixelClassificationOverlay.getDefaultLocationString(server, p.getX(), p.getY(), viewer.getZPosition(), viewer.getTPosition());
 			if (results == null)
 				cursorLocation.set("");
 			else
@@ -1390,53 +1392,6 @@ public class PixelClassifierPane {
 		
 	}
 	
-	
-	/**
-	 * Get a String summarizing the pixel classification values at a specified pixel location.
-	 * 
-	 * @param classifierServer
-	 * @param x
-	 * @param y
-	 * @param z
-	 * @param t
-	 * @return
-	 */
-	private static String getResultsString(ImageServer<BufferedImage> classifierServer, double x, double y, int z, int t) {
-    	if (classifierServer == null)
-    		return null;
-    	
-    	int level = 0;
-    	var tile = classifierServer.getTileRequestManager().getTileRequest(level, (int)Math.round(x), (int)Math.round(y), z, t);
-    	if (tile == null)
-    		return null;
-    	var img = classifierServer.getCachedTile(tile);
-    	if (img == null)
-    		return null;
-
-    	int xx = (int)Math.floor((x - tile.getImageX()) / tile.getDownsample());
-    	int yy = (int)Math.floor((y - tile.getImageY()) / tile.getDownsample());
-    	if (xx < 0 || yy < 0 || xx >= img.getWidth() || yy >= img.getHeight())
-    		return null;
-    	
-//    	String coords = GeneralTools.formatNumber(x, 1) + "," + GeneralTools.formatNumber(y, 1);
-    	
-    	if (classifierServer.getMetadata().getChannelType() == ImageServerMetadata.ChannelType.CLASSIFICATION) {
-        	var classificationLabels = classifierServer.getMetadata().getClassificationLabels();
-        	int sample = img.getRaster().getSample(xx, yy, 0); 		
-        	return String.format("Classification: %s", classificationLabels.get(sample).getName());
-//        	return String.format("Classification (%s):\n%s", coords, channels.get(sample).getName());
-    	} else {
-        	var channels = classifierServer.getMetadata().getChannels();
-    		String[] array = new String[channels.size()];
-    		for (int c = 0; c < channels.size(); c++) {
-    			float sample = img.getRaster().getSampleFloat(xx, yy, c);
-    			if (img.getRaster().getDataBuffer().getDataType() == DataBuffer.TYPE_BYTE)
-    				sample /= 255f;
-    			array[c] = channels.get(c).getName() + ": " + GeneralTools.formatNumber(sample, 2);
-    		}
-        	return String.format("Prediction: %s", String.join(", ", array));
-    	}
-    }
 	
 	
 	class HierarchyListener implements PathObjectHierarchyListener {
