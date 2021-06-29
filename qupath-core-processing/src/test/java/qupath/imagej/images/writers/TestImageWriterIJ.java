@@ -33,7 +33,9 @@ import org.junit.jupiter.api.Test;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.io.Opener;
+import ij.io.FileInfo;
+import ij.io.FileOpener;
+import ij.io.TiffDecoder;
 import ij.plugin.ImageCalculator;
 import ij.process.StackStatistics;
 
@@ -62,7 +64,8 @@ public class TestImageWriterIJ {
 			fail("Error writing to byte array: " + e.getLocalizedMessage());
 			return;
 		}
-		var impRead = new Opener().deserialize(bytes);
+//		var impRead = new Opener().deserialize(bytes);
+		var impRead = openTiff(bytes);
 		compareImages(imp, impRead);
 	}
 	
@@ -87,9 +90,31 @@ public class TestImageWriterIJ {
 			fail("Error reading from byte array: " + e.getLocalizedMessage());
 			return;
 		}
-		var impRead = new Opener().deserialize(bytes);
+//		var impRead = new Opener().deserialize(bytes);
+		var impRead = openTiff(bytes);
 		compareImages(imp, impRead);
 	}
+	
+	
+	/**
+	 * Open TIFF from byte stream.
+	 * It would be easier to call {@code new Opener().deserialize(bytes);}, 
+	 * but in ImageJ 1.53j this fails in headless mode because of the static 
+	 * initializer used with {@code Opener}.
+	 * @param bytes
+	 * @return
+	 */
+	private static ImagePlus openTiff(byte[] bytes) {
+		try (var stream = new ByteArrayInputStream(bytes)) {
+			TiffDecoder decoder = new TiffDecoder(stream, "Untitled");
+			FileInfo[] info = decoder.getTiffInfo();
+			FileOpener opener = new FileOpener(info[0]);
+			return opener.openImage();
+		} catch (IOException e) {
+			return null;
+		}
+	}
+	
 	
 	
 	static void compareImages(ImagePlus impOrig, ImagePlus impRead) {
