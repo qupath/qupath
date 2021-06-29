@@ -113,12 +113,13 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Bio-Formats 6.6.1
 * ControlsFX 11.1.0
 * Groovy 3.0.8
+* Gson 2.8.7
 * Guava 30.1.1-jre
-* ImageJ 1.53i
+* ImageJ 1.53j
 * JavaFX 16
 * Java Topology suite 1.18.1
 * JavaCPP 1.5.5
-* JFreeSVG 4.2
+* JFreeSVG 5.0
 * jfxtras 11-r2
 * OpenCV 4.5.1
 * picocli 4.6.1
