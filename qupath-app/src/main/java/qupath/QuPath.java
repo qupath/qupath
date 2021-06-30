@@ -68,6 +68,7 @@ import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
+import qupath.lib.scripting.QP;
 
 /**
  * Main QuPath launcher.
@@ -297,9 +298,13 @@ class ScriptCommand implements Runnable {
 			// Ensure we have a tile cache set
 			createTileCache();
 			
+			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
+			QP.getCoreClasses();
+			
 			ImageData<BufferedImage> imageData;
 			
 			if (projectPath != null && !projectPath.equals("")) {
+								
 				String path = QuPath.getEncodedPath(projectPath);
 				Project<BufferedImage> project = ProjectIO.loadProject(new File(path), BufferedImage.class);
 				for (var entry: project.getImageList()) {
