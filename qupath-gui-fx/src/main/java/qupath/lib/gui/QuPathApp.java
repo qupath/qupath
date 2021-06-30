@@ -26,6 +26,7 @@ package qupath.lib.gui;
 import java.awt.Desktop;
 import java.awt.Desktop.Action;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -67,16 +68,20 @@ public class QuPathApp extends Application {
 		String imagePath = namedParams.getOrDefault("image", unnamed);
 		
 		if (projectPath != null) {
-			var uri = GeneralTools.toURI(projectPath);
-			var project = ProjectIO.loadProject(uri, BufferedImage.class);
-			gui.setProject(project);
-			// If the project is specified, try to open the named image within the project
-			if (imagePath != null) {
-				var entry = project.getImageList().stream().filter(p -> imagePath.equals(p.getImageName())).findFirst().orElse(null);
-				if (entry == null) {
-					logger.warn("No image found in project with name {}", imagePath);
-				} else
-					gui.openImageEntry(entry);
+			try {
+				var uri = GeneralTools.toURI(projectPath);
+				var project = ProjectIO.loadProject(uri, BufferedImage.class);
+				gui.setProject(project);
+				// If the project is specified, try to open the named image within the project
+				if (imagePath != null) {
+					var entry = project.getImageList().stream().filter(p -> imagePath.equals(p.getImageName())).findFirst().orElse(null);
+					if (entry == null) {
+						logger.warn("No image found in project with name {}", imagePath);
+					} else
+						gui.openImageEntry(entry);
+				}
+			} catch (IOException e2) {
+				logger.error("Unable to open project {}", projectPath, e2);
 			}
 		} else if (imagePath != null) {
 			gui.openImage(imagePath, false, false);
