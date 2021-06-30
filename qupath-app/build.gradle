@@ -311,7 +311,7 @@ JPackageParams buildParameters() {
 }
 
 /**
- * Update package type according to 'qupath.package' parameter.
+ * Update package type according to 'package' parameter.
  * By default, we just create an image because that's faster
  * (although the jpackage default is to create all installers).
  * @param params
@@ -319,7 +319,7 @@ JPackageParams buildParameters() {
  */
 void updatePackageType(JPackageParams params, String... defaultInstallers) {
   // Define platform-specific jpackage configuration options
-  def packageType = findProperty('qupath.package')?.toLowerCase()
+  def packageType = findProperty('package')?.toLowerCase()
   if (!packageType || ['image', 'app-image'].contains(packageType)) {
     params.skipInstaller = true
     params.installerTypes = [null]
