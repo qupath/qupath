@@ -1487,7 +1487,7 @@ public class Commands {
 		}
 
 		String input = Dialogs.showInputDialog("Simplify shape", 
-				"Set altitude threshold in pixels (> 0; higher values give simpler shapes)", 
+				"Set altitude threshold in pixels.\nHigher values give simpler shapes.", 
 				Double.toString(altitudeThreshold));
 		if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
 			return;
@@ -1495,6 +1495,10 @@ public class Commands {
 			altitudeThreshold = Double.parseDouble(((String)input).trim());
 		} catch (NumberFormatException e) {
 			logger.error("Could not parse altitude threshold from {}", input);
+			return;
+		}
+		if (altitudeThreshold <= 0) {
+			Dialogs.showErrorMessage("Simplify shape", "Amplitude threshold should be greater than zero!");
 			return;
 		}
 		

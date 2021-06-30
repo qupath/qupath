@@ -600,6 +600,7 @@ public class RoiTools {
 		yMin = (int)(bounds.getCenterY() - (ny * h * .5));
 		
 		var plane = parentROI.getImagePlane();
+		int skipCount = 0;
 
 		for (int yi = 0; yi < ny; yi++) {
 			for (int xi = 0; xi < nx; xi++) {
@@ -621,13 +622,22 @@ public class RoiTools {
 				else {
 					if (!area.intersects(boundsTile))
 						continue;
-					Geometry areaTemp = GeometryTools.homogenizeGeometryCollection(boundsTile.intersection(area));
-					if (!areaTemp.isEmpty())
-						pathROI = GeometryTools.geometryToROI(areaTemp, plane);
+					try {
+						// Errors were reported when computing the intersection here - so try to recover as best we can
+						Geometry areaTemp = GeometryTools.homogenizeGeometryCollection(boundsTile.intersection(area));
+						if (!areaTemp.isEmpty())
+							pathROI = GeometryTools.geometryToROI(areaTemp, plane);
+					} catch (Exception e) {
+						logger.warn("Tile skipped because of error computing intersection: " + e.getLocalizedMessage(), e);
+						skipCount++;
+					}
 				}
 				if (pathROI != null)
 					pathROIs.add(pathROI);
 			}
+		}
+		if (skipCount > 0) {
+			logger.warn("You may be able to avoid tiling errors by calling 'Simplify shape' on any complex annotations first.");
 		}
 		return pathROIs;
 	}
