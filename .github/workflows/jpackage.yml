@@ -23,4 +23,9 @@
      - name: Grant execute permission for gradlew
        run: chmod +x gradlew
      - name: Build with Gradle
-       run: ./gradlew jpackage
+       run: ./gradlew jpackage -P git-commit=true
+     - uses: actions/upload-artifact@v2
+       with:
+         name: jpackage ${{ matrix.platform }}
+         path: build/dist
+         retention-days: 1
