@@ -2076,12 +2076,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 		Action action = new Action(name, e -> {
 			var control = getCurrentTextComponent();
 
+			String join = "," + System.lineSeparator() + "  ";
+			String listFormat = "[" + System.lineSeparator() + "  %s" + System.lineSeparator() + "]";
 			if (name.toLowerCase().equals("pixel classifiers")) {
 				try {
 					String classifiers = qupath.getProject().getPixelClassifiers().getNames().stream()
 							.map(classifierName -> "\"" + classifierName + "\"")
-							.collect(Collectors.joining(", "));
-					control.paste("[" + classifiers + "]");
+							.collect(Collectors.joining(join));
+					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
+					control.paste(s);
 				} catch (IOException ex) {
 					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
 				}
@@ -2089,16 +2092,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 				try {
 					String classifiers = qupath.getProject().getObjectClassifiers().getNames().stream()
 							.map(classifierName -> "\"" + classifierName + "\"")
-							.collect(Collectors.joining(", "));
-					control.paste("[" + classifiers + "]");
+							.collect(Collectors.joining(join));
+					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
+					control.paste(s);
 				} catch (IOException ex) {
 					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
 				}
 			} else if (name.toLowerCase().equals("detection")) {
-				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-				model.setImageData(qupath.getImageData(), qupath.getImageData().getHierarchy().getObjects(null, PathDetectionObject.class));
-				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, "\", \"", Arrays.asList());
-				control.paste("[\"" + data.get(0) + "\"]");
+				var imageData = qupath.getImageData();
+				String measurements = "";
+				if (imageData != null) {
+					measurements = imageData.getHierarchy()
+							.getDetectionObjects()
+							.stream()
+							.flatMap(d -> d.getMeasurementList().getMeasurementNames().stream())
+							.distinct()
+							.map(m -> "\"" + m + "\"")
+							.collect(Collectors.joining(join))
+							;
+				}
+				String s = measurements.isEmpty() ? "[]" : String.format(listFormat, measurements);
+				control.paste(s);
 			} else if (name.toLowerCase().equals(GeneralTools.SYMBOL_MU + ""))
 				control.paste(GeneralTools.SYMBOL_MU + "");
 			else {	
