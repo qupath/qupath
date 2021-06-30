@@ -602,6 +602,7 @@ public class TileExporter  {
 	}
 	
 	
+	@SuppressWarnings("unused")
 	private static class TileExportData {
 		
 		private String qupath_version = GeneralTools.getVersion();
@@ -616,6 +617,7 @@ public class TileExporter  {
 		
 	}
 	
+	@SuppressWarnings("unused")
 	private static class TileExportLabel {
 		
 		private String classification;
@@ -630,6 +632,7 @@ public class TileExporter  {
 		
 	}
 	
+	@SuppressWarnings("unused")
 	private static class TileExportEntry {
 		
 		private RegionRequest region;

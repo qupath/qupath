@@ -191,7 +191,7 @@ public class SimpleThresholdCommand implements Runnable {
 	private Spinner<Double> sigmaSpinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(0, 16.0, 0.0, 0.5));
 	private ReadOnlyObjectProperty<Double> sigma = sigmaSpinner.valueProperty();
 
-	private Spinner<Double> spinner = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 1, 0.05);
+	private Spinner<Double> spinner = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.01, 2);
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
@@ -360,6 +360,9 @@ public class SimpleThresholdCommand implements Runnable {
 		for (var entry : map.entrySet()) {
 			resetOverlay(entry.getKey(), entry.getValue());
 		}
+		var overlay = selectedOverlay.get();
+		if (overlay != null)
+			overlay.stop();
 		selectedOverlay.set(null);
 	}
 	
@@ -453,6 +456,11 @@ public class SimpleThresholdCommand implements Runnable {
 		// Create classifier
 		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), classifier);
 		overlay.setLivePrediction(true);
+		
+		var previousOverlay = selectedOverlay.get();
+		if (previousOverlay != null)
+			previousOverlay.stop();
+
 		selectedOverlay.set(overlay);
 		this.currentClassifier.set(classifier);
 		

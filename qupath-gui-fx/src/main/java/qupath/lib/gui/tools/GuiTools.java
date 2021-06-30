@@ -1236,12 +1236,14 @@ public class GuiTools {
 	 * (e.g. potential brightness/contrast values).
 	 * @param minValue
 	 * @param maxValue
+	 * @param defaultValue 
 	 * @param minStepValue
+	 * @param scale number of decimal places to shift the step size relative to the log10 of the value (suggested default = 1)
 	 * @return
 	 */
-	public static Spinner<Double> createDynamicStepSpinner(double minValue, double maxValue, double defaultValue, double minStepValue) {
+	public static Spinner<Double> createDynamicStepSpinner(double minValue, double maxValue, double defaultValue, double minStepValue, int scale) {
 		var factory = new SpinnerValueFactory.DoubleSpinnerValueFactory(minValue, maxValue, defaultValue);
-		factory.amountToStepByProperty().bind(GuiTools.createStepBinding(factory.valueProperty(), minStepValue, 1));
+		factory.amountToStepByProperty().bind(GuiTools.createStepBinding(factory.valueProperty(), minStepValue, scale));
 		var spinner = new Spinner<>(factory);
 		return spinner;
 	}
