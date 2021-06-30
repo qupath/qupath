@@ -175,7 +175,6 @@ public class DensityMapDialog {
 		PaneTools.addGridRow(pane, row++, 0, "Automatically update the density map. "
 				+ "Turn this off if changing parameters and heatmap generation is slow.", btnAutoUpdate, btnAutoUpdate, btnAutoUpdate);
 		
-		
 		var densityMapName = new SimpleStringProperty();
 		var savePane = DensityMapUI.createSaveDensityMapPane(qupath.projectProperty(), combinedBuilder, densityMapName);
 		PaneTools.addGridRow(pane, row++, 0, null, savePane, savePane, savePane);
@@ -394,7 +393,7 @@ public class DensityMapDialog {
 	}
 	
 	Spinner<Double> createSpinner(ObjectProperty<Double> property, double step) {
-		var spinner = GuiTools.createDynamicStepSpinner(0, Double.MAX_VALUE, 1, 0.1);
+		var spinner = GuiTools.createDynamicStepSpinner(0, Double.MAX_VALUE, 1, 0.1, 1);
 		property.bindBidirectional(spinner.getValueFactory().valueProperty());
 		spinner.setEditable(true);
 		spinner.getEditor().setPrefColumnCount(6);
@@ -610,10 +609,21 @@ public class DensityMapDialog {
 				return;
 
 			int band = 0;
-			builder.set(ColorModels.createColorModelBuilder(
+			var newBuilder = ColorModels.createColorModelBuilder(
 					ColorModels.createBand(colorMap.get().getName(), band, minDisplay.get(), maxDisplay.get()),
-					ColorModels.createBand(null, alphaCountBand, minAlpha.get(), maxAlpha.get(), gamma.get()))
-					);
+					ColorModels.createBand(null, alphaCountBand, minAlpha.get(), maxAlpha.get(), gamma.get()));
+			var oldBuilder = builder.getValue();
+			try {
+				// We need to avoid triggering too many updates, but also can't rely upon the builder having a proper equals method...
+				// So here we (awkwardly) go through JSON.
+				var gson = GsonTools.getInstance();
+				if (oldBuilder != null && Objects.equals(gson.toJson(newBuilder), gson.toJson(oldBuilder))) {
+					return;
+				}
+			} catch (Exception e) {
+				logger.debug("Exception testing color model builders: " + e.getLocalizedMessage(), e);
+			}
+			builder.set(newBuilder);
 		}
 
 

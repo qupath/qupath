@@ -523,8 +523,21 @@ public class DensityMaps {
 	
 	
 	
-	
-	public static void findHotspots(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> server, int channel, 
+	/**
+	 * Find hotspots in a density map.
+	 * 
+	 * @param hierarchy hierarchy used to obtain selected objects and add hotspots
+	 * @param densityServer the density map to query
+	 * @param channel channel in which to find hotspots (usually 0)
+	 * @param nHotspots maximum number of hotspots to find per selected annotation
+	 * @param radius hotspot radius, in calibrated units
+	 * @param minCount minimum value required in the 'count' channel (the last channel)
+	 * @param hotspotClass the classification to apply to hotspots
+	 * @param deleteExisting optionally delete existing annotations identified as hotspots
+	 * @param peaksOnly optionally restrict hotspots to only include intensity peaks
+	 * @throws IOException
+	 */
+	public static void findHotspots(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, int channel, 
 			int nHotspots, double radius, double minCount, PathClass hotspotClass, boolean deleteExisting, boolean peaksOnly) throws IOException {
 
 		if (nHotspots <= 0) {
@@ -536,7 +549,7 @@ public class DensityMaps {
 		if (parents.isEmpty())
 			parents = Collections.singleton(hierarchy.getRootObject());
 		
-		double downsample = server.getDownsampleForResolution(0);
+		double downsample = densityServer.getDownsampleForResolution(0);
 		var toDelete = new HashSet<PathObject>();
 		
 		// Handle deleting existing hotspots
@@ -549,7 +562,7 @@ public class DensityMaps {
 
 		
 		// Convert radius to pixels
-		double radiusPixels = radius / server.getPixelCalibration().getAveragedPixelSize().doubleValue();
+		double radiusPixels = radius / densityServer.getPixelCalibration().getAveragedPixelSize().doubleValue();
 		
 		try (@SuppressWarnings("unchecked")
 		var scope = new PointerScope()) {
@@ -560,11 +573,11 @@ public class DensityMaps {
 												
 				// We need a ROI to define the area of interest
 				if (roi == null) {
-					if (server.nTimepoints() > 1 || server.nZSlices() > 1) {
+					if (densityServer.nTimepoints() > 1 || densityServer.nZSlices() > 1) {
 						logger.warn("Hotspot detection without a parent object not supported for images with multiple z-slices/timepoints.");
 						logger.warn("I will apply detection to the first plane only. If you need hotspots elsewhere, create an annotation first and use it to define the ROI.");
 					}
-					roi = ROIs.createRectangleROI(0, 0, server.getWidth(), server.getHeight(), ImagePlane.getDefaultPlane());
+					roi = ROIs.createRectangleROI(0, 0, densityServer.getWidth(), densityServer.getHeight(), ImagePlane.getDefaultPlane());
 				}
 				
 				// Erode the ROI & see if any hotspot could fit
@@ -576,8 +589,8 @@ public class DensityMaps {
 
 				// Read the image
 				var plane = roi.getImagePlane();
-				RegionRequest request = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), plane.getZ(), plane.getT());
-				var img = server.readBufferedImage(request);
+				RegionRequest request = RegionRequest.createInstance(densityServer.getPath(), downsample, 0, 0, densityServer.getWidth(), densityServer.getHeight(), plane.getZ(), plane.getT());
+				var img = densityServer.readBufferedImage(request);
 								
 				// Create a mask
 				var imgMask = BufferedImageTools.createROIMask(img.getWidth(), img.getHeight(), roiEroded, request);
