@@ -572,7 +572,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static BooleanProperty doCreateLogFilesProperty = createPersistentPreference("requestCreateLogFiles", true);
+	private static BooleanProperty doCreateLogFilesProperty = createPersistentPreference("requestCreateLogFiles", false);
 
 	/**
 	 * Request a log file to be generated.  Requires the <code>userPathProperty()</code> to be set to a directory.
