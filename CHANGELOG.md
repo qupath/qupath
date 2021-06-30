@@ -61,6 +61,8 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Better validation when entering numeric values in text fields
 * BufferedImageOverlays are now tied to the the pixel classification display setting (rather than the detection display)
 * Bio-Formats now optionally accepts URLs, not only local files (requires opt-in through the preferences)
+* Specify the logging level for the current QuPath session through the preferences, e.g. to emit extra debugging messages
+  * Log files are now turned off by default; this can be changed in the preferences if a QuPath user directory is set
 
 ### Code changes
 * Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
