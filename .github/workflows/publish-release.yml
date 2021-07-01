@@ -1,0 +1,23 @@
+# This workflow will publish jars to maven.scijava.org.
+# Currently, it must be triggered manually and uses Java 11
+# (because there is no requirement for jpackage).
+
+name: Publish release to SciJava Maven
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt-hotspot'
+      - name: Publish package
+        run: ./gradlew publish -P toolchain=11 -P release=true
+        env:
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_PASS: ${{ secrets.MAVEN_PASS }}
