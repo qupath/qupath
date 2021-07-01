@@ -79,8 +79,8 @@ import qupath.lib.scripting.QP;
 @Command(name = "QuPath", subcommands = {HelpCommand.class, ScriptCommand.class, GenerateCompletion.class},
 	footer = {"",
 			"Copyright(c) The Queen's University Belfast (2014-2016)",
-			"Copyright(c) QuPath developers (2017-2020)",
-			"Copyright(c) The University of Edinburgh (2018-2020)"
+			"Copyright(c) QuPath developers (2017-2021)",
+			"Copyright(c) The University of Edinburgh (2018-2021)"
 			}, mixinStandardHelpOptions = true, versionProvider = QuPath.VersionProvider.class)
 public class QuPath {
 	

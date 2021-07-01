@@ -156,11 +156,12 @@ public class Version implements Comparable<Version> {
 		if (s2.isEmpty())
 			return -1;
 		
-		// If one string is longer, and contains the former, it is 'earlier'
-		// For example m1-SNAPSHOT is earlier than m1
-		if (s1.length() > s2.length() && s1.startsWith(s2))
+		// If one string is longer, and contains the former, it is 'earlier' - 
+		// unless it is longer because it has a longer number.
+		// For example m1-SNAPSHOT is earlier than m1, but m10 is later than m1.
+		if (s1.length() > s2.length() && s1.startsWith(s2) && s1.charAt(s2.length()) == '.')
 			return -1;
-		else if (s2.length() > s1.length() && s2.startsWith(s1))
+		else if (s2.length() > s1.length() && s2.startsWith(s1) && s2.charAt(s1.length()) == '.')
 			return 1;
 		
 		return COMPARATOR_SUFFIX.compare(s1, s2);

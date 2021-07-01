@@ -2,13 +2,10 @@
 # Currently, it must be triggered manually and uses Java 11
 # (because there is no requirement for jpackage).
 
-name: Publish to SciJava Maven
+name: Publish snapshot to SciJava Maven
 
 on: 
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   publish:

@@ -402,8 +402,8 @@ def configureJPackageMac(JPackageParams params) {
  */
 def configureJPackageLinux(JPackageParams params) {
   updatePackageType(params, properties['platform.installerExt'])
-  // TODO: Check if this has the same issues as on macOS, requiring another name
-//  params.imageName = "QuPath"
+  // This has the same issues as on macOS with invalid .cfg file, requiring another name
+  params.imageName = "QuPath"
 }
 
 /**

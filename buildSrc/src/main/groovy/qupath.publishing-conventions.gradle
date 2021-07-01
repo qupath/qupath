@@ -4,8 +4,18 @@ publishing {
             name = "SciJava"
             def releasesRepoUrl = uri("https://maven.scijava.org/content/repositories/releases")
             def snapshotsRepoUrl = uri("https://maven.scijava.org/content/repositories/snapshots")
-            // Use gradle -Prelease publish
-            url = project.hasProperty('release') ? releasesRepoUrl : snapshotsRepoUrl
+            // Use gradle -Prelease to publish a release (if the version is valid)
+            if (project.hasProperty('release')) {
+            	if (version.endsWith('SNAPSHOT'))
+            	  throw new GradleException("Invalid release version ${version}!")
+            	else
+            	  url = releasesRepoUrl
+            } else {
+            	if (!version.endsWith('SNAPSHOT'))
+            	  throw new GradleException("Invalid snapshot version ${version}!") 
+            	else 	
+	              url = snapshotsRepoUrl
+            }
             credentials {
                 username = System.getenv("MAVEN_USER")
                 password = System.getenv("MAVEN_PASS")
