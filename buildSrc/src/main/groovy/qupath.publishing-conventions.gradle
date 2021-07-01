@@ -11,9 +11,7 @@ publishing {
             	else
             	  url = releasesRepoUrl
             } else {
-            	if (!version.endsWith('SNAPSHOT'))
-            	  throw new GradleException("Invalid snapshot version ${version}!") 
-            	else 	
+            	if (version.endsWith('SNAPSHOT'))
 	              url = snapshotsRepoUrl
             }
             credentials {

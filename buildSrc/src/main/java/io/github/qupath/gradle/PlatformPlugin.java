@@ -29,7 +29,7 @@ public class PlatformPlugin implements Plugin<Project> {
      */
     public enum Platform {
         WINDOWS("windows", "win", "natives-windows", "ico", "msi"),
-        MAC("macosx", "mac", "natives-osx", "icns", "dmg"),
+        MAC("macosx", "mac", "natives-osx", "icns", "pkg"),
         LINUX("linux", "linux", "natives-linux", "png", "deb"),
         UNKNOWN(null, null, null, null, null);
         
