@@ -352,7 +352,7 @@ def configureJPackageWindows(JPackageParams params) {
   }
 
   // Can't have any -SNAPSHOT or similar added
-  params.appVersion = stripSnapshotVersion(params.appVersion)
+  params.appVersion = stripVersionSuffix(params.appVersion)
 
 
   // Create a separate launcher with a console - this can help with debugging
@@ -383,7 +383,7 @@ def configureJPackageMac(JPackageParams params) {
   setFileAssociations(params)
 
   // Can't have any -SNAPSHOT or similar added
-  params.appVersion = stripSnapshotVersion(params.appVersion)
+  params.appVersion = stripVersionSuffix(params.appVersion)
 
   params.imageName = 'QuPath'
   params.installerName = 'QuPath'
@@ -407,16 +407,20 @@ def configureJPackageLinux(JPackageParams params) {
 }
 
 /**
- * Strip '-SNAPSHOT' from any version (sometimes required)
+ * Strip suffixes (by default any starting with '-SNAPSHOT', '-rc') from any version string
  * @param version
+ * @param suffixes
  * @return
  */
-static String stripSnapshotVersion(String version) {
-  int lastDash = version.lastIndexOf('-SNAPSHOT')
-  if (lastDash > 0) {
-    return version.substring(0, lastDash)
-  } else
-    return version
+static String stripVersionSuffix(String version, String... suffixes) {
+  if (suffixes.length == 0)
+    suffixes = ['-SNAPSHOT', '-rc']
+  for (def suffix in suffixes) {
+	  int lastDash = version.lastIndexOf('-SNAPSHOT')
+	  if (lastDash > 0)
+	    version = version.substring(0, lastDash)
+  }
+  return version
 }
 
 /**
