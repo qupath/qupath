@@ -75,6 +75,7 @@ import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
 import qupath.lib.color.ColorMaps;
 import qupath.lib.color.ColorMaps.ColorMap;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
@@ -263,15 +264,15 @@ public class DensityMapDialog {
 		PaneTools.addGridRow(pane, row++, 0, "Select object classifications to include.\n"
 				+ "Use this to filter out detections that should not contribute to the density map at all.\n"
 				+ "For example, this can be used to selectively consider tumor cells and ignore everything else.\n"
-				+ "If used in combination with 'Density class' and 'Density type: Objects %', the 'Density class' defines the numerator and the 'Object class' defines the denominator.",
+				+ "If used in combination with 'Secondary class' and 'Density type: Objects %', the 'Secondary class' defines the numerator and the 'Main class' defines the denominator.",
 				new Label("Main class"), comboAllObjects, comboAllObjects);
 
 		var labelDensities = createTitleLabel("Define density map");
 		PaneTools.addGridRow(pane, row++, 0, null, labelDensities);
 		
 		PaneTools.addGridRow(pane, row++, 0, "Calculate the density of objects containing a specified classification.\n"
-				+ "If used in combination with 'Object class' and 'Density type: Objects %', the 'Density class' defines the numerator and the 'Object class' defines the denominator.\n"
-				+ "For example, choose 'Object class: Tumor', 'Density class: Positive' and 'Density type: Objects %' to define density as the proportion of tumor cells that are positive.",
+				+ "If used in combination with 'Main class' and 'Density type: Objects %', the 'Secondary class' defines the numerator and the 'Main class' defines the denominator.\n"
+				+ "For example, choose 'Main class: Tumor', 'Secondary class: Positive' and 'Density type: Objects %' to define density as the proportion of tumor cells that are positive.",
 				new Label("Secondary class"), comboPrimary, comboPrimary);
 		
 		PaneTools.addGridRow(pane, row++, 0, "Select method of normalizing densities.\n"
@@ -292,7 +293,7 @@ public class DensityMapDialog {
 		GuiTools.bindSliderAndTextField(sliderRadius, tfRadius, expandSliderLimits, 2);
 		GuiTools.installRangePrompt(sliderRadius);
 		PaneTools.addGridRow(pane, row++, 0, "Select smoothing radius used to calculate densities.\n"
-				+ "This is defined in calibrated pixel units (e.g. µm if available).", new Label("Density radius"), sliderRadius, tfRadius);
+				+ "This is defined in calibrated pixel units (e.g. " + GeneralTools.micrometerSymbol() + " if available).", new Label("Density radius"), sliderRadius, tfRadius);
 		
 		PaneTools.setToExpandGridPaneWidth(comboObjectType, comboPrimary, comboAllObjects, comboDensityType, sliderRadius);
 

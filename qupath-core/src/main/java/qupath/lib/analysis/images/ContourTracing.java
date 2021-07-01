@@ -649,6 +649,61 @@ public class ContourTracing {
 		return geom == null ? null : GeometryTools.geometryToROI(geom, request == null ? ImagePlane.getDefaultPlane() : request.getPlane());
 	}
 	
+	
+	/**
+	 * Create traced geometry from tile.
+	 * Note that it is important to use this version with tiles, rather than {@link #createTracedGeometry(Raster, double, double, int, RegionRequest)},
+	 * to avoid accumulating rounding errors.
+	 * 
+	 * @param raster
+	 * @param minThresholdInclusive
+	 * @param maxThresholdInclusive
+	 * @param band
+	 * @param request
+	 * @return
+	 */
+	private static Geometry createTracedGeometry(Raster raster, double minThresholdInclusive, double maxThresholdInclusive, int band, TileRequest request) {
+		var image = extractBand(raster, band);
+		return createTracedGeometry(image, minThresholdInclusive, maxThresholdInclusive, request);
+	}
+	
+	
+	/**
+	 * Create traced geometry from tile.
+	 * Note that it is important to use this version with tiles, rather than {@link #createTracedGeometry(SimpleImage, double, double, int, RegionRequest)},
+	 * to avoid accumulating rounding errors.
+	 * 
+	 * @param image
+	 * @param minThresholdInclusive
+	 * @param maxThresholdInclusive
+	 * @param tile
+	 * @return
+	 */
+	private static Geometry createTracedGeometry(SimpleImage image, double minThresholdInclusive, double maxThresholdInclusive, TileRequest tile) {
+		
+		// If we are translating but not rescaling, we can do this during tracing
+		double xOffset = 0;
+		double yOffset = 0;
+		if (tile != null && tile.getDownsample() == 1) {
+			xOffset = tile.getTileX() * tile.getDownsample();
+			yOffset = tile.getTileY() * tile.getDownsample();
+		}
+		
+		var geom = traceGeometry(image, minThresholdInclusive, maxThresholdInclusive, xOffset, yOffset);
+		
+		// Handle rescaling if needed
+		if (tile != null && tile.getDownsample() != 1 && geom != null) {
+			double scale = tile.getDownsample();
+			var transform = AffineTransformation.scaleInstance(scale, scale);
+			transform = transform.translate(tile.getTileX() * tile.getDownsample(), tile.getTileY() * tile.getDownsample());
+			if (!transform.isIdentity())
+				geom = transform.transform(geom);
+		}
+		
+		return geom;
+		
+	}
+	
 	/**
 	 * Create a traced geometry from a {@link SimpleImage}.
 	 * 
@@ -1090,7 +1145,7 @@ public class ContourTracing {
 			}
 			for (var threshold : thresholds) {
 				int c = threshold.getChannel();
-				Geometry geometry = ContourTracing.createTracedGeometry(image, c, c, request);
+				Geometry geometry = ContourTracing.createTracedGeometry(image, c, c, tile);
 				if (geometry != null && !geometry.isEmpty()) {
 					if (clipArea != null) {
 						geometry = GeometryTools.attemptOperation(geometry, g -> g.intersection(clipArea));
@@ -1107,7 +1162,7 @@ public class ContourTracing {
 			var raster = img.getRaster();
 			for (var threshold : thresholds) {
 				Geometry geometry = ContourTracing.createTracedGeometry(
-						raster, threshold.getMinThreshold(), threshold.getMaxThreshold(), threshold.getChannel(), request);
+						raster, threshold.getMinThreshold(), threshold.getMaxThreshold(), threshold.getChannel(), tile);
 				if (geometry != null) {
 					if (clipArea != null) {
 						geometry = GeometryTools.attemptOperation(geometry, g -> g.intersection(clipArea));

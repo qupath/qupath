@@ -267,6 +267,8 @@ public final class LoadResourceCommand<S> implements Runnable {
 				for (var viewer : qupath.getViewers())
 					viewer.setCustomPixelLayerOverlay(overlay);
 			}
+			// Make sure we have all the servers we need - but don't reset existing ones
+			updateServers(selectedResource.get(), cachedServers);
 		});
 		
 		overlay.setLivePrediction(true);
