@@ -416,7 +416,7 @@ static String stripVersionSuffix(String version, String... suffixes) {
   if (suffixes.length == 0)
     suffixes = ['-SNAPSHOT', '-rc']
   for (def suffix in suffixes) {
-	  int lastDash = version.lastIndexOf('-SNAPSHOT')
+	  int lastDash = version.lastIndexOf(suffix)
 	  if (lastDash > 0)
 	    version = version.substring(0, lastDash)
   }
