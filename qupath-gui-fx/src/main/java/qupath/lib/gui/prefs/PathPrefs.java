@@ -38,6 +38,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
+import java.util.concurrent.ForkJoinPool;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
@@ -77,10 +78,37 @@ import qupath.lib.projects.ProjectIO;
  */
 public class PathPrefs {
 	
+	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
+	
+	/**
+	 * Allow preference node name to be specified in system property.
+	 * This is especially useful for debugging without using the same user directory.
+	 */
+	private final static String PROP_PREFS = "qupath.prefs.name";
+	
+//	private final static String PROP_USER_PATH = "qupath.path.user";
+	
+	
+	/**
+	 * Default name for preference node in this QuPath version
+	 */
+	private final static String DEFAULT_NODE_NAME = "io.github.qupath/0.3";
+	
 	/**
 	 * Name for preference node
 	 */
-	private final static String NODE_NAME = "io.github.qupath/0.3";
+	private final static String NODE_NAME;
+	
+	static {
+		var name = System.getProperty(PROP_PREFS);
+		if (name != null && !name.isBlank()) {
+			logger.info("Setting preference node to {}", name);
+			NODE_NAME = name;
+		} else
+			NODE_NAME = DEFAULT_NODE_NAME;
+		
+		logger.debug("Common ForkJoinPool parallelism: {}", ForkJoinPool.getCommonPoolParallelism());
+	}
 
 	/**
 	 * Previous preference node, in case these need to be restored.
@@ -88,8 +116,6 @@ public class PathPrefs {
 	 */
 	@SuppressWarnings("unused")
 	private final static String PREVIOUS_NODE_NAME = "io.github.qupath.0.2.0";
-
-	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
 	
 	/**
 	 * Flag used to trigger when properties should be reset to their default values.
@@ -137,7 +163,7 @@ public class PathPrefs {
 
 	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", (String)null); // Base directory containing scripts
 	
-	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", Runtime.getRuntime().availableProcessors());
+	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", ForkJoinPool.getCommonPoolParallelism());
 	
 	/**
 	 * Property specifying the preferred number of threads QuPath should use for multithreaded commands.
