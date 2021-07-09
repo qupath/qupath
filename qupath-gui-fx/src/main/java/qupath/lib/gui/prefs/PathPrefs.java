@@ -107,7 +107,7 @@ public class PathPrefs {
 		} else
 			NODE_NAME = DEFAULT_NODE_NAME;
 		
-		System.err.println("Common pool parallelism: " + ForkJoinPool.getCommonPoolParallelism());
+		logger.debug("Common ForkJoinPool parallelism: {}", ForkJoinPool.getCommonPoolParallelism());
 	}
 
 	/**
