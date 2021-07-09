@@ -100,7 +100,7 @@ public class CircularSlider extends Control {
                 	rotation = Double.valueOf(MIN_DISPLAYED_VALUE);
                 else
                 	rotation = Dialogs.showInputDialog("Set rotation", "Rotation (degrees)", getValue());
-                if (rotation != null && !rotation.isNaN())
+                if (rotation != null && Double.isFinite(rotation))
                     setValue(rotation);
             }
         });
