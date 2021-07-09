@@ -379,12 +379,8 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 	static boolean promptToSetMagnification(ImageData<BufferedImage> imageData) {
 		var server = imageData.getServer();
 		Double mag = server.getMetadata().getMagnification();
-		if (mag != null && !Double.isFinite(mag))
-			mag = null;
 		Double mag2 = Dialogs.showInputDialog("Set magnification", "Set magnification for full resolution image", mag);
-		if (mag2 == null || Objects.equals(mag, mag2))
-			return false;
-		if (!Double.isFinite(mag2) && mag == null)
+		if (mag2 == null || Double.isInfinite(mag) || Objects.equals(mag, mag2))
 			return false;
 		var metadata2 = new ImageServerMetadata.Builder(server.getMetadata())
 			.magnification(mag2)

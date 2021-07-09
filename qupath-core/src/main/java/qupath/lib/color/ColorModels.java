@@ -76,7 +76,7 @@ public class ColorModels {
 	 * @param minDisplay value associated with the first entry in the {@link ColorMap}
 	 * @param maxDisplay value associated with the last entry in the {@link ColorMap}
 	 * @return
-	 * @see {@link #createColorModelBuilder(DisplayBand, DisplayBand)}
+	 * @see #createColorModelBuilder(DisplayBand, DisplayBand)
 	 * @see ColorMaps#getColorMaps()
 	 */
 	public static DisplayBand createBand(String colorMapName, int band, double minDisplay, double maxDisplay) {
@@ -91,7 +91,7 @@ public class ColorModels {
 	 * @param maxDisplay value associated with the last entry in the {@link ColorMap}, used to adjust the value nonlinearly when requesting a color
 	 * @param gamma gamma value associated with the {@link ColorMap}
 	 * @return
-	 * @see {@link #createColorModelBuilder(DisplayBand, DisplayBand)}
+	 * @see #createColorModelBuilder(DisplayBand, DisplayBand)
 	 * @see ColorMaps#getColorMaps()
 	 */
 	public static DisplayBand createBand(String colorMapName, int band, double minDisplay, double maxDisplay, double gamma) {
