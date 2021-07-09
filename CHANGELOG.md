@@ -63,6 +63,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Bio-Formats now optionally accepts URLs, not only local files (requires opt-in through the preferences)
 * Specify the logging level for the current QuPath session through the preferences, e.g. to emit extra debugging messages
   * Log files are now turned off by default; this can be changed in the preferences if a QuPath user directory is set
+* Optionally use `qupath.prefs.name` system property to use a different preferences location, enabling multiple QuPath installations to have distinct preferences
 
 ### Code changes
 * Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
@@ -76,6 +77,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * New ImageOps for reducing channels
 * `ImageOps.Normalize.percentiles` now warns if normalization values are equal; fixed exception if choosing '100'
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.1 (corresponding to TensorFlow v2.4.1)
+* Default number of threads is now based upon `ForkJoinPool.getCommonPoolParallelism()`
 
 ### Bugs fixed
 * Multithreading issue with creation or removal of objects (https://github.com/qupath/qupath/issues/744)
