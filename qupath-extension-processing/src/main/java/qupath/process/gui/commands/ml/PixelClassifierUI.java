@@ -87,6 +87,8 @@ import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
 public class PixelClassifierUI {
 	
 	private final static Logger logger = LoggerFactory.getLogger(PixelClassifierUI.class);
+	
+	private final static String title = "Pixel classifier";
 
 	/**
 	 * Create a {@link ComboBox} that can be used to select the pixel classification region filter.
@@ -196,7 +198,7 @@ public class PixelClassifierUI {
 				.labelText("Classifier name")
 				.tooltip(tooltipText)
 				.savedName(savedName)
-				.title("Pixel classifier")
+				.title(title)
 				.build();
 	}
 	
@@ -368,34 +370,38 @@ public class PixelClassifierUI {
 		if (!options.isEmpty())
 			optionsString = ", " + options.stream().map(o -> "\"" + o.name() + "\"").collect(Collectors.joining(", "));
 
-		if (createDetections) {
-			if (PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)) {
-				if (classifierName != null) {
-					imageData.getHistoryWorkflow().addStep(
-							new DefaultScriptableWorkflowStep("Pixel classifier create detections",
-									String.format("createDetectionsFromPixelClassifier(\"%s\", %s, %s)",
-											classifierName,
-											minSize,
-											minHoleSize + optionsString)
-									)
-							);
+		try {
+			if (createDetections) {
+				if (PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)) {
+					if (classifierName != null) {
+						imageData.getHistoryWorkflow().addStep(
+								new DefaultScriptableWorkflowStep("Pixel classifier create detections",
+										String.format("createDetectionsFromPixelClassifier(\"%s\", %s, %s)",
+												classifierName,
+												minSize,
+												minHoleSize + optionsString)
+										)
+								);
+					}
+					return true;
 				}
-				return true;
-			}
-		} else {
-			if (PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)) {
-				if (classifierName != null) {
-					imageData.getHistoryWorkflow().addStep(
-							new DefaultScriptableWorkflowStep("Pixel classifier create annotations",
-									String.format("createAnnotationsFromPixelClassifier(\"%s\", %s, %s)",
-											classifierName,
-											minSize,
-											minHoleSize + optionsString)
-									)
-							);
+			} else {
+				if (PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minSize, minHoleSize, optionsArray)) {
+					if (classifierName != null) {
+						imageData.getHistoryWorkflow().addStep(
+								new DefaultScriptableWorkflowStep("Pixel classifier create annotations",
+										String.format("createAnnotationsFromPixelClassifier(\"%s\", %s, %s)",
+												classifierName,
+												minSize,
+												minHoleSize + optionsString)
+										)
+								);
+					}
+					return true;
 				}
-				return true;
 			}
+		} catch (IOException e) {
+			Dialogs.showErrorMessage(title, e);
 		}
 		return false;
 	}

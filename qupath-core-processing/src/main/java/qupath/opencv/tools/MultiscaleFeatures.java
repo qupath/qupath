@@ -554,153 +554,187 @@ public class MultiscaleFeatures {
 		private Mat stripPadding(Mat mat) {
 			if (paddingXY == 0)
 				return mat;
-			mat.put(mat.apply(new Rect(paddingXY, paddingXY, mat.cols()-paddingXY*2, mat.rows()-paddingXY*2)).clone());
+			var mat2 = mat.apply(new Rect(paddingXY, paddingXY, mat.cols()-paddingXY*2, mat.rows()-paddingXY*2)).clone();
+			mat.put(mat2);
+			mat2.close();
 			return mat;
 		}
 		
 		
 		private List<FeatureMap> build2D(List<Mat> mats) {
 			
-			double sigmaX = this.sigmaX;
-			double sigmaY = this.sigmaY;
-			if (pixelCalibration.hasPixelSizeMicrons()) {
-				sigmaX /= pixelCalibration.getPixelWidthMicrons() * downsampleXY;
-				sigmaY /= pixelCalibration.getPixelHeightMicrons() * downsampleXY;
-			}
-			
-			Mat kx0 = OpenCVTools.getGaussianDerivKernel(sigmaX, 0, false);
-			Mat kx1 = OpenCVTools.getGaussianDerivKernel(sigmaX, 1, false);
-			Mat kx2 = OpenCVTools.getGaussianDerivKernel(sigmaX, 2, false);
-			
-			Mat ky0 = OpenCVTools.getGaussianDerivKernel(sigmaY, 0, true);
-			Mat ky1 = OpenCVTools.getGaussianDerivKernel(sigmaY, 1, true);
-			Mat ky2 = OpenCVTools.getGaussianDerivKernel(sigmaY, 2, true);
-			
-			// Calculate image derivatives
-			Mat dxx = new Mat();
-			Mat dxy = new Mat();
-			Mat dyy = new Mat();
-			
-			// Check if we do Hessian or Structure Tensor-based features
-			boolean doSmoothed = weightedStdDev || gaussianSmoothed;
-//			boolean doStructureTensor = structureTensorEigenvalues;
-			boolean doHessian = hessianDeterminant || hessianEigenvalues || laplacianOfGaussian; // || hessianEigenvectors;
-
 			List<FeatureMap> results = new ArrayList<>();
+//			List<Mat> resultMats = new ArrayList<>();
 			
-			Hessian2D hessian = null;
+//			try (var scope = new PointerScope()) {
 			
-//			double scaleT = sigmaX * sigmaY;
-			
-			// TODO: Consder if some calculations need to be done in 64-bit
-//			int depth = structureTensorEigenvalues || doHessian ? opencv_core.CV_64F : opencv_core.CV_32F;
-			
-			int depth = mats.stream().allMatch(m -> m.depth() == opencv_core.CV_64F) ? opencv_core.CV_64F : opencv_core.CV_32F;
-
-
-			
-			for (Mat mat : mats) {
-				
-				Map<MultiscaleFeature, Mat> features = new LinkedHashMap<>();
-				
-				Mat matSmooth = null;
-				if (doSmoothed) {
-					if (sigmaX > 0 || sigmaY > 0) {
-						matSmooth = new Mat();
-						opencv_imgproc.sepFilter2D(mat, matSmooth, depth, kx0, ky0, null, 0.0, border);
-					} else
-						matSmooth = mat.clone();
-					
-					stripPadding(matSmooth);
-					if (gaussianSmoothed)
-						features.put(MultiscaleFeature.GAUSSIAN, matSmooth);
-					
-					if (weightedStdDev) {
-						Mat matSquaredSmoothed = mat.mul(mat).asMat();
-						opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, depth, kx0, ky0, null, 0.0, border);
-						stripPadding(matSquaredSmoothed);
-						matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
-						opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
-						features.put(MultiscaleFeature.WEIGHTED_STD_DEV, matSquaredSmoothed);					
-					}
-				}
-								
-				if (structureTensorEigenvalues) {
-					// Allow use of the same Mats as we might need for derivatives later
-					opencv_imgproc.Sobel(mat, dxx, depth, 1, 0);
-					opencv_imgproc.Sobel(mat, dyy, depth, 0, 1);
-					dxy.put(dxx.mul(dyy));
-					dxx.put(dxx.mul(dxx));
-					dyy.put(dyy.mul(dyy));
-					opencv_imgproc.sepFilter2D(dxx, dxx, depth, kx0, ky0, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(dyy, dyy, depth, kx0, ky0, null, 0.0, border);					
-					opencv_imgproc.sepFilter2D(dxy, dxy, depth, kx0, ky0, null, 0.0, border);
-					
-					var temp = new EigenSymm2(dxx, dxy, dyy, false);
-					var stMax = stripPadding(temp.eigvalMax);
-					var stMin = stripPadding(temp.eigvalMin);
-					var coherence = calculateCoherence(stMax, stMin);
-					
-					features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MAX, stMax);
-					features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MIN, stMin);
-					features.put(MultiscaleFeature.STRUCTURE_TENSOR_COHERENCE, coherence);
+				double sigmaX = this.sigmaX;
+				double sigmaY = this.sigmaY;
+				if (pixelCalibration.hasPixelSizeMicrons()) {
+					sigmaX /= pixelCalibration.getPixelWidthMicrons() * downsampleXY;
+					sigmaY /= pixelCalibration.getPixelHeightMicrons() * downsampleXY;
 				}
 				
-				if (gradientMagnitude) {
-					opencv_imgproc.sepFilter2D(mat, dxx, depth, kx1, ky0, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(mat, dyy, depth, kx0, ky1, null, 0.0, border);					
-					Mat magnitude = new Mat();
-					opencv_core.magnitude(dxx, dyy, magnitude);
-					features.put(MultiscaleFeature.GRADIENT_MAGNITUDE, stripPadding(magnitude));
+				Mat kx0 = OpenCVTools.getGaussianDerivKernel(sigmaX, 0, false);
+				Mat kx1 = OpenCVTools.getGaussianDerivKernel(sigmaX, 1, false);
+				Mat kx2 = OpenCVTools.getGaussianDerivKernel(sigmaX, 2, false);
+				
+				Mat ky0 = OpenCVTools.getGaussianDerivKernel(sigmaY, 0, true);
+				Mat ky1 = OpenCVTools.getGaussianDerivKernel(sigmaY, 1, true);
+				Mat ky2 = OpenCVTools.getGaussianDerivKernel(sigmaY, 2, true);
+				
+				// Calculate image derivatives
+				Mat dxx = new Mat();
+				Mat dxy = new Mat();
+				Mat dyy = new Mat();
+				
+				// Check if we do Hessian or Structure Tensor-based features
+				boolean doSmoothed = weightedStdDev || gaussianSmoothed;
+	//			boolean doStructureTensor = structureTensorEigenvalues;
+				boolean doHessian = hessianDeterminant || hessianEigenvalues || laplacianOfGaussian; // || hessianEigenvectors;
+					
+				Hessian2D hessian = null;
+				
+	//			double scaleT = sigmaX * sigmaY;
+				
+				// TODO: Consder if some calculations need to be done in 64-bit
+	//			int depth = structureTensorEigenvalues || doHessian ? opencv_core.CV_64F : opencv_core.CV_32F;
+				
+				int depth = mats.stream().allMatch(m -> m.depth() == opencv_core.CV_64F) ? opencv_core.CV_64F : opencv_core.CV_32F;
+	
+				for (Mat mat : mats) {
+					
+					Map<MultiscaleFeature, Mat> features = new LinkedHashMap<>();
+					
+					Mat matSmooth = null;
+					if (doSmoothed) {
+						if (sigmaX > 0 || sigmaY > 0) {
+							matSmooth = new Mat();
+							opencv_imgproc.sepFilter2D(mat, matSmooth, depth, kx0, ky0, null, 0.0, border);
+						} else
+							matSmooth = mat.clone();
+						
+						stripPadding(matSmooth);
+						if (gaussianSmoothed)
+							features.put(MultiscaleFeature.GAUSSIAN, matSmooth);
+						
+						if (weightedStdDev) {
+							Mat matSquaredSmoothed = mat.mul(mat).asMat();
+							opencv_imgproc.sepFilter2D(matSquaredSmoothed, matSquaredSmoothed, depth, kx0, ky0, null, 0.0, border);
+							stripPadding(matSquaredSmoothed);
+							matSquaredSmoothed.put(opencv_core.subtract(matSquaredSmoothed, matSmooth.mul(matSmooth)));
+							opencv_core.sqrt(matSquaredSmoothed, matSquaredSmoothed);
+							features.put(MultiscaleFeature.WEIGHTED_STD_DEV, matSquaredSmoothed);					
+						}
+					}
+									
+					if (structureTensorEigenvalues) {
+						// Allow use of the same Mats as we might need for derivatives later
+						opencv_imgproc.Sobel(mat, dxx, depth, 1, 0);
+						opencv_imgproc.Sobel(mat, dyy, depth, 0, 1);
+						dxy.put(dxx.mul(dyy));
+						dxx.put(dxx.mul(dxx));
+						dyy.put(dyy.mul(dyy));
+						opencv_imgproc.sepFilter2D(dxx, dxx, depth, kx0, ky0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(dyy, dyy, depth, kx0, ky0, null, 0.0, border);					
+						opencv_imgproc.sepFilter2D(dxy, dxy, depth, kx0, ky0, null, 0.0, border);
+						
+						var temp = new EigenSymm2(dxx, dxy, dyy, false);
+						var stMax = stripPadding(temp.eigvalMax);
+						var stMin = stripPadding(temp.eigvalMin);
+						var coherence = calculateCoherence(stMax, stMin);
+						
+						features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MAX, stMax);
+						features.put(MultiscaleFeature.STRUCTURE_TENSOR_EIGENVALUE_MIN, stMin);
+						features.put(MultiscaleFeature.STRUCTURE_TENSOR_COHERENCE, coherence);
+					}
+					
+					if (gradientMagnitude) {
+						opencv_imgproc.sepFilter2D(mat, dxx, depth, kx1, ky0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(mat, dyy, depth, kx0, ky1, null, 0.0, border);					
+						Mat magnitude = new Mat();
+						opencv_core.magnitude(dxx, dyy, magnitude);
+						features.put(MultiscaleFeature.GRADIENT_MAGNITUDE, stripPadding(magnitude));
+					}
+					
+					if (doHessian) {
+						opencv_imgproc.sepFilter2D(mat, dxx, depth, kx2, ky0, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(mat, dyy, depth, kx0, ky2, null, 0.0, border);
+						opencv_imgproc.sepFilter2D(mat, dxy, depth, kx1, ky1, null, 0.0, border);
+						
+						// Strip padding now to reduce necessary calculations
+						stripPadding(dxx);
+						stripPadding(dxy);
+						stripPadding(dyy);
+						
+						hessian = new Hessian2D(dxx, dxy, dyy, retainHessian);
+						if (laplacianOfGaussian) {
+							Mat temp = hessian.getLaplacian();
+	//						if (scaleNormalize)
+	//							opencv_core.multiplyPut(temp, scaleT);
+							features.put(MultiscaleFeature.LAPLACIAN, temp);
+						}
+						
+						if (hessianDeterminant) {
+							Mat temp = hessian.getDeterminant();
+	//						if (scaleNormalize)
+	//							opencv_core.multiplyPut(temp, scaleT * scaleT);
+							features.put(MultiscaleFeature.HESSIAN_DETERMINANT, temp);
+						}
+						
+						if (hessianEigenvalues) {
+							List<Mat> eigenvalues = hessian.getEigenvalues(false);
+							assert eigenvalues.size() == 2;
+							features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MAX, eigenvalues.get(0));
+							features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIN, eigenvalues.get(1));
+						}
+						
+					}
+					
+					// Ensure our output is 32-bit
+					if (depth != opencv_core.CV_32F) {
+						for (var matFeature : features.values()) {
+							matFeature.convertTo(matFeature, opencv_core.CV_32F);
+						}
+					}
+					
+					results.add(new FeatureMap(features, retainHessian ? hessian : null));
 				}
 				
-				if (doHessian) {
-					opencv_imgproc.sepFilter2D(mat, dxx, depth, kx2, ky0, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(mat, dyy, depth, kx0, ky2, null, 0.0, border);
-					opencv_imgproc.sepFilter2D(mat, dxy, depth, kx1, ky1, null, 0.0, border);
-					
-					// Strip padding now to reduce necessary calculations
-					stripPadding(dxx);
-					stripPadding(dxy);
-					stripPadding(dyy);
-					
-					hessian = new Hessian2D(dxx, dxy, dyy, retainHessian);
-					if (laplacianOfGaussian) {
-						Mat temp = hessian.getLaplacian();
-//						if (scaleNormalize)
-//							opencv_core.multiplyPut(temp, scaleT);
-						features.put(MultiscaleFeature.LAPLACIAN, temp);
-					}
-					
-					if (hessianDeterminant) {
-						Mat temp = hessian.getDeterminant();
-//						if (scaleNormalize)
-//							opencv_core.multiplyPut(temp, scaleT * scaleT);
-						features.put(MultiscaleFeature.HESSIAN_DETERMINANT, temp);
-					}
-					
-					if (hessianEigenvalues) {
-						List<Mat> eigenvalues = hessian.getEigenvalues(false);
-						assert eigenvalues.size() == 2;
-						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MAX, eigenvalues.get(0));
-						features.put(MultiscaleFeature.HESSIAN_EIGENVALUE_MIN, eigenvalues.get(1));
-					}
-					
-				}
-				
-				// Ensure our output is 32-bit
-				if (depth != opencv_core.CV_32F) {
-					for (var matFeature : features.values()) {
-						matFeature.convertTo(matFeature, opencv_core.CV_32F);
-					}
-				}
-				
-				results.add(new FeatureMap(features, retainHessian ? hessian : null));
-			}
+//				// Make sure we retain the Mats that we need
+//				for (var r : results) {
+//					for (var m : r.features.values()) {
+//						m.retainReference();
+//						resultMats.add(m);
+//						if (r.getHessian() != null) {
+//							// TODO: Retain Hessian!
+//						}
+//					}
+//				}
+//				
+//			}
 			
-//			if (hessian != null)
-//				hessian.close();
-
+//			var currentScope = PointerScope.getInnerScope();
+//			if (currentScope != null) {
+//				for (var m : resultMats) {
+//					currentScope.attach(m);
+//				}
+//			}
+			
+			
+//			if (hessian != null && !retainHessian) {
+//				hessian.dxx.close();
+//				hessian.dxy.close();
+//				hessian.dyy.close();
+//			}//				hessian.close();
+//
+			if (dxx != null)
+				dxx.close();
+			if (dxy != null)
+				dxy.close();
+			if (dyy != null)
+				dyy.close();
+			
 			kx0.close();
 			kx1.close();
 			kx2.close();
@@ -709,6 +743,7 @@ public class MultiscaleFeatures {
 			ky2.close();
 			
 			return results;
+
 		}
 		
 		

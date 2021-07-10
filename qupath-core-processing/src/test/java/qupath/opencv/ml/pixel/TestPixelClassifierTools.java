@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -166,7 +167,7 @@ class TestPixelClassifierTools {
 	}
 	
 	
-	private void checkCreateObjects(ImageServer<BufferedImage> server, int[] hist, Map<PathClass, Integer> classificationLabelsReverse) {
+	private void checkCreateObjects(ImageServer<BufferedImage> server, int[] hist, Map<PathClass, Integer> classificationLabelsReverse) throws IOException {
 		var hierarchy = new PathObjectHierarchy();
 		boolean success = PixelClassifierTools.createObjectsFromPredictions(
 				server,
@@ -201,7 +202,7 @@ class TestPixelClassifierTools {
 		
 	}
 	
-	private void checkCreateObjectsSplit(ImageServer<BufferedImage> server, int[] hist, Map<PathClass, Integer> classificationLabelsReverse) {
+	private void checkCreateObjectsSplit(ImageServer<BufferedImage> server, int[] hist, Map<PathClass, Integer> classificationLabelsReverse) throws IOException {
 		var hierarchy = new PathObjectHierarchy();
 		boolean success = PixelClassifierTools.createObjectsFromPredictions(
 				server,

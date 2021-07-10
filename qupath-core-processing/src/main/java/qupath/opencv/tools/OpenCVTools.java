@@ -44,10 +44,12 @@ import java.util.function.DoublePredicate;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
+import org.bytedeco.javacpp.IntPointer;
+import org.bytedeco.javacpp.Pointer;
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.ByteIndexer;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -80,6 +82,7 @@ import qupath.lib.analysis.images.SimpleImage;
 import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObject;
@@ -371,14 +374,48 @@ public class OpenCVTools {
 	public static Mat mergeChannels(Collection<? extends Mat> channels, Mat dest) {
 		if (dest == null)
 			dest = new Mat();
-		// OpenCV documentation suggests input must be single-channel
-		if (channels.stream().anyMatch(m -> m.channels() > 1)) {
-			var tempList = new ArrayList<Mat>();
-			for (var m : channels)
-				tempList.addAll(splitChannels(m));
-			channels = tempList;
+				
+		boolean firstMat = true;
+		boolean allSingleChannel = true;
+		int rows = -1;
+		int cols = -1;
+		int depth = 0;
+		int nChannels = 0;
+		for (var m : channels) {
+			if (firstMat) {
+				rows = m.rows();
+				cols = m.cols();
+				depth = m.depth();
+				if (rows < 0 || cols < 0)
+					throw new IllegalArgumentException("Rows and columns must be >= 0");
+				firstMat = false;
+			}
+			int nc = m.channels();
+			allSingleChannel = allSingleChannel && nc == 1;
+			nChannels += nc;
+			if (depth != m.depth() || rows != m.rows() || cols != m.cols())
+				throw new IllegalArgumentException("mergeChannels() requires all Mats to have the same dimensions and depth!");
 		}
-		opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
+
+		// We can only use OpenCV's merge if all Mats are single-channel
+		boolean mixChannels = !allSingleChannel;		
+		try (var scope = new PointerScope()) {
+			if (mixChannels) {
+				dest.create(rows, cols, opencv_core.CV_MAKETYPE(depth, nChannels));
+				var vecSource = new MatVector(channels.toArray(Mat[]::new));
+				var vecDest = new MatVector(dest);
+				int[] inds = new int[nChannels*2];
+				for (int i = 0; i < nChannels; i++) {
+					inds[i*2] = i;
+					inds[i*2+1] = i;
+				}
+				opencv_core.mixChannels(vecSource, vecDest, new IntPointer(inds));
+			} else {
+				opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
+			}
+			scope.deallocate();
+		}
+
 		return dest;
 	}
 	
@@ -1861,44 +1898,47 @@ public class OpenCVTools {
 		
 		int top = 0, bottom = 0, left = 0, right = 0;
 	    boolean doPad = false;
+		Mat matResult = new Mat();
 		
-		if (mat.cols() > tileWidth) {
-			List<Mat> horizontal = new ArrayList<>();
-			for (int x = 0; x < mat.cols(); x += tileWidth) {
-	    		Mat matTemp = applyTiled(fun, mat.colRange(x, Math.min(x+tileWidth, mat.cols())).clone(), tileWidth, tileHeight, borderType);
-	    		horizontal.add(matTemp);
+		try (var scope = new PointerScope()) {
+			if (mat.cols() > tileWidth) {
+				List<Mat> horizontal = new ArrayList<>();
+				for (int x = 0; x < mat.cols(); x += tileWidth) {
+		    		Mat matTemp = applyTiled(fun, mat.colRange(x, Math.min(x+tileWidth, mat.cols())).clone(), tileWidth, tileHeight, borderType);
+		    		horizontal.add(matTemp);
+				}
+				opencv_core.hconcat(new MatVector(horizontal.toArray(new Mat[0])), matResult);
+				return matResult;
+			} else if (mat.rows() > tileHeight) {
+				List<Mat> vertical = new ArrayList<>();
+				for (int y = 0; y < mat.rows(); y += tileHeight) {
+		    		Mat matTemp = applyTiled(fun, mat.rowRange(y, Math.min(y+tileHeight, mat.rows())).clone(), tileWidth, tileHeight, borderType);
+		    		vertical.add(matTemp);
+				}
+				opencv_core.vconcat(new MatVector(vertical.toArray(Mat[]::new)), matResult);
+				return matResult;
+			} else if (mat.cols() < tileWidth || mat.rows() < tileHeight) {
+		        // If the image is smaller than we can handle, add padding
+				top = (tileHeight - mat.rows()) / 2;
+				left = (tileWidth - mat.cols()) / 2;
+				bottom = tileHeight - mat.rows() - top;
+				right = tileWidth - mat.cols() - left;
+				Mat matPadded = new Mat();
+				opencv_core.copyMakeBorder(mat, matPadded, top, bottom, left, right, borderType);
+				mat = matPadded;
+				doPad = true;
 			}
-			Mat matResult = new Mat();
-			opencv_core.hconcat(new MatVector(horizontal.toArray(new Mat[0])), matResult);
-			return matResult;
-		} else if (mat.rows() > tileHeight) {
-			List<Mat> vertical = new ArrayList<>();
-			for (int y = 0; y < mat.rows(); y += tileHeight) {
-	    		Mat matTemp = applyTiled(fun, mat.rowRange(y, Math.min(y+tileHeight, mat.rows())).clone(), tileWidth, tileHeight, borderType);
-	    		vertical.add(matTemp);
-			}
-			Mat matResult = new Mat();
-			opencv_core.vconcat(new MatVector(vertical.toArray(Mat[]::new)), matResult);
-			return matResult;
-		} else if (mat.cols() < tileWidth || mat.rows() < tileHeight) {
-	        // If the image is smaller than we can handle, add padding
-			top = (tileHeight - mat.rows()) / 2;
-			left = (tileWidth - mat.cols()) / 2;
-			bottom = tileHeight - mat.rows() - top;
-			right = tileWidth - mat.cols() - left;
-			Mat matPadded = new Mat();
-			opencv_core.copyMakeBorder(mat, matPadded, top, bottom, left, right, borderType);
-			mat = matPadded;
-			doPad = true;
+			
+			// Do the actual requested function
+			matResult.put(fun.apply(mat));
+			
+			// Handle padding
+		    if (doPad) {
+		    	matResult.put(crop(matResult, left, top, tileWidth-right-left, tileHeight-top-bottom));
+		    }
+		    
+		    scope.deallocate();
 		}
-		
-		// Do the actual requested function
-		var matResult = fun.apply(mat);
-		
-		// Handle padding
-	    if (doPad) {
-	    	matResult.put(crop(matResult, left, top, tileWidth-right-left, tileHeight-top-bottom));
-	    }
 	    
 	    return matResult;
 	}
@@ -2295,6 +2335,57 @@ public class OpenCVTools {
 		
 		return matLabels;
 	}
+	
+	/**
+	 * Get a brief, one-line report on current physical memory use, based on JavaCPP's {@link Pointer} class.
+	 * This is suitable for logging if required.
+	 * @return
+	 * @see #trackedMemory()
+	 * @see #memoryReport(CharSequence)
+	 */
+	public static String physicalMemory() {
+		long physicalBytes = Pointer.availablePhysicalBytes();
+		
+		double physicalMB = physicalBytes / (1024.0 * 1024.0);
+		double physicalPercent = physicalBytes / ((double)Pointer.maxPhysicalBytes()) * 100.0;
+		
+		return "Physical memory: " +
+			GeneralTools.formatNumber(physicalMB, 1) + 
+			" MB (" + 
+			GeneralTools.formatNumber(physicalPercent, 1) + 
+			" %)";
+		
+	}
+
+	/**
+	 * Get a brief, one-line report on tracked memory use, based on JavaCPP's {@link Pointer} class.
+	 * This is suitable for logging if required.
+	 * @return
+	 * @see #physicalMemory()
+	 * @see #memoryReport(CharSequence)
+	 */
+	public static String trackedMemory() {
+		double trackedMB = Pointer.totalBytes() / (1024.0 * 1024.0);
+		long nPointers = Pointer.totalCount();
+		return "Tracked memory: " +
+			GeneralTools.formatNumber(trackedMB, 1) + 
+			" MB (" + 
+			nPointers + 
+			" pointers)";
+	}
+
+	/**
+	 * Create a brief report on memory use, based on JavaCPP's {@link Pointer} class.
+	 * @param delimiter delimiter to use between elements of the report, e.g. {@code ", "} or {@code "\n"}
+	 * @return
+	 * @implNote Currently, this concatenates {@link #physicalMemory()} and {@link #trackedMemory()}.
+	 * @see #trackedMemory()
+	 * @see #physicalMemory()
+	 */
+	public static String memoryReport(CharSequence delimiter) {
+		return String.join(delimiter, physicalMemory(), trackedMemory());
+	}
+	
 	
 	
 	/**

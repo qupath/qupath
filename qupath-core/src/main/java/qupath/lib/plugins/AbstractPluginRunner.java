@@ -55,10 +55,10 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
 	final private static Logger logger = LoggerFactory.getLogger(AbstractPluginRunner.class);
 
-	private static int numThreadsRequested = Runtime.getRuntime().availableProcessors();
 	private static int counter = 0;
 
-	private static ExecutorService pool;
+//	private static ExecutorService pool;
+	private ExecutorService pool;
 	private ExecutorCompletionService<Runnable> service;
 
 	private Map<Future<Runnable>, Runnable> pendingTasks = Collections.synchronizedMap(new HashMap<>());
@@ -67,56 +67,6 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
 	private boolean tasksCancelled = false;
 	
-	/**
-	 * Set the number of threads requested to be used for the next threadpool created.
-	 * <p>
-	 * The request is stored as-is, but may be adjusted if it is outside a valid range, i.e. &gt; 0 and &lt;= available processors.
-	 * 
-	 * @see #getNumThreadsRequested
-	 * @see #getNumThreads
-	 * 
-	 * @param n
-	 */
-	public synchronized static void setNumThreadsRequested(int n) {
-		if (numThreadsRequested == n)
-			return;
-		numThreadsRequested = n;
-		// Need to shutdown the pool for this to take effect
-		if (pool != null)
-			pool.shutdown();
-	}
-	
-	/**
-	 * Get the number of threads requested.  This isn't necessarily the number that will be used for the next threadpool,
-	 * since it may be &lt;= 0 or &gt; the available processors.
-	 * 
-	 * @see #setNumThreadsRequested
-	 * @see #getNumThreads
-	 * 
-	 * @return
-	 */
-	public synchronized static int getNumThreadsRequested() {
-		return numThreadsRequested;
-	}
-	
-	/**
-	 * Get the number of threads that will actually be used the next time a threadpool is constructed.
-	 * <p>
-	 * If getNumProcessorsRequested() returns a value between 1 and Runtime.getRuntime().availableProcessors() then this 
-	 * is used.  Otherwise, Runtime.getRuntime().availableProcessors() is used.
-	 * <p>
-	 * This implementation may change (most likely to increase the upper limit, if it turns out to be too strict.)
-	 * 
-	 * @see #setNumThreadsRequested
-	 * @see #getNumThreadsRequested
-	 * 
-	 * @return
-	 */
-	public synchronized static int getNumThreads() {
-		int max = Runtime.getRuntime().availableProcessors();
-		return numThreadsRequested <= 0 || numThreadsRequested > max ? max : numThreadsRequested;
-	}
-
 	protected abstract SimpleProgressMonitor makeProgressMonitor();
 	
 	/* (non-Javadoc)
@@ -139,7 +89,7 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		
 		// Ensure we have a pool
 		if (pool == null || pool.isShutdown()) {
-			int n = getNumThreads();
+			int n = ThreadTools.getParallelism();
 			pool = Executors.newFixedThreadPool(n, ThreadTools.createThreadFactory("plugin-runner-"+(+counter)+"-", false));
 			logger.debug("New threadpool created with {} threads", n);
 			service = new ExecutorCompletionService<>(pool);

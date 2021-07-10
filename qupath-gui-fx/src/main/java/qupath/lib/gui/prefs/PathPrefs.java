@@ -64,6 +64,7 @@ import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
 
@@ -107,7 +108,7 @@ public class PathPrefs {
 		} else
 			NODE_NAME = DEFAULT_NODE_NAME;
 		
-		logger.debug("Common ForkJoinPool parallelism: {}", ForkJoinPool.getCommonPoolParallelism());
+		logger.debug("Common ForkJoinPool parallelism: {}", ThreadTools.getParallelism());
 	}
 
 	/**
@@ -164,6 +165,19 @@ public class PathPrefs {
 	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", (String)null); // Base directory containing scripts
 	
 	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", ForkJoinPool.getCommonPoolParallelism());
+	
+	static {
+		numCommandThreads.addListener((v, o, n) -> {
+			int threads = n.intValue();
+			if (threads > 0)
+				ThreadTools.setParallelism(threads);
+			else
+				logger.warn("Cannot set parallelism to {}", threads);
+		});
+		// Make sure initialized
+		int threads = numCommandThreads.get();
+		if (threads > 0)
+			ThreadTools.setParallelism(numCommandThreads.get());	}
 	
 	/**
 	 * Property specifying the preferred number of threads QuPath should use for multithreaded commands.
