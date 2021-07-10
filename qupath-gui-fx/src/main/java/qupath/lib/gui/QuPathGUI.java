@@ -226,7 +226,6 @@ import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.objects.hierarchy.TMAGrid;
-import qupath.lib.plugins.AbstractPluginRunner;
 import qupath.lib.plugins.PathInteractivePlugin;
 import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.parameters.ParameterList;
@@ -836,10 +835,6 @@ public class QuPathGUI {
 		
 		// Create preferences panel
 		prefsPane = new PreferencePane();
-		
-		// Set the number of threads at an early stage...
-		AbstractPluginRunner.setNumThreadsRequested(PathPrefs.numCommandThreadsProperty().get());
-		PathPrefs.numCommandThreadsProperty().addListener(o -> AbstractPluginRunner.setNumThreadsRequested(PathPrefs.numCommandThreadsProperty().get()));
 		
 		// Activate the log at an early stage
 		// TODO: NEED TO TURN ON LOG!

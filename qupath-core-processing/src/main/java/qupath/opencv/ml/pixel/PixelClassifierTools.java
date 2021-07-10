@@ -130,10 +130,11 @@ public class PixelClassifierTools {
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
+	 * @throws IOException 
 	 */
     public static boolean createDetectionsFromPixelClassifier(
 			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, 
-			double minArea, double minHoleArea, CreateObjectOptions... options) {
+			double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		var selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty())
 			selected = Collections.singleton(hierarchy.getRootObject());
@@ -155,9 +156,10 @@ public class PixelClassifierTools {
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
+     * @throws IOException 
      */
     public static boolean createDetectionsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		return createDetectionsFromPixelClassifier(
 				imageData.getHierarchy(),
 				createPixelClassificationServer(imageData, classifier),
@@ -176,11 +178,12 @@ public class PixelClassifierTools {
      * @param options additional options to control how objects are created
 	 * 
 	 * @return true if the command ran successfully to completion, false otherwise.
+	 * @throws IOException 
 	 * @see GeometryTools#refineAreas(Geometry, double, double)
 	 */
 	public static boolean createObjectsFromPredictions(
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
-			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, CreateObjectOptions... options) {
+			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		
 		if (selectedObjects.isEmpty())
 			return false;
@@ -274,9 +277,10 @@ public class PixelClassifierTools {
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
+	 * @throws IOException 
      */
 	public static boolean createAnnotationsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		return createAnnotationsFromPixelClassifier(
 				imageData.getHierarchy(),
 				createPixelClassificationServer(imageData, classifier),
@@ -295,9 +299,10 @@ public class PixelClassifierTools {
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
+	 * @throws IOException 
 	 */
 	public static boolean createAnnotationsFromPixelClassifier(
-			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, double minArea, double minHoleArea, CreateObjectOptions... options) {
+			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		var selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty())
 			selected = Collections.singleton(hierarchy.getRootObject());
@@ -346,6 +351,7 @@ public class PixelClassifierTools {
 	 * @param minHoleArea minimum area for a hole to fill, in calibrated units based on the pixel calibration
      * @param doSplit if true, split connected regions into separate objects
 	 * @return the objects created within the ROI
+	 * @throws IOException 
 	 */
 	public static Collection<PathObject> createObjectsFromPixelClassifier(
 			ImageServer<BufferedImage> server,
@@ -353,7 +359,7 @@ public class PixelClassifierTools {
 			ROI roi, 
 			Function<ROI, ? extends PathObject> creator, 
 			double minArea, double minHoleArea, 
-			boolean doSplit) {
+			boolean doSplit) throws IOException {
 		
 		// We need classification labels to do anything
 		if (labels == null)

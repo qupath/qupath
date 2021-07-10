@@ -93,10 +93,12 @@ class OpenCVPixelClassifier implements PixelClassifier {
     @Override
     public BufferedImage applyClassification(final ImageData<BufferedImage> imageData, final RegionRequest request) throws IOException {
     	
+//    	logger.debug("Before: \n" + OpenCVTools.memoryReport(", "));
+    	
     	try (@SuppressWarnings("unchecked")
 		var scope = new PointerScope()) {
 	    	var matResult = getOp().apply(imageData, request);
-	    	
+
 	    	var type = getMetadata().getOutputType();
 	    	ColorModel colorModelLocal = null;
 	    	if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
@@ -108,10 +110,12 @@ class OpenCVPixelClassifier implements PixelClassifier {
 	        // Create & return BufferedImage
 	        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
 	
-	        // Free matrix
-	        matResult.close();
-	        
+	        // Return memory as quickly as we can
+	        scope.deallocate();
 	        return imgResult;
+    	} finally {
+//        	System.gc(); // Shouldn't be needed if deallocate is used?
+//    		logger.debug("After: \n" + OpenCVTools.memoryReport(", "));
     	}
     }
     

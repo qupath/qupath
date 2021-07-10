@@ -3334,10 +3334,11 @@ public class QP {
 	 * @param thresholds map between channels to threshold (zero-based index) and thresholds to apply
 	 * @param pathClassName name of the classification for the annotations that will be created
 	 * @param options additional options when creating the annotations
+	 * @throws IOException 
 	 * @see #loadDensityMap(String)
 	 * @see CreateObjectOptions
 	 */
-	public static void createAnnotationsFromDensityMap(String densityMapName, Map<Integer, ? extends Number> thresholds, String pathClassName, String... options) {
+	public static void createAnnotationsFromDensityMap(String densityMapName, Map<Integer, ? extends Number> thresholds, String pathClassName, String... options) throws IOException {
 		createAnnotationsFromDensityMap(getCurrentImageData(), densityMapName, thresholds, pathClassName, options);
 	}
 	
@@ -3349,10 +3350,11 @@ public class QP {
 	 * @param thresholds map between channels to threshold (zero-based index) and thresholds to apply
 	 * @param pathClassName name of the classification for the annotations that will be created
 	 * @param options additional options when creating the annotations
+	 * @throws IOException 
 	 * @see #loadDensityMap(String)
 	 * @see CreateObjectOptions
 	 */
-	public static void createAnnotationsFromDensityMap(ImageData<BufferedImage> imageData, String densityMapName, Map<Integer, ? extends Number> thresholds, String pathClassName, String... options) {
+	public static void createAnnotationsFromDensityMap(ImageData<BufferedImage> imageData, String densityMapName, Map<Integer, ? extends Number> thresholds, String pathClassName, String... options) throws IOException {
 		var densityMap = loadDensityMap(densityMapName);
 		createAnnotationsFromDensityMap(imageData, densityMap, thresholds, pathClassName, parseEnumOptions(CreateObjectOptions.class, null, options));
 	}
@@ -3365,10 +3367,11 @@ public class QP {
 	 * @param thresholds map between channels to threshold (zero-based index) and thresholds to apply
 	 * @param pathClassName name of the classification for the annotations that will be created
 	 * @param options additional options when creating the annotations
+	 * @throws IOException 
 	 * @see #loadDensityMap(String)
 	 * @see CreateObjectOptions
 	 */
-	public static void createAnnotationsFromDensityMap(ImageData<BufferedImage> imageData, DensityMapBuilder densityMap, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) {
+	public static void createAnnotationsFromDensityMap(ImageData<BufferedImage> imageData, DensityMapBuilder densityMap, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) throws IOException {
 		var densityServer = densityMap.buildServer(imageData);
 		DensityMaps.threshold(imageData.getHierarchy(), densityServer, thresholds, pathClassName, options);
 	}
@@ -3435,10 +3438,12 @@ public class QP {
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
+	 * @throws IOException 
+	 * @throws IllegalArgumentException 
 	 * @see #loadPixelClassifier(String)
 	 */
 	public static void createDetectionsFromPixelClassifier(
-			String classifierName, double minArea, double minHoleArea, String... options) {
+			String classifierName, double minArea, double minHoleArea, String... options) throws IllegalArgumentException, IOException {
 		createDetectionsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, options);
 	}
 
@@ -3450,9 +3455,10 @@ public class QP {
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
+	 * @throws IOException 
 	 */
 	public static void createDetectionsFromPixelClassifier(
-			PixelClassifier classifier, double minArea, double minHoleArea, String... options) {
+			PixelClassifier classifier, double minArea, double minHoleArea, String... options) throws IOException {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
 		PixelClassifierTools.createDetectionsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseEnumOptions(CreateObjectOptions.class, null, options));
 	}
@@ -3466,10 +3472,12 @@ public class QP {
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
+	 * @throws IOException 
+	 * @throws IllegalArgumentException 
 	 * @see #loadPixelClassifier(String)
 	 */
 	public static void createAnnotationsFromPixelClassifier(
-			String classifierName, double minArea, double minHoleArea, String... options) {
+			String classifierName, double minArea, double minHoleArea, String... options) throws IllegalArgumentException, IOException {
 		createAnnotationsFromPixelClassifier(loadPixelClassifier(classifierName), minArea, minHoleArea, options);
 	}
 
@@ -3481,9 +3489,10 @@ public class QP {
 	 * @param minArea the minimum area of connected regions to retain
 	 * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
+	 * @throws IOException 
 	 */
 	public static void createAnnotationsFromPixelClassifier(
-			PixelClassifier classifier, double minArea, double minHoleArea, String... options) {
+			PixelClassifier classifier, double minArea, double minHoleArea, String... options) throws IOException {
 		var imageData = (ImageData<BufferedImage>)getCurrentImageData();
 		PixelClassifierTools.createAnnotationsFromPixelClassifier(imageData, classifier, minArea, minHoleArea, parseEnumOptions(CreateObjectOptions.class, null, options));
 	}

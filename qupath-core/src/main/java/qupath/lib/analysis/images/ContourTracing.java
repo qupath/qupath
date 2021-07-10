@@ -38,6 +38,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -61,6 +65,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServers;
@@ -921,8 +926,9 @@ public class ContourTracing {
 	 * @param minThreshold
 	 * @param maxThreshold
 	 * @return
+	 * @throws IOException 
 	 */
-	public static Geometry traceGeometry(ImageServer<BufferedImage> server, RegionRequest regionRequest, Geometry clipArea, int channel, double minThreshold, double maxThreshold) {
+	public static Geometry traceGeometry(ImageServer<BufferedImage> server, RegionRequest regionRequest, Geometry clipArea, int channel, double minThreshold, double maxThreshold) throws IOException {
 		var map = traceGeometries(server, regionRequest, clipArea, ChannelThreshold.create(channel, minThreshold, maxThreshold));
 		if (map == null || map.isEmpty())
 			return GeometryTools.getDefaultFactory().createPolygon();
@@ -938,8 +944,9 @@ public class ContourTracing {
 	 * @param clipArea optional clip region, intersected with the created geometries (may be null)
 	 * @param thresholds min/max thresholds (inclusive) to apply to each channel to generate objects
 	 * @return
+	 * @throws IOException 
 	 */
-	public static Map<Integer, Geometry> traceGeometries(ImageServer<BufferedImage> server, RegionRequest regionRequest, Geometry clipArea, ChannelThreshold... thresholds) {
+	public static Map<Integer, Geometry> traceGeometries(ImageServer<BufferedImage> server, RegionRequest regionRequest, Geometry clipArea, ChannelThreshold... thresholds) throws IOException {
 		
 		RegionRequest region = regionRequest;
 		if (region == null) {
@@ -987,107 +994,148 @@ public class ContourTracing {
 	}
 	
 	
+	private static <T,S> List<S> invokeAll(ExecutorService pool, Collection<T> items, Function<T, S> fun) throws InterruptedException, ExecutionException {
+		List<Future<S>> futures = new ArrayList<>();
+		for (var item : items)
+			futures.add(pool.submit(() -> fun.apply(item)));
+		
+		List<S> results = new ArrayList<>();
+		for (var future : futures)
+			results.add(future.get());
+		
+		return results;
+	}
+	
+	
 	@SuppressWarnings("unchecked")
-	private static Map<Integer, Geometry> traceGeometriesImpl(ImageServer<BufferedImage> server, Collection<TileRequest> tiles, Geometry clipArea, ChannelThreshold... thresholds) {
+	private static Map<Integer, Geometry> traceGeometriesImpl(ImageServer<BufferedImage> server, Collection<TileRequest> tiles, Geometry clipArea, ChannelThreshold... thresholds) throws IOException {
 		
 		if (thresholds.length == 0)
 			return Collections.emptyMap();
-		
-		Map<Integer, List<GeometryWrapper>> geometryMap = tiles.parallelStream()
-				.map(t -> traceGeometries(server, t, clipArea, thresholds))
-				.flatMap(p -> p.stream())
-				.collect(Collectors.groupingBy(g -> g.label));
-		
+				
 		Map<Integer, Geometry> output = new LinkedHashMap<>();
-	
-		// Determine 'inter-tile boundaries' - union operations can be very slow, so we want to restrict them 
-		// only to geometries that really require them.
-		var xBoundsSet = new TreeSet<Integer>();
-		var yBoundsSet = new TreeSet<Integer>();
-		for (var t : tiles) {
-			xBoundsSet.add(t.getImageX());
-			xBoundsSet.add(t.getImageX() + t.getImageWidth());
-			yBoundsSet.add(t.getImageY());
-			yBoundsSet.add(t.getImageY() + t.getImageHeight());
-		}
-		int[] xBounds = xBoundsSet.stream().mapToInt(x -> x).toArray(); 
-		int[] yBounds = yBoundsSet.stream().mapToInt(y -> y).toArray(); 
+
 		
-		
-		// Merge objects with the same classification
-		for (var entry : geometryMap.entrySet()) {
-			var list = entry.getValue();
+		var pool = Executors.newFixedThreadPool(ThreadTools.getParallelism());
+		try {
 			
-			// If we just have one tile, that's what we need
-			Geometry geometry = null;
+			List<List<GeometryWrapper>> wrappers = invokeAll(pool, tiles, t -> traceGeometries(server, t, clipArea, thresholds));
+			var geometryMap =  wrappers.stream()
+					.flatMap(p -> p.stream())
+					.collect(Collectors.groupingBy(g -> g.label));
 			
-			if (list.isEmpty())
-				continue;
-			if (list.size() == 1) {
-				geometry = list.get(0).geometry;
-			} else {
-				logger.debug("Merging geometries from {} tiles for {}", list.size(), entry.getKey());
-				
-				var factory = list.get(0).geometry.getFactory();
-				
-				// Merge everything quickly into a single geometry
-				var allPolygons = new ArrayList<Polygon>();
-				for (var temp : list)
-					PolygonExtracter.getPolygons(temp.geometry, allPolygons);
-				
-				// TODO: Explore where buffering is faster than union; if we can get rules for this it can be used instead
-				boolean onlyBuffer = false;
-				
-				if (onlyBuffer) {
-					var singleGeometry = factory.buildGeometry(allPolygons);
-					geometry = singleGeometry.buffer(0);
-				} else {
-					
-					// Unioning is expensive, so we just want to do it where really needed
-					var tree = new Quadtree();
-					for (var p : allPolygons) {
-						tree.insert(p.getEnvelopeInternal(), p);
-					}
-					var env = new Envelope();
-					
-					var toMerge = new HashSet<Polygon>();
-					for (int yi = 1; yi < yBounds.length-1; yi++) {
-						env.init(xBounds[0]-1, xBounds[xBounds.length-1]+1, yBounds[yi]-1, yBounds[yi]+1);
-						var items = tree.query(env);
-						if (items.size() > 1)
-							toMerge.addAll(items);
-					}
-					for (int xi = 1; xi < xBounds.length-1; xi++) {
-						env.init(xBounds[xi]-1, xBounds[xi]+1, yBounds[0]-1, yBounds[yBounds.length-1]+1);
-						var items = tree.query(env);
-						if (items.size() > 1)
-							toMerge.addAll(items);
-					}
-					if (!toMerge.isEmpty()) {
-						logger.debug("Computing union for {}/{} polygons", toMerge.size(), allPolygons.size());
-						var mergedGeometry = GeometryTools.union(toMerge);
-//						System.err.println("To merge: " + toMerge.size());
-//						var mergedGeometry = factory.buildGeometry(toMerge).buffer(0);
-						var iter = allPolygons.iterator();
-						while (iter.hasNext()) {
-							if (toMerge.contains(iter.next()))
-								iter.remove();
-						}
-						allPolygons.removeAll(toMerge);
-						var newPolygons = new ArrayList<Polygon>();
-						PolygonExtracter.getPolygons(mergedGeometry, newPolygons);
-						allPolygons.addAll(newPolygons);
-					}
-					geometry = factory.buildGeometry(allPolygons);				
-					geometry.normalize();
-				}
-				
+			
+			// Determine 'inter-tile boundaries' - union operations can be very slow, so we want to restrict them 
+			// only to geometries that really require them.
+			var xBoundsSet = new TreeSet<Integer>();
+			var yBoundsSet = new TreeSet<Integer>();
+			for (var t : tiles) {
+				xBoundsSet.add(t.getImageX());
+				xBoundsSet.add(t.getImageX() + t.getImageWidth());
+				yBoundsSet.add(t.getImageY());
+				yBoundsSet.add(t.getImageY() + t.getImageHeight());
+			}
+			int[] xBounds = xBoundsSet.stream().mapToInt(x -> x).toArray(); 
+			int[] yBounds = yBoundsSet.stream().mapToInt(y -> y).toArray(); 
+			
+			var futures = new LinkedHashMap<Integer, Future<Geometry>>();
+			
+			// Merge objects with the same classification
+			for (var entry : geometryMap.entrySet()) {
+				var list = entry.getValue();
+				if (list.isEmpty())
+					continue;
+				futures.put(entry.getKey(), pool.submit(() -> mergeGeometryWrappers(list, xBounds, yBounds)));
 			}
 			
-			output.put(entry.getKey(), geometry);
+			for (var entry : futures.entrySet())
+				output.put(entry.getKey(), entry.getValue().get());			
+			
+		} catch (Exception e) {
+			throw new IOException(e);
+		} finally {
+			pool.shutdown();
 		}
+		
 		return output;
 	}
+	
+	
+	/**
+	 * Merge together geometries.
+	 * @param list
+	 * @param xBounds x tile boundaries; unioning is only applied over boundaries
+	 * @param yBounds y tile boundaries; unioning is only applied over boundaries
+	 * @return
+	 */
+	private static Geometry mergeGeometryWrappers(List<GeometryWrapper> list, int[] xBounds, int[] yBounds) {
+		
+		// Shouldn't happy (since we should have filtered out empty lists before calling this)
+		if (list.isEmpty())
+			return GeometryTools.getDefaultFactory().createEmpty(2);
+		
+		// If we just have one tile, that's what we need
+		if (list.size() == 1)
+			return list.get(0).geometry;
+		
+		var factory = list.get(0).geometry.getFactory();
+		
+		// Merge everything quickly into a single geometry
+		var allPolygons = new ArrayList<Polygon>();
+		for (var temp : list)
+			PolygonExtracter.getPolygons(temp.geometry, allPolygons);
+		
+		// TODO: Explore where buffering is faster than union; if we can get rules for this it can be used instead
+		boolean onlyBuffer = false;
+		
+		Geometry geometry;
+		
+		if (onlyBuffer) {
+			var singleGeometry = factory.buildGeometry(allPolygons);
+			geometry = singleGeometry.buffer(0);
+		} else {
+			
+			// Unioning is expensive, so we just want to do it where really needed
+			var tree = new Quadtree();
+			for (var p : allPolygons) {
+				tree.insert(p.getEnvelopeInternal(), p);
+			}
+			var env = new Envelope();
+			
+			var toMerge = new HashSet<Polygon>();
+			for (int yi = 1; yi < yBounds.length-1; yi++) {
+				env.init(xBounds[0]-1, xBounds[xBounds.length-1]+1, yBounds[yi]-1, yBounds[yi]+1);
+				var items = tree.query(env);
+				if (items.size() > 1)
+					toMerge.addAll(items);
+			}
+			for (int xi = 1; xi < xBounds.length-1; xi++) {
+				env.init(xBounds[xi]-1, xBounds[xi]+1, yBounds[0]-1, yBounds[yBounds.length-1]+1);
+				var items = tree.query(env);
+				if (items.size() > 1)
+					toMerge.addAll(items);
+			}
+			if (!toMerge.isEmpty()) {
+				logger.debug("Computing union for {}/{} polygons", toMerge.size(), allPolygons.size());
+				var mergedGeometry = GeometryTools.union(toMerge);
+//				System.err.println("To merge: " + toMerge.size());
+//				var mergedGeometry = factory.buildGeometry(toMerge).buffer(0);
+				var iter = allPolygons.iterator();
+				while (iter.hasNext()) {
+					if (toMerge.contains(iter.next()))
+						iter.remove();
+				}
+				allPolygons.removeAll(toMerge);
+				var newPolygons = new ArrayList<Polygon>();
+				PolygonExtracter.getPolygons(mergedGeometry, newPolygons);
+				allPolygons.addAll(newPolygons);
+			}
+			geometry = factory.buildGeometry(allPolygons);				
+			geometry.normalize();
+		}
+		return geometry;
+	}
+	
 	
 
 	private static List<GeometryWrapper> traceGeometries(ImageServer<BufferedImage> server, TileRequest tile, Geometry clipArea, ChannelThreshold... thresholds) {

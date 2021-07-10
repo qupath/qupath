@@ -469,8 +469,9 @@ public class DensityMaps {
 	 * @param threshold threshold value
 	 * @param options additional objects when creating the annotations
 	 * @return true if changes were made, false otherwise
+	 * @throws IOException 
 	 */
-	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, int channel, double threshold, CreateObjectOptions... options) {
+	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, int channel, double threshold, CreateObjectOptions... options) throws IOException {
 		var pathClassName = densityServer.getChannel(channel).getName();
 		return threshold(hierarchy, densityServer, Map.of(channel, threshold), pathClassName, options);
 	}
@@ -484,8 +485,9 @@ public class DensityMaps {
 	 * @param pathClassName name of the classification to apply to the generated annotations
 	 * @param options additional options to customize how annotations are created
 	 * @return true if changes were made, false otherwise
+	 * @throws IOException 
 	 */
-	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) {
+	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) throws IOException {
 
 		// Apply threshold to densities
 		PathClass lessThan = PathClassFactory.getPathClass(StandardPathClasses.IGNORE);

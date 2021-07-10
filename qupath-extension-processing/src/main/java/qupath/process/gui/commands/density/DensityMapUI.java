@@ -623,7 +623,7 @@ public class DensityMapUI {
 					if (densityMapName != null) {
 						imageData.getHistoryWorkflow().addStep(
 								new DefaultScriptableWorkflowStep("Density map find hotspots",
-										String.format("findDensityMapHotspots(\"%s\", %d, %d, %f, $s, %s)",
+										String.format("findDensityMapHotspots(\"%s\", %d, %d, %f, %s, %s)",
 												densityMapName,
 												band, numHotspots,
 												minDensity, deleteExisting, peaksOnly)
@@ -830,7 +830,12 @@ public class DensityMapUI {
 			
 			var pathClassName = densityServer.getChannel(0).getName();
 			
-			DensityMaps.threshold(imageData.getHierarchy(), densityServer, thresholds, pathClassName, options.toArray(CreateObjectOptions[]::new));
+			try {
+				DensityMaps.threshold(imageData.getHierarchy(), densityServer, thresholds, pathClassName, options.toArray(CreateObjectOptions[]::new));
+			} catch (IOException e1) {
+				Dialogs.showErrorMessage(title, e1);
+				return;
+			}
 			
 			if (densityMapName != null) {
 				String optionsString = "";
