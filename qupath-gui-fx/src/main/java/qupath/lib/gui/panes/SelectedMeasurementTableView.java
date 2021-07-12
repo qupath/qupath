@@ -52,7 +52,6 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableRow;
 import javafx.util.Callback;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -73,6 +72,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private static int nDecimalPlaces = 4;
 	
+	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
 	private ImageData<?> imageData;
 	
 	private TableView<String> tableMeasurements;
@@ -81,10 +81,11 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	/**
 	 * Constructor.
-	 * @param qupath the current QuPath instance
+	 * @param imageData the {@link ImageData} associated with this table
 	 */
-	public SelectedMeasurementTableView(final QuPathGUI qupath) {
-		qupath.imageDataProperty().addListener(this);
+	public SelectedMeasurementTableView(final ObservableValue<ImageData<BufferedImage>> imageDataProperty) {
+		this.imageDataProperty = imageDataProperty;
+		imageDataProperty.addListener(this);
 	}
 	
 	

@@ -3866,6 +3866,8 @@ public class QuPathGUI {
 	}
 	
 	
+	
+	
 	private void initializeAnalysisPanel() {
 		analysisPanel.setTabClosingPolicy(TabClosingPolicy.UNAVAILABLE);
 		projectBrowser = new ProjectBrowser(this);
@@ -3873,22 +3875,47 @@ public class QuPathGUI {
 		analysisPanel.getTabs().add(new Tab("Project", projectBrowser.getPane()));
 		ImageDetailsPane pathImageDetailsPanel = new ImageDetailsPane(this);
 		analysisPanel.getTabs().add(new Tab("Image", pathImageDetailsPanel.getPane()));
-
-		final AnnotationPane panelAnnotations = new AnnotationPane(this);
+		
+		/*
+		 * Create tabs.
+		 * Note that we don't want ImageData/hierarchy events to be triggered for tabs that aren't visible,
+		 * since these can be quite expensive.
+		 * For that reason, we create new bindings.
+		 * 
+		 * TODO: Handle analysis pane being entirely hidden.
+		 */
+		
+		// Create annotation tab
+		var tabAnnotations = new Tab("Annotations");
+		var annotationTabImageData = Bindings.createObjectBinding(() -> {
+			return tabAnnotations.isSelected() ? imageDataProperty.get() : null;
+		}, tabAnnotations.selectedProperty(), imageDataProperty());
+		var annotationMeasurementsTable = new SelectedMeasurementTableView(annotationTabImageData).getTable();
 		SplitPane splitAnnotations = new SplitPane();
 		splitAnnotations.setOrientation(Orientation.VERTICAL);
+		var annotationPane = new AnnotationPane(this, imageDataProperty());
+		annotationPane.disableUpdatesProperty().bind(tabAnnotations.selectedProperty().not());
 		splitAnnotations.getItems().addAll(
-				panelAnnotations.getPane(),
-				new SelectedMeasurementTableView(this).getTable());
-		analysisPanel.getTabs().add(new Tab("Annotations", splitAnnotations));
+				annotationPane.getPane(),
+				annotationMeasurementsTable);
+		tabAnnotations.setContent(splitAnnotations);
+		analysisPanel.getTabs().add(tabAnnotations);
+//		analysisPanel.getSelectionModel().selectedItemProperty()
 
-		final PathObjectHierarchyView paneHierarchy = new PathObjectHierarchyView(this);
+		// Create hierarchy tab
+		var tabHierarchy = new Tab("Hierarchy");
+		var hierarchyTabImageData = Bindings.createObjectBinding(() -> {
+			return tabHierarchy.isSelected() ? imageDataProperty.get() : null;
+		}, imageDataProperty(), tabHierarchy.selectedProperty());
+		final PathObjectHierarchyView paneHierarchy = new PathObjectHierarchyView(this, imageDataProperty());
+		paneHierarchy.disableUpdatesProperty().bind(tabHierarchy.selectedProperty().not());
 		SplitPane splitHierarchy = new SplitPane();
 		splitHierarchy.setOrientation(Orientation.VERTICAL);
 		splitHierarchy.getItems().addAll(
 				paneHierarchy.getPane(),
-				new SelectedMeasurementTableView(this).getTable());
-		analysisPanel.getTabs().add(new Tab("Hierarchy", splitHierarchy));
+				new SelectedMeasurementTableView(hierarchyTabImageData).getTable());
+		tabHierarchy.setContent(splitHierarchy);
+		analysisPanel.getTabs().add(tabHierarchy);
 		
 		// Bind the split pane dividers to create a more consistent appearance
 		splitAnnotations.getDividers().get(0).positionProperty().bindBidirectional(

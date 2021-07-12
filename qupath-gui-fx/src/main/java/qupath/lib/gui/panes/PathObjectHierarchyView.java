@@ -33,7 +33,9 @@ import javafx.scene.input.MouseEvent;
 import org.controlsfx.control.BreadCrumbBar;
 
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener;
@@ -116,7 +118,13 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	
 	private QuPathGUI qupath;
 	
-	private ImageData<?> imageData;
+	// Need to preserve this to guard against garbage collection
+	@SuppressWarnings("unused")
+	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
+	
+	private PathObjectHierarchy hierarchy;
+	
+	private BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
 	
 	private TreeView<PathObject> treeView;
 	private BorderPane treeViewPane = new BorderPane();
@@ -126,8 +134,22 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	 * @param qupath the current QuPath instance
 	 */
 	public PathObjectHierarchyView(final QuPathGUI qupath) {
+		this(qupath, qupath.imageDataProperty());
+	}
+	
+	/**
+	 * Constructor.
+	 * @param qupath the current QuPath instance
+	 * @param imageDataProperty the {@link ImageData} to display
+	 */
+	public PathObjectHierarchyView(final QuPathGUI qupath, ObservableValue<ImageData<BufferedImage>> imageDataProperty) {
 		
 		this.qupath = qupath;
+		this.imageDataProperty = imageDataProperty;
+		this.disableUpdates.addListener((v, o, n) -> {
+			if (!n)
+				enableUpdates();
+		});
 		
 		// Handle display changes
 		treeView = new TreeView<>(createNode(new PathRootObject()));
@@ -147,8 +169,8 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		// When nodes are expanded, we need to ensure selections are handled
 		treeView.expandedItemCountProperty().addListener((v, o, n) -> synchronizeTreeToSelectionModel());
 		
-		setImageData(qupath.getImageData());
-		qupath.imageDataProperty().addListener(this);
+		setImageData(imageDataProperty.getValue());
+		imageDataProperty.addListener(this);
 		
 		// Add popup to control detection display
 		ContextMenu popup = new ContextMenu();
@@ -197,8 +219,8 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		breadCrumbBar.setStyle("-fx-font-size: 0.8em;");
 		treeView.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> breadCrumbBar.setSelectedCrumb(n));
 		breadCrumbBar.setOnCrumbAction(e -> {
-			if (e.getSelectedCrumb() != null && imageData != null)
-				imageData.getHierarchy().getSelectionModel().setSelectedObject(e.getSelectedCrumb().getValue());
+			if (e.getSelectedCrumb() != null && hierarchy != null)
+				hierarchy.getSelectionModel().setSelectedObject(e.getSelectedCrumb().getValue());
 		});
 //		breadCrumbBar.selectedCrumbProperty().bind(treeView.getSelectionModel().selectedItemProperty());
 		treeViewPane.setBottom(breadCrumbBar);
@@ -208,6 +230,12 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 		
 	}
 	
+	private void enableUpdates() {
+		if (hierarchy == null)
+			return;
+		hierarchyChanged(PathObjectHierarchyEvent.createStructureChangeEvent(this, hierarchy, hierarchy.getRootObject()));
+//		selectedPathObjectChanged(hierarchy.getSelectionModel().getSelectedObject(), null, hierarchy.getSelectionModel().getSelectedObjects());
+	}
 	
 	private boolean synchronizingModelToTree = false;
 	private boolean synchronizingTreeToModel = false;
@@ -264,7 +292,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	
 	
 	private PathObjectSelectionModel getHierarchySelectionModel() {
-		return imageData == null ? null : imageData.getHierarchy().getSelectionModel();
+		return hierarchy == null ? null : hierarchy.getSelectionModel();
 	}
 
 	/**
@@ -448,17 +476,24 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	}
 	
 	
+	/**
+	 * Property that may be used to prevent updates on every hierarchy or selection change event.
+	 * This can be used to improve performance by preventing the table being updated even when 
+	 * it is not visible to the user.
+	 * @return
+	 */
+	public BooleanProperty disableUpdatesProperty() {
+		return disableUpdates;
+	}
 	
 	
 	void setImageData(ImageData<BufferedImage> imageData) {
-		if (this.imageData != null && this.imageData.getHierarchy() != null) {
-			PathObjectHierarchy hierarchy = this.imageData.getHierarchy();
+		if (hierarchy != null) {
 			hierarchy.getSelectionModel().removePathObjectSelectionListener(this);
 			hierarchy.removePathObjectListener(this);
 		}
 		
-		this.imageData = imageData;
-		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
+		this.hierarchy = imageData == null ? null : imageData.getHierarchy();
 		if (hierarchy != null) {
 			hierarchy.addPathObjectListener(this);
 			hierarchy.getSelectionModel().addPathObjectSelectionListener(this);
@@ -472,8 +507,11 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 	
 	@Override
 	public void selectedPathObjectChanged(PathObject pathObjectSelected, PathObject previousObject, Collection<PathObject> allSelected) {
-		if (Platform.isFxApplicationThread())
+		if (Platform.isFxApplicationThread()) {
+			if (disableUpdates.get())
+				return;
 			synchronizeTreeToSelectionModel(pathObjectSelected, allSelected);
+		}
 		// Do not synchronize to changes in other threads, as these may interfere with scripts
 //		else
 //			Platform.runLater(() -> synchronizeTreeToSelectionModel(pathObjectSelected, allSelected));
@@ -513,6 +551,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 					boolean includeDetections = detectionDisplay.get() != TreeDetectionDisplay.NONE;
 					List<PathObject> others = new ArrayList<>();
 					for (var child : childArray) {
+						assert child != value;
 						if (child.isTMACore())
 							tmaCores.add(child);
 						else if (child.isAnnotation() || child.hasChildren())
@@ -540,8 +579,17 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 
 		@Override
 		public boolean isLeaf() {
-			if (isLeaf == null)
-				isLeaf = !getValue().hasChildren() || getChildren().isEmpty();
+			if (isLeaf == null) {
+				var pathObject = getValue();
+				if (!pathObject.hasChildren())
+					isLeaf = true;
+				else if (detectionDisplay.get() != TreeDetectionDisplay.NONE) {
+					isLeaf = false;
+				} else {
+					isLeaf = Arrays.stream(pathObject.getChildObjectsAsArray()).allMatch(p -> p.isDetection());
+				}
+//				isLeaf = !getValue().hasChildren() || getChildren().isEmpty();
+			}
 			return isLeaf;
 		}
 
@@ -551,7 +599,7 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 
 	@Override
 	public void hierarchyChanged(PathObjectHierarchyEvent event) {
-		if (imageData == null)
+		if (hierarchy == null)
 			return;
 		if (event != null && event.isChanging())
 			return;
@@ -559,8 +607,10 @@ public class PathObjectHierarchyView implements ChangeListener<ImageData<Buffere
 			Platform.runLater(() -> hierarchyChanged(event));
 			return;
 		}
+		if (disableUpdates.get())
+			return;
 		synchronizingTreeToModel = true;
-		treeView.setRoot(createNode(imageData.getHierarchy().getRootObject()));
+		treeView.setRoot(createNode(hierarchy.getRootObject()));
 		synchronizeTreeToSelectionModel();
 		synchronizingTreeToModel = false;
 	}
