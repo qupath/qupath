@@ -91,6 +91,11 @@ public class MorphologicalReconstruction {
 	private static int dilateAndCompare(final ImageProcessor ipMarker, final ImageProcessor ipMask, final boolean reverse, final IntDequeue queue) {
 		int inc, hStart, vStart, hEnd, vEnd;
 		Rectangle rect = ipMarker.getRoi();
+		
+		// Sanity check - in v0.2.3 this could cause exceptions
+		if (rect.width <= 0 || rect.height <= 0)
+			return 0;
+		
 		if (reverse) {
 			inc = -1;
 			hStart = rect.x + rect.width - 1;
