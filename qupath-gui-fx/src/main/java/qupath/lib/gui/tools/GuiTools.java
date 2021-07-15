@@ -22,8 +22,10 @@
 package qupath.lib.gui.tools;
 
 import java.awt.Desktop;
+import java.awt.Desktop.Action;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.text.NumberFormat;
 import java.text.ParsePosition;
@@ -38,6 +40,8 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import javax.swing.SwingUtilities;
 
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
@@ -187,11 +191,16 @@ public class GuiTools {
 			var desktop = Desktop.getDesktop();
 			try {
 				// Can open directory on Windows & Mac
-				if (GeneralTools.isWindows() || GeneralTools.isMac()) {
-					if (file.isDirectory())
-						desktop.open(file);
-					else
-						desktop.open(file.getParentFile());
+				if (desktop.isSupported(Action.OPEN)) {
+					var directoryToOpen = file.isDirectory() ? file : file.getParentFile();
+					SwingUtilities.invokeLater(() -> {
+						try {
+							desktop.open(directoryToOpen);
+						} catch (IOException e) {
+							logger.error(e.getLocalizedMessage(), e);
+							logger.error("Unable to open {}", directoryToOpen.getAbsolutePath());
+						}
+					});
 					return true;
 				}
 				// Trouble on Linux - just copy
@@ -205,7 +214,7 @@ public class GuiTools {
 			} catch (Exception e1) {
 				// Browsing the directory (at least on Mac) seems to open the parent directory
 				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
-					desktop.browseFileDirectory(file);
+					SwingUtilities.invokeLater(() -> desktop.browseFileDirectory(file));
 				else
 					Dialogs.showErrorNotification("Browse directory", e1);
 			}
@@ -608,9 +617,16 @@ public class GuiTools {
 		if (Desktop.isDesktopSupported()) {
 			try {
 				var desktop = Desktop.getDesktop();
-				if (desktop.isSupported(Desktop.Action.OPEN))
-					desktop.open(file);
-				else {
+				if (desktop.isSupported(Desktop.Action.OPEN)) {
+					SwingUtilities.invokeLater(() -> {
+						try {
+							desktop.open(file);						
+						} catch (IOException e) {
+							logger.error(e.getLocalizedMessage(), e);
+							logger.error("Unable to open {}", file.getAbsolutePath());
+						}
+					});
+				} else {
 					if (Dialogs.showConfirmDialog("Open file",
 							"Opening files not supported on this platform!\nCopy directory path to clipboard instead?")) {
 						var content = new ClipboardContent();

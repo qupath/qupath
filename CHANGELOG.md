@@ -109,6 +109,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Opening images with very narrow tiles can fail with Bio-Formats (https://github.com/qupath/qupath/issues/715)
 * `OMEPyramidSeries` is not public (https://github.com/qupath/qupath/issues/726)
 * Bug in using arrow keys to navigate z-stacks and timeseries (https://github.com/qupath/qupath/issues/748)
+* Not able to open file browsers under Linux (e.g. via right-click under the Project tab)
 * Not possible to view multiple channels simultaneously with inverted lookup tables (max display < min display)
 * Exception when converting `PathObject` with name but no color to GeoJSON
 * Cannot write valid 16-bit PNG labelled images
