@@ -90,6 +90,10 @@ public class HierarchyOverlay extends AbstractOverlay {
 	
 	private Font font = new Font("SansSerif", Font.BOLD, 10);
 	
+	/**
+	 * Comparator to determine the order in which detections should be painted.
+	 * This should be used with caution! Check out the docs for the class for details.
+	 */
 	transient private DetectionComparator comparator = new DetectionComparator();
 
 	/**
@@ -177,10 +181,18 @@ public class HierarchyOverlay extends AbstractOverlay {
 		if (overlayOptions.getShowDetections() && !hierarchy.isEmpty()) {
 
 			// If we aren't downsampling by much, or we're upsampling, paint directly - making sure to paint the right number of times, and in the right order
+//			if (false) {
 			if (overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
-//			if (smallImage || overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
-				Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);
-				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
+				Collection<PathObject> pathObjects;
+				try {
+					Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);					
+					pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
+				} catch (IllegalArgumentException e) {
+					// This can happen (rarely) in a multithreaded environment if the level of a detection changes.
+					// However, protecting against this fully by caching the level with integer boxing/unboxing would be expensive.
+					logger.debug("Exception requesting detections to paint: " + e.getLocalizedMessage(), e);
+					pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, null);
+				}
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				
@@ -372,9 +384,11 @@ public class HierarchyOverlay extends AbstractOverlay {
 	
 	/**
 	 * Comparator that makes use of levels, not only location.
-	 *
+	 * <p>
+	 * Warning! Because levels are mutable, this can fail if used for sorting while the object hierarchy is being modified
+	 * in another thread.
 	 */
-	public static class DetectionComparator implements Comparator<PathObject> {
+	private static class DetectionComparator implements Comparator<PathObject> {
 		
 		private Comparator<PathObject> baseComparator = DefaultPathObjectComparator.getInstance();
 

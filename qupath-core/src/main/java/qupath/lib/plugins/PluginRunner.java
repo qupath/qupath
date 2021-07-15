@@ -48,7 +48,7 @@ public interface PluginRunner<T> {
 	ImageData<T> getImageData();
 
 	/**
-	 * Query if the plugin should be cancelled while running.
+	 * Query if the plugin can be cancelled while running.
 	 * Plugins are expected to check this flag before time-consuming operations.
 	 * @return
 	 */

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,19 +21,18 @@
  * #L%
  */
 
-package qupath.lib.gui.plugins;
+package qupath.lib.gui;
 
 import java.awt.image.BufferedImage;
 import java.util.Collection;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
@@ -46,7 +45,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import qupath.lib.gui.QuPathGUI;
+import javafx.util.Duration;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.plugins.CommandLinePluginRunner;
@@ -61,12 +60,12 @@ import qupath.lib.regions.ImageRegion;
  * @author Pete Bankhead
  *
  */
-public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
+class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 
 	private final static Logger logger = LoggerFactory.getLogger(PluginRunnerFX.class);
 	
 	// Time to delay QuPath viewer repaints when running plugin tasks
-	private static long repaintDelayMillis = 2000;
+	private static long repaintDelayMillis = 1000;
 
 	private QuPathGUI qupath;
 	//		private ImageData<BufferedImage> imageData; // Consider reinstating - at least as an option
@@ -92,16 +91,16 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 	
 	@Override
 	public synchronized void runTasks(Collection<Runnable> tasks, boolean updateHierarchy) {
-		boolean delayRepaints = qupath != null && qupath.getViewer() != null && repaintDelayMillis > 0;
-		if (delayRepaints)
-			qupath.getViewer().setMinimumRepaintSpacingMillis(repaintDelayMillis);
+		var viewer = qupath == null || repaintDelayMillis <= 0 ? null : qupath.getViewer();
+		if (viewer != null)
+			viewer.setMinimumRepaintSpacingMillis(repaintDelayMillis);
 		try {
 			super.runTasks(tasks, updateHierarchy);
 		} catch (Exception e) {
 			throw(e);
 		} finally {
-			if (delayRepaints)
-				qupath.getViewer().resetMinimumRepaintSpacingMillis();
+			if (viewer != null)
+				viewer.resetMinimumRepaintSpacingMillis();
 		}
 	}
 
@@ -149,12 +148,15 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 		private static String COMPLETED_MESSAGE = "Completed!";
 
 		private Stage owner;
+		
+		private Timeline timeline;
 
 		private Dialog<Void> progressDialog;
 		private Label progressLabel;
 		private ProgressBar progressBar;
+		
+		private String lastMessage;
 
-		private AtomicLong lastUpdateTimestamp = new AtomicLong(0);
 		private AtomicInteger progress = new AtomicInteger(0);
 		private int maxProgress;
 		private int millisToDisplay;
@@ -256,36 +258,18 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 			progressDialog.initModality(Modality.APPLICATION_MODAL);
 			pane.setPadding(new Insets(10, 10, 10, 10));
 			progressDialog.getDialogPane().setContent(pane);
-			//			progressDialog.setScene(new Scene(dialogPane));
-			//			progressDialog.initStyle(StageStyle.UNDECORATED);
-			//			progressDialog.setOnCloseRequest(e -> {
-			//				System.err.println("Source: " + e.getSource());
-			//				e.consume();
-			//			}); // Thwart closing requests
-			//			progressDialog.setMinWidth(Math.max(progressDialog.getMinWidth(), 450));
 
 			// Show dialog after a delay
-			if (millisToDisplay > 0) {
-
-				java.util.Timer timer = new java.util.Timer("Plugin-progress-timer", true);
-				timer.schedule(new TimerTask() {
-					@Override
-					public void run() {
-						if (!taskComplete) {
-							Platform.runLater(() -> {
-								//								long startTime = System.currentTimeMillis();
-								if (!taskComplete) {
-									progressDialog.show();
-									logger.trace("Starting progress monitor...");
-								}
-								//								long endTime = System.currentTimeMillis();
-								//								logger.trace("Progress monitor visible time " + (endTime-startTime) + " ms");
-							});
-						}
-					}},
-						millisToDisplay);
-			} else
-				progressDialog.show();
+			Duration duration = millisToDisplay > 0 ? Duration.millis(millisToDisplay) : Duration.millis(500);
+			if (timeline == null)
+				timeline = new Timeline(new KeyFrame(
+						duration,
+						e -> updateDialog()));
+			if (millisToDisplay > 0)
+				timeline.setDelay(duration);
+			timeline.setCycleCount(Timeline.INDEFINITE);
+			if (!taskComplete)
+				timeline.playFromStart();
 		}
 
 		@Override
@@ -296,19 +280,8 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 
 		@Override
 		public void updateProgress(final int progressIncrement, final String message, final ImageRegion region) {
-			int currentProgress = progress.addAndGet(progressIncrement);
-			if (Platform.isFxApplicationThread())
-				updateProgressDisplay(0, message, region);
-			else {
-				// TODO: Defer updates if unfinished for at least ~250 ms
-				// Avoiding too many calls isn't so critical that it requires synchronization overhead
-				//				synchronized(lastUpdateTimestamp) {
-				long currentTime = System.currentTimeMillis();
-				if (currentProgress >= maxProgress || currentTime - lastUpdateTimestamp.get() > 250) {
-					lastUpdateTimestamp.set(currentTime);
-					Platform.runLater(() ->	updateProgressDisplay(0, message, region));
-				}
-			}
+			progress.addAndGet(progressIncrement);
+			this.lastMessage = message;
 		}
 
 		@Override
@@ -322,6 +295,9 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 				Platform.runLater(() -> stopMonitoring(message));
 				return;
 			}
+			
+			if (timeline != null)
+				timeline.stop();
 
 			if (taskComplete && (progressDialog == null || !progressDialog.isShowing()))
 				return;
@@ -336,37 +312,37 @@ public class PluginRunnerFX extends AbstractPluginRunner<BufferedImage> {
 			if (message != null && message.trim().length() > 0)
 				logger.info(message);
 		}
+		
+		
+		private void updateDialog() {
+			if (!progressDialog.isShowing() && !taskComplete)
+				progressDialog.show();
 
-
-		// This should only be called from the Event Dispatch Thread
-		// TODO: MAKE USE OF IMAGEREGION WHEN UPDATING THE PROGRESS DISPLAY!
-		void updateProgressDisplay(final int progressIncrement, final String message, final ImageRegion region) {
-			int progressValue;
-			if (progressIncrement > 0)
-				progressValue = progress.addAndGet(progressIncrement);
-			else
-				progressValue = progress.get();
-			int progressPercent = (int)((double)progressValue / maxProgress * 100 + .5);
+			int progressValue = progress.get();
+			int progressPercent = (int)Math.round((double)progressValue / maxProgress * 100.0);
 			// Update the display
-			if (progressDialog != null) {
+			// Don't update the label if cancel was pressed, since this is probably already giving a more informative message
+			if (!cancelPressed)
+				progressDialog.getDialogPane().setHeaderText(RUNNING_MESSAGE);
 
-				// Don't update the label if cancel was pressed, since this is probably already giving a more informative message
-				if (!cancelPressed)
-					progressDialog.getDialogPane().setHeaderText(RUNNING_MESSAGE);
-
-				progressLabel.setText(message + " (" + progressPercent + "%)");
-				if (progressValue >= maxProgress) {
-					stopMonitoring(COMPLETED_MESSAGE);
-				} else if (progressBar != null)
-					progressBar.setProgress((double)progressValue/maxProgress);
-			}
+			if (lastMessage == null)
+				progressLabel.setText("");
+			else
+				progressLabel.setText(lastMessage + " (" + progressPercent + "%)");
+			if (progressValue >= maxProgress) {
+				stopMonitoring(COMPLETED_MESSAGE);
+			} else if (progressBar != null)
+				progressBar.setProgress((double)progressValue/maxProgress);
 		}
+		
 
 
 		private void doDialogClose() {
 			permitClose = true;
 			if (progressDialog != null)
 				progressDialog.close();
+			if (timeline != null)
+				timeline.stop();
 		}
 
 	}

@@ -67,17 +67,16 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 	
 	private boolean tasksCancelled = false;
 	
+	protected AbstractPluginRunner() {
+		super();
+//		monitor = makeProgressMonitor();
+	}
+	
 	protected abstract SimpleProgressMonitor makeProgressMonitor();
 	
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#getImageData()
-	 */
 	@Override
 	public abstract ImageData<T> getImageData();
 	
-	/* (non-Javadoc)
-	 * @see qupath.lib.plugins.PluginRunner#runTasks(java.util.Collection)
-	 */
 	@Override
 	public synchronized void runTasks(Collection<Runnable> tasks, boolean updateHierarchy) {
 		
@@ -112,15 +111,6 @@ public abstract class AbstractPluginRunner<T> implements PluginRunner<T> {
 		
 		getImageData().getHierarchy().fireHierarchyChangedEvent(this);
 	}
-	
-	
-//	/* (non-Javadoc)
-//	 * @see qupath.lib.plugins.PluginRunner#isRunning()
-//	 */
-//	@Override
-//	public boolean isRunning() {
-//		return !pendingTasks.isEmpty();
-//	}
 
 	
 	/**

@@ -623,7 +623,7 @@ public class IJExtension implements QuPathExtension {
 				try {
 					macro = GeneralTools.readFileAsString(list.get(0).getAbsolutePath());
 					qupath.runPlugin(new ImageJMacroRunner(qupath), macro, true);
-				} catch (IOException e) {
+				} catch (Exception e) {
 					Dialogs.showErrorMessage("Error opening ImageJ macro", e);
 					return false;
 				}

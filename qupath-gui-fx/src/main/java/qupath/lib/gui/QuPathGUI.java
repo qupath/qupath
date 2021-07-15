@@ -186,8 +186,6 @@ import qupath.lib.gui.panes.PreferencePane;
 import qupath.lib.gui.panes.ProjectBrowser;
 import qupath.lib.gui.panes.SelectedMeasurementTableView;
 import qupath.lib.gui.panes.WorkflowCommandLogView;
-import qupath.lib.gui.plugins.ParameterDialogWrapper;
-import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
 import qupath.lib.gui.prefs.QuPathStyleManager;
@@ -343,8 +341,9 @@ public class QuPathGUI {
 	private BooleanBinding noViewer = viewerProperty.isNull();
 	private BooleanBinding noImageData = imageDataProperty.isNull();
 	
-	
+	private BooleanProperty pluginRunning = new SimpleBooleanProperty(false);
 	private BooleanProperty scriptRunning = new SimpleBooleanProperty(false);
+	private BooleanBinding uiBlocked = pluginRunning.or(scriptRunning);
 	
 	
 	/**
@@ -365,6 +364,17 @@ public class QuPathGUI {
 		action.disabledProperty().bind(noImageData);
 		return action;
 	}
+	
+	
+	/**
+	 * Property to indicate whether a plugin is running or not.
+	 * This is used to plugin the UI if needed.
+	 * @return
+	 */
+	BooleanProperty pluginRunningProperty() {
+		return pluginRunning;
+	}
+	
 	
 	/**
 	 * Create an {@link Action} that depends upon an {@link QuPathViewer}.
@@ -993,14 +1003,20 @@ public class QuPathGUI {
 		stage.getScene().addEventFilter(MouseEvent.ANY, e -> {
 			if (ignoreTypes.contains(e.getEventType()))
 				return;
-			if (scriptRunning.get()) {
+			if (uiBlocked.get()) {
 				e.consume();
 				// Show a warning if clicking (but not *too* often)
 				if (e.getEventType() == MouseEvent.MOUSE_PRESSED) {
 					long time = System.currentTimeMillis();
 					if (time - lastMousePressedWarning > 5000L) {
-						Dialogs.showWarningNotification("Script running", "Please wait until the current script has finished!");
-						lastMousePressedWarning = time;
+						if (scriptRunning.get()) {
+							Dialogs.showWarningNotification("Script running", "Please wait until the current script has finished!");
+							lastMousePressedWarning = time;
+						} else if (pluginRunning.get()) {
+							logger.warn("Please wait until the current command is finished!");
+//							Dialogs.showWarningNotification("Command running", "Please wait until the current command has finished!");
+							lastMousePressedWarning = time;
+						}
 					}
 				}
 			}
@@ -3442,22 +3458,9 @@ public class QuPathGUI {
 	public Action createPluginAction(final String name, final PathPlugin<BufferedImage> plugin, final String arg) {
 		var action = new Action(name, event -> {
 			try {
-				if (plugin instanceof PathInteractivePlugin) {
-					var imageData = getImageData();
-					if (imageData == null) {
-						Dialogs.showNoImageError(name);
-						return;
-					}
-					PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
-					ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, pluginInteractive.getDefaultParameterList(imageData), new PluginRunnerFX(this));
-					dialog.showDialog();
-//					((PathInteractivePlugin<BufferedImage>)plugin).runInteractive(new PluginRunnerFX(this, false), arg);
-				}
-				else
-					((PathPlugin<BufferedImage>)plugin).runPlugin(new PluginRunnerFX(this), arg);
-
+				runPlugin(plugin, arg, true);
 			} catch (Exception e) {
-				Dialogs.showErrorMessage("Error", "Error running " + plugin.getName());
+				logger.error("Error running " + plugin.getName() + ": " + e.getLocalizedMessage(), e);
 			}
 		});
 		// We assume that plugins require image data
@@ -3493,15 +3496,13 @@ public class QuPathGUI {
 	 */
 	private static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
 		try {
-			var action = new Action(name, event -> {
-				PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
-				qupath.runPlugin(plugin, arg, true);
-			});
+			PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
+			var action = qupath.createPluginAction(name, plugin, arg);
 			action.disabledProperty().bind(qupath.noImageData);
 			ActionTools.parseAnnotations(action, pluginClass);
 			return action;
 		} catch (Exception e) {
-			logger.error("Unable to initialize class " + pluginClass, e);
+			logger.error("Unable to initialize plugin " + pluginClass + ": " + e.getLocalizedMessage(), e);
 		}
 		return null;
 	}
@@ -3509,13 +3510,18 @@ public class QuPathGUI {
 	
 	/**
 	 * Run a plugin, interactively (i.e. launching a dialog) if necessary.
+	 * <p>
+	 * Note that this does not in itself perform any exception handling.
 	 * 
-	 * @param plugin
-	 * @param arg
-	 * @param doInteractive
+	 * @param plugin the plugin to run
+	 * @param arg optional string argument (usually JSON)
+	 * @param doInteractive if true, show an interactive dialog if the plugin is an instance of {@link PathInteractivePlugin}
+	 * @return true if running the plugin was successful and was not cancelled.
+	 *              Note that if {@code doInteractive == true} and the dialog was launched 
+	 *              but not run, this will also return true.
 	 */
-	public void runPlugin(final PathPlugin<BufferedImage> plugin, final String arg, final boolean doInteractive) {
-		try {
+	public boolean runPlugin(final PathPlugin<BufferedImage> plugin, final String arg, final boolean doInteractive) throws Exception {
+//		try {
 			// TODO: Check safety...
 			if (doInteractive && plugin instanceof PathInteractivePlugin) {
 				PathInteractivePlugin<BufferedImage> pluginInteractive = (PathInteractivePlugin<BufferedImage>)plugin;
@@ -3526,15 +3532,26 @@ public class QuPathGUI {
 					// We use the US locale because we need to ensure decimal points (not commas)
 					ParameterList.updateParameterList(params, map, Locale.US);
 				}
-				ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, new PluginRunnerFX(this));
+				var runner = new PluginRunnerFX(this);
+				ParameterDialogWrapper<BufferedImage> dialog = new ParameterDialogWrapper<>(pluginInteractive, params, runner);
 				dialog.showDialog();
+				return !runner.isCancelled();
 			}
-			else
-				plugin.runPlugin(new PluginRunnerFX(this), arg);
-
-		} catch (Exception e) {
-			logger.error("Unable to run plugin " + plugin, e);
-		}
+			else {
+				try {
+					pluginRunning.set(true);
+					var runner = new PluginRunnerFX(this);
+					@SuppressWarnings("unused")
+					var completed = plugin.runPlugin(runner, arg);
+					return !runner.isCancelled();
+				} finally {
+					pluginRunning.set(false);
+				}
+			}
+//		} catch (Exception e) {
+//			logger.error("Unable to run plugin " + plugin, e);
+//			return false;
+//		}
 	}
 	
 	/**
