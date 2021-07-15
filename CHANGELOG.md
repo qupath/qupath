@@ -3,7 +3,7 @@
 
 ### Release highlights
 * **New 'Create density map' command** to visualize hotspots & generate annotations based on object densities
-* **_Many_ code fixes** & **performance improvements** - especially for pixel classification
+* **_Many_ code fixes** & **major performance improvements** - especially for pixel classification
 * **Revised code structure**, with non-core features now separated out as optional **extensions**, including:
   * **OMERO**
     * https://github.com/qupath/qupath-extension-omero
@@ -64,6 +64,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Specify the logging level for the current QuPath session through the preferences, e.g. to emit extra debugging messages
   * Log files are now turned off by default; this can be changed in the preferences if a QuPath user directory is set
 * Optionally use `qupath.prefs.name` system property to use a different preferences location, enabling multiple QuPath installations to have distinct preferences
+* Provide optional launch scripts and `-Pld-path=true` Gradle options for Linux to set LD_LIBRARY_PATH and work around pixman problems (https://github.com/qupath/qupath/issues/628)
 
 ### Code changes
 * Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
@@ -108,6 +109,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Opening images with very narrow tiles can fail with Bio-Formats (https://github.com/qupath/qupath/issues/715)
 * `OMEPyramidSeries` is not public (https://github.com/qupath/qupath/issues/726)
 * Bug in using arrow keys to navigate z-stacks and timeseries (https://github.com/qupath/qupath/issues/748)
+* Not able to open file browsers under Linux (e.g. via right-click under the Project tab)
 * Not possible to view multiple channels simultaneously with inverted lookup tables (max display < min display)
 * Exception when converting `PathObject` with name but no color to GeoJSON
 * Cannot write valid 16-bit PNG labelled images

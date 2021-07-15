@@ -1,6 +1,13 @@
 /**
  * Build QuPath application.
  * This involves creating a jpackage task.
+ * 
+ * Important properties:
+ *  -Pld-path=true - set LD_LIBRARY_PATH on Linux (for both 'run' and distribution tasks).
+ *                   This is needed to use QuPath's own OpenSlide rather than system shared libraries.
+ *  -Ppackage='installer' - request jpackage to create an installer rather than an image.
+ *                           Other options include 'all', 'deb', 'rpm', 'exe', 'msi', 'pkg' and 'dmg' 
+ *                           although not all are available on all platforms.
  */
 
 buildscript {
@@ -55,6 +62,43 @@ application {
   applicationDefaultJvmArgs = buildDefaultJvmArgs("${project.buildDir}/natives")
 }
 
+ext {
+	setLdLibraryPath = false
+}
+
+tasks.register('checkLdLibrary') {
+	doLast {
+		if (project.properties['platform.name'] == 'linux') {
+			if (rootProject.properties['ld-path']) {
+				println "Setting LD_LIBRARY_PATH"
+				setLdLibraryPath = true
+			} else {
+				println "If you experience OpenSlide issues, try './gradlew run -Pld-path=true' to set LD_LIBRARY_PATH"	
+			}
+		}
+	}
+}
+
+
+startScripts {
+  doLast {
+    // Update library path
+    def currentPath = "${project.buildDir}/natives"
+    def newPath = '$APP_HOME/lib'
+    unixScript.text = unixScript.text.replace(currentPath, newPath)
+    windowsScript.text = unixScript.text.replace(currentPath, newPath)
+    
+    // If required, set LD_LIBRARY_PATH for Linux
+    if (setLdLibraryPath) {
+    	println 'Setting LD_LIBRARY_PATH in start script'
+	    def oldCmd = 'exec "$JAVACMD" "$@"'
+	    def newCmd = 'export LD_LIBRARY_PATH="$APP_HOME/lib"' + System.lineSeparator() + oldCmd
+	    unixScript.text = unixScript.text.replace(oldCmd, newCmd)
+	}
+  }
+}
+
+
 configurations {
   implementation.extendsFrom picocli
 }
@@ -84,8 +128,6 @@ tasks.register("extractNatives") {
 	  }
 	  def additionalResourcesDir = file("${project.buildDir}/natives")
 	  configurations.runtimeClasspath.files.findAll({ it.getName().contains(nativesClassifier) }).each { file ->
-	  	println file
-	  	println additionalResourcesDir
 	    logger.info("Extracting native libraries from {} into {}", file, additionalResourcesDir)
 	    copy {
 	      from zipTree(file)
@@ -96,7 +138,9 @@ tasks.register("extractNatives") {
   }
 }
 compileJava.dependsOn extractNatives
-
+run.dependsOn checkLdLibrary
+startScripts.dependsOn checkLdLibrary
+jpackage.dependsOn checkLdLibrary
 
 /**
  * Create license report
@@ -210,6 +254,7 @@ runtime {
       installerOutputDir = params.outputDir
     }
   }
+  
 }
 
 
@@ -219,7 +264,8 @@ runtime {
  */
 jpackage {
   doLast {
-    for (dir in outputs?.getFiles()?.files) {
+  	def isLinux = project.properties['platform.name'] == 'linux'
+  	for (dir in outputs?.getFiles()?.files) {
       def extensions = ['.app', '.dmg', '.pkg', '.exe', '.msi']
       def packageFiles = dir.listFiles()
       for (f in packageFiles) {
@@ -230,6 +276,13 @@ jpackage {
           if (!f.name.equals(correctName))
             f.renameTo(new File(f.getParent(), correctName))
         }
+        
+        // Create a launch script including LD_LIBRARY_PATH for Linux
+        if (isLinux && f.isDirectory() && new File(f, "bin").exists()) {
+        	def fileLaunch = new File(f.getAbsolutePath() + "/bin/QuPath.sh")
+        	println "Generating launch script at $fileLaunch"
+        	fileLaunch.text = createLaunchScript()
+	    }
       }
     }
   }
@@ -460,4 +513,19 @@ static List<String> buildDefaultJvmArgs(String libraryPath = '$APPDIR') {
   javaOptions << '-XX:MaxRAMPercentage=50'
 
   return javaOptions
+}
+
+
+/**
+ * Create a bash script that can be used to launch QuPath on Linux.
+ * The purpose is to set LD_LIBRARY_PATH to use the local OpenSlide.
+ * When not using this, other shared libraries are likely to be used instead.
+ */
+static String createLaunchScript() {
+	return """#!/bin/bash
+	        	
+DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export LD_LIBRARY_PATH=\$DIR/../lib/app/
+\$DIR/QuPath "\$@"
+"""
 }
