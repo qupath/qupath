@@ -105,13 +105,14 @@ class ShowSystemInfoCommand {
 		
 		// Memory info
 		int toMB = (1024*1024);
-		sb.append("Memory already used by JVM:  \t\t").append((rt.totalMemory() - rt.freeMemory())/toMB).append(" MB").append("\n");
+		long usedBytes = rt.totalMemory() - rt.freeMemory();
+		sb.append("Memory already used by JVM:  \t\t").append(usedBytes/toMB).append(" MB").append("\n");
 //		sb.append("Free memory available to JVM: \t\t").append(rt.freeMemory()/toMB).append(" MB").append("\n");
-		sb.append("Total memory available to JVM:\t\t").append(rt.totalMemory()/toMB).append(" MB").append("\n");
+		sb.append("Total memory currently available:\t\t").append(rt.totalMemory()/toMB).append(" MB").append("\n");
 		sb.append("Max memory JVM may try to use:\t\t").append(rt.maxMemory()/toMB).append(" MB").append("\n");
 		if (rt.maxMemory()/toMB < 4096)
 			sb.append("--- WARNING: Max memory is quite low (< 4GB)  - may not be enough to run full whole slide analysis.").append("\n");
-		if ((rt.maxMemory() - rt.freeMemory())/toMB < 1024)
+		if ((rt.maxMemory() - usedBytes)/toMB < 1024)
 			sb.append("--- WARNING: Memory almost all in use (< 1GB remaining).").append("\n");
 		
 		
