@@ -424,11 +424,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		repaintRequested = false;
 		
 		GraphicsContext context = canvas.getGraphicsContext2D();
-		
+
+		long startTime = System.currentTimeMillis();
+
 		Graphics2D g = imgCache.createGraphics();
 		paintViewer(g, getWidth(), getHeight());
 		g.dispose();
-		
+
+		long endTime = System.currentTimeMillis();
+		logger.trace("Viewer painting: {} ms", endTime - startTime);
+
 		imgCacheFX = SwingFXUtils.toFXImage(imgCache, imgCacheFX);
 		context.drawImage(imgCacheFX, 0, 0);
 		
@@ -2960,10 +2965,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			listener.selectedObjectChanged(this, pathObjectSelected);
 		}
 
-		if (Platform.isFxApplicationThread())
-			hierarchyOverlay.resetBuffer();
-		else
-			Platform.runLater(() -> hierarchyOverlay.resetBuffer());
 		logger.trace("Selected path object changed from {} to {}", previousObject, pathObjectSelected);
 
 		repaint();
