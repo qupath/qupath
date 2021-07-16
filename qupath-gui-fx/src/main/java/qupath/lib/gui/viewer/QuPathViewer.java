@@ -396,12 +396,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			repaintRequested = false;
 			return;
 		}
+		
 //		if (canvas == null || !canvas.isVisible())
 //			return;
 		
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> paintCanvas());
 			return;
+		}
+		
+		// Skip repaint if the minimum time hasn't elapsed
+		if (minimumRepaintSpacingMillis > 0) {
+			long timeSinceRepaint = System.currentTimeMillis() - lastPaint;
+			if (timeSinceRepaint < minimumRepaintSpacingMillis)
+				return;
 		}
 		
 		if (imgCache == null || imgCache.getWidth() < canvas.getWidth() || imgCache.getHeight() < canvas.getHeight()) {
@@ -520,9 +528,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		logger.trace("Repaint requested!");
 		repaintRequested = true;
 		
-		// Skip repaint if the minimum time hasn't elapsed
-		if ((System.currentTimeMillis() - lastPaint) < minimumRepaintSpacingMillis)
-			return;
 		Platform.runLater(() -> paintCanvas());
 	}
 
