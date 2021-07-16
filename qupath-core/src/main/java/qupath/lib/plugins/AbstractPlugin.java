@@ -52,11 +52,12 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 	
 	
 	/**
-	 * Get a list of tasks to perform.
+	 * Get a collection of tasks to perform.
 	 * 
-	 * This will be called from runPlugin *after* a call to parseArgument.
+	 * This will be called from {@link #runPlugin(PluginRunner, String)} <b>after</b> a call to {@link #parseArgument(ImageData, String)}.
 	 * 
-	 * The default implementation simply calls getParentObjects, then addRunnableTasks for every parent object that was returned.
+	 * The default implementation simply calls {@link #getParentObjects(PluginRunner)}, then {@link #addRunnableTasks(ImageData, PathObject, List)}
+	 * for every parent object that was returned.
 	 * 
 	 * @param runner
 	 * @return
@@ -67,9 +68,13 @@ public abstract class AbstractPlugin<T> implements PathPlugin<T> {
 			return Collections.emptyList();
 		
 		List<Runnable> tasks = new ArrayList<>(parentObjects.size());
+		
+		long startTime = System.currentTimeMillis();
 		for (PathObject pathObject : parentObjects) {
 			addRunnableTasks(runner.getImageData(), pathObject, tasks);
 		}
+		long endTime = System.currentTimeMillis();
+		logger.debug("Time to add plugin tasks: {} ms", endTime - startTime);
 		return tasks;
 	}
 	

@@ -32,6 +32,7 @@ import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -107,6 +108,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
@@ -1281,6 +1283,96 @@ public class GuiTools {
 			val = Math.abs(val);
 			return Math.max(Math.pow(10, Math.floor(Math.log10(val) - scale)), minStep);
 		}, value);
+	}
+
+	
+	
+	private final static String KEY_REGIONS = "processRegions";
+	
+	/**
+	 * Get the parent objects to use when running the plugin, or null if no suitable parent objects are found.
+	 * This involves prompting the user if multiple options are possible, and logging an appropriate command 
+	 * in the workflow history of the {@link ImageData} if possible.
+	 * 
+	 * @param name command name, to include in dialog messages
+	 * @param imageData imageData containing potential parent objects
+	 * @param includeSelected if true, provide 'selected objects' as an option
+	 * @param supportedParents collection of valid parent objects
+	 * @return
+	 */
+	public static <T> boolean promptForParentObjects(final String name, final ImageData<T> imageData, final boolean includeSelected, final Collection<Class<? extends PathObject>> supportedParents) {
+
+		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
+		if (hierarchy == null)
+			return false;
+
+		// Check what possible parent types are available
+		Collection<PathObject> possibleParents = null;
+		int nParents = 0;
+		List<Class<? extends PathObject>> availableTypes = new ArrayList<>();
+		for (Class<? extends PathObject> cls : supportedParents) {
+			if (cls.equals(PathRootObject.class))
+				continue;
+			possibleParents = hierarchy.getObjects(possibleParents, cls);
+			if (possibleParents.size() > nParents)
+				availableTypes.add(cls);
+			nParents = possibleParents.size();
+		}
+
+		// Create a map of potential choices
+		LinkedHashMap<String, Class<? extends PathObject>> choices = new LinkedHashMap<>();
+		for (Class<? extends PathObject> cls : availableTypes)
+			choices.put(PathObjectTools.getSuitableName(cls, true), cls);
+		if (supportedParents.contains(PathRootObject.class))
+			choices.put("Entire image", PathRootObject.class);
+		ArrayList<String> choiceList = new ArrayList<>(choices.keySet());
+		
+		// Add selected objects option, if required
+		if (includeSelected)
+			choiceList.add(0, "Selected objects");
+
+		// Determine the currently-selected object
+		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
+
+		// If the currently-selected object is supported, use it as the parent
+		if (!includeSelected && pathObjectSelected != null && !pathObjectSelected.isRootObject()) {
+			if (supportedParents.contains(pathObjectSelected.getClass()))
+				return true;
+//			else {
+//				String message = name + " does not support parent objects of type " + pathObjectSelected.getClass().getSimpleName();
+//				DisplayHelpers.showErrorMessage(name + " error", message);
+//				return false;
+//			}
+		}
+
+		// If the root object is supported, and we don't have any of the other types, just run for the root object
+		if (!includeSelected && availableTypes.isEmpty()) {
+			if (supportedParents.contains(PathRootObject.class))
+				return true;
+			else {
+				String message = name + " requires parent objects of one of the following types:";
+				for (Class<? extends PathObject> cls : supportedParents)
+					message += ("\n" + PathObjectTools.getSuitableName(cls, false));
+				Dialogs.showErrorMessage(name + " error", message);
+				return false;
+			}
+		}
+
+		// Prepare to prompt
+		ParameterList paramsParents = new ParameterList();
+		paramsParents.addChoiceParameter(KEY_REGIONS, "Process all", choiceList.get(0), choiceList);
+
+		if (!Dialogs.showParameterDialog("Process regions", paramsParents))
+			return false;
+
+		
+		String choiceString = (String)paramsParents.getChoiceParameterValue(KEY_REGIONS);
+		if (!"Selected objects".equals(choiceString))
+			Commands.selectObjectsByClass(imageData, choices.get(choiceString));
+		//			QP.selectObjectsByClass(hierarchy, choices.get(paramsParents.getChoiceParameterValue(InteractivePluginTools.KEY_REGIONS)));
+
+		// Success!  Probably...
+		return !hierarchy.getSelectionModel().noSelection();
 	}
 	
 	

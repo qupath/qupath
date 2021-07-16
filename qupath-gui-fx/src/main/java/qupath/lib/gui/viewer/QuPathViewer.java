@@ -396,12 +396,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			repaintRequested = false;
 			return;
 		}
+		
 //		if (canvas == null || !canvas.isVisible())
 //			return;
 		
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> paintCanvas());
 			return;
+		}
+		
+		// Skip repaint if the minimum time hasn't elapsed
+		if (minimumRepaintSpacingMillis > 0) {
+			long timeSinceRepaint = System.currentTimeMillis() - lastPaint;
+			if (timeSinceRepaint < minimumRepaintSpacingMillis)
+				return;
 		}
 		
 		if (imgCache == null || imgCache.getWidth() < canvas.getWidth() || imgCache.getHeight() < canvas.getHeight()) {
@@ -416,11 +424,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		repaintRequested = false;
 		
 		GraphicsContext context = canvas.getGraphicsContext2D();
-		
+
+		long startTime = System.currentTimeMillis();
+
 		Graphics2D g = imgCache.createGraphics();
 		paintViewer(g, getWidth(), getHeight());
 		g.dispose();
-		
+
+		long endTime = System.currentTimeMillis();
+		logger.trace("Viewer painting: {} ms", endTime - startTime);
+
 		imgCacheFX = SwingFXUtils.toFXImage(imgCache, imgCacheFX);
 		context.drawImage(imgCacheFX, 0, 0);
 		
@@ -520,9 +533,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		logger.trace("Repaint requested!");
 		repaintRequested = true;
 		
-		// Skip repaint if the minimum time hasn't elapsed
-		if ((System.currentTimeMillis() - lastPaint) < minimumRepaintSpacingMillis)
-			return;
 		Platform.runLater(() -> paintCanvas());
 	}
 
@@ -2955,10 +2965,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			listener.selectedObjectChanged(this, pathObjectSelected);
 		}
 
-		if (Platform.isFxApplicationThread())
-			hierarchyOverlay.resetBuffer();
-		else
-			Platform.runLater(() -> hierarchyOverlay.resetBuffer());
 		logger.trace("Selected path object changed from {} to {}", previousObject, pathObjectSelected);
 
 		repaint();

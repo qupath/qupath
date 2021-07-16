@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -21,15 +21,13 @@
  * #L%
  */
 
-package qupath.lib.gui.plugins;
+package qupath.lib.gui;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
@@ -41,17 +39,13 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
-import qupath.lib.objects.PathRootObject;
-import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.PathInteractivePlugin;
-import qupath.lib.plugins.PathPlugin;
 import qupath.lib.plugins.PluginRunner;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.WorkflowStep;
@@ -64,9 +58,7 @@ import qupath.lib.plugins.workflow.WorkflowStep;
  *
  * @param <T>
  */
-public class ParameterDialogWrapper<T> {
-
-	final private static String KEY_REGIONS = "processRegions";
+class ParameterDialogWrapper<T> {
 
 	private Stage dialog;
 	private ParameterPanelFX panel;
@@ -150,6 +142,12 @@ public class ParameterDialogWrapper<T> {
 
 //		final Button btnRun = new Button("Run " + plugin.getName());
 		final Button btnRun = new Button("Run");
+		btnRun.textProperty().bind(Bindings.createStringBinding(() -> {
+			if (btnRun.isDisabled())
+				return "Please wait...";
+			else
+				return "Run";
+		}, btnRun.disabledProperty()));
 
 		final Stage dialog = new Stage();
 		QuPathGUI qupath = QuPathGUI.getInstance();
@@ -169,8 +167,8 @@ public class ParameterDialogWrapper<T> {
 			// Check if we have the parent objects available to make this worthwhile
 			if (plugin instanceof PathInteractivePlugin) {
 
-				// Strip off any of our extra parameters
-				params.removeParameter(KEY_REGIONS);
+//				// Strip off any of our extra parameters
+//				params.removeParameter(KEY_REGIONS);
 
 				boolean alwaysPrompt = plugin.alwaysPromptForObjects();
 				ImageData<?> imageData = pluginRunner.getImageData();
@@ -204,6 +202,7 @@ public class ParameterDialogWrapper<T> {
 						Dialogs.showErrorMessage("Out of memory error", "Out of memory - try to close other applications, or decrease the number of parallel processors in the QuPath preferences");
 					} finally {
 						Platform.runLater(() -> {
+							QuPathGUI.getInstance().pluginRunningProperty().set(false);
 							dialog.getScene().setCursor(Cursor.DEFAULT);
 							label.setText(plugin.getLastResultsDescription());
 							btnRun.setDisable(false);
@@ -213,6 +212,7 @@ public class ParameterDialogWrapper<T> {
 
 			};
 			Thread t = new Thread(runnable, "Plugin thread");
+			QuPathGUI.getInstance().pluginRunningProperty().set(true);
 			t.start();
 		});
 
@@ -258,95 +258,7 @@ public class ParameterDialogWrapper<T> {
 	 * @return
 	 */
 	public static <T> boolean promptForParentObjects(final PluginRunner<T> runner, final PathInteractivePlugin<T> plugin, final boolean includeSelected) {
-		return promptForParentObjects(runner, plugin, includeSelected, plugin.getSupportedParentObjectClasses());
-	}
-	
-	/**
-	 * Get the parent objects to use when running the plugin, or null if no suitable parent objects are found.
-	 * This involves prompting the user if multiple options are possible.
-	 * 
-	 * @param runner
-	 * @param plugin
-	 * @param includeSelected
-	 * @param supportedParents
-	 * @return
-	 */
-	public static <T> boolean promptForParentObjects(final PluginRunner<T> runner, final PathPlugin<T> plugin, final boolean includeSelected, final Collection<Class<? extends PathObject>> supportedParents) {
-
-		ImageData<T> imageData = runner.getImageData();
-		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
-		if (hierarchy == null)
-			return false;
-
-		// Check what possible parent types are available
-		Collection<PathObject> possibleParents = null;
-		int nParents = 0;
-		List<Class<? extends PathObject>> availableTypes = new ArrayList<>();
-		for (Class<? extends PathObject> cls : supportedParents) {
-			if (cls.equals(PathRootObject.class))
-				continue;
-			possibleParents = hierarchy.getObjects(possibleParents, cls);
-			if (possibleParents.size() > nParents)
-				availableTypes.add(cls);
-			nParents = possibleParents.size();
-		}
-
-		// Create a map of potential choices
-		LinkedHashMap<String, Class<? extends PathObject>> choices = new LinkedHashMap<>();
-		for (Class<? extends PathObject> cls : availableTypes)
-			choices.put(PathObjectTools.getSuitableName(cls, true), cls);
-		if (supportedParents.contains(PathRootObject.class))
-			choices.put("Entire image", PathRootObject.class);
-		ArrayList<String> choiceList = new ArrayList<>(choices.keySet());
-		
-		// Add selected objects option, if required
-		if (includeSelected)
-			choiceList.add(0, "Selected objects");
-
-		String name = plugin.getName();
-
-		// Determine the currently-selected object
-		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
-
-		// If the currently-selected object is supported, use it as the parent
-		if (!includeSelected && pathObjectSelected != null && !pathObjectSelected.isRootObject()) {
-			if (supportedParents.contains(pathObjectSelected.getClass()))
-				return true;
-//			else {
-//				String message = name + " does not support parent objects of type " + pathObjectSelected.getClass().getSimpleName();
-//				DisplayHelpers.showErrorMessage(name + " error", message);
-//				return false;
-//			}
-		}
-
-		// If the root object is supported, and we don't have any of the other types, just run for the root object
-		if (!includeSelected && availableTypes.isEmpty()) {
-			if (supportedParents.contains(PathRootObject.class))
-				return true;
-			else {
-				String message = name + " requires parent objects of one of the following types:";
-				for (Class<? extends PathObject> cls : supportedParents)
-					message += ("\n" + PathObjectTools.getSuitableName(cls, false));
-				Dialogs.showErrorMessage(name + " error", message);
-				return false;
-			}
-		}
-
-		// Prepare to prompt
-		ParameterList paramsParents = new ParameterList();
-		paramsParents.addChoiceParameter(KEY_REGIONS, "Process all", choiceList.get(0), choiceList);
-
-		if (!Dialogs.showParameterDialog("Process regions", paramsParents))
-			return false;
-
-		
-		String choiceString = (String)paramsParents.getChoiceParameterValue(KEY_REGIONS);
-		if (!"Selected objects".equals(choiceString))
-			Commands.selectObjectsByClass(imageData, choices.get(choiceString));
-		//			QP.selectObjectsByClass(hierarchy, choices.get(paramsParents.getChoiceParameterValue(InteractivePluginTools.KEY_REGIONS)));
-
-		// Success!  Probably...
-		return !hierarchy.getSelectionModel().noSelection();
+		return GuiTools.promptForParentObjects(plugin.getName(), runner.getImageData(), includeSelected, plugin.getSupportedParentObjectClasses());
 	}
 
 }

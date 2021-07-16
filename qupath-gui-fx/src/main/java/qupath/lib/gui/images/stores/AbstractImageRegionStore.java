@@ -39,7 +39,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -519,15 +518,26 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	private synchronized void clearCacheForServer(Map<RegionRequest, T> map, ImageServer<?> server) {
 		String serverPath = server.getPath();
-		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).collect(Collectors.toList());
-		for (var key : keys)
-			map.remove(key);
+		var iterator = map.entrySet().iterator();
+		while (iterator.hasNext()) {
+			if (serverPath.equals(iterator.next().getKey().getPath()))
+				iterator.remove();
+		}
+//		String serverPath = server.getPath();
+//		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).collect(Collectors.toList());
+//		for (var key : keys)
+//			map.remove(key);
 	}
 	
 	private synchronized void clearCacheForRequestOverlap(Map<RegionRequest, T> map, RegionRequest request) {
-		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).collect(Collectors.toList());
-		for (var key : keys)
-			map.remove(key);
+		var iterator = map.entrySet().iterator();
+		while (iterator.hasNext()) {
+			if (request.overlapsRequest(iterator.next().getKey()))
+				iterator.remove();
+		}
+//		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).collect(Collectors.toList());
+//		for (var key : keys)
+//			map.remove(key);
 	}
 	
 	

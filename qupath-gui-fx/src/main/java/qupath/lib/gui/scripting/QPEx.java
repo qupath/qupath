@@ -58,7 +58,6 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tma.TMADataIO;
 import qupath.lib.gui.tools.GuiTools;
@@ -203,14 +202,17 @@ public class QPEx extends QP {
 			pluginName = plugin.getName();
 			PluginRunner runner;
 			// TODO: Give potential of passing a plugin runner
-			if (isBatchMode() || imageData != getQuPath().getImageData()) {
+			var qupath = getQuPath();
+			if (isBatchMode() || imageData != qupath.getImageData()) {
 				runner = new CommandLinePluginRunner(imageData);
+				completed = plugin.runPlugin(runner, args);
+				cancelled = runner.isCancelled();
 			}
 			else {
-				runner = new PluginRunnerFX(getQuPath());
+				completed = qupath.runPlugin(plugin, args, false);
+				cancelled = !completed;
+//				runner = new PluginRunnerFX(qupath);
 			}
-			completed = plugin.runPlugin(runner, args);
-			cancelled = runner.isCancelled();
 		} catch (Exception e) {
 			logger.error("Error running plugin {}: {}", className, e.getLocalizedMessage());
 			logger.error("", e);

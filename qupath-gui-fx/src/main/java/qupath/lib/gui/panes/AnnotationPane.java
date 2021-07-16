@@ -82,7 +82,15 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	private final static Logger logger = LoggerFactory.getLogger(AnnotationPane.class);
 
 	private QuPathGUI qupath;
+	
+	// Need to preserve this to guard against garbage collection
+	@SuppressWarnings("unused")
+	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
+	// Simply taken from imageDataProperty
 	private ImageData<BufferedImage> imageData;
+	
+	private BooleanProperty disableUpdates = new SimpleBooleanProperty(false);
+	
 	private PathObjectHierarchy hierarchy;
 	private BooleanProperty hasImageData = new SimpleBooleanProperty(false);
 	
@@ -106,16 +114,29 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	 */
 	private boolean suppressSelectionChanges = false;
 	
-	
 	/**
 	 * Constructor.
 	 * @param qupath current QuPath instance.
 	 */
 	public AnnotationPane(final QuPathGUI qupath) {
+		this(qupath, qupath.imageDataProperty());
+	}
+	
+	/**
+	 * Constructor.
+	 * @param qupath current QuPath instance.
+	 * @param imageDataProperty the current {@link ImageData}
+	 */
+	public AnnotationPane(final QuPathGUI qupath, ObservableValue<ImageData<BufferedImage>> imageDataProperty) {
 		this.qupath = qupath;
+		this.imageDataProperty = imageDataProperty;
+		this.disableUpdates.addListener((v, o, n) -> {
+			if (!n)
+				enableUpdates();
+		});
 		
 		pathClassPane = new PathClassPane(qupath);
-		setImageData(qupath.getImageData());
+		setImageData(imageDataProperty.getValue());
 		
 		Pane paneAnnotations = createAnnotationsPane();
 		
@@ -126,9 +147,25 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 				);
 		paneColumns.setDividerPositions(0.5);
 		pane.setCenter(paneColumns);
-		qupath.imageDataProperty().addListener(this);
+		imageDataProperty.addListener(this);
 	}
 	
+	/**
+	 * Property that may be used to prevent updates on every hierarchy or selection change event.
+	 * This can be used to improve performance by preventing the list being updated even when 
+	 * it is not visible to the user.
+	 * @return
+	 */
+	public BooleanProperty disableUpdatesProperty() {
+		return disableUpdates;
+	}
+	
+	private void enableUpdates() {
+		if (hierarchy == null)
+			return;
+		hierarchyChanged(PathObjectHierarchyEvent.createStructureChangeEvent(this, hierarchy, hierarchy.getRootObject()));
+		selectedPathObjectChanged(hierarchy.getSelectionModel().getSelectedObject(), null, hierarchy.getSelectionModel().getSelectedObjects());
+	}
 	
 	private Pane createAnnotationsPane() {
 		listAnnotations = new ListView<>();
@@ -250,7 +287,7 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 			return;
 		}
 
-		if (suppressSelectionChanges)
+		if (suppressSelectionChanges || disableUpdates.get())
 			return;
 		
 		suppressSelectionChanges = true;
@@ -357,6 +394,9 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 			listAnnotations.getItems().clear();
 			return;
 		}
+		
+		if (disableUpdates.get())
+			return;
 
 		Collection<PathObject> newList = hierarchy.getObjects(new HashSet<>(), PathAnnotationObject.class);
 		pathClassPane.getListView().refresh();

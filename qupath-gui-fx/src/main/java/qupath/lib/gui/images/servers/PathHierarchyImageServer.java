@@ -32,12 +32,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.PathHierarchyPaintingHelper;
-import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.GeneratingImageServer;
@@ -48,6 +48,7 @@ import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.DefaultPathObjectConnectionGroup;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -57,8 +58,8 @@ import qupath.lib.regions.RegionRequest;
 
 
 /**
- * A special ImageServer implementation that doesn't have a backing image, but rather
- * constructs tiles on request from a PathObjectHierarchy.
+ * A special {@link ImageServer} implementation that doesn't have a backing image, but rather
+ * constructs tiles on request from a {@link PathObjectHierarchy} and its detection objects.
  * 
  * @author Pete Bankhead
  *
@@ -211,7 +212,12 @@ public class PathHierarchyImageServer extends AbstractTileableImageServer implem
 			}
 		}
 		
-		Collections.sort(pathObjects, new HierarchyOverlay.DetectionComparator());
+		// Because levels *can* change, we need to extract them first to avoid breaking the contract for comparable 
+		// in a multithreaded environment
+		var levels = pathObjects.stream().collect(Collectors.toMap(p -> p, p -> p.getLevel()));
+		var comparator = DefaultPathObjectComparator.getInstance().thenComparingInt(p -> levels.get(p));
+		Collections.sort(pathObjects, comparator);
+//		Collections.sort(pathObjects, new HierarchyOverlay.DetectionComparator());
 		
 		double downsampleFactor = request.getDownsample();
 		int width = tileRequest.getTileWidth();

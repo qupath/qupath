@@ -58,7 +58,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.images.servers.ChannelDisplayTransformServer;
-import qupath.lib.gui.plugins.ParameterDialogWrapper;
+import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.PathImage;
@@ -439,7 +439,7 @@ public class ImageJMacroRunner extends AbstractPlugin<BufferedImage> {
 		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
 				.filter(p -> p.isAnnotation() || p.isTMACore()).collect(Collectors.toList());
 		if (pathObjects.isEmpty()) {
-			if (ParameterDialogWrapper.promptForParentObjects(runner, this, false, getSupportedParentObjectClasses()))
+			if (GuiTools.promptForParentObjects(this.getName(), runner.getImageData(), false, getSupportedParentObjectClasses()))
 				pathObjects = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		}
 		return pathObjects;

@@ -43,7 +43,6 @@ import qupath.lib.gui.commands.SummaryMeasurementTableCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.images.servers.RenderedImageServer;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
-import qupath.lib.gui.plugins.PluginRunnerFX;
 import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
@@ -150,7 +149,7 @@ public class TMADataIO {
 			}
 			writer.close();
 		} catch (Exception e) {
-			logger.error("Error writing TMA data", e);
+			logger.error("Error writing TMA data: " + e.getLocalizedMessage(), e);
 			return;
 		}
 
@@ -187,7 +186,7 @@ public class TMADataIO {
 				ImageWriterTools.writeImageRegion(renderedServer, request, fileTMAMap.getAbsolutePath());
 //				ImageWriters.writeImageRegionWithOverlay(imageData.getServer(), Collections.singletonList(new TMAGridOverlay(overlayOptions, imageData)), request, fileTMAMap.getAbsolutePath());
 			} catch (IOException e) {
-				logger.warn("Unable to write image overview", e);
+				logger.warn("Unable to write image overview: " + e.getLocalizedMessage(), e);
 			}
 
 			final double downsample = Double.isNaN(downsampleFactor) ? (server.getPixelCalibration().hasPixelSizeMicrons() ? ServerTools.getDownsampleFactor(server, preferredExportPixelSizeMicrons) : 1) : downsampleFactor;
@@ -199,12 +198,19 @@ public class TMADataIO {
 					.build();
 			ExportCoresPlugin plugin = new ExportCoresPlugin(dirData, renderedImageServer, downsample, coreExt);
 			PluginRunner<BufferedImage> runner;
-			if (QuPathGUI.getInstance() == null || QuPathGUI.getInstance().getImageData() != imageData) {
+			var qupath = QuPathGUI.getInstance();
+			if (qupath == null || qupath.getImageData() != imageData) {
 				runner = new CommandLinePluginRunner<>(imageData);
 				plugin.runPlugin(runner, null);
 			} else {
-				runner = new PluginRunnerFX(QuPathGUI.getInstance());				
-				new Thread(() -> plugin.runPlugin(runner, null)).start();
+				try {
+					qupath.runPlugin(plugin, null, false);
+				} catch (Exception e) {
+					logger.error("Error writing TMA data: " + e.getLocalizedMessage(), e);
+				}
+//				new Thread(() -> qupath.runPlugin(plugin, null, false)).start();
+//				runner = new PluginRunnerFX(QuPathGUI.getInstance());				
+//				new Thread(() -> plugin.runPlugin(runner, null)).start();
 			}
 		}
 	}
