@@ -3519,6 +3519,7 @@ public class QuPathGUI {
 	 * @return true if running the plugin was successful and was not cancelled.
 	 *              Note that if {@code doInteractive == true} and the dialog was launched 
 	 *              but not run, this will also return true.
+	 * @throws Exception
 	 */
 	public boolean runPlugin(final PathPlugin<BufferedImage> plugin, final String arg, final boolean doInteractive) throws Exception {
 //		try {

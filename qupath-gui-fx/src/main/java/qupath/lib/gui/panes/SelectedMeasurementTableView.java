@@ -72,6 +72,10 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private static int nDecimalPlaces = 4;
 	
+	/**
+	 * Retain reference to prevent garbage collection.
+	 */
+	@SuppressWarnings("unused")
 	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
 	private ImageData<?> imageData;
 	
@@ -81,7 +85,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	/**
 	 * Constructor.
-	 * @param imageData the {@link ImageData} associated with this table
+	 * @param imageDataProperty the {@link ImageData} associated with this table
 	 */
 	public SelectedMeasurementTableView(final ObservableValue<ImageData<BufferedImage>> imageDataProperty) {
 		this.imageDataProperty = imageDataProperty;
