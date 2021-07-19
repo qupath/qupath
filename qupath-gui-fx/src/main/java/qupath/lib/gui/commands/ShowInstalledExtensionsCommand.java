@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.jar.Attributes;
 import java.util.jar.JarInputStream;
@@ -48,6 +49,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.GuiTools;
@@ -209,7 +211,17 @@ class ShowInstalledExtensionsCommand {
 		}
 
 		String getPathToJar() {
-			return getURL().getPath();
+			var url = getURL();
+			if (url == null)
+				return "";
+			try {
+				var path = GeneralTools.toPath(url.toURI());
+				if (path != null)
+					return path.toString();
+			} catch (URISyntaxException e) {
+				logger.debug(e.getLocalizedMessage(), e);
+			}
+			return url.toString();
 		}
 		
 		/**
