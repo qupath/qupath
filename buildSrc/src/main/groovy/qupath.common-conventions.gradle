@@ -42,9 +42,11 @@ repositories {
 project.version = gradle.ext.qupathVersion
 
 /*
- * Placeholder to use OpenCV binaries with GPU support... if/when this is supported (warning: they are quite big)
+ * Optionally use OpenCV with CUDA.
+ * See https://github.com/bytedeco/javacpp-presets/tree/master/cuda for info (and licenses).
  */
-def useGPU = false
+def useCudaRedist = project.hasProperty('cuda-redist')
+def useCuda = useCudaRedist || project.hasProperty('cuda')
 
 /*
  * Handle OS-specific decisions
@@ -84,6 +86,8 @@ ext {
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
     javacppVersion     = '1.5.5'
     opencvVersion      = "4.5.1-${javacppVersion}"
+    // Optionally, not used by default
+    cudaVersion        = "11.2-8.1-${javacppVersion}"
 
     // Additional versions
     logbackVersion     = '1.2.3'
@@ -141,8 +145,12 @@ dependencies {
         exclude group: 'org.jfxtras', module: 'jfxtras-test-support'
     }
 
-    if (useGPU) {
+    if (useCuda) {
         opencv "org.bytedeco:opencv-platform-gpu:${opencvVersion}"
+        opencv "org.bytedeco:cuda-platform:${cudaVersion}"
+        if (useCudaRedist) {
+	        opencv "org.bytedeco:cuda-platform-redist:${cudaVersion}"
+	    }
     } else
         opencv "org.bytedeco:opencv-platform:${opencvVersion}"
 

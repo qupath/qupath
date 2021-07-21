@@ -371,6 +371,7 @@ public class OpenCVTools {
 	 * @param dest optional destination (may be null)
 	 * @return merged {@link Mat}, which will be the same as dest if provided
 	 */
+	@SuppressWarnings("unchecked")
 	public static Mat mergeChannels(Collection<? extends Mat> channels, Mat dest) {
 		if (dest == null)
 			dest = new Mat();
@@ -1894,6 +1895,7 @@ public class OpenCVTools {
 	 * @param borderType an OpenCV border type, in case padding is needed
 	 * @return the result of applying fun to mat, having applied any necessary tiling along the way
 	 */
+	@SuppressWarnings("unchecked")
 	public static Mat applyTiled(Function<Mat, Mat> fun, Mat mat, int tileWidth, int tileHeight, int borderType) {
 		
 		int top = 0, bottom = 0, left = 0, right = 0;

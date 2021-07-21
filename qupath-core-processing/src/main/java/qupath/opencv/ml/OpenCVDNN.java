@@ -31,6 +31,7 @@ import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.SizeTPointer;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.StringVector;
+import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.opencv_dnn.MatShapeVector;
 import org.bytedeco.opencv.opencv_dnn.Net;
@@ -62,6 +63,9 @@ public class OpenCVDNN {
 	private double[] scales;
 	private boolean swapRB;
 	
+	private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
+	private int target = opencv_dnn.DNN_TARGET_CPU;
+	
 	private transient Net net;
 	private transient Boolean doMeanSubtraction;
 	private transient Boolean doScaling;
@@ -77,11 +81,51 @@ public class OpenCVDNN {
 		if (net == null) {
 			try {
 				net = opencv_dnn.readNet(pathModel, pathConfig, framework);
+				updateBackendAndTarget(net);
 			} catch (RuntimeException e) {
 				throw new IOException("Unable to load model from " + pathModel, e);
 			}
 		}
 		return net;
+	}
+	
+	private void updateBackendAndTarget(Net net) {
+		switch (target) {
+		case opencv_dnn.DNN_TARGET_CUDA:
+		case opencv_dnn.DNN_TARGET_CUDA_FP16:
+			int count = opencv_core.getCudaEnabledDeviceCount();
+			if (count <= 0)
+				logger.warn("Unable to set CUDA target - reported CUDA device count {}", count);
+			else if (backend != opencv_dnn.DNN_BACKEND_CUDA) {
+				logger.warn("Must specify CUDA backend to use CUDA target - request will be ignored");
+			} else {
+				logger.debug("Setting CUDA backend and target ({}:{})", backend, target);
+				net.setPreferableBackend(backend);
+				net.setPreferableTarget(target);
+			}
+			break;
+		case opencv_dnn.DNN_TARGET_OPENCL:
+		case opencv_dnn.DNN_TARGET_OPENCL_FP16:
+			if (!opencv_core.haveOpenCL())
+				logger.warn("Cannot set OpenCL target - OpenCL is unavailable");
+			else if (backend == opencv_dnn.DNN_BACKEND_CUDA) {
+				logger.warn("Cannot set CUDA backend and OpenCL target");
+			} else {
+				logger.debug("Setting OpenCL backend and target ({}:{})", backend, target);
+				net.setPreferableBackend(backend);
+				net.setPreferableTarget(target);
+			}
+			break;
+		case opencv_dnn.DNN_TARGET_CPU:
+		case opencv_dnn.DNN_TARGET_FPGA:
+		case opencv_dnn.DNN_TARGET_HDDL:
+		case opencv_dnn.DNN_TARGET_MYRIAD:
+		case opencv_dnn.DNN_TARGET_VULKAN:
+		default:
+			net.setPreferableBackend(backend);
+			net.setPreferableBackend(target);
+			break;
+		}
 	}
 	
 	/**
@@ -232,6 +276,7 @@ public class OpenCVDNN {
 		return new MatShapeVector(new IntPointer(shapeInput));
 	}
 	
+	@SuppressWarnings("unchecked")
 	static List<DNNLayer> parseLayers(Net net, MatShapeVector netInputShape) {
 		List<DNNLayer> list = new ArrayList<>();
 		try (PointerScope scope = new PointerScope()) {
@@ -349,6 +394,9 @@ public class OpenCVDNN {
 		private double[] scales = new double[] {1.0};
 		private boolean swapRB = false;
 		
+		private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
+		private int target = opencv_dnn.DNN_TARGET_CPU;
+		
 		/**
 		 * Path to the model file.
 		 * @param pathModel
@@ -389,6 +437,71 @@ public class OpenCVDNN {
 		 */
 		public Builder name(String name) {
 			this.name = name;
+			return this;
+		}
+		
+		/**
+		 * Specify OpenCL target. It probably won't help, but perhaps worth a try.
+		 * @return
+		 */
+		public Builder opencl() {
+			this.backend = opencv_dnn.DNN_BACKEND_OPENCV;
+			this.target = opencv_dnn.DNN_TARGET_OPENCL;
+			return this;
+		}
+		
+		/**
+		 * Specify OpenCL target with 16-bit floating point. 
+		 * It probably won't help, but perhaps worth a try.
+		 * @return
+		 */
+		public Builder opencl16() {
+			this.backend = opencv_dnn.DNN_BACKEND_OPENCV;
+			this.target = opencv_dnn.DNN_TARGET_OPENCL_FP16;
+			return this;
+		}
+		
+		/**
+		 * Request CUDA backend and target, if available.
+		 * @return
+		 */
+		public Builder cuda() {
+			this.backend = opencv_dnn.DNN_BACKEND_CUDA;
+			this.target = opencv_dnn.DNN_TARGET_CUDA;
+			return this;
+		}
+		
+		/**
+		 * Request CUDA backend and target, if available, with 16-bit floating point.
+		 * @return
+		 */
+		public Builder cuda16() {
+			this.backend = opencv_dnn.DNN_BACKEND_CUDA;
+			this.target = opencv_dnn.DNN_TARGET_CUDA_FP16;
+			return this;
+		}
+		
+		/**
+		 * Specify the target, e.g. {@code opencv_dnn.DNN_TARGET_CUDA}.
+		 * @param target
+		 * @return
+		 * @see #cuda()
+		 * @see #opencl()
+		 */
+		public Builder target(int target) {
+			this.target = target;
+			return this;
+		}
+		
+		/**
+		 * Specify the backend, e.g. {@code opencv_dnn.DNN_BACKEND_CUDA}.
+		 * @param backend
+		 * @return
+		 * @see #cuda()
+		 * @see #opencl()
+		 */
+		public Builder backend(int backend) {
+			this.backend = backend;
 			return this;
 		}
 		
@@ -443,6 +556,9 @@ public class OpenCVDNN {
 			dnn.framework = framework;
 			dnn.name = name;
 			dnn.outputLayerName = outputLayerName;
+			
+			dnn.backend = backend;
+			dnn.target = target;
 			
 			dnn.means = means.clone();
 			dnn.scales = scales.clone();
