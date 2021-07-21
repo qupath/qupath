@@ -101,8 +101,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	 */
 	private int maxLabel;
 	
-	private Map<PathObject, PathClass> uniqueClassMap = null;
-	
+	private Map<PathObject, Integer> instanceClassMap = null;	
+	private Map<Integer, PathObject> instanceClassMapInverse = null;	
 	
 	private LabeledImageServer(final ImageData<BufferedImage> imageData, double downsample, int tileWidth, int tileHeight, LabeledServerParameters params, boolean multichannelOutput) {
 		super();
@@ -116,15 +116,17 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		
 		// Generate mapping for labels; it is permissible to have multiple classes for the same labels, in which case a derived class will be used
 		Map<Integer, PathClass> classificationLabels = new TreeMap<>();
-		if (params.createUniqueLabels) {
+		if (params.createInstanceLabels) {
 			var pathObjects = imageData.getHierarchy().getObjects(null, null).stream().filter(params.objectFilter).collect(Collectors.toCollection(ArrayList::new));
 			// Shuffle the objects, this helps when using grayscale lookup tables, since labels for neighboring objects are otherwise very similar
 			Collections.shuffle(pathObjects, new Random(100L));
 			Integer count = multichannelOutput ? 0 : 1;
-			uniqueClassMap = new HashMap<>();
+			instanceClassMap = new HashMap<>();
+			instanceClassMapInverse = new HashMap<>();
 			for (var pathObject : pathObjects) {
-				var pathClass = PathClassFactory.getPathClass("Label " + count);
-				uniqueClassMap.put(pathObject, pathClass);
+				var pathClass = instanceLabelToClass(count);
+				instanceClassMap.put(pathObject, count);
+				instanceClassMapInverse.put(count, pathObject);
 				classificationLabels.put(count, pathClass);
 				params.labelColors.put(count, pathClass.getColor());
 				params.labels.put(pathClass, count);
@@ -239,18 +241,51 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	 * @return
 	 */
 	private PathClass getPathClass(PathObject pathObject) {
-		if (uniqueClassMap != null)
-			return uniqueClassMap.get(pathObject);
+		if (instanceClassMap != null)
+			return instanceLabelToClass(instanceClassMap.get(pathObject));
 		return getPathClass(pathObject.getPathClass());
+	}
+	
+	
+	private static PathClass instanceLabelToClass(Integer label) {
+		if (label == null)
+			return null;
+		return PathClassFactory.getPathClass("Label " + label);
+	}
+	
+//	/**
+//	 * Get the label associated with a specific {@link PathObject}.
+//	 * This will be based on the instance if {@link Builder#useInstanceLabels()} is selected, 
+//	 * or the classification.
+//	 * @param pathObject
+//	 * @return the label if available, or null if no label is associated with the object
+//	 */
+//	public Integer getLabel(PathObject pathObject) {
+//		if (!this.params.objectFilter.test(pathObject))
+//			return null;
+//		if (params.createInstanceLabels)
+//			return instanceClassMap.get(pathObject);
+//		return params.labels.get(getPathClass(pathObject));
+//	}
+	
+	/**
+	 * Get a mapping between objects and instance labels.
+	 * @return the instance label map, or an empty map if no objects are available or 
+	 *         {@link Builder#useInstanceLabels()} was not selected.
+	 */
+	public Map<PathObject, Integer> getInstanceLabels() {
+		if (instanceClassMap == null)
+			return Collections.emptyMap();
+		return Collections.unmodifiableMap(instanceClassMap);
 	}
 	
 	/**
 	 * Get an unmodifiable map of classifications and their corresponding labels.
 	 * Note that multiple classifications may use the same integer label.
-	 * @return a map of labels, or empty map if none are available or {@code useUniqueLabels()} was selected.
+	 * @return a map of labels, or empty map if none are available or {@code useInstanceLabels()} was selected.
 	 */
 	public Map<PathClass, Integer> getLabels() {
-		if (params.createUniqueLabels)
+		if (params.createInstanceLabels)
 			return Collections.emptyMap();
 		return Collections.unmodifiableMap(params.labels);
 	}
@@ -258,10 +293,10 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	/**
 	 * Get an unmodifiable map of classifications and their corresponding boundary labels, if available.
 	 * Note that multiple classifications may use the same integer label.
-	 * @return a map of boundary labels, or empty map if none are available or {@code useUniqueLabels()} was selected.
+	 * @return a map of boundary labels, or empty map if none are available or {@code useInstanceLabels()} was selected.
 	 */
 	public Map<PathClass, Integer> getBoundaryLabels() {
-		if (params.createUniqueLabels)
+		if (params.createInstanceLabels)
 			return Collections.emptyMap();
 		return Collections.unmodifiableMap(params.boundaryLabels);
 	}
@@ -280,7 +315,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		private Predicate<PathObject> objectFilter = PathObjectFilter.ANNOTATIONS;
 		private Function<PathObject, ROI> roiFunction = p -> p.getROI();
 		
-		private boolean createUniqueLabels = false;
+		private boolean createInstanceLabels = false;
 		private int maxOutputChannelLimit = 256;
 		
 		private float lineThickness = 1.0f;
@@ -300,7 +335,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 			this.labels = new LinkedHashMap<>(params.labels);
 			this.boundaryLabels = new LinkedHashMap<>(params.boundaryLabels);
 			this.labelColors = new LinkedHashMap<>(params.labelColors);
-			this.createUniqueLabels = params.createUniqueLabels;
+			this.createInstanceLabels = params.createInstanceLabels;
 			this.maxOutputChannelLimit = params.maxOutputChannelLimit;
 			this.roiFunction = params.roiFunction;
 		}
@@ -429,12 +464,22 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		
 		
 		/**
+		 * @return
+		 * @deprecated in favor of {@link #useInstanceLabels()}
+		 */
+		@Deprecated
+		public Builder useUniqueLabels() {
+			logger.warn("useUniqueLabels() is deprecated; please switch to useInstanceLabels() instead.");
+			return useInstanceLabels();
+		}
+		
+		/**
 		 * Request that unique labels are used for all objects, rather than classifications.
 		 * If this flag is set, all other label requests are ignored.
 		 * @return
 		 */
-		public Builder useUniqueLabels() {
-			params.createUniqueLabels = true;
+		public Builder useInstanceLabels() {
+			params.createInstanceLabels = true;
 			return this;
 		}
 		
@@ -621,7 +666,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		/**
 		 * Specify the maximum number of output channels allowed before QuPath will throw an exception.
 		 * This is used to guard against inadvertently requesting a labelled image that would have an infeasibly 
-		 * large number of output channels, most commonly with {@link #useUniqueLabels()}.
+		 * large number of output channels, most commonly with {@link #useInstanceLabels()}.
 		 * @param maxChannels the maximum supported channels; set (cautiously!) &le; 0 to ignore the limit entirely.
 		 * @return
 		 */
@@ -635,11 +680,11 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		 * @return
 		 */
 		public LabeledImageServer build() {
-			if (params.createUniqueLabels) {
+			if (params.createInstanceLabels) {
 				if (!(params.labels.isEmpty() || (params.labels.size() == 1 && params.labels.containsKey(params.unannotatedClass))))
-					throw new IllegalArgumentException("You cannot use both useUniqueLabels() and addLabel() - please choose one or the other!");
+					throw new IllegalArgumentException("You cannot use both useInstanceLabels() and addLabel() - please choose one or the other!");
 				if (params.objectFilter == null)
-					throw new IllegalArgumentException("Please specify an object filter with useUniqueLabels(), for example useDetections(), useCells(), useAnnotations(), useFilter()");
+					throw new IllegalArgumentException("Please specify an object filter with useInstanceLabels(), for example useDetections(), useCells(), useAnnotations(), useFilter()");
 			}
 			
 			return new LabeledImageServer(
@@ -705,7 +750,7 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 	public List<PathObject> getObjectsForRegion(ImageRegion region) {
 		return hierarchy.getObjectsForRegion(null, region, null).stream()
 				.filter(params.objectFilter)
-				.filter(p -> params.createUniqueLabels || params.labels.containsKey(p.getPathClass()) || params.boundaryLabels.containsKey(p.getPathClass()))
+				.filter(p -> params.createInstanceLabels || params.labels.containsKey(p.getPathClass()) || params.boundaryLabels.containsKey(p.getPathClass()))
 				.collect(Collectors.toList());
 	}
 	
@@ -743,7 +788,8 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 		long startTime = System.currentTimeMillis();
 		
 		var pathObjects = hierarchy.getObjectsForRegion(null, tileRequest.getRegionRequest(), null)
-				.stream().filter(params.objectFilter)
+				.stream()
+				.filter(params.objectFilter)
 				.collect(Collectors.toList());
 		BufferedImage img;
 		if (multichannelOutput) {
@@ -893,24 +939,34 @@ public class LabeledImageServer extends AbstractTileableImageServer implements G
 				var pathClass = getPathClass(entry.getKey());
 				int c = entry.getValue();
 				color = getColorForLabel(c, doRGB);
-				for (var pathObject : pathObjects) {
-					if (getPathClass(pathObject) == pathClass) {
-						var roi = params.roiFunction.apply(pathObject);
-						g2d.setColor(color);
-						if (roi.isArea())
-							g2d.fill(roi.getShape());
-						else if (roi.isLine())
-							g2d.draw(roi.getShape());
-						else if (roi.isPoint()) {
-							for (var p : roi.getAllPoints()) {
-								int x = (int)((p.getX() - request.getX()) / downsampleFactor);
-								int y = (int)((p.getY() - request.getY()) / downsampleFactor);
-								if (x >= 0 && x < width && y >= 0 && y < height) {
-									if (doRGB)
-										img.setRGB(x, y, color.getRGB());
-									else
-										raster.setSample(x, y, 0, c);
-								}
+				List<PathObject> toDraw;
+				if (instanceClassMapInverse != null) {
+					var temp = instanceClassMapInverse.get(c);
+					if (temp == null)
+						continue;
+					toDraw = Collections.singletonList(temp);
+				} else
+					toDraw = pathObjects
+									.stream()
+									.filter(p -> getPathClass(p) == pathClass)
+									.collect(Collectors.toList());
+				
+				for (var pathObject : toDraw) {
+					var roi = params.roiFunction.apply(pathObject);
+					g2d.setColor(color);
+					if (roi.isArea())
+						g2d.fill(roi.getShape());
+					else if (roi.isLine())
+						g2d.draw(roi.getShape());
+					else if (roi.isPoint()) {
+						for (var p : roi.getAllPoints()) {
+							int x = (int)((p.getX() - request.getX()) / downsampleFactor);
+							int y = (int)((p.getY() - request.getY()) / downsampleFactor);
+							if (x >= 0 && x < width && y >= 0 && y < height) {
+								if (doRGB)
+									img.setRGB(x, y, color.getRGB());
+								else
+									raster.setSample(x, y, 0, c);
 							}
 						}
 					}
