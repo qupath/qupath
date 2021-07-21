@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.LabeledImageServer;
@@ -432,7 +433,7 @@ public class TileExporter  {
 				extLabeled = serverLabeled.getMetadata().getChannelType() == ChannelType.CLASSIFICATION ? ".png" : ".tif";
 		}
 
-		var pool = Executors.newWorkStealingPool(4);
+		var pool = Executors.newFixedThreadPool(ThreadTools.getParallelism(), ThreadTools.createThreadFactory("tile-exporter", true));
 
 		var server = this.server;
 		var labeledServer = serverLabeled;
@@ -459,6 +460,8 @@ public class TileExporter  {
 			logger.warn("No regions to export!");
 			return;
 		}
+		if (requests.size() > 1)
+			logger.info("Exporting {} tiles", requests.size());
 		
 		String imageName = GeneralTools.stripInvalidFilenameChars(
 				GeneralTools.getNameWithoutExtension(server.getMetadata().getName())
