@@ -1887,6 +1887,9 @@ public class OpenCVTools {
 	 *   <li>Pad smaller input into tiles of the required size, apply the function and strip padding from the result</li>
 	 * </ul>
 	 * If the image dimensions are not an exact multiple of the requested tile sizes, both steps may be required.
+	 * <p>
+	 * <b>Important!</b> If the output (width & height) of the function is smaller than the input, it will resized
+	 * to have the same dimensions and a warning will be logged.
 	 * 
 	 * @param fun the function to apply to the input
 	 * @param mat the input Mat
@@ -1933,6 +1936,13 @@ public class OpenCVTools {
 			
 			// Do the actual requested function
 			matResult.put(fun.apply(mat));
+			
+			// Automatic resizing isn't ideal, but otherwise the padding calculations can't be used
+			// (resizing is also handy to support an early StarDist implementation)
+			if (matResult.rows() != mat.rows() || matResult.cols() != mat.cols()) {
+				logger.warn("Resizing tiled image from {}x{} to {}x{}", matResult.cols(), matResult.rows(), mat.cols(), mat.rows());
+				opencv_imgproc.resize(matResult, matResult, mat.size());
+			}
 			
 			// Handle padding
 		    if (doPad) {

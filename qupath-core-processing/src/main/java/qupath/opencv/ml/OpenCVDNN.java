@@ -57,8 +57,6 @@ public class OpenCVDNN {
 	private String pathConfig;
 	private String framework;
 	
-	private String outputLayerName;
-	
 	private double[] means;
 	private double[] scales;
 	private boolean swapRB;
@@ -175,11 +173,16 @@ public class OpenCVDNN {
 	}
 	
 	/**
-	 * Get the name of the requested output layer, or null if no output layer is required (that is, the last should be chosen).
+	 * Get the names of all unconnected output layers.
 	 * @return
+	 * @throws IOException 
 	 */
-	public String getOutputLayerName() {
-		return outputLayerName;
+	public List<String> getOutputLayerNames() throws IOException {
+		var names = new ArrayList<String>();
+		for (var bp : getNet().getUnconnectedOutLayersNames().get()) {
+			names.add(bp.getString());
+		}
+		return names;
 	}
 	
 	/**
@@ -384,7 +387,6 @@ public class OpenCVDNN {
 	public static class Builder {
 		
 		private String name;
-		private String outputLayerName;
 		
 		private String pathModel;
 		private String pathConfig;
@@ -506,16 +508,6 @@ public class OpenCVDNN {
 		}
 		
 		/**
-		 * Specify the name of the output layer.
-		 * @param outputLayerName
-		 * @return
-		 */
-		public Builder outputLayerName(String outputLayerName) {
-			this.outputLayerName = outputLayerName;
-			return this;
-		}
-		
-		/**
 		 * Request that red and blue channels are switch (QuPath uses RGB by default).
 		 * @return
 		 */
@@ -555,7 +547,6 @@ public class OpenCVDNN {
 			dnn.pathConfig = pathConfig;
 			dnn.framework = framework;
 			dnn.name = name;
-			dnn.outputLayerName = outputLayerName;
 			
 			dnn.backend = backend;
 			dnn.target = target;

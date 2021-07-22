@@ -51,6 +51,7 @@ import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.bytedeco.opencv.opencv_core.StringVector;
 import org.bytedeco.opencv.opencv_dnn.Net;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
@@ -2322,6 +2323,7 @@ public class ImageOps {
 				return padding;
 			}
 
+			@SuppressWarnings("unchecked")
 			@Override
 			protected Mat transformPadded(Mat input) {
 				if (ops.isEmpty())
@@ -2488,10 +2490,12 @@ public class ImageOps {
 		 * @param inputWidth 
 		 * @param inputHeight 
 		 * @param padding 
+		 * @param outputNames optional list of names to identify output layers. If more than one layer is provided, 
+		 *                    the outputs will be concatenated in order by channel merging.
 		 * @return
 		 */
-		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding) {
-			return new DnnOp(dnn, inputWidth, inputHeight, padding, false);
+		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+			return new DnnOp(dnn, inputWidth, inputHeight, padding, false, outputNames);
 		}
 		
 		/**
@@ -2544,6 +2548,7 @@ public class ImageOps {
 			private int inputHeight;
 			
 			private boolean doParallel;
+			private String[] outputNames = new String[0];
 			
 			private Padding padding;
 			
@@ -2561,12 +2566,13 @@ public class ImageOps {
 			 * @param doParallel if true, load the Net for each thread so it may be applied in parallel. 
 			 *                   This is not a good idea if the net is 'heavyweight'.
 			 */
-			DnnOp(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, boolean doParallel) {
+			DnnOp(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, boolean doParallel, String... outputNames) {
 				this.model = model;
 				this.inputWidth = inputWidth;
 				this.inputHeight = inputHeight;
-				this.padding = padding;
+				this.padding = padding == null ? Padding.empty() : padding;
 				this.doParallel = doParallel;
+				this.outputNames = outputNames.clone();
 			}
 
 			@Override
@@ -2592,9 +2598,10 @@ public class ImageOps {
 			private Net getNet() {
 				if (doParallel)
 					return localNet.get();
-				if (net == null)
+				if (net == null) {
 					net = readNet();
-				return net;
+
+				}return net;
 			}
 
 			@Override
@@ -2602,9 +2609,9 @@ public class ImageOps {
 				Net net = getNet();				
 				if (exception == null) {
 					if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
-						return doClassification(input, net);
+						return doClassification(input, net, outputNames);
 					else
-						return OpenCVTools.applyTiled(m -> doClassification(m, net), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
+						return OpenCVTools.applyTiled(m -> doClassification(m, net, outputNames), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
 				}
 				throw new RuntimeException(exception);
 			}
@@ -2641,6 +2648,7 @@ public class ImageOps {
 				this.requestProbabilities = requestProbabilities;
 			}
 			
+			@SuppressWarnings("unchecked")
 			@Override
 			public Mat apply(Mat input) {
 				try (var scope = new PointerScope()) {
@@ -2670,7 +2678,7 @@ public class ImageOps {
 	}
 	
 	
-	private static Mat doClassification(Mat mat, Net net) {
+	private static Mat doClassification(Mat mat, Net net, String... outputNames) {
 
 		var matResult = new Mat();
 
@@ -2730,21 +2738,40 @@ public class ImageOps {
 					long startTime = System.currentTimeMillis();
 
 					net.setInput(blob);
-					var prob = net.forward();
-					opencv_dnn.imagesFromBlob(prob, matvec);
+					Mat prob;
+					if (outputNames.length == 0) {
+						prob = net.forward();
+						opencv_dnn.imagesFromBlob(prob, matvec);
+					} else {
+						var outputNameVector = new StringVector(outputNames);
+						var output = new MatVector();
+						net.forward(output, outputNameVector);
+						List<Mat> tempList = new ArrayList<>();
+						for (var temp : output.get()) {
+							matvec.clear();
+							opencv_dnn.imagesFromBlob(temp, matvec);
+							tempList.add(matvec.get(0).clone());
+						}
+						matvec.clear();
+						matvec = new MatVector(tempList.toArray(Mat[]::new));
+					}
 
 					long endTime = System.currentTimeMillis();
-					logger.info("Classification time: {} ms", endTime - startTime);
+					logger.debug("Classification time: {} ms", endTime - startTime);
 				}
 			} catch (Exception e2) {
 				logger.error("Error applying classifier", e2);
 			}
 
-			if (matvec.size() != 1)
-				throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
+//			if (matvec.size() != 1)
+//				throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
 
-			// Get the first result
-			matResult.put(matvec.get(0L));
+			// Check if we need to merge; because our batch size is 1, we expect only 1 prediction image or multiple predictions that need to be merged
+			if (matvec.size() == 1)
+				matResult.put(matvec.get(0L));
+			else
+				opencv_core.merge(matvec, matResult);
+			
 			matvec.close();
 
 			scope.deallocate();
