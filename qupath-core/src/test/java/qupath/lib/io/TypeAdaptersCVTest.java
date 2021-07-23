@@ -23,10 +23,13 @@ package qupath.lib.io;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Arrays;
+
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.opencv.opencv_core.SparseMat;
 import org.bytedeco.opencv.opencv_ml.EM;
 import org.bytedeco.opencv.opencv_ml.StatModel;
@@ -39,6 +42,7 @@ import com.google.gson.GsonBuilder;
 @SuppressWarnings("javadoc")
 public class TypeAdaptersCVTest {
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testGetOpenCVTypeAdaptorFactory() {
 		
@@ -88,8 +92,47 @@ public class TypeAdaptersCVTest {
 			assertEquals(nClusters, modelRead2.getClustersNumber());
 			assertEquals(nIterations, modelRead2.getTermCriteria().maxCount());
 			
+			// Test scalar
+			var scalarArray = new double[] {1.1, 2.2, 3.3, 4.4};
+			for (int n = 0; n <= 4; n++) {
+				var arr = Arrays.copyOf(scalarArray, n);
+				Scalar scalar;
+				if (n == 0)
+					scalar = new Scalar();
+				else if (n == 1)
+					scalar = new Scalar(arr[0]);
+				else if (n == 2)
+					scalar = new Scalar(arr[0], arr[1]);
+				else if (n == 3)
+					scalar = new Scalar(arr[0], arr[1], arr[2], 0.0);
+				else
+					scalar = new Scalar(arr[0], arr[1], arr[2], arr[3]);
+				
+				assertArrayEquals(arr, scalarToArray(scalar, n), 1e-3);
+
+				var scalarJson = gson.toJson(scalar);
+				assertArrayEquals(arr, scalarToArray(gson.fromJson(scalarJson, Scalar.class), n), 1e-3);
+			}
+			
+			// Test size
+			for (int w : new int[] {102, 234, -1}) {
+				var size = new Size(w, w*2);
+				var sizeJson = gson.toJson(size);
+				var size2 = gson.fromJson(sizeJson, Size.class);
+				assertEquals(size.width(), size2.width());
+				assertEquals(size.height(), size2.height());
+			}
+			
+			
 		}
 	}
+	
+	static double[] scalarToArray(Scalar scalar, int n) {
+		double[] array = new double[n];
+		scalar.get(array);
+		return array;
+	}
+	
 	
 	static boolean matEquals(Mat mat1, Mat mat2) {
 		var matResult = new Mat();
@@ -106,6 +149,7 @@ public class TypeAdaptersCVTest {
 	}
 	
 
+	@SuppressWarnings("unchecked")
 	@Test
 	public void testGetTypeAdaptor() {
 		var gson = new GsonBuilder()

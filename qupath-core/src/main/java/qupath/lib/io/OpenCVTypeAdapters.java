@@ -22,6 +22,8 @@
 package qupath.lib.io;
 
 import java.io.IOException;
+import java.util.Map;
+
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.*;
 import org.bytedeco.opencv.opencv_ml.*;
@@ -84,6 +86,10 @@ public class OpenCVTypeAdapters {
 			return (TypeAdapter<T>)new SparseMatTypeAdapter();
 		if (StatModel.class.isAssignableFrom(cls))
 			return (TypeAdapter<T>)new StatModelTypeAdapter();
+		if (Scalar.class == cls)
+			return (TypeAdapter<T>)new ScalarTypeAdapter();
+		if (Size.class == cls)
+			return (TypeAdapter<T>)new SizeTypeAdapter();
 		return null;
 	}
 	
@@ -97,6 +103,68 @@ public class OpenCVTypeAdapters {
 		@Override
 		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
 			return getTypeAdaptor((Class<T>)type.getRawType());
+		}
+		
+	}
+	
+	
+	private static class SizeTypeAdapter extends TypeAdapter<Size> {
+
+		@Override
+		public void write(JsonWriter out, Size value) throws IOException {
+			out.beginObject();
+			
+			out.name("width");
+			out.value(value.width());
+			
+			out.name("height");
+			out.value(value.height());
+
+			out.endObject();
+		}
+
+		@Override
+		public Size read(JsonReader in) throws IOException {
+			in.beginObject();
+			var map = Map.of(
+					in.nextName().toLowerCase(), in.nextInt(),
+					in.nextName().toLowerCase(), in.nextInt()
+					);
+			in.endObject();
+			return new Size(map.get("width"), map.get("height"));
+		}
+		
+	}
+	
+	
+	private static class ScalarTypeAdapter extends TypeAdapter<Scalar> {
+
+		@Override
+		public void write(JsonWriter out, Scalar value) throws IOException {
+			out.beginArray();
+			for (int i = 0; i < 4; i++)
+				out.value(value.get(i));
+			out.endArray();
+		}
+
+		@Override
+		public Scalar read(JsonReader in) throws IOException {
+			in.beginArray();
+			double[] values = new double[4];
+			int n = 0;
+			while (in.hasNext() && n < values.length) {
+				values[n] = in.nextDouble();
+				n++;
+			}
+			in.endArray();
+			if (n == 0)
+				return new Scalar();
+			else if (n == 1)
+				return new Scalar(values[0]);
+			else if (n == 2)
+				return new Scalar(values[0], values[1]);
+			else
+				return new Scalar(values[0], values[1], values[2], values[3]);
 		}
 		
 	}
