@@ -65,6 +65,8 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Log files are now turned off by default; this can be changed in the preferences if a QuPath user directory is set
 * Optionally use `qupath.prefs.name` system property to use a different preferences location, enabling multiple QuPath installations to have distinct preferences
 * Provide optional launch scripts and `-Pld-path=true` Gradle options for Linux to set LD_LIBRARY_PATH and work around pixman problems (https://github.com/qupath/qupath/issues/628)
+* When setting stain vectors, do not overwrite the last workflow step if it was also used to set stain vectors
+  * This makes it possible to go back to earlier stains if needed
 
 ### Code changes
 * Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)

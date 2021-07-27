@@ -169,11 +169,17 @@ class EstimateStainVectorsCommand {
 			return;
 		}
 		if (!stains.equals(stainsUpdated)) {
-			String name = stainsUpdated.getName();
-			String newName = Dialogs.showInputDialog(TITLE, "Set name for stain vectors", name);
+			String suggestedName;
+			String collectiveNameBefore = stainsUpdated.getName();
+			if (collectiveNameBefore.endsWith("default"))
+				suggestedName = collectiveNameBefore.substring(0, collectiveNameBefore.lastIndexOf("default")) + "estimated";
+			else
+				suggestedName = collectiveNameBefore;
+			
+			String newName = Dialogs.showInputDialog(TITLE, "Set name for stain vectors", suggestedName);
 			if (newName == null)
 				return;
-			if (!name.equals(newName) && !newName.trim().isEmpty())
+			if (!newName.isBlank())
 				stainsUpdated = stainsUpdated.changeName(newName);
 			imageData.setColorDeconvolutionStains(stainsUpdated);
 		}
