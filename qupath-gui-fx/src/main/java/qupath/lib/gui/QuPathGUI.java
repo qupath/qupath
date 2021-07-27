@@ -880,12 +880,17 @@ public class QuPathGUI {
 		Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
 			@Override
 			public void uncaughtException(Thread t, Throwable e) {
-				Dialogs.showErrorNotification("QuPath exception", e);
-				if (defaultActions.SHOW_LOG != null)
-					defaultActions.SHOW_LOG.handle(null);
-				// Try to reclaim any memory we can
 				if (e instanceof OutOfMemoryError) {
-					getViewer().getImageRegionStore().clearCache(false, false);
+					// Try to reclaim any memory we can
+					getViewer().getImageRegionStore().clearCache(true, true);
+					Dialogs.showErrorNotification("Out of memory error",
+							"Out of memory! You may need to decrease the 'Number of parallel threads' in the preferences, "
+							+ "then restart QuPath.");
+					logger.error(e.getLocalizedMessage(), e);
+				} else {
+					Dialogs.showErrorNotification("QuPath exception", e);
+					if (defaultActions.SHOW_LOG != null)
+						defaultActions.SHOW_LOG.handle(null);
 				}
 			}
 		});
@@ -1937,7 +1942,10 @@ public class QuPathGUI {
 						);
 			}
 			
-			paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory", originalMaxMemory, "GB", "Set the maximum memory for QuPath - consider using approximately half the total RAM for the system");
+			paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory", originalMaxMemory, "GB",
+					"Set the maximum memory for Java.\n"
+					+ "Note that some commands (e.g. pixel classification) may still use more memory when needed,\n"
+					+ "so this value should generally not exceed half the total memory available on the system.");
 		} else {
 			paramsSetup.addEmptyParameter(maxMemoryString)
 				.addEmptyParameter("Sorry, I can't access the config file needed to change the max memory.\n" +

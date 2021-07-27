@@ -51,6 +51,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Access by double-clicking pixel size values under the 'Image' tab
   * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
 * *Objects > Annotations... > Rotate annotation* now works with point annotations
+* Update checking can now include extensions hosted on GitHub
 * New 360 degree image rotation (under *View > Rotate image*)
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
@@ -71,6 +72,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
+* The *'Number of processors for parallel commands'* preference has been renamed to *'Number of parallel threads'*
 * `GeneralTools.readAsString` methods now assume UTF-8 encoding
 * `PixelClassificationOverlay` has moved to the main GUI module
 * Scripting method `getColorRGB()` has been replaced by `makeRBG()` and `makeARGB()`; further related changes in ColorTools class

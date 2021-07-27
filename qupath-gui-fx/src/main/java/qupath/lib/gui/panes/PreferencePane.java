@@ -148,7 +148,7 @@ public class PreferencePane {
 				+ "It is recommended to use only INFO or DEBUG; more frequent logging (e.g. TRACE, ALL) will likely cause performance issues.");
 
 		addPropertyPreference(PathPrefs.numCommandThreadsProperty(), Integer.class,
-				"Number of processors for parallel commands",
+				"Number of parallel threads",
 				category,
 				"Set limit on number of processors to use for parallelization."
 						+ "\nThis should be > 0 and <= the available processors on the computer."
