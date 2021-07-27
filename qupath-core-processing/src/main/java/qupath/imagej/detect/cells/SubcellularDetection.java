@@ -343,11 +343,11 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 				// In v0.3
 				ImagePlane plane = ImagePlane.getPlaneWithChannel(c, z, t);
 
-				PathObject cluster = null;
+				PathObject spotOrCluster = null;
 				if (stats.pixelCount >= minSpotArea && stats.pixelCount <= maxSpotArea) {
 					ROI roi = IJTools.convertToROI(spotRoi, calIJ, downsample, plane);
 //					cluster = new SubcellularObject(roi, 1);
-					cluster = createSubcellularObject(roi, 1);
+					spotOrCluster = createSubcellularObject(roi, 1);
 					estimatedSpots += 1;
 				} else if (includeClusters && stats.pixelCount >= minSpotArea) {
 					// Add a cluster
@@ -355,21 +355,24 @@ public class SubcellularDetection extends AbstractInteractivePlugin<BufferedImag
 					double nSpots = stats.pixelCount / singleSpotArea;
 					estimatedSpots += nSpots;
 //					cluster = new SubcellularObject(roi, nSpots);
-					cluster = createSubcellularObject(roi, nSpots);
+					spotOrCluster = createSubcellularObject(roi, nSpots);
 				}
-				if (cluster != null) {
+				if (spotOrCluster != null) {
 					
-					boolean isCluster = cluster.getMeasurementList().getMeasurementValue("Num spots") > 1;
+					boolean isCluster = spotOrCluster.getMeasurementList().getMeasurementValue("Num spots") > 1;
 					int rgb = imageWrapper.getChannelColor(channelName);
 					rgb = isCluster ? ColorTools.makeScaledRGB(rgb, 0.5) : ColorTools.makeScaledRGB(rgb, 1.5);
-					PathClass pathClass = PathClassFactory.getDerivedPathClass(cluster.getPathClass(), channelName + " object", rgb);
-					cluster.setPathClass(pathClass);
+					PathClass pathClass = PathClassFactory.getDerivedPathClass(spotOrCluster.getPathClass(), channelName + " object", rgb);
+					spotOrCluster.setPathClass(pathClass);
 					
-					cluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName + ": Area", stats.pixelCount * pixelWidth * pixelHeight);					
-					cluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName +  ": Mean channel intensity", stats.mean);
+					spotOrCluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName + ": Area", stats.pixelCount * pixelWidth * pixelHeight);					
+					spotOrCluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName +  ": Mean channel intensity", stats.mean);
 //					cluster.getMeasurementList().putMeasurement("Subcellular cluster: " + channelName +  ": Max channel intensity", stats.max);
-					cluster.getMeasurementList().close();
-					spotObjects.add(cluster);
+					spotOrCluster.getMeasurementList().close();
+					if (isCluster)
+						clusterObjects.add(spotOrCluster);
+					else
+						spotObjects.add(spotOrCluster);
 				}
 			}
 
