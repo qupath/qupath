@@ -237,6 +237,11 @@ class ShowInstalledExtensionsCommand {
 		 * @return the String for the Implementation-Version, or null if no version could be found.
 		 */
 		public String getVersion() {
+			if (extension instanceof QuPathExtension) {
+				var v = ((QuPathExtension)extension).getVersion();
+				if (v != null)
+					return v.toString();
+			}
 			URL url =  getURL();
 			if (url.toString().endsWith(".jar")) {
 				try (JarInputStream stream = new JarInputStream(url.openStream())) {

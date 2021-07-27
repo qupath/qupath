@@ -34,9 +34,9 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.StringProperty;
-import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.Version;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.panes.PreferencePane;
@@ -170,8 +170,8 @@ public class BioFormatsOptionsExtension implements QuPathExtension {
 	 * Returns the version stored within this jar, because it is matched to the QuPath version.
 	 */
 	@Override
-	public String getQuPathVersion() {
-		return GeneralTools.getPackageVersion(BioFormatsOptionsExtension.class);
+	public Version getQuPathVersion() {
+		return getVersion();
 	}
-
+	
 }

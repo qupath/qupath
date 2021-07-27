@@ -39,6 +39,7 @@ import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.Version;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.IconFactory.PathIcons;
@@ -353,12 +354,17 @@ public class ProcessingExtension implements QuPathExtension {
         return "Core processing & classification commands";
     }
     
+	@Override
+	public Version getVersion() {
+		return Version.parse(GeneralTools.getPackageVersion(ProcessingExtension.class));
+	}
+	
 	/**
 	 * Returns the version stored within this jar, because it is matched to the QuPath version.
 	 */
 	@Override
-	public String getQuPathVersion() {
-		return GeneralTools.getPackageVersion(ProcessingExtension.class);
+	public Version getQuPathVersion() {
+		return getVersion();
 	}
 	
 }

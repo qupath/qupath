@@ -132,7 +132,7 @@ public final class GeneralTools {
 		if (version == null) {
 			// From v0.3 onwards, the version should also be stored as a resource
 			try {
-				var stream = GeneralTools.class.getResourceAsStream("/VERSION");
+				var stream = cls.getResourceAsStream("/VERSION");
 				if (stream != null) {
 					version = readInputStreamAsString(stream);
 				}

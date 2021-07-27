@@ -175,10 +175,13 @@ public class Version implements Comparable<Version> {
 	 * be replaced by dots.
 	 * 
 	 * @param versionString the version String to be parsed
-	 * @return a Version parsed from this string
+	 * @return a Version parsed from this string, or {@link Version#UNKNOWN} if the string is null or blank.
 	 * @throws IllegalArgumentException if no version could be parsed from the String
 	 */
 	public static Version parse(String versionString) throws IllegalArgumentException {
+		if (versionString == null || versionString.isBlank())
+			return Version.UNKNOWN;
+		
 		if (versionString.toLowerCase().startsWith("v"))
 			versionString = versionString.substring(1);
 		int ind = versionString.indexOf("-");
