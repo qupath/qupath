@@ -38,6 +38,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Default to project script directory when choosing a location to save a new script
 * Improved command line
   * Specify script parameters with the `--args` option
+  * Make contents of any extensions directory available to the classloader
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
 * New 'Optional args' when importing images
   * This allows options such as `--dims XYTZC --series 2` to be passed to Bio-Formats to customize image import

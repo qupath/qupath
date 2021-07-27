@@ -398,7 +398,10 @@ class ScriptCommand implements Runnable {
 	private Object runScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		Object result = null;
 		
-		ClassLoader classLoader = new ExtensionClassLoader();
+		// Set classloader to include any available extensions
+		var classLoader = new ExtensionClassLoader();
+		classLoader.refresh();
+		Thread.currentThread().setContextClassLoader(classLoader);
 		ScriptEngineManager manager = new ScriptEngineManager(classLoader);
 		
 		String script = scriptCommand;
