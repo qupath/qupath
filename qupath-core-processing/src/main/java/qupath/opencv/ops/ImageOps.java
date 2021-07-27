@@ -377,6 +377,7 @@ public class ImageOps {
 			return true;
 		}
 		 
+		@SuppressWarnings("unchecked")
 		@Override
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
@@ -404,7 +405,7 @@ public class ImageOps {
 				if (op != null) {
 					mat.put(op.apply(mat));					
 				}
-				scope.deallocate();
+//				scope.deallocate();
 			}
 			return mat;
 		}
@@ -899,6 +900,7 @@ public class ImageOps {
 				return Padding.symmetric(padValue());
 			}
 
+			@SuppressWarnings("unchecked")
 			@Override
 			protected Mat transformPadded(Mat input) {
 				var builder = getBuilder();
@@ -912,7 +914,7 @@ public class ImageOps {
 						}
 					}
 					OpenCVTools.mergeChannels(output, input);
-					scope.deallocate();
+//					scope.deallocate();
 				}
 				return input;
 			}
@@ -2320,6 +2322,7 @@ public class ImageOps {
 				return padding;
 			}
 
+			@SuppressWarnings("unchecked")
 			@Override
 			protected Mat transformPadded(Mat input) {
 				if (ops.isEmpty())
@@ -2343,7 +2346,7 @@ public class ImageOps {
 						mats.add(temp);
 					}
 					OpenCVTools.mergeChannels(mats, input);
-					scope.deallocate();
+//					scope.deallocate();
 				}
 				return input;
 			}
@@ -2639,6 +2642,7 @@ public class ImageOps {
 				this.requestProbabilities = requestProbabilities;
 			}
 			
+			@SuppressWarnings("unchecked")
 			@Override
 			public Mat apply(Mat input) {
 				try (var scope = new PointerScope()) {
@@ -2653,7 +2657,7 @@ public class ImageOps {
 					} else
 						model.predict(input, matResult, null);
 					input.put(matResult.reshape(matResult.cols(), h));
-					scope.deallocate();
+//					scope.deallocate();
 				}
 				return input;
 			}
@@ -2668,6 +2672,7 @@ public class ImageOps {
 	}
 	
 	
+	@SuppressWarnings("unchecked")
 	private static Mat doClassification(Mat mat, Net net) {
     	
 		var matResult = new Mat();

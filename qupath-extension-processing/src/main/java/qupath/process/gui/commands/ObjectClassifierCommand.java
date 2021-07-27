@@ -47,6 +47,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.UByteIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -738,6 +739,7 @@ public class ObjectClassifierCommand implements Runnable {
 		 * @param doMulticlass if true, try to create a multi-class classifier instead of a 'regular' classifier
 		 * @return the trained object classifier, or null if insufficient information was provided or the thread was interrupted during training
 		 */
+		@SuppressWarnings("unchecked")
 		private static ObjectClassifier<BufferedImage> createClassifier(
 				Collection<TrainingData<BufferedImage>> training,
 				PathObjectFilter filter,
@@ -844,6 +846,7 @@ public class ObjectClassifierCommand implements Runnable {
 		 * @return the updated feature extractor, with any normalization/PCA reduction incorporated, 
 		 * or null if the training was unsuccessful (e.g. it was interrupted)
 		 */
+		@SuppressWarnings("unchecked")
 		private static <T> FeatureExtractor<T> updateFeatureExtractorAndTrainClassifier(
 				OpenCVStatModel classifier,
 				Collection<TrainingData<T>> trainingCollection,
@@ -856,108 +859,130 @@ public class ObjectClassifierCommand implements Runnable {
 
 			List<Mat> matFeaturesList = new ArrayList<>();
 			List<Mat> matTargetsList = new ArrayList<>();
-
-			for (var training : trainingCollection) {
-				var imageData = training.imageData;
-				var map = training.map;
-
-				int nFeatures = extractor.nFeatures();
-				int nSamples = map.values().stream().mapToInt(l -> l.size()).sum();
-				int nClasses = pathClasses.size();
-				if (nSamples == 0)
-					continue;
-
-				Mat matTargets;
-				Mat matFeatures;
-				if (doMulticlass) {
-					// For multiclass, it's quite likely we have samples represented more than once
-					var sampleSet = new LinkedHashSet<PathObject>();
-					for (var entry : map.entrySet()) {
-						sampleSet.addAll(entry.getValue());
-					}
-					nSamples = sampleSet.size();
-
-					matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
-					FloatBuffer buffer = matFeatures.createBuffer();
-					matTargets = new Mat(nSamples, nClasses, opencv_core.CV_8UC1, Scalar.ZERO);
-					UByteIndexer idxTargets = matTargets.createIndexer();
-
-					extractor.extractFeatures(imageData, sampleSet, buffer);
-
-					int row = 0;
-					for (var sample : sampleSet) {
-						for (int col = 0; col < nClasses; col++) {
-							var pathClass = pathClasses.get(col);
-							if (map.get(pathClass).contains(sample)) {
-								idxTargets.put(row, col, 1);
-							}
-						}
-						row++;
-					}
-					idxTargets.release();				
-				} else {
-					matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
-					FloatBuffer buffer = matFeatures.createBuffer();
-
-					matTargets = new Mat(nSamples, 1, opencv_core.CV_32SC1, Scalar.ZERO);
-					IntBuffer bufTargets = matTargets.createBuffer();
-
-					for (var entry : map.entrySet()) {
-						// Extract features
-						var pathClass = entry.getKey();
-						var pathObjects = entry.getValue();
-						extractor.extractFeatures(imageData, pathObjects, buffer);
-						// Update targets
-						int pathClassIndex = pathClasses.indexOf(pathClass);
-						for (int i = 0; i < pathObjects.size(); i++)
-							bufTargets.put(pathClassIndex);
-					}
-				}
-				matFeaturesList.add(matFeatures);
-				matTargetsList.add(matTargets);
-			}
 			
-			if (matFeaturesList.isEmpty()) {
-				logger.warn("No features found!");
-				return null;
-			}
-
-			var matFeatures = OpenCVTools.vConcat(matFeaturesList, null);
-			var matTargets = OpenCVTools.vConcat(matTargetsList, null);
-
-
+			// We need to do anything involving the classifier directly outside the upcoming PointerScope
 			// Create & apply feature normalizer if we need one
 			// We might even if normalization isn't requested so as to fill in missing values
-			if (!(classifier.supportsMissingValues() && normalization == Normalization.NONE && pcaRetainedVariance < 0)) {
-				double missingValue = classifier.supportsMissingValues() && pcaRetainedVariance < 0 ? Double.NaN : 0.0;
-				var normalizer = Preprocessing.createNormalizer(normalization, matFeatures, missingValue);
-				Preprocessing.normalize(matFeatures, normalizer);
-				extractor = FeatureExtractors.createNormalizingFeatureExtractor(extractor, normalizer);
+			double missingValue = 0;
+			boolean doNormalization = !(classifier.supportsMissingValues() && normalization == Normalization.NONE && pcaRetainedVariance < 0);
+			if (doNormalization) {
+				missingValue = classifier.supportsMissingValues() && pcaRetainedVariance < 0 ? Double.NaN : 0.0;
+			}
+			
+			// We will need these later
+			var matAllFeatures = new Mat();
+			var matAllTargets = new Mat();
+
+			// Ensure that any temporary Mats are cleaned up
+			try (@SuppressWarnings("unchecked")
+			var scope = new PointerScope()) {
+				for (var training : trainingCollection) {
+					var imageData = training.imageData;
+					var map = training.map;
+	
+					int nFeatures = extractor.nFeatures();
+					int nSamples = map.values().stream().mapToInt(l -> l.size()).sum();
+					int nClasses = pathClasses.size();
+					if (nSamples == 0)
+						continue;
+	
+					Mat matTargets;
+					Mat matFeatures;
+					if (doMulticlass) {
+						// For multiclass, it's quite likely we have samples represented more than once
+						var sampleSet = new LinkedHashSet<PathObject>();
+						for (var entry : map.entrySet()) {
+							sampleSet.addAll(entry.getValue());
+						}
+						nSamples = sampleSet.size();
+	
+						matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
+						FloatBuffer buffer = matFeatures.createBuffer();
+						matTargets = new Mat(nSamples, nClasses, opencv_core.CV_8UC1, Scalar.ZERO);
+						UByteIndexer idxTargets = matTargets.createIndexer();
+	
+						extractor.extractFeatures(imageData, sampleSet, buffer);
+	
+						int row = 0;
+						for (var sample : sampleSet) {
+							for (int col = 0; col < nClasses; col++) {
+								var pathClass = pathClasses.get(col);
+								if (map.get(pathClass).contains(sample)) {
+									idxTargets.put(row, col, 1);
+								}
+							}
+							row++;
+						}
+						idxTargets.release();				
+					} else {
+						matFeatures = new Mat(nSamples, nFeatures, opencv_core.CV_32FC1);
+						FloatBuffer buffer = matFeatures.createBuffer();
+	
+						matTargets = new Mat(nSamples, 1, opencv_core.CV_32SC1, Scalar.ZERO);
+						IntBuffer bufTargets = matTargets.createBuffer();
+	
+						for (var entry : map.entrySet()) {
+							// Extract features
+							var pathClass = entry.getKey();
+							var pathObjects = entry.getValue();
+							extractor.extractFeatures(imageData, pathObjects, buffer);
+							// Update targets
+							int pathClassIndex = pathClasses.indexOf(pathClass);
+							for (int i = 0; i < pathObjects.size(); i++)
+								bufTargets.put(pathClassIndex);
+						}
+					}
+					matFeaturesList.add(matFeatures);
+					matTargetsList.add(matTargets);
+				}
+				
+				if (matFeaturesList.isEmpty()) {
+					logger.warn("No features found!");
+					return null;
+				}
+	
+				OpenCVTools.vConcat(matFeaturesList, matAllFeatures);
+				matAllFeatures.put(matAllFeatures.clone());
+				OpenCVTools.vConcat(matTargetsList, matAllTargets);
+				matAllTargets.put(matAllTargets.clone());
+					
+	
+				if (doNormalization) {
+					var normalizer = Preprocessing.createNormalizer(normalization, matAllFeatures, missingValue);
+					Preprocessing.normalize(matAllFeatures, normalizer);
+					extractor = FeatureExtractors.createNormalizingFeatureExtractor(extractor, normalizer);
+				}
+	
+				// Create a PCA projector, if needed
+				if (pcaRetainedVariance > 0) {
+					var pca = Preprocessing.createPCAProjector(matAllFeatures, pcaRetainedVariance, true);
+					pca.project(matAllFeatures, matAllFeatures);	
+					extractor = FeatureExtractors.createPCAProjectFeatureExtractor(extractor, pca);
+				}
+	
+				// Quit now if we cancelled, before changing fields and doing the slow bits
+				if (Thread.currentThread().isInterrupted()) {
+					logger.warn("Classifier training interrupted!");
+					matAllFeatures.close();
+					matAllTargets.close();
+					return null;
+				}
 			}
 
-			// Create a PCA projector, if needed
-			if (pcaRetainedVariance > 0) {
-				var pca = Preprocessing.createPCAProjector(matFeatures, pcaRetainedVariance, true);
-				pca.project(matFeatures, matFeatures);	
-				extractor = FeatureExtractors.createPCAProjectFeatureExtractor(extractor, pca);
+			try {
+				// Train the classifier - we don't want to enclose this in a PointerScope in case 
+				// new persistent objects are created (e.g. the StatModel)
+				trainClassifier(classifier, matAllFeatures, matAllTargets, doMulticlass);
+	
+				if (classifier instanceof RTreesClassifier) {
+					tryLoggingVariableImportance((RTreesClassifier)classifier, extractor);
+				}
+			} catch (Exception e) {
+				logger.error(e.getLocalizedMessage(), e);
+			} finally {
+				matAllFeatures.close();
+				matAllTargets.close();
 			}
-
-			// Quit now if we cancelled, before changing fields and doing the slow bits
-			if (Thread.currentThread().isInterrupted()) {
-				logger.warn("Classifier training interrupted!");
-				matFeatures.close();
-				matTargets.close();
-				return null;
-			}
-
-			trainClassifier(classifier, matFeatures, matTargets, doMulticlass);
-
-			if (classifier instanceof RTreesClassifier) {
-				tryLoggingVariableImportance((RTreesClassifier)classifier, extractor);
-			}
-
-			matFeatures.close();
-			matTargets.close();
 			return extractor;
 		}
 

@@ -110,8 +110,8 @@ class OpenCVPixelClassifier implements PixelClassifier {
 	        // Create & return BufferedImage
 	        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
 	
-	        // Return memory as quickly as we can
-	        scope.deallocate();
+//	        // Return memory as quickly as we can
+//	        scope.deallocate();
 	        return imgResult;
     	} finally {
 //        	System.gc(); // Shouldn't be needed if deallocate is used?
