@@ -82,6 +82,7 @@ import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.ActionTools.ActionMenu;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.Version;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -672,13 +673,13 @@ public class IJExtension implements QuPathExtension {
 	public String getDescription() {
 		return "QuPath commands that enable integration with ImageJ - https://imagej.nih.gov/ij/";
 	}
-
+	
 	/**
 	 * Returns the version stored within this jar, because it is matched to the QuPath version.
 	 */
 	@Override
-	public String getQuPathVersion() {
-		return GeneralTools.getPackageVersion(IJExtension.class);
+	public Version getQuPathVersion() {
+		return getVersion();
 	}
 
 

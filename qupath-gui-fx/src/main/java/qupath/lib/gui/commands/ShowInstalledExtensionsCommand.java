@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
@@ -47,6 +48,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import qupath.lib.common.GeneralTools;
@@ -106,6 +108,22 @@ class ShowInstalledExtensionsCommand {
 				titledExtensions,
 				titledServers
 		);
+		
+		var dir = QuPathGUI.getExtensionDirectory();
+		if (dir != null) {
+			var btnOpen = new Button("Open extensions directory");
+			btnOpen.setOnAction(e -> GuiTools.browseDirectory(dir));
+			btnOpen.setMaxWidth(Double.MAX_VALUE);
+			vbox.getChildren().add(btnOpen);
+//		} else {
+//			var label = new Label("No user directory has been set for custom user extensions.\n"
+//					+ "Drag an extensions jar file onto QuPath to set a user directory and install the extension.");
+//			label.setTextAlignment(TextAlignment.CENTER);
+//			label.setMaxWidth(Double.MAX_VALUE);
+//			vbox.getChildren().add(label);
+		}
+		
+		vbox.setPadding(new Insets(5));
 
 		vbox.setMaxWidth(Double.POSITIVE_INFINITY);
 		dialog.setScene(new Scene(new ScrollPane(vbox)));
@@ -237,6 +255,11 @@ class ShowInstalledExtensionsCommand {
 		 * @return the String for the Implementation-Version, or null if no version could be found.
 		 */
 		public String getVersion() {
+			if (extension instanceof QuPathExtension) {
+				var v = ((QuPathExtension)extension).getVersion();
+				if (v != null)
+					return v.toString();
+			}
 			URL url =  getURL();
 			if (url.toString().endsWith(".jar")) {
 				try (JarInputStream stream = new JarInputStream(url.openStream())) {
