@@ -55,6 +55,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -91,6 +92,7 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ListChangeListener.Change;
@@ -126,15 +128,17 @@ import javafx.scene.control.SplitPane.Divider;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TabPane.TabClosingPolicy;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextInputControl;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.TreeView;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -175,7 +179,11 @@ import qupath.lib.gui.commands.TMACommands;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
+import qupath.lib.gui.extensions.GitHubProject;
+import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.extensions.UpdateChecker;
+import qupath.lib.gui.extensions.UpdateChecker.ReleaseVersion;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
 import qupath.lib.gui.logging.LogManager;
@@ -872,12 +880,17 @@ public class QuPathGUI {
 		Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
 			@Override
 			public void uncaughtException(Thread t, Throwable e) {
-				Dialogs.showErrorNotification("QuPath exception", e);
-				if (defaultActions.SHOW_LOG != null)
-					defaultActions.SHOW_LOG.handle(null);
-				// Try to reclaim any memory we can
 				if (e instanceof OutOfMemoryError) {
-					getViewer().getImageRegionStore().clearCache(false, false);
+					// Try to reclaim any memory we can
+					getViewer().getImageRegionStore().clearCache(true, true);
+					Dialogs.showErrorNotification("Out of memory error",
+							"Out of memory! You may need to decrease the 'Number of parallel threads' in the preferences, "
+							+ "then restart QuPath.");
+					logger.error(e.getLocalizedMessage(), e);
+				} else {
+					Dialogs.showErrorNotification("QuPath exception", e);
+					if (defaultActions.SHOW_LOG != null)
+						defaultActions.SHOW_LOG.handle(null);
 				}
 			}
 		});
@@ -1464,66 +1477,128 @@ public class QuPathGUI {
 	 *                    requested and so the user should be notified of the outcome, regardless of whether an update is found.
 	 */
 	private synchronized void doUpdateCheck(boolean isAutoCheck) {
+
+		String title = "Update check";
+
+		// Get a map of all the projects we can potentially check
+		Map<GitHubRepo, Version> projects = new LinkedHashMap<>();
+		Map<GitHubRepo, ReleaseVersion> projectUpdates = new LinkedHashMap<>();
 		
-		var currentVersion = getVersion();
-		String updateMessage = null;
-		boolean isError = false;
-		if (currentVersion == null || currentVersion == Version.UNKNOWN) {
-			updateMessage = "I can't tell which version of QuPath you are running!";
-			if (isAutoCheck) {
-				logger.warn("Cannot check for updates - " + updateMessage);
-				return;
-			}
-		} else {
-			String title = "Update check";
-			Version version = null;
-			try {
-				logger.info("Performing update check...");
-				version = UpdateChecker.checkForUpdate();
-				PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
-			} catch (Exception e) {
-				logger.error("Unable to check for update: {}", e.getLocalizedMessage());
-				logger.debug(e.getLocalizedMessage(), e);
-			}
-			// If we couldn't determine the version, tell the user only if this isn't the automatic check
-			if (version == null) {
-				if (isAutoCheck)
-					return;
-				else {
-					updateMessage = "Sorry, I can't check for updates at this time.";
-					isError = true;
-				}
-			}
-			if (version.compareTo(currentVersion) > 0) {
-				updateMessage = "QuPath " + version.toString() + " is available, you are running " + currentVersion.toString();
-			} else {
-				logger.info("Current version {}, latest stable release {} - nothing to update", currentVersion, version);
-				if (!isAutoCheck)
-					Dialogs.showMessageDialog(title, "QuPath " + currentVersion + " is up to date!");
-				return;
+		// Start with the main app
+		var qupathVersion = getVersion();
+		if (qupathVersion != null && qupathVersion != Version.UNKNOWN) {
+			projects.put(GitHubRepo.create("QuPath", "qupath", "qupath"), qupathVersion);
+		}
+		
+		// Work through extensions
+		for (var ext : getLoadedExtensions()) {
+			var v = ext.getVersion();
+			if (v != null && v != Version.UNKNOWN && ext instanceof GitHubProject) {
+				var project = (GitHubProject)ext;
+				projects.put(project.getRepository(), v);
 			}
 		}
 		
-		var label = new Label(updateMessage + "\n\nDo you want to open the QuPath website (https://qupath.github.io)?");
-		label.setPadding(new Insets(0, 0, 20, 0));
-		var pane = new BorderPane(label);
+		// Report if there is nothing to update
+		if (projects.isEmpty()) {
+			if (isAutoCheck) {
+				logger.warn("Cannot check for updates for this installation");
+			} else {
+				Dialogs.showMessageDialog(title, "Sorry, no update check is available for this installation");
+			}
+			return;
+		}
+		
+		// Check for any updates
+		for (var entry : projects.entrySet()) {
+			try {
+				var project = entry.getKey();
+				logger.info("Update check for {}", project);
+				var release = UpdateChecker.checkForUpdate(entry.getKey());
+				if (release != null && release.getVersion() != Version.UNKNOWN && entry.getValue().compareTo(release.getVersion()) < 0)
+					projectUpdates.put(project, release);
+			} catch (Exception e) {
+				logger.error("Update check failed for {}", entry.getKey());
+				logger.debug(e.getLocalizedMessage(), e);
+			}
+		}
+		PathPrefs.getUserPreferences().putLong("lastUpdateCheck", System.currentTimeMillis());
+		
+		// If we couldn't determine the version, tell the user only if this isn't the automatic check
+		if (projectUpdates.isEmpty()) {
+			if (!isAutoCheck)
+				Dialogs.showMessageDialog(title, "No updates found!");
+			return;
+		}
+		
+		// Create a table showing the updates available
+		var table = new TableView<GitHubRepo>();
+		table.getItems().setAll(projectUpdates.keySet());
+		
+		var colRepo = new TableColumn<GitHubRepo, String>("Name");
+		colRepo.setCellValueFactory(r -> new SimpleStringProperty(r.getValue().getName()));
+		
+		var colCurrent = new TableColumn<GitHubRepo, String>("Current version");
+		colCurrent.setCellValueFactory(r -> new SimpleStringProperty(projects.get(r.getValue()).toString()));
+
+		var colNew = new TableColumn<GitHubRepo, String>("New version");
+		colNew.setCellValueFactory(r -> new SimpleStringProperty(projectUpdates.get(r.getValue()).getVersion().toString()));
+		
+		table.setRowFactory(r -> {
+			var row = new TableRow<GitHubRepo>();
+			row.itemProperty().addListener((v, o, n) -> {
+				if (n == null) {
+					row.setTooltip(null);
+					row.setOnMouseClicked(null);
+				} else {
+					var release = projectUpdates.get(n);
+					var uri = release.getUri();
+					if (uri == null) {
+						row.setTooltip(new Tooltip("No URL available, sorry!"));
+						row.setOnMouseClicked(null);
+					} else {
+						row.setTooltip(new Tooltip(uri.toString()));
+						row.setOnMouseClicked(e -> {
+							if (e.getClickCount() > 1) {
+								launchBrowserWindow(uri.toString());
+							}
+						});
+					}
+				}
+			});
+			return row;
+		});
+		
+		table.getColumns().setAll(Arrays.asList(colRepo, colCurrent, colNew));
+		table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		table.setPrefHeight(200);
+		table.setPrefWidth(500);
+		
 		var checkbox = new CheckBox("Automatically check for updates on startup");
 		checkbox.setSelected(PathPrefs.doAutoUpdateCheckProperty().get());
 		checkbox.setMaxWidth(Double.MAX_VALUE);
+		
+		var pane = new BorderPane(table);
+		checkbox.setPadding(new Insets(5, 0, 0, 0));
 		pane.setBottom(checkbox);
 		
-		var dialog = Dialogs.builder()
-				.title("Update check")
+		var result = new Dialogs.Builder()
+				.buttons(ButtonType.OK)
+				.title(title)
+				.headerText("Updates are available!\nDouble-click an entry to open the webpage, if available.")
 				.content(pane)
-				.alertType(isError ? AlertType.ERROR : AlertType.INFORMATION)
-				.buttons(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
-		var response = dialog.showAndWait().orElse(ButtonType.CANCEL);
-		if (response != ButtonType.CANCEL)
+				.resizable()
+				.showAndWait()
+				.orElse(ButtonType.CANCEL) == ButtonType.OK;
+		
+		if (result) {
 			PathPrefs.doAutoUpdateCheckProperty().set(checkbox.isSelected());
-		if (response == ButtonType.YES) {
-			launchBrowserWindow("https://qupath.github.io");
 		}
 	}
+	
+	
+	
+	
 	
 	
 	
@@ -1596,7 +1671,7 @@ public class QuPathGUI {
 		Version qupathVersion = getVersion();
 		for (QuPathExtension extension : extensions) {
 			if (!loadedExtensions.containsKey(extension.getClass())) {
-				Version version = getRequestedVersion(extension);
+				Version version = extension.getVersion();
 				try {
 					long startTime = System.currentTimeMillis();
 					extension.installExtension(this);
@@ -1647,16 +1722,6 @@ public class QuPathGUI {
 			}
 		}
 		initializingMenus.set(initializing);
-	}
-	
-	private Version getRequestedVersion(QuPathExtension extension) {
-		try {
-			var version = extension.getQuPathVersion();
-			return version == null || version.isBlank() ? null : Version.parse(version);
-		} catch (Exception e) {
-			logger.error("Unable to parse version for {}", extension);
-			return null;
-		}
 	}
 	
 	
@@ -1877,7 +1942,10 @@ public class QuPathGUI {
 						);
 			}
 			
-			paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory", originalMaxMemory, "GB", "Set the maximum memory for QuPath - consider using approximately half the total RAM for the system");
+			paramsSetup.addDoubleParameter("maxMemoryGB", "Maximum memory", originalMaxMemory, "GB",
+					"Set the maximum memory for Java.\n"
+					+ "Note that some commands (e.g. pixel classification) may still use more memory when needed,\n"
+					+ "so this value should generally not exceed half the total memory available on the system.");
 		} else {
 			paramsSetup.addEmptyParameter(maxMemoryString)
 				.addEmptyParameter("Sorry, I can't access the config file needed to change the max memory.\n" +

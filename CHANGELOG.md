@@ -38,6 +38,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Default to project script directory when choosing a location to save a new script
 * Improved command line
   * Specify script parameters with the `--args` option
+  * Make contents of any extensions directory available to the classloader
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
 * New 'Optional args' when importing images
   * This allows options such as `--dims XYTZC --series 2` to be passed to Bio-Formats to customize image import
@@ -50,6 +51,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Access by double-clicking pixel size values under the 'Image' tab
   * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
 * *Objects > Annotations... > Rotate annotation* now works with point annotations
+* Update checking can now include extensions hosted on GitHub
 * New 360 degree image rotation (under *View > Rotate image*)
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
@@ -65,11 +67,14 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Log files are now turned off by default; this can be changed in the preferences if a QuPath user directory is set
 * Optionally use `qupath.prefs.name` system property to use a different preferences location, enabling multiple QuPath installations to have distinct preferences
 * Provide optional launch scripts and `-Pld-path=true` Gradle options for Linux to set LD_LIBRARY_PATH and work around pixman problems (https://github.com/qupath/qupath/issues/628)
+* When setting stain vectors, do not overwrite the last workflow step if it was also used to set stain vectors
+  * This makes it possible to go back to earlier stains if needed
 
 ### Code changes
 * Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
+* The *'Number of processors for parallel commands'* preference has been renamed to *'Number of parallel threads'*
 * `GeneralTools.readAsString` methods now assume UTF-8 encoding
 * `PixelClassificationOverlay` has moved to the main GUI module
 * Scripting method `getColorRGB()` has been replaced by `makeRBG()` and `makeARGB()`; further related changes in ColorTools class
@@ -90,7 +95,8 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Note! This change means classifiers written with v0.3 cannot be used in v0.2 (but v0.2 classifiers should work in v0.3)
 * *Detect centroid distances 2D* doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
 * Deleting a TMA grid deletes all objects (https://github.com/qupath/qupath/issues/646)
-* *Subcellular detection (experimental)* does't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)
+* *Subcellular detection (experimental)* always returns 0 for cluster count (https://github.com/qupath/qupath/issues/788)
+* *Subcellular detection (experimental)* doesn't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)
   * Note: Spots with an area exactly equal to the minimum spot size are now retained (previously they were discarded)
 * *Convert detections to points* loses plane when applied to a z-stack (https://github.com/qupath/qupath/issues/696)
 * Exception when pressing *'Create workflow'* if no image is open (https://github.com/qupath/qupath/issues/608)

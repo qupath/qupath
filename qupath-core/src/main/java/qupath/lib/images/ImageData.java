@@ -315,9 +315,10 @@ public class ImageData<T> implements WorkflowListener, PathObjectHierarchyListen
 				map,
 				"setColorDeconvolutionStains(\'" + arg + "');");
 		
-		if (lastStep != null && commandName.equals(lastStep.getName()))
-			imageData.getHistoryWorkflow().replaceLastStep(newStep);
-		else
+//		if (lastStep != null && commandName.equals(lastStep.getName()))
+//			imageData.getHistoryWorkflow().replaceLastStep(newStep);
+//		else
+		if (!Objects.equals(newStep, lastStep))
 			imageData.getHistoryWorkflow().addStep(newStep);
 
 		

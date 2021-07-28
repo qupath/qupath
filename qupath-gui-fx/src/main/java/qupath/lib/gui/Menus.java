@@ -99,6 +99,7 @@ class Menus {
 					new AnalyzeMenuManager(),
 					new TMAMenuManager(),
 					new ClassifyMenuManager(),
+					new ExtensionsMenuManager(),
 					new HelpMenuManager()
 					);
 		}
@@ -866,6 +867,35 @@ class Menus {
 		
 	}
 	
+	@ActionMenu("Extensions")
+	public class ExtensionsMenuManager {
+		
+		@ActionDescription("View a list of installed QuPath extensions.")
+		@ActionMenu("Installed extensions")
+		public final Action EXTENSIONS = createAction(() -> Commands.showInstalledExtensions(qupath));
+
+//		@ActionDescription("View a list of installed QuPath extensions.")
+//		@ActionMenu("Open extensions directory")
+//		public final Action OPEN_EXTENSIONS_DIR;
+		
+		@ActionMenu("")
+		public final Action SEP_1 = ActionTools.createSeparator();
+		
+//		private ExtensionsMenuManager() {
+//			OPEN_EXTENSIONS_DIR = createAction(() -> {
+//				var dir = QuPathGUI.getExtensionDirectory();
+//				if (dir != null) {
+//					GuiTools.browseDirectory(dir);
+//				} else {
+//					Dialogs.showErrorMessage("Extensions directory", "No extensions directory has been set!\n"
+//							+ "Install an extension by dragging it onto QuPath first.");
+//				}
+//			});
+////			OPEN_EXTENSIONS_DIR.disabledProperty().bind(PathPrefs.userPathProperty().isNull());
+//		}
+
+	}
+	
 	
 	@ActionMenu("Help")
 	public class HelpMenuManager {
@@ -918,11 +948,7 @@ class Menus {
 		@ActionDescription("View system information.")
 		@ActionMenu("System info")
 		public final Action INFO = Commands.createSingleStageAction(() -> Commands.createShowSystemInfoDialog(qupath));
-		
-		@ActionDescription("View a list of installed QuPath extensions.")
-		@ActionMenu("Installed extensions")
-		public final Action EXTENSIONS = createAction(() -> Commands.showInstalledExtensions(qupath));
-		
+				
 	}
 
 }

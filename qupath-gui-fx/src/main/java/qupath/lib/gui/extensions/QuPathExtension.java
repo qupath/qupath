@@ -23,12 +23,13 @@
 
 package qupath.lib.gui.extensions;
 
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.Version;
 
 /**
  * Simple interface for QuPath extensions.
- * 
+ * <p>
  * This allows dynamic discovery of new extensions.
  * 
  * @author Pete Bankhead
@@ -38,7 +39,7 @@ public interface QuPathExtension {
 	
 	/**
 	 * Install the extension for a QuPathGUI instance.
-	 * 
+	 * <p>
 	 * This generally involves adding new commands to appropriate menus.
 	 * <p>
 	 * Note that if an extension is only expected to be compatible with a specific QuPath version, 
@@ -60,7 +61,7 @@ public interface QuPathExtension {
 	
 	/**
 	 * A short description of the extension for displaying in the main GUI.
-	 * 
+	 * <p>
 	 * This could also contain licensing information.
 	 * 
 	 * @return
@@ -69,16 +70,25 @@ public interface QuPathExtension {
 	
 	/**
 	 * Get a QuPath version for which this extension was written.
-	 * 
+	 * <p>
 	 * This is used to provide an explanation if the extension could not be loaded.
-	 * It has a default implementation that returns null to allow backwards compatibility, 
+	 * It has a default implementation that returns {@link Version#UNKNOWN} to allow backwards compatibility, 
 	 * however it strongly recommended to return the actual QuPath version against which 
 	 * the extension was developed and tested.
 	 * @return a semantic version corresponding to a QuPath version, e.g. "0.3.0".
 	 * @see Version
 	 */
-	public default String getQuPathVersion() {
-		return null;
+	public default Version getQuPathVersion() {
+		return Version.UNKNOWN;
+	}
+	
+	/**
+	 * Get the version of the current extension.
+	 * @return
+	 */
+	public default Version getVersion() {
+		var packageVersion = GeneralTools.getPackageVersion(getClass());
+		return Version.parse(packageVersion);
 	}
 
 }

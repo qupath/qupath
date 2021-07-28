@@ -465,8 +465,8 @@ public class OpenCVClassifiers {
 				var indexer = results.createIndexer();
 				int nClasses = results.cols();
 				
-				var matResultsnew = new Mat(nSamples, 1, opencv_core.CV_32SC1);
-				IntIndexer idxResults = matResultsnew.createIndexer();
+				var matResultsNew = new Mat(nSamples, 1, opencv_core.CV_32SC1);
+				IntIndexer idxResults = matResultsNew.createIndexer();
 				if (probabilities != null) {
 					probabilities.create(nSamples, nClasses, opencv_core.CV_32FC1);
 					probabilities.put(results);
@@ -489,7 +489,8 @@ public class OpenCVClassifiers {
 				}
 				indexer.release();
 				idxResults.release();
-				results.put(matResultsnew);
+				results.put(matResultsNew);
+				matResultsNew.close();
 			} else {
 				results.convertTo(results, opencv_core.CV_32SC1);
 				if (probabilities != null) {
@@ -832,6 +833,10 @@ public class OpenCVClassifiers {
 				idxResults.put(i, prediction);
 				row++;
 			}
+			
+			indexer.release();
+			idxProbabilities.release();
+			idxResults.release();
 			votes.close();
 		}
 		

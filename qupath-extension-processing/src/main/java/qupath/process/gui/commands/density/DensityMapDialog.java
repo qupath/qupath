@@ -577,6 +577,11 @@ public class DensityMapDialog {
 				if (alphaCountBand > 0 || autoUpdateSomething) {
 					try {
 						minMax = DensityMapUI.getMinMax(densityMapServer);
+						// This can happen if the density map is replaced too quickly, so min/max calculations aren't performed
+						if (minMax == null) {
+							logger.debug("Min/max calculation interrupted!");
+							return;
+						}
 					} catch (IOException e) {
 						logger.warn("Error setting display ranges: " + e.getLocalizedMessage(), e);
 					}

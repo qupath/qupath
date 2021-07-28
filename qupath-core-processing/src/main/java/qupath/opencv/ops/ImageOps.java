@@ -404,7 +404,7 @@ public class ImageOps {
 				if (op != null) {
 					mat.put(op.apply(mat));					
 				}
-				scope.deallocate();
+//				scope.deallocate();
 			}
 			return mat;
 		}
@@ -913,7 +913,7 @@ public class ImageOps {
 						}
 					}
 					OpenCVTools.mergeChannels(output, input);
-					scope.deallocate();
+//					scope.deallocate();
 				}
 				return input;
 			}
@@ -2345,7 +2345,7 @@ public class ImageOps {
 						mats.add(temp);
 					}
 					OpenCVTools.mergeChannels(mats, input);
-					scope.deallocate();
+//					scope.deallocate();
 				}
 				return input;
 			}
@@ -2669,7 +2669,7 @@ public class ImageOps {
 					} else
 						model.predict(input, matResult, null);
 					input.put(matResult.reshape(matResult.cols(), h));
-					scope.deallocate();
+//					scope.deallocate();
 				}
 				return input;
 			}

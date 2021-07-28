@@ -414,7 +414,7 @@ public class OpenCVTools {
 			} else {
 				opencv_core.merge(new MatVector(channels.toArray(Mat[]::new)), dest);
 			}
-			scope.deallocate();
+//			scope.deallocate();
 		}
 
 		return dest;
@@ -1265,8 +1265,13 @@ public class OpenCVTools {
 		
 		Map<Integer, Mat> cache = doMean ? cachedMeanDisks : cachedSumDisks;
 		Mat kernel = cache.get(radius);
-		if (kernel != null && !kernel.isNull())
-			return kernel.clone();
+		if (kernel != null) {
+			synchronized (kernel) {
+				// This may happen if the kernel was created in a PointerScope and deallocate() was called
+				if (!kernel.isNull())
+					return kernel.clone();
+			}
+		}
 		kernel = new Mat();
 		
 		var kernelCenter = new Mat(radius*2+1, radius*2+1, opencv_core.CV_8UC1, Scalar.WHITE);
@@ -1280,6 +1285,8 @@ public class OpenCVTools {
 			double sum = opencv_core.sumElems(kernel).get();
 			opencv_core.dividePut(kernel, sum);
 		}
+		// Try to keep reference, even if called within a PointerScope
+		kernel.retainReference();
 		cache.put(radius, kernel);
 		return kernel.clone();
 	}
@@ -1949,7 +1956,7 @@ public class OpenCVTools {
 		    	matResult.put(crop(matResult, left, top, tileWidth-right-left, tileHeight-top-bottom));
 		    }
 		    
-		    scope.deallocate();
+//		    scope.deallocate();
 		}
 	    
 	    return matResult;
