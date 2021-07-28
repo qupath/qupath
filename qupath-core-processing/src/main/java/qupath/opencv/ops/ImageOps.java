@@ -44,14 +44,12 @@ import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
-import org.bytedeco.opencv.opencv_dnn.Net;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +68,7 @@ import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ml.OpenCVDNN;
+import qupath.opencv.ml.OpenCVFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.tools.LocalNormalization;
@@ -2485,15 +2484,35 @@ public class ImageOps {
 		
 		/**
 		 * Apply a {@link OpenCVDNN} to pixels to generate a prediction.
-		 * @param dnn 
+		 * @param model 
 		 * @param inputWidth 
 		 * @param inputHeight 
 		 * @param padding 
+		 * @param outputName
+		 * @return
+		 * @deprecated use {@link #fun(OpenCVFunction, int, int, Padding, String...)} instead
+		 */
+		@Deprecated
+		public static ImageOp dnn(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, String outputName) {
+			return new DnnOp(model, inputWidth, inputHeight, padding, outputName);
+		}
+		
+		/**
+		 * Apply an {@link OpenCVFunction} to pixels to generate a prediction.
+		 * @param fun
+		 * @param inputWidth
+		 * @param inputHeight
+		 * @param padding
+		 * @param outputNames
 		 * @return
 		 */
-		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding) {
-			return new DnnOp(dnn, inputWidth, inputHeight, padding, false);
+		public static ImageOp fun(OpenCVFunction fun, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+			return new FunOp(fun, inputWidth, inputHeight, padding, outputNames);
 		}
+		
+//		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+//			return new DnnOp(dnn, inputWidth, inputHeight, padding, outputNames);
+//		}
 		
 		/**
 		 * Apply a {@link FeaturePreprocessor} to pixels, considering each channel as features.
@@ -2537,37 +2556,33 @@ public class ImageOps {
 			
 		}
 		
-		@OpType("opencv-dnn")
-		static class DnnOp extends PaddedOp {
+		@OpType("opencv-fun")
+		static class FunOp extends PaddedOp {
 
-			private OpenCVDNN model;
+			private OpenCVFunction model;
 			private int inputWidth;
 			private int inputHeight;
 			
-			private boolean doParallel;
+			private String[] outputNames = new String[0];
 			
 			private Padding padding;
 			
-			private transient Net net;
-			private transient ThreadLocal<Net> localNet = ThreadLocal.withInitial(() -> readNet());
-			private transient Exception exception;
 			private transient Map<Integer, List<ImageChannel>> outputChannels = Collections.synchronizedMap(new HashMap<>());
 			
 			/**
-			 * A DNN op.
+			 * A op that calls an {@link OpenCVFunction}.
 			 * @param model
 			 * @param inputWidth
 			 * @param inputHeight
 			 * @param padding
-			 * @param doParallel if true, load the Net for each thread so it may be applied in parallel. 
-			 *                   This is not a good idea if the net is 'heavyweight'.
+			 * @param outputNames names of output layers; these will be concatenate along the channels dimension
 			 */
-			DnnOp(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, boolean doParallel) {
+			FunOp(OpenCVFunction model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
 				this.model = model;
 				this.inputWidth = inputWidth;
 				this.inputHeight = inputHeight;
-				this.padding = padding;
-				this.doParallel = doParallel;
+				this.padding = padding == null ? Padding.empty() : padding;
+				this.outputNames = outputNames.clone();
 			}
 
 			@Override
@@ -2575,39 +2590,13 @@ public class ImageOps {
 				return padding;
 			}
 			
-			/**
-			 * Try to read the {@link Net}, setting the exception if this fails
-			 * @return
-			 */
-			private Net readNet() {
-				if (exception == null) {
-					try {
-						return model.getNet();
-					} catch (IOException e) {
-						exception = e;
-					}
-				}
-				return null;
-			}
-			
-			private Net getNet() {
-				if (doParallel)
-					return localNet.get();
-				if (net == null)
-					net = readNet();
-				return net;
-			}
 
 			@Override
 			protected Mat transformPadded(Mat input) {
-				Net net = getNet();				
-				if (exception == null) {
-					if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
-						return doClassification(input, net);
-					else
-						return OpenCVTools.applyTiled(m -> doClassification(m, net), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
-				}
-				throw new RuntimeException(exception);
+				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
+					return doClassification(model, input, outputNames);
+				else
+					return OpenCVTools.applyTiled(m -> doClassification(model, m, outputNames), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
 			}
 			
 			@Override
@@ -2619,17 +2608,40 @@ public class ImageOps {
 			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
 				var outChannels = outputChannels.get(channels.size());
 				if (outChannels == null) {
-					var mat = new Mat(inputHeight, inputWidth, opencv_core.CV_32FC(channels.size()), Scalar.ZERO);
-					var output = transformPadded(mat);
-					outChannels = ImageChannel.getDefaultChannelList(output.channels());					
-					outputChannels.put(channels.size(), outChannels);
-					mat.close();
-					output.close();
+					synchronized (this) {
+						outChannels = outputChannels.get(channels.size());
+						if (outChannels == null) {
+							var mat = new Mat(inputHeight, inputWidth, opencv_core.CV_32FC(channels.size()), Scalar.ZERO);
+							var output = transformPadded(mat);
+							// TODO: Incorporate output layer names
+							outChannels = ImageChannel.getDefaultChannelList(output.channels());					
+							outputChannels.put(channels.size(), outChannels);
+							mat.close();
+							output.close();
+						}
+						outputChannels.put(channels.size(), outChannels);
+					}
 				}
 				return outChannels;
 			}
 			
 		}
+		
+		
+		/**
+		 * @deprecated use {@link FunOp} instead.
+		 */
+		@Deprecated
+		@OpType("opencv-dnn")
+		static class DnnOp extends FunOp {
+			
+			DnnOp(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, String outputName) {
+				super(model.buildFunction(), inputWidth, inputHeight, padding, outputName == null ? new String[0] : new String[] {outputName});
+				logger.warn("DnnOp is deprecated - please use FunOp instead");
+			}
+			
+		}
+		
 		
 		@OpType("opencv-statmodel")
 		static class StatModelOp implements ImageOp {
@@ -2672,84 +2684,36 @@ public class ImageOps {
 	}
 	
 	
-	@SuppressWarnings("unchecked")
-	private static Mat doClassification(Mat mat, Net net) {
-    	
+	private static Mat doClassification(OpenCVFunction fun, Mat mat, String... outputNames) {
+
 		var matResult = new Mat();
-		
-		try (var scope = new PointerScope()) {
-			// Currently we require 32-bit input
-	    	mat.convertTo(mat, opencv_core.CV_32F);
-	    	
-	    	
-	        // Net appears not to support multithreading, so we need to synchronize.
-	        // We also need to extract the results we need at this point while still within the synchronized block,
-	    	// since it appears that the result of calling model.forward() can become invalid later.
-	    	Mat blob = null;
-	   		int nChannels = mat.channels();
-	   	    if (nChannels == 1 || nChannels == 3 || nChannels == 4) {
-	    		blob = opencv_dnn.blobFromImage(mat);
-	    	} else {
-	    		// TODO: Don't have any net to test this with currently...
-	    		logger.warn("Attempting to reshape an image with " + nChannels + " channels - this may not work! "
-	    				+ "Only 1, 3 and 4 supported.");
-	    		// Blob is a 4D Tensor [NCHW]
-	    		int[] shape = new int[4];
-	    		Arrays.fill(shape, 1);
-	    		int nRows = mat.size(0);
-	    		int nCols = mat.size(1);
-	    		shape[1] = nChannels;
-	    		shape[2] = nRows;
-	    		shape[3] = nCols;
-	//    		for (int s = 1; s <= Math.min(nDims, 3); s++) {
-	//    			shape[s] = mat.size(s-1);
-	//    		}
-	    		blob = new Mat(shape, opencv_core.CV_32F);
-	    		var idxBlob = blob.createIndexer();
-	    		var idxMat = mat.createIndexer();
-	    		long[] indsBlob = new long[4];
-	    		long[] indsMat = new long[4];
-	    		for (int r = 0; r < nRows; r++) {
-	    			indsMat[0] = r;
-	    			indsBlob[2] = r;
-	        		for (int c = 0; c < nCols; c++) {
-	        			indsMat[1] = c;
-	        			indsBlob[3] = c;
-	            		for (int channel = 0; channel < nChannels; channel++) {
-	            			indsMat[2] = channel;
-	            			indsBlob[1] = channel;
-	            			double val = idxMat.getDouble(indsMat);
-	            			idxBlob.putDouble(indsBlob, val);
-	            		}    			        			
-	        		}    			
-	    		}
-	    		idxBlob.close();
-	    		idxMat.close();
-	    	}
-	   	    synchronized(net) {
-	    		long startTime = System.currentTimeMillis();
-	    		net.setInput(blob);
-	    		try {
-	    			Mat prob = net.forward();
-	    			MatVector matvec = new MatVector();
-	    			opencv_dnn.imagesFromBlob(prob, matvec);
-	    			if (matvec.size() != 1)
-	    				throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
-	    			// Get the first result & clone it - otherwise can have threading woes
-	    			matResult.put(matvec.get(0L).clone());
-	    			matvec.close();
-	    		} catch (Exception e2) {
-	    			logger.error("Error applying classifier", e2);
-	    		}
-	    		long endTime = System.currentTimeMillis();
-	    		logger.trace("Classification time: {} ms", endTime - startTime);
-	    	}
-	   	    scope.deallocate();
+
+		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
+			
+			var output = fun.call(Map.of("input", mat));
+			
+			if (!output.isEmpty()) {
+				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))
+					matResult.put(output.values().iterator().next());
+				else {
+					var tempArray = new Mat[outputNames.length];
+					for (int i = 0; i < outputNames.length; i++) {
+						var name = outputNames[i];
+						if (output.containsKey(name)) {
+							tempArray[i] = output.get(name);
+						} else
+							throw new RuntimeException(String.format("Unable to find output '%s' in %s", name, fun));
+					}
+					opencv_core.merge(new MatVector(tempArray), matResult);
+				}
+			}
+
+			scope.deallocate();
 		}
-		
+
 		return matResult;
-        
-    }
+
+	}
 	
 	
 	

@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -22,18 +22,28 @@
 package qupath.opencv.ml;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
-import org.bytedeco.javacpp.IntPointer;
+import java.util.Map;
 import org.bytedeco.javacpp.PointerScope;
-import org.bytedeco.javacpp.SizeTPointer;
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.MatVector;
+import org.bytedeco.opencv.opencv_core.Scalar;
+import org.bytedeco.opencv.opencv_core.Size;
 import org.bytedeco.opencv.opencv_core.StringVector;
+import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_dnn;
-import org.bytedeco.opencv.opencv_dnn.MatShapeVector;
+import org.bytedeco.opencv.opencv_dnn.ClassificationModel;
+import org.bytedeco.opencv.opencv_dnn.DetectionModel;
+import org.bytedeco.opencv.opencv_dnn.KeypointsModel;
+import org.bytedeco.opencv.opencv_dnn.Model;
 import org.bytedeco.opencv.opencv_dnn.Net;
+import org.bytedeco.opencv.opencv_dnn.SegmentationModel;
+import org.bytedeco.opencv.opencv_dnn.TextDetectionModel_DB;
+import org.bytedeco.opencv.opencv_dnn.TextDetectionModel_EAST;
+import org.bytedeco.opencv.opencv_dnn.TextRecognitionModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,76 +60,196 @@ public class OpenCVDNN {
 	
 	private static Logger logger = LoggerFactory.getLogger(OpenCVDNN.class);
 	
+	/**
+	 * Enum representing different classes of {@link Model} supported by OpenCV.
+	 * These can be used as a more convenient way to run predictions.
+	 */
+	public static enum ModelType {
+		
+		/**
+		 * Default {@link Model} class.
+		 */
+		DEFAULT,
+		
+		/**
+		 * Refers to {@link DetectionModel}.
+		 */
+		DETECTION,
+		
+		/**
+		 * Refers to {@link SegmentationModel}.
+		 */
+		SEGMENTATION,
+		
+		/**
+		 * Refers to {@link ClassificationModel}.
+		 */
+		CLASSIFICATION,
+		
+		/**
+		 * Refers to {@link KeypointsModel}.
+		 */
+		KEYPOINTS,
+		
+		/**
+		 * Refers to {@link TextRecognitionModel}.
+		 */
+		TEXT_RECOGNITION,
+		
+		/**
+		 * Refers to {@link TextDetectionModel_DB}.
+		 */
+		TEXT_DETECTION_DB,
+		
+		/**
+		 * Refers to {@link TextDetectionModel_EAST}.
+		 */
+		TEXT_DETECTION_EAST;
+	}
+	
 	private String name;
+	
+	private ModelType modelType = ModelType.DEFAULT;
 	
 	private String pathModel;
 	private String pathConfig;
 	private String framework;
 	
-	private String outputLayerName;
+	private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
+	private int target = opencv_dnn.DNN_TARGET_CPU;
 	
-	private double[] means;
-	private double[] scales;
-	private boolean swapRB;
-	
-	private transient Net net;
-	private transient Boolean doMeanSubtraction;
-	private transient Boolean doScaling;
+	private boolean crop = false;
+	private boolean swapRB = false;
+	private Size size;
+	private Scalar mean;
+	private double scale;
+
 		
 	private OpenCVDNN() {}
 
 	/**
-	 * Get the actual OpenCV Net directly.
+	 * Build the OpenCV {@link Net}. This is a lower-level function than {@link #buildModel()}, which provides 
+	 * more options to query the network architecture but does not incorporate any preprocessing steps.
 	 * @return
-	 * @throws IOException 
 	 */
-	public Net getNet() throws IOException {
-		if (net == null) {
-			try {
-				net = opencv_dnn.readNet(pathModel, pathConfig, framework);
-			} catch (RuntimeException e) {
-				throw new IOException("Unable to load model from " + pathModel, e);
-			}
-		}
+	public Net buildNet() {
+		var net = opencv_dnn.readNet(pathModel, pathConfig, framework);
+		initializeNet(net);
 		return net;
 	}
 	
 	/**
-	 * Create a (multiline) summary String for the Net, given the specified image input dimensions.
-	 * @param width input width
-	 * @param height input height
-	 * @param nChannels input channel count
+	 * Build a model, specifying the {@link ModelType}.
+	 * @param <T>
+	 * @param type
 	 * @return
-	 * @throws IOException if an error occurs when loading the model
+	 * @see #buildModel()
 	 */
-	public String summarize(int width, int height, int nChannels) throws IOException {
-		StringBuilder sb = new StringBuilder();
-		sb.append(name).append("\n");
-		
-		MatShapeVector netInputShape = getShapeVector(width, height, nChannels, 1);
-		
-		StringVector types = new StringVector();
-		Net net = getNet();
-		net.getLayerTypes(types);
-		sb.append("Layer types:");
-		for (String type : parseStrings(types))
-			sb.append("\n\t").append(type);
-		
-		sb.append("\nLayers:");
-		for (var layer : parseLayers(net, netInputShape)) {
-			sb.append("\n\t").append(layer.toString());
+	public <T extends Model> T buildModel(ModelType type) {
+		if (type == null)
+			type = ModelType.DEFAULT;
+		var net = buildNet();
+		@SuppressWarnings("unchecked")
+		T model = (T)buildModel(type, net);
+		initializeModel(model);
+		return model;
+	}
+	
+	private static Model buildModel(ModelType type, Net net) {
+		switch (type) {
+		case CLASSIFICATION:
+			return new ClassificationModel(net);
+		case DETECTION:
+			return new DetectionModel(net);
+		case SEGMENTATION:
+			return new SegmentationModel(net);
+		case KEYPOINTS:
+			return new KeypointsModel(net);
+		case TEXT_RECOGNITION:
+			return new TextRecognitionModel(net);
+		case TEXT_DETECTION_DB:
+			return new TextDetectionModel_DB(net);
+		case TEXT_DETECTION_EAST:
+			return new TextDetectionModel_EAST(net);
+		case DEFAULT:
+		default:
+			return new Model(net);
 		}
+	}
 		
-		long flops = net.getFLOPS(netInputShape);
-		sb.append("\nFLOPS: ").append(flops);
-
-		SizeTPointer weights = new SizeTPointer(1L);
-		SizeTPointer blobs = new SizeTPointer(1L);
-		net.getMemoryConsumption(netInputShape, weights, blobs);
-		sb.append("\nMemory (weights): ").append(weights.get());
-		sb.append("\nMemory (blobs): ").append(blobs.get());
-
-		return sb.toString();
+	/**
+	 * Build a model. The return type is determined by the {@link ModelType}.
+	 * @param <T>
+	 * @return
+	 * @see #buildModel(ModelType)
+	 */
+	public <T extends Model> T buildModel() {
+		return buildModel(modelType);
+	}
+	
+	
+	/**
+	 * Initialize the model with the same preprocessing defined here (i.e. input size, mean, scale, crop, swapRB).
+	 * @param model
+	 */
+	public void initializeModel(Model model) {
+		model.setInputCrop(crop);
+		model.setInputSwapRB(swapRB);
+		if (mean != null)
+			model.setInputMean(mean);
+		if (Double.isFinite(scale))
+			model.setInputScale(scale);
+		if (size != null)
+			model.setInputSize(size);
+	}
+	
+	
+	/**
+	 * Build a generic {@link OpenCVFunction} from this dnn.
+	 * @return
+	 */
+	public OpenCVFunction buildFunction() {
+		return new DnnFunction(this);
+	}
+	
+	
+	private void initializeNet(Net net) {
+		switch (target) {
+		case opencv_dnn.DNN_TARGET_CUDA:
+		case opencv_dnn.DNN_TARGET_CUDA_FP16:
+			int count = opencv_core.getCudaEnabledDeviceCount();
+			if (count <= 0)
+				logger.warn("Unable to set CUDA target - reported CUDA device count {}", count);
+			else if (backend != opencv_dnn.DNN_BACKEND_CUDA) {
+				logger.warn("Must specify CUDA backend to use CUDA target - request will be ignored");
+			} else {
+				logger.debug("Setting CUDA backend and target ({}:{})", backend, target);
+				net.setPreferableBackend(backend);
+				net.setPreferableTarget(target);
+			}
+			break;
+		case opencv_dnn.DNN_TARGET_OPENCL:
+		case opencv_dnn.DNN_TARGET_OPENCL_FP16:
+			if (!opencv_core.haveOpenCL())
+				logger.warn("Cannot set OpenCL target - OpenCL is unavailable");
+			else if (backend == opencv_dnn.DNN_BACKEND_CUDA) {
+				logger.warn("Cannot set CUDA backend and OpenCL target");
+			} else {
+				logger.debug("Setting OpenCL backend and target ({}:{})", backend, target);
+				net.setPreferableBackend(backend);
+				net.setPreferableTarget(target);
+			}
+			break;
+		case opencv_dnn.DNN_TARGET_CPU:
+		case opencv_dnn.DNN_TARGET_FPGA:
+		case opencv_dnn.DNN_TARGET_HDDL:
+		case opencv_dnn.DNN_TARGET_MYRIAD:
+		case opencv_dnn.DNN_TARGET_VULKAN:
+		default:
+			net.setPreferableBackend(backend);
+			net.setPreferableBackend(target);
+			break;
+		}
 	}
 	
 	/**
@@ -130,32 +260,31 @@ public class OpenCVDNN {
 		return name;
 	}
 	
+	
 	/**
-	 * Get the name of the requested output layer, or null if no output layer is required (that is, the last should be chosen).
-	 * @return
+	 * Get scale factors to be applied to preprocess input.
+	 * @return the scale value if specified, or null if default scaling should be used
+	 * @see #getMean()
 	 */
-	public String getOutputLayerName() {
-		return outputLayerName;
+	public Double getScale() {
+		return scale;
 	}
 	
 	/**
-	 * Get scale factors to be applied for preprocessing. This can either be a single value to multiply 
-	 * all channels, or a different value per input channel. The calculation is {@code (mat - means) * scale}.
+	 * Get the type of the model that would be built with {@link #buildModel()}.
 	 * @return
-	 * @see #getMeans()
 	 */
-	public double[] getScales() {
-		return scales.clone();
+	public ModelType getModelType() {
+		return modelType;
 	}
 	
 	/**
-	 * Get means which should be subtracted for preprocessing. This can either be a single value to subtract 
-	 * from all channels, or a different value per input channel. The calculation is {@code (mat - means) * scale}.
-	 * @return
-	 * @see #getScales()
+	 * Get means which should be subtracted for preprocessing.
+	 * @return the mean value if specified, or null if OpenCV's default should be used (likely to be zero)
+	 * @see #getScale()
 	 */
-	public double[] getMeans() {
-		return means.clone();
+	public Scalar getMean() {
+		return mean == null ? null : new Scalar(mean);
 	}
 	
 	/**
@@ -190,147 +319,19 @@ public class OpenCVDNN {
 		return framework;
 	}
 	
+	
 	/**
-	 * Returns true if mean subtraction is required as preprocessing.
+	 * Create a new builder.
+	 * @param pathModel
 	 * @return
 	 */
-	public boolean doMeanSubtraction() {
-		if (doMeanSubtraction == null) {
-			doMeanSubtraction = means != null && means.length > 0 && !Arrays.stream(means).allMatch(d -> d == 0.0);
-		}
-		return doMeanSubtraction;
-	}
-	
-	/**
-	 * Returns true if scaling is required as preprocessing.
-	 * @return
-	 */
-	public boolean doScaling() {
-		if (doScaling == null) {
-			doScaling = scales != null && scales.length > 0 && !Arrays.stream(scales).allMatch(d -> d == 1.0);
-		}
-		return doScaling;
+	public static Builder builder(String pathModel) {
+		return new Builder(pathModel);
 	}
 	
 	
-    /**
-     * Parse the layers for a Net, which allows inspection of names and sizes.
-     * @param net the Net to parse
-     * @param width input width
-     * @param height input height
-     * @param channels input channels
-     * @param batchSize input batch size
-     * @return
-     */
-	public static List<DNNLayer> parseLayers(Net net, int width, int height, int channels, int batchSize) {
-		MatShapeVector netInputShape = getShapeVector(width, height, channels, batchSize);
-		return parseLayers(net, netInputShape);
-	}
-	
-	static MatShapeVector getShapeVector(int width, int height, int channels, int batchSize) {
-		int[] shapeInput = new int[] {batchSize, channels, height, width};
-		return new MatShapeVector(new IntPointer(shapeInput));
-	}
-	
-	static List<DNNLayer> parseLayers(Net net, MatShapeVector netInputShape) {
-		List<DNNLayer> list = new ArrayList<>();
-		try (PointerScope scope = new PointerScope()) {
-			StringVector names = net.getLayerNames();
-			MatShapeVector inputShape = new MatShapeVector();
-			MatShapeVector outputShape = new MatShapeVector();
-			for (int i = 0; i < names.size(); i++) {
-				String name = names.get(i).getString();
-				int id = net.getLayerId(name);
-				net.getLayerShapes(netInputShape, id, inputShape, outputShape);
-				list.add(new DNNLayer(name, id, parseShape(inputShape), parseShape(outputShape)));
-			}
-		}
-		return list;
-	}
-
-	/**
-	 * Extract Strings from a {@link StringVector}.
-	 * @param vector
-	 * @return
-	 */
-	public static List<String> parseStrings(StringVector vector) {
-		List<String> list = new ArrayList<>();
-		int n = (int)vector.size();
-		for (int i = 0; i < n; i++)
-			list.add(vector.get(i).getString());
-		return list;
-	}
-	
-	/**
-	 * Extract {@link Mat} dimensions from a {@link MatShapeVector}.
-	 * @param vector
-	 * @return
-	 */
-	public static int[] parseShape(MatShapeVector vector) {
-		IntPointer pointer = vector.get(0L);
-		int[] shape = new int[(int)pointer.limit()];
-		for (int i = 0; i < shape.length; i++)
-			shape[i] = pointer.get(i);
-		return shape;
-	}
 	
 	
-	/**
-	 * Helper class to summarize a DNN layer.
-	 */
-	public static class DNNLayer {
-		
-		private String name;
-		private int id;
-		private int[] inputShapes;
-		private int[] outputShapes;
-		
-		private DNNLayer(String name, int id, int[] inputShapes, int[] outputShapes) {
-			this.name = name;
-			this.id = id;
-			this.inputShapes = inputShapes;
-			this.outputShapes = outputShapes;
-		}
-		
-		/**
-		 * Layer name.
-		 * @return
-		 */
-		public String getName() {
-			return name;
-		}
-		
-		/**
-		 * Layer ID.
-		 * @return
-		 */
-		public int getID() {
-			return id;
-		}
-		
-		/**
-		 * Layer input shape. This may depend on the input shape provided when summarizing the model
-		 * @return
-		 */
-		public int[] getInputShapes() {
-			return inputShapes.clone();
-		}
-		
-		/**
-		 * Layer output shape. This may depend on the input shape provided when summarizing the model
-		 * @return
-		 */
-		public int[] getOutputShapes() {
-			return outputShapes.clone();
-		}
-		
-		@Override
-		public String toString() {
-			return String.format("%s \t%s -> %s" ,
-					name, Arrays.toString(inputShapes), Arrays.toString(outputShapes));
-		}
-		
-	}
 	
 	
 	/**
@@ -339,21 +340,26 @@ public class OpenCVDNN {
 	public static class Builder {
 		
 		private String name;
-		private String outputLayerName;
+		
+		private ModelType modelType = ModelType.DEFAULT;
 		
 		private String pathModel;
 		private String pathConfig;
 		private String framework;
 		
-		private double[] means = new double[] {0};
-		private double[] scales = new double[] {1.0};
+		private Size size = null;
+		private Scalar mean = null;
+		private double scale = 1.0;
 		private boolean swapRB = false;
+		
+		private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
+		private int target = opencv_dnn.DNN_TARGET_CPU;
 		
 		/**
 		 * Path to the model file.
 		 * @param pathModel
 		 */
-		public Builder(String pathModel) {
+		private Builder(String pathModel) {
 			this.pathModel = pathModel;
 			try {
 				this.name = new File(pathModel).getName();
@@ -393,12 +399,67 @@ public class OpenCVDNN {
 		}
 		
 		/**
-		 * Specify the name of the output layer.
-		 * @param outputLayerName
+		 * Specify OpenCL target. It probably won't help, but perhaps worth a try.
 		 * @return
 		 */
-		public Builder outputLayerName(String outputLayerName) {
-			this.outputLayerName = outputLayerName;
+		public Builder opencl() {
+			this.backend = opencv_dnn.DNN_BACKEND_OPENCV;
+			this.target = opencv_dnn.DNN_TARGET_OPENCL;
+			return this;
+		}
+		
+		/**
+		 * Specify OpenCL target with 16-bit floating point. 
+		 * It probably won't help, but perhaps worth a try.
+		 * @return
+		 */
+		public Builder opencl16() {
+			this.backend = opencv_dnn.DNN_BACKEND_OPENCV;
+			this.target = opencv_dnn.DNN_TARGET_OPENCL_FP16;
+			return this;
+		}
+		
+		/**
+		 * Request CUDA backend and target, if available.
+		 * @return
+		 */
+		public Builder cuda() {
+			this.backend = opencv_dnn.DNN_BACKEND_CUDA;
+			this.target = opencv_dnn.DNN_TARGET_CUDA;
+			return this;
+		}
+		
+		/**
+		 * Request CUDA backend and target, if available, with 16-bit floating point.
+		 * @return
+		 */
+		public Builder cuda16() {
+			this.backend = opencv_dnn.DNN_BACKEND_CUDA;
+			this.target = opencv_dnn.DNN_TARGET_CUDA_FP16;
+			return this;
+		}
+		
+		/**
+		 * Specify the target, e.g. {@code opencv_dnn.DNN_TARGET_CUDA}.
+		 * @param target
+		 * @return
+		 * @see #cuda()
+		 * @see #opencl()
+		 */
+		public Builder target(int target) {
+			this.target = target;
+			return this;
+		}
+		
+		/**
+		 * Specify the backend, e.g. {@code opencv_dnn.DNN_BACKEND_CUDA}.
+		 * @param backend
+		 * @return
+		 * @see #cuda()
+		 * @see #opencl()
+		 */
+		public Builder backend(int backend) {
+			this.backend = backend;
 			return this;
 		}
 		
@@ -412,25 +473,78 @@ public class OpenCVDNN {
 		}
 		
 		/**
-		 * Mean values, which should be subtracted from the image channels before input to the {@link Net}.
-		 * @param means
+		 * Mean values which should be subtracted from the image channels before input to the {@link Net}.
+		 * @param mean
 		 * @return
 		 */
-		public Builder means(double...means) {
-			this.means = means;
+		public Builder mean(Scalar mean) {
+			this.mean = mean;
 			return this;
 		}
 		
 		/**
 		 * Scale values, by which channels should be multiplied (after mean subtraction) before input to the {@link Net}.
-		 * @param scales
+		 * @param scale
 		 * @return
 		 */
-		public Builder scales(double... scales) {
-			this.scales = scales;
+		public Builder scale(double scale) {
+			this.scale = scale;
 			return this;
 		}
 			
+		/**
+		 * Input width and height.
+		 * @param width
+		 * @param height
+		 * @return
+		 */
+		public Builder size(int width, int height) {
+			this.size = new Size(width, height);
+			return this;
+		}
+		
+		/**
+		 * Input width and height.
+		 * @param size
+		 * @return
+		 */
+		public Builder size(Size size) {
+			return size(size.width(), size.height());
+		}
+		
+		/**
+		 * Set the model type, used by {@link OpenCVDNN#buildModel()}.
+		 * @param type 
+		 * @return
+		 */
+		public Builder modelType(ModelType type) {
+			this.modelType = type;
+			return this;
+		}
+		
+		/**
+		 * Set the model type to be {@link ModelType#CLASSIFICATION}.
+		 * @return
+		 */
+		public Builder classification() {
+			return modelType(ModelType.CLASSIFICATION);
+		}
+		
+		/**
+		 * Set the model type to be {@link ModelType#SEGMENTATION}.
+		 * @return
+		 */
+		public Builder segmentation() {
+			return modelType(ModelType.SEGMENTATION);
+		}
+		
+		/**
+		 * Set the model type to be {@link ModelType#DETECTION}.
+		 * @return
+		 */
+		public Builder detection() {
+			return modelType(ModelType.DETECTION);
+		}
 		
 		/**
 		 * Build a new {@link OpenCVDNN}.
@@ -442,12 +556,207 @@ public class OpenCVDNN {
 			dnn.pathConfig = pathConfig;
 			dnn.framework = framework;
 			dnn.name = name;
-			dnn.outputLayerName = outputLayerName;
+			dnn.modelType = modelType == null ? ModelType.DEFAULT : modelType;
 			
-			dnn.means = means.clone();
-			dnn.scales = scales.clone();
+			dnn.size = size == null ? null : new Size(size);
+			dnn.backend = backend;
+			dnn.target = target;
+			
+			dnn.mean = mean == null ? null : new Scalar(mean);
+			dnn.scale = scale;
 			dnn.swapRB = swapRB;
 			return dnn;
+		}
+		
+	}
+	
+	
+		
+	
+	
+	
+	
+	
+
+	
+	
+	static class DnnFunction implements OpenCVFunction {
+		
+		private OpenCVDNN dnn;
+		
+		private transient Net net;
+		private transient List<String> outputLayerNames;
+		
+		DnnFunction(OpenCVDNN dnn) {
+			this.dnn = dnn;
+			ensureInitialized();
+		}
+		
+		
+		private void ensureInitialized() {
+			if (net == null) {
+				synchronized (this) {
+					if (net == null) {
+						net = dnn.buildNet();
+						outputLayerNames = new ArrayList<>();
+						var names = net.getUnconnectedOutLayersNames();
+						for (var bp : names.get()) {
+							outputLayerNames.add(bp.getString());
+						}
+					}
+				}
+			}
+		}
+		
+	
+
+		@Override
+		public Mat call(Mat input) {
+					
+			var blob = blobFromImage(input);
+			Mat pred;
+			
+			synchronized(net) {
+				net.setInput(blob);
+				// We need to clone so that we can release the lock
+				pred = net.forward().clone();
+			}
+			System.err.println(Arrays.toString(pred.createIndexer().sizes()));
+			var result = imageFromBlob(pred);
+			
+			blob.close();
+			pred.close();
+			
+			return result;
+			
+		}
+		
+		
+		private static Mat blobFromImage(Mat mat) {
+			
+			if (mat.depth() != opencv_core.CV_32F) {
+				var mat2 = new Mat();
+				mat.convertTo(mat2, opencv_core.CV_32F);
+				mat2 = mat;
+			}
+			
+			Mat blob = null;
+			int nChannels = mat.channels();
+			if (nChannels == 1 || nChannels == 3 || nChannels == 4) {
+				blob = opencv_dnn.blobFromImage(mat);
+			} else {
+				// TODO: Don't have any net to test this with currently...
+				logger.warn("Attempting to reshape an image with " + nChannels + " channels - this may not work! "
+						+ "Only 1, 3 and 4 supported.");
+				// Blob is a 4D Tensor [NCHW]
+				int[] shape = new int[4];
+				Arrays.fill(shape, 1);
+				int nRows = mat.size(0);
+				int nCols = mat.size(1);
+				shape[1] = nChannels;
+				shape[2] = nRows;
+				shape[3] = nCols;
+				//    		for (int s = 1; s <= Math.min(nDims, 3); s++) {
+				//    			shape[s] = mat.size(s-1);
+				//    		}
+				blob = new Mat(shape, opencv_core.CV_32F);
+				var idxBlob = blob.createIndexer();
+				var idxMat = mat.createIndexer();
+				long[] indsBlob = new long[4];
+				long[] indsMat = new long[4];
+				for (int r = 0; r < nRows; r++) {
+					indsMat[0] = r;
+					indsBlob[2] = r;
+					for (int c = 0; c < nCols; c++) {
+						indsMat[1] = c;
+						indsBlob[3] = c;
+						for (int channel = 0; channel < nChannels; channel++) {
+							indsMat[2] = channel;
+							indsBlob[1] = channel;
+							double val = idxMat.getDouble(indsMat);
+							idxBlob.putDouble(indsBlob, val);
+						}    			        			
+					}    			
+				}
+				idxBlob.close();
+				idxMat.close();
+			}
+			
+			return blob;
+		}
+		
+		private static Mat imageFromBlob(Mat blob) {
+			var vec = new MatVector();
+			opencv_dnn.imagesFromBlob(blob, vec);
+			Mat output;
+			if (vec.size() == 1) {
+				output = vec.get(0L);
+			} else {
+				output = new Mat();
+				opencv_core.merge(vec, output);
+			}
+			return output;
+		}
+		
+		
+		@SuppressWarnings("unchecked")
+		@Override
+		public Map<String, Mat> call(Map<String, Mat> input) {
+			
+			ensureInitialized();
+			
+			// If we have one input and one output, use simpler method
+			if (input.size() == 1 && outputLayerNames.size() == 1) {
+				var output = call(input.values().iterator().next());
+				return Map.of(outputLayerNames.get(0), output);
+			}
+			
+			// Preallocate output so we can use PointerScope
+			Map<String, Mat> result = new LinkedHashMap<>();
+			for (var name : outputLayerNames) {
+				result.put(name, new Mat());
+			}
+			
+			try (var scope = new PointerScope()) {
+				// Create blobs
+				var blobs = new LinkedHashMap<String, Mat>();
+				for (var entry : input.entrySet()) {
+					blobs.put(entry.getKey(), blobFromImage(entry.getValue()));
+				}
+				
+				// Prepare output
+				var outputLayerNamesVector = new StringVector(outputLayerNames.toArray(String[]::new));
+				var output = new MatVector();
+						
+				synchronized(net) {
+					// Only use input names if we have more than one input (usually we don't)
+					boolean singleInput = blobs.size() == 1;
+					for (var entry : blobs.entrySet()) {
+						if (singleInput)
+							net.setInput(entry.getValue());
+						else
+							net.setInput(entry.getValue(), entry.getKey(), 1.0, null);
+					}
+					net.forward(output, outputLayerNamesVector);
+					
+					// Clone so we can release the lock
+					var mats = output.get();
+					int i = 0;
+					for (var name : outputLayerNames) {
+						result.get(name).put(mats[i].clone());
+						i++;
+					}
+				}
+	
+				// Convert blobs to images
+				for (var entry : result.entrySet()) {
+					var blob = entry.getValue();
+					blob.put(imageFromBlob(blob));
+				}
+	
+			}
+			
+			return result;
 		}
 		
 	}
