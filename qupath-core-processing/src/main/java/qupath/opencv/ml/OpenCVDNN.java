@@ -22,7 +22,6 @@
 package qupath.opencv.ml;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -132,7 +131,6 @@ public class OpenCVDNN {
 	 * Build the OpenCV {@link Net}. This is a lower-level function than {@link #buildModel()}, which provides 
 	 * more options to query the network architecture but does not incorporate any preprocessing steps.
 	 * @return
-	 * @throws IOException 
 	 */
 	public Net buildNet() {
 		var net = opencv_dnn.readNet(pathModel, pathConfig, framework);
@@ -151,6 +149,7 @@ public class OpenCVDNN {
 		if (type == null)
 			type = ModelType.DEFAULT;
 		var net = buildNet();
+		@SuppressWarnings("unchecked")
 		T model = (T)buildModel(type, net);
 		initializeModel(model);
 		return model;
@@ -181,7 +180,6 @@ public class OpenCVDNN {
 	/**
 	 * Build a model. The return type is determined by the {@link ModelType}.
 	 * @param <T>
-	 * @param type
 	 * @return
 	 * @see #buildModel(ModelType)
 	 */
@@ -266,7 +264,7 @@ public class OpenCVDNN {
 	/**
 	 * Get scale factors to be applied to preprocess input.
 	 * @return the scale value if specified, or null if default scaling should be used
-	 * @see #getMeans()
+	 * @see #getMean()
 	 */
 	public Double getScale() {
 		return scale;

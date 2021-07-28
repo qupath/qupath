@@ -2484,7 +2484,7 @@ public class ImageOps {
 		
 		/**
 		 * Apply a {@link OpenCVDNN} to pixels to generate a prediction.
-		 * @param fun 
+		 * @param model 
 		 * @param inputWidth 
 		 * @param inputHeight 
 		 * @param padding 
