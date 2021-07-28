@@ -28,7 +28,9 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -71,65 +73,139 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.io.UriResource;
+import qupath.lib.projects.Project;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
-import qupath.lib.projects.Project;
 
-class ProjectCheckUris {
+
+/**
+ * Fix broken URIs by using relative paths or prompting the user to select files.
+ * This is intended to handle cases where files or projects have changed location, so that links need to be updated.
+ * 
+ * @author Pete Bankhead
+ *
+ */
+public class UriUpdater {
 	
 	private static int maxRecursiveSearchDepth = 8;
 	
-	static class ProjectUriManager {
+	
+	static int applyReplacements(Collection<? extends UriResource> uriResources, Map<SingleUriItem, SingleUriItem> replacements) throws IOException {
+		Map<URI, URI> map = replacements.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().getURI(), e -> e.getValue().getURI()));
+		int count = 0;
+		for (var entry : uriResources) {
+			if (entry.updateURIs(map))
+				count++;
+		}
+		return count;
+	}
+	
+	/**
+	 * Show dialog prompting the user to update URIs for missing files.
+	 * Optionally provide previous and current base URIs. If not null, these will be used to relativize paths when searching for potential replacements URIs.
+	 * Usually, these correspond to the current and previous paths for a {@link Project}.
+	 * 
+	 * @param <T>
+	 * @param items the items containing URIs to check
+	 * @param basePrevious optional previous base path
+	 * @param baseCurrent optional current base path
+	 * @param onlyPromptIfMissing only show a dialog if any URIs correspond to missing files
+	 * @return the number of changes made, or -1 if the user cancelled the dialog.
+	 * @throws IOException if there was a problem accessing the URIs
+	 */
+	public static <T extends UriResource> int promptToUpdateUris(Collection<T> items, URI basePrevious, URI baseCurrent, boolean onlyPromptIfMissing) throws IOException {
 		
-		private Logger logger = LoggerFactory.getLogger(ProjectUriManager.class);
+		var singleUriItems = getItems(items);
 		
-		private Project<?> project;
+		if (onlyPromptIfMissing && singleUriItems.stream().allMatch(u -> u.getStatus() != UriStatus.MISSING))
+			return 0;
 		
-		private ObservableMap<UriItem, UriItem> replacements = FXCollections.observableMap(new HashMap<>());
+		var manager = new UriManager(singleUriItems, basePrevious, baseCurrent);
+		
+		Dialog<ButtonType> dialog = new Dialog<>();
+		dialog.setHeaderText("Images may have been deleted or moved!\nFix broken paths here by double-clicking on red entries and/or accepting QuPath's suggestions.");
+		dialog.getDialogPane().getButtonTypes().setAll(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
+		((Button)dialog.getDialogPane().lookupButton(ButtonType.YES)).setText("Apply changes");
+		((Button)dialog.getDialogPane().lookupButton(ButtonType.NO)).setText("Ignore");
+		dialog.getDialogPane().setContent(manager.pane);
+		dialog.setTitle("Update URIs");
+		dialog.setResizable(true);
+		var btn = dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL);
+		if (btn.equals(ButtonType.CANCEL))
+			return -1;
+		
+		if (btn.equals(ButtonType.NO))
+			return 0;
+		
+		int n = 0;
+		try {
+			n = applyReplacements(items, manager.replacements);
+			if (n <= 0) {
+				Dialogs.showInfoNotification("Update URIs", "No URIs updated!");
+			} else if (n == 1) 
+				Dialogs.showInfoNotification("Update URIs", "1 URI updated");
+			else if (n > 1)
+				Dialogs.showInfoNotification("Update URIs", n + " URIs updated");
+		} catch (IOException e) {
+			Dialogs.showErrorMessage("Update URIs", e);
+		}
+		return n;
+	}
+	
+	private static List<SingleUriItem> getItems(Collection<? extends UriResource> uriResources) throws IOException {
+		// Get all the URIs
+		Set<URI> imageUris = new LinkedHashSet<>();
+		for (var item : uriResources) {
+			imageUris.addAll(item.getURIs());
+		}
+		return imageUris.stream().map(u -> new SingleUriItem(u)).toList();
+	}
+
+	
+	
+	private static class UriManager {
+		
+		private static Logger logger = LoggerFactory.getLogger(UriManager.class);
+		
+		private ObservableMap<SingleUriItem, SingleUriItem> replacements = FXCollections.observableMap(new HashMap<>());
 		
 		private GridPane pane = new GridPane();
-		private TableView<UriItem> table = new TableView<>();
-		private ObservableList<UriItem> allItems = FXCollections.observableArrayList();
+		private TableView<SingleUriItem> table = new TableView<>();
+		private ObservableList<SingleUriItem> allItems = FXCollections.observableArrayList();
 		
 		private BooleanProperty showMissing = new SimpleBooleanProperty(true);
 		private BooleanProperty showValid = new SimpleBooleanProperty(true);
 		private BooleanProperty showUnknown = new SimpleBooleanProperty(true);
 		
-		ProjectUriManager(Project<?> project) throws IOException {
-			this.project = project;
-			
-			URI uriProject = project.getURI();
-			URI uriProjectPrevious = project.getPreviousURI();
-			
-			// Get all the URIs
-			Set<URI> imageUris = new LinkedHashSet<>();
-			for (var entry : project.getImageList()) {
-				imageUris.addAll(entry.getServerURIs());
-			}
-			
+		private UriManager(Collection<SingleUriItem> items, URI basePrevious, URI baseCurrent) throws IOException {
+			var replacements = findReplacements(items, basePrevious, baseCurrent);
+			this.allItems.setAll(items);
+			this.replacements.putAll(replacements);
+			initialize();
+		}
+		
+		
+		private static Map<SingleUriItem, SingleUriItem> findReplacements(Collection<SingleUriItem> items, URI previousBaseUri, URI baseUri) {
+
+			Map<SingleUriItem, SingleUriItem> replacements = new LinkedHashMap<>();
+
 			// Get paths, if we can
-			Path pathProject = uriProject == null ? null : GeneralTools.toPath(uriProject);
-			Path pathPrevious = uriProjectPrevious == null ? null : GeneralTools.toPath(uriProjectPrevious);
+			Path pathBase = baseUri == null ? null : GeneralTools.toPath(baseUri);
+			Path pathPrevious = previousBaseUri == null ? null : GeneralTools.toPath(previousBaseUri);
 			// We care about the directory rather than the actual file
-			if (pathProject != null && !Files.isDirectory(pathProject)) {
-				pathProject = pathProject.getParent();
+			if (pathBase != null && !Files.isDirectory(pathBase)) {
+				pathBase = pathBase.getParent();
 			}
 			if (pathPrevious != null && !Files.isDirectory(pathPrevious)) {
 				pathPrevious = pathPrevious.getParent();
 			}
-			boolean tryRelative = pathProject != null && pathPrevious != null && !pathProject.equals(pathPrevious);
-			
+			boolean tryRelative = pathBase != null && pathPrevious != null && !pathBase.equals(pathPrevious);
+
 			// Map the URIs to a list of potential replacements
-			List<UriItem> list = new ArrayList<>();
-			int nMissing = 0;
-			int nExists = 0;
-			int nUnknown = 0;
-			for (var temp : imageUris) {
-				var item = new UriItem(temp);
-				switch (item.getStatus()) {
-				case MISSING:
-					// Try to relativize the path to predict a likely replacement - if we have the same root
+			for (var item : items) {
+				if (item.getStatus() == UriStatus.MISSING) {
 					Path pathItem = item.getPath();
 					try {
 						if (tryRelative &&
@@ -137,10 +213,10 @@ class ProjectCheckUris {
 								pathPrevious != null &&
 								Objects.equals(pathItem.getRoot(), pathPrevious.getRoot())
 								) {
-							Path pathRelative = pathProject.resolve(pathPrevious.relativize(pathItem));
+							Path pathRelative = pathBase.resolve(pathPrevious.relativize(pathItem));
 							if (Files.exists(pathRelative)) {
 								URI uri2 = pathRelative.normalize().toUri().normalize();
-								replacements.put(item, new UriItem(uri2));
+								replacements.put(item, new SingleUriItem(uri2));
 							}
 						}
 					} catch (Exception e) {
@@ -148,38 +224,28 @@ class ProjectCheckUris {
 						logger.warn("Error relativizing paths: {}", e.getLocalizedMessage());
 						logger.debug(e.getLocalizedMessage(), e);
 					}
-					nMissing++;
-					break;
-				case EXISTS:
-					nExists++;
-					break;
-				case UNKNOWN:
-				default:
-					nUnknown++;
-					break;
 				}
-				list.add(item);
 			}
-			allItems.setAll(list);
-			
-//			// We can return if we don't have any missing or unknown (or if we don't care about unknown)
-//			if (nMissing == 0)
-//				return;
+			return replacements;
+		}
+				
+		
+		private void initialize() throws IOException {
 			
 			// Create a table view
-			TableColumn<UriItem, UriItem> colOriginal = new TableColumn<>("Original URI");
+			TableColumn<SingleUriItem, SingleUriItem> colOriginal = new TableColumn<>("Original URI");
 			colOriginal.setCellValueFactory(item -> Bindings.createObjectBinding(() -> item.getValue()));
 			colOriginal.setCellFactory(col -> new UriCell());
 			table.getColumns().add(colOriginal);
 			
-			TableColumn<UriItem, UriItem> colReplacement = new TableColumn<>("Replacement URI");
+			TableColumn<SingleUriItem, SingleUriItem> colReplacement = new TableColumn<>("Replacement URI");
 			colReplacement.setCellValueFactory(item -> {
 				return Bindings.createObjectBinding(() -> replacements.get(item.getValue()), replacements);
 			});
 			colReplacement.setCellFactory(col -> new UriCell());
 			table.getColumns().add(colReplacement);
 			
-			FilteredList<UriItem> filteredList = allItems.filtered(new TableFilter());
+			FilteredList<SingleUriItem> filteredList = allItems.filtered(new TableFilter());
 			table.setItems(filteredList);
 			
 			showMissing.addListener((v, o, n) -> filteredList.setPredicate(new TableFilter()));
@@ -189,6 +255,10 @@ class ProjectCheckUris {
 			table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 			
 			table.setPrefSize(600, 400);
+			
+			long nMissing = countOriginalItems(UriStatus.MISSING);
+			long nExists = countOriginalItems(UriStatus.EXISTS);
+			long nUnknown = countOriginalItems(UriStatus.UNKNOWN);
 			
 			CheckBox cbMissing = new CheckBox(String.format("Show missing (%d)", nMissing));
 			cbMissing.selectedProperty().bindBidirectional(showMissing);
@@ -206,7 +276,7 @@ class ProjectCheckUris {
 			btnSearch.setTooltip(new Tooltip("Choose a directory & search recursively for images inside"));
 			btnSearch.setOnAction(e -> {
 				var dir = Dialogs.getChooser(GuiTools.getWindow(btnSearch)).promptForDirectory(null);
-				Map<String, List<UriItem>> missing = allItems.stream().filter(p -> p.getStatus() == UriStatus.MISSING && p.getPath() != null && replacements.get(p) == null)
+				Map<String, List<SingleUriItem>> missing = allItems.stream().filter(p -> p.getStatus() == UriStatus.MISSING && p.getPath() != null && replacements.get(p) == null)
 						.collect(Collectors.groupingBy(p -> p.getPath().getFileName().toString()));
 				
 				searchDirectoriesRecursive(dir, missing, maxRecursiveSearchDepth);
@@ -232,7 +302,7 @@ class ProjectCheckUris {
 		}
 		
 		
-		void searchDirectoriesRecursive(File dir, Map<String, List<UriItem>> missing, int maxDepth) {
+		private void searchDirectoriesRecursive(File dir, Map<String, List<SingleUriItem>> missing, int maxDepth) {
 			if (dir == null || !dir.canRead() || !dir.isDirectory() || missing.isEmpty() || maxDepth <= 0)
 				return;
 			
@@ -250,10 +320,10 @@ class ProjectCheckUris {
 				else if (f.isFile()) {
 					// If we find something with the correct name, update the URIs
 					String name = f.getName();
-					List<UriItem> myList = missing.remove(name);
+					List<SingleUriItem> myList = missing.remove(name);
 					if (myList != null) {
 						for (var item : myList)
-							replacements.put(item, new UriItem(f.toURI()));
+							replacements.put(item, new SingleUriItem(f.toURI()));
 					}
 					// Check if we are done
 					if (missing.isEmpty())
@@ -268,7 +338,7 @@ class ProjectCheckUris {
 		}
 		
 		
-		int countOriginalItems(UriStatus status) {
+		private int countOriginalItems(UriStatus status) {
 			int n = 0;
 			for (var item : allItems) {
 				if (item.getStatus() == status)
@@ -277,20 +347,20 @@ class ProjectCheckUris {
 			return n;
 		}
 
-		int countReplacedItems(UriStatus status) {
-			int n = 0;
-			for (var item : allItems) {
-				var item2 = replacements.getOrDefault(item, item);
-				if (item2.getStatus() == status)
-					n++;
-			}
-			return n;			
-		}
+//		private int countReplacedItems(UriStatus status) {
+//			int n = 0;
+//			for (var item : allItems) {
+//				var item2 = replacements.getOrDefault(item, item);
+//				if (item2.getStatus() == status)
+//					n++;
+//			}
+//			return n;			
+//		}
 
-		class TableFilter implements Predicate<UriItem> {
+		class TableFilter implements Predicate<SingleUriItem> {
 
 			@Override
-			public boolean test(UriItem item) {
+			public boolean test(SingleUriItem item) {
 				switch (item.getStatus()) {
 				case EXISTS:
 					return showValid.get();
@@ -354,8 +424,8 @@ class ProjectCheckUris {
 							var uri1 = GeneralTools.toURI(split[0]);
 							var uri2 = GeneralTools.toURI(split[1]);
 							if (uri1 != null && uri2 != null) {
-								var item1 = new UriItem(uri1);
-								var item2 = new UriItem(uri2);
+								var item1 = new SingleUriItem(uri1);
+								var item2 = new SingleUriItem(uri2);
 								if (table.getItems().contains(item1)) {
 									if (item1.equals(item2))
 										replacements.remove(item1);
@@ -375,59 +445,8 @@ class ProjectCheckUris {
 		}
 		
 		
-		int applyReplacements() throws IOException {
-			Map<URI, URI> map = replacements.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().getURI(), e -> e.getValue().getURI()));
-			int count = 0;
-			for (var entry : project.getImageList()) {
-				if (entry.updateServerURIs(map))
-					count++;
-			}
-			return count;
-		}
 		
-		/**
-		 * Returns true if the dialog was not cancelled (regardless of whether changes were made).
-		 * @return
-		 */
-		boolean showDialog() {
-			
-			Dialog<ButtonType> dialog = new Dialog<>();
-			dialog.setHeaderText("Images may have been deleted or moved!\nFix broken paths here by double-clicking on red entries and/or accepting QuPath's suggestions.");
-			dialog.getDialogPane().getButtonTypes().setAll(ButtonType.YES, ButtonType.NO, ButtonType.CANCEL);
-			((Button)dialog.getDialogPane().lookupButton(ButtonType.YES)).setText("Apply changes");
-			((Button)dialog.getDialogPane().lookupButton(ButtonType.NO)).setText("Ignore");
-			dialog.getDialogPane().setContent(pane);
-			dialog.setTitle("Update URIs");
-			dialog.setResizable(true);
-			var btn = dialog.showAndWait().orElseGet(() -> ButtonType.CANCEL);
-			if (btn.equals(ButtonType.CANCEL))
-				return false;
-			
-			if (btn.equals(ButtonType.NO))
-				return true;
-			
-//			if (DisplayHelpers.showConfirmDialog("Update URIs", pane)) {
-				try {
-					int n = applyReplacements();
-					if (n <= 0) {
-						Dialogs.showInfoNotification("Update URIs", "No URIs updated!");
-						return true;
-					}
-					if (n == 1) 
-						Dialogs.showInfoNotification("Update URIs", "URIs updated for 1 image");
-					else if (n > 1)
-						Dialogs.showInfoNotification("Update URIs", "URIs updated for " + n + " images");
-					project.syncChanges();
-				} catch (IOException e) {
-					Dialogs.showErrorMessage("Update URIs", e);
-				}
-//			}
-			return true;
-		}
-		
-		
-		
-		class UriCell extends TableCell<UriItem, UriItem> implements EventHandler<MouseEvent> {
+		class UriCell extends TableCell<SingleUriItem, SingleUriItem> implements EventHandler<MouseEvent> {
 			
 			private Tooltip tooltip = new Tooltip();
 
@@ -438,7 +457,7 @@ class ProjectCheckUris {
 			}
 
 			@Override
-			protected void updateItem(UriItem item, boolean empty) {
+			protected void updateItem(SingleUriItem item, boolean empty) {
 				super.updateItem(item, empty);
 				if (item == null || empty) {
 					setTooltip(null);
@@ -483,7 +502,7 @@ class ProjectCheckUris {
 					if (uri == null) {
 						Dialogs.showErrorMessage("Change URI", "Unable to parse URI from " + path);
 					} else
-						replacements.put(uriOriginal, new UriItem(uri));
+						replacements.put(uriOriginal, new SingleUriItem(uri));
 				} else
 					replacements.remove(uriOriginal);
 			}
@@ -498,12 +517,12 @@ class ProjectCheckUris {
 		EXISTS, MISSING, UNKNOWN;
 	}
 	
-	static class UriItem {
+	private static class SingleUriItem {
 		
-				private URI uri;
+		private URI uri;
 		private Path path;
 		
-		UriItem(URI uri) {
+		SingleUriItem(URI uri) {
 			this.uri = uri;
 			this.path = GeneralTools.toPath(uri);
 		}
@@ -548,7 +567,7 @@ class ProjectCheckUris {
 				return false;
 			if (getClass() != obj.getClass())
 				return false;
-			UriItem other = (UriItem) obj;
+			SingleUriItem other = (SingleUriItem) obj;
 			if (path == null) {
 				if (other.path != null)
 					return false;

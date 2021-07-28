@@ -86,6 +86,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * When building from source with TensorFlow support, now uses TensorFlow Java 0.3.1 (corresponding to TensorFlow v2.4.1)
 * Default number of threads is now based upon `ForkJoinPool.getCommonPoolParallelism()`
   * `ThreadTools` can be used to get requested number of threads within core modules, controlled via `PathPrefs`
+* `UriResource` and `UriUpdater` classes to give more general approach to fixing broken paths (previously the code was project/image-specific)
 
 ### Bugs fixed
 * Multithreading issue with creation or removal of objects (https://github.com/qupath/qupath/issues/744)
