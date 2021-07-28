@@ -19,13 +19,11 @@
  * #L%
  */
 
-package qupath.lib.gui;
+package qupath.lib.common;
 
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.regex.Pattern;
-
-import qupath.lib.common.GeneralTools;
 
 /**
  * Helper class for working with semantic versioning.
