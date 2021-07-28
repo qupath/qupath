@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.reflect.TypeToken;
 
 import qupath.lib.common.GeneralTools;
-import qupath.lib.gui.Version;
+import qupath.lib.common.Version;
 import qupath.lib.gui.extensions.GitHubProject.GitHubRepo;
 import qupath.lib.io.GsonTools;
 

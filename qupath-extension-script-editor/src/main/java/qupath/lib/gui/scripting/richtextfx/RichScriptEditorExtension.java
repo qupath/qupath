@@ -23,8 +23,8 @@
 
 package qupath.lib.gui.scripting.richtextfx;
 
+import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.Version;
 import qupath.lib.gui.extensions.QuPathExtension;
 
 /**

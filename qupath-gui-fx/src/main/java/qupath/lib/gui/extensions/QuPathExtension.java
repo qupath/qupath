@@ -24,8 +24,8 @@
 package qupath.lib.gui.extensions;
 
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.Version;
 
 /**
  * Simple interface for QuPath extensions.
@@ -85,6 +85,9 @@ public interface QuPathExtension {
 	/**
 	 * Get the version of the current extension.
 	 * @return
+	 * @implNote the default implementation looks for any package version associated with the implementing class, 
+	 *           returning {@link Version#UNKNOWN} if none can be found.
+	 * @see GeneralTools#getPackageVersion(Class)
 	 */
 	public default Version getVersion() {
 		var packageVersion = GeneralTools.getPackageVersion(getClass());

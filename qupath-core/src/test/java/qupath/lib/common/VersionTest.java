@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.lib.gui;
+package qupath.lib.common;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,6 +29,8 @@ import java.util.Collections;
 import java.util.Random;
 
 import org.junit.jupiter.api.Test;
+
+import qupath.lib.common.Version;
 
 @SuppressWarnings("javadoc")
 public class VersionTest {
