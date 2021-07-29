@@ -384,6 +384,25 @@ public final class BufferedImageTools {
 			return false;
 		}
 	}
+	
+	/**
+	 * Create a crop of the image using the specified bounding box.
+	 * @param img
+	 * @param x
+	 * @param y
+	 * @param width
+	 * @param height
+	 * @return cropped image, or a duplicate of the original image if no cropping is required
+	 */
+	public static BufferedImage crop(final BufferedImage img, final int x, final int y, int width, int height) {
+		if (x == 0 && y == 0 && img.getWidth() == width && img.getHeight() == height)
+			return duplicate(img);
+		
+		WritableRaster raster = img.getRaster();
+		WritableRaster raster2 = raster.createCompatibleWritableRaster(width, height);
+		raster2.setDataElements(x, y, width, height, raster);
+		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null); 
+	}
 
 	/**
 	 * Resize the image to have the requested width/height, using area averaging and bilinear interpolation.
