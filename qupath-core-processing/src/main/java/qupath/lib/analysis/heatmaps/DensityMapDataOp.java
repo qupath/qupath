@@ -23,6 +23,7 @@ package qupath.lib.analysis.heatmaps;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -362,6 +363,18 @@ class DensityMapDataOp implements ImageDataOp {
 	@Override
 	public PixelType getOutputType(PixelType inputType) {
 		return PixelType.FLOAT32;
+	}
+	
+	@Override
+	public Collection<URI> getUris() throws IOException {
+		return op == null ? Collections.emptyList() : op.getUris();
+	}
+
+	@Override
+	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		if (op == null)
+			return false;
+		return op.updateUris(replacements);
 	}
 	
 

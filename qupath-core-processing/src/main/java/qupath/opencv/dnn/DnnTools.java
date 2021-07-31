@@ -19,7 +19,7 @@
  * #L%
  */
 
-package qupath.opencv.ml;
+package qupath.opencv.dnn;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -53,6 +53,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.geom.Point2;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
@@ -328,8 +329,9 @@ public class DnnTools {
 			return false;
 		}
 		Mat input;
+		boolean preferNucleus = true;
 		if (width < 0 && height < 0) {
-			var request = RegionRequest.createInstance(server.getPath(), downsample, pathObject.getROI());
+			var request = RegionRequest.createInstance(server.getPath(), downsample, PathObjectTools.getROI(pathObject, preferNucleus));
 			input = readMat(server, request);
 		} else if (width <= 0 || height <= 0) {
 			throw new IllegalArgumentException("Width and height must both be > 0, or < 0 if the full ROI is used");

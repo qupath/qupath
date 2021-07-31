@@ -30,8 +30,6 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import qupath.lib.common.Version;
-
 @SuppressWarnings("javadoc")
 public class VersionTest {
 

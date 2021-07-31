@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -55,16 +56,18 @@ import javafx.stage.Stage;
 import qupath.lib.classifiers.object.ObjectClassifier;
 import qupath.lib.classifiers.object.ObjectClassifiers;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.UriUpdater;
 import qupath.lib.gui.QuPathGUI;
+import qupath.lib.gui.commands.UpdateUrisCommand;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.UriResource;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
-
 /**
  * Command to apply a pre-trained object classifier to an image.
  * 
@@ -78,6 +81,8 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 	
 	private QuPathGUI qupath;
 	private Project<BufferedImage> project;
+	
+	private Map<String, ObjectClassifier<BufferedImage>> cachedClassifiers = new HashMap<>();
 	
 	
 	/**
@@ -113,8 +118,25 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 		
 		// Provide an option to remove a classifier
 		var popup = new ContextMenu();
+		
+		var miAdd = new MenuItem("Add classifier");
+		miAdd.setOnAction(e -> {
+			List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier file", "json");
+			if (files == null || files.isEmpty())
+				return;
+
+			try {
+				addClassifierFiles(files);
+				List<String> updatedNames = new ArrayList<>();
+				updatedNames.addAll(project.getPixelClassifiers().getNames());
+				updatedNames.addAll(externalObjectClassifiers.keySet());
+			} catch (IOException ex) {
+				Dialogs.showErrorMessage(title, ex);
+			}
+		});
+		
 		var miRemove = new MenuItem("Delete selected");
-		popup.getItems().add(miRemove);
+		popup.getItems().setAll(miAdd, miRemove);
 		miRemove.disableProperty().bind(listClassifiers.getSelectionModel().selectedItemProperty().isNull());
 		listClassifiers.setContextMenu(popup);
 		miRemove.setOnAction(e -> {
@@ -138,22 +160,22 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 			}
 		});
 		
-		listClassifiers.setOnMouseClicked(e -> {
-			if (e.getClickCount() == 2) {
-				List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier file", "json");
-				if (files == null || files.isEmpty())
-					return;
-
-				try {
-					addClassifierFiles(files);
-					List<String> updatedNames = new ArrayList<>();
-					updatedNames.addAll(project.getPixelClassifiers().getNames());
-					updatedNames.addAll(externalObjectClassifiers.keySet());
-				} catch (IOException ex) {
-					Dialogs.showErrorMessage(title, ex);
-				}
-			}
-		});
+//		listClassifiers.setOnMouseClicked(e -> {
+//			if (e.getClickCount() == 2) {
+//				List<File> files = Dialogs.promptForMultipleFiles(title, null, "QuPath classifier file", "json");
+//				if (files == null || files.isEmpty())
+//					return;
+//
+//				try {
+//					addClassifierFiles(files);
+//					List<String> updatedNames = new ArrayList<>();
+//					updatedNames.addAll(project.getPixelClassifiers().getNames());
+//					updatedNames.addAll(externalObjectClassifiers.keySet());
+//				} catch (IOException ex) {
+//					Dialogs.showErrorMessage(title, ex);
+//				}
+//			}
+//		});
 		
 		// Support drag & drop for classifiers
 		listClassifiers.setOnDragOver(e -> {
@@ -323,7 +345,7 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 	 * @param selectedClassifiersNames
 	 * @param logWorkflow
 	 */
-	private static void runClassifier(ImageData<BufferedImage> imageData, Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> selectedClassifiersNames, boolean logWorkflow) {
+	private void runClassifier(ImageData<BufferedImage> imageData, Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> selectedClassifiersNames, boolean logWorkflow) {
 		ObjectClassifier<BufferedImage> classifier;
 		try {
 			classifier = getClassifier(project, externalClassifiers, selectedClassifiersNames);
@@ -331,6 +353,11 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 			Dialogs.showErrorMessage("Object classifier", ex);
 			return;
 		}
+		if (classifier == null) {
+			logger.info("Classifier is null for {}", selectedClassifiersNames);
+			return;
+		}
+		
 		// Perform sanity check for missing features
 		logger.info("Running classifier: {}", selectedClassifiersNames);
 		var pathObjects = classifier.getCompatibleObjects(imageData);
@@ -372,6 +399,12 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 	}
 	
 	
+	/**
+	 * Quietly fix classifier URIs.
+	 */
+	private static boolean fixQuietly = true;
+
+	
 	
 	/**
 	 * Load a single or composite classifier. The returned classifier can be fetched from either 
@@ -382,20 +415,57 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 	 * @return
 	 * @throws IOException
 	 */
-	private static ObjectClassifier<BufferedImage> getClassifier(Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> names) throws IOException {
-		if (project == null || names.isEmpty())
+	private ObjectClassifier<BufferedImage> getClassifier(Project<BufferedImage> project, Map<String, ObjectClassifier<BufferedImage>> externalClassifiers, List<String> names) throws IOException {
+		if (names.isEmpty())
 			return null;
-		
+				
 		List<ObjectClassifier<BufferedImage>> classifiers = new ArrayList<>();
+		Map<String, UriResource> uriClassifiers = new LinkedHashMap<>();
 		for (var s : names) {
-			if (project.getObjectClassifiers().contains(s))
-				classifiers.add(project.getObjectClassifiers().get(s));
-			else
-				classifiers.add(externalClassifiers.get(s));
+			var classifier = cachedClassifiers.getOrDefault(s, null);
+			if (classifier == null) {
+				if (project != null && project.getObjectClassifiers().contains(s)) {
+					classifier = project.getObjectClassifiers().get(s);
+					logger.debug("Classifier {} read from project", s);
+				} else if (externalClassifiers.containsKey(s)) {
+					classifier = externalClassifiers.get(s);				
+					logger.debug("Classifier {} read from external map", s);
+				}
+				if (classifier == null) {
+					logger.error("Classifier '{}' not found!", s);
+					return null;
+				}
+			} else {
+				logger.debug("Classifier {} read from cache", s);
+			}
+			classifiers.add(classifier);
+			if (classifier instanceof UriResource) {
+				var resource = (UriResource)classifier;
+				if (fixQuietly) {
+					UriUpdater.fixUris(resource, project);
+				}
+				uriClassifiers.put(s, (UriResource)classifier);
+			}
+		}
+		
+		// Check for classifiers that depend upon URIs that may have moved
+		if (!uriClassifiers.isEmpty()) {
+			var previousBase = project == null ? null : project.getPreviousURI();
+			var currentBase = project == null ? null : project.getURI();
+			int nChanged = UpdateUrisCommand.promptToUpdateUris(uriClassifiers.values(), previousBase, currentBase, true);
+			if (nChanged < 0)
+				return null;
+			if (nChanged > 0) {
+				// TODO: Save changes? For now we just cache the changes for the current session
+				logger.info("Storing updated classifiers {} in temporary cache", uriClassifiers.keySet());
+				for (var entry : uriClassifiers.entrySet())
+					cachedClassifiers.put(entry.getKey(), (ObjectClassifier<BufferedImage>)entry.getValue());
+			}
 		}
 		
 		if (names.size() == 1)
 			return classifiers.get(0);
 		return ObjectClassifiers.createCompositeClassifier(classifiers);
 	}
+	
 }

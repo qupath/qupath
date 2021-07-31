@@ -19,14 +19,19 @@
  * #L%
  */
 
-package qupath.opencv.ml;
+package qupath.opencv.dnn;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
@@ -47,6 +52,9 @@ import org.bytedeco.opencv.opencv_dnn.TextRecognitionModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import qupath.lib.io.UriResource;
+import qupath.opencv.ml.OpenCVFunction;
+
 /**
  * Wrapper for an OpenCV Net, including essential metadata about how it should be used.
  * <p>
@@ -56,7 +64,7 @@ import org.slf4j.LoggerFactory;
  * @author Pete Bankhead
  *
  */
-public class OpenCVDNN {
+public class OpenCVDNN implements UriResource {
 	
 	private static Logger logger = LoggerFactory.getLogger(OpenCVDNN.class);
 	
@@ -111,8 +119,8 @@ public class OpenCVDNN {
 	
 	private ModelType modelType = ModelType.DEFAULT;
 	
-	private String pathModel;
-	private String pathConfig;
+	private URI pathModel;
+	private URI pathConfig;
 	private String framework;
 	
 	private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
@@ -124,6 +132,7 @@ public class OpenCVDNN {
 	private Scalar mean;
 	private double scale;
 
+	private transient boolean constructed = false;
 		
 	private OpenCVDNN() {}
 
@@ -133,8 +142,11 @@ public class OpenCVDNN {
 	 * @return
 	 */
 	public Net buildNet() {
-		var net = opencv_dnn.readNet(pathModel, pathConfig, framework);
+		var fileModel = pathModel == null ? null : new File(pathModel).getAbsolutePath();
+		var fileConfig = pathConfig == null ? null : new File(pathConfig).getAbsolutePath();
+		var net = opencv_dnn.readNet(fileModel, fileConfig, framework);
 		initializeNet(net);
+		constructed = true;
 		return net;
 	}
 	
@@ -299,7 +311,7 @@ public class OpenCVDNN {
 	 * Get the path to the model.
 	 * @return
 	 */
-	public String getModelPath() {
+	public URI getModelUri() {
 		return pathModel;
 	}
 
@@ -307,7 +319,7 @@ public class OpenCVDNN {
 	 * Get the path to the model configuration, if required.
 	 * @return
 	 */
-	public String getConfigPath() {
+	public URI getConfigUri() {
 		return pathConfig;
 	}
 	
@@ -343,8 +355,8 @@ public class OpenCVDNN {
 		
 		private ModelType modelType = ModelType.DEFAULT;
 		
-		private String pathModel;
-		private String pathConfig;
+		private URI pathModel;
+		private URI pathConfig;
 		private String framework;
 		
 		private Size size = null;
@@ -360,6 +372,10 @@ public class OpenCVDNN {
 		 * @param pathModel
 		 */
 		private Builder(String pathModel) {
+			this(new File(pathModel).toURI());
+		}
+		
+		private Builder(URI pathModel) {
 			this.pathModel = pathModel;
 			try {
 				this.name = new File(pathModel).getName();
@@ -384,6 +400,15 @@ public class OpenCVDNN {
 		 * @return
 		 */
 		public Builder config(String pathConfig) {
+			return config(new File(pathConfig).toURI());
+		}
+		
+		/**
+		 * Path to config file (if required).
+		 * @param pathConfig
+		 * @return
+		 */
+		public Builder config(URI pathConfig) {
 			this.pathConfig = pathConfig;
 			return this;
 		}
@@ -580,7 +605,7 @@ public class OpenCVDNN {
 
 	
 	
-	static class DnnFunction implements OpenCVFunction {
+	static class DnnFunction implements OpenCVFunction, UriResource {
 		
 		private OpenCVDNN dnn;
 		
@@ -621,7 +646,6 @@ public class OpenCVDNN {
 				// We need to clone so that we can release the lock
 				pred = net.forward().clone();
 			}
-			System.err.println(Arrays.toString(pred.createIndexer().sizes()));
 			var result = imageFromBlob(pred);
 			
 			blob.close();
@@ -758,7 +782,59 @@ public class OpenCVDNN {
 			
 			return result;
 		}
+
+
+		@Override
+		public Collection<URI> getUris() throws IOException {
+			return dnn.getUris();
+		}
+
+
+		@Override
+		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			return dnn.updateUris(replacements);
+		}
 		
+	}
+
+
+
+
+
+
+
+
+
+
+
+	@Override
+	public Collection<URI> getUris() throws IOException {
+		var list = new ArrayList<URI>();
+		if (pathModel != null)
+			list.add(pathModel);
+		if (pathConfig != null)
+			list.add(pathConfig);
+		return list;
+	}
+
+	@Override
+	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		if (constructed)
+			throw new UnsupportedOperationException("URIs cannot be updated after construction!");
+		boolean changes = false;
+		for (var entry : replacements.entrySet()) {
+			if (entry.getKey() == null || Objects.equals(entry.getKey(), entry.getValue()))
+				continue;
+			if (Objects.equals(pathModel, entry.getKey())) {
+				pathModel = entry.getValue();
+				changes = true;
+			}
+			if (Objects.equals(pathConfig, entry.getKey())) {
+				pathConfig = entry.getValue();
+				changes = true;
+			}
+		}
+		return changes;
 	}
 
 }

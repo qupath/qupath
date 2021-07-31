@@ -112,15 +112,19 @@ public class OpenCVTypeAdapters {
 
 		@Override
 		public void write(JsonWriter out, Size value) throws IOException {
-			out.beginObject();
-			
-			out.name("width");
-			out.value(value.width());
-			
-			out.name("height");
-			out.value(value.height());
-
-			out.endObject();
+			if (value == null || value.isNull())
+				out.nullValue();
+			else {
+				out.beginObject();
+				
+				out.name("width");
+				out.value(value.width());
+				
+				out.name("height");
+				out.value(value.height());
+	
+				out.endObject();
+			}
 		}
 
 		@Override
@@ -141,10 +145,14 @@ public class OpenCVTypeAdapters {
 
 		@Override
 		public void write(JsonWriter out, Scalar value) throws IOException {
-			out.beginArray();
-			for (int i = 0; i < 4; i++)
-				out.value(value.get(i));
-			out.endArray();
+			if (value == null || value.isNull())
+				out.nullValue();
+			else {
+				out.beginArray();
+				for (int i = 0; i < 4; i++)
+					out.value(value.get(i));
+				out.endArray();
+			}
 		}
 
 		@Override

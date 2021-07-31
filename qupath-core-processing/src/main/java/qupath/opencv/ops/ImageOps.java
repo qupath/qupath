@@ -27,6 +27,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -65,10 +66,11 @@ import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
+import qupath.lib.io.UriResource;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.OpenCVDNN;
 import qupath.opencv.ml.OpenCVFunction;
+import qupath.opencv.dnn.OpenCVDNN;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.tools.LocalNormalization;
@@ -294,7 +296,6 @@ public class ImageOps {
 	public static Mat padAndApply(ImageOp op, Mat mat) {
 		return padAndApply(op, mat, opencv_core.BORDER_REFLECT);
 	}
-	
 
 	
 	@OpType("default")
@@ -352,6 +353,18 @@ public class ImageOps {
 			if (op == null)
 				return PixelType.FLOAT32;
 			return op.getOutputType(PixelType.FLOAT32);
+		}
+		
+		@Override
+		public Collection<URI> getUris() throws IOException {
+			return op == null ? Collections.emptyList() : op.getUris();
+		}
+
+		@Override
+		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			if (op == null)
+				return false;
+			return op.updateUris(replacements);
 		}
 		
 	}
@@ -436,6 +449,18 @@ public class ImageOps {
 			if (op == null)
 				return inputType;
 			return op.getOutputType(inputType);
+		}
+
+		@Override
+		public Collection<URI> getUris() throws IOException {
+			return op == null ? Collections.emptyList() : op.getUris();
+		}
+
+		@Override
+		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			if (op == null)
+				return false;
+			return op.updateUris(replacements);
 		}
 		
 	}
@@ -2282,6 +2307,26 @@ public class ImageOps {
 				return inputType;
 			}
 			
+			/**
+			 * Get all URIs associated with this op.
+			 * @return
+			 * @throws IOException 
+			 */
+			@Override
+			public Collection<URI> getUris() throws IOException {
+				return getAllUris(ops.toArray(ImageOp[]::new));
+			}
+
+			/**
+			 * Update all URIs associated with this op.
+			 * @param replacements
+			 * @return
+			 */
+			@Override
+			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+				return updateAllUris(replacements, ops.toArray(ImageOp[]::new));
+			}
+			
 		}
 		
 		
@@ -2356,6 +2401,26 @@ public class ImageOps {
 				for (var t : ops)
 					inputType = t.getOutputType(inputType);
 				return inputType;
+			}
+			
+			/**
+			 * Get all URIs associated with this op.
+			 * @return
+			 * @throws IOException 
+			 */
+			@Override
+			public Collection<URI> getUris() throws IOException {
+				return getAllUris(ops.toArray(ImageOp[]::new));
+			}
+
+			/**
+			 * Update all URIs associated with this op.
+			 * @param replacements
+			 * @return
+			 */
+			@Override
+			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+				return updateAllUris(replacements, ops.toArray(ImageOp[]::new));
 			}
 
 		}
@@ -2460,6 +2525,26 @@ public class ImageOps {
 			@Override
 			public PixelType getOutputType(PixelType inputType) {
 				return op1.getOutputType(inputType);
+			}
+			
+			/**
+			 * Get all URIs associated with this op.
+			 * @return
+			 * @throws IOException 
+			 */
+			@Override
+			public Collection<URI> getUris() throws IOException {
+				return getAllUris(op1, op2);
+			}
+
+			/**
+			 * Update all URIs associated with this op.
+			 * @param replacements
+			 * @return
+			 */
+			@Override
+			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+				return updateAllUris(replacements, op1, op2);
 			}
 
 		}
@@ -2623,6 +2708,30 @@ public class ImageOps {
 					}
 				}
 				return outChannels;
+			}
+			
+			/**
+			 * Get all URIs associated with this op.
+			 * @return
+			 * @throws IOException 
+			 */
+			@Override
+			public Collection<URI> getUris() throws IOException {
+				if (model instanceof UriResource)
+					return ((UriResource)model).getUris();
+				return Collections.emptyList();
+			}
+
+			/**
+			 * Update all URIs associated with this op.
+			 * @param replacements
+			 * @return
+			 */
+			@Override
+			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+				if (model instanceof UriResource)
+					return ((UriResource)model).updateUris(replacements);
+				return false;
 			}
 			
 		}
@@ -2860,6 +2969,25 @@ public class ImageOps {
 					);
 		}
 		opencv_core.merge(matvec, mat);
+	}
+	
+	
+	
+	static Collection<URI> getAllUris(UriResource...items) throws IOException {
+		var list = new LinkedHashSet<URI>();
+		for (var item : items) {
+			list.addAll(item.getUris());
+		}
+		return list;
+	}
+	
+	
+	static boolean updateAllUris(Map<URI, URI> replacements, UriResource...items) throws IOException {
+		var changes = false;
+		for (var item : items) {
+			changes = changes | item.updateUris(replacements);
+		}
+		return changes;
 	}
 	
 
