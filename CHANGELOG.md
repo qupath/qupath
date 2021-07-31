@@ -45,6 +45,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Reordering of RGB channels can be done with `--order BGR` or similar combinations
 * New `ContourTracing` class to simplify converting thresholded and labeled images to ROIs and objects
 * New `PathObjectTools.transformObjectRecursive` method to simplify applying an affine transformation to objects
+* New `UriResource` and `UriUpdater` classes to support fixing broken paths generally (not just image paths in projects)
 * Many improvements to ImageOps and OpenCVTools to make scripting with OpenCV much easier
 * Translucent overlay for live prediction (useful to identify if a tile has been processed when at least one class is transparent)
 * Better support for setting pixel sizes & z-spacing in µm

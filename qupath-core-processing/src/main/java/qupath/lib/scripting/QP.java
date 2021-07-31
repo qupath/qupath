@@ -78,6 +78,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.UriUpdater;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ColorTransforms;
@@ -94,6 +95,7 @@ import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
 import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.io.PointIO;
+import qupath.lib.io.UriResource;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectPredicates;
@@ -125,7 +127,8 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.ml.DnnTools;
+import qupath.opencv.dnn.DnnObjectClassifier;
+import qupath.opencv.dnn.DnnTools;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
@@ -208,6 +211,7 @@ public class QP {
 	static {
 		logger.info("Initializing type adapters");
 		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(OpenCVMLClassifier.class);
+		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(DnnObjectClassifier.class);
 		
 		GsonTools.getDefaultBuilder()
 			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
@@ -3237,7 +3241,12 @@ public class QP {
 			}
 			if (classifier == null) {
 				throw new IllegalArgumentException("Unable to find object classifier " + name, exception);
-			} else if (names.length == 1)
+			} 
+			// Try to fix URIs, if we can
+			if (classifier instanceof UriResource) {
+				UriUpdater.fixUris((UriResource)classifier, project);
+			}
+			if (names.length == 1)
 				return classifier;
 			else
 				classifiers.add(classifier);
@@ -3390,11 +3399,12 @@ public class QP {
 	public static PixelClassifier loadPixelClassifier(String name) throws IllegalArgumentException {
 		var project = getProject();
 		Exception exception = null;
+		PixelClassifier pixelClassifier = null;
 		if (project != null) {
 			try {
 				var pixelClassifiers = project.getPixelClassifiers();
 				if (pixelClassifiers.contains(name))
-					return pixelClassifiers.get(name);
+					pixelClassifier = pixelClassifiers.get(name);
 			} catch (Exception e) {
 				exception = e;
 				logger.debug("Pixel classifier '{}' not found in project", name);
@@ -3403,13 +3413,20 @@ public class QP {
 		try {
 			var path = Paths.get(name);
 			if (Files.exists(path))
-				return PixelClassifiers.readClassifier(path);
+				pixelClassifier = PixelClassifiers.readClassifier(path);
 		} catch (Exception e) {
 			exception = e;
 			logger.debug("Pixel classifier '{}' cannot be read from file", name);
 		}
-		throw new IllegalArgumentException("Unable to find pixel classifier " + name, exception);
+		if (pixelClassifier == null)
+			throw new IllegalArgumentException("Unable to find pixel classifier " + name, exception);
+		// Fix URIs if we need to
+		if (pixelClassifier instanceof UriResource) {
+			UriUpdater.fixUris((UriResource)pixelClassifier, project);
+		}
+		return pixelClassifier;
 	}
+	
 	
 	
 	/**

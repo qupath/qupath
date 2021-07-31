@@ -38,14 +38,21 @@ public interface UriResource {
 	 * @return the required URIs
 	 * @throws IOException
 	 */
-	public Collection<URI> getURIs() throws IOException;
+	public Collection<URI> getUris() throws IOException;
 	
 	/**
 	 * Update the specified URIs.
+	 * <p>
+	 * <b>Warning!</b> This should be used sparingly, particularly for objects that are otherwise immutable.
+	 * It is intended <i>only</i> for correcting paths that have become invalid (e.g. because of files being relocated 
+	 * or transferred between computers) <i>before</i> first use of the object.
+	 * It should <b>not</b> be used to manipulate an object after construction. 
+	 * Indeed, some implementations may throw an {@link UnsupportedOperationException} if called too late.
+	 * 
 	 * @param replacements replacement map, where the key gives the current URI and the value gives its replacement.
 	 * @return true if URIs were changed, false otherwise
 	 * @throws IOException
 	 */
-	public boolean updateURIs(Map<URI, URI>  replacements) throws IOException;
+	public boolean updateUris(Map<URI, URI>  replacements) throws IOException;
 
 }

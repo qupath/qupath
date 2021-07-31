@@ -73,7 +73,7 @@ public class ProjectCommands {
 	 * @throws IOException
 	 */
 	public static boolean promptToCheckURIs(Project<?> project, boolean onlyIfMissing) throws IOException {
-		int n = UriUpdater.promptToUpdateUris(project.getImageList(), project.getPreviousURI(), project.getURI(), onlyIfMissing);
+		int n = UpdateUrisCommand.promptToUpdateUris(project.getImageList(), project.getPreviousURI(), project.getURI(), onlyIfMissing);
 		if (n < 0)
 			return false;
 		if (n > 0)
@@ -172,7 +172,7 @@ public class ProjectCommands {
 			
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
 				try {
-					Collection<URI> uris = entry.getURIs();
+					Collection<URI> uris = entry.getUris();
 					String path = String.join(" ", uris.stream().map(u -> u.toString()).collect(Collectors.toList()));
 	//				String path = entry.getServerPath();
 					writer.print(entry.getImageName());
