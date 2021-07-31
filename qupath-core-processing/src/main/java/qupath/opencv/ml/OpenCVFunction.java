@@ -48,7 +48,7 @@ public interface OpenCVFunction {
 	 * Call a function that takes one or more inputs to produce zero or more outputs.
 	 * @param input map of input names and Mat
 	 * @return map out output names and Mat
-	 * @implSpec The default implementation supports only a single input, passing it (regardless of name) to
+	 * @implNote The default implementation supports only a single input, passing it (regardless of name) to
 	 *           {@link #call(Mat)}. It returns either an empty map, or a map with a single entry named "output".
 	 */
 	public default Map<String, Mat> call(Map<String, Mat> input) {
@@ -67,5 +67,7 @@ public interface OpenCVFunction {
 	 * @return output of the function
 	 */
 	public Mat call(Mat input);
+	
+	
 
 }

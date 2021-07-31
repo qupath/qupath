@@ -24,12 +24,12 @@ package qupath.opencv.ops;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.List;
-
 import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.io.UriResource;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -37,7 +37,7 @@ import qupath.lib.regions.RegionRequest;
  * 
  * @author Pete Bankhead
  */
-public interface ImageDataOp {
+public interface ImageDataOp extends UriResource {
 	
 	/**
 	 * Apply the operation to the requested region of the image.

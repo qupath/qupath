@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -73,10 +73,11 @@ public class ProjectCommands {
 	 * @throws IOException
 	 */
 	public static boolean promptToCheckURIs(Project<?> project, boolean onlyIfMissing) throws IOException {
-		var manager = new ProjectCheckUris.ProjectUriManager(project);
-		if (!onlyIfMissing || manager.countOriginalItems(ProjectCheckUris.UriStatus.MISSING) > 0) {
-			return manager.showDialog();
-		}
+		int n = UpdateUrisCommand.promptToUpdateUris(project.getImageList(), project.getPreviousURI(), project.getURI(), onlyIfMissing);
+		if (n < 0)
+			return false;
+		if (n > 0)
+			project.syncChanges();
 		return true;
 	}
 	
@@ -171,7 +172,7 @@ public class ProjectCommands {
 			
 			for (ProjectImageEntry<?> entry : project.getImageList()) {
 				try {
-					Collection<URI> uris = entry.getServerURIs();
+					Collection<URI> uris = entry.getUris();
 					String path = String.join(" ", uris.stream().map(u -> u.toString()).collect(Collectors.toList()));
 	//				String path = entry.getServerPath();
 					writer.print(entry.getImageName());

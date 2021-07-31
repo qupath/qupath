@@ -24,12 +24,16 @@ package qupath.opencv.ml.pixel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Map;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.io.UriResource;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.tools.OpenCVTools;
@@ -39,7 +43,7 @@ import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class OpenCVPixelClassifier implements PixelClassifier {
+class OpenCVPixelClassifier implements PixelClassifier, UriResource {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
@@ -118,6 +122,16 @@ class OpenCVPixelClassifier implements PixelClassifier {
 //    		logger.debug("After: \n" + OpenCVTools.memoryReport(", "));
     	}
     }
+
+	@Override
+	public Collection<URI> getUris() throws IOException {
+		return op.getUris();
+	}
+
+	@Override
+	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		return op.updateUris(replacements);
+	}
     
     
 }

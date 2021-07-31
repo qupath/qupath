@@ -58,6 +58,7 @@ import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.UriUpdater;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
@@ -68,6 +69,7 @@ import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.UriResource;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ResourceManager.Manager;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
@@ -140,10 +142,17 @@ public final class LoadResourceCommand<S> implements Runnable {
 			cachedServers.clear();
 			if (name != null) {
 				try {
-					var manager = resourceType.getManager(qupath.getProject());
+					var project = qupath.getProject();
+					var manager = resourceType.getManager(project);
+					S resource;
 					if (manager != null && manager.contains(name))
-						return manager.get(name);
-					return extras.get(name);
+						resource = manager.get(name);
+					else
+						resource = extras.get(name);
+					if (resource instanceof UriResource) {
+						UriUpdater.fixUris((UriResource)resource, project);
+					}
+					return resource;
 				} catch (Exception ex) {
 					Dialogs.showErrorMessage(resourceType.getDialogTitle(), ex);
 				}
