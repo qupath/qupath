@@ -299,10 +299,10 @@ public class UriUpdater<T extends UriResource> {
 	public Collection<SingleUriItem> getItems(UriStatus status) {
 		if (status == null)
 			return Collections.unmodifiableCollection(items);
-		return items.stream().filter(i -> i.getStatus() == status).toList();
+		return items.stream().filter(i -> i.getStatus() == status).collect(Collectors.toList());
 	}
 
-
+	
 
 	private static int updateReplacementsRelative(Collection<SingleUriItem> items, Path pathPrevious, Path pathBase, Map<SingleUriItem, SingleUriItem> replacements) {
 
@@ -367,7 +367,7 @@ public class UriUpdater<T extends UriResource> {
 		for (var item : uriResources) {
 			imageUris.addAll(item.getUris());
 		}
-		return imageUris.stream().map(u -> new SingleUriItem(u)).toList();
+		return imageUris.stream().map(u -> new SingleUriItem(u)).collect(Collectors.toList());
 	}
 
 
