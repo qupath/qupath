@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link ClassLoader} for loading QuPath extensions and other jars from the user directory.
  * 
- * @author Pete Bankhaad
+ * @author Pete Bankhead
  */
 public class ExtensionClassLoader extends URLClassLoader {
 	
