@@ -127,7 +127,7 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.dnn.DnnObjectClassifier;
+import qupath.opencv.dnn.OpenCVModelObjectClassifier;
 import qupath.opencv.dnn.DnnTools;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
@@ -211,7 +211,6 @@ public class QP {
 	static {
 		logger.info("Initializing type adapters");
 		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(OpenCVMLClassifier.class);
-		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(DnnObjectClassifier.class);
 		
 		GsonTools.getDefaultBuilder()
 			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
@@ -228,6 +227,9 @@ public class QP {
 		var predicates = new PathObjectPredicates();
 		@SuppressWarnings("unused")
 		var colorModels = new ColorModels();
+		@SuppressWarnings("unused")
+		var dnnTools = new DnnTools();
+		
 	}
 
 	
