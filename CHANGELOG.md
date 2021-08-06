@@ -70,6 +70,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Provide optional launch scripts and `-Pld-path=true` Gradle options for Linux to set LD_LIBRARY_PATH and work around pixman problems (https://github.com/qupath/qupath/issues/628)
 * When setting stain vectors, do not overwrite the last workflow step if it was also used to set stain vectors
   * This makes it possible to go back to earlier stains if needed
+* New `locateFile(nameOrPath)` scripting method to search for files within the current project and/or user directory
 
 ### Code changes
 * Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)

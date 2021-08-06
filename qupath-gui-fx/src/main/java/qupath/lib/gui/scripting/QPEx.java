@@ -30,6 +30,8 @@ import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -68,6 +70,7 @@ import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.LabeledImageServer;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.writers.ImageWriterTools;
+import qupath.lib.io.UriUpdater;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
 import qupath.lib.objects.PathRootObject;
@@ -184,6 +187,50 @@ public class QPEx extends QP {
 	public static QuPathViewer getCurrentViewer() {
 		QuPathGUI qupath = QuPathGUI.getInstance();
 		return qupath == null ? null : qupath.getViewer();
+	}
+	
+	
+	/**
+	 * Locate a specified file based upon its name or path, with a search depth of 4.
+	 * This first checks if the provided path is to a file that already exists.
+	 * If it is not, then it searches recursively within the current project or 
+	 * user directory (if available) up to a fixed search depth for a file with the same name.
+	 * 
+	 * @param nameOrPath the original name or path
+	 * @return the identified file path, or the original file path if no update was found or required
+	 * @throws IOException
+	 * @see UriUpdater#locateFile(String, int, Path...)
+	 */
+	public static String locateFile(String nameOrPath) throws IOException {
+		return locateFile(nameOrPath, 4);
+	}
+	
+	/**
+	 * Locate a specified file based upon its name or path.
+	 * This first checks if the provided path is to a file that already exists.
+	 * If it is not, then it searches recursively within the current project or 
+	 * user directory (if available) up to a specified search depth for a file with the same name.
+	 * 
+	 * @param nameOrPath the original name or path
+	 * @param searchDepth how deep to search subdirectories recursively
+	 * @return the identified file path, or the original file path if no update was found or required
+	 * @throws IOException
+	 * @see UriUpdater#locateFile(String, int, Path...)
+	 */
+	public static String locateFile(String nameOrPath, int searchDepth) throws IOException {
+		var paths = new ArrayList<Path>();
+		var project = getProject();
+		var path = project == null ? null : project.getPath();
+		if (path != null)
+			paths.add(path);
+		var userPath = PathPrefs.getUserPath();
+		if (userPath != null)
+			paths.add(Paths.get(userPath));
+		
+		if (!paths.isEmpty()) {
+			return UriUpdater.locateFile(nameOrPath, searchDepth, paths.toArray(Path[]::new));
+		}
+		return nameOrPath;
 	}
 	
 	

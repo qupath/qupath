@@ -55,4 +55,6 @@ public interface UriResource {
 	 */
 	public boolean updateUris(Map<URI, URI>  replacements) throws IOException;
 
+	
+	
 }
