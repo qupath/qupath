@@ -19,14 +19,17 @@
  * #L%
  */
 
-package qupath.lib.common;
+package qupath.lib.io;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -40,7 +43,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.io.UriResource;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.projects.Project;
 
 /**
@@ -94,6 +97,81 @@ public class UriUpdater<T extends UriResource> {
 	 */
 	public static <T extends UriResource> UriUpdater<T> create(Collection<T> resources, Collection<SingleUriItem> items, Map<SingleUriItem, SingleUriItem> replacements) throws IOException {
 		return new UriUpdater<>(resources, items, replacements);
+	}
+	
+	
+	/**
+	 * Wrap one or more URIs in a {@link UriResource} so they can be updated together.
+	 * Any changes can then be requred from the {@link UriResource}.
+	 * 
+	 * @param uris
+	 * @return
+	 */
+	public static UriResource wrap(URI... uris) {
+		return new DefaultUriResource(uris);
+	}
+	
+	/**
+	 * Wrap one or more URIs in a {@link UriResource} so they can be updated together.
+	 * Note that the collection is not used directly. Any changes should be accessed from the 
+	 * {@link UriResource}.
+	 * 
+	 * @param uris
+	 * @return
+	 */	
+	public static UriResource wrap(Collection<URI> uris) {
+		return wrap(uris.toArray(URI[]::new));
+	}
+	
+	/**
+	 * Attempt to update a URI to find an existing file using the specified search paths.
+	 * @param uri the URI to search for
+	 * @param searchDepth the depth of the search (i.e. how many subdirectories)
+	 * @param searchPaths the base directories to search, in order
+	 * @return a new URI corresponding to an existing file with the same name, 
+	 *         or the original URI if no replacement was found or required
+	 * @throws IOException 
+	 */
+	public static URI locateFile(URI uri, int searchDepth, Path... searchPaths) throws IOException {
+		var resource = wrap(uri);
+		var updater = create(resource);
+		int nMissing = updater.countMissing();
+		if (nMissing == 0)
+			return uri;
+		updater.searchDepth(searchDepth);
+		for (var p : searchPaths) {
+			if (p == null)
+				continue;
+			if (!Files.isDirectory(p))
+				p = p.getParent();
+			updater.searchPath(p);
+			updater.applyReplacements();
+			nMissing = updater.countMissing();
+			if (nMissing == 0)
+				break;
+		}
+		return resource.getUris().iterator().next();
+	}
+	
+	/**
+	 * Attempt to update a file using the specified search paths.
+	 * @param path the path to a file that may or may not exist
+	 * @param searchDepth the depth of the search (i.e. how many subdirectories)
+	 * @param searchPaths the base directories to search, in order
+	 * @return the path to a file with the same name as 'path' that <i>does</i> exist, 
+	 *         or path unchanged if no existing file could be found.
+	 * @throws IOException 
+	 */
+	public static String locateFile(String path, int searchDepth, Path... searchPaths) throws IOException {
+		try {
+			var uri = GeneralTools.toURI(path);
+			var uri2 = locateFile(uri, searchDepth, searchPaths);
+			if (uri2 == null || Objects.equals(uri, uri2))
+				return path;
+			return Paths.get(uri2).toAbsolutePath().toString();
+		} catch (URISyntaxException e) {
+			throw new IOException(e);
+		}
 	}
 	
 	
@@ -516,6 +594,36 @@ public class UriUpdater<T extends UriResource> {
 			return true;
 		}
 
+	}
+	
+	
+	static class DefaultUriResource implements UriResource {
+		
+		private List<URI> uris;
+		
+		DefaultUriResource(URI...uris) {
+			this.uris = Arrays.asList(uris);
+		}
+
+		@Override
+		public Collection<URI> getUris() throws IOException {
+			return Collections.unmodifiableList(uris);
+		}
+
+		@Override
+		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			boolean changes = false;
+			for (int i = 0; i < uris.size(); i++) {
+				var uri = uris.get(i);
+				var replace = replacements.get(uri);
+				if (!Objects.equals(uri, replace)) {
+					uris.set(i, replace);
+					changes = true;
+				}
+			}
+			return changes;
+		}
+		
 	}
 
 }
