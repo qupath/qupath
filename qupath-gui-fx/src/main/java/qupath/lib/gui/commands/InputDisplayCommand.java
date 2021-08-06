@@ -65,9 +65,8 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import javafx.stage.Window;
 import javafx.stage.WindowEvent;
-import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -78,13 +77,15 @@ import qupath.lib.gui.prefs.PathPrefs;
  *
  * @author Pete Bankhead
  */
-class InputDisplayDialog implements EventHandler<InputEvent> {
+public class InputDisplayCommand implements EventHandler<InputEvent> {
 
-	private final static Logger logger = LoggerFactory.getLogger(InputDisplayDialog.class);
+	private final static Logger logger = LoggerFactory.getLogger(InputDisplayCommand.class);
+	
+	private static final InputDisplayCommand INSTANCE = new InputDisplayCommand();
 
-	private Window window;
+	private static QuPathGUI qupath;
 
-	private Stage stage;
+	private static Stage stage = new Stage();
 
 	private FocusListener focusListener = new FocusListener();
 	private KeyFilter keyFilter = new KeyFilter();
@@ -110,10 +111,19 @@ class InputDisplayDialog implements EventHandler<InputEvent> {
 	private BooleanProperty scrollRight = new SimpleBooleanProperty(false);
 	private BooleanProperty scrollUp = new SimpleBooleanProperty(false);
 	private BooleanProperty scrollDown = new SimpleBooleanProperty(false);
-
-
-	InputDisplayDialog(final Window window) {
-		this.window = window;
+	
+	private InputDisplayCommand() {}
+	
+	/**
+	 * Return an instance of InputDisplayCommand.
+	 * @param qupath
+	 * @return the one instance of InputDisplayCommand
+	 */
+	public static InputDisplayCommand getInstance(QuPathGUI qupath) {
+		if (qupath == null)
+			throw new IllegalArgumentException();
+		InputDisplayCommand.qupath = qupath;
+		return INSTANCE;
 	}
 
 	private Stage createStage() {
@@ -189,25 +199,34 @@ class InputDisplayDialog implements EventHandler<InputEvent> {
 		return stage;
 	}
 
-	void show() {
+	/**
+	 * Request that the input display stage is made visible
+	 */
+	public void show() {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> show());
 			return;
 		}
-		if (stage != null) {
-			Dialogs.showErrorMessage("Show input", "Input display cannot be reused!");
-			return;
-		}
 
+		var window = qupath.getStage();
 		window.addEventFilter(InputEvent.ANY, this);
 		window.focusedProperty().addListener(focusListener);
 		stage = createStage();
 		stage.setAlwaysOnTop(true);
 		stage.show();
-		stage.setOnCloseRequest( e -> {
-			window.focusedProperty().removeListener(focusListener);
-			window.removeEventFilter(InputEvent.ANY, this);
-		});
+		stage.setOnCloseRequest(e -> qupath.showInputDisplayProperty().set(false));
+	}
+	
+	/**
+	 * Request that the input display window be closed.
+	 */
+	public void requestClose() {
+		if (stage.isShowing())
+			stage.close();
+		
+		var window = qupath.getStage();
+		window.focusedProperty().removeListener(focusListener);
+		window.removeEventFilter(InputEvent.ANY, this);
 	}
 
 	@Override

@@ -174,6 +174,7 @@ import qupath.lib.gui.ActionTools.ActionIcon;
 import qupath.lib.gui.commands.BrightnessContrastCommand;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.commands.CountingPanelCommand;
+import qupath.lib.gui.commands.InputDisplayCommand;
 import qupath.lib.gui.commands.LogViewerCommand;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.commands.TMACommands;
@@ -354,6 +355,7 @@ public class QuPathGUI {
 	private BooleanProperty scriptRunning = new SimpleBooleanProperty(false);
 	private BooleanBinding uiBlocked = pluginRunning.or(scriptRunning);
 	
+	private SimpleBooleanProperty showInputDisplayProperty = new SimpleBooleanProperty(false);
 	
 	/**
 	 * Create an {@link Action} that depends upon an {@link ImageData}.
@@ -382,6 +384,14 @@ public class QuPathGUI {
 	 */
 	BooleanProperty pluginRunningProperty() {
 		return pluginRunning;
+	}
+	
+	/**
+	 * Property to indicate whether the input display is currently showing
+	 * @return input display property
+	 */
+	public BooleanProperty showInputDisplayProperty() {
+		return showInputDisplayProperty;
 	}
 	
 	
@@ -926,6 +936,17 @@ public class QuPathGUI {
 		// Remove this to only accept drag-and-drop into a viewer
 		dragAndDrop.setupTarget(scene);
 		TMACommands.installDragAndDropHandler(this);
+		
+		
+		// Add listener to the inputDisplayDialogProperty to show/hide dialog
+		showInputDisplayProperty.addListener((v, o, n) -> {
+			var dialogInstance = InputDisplayCommand.getInstance(this);
+			if (n)
+				dialogInstance.show();
+			else {
+				dialogInstance.requestClose();
+			}
+		});
 		
 		stage.setOnCloseRequest(e -> {
 			
