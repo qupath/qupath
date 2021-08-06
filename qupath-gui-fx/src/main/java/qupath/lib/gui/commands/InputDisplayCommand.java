@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.WeakHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,8 +66,8 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.Window;
 import javafx.stage.WindowEvent;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -81,9 +82,11 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 
 	private final static Logger logger = LoggerFactory.getLogger(InputDisplayCommand.class);
 	
-	private static final InputDisplayCommand INSTANCE = new InputDisplayCommand();
+	// To ensure single input command per window
+	private static WeakHashMap<Window, InputDisplayCommand> map = new WeakHashMap<>();
 
-	private static QuPathGUI qupath;
+	private Window window;
+	private BooleanProperty showProperty;
 
 	private static Stage stage = new Stage();
 
@@ -112,18 +115,25 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 	private BooleanProperty scrollUp = new SimpleBooleanProperty(false);
 	private BooleanProperty scrollDown = new SimpleBooleanProperty(false);
 	
-	private InputDisplayCommand() {}
+	private InputDisplayCommand(Window window, BooleanProperty showProperty) {
+		if (window == null || showProperty == null)
+			throw new IllegalArgumentException();
+		this.window = window;
+		this.showProperty = showProperty;
+		map.put(window, this);
+	}
 	
 	/**
-	 * Return an instance of InputDisplayCommand.
-	 * @param qupath
-	 * @return the one instance of InputDisplayCommand
+	 * Return an instance of {@code InputDisplayCommand} associated with the specified {@code window} (or a 
+	 * new instance if it was not previously created).
+	 * @param window
+	 * @param showProperty
+	 * @return
 	 */
-	public static InputDisplayCommand getInstance(QuPathGUI qupath) {
-		if (qupath == null)
-			throw new IllegalArgumentException();
-		InputDisplayCommand.qupath = qupath;
-		return INSTANCE;
+	public static InputDisplayCommand getInstance(Window window, BooleanProperty showProperty) {
+		if (map.containsKey(window))
+			return map.get(window);
+		return new InputDisplayCommand(window, showProperty);
 	}
 
 	private Stage createStage() {
@@ -208,13 +218,15 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 			return;
 		}
 
-		var window = qupath.getStage();
 		window.addEventFilter(InputEvent.ANY, this);
 		window.focusedProperty().addListener(focusListener);
 		stage = createStage();
 		stage.setAlwaysOnTop(true);
 		stage.show();
-		stage.setOnCloseRequest(e -> qupath.showInputDisplayProperty().set(false));
+		stage.setOnCloseRequest(e -> {
+			requestClose();
+			showProperty.set(false);
+		});
 	}
 	
 	/**
@@ -224,7 +236,6 @@ public class InputDisplayCommand implements EventHandler<InputEvent> {
 		if (stage.isShowing())
 			stage.close();
 		
-		var window = qupath.getStage();
 		window.focusedProperty().removeListener(focusListener);
 		window.removeEventFilter(InputEvent.ANY, this);
 	}

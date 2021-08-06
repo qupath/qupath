@@ -940,12 +940,11 @@ public class QuPathGUI {
 		
 		// Add listener to the inputDisplayDialogProperty to show/hide dialog
 		showInputDisplayProperty.addListener((v, o, n) -> {
-			var dialogInstance = InputDisplayCommand.getInstance(this);
+			var dialogInstance = InputDisplayCommand.getInstance(getStage(), showInputDisplayProperty);
 			if (n)
 				dialogInstance.show();
-			else {
+			else
 				dialogInstance.requestClose();
-			}
 		});
 		
 		stage.setOnCloseRequest(e -> {
