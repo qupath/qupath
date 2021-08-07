@@ -41,7 +41,7 @@ QuPath is being actively developed at the University of Edinburgh by:
 
 For all contributors, see [here](https://github.com/qupath/qupath/graphs/contributors).
 
-This work is made possible thanks to funding from:
+This work is made possible in part thanks to funding from:
 
 * CZI Essential Open Source Software for Science, Cycle 1 (2020-2021)
 * Wellcome Trust / University of Edinburgh Institutional Strategic Support Fund (ISSF3) (2019-2020)
