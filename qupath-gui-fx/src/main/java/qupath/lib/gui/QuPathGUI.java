@@ -1534,7 +1534,7 @@ public class QuPathGUI {
 		for (var entry : projects.entrySet()) {
 			try {
 				var project = entry.getKey();
-				logger.info("Update check for {}", project);
+				logger.info("Update check for {}", project.getUrlString());
 				var release = UpdateChecker.checkForUpdate(entry.getKey());
 				if (release != null && release.getVersion() != Version.UNKNOWN && entry.getValue().compareTo(release.getVersion()) < 0)
 					projectUpdates.put(project, release);

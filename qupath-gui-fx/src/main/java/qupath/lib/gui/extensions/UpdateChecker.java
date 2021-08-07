@@ -181,6 +181,9 @@ public class UpdateChecker {
 		case 307:
 			logger.warn("Attempted redirect to {}, but I don't want to follow redirects", headers.firstValue("Location"));
 			return null;
+		case 404:
+			logger.warn("Update check failed (code {}). This may mean there are no stable releases available.", code);
+			return null;
 		default:
 			logger.warn("Update check failed (code {})", code);
 			return null;
