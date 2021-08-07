@@ -71,6 +71,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 	
 	private static Logger logger = LoggerFactory.getLogger(OpenCVDnn.class);
 	
+	
 	/**
 	 * Enum representing different classes of {@link Model} supported by OpenCV.
 	 * These can be used as a more convenient way to run predictions.
@@ -126,9 +127,9 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 	private URI pathConfig;
 	private String framework;
 	
-	private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
-	private int target = opencv_dnn.DNN_TARGET_CPU;
-	
+	private int backend = DnnTools.useCuda() ? opencv_dnn.DNN_BACKEND_CUDA : opencv_dnn.DNN_BACKEND_DEFAULT;
+	private int target = DnnTools.useCuda() ? opencv_dnn.DNN_TARGET_CUDA : opencv_dnn.DNN_TARGET_CPU;
+		
 	private boolean crop = false;
 	private boolean swapRB = false;
 	private Size size;
@@ -370,8 +371,8 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		private double scale = 1.0;
 		private boolean swapRB = false;
 		
-		private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
-		private int target = opencv_dnn.DNN_TARGET_CPU;
+		private int backend = DnnTools.useCuda() ? opencv_dnn.DNN_BACKEND_CUDA : opencv_dnn.DNN_BACKEND_DEFAULT;
+		private int target = DnnTools.useCuda() ? opencv_dnn.DNN_TARGET_CUDA : opencv_dnn.DNN_TARGET_CPU;
 		
 		private Map<String, DnnShape> outputs;
 		
@@ -459,6 +460,16 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		public Builder cuda() {
 			this.backend = opencv_dnn.DNN_BACKEND_CUDA;
 			this.target = opencv_dnn.DNN_TARGET_CUDA;
+			return this;
+		}
+		
+		/**
+		 * Request CPU backend and target, if available.
+		 * @return
+		 */
+		public Builder cpu() {
+			this.backend = opencv_dnn.DNN_BACKEND_OPENCV;
+			this.target = opencv_dnn.DNN_TARGET_CPU;
 			return this;
 		}
 		

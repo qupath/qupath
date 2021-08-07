@@ -144,6 +144,64 @@ public class DnnTools {
 	}
 	
 	
+	// Default to using CUDA if available (user can override)
+	private static boolean cudaAvailable = false;
+	private static boolean useCuda = false;
+
+
+	static {
+		// Check if CUDA available
+		if (opencv_core.getCudaEnabledDeviceCount() > 0) {
+			var backends = opencv_dnn.getAvailableBackends();
+			long n = backends.size();
+			for (int i = 0; i < n; i++) {
+				var bkend = backends.first(i);
+				var target = backends.second(i);
+				if (bkend == opencv_dnn.DNN_BACKEND_CUDA && target == opencv_dnn.DNN_TARGET_CUDA) {
+					logger.info("CUDA detected and will be used if possible. Use DnnTools.setUseCuda(false) to turn this off.");
+					cudaAvailable = true;
+					useCuda = true;
+				}
+			}
+		} else {
+			logger.debug("CUDA is not available");
+		}
+	}
+
+	/**
+	 * Query whether CUDA is reported as available by OpenCV.
+	 * If it is, it will be used by default until {@link #setUseCuda(boolean)} is used to turn if off.
+	 * @return
+	 */
+	public static boolean isCudaAvailable() {
+		return cudaAvailable;
+	}
+
+	/**
+	 * Request that CUDA is used.
+	 * This will be ignored if {@link #isCudaAvailable()} returns false, therefore the main purpose of 
+	 * this method is to disable the use of CUDA if it would otherwise be employed.
+	 * 
+	 * @param requestUseCuda
+	 */
+	public static void setUseCuda(boolean requestUseCuda) {
+		if (requestUseCuda && !cudaAvailable) {
+			logger.warn("CUDA is not available - request will be ignored");
+			return;
+		}
+		useCuda = requestUseCuda;
+	}
+	
+	/**
+	 * Returns true if CUDA is available and requested.
+	 * Classes that could potentially use CUDA should query this request before attempting to use it.
+	 * @return true if CUDA should be used, false otherwise
+	 */
+	public static boolean useCuda() {
+		return useCuda;
+	}
+	
+	
 	/**
 	 * Get the names of all unconnected output layers.
 	 * @param net 
