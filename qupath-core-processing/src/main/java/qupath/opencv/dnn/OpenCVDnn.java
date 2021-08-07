@@ -237,8 +237,10 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		case opencv_dnn.DNN_TARGET_CUDA:
 		case opencv_dnn.DNN_TARGET_CUDA_FP16:
 			int count = opencv_core.getCudaEnabledDeviceCount();
-			if (count <= 0)
-				logger.warn("Unable to set CUDA target - reported CUDA device count {}", count);
+			if (count < 0)
+				logger.warn("Unable to set CUDA target - driver may be missing or unavailable (device count = {})", count);
+			else if (count == 0)
+				logger.warn("Unable to set CUDA target - OpenCV not compiled with CUDA support (device count = {})", count);
 			else if (backend != opencv_dnn.DNN_BACKEND_CUDA) {
 				logger.warn("Must specify CUDA backend to use CUDA target - request will be ignored");
 			} else {
@@ -250,7 +252,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		case opencv_dnn.DNN_TARGET_OPENCL:
 		case opencv_dnn.DNN_TARGET_OPENCL_FP16:
 			if (!opencv_core.haveOpenCL())
-				logger.warn("Cannot set OpenCL target - OpenCL is unavailable");
+				logger.warn("Cannot set OpenCL target - OpenCL is unavailable on this platform");
 			else if (backend == opencv_dnn.DNN_BACKEND_CUDA) {
 				logger.warn("Cannot set CUDA backend and OpenCL target");
 			} else {

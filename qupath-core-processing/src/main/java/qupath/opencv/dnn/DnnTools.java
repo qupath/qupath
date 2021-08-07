@@ -151,7 +151,8 @@ public class DnnTools {
 
 	static {
 		// Check if CUDA available
-		if (opencv_core.getCudaEnabledDeviceCount() > 0) {
+		int cudaDeviceCount = opencv_core.getCudaEnabledDeviceCount();
+		if (cudaDeviceCount > 0) {
 			var backends = opencv_dnn.getAvailableBackends();
 			long n = backends.size();
 			for (int i = 0; i < n; i++) {
@@ -163,8 +164,15 @@ public class DnnTools {
 					useCuda = true;
 				}
 			}
+			if (!cudaAvailable)
+				logger.warn("CUDA is not available - no compatible backend found with OpenCV DNN");
+		} else if (cudaDeviceCount < 0) {
+			// Warn if compiled with CUDA support but unable to actually use it
+			logger.warn("CUDA is not available - device count returns {}, which may mean a driver is missing or incompatible",
+					cudaDeviceCount);
 		} else {
-			logger.debug("CUDA is not available");
+			// Log more quietly since this will usually be the case
+			logger.debug("CUDA is not available (OpenCV not compiled with CUDA support)");			
 		}
 	}
 
