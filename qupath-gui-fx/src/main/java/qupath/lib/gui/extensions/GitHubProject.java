@@ -1,5 +1,6 @@
 package qupath.lib.gui.extensions;
 
+import java.net.URL;
 import java.util.Objects;
 
 /**
@@ -52,6 +53,14 @@ public interface GitHubProject {
 		 */
 		public String getName() {
 			return name;
+		}
+		
+		/**
+		 * Get the URL for the main repo.
+		 * @return
+		 */
+		public String getUrlString() {
+			return "https://github.com/" + owner + "/" + repo;
 		}
 		
 		@Override
