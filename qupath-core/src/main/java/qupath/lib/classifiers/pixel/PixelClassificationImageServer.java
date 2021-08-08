@@ -194,7 +194,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		try {
 			return readTile(tile);
 		} catch (IOException e) {
-			logger.debug("Unable to read tile: " + e.getLocalizedMessage(), e);
+			logger.warn("Unable to read tile: " + e.getLocalizedMessage(), e);
+//			logger.debug("Unable to read tile: " + e.getLocalizedMessage(), e);
 			return null;
 		}
 	}
@@ -273,23 +274,33 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 
 	@Override
 	protected BufferedImage readTile(TileRequest tileRequest) throws IOException {
-		BufferedImage img;
-		double fullResDownsample = getDownsampleForResolution(0);
-		if (tileRequest.getDownsample() != fullResDownsample && Math.abs(tileRequest.getDownsample() - fullResDownsample) > 1e-6) {
-			// If we're generating lower-resolution tiles, we need to request the higher-resolution data accordingly
-			var request2 = RegionRequest.createInstance(getPath(), fullResDownsample, tileRequest.getRegionRequest());
-			img = readBufferedImage(request2);
-			img = BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
-		} else {
-			// Classify at this resolution if need be
-			img = classifier.applyClassification(imageData, tileRequest.getRegionRequest());
-			img = BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
+		try {
+			BufferedImage img;
+			double fullResDownsample = getDownsampleForResolution(0);
+			if (tileRequest.getDownsample() != fullResDownsample && Math.abs(tileRequest.getDownsample() - fullResDownsample) > 1e-6) {
+				// If we're generating lower-resolution tiles, we need to request the higher-resolution data accordingly
+				var request2 = RegionRequest.createInstance(getPath(), fullResDownsample, tileRequest.getRegionRequest());
+				img = readBufferedImage(request2);
+				img = BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
+			} else {
+				// Classify at this resolution if need be
+				img = classifier.applyClassification(imageData, tileRequest.getRegionRequest());
+				img = BufferedImageTools.resize(img, tileRequest.getTileWidth(), tileRequest.getTileHeight(), allowSmoothInterpolation());
+			}
+			// If we have specified a color model, apply it now
+			if (colorModel != null && colorModel != img.getColorModel() && colorModel.isCompatibleRaster(img.getRaster())) {
+				img = new BufferedImage(colorModel, img.getRaster(), img.isAlphaPremultiplied(), null);
+			}
+			return img;
+		} catch (IOException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new IOException(e);
+		} catch (Error e) {
+			// Because sometimes we have library loading problems (e.g. OpenCV) and need to report this somehow, 
+			// even if called within a stream
+			throw new IOException(e);
 		}
-		// If we have specified a color model, apply it now
-		if (colorModel != null && colorModel != img.getColorModel() && colorModel.isCompatibleRaster(img.getRaster())) {
-			img = new BufferedImage(colorModel, img.getRaster(), img.isAlphaPremultiplied(), null);
-		}
-		return img;
 	}
 	
 	/**

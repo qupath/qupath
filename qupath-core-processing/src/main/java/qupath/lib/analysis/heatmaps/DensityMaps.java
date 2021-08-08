@@ -359,6 +359,7 @@ public class DensityMaps {
 		 * @see #buildServer(ImageData)
 		 */
 		public PixelClassifier buildClassifier(ImageData<BufferedImage> imageData) {
+			logger.debug("Building density map classifier for {}", imageData);
 			return createClassifier(imageData, params);
 		}
 		
@@ -378,6 +379,9 @@ public class DensityMaps {
 		 * @see #buildClassifier(ImageData)
 		 */
 		public ImageServer<BufferedImage> buildServer(ImageData<BufferedImage> imageData) {
+			
+			logger.debug("Building density map server for {}", imageData);
+
 			var classifier = createClassifier(imageData, params);
 			
 			var id = UUID.randomUUID().toString();
@@ -429,7 +433,7 @@ public class DensityMaps {
 		}
 		
 		int radiusInt = (int)Math.round(params.radius / pixelSize.getAveragedPixelSize().doubleValue());
-		logger.debug("Creating classiier with pixel size {}, radius = {}", pixelSize, radiusInt);
+		logger.debug("Creating classifier with pixel size {}, radius = {}", pixelSize, radiusInt);
 					    
 		var dataOp = new DensityMapDataOp(
 		        radiusInt,
@@ -455,6 +459,7 @@ public class DensityMaps {
 	 * @throws IOException
 	 */
 	public static DensityMapBuilder loadDensityMap(Path path) throws IOException {
+		logger.debug("Loading density map from {}", path);
 		try (var reader = Files.newBufferedReader(path)) {
 			return GsonTools.getInstance().fromJson(reader, DensityMapBuilder.class);
 		}
@@ -488,6 +493,8 @@ public class DensityMaps {
 	 * @throws IOException 
 	 */
 	public static boolean threshold(PathObjectHierarchy hierarchy, ImageServer<BufferedImage> densityServer, Map<Integer, ? extends Number> thresholds, String pathClassName, CreateObjectOptions... options) throws IOException {
+
+		logger.debug("Thresholding {} with thresholds {}, options", densityServer, thresholds, Arrays.asList(options));
 
 		// Apply threshold to densities
 		PathClass lessThan = PathClassFactory.getPathClass(StandardPathClasses.IGNORE);
@@ -546,6 +553,8 @@ public class DensityMaps {
 			logger.warn("Number of hotspots requested is {}!", nHotspots);
 			return;
 		}
+		
+		logger.debug("Finding {} hotspots in {} for channel {}, radius {}", nHotspots, densityServer, channel, radius);
 		
 		Collection<PathObject> parents = new ArrayList<>(hierarchy.getSelectionModel().getSelectedObjects());
 		if (parents.isEmpty())
