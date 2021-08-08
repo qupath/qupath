@@ -530,8 +530,8 @@ public class PixelClassifierPane {
 		var splitPane = new BorderPane(viewerBorderPane);
 		splitPane.setLeft(pane);
 		pane.setMinWidth(400);
-		pane.setPrefWidth(400);
-		pane.setMaxWidth(400);
+//		pane.setPrefWidth(400);
+//		pane.setMaxWidth(400);
 		
 		var fullPane = splitPane;//new StackPane(splitPane);
 		
@@ -541,7 +541,8 @@ public class PixelClassifierPane {
 		stage.setScene(new Scene(fullPane));
 		
 		stage.setMinHeight(400);
-		stage.setMinWidth(500);
+		stage.setMinWidth(600);
+		stage.sizeToScene();
 
 		stage.initOwner(QuPathGUI.getInstance().getStage());
 		
