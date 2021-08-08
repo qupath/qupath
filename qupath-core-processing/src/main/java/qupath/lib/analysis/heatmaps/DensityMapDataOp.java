@@ -39,6 +39,8 @@ import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapType;
 import qupath.lib.geom.Point2;
@@ -61,6 +63,7 @@ import qupath.opencv.ops.ImageOps;
  */
 class DensityMapDataOp implements ImageDataOp {
 	
+	private static final Logger logger = LoggerFactory.getLogger(DensityMapDataOp.class);
 	
 	static {
 		ImageOps.registerDataOp(DensityMapDataOp.class, "data.op.density");
@@ -119,6 +122,9 @@ class DensityMapDataOp implements ImageDataOp {
 	
 	
 	private void buildOpAndChannels() {
+		
+		logger.trace("Building density map op with type {}", densityType);
+		
 		String baseChannelName;
 		ImageChannel lastChannel = null;
 		List<ImageOp> sequentialOps = new ArrayList<>();
@@ -218,6 +224,8 @@ class DensityMapDataOp implements ImageDataOp {
 		
 		ensureInitialized();
 		
+		logger.trace("Applying density map op for {}", request);
+		
 		// Calculate how much padding we need
 		var padding = op.getPadding();
 		if (!padding.isEmpty()) {
@@ -241,6 +249,12 @@ class DensityMapDataOp implements ImageDataOp {
 		// TODO: Consider if we can optimize things when there are no objects
 //		if (allPathObjects.isEmpty())
 //			return null;
+		
+		if (allPathObjects.size() == 1)
+			logger.trace("Generating counts tile for 1 object");
+		else
+			logger.trace("Generating counts tile for {} objects", allPathObjects.size());
+
 
 		// Create an output mat
 		int nChannels = getChannelCount();

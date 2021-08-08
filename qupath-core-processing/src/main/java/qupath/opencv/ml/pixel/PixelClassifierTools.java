@@ -464,8 +464,10 @@ public class PixelClassifierTools {
 	 */
 	public static ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData, PixelClassifier classifier, String id, ColorModel colorModel, boolean cacheAllTiles) {
 		var server = new PixelClassificationImageServer(imageData, classifier, id, colorModel);
-		if (cacheAllTiles)
+		if (cacheAllTiles) {
+			logger.debug("Caching all tiles for {}", server);
 			server.readAllTiles();
+		}
 		return server;
 	}
 	
