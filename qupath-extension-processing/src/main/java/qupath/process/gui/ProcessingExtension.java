@@ -24,6 +24,9 @@ package qupath.process.gui;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.openblas.global.openblas;
 import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_dnn;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_ml;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -325,8 +328,10 @@ public class ProcessingExtension implements QuPathExtension {
 	    		openblas.blas_set_num_threads(1);
 	    	}
 	    	
+	    	// Ensure we can load core classes
+	    	loadCoreClasses();
+	    	
 			// Install the Wand tool
-			Loader.load(opencv_core.class);
 			var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand",
 					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
@@ -341,6 +346,27 @@ public class ProcessingExtension implements QuPathExtension {
 			logger.debug("Loading OpenCV classes");
 		});
 		t.start();
+    }
+    
+    
+    /**
+     * Try to load core classes and report if we can't.
+     * This is important because if class loading fails then the user isn't always notified in the log.
+     * It also aims to overcome a subtle bug (seen on macOS) whereby density maps would fail if run 
+     * before the wand tool (or another using opencv_imgproc), seemingly because of threading/file locks. 
+     * This tended to only input the first installation; once opencv_imgproc was cached by JavaCPP, then 
+     * it would always work.
+     */
+    private void loadCoreClasses() {
+    	try {
+    		logger.debug("Attempting to load core OpenCV classes");
+    		Loader.load(opencv_core.class);
+			Loader.load(opencv_imgproc.class);
+			Loader.load(opencv_ml.class);
+			Loader.load(opencv_dnn.class);
+    	} catch (Throwable t) {
+    		logger.error("Error loading OpenCV classes: " + t.getLocalizedMessage(), t);
+    	}
     }
     
 
