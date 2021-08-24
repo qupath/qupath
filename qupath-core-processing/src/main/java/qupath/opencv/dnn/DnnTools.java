@@ -158,6 +158,7 @@ public class DnnTools {
 			for (int i = 0; i < n; i++) {
 				var bkend = backends.first(i);
 				var target = backends.second(i);
+				logger.trace("Available backend {}, target {}", bkend, target);
 				if (bkend == opencv_dnn.DNN_BACKEND_CUDA && target == opencv_dnn.DNN_TARGET_CUDA) {
 					logger.info("CUDA detected and will be used if possible. Use DnnTools.setUseCuda(false) to turn this off.");
 					cudaAvailable = true;
@@ -175,6 +176,24 @@ public class DnnTools {
 			logger.debug("CUDA is not available (OpenCV not compiled with CUDA support)");			
 		}
 	}
+	
+	
+	/**
+	 * Temp method to help debugging through scripts.
+	 * Likely to be replaced in the future with a proper public API to allow the backend to be set, 
+	 * however, this may require new enums (rather than OpenCV's ints) for ease of use 
+	 * and better compatibility checks.
+	 */
+	static void logAvailableBackends() {
+		var backends = opencv_dnn.getAvailableBackends();
+		long n = backends.size();
+		for (int i = 0; i < n; i++) {
+			var bkend = backends.first(i);
+			var target = backends.second(i);
+			logger.info("Available backend {}, target {}", bkend, target);
+		}
+	}
+	
 
 	/**
 	 * Query whether CUDA is reported as available by OpenCV.
