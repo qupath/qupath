@@ -132,10 +132,10 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 ### Dependency updates
 * AdoptOpenJDK 16
 * Apache Commons Text 1.9
-* Bio-Formats 6.6.1
+* Bio-Formats 6.7.0
 * ControlsFX 11.1.0
 * Groovy 3.0.8
-* Gson 2.8.7
+* Gson 2.8.8
 * Guava 30.1.1-jre
 * ImageJ 1.53j
 * JavaFX 16
