@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.WeakHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +68,6 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
-import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.prefs.PathPrefs;
 
 /**
@@ -78,13 +78,17 @@ import qupath.lib.gui.prefs.PathPrefs;
  *
  * @author Pete Bankhead
  */
-class InputDisplayDialog implements EventHandler<InputEvent> {
+public class InputDisplayCommand implements EventHandler<InputEvent> {
 
-	private final static Logger logger = LoggerFactory.getLogger(InputDisplayDialog.class);
+	private final static Logger logger = LoggerFactory.getLogger(InputDisplayCommand.class);
+	
+	// To ensure single input command per window
+	private static WeakHashMap<Window, InputDisplayCommand> map = new WeakHashMap<>();
 
 	private Window window;
+	private BooleanProperty showProperty;
 
-	private Stage stage;
+	private static Stage stage = new Stage();
 
 	private FocusListener focusListener = new FocusListener();
 	private KeyFilter keyFilter = new KeyFilter();
@@ -110,10 +114,26 @@ class InputDisplayDialog implements EventHandler<InputEvent> {
 	private BooleanProperty scrollRight = new SimpleBooleanProperty(false);
 	private BooleanProperty scrollUp = new SimpleBooleanProperty(false);
 	private BooleanProperty scrollDown = new SimpleBooleanProperty(false);
-
-
-	InputDisplayDialog(final Window window) {
+	
+	private InputDisplayCommand(Window window, BooleanProperty showProperty) {
+		if (window == null || showProperty == null)
+			throw new IllegalArgumentException();
 		this.window = window;
+		this.showProperty = showProperty;
+		map.put(window, this);
+	}
+	
+	/**
+	 * Return an instance of {@code InputDisplayCommand} associated with the specified {@code window} (or a 
+	 * new instance if it was not previously created).
+	 * @param window
+	 * @param showProperty
+	 * @return
+	 */
+	public static InputDisplayCommand getInstance(Window window, BooleanProperty showProperty) {
+		if (map.containsKey(window))
+			return map.get(window);
+		return new InputDisplayCommand(window, showProperty);
 	}
 
 	private Stage createStage() {
@@ -189,13 +209,12 @@ class InputDisplayDialog implements EventHandler<InputEvent> {
 		return stage;
 	}
 
-	void show() {
+	/**
+	 * Request that the input display stage is made visible
+	 */
+	public void show() {
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> show());
-			return;
-		}
-		if (stage != null) {
-			Dialogs.showErrorMessage("Show input", "Input display cannot be reused!");
 			return;
 		}
 
@@ -204,10 +223,21 @@ class InputDisplayDialog implements EventHandler<InputEvent> {
 		stage = createStage();
 		stage.setAlwaysOnTop(true);
 		stage.show();
-		stage.setOnCloseRequest( e -> {
-			window.focusedProperty().removeListener(focusListener);
-			window.removeEventFilter(InputEvent.ANY, this);
+		stage.setOnCloseRequest(e -> {
+			requestClose();
+			showProperty.set(false);
 		});
+	}
+	
+	/**
+	 * Request that the input display window be closed.
+	 */
+	public void requestClose() {
+		if (stage.isShowing())
+			stage.close();
+		
+		window.focusedProperty().removeListener(focusListener);
+		window.removeEventFilter(InputEvent.ANY, this);
 	}
 
 	@Override

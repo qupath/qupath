@@ -764,7 +764,7 @@ class Menus {
 		@ActionDescription("Show mouse clicks and keypresses on screen. "
 				+ "This is particularly useful for demos and tutorials.")
 		@ActionMenu("Show input display")
-		public final Action INPUT_DISPLAY = createAction(() -> Commands.showInputDisplay(qupath));
+		public final Action INPUT_DISPLAY = createSelectableCommandAction(qupath.showInputDisplayProperty());
 
 		@ActionDescription("Show a dialog to track memory usage within QuPath, and clear the cache if required.")
 		@ActionMenu("Show memory monitor")

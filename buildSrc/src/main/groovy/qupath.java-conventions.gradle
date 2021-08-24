@@ -86,3 +86,13 @@ if (!strictJavadoc) {
         options.addStringOption('Xdoclint:none', '-quiet')
     }
 }
+
+
+/*
+ * On Apple Silicon (at least), there are problems running tests involving JavaCPP 1.5.5 with 
+ * java.lang.OutOfMemoryError: Physical memory usage is too high: physicalBytes (1028M) > maxPhysicalBytes (1024M)
+ * https://github.com/bytedeco/javacpp/issues/468
+ */
+test {
+  maxHeapSize = '2G'
+}

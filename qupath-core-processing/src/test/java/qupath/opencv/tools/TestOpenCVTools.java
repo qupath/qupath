@@ -413,8 +413,17 @@ public class TestOpenCVTools {
 		var mat = new Mat(values);
 		var stdDev = Math.sqrt(stats.getPopulationVariance());
 		
-		assertEquals(1, mat.rows());
-		assertEquals(values.length, mat.cols());
+		// Warning! Behavior changed from row vector to column vector in 
+		// JavaCPP Presets 1.5.6
+		// See https://github.com/bytedeco/javacpp-presets/blob/master/CHANGELOG.md#august-2-2021-version-156
+		boolean colVector = mat.cols() == 1;
+		if (colVector) {
+			assertEquals(1, mat.cols());
+			assertEquals(values.length, mat.rows());			
+		} else {
+			assertEquals(1, mat.rows());
+			assertEquals(values.length, mat.cols());
+		}
 		
 		assertEquals(stats.getMean(), OpenCVTools.mean(mat));
 		assertEquals(stdDev, OpenCVTools.stdDev(mat));
@@ -430,8 +439,14 @@ public class TestOpenCVTools {
 
 		// Transpose
 		mat = mat.t().asMat();
-		assertEquals(1, mat.cols());
-		assertEquals(values.length, mat.rows());
+		colVector = !colVector;
+		if (colVector) {
+			assertEquals(1, mat.cols());
+			assertEquals(values.length, mat.rows());
+		} else {
+			assertEquals(1, mat.rows());
+			assertEquals(values.length, mat.cols());			
+		}
 		assertEquals(stats.getMean(), OpenCVTools.mean(mat));
 		assertEquals(stdDev, OpenCVTools.stdDev(mat));
 		assertEquals(stats.getSum(), OpenCVTools.sum(mat));

@@ -415,6 +415,7 @@ public class DensityMapUI {
 		
 		/**
 		 * Provide custom updates to the colormodel.
+		 * @param renderer 
 		 */
 		protected abstract void customUpdateRenderer(ColorModelRenderer renderer);
 		

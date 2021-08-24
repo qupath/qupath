@@ -1895,7 +1895,7 @@ public class OpenCVTools {
 	 * </ul>
 	 * If the image dimensions are not an exact multiple of the requested tile sizes, both steps may be required.
 	 * <p>
-	 * <b>Important!</b> If the output (width & height) of the function is smaller than the input, it will resized
+	 * <b>Important!</b> If the output (width &amp; height) of the function is smaller than the input, it will resized
 	 * to have the same dimensions and a warning will be logged.
 	 * 
 	 * @param fun the function to apply to the input

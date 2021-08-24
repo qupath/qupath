@@ -150,6 +150,8 @@ public class DensityMapDialog {
 	public DensityMapDialog(QuPathGUI qupath) {
 		this.qupath = qupath;
 		
+		logger.debug("Constructing density map dialog");
+		
 		var paneParams = buildAllObjectsPane(densityMapBuilder);
 		var titledPaneParams = new TitledPane("Create density map", paneParams);
 		titledPaneParams.setExpanded(true);
@@ -442,6 +444,9 @@ public class DensityMapDialog {
 	public boolean updateDefaults(ImageData<BufferedImage> imageData) {
 		if (imageData == null)
 			return false;
+		
+		logger.debug("Updating density map defaults for {}", imageData);
+		
 		var server = imageData.getServer();
 		double pixelSize = Math.round(server.getPixelCalibration().getAveragedPixelSize().doubleValue() * 10);
 		pixelSize *= 100;
@@ -476,6 +481,7 @@ public class DensityMapDialog {
 	 * Deregister listeners. This should be called when the stage is closed if it will not be used again.
 	 */
 	public void deregister() {
+		logger.debug("Deregistering density map dialog");
 		manager.shutdown();
 	}
 	
@@ -493,6 +499,8 @@ public class DensityMapDialog {
 	 * Encapsulate the stuff we need to build an {@link ImageRenderer}.
 	 */
 	static class ObservableColorModelBuilder {
+		
+		private final static Logger logger = LoggerFactory.getLogger(ObservableColorModelBuilder.class);
 
 		private final ObjectProperty<ColorMap> colorMap = new SimpleObjectProperty<>();
 
@@ -611,14 +619,23 @@ public class DensityMapDialog {
 
 		private void updateColorModel() {
 			// Stop events if multiple updates in progress
-			if (updating)
+			if (updating) {
+				logger.trace("Skipping color model update (updating flag is 'true')");
 				return;
+			}
 
+			var selectedColorMap = colorMap.get();
+			if (selectedColorMap == null) {
+				logger.warn("Selected color map is null! Cannot create color model.");
+				return;
+			}
+			logger.debug("Updating color model for {}", selectedColorMap.getName());
 			int band = 0;
 			var newBuilder = ColorModels.createColorModelBuilder(
-					ColorModels.createBand(colorMap.get().getName(), band, minDisplay.get(), maxDisplay.get()),
+					ColorModels.createBand(selectedColorMap.getName(), band, minDisplay.get(), maxDisplay.get()),
 					ColorModels.createBand(null, alphaCountBand, minAlpha.get(), maxAlpha.get(), gamma.get()));
 			var oldBuilder = builder.getValue();
+			
 			try {
 				// We need to avoid triggering too many updates, but also can't rely upon the builder having a proper equals method...
 				// So here we (awkwardly) go through JSON.
@@ -641,6 +658,8 @@ public class DensityMapDialog {
 	 * Encapsulate the parameters needed to generate a density map in a JavaFX-friendly way.
 	 */
 	static class ObservableDensityMapBuilder {
+		
+		private final static Logger logger = LoggerFactory.getLogger(ObservableDensityMapBuilder.class);
 
 		private ObjectProperty<DensityMapObjects> allObjectTypes = new SimpleObjectProperty<>(DensityMapObjects.DETECTIONS);
 		private ObjectProperty<PathClass> allObjectClass = new SimpleObjectProperty<>(DensityMapUI.ANY_CLASS);
@@ -687,9 +706,13 @@ public class DensityMapDialog {
 			var newBuilder = createBuilder();
 			var currentBuilder = builder.get();
 			if (newBuilder != null && !Objects.equals(newBuilder, currentBuilder)) {
-				if (currentBuilder == null || !Objects.equals(gson.toJson(currentBuilder), gson.toJson(newBuilder)))
+				if (currentBuilder == null || !Objects.equals(gson.toJson(currentBuilder), gson.toJson(newBuilder))) {
+					logger.debug("Setting DensityMapBuilder to {}", newBuilder);
 					builder.set(newBuilder);
+					return;
+				}
 			}
+			logger.trace("Skipping DensityMapBuilder update");
 		}
 
 		private PathObjectPredicate updatePredicate(PathObjectPredicate predicate, PathClass pathClass) {
@@ -708,6 +731,9 @@ public class DensityMapDialog {
 		}
 
 		private DensityMapBuilder createBuilder() {
+			
+			logger.trace("Creating new DensityMapBuilder");
+			
 			// Determine all objects filter
 			PathObjectPredicate allObjectsFilter = allObjectTypes.get().getPredicate();
 			PathClass primaryClass = allObjectClass.get();
@@ -766,6 +792,9 @@ public class DensityMapDialog {
 			}
 
 			builder.radius(radius.get());
+			
+			logger.debug("Created {}", builder);
+			
 			return builder;
 		}
 	}
@@ -779,6 +808,8 @@ public class DensityMapDialog {
 	 * (to avoid flickering). As such it's assumed classifiers are all quite fast to apply and don't have large memory requirements.
 	 */
 	static class HierarchyClassifierOverlayManager implements PathObjectHierarchyListener, QuPathViewerListener {
+		
+		private final static Logger logger = LoggerFactory.getLogger(HierarchyClassifierOverlayManager.class);
 
 		private final QuPathGUI qupath;
 
@@ -818,6 +849,7 @@ public class DensityMapDialog {
 		 * Ensure the overlay is present on all viewers
 		 */
 		void updateViewers() {
+			logger.trace("Updating density server for all viewers");
 			for (var viewer : qupath.getViewers()) {
 				viewer.setCustomPixelLayerOverlay(overlay);
 				if (!currentViewers.contains(viewer)) {
@@ -843,6 +875,7 @@ public class DensityMapDialog {
 		public void imageDataChanged(QuPathViewer viewer, ImageData<BufferedImage> imageDataOld,
 				ImageData<BufferedImage> imageDataNew) {
 
+			logger.debug("ImageData changed from {} to {}", imageDataOld, imageDataNew);
 			if (imageDataOld != null)
 				imageDataOld.getHierarchy().removePathObjectListener(this);
 
@@ -854,8 +887,9 @@ public class DensityMapDialog {
 
 		private void updateDensityServers() {
 			classifierServerMap.clear(); // TODO: Check if this causes any flickering
-			for (var viewer : qupath.getViewers())
+			for (var viewer : qupath.getViewers()) {
 				updateDensityServer(viewer);
+			}
 		}
 
 		private void updateDensityServer(QuPathViewer viewer) {
@@ -864,8 +898,12 @@ public class DensityMapDialog {
 					var task = tasks.get(viewer);
 					if (task != null && !task.isDone())
 						task.cancel(true);
-					if (!pool.isShutdown())
+					if (!pool.isShutdown()) {
+						logger.trace("Submitting updateDensityServer request for {}", viewer);
 						task = pool.submit(() -> updateDensityServer(viewer));
+					} else {
+						logger.debug("Skipping updateDensityServer request for {} - pool shutdown", viewer);
+					}
 					tasks.put(viewer, task);
 				}
 				return;
@@ -873,14 +911,20 @@ public class DensityMapDialog {
 			var imageData = viewer.getImageData();
 			var builder = this.builder.getValue();
 			if (imageData == null || builder == null) {
+				logger.debug("Removing density server for viewer {}", viewer);
 				classifierServerMap.remove(imageData);
 			} else {
-				if (Thread.interrupted())
+				if (Thread.interrupted()) {
+					logger.trace("Thread interrupted, skipping density server update");
 					return;
+				}
 				// Create server with a unique ID, because it may change with the object hierarchy & we don't want caching to mask this
 				var tempServer = builder.buildServer(imageData);
-				if (Thread.interrupted())
+				if (Thread.interrupted()) {
+					logger.trace("Thread interrupted, skipping density server update");
 					return;
+				}
+				logger.debug("Setting density server {} for {}", tempServer, imageData);
 				// If the viewer is the main viewer, update the current map (which can then impact colors)
 				if (viewer == qupath.getViewer())
 					Platform.runLater(() -> currentDensityMap.set(tempServer));

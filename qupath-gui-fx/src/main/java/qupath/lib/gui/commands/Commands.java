@@ -560,23 +560,6 @@ public class Commands {
 		scriptInterpreter.getStage().show();
 	}
 	
-	
-	/**
-	 * Create and show a new input display dialog.
-	 * <p>
-	 * This makes input such as key-presses and mouse button presses visible on screen, and is therefore
-	 *  useful for demos and tutorials where shortcut keys are used.
-	 *  
-	 * @param qupath the QuPath instance
-	 */
-	public static void showInputDisplay(QuPathGUI qupath) {
-		try {
-			new InputDisplayDialog(qupath.getStage()).show();
-		} catch (Exception e) {
-			Dialogs.showErrorMessage("Error showing input display", e);
-		}
-	}
-	
 	/**
 	 * Create a window summarizing license information for QuPath and its third party dependencies.
 	 * @param qupath the current QuPath instance

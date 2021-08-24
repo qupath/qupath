@@ -525,7 +525,7 @@ static String createLaunchScript() {
 	return """#!/bin/bash
 	        	
 DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-export LD_LIBRARY_PATH=\$DIR/../lib/app/
-\$DIR/QuPath "\$@"
+export LD_LIBRARY_PATH="\$DIR/../lib/app/"
+"\$DIR/QuPath" "\$@"
 """
 }

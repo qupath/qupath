@@ -12,7 +12,7 @@
  * QuPath is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU General Public License for more details. 
  * 
  * You should have received a copy of the GNU General Public License 
  * along with QuPath.  If not, see <https://www.gnu.org/licenses/>.
@@ -27,10 +27,12 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -53,7 +55,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import qupath.lib.io.UriResource;
-import qupath.opencv.ml.OpenCVFunction;
+import qupath.opencv.ops.ImageOp;
+import qupath.opencv.ops.ImageOps;
 
 /**
  * Wrapper for an OpenCV Net, including essential metadata about how it should be used.
@@ -64,9 +67,10 @@ import qupath.opencv.ml.OpenCVFunction;
  * @author Pete Bankhead
  *
  */
-public class OpenCVDNN implements UriResource {
+public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 	
-	private static Logger logger = LoggerFactory.getLogger(OpenCVDNN.class);
+	private static Logger logger = LoggerFactory.getLogger(OpenCVDnn.class);
+	
 	
 	/**
 	 * Enum representing different classes of {@link Model} supported by OpenCV.
@@ -123,18 +127,21 @@ public class OpenCVDNN implements UriResource {
 	private URI pathConfig;
 	private String framework;
 	
-	private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
-	private int target = opencv_dnn.DNN_TARGET_CPU;
-	
+	private int backend = DnnTools.useCuda() ? opencv_dnn.DNN_BACKEND_CUDA : opencv_dnn.DNN_BACKEND_DEFAULT;
+	private int target = DnnTools.useCuda() ? opencv_dnn.DNN_TARGET_CUDA : opencv_dnn.DNN_TARGET_CPU;
+		
 	private boolean crop = false;
 	private boolean swapRB = false;
 	private Size size;
 	private Scalar mean;
 	private double scale;
+	
+	private Map<String, DnnShape> inputs;
+	private Map<String, DnnShape> outputs;
 
 	private transient boolean constructed = false;
-		
-	private OpenCVDNN() {}
+	
+//	private OpenCVDnn() {}
 
 	/**
 	 * Build the OpenCV {@link Net}. This is a lower-level function than {@link #buildModel()}, which provides 
@@ -217,11 +224,11 @@ public class OpenCVDNN implements UriResource {
 	
 	
 	/**
-	 * Build a generic {@link OpenCVFunction} from this dnn.
+	 * Build a generic {@link PredictionFunction} from this dnn.
 	 * @return
 	 */
-	public OpenCVFunction buildFunction() {
-		return new DnnFunction(this);
+	private PredictionFunction<Mat> createPredictionFunction() {
+		return new OpenCVNetFunction();
 	}
 	
 	
@@ -230,8 +237,10 @@ public class OpenCVDNN implements UriResource {
 		case opencv_dnn.DNN_TARGET_CUDA:
 		case opencv_dnn.DNN_TARGET_CUDA_FP16:
 			int count = opencv_core.getCudaEnabledDeviceCount();
-			if (count <= 0)
-				logger.warn("Unable to set CUDA target - reported CUDA device count {}", count);
+			if (count < 0)
+				logger.warn("Unable to set CUDA target - driver may be missing or unavailable (device count = {})", count);
+			else if (count == 0)
+				logger.warn("Unable to set CUDA target - OpenCV not compiled with CUDA support (device count = {})", count);
 			else if (backend != opencv_dnn.DNN_BACKEND_CUDA) {
 				logger.warn("Must specify CUDA backend to use CUDA target - request will be ignored");
 			} else {
@@ -243,7 +252,7 @@ public class OpenCVDNN implements UriResource {
 		case opencv_dnn.DNN_TARGET_OPENCL:
 		case opencv_dnn.DNN_TARGET_OPENCL_FP16:
 			if (!opencv_core.haveOpenCL())
-				logger.warn("Cannot set OpenCL target - OpenCL is unavailable");
+				logger.warn("Cannot set OpenCL target - OpenCL is unavailable on this platform");
 			else if (backend == opencv_dnn.DNN_BACKEND_CUDA) {
 				logger.warn("Cannot set CUDA backend and OpenCL target");
 			} else {
@@ -299,13 +308,13 @@ public class OpenCVDNN implements UriResource {
 		return mean == null ? null : new Scalar(mean);
 	}
 	
-	/**
-	 * If true, preprocessing should involve swapping red and blue channels.
-	 * @return
-	 */
-	public boolean doSwapRB() {
-		return swapRB;
-	}
+//	/**
+//	 * If true, preprocessing should involve swapping red and blue channels.
+//	 * @return
+//	 */
+//	public boolean doSwapRB() {
+//		return swapRB;
+//	}
 	
 	/**
 	 * Get the path to the model.
@@ -347,7 +356,7 @@ public class OpenCVDNN implements UriResource {
 	
 	
 	/**
-	 * Helper class to build an {@link OpenCVDNN}.
+	 * Helper class to build an {@link OpenCVDnn}.
 	 */
 	public static class Builder {
 		
@@ -364,8 +373,10 @@ public class OpenCVDNN implements UriResource {
 		private double scale = 1.0;
 		private boolean swapRB = false;
 		
-		private int backend = opencv_dnn.DNN_BACKEND_DEFAULT;
-		private int target = opencv_dnn.DNN_TARGET_CPU;
+		private int backend = DnnTools.useCuda() ? opencv_dnn.DNN_BACKEND_CUDA : opencv_dnn.DNN_BACKEND_DEFAULT;
+		private int target = DnnTools.useCuda() ? opencv_dnn.DNN_TARGET_CUDA : opencv_dnn.DNN_TARGET_CPU;
+		
+		private Map<String, DnnShape> outputs;
 		
 		/**
 		 * Path to the model file.
@@ -455,6 +466,16 @@ public class OpenCVDNN implements UriResource {
 		}
 		
 		/**
+		 * Request CPU backend and target, if available.
+		 * @return
+		 */
+		public Builder cpu() {
+			this.backend = opencv_dnn.DNN_BACKEND_OPENCV;
+			this.target = opencv_dnn.DNN_TARGET_CPU;
+			return this;
+		}
+		
+		/**
 		 * Request CUDA backend and target, if available, with 16-bit floating point.
 		 * @return
 		 */
@@ -488,14 +509,14 @@ public class OpenCVDNN implements UriResource {
 			return this;
 		}
 		
-		/**
-		 * Request that red and blue channels are switch (QuPath uses RGB by default).
-		 * @return
-		 */
-		public Builder swapRB() {
-			this.swapRB = true;
-			return this;
-		}
+//		/**
+//		 * Request that red and blue channels are switch (QuPath uses RGB by default).
+//		 * @return
+//		 */
+//		public Builder swapRB() {
+//			this.swapRB = true;
+//			return this;
+//		}
 		
 		/**
 		 * Mean values which should be subtracted from the image channels before input to the {@link Net}.
@@ -538,7 +559,7 @@ public class OpenCVDNN implements UriResource {
 		}
 		
 		/**
-		 * Set the model type, used by {@link OpenCVDNN#buildModel()}.
+		 * Set the model type, used by {@link OpenCVDnn#buildModel()}.
 		 * @param type 
 		 * @return
 		 */
@@ -572,11 +593,33 @@ public class OpenCVDNN implements UriResource {
 		}
 		
 		/**
-		 * Build a new {@link OpenCVDNN}.
+		 * Set the layer outputs. Usually this isn't necessary, but it provides a means to output features 
+		 * prior to any final classification.
+		 * @param layers
 		 * @return
 		 */
-		public OpenCVDNN build() {
-			OpenCVDNN dnn = new OpenCVDNN();
+		public Builder outputs(String... layers) {
+			this.outputs = Arrays.stream(layers).collect(Collectors.toMap(n -> n, n -> DnnShape.UNKNOWN_SHAPE));
+			return this;
+		}
+		
+		/**
+		 * Set the layer outputs and shapes. Usually this isn't necessary, but it provides a means to output features 
+		 * prior to any final classification.
+		 * @param outputs
+		 * @return
+		 */
+		public Builder outputs(Map<String, DnnShape> outputs) {
+			this.outputs = Collections.unmodifiableMap(new LinkedHashMap<>(outputs));
+			return this;
+		}
+		
+		/**
+		 * Build a new {@link OpenCVDnn}.
+		 * @return
+		 */
+		public OpenCVDnn build() {
+			OpenCVDnn dnn = new OpenCVDnn();
 			dnn.pathModel = pathModel;
 			dnn.pathConfig = pathConfig;
 			dnn.framework = framework;
@@ -590,44 +633,46 @@ public class OpenCVDNN implements UriResource {
 			dnn.mean = mean == null ? null : new Scalar(mean);
 			dnn.scale = scale;
 			dnn.swapRB = swapRB;
+			dnn.outputs = outputs;
 			return dnn;
 		}
 		
 	}
 	
 	
-		
 	
-	
-	
-	
-	
+//	static class OpenCVDnnFunction implements DnnF
 
 	
 	
-	static class DnnFunction implements OpenCVFunction, UriResource {
-		
-		private OpenCVDNN dnn;
-		
+	class OpenCVNetFunction implements PredictionFunction<Mat>, UriResource {
+				
 		private transient Net net;
 		private transient List<String> outputLayerNames;
+		private transient StringVector outputLayerNamesVector;
 		
-		DnnFunction(OpenCVDNN dnn) {
-			this.dnn = dnn;
+		OpenCVNetFunction() {
 			ensureInitialized();
 		}
 		
 		
 		private void ensureInitialized() {
-			if (net == null) {
+			if (net == null || net.isNull()) {
 				synchronized (this) {
-					if (net == null) {
-						net = dnn.buildNet();
+					if (net == null || net.isNull()) {
+						net = buildNet();
+						net.retainReference();
 						outputLayerNames = new ArrayList<>();
-						var names = net.getUnconnectedOutLayersNames();
-						for (var bp : names.get()) {
-							outputLayerNames.add(bp.getString());
+						if (outputs != null && !outputs.isEmpty())
+							outputLayerNames.addAll(outputs.keySet());
+						else {
+							var names = net.getUnconnectedOutLayersNames();
+							for (var bp : names.get()) {
+								outputLayerNames.add(bp.getString());
+							}
 						}
+						outputLayerNamesVector = new StringVector(outputLayerNames.toArray(String[]::new));
+						outputLayerNamesVector.retainReference();
 					}
 				}
 			}
@@ -636,103 +681,31 @@ public class OpenCVDNN implements UriResource {
 	
 
 		@Override
-		public Mat call(Mat input) {
-					
-			var blob = blobFromImage(input);
-			Mat pred;
-			
+		public Mat predict(Mat input) {
 			synchronized(net) {
-				net.setInput(blob);
+				net.setInput(input);
 				// We need to clone so that we can release the lock
-				pred = net.forward().clone();
+				if (outputLayerNames.size() > 1)
+					logger.warn("Single output requested for multi-output model - only the first will be returned");
+				return net.forward(outputLayerNames.get(0)).clone();
+//				return net.forward().clone();
 			}
-			var result = imageFromBlob(pred);
-			
-			blob.close();
-			pred.close();
-			
-			return result;
-			
-		}
-		
-		
-		private static Mat blobFromImage(Mat mat) {
-			
-			if (mat.depth() != opencv_core.CV_32F) {
-				var mat2 = new Mat();
-				mat.convertTo(mat2, opencv_core.CV_32F);
-				mat2 = mat;
-			}
-			
-			Mat blob = null;
-			int nChannels = mat.channels();
-			if (nChannels == 1 || nChannels == 3 || nChannels == 4) {
-				blob = opencv_dnn.blobFromImage(mat);
-			} else {
-				// TODO: Don't have any net to test this with currently...
-				logger.warn("Attempting to reshape an image with " + nChannels + " channels - this may not work! "
-						+ "Only 1, 3 and 4 supported.");
-				// Blob is a 4D Tensor [NCHW]
-				int[] shape = new int[4];
-				Arrays.fill(shape, 1);
-				int nRows = mat.size(0);
-				int nCols = mat.size(1);
-				shape[1] = nChannels;
-				shape[2] = nRows;
-				shape[3] = nCols;
-				//    		for (int s = 1; s <= Math.min(nDims, 3); s++) {
-				//    			shape[s] = mat.size(s-1);
-				//    		}
-				blob = new Mat(shape, opencv_core.CV_32F);
-				var idxBlob = blob.createIndexer();
-				var idxMat = mat.createIndexer();
-				long[] indsBlob = new long[4];
-				long[] indsMat = new long[4];
-				for (int r = 0; r < nRows; r++) {
-					indsMat[0] = r;
-					indsBlob[2] = r;
-					for (int c = 0; c < nCols; c++) {
-						indsMat[1] = c;
-						indsBlob[3] = c;
-						for (int channel = 0; channel < nChannels; channel++) {
-							indsMat[2] = channel;
-							indsBlob[1] = channel;
-							double val = idxMat.getDouble(indsMat);
-							idxBlob.putDouble(indsBlob, val);
-						}    			        			
-					}    			
-				}
-				idxBlob.close();
-				idxMat.close();
-			}
-			
-			return blob;
-		}
-		
-		private static Mat imageFromBlob(Mat blob) {
-			var vec = new MatVector();
-			opencv_dnn.imagesFromBlob(blob, vec);
-			Mat output;
-			if (vec.size() == 1) {
-				output = vec.get(0L);
-			} else {
-				output = new Mat();
-				opencv_core.merge(vec, output);
-			}
-			return output;
 		}
 		
 		
 		@SuppressWarnings("unchecked")
 		@Override
-		public Map<String, Mat> call(Map<String, Mat> input) {
+		public Map<String, Mat> predict(Map<String, Mat> input) {
 			
 			ensureInitialized();
 			
 			// If we have one input and one output, use simpler method
 			if (input.size() == 1 && outputLayerNames.size() == 1) {
-				var output = call(input.values().iterator().next());
+				var output = predict(input.values().iterator().next());
 				return Map.of(outputLayerNames.get(0), output);
+			}
+			if (outputLayerNamesVector == null || outputLayerNamesVector.isNull()) {
+				outputLayerNamesVector = new StringVector(outputLayerNames.toArray(String[]::new));
 			}
 			
 			// Preallocate output so we can use PointerScope
@@ -742,20 +715,14 @@ public class OpenCVDNN implements UriResource {
 			}
 			
 			try (var scope = new PointerScope()) {
-				// Create blobs
-				var blobs = new LinkedHashMap<String, Mat>();
-				for (var entry : input.entrySet()) {
-					blobs.put(entry.getKey(), blobFromImage(entry.getValue()));
-				}
 				
 				// Prepare output
-				var outputLayerNamesVector = new StringVector(outputLayerNames.toArray(String[]::new));
 				var output = new MatVector();
 						
 				synchronized(net) {
 					// Only use input names if we have more than one input (usually we don't)
-					boolean singleInput = blobs.size() == 1;
-					for (var entry : blobs.entrySet()) {
+					boolean singleInput = input.size() == 1;
+					for (var entry : input.entrySet()) {
 						if (singleInput)
 							net.setInput(entry.getValue());
 						else
@@ -772,12 +739,6 @@ public class OpenCVDNN implements UriResource {
 					}
 				}
 	
-				// Convert blobs to images
-				for (var entry : result.entrySet()) {
-					var blob = entry.getValue();
-					blob.put(imageFromBlob(blob));
-				}
-	
 			}
 			
 			return result;
@@ -786,13 +747,30 @@ public class OpenCVDNN implements UriResource {
 
 		@Override
 		public Collection<URI> getUris() throws IOException {
-			return dnn.getUris();
+			return getUris();
 		}
 
 
 		@Override
 		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
-			return dnn.updateUris(replacements);
+			return updateUris(replacements);
+		}
+
+
+		@Override
+		public Map<String, DnnShape> getInputs() {
+			if (inputs != null)
+				return inputs;
+			// Can find no way to get input names... so we resort to this
+			return Collections.singletonMap(DEFAULT_INPUT_NAME, DnnShape.UNKNOWN_SHAPE);
+		}
+
+
+		@Override
+		public Map<String, DnnShape> getOutputs(DnnShape... inputShapes) {
+			if (outputs != null)
+				return outputs;
+			return DnnTools.getOutputLayers(net, inputShapes);
 		}
 		
 	}
@@ -835,6 +813,59 @@ public class OpenCVDNN implements UriResource {
 			}
 		}
 		return changes;
+	}
+	
+	private transient PredictionFunction<Mat> predFun;
+	private transient BlobFunction<Mat> blobFun;
+
+	
+	private BlobFunction<Mat> createBlobFunction() {
+		var ops = new ArrayList<ImageOp>();
+		if (mean != null) {
+			// TODO: Trim scalar array if needed
+			double[] scalarArray = new double[4];
+			mean.get(scalarArray);
+			ops.add(ImageOps.Core.subtract(scalarArray));
+		}
+		if (scale != 1)
+			ops.add(ImageOps.Core.multiply(scale));
+		
+		ImageOp preprocess;
+		if (ops.isEmpty())
+			preprocess = null;
+		else if (ops.size() == 1)
+			preprocess = ops.get(0);
+		else
+			preprocess = ImageOps.Core.sequential(ops);
+		
+		return new DefaultBlobFunction(preprocess, size, crop);
+	}
+
+	@Override
+	public BlobFunction<Mat> getBlobFunction() {
+		if (blobFun == null) {
+			synchronized(this) {
+				if (blobFun == null)
+					blobFun = createBlobFunction();
+			}
+		}
+		return blobFun;
+	}
+
+	@Override
+	public BlobFunction<Mat> getBlobFunction(String name) {
+		return getBlobFunction();
+	}
+	
+	@Override
+	public PredictionFunction<Mat> getPredictionFunction() {
+		if (predFun == null) {
+			synchronized(this) {
+				if (predFun == null)
+					predFun = createPredictionFunction();
+			}
+		}
+		return predFun;
 	}
 
 }

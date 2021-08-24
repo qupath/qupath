@@ -44,13 +44,12 @@ public class TypeAdaptersCVTest {
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void testGetOpenCVTypeAdaptorFactory() {
+	public void testMats() {
 		
 		var gson = new GsonBuilder()
 				.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
 				.create();
 
-		
 		try (PointerScope scope = new PointerScope()) {
 			
 			// Check writing/reading a Mat
@@ -65,6 +64,20 @@ public class TypeAdaptersCVTest {
 			var sparseMatRead = gson.fromJson(jsonSparse, SparseMat.class);
 			
 			assertTrue(matEquals(sparseMatOrig, sparseMatRead));
+			
+		}
+		
+	}
+		
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testStatModels() {
+
+		var gson = new GsonBuilder()
+				.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
+				.create();
+		
+		try (PointerScope scope = new PointerScope()) {
 
 			// Create a model with some non-default parameters
 			var model = EM.create();
@@ -92,6 +105,23 @@ public class TypeAdaptersCVTest {
 			assertEquals(nClusters, modelRead2.getClustersNumber());
 			assertEquals(nIterations, modelRead2.getTermCriteria().maxCount());
 			
+			
+		}
+			
+	}
+	
+	
+	@SuppressWarnings("unchecked")
+	@Test
+	public void testSizeAndScalars() {
+		
+		var gson = new GsonBuilder()
+				.registerTypeAdapterFactory(OpenCVTypeAdapters.getOpenCVTypeAdaptorFactory())
+				.create();
+
+		
+		try (PointerScope scope = new PointerScope()) {
+
 			// Test scalar
 			var scalarArray = new double[] {1.1, 2.2, 3.3, 4.4};
 			for (int n = 0; n <= 4; n++) {
@@ -122,7 +152,6 @@ public class TypeAdaptersCVTest {
 				assertEquals(size.width(), size2.width());
 				assertEquals(size.height(), size2.height());
 			}
-			
 			
 		}
 	}

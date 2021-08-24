@@ -62,13 +62,13 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.common.UriUpdater;
-import qupath.lib.common.UriUpdater.SingleUriItem;
-import qupath.lib.common.UriUpdater.UriStatus;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.io.UriResource;
+import qupath.lib.io.UriUpdater;
+import qupath.lib.io.UriUpdater.SingleUriItem;
+import qupath.lib.io.UriUpdater.UriStatus;
 
 
 /**

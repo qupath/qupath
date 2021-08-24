@@ -8,9 +8,12 @@
   * **OMERO**
     * https://github.com/qupath/qupath-extension-omero
     * **Major update!** New support for browsing multiple OMERO servers, importing images & exchanging annotations
+  * **StarDist**
+    * https://github.com/qupath/qupath-extension-stardist
+    * **Major update!** No longer any need to build QuPath from source
   * **TensorFlow**
     * https://github.com/qupath/qupath-extension-tensorflow
-    * No longer requires rebuilding QuPath, StarDist refinements _(more information still to come!)_
+    * No longer needed to run StarDist (but gives an alternative option)
   * **Interactive image alignment**
     * https://github.com/qupath/qupath-extension-align
     * Calculate a rigid transform between two images
@@ -20,6 +23,7 @@
 * **Rotate images** in the viewer 360&deg;
 * **Easier OpenCV scripting** with many new methods in `OpenCVTools`
 * **New build scripts**, now with **continuous integration** via GitHub Actions
+* **Groundwork for new features** coming soon...
 
 The major revision of the code structure and creation of extensions is designed to make QuPath more developer-friendly, maintainable and adaptable in the future.
 
@@ -70,6 +74,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Provide optional launch scripts and `-Pld-path=true` Gradle options for Linux to set LD_LIBRARY_PATH and work around pixman problems (https://github.com/qupath/qupath/issues/628)
 * When setting stain vectors, do not overwrite the last workflow step if it was also used to set stain vectors
   * This makes it possible to go back to earlier stains if needed
+* New `locateFile(nameOrPath)` scripting method to search for files within the current project and/or user directory
 
 ### Code changes
 * Revised PathClass code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
@@ -100,6 +105,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * *Subcellular detection (experimental)* always returns 0 for cluster count (https://github.com/qupath/qupath/issues/788)
 * *Subcellular detection (experimental)* doesn't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)
   * Note: Spots with an area exactly equal to the minimum spot size are now retained (previously they were discarded)
+* *Show input dialog* is too easy to open multiple times, too difficult to close (https://github.com/qupath/qupath/issues/776)
 * *Convert detections to points* loses plane when applied to a z-stack (https://github.com/qupath/qupath/issues/696)
 * Exception when pressing *'Create workflow'* if no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
@@ -134,10 +140,10 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * ImageJ 1.53j
 * JavaFX 16
 * Java Topology suite 1.18.1
-* JavaCPP 1.5.5
+* JavaCPP 1.5.6
 * JFreeSVG 5.0
 * jfxtras 11-r2
-* OpenCV 4.5.1
+* OpenCV 4.5.3
 * picocli 4.6.1
 * RichTextFX 0.10.6
 

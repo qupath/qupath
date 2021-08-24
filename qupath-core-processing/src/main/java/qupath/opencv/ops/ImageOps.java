@@ -69,8 +69,10 @@ import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
 import qupath.lib.io.UriResource;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.OpenCVFunction;
-import qupath.opencv.dnn.OpenCVDNN;
+import qupath.opencv.dnn.DnnModel;
+import qupath.opencv.dnn.DnnShape;
+import qupath.opencv.dnn.OpenCVDnn;
+import qupath.opencv.dnn.PredictionFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.tools.LocalNormalization;
@@ -2568,33 +2570,18 @@ public class ImageOps {
 		}
 		
 		/**
-		 * Apply a {@link OpenCVDNN} to pixels to generate a prediction.
+		 * Apply a {@link DnnModel} to pixels to generate a prediction.
 		 * @param model 
 		 * @param inputWidth 
 		 * @param inputHeight 
 		 * @param padding 
-		 * @param outputName
-		 * @return
-		 * @deprecated use {@link #fun(OpenCVFunction, int, int, Padding, String...)} instead
-		 */
-		@Deprecated
-		public static ImageOp dnn(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, String outputName) {
-			return new DnnOp(model, inputWidth, inputHeight, padding, outputName);
-		}
-		
-		/**
-		 * Apply an {@link OpenCVFunction} to pixels to generate a prediction.
-		 * @param fun
-		 * @param inputWidth
-		 * @param inputHeight
-		 * @param padding
 		 * @param outputNames
 		 * @return
 		 */
-		public static ImageOp fun(OpenCVFunction fun, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
-			return new FunOp(fun, inputWidth, inputHeight, padding, outputNames);
+		public static ImageOp dnn(DnnModel model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+			return new DnnOp(model, inputWidth, inputHeight, padding, outputNames);
 		}
-		
+				
 //		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
 //			return new DnnOp(dnn, inputWidth, inputHeight, padding, outputNames);
 //		}
@@ -2641,10 +2628,10 @@ public class ImageOps {
 			
 		}
 		
-		@OpType("opencv-fun")
-		static class FunOp extends PaddedOp {
+		@OpType("opencv-dnn")
+		static class DnnOp<T> extends PaddedOp {
 
-			private OpenCVFunction model;
+			private DnnModel<T> model;
 			private int inputWidth;
 			private int inputHeight;
 			
@@ -2655,14 +2642,14 @@ public class ImageOps {
 			private transient Map<Integer, List<ImageChannel>> outputChannels = Collections.synchronizedMap(new HashMap<>());
 			
 			/**
-			 * A op that calls an {@link OpenCVFunction}.
+			 * A op that calls an {@link PredictionFunction}.
 			 * @param model
 			 * @param inputWidth
 			 * @param inputHeight
 			 * @param padding
-			 * @param outputNames names of output layers; these will be concatenate along the channels dimension
+			 * @param outputNames names of output layers; if more than one, these will be concatenated along the channels dimension
 			 */
-			FunOp(OpenCVFunction model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+			DnnOp(DnnModel<T> model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
 				this.model = model;
 				this.inputWidth = inputWidth;
 				this.inputHeight = inputHeight;
@@ -2679,9 +2666,9 @@ public class ImageOps {
 			@Override
 			protected Mat transformPadded(Mat input) {
 				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
-					return doClassification(model, input, outputNames);
+					return doPrediction(model, input, outputNames);
 				else
-					return OpenCVTools.applyTiled(m -> doClassification(model, m, outputNames), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
+					return OpenCVTools.applyTiled(m -> doPrediction(model, m, outputNames), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
 			}
 			
 			@Override
@@ -2696,10 +2683,27 @@ public class ImageOps {
 					synchronized (this) {
 						outChannels = outputChannels.get(channels.size());
 						if (outChannels == null) {
+							// If we have multiple outputs, try to get output names from the layers
+							var outputs = model.getPredictionFunction().getOutputs(DnnShape.of(1, channels.size(), inputHeight, inputWidth));
+							List<String> names = new ArrayList<>();
+							if (outputs.size() > 1) {
+								for (var entry : outputs.entrySet()) {
+									var shape = entry.getValue();
+									if (!shape.isUnknown() && shape.numDimensions() > 2 && shape.get(1) != DnnShape.UNKNOWN_LENGTH) {
+										for (int c = 0; c < shape.get(1); c++) {
+											names.add(entry.getValue() + ": " + c);
+										}
+									}
+								}
+							}
+							// Run an example input through
 							var mat = new Mat(inputHeight, inputWidth, opencv_core.CV_32FC(channels.size()), Scalar.ZERO);
 							var output = transformPadded(mat);
-							// TODO: Incorporate output layer names
-							outChannels = ImageChannel.getDefaultChannelList(output.channels());					
+							// Create channels
+							if (names.size() == output.channels())
+								outChannels = ImageChannel.getChannelList(names.toArray(String[]::new));
+							else
+								outChannels = ImageChannel.getDefaultChannelList(output.channels());					
 							outputChannels.put(channels.size(), outChannels);
 							mat.close();
 							output.close();
@@ -2732,21 +2736,6 @@ public class ImageOps {
 				if (model instanceof UriResource)
 					return ((UriResource)model).updateUris(replacements);
 				return false;
-			}
-			
-		}
-		
-		
-		/**
-		 * @deprecated use {@link FunOp} instead.
-		 */
-		@Deprecated
-		@OpType("opencv-dnn")
-		static class DnnOp extends FunOp {
-			
-			DnnOp(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, String outputName) {
-				super(model.buildFunction(), inputWidth, inputHeight, padding, outputName == null ? new String[0] : new String[] {outputName});
-				logger.warn("DnnOp is deprecated - please use FunOp instead");
 			}
 			
 		}
@@ -2793,13 +2782,13 @@ public class ImageOps {
 	}
 	
 	
-	private static Mat doClassification(OpenCVFunction fun, Mat mat, String... outputNames) {
+	private static <T> Mat doPrediction(DnnModel<T> model, Mat mat, String... outputNames) {
 
 		var matResult = new Mat();
 
 		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
 			
-			var output = fun.call(Map.of("input", mat));
+			var output = model.convertAndPredict(Map.of(PredictionFunction.DEFAULT_INPUT_NAME, mat));
 			
 			if (!output.isEmpty()) {
 				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))
@@ -2811,7 +2800,7 @@ public class ImageOps {
 						if (output.containsKey(name)) {
 							tempArray[i] = output.get(name);
 						} else
-							throw new RuntimeException(String.format("Unable to find output '%s' in %s", name, fun));
+							throw new RuntimeException(String.format("Unable to find output '%s' in %s", name, model));
 					}
 					opencv_core.merge(new MatVector(tempArray), matResult);
 				}

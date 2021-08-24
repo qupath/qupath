@@ -34,6 +34,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -78,7 +79,6 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
-import qupath.lib.common.UriUpdater;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ColorTransforms;
@@ -96,6 +96,7 @@ import qupath.lib.io.PathIO;
 import qupath.lib.io.PathIO.GeoJsonExportOptions;
 import qupath.lib.io.PointIO;
 import qupath.lib.io.UriResource;
+import qupath.lib.io.UriUpdater;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.PathObjectPredicates;
@@ -127,7 +128,6 @@ import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
-import qupath.opencv.dnn.DnnObjectClassifier;
 import qupath.opencv.dnn.DnnTools;
 import qupath.opencv.ml.objects.OpenCVMLClassifier;
 import qupath.opencv.ml.objects.features.FeatureExtractors;
@@ -211,7 +211,6 @@ public class QP {
 	static {
 		logger.info("Initializing type adapters");
 		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(OpenCVMLClassifier.class);
-		ObjectClassifiers.ObjectClassifierTypeAdapterFactory.registerSubtype(DnnObjectClassifier.class);
 		
 		GsonTools.getDefaultBuilder()
 			.registerTypeAdapterFactory(PixelClassifiers.getTypeAdapterFactory())
@@ -228,6 +227,9 @@ public class QP {
 		var predicates = new PathObjectPredicates();
 		@SuppressWarnings("unused")
 		var colorModels = new ColorModels();
+		@SuppressWarnings("unused")
+		var dnnTools = new DnnTools();
+		
 	}
 
 	
@@ -288,6 +290,7 @@ public class QP {
 			PathIO.class,
 			PointIO.class,
 			ProjectIO.class,
+			UriUpdater.class,
 			
 			// External classes
 			BufferedImage.class
@@ -3285,6 +3288,44 @@ public class QP {
 		}
 		throw new IllegalArgumentException("Unable to find density map " + name, exception);
 	}
+	
+	
+	/**
+	 * Locate a specified file based upon its name or path, with a search depth of 4.
+	 * This first checks if the provided path is to a file that already exists.
+	 * If it is not, then it searches recursively within the current project (if available) 
+	 * up to a fixed search depth for a file with the same name.
+	 * 
+	 * @param nameOrPath the original name or path
+	 * @return the identified file path, or the original file path if no update was found or required
+	 * @throws IOException
+	 * @see UriUpdater#locateFile(String, int, Path...)
+	 */
+	public static String locateFile(String nameOrPath) throws IOException {
+		return locateFile(nameOrPath, 4);
+	}
+	
+	/**
+	 * Locate a specified file based upon its name or path.
+	 * This first checks if the provided path is to a file that already exists.
+	 * If it is not, then it searches recursively within the current project (if available) 
+	 * up to a specified search depth for a file with the same name.
+	 * 
+	 * @param nameOrPath the original name or path
+	 * @param searchDepth how deep to search subdirectories recursively
+	 * @return the identified file path, or the original file path if no update was found or required
+	 * @throws IOException
+	 * @see UriUpdater#locateFile(String, int, Path...)
+	 */
+	public static String locateFile(String nameOrPath, int searchDepth) throws IOException {
+		var project = getProject();
+		var path = project == null ? null : project.getPath();
+		if (path != null) {
+			return UriUpdater.locateFile(nameOrPath, searchDepth, path);
+		}
+		return nameOrPath;
+	}
+	
 	
 	/**
 	 * Find hotspots in a density map for the current image.
