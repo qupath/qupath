@@ -2467,6 +2467,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		private Dialog<Void> dialog;
 		private TextField tfFind = new TextField();
+		private ButtonType btNext = new ButtonType("Next");
 		
 		@Override
 		public void run() {
@@ -2474,6 +2475,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createFindDialog();
 			dialog.show();
 			tfFind.requestFocus();
+			
+			// If some text is selected in the main text component, use it as search query
+			var selectedText = getCurrentTextComponent().getSelectedText();
+			if (!selectedText.isEmpty())
+				tfFind.setText(selectedText);
+			
+			// If search is already set, focus on 'Next'
+			if (!tfFind.getText().isEmpty())
+				((Button)dialog.getDialogPane().lookupButton(btNext)).requestFocus();
 		}
 		
 		private void createFindDialog() {
@@ -2482,7 +2492,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			dialog.initOwner(DefaultScriptEditor.this.dialog);
 			dialog.initModality(Modality.NONE);
 			
-			ButtonType btNext = new ButtonType("Next");
 			ButtonType btPrevious = new ButtonType("Previous");
 			ButtonType btClose = new ButtonType("Close", ButtonData.CANCEL_CLOSE);
 			dialog.getDialogPane().getButtonTypes().setAll(btPrevious, btNext, btClose);
