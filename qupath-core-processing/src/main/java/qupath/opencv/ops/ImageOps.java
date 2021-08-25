@@ -41,7 +41,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.math3.util.FastMath;
-import org.bytedeco.javacpp.Pointer;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
@@ -72,7 +71,6 @@ import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.dnn.DnnModel;
 import qupath.opencv.dnn.DnnShape;
-import qupath.opencv.dnn.OpenCVDnn;
 import qupath.opencv.dnn.PredictionFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
