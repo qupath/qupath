@@ -35,8 +35,10 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Export objects as GeoJSON without via *File > Object data... > ...*
   * Import objects from .json, .geojson & .qpdata files via *File > Object data... > Import objects* or with drag & drop
 * Pixel classifier usability improvements
+  * Set number of threads for live prediction (under 'Advanced options' during training, or the vertical ellipsis button when loading a previous classifier)
   * New 'Show as text' option to check classifier parameters
   * Switch between pixel classifiers & density maps by bringing the corresponding window into focus
+  * Perform live prediction starting from the center of the field of view or image
 * Script editor improvements
   * New 'Auto clear cache (batch processing)' option to reduce memory use when running scripts across many images
   * Default to project script directory when choosing a location to save a new script

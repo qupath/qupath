@@ -49,6 +49,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
@@ -62,6 +63,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.images.stores.ColorModelRenderer;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
@@ -70,6 +72,7 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.UriResource;
 import qupath.lib.io.UriUpdater;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ResourceManager.Manager;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
@@ -92,14 +95,17 @@ public final class LoadResourceCommand<S> implements Runnable {
 	
 	private Map<String, S> extras = new TreeMap<>();
 	
+	private int nThreads = 1;
+	
 	/**
 	 * Constructor.
 	 * @param qupath
 	 * @param resourceType 
 	 */
-	private LoadResourceCommand(QuPathGUI qupath, ResourceType<S> resourceType) {
+	private LoadResourceCommand(QuPathGUI qupath, ResourceType<S> resourceType, int nThreads) {
 		this.qupath = qupath;
 		this.resourceType = resourceType;
+		this.nThreads = nThreads;
 	}
 	
 	/**
@@ -108,7 +114,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 	 * @return
 	 */
 	public static LoadResourceCommand<PixelClassifier> createLoadPixelClassifierCommand(QuPathGUI qupath) {
-		return new LoadResourceCommand<>(qupath, new PixelClassifierType());
+		return new LoadResourceCommand<>(qupath, new PixelClassifierType(), PathPrefs.numCommandThreadsProperty().get());
 	}
 	
 	/**
@@ -117,7 +123,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 	 * @return
 	 */
 	public static LoadResourceCommand<DensityMapBuilder> createLoadDensityMapCommand(QuPathGUI qupath) {
-		return new LoadResourceCommand<>(qupath, new DensityMapType());
+		return new LoadResourceCommand<>(qupath, new DensityMapType(), 1);
 	}
 	
 
@@ -128,6 +134,7 @@ public final class LoadResourceCommand<S> implements Runnable {
 
 		var cachedServers = new WeakHashMap<ImageData<BufferedImage>, ImageServer<BufferedImage>>();
 		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), cachedServers, new ColorModelRenderer(null));
+		overlay.setMaxThreads(nThreads);
 		for (var viewer : qupath.getViewers())
 			viewer.setCustomPixelLayerOverlay(overlay);
 		
@@ -197,7 +204,31 @@ public final class LoadResourceCommand<S> implements Runnable {
 		});
 		miOpenAsText.disableProperty().bind(selectedResource.isNull());
 		
-		menu.getItems().addAll(miLoadClassifier, miOpenAsText);
+		// Enable setting number of threads
+		var miThreads = new MenuItem("Set parallel threads");
+		miThreads.setOnAction(e -> {
+			var params = new ParameterList()
+					.addIntParameter(
+							"nThreads",
+							"Number of parallel threads",
+							nThreads,
+							null,
+							"Number of threads to use for live prediction");
+			if (!Dialogs.showParameterDialog("Set parallel threads", params))
+				return;
+//			var result = Dialogs.showInputDialog("Set parallel threads", "Number of threads to use for live prediction", (double)nThreads);
+			var val = params.getIntParameterValue("nThreads");
+			if (val == nThreads)
+				return;
+			if (val < 0)
+				nThreads = PathPrefs.numCommandThreadsProperty().get();
+			else
+				nThreads = Math.max(1, val);
+			if (overlay != null)
+				overlay.setMaxThreads(nThreads);
+		});
+		
+		menu.getItems().addAll(miLoadClassifier, miOpenAsText, new SeparatorMenuItem(), miThreads);
 		var btnLoadExistingClassifier = GuiTools.createMoreButton(menu, Side.RIGHT);
 		
 		var classifierName = new SimpleStringProperty(null);

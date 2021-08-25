@@ -51,6 +51,7 @@ import ij.CompositeImage;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -100,6 +101,7 @@ import qupath.lib.gui.charts.ChartTools;
 import qupath.lib.gui.commands.MiniViewers;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ProjectDialogs;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
@@ -579,6 +581,15 @@ public class PixelClassifierPane {
 			}
 		});
 		
+		nThreads.addListener((v, o, n) -> {
+			if (n == null)
+				return;
+			if (overlay != null)
+				overlay.setMaxThreads(n.intValue());
+			if (featureOverlay != null)
+				featureOverlay.setMaxThreads(n.intValue());
+		});
+		
 	}
 	
 	/**
@@ -764,6 +775,7 @@ public class PixelClassifierPane {
 			if (channel >= 0) {
 				featureRenderer.setChannel(featureServer, channel, spinFeatureMin.getValue(), spinFeatureMax.getValue());
 				featureOverlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), data -> helper.getFeatureServer(data), featureRenderer);
+				featureOverlay.setMaxThreads(getLivePredictionThreads());
 				((PixelClassificationOverlay)featureOverlay).setLivePrediction(true);
 				featureOverlay.setOpacity(sliderFeatureOpacity.getValue());
 				featureOverlay.setLivePrediction(livePrediction.get());
@@ -774,6 +786,12 @@ public class PixelClassifierPane {
 			for (var viewer : qupath.getViewers())
 				viewer.setCustomPixelLayerOverlay(featureOverlay);
 		}
+	}
+	
+	
+	int getLivePredictionThreads() {
+		int n = nThreads.get();
+		return  n < 0 ? PathPrefs.numCommandThreadsProperty().get() : Math.max(n, 1);
 	}
 	
 	
@@ -801,6 +819,8 @@ public class PixelClassifierPane {
 	private int maxSamples = 100_000;
 	private int rngSeed = 100;
 	
+	private IntegerProperty nThreads = PathPrefs.createPersistentPreference("pixelClassificationThreads", -1);
+	
 	private boolean showAdvancedOptions() {
 		
 		var existingStrategy = helper.getBoundaryStrategy();
@@ -825,6 +845,8 @@ public class PixelClassifierPane {
 		
 		
 		var params = new ParameterList()
+				.addTitleParameter("Live prediction")
+				.addIntParameter("numThreads", "Number of threads", nThreads.get(), null, "Maximum number of threads to use for live prediction, or -1 to use default threads")
 				.addTitleParameter("Training data")
 				.addIntParameter("maxSamples", "Maximum samples", maxSamples, null, "Maximum number of training samples - only needed if you have a lot of annotations, slowing down training")
 				.addIntParameter("rngSeed", "RNG seed", rngSeed, null, "Seed for the random number generator used when selecting training samples")
@@ -841,7 +863,8 @@ public class PixelClassifierPane {
 						boundaryStrategies,
 						"Choose how annotation boundaries should influence classifier training")
 				.addDoubleParameter("boundaryThickness", "Boundary thickness", existingStrategy.getBoundaryThickness(), "pixels",
-						"Set the boundary thickness whenever annotation boundaries are trained separately");
+						"Set the boundary thickness whenever annotation boundaries are trained separately")
+				;
 		
 		if (!Dialogs.showParameterDialog("Advanced options", params))
 			return false;
@@ -857,6 +880,8 @@ public class PixelClassifierPane {
 		normalization.setNormalization((Normalization)params.getChoiceParameterValue("normalization"));
 		normalization.setPCARetainedVariance(pcaRetainedVariance);
 		normalization.setPCANormalize(pcaNormalize);
+		
+		nThreads.set(params.getIntParameterValue("numThreads"));
 		
 		var strategy = (BoundaryStrategy)params.getChoiceParameterValue("boundaryStrategy");
 		strategy = BoundaryStrategy.setThickness(strategy, params.getDoubleParameterValue("boundaryThickness"));
@@ -1008,7 +1033,7 @@ public class PixelClassifierPane {
 		 if (preprocessingOp != null)
 			 featureCalculator = featureCalculator.appendOps(preprocessingOp);
 		 
-		 // TODO: CHECK IF INPut SIZE SHOULD BE DEFINED
+		 // TODO: CHECK IF INPUT SIZE SHOULD BE DEFINED
 		 int inputWidth = 512;
 		 int inputHeight = 512;
 //		 int inputWidth = featureCalculator.getInputSize().getWidth();
@@ -1038,7 +1063,7 @@ public class PixelClassifierPane {
 
 		 currentClassifier.set(PixelClassifiers.createClassifier(model, featureCalculator, metadata, true));
 
-		 var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), currentClassifier.get());
+		 var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), currentClassifier.get(), getLivePredictionThreads());
 		 replaceOverlay(overlay);
 	}
 		
