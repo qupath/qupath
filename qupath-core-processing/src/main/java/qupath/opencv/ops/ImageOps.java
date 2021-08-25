@@ -71,7 +71,6 @@ import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.dnn.DnnModel;
 import qupath.opencv.dnn.DnnShape;
-import qupath.opencv.dnn.OpenCVDnn;
 import qupath.opencv.dnn.PredictionFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
@@ -320,7 +319,12 @@ public class ImageOps {
 				img = ServerTools.getPaddedRequest(imageData.getServer(), request, padding);
 				var mat = OpenCVTools.imageToMat(img);
 				mat.convertTo(mat, opencv_core.CV_32F);
-				return op.apply(mat);
+				// Use PointerScope so we can release intermediate references quickly
+//				return op.apply(mat);
+				try (var scope = new PointerScope()) {
+					mat.put(op.apply(mat));
+					return mat;
+				}
 			}
 		}
 
@@ -1399,14 +1403,19 @@ public class ImageOps {
 			
 			private Mat getMatInv() {
 				if (matInv == null || matInv.isNull()) {
-					matInv = new Mat(3, 3, opencv_core.CV_64FC1, Scalar.ZERO);
-					var inv = stains.getMatrixInverse();
-					try (DoubleIndexer idx = matInv.createIndexer()) {
-						idx.put(0, 0, inv[0]);
-						idx.put(1, 0, inv[1]);
-						idx.put(2, 0, inv[2]);
+					synchronized (this) {
+						if (matInv == null || matInv.isNull()) {
+							matInv = new Mat(3, 3, opencv_core.CV_64FC1, Scalar.ZERO);
+							var inv = stains.getMatrixInverse();
+							try (DoubleIndexer idx = matInv.createIndexer()) {
+								idx.put(0, 0, inv[0]);
+								idx.put(1, 0, inv[1]);
+								idx.put(2, 0, inv[2]);
+							}
+							matInv.put(matInv.t());
+							matInv.retainReference();
+						}
 					}
-					matInv.put(matInv.t());
 				}
 				return matInv;
 			}
@@ -2281,8 +2290,15 @@ public class ImageOps {
 
 			@Override
 			public Mat apply(Mat input) {
-				for (var t : ops)
-					input.put(t.apply(input));
+				for (var t : ops) {
+					var output = t.apply(input);
+					// Effectively work in-place, deallocating quickly to avoid 
+					// accumulating a lot of references and relying on the garbage collector
+					if (output != input) {
+						input.put(output);
+						output.close();
+					}
+				}
 				return input;
 			}
 			
@@ -2392,7 +2408,6 @@ public class ImageOps {
 						mats.add(temp);
 					}
 					OpenCVTools.mergeChannels(mats, input);
-//					scope.deallocate();
 				}
 				return input;
 			}

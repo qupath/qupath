@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -69,6 +70,8 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 	private ColorModel colorModel;
 	
 	private ImageServerMetadata originalMetadata;
+	
+	private static Map<String, String> idCache = new HashMap<>();
 	
 	/**
 	 *  Some classifiers cache all their tiles.
@@ -216,8 +219,17 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		if (customID != null)
 			return customID;
 		try {
-			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated
-			return getClass().getName() + ": " + server.getPath() + "::" + GsonTools.getInstance().toJson(classifier);
+			// If we can construct a path (however long) that includes the full serialization info, then cached tiles can be reused even if the server is recreated.
+			// However, because a serialized classifier might be many MB in size (resulting in performance issues with RegionRequest), 
+			// we truncate astronomical ones and add a UUID for uniqueness.
+			String json = GsonTools.getInstance().toJson(classifier);
+			String suffix;
+			if (json.length() < 1000)
+				suffix = json;
+			else {
+				suffix = idCache.computeIfAbsent(json, j -> json.substring(0, 1000) + "... (" + UUID.randomUUID() + ")");
+			}
+			return getClass().getName() + ": " + server.getPath() + "::" + suffix;
 		} catch (Exception e) {
 			logger.debug("Unable to serialize pixel classifier to JSON: {}", e.getLocalizedMessage());
 			return getClass().getName() + ": " + server.getPath() + "::" + UUID.randomUUID().toString();
