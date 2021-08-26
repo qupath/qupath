@@ -2800,29 +2800,41 @@ public class ImageOps {
 	private static <T> Mat doPrediction(DnnModel<T> model, Mat mat, String... outputNames) {
 
 		var matResult = new Mat();
-
+		
 		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
-			
-			var output = model.convertAndPredict(Map.of(PredictionFunction.DEFAULT_INPUT_NAME, mat));
-			
-			if (!output.isEmpty()) {
-				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))
-					matResult.put(output.values().iterator().next());
-				else {
-					var tempArray = new Mat[outputNames.length];
-					for (int i = 0; i < outputNames.length; i++) {
-						var name = outputNames[i];
-						if (output.containsKey(name)) {
-							tempArray[i] = output.get(name);
-						} else
-							throw new RuntimeException(String.format("Unable to find output '%s' in %s", name, model));
-					}
-					opencv_core.merge(new MatVector(tempArray), matResult);
-				}
-			}
-
-			scope.deallocate();
+			// Pass single input
+			var output = model.convertAndPredict(mat);
+			matResult.put(output);
 		}
+
+
+		// Could try supporting single input with multiple outputs (using channel concatenation), 
+		// however getting the right input names remains a challenge
+//		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
+//			
+//			// Pass single input
+//			var fun = model.getPredictionFunction();
+//			var inputs = fun.getInputs();
+//			var output = model.convertAndPredict(Map.of(inputs.keySet().iterator().next(), mat));
+//			
+//			if (!output.isEmpty()) {
+//				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))
+//					matResult.put(output.values().iterator().next());
+//				else {
+//					var tempArray = new Mat[outputNames.length];
+//					for (int i = 0; i < outputNames.length; i++) {
+//						var name = outputNames[i];
+//						if (output.containsKey(name)) {
+//							tempArray[i] = output.get(name);
+//						} else
+//							throw new RuntimeException(String.format("Unable to find output '%s' in %s", name, model));
+//					}
+//					opencv_core.merge(new MatVector(tempArray), matResult);
+//				}
+//			}
+//
+//			scope.deallocate();
+//		}
 
 		return matResult;
 

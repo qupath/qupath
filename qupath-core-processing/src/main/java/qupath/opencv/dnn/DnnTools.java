@@ -316,9 +316,14 @@ public class DnnTools {
 			MatShapeVector outputShape = new MatShapeVector();
 			for (var nameBytes : names.get()) {
 				String name = nameBytes.getString();
-				int id = net.getLayerId(name);
-				net.getLayerShapes(netInputShape, id, inputShape, outputShape);
-				list.add(new DNNLayer(name, id, parseShape(inputShape), parseShape(outputShape)));
+				try {
+					int id = net.getLayerId(name);
+					net.getLayerShapes(netInputShape, id, inputShape, outputShape);
+					list.add(new DNNLayer(name, id, parseShape(inputShape), parseShape(outputShape)));
+				} catch (Exception e) {
+					logger.error("Error parsing layer '{}'", name);
+					throw e;
+				}
 			}
 		}
 		return list;
