@@ -141,7 +141,7 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Guava 30.1.1-jre
 * ImageJ 1.53j
 * JavaFX 16
-* Java Topology suite 1.18.1
+* Java Topology suite 1.18.2
 * JavaCPP 1.5.6
 * JFreeSVG 5.0
 * jfxtras 11-r2

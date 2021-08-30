@@ -675,7 +675,7 @@ public class ContourTracing {
 	
 	/**
 	 * Create traced geometry from tile.
-	 * Note that it is important to use this version with tiles, rather than {@link #createTracedGeometry(SimpleImage, double, double, int, RegionRequest)},
+	 * Note that it is important to use this version with tiles, rather than {@link #createTracedGeometry(SimpleImage, double, double, RegionRequest)},
 	 * to avoid accumulating rounding errors.
 	 * 
 	 * @param image
