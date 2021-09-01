@@ -74,7 +74,6 @@ import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Window;
 import qupath.imagej.gui.IJExtension;
-import qupath.imagej.gui.commands.ui.SaveResourcePaneBuilder;
 import qupath.imagej.tools.IJTools;
 import qupath.lib.analysis.heatmaps.DensityMaps;
 import qupath.lib.analysis.heatmaps.DensityMaps.DensityMapBuilder;
@@ -99,6 +98,7 @@ import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.scripting.QP;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
+import qupath.process.gui.commands.ui.SaveResourcePaneBuilder;
 
 /**
  * UI elements associated with density maps.

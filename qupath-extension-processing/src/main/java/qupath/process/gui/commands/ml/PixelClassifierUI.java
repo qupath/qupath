@@ -51,7 +51,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
-import qupath.imagej.gui.commands.ui.SaveResourcePaneBuilder;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.gui.commands.Commands;
 import qupath.lib.gui.dialogs.Dialogs;
@@ -78,6 +77,7 @@ import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.opencv.ml.pixel.PixelClassifierTools;
 import qupath.opencv.ml.pixel.PixelClassifierTools.CreateObjectOptions;
+import qupath.process.gui.commands.ui.SaveResourcePaneBuilder;
 
 /**
  * Helper class for generating standardized UI components for pixel classification.
