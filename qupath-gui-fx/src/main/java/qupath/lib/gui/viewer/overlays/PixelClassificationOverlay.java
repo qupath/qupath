@@ -27,6 +27,7 @@ import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.ThreadTools;
+import qupath.lib.geom.Point2;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -54,14 +55,15 @@ import java.awt.image.DataBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -89,7 +91,8 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     private Set<TileRequest> pendingRequests = Collections.synchronizedSet(new HashSet<>());
     private Set<TileRequest> currentRequests = Collections.synchronizedSet(new HashSet<>());
     
-    private ExecutorService pool;
+    private int maxThreads = ThreadTools.getParallelism();
+    private ThreadPoolExecutor pool;
     
     private Function<ImageData<BufferedImage>, ImageServer<BufferedImage>> fun;
     
@@ -109,9 +112,14 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         // TODO: Permit classifier to control request
 //        if (classifierServer.getClassifier() instanceof OpenCVPixelClassifierDNN)
 //        	nThreads = 1;
-        pool = Executors.newFixedThreadPool(
-        		nThreads, ThreadTools.createThreadFactory(
-        				"classifier-overlay", true, Thread.NORM_PRIORITY-2));
+        
+        var threadFactory = ThreadTools.createThreadFactory(
+				"classifier-overlay", true, Thread.NORM_PRIORITY-2);
+        
+        if (nThreads > 0)
+        	maxThreads = nThreads;
+        pool = (ThreadPoolExecutor)Executors.newFixedThreadPool(
+        		maxThreads, threadFactory);
         
         this.renderer.addListener((v, o, n) -> cacheRGB.clear());
         
@@ -126,7 +134,7 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
      * @return
      */
     public static PixelClassificationOverlay create(final OverlayOptions options, final PixelClassifier classifier) {
-    	int nThreads = Math.max(1, PathPrefs.numCommandThreadsProperty().get() / 2);
+    	int nThreads = Math.max(1, PathPrefs.numCommandThreadsProperty().get());
     	return create(options, classifier, nThreads);
     }
     
@@ -286,6 +294,27 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
     public ImageRenderer getRenderer() {
     	return renderer.get();
     }
+    
+    /**
+     * Set the maximum number of threads that may be used during live prediction.
+     * @param nThreads
+     */
+    public void setMaxThreads(int nThreads) {
+    	maxThreads = Math.max(1, nThreads);
+    	if (maxThreads < pool.getCorePoolSize())
+    		pool.setCorePoolSize(maxThreads);
+    	pool.setMaximumPoolSize(maxThreads);
+    	pool.setCorePoolSize(maxThreads);
+		logger.debug("Number of parallel threads set to {}", nThreads);
+    }
+    
+    /**
+     * Get the maximum number of threads that may be used during live prediction.
+     * @return 
+     */
+    public int getMaxThreads() {
+    	return maxThreads;
+    }
 
     /**
      * Set the {@link ImageRenderer} to be used with this overlay.
@@ -389,6 +418,17 @@ public class PixelClassificationOverlay extends AbstractImageOverlay  {
         
         
         Collection<TileRequest> tiles = server.getTileRequestManager().getTileRequests(fullRequest);
+        
+        if (fullRequest != null) {
+        	double x = (Math.max(0, fullRequest.getMinX()) + Math.min(server.getWidth(), fullRequest.getMaxX())) / 2.0;
+        	double y = (Math.max(0, fullRequest.getMinY()) + Math.min(server.getHeight(), fullRequest.getMaxY())) / 2.0;
+        	var p = new Point2(x, y);
+        	tiles = new ArrayList<>(tiles);
+        	((List<TileRequest>)tiles).sort(
+        			Comparator.comparingDouble((TileRequest t) -> p.distanceSq(t.getImageX() + t.getImageWidth() / 2.0, t.getImageY() + t.getImageHeight() / 2.0))
+//        			.reversed()
+        			);
+        }
 
         // Clear pending requests, since we'll insert new ones (perhaps in a different order)
     	this.pendingRequests.clear();

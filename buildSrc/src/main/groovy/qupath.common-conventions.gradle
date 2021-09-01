@@ -76,11 +76,11 @@ ext {
     commonsTextVersion = '1.9'
     controlsfxVersion  = '11.1.0'
     groovyVersion      = '3.0.8'
-    gsonVersion        = '2.8.7'
+    gsonVersion        = '2.8.8'
     guavaVersion       = '30.1.1-jre'
     imagejVersion      = '1.53j'
     jfxtrasVersion     = '11-r2'
-    jtsVersion         = '1.18.1'
+    jtsVersion         = '1.18.2'
     picocliVersion     = '4.6.1'
     
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)

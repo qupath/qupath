@@ -71,7 +71,6 @@ import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.dnn.DnnModel;
 import qupath.opencv.dnn.DnnShape;
-import qupath.opencv.dnn.OpenCVDnn;
 import qupath.opencv.dnn.PredictionFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
@@ -320,7 +319,12 @@ public class ImageOps {
 				img = ServerTools.getPaddedRequest(imageData.getServer(), request, padding);
 				var mat = OpenCVTools.imageToMat(img);
 				mat.convertTo(mat, opencv_core.CV_32F);
-				return op.apply(mat);
+				// Use PointerScope so we can release intermediate references quickly
+//				return op.apply(mat);
+				try (var scope = new PointerScope()) {
+					mat.put(op.apply(mat));
+					return mat;
+				}
 			}
 		}
 
@@ -1399,14 +1403,19 @@ public class ImageOps {
 			
 			private Mat getMatInv() {
 				if (matInv == null || matInv.isNull()) {
-					matInv = new Mat(3, 3, opencv_core.CV_64FC1, Scalar.ZERO);
-					var inv = stains.getMatrixInverse();
-					try (DoubleIndexer idx = matInv.createIndexer()) {
-						idx.put(0, 0, inv[0]);
-						idx.put(1, 0, inv[1]);
-						idx.put(2, 0, inv[2]);
+					synchronized (this) {
+						if (matInv == null || matInv.isNull()) {
+							matInv = new Mat(3, 3, opencv_core.CV_64FC1, Scalar.ZERO);
+							var inv = stains.getMatrixInverse();
+							try (DoubleIndexer idx = matInv.createIndexer()) {
+								idx.put(0, 0, inv[0]);
+								idx.put(1, 0, inv[1]);
+								idx.put(2, 0, inv[2]);
+							}
+							matInv.put(matInv.t());
+							matInv.retainReference();
+						}
 					}
-					matInv.put(matInv.t());
 				}
 				return matInv;
 			}
@@ -2281,8 +2290,15 @@ public class ImageOps {
 
 			@Override
 			public Mat apply(Mat input) {
-				for (var t : ops)
-					input.put(t.apply(input));
+				for (var t : ops) {
+					var output = t.apply(input);
+					// Effectively work in-place, deallocating quickly to avoid 
+					// accumulating a lot of references and relying on the garbage collector
+					if (output != input) {
+						input.put(output);
+						output.close();
+					}
+				}
 				return input;
 			}
 			
@@ -2392,7 +2408,6 @@ public class ImageOps {
 						mats.add(temp);
 					}
 					OpenCVTools.mergeChannels(mats, input);
-//					scope.deallocate();
 				}
 				return input;
 			}
@@ -2572,14 +2587,16 @@ public class ImageOps {
 		/**
 		 * Apply a {@link DnnModel} to pixels to generate a prediction.
 		 * @param model 
-		 * @param inputWidth 
-		 * @param inputHeight 
-		 * @param padding 
-		 * @param outputNames
+		 * @param inputWidth requested input width
+		 * @param inputHeight requested input height
+		 * @param padding amount of padding provided
+		 * @param outputNames names of model outputs. If empty, the first (and often only) output is used. 
+		 *                    If more than one output is specified, it is assumed that all are the same size 
+		 *                    and they be concatenated along the channels dimension.
 		 * @return
 		 */
-		public static ImageOp dnn(DnnModel model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
-			return new DnnOp(model, inputWidth, inputHeight, padding, outputNames);
+		public static ImageOp dnn(DnnModel<?> model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+			return new DnnOp<>(model, inputWidth, inputHeight, padding, outputNames);
 		}
 				
 //		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
@@ -2630,6 +2647,8 @@ public class ImageOps {
 		
 		@OpType("opencv-dnn")
 		static class DnnOp<T> extends PaddedOp {
+			
+			private final static Logger logger = LoggerFactory.getLogger(DnnOp.class);
 
 			private DnnModel<T> model;
 			private int inputWidth;
@@ -2638,6 +2657,8 @@ public class ImageOps {
 			private String[] outputNames = new String[0];
 			
 			private Padding padding;
+			
+			private transient String inputName;
 			
 			private transient Map<Integer, List<ImageChannel>> outputChannels = Collections.synchronizedMap(new HashMap<>());
 			
@@ -2662,13 +2683,34 @@ public class ImageOps {
 				return padding;
 			}
 			
+			private String getInputName() {
+				if (inputName != null)
+					return inputName;
+				synchronized(this) {
+					if (inputName == null) {
+						var fun = model.getPredictionFunction();
+						var inputs = fun.getInputs();
+						if (inputs.isEmpty()) {
+							logger.warn("Input names empty for {}", model);
+							inputName = DnnModel.DEFAULT_INPUT_NAME;
+						} else {
+							inputName = inputs.keySet().iterator().next();
+						}
+						if (inputs.size() > 1)
+							logger.warn("DnnOp only supports single inputs, but {} expects {}", model, inputs.size());
+					}
+				}
+				return inputName;
+			}
+			
 
 			@Override
 			protected Mat transformPadded(Mat input) {
+				var inputName = getInputName();
 				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
-					return doPrediction(model, input, outputNames);
+					return doPrediction(model, input, inputName, outputNames);
 				else
-					return OpenCVTools.applyTiled(m -> doPrediction(model, m, outputNames), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
+					return OpenCVTools.applyTiled(m -> doPrediction(model, m, inputName, outputNames), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
 			}
 			
 			@Override
@@ -2687,13 +2729,15 @@ public class ImageOps {
 							var outputs = model.getPredictionFunction().getOutputs(DnnShape.of(1, channels.size(), inputHeight, inputWidth));
 							List<String> names = new ArrayList<>();
 							if (outputs.size() > 1) {
-								for (var entry : outputs.entrySet()) {
-									var shape = entry.getValue();
-									if (!shape.isUnknown() && shape.numDimensions() > 2 && shape.get(1) != DnnShape.UNKNOWN_LENGTH) {
+								Collection<String> outputKeys = outputNames == null || outputNames.length == 0 ? Arrays.asList(outputNames) : outputs.keySet();
+								for (var key : outputKeys) {
+									var shape = outputs.get(key);
+									if (shape != null && !shape.isUnknown() && shape.numDimensions() > 2 && shape.get(1) != DnnShape.UNKNOWN_LENGTH) {
 										for (int c = 0; c < shape.get(1); c++) {
-											names.add(entry.getValue() + ": " + c);
+											names.add(key + ": " + c);
 										}
-									}
+									} else
+										logger.warn("Unknown output shape for {} - output channels are unknown", key);
 								}
 							}
 							// Run an example input through
@@ -2782,13 +2826,13 @@ public class ImageOps {
 	}
 	
 	
-	private static <T> Mat doPrediction(DnnModel<T> model, Mat mat, String... outputNames) {
+	private static <T> Mat doPrediction(DnnModel<T> model, Mat mat, String inputName, String... outputNames) {
 
 		var matResult = new Mat();
 
 		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
 			
-			var output = model.convertAndPredict(Map.of(PredictionFunction.DEFAULT_INPUT_NAME, mat));
+			var output = model.convertAndPredict(Map.of(inputName, mat));
 			
 			if (!output.isEmpty()) {
 				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))

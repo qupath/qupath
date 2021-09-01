@@ -651,10 +651,21 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		private transient List<String> outputLayerNames;
 		private transient StringVector outputLayerNamesVector;
 		
+		// Experimental code - can use a ThreadLocal Net, but doesn't seem to improve performance overall
+//		private transient ThreadLocal<Net> localNet = ThreadLocal.withInitial(() -> {
+//			ensureInitialized();
+//			if (net != null) {
+//				var net2 = buildNet();
+//				net2.retainReference();
+//				return net2;
+//			}
+//			return net;
+//		});
+
+				
 		OpenCVNetFunction() {
 			ensureInitialized();
 		}
-		
 		
 		private void ensureInitialized() {
 			if (net == null || net.isNull()) {
@@ -678,10 +689,24 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 			}
 		}
 		
-	
+		
+		private Net getNet() {
+			ensureInitialized();
+			return net;
+//			boolean doParallel = false;
+//			if (doParallel)
+//				return localNet.get();
+//			else
+//				return net;
+		}
+		
 
 		@Override
 		public Mat predict(Mat input) {
+			
+			var net = getNet();
+//			var net = buildNet();
+			
 			synchronized(net) {
 				net.setInput(input);
 				// We need to clone so that we can release the lock
@@ -697,7 +722,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		@Override
 		public Map<String, Mat> predict(Map<String, Mat> input) {
 			
-			ensureInitialized();
+			var net = getNet();
 			
 			// If we have one input and one output, use simpler method
 			if (input.size() == 1 && outputLayerNames.size() == 1) {

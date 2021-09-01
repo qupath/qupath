@@ -35,8 +35,10 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
   * Export objects as GeoJSON without via *File > Object data... > ...*
   * Import objects from .json, .geojson & .qpdata files via *File > Object data... > Import objects* or with drag & drop
 * Pixel classifier usability improvements
+  * Set number of threads for live prediction (under 'Advanced options' during training, or the vertical ellipsis button when loading a previous classifier)
   * New 'Show as text' option to check classifier parameters
   * Switch between pixel classifiers & density maps by bringing the corresponding window into focus
+  * Perform live prediction starting from the center of the field of view or image
 * Script editor improvements
   * New 'Auto clear cache (batch processing)' option to reduce memory use when running scripts across many images
   * Default to project script directory when choosing a location to save a new script
@@ -132,14 +134,14 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 ### Dependency updates
 * AdoptOpenJDK 16
 * Apache Commons Text 1.9
-* Bio-Formats 6.6.1
+* Bio-Formats 6.7.0
 * ControlsFX 11.1.0
 * Groovy 3.0.8
-* Gson 2.8.7
+* Gson 2.8.8
 * Guava 30.1.1-jre
 * ImageJ 1.53j
 * JavaFX 16
-* Java Topology suite 1.18.1
+* Java Topology suite 1.18.2
 * JavaCPP 1.5.6
 * JFreeSVG 5.0
 * jfxtras 11-r2
