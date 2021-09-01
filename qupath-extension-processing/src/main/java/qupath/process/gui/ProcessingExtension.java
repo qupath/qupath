@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
-import qupath.imagej.gui.commands.ui.LoadResourceCommand;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.common.Version;
 import qupath.lib.gui.ActionTools;
@@ -63,6 +62,7 @@ import qupath.process.gui.commands.PixelClassifierCommand;
 import qupath.process.gui.commands.SimpleThresholdCommand;
 import qupath.process.gui.commands.SingleMeasurementClassificationCommand;
 import qupath.process.gui.commands.SplitProjectTrainingCommand;
+import qupath.process.gui.commands.ui.LoadResourceCommand;
 import qupath.process.gui.ml.legacy.LegacyDetectionClassifierCommand;
 
 /**

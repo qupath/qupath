@@ -1,0 +1,32 @@
+subprojects {
+	apply plugin: 'java'
+}
+
+// See https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657
+task mergedJavadocs(type: Javadoc, description: 'Generate merged javadocs for all projects', group: 'Documentation') {
+	destinationDir = file("$buildDir/docs/javadoc")
+	title = "QuPath $gradle.ext.qupathVersion"
+	options.author true
+	options.addStringOption 'Xdoclint:none', '-quiet'
+	
+	options.links 'https://docs.oracle.com/en/java/javase/11/docs/api/'
+	options.links 'https://openjfx.io/javadoc/16/'
+	options.links 'https://javadoc.io/doc/org.bytedeco/javacpp/1.5.6/'
+	options.links 'https://javadoc.io/doc/org.bytedeco/opencv/4.5.3-1.5.6/'
+	options.links 'https://www.javadoc.io/doc/com.google.code.gson/gson/2.8.8/'
+	options.links 'https://locationtech.github.io/jts/javadoc/'
+	options.links 'https://javadoc.scijava.org/Bio-Formats/'
+	options.links 'https://imagej.nih.gov/ij/developer/api/'
+	options.links 'https://commons.apache.org/proper/commons-math/javadocs/api-3.3/'
+	options.links 'https://commons.apache.org/proper/commons-text/apidocs/'
+	options.links 'https://guava.dev/releases/18.0/api/docs/'
+	
+	subprojects.each { proj ->
+		proj.tasks.withType(Javadoc).each { javadocTask ->
+			source    += javadocTask.source
+			classpath += javadocTask.classpath
+			excludes  += javadocTask.excludes
+			includes  += javadocTask.includes
+		}
+	}
+}

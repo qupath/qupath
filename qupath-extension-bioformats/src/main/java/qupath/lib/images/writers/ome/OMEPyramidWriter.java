@@ -80,8 +80,8 @@ import qupath.lib.regions.RegionRequest;
  * Note this requires Bio-Formats v6.0.0 or later.
  * 
  * @author Pete Bankhead
- * 
- * modified by @phaub , 04'2021 (JPEG support for nChannels>1, sanity check)
+ * <p>
+ * modified by @phaub , 04'2021 (JPEG support for nChannels &gt; 1, sanity check)
  * 
  */
 public class OMEPyramidWriter {
