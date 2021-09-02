@@ -82,8 +82,8 @@ For full details, see the [Commit log](https://github.com/qupath/qupath/commits/
 * Revised `PathClass` code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
 * GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
   * 'id' is likely to be used as a unique identifier in a later QuPath version
-* Creating a `TileExporter` using `parentObjects` now exports fixed-sized tiles centered on the object ROI
-  * To export the ROI bounding box instead, set `useROIBounds(true)` when creating the exporter
+* Updates to `TileExporter`, with some change in behavior
+  * Creating a `TileExporter` using `parentObjects` now exports fixed-sized tiles centered on the object ROI. To export the ROI bounding box instead, set `useROIBounds(true)` when creating the exporter.
 * The *'Number of processors for parallel commands'* preference has been renamed to *'Number of parallel threads'*
 * `GeneralTools.readAsString` methods now assume UTF-8 encoding
 * `PixelClassificationOverlay` has moved to the main GUI module
