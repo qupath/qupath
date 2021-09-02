@@ -176,6 +176,22 @@ public class RegionRequest extends ImageRegion {
 		return new RegionRequest(path, downsample, x, y, width, height, z, t);
 	}
 	
+	
+	/**
+	 * Create a request for a region specified in terms of its bounding box and {@link ImagePlane}.
+	 * @param path
+	 * @param downsample
+	 * @param x
+	 * @param y
+	 * @param width
+	 * @param height
+	 * @param plane
+	 * @return
+	 */
+	public static RegionRequest createInstance(String path, double downsample, int x, int y, int width, int height, ImagePlane plane) {
+		return new RegionRequest(path, downsample, x, y, width, height, plane.getZ(), plane.getT());
+	}
+	
 	/**
 	 * Create a request for a region specified in terms of its bounding box, using the first z-slice and time point.
 	 * @param path
