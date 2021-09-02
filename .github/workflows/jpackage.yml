@@ -30,8 +30,7 @@
          path: build/dist
          retention-days: 1
      - uses: actions/upload-artifact@v2
-       if: matrix.os == 'ubuntu-latest'
        with:
-         name: javadoc
+         name: javadoc ${{ matrix.platform }}
          path: build/docs/javadoc
          retention-days: 1
