@@ -75,7 +75,7 @@ public class TileExporter  {
 	private ImageServer<BufferedImage> server;
 	private ImageRegion region = null;
 	
-	// Specify to use parent objects rather than
+	// Specify to use parent objects rather than tiling the entire image
 	private List<PathObject> parentObjects = null;
 	// Specify to use the full ROI of the parent, rather than a fixed-size tile based on its centroid
 	private boolean useParentRoiBounds = false;
@@ -266,9 +266,10 @@ public class TileExporter  {
 	}
 	
 	/**
-	 * Define the region to be processed. Default is the full image.
+	 * Define the region to be processed, including downsample. Default is the full image.
 	 * @param region
 	 * @return this exporter
+	 * @see #region(ImageRegion)
 	 */
 	public TileExporter region(RegionRequest region) {
 		this.region = region;
@@ -280,6 +281,7 @@ public class TileExporter  {
 	 * Define the region to be processed. Default is the full image.
 	 * @param region
 	 * @return this exporter
+	 * @see #region(RegionRequest)
 	 */
 	public TileExporter region(ImageRegion region) {
 		this.region = region;
@@ -437,6 +439,15 @@ public class TileExporter  {
 		List<RegionRequest> requests = new ArrayList<>();
 		
 		// Work out which RegionRequests to use
+		// If the downsample hasn't been specified, use the level 0 resolution
+		double downsample = this.downsample;
+		if (downsample <= 0) {
+			downsample = server.getDownsampleForResolution(0);
+			if (this.downsample < 0)
+				logger.warn("Invalid downsample {}, I will use the level 0 downsample {}", this.downsample, downsample);
+			else
+				logger.debug("Using level 0 downsample {}", downsample);
+		}
 		if (parentObjects == null)
 			requests.addAll(getTiledRegionRequests());			
 		else {
