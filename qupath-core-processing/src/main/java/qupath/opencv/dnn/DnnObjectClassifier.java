@@ -111,7 +111,7 @@ public class DnnObjectClassifier<T> extends AbstractObjectClassifier<BufferedIma
 		// Use current pool
 		var pool = ForkJoinPool.commonPool();
 		var futures = new ArrayList<ForkJoinTask<Integer>>();
-		for (var list : Lists.partition(Lists.newArrayList(pathObjects), batchSize)) {
+		for (var list : Lists.partition(Lists.newArrayList(pathObjects), Math.max(1, batchSize))) {
 			futures.add(pool.submit(() -> tryToClassify(list, server, downsample, i -> pathClasses.get(i))));
 		}
 		int reclassified = 0;
