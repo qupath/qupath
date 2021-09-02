@@ -23,9 +23,14 @@
      - name: Grant execute permission for gradlew
        run: chmod +x gradlew
      - name: Build with Gradle
-       run: ./gradlew jpackage -P git-commit=true -P package=installer
+       run: ./gradlew jpackage -P git-commit=true -P package=installer mergedJavadoc
      - uses: actions/upload-artifact@v2
        with:
          name: jpackage ${{ matrix.platform }}
          path: build/dist
+         retention-days: 1
+     - uses: actions/upload-artifact@v2
+       with:
+         name: javadocs
+         path: build/docs/javadoc
          retention-days: 1
