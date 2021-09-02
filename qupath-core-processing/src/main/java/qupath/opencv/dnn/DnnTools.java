@@ -483,7 +483,7 @@ public class DnnTools {
 			int xi = (int)Math.floor(roi.getCentroidX() - scaledWidth/2.0);
 			int yi = (int)Math.floor(roi.getCentroidY() - scaledHeight/2.0);
 			int xi2 = (int)Math.ceil(roi.getCentroidX() + scaledWidth/2.0);
-			int yi2 = (int)Math.ceil(roi.getCentroidY() + scaledWidth/2.0);
+			int yi2 = (int)Math.ceil(roi.getCentroidY() + scaledHeight/2.0);
 			
 			int x = GeneralTools.clipValue(xi, 0, server.getWidth());
 			int x2 = GeneralTools.clipValue(xi2, 0, server.getWidth());
@@ -506,18 +506,22 @@ public class DnnTools {
 					input.put(input.rowRange(0, height));
 					matHeight = height;
 				}
-				if (height < matHeight || width < matWidth) {
+				if (height > matHeight || width > matWidth) {
 					// Calculate relative amount of padding for left and top
-					double xProp = calculateFirstPadProportion(x, x2, 0, server.getWidth());
-					double yProp = calculateFirstPadProportion(y, y2, 0, server.getHeight());
-					int padX = (int)Math.round((matWidth - width) * xProp);
-					int padY = (int)Math.round((matHeight - height) * yProp);
+					double xProp = calculateFirstPadProportion(xi, xi2, 0, server.getWidth());
+					double yProp = calculateFirstPadProportion(yi, yi2, 0, server.getHeight());
+					
+					int padX = (int)Math.round((width - matWidth) * xProp);
+					int padY = (int)Math.round((height - matHeight) * yProp);
+					
+					// TODO: Consider most appropriate boundary padding
 					opencv_core.copyMakeBorder(input, input,
-							padX,
 							padY,
-							width - matWidth - padX,
 							height - matHeight - padY,
-							opencv_core.BORDER_REPLICATE);
+							padX,
+							width - matWidth - padX,
+							opencv_core.BORDER_CONSTANT);
+//							opencv_core.BORDER_REPLICATE);
 				}
 			}
 		}
@@ -535,7 +539,9 @@ public class DnnTools {
 		if (v2 <= maxVal)
 			return 1;
 		// Combination of left and right padding
-		return (minVal - v1) / (v2 - maxVal);
+		double d1 = minVal - v1;
+		double d2 = v2 - maxVal;
+		return d1 / (d1 + d2);
 	}
 	
 	/**

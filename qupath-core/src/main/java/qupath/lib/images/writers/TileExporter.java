@@ -114,10 +114,13 @@ public class TileExporter  {
 	
 	/**
 	 * Specify a filter to extract parent objects to define tiles.
-	 * Tiles are either generated based upon the ROI centroid or about the ROI bounding box.
+	 * Tiles are either generated based upon the ROI centroid (in which case the specified tile size is respected) 
+	 * or the ROI bounding box (with the specified tile size ignored).
 	 * @param filter
 	 * @return this exporter
+	 * @see #parentObjects(Collection)
 	 * @see #useROIBounds(boolean)
+	 * @see #includePartialTiles(boolean)
 	 */
 	public TileExporter parentObjects(Predicate<PathObject> filter) {
 		this.parentObjects = imageData.getHierarchy().getFlattenedObjectList(null).stream()
@@ -128,10 +131,13 @@ public class TileExporter  {
 	
 	/**
 	 * Specify parent objects to define tiles.
-	 * Tiles are either generated based upon the ROI centroid or about the ROI bounding box.
+	 * Tiles are either generated based upon the ROI centroid (in which case the specified tile size is respected) 
+	 * or the ROI bounding box (with the specified tile size ignored).
 	 * @param parentObjects
 	 * @return this exporter
+	 * @see #parentObjects(Predicate)
 	 * @see #useROIBounds(boolean)
+	 * @see #includePartialTiles(boolean)
 	 */
 	public TileExporter parentObjects(Collection<? extends PathObject> parentObjects) {
 		this.parentObjects = new ArrayList<>(parentObjects);
@@ -215,6 +221,7 @@ public class TileExporter  {
 
 	/**
 	 * Define tile overlap (both x and y) in pixel units at the export resolution.
+	 * This is ignored if 'parentObjects' are specified.
 	 * @param overlap
 	 * @return this exporter
 	 */
@@ -224,6 +231,7 @@ public class TileExporter  {
 
 	/**
 	 * Define tile overlap (x and y separately) in pixel units at the export resolution.
+	 * This is ignored if 'parentObjects' are specified.
 	 * @param overlapX
 	 * @param overlapY
 	 * @return this exporter
@@ -256,9 +264,18 @@ public class TileExporter  {
 	}
 
 	/**
-	 * Specify whether incomplete tiles at image boundaries should be included. Default is false.
+	 * Specify whether incomplete tiles at image boundaries should be included.
+	 * <p>
+	 * If true, then when tiling the entire image some tiles may not have the specified tile width or height, 
+	 * or alternatively when creating tiles based upon object centroids then some zero-padding may be required 
+	 * to ensure the center is preserved along with the tile dimensions.
+	 * Default is false.
 	 * @param includePartialTiles
 	 * @return this exporter
+	 * @see #tileSize(int, int)
+	 * @see #parentObjects(Predicate)
+	 * @see #parentObjects(Collection)
+	 * @see #useROIBounds(boolean)
 	 */
 	public TileExporter includePartialTiles(boolean includePartialTiles) {
 		this.includePartialTiles = includePartialTiles;
@@ -434,9 +451,13 @@ public class TileExporter  {
 	}
 	
 	
-	List<RegionRequest> createRequests() {
+	/**
+	 * Create region requests, along with information about whether we have a partial tile (which should not be resized/padded) or not.
+	 * @return
+	 */
+	private Collection<RegionRequestWrapper> createRequests() {
 		
-		List<RegionRequest> requests = new ArrayList<>();
+		List<RegionRequestWrapper> requests = new ArrayList<>();
 		
 		// Work out which RegionRequests to use
 		// If the downsample hasn't been specified, use the level 0 resolution
@@ -449,33 +470,38 @@ public class TileExporter  {
 				logger.debug("Using level 0 downsample {}", downsample);
 		}
 		if (parentObjects == null)
-			requests.addAll(getTiledRegionRequests());			
+			requests.addAll(getTiledRegionRequests(downsample));			
 		else {
-			requests = new ArrayList<>();
 			for (var parent : parentObjects) {
 				int w = (int)Math.ceil(tileWidth*downsample);
 				int h = (int)Math.ceil(tileHeight*downsample);
 				if (parent.isRootObject()) {
 					for (int t = 0; t < server.nTimepoints(); t++) {
 						for (int z = 0; z < server.nZSlices(); z++) {
+							RegionRequest newRequest;
 							if (useParentRoiBounds) {
-								requests.add(RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), z, t));
+								newRequest = RegionRequest.createInstance(server.getPath(), downsample, 0, 0, server.getWidth(), server.getHeight(), z, t);
 							} else {
 								int x = (int)Math.floor(server.getWidth()/2.0 - w/2.0);
 								int y = (int)Math.floor(server.getHeight()/2.0 - h/2.0);
-								requests.add(RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h, z, t));
+								newRequest = RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h, z, t);
 							}
-						}						
+							if (includePartialTiles || withinImage(newRequest, server))
+								requests.add(new RegionRequestWrapper(newRequest, false));
+						}					
 					}
 				} else if (parent.hasROI()) {
+					RegionRequest newRequest;
 					var roi = PathObjectTools.getROI(parent, preferNucleus);
 					if (useParentRoiBounds) {
-						requests.add(RegionRequest.createInstance(server.getPath(), downsample, roi));
+						newRequest = RegionRequest.createInstance(server.getPath(), downsample, roi);
 					} else {
 						int x = (int)Math.floor(roi.getCentroidX() - w/2.0);
 						int y = (int)Math.floor(roi.getCentroidY() - h/2.0);
-						requests.add(RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h, roi.getImagePlane()));
+						newRequest = RegionRequest.createInstance(server.getPath(), downsample, x, y, w, h, roi.getImagePlane());
 					}
+					if (includePartialTiles || withinImage(newRequest, server))
+						requests.add(new RegionRequestWrapper(newRequest, false));
 				}
 			}
 		}
@@ -483,7 +509,7 @@ public class TileExporter  {
 		// If we want only annotated tiles, skip regions that lack annotations
 		var iterator = requests.iterator();
 		while (iterator.hasNext()) {
-			var r = iterator.next();
+			var r = iterator.next().request;
 			if (annotatedCentroidTilesOnly) {
 				double cx = (r.getMinX() + r.getMaxX()) / 2.0;
 				double cy = (r.getMinY() + r.getMaxY()) / 2.0;
@@ -522,6 +548,12 @@ public class TileExporter  {
 		
 		return requests;
 	}
+	
+	private static boolean withinImage(ImageRegion region, ImageServer<?> server) {
+		// Should max be <, or <=?
+		return region.getX() >= 0 && region.getY() >= 0 && region.getMaxX() <= server.getWidth() && region.getMaxY() <= server.getHeight();
+	}
+	
 
 	/**
 	 * Export the image tiles to the specified directory.
@@ -543,9 +575,9 @@ public class TileExporter  {
 			if (extLabeled == null)
 				extLabeled = serverLabeled.getMetadata().getChannelType() == ChannelType.CLASSIFICATION ? ".png" : ".tif";
 		}
-
+		
 		// Work out which RegionRequests to use
-		Collection<RegionRequest> requests = createRequests();
+		Collection<RegionRequestWrapper> requests = createRequests();
 
 		if (requests.isEmpty()) {
 			logger.warn("No regions to export!");
@@ -577,22 +609,26 @@ public class TileExporter  {
 //		else
 //			pixelSize = pixelSize.createScaledInstance(downsample, downsample);
 		
-		
-		int tileWidth = includePartialTiles || parentObjects != null ? -1 : this.tileWidth;
-		int tileHeight = includePartialTiles || parentObjects != null ? -1 : this.tileHeight;
+		int tileWidth = this.tileWidth;
+		int tileHeight = this.tileHeight;
+//		int tileWidth = includePartialTiles || (parentObjects != null && useParentRoiBounds) ? -1 : this.tileWidth;
+//		int tileHeight = includePartialTiles || (parentObjects != null && useParentRoiBounds) ? -1 : this.tileHeight;
 		
 		// Maintain a record of what we exported
 		List<TileExportEntry> exportImages = new ArrayList<>();
 
 		for (var r : requests) {
-			String baseName = String.format("%s [%s]", imageName, getRegionString(r));
+			
+			boolean ensureSize = !r.partialTile;
+			
+			String baseName = String.format("%s [%s]", imageName, getRegionString(r.request));
 			
 			String exportImageName = baseName + ext;
 			if (imageSubDir != null)
 				exportImageName = Paths.get(imageSubDir, exportImageName).toString();
 			String pathImageOutput = Paths.get(dirOutput, exportImageName).toAbsolutePath().toString();
 			
-			ExportTask taskImage = new ExportTask(server, r, pathImageOutput, tileWidth, tileHeight);
+			ExportTask taskImage = new ExportTask(server, r.request, pathImageOutput, tileWidth, tileHeight, ensureSize);
 
 			String exportLabelName = null;
 			ExportTask taskLabels = null;
@@ -607,11 +643,11 @@ public class TileExporter  {
 					exportLabelName = Paths.get(labelSubDir, exportLabelName).toString();
 				String pathLabelsOutput = Paths.get(dirOutput, exportLabelName).toAbsolutePath().toString();
 
-				taskLabels = new ExportTask(serverLabeled, r.updatePath(serverLabeled.getPath()),
-						pathLabelsOutput, tileWidth, tileHeight);
+				taskLabels = new ExportTask(serverLabeled, r.request.updatePath(serverLabeled.getPath()),
+						pathLabelsOutput, tileWidth, tileHeight, ensureSize);
 			}
 			exportImages.add(new TileExportEntry(
-					r.updatePath(imagePathName),
+					r.request.updatePath(imagePathName),
 //					pixelSize,
 					exportImageName,
 					exportLabelName));
@@ -724,13 +760,15 @@ public class TileExporter  {
 		private RegionRequest request;
 		private String path;
 		private int tileWidth, tileHeight;
+		private boolean ensureSize;
 
-		private ExportTask(ImageServer<BufferedImage> server, RegionRequest request, String path, int tileWidth, int tileHeight) {
+		private ExportTask(ImageServer<BufferedImage> server, RegionRequest request, String path, int tileWidth, int tileHeight, boolean ensureSize) {
 			this.server = server;
 			this.request = request;
 			this.path = path;
 			this.tileWidth = tileWidth;
 			this.tileHeight = tileHeight;
+			this.ensureSize = ensureSize;
 		}
 
 		@Override
@@ -739,22 +777,9 @@ public class TileExporter  {
 				if (!Thread.currentThread().isInterrupted())
 					logger.debug("Interrupted! Will not write image to {}", path);
 				
-				if (tileWidth > 0 && tileHeight > 0) {
-					var img = server.readBufferedImage(request);
-					if (img.getWidth() != tileWidth || img.getHeight() != tileHeight) {
-						if (tileWidth != img.getWidth() || tileHeight != img.getHeight()) {
-							if (tileWidth <= img.getWidth() && tileHeight <= img.getHeight()) {
-								int xStart = (img.getWidth() - tileWidth) / 2;
-								int yStart = (img.getHeight() - tileHeight) / 2;
-								img = BufferedImageTools.crop(img, xStart, yStart, tileWidth, tileHeight);
-							} else {
-								// TODO: Handle padding!
-								logger.warn("Resizing tile from {}x{} to {}x{}", img.getWidth(), img.getHeight(), tileWidth, tileHeight);
-								img = BufferedImageTools.resize(img, tileWidth, tileHeight, false);
-							}
-						}
-					}
+				if (ensureSize) {
 					// Updated for v0.3.0
+					var img = readFixedSizeRegion(server, request, tileWidth, tileHeight);
 					ImageWriterTools.writeImage(img, path);
 				} else {
 					ImageWriterTools.writeImageRegion(server, request, path);
@@ -800,8 +825,8 @@ public class TileExporter  {
 			// Pad if required
 			if (height > img.getHeight() || width > img.getWidth()) {
 				// Calculate relative amount of padding for left and top
-				int padX = (int)Math.round((img.getWidth() - width) * xProp);
-				int padY = (int)Math.round((img.getHeight() - height) * yProp);
+				int padX = (int)Math.round((width - img.getWidth()) * xProp);
+				int padY = (int)Math.round((height - img.getHeight()) * yProp);
 				
 				var padding = Padding.getPadding(
 						padX,
@@ -835,8 +860,8 @@ public class TileExporter  {
 			// Pad if required
 			if (height > img.getHeight() || width > img.getWidth()) {
 				// Calculate relative amount of padding for left and top
-				xProp = calculateFirstPadProportion(x, x2, 0, server.getWidth());
-				yProp = calculateFirstPadProportion(y, y2, 0, server.getHeight());
+				xProp = calculateFirstPadProportion(request.getMinX(), request.getMaxX(), 0, server.getWidth());
+				yProp = calculateFirstPadProportion(request.getMinY(), request.getMaxY(), 0, server.getHeight());
 			}
 			img = cropOrPad(img, width, height, xProp, yProp);
 		}
@@ -858,8 +883,6 @@ public class TileExporter  {
 		raster2.setDataElements(
 				padding.getX1(),
 				padding.getY1(),
-				raster.getWidth(),
-				raster.getHeight(),
 				raster);
 		
 		return new BufferedImage(img.getColorModel(), raster2, img.isAlphaPremultiplied(), null);
@@ -874,7 +897,9 @@ public class TileExporter  {
 		if (v2 <= maxVal)
 			return 1;
 		// Combination of left and right padding
-		return (minVal - v1) / (v2 - maxVal);
+		double d1 = minVal - v1;
+		double d2 = v2 - maxVal;
+		return d1 / (d1 + d2);
 	}
 	
 	
@@ -911,8 +936,8 @@ public class TileExporter  {
 
 
 
-	Collection<RegionRequest> getTiledRegionRequests() {
-		List<RegionRequest> requests = new ArrayList<>();
+	Collection<RegionRequestWrapper> getTiledRegionRequests(double downsample) {
+		List<RegionRequestWrapper> requests = new ArrayList<>();
 		
 		if (downsample == 0)
 			throw new IllegalArgumentException("No downsample was specified!");
@@ -956,13 +981,19 @@ public class TileExporter  {
 	 * @param includePartialTiles
 	 * @return
 	 */
-	static Collection<RegionRequest> splitRegionRequests(
+	static Collection<RegionRequestWrapper> splitRegionRequests(
 			RegionRequest request,
 			int tileWidth, int tileHeight,
 			int xOverlap, int yOverlap,
 			boolean includePartialTiles) {
+		
+		if (tileWidth <= 0 || tileHeight <= 0)
+			throw new IllegalArgumentException(String.format("Unsupported tile size (%d x %d) - dimensions must be > 0", tileWidth, tileHeight));
 
-		var set = new LinkedHashSet<RegionRequest>();
+		if (xOverlap >= tileWidth || yOverlap >= tileHeight)
+			throw new IllegalArgumentException("Overlap must be less than the tile size!");
+
+		var set = new LinkedHashSet<RegionRequestWrapper>();
 
 		double downsample = request.getDownsample();
 		String path = request.getPath();
@@ -979,6 +1010,8 @@ public class TileExporter  {
 			int th = tileHeight;
 			if (y + th > maxY)
 				th = maxY - y;
+			
+			boolean partialTile = false;
 
 			int yi = (int)Math.round(y * downsample);
 			int y2i = (int)Math.round((y + tileHeight) * downsample);
@@ -986,6 +1019,7 @@ public class TileExporter  {
 			if (y2i > request.getMaxY()) {
 				if (!includePartialTiles)
 					continue;
+				partialTile = true;
 				y2i = request.getMaxY();
 			} else if (y2i == yi)
 				continue;
@@ -1001,6 +1035,7 @@ public class TileExporter  {
 				if (x2i > request.getMaxX()) {
 					if (!includePartialTiles)
 						continue;
+					partialTile = true;
 					x2i = request.getMaxX();
 				} else if (x2i == xi)
 					continue;
@@ -1008,11 +1043,28 @@ public class TileExporter  {
 				var tile = RegionRequest.createInstance(path, downsample,
 						xi, yi, x2i-xi, y2i-yi, z, t
 						);
-				set.add(tile);
+				set.add(new RegionRequestWrapper(tile, partialTile));
 			}
 		}					
 
 		return set;
 	}
+	
+	
+	/**
+	 * Wrapper for a region request, which also stores whether it corresponds to a partial tile.
+	 */
+	static class RegionRequestWrapper {
+		
+		final RegionRequest request;
+		final boolean partialTile;
+		
+		RegionRequestWrapper(RegionRequest request, boolean partialTile) {
+			this.request = request;
+			this.partialTile = partialTile;
+		}
+		
+	}
+	
 
 }
