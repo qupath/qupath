@@ -1,5 +1,13 @@
-## Version 0.3.0-SNAPSHOT
+## Version 0.3.1-SNAPSHOT
 *In progress*
+
+This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs.
+
+List of bugs fixed:
+* Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
+
+
+## Version 0.3.0
 
 ### Release highlights
 * **New 'Create density map' command** to visualize hotspots & generate annotations based on object densities
