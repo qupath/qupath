@@ -310,6 +310,12 @@ public class QuPathViewerPlus extends QuPathViewer {
 	private boolean useCalibratedLocationString() {
 		return useCalibratedLocationString.get();
 	}
+	
+	@Override
+	protected void updateAffineTransform() {
+		super.updateAffineTransform();
+		updateLocationString();
+	}
 
 	@Override
 	void paintCanvas() {
@@ -330,11 +336,6 @@ public class QuPathViewerPlus extends QuPathViewer {
 		}
 	}
 
-	@Override
-	public void setDownsampleFactor(double downsampleFactor, double cx, double cy) {
-		super.setDownsampleFactor(downsampleFactor, cx, cy);
-		updateLocationString();
-	}
 	
 	@Override
 	public void repaintEntireImage() {
