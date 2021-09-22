@@ -30,11 +30,14 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +65,7 @@ public class MeasurementExporter {
 	
 	private List<String> includeOnlyColumns = new ArrayList<String>();
 	private List<String> excludeColumns = new ArrayList<String>();
+	private Predicate<PathObject> filter = obj -> true;
 	
 	// Default: Exporting annotations
 	private Class<? extends PathObject> type = PathRootObject.class;
@@ -126,6 +130,16 @@ public class MeasurementExporter {
 	 */
 	public MeasurementExporter imageList(List<ProjectImageEntry<BufferedImage>> imageList) {
 		this.imageList = imageList;
+		return this;
+	}
+	
+	/**
+	 * Filter the {@code PathObject}s before export (objects returning {@code true} for the predicate will be exported).
+	 * @param filter
+	 * @return this exporter
+	 */
+	public MeasurementExporter filter(Predicate<PathObject> filter) {
+		this.filter = filter;
 		return this;
 	}
 	
@@ -207,7 +221,8 @@ public class MeasurementExporter {
 			try {
 				ImageData<?> imageData = entry.readImageData();
 				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-				model.setImageData(imageData, imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type));
+				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type).parallelStream().filter(filter).collect(Collectors.toList());
+				model.setImageData(imageData, pathObjects);
 				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);
 				
 				// Get header
