@@ -510,7 +510,18 @@ public class ImageOps {
 		 * @return
 		 */
 		public static ImageOp percentile(double percentileMin, double percentileMax) {
-			return new NormalizePercentileOp(percentileMin, percentileMax);
+			return new NormalizePercentileOp(percentileMin, percentileMax, true);
+		}
+
+		/**
+		 * Same as {@link #percentile(double, double)}, but optimized for images with values in range [0, 256)
+		 * @param percentileMin
+		 * @param percentileMax
+		 * @param optimized enable optimization
+		 * @return
+		 */
+		public static ImageOp percentile(double percentileMin, double percentileMax, boolean optimized) {
+			return new NormalizePercentileOp(percentileMin, percentileMax, optimized);
 		}
 		
 		/**
@@ -657,15 +668,15 @@ public class ImageOps {
 		static class NormalizePercentileOp implements ImageOp {
 			
 			private double[] percentiles;
+			boolean optimized;
 			
-			NormalizePercentileOp(double percentileMin, double percentileMax) {
+			NormalizePercentileOp(double percentileMin, double percentileMax, boolean optimized) {
 				this.percentiles = new double[] {percentileMin, percentileMax};
 				if (percentileMin == percentileMax)
 					throw new IllegalArgumentException("Percentile min and max values cannot be identical!");
 			}
 
-			@Override
-			public Mat apply(Mat input) {
+			private Mat applyDefault(Mat input) {
 				var matvec = new MatVector();
 				opencv_core.split(input, matvec);
 				for (int i = 0; i < matvec.size(); i++) {
@@ -682,6 +693,57 @@ public class ImageOps {
 				}
 				opencv_core.merge(matvec, input);
 				return input;
+			}
+
+			private Mat applyOpt(Mat input) {
+				// Pertentiles normalization based of histogram calculation.
+				// The following code assumes that input is a Mat with values range [0, 256)
+				final int NUM_COLORS = 256;
+				Mat hist = new Mat();
+				double range[] = new double[2];
+				Scalar scale = new Scalar();
+				Scalar offset = new Scalar();
+				for (int ch = 0; ch < input.channels(); ++ch) {
+					// Compute a histogram for a channel
+					opencv_imgproc.calcHist(input, 1, new int[ch], new Mat(), hist, 1, new int[]{NUM_COLORS}, new float[]{0, NUM_COLORS});
+
+					// Find two percentiles from colors distribution
+					long counter = 0;
+					int i = 0;
+					long ind = (long)(percentiles[i] / 100.0 * input.total());
+					try (var idx = hist.createIndexer()) {
+						for (int color = 0; color < NUM_COLORS; ++color) {
+							counter += idx.getDouble(color);
+							if (counter >= ind) {
+								range[i] = color;
+								if (i == 1) {
+									break;
+								}
+								i += 1;
+								ind = (long)(percentiles[i] / 100.0 * input.total());
+							}
+						}
+						if (range[1] == range[0]) {
+							logger.warn("Normalization percentiles give the same value ({}), scale will be Infinity", range[0]);
+							scale.put(ch, Double.POSITIVE_INFINITY);
+						} else {
+							scale.put(ch, 1./(range[1] - range[0]));
+						}
+						offset.put(ch, -range[0]);
+					}
+				}
+				hist.release();
+
+				Mat scales = new Mat(1, 1, opencv_core.CV_64F, scale);
+				input = opencv_core.add(input, offset).mul(scales).asMat();
+				scales.release();
+
+				return input;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				return optimized ? applyOpt(input) : applyDefault(input);
 			}
 			
 		}
