@@ -52,6 +52,7 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -432,10 +433,18 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 	 * @return
 	 */
 	public PathObjectHierarchy getHierarchy() {
-		ImageData<BufferedImage> temp = imageDataProperty.get();
+		ImageData<BufferedImage> temp = getImageData();
 		return temp == null ? null : temp.getHierarchy();
 	}
 	
+	/**
+	 * Get the image data currently being displayed within thie viewer.
+	 * @return
+	 */
+	public ImageData<BufferedImage> getImageData() {
+		return imageDataProperty.getValue();
+	}
+
 	class KeyEventHandler implements EventHandler<KeyEvent> {
 
 		private KeyCode lastPressed = null;
