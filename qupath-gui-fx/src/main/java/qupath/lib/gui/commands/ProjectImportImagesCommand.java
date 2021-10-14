@@ -661,12 +661,10 @@ class ProjectImportImagesCommand {
 	 */
 	static ProjectImageEntry<BufferedImage> initializeEntry(ProjectImageEntry<BufferedImage> entry, ImageType type, boolean pyramidalizeSingleResolution, boolean importObjects) throws Exception {
 		try (ImageServer<BufferedImage> server = entry.getServerBuilder().build()) {
-			var img = getThumbnailRGB(server, null);
 			// Set the image name
 			String name = ServerTools.getDisplayableImageName(server);
 			entry.setImageName(name);
-			// Write a thumbnail if we can
-			entry.setThumbnail(img);
+			// The thumbnail generation has been moved to ProjectBrowser to avoid overhead
 			
 			// Pyramidalize this if we need to
 			@SuppressWarnings("resource")

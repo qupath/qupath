@@ -43,6 +43,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.TreeMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -52,7 +54,6 @@ import org.controlsfx.control.action.ActionUtils;
 import org.controlsfx.control.textfield.TextFields;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -92,6 +93,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.util.Callback;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -102,6 +104,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
@@ -147,6 +150,8 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	private static final String URI = "URI";
 	
+	private static ExecutorService executor;
+	
 	/**
 	 * Constructor.
 	 * @param qupath the current QuPath instance
@@ -160,6 +165,9 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		PathPrefs.maskImageNamesProperty().addListener((v, o, n) -> {
 			tree.refresh();
 		});
+
+		// Get thumbnails in separate thread
+		executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("thumbnail-loader", true));
 
 		panel = new BorderPane();
 
@@ -887,6 +895,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	 * This method should be used to get sorting values that
 	 * are not specifically part of an entry's metadata.
 	 * @param <T>
+	 * @param entry 
 	 * @param key
 	 * @return value
 	 * @throws IOException 
@@ -902,8 +911,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 					return "[remote] " + uri.getAuthority() + fullURI;
 				return fullURI.substring(fullURI.lastIndexOf("/")+1, fullURI.length());
 			}
-			else
-				return "Multiple URIs";
+			return "Multiple URIs";
 		}
 		return "Undefined";
 	}
@@ -1201,7 +1209,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return list == null ? 0 : list.size();
 		}
 
-		public boolean isLeaf(Object node) {
+		public static boolean isLeaf(Object node) {
 			return node instanceof ProjectImageEntry;
 		}
 
@@ -1273,6 +1281,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		private StackPane label = new StackPane();
 		private ImageView viewTooltip = new ImageView();
 		private Canvas viewCanvas = new Canvas();
+		private ProjectImageEntry<BufferedImage> entryCell = null;
 		
 		private DoubleBinding viewWidth = Bindings.createDoubleBinding(
 				() -> thumbnailSize.get().getWidth(),
@@ -1350,25 +1359,37 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 				tooltip.setText(entry.getSummary());
 				//	        	 Tooltip tooltip = new Tooltip(sb.toString());
 
-				BufferedImage img = null;
 				try {
-					img = (BufferedImage)entry.getThumbnail();
+					// Fetch the thumbnail or generate it if not present
+					BufferedImage img = entry.getThumbnail();
+					if (img != null) {
+						logger.warn("Recalculating: " + entry + " \t\t\t" + entryCell);
+						Image image = SwingFXUtils.toFXImage(img, null);
+						viewTooltip.setImage(image);
+						tooltip.setGraphic(viewTooltip);
+						GuiTools.paintImage(viewCanvas, image);
+						entryCell = entry;
+						if (getGraphic() == null)
+							setGraphic(label);
+						tree.refresh();
+					} else {
+						executor.submit(() -> {
+							final ProjectImageEntry<BufferedImage> entryTemp = (ProjectImageEntry<BufferedImage>)getItem();
+							if (entryTemp != null && entryTemp != entryCell) {
+								try (ImageServer<BufferedImage> server = entryTemp.getServerBuilder().build()) {
+									entryTemp.setThumbnail(ProjectCommands.getThumbnailRGB(server));
+									entryCell = entryTemp;
+									tree.refresh();
+								} catch (Exception ex) {
+									logger.warn("Error opening ImageServer (thumbnail generation): " + ex.getLocalizedMessage(), ex);
+								}
+							}
+						});
+					}
 				} catch (Exception e) {
 					logger.warn("Unable to read thumbnail for {} ({})" + entry.getImageName(), e.getLocalizedMessage());
 				}
-				
-				if (img != null) {
-					Image image = SwingFXUtils.toFXImage(img, null);
-					viewTooltip.setImage(image);
-					tooltip.setGraphic(viewTooltip);
-					GuiTools.paintImage(viewCanvas, image);
-					if (getGraphic() == null)
-						setGraphic(label);
-				} else {
-					setGraphic(null);
-				}
 			}
-			
 		}
 	}
 }
