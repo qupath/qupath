@@ -42,6 +42,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ListChangeListener.Change;
+import javafx.event.EventHandler;
 import javafx.geometry.Side;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
@@ -50,6 +51,7 @@ import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
@@ -187,6 +189,8 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 				qupath.getViewer().centerROI(pathObject.getROI());
 			}
 		});
+
+		listAnnotations.addEventHandler(KeyEvent.ANY, new KeyEventHandler());
 		
 		PathPrefs.colorDefaultObjectsProperty().addListener((v, o, n) -> listAnnotations.refresh());
 
@@ -421,6 +425,42 @@ public class AnnotationPane implements PathObjectSelectionListener, ChangeListen
 		suppressSelectionChanges = true;
 		listAnnotations.getItems().setAll(newList);
 		suppressSelectionChanges = lastChanging;
+	}
+
+	/**
+	 * Get the object hierarchy for the current image data, or null if no image data is available.
+	 * @return
+	 */
+	public PathObjectHierarchy getHierarchy() {
+		ImageData<BufferedImage> temp = imageDataProperty.get();
+		return temp == null ? null : temp.getHierarchy();
+	}
+	
+	class KeyEventHandler implements EventHandler<KeyEvent> {
+
+		private KeyCode lastPressed = null;
+		private Set<KeyCode> keysPressed = new HashSet<>();
+		private long keyDownTime = Long.MIN_VALUE;
+		private double scale = 1.0;
+
+		@Override
+		public void handle(KeyEvent event) {
+			KeyCode code = event.getCode();
+			
+			// Handle backspace/delete to remove selected object
+			if (event.getEventType() == KeyEvent.KEY_RELEASED && (code == KeyCode.BACK_SPACE || code == KeyCode.DELETE)) {
+				var hierarchy = getHierarchy();
+				if (hierarchy != null) {
+					if (hierarchy.getSelectionModel().singleSelection()) {
+						GuiTools.promptToRemoveSelectedObject(hierarchy.getSelectionModel().getSelectedObject(), hierarchy);
+					} else {
+						GuiTools.promptToClearAllSelectedObjects(getImageData());
+					}
+				}
+				event.consume();
+				return;
+			}
+		}
 	}
 	
 }
