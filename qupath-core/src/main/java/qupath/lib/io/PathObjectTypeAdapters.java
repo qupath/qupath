@@ -435,12 +435,12 @@ class PathObjectTypeAdapters {
 			case ("annotation"):
 			case ("unknown"):
 				// Default is to create an annotation
-				pathObject = PathObjects.createAnnotationObject(roi, pathClass);
+				pathObject = PathObjects.createAnnotationObject(roi, pathClass, measurementList);
 				break;
 			default:
 				// Should be called if the type has been specified as *something*, but not something we recognize
 				logger.warn("Unknown object type {}, I will create an annotation", type);
-				pathObject = PathObjects.createAnnotationObject(roi, pathClass);
+				pathObject = PathObjects.createAnnotationObject(roi, pathClass, measurementList);
 			}
 			if (name != null)
 				pathObject.setName(name);
