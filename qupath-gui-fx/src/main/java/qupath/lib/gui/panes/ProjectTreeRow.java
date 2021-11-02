@@ -12,12 +12,12 @@ import qupath.lib.projects.ProjectImageEntry;
  * Abstract class to represent all different objects that can go into a Project browser's tree.
  * @author Melvin Gelbard
  */
-abstract class ProjectObject {
+abstract class ProjectTreeRow {
 	
 	/**
-	 * Types of possible {@code ProjectObject}s.
+	 * Types of possible {@code ProjectTreeRow}s.
 	 */
-	public enum Type {
+	enum Type {
 		/**
 		 * Either the {@code Project} or a String displaying 'No Project'.
 		 */
@@ -41,7 +41,7 @@ abstract class ProjectObject {
 	abstract String getDisplayableString();
 	
 	/**
-	 * Return the type of ProjectObject this object represents.
+	 * Return the type of {@code ProjectTreeRow} this object represents.
 	 * <p>
 	 * E.g. {@code ROOT}, {@code TAG}, etc..
 	 * @return type
@@ -58,22 +58,22 @@ abstract class ProjectObject {
 	}
 
 	/**
-	 * Get the {@link #ProjectImageEntry} corresponding to the specified {@link #ProjectObject}.
+	 * Get the {@link #ProjectImageEntry} corresponding to the specified {@link #ProjectTreeRow}.
 	 * <p>
 	 * If the specified object is not an {@link ImageRow} (e.g. {@link MetadataRow}), return {@code null}.
-	 * @param projectObject
-	 * @return
+	 * @param projectTreeRow
+	 * @return Project image entry
 	 */
-	static ProjectImageEntry<BufferedImage> getEntry(ProjectObject projectObject) {
-		if (projectObject.getType() == Type.IMAGE)
-			return ((ImageRow)projectObject).getEntry();
+	static ProjectImageEntry<BufferedImage> getEntry(ProjectTreeRow projectTreeRow) {
+		if (projectTreeRow.getType() == Type.IMAGE)
+			return ((ImageRow)projectTreeRow).getEntry();
 		return null;
 	}
 	
 	/**
 	 * Object representing the root of the TreeView in {@link ProjectBrowser}. Either a 'No project' String or the project (name).
 	 */
-	static class RootRow extends ProjectObject {
+	static class RootRow extends ProjectTreeRow {
 
 		private Project<?> project;
 		private String originalString;
@@ -113,7 +113,7 @@ abstract class ProjectObject {
 	/**
 	 * Object representing a metadata row in the TreeView in {@link ProjectBrowser}. Represented as Strings.
 	 */
-	static class MetadataRow extends ProjectObject {
+	static class MetadataRow extends ProjectTreeRow {
 	
 		private String originalString;
 		
@@ -152,7 +152,7 @@ abstract class ProjectObject {
 	/**
 	 * Object representing a {@link ProjectImageEntry}/row in the TreeView in {@link ProjectBrowser}.
 	 */
-	public static class ImageRow extends ProjectObject {
+	public static class ImageRow extends ProjectTreeRow {
 		
 		private ProjectImageEntry<BufferedImage> entry;
 		
