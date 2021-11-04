@@ -35,6 +35,7 @@ import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreFactory;
+import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
 import qupath.lib.images.ImageData;
@@ -59,17 +60,20 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	private DefaultImageRegionStore store;
 	private ImageData<BufferedImage> imageData;
 	private List<PathOverlay> overlayLayers = new ArrayList<>();
-	private ImageDisplay display;
+	private ImageRenderer renderer;
+	
+	private Color backgroundColor = Color.WHITE;
 	
 	private ImageServerMetadata metadata;
 	
-	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData, List<? extends PathOverlay> overlayLayers, ImageDisplay display, double[] downsamples) {
+	private RenderedImageServer(DefaultImageRegionStore store, ImageData<BufferedImage> imageData, List<? extends PathOverlay> overlayLayers, ImageRenderer renderer, double[] downsamples, Color backgroundColor) {
 		super();
 		this.store = store;
 		if (overlayLayers != null)
 			this.overlayLayers.addAll(overlayLayers);
-		this.display = display;
+		this.renderer = renderer;
 		this.imageData = imageData;
+		this.backgroundColor = backgroundColor;
 		var builder = new ImageServerMetadata.Builder(imageData.getServer().getMetadata())
 				.rgb(true)
 				.channels(ImageChannel.getDefaultRGBChannels())
@@ -81,7 +85,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	}
 	
 	/**
-	 * Create an ImageServer that returns tiles based on how approximately they would appear within the viewer.
+	 * Create an {@link ImageServer} that returns tiles based on how approximately they would appear within the viewer.
 	 * Note that
 	 * <ul>
 	 * <li>the server uses fixed downsample values, while the viewer can adapt annotation line thickness continuously - 
@@ -102,6 +106,19 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 	}
 	
 	/**
+	 * Create an {@link ImageServer} that converts the image to RGB using the specified {@link ImageRenderer}.
+	 * @param server
+	 * @param renderer
+	 * @return
+	 */
+	public static ImageServer<BufferedImage> createRenderedServer(ImageServer<BufferedImage> server, ImageRenderer renderer) {
+		return new Builder(new ImageData<>(server))
+				.renderer(renderer)
+				.backgroundColor(new Color(0, true))
+				.build();
+	}
+	
+	/**
 	 * Builder to create an ImageServer to display rendered images, with optional overlay layers.
 	 * This provides more fine-grained control of how the rendering is performed than {@link RenderedImageServer#createRenderedServer(QuPathViewer)}.
 	 */
@@ -110,7 +127,8 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		private DefaultImageRegionStore store;
 		private ImageData<BufferedImage> imageData;
 		private List<PathOverlay> overlayLayers = new ArrayList<>();
-		private ImageDisplay display;
+		private ImageRenderer renderer;
+		private Color backgroundColor;
 		private double[] downsamples;
 		
 		/**
@@ -121,7 +139,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 			this(viewer.getImageData());
 			this.store = viewer.getImageRegionStore();
 			this.overlayLayers.addAll(viewer.getOverlayLayers());
-			this.display = viewer.getImageDisplay();
+			this.renderer = viewer.getImageDisplay();
 		}
 
 		/**
@@ -147,9 +165,20 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		 * Specify the {@link ImageDisplay} that controls conversion to RGB.
 		 * @param display
 		 * @return
+		 * @deprecated use {@link #renderer(ImageRenderer)} instead (since an {@link ImageDisplay} is also an {@link ImageRenderer}.
 		 */
+		@Deprecated
 		public Builder display(ImageDisplay display) {
-			this.display = display;
+			return renderer(display);
+		}
+		
+		/**
+		 * Specify the {@link ImageRenderer} that controls conversion to RGB.
+		 * @param renderer
+		 * @return
+		 */
+		public Builder renderer(ImageRenderer renderer) {
+			this.renderer = renderer;
 			return this;
 		}
 		
@@ -183,33 +212,53 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		}
 		
 		/**
+		 * Specify a base color. This is useful if transparent overlays or renderers will be used.
+		 * @param color
+		 * @return
+		 */
+		public Builder backgroundColor(Color color) {
+			this.backgroundColor = color;
+			return this;
+		}
+		
+		/**
+		 * Specify a base color. This is useful if transparent overlays or renderers will be used.
+		 * @param rgb packed (A)RGB version of the color
+		 * @param keepAlpha true if the packed color contains an alpha value
+		 * @return
+		 */
+		public Builder backgroundColor(int rgb, boolean keepAlpha) {
+			return backgroundColor(new Color(rgb, keepAlpha));
+		}
+		
+		/**
 		 * Create the rendered image server.
 		 * @return
 		 */
 		public ImageServer<BufferedImage> build() {
 			// Try to use existing store/display if possible
-			if (this.store == null || this.display == null) {
+			if (this.store == null || this.renderer == null) {
 				QuPathViewer viewer = null;
 				QuPathGUI qupath = QuPathGUI.getInstance();
 				if (qupath != null) {
 					viewer = qupath.getViewers().stream().filter(v -> v.getImageData() == imageData).findFirst().orElse(null);					
 				}
 				DefaultImageRegionStore store = null;
-				ImageDisplay display = null;
+				ImageRenderer renderer = null;
 				if (viewer == null) {
 					store = ImageRegionStoreFactory.createImageRegionStore(Runtime.getRuntime().maxMemory() / 4L);
-					display = new ImageDisplay(imageData);
+					renderer = new ImageDisplay(imageData);
 				} else {
 					store = viewer.getImageRegionStore();
-					display = viewer.getImageDisplay();
+					renderer = viewer.getImageDisplay();
 				}
 				if (this.store == null)
 					this.store = store;
-				if (this.display == null)
-					this.display = display;
+				if (this.renderer == null)
+					this.renderer = renderer;
 			}
 			
-			return new RenderedImageServer(store, imageData, overlayLayers, display, downsamples);
+			return new RenderedImageServer(store, imageData, overlayLayers, renderer, downsamples, backgroundColor);
 		}
 		
 		
@@ -240,8 +289,11 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		double downsample = region.getDownsample();
 		
 		var g2d = img.createGraphics();
-		g2d.setColor(Color.WHITE);
-		g2d.fillRect(0, 0, img.getWidth(), img.getHeight());
+		if (backgroundColor != null) {
+			g2d.setBackground(backgroundColor);
+			g2d.clearRect(0, 0, img.getWidth(), img.getHeight());
+		}
+		
 		g2d.setClip(0, 0, img.getWidth(), img.getHeight());
 		g2d.scale(1.0/downsample, 1.0/downsample);
 		g2d.translate(-region.getX(), -region.getY());
@@ -249,7 +301,7 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		store.paintRegionCompletely(
 				imageData.getServer(), g2d, g2d.getClip(),
 				tileRequest.getZ(), tileRequest.getT(),
-				downsample, null, display,
+				downsample, null, renderer,
 				Integer.MAX_VALUE);
 		
 		
@@ -259,6 +311,18 @@ public class RenderedImageServer extends AbstractTileableImageServer implements 
 		
 		g2d.dispose();
 		return img;
+	}
+	
+	protected boolean hasAlpha() {
+		return backgroundColor != null && backgroundColor.getTransparency() != Color.OPAQUE;
+	}
+	
+	@Override
+	protected BufferedImage createDefaultRGBImage(int width, int height) {
+		if (hasAlpha())
+			return new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		else
+			return new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 	}
 
 	@Override

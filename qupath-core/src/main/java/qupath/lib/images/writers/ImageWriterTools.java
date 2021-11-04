@@ -163,15 +163,20 @@ public class ImageWriterTools {
 		List<ImageWriter<BufferedImage>> compatibleWriters = ImageWriterTools.getCompatibleWriters(server, ext);
 		
 		// If we have a path, use the 'best' writer we have, i.e. the first one that supports pixel sizes
+		Exception firstException = null;
 		for (ImageWriter<BufferedImage> writer : compatibleWriters) {
 			try {
 				writer.writeImage(server, path);
 				return true;
 			} catch (Exception e) {
 				logger.warn("Unable to write image", e);
+				firstException = e;
 			}
 		}
-		throw new IOException("Unable to write " + path + "!  No compatible writer found.");
+		if (firstException == null)
+			throw new IOException("Unable to write " + path + "!  No compatible writer found.");
+		else
+			throw new IOException("Unable to write " + path + "!", firstException);
 	}
 	
 	

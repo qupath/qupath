@@ -74,7 +74,7 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectFilter;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
-import qupath.process.gui.ml.ProjectClassifierBindings;
+import qupath.process.gui.commands.ml.ProjectClassifierBindings;
 
 /**
  * Command to (sub)classify objects based on a single measurement.
@@ -173,7 +173,8 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			// Set up text fields
 			var tf = new TextField();
 			tf.setPrefColumnCount(6);
-			GuiTools.bindSliderAndTextField(sliderThreshold, tf);
+			GuiTools.bindSliderAndTextField(sliderThreshold, tf, true);
+			GuiTools.installRangePrompt(sliderThreshold);
 			
 			// Initialize pane
 			pane = new GridPane();
@@ -483,7 +484,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 					.filter(d -> Double.isFinite(d)).toArray();
 			var stats = new DescriptiveStatistics(allValues);
 			var histogram = new Histogram(allValues, 100, stats.getMin(), stats.getMax());
-			histogramPane.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, ColorTools.makeRGBA(200, 20, 20, 100)));
+			histogramPane.getHistogramData().setAll(HistogramPanelFX.createHistogramData(histogram, false, ColorTools.packARGB(100, 200, 20, 20)));
 			
 			double value = previousThresholds.getOrDefault(measurement, stats.getMean());
 			sliderThreshold.setMin(stats.getMin());

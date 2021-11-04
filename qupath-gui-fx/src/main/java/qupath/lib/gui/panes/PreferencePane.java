@@ -46,6 +46,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.dialogs.Dialogs;
+import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.FontSize;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
@@ -142,8 +143,12 @@ public class PreferencePane {
 				category,
 				"Create log files when using QuPath inside the QuPath user directory (useful for debugging & reporting errors)");
 		
+		addPropertyPreference(LogManager.rootLogLevelProperty(), LogManager.LogLevel.class, "Log level", category,
+				"Logging level, which determines the number of logging messages.\n"
+				+ "It is recommended to use only INFO or DEBUG; more frequent logging (e.g. TRACE, ALL) will likely cause performance issues.");
+
 		addPropertyPreference(PathPrefs.numCommandThreadsProperty(), Integer.class,
-				"Number of processors for parallel commands",
+				"Number of parallel threads",
 				category,
 				"Set limit on number of processors to use for parallelization."
 						+ "\nThis should be > 0 and <= the available processors on the computer."
@@ -161,7 +166,7 @@ public class PreferencePane {
 				"Command bar display mode",
 				category,
 				"Mode used to display command finder text field on top of the viewer");
-
+		
 		addPropertyPreference(PathPrefs.showExperimentalOptionsProperty(), Boolean.class,
 				"Show experimental menu items",
 				category,

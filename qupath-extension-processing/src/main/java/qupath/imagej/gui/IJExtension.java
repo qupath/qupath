@@ -77,6 +77,7 @@ import qupath.imagej.tools.IJTools;
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.ActionTools.ActionDescription;
 import qupath.lib.gui.ActionTools.ActionIcon;
@@ -623,7 +624,7 @@ public class IJExtension implements QuPathExtension {
 				try {
 					macro = GeneralTools.readFileAsString(list.get(0).getAbsolutePath());
 					qupath.runPlugin(new ImageJMacroRunner(qupath), macro, true);
-				} catch (IOException e) {
+				} catch (Exception e) {
 					Dialogs.showErrorMessage("Error opening ImageJ macro", e);
 					return false;
 				}
@@ -672,7 +673,14 @@ public class IJExtension implements QuPathExtension {
 	public String getDescription() {
 		return "QuPath commands that enable integration with ImageJ - https://imagej.nih.gov/ij/";
 	}
-
+	
+	/**
+	 * Returns the version stored within this jar, because it is matched to the QuPath version.
+	 */
+	@Override
+	public Version getQuPathVersion() {
+		return getVersion();
+	}
 
 
 }

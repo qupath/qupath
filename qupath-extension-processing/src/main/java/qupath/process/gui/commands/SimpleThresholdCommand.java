@@ -46,7 +46,6 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
-import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
@@ -55,6 +54,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
@@ -63,9 +63,8 @@ import qupath.opencv.ml.pixel.PixelClassifiers;
 import qupath.opencv.ops.ImageOp;
 import qupath.opencv.ops.ImageOps;
 import qupath.opencv.tools.MultiscaleFeatures.MultiscaleFeature;
-import qupath.process.gui.ml.ClassificationResolution;
-import qupath.process.gui.ml.PixelClassificationOverlay;
-import qupath.process.gui.ml.PixelClassifierUI;
+import qupath.process.gui.commands.ml.ClassificationResolution;
+import qupath.process.gui.commands.ml.PixelClassifierUI;
 
 /**
  * Apply simple thresholding to an image via the pixel classification framework to support 
@@ -192,10 +191,7 @@ public class SimpleThresholdCommand implements Runnable {
 	private Spinner<Double> sigmaSpinner = new Spinner<>(new SpinnerValueFactory.DoubleSpinnerValueFactory(0, 16.0, 0.0, 0.5));
 	private ReadOnlyObjectProperty<Double> sigma = sigmaSpinner.valueProperty();
 
-	private Map<ColorTransform, Double> availableTransforms = new LinkedHashMap<>();
-	
-	private SpinnerValueFactory.DoubleSpinnerValueFactory thresholdValueFactory = new SpinnerValueFactory.DoubleSpinnerValueFactory(-Double.MAX_VALUE, Double.MAX_VALUE, 0.0, 0.5);
-	private Spinner<Double> spinner = new Spinner<>(thresholdValueFactory);
+	private Spinner<Double> spinner = GuiTools.createDynamicStepSpinner(-Double.MAX_VALUE, Double.MAX_VALUE, 0, 0.01, 2);
 	private ReadOnlyObjectProperty<Double> threshold = spinner.valueProperty();
 	
 	private ObjectProperty<PixelClassificationOverlay> selectedOverlay = new SimpleObjectProperty<>();
@@ -299,7 +295,7 @@ public class SimpleThresholdCommand implements Runnable {
 		
 		selectedPrefilter.addListener((v, o, n) -> updateClassification());
 		transforms.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
-			thresholdValueFactory.setAmountToStepBy(availableTransforms.getOrDefault(n, 0.5));
+//			thresholdValueFactory.setAmountToStepBy(availableTransforms.getOrDefault(n, 0.5));
 			updateClassification();
 		});
 		sigma.addListener((v, o, n) -> updateClassification());
@@ -341,6 +337,11 @@ public class SimpleThresholdCommand implements Runnable {
 		stage.minHeightProperty().bind(stage.heightProperty());
 		stage.setResizable(true);
 		
+		stage.focusedProperty().addListener((v, o, n) -> {
+			if (n)
+				ensureOverlays();
+		});
+		
 		stage.setOnHiding(e -> {
 			dim = new Dimension2D(stage.getWidth(), stage.getHeight());
 			resetOverlays();
@@ -352,9 +353,6 @@ public class SimpleThresholdCommand implements Runnable {
 	private void resetOverlay(QuPathViewer viewer, PathOverlay overlay) {
 		if (viewer.getCustomPixelLayerOverlay() == overlay) {
 			viewer.resetCustomPixelLayerOverlay();
-			var imageData = viewer.getImageData();
-			if (imageData != null)
-				PixelClassificationImageServer.setPixelLayer(imageData, null);
 		}
 	}
 	
@@ -362,6 +360,9 @@ public class SimpleThresholdCommand implements Runnable {
 		for (var entry : map.entrySet()) {
 			resetOverlay(entry.getKey(), entry.getValue());
 		}
+		var overlay = selectedOverlay.get();
+		if (overlay != null)
+			overlay.stop();
 		selectedOverlay.set(null);
 	}
 	
@@ -453,11 +454,22 @@ public class SimpleThresholdCommand implements Runnable {
 				classifications);
 
 		// Create classifier
-		var overlay = PixelClassificationOverlay.createPixelClassificationOverlay(qupath.getOverlayOptions(), classifier);
+		var overlay = PixelClassificationOverlay.create(qupath.getOverlayOptions(), classifier);
 		overlay.setLivePrediction(true);
+		
+		var previousOverlay = selectedOverlay.get();
+		if (previousOverlay != null)
+			previousOverlay.stop();
+
 		selectedOverlay.set(overlay);
 		this.currentClassifier.set(classifier);
 		
+		ensureOverlays();
+	}
+	
+	
+	private void ensureOverlays() {
+		var overlay = selectedOverlay.get();
 		// Try (admittedly unsuccessfully) to reduce flicker
 		for (var viewer : qupath.getViewers()) {
 			var imageData = viewer.getImageData();
@@ -470,15 +482,10 @@ public class SimpleThresholdCommand implements Runnable {
 			viewer.repaint();
 			
 			viewer.setCustomPixelLayerOverlay(overlay);
-			map.put(viewer, overlay);
-//			imageData.getHierarchy().fireObjectMeasurementsChangedEvent(this, imageData.getHierarchy().getAnnotationObjects(), true);
-	
+			map.put(viewer, overlay);	
 			viewer.resetMinimumRepaintSpacingMillis();
 		}
 	}
-	
-	
-	
 	
 
 	/**
@@ -506,7 +513,7 @@ public class SimpleThresholdCommand implements Runnable {
 			validChannels.put(ColorTransforms.createMaximumChannelTransform(), increment);
 			validChannels.put(ColorTransforms.createMinimumChannelTransform(), increment);
 		}
-		availableTransforms = validChannels;
+//		availableTransforms = validChannels;
 		return validChannels.keySet();
 	}
 	

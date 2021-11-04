@@ -24,21 +24,26 @@ package qupath.opencv.ml.pixel;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Map;
 
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.classifiers.pixel.PixelClassifierMetadata;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.io.UriResource;
 import qupath.lib.regions.RegionRequest;
 import qupath.opencv.ops.ImageDataOp;
 import qupath.opencv.tools.OpenCVTools;
 
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class OpenCVPixelClassifier implements PixelClassifier {
+class OpenCVPixelClassifier implements PixelClassifier, UriResource {
 	
 	private static final Logger logger = LoggerFactory.getLogger(OpenCVPixelClassifier.class);
 
@@ -92,24 +97,41 @@ class OpenCVPixelClassifier implements PixelClassifier {
     @Override
     public BufferedImage applyClassification(final ImageData<BufferedImage> imageData, final RegionRequest request) throws IOException {
     	
-    	var matResult = getOp().apply(imageData, request);
+//    	logger.debug("Before: \n" + OpenCVTools.memoryReport(", "));
     	
-    	var type = getMetadata().getOutputType();
-    	ColorModel colorModelLocal = null;
-    	if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
-    		colorModelLocal = getProbabilityColorModel(matResult.depth() == opencv_core.CV_8U);
-    	} else if (type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
-    		colorModelLocal = getClassificationsColorModel();
+    	try (@SuppressWarnings("unchecked")
+		var scope = new PointerScope()) {
+	    	var matResult = getOp().apply(imageData, request);
+
+	    	var type = getMetadata().getOutputType();
+	    	ColorModel colorModelLocal = null;
+	    	if (type == ImageServerMetadata.ChannelType.PROBABILITY) {
+	    		colorModelLocal = getProbabilityColorModel(matResult.depth() == opencv_core.CV_8U);
+	    	} else if (type == ImageServerMetadata.ChannelType.CLASSIFICATION) {
+	    		colorModelLocal = getClassificationsColorModel();
+	    	}
+	
+	        // Create & return BufferedImage
+	        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
+	
+//	        // Return memory as quickly as we can
+//	        scope.deallocate();
+	        return imgResult;
+    	} finally {
+//        	System.gc(); // Shouldn't be needed if deallocate is used?
+//    		logger.debug("After: \n" + OpenCVTools.memoryReport(", "));
     	}
-
-        // Create & return BufferedImage
-        BufferedImage imgResult = OpenCVTools.matToBufferedImage(matResult, colorModelLocal);
-
-        // Free matrix
-        matResult.release();
-
-        return imgResult;
     }
+
+	@Override
+	public Collection<URI> getUris() throws IOException {
+		return op.getUris();
+	}
+
+	@Override
+	public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+		return op.updateUris(replacements);
+	}
     
     
 }

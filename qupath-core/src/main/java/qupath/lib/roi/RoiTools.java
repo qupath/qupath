@@ -36,9 +36,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +53,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.geom.ImmutableDimension;
 import qupath.lib.geom.Point2;
 import qupath.lib.regions.ImagePlane;
+import qupath.lib.regions.ImageRegion;
 import qupath.lib.roi.interfaces.ROI;
 
 /**
@@ -156,6 +163,27 @@ public class RoiTools {
 		for (var geom : geometries)
 			first = first.intersection(geom);
 		return GeometryTools.geometryToROI(first, plane);
+	}
+	
+	/**
+	 * Test whether a {@link ROI} and an {@link ImageRegion} intersect.
+	 * <p>
+	 * This returns false quickly if the ROI and region do not share the same z-slice or timepoint,
+	 * or the ROI's bounding box does not intersect the region.
+	 * Otherwise, a more expensive geometry test is performed to check for intersection.
+	 * 
+	 * @param roi
+	 * @param region
+	 * @return true if the ROI and the region intersect, false otherwise
+	 */
+	public static boolean intersectsRegion(ROI roi, ImageRegion region) {
+		if (roi.getZ() != region.getZ() || roi.getT() != region.getT())
+			return false;
+		if (!region.intersects(roi.getBoundsX(), roi.getBoundsY(), roi.getBoundsWidth(), roi.getBoundsHeight()))
+			return false;
+		if (roi instanceof RectangleROI)
+			return true;
+		return GeometryTools.regionToGeometry(region).intersects(roi.getGeometry());
 	}
 	
 	
@@ -539,10 +567,7 @@ public class RoiTools {
 	
 	
 	/**
-	 * Create a collection of tiled ROIs corresponding to a specified parentROI if it is larger than sizeMax, with optional overlaps.
-	 * <p>
-	 * The purpose of this is to create useful tiles whenever the exact tile size may not be essential, and overlaps may be required.
-	 * Tiles at the parentROI boundary will be trimmed to fit inside. If the parentROI is smaller, it is returned as is.
+	 * Legacy implementation (pre v0.3.0) of {@link #computeTiledROIs(ROI, ImmutableDimension, ImmutableDimension, boolean, int)}
 	 * 
 	 * @param parentROI main ROI to be tiled
 	 * @param sizePreferred the preferred size; in general tiles should have this size
@@ -553,7 +578,7 @@ public class RoiTools {
 	 * 
 	 * @see #makeTiles(ROI, int, int, boolean)
 	 */
-	public static Collection<? extends ROI> computeTiledROIs(ROI parentROI, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
+	static Collection<? extends ROI> computeTiledROIsLegacy(ROI parentROI, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
 
 		ROI pathArea = parentROI != null && parentROI.isArea() ? parentROI : null;
 		Rectangle2D bounds = AwtTools.getBounds2D(parentROI);
@@ -578,6 +603,7 @@ public class RoiTools {
 		yMin = (int)(bounds.getCenterY() - (ny * h * .5));
 		
 		var plane = parentROI.getImagePlane();
+		int skipCount = 0;
 
 		for (int yi = 0; yi < ny; yi++) {
 			for (int xi = 0; xi < nx; xi++) {
@@ -599,16 +625,221 @@ public class RoiTools {
 				else {
 					if (!area.intersects(boundsTile))
 						continue;
-					Geometry areaTemp = GeometryTools.homogenizeGeometryCollection(boundsTile.intersection(area));
-					if (!areaTemp.isEmpty())
-						pathROI = GeometryTools.geometryToROI(areaTemp, plane);
+					try {
+						// Errors were reported when computing the intersection here - so try to recover as best we can
+						Geometry areaTemp = GeometryTools.homogenizeGeometryCollection(boundsTile.intersection(area));
+						if (!areaTemp.isEmpty())
+							pathROI = GeometryTools.geometryToROI(areaTemp, plane);
+					} catch (Exception e) {
+						logger.warn("Tile skipped because of error computing intersection: " + e.getLocalizedMessage(), e);
+						skipCount++;
+					}
 				}
 				if (pathROI != null)
 					pathROIs.add(pathROI);
 			}
 		}
+		if (skipCount > 0) {
+			logger.warn("You may be able to avoid tiling errors by calling 'Simplify shape' on any complex annotations first.");
+		}
 		return pathROIs;
 	}
+	
+	
+	
+	
+	/**
+	 * Create a collection of tiled ROIs corresponding to a specified parentROI if it is larger than sizeMax, with optional overlaps.
+	 * <p>
+	 * The purpose of this is to create useful tiles whenever the exact tile size may not be essential, and overlaps may be required.
+	 * Tiles at the parentROI boundary will be trimmed to fit inside. If the parentROI is smaller, it is returned as is.
+	 *
+	 * @param parentROI main ROI to be tiled
+	 * @param sizePreferred the preferred size; in general tiles should have this size
+	 * @param sizeMax the maximum allowed size; occasionally it is more efficient to have a tile larger than the preferred size towards a ROI boundary to avoid creating very small tiles unnecessarily
+	 * @param fixedSize if true, the tile size is enforced so that complete tiles have the same size
+	 * @param overlap optional requested overlap between tiles
+	 * @return
+	 *
+	 * @see #makeTiles(ROI, int, int, boolean)
+	 */
+	public static Collection<? extends ROI> computeTiledROIs(ROI parentROI, ImmutableDimension sizePreferred, ImmutableDimension sizeMax, boolean fixedSize, int overlap) {
+		
+		ROI pathArea = parentROI != null && parentROI.isArea() ? parentROI : null;
+		Rectangle2D bounds = AwtTools.getBounds2D(parentROI);
+		if (pathArea == null || (bounds.getWidth() <= sizeMax.width && bounds.getHeight() <= sizeMax.height)) {
+			return Collections.singletonList(parentROI);
+		}
+
+		Geometry geometry = pathArea.getGeometry();
+		PreparedGeometry prepared = null;
+		
+		double xMin = bounds.getMinX();
+		double yMin = bounds.getMinY();
+		int nx = (int)Math.ceil(bounds.getWidth() / sizePreferred.width);
+		int ny = (int)Math.ceil(bounds.getHeight() / sizePreferred.height);
+		double w = fixedSize ? sizePreferred.width : (int)Math.ceil(bounds.getWidth() / nx);
+		double h = fixedSize ? sizePreferred.height : (int)Math.ceil(bounds.getHeight() / ny);
+
+		// Center the tiles
+		xMin = (int)(bounds.getCenterX() - (nx * w * .5));
+		yMin = (int)(bounds.getCenterY() - (ny * h * .5));
+		
+		// This can be very slow if we have an extremely large number of vertices/tiles.
+		// For that reason, we try to split initially by either rows or columns if needed.
+		boolean byRow = false;
+		boolean byColumn = false;
+		Map<Integer, Geometry> rowParents = null;
+		Map<Integer, Geometry> columnParents = null;
+		var envelope = geometry.getEnvelopeInternal();
+		if (ny > 1 && nx > 1 && geometry.getNumPoints() > 1000) {
+			
+			// If we have a lot of points, create a prepared geometry so we can check covers/intersects quickly;
+			// (for a regular geometry, it would be faster to just compute an intersection and see if it's empty)
+			prepared = PreparedGeometryFactory.prepare(geometry);
+			var prepared2 = prepared;
+			var empty = geometry.getFactory().createEmpty(2);
+			
+			byRow = nx > ny;
+			byColumn = !byRow;
+			double yMin2 = yMin;
+			double xMin2 = xMin;
+			// Compute intersection by row so that later intersections are simplified
+			if (byRow) {
+				rowParents = IntStream.range(0, ny)
+						.parallel()
+						.mapToObj(yi -> yi)
+						.collect(
+								Collectors.toMap(
+										yi -> yi,
+										yi -> {
+											double y = yMin2 + yi * h - overlap;
+											var row = GeometryTools.createRectangle(
+													envelope.getMinX(),
+													y,
+													envelope.getMaxX(),
+													h + overlap*2);
+											if (!prepared2.intersects(row))
+												return empty;
+											else if (prepared2.covers(row))
+												return row;
+											var temp = intersect(geometry, row);
+											return temp == null ? geometry : temp;
+										}
+										)
+								);
+			}
+			if (byColumn) {
+				columnParents = IntStream.range(0, nx)
+						.parallel()
+						.mapToObj(xi -> xi)
+						.collect(
+								Collectors.toMap(
+										xi -> xi,
+										xi -> {
+											double x = xMin2 + xi * w - overlap;
+											var col = GeometryTools.createRectangle(
+													x,
+													envelope.getMinY(),
+													w + overlap*2,
+													envelope.getMaxX());
+											if (!prepared2.intersects(col))
+												return empty;
+											else if (prepared2.covers(col))
+												return col;
+											var temp = intersect(geometry, col);
+											return temp == null ? geometry : temp;
+										}
+										)
+								);
+			}
+		}
+		
+		// Geometry local is the one we're working with for the current row or column
+		// (often it's the same as the full ROI)
+		Geometry geometryLocal = geometry;
+		
+		// Generate all the rectangles as geometries
+		Map<Geometry, Geometry> tileGeometries = new LinkedHashMap<>();
+		for (int yi = 0; yi < ny; yi++) {
+
+			double y = yMin + yi * h - overlap;
+			if (rowParents != null)
+				geometryLocal = rowParents.getOrDefault(y, geometry);
+
+			for (int xi = 0; xi < nx; xi++) {
+
+				double x = xMin + xi * w - overlap;
+				if (columnParents != null)
+					geometryLocal = columnParents.getOrDefault(x, geometry);
+				
+				if (geometryLocal.isEmpty())
+					continue;
+				
+				// Create the tile
+				var rect = GeometryTools.createRectangle(x, y, w + overlap*2, h + overlap*2);
+				
+				// Use a prepared geometry if we have one to check covers/intersects & save some effort
+				if (prepared != null) {
+					if (!prepared.intersects(rect)) {
+						continue;
+					} else if (prepared.covers(rect)) {
+						tileGeometries.put(rect, rect);
+						continue;
+					}
+				}
+
+				// Checking geometryLocal.intersects(rect) first is actually much slower!
+				// So add everything and filter out empty tiles later.
+				tileGeometries.put(rect, geometryLocal);
+			}
+		}
+		// Compute intersections & map to ROIs
+		var plane = parentROI.getImagePlane();
+		var tileROIs = tileGeometries
+				.entrySet()
+				.parallelStream()
+				.map(entry -> intersect(entry.getKey(), entry.getValue()))
+				.filter(g -> g != null)
+				.map(g -> GeometryTools.geometryToROI(g, plane))
+				.collect(Collectors.toList());
+		
+		// If there was an exception, the tile will be null
+		if (tileROIs.size() < tileGeometries.size()) {
+			logger.warn("Tiles lost during tiling: {}", tileGeometries.size() - tileROIs.size());
+			logger.warn("You may be able to avoid tiling errors by calling 'Simplify shape' on any complex annotations first.");
+		}
+		
+		// Remove any empty/non-area tiles
+		return tileROIs.stream()
+				.filter(t -> !t.isEmpty() && t.isArea())
+				.collect(Collectors.toList());
+	}
+	
+	
+	/**
+	 * Try to intersect two geometries, returning null if this fails.
+	 * Intended for use in a stream.
+	 * @param g1
+	 * @param g2
+	 * @return
+	 */
+	private static Geometry intersect(Geometry g1, Geometry g2) {
+//		if (g1.covers(g2))
+//			return g2;
+//		if (g2.covers(g1))
+//			return g1;
+		if (g1 == g2)
+			return g1;
+		
+		try {
+			return GeometryTools.homogenizeGeometryCollection(g1.intersection(g2));
+		} catch (Exception e) {
+			logger.warn(e.getLocalizedMessage(), e);
+			return null;
+		}
+	}
+	
 	
 	
 	/**

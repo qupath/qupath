@@ -97,13 +97,17 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 			return 0;
 		
 		ImageCheckType type = FileFormatInfo.checkType(uri);
-		if (type.isURL())
-			return 0;
-				
 		String path = uri.getPath();
-		
+		if (path == null)
+			return 0;
+								
 		// Check the options to see whether we really really do or don't want to read this
 		BioFormatsServerOptions options = BioFormatsServerOptions.getInstance();
+		
+		if (type.isURL() && options.getFilesOnly()) {
+			return 0;
+		}
+		
 		switch (checkPath(options, path)) {
 			case YES:
 				return 5;
@@ -115,8 +119,8 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		
 		path = path.toLowerCase();
 		
-		// We don't want to handle zip files (which are very slow)
-		float support = 3f;
+		// We don't want to handle zip files (which are very slow), and only try URL as last resort
+		float support = type.isURL() ? 1f : 3f;
 				
 		String description = type.getDescription();
 		if (path.endsWith(".zip"))
@@ -141,16 +145,20 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 		} else {
 			// Check if we know the file type
 			File file = type.getFile();
-			if (file != null) {
+			path = file != null ? file.getAbsolutePath() : path;
+			if (path != null) {
 				String supportedReader = null;
 				try {
-					supportedReader = BioFormatsImageServer.getSupportedReaderClass(file.getAbsolutePath());
+					supportedReader = BioFormatsImageServer.getSupportedReaderClass(path);
 				} catch (Exception e) {
-					logger.warn("Error checking file " + file.getAbsolutePath(), e);
+					logger.warn("Error checking file " + path, e);
 				}
 				if (supportedReader == null) {
-					logger.debug("No supported reader found for {}", file.getAbsolutePath());
-					return 1f;
+					// If we have a file, still provide support level of 1 because we might still be able to 
+					// read the image with a more thorough check - but return 0 for a URL, because a thorough 
+					// check might be extremely slow.
+					logger.debug("No supported reader found for {}", path);
+					return file == null ? 0 : 1f;
 				} 
 				logger.debug("Potential Bio-Formats reader: {}", supportedReader);
 			}
@@ -176,6 +184,20 @@ public class BioFormatsServerBuilder implements ImageServerBuilder<BufferedImage
 	public Class<BufferedImage> getImageType() {
 		return BufferedImage.class;
 	}
+	
+	@Override
+	public boolean matchClassName(String... classNames) {
+		for (var className : classNames) {
+			if (this.getClass().getName().equals(className) ||
+					this.getClass().getSimpleName().equals(className) ||
+					BioFormatsImageServer.class.getName().equals(className) ||
+					BioFormatsImageServer.class.getSimpleName().equals(className) ||
+					"bioformats".equalsIgnoreCase(className))
+				return true;			
+		}
+		return false;
+	}
+	
 	
 	/**
 	 * Request the Bio-Formats version number from {@code loci.formats.FormatTools.VERSION}.

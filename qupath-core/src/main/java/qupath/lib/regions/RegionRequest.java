@@ -176,6 +176,22 @@ public class RegionRequest extends ImageRegion {
 		return new RegionRequest(path, downsample, x, y, width, height, z, t);
 	}
 	
+	
+	/**
+	 * Create a request for a region specified in terms of its bounding box and {@link ImagePlane}.
+	 * @param path
+	 * @param downsample
+	 * @param x
+	 * @param y
+	 * @param width
+	 * @param height
+	 * @param plane
+	 * @return
+	 */
+	public static RegionRequest createInstance(String path, double downsample, int x, int y, int width, int height, ImagePlane plane) {
+		return new RegionRequest(path, downsample, x, y, width, height, plane.getZ(), plane.getT());
+	}
+	
 	/**
 	 * Create a request for a region specified in terms of its bounding box, using the first z-slice and time point.
 	 * @param path
@@ -308,6 +324,24 @@ public class RegionRequest extends ImageRegion {
 		if (xPad == 0 && yPad == 0)
 			return this;
 		return RegionRequest.createInstance(getPath(), getDownsample(), getX()-xPad, getY()-yPad, getWidth()+xPad*2, getHeight()+yPad*2, getZ(), getT());
+	}
+	
+	/**
+	 * Add symmetric padding to the x and y dimensions of a request.
+	 * @param padding padding to add
+	 * @return {@link RegionRequest} with the specified padding (may be this object unchanged if the padding is zero).
+	 */
+	public RegionRequest pad2D(Padding padding) {
+		if (padding.isEmpty())
+			return this;
+		return RegionRequest.createInstance(
+				getPath(),
+				getDownsample(),
+				getX()-padding.getX1(),
+				getY()-padding.getY1(),
+				getWidth()+padding.getXSum(),
+				getHeight()+padding.getYSum(),
+				getZ(), getT());
 	}
 	
 

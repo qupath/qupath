@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +38,6 @@ import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import javafx.scene.paint.Color;
-import javafx.stage.StageStyle;
 
 import org.controlsfx.control.CheckListView;
 import org.controlsfx.control.action.Action;
@@ -71,11 +69,6 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.scene.input.KeyCode;
-import javafx.animation.FadeTransition;
-import javafx.util.Duration;
-
-import qupath.lib.gui.CircularSlider;
 import qupath.lib.analysis.DistanceTools;
 import qupath.lib.analysis.features.ObjectMeasurements.ShapeFeatures;
 import qupath.lib.common.GeneralTools;
@@ -567,23 +560,6 @@ public class Commands {
 		scriptInterpreter.getStage().show();
 	}
 	
-	
-	/**
-	 * Create and show a new input display dialog.
-	 * <p>
-	 * This makes input such as key-presses and mouse button presses visible on screen, and is therefore
-	 *  useful for demos and tutorials where shortcut keys are used.
-	 *  
-	 * @param qupath the QuPath instance
-	 */
-	public static void showInputDisplay(QuPathGUI qupath) {
-		try {
-			new InputDisplayDialog(qupath.getStage()).show();
-		} catch (Exception e) {
-			Dialogs.showErrorMessage("Error showing input display", e);
-		}
-	}
-	
 	/**
 	 * Create a window summarizing license information for QuPath and its third party dependencies.
 	 * @param qupath the current QuPath instance
@@ -691,100 +667,12 @@ public class Commands {
 	/**
 	 * Create a dialog for rotating the image in the current viewer (for display only).
 	 * @param qupath the {@link QuPathGUI} instance
-	 * @return a rotate image dialog
 	 */
 	// TODO: Restrict this command to an opened image
-	public static Stage createRotateImageDialog(QuPathGUI qupath) {
-		var dialog = new Stage();
-		dialog.initOwner(qupath.getStage());
-
-		dialog.initStyle(StageStyle.TRANSPARENT);
-		dialog.setTitle("Rotate view");
-
-		StackPane pane = new StackPane();
-		pane.setPadding(new Insets(5));
-
-		QuPathViewer viewerTemp = qupath.getViewer();
-		var slider = new CircularSlider();
-		slider.setPrefSize(150,150);
-		slider.setValue(viewerTemp == null ? 0 : Math.toDegrees(viewerTemp.getRotation()));
-		slider.setTickSpacing(10);
-		slider.setShowValue(true);
-		slider.setSnapToTicks(false);
-		slider.setOnKeyPressed(e -> {
-			if (e.getCode() == KeyCode.SHIFT) {
-				slider.setSnapToTicks(true);
-				slider.setShowTickMarks(true);
-			}
-		});
-		slider.setOnKeyReleased(e -> {
-			if (e.getCode() == KeyCode.SHIFT) {
-				slider.setSnapToTicks(false);
-				slider.setShowTickMarks(false);
-			}
-		});
-		slider.rotationProperty().addListener((v, o, n) -> {
-			QuPathViewer viewer = qupath.getViewer();
-			if (viewer == null)
-				return;
-			double rotation = slider.getValue();
-			viewer.setRotation(Math.toRadians(rotation));
-		});
-
-		slider.setPadding(new Insets(5, 0, 10, 0));
-		slider.setTooltip(new Tooltip("Double-click to manually set the rotation"));
-		final Button button = new Button("x");
-		button.setTooltip(new Tooltip("Close image rotation slider"));
-		button.setOnMouseClicked(e -> dialog.close());
-
-		pane.getChildren().addAll(slider, button);
-
-		final double[] delta = new double[2];
-		slider.getTextArea().setOnMousePressed(e -> {
-			delta[0] = dialog.getX() - e.getScreenX();
-			delta[1] = dialog.getY() - e.getScreenY();
-		});
-
-		slider.getTextArea().setOnMouseDragged(e -> {
-			dialog.setX(e.getScreenX() + delta[0]);
-			dialog.setY(e.getScreenY() + delta[1]);
-		});
-		StackPane.setAlignment(button, Pos.TOP_RIGHT);
-
-		// Set opacity for the close button
-		pane.setStyle("-fx-background-color: transparent; -fx-background-radius: 10;");
-        final double outOpacity = .2;
-        button.setOpacity(outOpacity);
-        FadeTransition fade = new FadeTransition();
-        fade.setDuration(Duration.millis(150));
-        fade.setNode(button);
-        
-		pane.setOnMouseEntered(e -> {
-			fade.stop();
-			fade.setFromValue(button.getOpacity());
-			fade.setToValue(1.);
-			fade.play();
-		});
-		pane.setOnMouseExited(e -> {
-			fade.stop();
-			fade.setFromValue(button.getOpacity());
-			fade.setToValue(outOpacity);
-			fade.play();
-		});
-		
-		// Update on viewer changes
-		qupath.viewerProperty().addListener((v, o, n) -> {
-			if (n != null)
-				slider.setValue(Math.toDegrees(n.getRotation()));
-		});
-
-		final Scene scene = new Scene(pane);
-		scene.setFill(Color.TRANSPARENT);
-		dialog.setScene(scene);
-		dialog.setResizable(true);
-		return dialog;
+	public static void createRotateImageDialog(QuPathGUI qupath) {
+		var rotationCommand = new RotateImageCommand(qupath).createDialog();
+		rotationCommand.show();
 	}
-	
 	
 	/**
 	 * Create a zoom in/out command action.
@@ -1137,7 +1025,7 @@ public class Commands {
 		if (TMACoreObject.class.equals(cls)) {
 			if (hierarchy.getTMAGrid() != null) {
 				if (Dialogs.showYesNoDialog("Delete objects", "Clear TMA grid?")) {
-					hierarchy.clearAll();
+					hierarchy.setTMAGrid(null);
 					
 					PathObject selected = hierarchy.getSelectionModel().getSelectedObject();
 					if (selected instanceof TMACoreObject)
@@ -1560,43 +1448,62 @@ public class Commands {
 	 * @param altitudeThreshold default altitude value for simplification
 	 */
 	public static void promptToSimplifySelectedAnnotations(ImageData<?> imageData, double altitudeThreshold) {
-			PathObjectHierarchy hierarchy = imageData.getHierarchy();
-			List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
-					.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
-					.collect(Collectors.toList());
-			if (pathObjects.isEmpty()) {
-				Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
-				return;
-			}
-	
-			String input = Dialogs.showInputDialog("Simplify shape", 
-					"Set altitude threshold in pixels (> 0; higher values give simpler shapes)", 
-					Double.toString(altitudeThreshold));
-			if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
-				return;
-			try {
-				altitudeThreshold = Double.parseDouble(((String)input).trim());
-			} catch (NumberFormatException e) {
-				logger.error("Could not parse altitude threshold from {}", input);
-				return;
-			}
-			
-			long startTime = System.currentTimeMillis();
-			for (var pathObject : pathObjects) {
-				ROI pathROI = pathObject.getROI();
-				if (pathROI instanceof PolygonROI) {
-					PolygonROI polygonROI = (PolygonROI)pathROI;
-					pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
-				} else {
-					pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
-				}
-				((PathAnnotationObject)pathObject).setROI(pathROI);
-			}
-			long endTime = System.currentTimeMillis();
-			logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
-			hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+		PathObjectHierarchy hierarchy = imageData.getHierarchy();
+		List<PathObject> pathObjects = hierarchy.getSelectionModel().getSelectedObjects().stream()
+				.filter(p -> p.isAnnotation() && p.hasROI() && p.isEditable() && !p.getROI().isPoint())
+				.collect(Collectors.toList());
+		if (pathObjects.isEmpty()) {
+			Dialogs.showErrorMessage("Simplify annotations", "No unlocked shape annotations selected!");
+			return;
 		}
 
+		String input = Dialogs.showInputDialog("Simplify shape", 
+				"Set altitude threshold in pixels.\nHigher values give simpler shapes.", 
+				Double.toString(altitudeThreshold));
+		if (input == null || !(input instanceof String) || ((String)input).trim().length() == 0)
+			return;
+		try {
+			altitudeThreshold = Double.parseDouble(((String)input).trim());
+		} catch (NumberFormatException e) {
+			logger.error("Could not parse altitude threshold from {}", input);
+			return;
+		}
+		if (altitudeThreshold <= 0) {
+			Dialogs.showErrorMessage("Simplify shape", "Amplitude threshold should be greater than zero!");
+			return;
+		}
+		
+		long startTime = System.currentTimeMillis();
+		for (var pathObject : pathObjects) {
+			ROI pathROI = pathObject.getROI();
+			if (pathROI instanceof PolygonROI) {
+				PolygonROI polygonROI = (PolygonROI)pathROI;
+				pathROI = ShapeSimplifier.simplifyPolygon(polygonROI, altitudeThreshold);
+			} else {
+				pathROI = ShapeSimplifier.simplifyShape(pathROI, altitudeThreshold);
+			}
+			((PathAnnotationObject)pathObject).setROI(pathROI);
+		}
+		long endTime = System.currentTimeMillis();
+		logger.debug("Shapes simplified in " + (endTime - startTime) + " ms");
+		hierarchy.fireObjectsChangedEvent(hierarchy, pathObjects);
+	}
+
+	/**
+	 * Select all objects (excluding the root object) in the imageData.
+	 * 
+	 * @param imageData
+	 */
+	public static void selectAllObjects(final ImageData<?> imageData) {
+		// Select all objects
+		QP.selectAllObjects(imageData.getHierarchy(), false);
+		
+		// Add this step to the history workflow
+		Map<String, String> map = new HashMap<>();
+		map.put("includeRootObject", "false");
+		WorkflowStep newStep = new DefaultScriptableWorkflowStep("Select all objects", map, "selectAllObjects(false)");
+		imageData.getHistoryWorkflow().addStep(newStep);
+	}
 
 
 	/**
@@ -1769,6 +1676,34 @@ public class Commands {
 			return;
 		MiniViewers.createDialog(viewer, true).show();
 	}
+	
+	/**
+	 * Show a dialog to import object(s) from a file.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void runObjectImport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		try {
+			ImportObjectsCommand.runObjectImport(qupath);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("Import error", e.getLocalizedMessage());
+		}
+
+	}
+
+	/**
+	 * Show a dialog to export object(s) to a GeoJSON file.
+	 * @param qupath
+	 * @param imageData
+	 */
+	public static void runGeoJsonObjectExport(QuPathGUI qupath, ImageData<BufferedImage> imageData) {
+		try {
+			ExportObjectsCommand.runGeoJsonExport(qupath);
+		} catch (IOException e) {
+			Dialogs.showErrorNotification("Export error", e.getLocalizedMessage());
+		}
+	}
+
 	
 	
 }

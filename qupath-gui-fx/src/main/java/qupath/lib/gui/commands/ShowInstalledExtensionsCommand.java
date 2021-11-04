@@ -25,6 +25,7 @@ package qupath.lib.gui.commands;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.jar.Attributes;
 import java.util.jar.JarInputStream;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
@@ -48,9 +50,11 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 
@@ -94,17 +98,31 @@ class ShowInstalledExtensionsCommand {
 			row += inc;
 		}
 		
-		String titledPlainCSS = ShowInstalledExtensionsCommand.class.getClassLoader().getResource("css/titled_plain.css").toExternalForm();
-		
 		TitledPane titledExtensions = new TitledPane("Extensions", paneExtensions);
-		titledExtensions.getStylesheets().add(titledPlainCSS);
+		PaneTools.simplifyTitledPane(titledExtensions, false);
 		TitledPane titledServers = new TitledPane("Image Servers", paneServers);
-		titledServers.getStylesheets().add(titledPlainCSS);
+		PaneTools.simplifyTitledPane(titledServers, false);
 		
 		VBox vbox = new VBox(
 				titledExtensions,
 				titledServers
 		);
+		
+		var dir = QuPathGUI.getExtensionDirectory();
+		if (dir != null) {
+			var btnOpen = new Button("Open extensions directory");
+			btnOpen.setOnAction(e -> GuiTools.browseDirectory(dir));
+			btnOpen.setMaxWidth(Double.MAX_VALUE);
+			vbox.getChildren().add(btnOpen);
+//		} else {
+//			var label = new Label("No user directory has been set for custom user extensions.\n"
+//					+ "Drag an extensions jar file onto QuPath to set a user directory and install the extension.");
+//			label.setTextAlignment(TextAlignment.CENTER);
+//			label.setMaxWidth(Double.MAX_VALUE);
+//			vbox.getChildren().add(label);
+		}
+		
+		vbox.setPadding(new Insets(5));
 
 		vbox.setMaxWidth(Double.POSITIVE_INFINITY);
 		dialog.setScene(new Scene(new ScrollPane(vbox)));
@@ -155,7 +173,7 @@ class ShowInstalledExtensionsCommand {
 		paneEntry.setExpanded(false);
 		paneEntry.setBorder(null);
 		// Remove borders
-		paneEntry.getStylesheets().add(ShowInstalledExtensionsCommand.class.getClassLoader().getResource("css/titled_plain.css").toExternalForm());
+		PaneTools.simplifyTitledPane(paneEntry, false);
 
 		
 //		Tooltip tooltip = new Tooltip(entry.getPathToJar());
@@ -210,7 +228,17 @@ class ShowInstalledExtensionsCommand {
 		}
 
 		String getPathToJar() {
-			return getURL().getPath();
+			var url = getURL();
+			if (url == null)
+				return "";
+			try {
+				var path = GeneralTools.toPath(url.toURI());
+				if (path != null)
+					return path.toString();
+			} catch (URISyntaxException e) {
+				logger.debug(e.getLocalizedMessage(), e);
+			}
+			return url.toString();
 		}
 		
 		/**
@@ -226,6 +254,11 @@ class ShowInstalledExtensionsCommand {
 		 * @return the String for the Implementation-Version, or null if no version could be found.
 		 */
 		public String getVersion() {
+			if (extension instanceof QuPathExtension) {
+				var v = ((QuPathExtension)extension).getVersion();
+				if (v != null)
+					return v.toString();
+			}
 			URL url =  getURL();
 			if (url.toString().endsWith(".jar")) {
 				try (JarInputStream stream = new JarInputStream(url.openStream())) {

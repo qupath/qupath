@@ -29,19 +29,29 @@ import java.beans.PropertyChangeListener;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.scene.control.TableColumn.CellDataFeatures;
+import javafx.scene.control.TableRow;
 import javafx.util.Callback;
-import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
@@ -62,6 +72,11 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	private static int nDecimalPlaces = 4;
 	
+	/**
+	 * Retain reference to prevent garbage collection.
+	 */
+	@SuppressWarnings("unused")
+	private ObservableValue<ImageData<BufferedImage>> imageDataProperty;
 	private ImageData<?> imageData;
 	
 	private TableView<String> tableMeasurements;
@@ -70,10 +85,11 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 	
 	/**
 	 * Constructor.
-	 * @param qupath the current QuPath instance
+	 * @param imageDataProperty the {@link ImageData} associated with this table
 	 */
-	public SelectedMeasurementTableView(final QuPathGUI qupath) {
-		qupath.imageDataProperty().addListener(this);
+	public SelectedMeasurementTableView(final ObservableValue<ImageData<BufferedImage>> imageDataProperty) {
+		this.imageDataProperty = imageDataProperty;
+		imageDataProperty.addListener(this);
 	}
 	
 	
@@ -98,8 +114,39 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		});
 		tableMeasurements.getColumns().addAll(col1, col2);
 		tableMeasurements.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+		tableMeasurements.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+		tableMeasurements.setRowFactory(e -> {
+		    final TableRow<String> row = new TableRow<>();
+		    final ContextMenu menu = new ContextMenu();
+		    final MenuItem copyItem = new MenuItem("Copy");
+		    menu.getItems().add(copyItem);
+		    copyItem.setOnAction(ev -> copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems()));
+		    
+		    // Only display context menu for non-empty rows
+		    row.contextMenuProperty().bind(
+		    	Bindings.when(row.emptyProperty())
+		    	.then((ContextMenu) null)
+		    	.otherwise(menu)
+		    );
+		    
+		    return row;
+		});
+		tableMeasurements.setOnKeyPressed(e -> {
+	        if (new KeyCodeCombination(KeyCode.C, KeyCombination.SHORTCUT_DOWN).match(e))
+	        	copyMeasurementsToClipboard(tableMeasurements.getSelectionModel().getSelectedItems());
+	        e.consume();
+	    });
 
 		return tableMeasurements;
+	}
+	
+	private void copyMeasurementsToClipboard(List<String> selectedMeasurements) {
+		ClipboardContent content = new ClipboardContent();
+    	String values = selectedMeasurements.stream()
+    			.map(item -> item + "\t" + getSelectedObjectMeasurementValue(item))
+    			.collect(Collectors.joining(System.lineSeparator()));
+        content.putString(values);
+        Clipboard.getSystemClipboard().setContent(content);
 	}
 	
 	private List<PathObject> getSelectedObjectList() {
@@ -145,7 +192,7 @@ public class SelectedMeasurementTableView implements PathObjectSelectionListener
 		tableModel.setImageData(this.imageData, getSelectedObjectList());
 		tableMeasurements.getItems().setAll(tableModel.getAllNames());
 		
-//		tableMeasurements.refresh();
+		tableMeasurements.refresh();
 		
 //		// Check if objects are outside hierarchy
 //		if (imageData != null) {

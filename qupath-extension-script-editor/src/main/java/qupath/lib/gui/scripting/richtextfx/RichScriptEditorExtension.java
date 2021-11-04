@@ -23,6 +23,7 @@
 
 package qupath.lib.gui.scripting.richtextfx;
 
+import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
 
@@ -49,5 +50,13 @@ public class RichScriptEditorExtension implements QuPathExtension {
 	public String getDescription() {
 		return "Adds a more attractive script editor with syntax highlighting, making use of RichTextFX - https://github.com/TomasMikula/RichTextFX";
 	}
-
+	
+	/**
+	 * Returns the version stored within this jar, because it is matched to the QuPath version.
+	 */
+	@Override
+	public Version getQuPathVersion() {
+		return getVersion();
+	}
+	
 }

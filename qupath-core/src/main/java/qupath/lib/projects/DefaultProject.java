@@ -36,6 +36,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -57,12 +58,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import qupath.lib.classifiers.object.ObjectClassifier;
-import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ServerTools;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.PathIO;
@@ -249,20 +249,8 @@ class DefaultProject implements Project<BufferedImage> {
 		return getBaseDirectory().toPath();
 	}
 	
-	private Path getScriptsPath() {
-		return Paths.get(getBasePath().toString(), "scripts");
-	}
-	
 	private Path getClassifiersPath() {
 		return Paths.get(getBasePath().toString(), "classifiers");
-	}
-	
-	private Path getPixelClassifiersPath() {
-		return Paths.get(getClassifiersPath().toString(), "pixel_classifiers");
-	}
-
-	private Path getObjectClassifiersPath() {
-		return Paths.get(getClassifiersPath().toString(), "object_classifiers");
 	}
 	
 	List<String> listFilenames(Path path, String ext) throws IOException {
@@ -420,22 +408,6 @@ class DefaultProject implements Project<BufferedImage> {
 		return path;
 	}
 	
-	public List<String> listScripts() throws IOException {
-		return listFilenames(getScriptsPath(), EXT_SCRIPT);
-	}
-	
-	public String loadScript(String name) throws IOException {
-		var path = Paths.get(getScriptsPath().toString(), name + EXT_SCRIPT);
-		if (Files.exists(path))
-			return Files.readString(path);
-		throw new IOException("No script found with name '" + name + "'");
-	}
-	
-	public void saveScript(String name, String script) throws IOException {
-		var path = Paths.get(ensureDirectoryExists(getScriptsPath()).toString(), name + EXT_SCRIPT);
-		Files.writeString(path, script);
-	}
-	
 	private AtomicLong counter = new AtomicLong(0L);
 	
 	
@@ -575,14 +547,14 @@ class DefaultProject implements Project<BufferedImage> {
 		}
 		
 		@Override
-		public Collection<URI> getServerURIs() throws IOException {
+		public Collection<URI> getUris() throws IOException {
 			if (serverBuilder == null)
 				return Collections.emptyList();
 			return serverBuilder.getURIs();
 		}
 		
 		@Override
-		public boolean updateServerURIs(Map<URI, URI> replacements) throws IOException {
+		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
 			var builderBefore = serverBuilder;
 			serverBuilder = serverBuilder.updateURIs(replacements);
 			boolean changes = builderBefore != serverBuilder;
@@ -749,6 +721,10 @@ class DefaultProject implements Project<BufferedImage> {
 			
 			if (imageData == null)
 				imageData = new ImageData<>(server);
+			// Ensure the names match
+			var name = getOriginalImageName();
+			if (name != null)
+				ServerTools.setImageName(server, name);
 			imageData.setProperty(IMAGE_ID, getFullProjectEntryID()); // Required to be able to test for the ID later
 			imageData.setChanged(false);
 			return imageData;
@@ -1067,8 +1043,12 @@ class DefaultProject implements Project<BufferedImage> {
 			if (element.has("version"))
 				version = element.get("version").getAsString();
 			
-			if (version == null || version.equals("v0.2.0-m1") || version.equals("v0.2.0-m2") || !element.has("lastID"))
-				throw new IOException("Older projects are not supported in this version of QuPath, sorry!");
+			if (Arrays.asList("v0.2.0-m2", "v0.2.0-m1").contains(version)) {
+				throw new IOException("Older projects written with " + version + " are not compatible with this version of QuPath, sorry!");				
+			}
+			if (version == null && !element.has("lastID")) {
+				throw new IOException("QuPath project is missing a version number and last ID (was it written with an old version?)");
+			}
 						
 			long lastID = 0;
 			List<DefaultProjectImageEntry> images = element.has("images") ? gson.fromJson(element.get("images"), new TypeToken<ArrayList<DefaultProjectImageEntry>>() {}.getType()) : Collections.emptyList();
@@ -1157,21 +1137,36 @@ class DefaultProject implements Project<BufferedImage> {
 		return version;
 	}
 	
+//	@Override
+//	public Manager<String> getScripts() {
+//		return new ResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
+//	}
+//
+//
+//	@Override
+//	public Manager<ObjectClassifier<BufferedImage>> getObjectClassifiers() {
+//		return new ResourceManager.JsonFileResourceManager(getObjectClassifiersPath(), ObjectClassifier.class);
+//	}
+//
+//
+//	@Override
+//	public Manager<PixelClassifier> getPixelClassifiers() {
+//		return new ResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
+//	}
+		
 	@Override
-	public Manager<String> getScripts() {
-		return new ResourceManager.StringFileResourceManager(getScriptsPath(), ".groovy");
-	}
-
-
-	@Override
-	public Manager<ObjectClassifier<BufferedImage>> getObjectClassifiers() {
-		return new ResourceManager.JsonFileResourceManager(getObjectClassifiersPath(), ObjectClassifier.class);
-	}
-
-
-	@Override
-	public Manager<PixelClassifier> getPixelClassifiers() {
-		return new ResourceManager.JsonFileResourceManager(getPixelClassifiersPath(), PixelClassifier.class);
+	public <S, R extends S> Manager<R> getResources(String location, Class<S> cls, String ext) {
+		var path = Paths.get(getBasePath().toString(), location);
+		ext = ext.toLowerCase().strip();
+		if (ext.startsWith("."))
+			ext = ext.substring(1);
+		switch (ext) {
+		case "json":
+			return new ResourceManager.JsonFileResourceManager(path, cls);
+		}
+		if (String.class.equals(cls))
+			return (Manager<R>)new ResourceManager.StringFileResourceManager(path, ext); 
+		return null;
 	}
 
 

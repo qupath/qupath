@@ -109,6 +109,7 @@ import qupath.lib.gui.images.stores.DefaultImageRegionStore;
 import qupath.lib.gui.images.stores.ImageRegionStoreHelpers;
 import qupath.lib.gui.images.stores.ImageRenderer;
 import qupath.lib.gui.images.stores.TileListener;
+import qupath.lib.gui.measure.ObservableMeasurementTableData;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.ColorToolsFX;
 import qupath.lib.gui.tools.GuiTools;
@@ -116,6 +117,7 @@ import qupath.lib.gui.viewer.overlays.AbstractOverlay;
 import qupath.lib.gui.viewer.overlays.GridOverlay;
 import qupath.lib.gui.viewer.overlays.HierarchyOverlay;
 import qupath.lib.gui.viewer.overlays.PathOverlay;
+import qupath.lib.gui.viewer.overlays.PixelClassificationOverlay;
 import qupath.lib.gui.viewer.overlays.TMAGridOverlay;
 import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
@@ -149,6 +151,9 @@ import qupath.lib.roi.interfaces.ROI;
 public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHierarchyListener, PathObjectSelectionListener {
 
 	private final static Logger logger = LoggerFactory.getLogger(QuPathViewer.class);
+
+	private static final double MIN_ROTATION = 0;
+	private static final double MAX_ROTATION = 360 * Math.PI / 180;
 
 	private List<QuPathViewerListener> listeners = new ArrayList<>();
 
@@ -206,7 +211,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	private double xCenter = 0;
 	private double yCenter = 0;
 	private DoubleProperty downsampleFactor = new SimpleDoubleProperty(1.0);
-	private DoubleProperty rotation = new SimpleDoubleProperty(0.0);
+	private DoubleProperty rotationProperty = new SimpleDoubleProperty(0);
 	private BooleanProperty zoomToFit = new SimpleBooleanProperty(false);
 	
 	// Affine transform used to apply rotation
@@ -391,12 +396,20 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			repaintRequested = false;
 			return;
 		}
+		
 //		if (canvas == null || !canvas.isVisible())
 //			return;
 		
 		if (!Platform.isFxApplicationThread()) {
 			Platform.runLater(() -> paintCanvas());
 			return;
+		}
+		
+		// Skip repaint if the minimum time hasn't elapsed
+		if (minimumRepaintSpacingMillis > 0) {
+			long timeSinceRepaint = System.currentTimeMillis() - lastPaint;
+			if (timeSinceRepaint < minimumRepaintSpacingMillis)
+				return;
 		}
 		
 		if (imgCache == null || imgCache.getWidth() < canvas.getWidth() || imgCache.getHeight() < canvas.getHeight()) {
@@ -411,11 +424,16 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		repaintRequested = false;
 		
 		GraphicsContext context = canvas.getGraphicsContext2D();
-		
+
+		long startTime = System.currentTimeMillis();
+
 		Graphics2D g = imgCache.createGraphics();
 		paintViewer(g, getWidth(), getHeight());
 		g.dispose();
-		
+
+		long endTime = System.currentTimeMillis();
+		logger.trace("Viewer painting: {} ms", endTime - startTime);
+
 		imgCacheFX = SwingFXUtils.toFXImage(imgCache, imgCacheFX);
 		context.drawImage(imgCacheFX, 0, 0);
 		
@@ -515,9 +533,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		logger.trace("Repaint requested!");
 		repaintRequested = true;
 		
-		// Skip repaint if the minimum time hasn't elapsed
-		if ((System.currentTimeMillis() - lastPaint) < minimumRepaintSpacingMillis)
-			return;
 		Platform.runLater(() -> paintCanvas());
 	}
 
@@ -852,12 +867,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			imageUpdated = true;
 			repaint();
 		});
-		
-		rotation.addListener((v, o, n) -> {
-			imageUpdated = true;
-			updateAffineTransform();
-			repaint();
-		});
 	}
 
 	/**
@@ -1183,6 +1192,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	public void setCustomPixelLayerOverlay(PathOverlay pathOverlay) {
 		if (this.customPixelLayerOverlay == pathOverlay)
 			return;
+		
 		// Get existing custom overlay
 		var previousOverlay = getCurrentPixelLayerOverlay();
 		int ind = coreOverlayLayers.indexOf(previousOverlay);
@@ -1194,6 +1204,15 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			coreOverlayLayers.add(0, this.customPixelLayerOverlay);
 		} else {
 			coreOverlayLayers.set(ind, this.customPixelLayerOverlay);
+		}
+		
+		var imageData = getImageData();
+		if (imageData != null) {
+			if (pathOverlay instanceof PixelClassificationOverlay) {
+				var server = ((PixelClassificationOverlay) pathOverlay).getPixelClassificationServer(imageData);
+				ObservableMeasurementTableData.setPixelLayer(imageData, server);
+			} else
+				ObservableMeasurementTableData.setPixelLayer(imageData, null);
 		}
 				
 //		// Get existing custom overlay
@@ -1208,6 +1227,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 //			coreOverlayLayers.set(ind, getCurrentPixelLayerOverlay());
 //		}
 	}
+	
 	
 	/**
 	 * Reset the custom pixel layer overlay to null.
@@ -2501,8 +2521,38 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		if (hierarchy == null)
 			return "";
 		var p2 = componentPointToImagePoint(x, y, null, false);
+		return getImageObjectClassificationString(p2.getX(), p2.getY());
+	}
+	
+//	/**
+//	 * Get a string representing the image coordinates for a particular x &amp; y location in the viewer component.
+//	 * 
+//	 * @param x x-coordinate in the component space (not image space)
+//	 * @param y y-coordinate in the component space (not image space)
+//	 * @param useCalibratedUnits 
+//	 * @return a String to display representing the cursor location
+//	 */
+//	private String getLocationString(double x, double y, boolean useCalibratedUnits) {
+//		Point2D p = componentPointToImagePoint(x, y, null, false);
+//		double xx = p.getX();
+//		double yy = p.getY();
+//		return getImageLocationString(xx, yy, useCalibratedUnits);
+//	}
+
+	/**
+	 * Get a string representing the object classification x &amp; y location in the viewer component,
+	 * or an empty String if no object is found.
+	 * 
+	 * @param x x-coordinate in the image space (not the component/viewer space)
+	 * @param y y-coordinate in the image space (not the component/viewer space)
+	 * @return a String to display representing the object classification
+	 */
+	public String getImageObjectClassificationString(double x, double y) {
+		var hierarchy = getHierarchy();
+		if (hierarchy == null)
+			return "";
 		var pathObjects = PathObjectTools.getObjectsForLocation(hierarchy,
-				p2.getX(), p2.getY(),
+				x, y,
 				getZPosition(),
 				getTPosition(),
 				0);
@@ -2517,25 +2567,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		return "";
 	}
 	
+	
 	/**
-	 * Get a string representing the image coordinates for a particular x &amp; y location in the viewer component.
-	 * 
-	 * @param x x-coordinate in the component space (not image space)
-	 * @param y y-coordinate in the component space (not image space)
-	 * @param useCalibratedUnits 
-	 * @return a String to display representing the cursor location
+	 * Get a string representing the image coordinates for a particular x &amp; y location.
+	 * @param xx x-coordinate in the image space (not the component/viewer space)
+	 * @param yy y-coordinate in the image space (not the component/viewer space)
+	 * @param useCalibratedUnits
+	 * @return
 	 */
-	public String getLocationString(double x, double y, boolean useCalibratedUnits) {
+	private String getImageLocationString(double xx, double yy, boolean useCalibratedUnits) {
 		ImageServer<BufferedImage> server = getServer();
 		if (server == null)
 			return "";
 		String units;
-		Point2D p = componentPointToImagePoint(x, y, null, false);
-		//		double xx = (int)(p.getX() + .5);
-		//		double yy = (int)(p.getY() + .5);
-		double xx = p.getX();
-		double yy = p.getY();
-
 		if (xx < 0 || yy < 0 || xx > server.getWidth()-1 || yy > server.getHeight()-1)
 			return "";
 
@@ -2640,13 +2684,33 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 */
 	protected String getFullLocationString(boolean useCalibratedUnits) {
 		if (componentContains(mouseX, mouseY)) {
-			String classString = getObjectClassificationString(mouseX, mouseY).trim();
-			String locationString = getLocationString(mouseX, mouseY, useCalibratedUnits);
+			Point2D p = componentPointToImagePoint(mouseX, mouseY, null, false);
+			double x = p.getX();
+			double y = p.getY();
+			String locationString = getImageLocationString(x, y, useCalibratedUnits);
 			if (locationString == null || locationString.isBlank())
 				return "";
-			if (classString != null && !classString.isBlank())
+			
+			int z = getZPosition();
+			int t = getTPosition();
+			String classString = getImageObjectClassificationString(x, y).trim();
+			var overlayStrings = allOverlayLayers.stream()
+					.map(o -> o.getLocationString(getImageData(), x, y, z, t))
+					.filter(s -> s != null)
+					.collect(Collectors.joining("\n"));
+			
+//			if (classString != null && !classString.isBlank())
+//				classString = classString + "\n";
+			
+			if (classString == null)
+				classString = "\n";
+			else
 				classString = classString + "\n";
-			return classString + locationString;
+			
+			if (!overlayStrings.isBlank())
+				overlayStrings = overlayStrings + "\n";
+			
+			return overlayStrings + classString + locationString;
 		} else
 			return "";
 	}
@@ -2728,8 +2792,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 		double downsample = getDownsampleFactor();
 		transform.scale(1.0/downsample, 1.0/downsample);
 		transform.translate(-xCenter, -yCenter);
-		if (rotation.get() != 0)
-			transform.rotate(rotation.get(), xCenter, yCenter);
+		if (rotation != 0)
+			transform.rotate(rotation, xCenter, yCenter);
 
 		transformInverse.setTransform(transform);
 		try {
@@ -2755,15 +2819,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @param theta
 	 */
 	public void setRotation(double theta) {
-		if (this.rotation.get() == theta)
+		if (this.rotation == theta)
 			return;
-		this.rotation.set(theta);
+		this.rotation = theta;
+		imageUpdated = true;
+		updateAffineTransform();
+		repaint();
 	}
 
 
 	/**
 	 * Returns true if {@code viewer.getRotation() != 0}.
-	 * @return
+	 * @return isRotated
 	 */
 	public boolean isRotated() {
 		return getRotation() != 0;
@@ -2771,18 +2838,18 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 
 	/**
 	 * Get the current rotation; angle in radians.
-	 * @return
+	 * @return rotation in radians
 	 */
 	public double getRotation() {
-		return rotation.get();
+		return rotation;
 	}
 	
 	/**
-	 * Get the rotation property.
-	 * @return
+	 * Return the rotation property of this viewer.
+	 * @return rotation property
 	 */
-	public DoubleProperty getRotationProperty() {
-		return rotation;
+	public DoubleProperty rotationProperty() {
+		return rotationProperty;
 	}
 
 	@Override
@@ -2892,10 +2959,6 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			listener.selectedObjectChanged(this, pathObjectSelected);
 		}
 
-		if (Platform.isFxApplicationThread())
-			hierarchyOverlay.resetBuffer();
-		else
-			Platform.runLater(() -> hierarchyOverlay.resetBuffer());
 		logger.trace("Selected path object changed from {} to {}", previousObject, pathObjectSelected);
 
 		repaint();
@@ -3154,7 +3217,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 				switch (code) {
 				case LEFT:
 					if (nTimepoints > 1) {
-						setTPosition(Math.max(nTimepoints-1, 0));
+						setTPosition(Math.max(getTPosition()-1, 0));
 						event.consume();
 						return;
 					}
@@ -3168,7 +3231,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					break;
 				case UP:
 					if (nZSlices > 1) {
-						setZPosition(Math.max(0, getZPosition() - 1));	
+						int inc = PathPrefs.invertZSliderProperty().get() ? -1 : 1;
+						setZPosition(GeneralTools.clipValue(getZPosition() + inc, 0, nZSlices - 1));	
 						event.consume();
 						return;
 					}
@@ -3196,7 +3260,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 					break;
 				case DOWN:
 					if (nZSlices > 1) {
-						setZPosition(Math.min(nZSlices-1, getZPosition() + 1));						
+						int inc = PathPrefs.invertZSliderProperty().get() ? 1 : -1;
+						setZPosition(GeneralTools.clipValue(getZPosition() + inc, 0, nZSlices - 1));	
 						event.consume();
 						return;
 					}

@@ -166,9 +166,15 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	private BufferedImage rotate90(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
+		// Return null if the width or height are invalid, or the region is known to be empty
+		if (request2.getWidth() <= 0 || request2.getHeight() <= 0 || getWrappedServer().isEmptyRegion(request2))
+		    return null;
+		
+		// It's possible the region is still empty
 		var img = getWrappedServer().readBufferedImage(request2);
 		if (img == null)
-			throw new IOException("Unable to read image for " + request2);
+			return null;
+		
 		var raster = img.getRaster();
 		int w = raster.getWidth();
 		int h = raster.getHeight();
@@ -194,7 +200,15 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	private BufferedImage rotate180(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
+		// Return null if the width or height are invalid, or the region is known to be empty
+		if (request2.getWidth() <= 0 || request2.getHeight() <= 0 || getWrappedServer().isEmptyRegion(request2))
+		    return null;
+		
+		// It's possible the region is still empty
 		var img = getWrappedServer().readBufferedImage(request2);
+		if (img == null)
+			return null;
+		
 		var raster = img.getRaster();
 		int w = raster.getWidth();
 		int h = raster.getHeight();
@@ -218,7 +232,15 @@ public class RotatedImageServer extends TransformingImageServer<BufferedImage> {
 	private BufferedImage rotate270(RegionRequest request) throws IOException {
 		var request2 = rotateRequest(request);
 		
+		// Return null if the width or height are invalid, or the region is known to be empty
+		if (request2.getWidth() <= 0 || request2.getHeight() <= 0 || getWrappedServer().isEmptyRegion(request2))
+		    return null;
+		
+		// It's possible the region is still empty
 		var img = getWrappedServer().readBufferedImage(request2);
+		if (img == null)
+			return null;
+		
 		var raster = img.getRaster();
 		int w = raster.getWidth();
 		int h = raster.getHeight();

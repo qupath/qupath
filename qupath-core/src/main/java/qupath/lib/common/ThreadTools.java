@@ -23,8 +23,12 @@
 
 package qupath.lib.common;
 
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Create a thread factory that supports adding a prefix to the name and setting daemon status.
@@ -35,6 +39,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  */
 public class ThreadTools {
+	
+	private final static Logger logger = LoggerFactory.getLogger(ThreadTools.class);
+	
+	private static int requestedThreads = ForkJoinPool.getCommonPoolParallelism();
 	
 	/**
 	 * Create a named thread factory with a specified priority.
@@ -58,6 +66,30 @@ public class ThreadTools {
 	public static ThreadFactory createThreadFactory(String prefix, boolean daemon) {
 		return createThreadFactory(prefix, daemon, Thread.NORM_PRIORITY);
 	}
+	
+	/**
+	 * Set the requested level of parallelism.
+	 * Note that for interactive use this is usually set through the user interface and shouldn't be modified 
+	 * elsewhere to maintain consistency.
+	 * @param nThreads
+	 */
+	public static void setParallelism(int nThreads) {
+		if (nThreads <= 0)
+			throw new IllegalArgumentException("Number of threads must be >= 1, but requested number is " + nThreads);
+		logger.info("Setting parallelism to {}", nThreads);
+		requestedThreads = nThreads;
+	}
+	
+	/**
+	 * Get the requested level of parallelism. 
+	 * Other classes that make use of thread pools can use this to help balance multithreading with memory use.
+	 * The default value is {@link ForkJoinPool#getCommonPoolParallelism()}.
+	 * @return
+	 */
+	public static int getParallelism() {
+		return requestedThreads;
+	}
+	
 	
 	
 	static class SimpleThreadFactory implements ThreadFactory {

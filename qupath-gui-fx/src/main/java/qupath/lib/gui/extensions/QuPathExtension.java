@@ -23,11 +23,13 @@
 
 package qupath.lib.gui.extensions;
 
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
 
 /**
  * Simple interface for QuPath extensions.
- * 
+ * <p>
  * This allows dynamic discovery of new extensions.
  * 
  * @author Pete Bankhead
@@ -37,12 +39,16 @@ public interface QuPathExtension {
 	
 	/**
 	 * Install the extension for a QuPathGUI instance.
-	 * 
+	 * <p>
 	 * This generally involves adding new commands to appropriate menus.
-	 * 
-	 * (Where multiple extensions are present, the order in which they will be installed is undefined.)
+	 * <p>
+	 * Note that if an extension is only expected to be compatible with a specific QuPath version, 
+	 * this method provides an opportunity to test version compatibility before making any changes.
 	 * 
 	 * @param qupath
+	 * @see QuPathGUI#getVersion()
+	 * 
+	 * @implNote When multiple extensions are present, the order in which they will be installed is undefined.
 	 */
 	public void installExtension(QuPathGUI qupath);
 	
@@ -55,11 +61,37 @@ public interface QuPathExtension {
 	
 	/**
 	 * A short description of the extension for displaying in the main GUI.
-	 * 
+	 * <p>
 	 * This could also contain licensing information.
 	 * 
 	 * @return
 	 */
 	public String getDescription();
+	
+	/**
+	 * Get a QuPath version for which this extension was written.
+	 * <p>
+	 * This is used to provide an explanation if the extension could not be loaded.
+	 * It has a default implementation that returns {@link Version#UNKNOWN} to allow backwards compatibility, 
+	 * however it strongly recommended to return the actual QuPath version against which 
+	 * the extension was developed and tested.
+	 * @return a semantic version corresponding to a QuPath version, e.g. "0.3.0".
+	 * @see Version
+	 */
+	public default Version getQuPathVersion() {
+		return Version.UNKNOWN;
+	}
+	
+	/**
+	 * Get the version of the current extension.
+	 * @return
+	 * @implNote the default implementation looks for any package version associated with the implementing class, 
+	 *           returning {@link Version#UNKNOWN} if none can be found.
+	 * @see GeneralTools#getPackageVersion(Class)
+	 */
+	public default Version getVersion() {
+		var packageVersion = GeneralTools.getPackageVersion(getClass());
+		return Version.parse(packageVersion);
+	}
 
 }

@@ -22,6 +22,7 @@
 package qupath.lib.io;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.*;
@@ -85,6 +86,10 @@ public class OpenCVTypeAdapters {
 			return (TypeAdapter<T>)new SparseMatTypeAdapter();
 		if (StatModel.class.isAssignableFrom(cls))
 			return (TypeAdapter<T>)new StatModelTypeAdapter();
+		if (Scalar.class == cls)
+			return (TypeAdapter<T>)new ScalarTypeAdapter();
+		if (Size.class == cls)
+			return (TypeAdapter<T>)new SizeTypeAdapter();
 		return null;
 	}
 	
@@ -98,6 +103,76 @@ public class OpenCVTypeAdapters {
 		@Override
 		public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
 			return getTypeAdaptor((Class<T>)type.getRawType());
+		}
+		
+	}
+	
+	
+	private static class SizeTypeAdapter extends TypeAdapter<Size> {
+
+		@Override
+		public void write(JsonWriter out, Size value) throws IOException {
+			if (value == null || value.isNull())
+				out.nullValue();
+			else {
+				out.beginObject();
+				
+				out.name("width");
+				out.value(value.width());
+				
+				out.name("height");
+				out.value(value.height());
+	
+				out.endObject();
+			}
+		}
+
+		@Override
+		public Size read(JsonReader in) throws IOException {
+			in.beginObject();
+			var map = Map.of(
+					in.nextName().toLowerCase(), in.nextInt(),
+					in.nextName().toLowerCase(), in.nextInt()
+					);
+			in.endObject();
+			return new Size(map.get("width"), map.get("height"));
+		}
+		
+	}
+	
+	
+	private static class ScalarTypeAdapter extends TypeAdapter<Scalar> {
+
+		@Override
+		public void write(JsonWriter out, Scalar value) throws IOException {
+			if (value == null || value.isNull())
+				out.nullValue();
+			else {
+				out.beginArray();
+				for (int i = 0; i < 4; i++)
+					out.value(value.get(i));
+				out.endArray();
+			}
+		}
+
+		@Override
+		public Scalar read(JsonReader in) throws IOException {
+			in.beginArray();
+			double[] values = new double[4];
+			int n = 0;
+			while (in.hasNext() && n < values.length) {
+				values[n] = in.nextDouble();
+				n++;
+			}
+			in.endArray();
+			if (n == 0)
+				return new Scalar();
+			else if (n == 1)
+				return new Scalar(values[0]);
+			else if (n == 2)
+				return new Scalar(values[0], values[1]);
+			else
+				return new Scalar(values[0], values[1], values[2], values[3]);
 		}
 		
 	}
@@ -193,7 +268,10 @@ public class OpenCVTypeAdapters {
 		public void write(JsonWriter out, StatModel value) throws IOException {
 			try (FileStorage fs = new FileStorage()) {
 				fs.open("anything.json", FileStorage.FORMAT_JSON + FileStorage.WRITE + FileStorage.MEMORY);
-				value.write(fs);
+//				value.write(fs);
+				
+				// Change v0.3.0 - for KNearest (at least) it's important to write using the default name, otherwise the model cannot be loaded again
+				value.write(fs, value.getDefaultName());
 				String json = fs.releaseAndGetString().getString();
 				
 				out.beginObject();
@@ -203,9 +281,8 @@ public class OpenCVTypeAdapters {
 				
 				// jsonValue works for JsonWriter but not JsonTreeWriter, so we try to work around this...
 				JsonObject element = gson.fromJson(json.trim(), JsonObject.class);
+				
 				gson.toJson(element, out);
-//				out.jsonValue(obj.toString());
-//				out.jsonValue(json);
 				out.endObject();
 			}
 		}
@@ -224,7 +301,12 @@ public class OpenCVTypeAdapters {
 				
 				// It's a bit roundabout... but toString() gives Strings that are too long and unsupported 
 				// by OpenCV, so we take another tour through Gson.
-				String modelString = new GsonBuilder().setPrettyPrinting().create().toJson(obj.get("statmodel"));
+				var objStatModel = obj.get("statmodel");
+				String modelString = new GsonBuilder().setPrettyPrinting().create().toJson(objStatModel);
+				
+				// In QuPath v0.2 we didn't use OpenCV's default name for the classifier, in which case it would be insert as the root - 
+				// but this failed for KNearest, so now we need to use the name & cope with old classifiers
+				boolean useRoot = objStatModel.isJsonObject() && objStatModel.getAsJsonObject().has("format");
 				
 				StatModel model = null;
 				
@@ -254,7 +336,11 @@ public class OpenCVTypeAdapters {
 				// Load from the JSON data
 				try (FileStorage fs = new FileStorage()) {
 					fs.open(modelString, FileStorage.FORMAT_JSON + FileStorage.READ + FileStorage.MEMORY);
-					FileNode fn = fs.root();
+					FileNode fn;
+					if (useRoot)
+						fn = fs.root();
+					else
+						fn = fs.getFirstTopLevelNode();
 					model.read(fn);
 					return model;
 				}

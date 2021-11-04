@@ -33,6 +33,7 @@ import java.util.Map.Entry;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder.ServerBuilder;
+import qupath.lib.io.UriResource;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.projects.ResourceManager.Manager;
 
@@ -45,7 +46,7 @@ import qupath.lib.projects.ResourceManager.Manager;
  *
  * @param <T> Depends upon the project used; typically BufferedImage for QuPath
  */
-public interface ProjectImageEntry<T> {
+public interface ProjectImageEntry<T> extends UriResource {
 	
 //	/**
 //	 * Get the path used to represent this image, which can be used to construct an <code>ImageServer</code>.
@@ -246,8 +247,12 @@ public interface ProjectImageEntry<T> {
 	 * 
 	 * @return
 	 * @throws IOException
+	 * @deprecated use instead {@link #getUris()}
 	 */
-	public Collection<URI> getServerURIs() throws IOException;
+	@Deprecated
+	public default Collection<URI> getServerURIs() throws IOException {
+		return getUris();
+	}
 	
 	/**
 	 * Update the URIs for the server (optional operation).
@@ -255,8 +260,12 @@ public interface ProjectImageEntry<T> {
 	 * @param replacements a map with current URIs as keys, and desired URIs as values.
 	 * @return true if changes were made
 	 * @throws IOException
+	 * @deprecated use instead {@link #updateUris(Map)}
 	 */
-	public boolean updateServerURIs(Map<URI, URI> replacements) throws IOException;
+	@Deprecated
+	public default boolean updateServerURIs(Map<URI, URI> replacements) throws IOException {
+		return updateUris(replacements);
+	}
 	
 	/**
 	 * Get a formatted string representation of the metadata map's contents.

@@ -46,6 +46,7 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.io.GsonTools;
 import qupath.lib.io.OpenCVTypeAdapters;
 import qupath.lib.plugins.parameters.ParameterList;
+import qupath.opencv.tools.OpenCVTools;
 
 /**
  * QuPath wrappers for OpenCV classifiers, which are instances of StatModel.
@@ -464,8 +465,8 @@ public class OpenCVClassifiers {
 				var indexer = results.createIndexer();
 				int nClasses = results.cols();
 				
-				var matResultsnew = new Mat(nSamples, 1, opencv_core.CV_32SC1);
-				IntIndexer idxResults = matResultsnew.createIndexer();
+				var matResultsNew = new Mat(nSamples, 1, opencv_core.CV_32SC1);
+				IntIndexer idxResults = matResultsNew.createIndexer();
 				if (probabilities != null) {
 					probabilities.create(nSamples, nClasses, opencv_core.CV_32FC1);
 					probabilities.put(results);
@@ -488,7 +489,8 @@ public class OpenCVClassifiers {
 				}
 				indexer.release();
 				idxResults.release();
-				results.put(matResultsnew);
+				results.put(matResultsNew);
+				matResultsNew.close();
 			} else {
 				results.convertTo(results, opencv_core.CV_32SC1);
 				if (probabilities != null) {
@@ -831,7 +833,11 @@ public class OpenCVClassifiers {
 				idxResults.put(i, prediction);
 				row++;
 			}
-			votes.release();
+			
+			indexer.release();
+			idxProbabilities.release();
+			idxResults.release();
+			votes.close();
 		}
 		
 		
@@ -1382,7 +1388,7 @@ public class OpenCVClassifiers {
 				targets.put(targets2);
 				targets2.close();
 			} else {
-				IntBuffer buffer = targets.createBuffer();
+				IntBuffer buffer = OpenCVTools.ensureContinuous(targets, false).createBuffer();
 				int[] vals = new int[targets.rows()];
 				buffer.get(vals);
 				int max = Arrays.stream(vals).max().orElseGet(() -> 0) + 1;

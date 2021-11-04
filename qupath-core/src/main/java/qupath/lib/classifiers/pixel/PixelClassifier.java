@@ -25,6 +25,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 
 import qupath.lib.images.ImageData;
+import qupath.lib.projects.Project;
 import qupath.lib.regions.RegionRequest;
 
 /**
@@ -36,6 +37,12 @@ import qupath.lib.regions.RegionRequest;
  *
  */
 public interface PixelClassifier {
+	
+	/**
+	 * Default location to use when storing object classifiers in a project.
+	 * @see Project#getResources(String, Class, String)
+	 */
+	public static final String PROJECT_LOCATION = "classifiers/pixel_classifiers";
 	
 	/**
 	 * Query whether the classifier supports a particular image.

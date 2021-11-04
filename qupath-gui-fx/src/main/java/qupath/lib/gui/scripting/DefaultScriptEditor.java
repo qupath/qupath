@@ -119,7 +119,6 @@ import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
-import qupath.lib.gui.scripting.ScriptEditor;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
@@ -263,6 +262,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected Action runSelectedAction;
 	protected Action runProjectScriptAction;
 	protected Action runProjectScriptNoSaveAction;
+
+	protected Action insertMuAction;
+	protected Action insertQPImportAction;
+	protected Action insertQPExImportAction;
+	protected Action insertAllDefaultImportAction;
+	protected Action insertPixelClassifiersAction;
+	protected Action insertObjectClassifiersAction;
+	protected Action insertDetectionMeasurementsAction;
 	
 	protected Action findAction;
 
@@ -274,7 +281,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
 	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", true);
+	private BooleanProperty clearCache = PathPrefs.createPersistentPreference("scriptingClearCache", false);
 	
+
 	// Regex pattern used to identify whether a script should be run in the JavaFX Platform thread
 	// If so, this line should be included at the top of the script
 	private static Pattern patternGuiScript = Pattern.compile("guiscript *?= *?true");
@@ -331,6 +340,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		runProjectScriptAction = createRunProjectScriptAction("Run for project", true);
 		runProjectScriptNoSaveAction = createRunProjectScriptAction("Run for project (without save)", false);
 		
+		insertMuAction = createInsertAction(GeneralTools.SYMBOL_MU + "");
+		insertQPImportAction = createInsertAction("QP");
+		insertQPExImportAction = createInsertAction("QPEx");
+		insertAllDefaultImportAction = createInsertAction("All default");
+		insertPixelClassifiersAction = createInsertAction("Pixel classifiers");
+		insertObjectClassifiersAction = createInsertAction("Object classifiers");
+		insertDetectionMeasurementsAction = createInsertAction("Detection");
+		
 		qupath.projectProperty().addListener((v, o, n) -> {
 			previousImages.clear();
 		});
@@ -358,10 +375,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 
 	void maybeRefreshTab(final ScriptTab tab) {
-		if (tab != null && autoRefreshFiles.get()) {
-			if (tab != null)
-				tab.refreshFileContents();
-		}
+		if (tab != null && autoRefreshFiles.get())
+			tab.refreshFileContents();
 	}
 	
 	/**
@@ -617,6 +632,36 @@ public class DefaultScriptEditor implements ScriptEditor {
 		menuLanguages.getItems().add(radioMenuItem);
 		
 		menubar.getMenus().add(menuLanguages);
+		
+		// Insert menu
+		Menu menuInsert = new Menu("Insert");
+		Menu subMenuSymbols = new Menu("Symbols");
+		Menu subMenuImports = new Menu("Imports");
+		Menu subMenuClassifiers = new Menu("Classifiers");
+		Menu subMenuMeasurements = new Menu("Measurements");
+		MenuTools.addMenuItems(
+			menuInsert,
+			MenuTools.addMenuItems(
+				subMenuSymbols,
+				insertMuAction
+				),
+			MenuTools.addMenuItems(
+				subMenuImports,
+				insertQPImportAction,
+				insertQPExImportAction,
+				insertAllDefaultImportAction
+				),
+			MenuTools.addMenuItems(
+				subMenuClassifiers,
+				insertPixelClassifiersAction,
+				insertObjectClassifiersAction
+				),
+			MenuTools.addMenuItems(
+				subMenuMeasurements,
+				insertDetectionMeasurementsAction
+				)
+		);
+		menubar.getMenus().add(menuInsert);
 
 		// Run menu
 		Menu menuRun = new Menu("Run");
@@ -632,7 +677,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console"))
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(clearCache, "Clear cache (batch processing)"))
 				);
 		menubar.getMenus().add(menuRun);
 
@@ -788,6 +834,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 				printWriter.println(String.format("Script run time: %.2f seconds", (System.currentTimeMillis() - startTime)/1000.0));
 		} catch (ScriptException e) {
 			// TODO: Consider exception logging here, rather than via the called method
+		} catch (Throwable t) {
+			// This can happen when something goes very wrong - like attempting to load a missing native library
+			// We need to somehow let the user know, rather than swallowing the problem silently
+			logger.error(t.getLocalizedMessage(), t);
 		} finally {
 			if (attachToLog)
 				Platform.runLater(() -> LogManager.removeTextAppendableFX(console));	
@@ -1080,6 +1130,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 							File dirProject = Projects.getBaseDirectory(project);
 							if (dirProject != null && dirProject.isDirectory()) {
 								File dirScripts = new File(dirProject, "scripts");
+								if (!dirScripts.exists()) {
+									try {
+										dirScripts.mkdir();
+									} catch (Exception e) {
+										logger.error("Unable to make script directory: " + e.getLocalizedMessage(), e);
+									}
+								}
 								if (dirScripts.isDirectory())
 									dir = dirScripts;
 							}
@@ -1436,7 +1493,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 					System.gc();
 
 					// Open saved data if there is any, or else the image itself
-					ImageData<BufferedImage> imageData = (ImageData<BufferedImage>)entry.readImageData();
+					ImageData<BufferedImage> imageData = entry.readImageData();
 					if (imageData == null) {
 						logger.warn("Unable to open {} - will be skipped", entry.getImageName());
 						continue;
@@ -1446,6 +1503,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 					if (doSave)
 						entry.saveImageData(imageData);
 					imageData.getServer().close();
+					
+					if (clearCache.get()) {
+						try {
+							var store = qupath == null ? null : qupath.getImageRegionStore();
+							if (store != null)
+								store.clearCache();
+							System.gc();
+						} catch (Exception e) {
+							
+						}
+					}
 				} catch (Exception e) {
 					logger.error("Error running batch script: {}", e);
 				}
@@ -2001,6 +2069,72 @@ public class DefaultScriptEditor implements ScriptEditor {
 		return action;
 	}
 	
+	Action createInsertAction(final String name) {
+		Action action = new Action(name, e -> {
+			var control = getCurrentTextComponent();
+
+			String join = "," + System.lineSeparator() + "  ";
+			String listFormat = "[" + System.lineSeparator() + "  %s" + System.lineSeparator() + "]";
+			if (name.toLowerCase().equals("pixel classifiers")) {
+				try {
+					String classifiers = qupath.getProject().getPixelClassifiers().getNames().stream()
+							.map(classifierName -> "\"" + classifierName + "\"")
+							.collect(Collectors.joining(join));
+					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
+					control.paste(s);
+				} catch (IOException ex) {
+					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
+				}
+			} else if (name.toLowerCase().equals("object classifiers")) {
+				try {
+					String classifiers = qupath.getProject().getObjectClassifiers().getNames().stream()
+							.map(classifierName -> "\"" + classifierName + "\"")
+							.collect(Collectors.joining(join));
+					String s = classifiers.isEmpty() ? "[]" : String.format(listFormat, classifiers);
+					control.paste(s);
+				} catch (IOException ex) {
+					logger.error("Could not fetch classifiers", ex.getLocalizedMessage());
+				}
+			} else if (name.toLowerCase().equals("detection")) {
+				var imageData = qupath.getImageData();
+				String measurements = "";
+				if (imageData != null) {
+					measurements = imageData.getHierarchy()
+							.getDetectionObjects()
+							.stream()
+							.flatMap(d -> d.getMeasurementList().getMeasurementNames().stream())
+							.distinct()
+							.map(m -> "\"" + m + "\"")
+							.collect(Collectors.joining(join))
+							;
+				}
+				String s = measurements.isEmpty() ? "[]" : String.format(listFormat, measurements);
+				control.paste(s);
+			} else if (name.toLowerCase().equals(GeneralTools.SYMBOL_MU + ""))
+				control.paste(GeneralTools.SYMBOL_MU + "");
+			else {	
+				// Imports (end with a new line)
+				if (name.toLowerCase().equals("qpex"))
+					control.insertText(0, "import static qupath.lib.gui.scripting.QPEx.*");
+				else if (name.toLowerCase().equals("qp"))
+					control.insertText(0, "import static qupath.lib.gui.scripting.QP.*");
+				else if (name.toLowerCase().equals("all default"))
+					control.insertText(0, QPEx.getDefaultImports(false));
+				handleNewLine(control);
+			}
+			e.consume();
+		});
+		
+		if (name.equals(GeneralTools.SYMBOL_MU + ""))
+			action.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
+		else if (name.toLowerCase().equals("pixel classifiers") || name.toLowerCase().equals("object classifiers"))
+			action.disabledProperty().bind(qupath.projectProperty().isNull());
+		else if (name.toLowerCase().equals("detection"))
+			action.disabledProperty().bind(qupath.imageDataProperty().isNull());
+			
+		return action;
+	}
+	
 	
 	void attemptToQuitScriptEditor() {
 		if (listScripts.getItems().isEmpty())
@@ -2333,6 +2467,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		private Dialog<Void> dialog;
 		private TextField tfFind = new TextField();
+		private ButtonType btNext = new ButtonType("Next");
 		
 		@Override
 		public void run() {
@@ -2340,6 +2475,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createFindDialog();
 			dialog.show();
 			tfFind.requestFocus();
+			
+			// If some text is selected in the main text component, use it as search query
+			var selectedText = getCurrentTextComponent().getSelectedText();
+			if (!selectedText.isEmpty())
+				tfFind.setText(selectedText);
+			
+			// If search is already set, focus on 'Next'
+			if (!tfFind.getText().isEmpty())
+				((Button)dialog.getDialogPane().lookupButton(btNext)).requestFocus();
 		}
 		
 		private void createFindDialog() {
@@ -2348,7 +2492,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 			dialog.initOwner(DefaultScriptEditor.this.dialog);
 			dialog.initModality(Modality.NONE);
 			
-			ButtonType btNext = new ButtonType("Next");
 			ButtonType btPrevious = new ButtonType("Previous");
 			ButtonType btClose = new ButtonType("Close", ButtonData.CANCEL_CLOSE);
 			dialog.getDialogPane().getButtonTypes().setAll(btPrevious, btNext, btClose);

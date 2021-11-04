@@ -108,7 +108,7 @@ public class Dialogs {
 	 */
 	public static boolean showMessageDialog(final String title, final Node node) {
 		return new Builder()
-				.alertType(AlertType.NONE)
+//				.alertType(AlertType.NONE)
 				.buttons(ButtonType.OK)
 				.title(title)
 				.content(node)
@@ -892,7 +892,7 @@ public class Dialogs {
 		public Dialog<ButtonType> build() {
 			Dialog<ButtonType> dialog;
 			if (alertType == null)
-				dialog = new Alert(AlertType.NONE);
+				dialog = new Dialog<>();
 			else
 				dialog = new Alert(alertType);
 			

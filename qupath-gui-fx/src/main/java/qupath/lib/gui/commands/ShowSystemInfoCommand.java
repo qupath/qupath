@@ -34,6 +34,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 
 /**
@@ -104,13 +105,14 @@ class ShowSystemInfoCommand {
 		
 		// Memory info
 		int toMB = (1024*1024);
-		sb.append("Memory already used by JVM:  \t\t").append((rt.totalMemory() - rt.freeMemory())/toMB).append(" MB").append("\n");
+		long usedBytes = rt.totalMemory() - rt.freeMemory();
+		sb.append("Memory already used by JVM:  \t\t").append(usedBytes/toMB).append(" MB").append("\n");
 //		sb.append("Free memory available to JVM: \t\t").append(rt.freeMemory()/toMB).append(" MB").append("\n");
-		sb.append("Total memory available to JVM:\t\t").append(rt.totalMemory()/toMB).append(" MB").append("\n");
+		sb.append("Total memory currently available:\t\t").append(rt.totalMemory()/toMB).append(" MB").append("\n");
 		sb.append("Max memory JVM may try to use:\t\t").append(rt.maxMemory()/toMB).append(" MB").append("\n");
 		if (rt.maxMemory()/toMB < 4096)
 			sb.append("--- WARNING: Max memory is quite low (< 4GB)  - may not be enough to run full whole slide analysis.").append("\n");
-		if ((rt.maxMemory() - rt.freeMemory())/toMB < 1024)
+		if ((rt.maxMemory() - usedBytes)/toMB < 1024)
 			sb.append("--- WARNING: Memory almost all in use (< 1GB remaining).").append("\n");
 		
 		
@@ -139,11 +141,12 @@ class ShowSystemInfoCommand {
 	}
 	
 	private static void updateText(QuPathGUI qupath, TextArea textArea) {
-		String buildString = qupath.getBuildString();
-		if (buildString == null)
-			textArea.setText(getInfoString());
-		else
-			textArea.setText(buildString + "\n\n" + getInfoString());
+		String buildString = QuPathGUI.getBuildString();
+		if (buildString == null || buildString.isBlank())
+			buildString = GeneralTools.getVersion();
+		if (buildString == null || buildString.isBlank())
+			buildString = "Unknown QuPath version!";
+		textArea.setText(buildString + "\n\n" + getInfoString());
 	}
 
 }

@@ -21,18 +21,18 @@
 
 package qupath.lib.gui;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.Collections;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
 
 /**
  * Basic version information about the current QuPath build.
@@ -84,11 +84,12 @@ public class BuildInfo {
 					logger.error("Error determining version: " + e.getLocalizedMessage(), e);					
 				}
 			}
-			var file = new File("VERSION");
-			if (versionString == null && file.exists()) {
-				logger.trace("Parsing version from {}", file);
-				versionString = Files.readString(file.toPath(), StandardCharsets.UTF_8).strip();
-				version = Version.parse(versionString);
+			if (versionString == null) {
+				versionString = GeneralTools.getVersion();
+				if (versionString != null) {
+					logger.trace("Parsing version from {}", versionString);
+					version = Version.parse(versionString);
+				}
 			}
 		} catch (Exception e) {
 			logger.error("Error searching for build string", e);

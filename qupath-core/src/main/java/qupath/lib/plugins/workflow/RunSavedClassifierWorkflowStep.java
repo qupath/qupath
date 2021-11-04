@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.Map;
 
 import qupath.lib.common.GeneralTools;
-import qupath.lib.plugins.workflow.ScriptableWorkflowStep;
 
 /**
  * WorkflowStep for running a saved PathObjectClassifier.

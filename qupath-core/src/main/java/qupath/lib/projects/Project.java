@@ -243,22 +243,46 @@ public interface Project<T> {
 	 * Get a manager for scripts saved within this project.
 	 * 
 	 * @return
+	 * @see #getResources(String, Class, String)
 	 */
-	public Manager<String> getScripts();
+	public default Manager<String> getScripts() {
+		return getResources("scripts", String.class, "groovy");
+	}
 	
 	/**
 	 * Get a manager for object classifiers saved within this project.
 	 * 
 	 * @return
+	 * @see #getResources(String, Class, String)
 	 */
-	public Manager<ObjectClassifier<T>> getObjectClassifiers();
+	public default Manager<ObjectClassifier<T>> getObjectClassifiers() {
+		return getResources(ObjectClassifier.PROJECT_LOCATION, ObjectClassifier.class, "json");
+	}
 	
 	/**
 	 * Get a manager for pixel classifiers saved within this project.
 	 * 
 	 * @return
+	 * @see #getResources(String, Class, String)
 	 */
-	public Manager<PixelClassifier> getPixelClassifiers();
+	public default Manager<PixelClassifier> getPixelClassifiers() {
+		return getResources(PixelClassifier.PROJECT_LOCATION, PixelClassifier.class, "json");
+	}
+	
+	/**
+	 * Get a manager for objects of a specified class within this project.
+	 * 
+	 * @param <S>
+	 * @param location a location relative to the project where the resources should be stored, e.g. "classifiers/pixel classifiers".
+	 *                 Projects may use this location in an implementation-dependent way.
+	 * @param cls class of the resource to return
+	 * @param ext extension to use with the resource. This is used for determining the type. Usually it should be "json".
+	 * @return a {@link Manager} for the specified resource, or {@code null} if the project does not support the resource or extension.
+	 * @implNote the default implementation returns null. Subclasses should override this.
+	 */
+	public default <S, R extends S> Manager<R> getResources(String location, Class<S> cls, String ext) {
+		return null;
+	}
 	
 	
 //	public List<String> listPixelClassifiers();

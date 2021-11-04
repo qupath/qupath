@@ -1,6 +1,12 @@
-ext.moduleName = 'qupath.core'
+plugins {
+  id 'qupath.common-conventions'
+  id 'qupath.publishing-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-core'
+ext.moduleName = 'qupath.core'
+archivesBaseName = 'qupath-core'
+description = "Core QuPath module containing the main classes and datastructures."
 
 configurations {
   api.extendsFrom gson
@@ -8,4 +14,5 @@ configurations {
   implementation.extendsFrom commonsmath
   implementation.extendsFrom guava
   implementation.extendsFrom opencv
+  implementation.extendsFrom picocli
 }

@@ -44,7 +44,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.transformation.SortedList;
@@ -179,12 +181,14 @@ public class SummaryMeasurementTableCommand {
 				synchronizeSelectionModelToTable(hierarchy, c, table);
 			}
 		});
-		String displayedName = ServerTools.getDisplayableImageName(imageData.getServer());
-		String name;
-		if (type == null)
-			name = "Results " + displayedName;
-		else
-			name = PathObjectTools.getSuitableName(type, false) + " results - " + displayedName;
+		StringProperty displayedName = new SimpleStringProperty(ServerTools.getDisplayableImageName(imageData.getServer()));
+		var title = Bindings.createStringBinding(() -> {
+			if (type == null)
+				return "Results " + displayedName.get();
+			else
+				return PathObjectTools.getSuitableName(type, false) + " results - " + displayedName.get();			
+		}, displayedName);
+		
 
 		// Handle double-click as a way to center on a ROI
 //		var enter = new KeyCodeCombination(KeyCode.ENTER);
@@ -364,7 +368,7 @@ public class SummaryMeasurementTableCommand {
 
 		Stage frame = new Stage();
 		frame.initOwner(qupath.getStage());
-		frame.setTitle(name);
+		frame.titleProperty().bind(title);
 
 
 		BorderPane paneTable = new BorderPane();
@@ -425,6 +429,8 @@ public class SummaryMeasurementTableCommand {
 					Platform.runLater(() -> hierarchyChanged(event));
 					return;
 				}
+				if (imageData != null)
+					displayedName.set(ServerTools.getDisplayableImageName(imageData.getServer()));
 				model.refreshEntries();
 				table.refresh();
 				if (histogramDisplay != null)

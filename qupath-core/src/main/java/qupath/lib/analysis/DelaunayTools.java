@@ -110,11 +110,20 @@ public class DelaunayTools {
 				}
 			}
 			
-			if (precision != null)
-				geom = GeometryTools.attemptOperation(geom, g -> GeometryPrecisionReducer.reduce(g, precision));
+			// Somehow, empty coordinate arrays could sometimes be produced (although not replicated by me).
+			// See https://forum.image.sc/t/error-running-stardist-on-qupath-v0-3-0-rc2-using-opencv-converted-model/56216/22
+			// Therefore we take extra care in case empty geometries are being generated accidentally.
+			if (precision != null) {
+				var geom2 = GeometryTools.attemptOperation(geom, g -> GeometryPrecisionReducer.reduce(g, precision));
+				if (!geom2.isEmpty())
+					geom = geom2;
+			}
 
-			if (densifyFactor > 0)
-				geom = GeometryTools.attemptOperation(geom, g -> Densifier.densify(g, densifyFactor));
+			if (densifyFactor > 0) {
+				var geom2 = GeometryTools.attemptOperation(geom, g -> Densifier.densify(g, densifyFactor));
+				if (!geom2.isEmpty())
+					geom = geom2;
+			}
 			
 //			if (!(geom instanceof Polygon))
 //				logger.warn("Unexpected Geometry: {}", geom);
@@ -129,6 +138,10 @@ public class DelaunayTools {
 			
 			// Add coordinates, unless they are extremely close to an existing coordinate
 			int n = coords.length;
+			if (n == 0) {
+				logger.warn("Empty Geometry found for {}", p);
+				return Collections.emptyList();
+			}
 			double minDistance = densifyFactor*0.5;
 			var firstCoordinate = coords[0];
 			while (n > 2 && firstCoordinate.distance(coords[n-1]) < minDistance)

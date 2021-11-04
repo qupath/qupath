@@ -1,51 +1,164 @@
-## Version 0.3.0-SNAPSHOT
+## Version 0.3.1-SNAPSHOT
 *In progress*
 
-Enhancements:
+This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs.
+
+List of bugs fixed:
+* Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
+* Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
+
+
+## Version 0.3.0
+
+### Release highlights
+* **New 'Create density map' command** to visualize hotspots & generate annotations based on object densities
+* **_Many_ code fixes** & **major performance improvements** - especially for pixel classification
+* **Revised code structure**, with non-core features now separated out as optional **extensions**, including:
+  * **OMERO**
+    * https://github.com/qupath/qupath-extension-omero
+    * **Major update!** New support for browsing multiple OMERO servers, importing images & exchanging annotations
+  * **StarDist**
+    * https://github.com/qupath/qupath-extension-stardist
+    * **Major update!** No longer any need to build QuPath from source
+  * **TensorFlow**
+    * https://github.com/qupath/qupath-extension-tensorflow
+    * No longer needed to run StarDist (but gives an alternative option)
+  * **Interactive image alignment**
+    * https://github.com/qupath/qupath-extension-align
+    * Calculate a rigid transform between two images
+  * **JPen**
+    * https://github.com/qupath/qupath-extension-jpen
+    * Adds support for (some) graphics tablets
+* **Rotate images** in the viewer 360&deg;
+* **Easier OpenCV scripting** with many new methods in `OpenCVTools`
+* **New build scripts**, now with **continuous integration** via GitHub Actions
+* **Groundwork for new features** coming soon...
+
+The major revision of the code structure and creation of extensions is designed to make QuPath more developer-friendly, maintainable and adaptable in the future.
+
+A long-but-still-not-exhaustive list of changes is given below.
+For full details, see the [Commit log](https://github.com/qupath/qupath/commits/).
+
+### Enhancements
+* Support for importing & exporting objects without scripting
+  * Export objects as GeoJSON without via *File > Object data... > ...*
+  * Import objects from .json, .geojson & .qpdata files via *File > Object data... > Import objects* or with drag & drop
+* Pixel classifier usability improvements
+  * Set number of threads for live prediction (under 'Advanced options' during training, or the vertical ellipsis button when loading a previous classifier)
+  * New 'Show as text' option to check classifier parameters
+  * Switch between pixel classifiers & density maps by bringing the corresponding window into focus
+  * Perform live prediction starting from the center of the field of view or image
+* Script editor improvements
+  * New 'Auto clear cache (batch processing)' option to reduce memory use when running scripts across many images
+  * Default to project script directory when choosing a location to save a new script
 * Improved command line
-  * Specify script parameters with the --args option
+  * Specify script parameters with the `--args` option
+  * Make contents of any extensions directory available to the classloader
   * Return a non-zero exit code if an exception is thrown (https://github.com/qupath/qupath/issues/654)
-* Improved image rotation (under 'View > Rotate image')
+* New 'Optional args' when importing images
+  * This allows options such as `--dims XYTZC --series 2` to be passed to Bio-Formats to customize image import
+  * Reordering of RGB channels can be done with `--order BGR` or similar combinations
+* New `ContourTracing` class to simplify converting thresholded and labeled images to ROIs and objects
+* New `PathObjectTools.transformObjectRecursive` method to simplify applying an affine transformation to objects
+* New `UriResource` and `UriUpdater` classes to support fixing broken paths generally (not just image paths in projects)
+* Many improvements to ImageOps and OpenCVTools to make scripting with OpenCV much easier
+* Translucent overlay for live prediction (useful to identify if a tile has been processed when at least one class is transparent)
+* Better support for setting pixel sizes & z-spacing in µm
+  * Access by double-clicking pixel size values under the 'Image' tab
+  * Pixel size changes are now logged to the Workflow for inclusion in auto-generated scripts
+* *Objects > Annotations... > Rotate annotation* now works with point annotations
+* Update checking can now include extensions hosted on GitHub
+* New 360 degree image rotation (under *View > Rotate image*)
 * New preferences for slide navigation using arrow keys
   * Control navigation speed & acceleration
   * Optionally skip TMA cores marked as 'ignored'
+* When prompted to set the image type, 'Show details' gives an opportunity to turn off the prompts
+  * Previously this was only accessible in the preferences
 * Load object & pixel classifier dialogs support importing classifiers from other locations
 * Brightness/Contrast panel shows small min/max values to 2 decimal places
 * Better validation when entering numeric values in text fields
-* New 'ContourTracing' class to simplify converting thresholded images to object
-* New PathObjectTools.transformObjectRecursive method to simplify applying an affine transformation to objects
+* BufferedImageOverlays are now tied to the the pixel classification display setting (rather than the detection display)
+* Bio-Formats now optionally accepts URLs, not only local files (requires opt-in through the preferences)
+* Specify the logging level for the current QuPath session through the preferences, e.g. to emit extra debugging messages
+  * Log files are now turned off by default; this can be changed in the preferences if a QuPath user directory is set
+* Optionally use `qupath.prefs.name` system property to use a different preferences location, enabling multiple QuPath installations to have distinct preferences
+* Provide optional launch scripts and `-Pld-path=true` Gradle options for Linux to set LD_LIBRARY_PATH and work around pixman problems (https://github.com/qupath/qupath/issues/628)
+* When setting stain vectors, do not overwrite the last workflow step if it was also used to set stain vectors
+  * This makes it possible to go back to earlier stains if needed
+* New `locateFile(nameOrPath)` scripting method to search for files within the current project and/or user directory
 
-Other changes:
-* GeneralTools readAsString methods now assume UTF-8 encoding
-* When building from source with TensorFlow support, now uses TensorFlow Java 0.3.0 (corresponding to TensorFlow v2.4.1)
+### Code changes
+* Revised `PathClass` code to be more strict with invalid class names & prevent accidentally calling the constructor (please report any related bugs!)
+* GeoJSON features now use "properties>object_type" rather than "id" property to map to a QuPath object type (e.g. "annotation", "detection", "cell")
+  * 'id' is likely to be used as a unique identifier in a later QuPath version
+* Updates to `TileExporter`, with some change in behavior
+  * Creating a `TileExporter` using `parentObjects` now exports fixed-sized tiles centered on the object ROI. To export the ROI bounding box instead, set `useROIBounds(true)` when creating the exporter.
+* The *'Number of processors for parallel commands'* preference has been renamed to *'Number of parallel threads'*
+* `GeneralTools.readAsString` methods now assume UTF-8 encoding
+* `PixelClassificationOverlay` has moved to the main GUI module
+* Scripting method `getColorRGB()` has been replaced by `makeRBG()` and `makeARGB()`; further related changes in ColorTools class
+* `LabeledImageServer.Builder.useInstanceLabels()` method replaces `useUniqueLabels()`, improved performance
+* StarDist supports frozen models that are compatible with OpenCV's DNN module
+* New 2D/3D thinning & interpolation classes
+* New ImageOps for reducing channels
+* `ImageOps.Normalize.percentiles` now warns if normalization values are equal; fixed exception if choosing '100'
+* When building from source with TensorFlow support, now uses TensorFlow Java 0.3.1 (corresponding to TensorFlow v2.4.1)
+* Default number of threads is now based upon `ForkJoinPool.getCommonPoolParallelism()`
+  * `ThreadTools` can be used to get requested number of threads within core modules, controlled via `PathPrefs`
+* `UriResource` and `UriUpdater` classes to give more general approach to fixing broken paths (previously the code was project/image-specific)
 
-List of bugs fixed:
-* Exception when converting PathObject with name but no color to GeoJSON
-* Exception when pressing 'Create workflow' is no image is open (https://github.com/qupath/qupath/issues/608)
+### Bugs fixed
+* Multithreading issue with creation or removal of objects (https://github.com/qupath/qupath/issues/744)
+* Excessive memory use during pixel classification (https://github.com/qupath/qupath/issues/753)
+* Measurement export ignores the image name in the project (https://github.com/qupath/qupath/issues/593)
+* Cannot reload a KNN classifier (https://github.com/qupath/qupath/issues/752)
+  * Note! This change means classifiers written with v0.3 cannot be used in v0.2 (but v0.2 classifiers should work in v0.3)
+* *Detect centroid distances 2D* doesn't work on different planes of a z-stack (https://github.com/qupath/qupath/issues/696)
+* Deleting a TMA grid deletes all objects (https://github.com/qupath/qupath/issues/646)
+* *Subcellular detection (experimental)* always returns 0 for cluster count (https://github.com/qupath/qupath/issues/788)
+* *Subcellular detection (experimental)* doesn't work for z-stacks or images without pixel size information (https://github.com/qupath/qupath/issues/701)
+  * Note: Spots with an area exactly equal to the minimum spot size are now retained (previously they were discarded)
+* *Show input dialog* is too easy to open multiple times, too difficult to close (https://github.com/qupath/qupath/issues/776)
+* *Convert detections to points* loses plane when applied to a z-stack (https://github.com/qupath/qupath/issues/696)
+* Exception when pressing *'Create workflow'* if no image is open (https://github.com/qupath/qupath/issues/608)
 * Confusing command line help text for the '--image' parameter of the 'script' (https://github.com/qupath/qupath/issues/609)
-* --save option did not work from the command line (https://github.com/qupath/qupath/issues/617)
+* `--save` option did not work from the command line (https://github.com/qupath/qupath/issues/617)
 * Extremely long classification lists could prevent QuPath from exiting (https://github.com/qupath/qupath/issues/626)
-* 'Selection mode' keyboard shortcut did not work; now activate it with Shift + S (https://github.com/qupath/qupath/issues/638)
+* Occasional exceptions when concatenating channels for rotated images (https://github.com/qupath/qupath/issues/641)
+* *Selection mode* keyboard shortcut did not work; now activate it with `Shift + S` (https://github.com/qupath/qupath/issues/638)
 * Exception when showing details for an extension that is missing a Manifest file (https://github.com/qupath/qupath/issues/664)
 * Exception when resetting an annotation description to an empty string (https://github.com/qupath/qupath/issues/661)
-* The requestedPixelSize option for TileExporter calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
-* The TileExporter could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
+* The requestedPixelSize option for `TileExporter` calculated the wrong downsample (https://github.com/qupath/qupath/issues/648)
+* Unable to find slide labels when reading images with Bio-Formats (https://github.com/qupath/qupath/issues/643)
+* The `TileExporter` could not properly export tiles from z-stacks/time series (https://github.com/qupath/qupath/issues/650)
+* `PathClassifierTools.setIntensityClassification` method now correctly ignores ignored classes such as 'myClass*' (https://github.com/qupath/qupath/issues/691)
+* `Dialogs.showConfirmDialog(title, text)` shows the text in the title bar, rather than the title (https://github.com/qupath/qupath/issues/662)
+* Error in StarDist intensity measurements for 8-bit RGB fluorescence images (https://github.com/qupath/qupath/issues/686)
+* Opening images with very narrow tiles can fail with Bio-Formats (https://github.com/qupath/qupath/issues/715)
+* `OMEPyramidSeries` is not public (https://github.com/qupath/qupath/issues/726)
+* Bug in using arrow keys to navigate z-stacks and timeseries (https://github.com/qupath/qupath/issues/748)
+* Not able to open file browsers under Linux (e.g. via right-click under the Project tab)
+* Not possible to view multiple channels simultaneously with inverted lookup tables (max display < min display)
+* Exception when converting `PathObject` with name but no color to GeoJSON
+* Cannot write valid 16-bit PNG labelled images
 
 ### Dependency updates
 * AdoptOpenJDK 16
 * Apache Commons Text 1.9
-* Bio-Formats 6.6.1
+* Bio-Formats 6.7.0
 * ControlsFX 11.1.0
-* Groovy 3.0.7
+* Groovy 3.0.8
+* Gson 2.8.8
 * Guava 30.1.1-jre
-* ImageJ 1.53h
+* ImageJ 1.53j
 * JavaFX 16
-* Java Topology suite 1.18.1
-* JavaCPP 1.5.5
-* JFreeSVG 4.2
-* jfxtras 11-r1
-* OpenCV 4.5.1
+* Java Topology suite 1.18.2
+* JavaCPP 1.5.6
+* JFreeSVG 5.0
+* jfxtras 11-r2
+* OpenCV 4.5.3
 * picocli 4.6.1
+* RichTextFX 0.10.6
 
 
 ## Version 0.2.3

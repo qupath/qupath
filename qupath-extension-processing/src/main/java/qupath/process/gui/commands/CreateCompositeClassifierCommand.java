@@ -47,7 +47,7 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.projects.Project;
-import qupath.process.gui.ml.ProjectClassifierBindings;
+import qupath.process.gui.commands.ml.ProjectClassifierBindings;
 
 /**
  * Command to create a composite classifier by merging together two or more other classifiers.

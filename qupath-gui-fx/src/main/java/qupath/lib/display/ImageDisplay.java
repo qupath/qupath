@@ -568,8 +568,9 @@ public class ImageDisplay extends AbstractImageRenderer {
 				if (firstChannel) {
 					pixels = info.getRGB(imgInput, pixels, !useGrayscaleLuts);
 					firstChannel = false;
-				} else
+				} else {
 					info.updateRGBAdditive(imgInput, pixels, !useGrayscaleLuts);
+				}
 			}
 		} catch (Exception e) {
 			logger.error("Error extracting pixels for display", e);

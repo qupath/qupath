@@ -141,13 +141,19 @@ abstract class AbstractPathROI implements ROI {
 //		return "Me";
 	}
 	
+	private transient int nPoints =  -1;
+	
 	/**
-	 * Default implementation, calls {@link #getAllPoints()}. Subclasses may override for efficiency.
+	 * Default implementation, calls {@link #getAllPoints()} and then caches the result.
+	 * Subclasses may override for efficiency.
 	 * @return
+	 * @implNote the default implementation assumes that ROIs are immutable.
 	 */
 	@Override
 	public int getNumPoints() {
-		return getAllPoints().size();
+		if (nPoints < 0)
+			nPoints = getAllPoints().size();
+		return nPoints;
 	}
 
 	@Override

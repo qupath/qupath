@@ -284,7 +284,7 @@ public class PathHierarchyPaintingHelper {
 								// If the mapper returns null, the object shouldn't be painted
 								if (rgb == null)
 									return false;
-								color = ColorToolsAwt.getCachedColor(rgb, mapper.getColorMapper().hasAlpha());
+								color = ColorToolsAwt.getCachedColor(rgb);//, mapper.getColorMapper().hasAlpha());
 							}
 							else
 								color = null;

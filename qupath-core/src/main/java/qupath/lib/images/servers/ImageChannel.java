@@ -45,7 +45,7 @@ public class ImageChannel {
 	/**
 	 * Special color indicating pixel values for a channel indicate levels of transparency.
 	 */
-	public static final Integer TRANSPARENT = ColorTools.makeRGBA(255, 253, 254, 0);
+	public static final Integer TRANSPARENT = ColorTools.packARGB(0, 255, 253, 254);
 	
 	private String name;
 	private Integer color;
@@ -53,17 +53,17 @@ public class ImageChannel {
 	/**
 	 * Default red channel for RGB images.
 	 */
-	public final static ImageChannel RED   = getInstance("Red", ColorTools.makeRGB(255, 0, 0));
+	public final static ImageChannel RED   = getInstance("Red", ColorTools.packRGB(255, 0, 0));
 	
 	/**
 	 * Default green channel for RGB images.
 	 */
-	public final static ImageChannel GREEN = getInstance("Green", ColorTools.makeRGB(0, 255, 0));
+	public final static ImageChannel GREEN = getInstance("Green", ColorTools.packRGB(0, 255, 0));
 	
 	/**
 	 * Default blue channel for RGB images.
 	 */
-	public final static ImageChannel BLUE  = getInstance("Blue", ColorTools.makeRGB(0, 0, 255));
+	public final static ImageChannel BLUE  = getInstance("Blue", ColorTools.packRGB(0, 0, 255));
 	
 	/**
 	 * Get a channel instance with the specified name and color.
@@ -143,12 +143,12 @@ public class ImageChannel {
 //			return ColorTools.makeScaledRGB(getDefaultChannelColor(channel % 6), scale);
 		}
 		switch (channel) {
-		case 0: return ColorTools.makeRGB(255, 0, 0);
-		case 1: return ColorTools.makeRGB(0, 255, 0);
-		case 2: return ColorTools.makeRGB(0, 0, 255);
-		case 3: return ColorTools.makeRGB(255, 224, 0);
-		case 4: return ColorTools.makeRGB(0, 224, 224);
-		case 5: return ColorTools.makeRGB(255, 0, 224);
+		case 0: return ColorTools.packRGB(255, 0, 0);
+		case 1: return ColorTools.packRGB(0, 255, 0);
+		case 2: return ColorTools.packRGB(0, 0, 255);
+		case 3: return ColorTools.packRGB(255, 224, 0);
+		case 4: return ColorTools.packRGB(0, 224, 224);
+		case 5: return ColorTools.packRGB(255, 0, 224);
 		default:
 			int c = channel;
 			int hueInc = 128;
@@ -175,7 +175,7 @@ public class ImageChannel {
 	 */
 	public static List<ImageChannel> getDefaultChannelList(int nChannels) {
 		if (nChannels == 1)
-			return Collections.singletonList(getInstance("Channel 1", ColorTools.makeRGB(255, 255, 255)));
+			return Collections.singletonList(getInstance("Channel 1", ColorTools.packRGB(255, 255, 255)));
 		var list = new ArrayList<ImageChannel>();
 		for (int i = 0; i < nChannels; i++) {
 			list.add(getInstance(

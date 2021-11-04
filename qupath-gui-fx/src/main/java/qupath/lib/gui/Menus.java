@@ -99,6 +99,7 @@ class Menus {
 					new AnalyzeMenuManager(),
 					new TMAMenuManager(),
 					new ClassifyMenuManager(),
+					new ExtensionsMenuManager(),
 					new HelpMenuManager()
 					);
 		}
@@ -134,7 +135,6 @@ class Menus {
 
 		// Copy actions
 		@ActionMenu("Copy to clipboard...>Current viewer")
-		@ActionAccelerator("shortcut+c")
 		@ActionDescription("Copy the contents of the current viewer to the clipboard. " + 
 				"Note that this creates an RGB image, which does not necessarily contain the original pixel values.")
 		public final Action COPY_VIEW = createAction(() -> copyViewToClipboard(qupath, GuiTools.SnapshotType.VIEWER));
@@ -399,6 +399,16 @@ class Menus {
 		
 		public final Action SEP_6 = ActionTools.createSeparator();
 
+		@ActionDescription("Import objects from GeoJSON or .qpdata files.")
+		@ActionMenu("Object data...>Import objects")
+		public final Action OBJECT_IMPORT= qupath.createImageDataAction(imageData -> Commands.runObjectImport(qupath, imageData));
+
+		@ActionDescription("Export objects in GeoJSON format to file.")
+		@ActionMenu("Object data...>Export as GeoJSON")
+		public final Action EXPORT_GEOJSON = qupath.createImageDataAction(imageData -> Commands.runGeoJsonObjectExport(qupath, imageData));
+		
+		public final Action SEP_7 = ActionTools.createSeparator();
+
 		@ActionDescription("Import a TMA map, e.g. a grid containing 'Unique ID' values for each core.")
 		@ActionMenu("TMA data...>Import TMA map")
 		public final Action TMA_IMPORT = qupath.createImageDataAction(imageData -> TMACommands.promptToImportTMAData(imageData));
@@ -411,7 +421,7 @@ class Menus {
 		@ActionMenu("TMA data...>Launch TMA data viewer")
 		public final Action TMA_VIEWER = createAction(() -> Commands.launchTMADataViewer(qupath));
 
-		public final Action SEP_7 = ActionTools.createSeparator();
+		public final Action SEP_8 = ActionTools.createSeparator();
 
 		@ActionDescription("Quit QuPath.")
 		@ActionMenu("Quit")
@@ -688,7 +698,7 @@ class Menus {
 				
 		@ActionDescription("Rotate the image visually (this is only for display - the coordinate system remains unchanged).")
 		@ActionMenu("Rotate image")
-		public final Action ROTATE_IMAGE = Commands.createSingleStageAction(() -> Commands.createRotateImageDialog(qupath));
+		public final Action ROTATE_IMAGE = qupath.createImageDataAction(imageData -> Commands.createRotateImageDialog(qupath));
 
 		public final Action SEP_4 = ActionTools.createSeparator();
 		
@@ -754,7 +764,7 @@ class Menus {
 		@ActionDescription("Show mouse clicks and keypresses on screen. "
 				+ "This is particularly useful for demos and tutorials.")
 		@ActionMenu("Show input display")
-		public final Action INPUT_DISPLAY = createAction(() -> Commands.showInputDisplay(qupath));
+		public final Action INPUT_DISPLAY = createSelectableCommandAction(qupath.showInputDisplayProperty());
 
 		@ActionDescription("Show a dialog to track memory usage within QuPath, and clear the cache if required.")
 		@ActionMenu("Show memory monitor")
@@ -857,6 +867,35 @@ class Menus {
 		
 	}
 	
+	@ActionMenu("Extensions")
+	public class ExtensionsMenuManager {
+		
+		@ActionDescription("View a list of installed QuPath extensions.")
+		@ActionMenu("Installed extensions")
+		public final Action EXTENSIONS = createAction(() -> Commands.showInstalledExtensions(qupath));
+
+//		@ActionDescription("View a list of installed QuPath extensions.")
+//		@ActionMenu("Open extensions directory")
+//		public final Action OPEN_EXTENSIONS_DIR;
+		
+		@ActionMenu("")
+		public final Action SEP_1 = ActionTools.createSeparator();
+		
+//		private ExtensionsMenuManager() {
+//			OPEN_EXTENSIONS_DIR = createAction(() -> {
+//				var dir = QuPathGUI.getExtensionDirectory();
+//				if (dir != null) {
+//					GuiTools.browseDirectory(dir);
+//				} else {
+//					Dialogs.showErrorMessage("Extensions directory", "No extensions directory has been set!\n"
+//							+ "Install an extension by dragging it onto QuPath first.");
+//				}
+//			});
+////			OPEN_EXTENSIONS_DIR.disabledProperty().bind(PathPrefs.userPathProperty().isNull());
+//		}
+
+	}
+	
 	
 	@ActionMenu("Help")
 	public class HelpMenuManager {
@@ -909,11 +948,7 @@ class Menus {
 		@ActionDescription("View system information.")
 		@ActionMenu("System info")
 		public final Action INFO = Commands.createSingleStageAction(() -> Commands.createShowSystemInfoDialog(qupath));
-		
-		@ActionDescription("View a list of installed QuPath extensions.")
-		@ActionMenu("Installed extensions")
-		public final Action EXTENSIONS = createAction(() -> Commands.showInstalledExtensions(qupath));
-		
+				
 	}
 
 }

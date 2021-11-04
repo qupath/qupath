@@ -54,7 +54,7 @@ public class ImageServerMetadata {
 	/**
 	 * Default channel to use with images where the channel type is {@link ChannelType#CLASSIFICATION}.
 	 */
-	public static final ImageChannel DEFAULT_CLASSIFICATION_LABELS_CHANNEL = ImageChannel.getInstance("Labels", ColorTools.makeRGB(255, 255, 255));
+	public static final ImageChannel DEFAULT_CLASSIFICATION_LABELS_CHANNEL = ImageChannel.getInstance("Labels", ColorTools.packRGB(255, 255, 255));
 	
 	/**
 	 * Enum representing possible channel (band) types for an image.
@@ -81,7 +81,12 @@ public class ImageServerMetadata {
 		/**
 		 * Each channel represents a classification, such as in a labelled image.
 		 */
-		CLASSIFICATION;
+		CLASSIFICATION,
+		/**
+		 * Each channel represents a density value, such as in a density map (e.g. % positive cells).
+		 */
+		DENSITY;
+		;
 		
 		@Override
 		public String toString() {
@@ -96,6 +101,8 @@ public class ImageServerMetadata {
 				return "Multiclass probability";
 			case CLASSIFICATION:
 				return "Classification";
+			case DENSITY:
+				return "Density";
 			default:
 				return super.toString();
 			}
@@ -1048,6 +1055,8 @@ public class ImageServerMetadata {
 			 * @return
 			 */
 			public Builder addLevel(double downsample, int levelWidth, int levelHeight) {
+				if (downsample <= 0)
+					throw new IllegalArgumentException("Downsample must be > 0, but this one is " + downsample);
 				levels.add(new ImageResolutionLevel(downsample, levelWidth, levelHeight));
 				return this;
 			}

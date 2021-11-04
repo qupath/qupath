@@ -39,7 +39,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +50,6 @@ import com.google.common.cache.Weigher;
 
 import qupath.lib.awt.common.AwtTools;
 import qupath.lib.common.ThreadTools;
-import qupath.lib.gui.images.stores.TileWorker;
 import qupath.lib.images.servers.GeneratingImageServer;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.RegionRequest;
@@ -323,13 +321,15 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	
 	protected synchronized boolean stopWaiting(final RegionRequest request) {
-		if (clearingCache) {
-//			synchronized(this) {
-				logger.warn("Stop waiting called while clearing cache");
+		synchronized (waitingMap) {
+			if (clearingCache) {
+				//			synchronized(this) {
+				logger.warn("Stop waiting called while clearing cache: {}", Thread.currentThread());
 				return waitingMap.remove(request) != null;
-//			}
-		} else
-			return waitingMap.remove(request) != null;
+				//			}
+			} else
+				return waitingMap.remove(request) != null;
+		}
 	}
 	
 	
@@ -377,7 +377,9 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 			}
 //			worker.execute();
 //				System.out.println("Event dispatch putting: " + SwingUtilities.isEventDispatchThread());
-			waitingMap.put(request, worker);
+			synchronized (waitingMap) {
+				waitingMap.put(request, worker);
+			}
 		}
 //		workersToWait.add(worker);
 		return worker;
@@ -441,17 +443,20 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	public synchronized void clearCache(final boolean clearThumbnails, final boolean stopWaiting) {
 		clearingCache = true;
 		// Try to cancel anything we're waiting for
-		if (stopWaiting) {
-			for (TileWorker<T> worker : waitingMap.values().toArray(TileWorker[]::new)) {
-				worker.cancel(true);
+		try {
+			if (stopWaiting) {
+				for (TileWorker<T> worker : waitingMap.values().toArray(TileWorker[]::new)) {
+					worker.cancel(true);
+				}
+				waitingMap.clear();
+				workers.clear();
 			}
-			waitingMap.clear();
-			workers.clear();
+			if (clearThumbnails)
+				thumbnailCache.clear();
+			cache.clear();
+		} finally {
+			clearingCache = false;
 		}
-		if (clearThumbnails)
-			thumbnailCache.clear();
-		cache.clear();
-		clearingCache = false;
 	}
 	
 	
@@ -462,22 +467,29 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	public synchronized void clearCacheForServer(final ImageServer<T> server) {
 		clearingCache = true;
 		// Ensure any current requests are discarded
-		if (!waitingMap.isEmpty()) {
-			String serverPath = server.getPath();
-			Iterator<Entry<RegionRequest, TileWorker<T>>> iter = waitingMap.entrySet().iterator();
-			while (iter.hasNext()) {
-				Entry<RegionRequest, TileWorker<T>> entry = iter.next();
-				if (serverPath.equals(entry.getKey().getPath())) {
-//					System.out.println("REMOVING! " + waitingMap.size());
-					iter.remove();
-					entry.getValue().cancel(true);
-					workers.remove(entry.getValue());
+		try {
+			if (!waitingMap.isEmpty()) {
+				String serverPath = server.getPath();
+				synchronized (waitingMap) {
+					logger.trace("Waiting map size before server cache cleared: {}", waitingMap.size());
+					Iterator<Entry<RegionRequest, TileWorker<T>>> iter = waitingMap.entrySet().iterator();
+					while (iter.hasNext()) {
+						logger.trace("Waiting map size during server clear: {}", waitingMap.size());
+						Entry<RegionRequest, TileWorker<T>> entry = iter.next();
+						if (serverPath.equals(entry.getKey().getPath())) {
+							logger.trace("Removing entry from waiting map for thread  {}", Thread.currentThread().getId());
+							iter.remove();
+							entry.getValue().cancel(true);
+							workers.remove(entry.getValue());
+						}
+					}
 				}
 			}
+			clearCacheForServer(thumbnailCache, server);
+			clearCacheForServer(cache, server);
+		} finally {
+			clearingCache = false;			
 		}
-		clearCacheForServer(thumbnailCache, server);
-		clearCacheForServer(cache, server);
-		clearingCache = false;
 	}
 	
 	/* (non-Javadoc)
@@ -487,13 +499,15 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	public synchronized void clearCacheForRequestOverlap(final RegionRequest request) {
 		// Ensure any current requests are discarded
 		if (!waitingMap.isEmpty()) {
-			Iterator<Entry<RegionRequest, TileWorker<T>>> iter = waitingMap.entrySet().iterator();
-			while (iter.hasNext()) {
-				Entry<RegionRequest, TileWorker<T>> entry = iter.next();
-				if (request.overlapsRequest(entry.getKey())) {
-					iter.remove();
-					entry.getValue().cancel(true);
-					workers.remove(entry.getValue());
+			synchronized (waitingMap) {
+				Iterator<Entry<RegionRequest, TileWorker<T>>> iter = waitingMap.entrySet().iterator();
+				while (iter.hasNext()) {
+					Entry<RegionRequest, TileWorker<T>> entry = iter.next();
+					if (request.overlapsRequest(entry.getKey())) {
+						iter.remove();
+						entry.getValue().cancel(true);
+						workers.remove(entry.getValue());
+					}
 				}
 			}
 		}
@@ -504,15 +518,26 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 	
 	private synchronized void clearCacheForServer(Map<RegionRequest, T> map, ImageServer<?> server) {
 		String serverPath = server.getPath();
-		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).collect(Collectors.toList());
-		for (var key : keys)
-			map.remove(key);
+		var iterator = map.entrySet().iterator();
+		while (iterator.hasNext()) {
+			if (serverPath.equals(iterator.next().getKey().getPath()))
+				iterator.remove();
+		}
+//		String serverPath = server.getPath();
+//		List<RegionRequest> keys = map.keySet().stream().filter(k -> k.getPath().equals(serverPath)).collect(Collectors.toList());
+//		for (var key : keys)
+//			map.remove(key);
 	}
 	
 	private synchronized void clearCacheForRequestOverlap(Map<RegionRequest, T> map, RegionRequest request) {
-		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).collect(Collectors.toList());
-		for (var key : keys)
-			map.remove(key);
+		var iterator = map.entrySet().iterator();
+		while (iterator.hasNext()) {
+			if (request.overlapsRequest(iterator.next().getKey()))
+				iterator.remove();
+		}
+//		List<RegionRequest> keys = map.keySet().stream().filter(k -> request.overlapsRequest(k)).collect(Collectors.toList());
+//		for (var key : keys)
+//			map.remove(key);
 	}
 	
 	
@@ -607,7 +632,10 @@ abstract class AbstractImageRegionStore<T> implements ImageRegionStore<T> {
 					continue;
 				
 				TileWorker<T> worker = createTileWorker(temp.server, request, cache, false);
-				waitingMap.put(request, worker);
+				logger.trace("Adding {} to waiting map for thread {}", request, Thread.currentThread().getId());
+				synchronized (waitingMap) {
+					waitingMap.put(request, worker);
+				}
 				if (temp.server instanceof GeneratingImageServer) {
 					if (!poolLocal.isShutdown())
 						poolLocal.execute(worker);

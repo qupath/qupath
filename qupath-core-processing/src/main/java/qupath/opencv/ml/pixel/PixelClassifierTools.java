@@ -25,13 +25,14 @@ import org.locationtech.jts.geom.Geometry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import qupath.lib.analysis.algorithms.ContourTracing;
-import qupath.lib.analysis.algorithms.ContourTracing.ChannelThreshold;
+import qupath.lib.analysis.images.ContourTracing;
+import qupath.lib.analysis.images.ContourTracing.ChannelThreshold;
 import qupath.lib.classifiers.pixel.PixelClassificationImageServer;
 import qupath.lib.classifiers.pixel.PixelClassifier;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.objects.DefaultPathObjectComparator;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
@@ -45,8 +46,11 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.regions.RegionRequest;
 import qupath.lib.roi.GeometryTools;
 import qupath.lib.roi.interfaces.ROI;
+import qupath.opencv.ml.pixel.PixelClassifiers.ClassifierFunction;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -126,10 +130,11 @@ public class PixelClassifierTools {
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
+	 * @throws IOException 
 	 */
     public static boolean createDetectionsFromPixelClassifier(
 			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, 
-			double minArea, double minHoleArea, CreateObjectOptions... options) {
+			double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		var selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty())
 			selected = Collections.singleton(hierarchy.getRootObject());
@@ -151,12 +156,13 @@ public class PixelClassifierTools {
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
+     * @throws IOException 
      */
     public static boolean createDetectionsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		return createDetectionsFromPixelClassifier(
 				imageData.getHierarchy(),
-				new PixelClassificationImageServer(imageData, classifier),
+				createPixelClassificationServer(imageData, classifier),
 				minArea, minHoleArea, options);
 	}
 	
@@ -172,11 +178,12 @@ public class PixelClassifierTools {
      * @param options additional options to control how objects are created
 	 * 
 	 * @return true if the command ran successfully to completion, false otherwise.
+	 * @throws IOException 
 	 * @see GeometryTools#refineAreas(Geometry, double, double)
 	 */
 	public static boolean createObjectsFromPredictions(
 			ImageServer<BufferedImage> server, PathObjectHierarchy hierarchy, Collection<PathObject> selectedObjects, 
-			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, CreateObjectOptions... options) {
+			Function<ROI, ? extends PathObject> creator, double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		
 		if (selectedObjects.isEmpty())
 			return false;
@@ -270,12 +277,13 @@ public class PixelClassifierTools {
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
+	 * @throws IOException 
      */
 	public static boolean createAnnotationsFromPixelClassifier(
-			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) {
+			ImageData<BufferedImage> imageData, PixelClassifier classifier, double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		return createAnnotationsFromPixelClassifier(
 				imageData.getHierarchy(),
-				new PixelClassificationImageServer(imageData, classifier),
+				createPixelClassificationServer(imageData, classifier),
 				minArea, minHoleArea, options);
 	}
 	
@@ -291,9 +299,10 @@ public class PixelClassifierTools {
      * @param minHoleArea the minimum area of connected 'hole' regions to retain
      * @param options additional options to control how objects are created
      * @return true if changes were made to the hierarchy, false otherwise
+	 * @throws IOException 
 	 */
 	public static boolean createAnnotationsFromPixelClassifier(
-			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, double minArea, double minHoleArea, CreateObjectOptions... options) {
+			PathObjectHierarchy hierarchy, ImageServer<BufferedImage> classifierServer, double minArea, double minHoleArea, CreateObjectOptions... options) throws IOException {
 		var selected = hierarchy.getSelectionModel().getSelectedObjects();
 		if (selected.isEmpty())
 			selected = Collections.singleton(hierarchy.getRootObject());
@@ -342,6 +351,7 @@ public class PixelClassifierTools {
 	 * @param minHoleArea minimum area for a hole to fill, in calibrated units based on the pixel calibration
      * @param doSplit if true, split connected regions into separate objects
 	 * @return the objects created within the ROI
+	 * @throws IOException 
 	 */
 	public static Collection<PathObject> createObjectsFromPixelClassifier(
 			ImageServer<BufferedImage> server,
@@ -349,7 +359,7 @@ public class PixelClassifierTools {
 			ROI roi, 
 			Function<ROI, ? extends PathObject> creator, 
 			double minArea, double minHoleArea, 
-			boolean doSplit) {
+			boolean doSplit) throws IOException {
 		
 		// We need classification labels to do anything
 		if (labels == null)
@@ -439,10 +449,74 @@ public class PixelClassifierTools {
 	 * @return the classification {@link ImageServer}
 	 */
 	public static ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData, PixelClassifier classifier) {
-		return new PixelClassificationImageServer(imageData, classifier);
+		return createPixelClassificationServer(imageData, classifier, null, null, false);
+	}
+	
+	/**
+	 * Create an {@link ImageServer} that displays the results of applying a {@link PixelClassifier} to an image.
+	 * @param imageData the image to which the classifier should apply
+	 * @param classifier the pixel classifier
+	 * @param id an ID to use for the {@link ImageServer}; this may be null, in which case an ID will be derived (if possible from a JSON representation of the classifier)
+	 * @param colorModel optional colormodel for the classifier (may be null to use the default)
+	 * @param cacheAllTiles optionally request that all tiles are computed immediately as the classifier is created. This is useful for images that are 'small' and where 
+	 *                      the classification can comfortably be held in RAM.
+	 * @return the classification {@link ImageServer}
+	 */
+	public static ImageServer<BufferedImage> createPixelClassificationServer(ImageData<BufferedImage> imageData, PixelClassifier classifier, String id, ColorModel colorModel, boolean cacheAllTiles) {
+		var server = new PixelClassificationImageServer(imageData, classifier, id, colorModel);
+		if (cacheAllTiles) {
+			logger.debug("Caching all tiles for {}", server);
+			server.readAllTiles();
+		}
+		return server;
+	}
+	
+	/**
+	 * Create a new {@link ImageServer} by applying a threshold to one or more channels of another server.
+	 * This is particularly useful where one channel represents intensities to threshold, and one channel should be used as a mask.
+	 * 
+	 * @param server the server to threshold
+	 * @param thresholds map between channel numbers (zero-based) and thresholds
+	 * @param below the classification for pixels whose values are below the threshold in any channel
+	 * @param aboveEquals the classification for pixels whose values are greater than or equal to the threshold in all channels
+	 * @return the thresholded server
+	 */
+	public static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, Map<Integer, ? extends Number> thresholds, PathClass below, PathClass aboveEquals) {
+		var fun = PixelClassifiers.createThresholdFunction(thresholds);
+		var labels = Map.of(0, below, 1, aboveEquals);
+		return createThresholdServer(server, labels, fun);
 	}
 	
 	
+	/**
+	 * Create a new {@link ImageServer} by applying a threshold to one channel of another server.
+	 * 
+	 * @param server the server to threshold
+	 * @param channel the channel to threshold (zero-based)
+	 * @param threshold the threshold value to apply
+	 * @param below the classification for pixels below the threshold (must not be null)
+	 * @param aboveEquals the classification for pixels greater than or equal to the threshold (must not be null)
+	 * @return the thresholded server
+	 */
+	public static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, int channel, double threshold, PathClass below, PathClass aboveEquals) {
+		var fun = PixelClassifiers.createThresholdFunction(channel, threshold);
+		var labels = Map.of(0, below, 1, aboveEquals);
+		return createThresholdServer(server, labels, fun);
+	}
+
+	
+	private static ImageServer<BufferedImage> createThresholdServer(ImageServer<BufferedImage> server, Map<Integer, PathClass> labels, ClassifierFunction fun) {
+		
+		var inputResolution = server.getPixelCalibration();
+		double scale = server.getDownsampleForResolution(0);
+		if (scale > 1)
+			inputResolution = inputResolution.createScaledInstance(scale, scale);
+		
+		var classifier = PixelClassifiers.createThresholdClassifier(inputResolution, labels, fun);
+		return PixelClassifierTools.createPixelClassificationServer(new ImageData<>(server), classifier);
+	}
+
+
 	/**
 	 * Create a {@link PixelClassificationMeasurementManager} that can be used to generate measurements from applying a pixel classifier to an image.
 	 * @param imageData the image to which the classifier should be applied
@@ -543,7 +617,7 @@ public class PixelClassifierTools {
 					int x = (int)roi.getCentroidX();
 					int y = (int)roi.getCentroidY();
 					int ind = getClassification(classifierServer, x, y, roi.getZ(), roi.getT());
-					return new Reclassifier(p, labels.get(ind), false);
+					return new Reclassifier(p, labels.getOrDefault(ind, null), false);
 				} catch (Exception e) {
 					return new Reclassifier(p, null, false);
 				}
@@ -555,6 +629,9 @@ public class PixelClassifierTools {
 	
 	/**
 	 * Request the classification for a specific pixel.
+	 * <p>
+	 * If the output for the server is {@link ChannelType#PROBABILITY} and only one channel is available, 
+	 * the return value will be -1 if the probability is less than 0.5 (or 127.5 if 8-bit).
 	 * 
 	 * @param server
 	 * @param x
@@ -600,6 +677,7 @@ public class PixelClassifierTools {
 			int maxInd = -1;
 			double maxVal = Double.NEGATIVE_INFINITY;
 			var raster = img.getRaster();
+			double threshold = raster.getTransferType() == DataBuffer.TYPE_BYTE ? 127.5 : 0.5;
 			for (int b = 0; b < nBands; b++) {
 				double temp = raster.getSampleDouble(xx, yy, b);
 				if (temp > maxVal) {
@@ -607,6 +685,9 @@ public class PixelClassifierTools {
 					maxVal = temp;
 				}
 			}
+			// If we have a single band, we have to threshold it to get a classification
+			if (nBands == 1 && maxVal < threshold) 
+				return -1;
 			return maxInd;
 		}
 		return -1;
@@ -642,29 +723,10 @@ public class PixelClassifierTools {
 	 * @param preferNucleusROI use the nucleus ROI in the case of cells; ignored for all other object types
 	 */
 	public static void classifyObjectsByCentroid(ImageData<BufferedImage> imageData, PixelClassifier classifier, Collection<PathObject> pathObjects, boolean preferNucleusROI) {
-		classifyObjectsByCentroid(new PixelClassificationImageServer(imageData, classifier), pathObjects, preferNucleusROI);
+		classifyObjectsByCentroid(createPixelClassificationServer(imageData, classifier), pathObjects, preferNucleusROI);
 		imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
 	}
 	
-	
-	
-	
-//	public static void classifyObjectsByAreaOverlap(PixelClassificationImageServer server, Collection<PathObject> pathObjects, double overlapProportion, boolean preferNucleusROI) {
-//		var reclassifiers = pathObjects.parallelStream().map(p -> {
-//				try {
-//					var roi = PathObjectTools.getROI(p, preferNucleusROI);
-//					PixelClassificationMeasurementManager.
-//					int x = (int)roi.getCentroidX();
-//					int y = (int)roi.getCentroidY();
-//					int ind = server.getClassification(x, y, roi.getZ(), roi.getT());
-//					return new Reclassifier(p, PathClassFactory.getPathClass(server.getChannel(ind).getName()), false);
-//				} catch (Exception e) {
-//					return new Reclassifier(p, null, false);
-//				}
-//			}).collect(Collectors.toList());
-//		reclassifiers.parallelStream().forEach(r -> r.apply());
-//		server.getImageData().getHierarchy().fireObjectClassificationsChangedEvent(server, pathObjects);
-//	}	
 	
 
 }

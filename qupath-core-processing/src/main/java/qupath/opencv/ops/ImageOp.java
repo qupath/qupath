@@ -21,12 +21,18 @@
 
 package qupath.opencv.ops;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
+import qupath.lib.io.UriResource;
 import qupath.lib.regions.Padding;
 
 /**
@@ -37,13 +43,20 @@ import qupath.lib.regions.Padding;
  * <p>
  * Operations may be chained
  */
-public interface ImageOp {
+public interface ImageOp extends UriResource {
 	
 	/**
 	 * Apply operation to the image. The input may be modified (and the operation applied in-place), 
 	 * therefore should be duplicated if a copy is required to be kept.
+	 * <p>
+	 * Note that any non-empty padding will be removed, potentially giving an output image smaller than 
+	 * the input. If this is not desirable use {@link ImageOps#padAndApply(ImageOp, Mat)}.
+	 * 
 	 * @param input input image
 	 * @return output image, which may be the same as the input image
+	 * @see #getPadding()
+	 * @see ImageOps#padAndApply(ImageOp, Mat, int)
+	 * @see ImageOps#padAndApply(ImageOp, Mat)
 	 */
 	public Mat apply(Mat input);
 	
@@ -88,6 +101,22 @@ public interface ImageOp {
 	 */
 	public default PixelType getOutputType(PixelType inputType) {
 		return inputType;
+	}
+	
+	/**
+	 * Default implementation returns an empty list; classes should override this if necessary.
+	 */
+	@Override
+	public default Collection<URI> getUris() throws IOException {
+		return Collections.emptyList();
+	}
+	
+	/**
+	 * Default implementation makes no changes; classes should override this if necessary.
+	 */
+	@Override
+	public default boolean updateUris(Map<URI, URI>  replacements) throws IOException {
+		return false;
 	}
 
 }

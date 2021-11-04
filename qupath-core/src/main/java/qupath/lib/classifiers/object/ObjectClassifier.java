@@ -27,6 +27,7 @@ import java.util.Map;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.projects.Project;
 
 /**
  * Interface defining object classifiers, which assign {@linkplain PathClass PathClasses} to {@linkplain PathObject PathObjects}.
@@ -36,6 +37,12 @@ import qupath.lib.objects.classes.PathClass;
  * @param <T>
  */
 public interface ObjectClassifier<T> {
+
+	/**
+	 * Default location to use when storing object classifiers in a project.
+	 * @see Project#getResources(String, Class, String)
+	 */
+	public static final String PROJECT_LOCATION = "classifiers/object_classifiers";
 
 	/**
 	 * Get the classifications set by this classifier.

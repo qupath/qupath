@@ -24,20 +24,24 @@
 package qupath.lib.gui.viewer.overlays;
 
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.IndexColorModel;
+import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import qupath.lib.gui.viewer.ImageInterpolation;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;
 
 /**
@@ -47,13 +51,16 @@ import qupath.lib.regions.ImageRegion;
  * 
  * @author Pete Bankhead
  */
-public class BufferedImageOverlay extends AbstractOverlay {
+public class BufferedImageOverlay extends AbstractImageOverlay implements ChangeListener<ImageData<BufferedImage>> {
 	
 	private static Logger logger = LoggerFactory.getLogger(BufferedImageOverlay.class);
     
     private Map<ImageRegion, BufferedImage> regions = new LinkedHashMap<>();
     
-    private ObjectProperty<ImageInterpolation> interpolation = new SimpleObjectProperty<>(ImageInterpolation.NEAREST);
+    private QuPathViewer viewer;
+    
+    private ColorModel colorModel;
+    private Map<BufferedImage, BufferedImage> cacheRGB = Collections.synchronizedMap(new HashMap<>());
     
     /**
      * Create an overlay to show an image rescaled to overlay the entire current image in the specified viewer.
@@ -62,100 +69,152 @@ public class BufferedImageOverlay extends AbstractOverlay {
      * @param img
      */
     public BufferedImageOverlay(final QuPathViewer viewer, BufferedImage img) {
-        this(viewer,
-        		ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()),
-            img);
+        this(viewer, viewer.getOverlayOptions(), Map.of(
+            	ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()),
+            	img
+        		));
     }
+
     
     /**
      * Create an empty overlay without any images to display.
      * 
-     * @param viewer
+     * @param options
      */
-    public BufferedImageOverlay(final QuPathViewer viewer) {
-        this(viewer, Collections.emptyMap());
+    public BufferedImageOverlay(final OverlayOptions options) {
+        this(options, Collections.emptyMap());
     }
     
-        /**
+    /**
      * Create an overlay to display one specified image region.
      * 
-     * @param viewer
+     * @param options
      * @param region
      * @param img
      */
-    public BufferedImageOverlay(final QuPathViewer viewer, ImageRegion region, BufferedImage img) {
-        this(viewer, Collections.singletonMap(region, img));
+    public BufferedImageOverlay(final OverlayOptions options, ImageRegion region, BufferedImage img) {
+        this(options, img == null ? Collections.emptyMap() : Collections.singletonMap(region, img));
     }
 
     /**
      * Create an overlay to display multiple image regions.
      * 
-     * @param viewer
+     * @param options
      * @param regions
      */
-    public BufferedImageOverlay(final QuPathViewer viewer, Map<ImageRegion, BufferedImage> regions) {
-        super(viewer.getOverlayOptions());
+    public BufferedImageOverlay(final OverlayOptions options, Map<? extends ImageRegion, BufferedImage> regions) {
+        this(null, options, regions);
+    }
+    
+    /**
+     * Create an overlay to display multiple image regions.
+     * @param viewer 
+     * @param options
+     * @param regions
+     */
+    public BufferedImageOverlay(final QuPathViewer viewer, final OverlayOptions options, Map<? extends ImageRegion, BufferedImage> regions) {
+        super(options);
         if (regions != null)
         	this.regions.putAll(regions);
+        if (viewer != null)
+        	addViewerListener(viewer);
     }
     
-    
     /**
-     * Set the preferred method of interpolation to use for display.
+     * Add all regions for a specific level of an {@link ImageServer}.
+     * Note that this results in all regions being read immediately.
+     * Therefore it should only be used for 'small' images that can be held in main memory.
      * 
-     * @param interpolation
+     * @param server the server whose tiles should be drawn on the overlay
+     * @param level the level from which to request regions; for the highest available resolution, use 0
+     * @throws IOException
      */
-    public void setInterpolation(ImageInterpolation interpolation) {
-    		this.interpolation.set(interpolation);
+    public void addAllRegions(ImageServer<BufferedImage> server, int level) throws IOException {
+    	var tiles = server.getTileRequestManager().getTileRequestsForLevel(0);
+    	// TODO: Consider parallelizing this if we have many tiles (the challenge is to handle exceptions sensibly)
+    	for (var tile : tiles) {
+    		var region = tile.getRegionRequest();
+    		if (server.isEmptyRegion(region))
+    			continue;
+    		var img = server.readBufferedImage(region);
+    		if (img != null)
+    			regions.put(region, img);
+    	}
     }
-
+    
     /**
-     * Get the preferred method of interpolation to use for display.
-     * @return 
+     * Optionally set a custom {@link ColorModel}.
+     * This makes it possible to display the {@link BufferedImage} with a different color model than its 
+     * original model.
+     * @param colorModel
      */
-    public ImageInterpolation getInterpolation() {
-		return interpolation.get();
+    public synchronized void setColorModel(ColorModel colorModel) {
+    	if (this.colorModel == colorModel)
+    		return;
+    	this.colorModel = colorModel;
+    	this.cacheRGB.clear();
+    	if (viewer != null)
+    		viewer.repaint();
     }
-
+    
     /**
-     * The preferred method of interpolation to use for display.
-     * @return 
+     * @return the custom color model, if any is found.
      */
-    public ObjectProperty<ImageInterpolation> interpolationProperty() {
-    	return interpolation;
+    public ColorModel getColorModel() {
+    	return colorModel;
     }
     
     
+    private void addViewerListener(QuPathViewer viewer) {
+    	this.viewer = viewer;
+    	viewer.imageDataProperty().addListener(this);
+    }
+    
+    @Override
+	public void changed(ObservableValue<? extends ImageData<BufferedImage>> observable,
+			ImageData<BufferedImage> oldValue, ImageData<BufferedImage> newValue) {
+    	if (viewer != null) {
+    		viewer.imageDataProperty().removeListener(this);
+    		viewer.getCustomOverlayLayers().remove(this);
+    		if (this == viewer.getCustomPixelLayerOverlay())
+    			viewer.resetCustomPixelLayerOverlay();
+    		viewer = null;
+    	}
+	}
+    
+    
     /**
-     * Get the {@code Map} containing image regions to paint on this overlay.
-     * 
-     * This map can be modified, but the modifications will not be visible unless any viewer is repainted.
+     * Get an unmodifiable {@code Map} containing image regions to paint on this overlay.
      * 
      * @return
      */
     public Map<ImageRegion, BufferedImage> getRegionMap() {
-    	return regions;
+    	return Collections.unmodifiableMap(regions);
     }
+    
+//    /**
+//     * Add another region to the overlay.
+//     * @param region
+//     * @param img
+//     * @return any existing region with the same key
+//     */
+//    public BufferedImage put(ImageRegion region, BufferedImage img) {
+//    	var previous = regions.put(region, img);
+//    	if (viewer != null)
+//    		viewer.repaint();
+//    	return previous;
+//    }
+    
 
     @Override
     public void paintOverlay(Graphics2D g2d, ImageRegion imageRegion, double downsampleFactor, ImageData<BufferedImage> imageData, boolean paintCompletely) {
-        // Don't show if objects aren't being shown
-        if (!getOverlayOptions().getShowDetections())
+    	// Don't show if pixel classifications aren't being shown
+        if (!isVisible() || !getOverlayOptions().getShowPixelClassification())
             return;
 
-        // Paint the regions we have
-        ImageInterpolation interp = getInterpolation();
-        switch (interp) {
-			case BILINEAR:
-	            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-				break;
-			case NEAREST:
-	            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-				break;
-			default:
-				logger.debug("Unknown interpolation value {}", interp);
-	    }
-        
+        super.paintOverlay(g2d, imageRegion, downsampleFactor, imageData, paintCompletely);
+
+        // Paint the regions we have        
         for (Map.Entry<ImageRegion, BufferedImage> entry : regions.entrySet()) {
             ImageRegion region = entry.getKey();
             // Check if the region intersects or not
@@ -163,8 +222,36 @@ public class BufferedImageOverlay extends AbstractOverlay {
                 continue;
             // Draw the region
             BufferedImage img = entry.getValue();
-            g2d.drawImage(img, region.getX(), region.getY(), region.getWidth(), region.getHeight(), null);
+            if (colorModel != null && colorModel != img.getColorModel()) {
+            	// Apply the color model to get a version of the image we can draw quickly
+            	var imgRGB = cacheRGB.get(img);
+            	if (imgRGB == null) {
+                	var img2 = new BufferedImage(colorModel, img.getRaster(), img.getColorModel().isAlphaPremultiplied(), null);
+                	imgRGB = convertToDrawable(img2);
+                	cacheRGB.put(img, imgRGB);
+            	}
+            	img = imgRGB;
+            }
+        	g2d.drawImage(img, region.getX(), region.getY(), region.getWidth(), region.getHeight(), null);
         }
+    }
+    
+    /**
+     * Convert a BufferedImage to a form that can be drawn quickly.
+     * This is designed to handle the fact that some ColorModels can be very slow to apply.
+     * @param img
+     * @return
+     */
+    private BufferedImage convertToDrawable(BufferedImage img) {
+    	if (img.getColorModel() == ColorModel.getRGBdefault())
+    		return img;
+    	if (img.getRaster().getNumBands() == 1 && img.getColorModel() instanceof IndexColorModel)
+    		return img;
+    	var imgRGB = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+    	var g2d = imgRGB.createGraphics();
+    	g2d.drawImage(img, 0, 0, null);
+    	g2d.dispose();
+    	return imgRGB;
     }
 
 }

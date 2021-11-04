@@ -47,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ij.process.ByteProcessor;
+import ij.process.ColorProcessor;
 import ij.process.FloatProcessor;
 import ij.process.ImageProcessor;
 import qupath.imagej.tools.IJTools;
@@ -432,8 +433,16 @@ public class ObjectMeasurements {
 		
 		Map<String, ImageProcessor> channels = new LinkedHashMap<>();
 		var serverChannels = server.getMetadata().getChannels();
-		for (int i = 0; i < imp.getStackSize(); i++) {
-			channels.put(serverChannels.get(i).getName(), imp.getStack().getProcessor(i+1));
+		if (server.isRGB() && imp.getStackSize() == 1 && imp.getProcessor() instanceof ColorProcessor) {
+			ColorProcessor cp = (ColorProcessor)imp.getProcessor();
+			for (int i = 0; i < serverChannels.size(); i++) {
+				channels.put(serverChannels.get(i).getName(), cp.getChannel(i+1, null));
+			}
+		} else {
+			assert imp.getStackSize() == serverChannels.size();
+			for (int i = 0; i < imp.getStackSize(); i++) {
+				channels.put(serverChannels.get(i).getName(), imp.getStack().getProcessor(i+1));
+			}			
 		}
 		
 		ByteProcessor bpCell = new ByteProcessor(imp.getWidth(), imp.getHeight());

@@ -193,13 +193,17 @@ public class Histogram { // implements Serializable {
 	public long nMissingValues() {
 		return stats != null ? stats.getNumNaNs() : 0;
 	}
-
+	
 	/**
-	 * Get the index of the bin that should contain the specified value.
-	 * @param value 
-	 * @return
+	 * Get the index of the bin that should contain the specified value. <p>
+	 * This method can be safely used with bins of different sizes but is 
+	 * dramatically slower than {@link #getBinIndexForValue(double, double)}.
+	 * 
+	 * @param value
+	 * @return bin index
+	 * @see #getBinIndexForValue(double, double)
 	 */
-	public int getBinIndexForValue(double value) {
+	int getBinIndexForValue(double value) {
 		// Return -1 if out of range
 		if (value > edgeMax || value < edgeMin)
 			return -1;
@@ -210,6 +214,22 @@ public class Histogram { // implements Serializable {
 			i--;
 		}
 		return i;
+	}
+
+	/**
+	 * Get the index of the bin that should contain the specified value. <p>
+	 * This assumes that all bins have the same width ({@code binWidth}).
+	 * 
+	 * @param value 
+	 * @param binWidth 
+	 * @return bin index
+	 * @see #getBinIndexForValue(double)
+	 */
+	public int getBinIndexForValue(double value, double binWidth) {
+		int bin = (int)((value - edgeMin) / binWidth);
+		if (bin >= counts.length)
+			bin = counts.length - 1;
+		return bin;
 	}
 	
 	/**
@@ -391,9 +411,7 @@ public class Histogram { // implements Serializable {
 			// Skip NaNs, or out of range values
 			if (Double.isNaN(v) || v < edgeMin || v > edgeMax)
 				continue;
-			int bin = (int)((v - edgeMin) / binWidth);
-			if (bin >= counts.length)
-				bin = counts.length - 1;
+			int bin = getBinIndexForValue(v, binWidth);
 			long count = counts[bin] + 1;
 			counts[bin] = count;
 			if (count > maxCount)

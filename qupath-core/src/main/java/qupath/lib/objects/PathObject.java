@@ -413,7 +413,7 @@ public abstract class PathObject implements Externalizable {
 	 * Remove a single object from the child list of this object.
 	 * @param pathObject
 	 */
-	public synchronized void removePathObject(PathObject pathObject) {
+	public void removePathObject(PathObject pathObject) {
 		if (!hasChildren())
 			return;
 		if (pathObject.parent == this)
@@ -432,20 +432,24 @@ public abstract class PathObject implements Externalizable {
 			if (pathObject.parent == this)
 				pathObject.parent = null;
 		}
-		removeAllQuickly(childList, pathObjects);
+		synchronized (childList) {
+			removeAllQuickly(childList, pathObjects);
+		}
 	}
 	
 	/**
 	 * Remove all child objects.
 	 */
-	public synchronized void clearPathObjects() {
+	public void clearPathObjects() {
 		if (!hasChildren())
 			return;
-		for (PathObject pathObject : childList) {
-			if (pathObject.parent == this)
-				pathObject.parent = null;
+		synchronized (childList) {
+			for (PathObject pathObject : childList) {
+				if (pathObject.parent == this)
+					pathObject.parent = null;
+			}
+			childList.clear();
 		}
-		childList.clear();
 	}
 	
 	/**
@@ -468,14 +472,15 @@ public abstract class PathObject implements Externalizable {
 	 * @see #nChildObjects()
 	 */
 	public int nDescendants() {
-		if (childList == null || childList.isEmpty())
+		if (!hasChildren())
 			return 0;
-		synchronized (this) {
-			int total = 0;
-			for (var child : childList)
-				total += 1 + child.nDescendants();
-			return total;
+		// This could be used if needed - but with childList being synchronized I think it isn't necessary
+//		var childArray = getChildObjectsAsArray();
+		int total = 0;
+		for (var child : childList) {
+			total += 1 + child.nDescendants();
 		}
+		return total;
 	}
 	
 	/**
@@ -582,11 +587,9 @@ public abstract class PathObject implements Externalizable {
 	 * In the current implementation, this is immutable - it cannot be modified directly.
 	 * @return
 	 */
-	public synchronized Collection<PathObject> getChildObjects() {
-		if (childList == null)
+	public Collection<PathObject> getChildObjects() {
+		if (!hasChildren())
 			return Collections.emptyList();
-		if (cachedUnmodifiableChildren == null)
-			cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList); // Could use collection (but be careful about hashcode & equals!)
 		return cachedUnmodifiableChildren;
 	}
 	
@@ -596,11 +599,11 @@ public abstract class PathObject implements Externalizable {
 	 * @param children optional collection to which the children should be added
 	 * @return collection containing all child object (the same as {@code children} if provided)
 	 */
-	public synchronized Collection<PathObject> getChildObjects(Collection<PathObject> children) {
+	public Collection<PathObject> getChildObjects(Collection<PathObject> children) {
 		if (children == null)
 			return getChildObjects();
-		if (childList == null || childList.isEmpty())
-			return Collections.emptyList();
+		if (!hasChildren())
+			return children;
 		children.addAll(childList);
 		return children;
 	}
@@ -611,8 +614,8 @@ public abstract class PathObject implements Externalizable {
 	 * @param descendants optional collection to which the descendants should be added
 	 * @return collection containing all descendant object (the same as {@code descendants} if provided)
 	 */
-	public synchronized Collection<PathObject> getDescendantObjects(Collection<PathObject> descendants) {
-		if (childList == null || childList.isEmpty())
+	public Collection<PathObject> getDescendantObjects(Collection<PathObject> descendants) {
+		if (!hasChildren())
 			return Collections.emptyList();
 		if (descendants == null)
 			descendants = new ArrayList<>();
@@ -632,7 +635,7 @@ public abstract class PathObject implements Externalizable {
 	 * it here.
 	 * @return
 	 */
-	public synchronized PathObject[] getChildObjectsAsArray() {
+	public PathObject[] getChildObjectsAsArray() {
 		return childList == null ? new PathObject[0] : childList.toArray(PathObject[]::new);
 	}
 	
@@ -743,8 +746,20 @@ public abstract class PathObject implements Externalizable {
 	 * @param capacity
 	 */
 	void ensureChildList(int capacity) {
-		if (childList == null)
-			childList = new LinkedHashSet<PathObject>(8, 0.75f);
+		if (childList == null) { 
+			synchronized (this) {
+				if (childList != null)
+					return;
+				// Set default capacity to something reasonable, taking into consideration 
+				// the load factor (we don't want to expand immediately)
+				int n = 8;
+				float loadFactor = 0.75f;
+				if (capacity > 0)
+					n = (int)Math.max(n, Math.ceil(capacity / loadFactor));
+				childList = Collections.synchronizedSet(new LinkedHashSet<PathObject>(n, loadFactor));
+				cachedUnmodifiableChildren = Collections.unmodifiableCollection(childList);
+			}
+		}
 //			childList = new TreeSet<PathObject>(DefaultPathObjectComparator.getInstance());
 //			childList = new ArrayList<PathObject>();
 	}

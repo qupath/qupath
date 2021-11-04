@@ -51,8 +51,8 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.text.Font;
@@ -218,7 +218,8 @@ public class ParameterPanelFX {
 	private void addNumericTextField(NumericParameter<? extends Number> param) {
 		TextField tf = getTextField(param, DEFAULT_NUMERIC_TEXT_COLS);
 		if (param.getUnit() != null) {
-			Pane panel = new FlowPane();
+//			Pane panel = new FlowPane(); // Leaves a lot of space due to wrap width
+			Pane panel = new HBox();
 			panel.getChildren().add(tf);
 			Label label = new Label(param.getUnit());
 			label.setPadding(new Insets(0, 0, 0, 4));

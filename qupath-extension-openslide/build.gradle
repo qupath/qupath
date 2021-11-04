@@ -1,11 +1,20 @@
-ext.moduleName = 'qupath.extension.openslide'
-
-description = 'qupath-extension-openslide'
-
-configurations {
-  implementation.extendsFrom openslide
+plugins {
+  // Don't need extension-conventions because we don't require access to the UI
+  id 'qupath.common-conventions'
+  id 'java-library'
 }
+
+ext.moduleName = 'qupath.extension.openslide'
+archivesBaseName = 'qupath-extension-openslide'
+description = "QuPath extension to support image reading using OpenSlide."
+
+String nativesClassifier = properties['platform.classifier']
 
 dependencies {
   implementation project(':qupath-core')
+
+  implementation "org.openslide:openslide:3.4.1_2"
+  if (nativesClassifier != null)
+    implementation "org.openslide:openslide:3.4.1_2:${nativesClassifier}"
+
 }

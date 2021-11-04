@@ -1,5 +1,6 @@
-.title { -fx-background-color: transparent;
-		-fx-border-color: null;
+.title {
+	-fx-background-color: transparent;
+	-fx-border-color: null;
 }
 .titled-pane > *.content {
     -fx-border-color: transparent;

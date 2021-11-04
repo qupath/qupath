@@ -427,17 +427,19 @@ public class MiniViewers {
 //				Platform.runLater(() -> updateViewers());
 //				return;
 //			}
-			// Update mouse position if we are synchronizing
-			mousePosition = mainViewer.getMousePosition();
-			if (mousePosition != null) {
-				mainViewer.componentPointToImagePoint(mousePosition, mousePosition, false);
-				if (synchronizeToMainViewer.get() && !shiftDown.get())
-					centerPosition.setLocation(mousePosition);
+			if (this.pane != null && this.pane.isVisible()) {
+				// Update mouse position if we are synchronizing
+				mousePosition = mainViewer.getMousePosition();
+				if (mousePosition != null) {
+					mainViewer.componentPointToImagePoint(mousePosition, mousePosition, false);
+					if (synchronizeToMainViewer.get() && !shiftDown.get())
+						centerPosition.setLocation(mousePosition);
+				}
+	
+				// Repaint all viewers
+				for (MiniViewer viewer : miniViewers)
+					viewer.repaint();
 			}
-
-			// Repaint all viewers
-			for (MiniViewer viewer : miniViewers)
-				viewer.repaint();
 			requestUpdate = false;
 		}
 		

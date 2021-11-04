@@ -86,6 +86,27 @@ public class TestRegionRequest {
 		assertNotEquals(request.getPath(), request9.getPath());
 		sameRegion2D(request, request9);
 		
+		// Pad again
+		var request10 = request.pad2D(Padding.empty());
+		assertEquals(request, request10);
+		
+		var request11 = request.pad2D(Padding.getPadding(padX, padY));
+		assertEquals(request2, request11);
+		
+		int padX2 = 20;
+		int padY2 = 30;
+		var request12 = request.pad2D(Padding.getPadding(padX, padX2, padY, padY2));
+		assertNotEquals(request, request12);
+		assertEquals(request.getPath(), request12.getPath());
+		assertEquals(request.getDownsample(), request12.getDownsample());
+		assertTrue(samePlane(request, request12));
+		assertEquals(request.getMinX()-padX, request12.getMinX());
+		assertEquals(request.getMaxX()+padX2, request12.getMaxX());
+		assertEquals(request.getMinY()-padY, request12.getMinY());
+		assertEquals(request.getMaxY()+padY2, request12.getMaxY());
+		assertEquals(request.getWidth() + padX + padX2, request12.getWidth());
+		assertEquals(request.getHeight() + padY + padY2, request12.getHeight());
+				
 	}
 	
 	

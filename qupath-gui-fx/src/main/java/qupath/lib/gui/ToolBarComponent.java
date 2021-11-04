@@ -51,7 +51,6 @@ import qupath.lib.gui.viewer.OverlayOptions;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.QuPathViewerPlus;
 import qupath.lib.gui.viewer.tools.PathTool;
-import qupath.lib.plugins.parameters.ParameterList;
 
 class ToolBarComponent {
 	

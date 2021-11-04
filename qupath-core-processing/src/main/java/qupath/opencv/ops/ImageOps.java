@@ -27,30 +27,34 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.math3.util.FastMath;
+import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.javacpp.indexer.DoubleIndexer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.global.opencv_core;
-import org.bytedeco.opencv.global.opencv_dnn;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.MatVector;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
-import org.bytedeco.opencv.opencv_dnn.Net;
 import org.bytedeco.opencv.opencv_ml.StatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.RuntimeTypeAdapterFactory;
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
@@ -61,9 +65,13 @@ import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.ServerTools;
 import qupath.lib.io.GsonTools;
+import qupath.lib.io.GsonTools.SubTypeAdapterFactory;
+import qupath.lib.io.UriResource;
 import qupath.lib.regions.Padding;
 import qupath.lib.regions.RegionRequest;
-import qupath.opencv.ml.OpenCVDNN;
+import qupath.opencv.dnn.DnnModel;
+import qupath.opencv.dnn.DnnShape;
+import qupath.opencv.dnn.PredictionFunction;
 import qupath.opencv.ml.FeaturePreprocessor;
 import qupath.opencv.ml.OpenCVClassifiers.OpenCVStatModel;
 import qupath.opencv.tools.LocalNormalization;
@@ -91,29 +99,94 @@ public class ImageOps {
 		String value();
 	}
 	
+	/**
+	 * QuPath v0.2 failed to include op category labels for
+	 * {@code Filters, ML, Normalize, Threshold}.
+	 * <p>
+	 * This is important because it makes name clashes more likely when serializing/deserializing ops, 
+	 * therefore in v0.3 these categories are re-introduced with efforts to maintain backwards compatibility.
+	 */
+	private static List<String> LEGACY_CATEGORIES = Arrays.asList("op.filters.", "op.ml.", "op.normalize.", "op.threshold.");
+	
 	@SuppressWarnings("unchecked")
-	private static <T> void registerTypes(RuntimeTypeAdapterFactory<T> factory, Class<T> factoryType, Class<?> cls, String base) {
+	private static <T> void registerTypes(SubTypeAdapterFactory<T> factory, Class<T> factoryType, Class<?> cls, String base) {
 		var annotation = cls.getAnnotation(OpType.class);
 		if (annotation != null) {
-			base = base + "." + annotation.value();
+			String annotationValue = annotation.value();
+			if (!annotationValue.isEmpty())
+				base = base + "." + annotation.value();
 			if (factoryType.isAssignableFrom(cls)) {
+				logger.trace("Registering {} for class {}", base, cls);
 				factory.registerSubtype((Class<? extends T>)cls, base);
-			}
+				for (String cat : LEGACY_CATEGORIES) {
+					if (base.startsWith(cat)) {
+						String alias = base.replace(cat, "op.");
+						logger.trace("Registering alias {} for class {}", alias, cls);
+						factory.registerAlias((Class<? extends T>)cls, alias);
+					}
+				}
+				// 
+			} else
+				logger.trace("Cannot register {} for factory type {}", cls, factoryType);
+		} else if (!ImageOps.class.equals(cls)) {
+			// Don't look further if we don't have an OpType annotation
+			// (In v0.2, classes were wrongly not annotated... causing wrong op labels)
+			logger.trace("Skipping unannotated class {}", cls);
+			return;
 		}
 		for (var c : cls.getDeclaredClasses()) {
 			registerTypes(factory, factoryType, c, base);
 		}
 	}
 
+	private static SubTypeAdapterFactory<ImageOp> factoryOps;
+	private static SubTypeAdapterFactory<ImageDataOp> factoryDataOps;
 
 	static {
-		RuntimeTypeAdapterFactory<ImageOp> factoryOps = RuntimeTypeAdapterFactory.of(ImageOp.class, "type");
-		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
+		factoryOps = GsonTools.createSubTypeAdapterFactory(ImageOp.class, "type");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryOps);
+		registerTypes(factoryOps, ImageOp.class, ImageOps.class, "op");
 
-		RuntimeTypeAdapterFactory<ImageDataOp> factoryDataOps = RuntimeTypeAdapterFactory.of(ImageDataOp.class, "type");
-		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
+		factoryDataOps = GsonTools.createSubTypeAdapterFactory(ImageDataOp.class, "type");
 		GsonTools.getDefaultBuilder().registerTypeAdapterFactory(factoryDataOps);
+		registerTypes(factoryDataOps, ImageDataOp.class, ImageOps.class, "data.op");
+	}
+	
+	/**
+	 * Register an {@link ImageOp} class for JSON serialization/deserialization.
+	 * <p>
+	 * Labels should typically be all lowercase and begin with "op." and include "ext" if the op is added via an extension.
+	 * <p>
+	 * For example, an "op.threshold.ext.triangle" would be a suitable label for an op added via an extension to apply a threshold 
+	 * using the triangle method.
+	 * 
+	 * @param cls the op to register; this must be compatible with JSON serialization.
+	 * @param label an identifying label; that this must be unique. If it does not start with "op." a warning will be logged.
+	 */
+	public static void registerOp(Class<? extends ImageOp> cls, String label) {
+		Objects.nonNull(cls);
+		Objects.nonNull(label);
+		logger.debug("Registering ImageOp {} with label {}", cls, label);
+		if (!label.startsWith("op."))
+			logger.warn("ImageOp label '{}' does not begin with 'op.'", label);
+		factoryOps.registerSubtype(cls, label);
+	}
+
+	/**
+	 * Register an {@link ImageDataOp} class for JSON serialization/deserialization.
+	 * <p>
+	 * Labels should typically be all lowercase and begin with "data.op." and include "ext" if the op is added via an extension.
+	 * 
+	 * @param cls the op to register; this must be compatible with JSON serialization.
+	 * @param label an identifying label; that this must be unique. If it does not start with "data.op." a warning will be logged.
+	 */
+	public static void registerDataOp(Class<? extends ImageDataOp> cls, String label) {
+		Objects.nonNull(cls);
+		Objects.nonNull(label);
+		logger.debug("Registering ImageOp {} with label {}", cls, label);
+		if (!label.startsWith("data.op."))
+			logger.warn("ImageDataOp label '{}' does not begin with 'data.op.'", label);
+		factoryDataOps.registerSubtype(cls, label);
 	}
 	
 	/**
@@ -181,6 +254,49 @@ public class ImageOps {
 		return buildImageDataOp(inputChannels.toArray(ColorTransform[]::new));
 	}
 	
+	
+	
+	/**
+	 * Apply an op after adding specified padding.
+	 * <p>
+	 * This is useful when applying padded ops to Mats directly, rather than via an {@link ImageDataOp}.
+	 * Because the op will strip off any padding, calling {@code op.apply(mat)} directly often results in a smaller 
+	 * output than the input image. Using this method instead gives an output image that is the same size as 
+	 * the input.
+	 * 
+	 * @param op the op to apply
+	 * @param mat the image to process
+	 * @param padType the OpenCV boundary padding type
+	 * @return the result of applying the op to the input image; note that this is often 
+	 *         a modified version of the input image itself, since many ops work in-place.
+	 * @see ImageOp#apply(Mat)
+	 */
+	public static Mat padAndApply(ImageOp op, Mat mat, int padType) {
+		var padding = op.getPadding();
+		if (padding.isEmpty())
+			return op.apply(mat);
+		opencv_core.copyMakeBorder(mat, mat, 
+				padding.getY1(), padding.getY2(),
+				padding.getX1(), padding.getX2(), padType);
+		return op.apply(mat);
+	}
+	
+	/**
+	 * Apply an op after adding symmetric (reflection) padding.
+	 * <p>
+	 * This is useful when applying padded ops to Mats directly, rather than via an {@link ImageDataOp}.
+	 * Because the op will strip off any padding, calling op.apply(mat) directly often results in a smaller 
+	 * output than the input image. Using this method instead gives an output image that is the same size as 
+	 * the input.
+	 * 
+	 * @param op the op to apply
+	 * @param mat the image to process
+	 * @return the result of applying the op to the input image; note that this is often 
+	 *         a modified version of the input image itself, since many ops work in-place.
+	 */
+	public static Mat padAndApply(ImageOp op, Mat mat) {
+		return padAndApply(op, mat, opencv_core.BORDER_REFLECT);
+	}
 
 	
 	@OpType("default")
@@ -203,7 +319,12 @@ public class ImageOps {
 				img = ServerTools.getPaddedRequest(imageData.getServer(), request, padding);
 				var mat = OpenCVTools.imageToMat(img);
 				mat.convertTo(mat, opencv_core.CV_32F);
-				return op.apply(mat);
+				// Use PointerScope so we can release intermediate references quickly
+//				return op.apply(mat);
+				try (var scope = new PointerScope()) {
+					mat.put(op.apply(mat));
+					return mat;
+				}
 			}
 		}
 
@@ -240,6 +361,18 @@ public class ImageOps {
 			return op.getOutputType(PixelType.FLOAT32);
 		}
 		
+		@Override
+		public Collection<URI> getUris() throws IOException {
+			return op == null ? Collections.emptyList() : op.getUris();
+		}
+
+		@Override
+		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			if (op == null)
+				return false;
+			return op.updateUris(replacements);
+		}
+		
 	}
 	
 	@OpType("channels")
@@ -262,6 +395,7 @@ public class ImageOps {
 			return true;
 		}
 		 
+		@SuppressWarnings("unchecked")
 		@Override
 		public Mat apply(ImageData<BufferedImage> imageData, RegionRequest request) throws IOException {
 			BufferedImage img;
@@ -272,18 +406,24 @@ public class ImageOps {
 			
 			float[] pixels = null;
 			var server = imageData.getServer();
-			List<Mat> channels = new ArrayList<>();
-			for (var t : colorTransforms) {
-				var mat = new Mat(img.getHeight(), img.getWidth(), opencv_core.CV_32FC1);
-				pixels = t.extractChannel(server, img, pixels);
-				try (FloatIndexer idx = mat.createIndexer()) {
-					idx.put(0L, pixels);
+			
+			var mat = new Mat();
+			
+			try (var scope = new PointerScope()) {
+				List<Mat> channels = new ArrayList<>();
+				for (var t : colorTransforms) {
+					var matTemp = new Mat(img.getHeight(), img.getWidth(), opencv_core.CV_32FC1);
+					pixels = t.extractChannel(server, img, pixels);
+					try (FloatIndexer idx = matTemp.createIndexer()) {
+						idx.put(0L, pixels);
+					}
+					channels.add(matTemp);
 				}
-				channels.add(mat);
-			}
-			var mat = OpenCVTools.mergeChannels(channels, null);
-			if (op != null) {
-				mat = op.apply(mat);
+				OpenCVTools.mergeChannels(channels, mat);
+				if (op != null) {
+					mat.put(op.apply(mat));					
+				}
+//				scope.deallocate();
 			}
 			return mat;
 		}
@@ -316,6 +456,18 @@ public class ImageOps {
 				return inputType;
 			return op.getOutputType(inputType);
 		}
+
+		@Override
+		public Collection<URI> getUris() throws IOException {
+			return op == null ? Collections.emptyList() : op.getUris();
+		}
+
+		@Override
+		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+			if (op == null)
+				return false;
+			return op.updateUris(replacements);
+		}
 		
 	}
 	
@@ -323,7 +475,7 @@ public class ImageOps {
 	/**
 	 * Normalization operations.
 	 */
-	// TODO: This should have a name!
+	@OpType("normalize")
 	public static class Normalize {
 		
 		/**
@@ -456,7 +608,7 @@ public class ImageOps {
 		
 		
 		/**
-		 * Normalize by rescaling channels into a fixed range (usually 0-1) using the min/max values.
+		 * Normalize by rescaling channels based on a Gaussian-weighted estimate of local mean and standard deviation.
 		 */
 		@OpType("local")
 		static class LocalNormalizationOp extends PaddedOp {
@@ -508,6 +660,8 @@ public class ImageOps {
 			
 			NormalizePercentileOp(double percentileMin, double percentileMax) {
 				this.percentiles = new double[] {percentileMin, percentileMax};
+				if (percentileMin == percentileMax)
+					throw new IllegalArgumentException("Percentile min and max values cannot be identical!");
 			}
 
 			@Override
@@ -516,8 +670,13 @@ public class ImageOps {
 				opencv_core.split(input, matvec);
 				for (int i = 0; i < matvec.size(); i++) {
 					var mat = matvec.get(i);
-					var range = percentiles(mat, percentiles);
-					double scale = 1./(range[1] - range[0]);
+					var range = OpenCVTools.percentiles(mat, percentiles);
+					double scale;
+					if (range[1] == range[0]) {
+						logger.warn("Normalization percentiles give the same value ({}), scale will be Infinity", range[0]);
+						scale = Double.POSITIVE_INFINITY;
+					} else
+						scale = 1.0/(range[1] - range[0]);
 					double offset = -range[0];
 					mat.convertTo(mat, mat.type(), scale, offset*scale);
 				}
@@ -532,6 +691,7 @@ public class ImageOps {
 	/**
 	 * Filtering operations.
 	 */
+	@OpType("filters")
 	public static class Filters {
 		
 		/**
@@ -560,6 +720,82 @@ public class ImageOps {
 		 */
 		public static ImageOp filter2D(Mat kernel) {
 			return new FilterOp(kernel);
+		}
+		
+//		/**
+//		 * Apply a 2D circular mean filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp mean(int radius, int borderType) {
+//			return new MeanFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular mean filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp mean(int radius) {
+			return new MeanFilterOp(radius);
+		}
+		
+//		/**
+//		 * Apply a 2D circular sum filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp sum(int radius, int borderType) {
+//			return new SumFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular sum filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp sum(int radius) {
+			return new SumFilterOp(radius);
+		}
+		
+//		/**
+//		 * Apply a 2D circular variance filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp variance(int radius, int borderType) {
+//			return new VarianceFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular variance filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp variance(int radius) {
+			return new VarianceFilterOp(radius);
+		}
+		
+//		/**
+//		 * Apply a 2D circular standard deviation filter.
+//		 * @param radius filter radius
+//		 * @param borderType OpenCV border type, e.g. opencv_core.BORDER_DEFAULT
+//		 * @return
+//		 */
+//		public static ImageOp stdDev(int radius, int borderType) {
+//			return new StdDevFilterOp(radius, borderType);
+//		}
+		
+		/**
+		 * Apply a 2D circular standard deviation filter.
+		 * @param radius filter radius
+		 * @return
+		 */
+		public static ImageOp stdDev(int radius) {
+			return new StdDevFilterOp(radius);
 		}
 		
 		/**
@@ -694,17 +930,23 @@ public class ImageOps {
 				return Padding.symmetric(padValue());
 			}
 
+			@SuppressWarnings("unchecked")
 			@Override
 			protected Mat transformPadded(Mat input) {
 				var builder = getBuilder();
-				var output = new ArrayList<Mat>();
-				var channels = OpenCVTools.splitChannels(input);
-				for (var mat : channels) {
-					var results = builder.build(mat);
-					for (var f : features)
-						output.add(results.get(f));
+				try (var scope = new PointerScope()) {
+					var output = new ArrayList<Mat>();
+					var channels = OpenCVTools.splitChannels(input);
+					for (var mat : channels) {
+						var results = builder.build(mat);
+						for (var f : features) {
+							output.add(results.get(f));
+						}
+					}
+					OpenCVTools.mergeChannels(output, input);
+//					scope.deallocate();
 				}
-				return OpenCVTools.mergeChannels(output, input);
+				return input;
 			}
 			
 			@Override
@@ -789,7 +1031,7 @@ public class ImageOps {
 			protected abstract int getOp();
 			
 			private Mat getKernel() {
-				if (kernel == null)
+				if (kernel == null || kernel.isNull())
 					kernel = createDefaultKernel(radius);
 				return kernel;
 			}
@@ -808,6 +1050,98 @@ public class ImageOps {
 			else
 				return opencv_imgproc.getStructuringElement(opencv_imgproc.MORPH_ELLIPSE, size);
 		}
+		
+		
+		@OpType("sum")
+		static class SumFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			SumFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.sumFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
+		@OpType("mean")
+		static class MeanFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			MeanFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.meanFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
+		
+		@OpType("variance")
+		static class VarianceFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			VarianceFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.varianceFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
+		
+		@OpType("stddev")
+		static class StdDevFilterOp extends PaddedOp {
+			
+			private int radius;
+			
+			StdDevFilterOp(int radius) {
+				super();
+				this.radius = radius;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return Padding.symmetric(radius);
+			}
+			@Override
+			protected Mat transformPadded(Mat input) {
+				OpenCVTools.stdDevFilter(input, radius);
+				return input;
+			}
+			
+		}
+		
 	
 		@OpType("median")
 		static class MedianFilterOp extends PaddedOp {
@@ -910,12 +1244,12 @@ public class ImageOps {
 				Mat temp = new Mat();
 				opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_DILATE, getKernel());
 				input.put(opencv_core.equals(input, temp));
-				temp.release();
+				temp.close();
 				return input;
 			}
 			
 			private Mat getKernel() {
-				if (kernel == null)
+				if (kernel == null || kernel.isNull())
 					kernel = createDefaultKernel(radius);
 				return kernel;
 			}
@@ -942,12 +1276,12 @@ public class ImageOps {
 				Mat temp = new Mat();
 				opencv_imgproc.morphologyEx(input, temp, opencv_imgproc.MORPH_ERODE, getKernel());
 				input.put(opencv_core.equals(input, temp));
-				temp.release();
+				temp.close();
 				return input;
 			}
 			
 			private Mat getKernel() {
-				if (kernel == null)
+				if (kernel == null || kernel.isNull())
 					kernel = createDefaultKernel(radius);
 				return kernel;
 			}
@@ -961,9 +1295,11 @@ public class ImageOps {
 		
 	}
 	
+	
 	/**
 	 * Channel and color operations.
 	 */
+	@OpType("channels")
 	public static class Channels {
 		
 		/**
@@ -983,6 +1319,48 @@ public class ImageOps {
 		 */
 		public static ImageOp extract(int... channels) {
 			return new ExtractChannelsOp(channels);
+		}
+		
+		/**
+		 * Repeat the channels a specified number of times.
+		 * This is useful when wishing to apply arithmetic between a single channel and a multi-channel image.
+		 * @param numRepeats
+		 * @return
+		 */
+		public static ImageOp repeat(int numRepeats) {
+			return new RepeatChannelsOp(numRepeats);
+		}
+		
+		/**
+		 * Add all channels together, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp sum() {
+			return new SumChannelsOp();
+		}
+		
+		/**
+		 * Average all channels together using the mean, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp mean() {
+			return new MeanChannelsOp();
+		}
+		
+		/**
+		 * Calculate the minimum value along all channels, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp minimum() {
+			return new MinChannelsOp();
+		}
+		
+		/**
+		 * Calculate the maximum value along all channels, to give a single-channel output.
+		 * @return
+		 */
+		public static ImageOp maximum() {
+			return new MaxChannelsOp();
 		}
 		
 		@OpType("color-deconvolution")
@@ -1024,15 +1402,20 @@ public class ImageOps {
 			}
 			
 			private Mat getMatInv() {
-				if (matInv == null) {
-					matInv = new Mat(3, 3, opencv_core.CV_64FC1, Scalar.ZERO);
-					var inv = stains.getMatrixInverse();
-					try (DoubleIndexer idx = matInv.createIndexer()) {
-						idx.put(0, 0, inv[0]);
-						idx.put(1, 0, inv[1]);
-						idx.put(2, 0, inv[2]);
+				if (matInv == null || matInv.isNull()) {
+					synchronized (this) {
+						if (matInv == null || matInv.isNull()) {
+							matInv = new Mat(3, 3, opencv_core.CV_64FC1, Scalar.ZERO);
+							var inv = stains.getMatrixInverse();
+							try (DoubleIndexer idx = matInv.createIndexer()) {
+								idx.put(0, 0, inv[0]);
+								idx.put(1, 0, inv[1]);
+								idx.put(2, 0, inv[2]);
+							}
+							matInv.put(matInv.t());
+							matInv.retainReference();
+						}
 					}
-					matInv.put(matInv.t());
 				}
 				return matInv;
 			}
@@ -1054,6 +1437,8 @@ public class ImageOps {
 			private int[] channels;
 			
 			ExtractChannelsOp(int... channels) {
+				if (channels.length == 0)
+					throw new IllegalArgumentException("No channel indices provided to extract channels");
 				this.channels = channels.clone();
 			}
 			
@@ -1087,11 +1472,135 @@ public class ImageOps {
 			
 		}
 		
+		@OpType("repeat-channels")
+		static class RepeatChannelsOp implements ImageOp {
+			
+			private int numRepeats;
+			
+			RepeatChannelsOp(int numRepeats) {
+				this.numRepeats = numRepeats;
+			}
+			
+			@Override
+			public Mat apply(Mat input) {
+				List<Mat> originalChannels = OpenCVTools.splitChannels(input);
+				List<Mat> outputChannels = new ArrayList<>();
+				for (int i = 0; i < numRepeats; i++) {
+					// TODO: Check if need to clone?
+					outputChannels.addAll(originalChannels);
+				}
+				return OpenCVTools.mergeChannels(outputChannels, input);
+			}
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				List<ImageChannel> newChannels = new ArrayList<>(channels);
+				for (int i = 1; i < numRepeats; i++) {
+					for (var c : channels) {
+						newChannels.add(ImageChannel.getInstance(c.getName() + "(" + i + ")", c.getColor()));
+					}
+				}
+				return newChannels;
+			}
+			
+			@Override
+			public String toString() {
+				return "Repeat channels " + numRepeats;
+			}
+			
+		}
+		
+		static abstract class ReduceChannelsOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				if (input.channels() <= 1)
+					return input;
+				var temp = input.reshape(1, input.rows()*input.cols());
+				opencv_core.reduce(temp, temp, 1, getReduceOp());
+				temp = temp.reshape(1, input.rows());
+				return temp;
+			}
+			
+			protected abstract int getReduceOp();
+
+			protected abstract String reduceName();
+
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				List<String> allNames = channels.stream().map(c -> c.getName()).collect(Collectors.toList());
+				String name = reduceName() + " [" + String.join(", ", allNames) + "]";
+				return ImageChannel.getChannelList(name);
+			}
+			
+		}
+		
+		@OpType("mean")
+		static class MeanChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_AVG;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Mean";
+			}
+			
+		}
+		
+		@OpType("sum")
+		static class SumChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_SUM;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Sum";
+			}
+			
+		}
+		
+		@OpType("minimum")
+		static class MinChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_MIN;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Minimum";
+			}
+			
+		}
+		
+		@OpType("maximum")
+		static class MaxChannelsOp extends ReduceChannelsOp {
+
+			@Override
+			protected int getReduceOp() {
+				return opencv_core.REDUCE_MAX;
+			}
+
+			@Override
+			protected String reduceName() {
+				return "Maximum";
+			}
+			
+		}
+		
 	}
 	
 	/**
 	 * Thresholding operations.
 	 */
+	@OpType("threshold")
 	public static class Threshold {
 		
 		/**
@@ -1210,9 +1719,9 @@ public class ImageOps {
 			
 			@Override
 			public double getThreshold(Mat mat, int channel) {
-				double median = median(mat);
+				double median = OpenCVTools.median(mat);
 				var matAbs = opencv_core.abs(opencv_core.subtract(mat, Scalar.all(median))).asMat();
-				double mad = median(matAbs) / 0.6750;
+				double mad = OpenCVTools.median(matAbs) / 0.6750;
 				var k = this.k[Math.min(channel,  this.k.length-1)];
 				return median + mad * k;
 			}
@@ -1318,7 +1827,7 @@ public class ImageOps {
 		public static ImageOp splitMerge(Collection<? extends ImageOp> ops) {
 			return new SplitMergeOp(ops.toArray(ImageOp[]::new));
 		}
-		
+				
 		/**
 		 * Create an op that applies all the specified ops to the input {@link Mat}, concatenating the results as channels 
 		 * of the output.
@@ -1327,6 +1836,136 @@ public class ImageOps {
 		 */
 		public static ImageOp splitMerge(ImageOp...ops) {
 			return splitMerge(Arrays.asList(ops));
+		}
+
+		/**
+		 * Create an op that returns its input unchanged.
+		 * This is useful where an op is required, but no processing should be performed (e.g. with {@link #splitSubtract(ImageOp, ImageOp)}).
+		 * @return
+		 */
+		public static ImageOp identity() {
+			return new IdentityOp();
+		}
+		
+		/**
+		 * Create an op that returns Euler's number e raise to the power of the Mat values.
+		 * @return
+		 */
+		public static ImageOp exp() {
+			return new ExponentialOp();
+		}
+		
+		/**
+		 * Create an op that returns the natural logarithm of values.
+		 * @return
+		 */
+		public static ImageOp log() {
+			return new LogOp();
+		}
+		
+		/**
+		 * Create an op that rounds floating point values.
+		 * Non-finite input values are left unchanged.
+		 * @return
+		 */
+		public static ImageOp round() {
+			return new RoundOp();
+		}
+		
+		/**
+		 * Create an op that floors floating point values.
+		 * Non-finite input values are left unchanged.
+		 * @return
+		 */
+		public static ImageOp floor() {
+			return new FloorOp();
+		}
+		
+		/**
+		 * Create an op that ceils floating point values.
+		 * Non-finite input values are left unchanged.
+		 * @return
+		 */
+		public static ImageOp ceil() {
+			return new CeilOp();
+		}
+		
+		/**
+		 * Create an op that replaces NaNs with a specified value.
+		 * @param replaceValue the value to replace NaNs
+		 * @return
+		 */
+		public static ImageOp replaceNaNs(double replaceValue) {
+			return new ReplaceNaNsOp(replaceValue);
+		}
+		
+		/**
+		 * Create an op that replaces one pixel value in an image with another.
+		 * @param originalValue the value in the input image to replace
+		 * @param newValue      the value to use in the output image
+		 * @return
+		 */
+		public static ImageOp replace(double originalValue, double newValue) {
+			return new ReplaceValueOp(originalValue, newValue);
+		}
+		
+		private static enum SplitCombineType {ADD, SUBTRACT, MULTIPLY, DIVIDE};
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by adding corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitAdd(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.ADD);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by subtracting corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitSubtract(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.SUBTRACT);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by multiplying corresponding values.
+		 * @param opLeft op to apply to first duplicate
+		 * @param opRight op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitMultiply(ImageOp opLeft, ImageOp opRight) {
+			return new SplitCombineOp(opLeft, opRight, SplitCombineType.MULTIPLY);
+		}
+		
+		/**
+		 * Create an op that duplicates a Mat, applies different operations to each duplicate, and 
+		 * combines the result by dividing corresponding values.
+		 * @param opTop op to apply to first duplicate
+		 * @param opBottom op to apply to second duplicate
+		 * @return new split-combine op
+		 */
+		public static ImageOp splitDivide(ImageOp opTop, ImageOp opBottom) {
+			return new SplitCombineOp(opTop, opBottom, SplitCombineType.DIVIDE);
+		}
+		
+		
+		@OpType("identity")
+		static class IdentityOp implements ImageOp {
+
+			IdentityOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				return input;
+			}
+			
 		}
 		
 		
@@ -1375,6 +2014,75 @@ public class ImageOps {
 					OpenCVTools.mergeChannels(channels, input);
 				} else
 					throw new IllegalArgumentException("Multiply requires " + values.length + " channels, but Mat has " + input.channels());
+				return input;
+			}
+			
+		}
+		
+		@OpType("replace-values")
+		static class ReplaceValueOp implements ImageOp {
+			
+			private double originalValue;
+			private double newValue;
+			
+			ReplaceValueOp(double originalValue, double newValue) {
+				this.originalValue = newValue;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.replaceValues(input, originalValue, newValue);
+				return input;
+			}
+			
+		}
+		
+		@OpType("replace-nans")
+		static class ReplaceNaNsOp implements ImageOp {
+			
+			private double value;
+			
+			ReplaceNaNsOp(double value) {
+				this.value = value;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.replaceNaNs(input, value);
+				return input;
+			}
+			
+		}
+		
+		
+		@OpType("round")
+		static class RoundOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.round(input);
+				return input;
+			}
+			
+		}
+		
+		@OpType("ceil")
+		static class CeilOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.ceil(input);
+				return input;
+			}
+			
+		}
+		
+		@OpType("floor")
+		static class FloorOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.floor(input);
 				return input;
 			}
 			
@@ -1475,6 +2183,52 @@ public class ImageOps {
 			
 		}
 		
+		
+		@OpType("log")
+		static class LogOp implements ImageOp {
+			
+			LogOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				// Use FastMath - there are too many caveats with OpenCV's log implementation
+				OpenCVTools.apply(input, d -> FastMath.log(d));
+				return input;
+//				System.err.println("BEFORE: " + input.createIndexer());
+//				
+//				Mat maskZero = opencv_core.equals(input, 0.0).asMat();
+//				Mat maskInvalid = OpenCVTools.createMask(input, d -> d < 0 || !Double.isFinite(d));
+//				
+//				
+//
+//				System.err.println("BEFORE LATER: " + input.createIndexer());
+//
+//				opencv_core.log(input, input);
+//				
+//				OpenCVTools.fill(input, maskZero, Double.NEGATIVE_INFINITY);
+//				OpenCVTools.fill(input, maskInvalid, Double.NaN);
+//				maskZero.close();
+//				maskInvalid.close();
+//				System.err.println(input.createIndexer());
+//				return input;
+			}
+			
+		}
+		
+		
+		@OpType("exp")
+		static class ExponentialOp implements ImageOp {
+			
+			ExponentialOp() {}
+			
+			@Override
+			public Mat apply(Mat input) {
+				opencv_core.exp(input, input);
+				return input;
+			}
+			
+		}
+		
 		@OpType("pow")
 		static class PowerOp implements ImageOp {
 			
@@ -1486,8 +2240,30 @@ public class ImageOps {
 			
 			@Override
 			public Mat apply(Mat input) {
-				opencv_core.pow(input, power, input);
+				// Use FastMath - there are too many caveats with OpenCV's pow implementation
+				OpenCVTools.apply(input, d -> FastMath.pow(d, power));
 				return input;
+//				opencv_core.pow(input, power, input);
+//				// For non-integer powers, OpenCV uses the absolute value
+//				if (power == Math.rint(power))
+//					opencv_core.pow(input, power, input);
+//				else {
+//					opencv_core.pow(input, power, input);
+//					Mat mask = opencv_core.lessThan(input, 0.0).asMat();			    
+//					if (opencv_core.countNonZero(mask) != 0) {
+//						if (power < 0) {
+//							var nan = OpenCVTools.scalarMat(Double.NaN, opencv_core.CV_64F);
+//							input.setTo(nan, mask);
+//							nan.close();
+//						} else {
+//							var temp = OpenCVTools.scalarMat(0.0, opencv_core.CV_64F);
+//							opencv_core.subtract(temp, input, input, mask, input.depth());
+//							temp.close();
+//						}
+//					}
+//				    mask.close();
+//				}
+//				return input;
 			}
 			
 		}
@@ -1514,8 +2290,15 @@ public class ImageOps {
 
 			@Override
 			public Mat apply(Mat input) {
-				for (var t : ops)
-					input = t.apply(input);
+				for (var t : ops) {
+					var output = t.apply(input);
+					// Effectively work in-place, deallocating quickly to avoid 
+					// accumulating a lot of references and relying on the garbage collector
+					if (output != input) {
+						input.put(output);
+						output.close();
+					}
+				}
 				return input;
 			}
 			
@@ -1542,12 +2325,32 @@ public class ImageOps {
 				return inputType;
 			}
 			
+			/**
+			 * Get all URIs associated with this op.
+			 * @return
+			 * @throws IOException 
+			 */
+			@Override
+			public Collection<URI> getUris() throws IOException {
+				return getAllUris(ops.toArray(ImageOp[]::new));
+			}
+
+			/**
+			 * Update all URIs associated with this op.
+			 * @param replacements
+			 * @return
+			 */
+			@Override
+			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+				return updateAllUris(replacements, ops.toArray(ImageOp[]::new));
+			}
+			
 		}
 		
 		
 		/**
 		 * Duplicate the input {@link Mat} and apply different ops to the duplicates, 
-		 * merging the result at the end.
+		 * merging the result at the end using channel concatenation.
 		 */
 		@OpType("split-merge")
 		static class SplitMergeOp extends PaddedOp {
@@ -1581,29 +2384,32 @@ public class ImageOps {
 				return padding;
 			}
 
+			@SuppressWarnings("unchecked")
 			@Override
 			protected Mat transformPadded(Mat input) {
 				if (ops.isEmpty())
 					return new Mat();
 				if (ops.size() == 1)
 					return ops.get(0).apply(input);
-				var mats = new ArrayList<Mat>();
-				for (var op : ops) {
-					var temp = input.clone();
-					var result = op.apply(temp);
-					mats.add(result);
-					if (result != temp)
-						temp.close();
+				
+				try (var scope = new PointerScope()) {
+					var mats = new ArrayList<Mat>();
+					// Remember we padded all branches the same - but some may have needed more or less than others
+					var padding = getPadding();
+					for (var op : ops) {
+						var temp = input.clone();
+						temp.put(op.apply(temp));
+						
+						// Strip padding if needed
+						var padExtra = padding.subtract(op.getPadding());
+						if (!padExtra.isEmpty())
+							temp.put(stripPadding(temp, padExtra));
+
+						mats.add(temp);
+					}
+					OpenCVTools.mergeChannels(mats, input);
 				}
-				// Remember we padded all branches the same - but some may have needed more or less than others
-				var padding = getPadding();
-				for (int i = 0; i < ops.size(); i++) {
-					var t = ops.get(i);
-					var padExtra = padding.subtract(t.getPadding());
-					if (!padExtra.isEmpty())
-						mats.get(i).put(stripPadding(mats.get(i), padExtra));
-				}
-				return OpenCVTools.mergeChannels(mats, null);
+				return input;
 			}
 			
 			@Override
@@ -1613,6 +2419,150 @@ public class ImageOps {
 					inputType = t.getOutputType(inputType);
 				return inputType;
 			}
+			
+			/**
+			 * Get all URIs associated with this op.
+			 * @return
+			 * @throws IOException 
+			 */
+			@Override
+			public Collection<URI> getUris() throws IOException {
+				return getAllUris(ops.toArray(ImageOp[]::new));
+			}
+
+			/**
+			 * Update all URIs associated with this op.
+			 * @param replacements
+			 * @return
+			 */
+			@Override
+			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+				return updateAllUris(replacements, ops.toArray(ImageOp[]::new));
+			}
+
+		}
+		
+		
+		
+		@OpType("split-combine")
+		static class SplitCombineOp extends PaddedOp {
+						
+			private SplitCombineType combine;
+			private ImageOp op1;
+			private ImageOp op2;
+			
+			SplitCombineOp(ImageOp op1, ImageOp op2, SplitCombineType combine) {
+				Objects.nonNull(combine);
+				if (op1 == null)
+					this.op1 = new IdentityOp();
+				else
+					this.op1 = op1;
+				if (op2 == null)
+					this.op2 = new IdentityOp();
+				else
+					this.op2 = op2;
+				this.combine = combine;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				return transformPadded(input);
+			}
+			
+			private String getCombineStr() {
+				switch(combine) {
+				case ADD:
+					return "+";
+				case DIVIDE:
+					return "/";
+				case MULTIPLY:
+					return "*";
+				case SUBTRACT:
+					return "-";
+				default:
+					throw new IllegalArgumentException("Unknown combine type " + combine);
+				}
+			}
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				var c1 = op1.getChannels(channels);
+				var c2 = op2.getChannels(channels);
+				if (c1.size() != c2.size())
+					throw new IllegalArgumentException("Channel counts do not match!");
+				String combo = " " + getCombineStr() + " ";
+				List<ImageChannel> combinedChannels = new ArrayList<>();
+				for (int i = 0; i < c1.size(); i++)
+					combinedChannels.add(
+							ImageChannel.getInstance(
+									c1.get(i).getName() + combo + c2.get(i).getName(),
+									c1.get(i).getColor()));
+				return combinedChannels;
+			}
+
+			@Override
+			protected Padding calculatePadding() {
+				return op1.getPadding().max(op2.getPadding());
+			}
+
+			@Override
+			protected Mat transformPadded(Mat input) {
+				var mat2 = op2.apply(input.clone());
+				var mat1 = op1.apply(input);
+				
+				var padding = getPadding();
+				var padExtra1 = padding.subtract(op1.getPadding());
+				if (!padExtra1.isEmpty())
+					mat1.put(stripPadding(mat1, padExtra1));
+				var padExtra2 = padding.subtract(op2.getPadding());
+				if (!padExtra2.isEmpty())
+					mat2.put(stripPadding(mat2, padExtra2));
+				
+				switch(combine) {
+				case ADD:
+					opencv_core.add(mat1, mat2, mat1);
+					break;
+				case DIVIDE:
+					opencv_core.divide(mat1, mat2, mat1);
+					break;
+				case MULTIPLY:
+					mat1.put(mat1.mul(mat2));
+//					opencv_core.multiply(mat1, mat2, mat1);
+					break;
+				case SUBTRACT:
+					opencv_core.subtract(mat1, mat2, mat1);
+					break;
+				default:
+					throw new IllegalArgumentException("Unknown combine type " + combine);
+				}
+				mat2.close();
+				return mat1;
+			}
+			
+			@Override
+			public PixelType getOutputType(PixelType inputType) {
+				return op1.getOutputType(inputType);
+			}
+			
+			/**
+			 * Get all URIs associated with this op.
+			 * @return
+			 * @throws IOException 
+			 */
+			@Override
+			public Collection<URI> getUris() throws IOException {
+				return getAllUris(op1, op2);
+			}
+
+			/**
+			 * Update all URIs associated with this op.
+			 * @param replacements
+			 * @return
+			 */
+			@Override
+			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+				return updateAllUris(replacements, op1, op2);
+			}
 
 		}
 		
@@ -1621,6 +2571,7 @@ public class ImageOps {
 	/**
 	 * Machine learning operations.
 	 */
+	@OpType("ml")
 	public static class ML {
 		
 		/**
@@ -1634,16 +2585,23 @@ public class ImageOps {
 		}
 		
 		/**
-		 * Apply a {@link OpenCVDNN} to pixels to generate a prediction.
-		 * @param dnn 
-		 * @param inputWidth 
-		 * @param inputHeight 
-		 * @param padding 
+		 * Apply a {@link DnnModel} to pixels to generate a prediction.
+		 * @param model 
+		 * @param inputWidth requested input width
+		 * @param inputHeight requested input height
+		 * @param padding amount of padding provided
+		 * @param outputNames names of model outputs. If empty, the first (and often only) output is used. 
+		 *                    If more than one output is specified, it is assumed that all are the same size 
+		 *                    and they be concatenated along the channels dimension.
 		 * @return
 		 */
-		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding) {
-			return new DnnOp(dnn, inputWidth, inputHeight, padding, false);
+		public static ImageOp dnn(DnnModel<?> model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+			return new DnnOp<>(model, inputWidth, inputHeight, padding, outputNames);
 		}
+				
+//		public static ImageOp dnn(OpenCVDNN dnn, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
+//			return new DnnOp(dnn, inputWidth, inputHeight, padding, outputNames);
+//		}
 		
 		/**
 		 * Apply a {@link FeaturePreprocessor} to pixels, considering each channel as features.
@@ -1688,35 +2646,36 @@ public class ImageOps {
 		}
 		
 		@OpType("opencv-dnn")
-		static class DnnOp extends PaddedOp {
+		static class DnnOp<T> extends PaddedOp {
+			
+			private final static Logger logger = LoggerFactory.getLogger(DnnOp.class);
 
-			private OpenCVDNN model;
+			private DnnModel<T> model;
 			private int inputWidth;
 			private int inputHeight;
 			
-			private boolean doParallel;
+			private String[] outputNames = new String[0];
 			
 			private Padding padding;
 			
-			private transient Net net;
-			private transient ThreadLocal<Net> localNet = ThreadLocal.withInitial(() -> readNet());
-			private transient Exception exception;
+			private transient String inputName;
+			
+			private transient Map<Integer, List<ImageChannel>> outputChannels = Collections.synchronizedMap(new HashMap<>());
 			
 			/**
-			 * A DNN op.
+			 * A op that calls an {@link PredictionFunction}.
 			 * @param model
 			 * @param inputWidth
 			 * @param inputHeight
 			 * @param padding
-			 * @param doParallel if true, load the Net for each thread so it may be applied in parallel. 
-			 *                   This is not a good idea if the net is 'heavyweight'.
+			 * @param outputNames names of output layers; if more than one, these will be concatenated along the channels dimension
 			 */
-			DnnOp(OpenCVDNN model, int inputWidth, int inputHeight, Padding padding, boolean doParallel) {
+			DnnOp(DnnModel<T> model, int inputWidth, int inputHeight, Padding padding, String... outputNames) {
 				this.model = model;
 				this.inputWidth = inputWidth;
 				this.inputHeight = inputHeight;
-				this.padding = padding;
-				this.doParallel = doParallel;
+				this.padding = padding == null ? Padding.empty() : padding;
+				this.outputNames = outputNames.clone();
 			}
 
 			@Override
@@ -1724,47 +2683,107 @@ public class ImageOps {
 				return padding;
 			}
 			
-			/**
-			 * Try to read the {@link Net}, setting the exception if this fails
-			 * @return
-			 */
-			private Net readNet() {
-				if (exception == null) {
-					try {
-						return model.getNet();
-					} catch (IOException e) {
-						exception = e;
+			private String getInputName() {
+				if (inputName != null)
+					return inputName;
+				synchronized(this) {
+					if (inputName == null) {
+						var fun = model.getPredictionFunction();
+						var inputs = fun.getInputs();
+						if (inputs.isEmpty()) {
+							logger.warn("Input names empty for {}", model);
+							inputName = DnnModel.DEFAULT_INPUT_NAME;
+						} else {
+							inputName = inputs.keySet().iterator().next();
+						}
+						if (inputs.size() > 1)
+							logger.warn("DnnOp only supports single inputs, but {} expects {}", model, inputs.size());
 					}
 				}
-				return null;
+				return inputName;
 			}
 			
-			private Net getNet() {
-				if (doParallel)
-					return localNet.get();
-				if (net == null)
-					net = readNet();
-				return net;
-			}
 
 			@Override
 			protected Mat transformPadded(Mat input) {
-				Net net = getNet();
-				if (exception == null) {
-					if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
-						return doClassification(input, net);
-					else
-						return OpenCVTools.applyTiled(m -> doClassification(m, net), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
-				}
-				throw new RuntimeException(exception);
+				var inputName = getInputName();
+				if ((inputWidth <= 0 && inputHeight <= 0) || (input.cols() == inputWidth && input.rows() == inputHeight))
+					return doPrediction(model, input, inputName, outputNames);
+				else
+					return OpenCVTools.applyTiled(m -> doPrediction(model, m, inputName, outputNames), input, inputWidth, inputHeight, opencv_core.BORDER_REFLECT);
 			}
 			
 			@Override
 			public PixelType getOutputType(PixelType inputType) {
 				return PixelType.FLOAT32;
 			}
+			
+			@Override
+			public List<ImageChannel> getChannels(List<ImageChannel> channels) {
+				var outChannels = outputChannels.get(channels.size());
+				if (outChannels == null) {
+					synchronized (this) {
+						outChannels = outputChannels.get(channels.size());
+						if (outChannels == null) {
+							// If we have multiple outputs, try to get output names from the layers
+							var outputs = model.getPredictionFunction().getOutputs(DnnShape.of(1, channels.size(), inputHeight, inputWidth));
+							List<String> names = new ArrayList<>();
+							if (outputs.size() > 1) {
+								Collection<String> outputKeys = outputNames == null || outputNames.length == 0 ? Arrays.asList(outputNames) : outputs.keySet();
+								for (var key : outputKeys) {
+									var shape = outputs.get(key);
+									if (shape != null && !shape.isUnknown() && shape.numDimensions() > 2 && shape.get(1) != DnnShape.UNKNOWN_LENGTH) {
+										for (int c = 0; c < shape.get(1); c++) {
+											names.add(key + ": " + c);
+										}
+									} else
+										logger.warn("Unknown output shape for {} - output channels are unknown", key);
+								}
+							}
+							// Run an example input through
+							var mat = new Mat(inputHeight, inputWidth, opencv_core.CV_32FC(channels.size()), Scalar.ZERO);
+							var output = transformPadded(mat);
+							// Create channels
+							if (names.size() == output.channels())
+								outChannels = ImageChannel.getChannelList(names.toArray(String[]::new));
+							else
+								outChannels = ImageChannel.getDefaultChannelList(output.channels());					
+							outputChannels.put(channels.size(), outChannels);
+							mat.close();
+							output.close();
+						}
+						outputChannels.put(channels.size(), outChannels);
+					}
+				}
+				return outChannels;
+			}
+			
+			/**
+			 * Get all URIs associated with this op.
+			 * @return
+			 * @throws IOException 
+			 */
+			@Override
+			public Collection<URI> getUris() throws IOException {
+				if (model instanceof UriResource)
+					return ((UriResource)model).getUris();
+				return Collections.emptyList();
+			}
 
+			/**
+			 * Update all URIs associated with this op.
+			 * @param replacements
+			 * @return
+			 */
+			@Override
+			public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+				if (model instanceof UriResource)
+					return ((UriResource)model).updateUris(replacements);
+				return false;
+			}
+			
 		}
+		
 		
 		@OpType("opencv-statmodel")
 		static class StatModelOp implements ImageOp {
@@ -1777,20 +2796,23 @@ public class ImageOps {
 				this.requestProbabilities = requestProbabilities;
 			}
 			
+			@SuppressWarnings("unchecked")
 			@Override
 			public Mat apply(Mat input) {
-				int w = input.cols();
-				int h = input.rows();
-				input.put(input.reshape(1, w * h));
-				var matResult = new Mat();
-				if (requestProbabilities) {
-					var temp = new Mat();
-					model.predict(input, temp, matResult);
-					temp.release();
-				} else
-					model.predict(input, matResult, null);
-				input.put(matResult.reshape(matResult.cols(), h));
-				matResult.close();
+				try (var scope = new PointerScope()) {
+					int w = input.cols();
+					int h = input.rows();
+					input.put(input.reshape(1, w * h));
+					var matResult = new Mat();
+					if (requestProbabilities) {
+						var temp = new Mat();
+						model.predict(input, temp, matResult);
+						temp.close();
+					} else
+						model.predict(input, matResult, null);
+					input.put(matResult.reshape(matResult.cols(), h));
+//					scope.deallocate();
+				}
 				return input;
 			}
 			
@@ -1804,51 +2826,36 @@ public class ImageOps {
 	}
 	
 	
-	private static Mat doClassification(Mat mat, Net net) {
-    	// Currently we require 32-bit input
-    	mat.convertTo(mat, opencv_core.CV_32F);
-    	
-        // Net appears not to support multithreading, so we need to synchronize.
-        // We also need to extract the results we need at this point while still within the synchronized block,
-    	// since it appears that the result of calling model.forward() can become invalid later.
-    	Mat matResult = null;
-    	Mat blob = null;
-    	if (mat.channels() == 3) {
-    		blob = opencv_dnn.blobFromImage(mat);
-    	} else {
-    		// TODO: Don't have any net to test this with currently...
-    		logger.warn("Attempting to reshape an image with channels != 3 - this may not work!");
-    		int[] shape = new int[mat.dims() + 1];
-    		shape[0] = 1;
-    		for (int s = 1; s < shape.length; s++) {
-    			shape[1] = mat.size(s-1);
-    		}
-    		if (mat.isContinuous())
-    			blob = new Mat(shape, opencv_core.CV_32F, mat);
-    		else
-        		blob = new Mat(shape, opencv_core.CV_32F, mat.clone());
-    	}
-    	synchronized(net) {
-    		long startTime = System.currentTimeMillis();
-    		net.setInput(blob);
-    		try {
-    			Mat prob = net.forward();
-    			MatVector matvec = new MatVector();
-    			opencv_dnn.imagesFromBlob(prob, matvec);
-    			if (matvec.size() != 1)
-    				throw new IllegalArgumentException("DNN result must be a single image - here, the result is " + matvec.size() + " images");
-    			// Get the first result & clone it - otherwise can have threading woes
-    			matResult = matvec.get(0L).clone();
-    			matvec.close();
-    		} catch (Exception e2) {
-    			logger.error("Error applying classifier", e2);
-    		}
-    		long endTime = System.currentTimeMillis();
-    		logger.trace("Classification time: {} ms", endTime - startTime);
-    	}
-        
-        return matResult;
-    }
+	private static <T> Mat doPrediction(DnnModel<T> model, Mat mat, String inputName, String... outputNames) {
+
+		var matResult = new Mat();
+
+		try (@SuppressWarnings("unchecked")var scope = new PointerScope()) {
+			
+			var output = model.convertAndPredict(Map.of(inputName, mat));
+			
+			if (!output.isEmpty()) {
+				if (outputNames.length == 0 || (outputNames.length == 1 && output.containsKey(outputNames[0])))
+					matResult.put(output.values().iterator().next());
+				else {
+					var tempArray = new Mat[outputNames.length];
+					for (int i = 0; i < outputNames.length; i++) {
+						var name = outputNames[i];
+						if (output.containsKey(name)) {
+							tempArray[i] = output.get(name);
+						} else
+							throw new RuntimeException(String.format("Unable to find output '%s' in %s", name, model));
+					}
+					opencv_core.merge(new MatVector(tempArray), matResult);
+				}
+			}
+
+			scope.deallocate();
+		}
+
+		return matResult;
+
+	}
 	
 	
 	
@@ -1944,7 +2951,9 @@ public class ImageOps {
 			var padding = getPadding();
 			if (padding.isEmpty())
 				return mat;
-			mat.put(stripPadding(mat, getPadding()));
+			var mat2 = stripPadding(mat, getPadding());
+			mat.put(mat2);
+			mat2.close();
 //			long after = mat.cols();
 //			System.err.println(getClass().getSimpleName() + ": \tBefore " + before + ", after " + after + " - " + padding.getX1());
 			return mat;
@@ -1963,6 +2972,8 @@ public class ImageOps {
 	static Mat stripPadding(Mat mat, Padding padding) {
 		if (padding.isEmpty())
 			return mat;
+//		return OpenCVTools.crop(mat, padding.getX1(), padding.getY1(),
+//				mat.cols()-padding.getXSum(), mat.rows()-padding.getYSum());
 		return mat.apply(new Rect(
 				padding.getX1(), padding.getY1(),
 				mat.cols()-padding.getXSum(), mat.rows()-padding.getYSum())).clone();
@@ -1994,27 +3005,22 @@ public class ImageOps {
 	}
 	
 	
-
-	static double median(Mat mat) {
-		return percentiles(mat, 50.0)[0];
+	
+	static Collection<URI> getAllUris(UriResource...items) throws IOException {
+		var list = new LinkedHashSet<URI>();
+		for (var item : items) {
+			list.addAll(item.getUris());
+		}
+		return list;
 	}
 	
-	static double[] percentiles(Mat mat, double... percentiles) {
-		double[] result = new double[percentiles.length];
-		if (result.length == 0)
-			return result;
-		int n = (int)mat.total();
-		var mat2 = mat.reshape(1, n);
-		var matSorted = new Mat();
-		opencv_core.sort(mat2, matSorted, opencv_core.CV_SORT_ASCENDING + opencv_core.CV_SORT_EVERY_COLUMN);
-		try (var idx = matSorted.createIndexer()) {
-			for (int i = 0; i < result.length; i++) {
-				long ind = (long)(percentiles[i] / 100.0 * n);
-				result[i] = idx.getDouble(ind);
-			}
+	
+	static boolean updateAllUris(Map<URI, URI> replacements, UriResource...items) throws IOException {
+		var changes = false;
+		for (var item : items) {
+			changes = changes | item.updateUris(replacements);
 		}
-		matSorted.release();
-		return result;
+		return changes;
 	}
 	
 

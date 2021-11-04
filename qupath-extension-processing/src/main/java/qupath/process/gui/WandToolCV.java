@@ -318,10 +318,10 @@ public class WandToolCV extends BrushTool {
 		
 		// Ensure we have Mats & the correct channel number
 		if (mat != null && (mat.channels() != nChannels || mat.depth() != opencv_core.CV_8U)) {
-			mat.release();
+			mat.close();
 			mat = null;
 		}
-		if (mat == null || mat.empty())
+		if (mat == null || mat.isNull() || mat.empty())
 			mat = new Mat(w, w, CV_8UC(nChannels));
 //		if (matMask == null)
 //			matMask = new Mat(w+2, w+2, CV_8U);
@@ -363,25 +363,26 @@ public class WandToolCV extends BrushTool {
 				mat.convertTo(matFloat, opencv_core.CV_32F, 1.0/255.0, 0.0);
 				opencv_imgproc.cvtColor(matFloat, matFloat, opencv_imgproc.COLOR_BGR2Lab);
 				
-				FloatIndexer idx = matFloat.createIndexer();
-				int k = w/2;
-				double v1 = idx.get(k, k, 0);
-				double v2 = idx.get(k, k, 1);
-				double v3 = idx.get(k, k, 2);
 				double max = 0;
 				double mean = 0;
-				double meanScale = 1.0 / (w * w);
-				for (int row = 0; row < w; row++) {
-					for (int col = 0; col < w; col++) {
-						double L = idx.get(row, col, 0) - v1;
-						double A = idx.get(row, col, 1) - v2;
-						double B = idx.get(row, col, 2) - v3;
-						double dist = Math.sqrt(L*L + A*A + B*B);
-						if (dist > max)
-							max = dist;
-						mean += dist * meanScale;
-						idx.put(row, col, 0, (float)dist);
-					}				
+				try (FloatIndexer idx = matFloat.createIndexer()) {
+					int k = w/2;
+					double v1 = idx.get(k, k, 0);
+					double v2 = idx.get(k, k, 1);
+					double v3 = idx.get(k, k, 2);
+					double meanScale = 1.0 / (w * w);
+					for (int row = 0; row < w; row++) {
+						for (int col = 0; col < w; col++) {
+							double L = idx.get(row, col, 0) - v1;
+							double A = idx.get(row, col, 1) - v2;
+							double B = idx.get(row, col, 2) - v3;
+							double dist = Math.sqrt(L*L + A*A + B*B);
+							if (dist > max)
+								max = dist;
+							mean += dist * meanScale;
+							idx.put(row, col, 0, (float)dist);
+						}				
+					}
 				}
 				if (matThreshold == null)
 					matThreshold = new Mat();
@@ -439,22 +440,21 @@ public class WandToolCV extends BrushTool {
 
 		List<Coordinate> coords = new ArrayList<>();
 		List<Geometry> geometries = new ArrayList<>();
-		for (long i = 0; i < contours.size(); i++) {
-			
-			Mat contour = contours.get(i);
+		for (Mat contour : contours.get()) {
 			
 			// Discard single pixels / lines
 			if (contour.size().height() <= 2)
 				continue;
 			
 			// Create a polygon geometry
-			IntIndexer idxrContours = contour.createIndexer();
-			for (long r = 0; r < idxrContours.size(0); r++) {
-				int px = idxrContours.get(r, 0L, 0L);
-				int py = idxrContours.get(r, 0L, 1L);
-				double xx = (px - w/2-1);// * downsample + x;
-				double yy = (py - w/2-1);// * downsample + y;
-				coords.add(new Coordinate(xx, yy));
+			try (IntIndexer idxrContours = contour.createIndexer()) {
+				for (long r = 0; r < idxrContours.size(0); r++) {
+					int px = idxrContours.get(r, 0L, 0L);
+					int py = idxrContours.get(r, 0L, 1L);
+					double xx = (px - w/2-1);// * downsample + x;
+					double yy = (py - w/2-1);// * downsample + y;
+					coords.add(new Coordinate(xx, yy));
+				}
 			}
 			if (coords.size() > 1) {
 				// Ensure closed
@@ -466,6 +466,8 @@ public class WandToolCV extends BrushTool {
 					geometries.add(polygon);
 			}
 		}
+		contours.close();
+		
 		if (geometries.isEmpty())
 			return null;
 		

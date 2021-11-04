@@ -38,6 +38,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
+import java.util.concurrent.ForkJoinPool;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.prefs.Preferences;
@@ -63,6 +64,7 @@ import javafx.collections.ListChangeListener.Change;
 import javafx.collections.ObservableList;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.projects.ProjectIO;
 
@@ -77,12 +79,44 @@ import qupath.lib.projects.ProjectIO;
  */
 public class PathPrefs {
 	
-	/**
-	 * Name for preference node - until 0.2.0 is stable, avoid using same storage as v0.1.2
-	 */
-	final private static String NODE_NAME = "io.github.qupath.0.2.0";
-	
 	private static Logger logger = LoggerFactory.getLogger(PathPrefs.class);
+	
+	/**
+	 * Allow preference node name to be specified in system property.
+	 * This is especially useful for debugging without using the same user directory.
+	 */
+	private final static String PROP_PREFS = "qupath.prefs.name";
+	
+//	private final static String PROP_USER_PATH = "qupath.path.user";
+	
+	
+	/**
+	 * Default name for preference node in this QuPath version
+	 */
+	private final static String DEFAULT_NODE_NAME = "io.github.qupath/0.3";
+	
+	/**
+	 * Name for preference node
+	 */
+	private final static String NODE_NAME;
+	
+	static {
+		var name = System.getProperty(PROP_PREFS);
+		if (name != null && !name.isBlank()) {
+			logger.info("Setting preference node to {}", name);
+			NODE_NAME = name;
+		} else
+			NODE_NAME = DEFAULT_NODE_NAME;
+		
+		logger.debug("Common ForkJoinPool parallelism: {}", ThreadTools.getParallelism());
+	}
+
+	/**
+	 * Previous preference node, in case these need to be restored.
+	 * For now, this isn't supported.
+	 */
+	@SuppressWarnings("unused")
+	private final static String PREVIOUS_NODE_NAME = "io.github.qupath.0.2.0";
 	
 	/**
 	 * Flag used to trigger when properties should be reset to their default values.
@@ -130,7 +164,20 @@ public class PathPrefs {
 
 	private static StringProperty scriptsPath = createPersistentPreference("scriptsPath", (String)null); // Base directory containing scripts
 	
-	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", Runtime.getRuntime().availableProcessors());
+	private static IntegerProperty numCommandThreads = createPersistentPreference("Requested number of threads", ForkJoinPool.getCommonPoolParallelism());
+	
+	static {
+		numCommandThreads.addListener((v, o, n) -> {
+			int threads = n.intValue();
+			if (threads > 0)
+				ThreadTools.setParallelism(threads);
+			else
+				logger.warn("Cannot set parallelism to {}", threads);
+		});
+		// Make sure initialized
+		int threads = numCommandThreads.get();
+		if (threads > 0)
+			ThreadTools.setParallelism(numCommandThreads.get());	}
 	
 	/**
 	 * Property specifying the preferred number of threads QuPath should use for multithreaded commands.
@@ -329,10 +376,24 @@ public class PathPrefs {
 	 * @return
 	 */
 	public static Preferences getUserPreferences() {
-		Preferences prefs = Preferences.userRoot();
-		prefs = prefs.node(NODE_NAME);
-		return prefs;
+		return getUserPreferences(NODE_NAME, true);
 	}
+	
+	private static Preferences getUserPreferences(String nodeName, boolean createIfNotExists) {
+		Preferences prefs = Preferences.userRoot();
+		try {
+			for (var name : nodeName.split("/")) {
+				if (!createIfNotExists && !prefs.nodeExists(name))
+					return null;
+				prefs = prefs.node(name);
+			}
+			return prefs;
+		} catch (BackingStoreException e) {
+			logger.debug("Exception loading " + nodeName + " (" + e.getLocalizedMessage() + ")", e);
+			return null;
+		}
+	}
+	
 	
 	/**
 	 * Save the preferences.
@@ -430,7 +491,7 @@ public class PathPrefs {
 	
 	
 	/**
-	 * Get whether to apply the navigation acceleration (& deceleration) effects or not.
+	 * Get whether to apply the navigation acceleration (&amp; deceleration) effects or not.
 	 * 
 	 * @return
 	 */
@@ -551,7 +612,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static BooleanProperty doCreateLogFilesProperty = createPersistentPreference("requestCreateLogFiles", true);
+	private static BooleanProperty doCreateLogFilesProperty = createPersistentPreference("requestCreateLogFiles", false);
 
 	/**
 	 * Request a log file to be generated.  Requires the <code>userPathProperty()</code> to be set to a directory.
@@ -1021,7 +1082,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static IntegerProperty viewerBackgroundColor = createPersistentPreference("viewerBackgroundColor", ColorTools.makeRGB(0, 0, 0));
+	private static IntegerProperty viewerBackgroundColor = createPersistentPreference("viewerBackgroundColor", ColorTools.packRGB(0, 0, 0));
 	
 	/**
 	 * Color to paint behind any image.
@@ -1032,12 +1093,12 @@ public class PathPrefs {
 	}
 
 	
-	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.makeRGB(255, 0, 0));
+	private static IntegerProperty colorDefaultObjects = createPersistentPreference("colorDefaultAnnotations", ColorTools.packRGB(255, 0, 0));
 		
-	private static IntegerProperty colorSelectedObject = createPersistentPreference("colorSelectedObject", ColorTools.makeRGB(255, 255, 0));
-	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.makeRGB(20, 20, 180));
-	private static IntegerProperty colorTMAMissing = createPersistentPreference("colorTMAMissing", ColorTools.makeRGBA(20, 20, 180, 50));
-	private static IntegerProperty colorTile = createPersistentPreference("colorTile", ColorTools.makeRGB(80, 80, 80));
+	private static IntegerProperty colorSelectedObject = createPersistentPreference("colorSelectedObject", ColorTools.packRGB(255, 255, 0));
+	private static IntegerProperty colorTMA = createPersistentPreference("colorTMA", ColorTools.packRGB(20, 20, 180));
+	private static IntegerProperty colorTMAMissing = createPersistentPreference("colorTMAMissing", ColorTools.packARGB(50, 20, 20, 180));
+	private static IntegerProperty colorTile = createPersistentPreference("colorTile", ColorTools.packRGB(80, 80, 80));
 	
 	/**
 	 * The default color used to display objects of any type, where a default has not otherwise been specified.

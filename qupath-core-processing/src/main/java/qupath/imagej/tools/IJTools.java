@@ -62,6 +62,8 @@ import ij.process.ImageProcessor;
 import ij.process.LUT;
 import ij.process.ShortProcessor;
 import qupath.imagej.processing.RoiLabeling;
+import qupath.lib.analysis.images.SimpleImage;
+import qupath.lib.analysis.images.SimpleImages;
 import qupath.lib.awt.common.BufferedImageTools;
 import qupath.lib.color.ColorDeconvolutionHelper;
 import qupath.lib.color.ColorDeconvolutionStains;
@@ -219,7 +221,7 @@ public class IJTools {
 			    }
 			    // Append to original image stack
 			    for (int i = 1; i <= imp.getStack().getSize(); i++) {
-			        stack.addSlice(imp.getStack().getProcessor(i));
+			        stack.addSlice(imp.getStack().getSliceLabel(i), imp.getStack().getProcessor(i));
 			    }
 			    // Get the last calibration
 		    	cal = imp.getCalibration();
@@ -251,6 +253,17 @@ public class IJTools {
 		    }
 	    }
 	    return imp;
+	}
+	
+	
+	/**
+	 * Convert a {@link SimpleImage} to an {@link ImageProcessor}.
+	 * @param image
+	 * @return
+	 */
+	public static ImageProcessor convertToFloatProcessor(SimpleImage image) {
+		var pixels = SimpleImages.getPixels(image, false);
+		return new FloatProcessor(image.getWidth(), image.getHeight(), pixels);
 	}
 	
 

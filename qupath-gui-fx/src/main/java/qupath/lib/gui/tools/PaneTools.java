@@ -30,6 +30,7 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Control;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -368,5 +369,23 @@ public class PaneTools {
 				.map(p -> cls.cast(p))
 				.collect(Collectors.toList());
 	}
+	
+	
+	/**
+	 * Simplify the appearance of a {@link TitledPane} using CSS.
+	 * This is useful if using a {@link TitledPane} to define expanded options, which should be displayed unobtrusively.
+	 * 
+	 * @param pane the pane to simplify
+	 * @param boldTitle if true, the title should be displayed in bold
+	 */
+	public static void simplifyTitledPane(TitledPane pane, boolean boldTitle) {
+		var css = PaneTools.class.getClassLoader().getResource("css/titled_plain.css").toExternalForm();
+		pane.getStylesheets().add(css);
+		if (boldTitle) {
+			var css2 = PaneTools.class.getClassLoader().getResource("css/titled_bold.css").toExternalForm();
+			pane.getStylesheets().add(css2);
+		}
+	}
+	
 
 }

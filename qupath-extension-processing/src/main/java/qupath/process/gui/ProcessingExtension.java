@@ -24,6 +24,9 @@ package qupath.process.gui;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.openblas.global.openblas;
 import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_dnn;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.global.opencv_ml;
 import org.controlsfx.control.action.Action;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +35,7 @@ import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.common.Version;
 import qupath.lib.gui.ActionTools;
 import qupath.lib.gui.ActionTools.ActionAccelerator;
 import qupath.lib.gui.ActionTools.ActionDescription;
@@ -51,13 +55,14 @@ import qupath.process.gui.commands.CreateChannelTrainingImagesCommand;
 import qupath.process.gui.commands.CreateCompositeClassifierCommand;
 import qupath.process.gui.commands.CreateRegionAnnotationsCommand;
 import qupath.process.gui.commands.CreateTrainingImageCommand;
+import qupath.process.gui.commands.DensityMapCommand;
 import qupath.process.gui.commands.ObjectClassifierCommand;
 import qupath.process.gui.commands.ObjectClassifierLoadCommand;
 import qupath.process.gui.commands.PixelClassifierCommand;
-import qupath.process.gui.commands.PixelClassifierLoadCommand;
 import qupath.process.gui.commands.SimpleThresholdCommand;
 import qupath.process.gui.commands.SingleMeasurementClassificationCommand;
 import qupath.process.gui.commands.SplitProjectTrainingCommand;
+import qupath.process.gui.commands.ui.LoadResourceCommand;
 import qupath.process.gui.ml.legacy.LegacyDetectionClassifierCommand;
 
 /**
@@ -94,15 +99,32 @@ public class ProcessingExtension implements QuPathExtension {
 		@ActionDescription("Fast cell counting for hematoxylin and DAB images.")
 		@Deprecated
 		public final Action actionFastCellCounts;
+		
+		
+		@ActionMenu("Analyze>Density maps>Create density map")
+		public final Action actionDensityMap;
+
+		@ActionMenu("Analyze>Density maps>Load density map")
+		public final Action actionDensityMapLoad;
 
 				
 		private OpenCVCommands(QuPathGUI qupath) {
 			actionDelaunay = qupath.createPluginAction("Delaunay cluster features 2D", DelaunayClusteringPlugin.class, null);
 //			actionCytokeratin = qupath.createPluginAction("Create cytokeratin annotations (experimental)", DetectCytokeratinCV.class, null);
 			actionFastCellCounts = qupath.createPluginAction("Fast cell counts (brightfield)", CellCountsCV.class, null);
+			var densityMapCommand = new DensityMapCommand(qupath);
+			actionDensityMap = qupath.createImageDataAction(imageData -> densityMapCommand.run());
+			
+			var commandLoad = LoadResourceCommand.createLoadDensityMapCommand(qupath);
+			actionDensityMapLoad = qupath.createImageDataAction(imageData -> commandLoad.run());
+
 		}
 
 	}
+	
+	
+	
+	
 	
 	@ActionMenu("Classify>Object classification")
 	@SuppressWarnings("javadoc")
@@ -159,7 +181,7 @@ public class ProcessingExtension implements QuPathExtension {
 			var commandPixel = new PixelClassifierCommand();
 			actionPixelClassifier = qupath.createImageDataAction(imageData -> commandPixel.run());
 			
-			var commandLoad = new PixelClassifierLoadCommand(qupath);
+			var commandLoad = LoadResourceCommand.createLoadPixelClassifierCommand(qupath);
 			actionLoadPixelClassifier = qupath.createImageDataAction(imageData -> commandLoad.run());
 			
 			var commandThreshold = new SimpleThresholdCommand(qupath);
@@ -306,8 +328,10 @@ public class ProcessingExtension implements QuPathExtension {
 	    		openblas.blas_set_num_threads(1);
 	    	}
 	    	
+	    	// Ensure we can load core classes
+	    	loadCoreClasses();
+	    	
 			// Install the Wand tool
-			Loader.load(opencv_core.class);
 			var wandTool = PathTools.createTool(new WandToolCV(qupath), "Wand",
 					IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, PathIcons.WAND_TOOL));
 			logger.debug("Installing wand tool");
@@ -324,6 +348,27 @@ public class ProcessingExtension implements QuPathExtension {
 		t.start();
     }
     
+    
+    /**
+     * Try to load core classes and report if we can't.
+     * This is important because if class loading fails then the user isn't always notified in the log.
+     * It also aims to overcome a subtle bug (seen on macOS) whereby density maps would fail if run 
+     * before the wand tool (or another using opencv_imgproc), seemingly because of threading/file locks. 
+     * This tended to only input the first installation; once opencv_imgproc was cached by JavaCPP, then 
+     * it would always work.
+     */
+    private void loadCoreClasses() {
+    	try {
+    		logger.debug("Attempting to load core OpenCV classes");
+    		Loader.load(opencv_core.class);
+			Loader.load(opencv_imgproc.class);
+			Loader.load(opencv_ml.class);
+			Loader.load(opencv_dnn.class);
+    	} catch (Throwable t) {
+    		logger.error("Error loading OpenCV classes: " + t.getLocalizedMessage(), t);
+    	}
+    }
+    
 
     @Override
     public String getName() {
@@ -334,4 +379,18 @@ public class ProcessingExtension implements QuPathExtension {
     public String getDescription() {
         return "Core processing & classification commands";
     }
+    
+	@Override
+	public Version getVersion() {
+		return Version.parse(GeneralTools.getPackageVersion(ProcessingExtension.class));
+	}
+	
+	/**
+	 * Returns the version stored within this jar, because it is matched to the QuPath version.
+	 */
+	@Override
+	public Version getQuPathVersion() {
+		return getVersion();
+	}
+	
 }

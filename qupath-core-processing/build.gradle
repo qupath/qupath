@@ -1,10 +1,21 @@
-ext.moduleName = 'qupath.core.processing'
+plugins {
+  id 'qupath.common-conventions'
+  id 'qupath.publishing-conventions'
+  id 'java-library'
+}
 
-description = 'qupath-core-processing'
+ext.moduleName = 'qupath.core.processing'
+archivesBaseName = 'qupath-core-processing'
+description = "Core QuPath module containing the main processing operations."
 
 configurations {
   implementation.extendsFrom commonsmath
   implementation.extendsFrom guava
   api.extendsFrom imagej
   api.extendsFrom opencv
+}
+
+dependencies {
+  api project(':qupath-core')
+  testImplementation project(':qupath-core').sourceSets.test.output
 }

@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link ClassLoader} for loading QuPath extensions and other jars from the user directory.
  * 
- * @author Pete Bankhaad
+ * @author Pete Bankhead
  */
 public class ExtensionClassLoader extends URLClassLoader {
 	
@@ -70,7 +70,7 @@ public class ExtensionClassLoader extends URLClassLoader {
 	/**
 	 * Ensure all Jars in the extensions directory (and one subdirectory down) are available
 	 */
-	void refresh() {
+	public void refresh() {
 		File dirExtensions = QuPathGUI.getExtensionDirectory();
 		if (dirExtensions == null) {
 			logger.debug("Extensions directory is null - no extensions will be loaded");

@@ -22,17 +22,17 @@
 package qupath.lib.gui.tools;
 
 import java.awt.Desktop;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Transparency;
+import java.awt.Desktop.Action;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.text.NumberFormat;
 import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -42,15 +42,21 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import javax.swing.SwingUtilities;
+
 import org.controlsfx.control.CheckComboBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -69,6 +75,9 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Slider;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.SpinnerValueFactory.DoubleSpinnerValueFactory;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -99,9 +108,11 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.objects.PathAnnotationObject;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectTools;
+import qupath.lib.objects.PathRootObject;
 import qupath.lib.objects.TMACoreObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import qupath.lib.plugins.objects.SplitAnnotationsPlugin;
+import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.RoiTools.CombineOp;
@@ -182,11 +193,16 @@ public class GuiTools {
 			var desktop = Desktop.getDesktop();
 			try {
 				// Can open directory on Windows & Mac
-				if (GeneralTools.isWindows() || GeneralTools.isMac()) {
-					if (file.isDirectory())
-						desktop.open(file);
-					else
-						desktop.open(file.getParentFile());
+				if (desktop.isSupported(Action.OPEN)) {
+					var directoryToOpen = file.isDirectory() ? file : file.getParentFile();
+					SwingUtilities.invokeLater(() -> {
+						try {
+							desktop.open(directoryToOpen);
+						} catch (IOException e) {
+							logger.error(e.getLocalizedMessage(), e);
+							logger.error("Unable to open {}", directoryToOpen.getAbsolutePath());
+						}
+					});
 					return true;
 				}
 				// Trouble on Linux - just copy
@@ -200,7 +216,7 @@ public class GuiTools {
 			} catch (Exception e1) {
 				// Browsing the directory (at least on Mac) seems to open the parent directory
 				if (desktop.isSupported(Desktop.Action.BROWSE_FILE_DIR))
-					desktop.browseFileDirectory(file);
+					SwingUtilities.invokeLater(() -> desktop.browseFileDirectory(file));
 				else
 					Dialogs.showErrorNotification("Browse directory", e1);
 			}
@@ -550,7 +566,9 @@ public class GuiTools {
 		hierarchy.getSelectionModel().deselectObject(pathObjectSelected);
 
 		if (pathObjectSelected.hasChildren()) {
-			Dialogs.DialogButton confirm = Dialogs.showYesNoCancelDialog("Delete object", String.format("Keep %d descendant object(s)?", PathObjectTools.countDescendants(pathObjectSelected)));
+			int nDescendants = PathObjectTools.countDescendants(pathObjectSelected);
+			String message = nDescendants == 1 ? "Keep descendant object?" : String.format("Keep %d descendant objects?", nDescendants);
+			Dialogs.DialogButton confirm = Dialogs.showYesNoCancelDialog("Delete object", message);
 			if (confirm == Dialogs.DialogButton.CANCEL)
 				return false;
 			if (confirm == Dialogs.DialogButton.YES)
@@ -601,9 +619,16 @@ public class GuiTools {
 		if (Desktop.isDesktopSupported()) {
 			try {
 				var desktop = Desktop.getDesktop();
-				if (desktop.isSupported(Desktop.Action.OPEN))
-					desktop.open(file);
-				else {
+				if (desktop.isSupported(Desktop.Action.OPEN)) {
+					SwingUtilities.invokeLater(() -> {
+						try {
+							desktop.open(file);						
+						} catch (IOException e) {
+							logger.error(e.getLocalizedMessage(), e);
+							logger.error("Unable to open {}", file.getAbsolutePath());
+						}
+					});
+				} else {
 					if (Dialogs.showConfirmDialog("Open file",
 							"Opening files not supported on this platform!\nCopy directory path to clipboard instead?")) {
 						var content = new ClipboardContent();
@@ -675,7 +700,7 @@ public class GuiTools {
 	 * Restrict the {@link TextField} input to positive/negative integer (or double) format (including scientific notation).
 	 * <p>
 	 * N.B: the {@code TextArea} might still finds itself in an invalid state at any moment, as:
-	 * <li> character deletion is always permitted (e.g. -1.5e5 -> -1.5e; deletion of last character).</li>
+	 * <li> character deletion is always permitted (e.g. -1.5e5 -&gt; -1.5e; deletion of last character).</li>
 	 * <li>users are allowed to input a minus sign, in order to permit manual typing, which then needs to accept intermediate (invalid) states.</li>
 	 * <li>users are allowed to input an 'E'/'e' character, in order to permit manual typing as well, which then needs to accept intermediate (invalid) states.</li>
 	 * <li>copy-pasting is not as strictly restricted (e.g. -1.6e--5 and 1.6e4e9 are accepted, but won't be parsed).</li>
@@ -1007,6 +1032,23 @@ public class GuiTools {
 	
 	
 	/**
+	 * Bind the value of a slider and contents of a text field with a default number of decimal places,
+	 * so that both may be used to set a numeric (double) value.
+	 * <p>
+	 * This aims to overcome the challenge of keeping both synchronized, while also quietly handling 
+	 * parsing errors that may occur whenever the text field is being edited.
+	 * 
+	 * @param slider slider that may be used to adjust the value
+	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @param expandLimits optionally expand slider min/max range to suppose the text field input; if this is false, the text field 
+	 *                     may contain a different value that is unsupported by the slider
+	 * @return a property representing the value represented by the slider and text field
+	 */
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, boolean expandLimits) {
+		return bindSliderAndTextField(slider, tf, expandLimits, -1);
+	}
+	
+	/**
 	 * Bind the value of a slider and contents of a text field, so that both may be used to 
 	 * set a numeric (double) value.
 	 * <p>
@@ -1015,11 +1057,63 @@ public class GuiTools {
 	 * 
 	 * @param slider slider that may be used to adjust the value
 	 * @param tf text field that may also be used to adjust the value and show it visually
+	 * @param expandLimits optionally expand slider min/max range to suppose the text field input; if this is false, the text field 
+	 *                     may contain a different value that is unsupported by the slider
+	 * @param ndp if &ge; 0, this will be used to define the number of decimal places shown in the text field
 	 * @return a property representing the value represented by the slider and text field
 	 */
-	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf) {
-		new NumberAndText(slider.valueProperty(), tf.textProperty()).synchronizeTextToNumber();
-		return slider.valueProperty();
+	public static DoubleProperty bindSliderAndTextField(Slider slider, TextField tf, boolean expandLimits, int ndp) {
+		var numberProperty = new SimpleDoubleProperty(slider.getValue());
+		new NumberAndText(numberProperty, tf.textProperty(), ndp).synchronizeTextToNumber();
+		if (expandLimits) {
+			numberProperty.addListener((v, o, n) -> {
+				double val = n.doubleValue();
+				if (Double.isFinite(val)) {
+					if (val < slider.getMin())
+						slider.setMin(val);
+					if (val > slider.getMax())
+						slider.setMax(val);
+					slider.setValue(val);
+				}
+			});
+			slider.valueProperty().addListener((v, o, n) -> numberProperty.setValue(n));
+		} else {
+			slider.valueProperty().bindBidirectional(numberProperty);
+		}
+		return numberProperty;	
+//		new NumberAndText(slider.valueProperty(), tf.textProperty(), ndp).synchronizeTextToNumber();
+//		return slider.valueProperty();		
+	}
+	
+	/**
+	 * Install a mouse click listener to prompt the user to input min/max values for a slider.
+	 * @param slider
+	 * @see #promptForSliderRange(Slider)
+	 */
+	public static void installRangePrompt(Slider slider) {
+		slider.setOnMouseClicked(e -> {
+			if (e.getClickCount() == 2)
+				promptForSliderRange(slider);
+		});
+	}
+	
+	/**
+	 * Prompt the user to input min/max values for a slider.
+	 * @param slider
+	 * @return true if the user may have made changes, false if they cancelled the dialog
+	 */
+	public static boolean promptForSliderRange(Slider slider) {
+		
+		var params = new ParameterList()
+				.addEmptyParameter("Specify the min/max values supported by the slider")
+				.addDoubleParameter("minValue", "Slider minimum", slider.getMin())
+				.addDoubleParameter("maxValue", "Slider maximum", slider.getMax());
+		if (!Dialogs.showParameterDialog("Slider range", params))
+			return false;
+		
+		slider.setMin(params.getDoubleParameterValue("minValue"));
+		slider.setMax(params.getDoubleParameterValue("maxValue"));
+		return true;
 	}
 	
 	
@@ -1036,12 +1130,14 @@ public class GuiTools {
 		private DoubleProperty number;
 		private StringProperty text;
 		private NumberFormat format = GeneralTools.createFormatter(5);
+		private int ndp;
 		
-		NumberAndText(DoubleProperty number, StringProperty text) {
+		NumberAndText(DoubleProperty number, StringProperty text, int ndp) {
 			this.number = number;
 			this.text = text;
 			this.number.addListener((v, o, n) -> synchronizeTextToNumber());
 			this.text.addListener((v, o, n) -> synchronizeNumberToText());
+			this.ndp = ndp;
 		}
 		
 		public void synchronizeNumberToText() {
@@ -1070,9 +1166,12 @@ public class GuiTools {
 			if (Double.isNaN(value))
 				s = "";
 			else if (Double.isFinite(value)) {
-				double log10 = Math.round(Math.log10(value));
-				int ndp = (int)Math.max(4, -log10 + 2);
-				s = GeneralTools.formatNumber(value, ndp);
+				if (ndp < 0) {
+					double log10 = Math.round(Math.log10(value));
+					int ndp2 = (int)Math.max(4, -log10 + 2);
+					s = GeneralTools.formatNumber(value, ndp2);
+				} else
+					s = GeneralTools.formatNumber(value, ndp);
 			} else
 				s = Double.toString(value);
 			text.set(s);
@@ -1181,6 +1280,133 @@ public class GuiTools {
 			}
 		}
 		
+	}
+
+	/**
+	 * Create a new {@link Spinner} for double values with a step size that adapts according to the absolute value of 
+	 * the current spinner value. This is useful for cases where the possible values cover a wide range 
+	 * (e.g. potential brightness/contrast values).
+	 * @param minValue
+	 * @param maxValue
+	 * @param defaultValue 
+	 * @param minStepValue
+	 * @param scale number of decimal places to shift the step size relative to the log10 of the value (suggested default = 1)
+	 * @return
+	 */
+	public static Spinner<Double> createDynamicStepSpinner(double minValue, double maxValue, double defaultValue, double minStepValue, int scale) {
+		var factory = new SpinnerValueFactory.DoubleSpinnerValueFactory(minValue, maxValue, defaultValue);
+		factory.amountToStepByProperty().bind(GuiTools.createStepBinding(factory.valueProperty(), minStepValue, scale));
+		var spinner = new Spinner<>(factory);
+		return spinner;
+	}
+
+	/**
+	 * Create a binding that may be used with a {@link Spinner} to adjust the step size dynamically 
+	 * based upon the absolute value of the input.
+	 * 
+	 * @param value current value for the {@link Spinner}
+	 * @param minStep minimum step size (should be &gt; 0)
+	 * @param scale number of decimal places to shift the step size relative to the log10 of the value (suggested default = 1)
+	 * @return a binding that may be attached to a {@link DoubleSpinnerValueFactory#amountToStepByProperty()}
+	 */
+	public static DoubleBinding createStepBinding(ObservableValue<Double> value, double minStep, int scale) {
+		return Bindings.createDoubleBinding(() -> {
+			double val= value.getValue();
+			if (!Double.isFinite(val))
+				return 1.0;
+			val = Math.abs(val);
+			return Math.max(Math.pow(10, Math.floor(Math.log10(val) - scale)), minStep);
+		}, value);
+	}
+
+	
+	
+	private final static String KEY_REGIONS = "processRegions";
+	
+	/**
+	 * Get the parent objects to use when running the plugin, or null if no suitable parent objects are found.
+	 * This involves prompting the user if multiple options are possible, and logging an appropriate command 
+	 * in the workflow history of the {@link ImageData} if possible.
+	 * 
+	 * @param name command name, to include in dialog messages
+	 * @param imageData imageData containing potential parent objects
+	 * @param includeSelected if true, provide 'selected objects' as an option
+	 * @param supportedParents collection of valid parent objects
+	 * @return
+	 */
+	public static <T> boolean promptForParentObjects(final String name, final ImageData<T> imageData, final boolean includeSelected, final Collection<Class<? extends PathObject>> supportedParents) {
+
+		PathObjectHierarchy hierarchy = imageData == null ? null : imageData.getHierarchy();
+		if (hierarchy == null)
+			return false;
+
+		// Check what possible parent types are available
+		Collection<PathObject> possibleParents = null;
+		int nParents = 0;
+		List<Class<? extends PathObject>> availableTypes = new ArrayList<>();
+		for (Class<? extends PathObject> cls : supportedParents) {
+			if (cls.equals(PathRootObject.class))
+				continue;
+			possibleParents = hierarchy.getObjects(possibleParents, cls);
+			if (possibleParents.size() > nParents)
+				availableTypes.add(cls);
+			nParents = possibleParents.size();
+		}
+
+		// Create a map of potential choices
+		LinkedHashMap<String, Class<? extends PathObject>> choices = new LinkedHashMap<>();
+		for (Class<? extends PathObject> cls : availableTypes)
+			choices.put(PathObjectTools.getSuitableName(cls, true), cls);
+		if (supportedParents.contains(PathRootObject.class))
+			choices.put("Entire image", PathRootObject.class);
+		ArrayList<String> choiceList = new ArrayList<>(choices.keySet());
+		
+		// Add selected objects option, if required
+		if (includeSelected)
+			choiceList.add(0, "Selected objects");
+
+		// Determine the currently-selected object
+		PathObject pathObjectSelected = hierarchy.getSelectionModel().getSelectedObject();
+
+		// If the currently-selected object is supported, use it as the parent
+		if (!includeSelected && pathObjectSelected != null && !pathObjectSelected.isRootObject()) {
+			if (supportedParents.contains(pathObjectSelected.getClass()))
+				return true;
+//			else {
+//				String message = name + " does not support parent objects of type " + pathObjectSelected.getClass().getSimpleName();
+//				DisplayHelpers.showErrorMessage(name + " error", message);
+//				return false;
+//			}
+		}
+
+		// If the root object is supported, and we don't have any of the other types, just run for the root object
+		if (!includeSelected && availableTypes.isEmpty()) {
+			if (supportedParents.contains(PathRootObject.class))
+				return true;
+			else {
+				String message = name + " requires parent objects of one of the following types:";
+				for (Class<? extends PathObject> cls : supportedParents)
+					message += ("\n" + PathObjectTools.getSuitableName(cls, false));
+				Dialogs.showErrorMessage(name + " error", message);
+				return false;
+			}
+		}
+
+		// Prepare to prompt
+		ParameterList paramsParents = new ParameterList();
+		paramsParents.addChoiceParameter(KEY_REGIONS, "Process all", choiceList.get(0), choiceList);
+
+		if (!Dialogs.showParameterDialog("Process regions", paramsParents))
+			return false;
+
+		
+		String choiceString = (String)paramsParents.getChoiceParameterValue(KEY_REGIONS);
+		if (!"Selected objects".equals(choiceString))
+			Commands.selectObjectsByClass(imageData, choices.get(choiceString));
+		//			QP.selectObjectsByClass(hierarchy, choices.get(paramsParents.getChoiceParameterValue(InteractivePluginTools.KEY_REGIONS)));
+
+		// Success!  Probably...
+		return !hierarchy.getSelectionModel().noSelection();
 	}
 	
 	

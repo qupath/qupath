@@ -39,14 +39,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
 
 import org.controlsfx.control.MasterDetailPane;
 import org.controlsfx.control.action.Action;
@@ -104,8 +102,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
-import qupath.lib.images.servers.ImageServer;
-import qupath.lib.images.servers.ImageServerProvider;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.plugins.parameters.ParameterList;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
@@ -137,7 +134,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	private TreeView<Object> tree = new TreeView<>();
 
 	// Keep a record of servers we've requested - don't want to keep putting in requests if the server is unavailable
-	private Set<String> serversRequested = new HashSet<>();
+//	private Set<String> serversRequested = new HashSet<>();
 	
 	private StringProperty descriptionText = new SimpleStringProperty();
 	
@@ -195,6 +192,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 //		TextArea textDescription = new TextArea();
 		TextArea textDescription = new TextArea();
 		textDescription.textProperty().bind(descriptionText);
+		textDescription.setWrapText(true);
 		MasterDetailPane mdTree = new MasterDetailPane(Side.BOTTOM, tree, textDescription, false);
 		mdTree.showDetailNodeProperty().bind(descriptionText.isNotNull());
 		
@@ -789,42 +787,6 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	}
 	
 	
-	
-	
-	Image requestThumbnail(final String serverPath, final File fileThumbnail) throws IOException {
-//		serversRequested.clear();
-		
-		// Check if we've already asked for this server... if so, stop
-		if (serversRequested.contains(serverPath))
-			return null;
-		// Put in the request now
-		serversRequested.add(serverPath);
-		// Check if it exists
-		if (fileThumbnail.exists())
-			return SwingFXUtils.toFXImage(ImageIO.read(fileThumbnail), null);
-		// Try to load the server
-		ImageData<BufferedImage> imageData = getCurrentImageData();
-		ImageServer<BufferedImage> server = null;
-		boolean newServer = false;
-		if (imageData != null && imageData.getServerPath().equals(serverPath))
-			server = imageData.getServer();
-		else {
-			server = ImageServerProvider.buildServer(serverPath, BufferedImage.class);
-			newServer = true;
-		}
-		BufferedImage img2 = ProjectCommands.getThumbnailRGB(server);
-		if (newServer) {
-			try {
-				server.close();
-			} catch (Exception e) {
-				logger.warn("Problem closing server", e);
-			}
-		}
-		ImageIO.write(img2, THUMBNAIL_EXT, fileThumbnail);
-		return SwingFXUtils.toFXImage(img2, null);
-	}
-
-	
 	/**
 	 * Resize an image so that its dimensions fit inside thumbnailWidth x thumbnailHeight.
 	 * 
@@ -972,21 +934,43 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 		Project<BufferedImage> project = qupath.getProject();
 		if (project == null) {
 			logger.error("Cannot set image name - project is null");
+			return false;
 		}
 		if (entry == null) {
 			logger.error("Cannot set image name - entry is null");
+			return false;
 		}
 		
 		String name = Dialogs.showInputDialog("Set Image Name", "Enter the new image name", entry.getImageName());
 		if (name == null)
 			return false;
+		
 		if (name.trim().isEmpty() || name.equals(entry.getImageName())) {
 			logger.warn("Cannot set image name to {} - will ignore", name);
+			return false;
 		}
 		
 		// Try to set the name
 		boolean changed = setProjectEntryImageName(entry, name);
 		if (changed) {
+			for (var viewer : qupath.getViewers()) {
+				var imageData = viewer.getImageData();
+				if (imageData == null)
+					continue;
+				var currentEntry = project.getEntry(imageData);
+				if (Objects.equals(entry, currentEntry)) {
+					var server = imageData.getServer();
+					if (!name.equals(server.getMetadata().getName())) {
+						// We update via the ImageData so that a property update is fired
+						var metadata2 = new ImageServerMetadata.Builder(server.getMetadata())
+								.name(name)
+								.build();
+						imageData.updateServerMetadata(metadata2);
+						// Bit of a cheat to force measurement table updates
+						imageData.getHierarchy().fireHierarchyChangedEvent(this);
+					}
+				}
+			}
 			tree.refresh();
 			qupath.refreshTitle();
 		}

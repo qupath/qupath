@@ -31,7 +31,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -39,7 +38,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -83,13 +81,15 @@ public class HierarchyOverlay extends AbstractOverlay {
 	private DefaultImageRegionStore regionStore = null;
 	
 	private long overlayOptionsTimestamp;
-	private ImageRegion lastRegion;
-	private BufferedImage buffer;
 	
 	private int lastPointRadius = PathPrefs.pointRadiusProperty().get();
 	
 	private Font font = new Font("SansSerif", Font.BOLD, 10);
 	
+	/**
+	 * Comparator to determine the order in which detections should be painted.
+	 * This should be used with caution! Check out the docs for the class for details.
+	 */
 	transient private DetectionComparator comparator = new DetectionComparator();
 
 	/**
@@ -133,11 +133,22 @@ public class HierarchyOverlay extends AbstractOverlay {
 		
 		if (!isVisible() && hierarchy.getSelectionModel().noSelection())
 			return;
+
+		// Default RenderingHints (may be temporarily changed in some places)
+		var defaultAntiAlias = RenderingHints.VALUE_ANTIALIAS_ON;
+		var defaultStroke = RenderingHints.VALUE_STROKE_PURE;
 		
+		// Doesn't seem to help...?
+//		boolean fastRendering = true;
+//		if (fastRendering) {
+//			defaultAntiAlias = RenderingHints.VALUE_ANTIALIAS_OFF;
+//			defaultStroke = RenderingHints.VALUE_STROKE_DEFAULT;			
+//		}
+
+
 		OverlayOptions overlayOptions = getOverlayOptions();
 		long timestamp = overlayOptions.lastChangeTimestamp().get();
 		int pointRadius = PathPrefs.pointRadiusProperty().get();
-		BufferedImage bufferLocal = buffer;
 		if (overlayOptionsTimestamp != timestamp || pointRadius != lastPointRadius) {
 			lastPointRadius = pointRadius;
 			overlayOptionsTimestamp = timestamp;
@@ -149,8 +160,7 @@ public class HierarchyOverlay extends AbstractOverlay {
 		Rectangle serverBounds = AwtTools.getBounds(imageRegion);
 		
 		// Ensure antialias is on...?
-		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-//		g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, defaultAntiAlias);
 		
 		// Get the displayed clip bounds for fast checking if ROIs need to be drawn
 		Shape shapeRegion = g2d.getClip();
@@ -169,18 +179,22 @@ public class HierarchyOverlay extends AbstractOverlay {
 
 		ImageRegion region = AwtTools.getImageRegion(boundsDisplayed, z, t);
 		
-		ImageRegion clipRegion = AwtTools.getImageRegion(g2d.getClipBounds(), z, t);
-		
-		
 		// Paint detection objects	
 		long startTime = System.currentTimeMillis();
 		if (overlayOptions.getShowDetections() && !hierarchy.isEmpty()) {
 
 			// If we aren't downsampling by much, or we're upsampling, paint directly - making sure to paint the right number of times, and in the right order
 			if (overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
-//			if (smallImage || overlayServer == null || regionStore == null || downsampleFactor < 1.0) {
-				Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);
-				Collection<PathObject> pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
+				Collection<PathObject> pathObjects;
+				try {
+					Set<PathObject> pathObjectsToPaint = new TreeSet<>(comparator);					
+					pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, pathObjectsToPaint);
+				} catch (IllegalArgumentException e) {
+					// This can happen (rarely) in a multithreaded environment if the level of a detection changes.
+					// However, protecting against this fully by caching the level with integer boxing/unboxing would be expensive.
+					logger.debug("Exception requesting detections to paint: " + e.getLocalizedMessage(), e);
+					pathObjects = hierarchy.getObjectsForRegion(PathDetectionObject.class, region, null);
+				}
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 				PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjects, overlayOptions, hierarchy.getSelectionModel(), downsampleFactor);
 				
@@ -194,11 +208,9 @@ public class HierarchyOverlay extends AbstractOverlay {
 				// If the image hasn't been updated, then we are viewing the stationary image - we want to wait for a full repaint then to avoid flickering;
 				// On the other hand, if a large image has been updated then we may be browsing quickly - better to repaint quickly while tiles may still be loading
 				if (paintCompletely) {
-////											System.out.println("Painting completely");
 					regionStore.paintRegionCompletely(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, null, null, 5000);
 				}
 				else {
-////											System.out.println("Painting PROGRESSIVELY");
 					regionStore.paintRegion(overlayServer, g2d, shapeRegion, z, t, downsampleFactor, null, null, null);
 				}
 			}
@@ -206,11 +218,11 @@ public class HierarchyOverlay extends AbstractOverlay {
 
 		long endTime = System.currentTimeMillis();
 		if (endTime - startTime > 500)
-			logger.debug(String.format("Painting time: %.4f seconds", (endTime-startTime)/1000.));
+			logger.debug("Painting time: {} seconds", GeneralTools.formatNumber((endTime-startTime)/1000.0, 4));
 
 		// The setting below stops some weird 'jiggling' effects during zooming in/out, or poor rendering of shape ROIs
-		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, defaultAntiAlias);
+		g2d.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, defaultStroke);
 
 		// Prepare to handle labels, if we need to
 		Collection<PathObject> objectsWithNames = new ArrayList<>();
@@ -223,52 +235,11 @@ public class HierarchyOverlay extends AbstractOverlay {
 				iterator.remove();
 		}
 		
-		// If our region has changed, paint directly the first time
-		// The purpose of this is to revert to avoid creating a BufferedImage on every repaint because the overlay is actually
-		// being displayed on different images (e.g. a miniviewer) - therefore we only buffer when we have repeated requests
-		if (!Objects.equals(clipRegion, lastRegion)) {
-			// Paint the annotations
-			resetBuffer();
-			List<PathObject> pathObjectList = new ArrayList<>(annotations);
-			Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
-					.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
-			PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);	
-		} else {
-			// Get the clip without any transform
-			var gNoTransform = (Graphics2D)g2d.create();
-			gNoTransform.setTransform(new AffineTransform());
-			var rawClip = gNoTransform.getClipBounds();
-			// Create a buffer if we need to
-			if (bufferLocal == null) {
-				// Paint the annotations
-				Graphics2D g;
-				if (!annotations.isEmpty()) {
-					if (bufferLocal == null || bufferLocal.getWidth() != rawClip.getWidth() || bufferLocal.getHeight() != rawClip.getHeight()) {
-						bufferLocal = new BufferedImage(rawClip.width, rawClip.height, BufferedImage.TYPE_INT_ARGB);
-						g = bufferLocal.createGraphics();
-					} else {
-						g = bufferLocal.createGraphics();
-						g.setComposite(AlphaComposite.getInstance(AlphaComposite.CLEAR));
-						g.fillRect(0, 0, bufferLocal.getWidth(), bufferLocal.getHeight());
-						g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
-					}
-					g.setClip(0, 0, bufferLocal.getWidth(), bufferLocal.getHeight());
-					g.setTransform(g2d.getTransform());
-					g.setRenderingHints(g2d.getRenderingHints());
-					List<PathObject> pathObjectList = new ArrayList<>(annotations);
-					Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
-							.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
-					PathHierarchyPaintingHelper.paintSpecifiedObjects(g, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);		
-				}
-			}
-			if (bufferLocal != null) {
-				// We need to draw without the transform since otherwise the scaling can be off
-				gNoTransform.drawImage(bufferLocal, rawClip.x, rawClip.y, null);
-//				g2d.drawImage(buffer, clipRegion.getX(), clipRegion.getY(), clipRegion.getWidth(), clipRegion.getHeight(), null);
-			}
-			gNoTransform.dispose();
-		}
-		lastRegion = clipRegion;
+		// Paint the annotations
+		List<PathObject> pathObjectList = new ArrayList<>(annotations);
+		Collections.sort(pathObjectList, Comparator.comparingInt(PathObject::getLevel).reversed()
+				.thenComparing(Comparator.comparingDouble((PathObject p) -> -p.getROI().getArea())));
+		PathHierarchyPaintingHelper.paintSpecifiedObjects(g2d, boundsDisplayed, pathObjectList, overlayOptions, null, downsampleFactor);	
 		
 		// Ensure that selected objects are painted last, to make sure they aren't obscured
 		if (!selectedObjects.isEmpty()) {
@@ -339,14 +310,6 @@ public class HierarchyOverlay extends AbstractOverlay {
 		}
 		
 	}
-
-	/**
-	 * Reset the buffer, indicating that a full repaint will be required.
-	 */
-	public void resetBuffer() {
-		lastRegion = null;
-		buffer = null;		
-	}
 	
 	/**
 	 * Clear previously-cached tiles for this overlay.
@@ -354,7 +317,6 @@ public class HierarchyOverlay extends AbstractOverlay {
 	public void clearCachedOverlay() {
 		if (regionStore != null && overlayServer != null)
 			regionStore.clearCacheForServer(overlayServer);
-		resetBuffer();
 	}
 	
 	/**
@@ -362,19 +324,18 @@ public class HierarchyOverlay extends AbstractOverlay {
 	 * @param region the region for which tiles should be removed
 	 */
 	public void clearCachedOverlayForRegion(ImageRegion region) {
-		lastRegion = null;
-		buffer = null;
 		if (regionStore != null && overlayServer != null)
 			regionStore.clearCacheForRequestOverlap(RegionRequest.createInstance(overlayServer.getPath(), 1, region));
-		resetBuffer();
 	}
 
 	
 	/**
 	 * Comparator that makes use of levels, not only location.
-	 *
+	 * <p>
+	 * Warning! Because levels are mutable, this can fail if used for sorting while the object hierarchy is being modified
+	 * in another thread.
 	 */
-	public static class DetectionComparator implements Comparator<PathObject> {
+	private static class DetectionComparator implements Comparator<PathObject> {
 		
 		private Comparator<PathObject> baseComparator = DefaultPathObjectComparator.getInstance();
 
