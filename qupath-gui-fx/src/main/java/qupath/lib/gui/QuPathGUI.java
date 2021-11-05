@@ -3585,8 +3585,15 @@ public class QuPathGUI {
 	 */
 	private static Action createPluginAction(final String name, final Class<? extends PathPlugin> pluginClass, final QuPathGUI qupath, final String arg) {
 		try {
-			PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
-			var action = qupath.createPluginAction(name, plugin, arg);
+			var action = new Action(name, event -> {
+				try {
+					PathPlugin<BufferedImage> plugin = qupath.createPlugin(pluginClass);
+					qupath.runPlugin(plugin, arg, true);
+				} catch (Exception e) {
+					logger.error("Error running " + name + ": " + e.getLocalizedMessage(), e);
+				}
+			});
+			// We assume that plugins require image data
 			action.disabledProperty().bind(qupath.noImageData);
 			ActionTools.parseAnnotations(action, pluginClass);
 			return action;
