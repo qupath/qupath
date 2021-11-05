@@ -6,6 +6,7 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 while fix
 List of bugs fixed:
 * Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
 * Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
+* Multichannel .tif output is broken in TileExporter (https://github.com/qupath/qupath/issues/838)
 
 
 ## Version 0.3.0
