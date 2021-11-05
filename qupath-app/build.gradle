@@ -62,6 +62,21 @@ application {
   applicationDefaultJvmArgs = buildDefaultJvmArgs("${project.buildDir}/natives")
 }
 
+/*
+ * Add classpath and main class to make it easier to launch from jar
+ */
+ afterEvaluate {
+jar {
+  manifest {
+    def manifestAttributes = [
+       "Class-Path": configurations.runtimeClasspath.collect { it.getName() }.join(' '),
+       "Main-Class": "qupath.QuPath"
+    ]
+    attributes(manifestAttributes)
+  }
+}
+}
+
 ext {
 	setLdLibraryPath = false
 }
