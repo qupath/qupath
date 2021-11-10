@@ -618,12 +618,12 @@ public class IJTools {
 	 */
 	public static ImagePlus convertToUncalibratedImagePlus(String title, BufferedImage img) {
 		ImagePlus imp = null;
-		ImageStack stack = new ImageStack(img.getWidth(), img.getHeight());
 		int nBands = img.getSampleModel().getNumBands();
 		// Let ImageJ handle indexed & 8-bit color images
 		if ((img.getType() == BufferedImage.TYPE_BYTE_INDEXED && nBands == 1) || BufferedImageTools.is8bitColorType(img.getType()))
 			imp = new ImagePlus(title, img);
 		else {
+			ImageStack stack = new ImageStack(img.getWidth(), img.getHeight());
 			for (int b = 0; b < nBands; b++) {
 				stack.addSlice(convertToImageProcessor(img, b));
 			}

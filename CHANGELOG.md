@@ -7,6 +7,7 @@ List of bugs fixed:
 * 'Add intensity features' does not reinitialize options (including channels) when new images are opened (https://github.com/qupath/qupath/issues/836)
 * Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
 * Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
+* Multichannel .tif output is broken in TileExporter (https://github.com/qupath/qupath/issues/838)
 * Main class and classpath missing from app jar (https://github.com/qupath/qupath/issues/818)
 
 
