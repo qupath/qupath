@@ -23,6 +23,9 @@ package qupath.lib.gui.tools;
 
 import java.awt.Desktop;
 import java.awt.Desktop.Action;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -1231,7 +1234,7 @@ public class GuiTools {
 		int type = (img.getTransparency() == Transparency.OPAQUE) ?
 				BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
 		
-		BufferedImage imgResult = (BufferedImage)img;
+		BufferedImage imgResult = img;
 		int w = img.getWidth();
 		int h = img.getHeight();
 

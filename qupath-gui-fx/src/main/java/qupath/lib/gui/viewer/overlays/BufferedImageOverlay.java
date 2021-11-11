@@ -74,6 +74,16 @@ public class BufferedImageOverlay extends AbstractImageOverlay implements Change
             	img
         		));
     }
+    
+    /**
+     * Create an overlay to show an image rescaled to overlay the entire current image in the specified viewer.
+     * 
+     * @param viewer
+     * @param map 
+     */
+    public BufferedImageOverlay(final QuPathViewer viewer, Map<ImageRegion, BufferedImage> map) {
+        this(viewer, viewer.getOverlayOptions(), map);
+    }
 
     
     /**

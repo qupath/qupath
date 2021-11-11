@@ -9,30 +9,30 @@ import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
-import qupath.lib.gui.tools.MeasurementMapper.ColorMapper;
+import qupath.lib.color.ColorMaps.ColorMap;
 
 /**
- * Canvas to show the range of a ColorMapper (i.e. look-up table).
+ * Canvas to show the range of a ColorMap (i.e. look-up table).
  */
 // TODO: Change the canvas in MeasurementMapPane to use this?
-public class ColorMapperCanvas extends Canvas {
+public class ColorMapCanvas extends Canvas {
 	
 	private double height;
-	private ObjectProperty<ColorMapper> colorMapperProperty;
+	private ObjectProperty<ColorMap> ColorMapProperty;
 	private Image image;
 	
 	/**
-	 * Create a canvas that displays the range of the specified {@link ColorMapper}. 
+	 * Create a canvas that displays the range of the specified {@link ColorMap}. 
 	 * <p>
-	 * A {@link NullPointerException} is thrown if {@code colorMapper} is null.
+	 * A {@link NullPointerException} is thrown if {@code ColorMap} is null.
 	 * 
 	 * @param height
-	 * @param colorMapper
+	 * @param ColorMap
 	 */
-	public ColorMapperCanvas(double height, ColorMapper colorMapper) {
+	public ColorMapCanvas(double height, ColorMap ColorMap) {
 		this.height = height;
-		this.colorMapperProperty = new SimpleObjectProperty<>(Objects.requireNonNull(colorMapper));
-		this.image = createColorMapImage(colorMapper);
+		this.ColorMapProperty = new SimpleObjectProperty<>(Objects.requireNonNull(ColorMap));
+		this.image = createColorMapImage(ColorMap);
 	}
 	
 	
@@ -74,41 +74,41 @@ public class ColorMapperCanvas extends Canvas {
 	}
 	
 	/**
-	 * Set the {@link ColorMapper} to display to the one with the specified list index.
-	 * @param colorMapper
+	 * Set the {@link ColorMap} to display to the one with the specified list index.
+	 * @param ColorMap
 	 */
-	public void setColorMapper(ColorMapper colorMapper) {
-		colorMapperProperty.set(colorMapper);
-		image = createColorMapImage(colorMapper);
+	public void setColorMap(ColorMap ColorMap) {
+		ColorMapProperty.set(ColorMap);
+		image = createColorMapImage(ColorMap);
 		updateColorMapImage(image);
 	}
 	
 	/**
-	 * Return the currently displayed {@link ColorMapper}.
-	 * @return colorMapper
+	 * Return the currently displayed {@link ColorMap}.
+	 * @return ColorMap
 	 */
-	public ColorMapper getColorMapper() {
-		return colorMapperProperty.get();
+	public ColorMap getColorMap() {
+		return ColorMapProperty.get();
 	}
 	
 	/**
-	 * Return the colorMapper property of this canvas.
-	 * @return colorMapper property
+	 * Return the ColorMap property of this canvas.
+	 * @return ColorMap property
 	 */
-	public ObjectProperty<ColorMapper> colorMapperProperty() {
-		return colorMapperProperty;
+	public ObjectProperty<ColorMap> colorMapProperty() {
+		return ColorMapProperty;
 	}
 	
 	/**
-	 * Create an {@link Image} that shows the range of the {@code ColorMapper}.
-	 * @param colorMapper
+	 * Create an {@link Image} that shows the range of the {@code ColorMap}.
+	 * @param ColorMap
 	 * @return image
 	 */
-	private static Image createColorMapImage(final ColorMapper colorMapper) {
+	private static Image createColorMapImage(final ColorMap ColorMap) {
 		BufferedImage imgKey = new BufferedImage(255, 10, BufferedImage.TYPE_INT_ARGB);
-		if (colorMapper != null) {
+		if (ColorMap != null) {
 			for (int i = 0; i < imgKey.getWidth(); i++) {
-				Integer rgb = colorMapper.getColor(i, 0, 254);
+				Integer rgb = ColorMap.getColor(i, 0, 254);
 				for (int j = 0; j < imgKey.getHeight(); j++) {
 					imgKey.setRGB(i, j, rgb);
 				}
@@ -119,7 +119,7 @@ public class ColorMapperCanvas extends Canvas {
 	}
 	
 	/**
-	 * Update an existing {@link Image} to show the range of the current {@link ColorMapper}.
+	 * Update an existing {@link Image} to show the range of the current {@link ColorMap}.
 	 * @param image
 	 */
 	private void updateColorMapImage(final Image image) {

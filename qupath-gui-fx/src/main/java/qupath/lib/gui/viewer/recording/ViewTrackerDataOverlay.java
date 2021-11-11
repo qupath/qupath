@@ -40,8 +40,10 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.common.ColorTools;
-import qupath.lib.gui.tools.MeasurementMapper.ColorMapper;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.images.servers.ImageServer;
@@ -66,9 +68,11 @@ final class ViewTrackerDataOverlay {
 	private double downMax;
 	private boolean timeNormalized;	// If false, it's magnification-normalized
 	
-	private ColorMapper colorMapper;
+	private ColorMap colorMap;
 	
 	private Map<ImageRegion, BufferedImage> regions;
+	
+	private BooleanProperty generatingOverlayProperty = new SimpleBooleanProperty(false);
 
 	ViewTrackerDataOverlay(ImageServer<?> server, QuPathViewer viewer, ViewTracker tracker) {
 		this.tracker = tracker;
@@ -77,7 +81,7 @@ final class ViewTrackerDataOverlay {
 		this.imgWidth = server.getWidth();
 		this.imgHeight = server.getHeight();
 		this.regions = new HashMap<>();
-		
+
 		// Set width and height of img
 		double[] preferredDownsamples = server.getPreferredDownsamples();
 		int index = 0;
@@ -95,20 +99,26 @@ final class ViewTrackerDataOverlay {
 		downsample = divider;
 	}
 	
-	void updateDataImage(long timeStart, long timeStop, double downMin, double downMax, boolean timeNormalised, ColorMapper colorMapper) {
+	void updateDataImage(long timeStart, long timeStop, double downMin, double downMax, boolean timeNormalised, ColorMap colorMapper) {
 		this.timeStart = timeStart;
 		this.timeStop = timeStop;
 		this.downMin = downMin;
 		this.downMax = downMax;
 		this.timeNormalized = timeNormalised;
-		this.colorMapper = colorMapper;
+		this.colorMap = colorMapper;
 		
 		regions = getImageRegions();
 		viewer.repaint();
+//		Platform.runLater(() -> viewer.repaint());	
 	}
 	
 	BufferedImageOverlay getOverlay() {
 		return new BufferedImageOverlay(viewer, regions);
+	}
+	
+
+	BooleanProperty generatingOverlayProperty() {
+		return generatingOverlayProperty;
 	}
 	
 	private Map<ImageRegion, BufferedImage> getImageRegions() {
@@ -136,7 +146,7 @@ final class ViewTrackerDataOverlay {
 				.filter(frame -> frame.getDownFactor() >= downMin && frame.getDownFactor() <= downMax)
 				.toArray(ViewRecordingFrame[]::new);
 		
-		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, createColorModel(colorMapper));
+		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, createColorModel(colorMap));
 		byte[] imgBuffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
 		float[] buffer = new float[imgBuffer.length];
 		
@@ -145,17 +155,26 @@ final class ViewTrackerDataOverlay {
 		
 		// Get max time (for normalization)
 		double maxValue;
-		if (timeNormalized) {
-			maxValue = IntStream.range(0, relevantFrames.length-1)
-					.map(index -> index < relevantFrames.length ? (int)(relevantFrames[index+1].getTimestamp() - relevantFrames[index].getTimestamp()) : 0)
-					.max()
-					.orElseThrow();
-		} else {
+//		if (timeNormalized) {
+//			maxValue = IntStream.range(0, relevantFrames.length-1)
+//					.map(index -> index < relevantFrames.length ? (int)(relevantFrames[index+1].getTimestamp() - relevantFrames[index].getTimestamp()) : 0)
+//					.max()
+//					.orElseThrow();
+//		} else {
+//			maxValue = Arrays.asList(relevantFrames).stream()
+//					.mapToDouble(e -> e.getDownFactor())
+//					.max()
+//					.orElseThrow();
+//		}
+		
+		// Trying here to change the maxValues (doesn't change for magnification normalized)
+		if (timeNormalized)
+			maxValue = relevantFrames[relevantFrames.length-1].getTimestamp() - relevantFrames[0].getTimestamp();
+		else
 			maxValue = Arrays.asList(relevantFrames).stream()
 					.mapToDouble(e -> e.getDownFactor())
 					.max()
 					.orElseThrow();
-		}
 		
 		Arrays.fill(buffer, 0);
 		for (int nFrame = 0; nFrame < relevantFrames.length; nFrame++) {
@@ -305,6 +324,8 @@ final class ViewTrackerDataOverlay {
 	 * <p>
 	 * Note: bounds.x is used instead of bounds.getX() to avoid type casting.
 	 * @param bounds
+	 * @param width 
+	 * @param height 
 	 * @return cropped rectangle
 	 */
 	private static Rectangle getCroppedBounds(Rectangle bounds, int width, int height) {
@@ -315,7 +336,7 @@ final class ViewTrackerDataOverlay {
 		return new Rectangle(x, y, newWidth, newHeight);
 	}
 	
-	private static IndexColorModel createColorModel(ColorMapper colorMapper) {
+	private static IndexColorModel createColorModel(ColorMap colorMapper) {
 	    int[] rgba = new int[256];
 	    for (int i = 0; i < 256; i++) {
 	        int rgb = colorMapper.getColor(i, 0, 255);
