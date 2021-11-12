@@ -1032,13 +1032,13 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	
 	private List<ImageRow> getAllImageRows() {
 		if (!PathPrefs.maskImageNamesProperty().get())
-			return project.getImageList().stream().map(entry -> new ImageRow(entry)).toList();
+			return project.getImageList().stream().map(entry -> new ImageRow(entry)).collect(Collectors.toList());
 		
 		// If 'mask names' is ticked, shuffle the image list for less biased analyses
 		var imageList = project.getImageList();
 		var indices = IntStream.range(0, imageList.size()).boxed().collect(Collectors.toList());
 		Collections.shuffle(indices);
-		return indices.stream().map(index -> new ImageRow(imageList.get(index))).toList();
+		return indices.stream().map(index -> new ImageRow(imageList.get(index))).collect(Collectors.toList());
 	}
 
 	private class ProjectImageTreeModel {
