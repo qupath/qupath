@@ -35,7 +35,6 @@ import java.awt.image.IndexColorModel;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +108,6 @@ final class ViewTrackerDataOverlay {
 		
 		regions = getImageRegions();
 		viewer.repaint();
-//		Platform.runLater(() -> viewer.repaint());	
 	}
 	
 	BufferedImageOverlay getOverlay() {
@@ -126,7 +124,6 @@ final class ViewTrackerDataOverlay {
 		regions.clear();
 		for (int z = 0; z < server.nZSlices(); z++) {
 			for (int t = 0; t < server.nTimepoints(); t++) {
-//				ImageRegion region = ImageRegion.createInstance(0, 0, (int)Math.round(imgWidth*downsample), (int)Math.round(imgHeight*downsample), z, t);
 				ImageRegion region = ImageRegion.createInstance(0, 0, server.getWidth(), server.getHeight(), z, t);
 				BufferedImage img = getBufferedImage(z, t);
 				regions.put(region, img);
@@ -148,26 +145,12 @@ final class ViewTrackerDataOverlay {
 		
 		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, createColorModel(colorMap));
 		byte[] imgBuffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
-		float[] buffer = new float[imgBuffer.length];
 		
 		if (relevantFrames.length <= 1)
 			return img;
-		
-		// Get max time (for normalization)
+				
+		// Get max value (for normalization)
 		double maxValue;
-//		if (timeNormalized) {
-//			maxValue = IntStream.range(0, relevantFrames.length-1)
-//					.map(index -> index < relevantFrames.length ? (int)(relevantFrames[index+1].getTimestamp() - relevantFrames[index].getTimestamp()) : 0)
-//					.max()
-//					.orElseThrow();
-//		} else {
-//			maxValue = Arrays.asList(relevantFrames).stream()
-//					.mapToDouble(e -> e.getDownFactor())
-//					.max()
-//					.orElseThrow();
-//		}
-		
-		// Trying here to change the maxValues (doesn't change for magnification normalized)
 		if (timeNormalized)
 			maxValue = relevantFrames[relevantFrames.length-1].getTimestamp() - relevantFrames[0].getTimestamp();
 		else
@@ -176,89 +159,9 @@ final class ViewTrackerDataOverlay {
 					.max()
 					.orElseThrow();
 		
-		Arrays.fill(buffer, 0);
 		for (int nFrame = 0; nFrame < relevantFrames.length; nFrame++) {
 			var frame = relevantFrames[nFrame];
 			Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds(), downsample);
-//			if (frame.getRotation() == 0) {
-//				Rectangle downsampleBoundsCropped = getCroppedDownsampledBounds(downsampledBounds);
-//				for (int x = downsampleBoundsCropped.x; x < downsampleBoundsCropped.x + downsampleBoundsCropped.width; x++) {
-//					for (int y = downsampleBoundsCropped.y; y < downsampleBoundsCropped.y + downsampleBoundsCropped.height; y++) {
-//						if (x < 0 || x >= imgWidth || y < 0 || y >= imgHeight)
-//							continue;
-//						if (nFrame < relevantFrames.length-1) {
-//							if (timeNormalized)
-//								buffer[y*imgWidth + x] += (int)(relevantFrames[nFrame+1].getTimestamp() - frame.getTimestamp());
-//							else
-//								buffer[y*imgWidth + x] = buffer[y*imgWidth + x] < maxValue-frame.getDownFactor() ? (float)(maxValue-frame.getDownFactor()) : buffer[y*imgWidth + x];
-//						}
-//						
-//					}
-//				}
-//			} else {
-////				Shape shape = frame.getImageShape();
-////				PathIterator it = shape.getPathIterator(null);
-////				double[] segment = new double[6];
-////				int[] xs = new int[4];
-////				int[] ys = new int[4];
-////				for (int i = 0; i < 4; i++) {
-////					if (it.isDone())
-////						return null;
-////					
-////			        it.currentSegment(segment);
-////			        xs[i] = (int)Math.round(segment[0]/downsample);
-////			        ys[i] = (int)Math.round(segment[1]/downsample);
-////			        
-////			        it.next();
-////				}
-////				
-////				Polygon poly = new Polygon(xs, ys, 4);
-////				for (int x = 0; x < imgWidth; x++) {
-////					for (int y = 0; y < imgHeight; y++) {
-////						Point2D p = new Point2D.Double(x, y);
-////						if (poly.contains(p)) {
-////							if (timeNormalized && nFrame < relevantFrames.length-1)
-////								buffer[y*imgWidth + x] += (int)(frame.getTimestamp() - relevantFrames[nFrame+1].getTimestamp());
-////							else if (!timeNormalized)
-////								buffer[y*imgWidth + x] = buffer[y*imgWidth + x] < maxValue-frame.getDownFactor() ? (float)(maxValue-frame.getDownFactor()) : buffer[y*imgWidth + x];
-////						}
-////					}
-////				}
-//				
-//				// Iterating through x and y, checking if they're included in frame.getImageBounds() when rotated
-//				AffineTransform transform = new AffineTransform();
-//				Point2D center = frame.getFrameCentre();
-//				transform.rotate(-frame.getRotation(), center.getX()/downsample, center.getY()/downsample);
-//
-//				// TODO: Uncomment these
-////				for (int x = 0; x < imgWidth; x++) {
-////					for (int y = 0; y < imgHeight; y++) {
-////						Point2D[] pts = new Point2D[] {new Point2D.Double(x, y)};
-////						transform.transform(pts, 0, pts, 0, 1);
-////						if (downsampledBounds.contains(new Point2D.Double(x, y))) {
-////							//if (nFrame < relevantFrames.length-1 && new Rectangle(0, 0, imgWidth, imgHeight).contains(pts[0])) {
-////							if (nFrame < relevantFrames.length-1) {
-////								// Index of the rotated point in the buffer (flatten)
-////								int index = (int)(Math.round(pts[0].getY())*imgWidth + Math.round(pts[0].getX()));
-////								
-////								// Precision errors means that it could potentially go over edges
-////								if (index < 0 || index > buffer.length)
-////									continue;
-////
-////								// Update buffer
-////								if (timeNormalized)
-////									buffer[index] += (int)(frame.getTimestamp() - relevantFrames[nFrame+1].getTimestamp());
-////								else
-////									buffer[index] = buffer[index] < maxValue-frame.getDownFactor() ? (float)(maxValue-frame.getDownFactor()) : buffer[index];
-////							}
-////						}
-////					}
-////				}
-				
-				
-			/**
-			 * Trying something here
-			 */
 			if (nFrame >= relevantFrames.length-1)
 				break;
 			
@@ -270,7 +173,7 @@ final class ViewTrackerDataOverlay {
 	        	value = (int) (relevantFrames[nFrame+1].getTimestamp() - frame.getTimestamp());
 	        else
 	        	value = (int) frame.getDownFactor();
-	        
+
 	        // Normalize
 	        value = (int) (value / maxValue * 65535);
 	        g2d.setColor(new Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255));
@@ -284,22 +187,16 @@ final class ViewTrackerDataOverlay {
 	        	downsampledBounds = getCroppedBounds(downsampledBounds, imgWidth, imgHeight);
 	        
 	        g2d.fill(downsampledBounds);
-
 	        byte[] imgNewBuffer = ((DataBufferByte)imgNew.getRaster().getDataBuffer()).getData();
-	        for (int i = 0; i < buffer.length; i++) {
+	        for (int i = 0; i < imgNewBuffer.length; i++) {
 	        	if (timeNormalized)
 	        		imgBuffer[i] += imgNewBuffer[i];
 	        	else {
-	        		if (imgNewBuffer[i] < buffer[i])
-	        			imgBuffer[i] = imgNewBuffer[i];
+	        		if ((imgBuffer[i] == 0 && imgNewBuffer[i] > 0) || imgNewBuffer[i] < imgBuffer[i])
+	        			imgBuffer[i] = (byte) (65535 - imgNewBuffer[i]);
 	        	}
 	        }
-				
-//			}
 		}
-		// Normalize
-//	    for (int i = 0; i < buffer.length; i++)
-//	    	imgBuffer[i] = (byte)(buffer[i] / maxValue * 255);
 		return img;
 	}
 	
@@ -340,7 +237,7 @@ final class ViewTrackerDataOverlay {
 	    int[] rgba = new int[256];
 	    for (int i = 0; i < 256; i++) {
 	        int rgb = colorMapper.getColor(i, 0, 255);
-	        rgba[i] = ColorTools.makeRGBA(ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb), i);
+	        rgba[i] = ColorTools.packARGB(i, ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
 	    }
 	    return new IndexColorModel(8, 256, rgba, 0, true, 0, DataBuffer.TYPE_BYTE);
 	}

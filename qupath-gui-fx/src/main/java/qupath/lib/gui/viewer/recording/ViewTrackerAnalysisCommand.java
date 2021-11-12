@@ -97,6 +97,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  * 
  * @author Pete Bankhead
  */
+// TODO: Magnification should be downsample
 final class ViewTrackerAnalysisCommand implements Runnable {
 	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerAnalysisCommand.class);
 	
