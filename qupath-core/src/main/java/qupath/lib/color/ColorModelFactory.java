@@ -142,8 +142,18 @@ public final class ColorModelFactory {
      * @return
      */
     public static IndexColorModel createIndexedColorModel8bit(ColorMap map) {
+    	return createIndexedColorModel8bit(map, -1);
+    }
+    
+    /**
+     * Create an 8-bit {@link IndexColorModel} from a {@link ColorMap}, allowing for a transparent pixel to be set (e.g. 0).
+     * @param map
+     * @param transparentPixel 
+     * @return
+     */
+    public static IndexColorModel createIndexedColorModel8bit(ColorMap map, int transparentPixel) {
     	Objects.nonNull(map);
-    	return new IndexColorModel(8, 256, ColorMaps.getColors(map, 256, false), 0, false, -1, DataBuffer.TYPE_BYTE);
+    	return new IndexColorModel(8, 256, ColorMaps.getColors(map, 256, false), 0, false, transparentPixel, DataBuffer.TYPE_BYTE);
     }
     
     /**

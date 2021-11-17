@@ -96,6 +96,7 @@ import qupath.lib.plugins.parameters.ParameterList;
  * Command to export view tracking information.
  * 
  * @author Pete Bankhead
+ * @author Melvin Gelbard
  */
 // TODO: Magnification should be downsample
 final class ViewTrackerAnalysisCommand implements Runnable {
@@ -123,6 +124,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	private ObservableList<ColorMap> colorMaps;
 	private ColorMapCanvas colorMapCanvas;
 	
+	private CheckBox visualizationCheckBox;
 	private RadioButton timeNormalizedRadio;
 	private RadioButton magnificationNormalizedRadio;
 	private RangeSlider downsampleSlider;
@@ -133,7 +135,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	private static final Node iconStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_STOP);
 	
 	private ViewTrackerSlideOverview slideOverview;
-	private ViewTrackerDataOverlay trackerDataOverlay;
+	private ViewTrackerDataMaps trackerDataMaps;
 	private Canvas canvas;
 	
 	private double initialWidth = -1;
@@ -350,7 +352,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			//---------------- DATA VISUALIZATION -----------------//
 			//--------------------------------------------------------------//
 			
-			CheckBox visualizationCheckBox = new CheckBox("Live data visualization");
+			visualizationCheckBox = new CheckBox("Live data visualization");
 			Label normalizedByLabel = new Label("Normalized by:");
 			progressIndicator = new ProgressIndicator(); // Bound below in the Binding section
 			progressIndicator.setPrefSize(15, 15);
@@ -366,7 +368,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			// Create a color mapper ComboBox
 			colorMaps = FXCollections.observableArrayList(ColorMaps.getColorMaps().values());
 			ComboBox<ColorMap> colorMapCombo = new ComboBox<>(colorMaps);
-			colorMapCombo.setMinWidth(80.0);
+			colorMapCombo.setMinWidth(120.0);
 			colorMapCanvas = new ColorMapCanvas(10, colorMaps.get(0));
 			colorMapCombo.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> colorMapCanvas.setColorMap(n));
 			
@@ -436,7 +438,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			
 			//------------------ DOWNSAMPLE RANGESLIDER ------------------//
 			List<Double> allFramesDownsamples = tracker.getAllFrames().stream()
-					.map(e -> e.getDownFactor())
+					.map(e -> e.getDownsampleFactor())
 					.collect(Collectors.toList());
 			
 			var minDownsample = allFramesDownsamples.stream().min(Comparator.naturalOrder()).get();
@@ -496,11 +498,11 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			colorMapCombo.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			
 			// TODO: if using keys to change sliders, nothing will trigger the overlay update
-			trackerDataOverlay = new ViewTrackerDataOverlay(server, viewer, tracker);
+			trackerDataMaps = new ViewTrackerDataMaps(server, viewer, tracker);
 			timeDisplayedSlider.setOnMouseReleased(v -> updateOverlays());
 			downsampleSlider.setOnMouseReleased(v -> updateOverlays());
 			colorMapCanvas.colorMapProperty().addListener((v, o, n) -> updateOverlays());
-			progressIndicator.visibleProperty().bind(trackerDataOverlay.generatingOverlayProperty());
+			progressIndicator.visibleProperty().bind(trackerDataMaps.generatingOverlayProperty());
 
 			visualizationCheckBox.selectedProperty().addListener((v, o, n) -> {
 				if (n) {
@@ -533,11 +535,6 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			normalizedByPane.addRow(0, timeNormalizedRadio, magnificationNormalizedRadio, progressIndicator);
 			playbackPane.addRow(0, btnPlay, btnStop);
 			playbackPane.setAlignment(Pos.CENTER);
-//			PaneTools.addGridRow(dataVisualizationPane, 0, 0, "Enable live data visualization", visualizationCheckBox, visualizationCheckBox, visualizationCheckBox);
-//			PaneTools.addGridRow(dataVisualizationPane, 1, 0, "Normalization type", normalizedByLabel, timeNormalizedRadio, magnificationNormalizedRadio);
-//			PaneTools.addGridRow(dataVisualizationPane, 2, 0, "Choose a time range", timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
-//			PaneTools.addGridRow(dataVisualizationPane, 3, 0, "Choose a magnification range", downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
-
 
 			int topPaneRow = 0;
 			PaneTools.addGridRow(topPane, topPaneRow++, 0, "Slide to change timepoint", timepointPane);
@@ -550,26 +547,16 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			PaneTools.addGridRow(analysisPane, row++, 0, "Playback options", new HBox(), playbackPane);
 			PaneTools.addGridRow(analysisPane, row++, 0, null, sep, sep, sep);
 			PaneTools.addGridRow(analysisPane, row++, 0, "Enable live data visualization", visualizationCheckBox, visualizationCheckBox, visualizationCheckBox);
-			PaneTools.addGridRow(analysisPane, row++, 0, "Normalization type", normalizedByLabel, normalizedByPane, normalizedByPane);
-			PaneTools.addGridRow(analysisPane, row++, 0, "Choose a time range", timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
-			PaneTools.addGridRow(analysisPane, row++, 0, "Choose a magnification range", downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
-			PaneTools.addGridRow(analysisPane, row++, 0, null, colorMapCombo, colorMapCanvas, colorMapCanvas);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Normalization type (range is 0 - 255)", normalizedByLabel, normalizedByPane, normalizedByPane);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Choose a time range to display", timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Choose a magnification range to display", downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
+			PaneTools.addGridRow(analysisPane, row++, 0, "Color map", colorMapCombo, colorMapCanvas, colorMapCanvas);
 			
 		    ColumnConstraints col1 = new ColumnConstraints();
 		    ColumnConstraints col2 = new ColumnConstraints();
 		    col1.setHgrow(Priority.ALWAYS);
 		    col2.setHgrow(Priority.ALWAYS);
-		    
-		    analysisPane.getColumnConstraints().addAll(new ColumnConstraints(80), col1, new ColumnConstraints(80), col2);
-			
-//			GridPane.setHgrow(normalizedByLabel, Priority.ALWAYS);
-//			GridPane.setHgrow(timeNormalizedRadio, Priority.ALWAYS);
-//			GridPane.setHgrow(normalizedByLabel, Priority.ALWAYS);
-//			normalizedByLabel.setPrefWidth(200.0);
-//			timeNormalizedRadio.setPrefWidth(200.0);
-//			magnificationNormalizedRadio.setPrefWidth(200.0);
-//			normalizedByLabel.setMaxWidth(Double.MAX_VALUE);
-			
+		    analysisPane.getColumnConstraints().addAll(new ColumnConstraints(120), col1, new ColumnConstraints(120), col2);			
 			
 			//--------------------- BOTTOM BUTTON PANE---------------------//
 			Button btnExpand = new Button("Expand");
@@ -598,7 +585,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			buttons.add(btnExpand);
 			
 			GridPane panelButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
-			PaneTools.addGridRow(analysisPane, row++, 0, "Button", panelButtons, panelButtons, panelButtons);
+			PaneTools.addGridRow(analysisPane, row++, 0, null, panelButtons, panelButtons, panelButtons);
 			
 
 			mainPane.getItems().add(analysisPane);
@@ -626,7 +613,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 		case "Height": return frame.getImageBounds().height;
 		case "Canvas width": return frame.getSize().width;
 		case "Canvas height": return frame.getSize().height;
-		case "Downsample factor": return frame.getDownFactor();
+		case "Downsample factor": return frame.getDownsampleFactor();
 		case "Rotation": return frame.getRotation();
 		case "Cursor X": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
 		case "Cursor Y": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
@@ -666,9 +653,9 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 		case 12: 
 			if (tracker.hasEyeTrackingData()) {
 				if (tracker.hasActiveToolTrackingData()) return "Eye X";
-				else return "Eye Y";
-			} else
-				return "Z";
+				return "Eye Y";
+			}
+			return "Z";
 		case 13: return tracker.hasEyeTrackingData() ? "Eye Y" : "T";
 		case 14: return "Fixated";
 		case 15: return "Z";
@@ -701,8 +688,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	
 	private void updateOverlays() {
 		executor.execute(() -> {
-			trackerDataOverlay.generatingOverlayProperty().set(true);
-			trackerDataOverlay.updateDataImage(
+			trackerDataMaps.generatingOverlayProperty().set(true);
+			trackerDataMaps.updateDataImage(
 					timeDisplayedSlider.lowValueProperty().longValue(),
 					timeDisplayedSlider.highValueProperty().longValue(),
 					downsampleSlider.lowValueProperty().doubleValue(),
@@ -711,13 +698,17 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					colorMapCanvas.getColorMap()
 					);
 			
-			// Update the viewer's custom overlay layer
-			viewer.getCustomOverlayLayers().setAll(trackerDataOverlay.getOverlay());
-			// Update the slideOverview
-			slideOverview.setOverlay(trackerDataOverlay.getOverlay());
+			// Make sure the live visualisation is still requested when map generation is done
+			if (isOpenedProperty.get() && visualizationCheckBox.isSelected()) {
+				// Update the viewer's custom overlay layer
+				viewer.getCustomOverlayLayers().setAll(trackerDataMaps.getOverlay());
+				
+				// Update the slideOverview
+				slideOverview.setOverlay(trackerDataMaps.getOverlay());
+			}
 			
 			// Make sure the progress indicator doesn't show 'loading' anymore
-			trackerDataOverlay.generatingOverlayProperty().set(false);
+			trackerDataMaps.generatingOverlayProperty().set(false);
 		});
 	}
 	

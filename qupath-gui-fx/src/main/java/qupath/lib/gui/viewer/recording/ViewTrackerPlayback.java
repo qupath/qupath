@@ -163,7 +163,7 @@ class ViewTrackerPlayback {
 		resizeViewer(viewer, frame.getSize());
 		
 		// Set downsample
-		viewer.setDownsampleFactor(frame.getDownFactor());
+		viewer.setDownsampleFactor(frame.getDownsampleFactor());
 		
 		// Set location
 		Rectangle imageBounds = frame.getImageBounds();

@@ -170,7 +170,7 @@ final class ViewTrackerTools {
 		sb.append(canvasSize.height);
 		sb.append(delimiter);
 		
-		sb.append(frame.getDownFactor());
+		sb.append(frame.getDownsampleFactor());
 		sb.append(delimiter);
 		
 		sb.append(frame.getRotation());

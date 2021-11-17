@@ -123,6 +123,8 @@ final class ViewTrackerSlideOverview {
 	}
 	
 	private void drawImage(GraphicsContext g, BufferedImage imgToDraw) {
+		if (imgToDraw == null)
+			return;
 		int preferredHeight = (int)(img.getHeight() * (preferredWidth / (double)img.getWidth()));
 		var imgPreview = GuiTools.getScaledRGBInstance(imgToDraw, preferredWidth, preferredHeight);
 		g.drawImage(imgPreview, 0, 0);

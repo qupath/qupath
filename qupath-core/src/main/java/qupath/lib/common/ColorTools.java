@@ -253,6 +253,17 @@ public final class ColorTools {
 	}
 	
 	/**
+	 * Encode the RGB values in HTML format.
+	 * @param r
+	 * @param g
+	 * @param b
+	 * @return
+	 */
+	public static String encodeToHex(int r, int g, int b) {
+	    return String.format("#%02x%02x%02x", r, g, b);  
+	}
+	
+	/**
 	 * Extract the 8-bit alpha value from a packed ARGB value.
 	 * 
 	 * @param argb

@@ -23,15 +23,16 @@
 
 package qupath.lib.gui.viewer.recording;
 
-import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
+import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferDouble;
 import java.awt.image.IndexColorModel;
+import java.awt.image.Raster;
+import java.awt.image.WritableRaster;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,16 +43,16 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import qupath.lib.color.ColorMaps.ColorMap;
-import qupath.lib.common.ColorTools;
+import qupath.lib.color.ColorModelFactory;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;
 
 // TODO: What if the downsample is not rounded? (e.g. dwnsmple=1.5, then img will be rounded, and ImageRegion will be rounded again?)
-final class ViewTrackerDataOverlay {
+final class ViewTrackerDataMaps {
 	
-	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerDataOverlay.class);
+	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerDataMaps.class);
 	
 	private ViewTracker tracker;
 	private QuPathViewer viewer;
@@ -73,7 +74,7 @@ final class ViewTrackerDataOverlay {
 	
 	private BooleanProperty generatingOverlayProperty = new SimpleBooleanProperty(false);
 
-	ViewTrackerDataOverlay(ImageServer<?> server, QuPathViewer viewer, ViewTracker tracker) {
+	ViewTrackerDataMaps(ImageServer<?> server, QuPathViewer viewer, ViewTracker tracker) {
 		this.tracker = tracker;
 		this.viewer = viewer;
 		this.server = server;
@@ -138,16 +139,19 @@ final class ViewTrackerDataOverlay {
 		int frameStartIndex = tracker.getFrameIndexForTime(timeStart);
 		int frameStopIndex = tracker.getFrameIndexForTime(timeStop);
 		
-		ViewRecordingFrame[] relevantFrames = tracker.getAllFrames().subList(frameStartIndex, frameStopIndex+1).parallelStream()
+		ViewRecordingFrame[] relevantFrames = tracker.getAllFrames().subList(frameStartIndex, frameStopIndex+1).stream()
 				.filter(frame -> frame.getZ() == z && frame.getT() == t)
-				.filter(frame -> frame.getDownFactor() >= downMin && frame.getDownFactor() <= downMax)
+				.filter(frame -> frame.getDownsampleFactor() >= downMin && frame.getDownsampleFactor() <= downMax)
 				.toArray(ViewRecordingFrame[]::new);
 		
-		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, createColorModel(colorMap));
-		byte[] imgBuffer = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
+		DataBufferByte byteBuffer = new DataBufferByte(imgHeight * imgWidth);
+		double[] blackArray = new double[byteBuffer.getSize()];
+		Arrays.fill(blackArray, 0.0);
+		DataBufferDouble doubleBuffer = new DataBufferDouble(blackArray, blackArray.length);
 		
+		// TODO: This used to be return img
 		if (relevantFrames.length <= 1)
-			return img;
+			return null;
 				
 		// Get max value (for normalization)
 		double maxValue;
@@ -155,7 +159,7 @@ final class ViewTrackerDataOverlay {
 			maxValue = relevantFrames[relevantFrames.length-1].getTimestamp() - relevantFrames[0].getTimestamp();
 		else
 			maxValue = Arrays.asList(relevantFrames).stream()
-					.mapToDouble(e -> e.getDownFactor())
+					.mapToDouble(e -> e.getDownsampleFactor())
 					.max()
 					.orElseThrow();
 		
@@ -165,38 +169,47 @@ final class ViewTrackerDataOverlay {
 			if (nFrame >= relevantFrames.length-1)
 				break;
 			
-			BufferedImage imgNew = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED);
-	        Graphics2D g2d = (Graphics2D) imgNew.getGraphics();
+//			BufferedImage imgNew = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED);
 	        
-	        int value;
+	        double value;
 	        if (timeNormalized)
-	        	value = (int) (relevantFrames[nFrame+1].getTimestamp() - frame.getTimestamp());
+	        	value = relevantFrames[nFrame+1].getTimestamp() - frame.getTimestamp();
 	        else
-	        	value = (int) frame.getDownFactor();
-
-	        // Normalize
-	        value = (int) (value / maxValue * 65535);
-	        g2d.setColor(new Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255));
+	        	value = frame.getDownsampleFactor();
 	        
 	        if (frame.getRotation() != 0) {
 	        	AffineTransform transform = new AffineTransform();
 				Point2D center = frame.getFrameCentre();
 				transform.rotate(-frame.getRotation(), center.getX()/downsample, center.getY()/downsample);
-	        	g2d.setTransform(transform);
-	        } else
+				// TODO: Deal with rotation
+//
+//				Graphics2D g2d = imgNew.createGraphics();
+//				value = (int) (value / maxValue * 65535);	// Normalize
+//				g2d.setColor(new Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255));
+//	        	g2d.setTransform(transform);
+//	        	g2d.fill(downsampledBounds);
+//				g2d.dispose();
+	        } else {
 	        	downsampledBounds = getCroppedBounds(downsampledBounds, imgWidth, imgHeight);
-	        
-	        g2d.fill(downsampledBounds);
-	        byte[] imgNewBuffer = ((DataBufferByte)imgNew.getRaster().getDataBuffer()).getData();
-	        for (int i = 0; i < imgNewBuffer.length; i++) {
-	        	if (timeNormalized)
-	        		imgBuffer[i] += imgNewBuffer[i];
-	        	else {
-	        		if ((imgBuffer[i] == 0 && imgNewBuffer[i] > 0) || imgNewBuffer[i] < imgBuffer[i])
-	        			imgBuffer[i] = (byte) (65535 - imgNewBuffer[i]);
+	        	for (int y = (int) downsampledBounds.getY(); y < downsampledBounds.getY() + downsampledBounds.getHeight(); y++) {
+	        		for (int x = (int) downsampledBounds.getX(); x < downsampledBounds.getX() + downsampledBounds.getWidth(); x++) {
+	        			int index =  y * imgWidth+ x;
+	        			if (timeNormalized)
+	        				doubleBuffer.setElemDouble(index, doubleBuffer.getElemDouble(index) + value/maxValue);
+	        			else if (doubleBuffer.getElemDouble(index) < 1-value/maxValue)
+	        				doubleBuffer.setElemDouble(index, 1-value/maxValue);
+	        		}
 	        	}
 	        }
 		}
+		for (int i = 0; i < byteBuffer.getSize(); i++) {
+			byteBuffer.setElem(i, (int)(doubleBuffer.getElemDouble(i)*255));
+    	}
+		var sampleModel = new BandedSampleModel(byteBuffer.getDataType(), imgWidth, imgHeight, 1);
+		WritableRaster raster = Raster.createWritableRaster(sampleModel , byteBuffer, null);
+		IndexColorModel cm = ColorModelFactory.createIndexedColorModel8bit(colorMap, 0);
+		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, cm);
+		img.setData(raster);
 		return img;
 	}
 	
@@ -231,14 +244,5 @@ final class ViewTrackerDataOverlay {
 		int newWidth = bounds.width < 0 ? 0 : (bounds.width + x > width ? width - x : bounds.width);
 		int newHeight = bounds.height < 0 ? 0 : (bounds.height + y > height ? height - y : bounds.height);
 		return new Rectangle(x, y, newWidth, newHeight);
-	}
-	
-	private static IndexColorModel createColorModel(ColorMap colorMapper) {
-	    int[] rgba = new int[256];
-	    for (int i = 0; i < 256; i++) {
-	        int rgb = colorMapper.getColor(i, 0, 255);
-	        rgba[i] = ColorTools.packARGB(i, ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb));
-	    }
-	    return new IndexColorModel(8, 256, rgba, 0, true, 0, DataBuffer.TYPE_BYTE);
 	}
 }

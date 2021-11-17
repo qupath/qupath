@@ -241,7 +241,7 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 	}
 
 	@Override
-	public double getDownFactor() {
+	public double getDownsampleFactor() {
 		return downFactor;
 	}
 

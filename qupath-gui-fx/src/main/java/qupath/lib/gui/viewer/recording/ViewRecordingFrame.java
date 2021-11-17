@@ -48,7 +48,7 @@ interface ViewRecordingFrame {
 	 */
 	Rectangle getImageBounds();
 	
-	double getDownFactor();
+	double getDownsampleFactor();
 	
 	Point2D getFrameCentre();
 

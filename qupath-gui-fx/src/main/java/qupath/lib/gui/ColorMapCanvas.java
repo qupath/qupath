@@ -1,6 +1,8 @@
 package qupath.lib.gui;
 
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import javafx.beans.property.ObjectProperty;
@@ -8,8 +10,14 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
+import javafx.scene.paint.Paint;
+import javafx.scene.shape.Rectangle;
+import javafx.util.Duration;
+
 import qupath.lib.color.ColorMaps.ColorMap;
+import qupath.lib.common.ColorTools;
 
 /**
  * Canvas to show the range of a ColorMap (i.e. look-up table).
@@ -18,23 +26,30 @@ import qupath.lib.color.ColorMaps.ColorMap;
 public class ColorMapCanvas extends Canvas {
 	
 	private double height;
-	private ObjectProperty<ColorMap> ColorMapProperty;
+	private ObjectProperty<ColorMap> colorMapProperty;
 	private Image image;
+	private Map<Integer, Tooltip> tooltips;
 	
 	/**
-	 * Create a canvas that displays the range of the specified {@link ColorMap}. 
-	 * <p>
-	 * A {@link NullPointerException} is thrown if {@code ColorMap} is null.
-	 * 
+	 * Create a canvas that displays the range of the specified {@link ColorMap} with key tooltips.
 	 * @param height
-	 * @param ColorMap
+	 * @param colorMap
 	 */
-	public ColorMapCanvas(double height, ColorMap ColorMap) {
+	public ColorMapCanvas(double height, ColorMap colorMap) {
 		this.height = height;
-		this.ColorMapProperty = new SimpleObjectProperty<>(Objects.requireNonNull(ColorMap));
-		this.image = createColorMapImage(ColorMap);
+		this.colorMapProperty = new SimpleObjectProperty<>(Objects.requireNonNull(colorMap));
+		this.tooltips = new HashMap<>();
+		this.image = createColorMapImage(colorMap, tooltips);
+		this.setOnMouseMoved(e -> {
+			// TODO: Sometimes this seems to be using the previously-set tooltip instead of a new one
+			tooltips.forEach((key, tooltip) -> {
+		        if (key == (int)(e.getX() / this.getWidth() * 255)) {
+		        	Tooltip.install(this, tooltip);
+		        	return;
+		        }
+		    });
+		});
 	}
-	
 	
 	@Override
 	public double minHeight(double width) {
@@ -78,8 +93,9 @@ public class ColorMapCanvas extends Canvas {
 	 * @param ColorMap
 	 */
 	public void setColorMap(ColorMap ColorMap) {
-		ColorMapProperty.set(ColorMap);
-		image = createColorMapImage(ColorMap);
+		tooltips.clear();
+		colorMapProperty.set(ColorMap);
+		image = createColorMapImage(ColorMap, tooltips);
 		updateColorMapImage(image);
 	}
 	
@@ -88,7 +104,7 @@ public class ColorMapCanvas extends Canvas {
 	 * @return ColorMap
 	 */
 	public ColorMap getColorMap() {
-		return ColorMapProperty.get();
+		return colorMapProperty.get();
 	}
 	
 	/**
@@ -96,21 +112,28 @@ public class ColorMapCanvas extends Canvas {
 	 * @return ColorMap property
 	 */
 	public ObjectProperty<ColorMap> colorMapProperty() {
-		return ColorMapProperty;
+		return colorMapProperty;
 	}
 	
 	/**
-	 * Create an {@link Image} that shows the range of the {@code ColorMap}.
-	 * @param ColorMap
+	 * Create an {@link Image} that shows the range of the {@code ColorMap} and creates appropriate tooltips.
+	 * @param colorMap
+	 * @param tooltips 
 	 * @return image
 	 */
-	private static Image createColorMapImage(final ColorMap ColorMap) {
+	private static Image createColorMapImage(final ColorMap colorMap, final Map<Integer, Tooltip> tooltips) {
 		BufferedImage imgKey = new BufferedImage(255, 10, BufferedImage.TYPE_INT_ARGB);
-		if (ColorMap != null) {
+		if (colorMap != null) {
 			for (int i = 0; i < imgKey.getWidth(); i++) {
-				Integer rgb = ColorMap.getColor(i, 0, 254);
+				Integer rgb = colorMap.getColor(i, 0, 255);
 				for (int j = 0; j < imgKey.getHeight(); j++) {
 					imgKey.setRGB(i, j, rgb);
+					Rectangle rec = new Rectangle(50, 50);
+					rec.setFill(Paint.valueOf(ColorTools.encodeToHex(ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb))));
+					var tooltip = new Tooltip("Value: " + i);
+					tooltip.setGraphic(rec);
+					tooltip.setShowDelay(Duration.millis(1));
+					tooltips.put(i, tooltip);
 				}
 			}
 		}
