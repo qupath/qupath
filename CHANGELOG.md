@@ -5,6 +5,7 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 while fix
 
 List of bugs fixed:
 * 'Add intensity features' does not reinitialize options (including channels) when new images are opened (https://github.com/qupath/qupath/issues/836)
+* 'Keep settings' in Brightness/Contrast dialog does not always retain channel colors (https://github.com/qupath/qupath/issues/843)
 * Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
 * Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
 * Multichannel .tif output is broken in TileExporter (https://github.com/qupath/qupath/issues/838)
