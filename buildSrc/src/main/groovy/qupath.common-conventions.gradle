@@ -56,7 +56,8 @@ String jfxPlatform = platform
 if (properties['platform.name'] == null)
     logger.warn('Unknown operating system!')
 if ("32".equals(System.getProperty("sun.arch.data.model"))) {
-    logger.warn("You appear to be using a 32-bit JDK - the build will probably fail! At the very least, some things won't work.")
+    logger.warn("You appear to be using a 32-bit JDK - it is very possible some things won't work!")
+    logger.warn("You may at least need to replace the OpenSlide dlls with 32-bit versions from https://openslide.org/download/")
     if (platform == 'win')
 	    jfxPlatform = platform + "-x86"
 }
