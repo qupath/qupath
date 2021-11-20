@@ -9,7 +9,6 @@ plugins {
 }
 
 java {
-    // TODO: Support command line toolchain specification
     def version = project.findProperty('toolchain')
     if (!version)
         version = 16

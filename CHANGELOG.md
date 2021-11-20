@@ -11,6 +11,9 @@ List of bugs fixed:
 * Main class and classpath missing from app jar (https://github.com/qupath/qupath/issues/818)
 * MeasurementList is ignored for some objects when importing from GeoJSON (https://github.com/qupath/qupath/issues/845)
 
+### Dependency updates
+* JavaFX 17.0.1
+  * Introduced to fix UI bugs, e.g. https://github.com/qupath/qupath/issues/833
 
 ## Version 0.3.0
 
