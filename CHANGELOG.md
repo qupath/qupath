@@ -9,6 +9,7 @@ List of bugs fixed:
 * Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
 * Multichannel .tif output is broken in TileExporter (https://github.com/qupath/qupath/issues/838)
 * Main class and classpath missing from app jar (https://github.com/qupath/qupath/issues/818)
+* MeasurementList is ignored for some objects when importing from GeoJSON (https://github.com/qupath/qupath/issues/845)
 
 
 ## Version 0.3.0
