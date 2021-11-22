@@ -102,6 +102,7 @@ import qupath.lib.awt.common.AwtTools;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
+import qupath.lib.display.DirectServerChannelInfo;
 import qupath.lib.display.ImageDisplay;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.images.servers.PathHierarchyImageServer;
@@ -123,7 +124,9 @@ import qupath.lib.gui.viewer.tools.MoveTool;
 import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
 import qupath.lib.images.ImageData;
+import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelCalibration;
 import qupath.lib.objects.PathDetectionObject;
 import qupath.lib.objects.PathObject;
@@ -1542,6 +1545,19 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			}
 			if (!displaySet)
 				imageDisplay.setImageData(imageDataNew, keepDisplay);
+			
+			// For non-RGB images, the channel colors in our server metadata might now be out of sync with the 
+			// brightness/contrast, based upon whatever we extracted from the image properties or kept from the last image.
+			// If this happens, we need to update the metadata.
+			// See https://github.com/qupath/qupath/issues/843
+			if (server != null && !server.isRGB()) {
+				var colors = imageDisplay.availableChannels().stream()
+						.filter(c -> c instanceof DirectServerChannelInfo)
+						.map(c -> c.getColor())
+						.collect(Collectors.toList());
+				if (server.nChannels() == colors.size())
+					updateServerChannels(server, colors);
+			}
 		}
 		long endTime = System.currentTimeMillis();
 		logger.debug("Setting ImageData time: {} ms", endTime - startTime);
@@ -1587,6 +1603,46 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			repaint();
 		
 		logger.info("Image data set to {}", imageDataNew);
+	}
+	
+	
+	
+	/**
+	 * Update the channel colors, as stored in the server metadata, to match the specified colors.
+	 * This is used in the fix for See https://github.com/qupath/qupath/issues/843
+	 * @param server
+	 * @param colors
+	 * @return
+	 * @throws IllegalArgumentException if the number of colors does not match the number of channels
+	 */
+	private static boolean updateServerChannels(ImageServer<BufferedImage> server, List<Integer> colors) throws IllegalArgumentException {
+		var channels = server.getMetadata().getChannels();
+		if (channels.size() != colors.size())
+			throw new IllegalArgumentException(String.format("Number of channels (%d) does not match the number of colors (%d)!", channels.size(), colors.size()));
+		var serverChannelColors = channels.stream().map(c -> c.getColor()).collect(Collectors.toList());
+		if (colors.equals(serverChannelColors))
+			return false;
+		channels = new ArrayList<>(channels);
+		int n = 0;
+		for (int i = 0; i < channels.size(); i++) {
+			var channel = channels.get(i);
+			var color = colors.get(i);
+			if (!Objects.equals(channel.getColor(), color)) {
+				channels.set(i, ImageChannel.getInstance(channel.getName(), color));
+				n++;
+			}
+		}
+		if (n == 0)
+			return false; // Shouldn't happen
+		var newMetadata = new ImageServerMetadata.Builder(server.getMetadata())
+			.channels(channels)
+			.build();
+		server.setMetadata(newMetadata);
+		if (n == 1)
+			logger.info("Updating server metadata for 1 channel");
+		else
+			logger.info("Updating server metadata for {} channels", n);			
+		return true;
 	}
 	
 	
