@@ -13,6 +13,9 @@ List of bugs fixed:
 * MeasurementList is ignored for some objects when importing from GeoJSON (https://github.com/qupath/qupath/issues/845)
 * Backspace and delete don't do anything when the annotation list is in focus (https://github.com/qupath/qupath/issues/847)
 
+### Dependency updates
+* JavaFX 17.0.1
+  * Introduced to fix UI bugs, e.g. https://github.com/qupath/qupath/issues/833
 
 ## Version 0.3.0
 
