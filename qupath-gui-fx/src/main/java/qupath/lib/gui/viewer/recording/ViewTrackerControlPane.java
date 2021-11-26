@@ -108,8 +108,8 @@ public class ViewTrackerControlPane implements Runnable {
 	private QuPathGUI qupath;
 	private QuPathViewer viewer;	
 	
-	private BooleanProperty recordingMode = new SimpleBooleanProperty(false);
-	private BooleanProperty supportsEyeTracking = new SimpleBooleanProperty(false);
+	private final BooleanProperty recordingMode = new SimpleBooleanProperty(false);
+	private final BooleanProperty supportsEyeTracking = new SimpleBooleanProperty(false);
 	
 	
 	private ObservableList<ViewTracker> trackersList;
@@ -124,8 +124,8 @@ public class ViewTrackerControlPane implements Runnable {
 	 */
 	private final BooleanProperty isAnalysisOpened = new SimpleBooleanProperty(false);
 	
-	private ChangeListener<ImageData<?>> imageDataListener;
-	private ChangeListener<QuPathViewer> viewerListener;
+	private final ChangeListener<ImageData<?>> imageDataListener;
+	private final ChangeListener<QuPathViewer> viewerListener;
 	
 	/**
 	 * Timer that tracks the current recording's duration (and update the corresponding Label)
@@ -262,7 +262,7 @@ public class ViewTrackerControlPane implements Runnable {
 		titledPane = new TitledPane();
 		titledPane.managedProperty().bind(titledPane.visibleProperty());
 		titledPane.setAnimated(true);
-		table = new TableView<ViewTracker>();
+		table = new TableView<>();
 		table.setMaxHeight(200);
 		table.setItems(trackersList);
 		table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -304,7 +304,6 @@ public class ViewTrackerControlPane implements Runnable {
 		exportBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
 		deleteBtn.disableProperty().bind(Bindings.or(table.getSelectionModel().selectedItemProperty().isNull(), isAnalysisOpened));
 		moreBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
-//		btnPane.getChildren().forEach(e -> e.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull()));
 		
 		// Disable playback button if no ViewTracker or multiple ViewTrackers are selected
 		actionPlayback.disabledProperty().bind(Bindings.size(table.getSelectionModel().getSelectedItems()).isNotEqualTo(1).or(recordingMode).or(isAnalysisOpened));
@@ -412,8 +411,7 @@ public class ViewTrackerControlPane implements Runnable {
 					File file = currentTracker.getFile();
 					if (file != null)
 						return currentTracker.nameProperty();
-					else
-						return new SimpleObjectProperty<>("*" + currentTracker.nameProperty());
+					return new SimpleObjectProperty<>("*" + currentTracker.nameProperty());
 				} else if (columnName.equals("Duration"))
 					return new SimpleObjectProperty<>(ViewTrackerTools.getPrettyTimestamp(currentTracker.getStartTime(), currentTracker.getLastTime()));
 				return null;
@@ -532,8 +530,7 @@ public class ViewTrackerControlPane implements Runnable {
 	/**
 	 * Prepare the new {@link ViewTracker} for the next recording.
 	 * This should be called every time a (previous) recording has ended.
-	 * 
-	 * @param viewer
+	 * @param qupath 
 	 */
 	private void prepareNewViewTracker(QuPathGUI qupath) {
 		// Good practice to unbind property of previous trackers

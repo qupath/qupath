@@ -37,10 +37,8 @@ import qupath.lib.gui.viewer.tools.PathTool;
 
 /**
  * Data relating to a single recording frame.
- * <p>
- * TODO: This has hung on from Swing days with a lot of AWT.  Should be updated...
- * 
  * @author Pete Bankhead
+ * @author Melvin Gelbard
  * 
  */
 class DefaultViewRecordingFrame implements ViewRecordingFrame {
@@ -88,7 +86,6 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 		this.t = t;
 	}
 	
-	
 	@Override
 	public String toString() {
 		String s = String.format("Timestamp: %d, Shape: %s, Canvas size: %d, %d, Rotation: %f", timestamp, region.toString(), canvasSize.width, canvasSize.height, rotation);
@@ -110,44 +107,12 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 	public Shape getShape() {
 		return region;
 	}
-
 	
 	@Override
 	public Rectangle getImageBounds() {
-		// Get center of frame (for rotation anchor)
 		Point2D center = getFrameCentre();
-
-		// Rotate it to get x- and y-align image
-//		AffineTransform at = AffineTransform.getRotateInstance(-theta, center.getX(), center.getY());
 		AffineTransform at = new AffineTransform();
 		at.rotate(rotation, center.getX(), center.getY());
-//		Shape regionNormalized = at.createTransformedShape(region);
-//		PathIterator it = regionNormalized.getPathIterator(null);
-//		double[] segment = new double[6];
-//		Point2D[] coords = new Point2D[4];
-//		double minX = Double.MAX_VALUE;
-//		double minY = Double.MAX_VALUE;
-//		double maxX = 0;
-//		double maxY = 0;
-//		for (int i = 0; i < coords.length; i++) {
-//			if (it.isDone())
-//				return null;
-//	        it.currentSegment(segment);
-//	        coords[i] = new Point2D.Double(segment[0], segment[1]);
-//	        minX = segment[0] < minX ? minX = segment[0] : minX;
-//	        maxX = segment[0] > maxX ? maxX = segment[0] : maxX;
-//	        minY = segment[1] < minY ? minY = segment[1] : minY;
-//	        maxY = segment[1] > maxY ? maxY = segment[1] : maxY;
-//	        
-//	        it.next();
-//		}
-		
-		
-//		Rectangle rec = new Rectangle((int)minX,
-//				(int)minY,
-//				(int)(maxX-minX),
-//				(int)(maxY-minY));
-		
 		Shape rec = at.createTransformedShape(region);
 		return rec.getBounds();
 	}
@@ -231,7 +196,7 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 	}
 	
 	@Override
-	public boolean hasZAndT() {
+	public boolean hasZOrT() {
 		return z != null || t != null;
 	}
 
@@ -254,5 +219,4 @@ class DefaultViewRecordingFrame implements ViewRecordingFrame {
 	public boolean hasActiveTool() {
 		return activeTool != null;
 	}
-	
 }

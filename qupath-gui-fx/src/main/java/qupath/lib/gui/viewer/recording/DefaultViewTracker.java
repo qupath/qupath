@@ -157,6 +157,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 			viewer.getView().addEventHandler(MouseEvent.MOUSE_DRAGGED, mouseHandler);
 		}
 		// Assume no eye tracking data until we learn otherwise
+		// TODO: viewer.getDisplayedRegionShape() returns a rotated rectangle instead of non-rotated! Change that
 		visibleRegionChanged(viewer, viewer.getDisplayedRegionShape());
 
 		logger.debug("--------------------------------------\n" + 
@@ -216,14 +217,14 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 
 	private void initializeRecording() {
 		var imageData = viewer.getImageData();
-		hasZAndT = imageData.getServer().getMetadata().getSizeZ() != 1 || viewer.getImageData().getServer().getMetadata().getSizeT() != 1;
+		hasZAndT = imageData.getServer().getMetadata().getSizeZ() != 1 || imageData.getServer().getMetadata().getSizeT() != 1;
 		frames.clear();
 		startTime = System.currentTimeMillis();
 		lastFrame = null;
 		
 		// Create 'recordings' directory if it doesn't exist
 		if (!setRecordingDirectory())
-			createRecordingDir(qupath.getProject().getEntry(viewer.getImageData()).getEntryPath());
+			createRecordingDir(qupath.getProject().getEntry(imageData).getEntryPath());
 		
 		recordingFile = recordingFile != null ? recordingFile : new File(recordingDirectory, nameProperty.get() + ".tsv");
 		try {
@@ -473,6 +474,7 @@ public class DefaultViewTracker implements ViewTracker, QuPathViewerListener {
 	class MouseMovementHandler implements EventHandler<MouseEvent> {
 		@Override
 		public void handle(MouseEvent event) {
+			//TODO: viewer.getDisplayedRegionShape() returns a rotated rectangle (if rotation !=0), however it should not
 			Point2D p = viewer.componentPointToImagePoint(event.getX(), event.getY(), null, false);
 			addFrame(System.currentTimeMillis(), viewer.getDisplayedRegionShape(), ViewTrackerTools.getSize(viewer), viewer.getDownsampleFactor(), p, getActiveToolIfRequired(), getEyePointIfRequired(), getEyeFixatedIfRequired(), viewer.getRotation(), getCurrentZ(), getCurrentT());
 		}		

@@ -58,7 +58,9 @@ final class ViewTrackerTools {
 	 * The output is in the form of a delimited text file.
 	 * @param delimiter delimiter (e.g. tab or comma)
 	 * @param includeCursor optionally include columns relevant for cursor tracking
+	 * @param includeActiveTool 
 	 * @param includeEyeTracking optionally include columns relevant for eye tracking
+	 * @param isZAndTIncluded 
 	 * @return
 	 */
 	static String getSummaryHeadings(final String delimiter, final boolean includeCursor, final boolean includeActiveTool, final boolean includeEyeTracking, final boolean isZAndTIncluded) {
@@ -145,7 +147,9 @@ final class ViewTrackerTools {
 	 * @param frame
 	 * @param delimiter
 	 * @param includeCursor
+	 * @param includeActiveTool 
 	 * @param includeEyeTracking
+	 * @param includeZAndT 
 	 * @return
 	 */
 	static String getSummary(final ViewRecordingFrame frame, final String delimiter, final boolean includeCursor, final boolean includeActiveTool, final boolean includeEyeTracking, final boolean includeZAndT) {

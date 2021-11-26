@@ -70,7 +70,7 @@ interface ViewRecordingFrame {
 
 	boolean hasEyePosition();
 	
-	boolean hasZAndT();
+	boolean hasZOrT();
 	
 	int getZ();
 	

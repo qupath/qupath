@@ -199,7 +199,7 @@ class ViewTrackerPlayback {
 			logger.debug("Eye position: " + p2d);
 		}
 		
-		if (frame.hasZAndT()) {
+		if (frame.hasZOrT()) {
 			viewer.setZPosition(frame.getZ());
 			viewer.setTPosition(frame.getT());
 		}

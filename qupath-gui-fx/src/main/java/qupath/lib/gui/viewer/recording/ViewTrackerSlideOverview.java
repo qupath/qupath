@@ -26,6 +26,7 @@ package qupath.lib.gui.viewer.recording;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 
 import org.slf4j.Logger;
@@ -53,7 +54,7 @@ final class ViewTrackerSlideOverview {
 	private final Color color = Color.rgb(200, 0, 0, .8);
 	
 	private Shape shapeVisible = null; // The visible shape (transformed already)
-	private AffineTransform transform = null;
+	private AffineTransform transform = new AffineTransform();;
 	
 	ViewTrackerSlideOverview(QuPathViewer viewer, Canvas canvas) {
 		this.viewer = viewer;
@@ -140,14 +141,11 @@ final class ViewTrackerSlideOverview {
 		double theta = frame.getRotation();
 		Shape shape = frame.getShape();
 		
-		if (transform == null)
-			transform = new AffineTransform();
-		else
-			transform.setToIdentity();
-		
+		transform.setToIdentity();
 		transform.setToScale(scale, scale);
 		
-		if (theta != 0) {
+		// TODO: Remove 'instanceof', which is needed because addFrame() stores a rotated rectangle instead of the non-rotated one!
+		if (shape instanceof Rectangle2D && theta != 0) {
 			var center = frame.getFrameCentre();
 			transform.rotate(-theta, center.getX(), center.getY());
 		}

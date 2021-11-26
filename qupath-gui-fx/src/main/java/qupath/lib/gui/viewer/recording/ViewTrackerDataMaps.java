@@ -24,17 +24,19 @@
 package qupath.lib.gui.viewer.recording;
 
 import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.awt.image.DataBufferDouble;
 import java.awt.image.IndexColorModel;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -44,8 +46,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.color.ColorModelFactory;
-import qupath.lib.gui.viewer.QuPathViewer;
-import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.regions.ImageRegion;
 
@@ -54,163 +54,209 @@ final class ViewTrackerDataMaps {
 	
 	private static final Logger logger = LoggerFactory.getLogger(ViewTrackerDataMaps.class);
 	
-	private ViewTracker tracker;
-	private QuPathViewer viewer;
-	private ImageServer<?> server;
+	private final ViewTracker tracker;
 	
-	private int imgWidth;
-	private int imgHeight;
-	private double downsample;
+	private final int nZSlices;
+	private final int nTimepoints;
+	private final int fullWidth;
+	private final int fullHeight;
+	private final double downsample;
 	
-	private long timeStart;
-	private long timeStop;
-	private double downMin;
-	private double downMax;
-	private boolean timeNormalized;	// If false, it's magnification-normalized
+	private int dataMapWidth;
+	private int dataMapHeight;
+	
+	// These variables will change every time the data maps are updated
+	private long timeStart = -1;
+	private long timeStop = -1;
+	private double downsampleMin = -1;
+	private double downsampleMax = -1;
+	private boolean timeNormalized = true;	// If false, it's magnification-normalized
 	
 	private ColorMap colorMap;
 	
-	private Map<ImageRegion, BufferedImage> regions;
+	private final Map<ImageRegion, BufferedImage> regionMaps;
 	
 	private BooleanProperty generatingOverlayProperty = new SimpleBooleanProperty(false);
 
-	ViewTrackerDataMaps(ImageServer<?> server, QuPathViewer viewer, ViewTracker tracker) {
+	ViewTrackerDataMaps(ViewTracker tracker, int fullWidth, int fullHeight, int nZSlices, int nTimepoints, double[] downsamples) {
 		this.tracker = tracker;
-		this.viewer = viewer;
-		this.server = server;
-		this.imgWidth = server.getWidth();
-		this.imgHeight = server.getHeight();
-		this.regions = new HashMap<>();
+		this.fullWidth = fullWidth;
+		this.fullHeight = fullHeight;
+		this.dataMapWidth = fullWidth;
+		this.dataMapHeight = fullHeight;
+		this.nZSlices = nZSlices;
+		this.nTimepoints = nTimepoints;
+		this.regionMaps = new HashMap<>();
 
 		// Set width and height of img
-		double[] preferredDownsamples = server.getPreferredDownsamples();
 		int index = 0;
-		double divider = preferredDownsamples[0];
-		while ((long)imgWidth * imgHeight > 2000 * 2000) {
+		double divider = downsamples[0];
+		while ((long)dataMapWidth * dataMapHeight > 2000 * 2000) {
 			// Compute downsample to reach img within pixel limit (2k * 2k)
 			index++;
-			if (index >= preferredDownsamples.length)
-				divider = preferredDownsamples[preferredDownsamples.length-1]*2;
+			if (index >= downsamples.length)
+				divider = downsamples[downsamples.length-1]*2;
 			else
-				divider = preferredDownsamples[index];
-			imgWidth = (int)Math.round(server.getWidth() / divider);
-			imgHeight = (int)Math.round(server.getHeight() / divider);
+				divider = downsamples[index];
+			dataMapWidth = (int)Math.round(fullWidth / divider);
+			dataMapHeight = (int)Math.round(fullHeight / divider);
 		}
 		downsample = divider;
 	}
 	
-	void updateDataImage(long timeStart, long timeStop, double downMin, double downMax, boolean timeNormalised, ColorMap colorMapper) {
-		this.timeStart = timeStart;
-		this.timeStop = timeStop;
-		this.downMin = downMin;
-		this.downMax = downMax;
-		this.timeNormalized = timeNormalised;
-		this.colorMap = colorMapper;
+	ViewTrackerDataMaps(ImageServer<?> server, ViewTracker tracker) {
+		this(tracker, server.getWidth(), server.getHeight(), server.nZSlices(), server.nTimepoints(), server.getPreferredDownsamples());
+	}
 		
-		regions = getImageRegions();
-		viewer.repaint();
+	Map<ImageRegion, BufferedImage> getRegionMaps() {
+		return regionMaps;
 	}
 	
-	BufferedImageOverlay getOverlay() {
-		return new BufferedImageOverlay(viewer, regions);
-	}
-	
-
 	BooleanProperty generatingOverlayProperty() {
 		return generatingOverlayProperty;
 	}
 	
-	private Map<ImageRegion, BufferedImage> getImageRegions() {
+	void updateDataImage(long timeStart, long timeStop, double downsampleMin, double downsampleMax, boolean timeNormalised, ColorMap colorMapper) {
+		this.timeStart = timeStart;
+		this.timeStop = timeStop;
+		this.downsampleMin = downsampleMin;
+		this.downsampleMax = downsampleMax;
+		this.timeNormalized = timeNormalised;
+		this.colorMap = colorMapper;
+		
+		populateRegionMap();
+	}
+	private Map<ImageRegion, BufferedImage> populateRegionMap() {
 		var startTime = System.currentTimeMillis();
-		regions.clear();
-		for (int z = 0; z < server.nZSlices(); z++) {
-			for (int t = 0; t < server.nTimepoints(); t++) {
-				ImageRegion region = ImageRegion.createInstance(0, 0, server.getWidth(), server.getHeight(), z, t);
-				BufferedImage img = getBufferedImage(z, t);
-				regions.put(region, img);
+		regionMaps.clear();
+		for (int z = 0; z < nZSlices; z++) {
+			for (int t = 0; t < nTimepoints; t++) {
+				ImageRegion region = ImageRegion.createInstance(0, 0, fullWidth, fullHeight, z, t);
+				BufferedImage img = createDataImage(z, t);
+				regionMaps.put(region, img);
 			}
 		}
 		//TODO: remove next line
-		logger.info("Processing time for getImageRegions(): " + (System.currentTimeMillis()-startTime));
-		return regions;
+		logger.info("Processing time for populateRegionMap(): " + (System.currentTimeMillis()-startTime));
+		return regionMaps;
 	}
 	
-	private BufferedImage getBufferedImage(int z, int t) {
+	private BufferedImage createDataImage(int z, int t) {
+		// This could only happen if calling createDataImage before updateDataImage()
+		if (timeStart == -1 || timeStop == -1 || downsampleMin == -1 || downsampleMax == -1 || colorMap == null)
+			return null;
+		
+		// Get relevant frames
 		int frameStartIndex = tracker.getFrameIndexForTime(timeStart);
 		int frameStopIndex = tracker.getFrameIndexForTime(timeStop);
 		
-		ViewRecordingFrame[] relevantFrames = tracker.getAllFrames().subList(frameStartIndex, frameStopIndex+1).stream()
-				.filter(frame -> frame.getZ() == z && frame.getT() == t)
-				.filter(frame -> frame.getDownsampleFactor() >= downMin && frame.getDownsampleFactor() <= downMax)
-				.toArray(ViewRecordingFrame[]::new);
+		List<ViewRecordingFrame> relevantFrames = new ArrayList<>();
+		ViewRecordingFrame previousFrame = tracker.getFrame(frameStopIndex);
+		for (int nFrame = frameStopIndex; nFrame > frameStartIndex; nFrame--) {
+			var frame = tracker.getFrame(nFrame);
+			if (frame.getZ() != z && frame.getT() != t)
+				continue;
+			if (frame.getDownsampleFactor() < downsampleMin || frame.getDownsampleFactor() > downsampleMax)
+				continue;
+			if (sameImageBounds(frame, previousFrame))
+				continue;
 		
-		DataBufferByte byteBuffer = new DataBufferByte(imgHeight * imgWidth);
-		double[] blackArray = new double[byteBuffer.getSize()];
-		Arrays.fill(blackArray, 0.0);
-		DataBufferDouble doubleBuffer = new DataBufferDouble(blackArray, blackArray.length);
+			relevantFrames.add(frame);
+			previousFrame = frame;
+		}
+
+		double[] array = calculateMapValues(relevantFrames.toArray(ViewRecordingFrame[]::new), timeNormalized, downsample, dataMapWidth, dataMapHeight);
+		DataBufferByte byteBuffer = new DataBufferByte(array.length);
+		for (int i = 0; i < array.length; i++) {
+			byteBuffer.setElem(i, (int)(array[i]*255));
+    	}
+		var sampleModel = new BandedSampleModel(byteBuffer.getDataType(), dataMapWidth, dataMapHeight, 1);
+		WritableRaster raster = Raster.createWritableRaster(sampleModel , byteBuffer, null);
+		IndexColorModel cm = ColorModelFactory.createIndexedColorModel8bit(colorMap, 0);
+		BufferedImage img = new BufferedImage(dataMapWidth, dataMapHeight, BufferedImage.TYPE_BYTE_INDEXED, cm);
+		img.setData(raster);
+		return img;
+	}
+	
+	private static boolean sameImageBounds(ViewRecordingFrame f1, ViewRecordingFrame f2) {
+		var b1 = f1.getImageBounds();
+		var b2 = f2.getImageBounds();
 		
-		// TODO: This used to be return img
-		if (relevantFrames.length <= 1)
-			return null;
+		if (b1.getX() != b2.getX() ||
+				b1.getY() != b2.getY() ||
+				b1.getWidth() != b2.getWidth() ||
+				b1.getHeight() != b2.getHeight())
+			return false;
+		
+		if (f1.getRotation() != f2.getRotation())
+			return false;
+		return true;
+			
+		
+	}
+	
+	/**
+	 * Calculate the map values for each pixel, returned in a double array whose size is specified through the specified {@code targetWidth} & {@code targetHeight}.
+	 * @param frames 				all frames to process
+	 * @param timeNormalized	whether it is normalized by time or by magnification
+	 * @param downsample		How much to downsample the values of each frames to match target size
+	 * @param targetWidth		width of the map
+	 * @param targetHeight		height of the map
+	 * @return map values in double array
+	 */
+	private static double[] calculateMapValues(ViewRecordingFrame[] frames, boolean timeNormalized, double downsample, int targetWidth, int targetHeight) {
+		double[] array = new double[targetHeight * targetWidth];
+		Arrays.fill(array, 0.0);
+		
+		if (frames.length <= 1)
+			return array;
 				
 		// Get max value (for normalization)
 		double maxValue;
 		if (timeNormalized)
-			maxValue = relevantFrames[relevantFrames.length-1].getTimestamp() - relevantFrames[0].getTimestamp();
+			maxValue = frames[frames.length-1].getTimestamp() - frames[0].getTimestamp();
 		else
-			maxValue = Arrays.asList(relevantFrames).stream()
+			maxValue = Arrays.asList(frames).stream()
 					.mapToDouble(e -> e.getDownsampleFactor())
 					.max()
 					.orElseThrow();
 		
-		for (int nFrame = 0; nFrame < relevantFrames.length; nFrame++) {
-			var frame = relevantFrames[nFrame];
+		for (int nFrame = 0; nFrame < frames.length; nFrame++) {
+			var frame = frames[nFrame];
 			Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds(), downsample);
-			if (nFrame >= relevantFrames.length-1)
+			if (nFrame >= frames.length-1)
 				break;
-			
-//			BufferedImage imgNew = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED);
 	        
 	        double value;
 	        if (timeNormalized)
-	        	value = relevantFrames[nFrame+1].getTimestamp() - frame.getTimestamp();
+	        	value = frames[nFrame+1].getTimestamp() - frame.getTimestamp();
 	        else
 	        	value = frame.getDownsampleFactor();
 	        
+	        downsampledBounds = getCroppedBounds(downsampledBounds, targetWidth, targetHeight);
+	        Shape rotated = null;	 // if rotation != 0, this variable will be initialised
 	        if (frame.getRotation() != 0) {
 	        	AffineTransform transform = new AffineTransform();
 				Point2D center = frame.getFrameCentre();
 				transform.rotate(-frame.getRotation(), center.getX()/downsample, center.getY()/downsample);
-				// TODO: Deal with rotation
-//
-//				Graphics2D g2d = imgNew.createGraphics();
-//				value = (int) (value / maxValue * 65535);	// Normalize
-//				g2d.setColor(new Color((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF, 255));
-//	        	g2d.setTransform(transform);
-//	        	g2d.fill(downsampledBounds);
-//				g2d.dispose();
-	        } else {
-	        	downsampledBounds = getCroppedBounds(downsampledBounds, imgWidth, imgHeight);
-	        	for (int y = (int) downsampledBounds.getY(); y < downsampledBounds.getY() + downsampledBounds.getHeight(); y++) {
-	        		for (int x = (int) downsampledBounds.getX(); x < downsampledBounds.getX() + downsampledBounds.getWidth(); x++) {
-	        			int index =  y * imgWidth+ x;
-	        			if (timeNormalized)
-	        				doubleBuffer.setElemDouble(index, doubleBuffer.getElemDouble(index) + value/maxValue);
-	        			else if (doubleBuffer.getElemDouble(index) < 1-value/maxValue)
-	        				doubleBuffer.setElemDouble(index, 1-value/maxValue);
-	        		}
-	        	}
+				rotated = transform.createTransformedShape(downsampledBounds);
+				downsampledBounds = rotated.getBounds();
 	        }
+	        
+	        // Iterate through all the pixel in the bounding box of the rotated rectangle
+	        for (int y = (int) downsampledBounds.getY(); y < downsampledBounds.getY() + downsampledBounds.getHeight(); y++) {
+        		for (int x = (int) downsampledBounds.getX(); x < downsampledBounds.getX() + downsampledBounds.getWidth(); x++) {
+        			int index =  y * targetWidth+ x;
+        			if (rotated == null || (rotated.contains(new Point2D.Double(x, y)) && index > 0 && index < array.length)) {
+        				if (timeNormalized)
+        					array[index] += value/maxValue;
+        				else if (array[index] < 1-value/maxValue)
+        					array[index] = 1-value/maxValue;        				
+        			}
+        		}
+        	}
 		}
-		for (int i = 0; i < byteBuffer.getSize(); i++) {
-			byteBuffer.setElem(i, (int)(doubleBuffer.getElemDouble(i)*255));
-    	}
-		var sampleModel = new BandedSampleModel(byteBuffer.getDataType(), imgWidth, imgHeight, 1);
-		WritableRaster raster = Raster.createWritableRaster(sampleModel , byteBuffer, null);
-		IndexColorModel cm = ColorModelFactory.createIndexedColorModel8bit(colorMap, 0);
-		BufferedImage img = new BufferedImage(imgWidth, imgHeight, BufferedImage.TYPE_BYTE_INDEXED, cm);
-		img.setData(raster);
-		return img;
+		return array;
 	}
 	
 	/**

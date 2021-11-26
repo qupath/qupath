@@ -12,12 +12,11 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
-import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 
 import qupath.lib.color.ColorMaps.ColorMap;
-import qupath.lib.common.ColorTools;
+import qupath.lib.gui.tools.ColorToolsFX;
 
 /**
  * Canvas to show the range of a ColorMap (i.e. look-up table).
@@ -129,7 +128,7 @@ public class ColorMapCanvas extends Canvas {
 				for (int j = 0; j < imgKey.getHeight(); j++) {
 					imgKey.setRGB(i, j, rgb);
 					Rectangle rec = new Rectangle(50, 50);
-					rec.setFill(Paint.valueOf(ColorTools.encodeToHex(ColorTools.red(rgb), ColorTools.green(rgb), ColorTools.blue(rgb))));
+					rec.setFill(ColorToolsFX.getCachedColor(rgb));
 					var tooltip = new Tooltip("Value: " + i);
 					tooltip.setGraphic(rec);
 					tooltip.setShowDelay(Duration.millis(1));

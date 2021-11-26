@@ -89,6 +89,7 @@ import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.tools.IconFactory;
 import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.plugins.parameters.ParameterList;
 
@@ -312,7 +313,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					playback.setFirstFrame(currentFrame.get());
 					
 					// Set the visible shape for current frame
-					slideOverview.setVisibleShape(currentFrame.get());
+//					slideOverview.setVisibleShape(currentFrame.get());
 					slideOverview.paintCanvas();
 					
 					playback.doStartPlayback();
@@ -498,16 +499,16 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			colorMapCombo.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			
 			// TODO: if using keys to change sliders, nothing will trigger the overlay update
-			trackerDataMaps = new ViewTrackerDataMaps(server, viewer, tracker);
+			trackerDataMaps = new ViewTrackerDataMaps(server, tracker);
 			timeDisplayedSlider.setOnMouseReleased(v -> updateOverlays());
 			downsampleSlider.setOnMouseReleased(v -> updateOverlays());
 			colorMapCanvas.colorMapProperty().addListener((v, o, n) -> updateOverlays());
 			progressIndicator.visibleProperty().bind(trackerDataMaps.generatingOverlayProperty());
 
 			visualizationCheckBox.selectedProperty().addListener((v, o, n) -> {
-				if (n) {
+				if (n)
 					updateOverlays();
-				} else {
+				else {
 					viewer.getCustomOverlayLayers().clear();
 					slideOverview.setOverlay(null);
 				}
@@ -604,25 +605,26 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 		//dialog.toFront();
 	}
 
+	// TODO: Include WAND tool in PathTools because it returns null now
 	private static Object getColumnValue(final ViewRecordingFrame frame, final String columnName) {
 		switch (columnName) {
-		case "Timestamp (ms)": return frame.getTimestamp();
-		case "X": return frame.getImageBounds().x;
-		case "Y": return frame.getImageBounds().y;
-		case "Width": return frame.getImageBounds().width;
-		case "Height": return frame.getImageBounds().height;
-		case "Canvas width": return frame.getSize().width;
-		case "Canvas height": return frame.getSize().height;
-		case "Downsample factor": return frame.getDownsampleFactor();
-		case "Rotation": return frame.getRotation();
-		case "Cursor X": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
-		case "Cursor Y": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
-		case "Active Tool": return frame.getActiveTool().getName();
-		case "Eye X": return frame.getEyePosition().getX();
-		case "Eye Y": return frame.getEyePosition().getY();
-		case "Fixated": return frame.isEyeFixated();
-		case "Z": return frame.getZ();
-		case "T": return frame.getT();
+			case "Timestamp (ms)": return frame.getTimestamp();
+			case "X": return frame.getImageBounds().x;
+			case "Y": return frame.getImageBounds().y;
+			case "Width": return frame.getImageBounds().width;
+			case "Height": return frame.getImageBounds().height;
+			case "Canvas width": return frame.getSize().width;
+			case "Canvas height": return frame.getSize().height;
+			case "Downsample factor": return frame.getDownsampleFactor();
+			case "Rotation": return frame.getRotation();
+			case "Cursor X": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getX();
+			case "Cursor Y": return frame.getCursorPosition() == null ? "" : frame.getCursorPosition().getY();
+			case "Active Tool": return frame.getActiveTool() == null ? "Other" : frame.getActiveTool().getName();
+			case "Eye X": return frame.getEyePosition().getX();
+			case "Eye Y": return frame.getEyePosition().getY();
+			case "Fixated": return frame.isEyeFixated();
+			case "Z": return frame.getZ();
+			case "T": return frame.getT();
 		}
 		return null;
 	}
@@ -697,14 +699,15 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					timeNormalizedRadio.selectedProperty().get(),
 					colorMapCanvas.getColorMap()
 					);
+			viewer.repaint();
 			
 			// Make sure the live visualisation is still requested when map generation is done
 			if (isOpenedProperty.get() && visualizationCheckBox.isSelected()) {
 				// Update the viewer's custom overlay layer
-				viewer.getCustomOverlayLayers().setAll(trackerDataMaps.getOverlay());
+				viewer.getCustomOverlayLayers().setAll(new BufferedImageOverlay(viewer, trackerDataMaps.getRegionMaps()));
 				
 				// Update the slideOverview
-				slideOverview.setOverlay(trackerDataMaps.getOverlay());
+				slideOverview.setOverlay(new BufferedImageOverlay(viewer, trackerDataMaps.getRegionMaps()));
 			}
 			
 			// Make sure the progress indicator doesn't show 'loading' anymore
