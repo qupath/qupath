@@ -992,6 +992,8 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 			tPosition.set(0);
 			return;
 		}
+		
+		updateICCTransform();
 
 		zPosition.set(server.nZSlices() / 2);
 		tPosition.set(0);
@@ -2198,7 +2200,11 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	 * @return the <code>ColorConvertOp</code> if an appropriate conversion could be found, or <code>null</code> otherwise.
 	 */
 	ColorConvertOp createICCConvertOp() {
-		ICC_Profile iccSource = readICC(new File(getServerPath()));
+		var server = getServer();
+		var uris = server == null ? null : server.getURIs();
+		if (uris == null || uris.isEmpty())
+			return null;
+		ICC_Profile iccSource = readICC(new File(uris.iterator().next()));
 		if (iccSource == null)
 			return null;
 		return new ColorConvertOp(new ICC_Profile[]{
@@ -2232,7 +2238,7 @@ public class QuPathViewer implements TileListener<BufferedImage>, PathObjectHier
 	}
 	
 	void updateICCTransform() {
-		if (getServerPath() != null && getDoICCTransform())
+		if (getDoICCTransform())
 			iccTransformOp = createICCConvertOp();
 		else
 			iccTransformOp = null;
