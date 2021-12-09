@@ -111,7 +111,11 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 		var classifierMetadata = classifier.getMetadata();
 				
-		var pixelType = PixelType.UINT8;
+		var pixelType = classifierMetadata.getOutputPixelType();
+		if (pixelType == null) {
+			logger.debug("PixelType is unknown - will use default of UINT8");
+			pixelType = PixelType.UINT8;
+		}
 		
 		var tileWidth = classifierMetadata.getInputWidth();
 		var tileHeight = classifierMetadata.getInputHeight();
@@ -122,6 +126,10 @@ public class PixelClassificationImageServer extends AbstractTileableImageServer 
 		
 		var inputResolution = classifierMetadata.getInputResolution();
 		var cal = server.getPixelCalibration();
+		if (inputResolution == null) {
+			logger.warn("Input resolution not specified in PixelClassifier metadata - will assume full resolution");
+			inputResolution = cal;
+		}
 		double downsample = inputResolution.getAveragedPixelSize().doubleValue() / cal.getAveragedPixelSize().doubleValue();
 		if (!(cal.getPixelWidthUnit().equals(inputResolution.getPixelWidthUnit()) && cal.getPixelHeightUnit().equals(inputResolution.getPixelHeightUnit()))) {
 			if (inputResolution.unitsMatch2D() && PixelCalibration.PIXEL.equals(inputResolution.getPixelWidthUnit())) {

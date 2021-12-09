@@ -32,7 +32,9 @@ import java.util.Map;
 import qupath.lib.classifiers.PathClassifierTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServerMetadata.ChannelType;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.objects.classes.PathClassFactory;
 
@@ -52,7 +54,8 @@ public class PixelClassifierMetadata {
 	private int inputHeight = -1;
 	private int inputNumChannels = 3;
 	
-	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
+	private ChannelType outputType = ChannelType.CLASSIFICATION;
+	private PixelType outputPixelType = null;
 	private List<ImageChannel> outputChannels;
 	private Map<Integer, PathClass> classificationLabels;
 	
@@ -106,11 +109,19 @@ public class PixelClassifierMetadata {
     }
 
     /**
-     * Type of output; default is OutputType.Probability
+     * Channel type of output; default is {@link ChannelType#CLASSIFICATION}
      * @return 
      */
-    public ImageServerMetadata.ChannelType getOutputType() {
+    public ChannelType getOutputType() {
     	return outputType;
+    }
+    
+    /**
+     * Pixel type of output; default is null indicating the pixel type is unknown.
+     * @return 
+     */
+    public PixelType getOutputPixelType() {
+    	return outputPixelType;
     }
 
     /**
@@ -149,6 +160,7 @@ public class PixelClassifierMetadata {
     	this.inputHeight = builder.inputHeight;
     	this.inputNumChannels = builder.inputNumChannels;
     	this.classificationLabels = builder.classificationLabels;
+    	this.outputPixelType = builder.outputPixelType;
     	this.outputType = builder.outputType;
     	this.outputChannels = builder.outputChannels;
 //    	this.strictInputSize = builder.strictInputSize;
@@ -168,7 +180,8 @@ public class PixelClassifierMetadata {
     	private int inputHeight = -1;
     	private int inputNumChannels = 3;
     	
-    	private ImageServerMetadata.ChannelType outputType = ImageServerMetadata.ChannelType.CLASSIFICATION;
+    	private ChannelType outputType = ChannelType.CLASSIFICATION;
+    	private PixelType outputPixelType = null;
     	private List<ImageChannel> outputChannels = new ArrayList<>();
     	
     	private Map<Integer, PathClass> classificationLabels;
@@ -221,6 +234,16 @@ public class PixelClassifierMetadata {
     	public Builder inputShape(int width, int height) {
     		this.inputWidth = width;
     		this.inputHeight = height;
+    		return this;
+    	}
+    	
+    	/**
+    	 * Output pixel type.
+    	 * @param pixelType
+    	 * @return
+    	 */
+    	public Builder outputPixelType(PixelType pixelType) {
+    		this.outputPixelType = pixelType;
     		return this;
     	}
     	
