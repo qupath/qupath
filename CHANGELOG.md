@@ -12,6 +12,9 @@ List of bugs fixed:
 * Main class and classpath missing from app jar (https://github.com/qupath/qupath/issues/818)
 * MeasurementList is ignored for some objects when importing from GeoJSON (https://github.com/qupath/qupath/issues/845)
 * Backspace and delete don't do anything when the annotation list is in focus (https://github.com/qupath/qupath/issues/847)
+* 'Automate -> Show workflow command history' displays empty workflow (https://github.com/qupath/qupath/pull/851)
+* Extensions are sometimes loaded too late when running command line scripts (https://github.com/qupath/qupath/issues/852)
+* ICC Profiles could not be set in the viewer (unused preview feature, https://github.com/qupath/qupath/pull/850)
 
 ### Dependency updates
 * JavaFX 17.0.1
