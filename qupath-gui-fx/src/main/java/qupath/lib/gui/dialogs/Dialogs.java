@@ -23,7 +23,6 @@
 
 package qupath.lib.gui.dialogs;
 
-import java.awt.GraphicsEnvironment;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -350,7 +349,8 @@ public class Dialogs {
 			logger.error(title , e);
 		if (message == null)
 			message = "QuPath has encountered a problem, sorry.\nIf you can replicate it, please report it with 'Help > Report bug'.\n\n" + e;
-		showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
+		if (!isHeadless())
+			showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
 	}
 
 	/**
@@ -360,7 +360,8 @@ public class Dialogs {
 	 */
 	public static void showErrorNotification(final String title, final String message) {
 		logger.error(title + ": " + message);
-		showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
+		if (!isHeadless())
+			showNotifications(createNotifications().title(title).text(message), AlertType.ERROR);
 	}
 
 	/**
@@ -370,7 +371,8 @@ public class Dialogs {
 	 */
 	public static void showWarningNotification(final String title, final String message) {
 		logger.warn(title + ": " + message);
-		showNotifications(createNotifications().title(title).text(message), AlertType.WARNING);
+		if (!isHeadless())
+			showNotifications(createNotifications().title(title).text(message), AlertType.WARNING);
 	}
 
 	/**
@@ -380,7 +382,8 @@ public class Dialogs {
 	 */
 	public static void showInfoNotification(final String title, final String message) {
 		logger.info(title + ": " + message);
-		showNotifications(createNotifications().title(title).text(message), AlertType.INFORMATION);
+		if (!isHeadless())
+			showNotifications(createNotifications().title(title).text(message), AlertType.INFORMATION);
 	}
 
 	/**
@@ -390,7 +393,8 @@ public class Dialogs {
 	 */
 	public static void showPlainNotification(final String title, final String message) {
 		logger.info(title + ": " + message);
-		showNotifications(createNotifications().title(title).text(message), AlertType.NONE);
+		if (!isHeadless())
+			showNotifications(createNotifications().title(title).text(message), AlertType.NONE);
 	}
 	
 	/**
@@ -398,6 +402,10 @@ public class Dialogs {
 	 * @param notification
 	 */
 	private static void showNotifications(Notifications notification, AlertType type) {
+		if (isHeadless()) {
+			logger.warn("Cannot show notifications in headless mode!");
+			return;
+		}
 		if (Platform.isFxApplicationThread()) {
 			switch (type) {
 			case CONFIRMATION:
@@ -463,7 +471,8 @@ public class Dialogs {
 	 */
 	public static void showErrorMessage(final String title, final String message) {
 		logger.error(title + ": " + message);
-		showErrorMessage(title, createContentLabel(message));
+		if (!isHeadless())
+			showErrorMessage(title, createContentLabel(message));
 	}
 	
 	/**
@@ -486,11 +495,13 @@ public class Dialogs {
 	 */
 	public static void showPlainMessage(final String title, final String message) {
 		logger.info(title + ": " + message);
-		new Builder()
-			.alertType(AlertType.INFORMATION)
-			.title(title)
-			.content(createContentLabel(message))
-			.show();
+		if (!isHeadless()) {
+			new Builder()
+				.alertType(AlertType.INFORMATION)
+				.title(title)
+				.content(createContentLabel(message))
+				.show();
+		}
 	}
 	
 	/**
@@ -660,6 +671,10 @@ public class Dialogs {
 		return new Builder();
 	}
 	
+	
+	private static boolean isHeadless() {
+		return QuPathGUI.getInstance() == null;
+	}
 
 	/**
 	 * Builder class to create a custom {@link Dialog}.
@@ -930,13 +945,14 @@ public class Dialogs {
 			return dialog;
 		}
 		
+		
 		/**
 		 * Show the dialog.
 		 * This is similar to {@code build().show()} except that it will automatically 
 		 * be called on the JavaFX application thread even if called from another thread.
 		 */
 		public void show() {
-			if (GraphicsEnvironment.isHeadless()) {
+			if (isHeadless()) {
 				logger.warn("Cannot show dialog in headless mode!");
 				return;
 			}
