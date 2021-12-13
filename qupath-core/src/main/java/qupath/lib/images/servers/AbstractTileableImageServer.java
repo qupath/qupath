@@ -34,6 +34,10 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -158,6 +162,30 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	
 	
 	/**
+	 * Map of tiles currently being requested, so avoid duplicate requests (wait instead for the first request to return).
+	 */
+	private Map<TileRequest, TileTask> pendingTiles = new ConcurrentHashMap<>();
+	
+	/**
+	 * Count of how many duplicate requests are received for a pending tile.
+	 * QuPath *should* strive to minimize these.
+	 */
+	private int duplicateRequestClashCount = 0;
+	
+	private static class TileTask extends FutureTask<BufferedImage> {
+		
+		private Thread thread;
+
+		public TileTask(Thread thread, Callable<BufferedImage> callable) {
+			super(callable);
+			this.thread = thread;
+		}
+		
+		
+		
+	}
+		
+	/**
 	 * Get a tile for the request - ideally from the cache, but otherwise read it and 
 	 * then add it to the cache.
 	 * 
@@ -181,19 +209,40 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 		}
 		logger.trace("Reading tile: {}", request);
 		
-		var imgCached = readTile(tileRequest);
+		BufferedImage imgCached;
+		var futureTask = pendingTiles.computeIfAbsent(tileRequest, t -> new TileTask(Thread.currentThread(), () -> readTile(t)));
+		var myTask = futureTask.thread == Thread.currentThread();
+		try {
+			if (myTask)
+				futureTask.run();
+			else {
+				duplicateRequestClashCount++;
+				logger.debug("Duplicate request for a pending tile ({} total) - {}", duplicateRequestClashCount, tileRequest.getRegionRequest());
+			}
+			imgCached = futureTask.get();
+		} catch (ExecutionException | InterruptedException e) {
+			if (e.getCause() instanceof IOException)
+				throw (IOException)e.getCause();
+			throw new IOException(e);
+		}
+		
+//		var imgCached = readTile(tileRequest);
 		
 		// Put the tile in the appropriate cache
-		if (imgCached != null) {
-			if (isEmptyTile(imgCached)) {
-				emptyTiles.add(tileRequest);
-			} else if (cache != null) {
-				cache.put(request, imgCached);
-				// Check if we were able to cache the tile; sometimes we can't if it is too big
-				if (!cache.containsKey(request) && failedCacheTiles.add(request))
-					logger.warn("Unable to add {} to cache.\nYou might need to give QuPath more memory, or to increase the 'Percentage memory for tile caching' preference.", request);
+		if (myTask) {
+			if (imgCached != null) {
+				if (isEmptyTile(imgCached)) {
+					emptyTiles.add(tileRequest);
+				} else if (cache != null) {
+					cache.put(request, imgCached);
+					// Check if we were able to cache the tile; sometimes we can't if it is too big
+					if (!cache.containsKey(request) && failedCacheTiles.add(request))
+						logger.warn("Unable to add {} to cache.\nYou might need to give QuPath more memory, or to increase the 'Percentage memory for tile caching' preference.", request);
+				}
 			}
+			pendingTiles.remove(tileRequest);
 		}
+		
 		return imgCached;
 	}
 	
@@ -241,6 +290,9 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 				return BufferedImageTools.duplicate(imgTile);
 			}
 		}
+		
+		// Ensure all tiles are either cached or pending before we continue
+		prerequestTiles(tiles);
 		
 		long startTime = System.currentTimeMillis();
 		// Handle the general case for RGB
@@ -392,6 +444,25 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 			long endTime = System.currentTimeMillis();
 			logger.trace("Requested " + tiles.size() + " tiles in " + (endTime - startTime) + " ms (non-RGB)");
 			return imgResult;
+		}
+	}
+	
+	/**
+	 * Ensure all tiles in a list are either cached or requested.
+	 * If a tile is neither, then a blocking request is made so that the tile will be present later.
+	 * The purpose of this is to avoid sequentially requesting the same tiles from multiple threads,
+	 * which could cause all threads to block waiting on the same tile - rather than trying to 
+	 * get the next one.
+	 * @param tiles
+	 */
+	private void prerequestTiles(Collection<TileRequest> tiles) {
+		var cache = getCache();
+		for (var tile : tiles) {
+			if (!cache.containsKey(tile.getRegionRequest()) && !pendingTiles.containsKey(tile)) {
+				var futureTask = pendingTiles.computeIfAbsent(tile, t -> new TileTask(Thread.currentThread(), () -> readTile(t)));
+				if (futureTask.thread == Thread.currentThread())
+					futureTask.run();
+			}
 		}
 	}
 	
