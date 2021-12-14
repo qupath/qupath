@@ -5,6 +5,7 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 while fix
 
 List of bugs fixed:
 * 'Add intensity features' does not reinitialize options (including channels) when new images are opened (https://github.com/qupath/qupath/issues/836)
+* Reading images with ImageJ is too slow and memory-hungry (https://github.com/qupath/qupath/issues/860)
 * 'Keep settings' in Brightness/Contrast dialog does not always retain channel colors (https://github.com/qupath/qupath/issues/843)
 * ImageServers can request the same tile in multiple threads simultaneously (https://github.com/qupath/qupath/issues/861)
 * Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
