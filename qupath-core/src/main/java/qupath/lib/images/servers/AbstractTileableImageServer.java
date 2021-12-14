@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -458,7 +458,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	private void prerequestTiles(Collection<TileRequest> tiles) {
 		var cache = getCache();
 		for (var tile : tiles) {
-			if (!cache.containsKey(tile.getRegionRequest()) && !pendingTiles.containsKey(tile)) {
+			if (cache != null && !cache.containsKey(tile.getRegionRequest()) && !pendingTiles.containsKey(tile)) {
 				var futureTask = pendingTiles.computeIfAbsent(tile, t -> new TileTask(Thread.currentThread(), () -> readTile(t)));
 				if (futureTask.thread == Thread.currentThread())
 					futureTask.run();
