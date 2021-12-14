@@ -458,7 +458,7 @@ public abstract class AbstractTileableImageServer extends AbstractImageServer<Bu
 	private void prerequestTiles(Collection<TileRequest> tiles) {
 		var cache = getCache();
 		for (var tile : tiles) {
-			if (cache != null && !cache.containsKey(tile.getRegionRequest()) && !pendingTiles.containsKey(tile)) {
+			if (cache == null || !cache.containsKey(tile.getRegionRequest()) && !pendingTiles.containsKey(tile)) {
 				var futureTask = pendingTiles.computeIfAbsent(tile, t -> new TileTask(Thread.currentThread(), () -> readTile(t)));
 				if (futureTask.thread == Thread.currentThread())
 					futureTask.run();
