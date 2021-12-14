@@ -43,7 +43,6 @@ import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.bioformats.BioFormatsServerBuilder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.Builder;
 import qupath.lib.images.writers.ome.OMEPyramidWriter.CompressionType;
-import qupath.lib.regions.RegionRequest;
 
 /**
  * Allows command line option to convert an input image to OME-TIFF
@@ -80,6 +79,10 @@ public class ConvertCommand implements Runnable, Subcommand {
 	@Option(names = {"-y", "--pyramid-scale"}, defaultValue = "1.0", description = {"Scale factor for pyramidal images.",
 			"Each pyramidal level is scaled down by the specified factor (> 1)."})
 	private double pyramid;
+	
+	@Option(names = {"--big-tiff"}, defaultValue = Option.NULL_VALUE, description = {"Request to write a big tiff, which is required when writing a TIFF images > 4GB.",
+			"Default is to automatically decide based on image size. Choose --big-tiff=false to force a non-big-tiff to be written."})
+	private Boolean bigTiff;
 	
 	@Option(names = {"--tile-size"}, defaultValue = "-1", description = "Set the tile size (of equal height and width).")
 	private int tileSize;
@@ -170,6 +173,9 @@ public class ConvertCommand implements Runnable, Subcommand {
 					.tileSize(tileWidth, tileHeight)
 					.parallelize(parallelize);
 			
+			if (bigTiff != null)
+				builder = builder.bigTiff(bigTiff.booleanValue());
+			
 			// Make pyramidal, if requested
 			if (downsample < 1)
 				downsample = server.getDownsampleForResolution(0);
@@ -239,7 +245,7 @@ public class ConvertCommand implements Runnable, Subcommand {
 				}
 			}
 			
-			builder.build().writePyramid(outputFile.getPath());
+			builder.build().writeSeries(outputFile.getPath());
 			
 			long duration = System.currentTimeMillis() - startTime;
 			logger.info(String.format("%s written in %.1f seconds", outputFile.getAbsolutePath(), duration/1000.0));
