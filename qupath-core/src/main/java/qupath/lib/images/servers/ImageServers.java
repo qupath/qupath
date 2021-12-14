@@ -78,6 +78,8 @@ import qupath.lib.regions.ImageRegion;
  */
 public class ImageServers {
 	
+	private final static Logger logger = LoggerFactory.getLogger(ImageServers.class);
+	
 	private static SubTypeAdapterFactory<ServerBuilder> serverBuilderFactory = 
 			GsonTools.createSubTypeAdapterFactory(ServerBuilder.class, "builderType")
 			.registerSubtype(DefaultImageServerBuilder.class, "uri")
@@ -282,7 +284,11 @@ public class ImageServers {
 		List<Exception> exceptions = new ArrayList<>();
 		for (var support : supports) {
 			try {
-				return support.getBuilders().iterator().next().build();
+				var builders = support.getBuilders();
+				if (!builders.isEmpty())
+					return builders.get(0).build();
+				else
+					logger.debug("No builders available for {}", support);
 			} catch (Exception e) {
 				exceptions.add(e);
 			}
