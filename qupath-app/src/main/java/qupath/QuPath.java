@@ -388,7 +388,7 @@ class ScriptCommand implements Runnable {
 			percentage = 10;
 		} else if (percentage > 90) {
 			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
-			percentage = 00;			
+			percentage = 90;			
 		}
 		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
 		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));

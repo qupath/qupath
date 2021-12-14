@@ -5,7 +5,9 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 while fix
 
 List of bugs fixed:
 * 'Add intensity features' does not reinitialize options (including channels) when new images are opened (https://github.com/qupath/qupath/issues/836)
+* Reading images with ImageJ is too slow and memory-hungry (https://github.com/qupath/qupath/issues/860)
 * 'Keep settings' in Brightness/Contrast dialog does not always retain channel colors (https://github.com/qupath/qupath/issues/843)
+* ImageServers can request the same tile in multiple threads simultaneously (https://github.com/qupath/qupath/issues/861)
 * Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
 * Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
 * Multichannel .tif output is broken in TileExporter (https://github.com/qupath/qupath/issues/838)
@@ -15,6 +17,7 @@ List of bugs fixed:
 * 'Automate -> Show workflow command history' displays empty workflow (https://github.com/qupath/qupath/pull/851)
 * Extensions are sometimes loaded too late when running command line scripts (https://github.com/qupath/qupath/issues/852)
 * ICC Profiles could not be set in the viewer (unused preview feature, https://github.com/qupath/qupath/pull/850)
+* convert-ome command doesn't report when it is finished (https://github.com/qupath/qupath/issues/859)
 
 ### Dependency updates
 * JavaFX 17.0.1
