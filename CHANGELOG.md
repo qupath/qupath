@@ -17,7 +17,10 @@ List of bugs fixed:
 * 'Automate -> Show workflow command history' displays empty workflow (https://github.com/qupath/qupath/pull/851)
 * Extensions are sometimes loaded too late when running command line scripts (https://github.com/qupath/qupath/issues/852)
 * ICC Profiles could not be set in the viewer (unused preview feature, https://github.com/qupath/qupath/pull/850)
-* convert-ome command doesn't report when it is finished (https://github.com/qupath/qupath/issues/859)
+* Image writing fixes, including
+  * convert-ome command doesn't report when it is finished (https://github.com/qupath/qupath/issues/859)
+  * OMEPyramidWriter ignores file extension to always write ome.tif (https://github.com/qupath/qupath/issues/857)
+  * OMEPyramidWriter logic for bigtiff can fail for image pyramids (https://github.com/qupath/qupath/issues/858)
 
 ### Dependency updates
 * JavaFX 17.0.1
