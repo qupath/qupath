@@ -6,6 +6,7 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 while fix
 List of bugs fixed:
 * 'Add intensity features' does not reinitialize options (including channels) when new images are opened (https://github.com/qupath/qupath/issues/836)
 * Reading images with ImageJ is too slow and memory-hungry (https://github.com/qupath/qupath/issues/860)
+* Generating multiple readers with Bio-Formats can be very slow (https://github.com/qupath/qupath/issues/865)
 * 'Keep settings' in Brightness/Contrast dialog does not always retain channel colors (https://github.com/qupath/qupath/issues/843)
 * ImageServers can request the same tile in multiple threads simultaneously (https://github.com/qupath/qupath/issues/861)
 * Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
@@ -26,6 +27,7 @@ List of bugs fixed:
 * JavaFX 17.0.1
   * Introduced to fix UI bugs, e.g. https://github.com/qupath/qupath/issues/833
 * Logback 1.2.9
+* ImageJ 1.53i - downgrade to support headless, see https://github.com/imagej/imagej1/issues/140
 
 ## Version 0.3.0
 
