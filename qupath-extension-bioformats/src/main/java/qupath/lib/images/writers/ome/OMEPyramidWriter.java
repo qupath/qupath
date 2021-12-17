@@ -506,6 +506,7 @@ public class OMEPyramidWriter {
 		 * @throws IOException
 		 * @deprecated use {@link #writeSeries(String)} instead
 		 */
+		@Deprecated
 		public void writePyramid(final String path) throws FormatException, IOException {
 			var writer = new OMEPyramidWriter();
 			writer.series.add(this);
@@ -538,6 +539,7 @@ public class OMEPyramidWriter {
 		 * @see #initializeMetadata(IMetadata, int)
 		 * @deprecated use {@link #writeSeries(IFormatWriter, IMetadata, int)} instead
 		 */
+		@Deprecated
 		public void writePyramid(final PyramidOMETiffWriter writer, IMetadata meta, final int series) throws FormatException, IOException {
 			writeSeries(writer, meta, series);
 		}
