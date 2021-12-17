@@ -25,6 +25,7 @@ List of bugs fixed:
 ### Dependency updates
 * JavaFX 17.0.1
   * Introduced to fix UI bugs, e.g. https://github.com/qupath/qupath/issues/833
+* Logback 1.2.9
 
 ## Version 0.3.0
 
