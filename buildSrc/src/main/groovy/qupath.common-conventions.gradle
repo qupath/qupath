@@ -117,7 +117,7 @@ ext {
 	cudaVersion        = "11.4-8.2-${javacppVersion}"
 
     // Additional versions
-    logbackVersion     = '1.2.5'
+    logbackVersion     = '1.2.9'
     slf4jVersion       = '1.7.32'
     junitVersion       = '5.7.2'
 }
