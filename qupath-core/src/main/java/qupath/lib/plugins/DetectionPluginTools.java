@@ -153,9 +153,10 @@ public class DetectionPluginTools {
 				} else {
 					if (!wasCancelled) {
 						parentObject.clearPathObjects();
-						if (pathObjectsDetected != null)
+						if (pathObjectsDetected != null) {
 							parentObject.addPathObjects(pathObjectsDetected);
-						tryToSetObjectLock(parentObject, !pathObjectsDetected.isEmpty());
+							tryToSetObjectLock(parentObject, !pathObjectsDetected.isEmpty());
+						}
 						imageData.getHierarchy().fireObjectsChangedEvent(this, Collections.singletonList(parentObject));
 					}
 				}

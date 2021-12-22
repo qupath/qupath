@@ -331,7 +331,8 @@ public class PathIO {
 				if (imageType != null)
 					imageData.setImageType(imageType);
 				// Set the new hierarchy
-				imageData.getHierarchy().setHierarchy(hierarchy);
+				if (hierarchy != null)
+					imageData.getHierarchy().setHierarchy(hierarchy);
 			}
 			// Set the other properties we have just read
 			if (workflow != null) {

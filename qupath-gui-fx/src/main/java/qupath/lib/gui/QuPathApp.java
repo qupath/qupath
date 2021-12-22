@@ -81,7 +81,7 @@ public class QuPathApp extends Application {
 						gui.openImageEntry(entry);
 				}
 			} catch (IOException e2) {
-				logger.error("Unable to open project {}", projectPath, e2);
+				logger.error("Unable to open project " + projectPath, e2);
 			}
 		} else if (imagePath != null) {
 			gui.openImage(imagePath, false, false);

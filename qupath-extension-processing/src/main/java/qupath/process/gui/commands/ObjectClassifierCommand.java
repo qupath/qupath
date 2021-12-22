@@ -517,10 +517,8 @@ public class ObjectClassifierCommand implements Runnable {
 			// Determine the measurements to use
 			var measurements = getRequestedMeasurements();
 			if (measurements.isEmpty()) {
-				if (measurements.isEmpty()) {
-					logger.warn("No measurements - cannot update classifier");
-					return null;
-				}
+				logger.warn("No measurements - cannot update classifier");
+				return null;
 			}
 
 			FeatureExtractor<BufferedImage> extractor = FeatureExtractors

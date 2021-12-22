@@ -43,12 +43,12 @@ import qupath.lib.gui.viewer.QuPathViewer;
 
 final class RotateImageCommand implements ChangeListener<QuPathViewer> {
 	
-	private static QuPathGUI qupath;
-	private static CircularSlider slider;
-	private static Stage dialog;
+	private QuPathGUI qupath;
+	private CircularSlider slider;
+	private Stage dialog;
 	
 	RotateImageCommand(QuPathGUI qupath) {
-		RotateImageCommand.qupath = qupath;
+		this.qupath = qupath;
 		qupath.viewerProperty().addListener(this);
 	}
 	
