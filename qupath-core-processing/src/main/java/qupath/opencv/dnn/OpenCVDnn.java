@@ -645,7 +645,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 
 	
 	
-	class OpenCVNetFunction implements PredictionFunction<Mat> { //, UriResource {
+	class OpenCVNetFunction implements PredictionFunction<Mat>, AutoCloseable { //, UriResource {
 				
 		private transient Net net;
 		private transient List<String> outputLayerNames;
@@ -797,6 +797,19 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 				return outputs;
 			return DnnTools.getOutputLayers(net, inputShapes);
 		}
+
+		@Override
+		public synchronized void close() throws Exception {
+			if (net != null) {
+				logger.debug("Closing {}", net);
+				net.close();
+				net.deallocate();
+			}
+			if (outputLayerNamesVector != null) {
+				outputLayerNamesVector.close();
+				outputLayerNamesVector.deallocate();
+			}
+		}
 		
 	}
 
@@ -891,6 +904,13 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 			}
 		}
 		return predFun;
+	}
+	
+	@Override
+	public void close() throws Exception {
+		if (predFun instanceof AutoCloseable) {
+			((AutoCloseable)predFun).close();
+		}
 	}
 
 }
