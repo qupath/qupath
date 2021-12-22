@@ -669,6 +669,7 @@ public class Commands {
 	 * @param qupath the {@link QuPathGUI} instance
 	 */
 	// TODO: Restrict this command to an opened image
+	// TODO: Convert to returning Stage, then use createSingleStageAction
 	public static void createRotateImageDialog(QuPathGUI qupath) {
 		var rotationCommand = new RotateImageCommand(qupath).createDialog();
 		rotationCommand.show();
