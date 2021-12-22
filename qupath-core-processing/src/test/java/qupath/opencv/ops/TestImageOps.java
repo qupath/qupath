@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Map;
-
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.bytedeco.javacpp.PointerScope;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -114,6 +114,11 @@ public class TestImageOps {
 				ImageOps.Channels.mean(), "op.channels.mean",
 				ImageOps.Channels.minimum(), "op.channels.minimum",
 				ImageOps.Channels.maximum(), "op.channels.maximum",
+				
+				ImageOps.Normalize.sigmoid(), "op.normalize.sigmoid",
+				ImageOps.Core.clip(0.1, 0.9), "op.core.clip",
+				ImageOps.Normalize.zeroMeanUnitVariance(false), "op.normalize.zero-mean-unit-variance",
+
 				ImageOps.Filters.gaussianBlur(3), "op.filters.gaussian"
 				);
 		for (var entry : ops.entrySet()) {
@@ -152,7 +157,6 @@ public class TestImageOps {
 					var kernel = OpenCVTools.createDisk(radius, false);
 					kernel.convertTo(kernel, opencv_core.CV_8U);
 //					kernel.convertTo(kernel, opencv_core.CV_8U, 255, 0);
-//					System.err.println(kernel.createIndexer());
 					var matLocalMean = new Mat();
 					var matLocalStd = new Mat();
 					var idxMean = matMean.createIndexer();
@@ -223,6 +227,9 @@ public class TestImageOps {
 						compareValues(m1, ImageOps.Core.splitDivide(null, null), v1 / v1);
 						compareValues(m2, ImageOps.Core.splitDivide(null, null), v2 / v2);
 						
+						compareValues(m1, ImageOps.Core.clip(0.25, 2.5), Math.min(2.5, Math.max(0.25, v1)));
+						compareValues(m2, ImageOps.Core.clip(0.25, 2.5), Math.min(2.5, Math.max(0.25, v2)));
+						
 	//					System.err.println("v1: " + v1);
 	//					System.err.println("v2: " + v2);
 						
@@ -236,7 +243,15 @@ public class TestImageOps {
 						compareValues(m2, ImageOps.Core.sqrt(), Math.sqrt(v2));
 						
 						compareValues(m1, ImageOps.Core.power(v2), Math.pow(v1, v2));
+						
+						
+						// Other scalar calculations
+						compareValues(m1, ImageOps.Normalize.sigmoid(), 1.0/(1.0 + Math.exp(-v1)));
+						compareValues(m2, ImageOps.Normalize.sigmoid(), 1.0/(1.0 + Math.exp(-v2)));
 	
+						compareValues(m1, ImageOps.Normalize.zeroMeanUnitVariance(false), !Double.isFinite(v1) ? Double.NaN : 0.0);
+						compareValues(m1, ImageOps.Normalize.zeroMeanUnitVariance(true), !Double.isFinite(v1) ? Double.NaN : 0.0);
+						
 					}
 				}
 				
@@ -295,6 +310,59 @@ public class TestImageOps {
 			assertEquals(matChannels2.channels(), 2);
 	
 			assertThrows(IllegalArgumentException.class, () -> ImageOps.Channels.extract().apply(mat.clone()));
+		}
+	}
+	
+	
+	@Test
+	public void testNormalize() {
+		try (var scope = new PointerScope()) {
+			
+			opencv_core.setRNGSeed(100);
+			
+			int type = opencv_core.CV_32FC1;
+			int rows = 25;
+			int cols = 30;
+			var matList = Arrays.asList(
+					new Mat(rows, cols, type, Scalar.all(1)),
+					new Mat(rows, cols, type, Scalar.all(5)),				
+					new Mat(rows, cols, type, Scalar.all(2)),
+					new Mat(rows, cols, type, Scalar.all(10))
+					);
+			var mat = OpenCVTools.mergeChannels(matList, null);
+			
+			// Add noise
+			OpenCVTools.addNoise(mat, 10, 5);
+			
+			double eps = 1e-3;
+			
+			// Check mean/variance normalization
+			var matZeroUnitGlobal = ImageOps.Normalize.zeroMeanUnitVariance(false).apply(mat.clone());
+			var values = OpenCVTools.extractDoubles(matZeroUnitGlobal);
+			var stats = new DescriptiveStatistics(values);
+			assertEquals(stats.getMean(), 0.0, eps);
+			assertEquals(stats.getStandardDeviation(), 1.0, eps);
+			// When normalizing globally, don't expert zero mean and unit variance per channel
+			for (var matTemp : OpenCVTools.splitChannels(matZeroUnitGlobal)) {
+				values = OpenCVTools.extractDoubles(matTemp);
+				stats = new DescriptiveStatistics(values);
+				assertNotEquals(stats.getMean(), 0.0, eps);
+				assertNotEquals(stats.getStandardDeviation(), 1.0, eps);
+			}
+			
+			// When normalizing per-channel, expect to find zero mean & unit variance across the image as well
+			var matZeroUnitChannels = ImageOps.Normalize.zeroMeanUnitVariance(true).apply(mat.clone());
+			values = OpenCVTools.extractDoubles(matZeroUnitChannels);
+			stats = new DescriptiveStatistics(values);
+			assertEquals(stats.getMean(), 0.0, eps);
+			assertEquals(stats.getStandardDeviation(), 1.0, eps);
+			for (var matTemp : OpenCVTools.splitChannels(matZeroUnitChannels)) {
+				values = OpenCVTools.extractDoubles(matTemp);
+				stats = new DescriptiveStatistics(values);
+				assertEquals(stats.getMean(), 0.0, eps);
+				assertEquals(stats.getStandardDeviation(), 1.0, eps);
+			}
+			
 		}
 	}
 	
