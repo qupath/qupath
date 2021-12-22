@@ -2729,7 +2729,7 @@ public class ImageOps {
 							var outputs = model.getPredictionFunction().getOutputs(DnnShape.of(1, channels.size(), inputHeight, inputWidth));
 							List<String> names = new ArrayList<>();
 							if (outputs.size() > 1) {
-								Collection<String> outputKeys = outputNames == null || outputNames.length == 0 ? Arrays.asList(outputNames) : outputs.keySet();
+								Collection<String> outputKeys = outputNames == null || outputNames.length == 0 ? outputs.keySet() : Arrays.asList(outputNames);
 								for (var key : outputKeys) {
 									var shape = outputs.get(key);
 									if (shape != null && !shape.isUnknown() && shape.numDimensions() > 2 && shape.get(1) != DnnShape.UNKNOWN_LENGTH) {

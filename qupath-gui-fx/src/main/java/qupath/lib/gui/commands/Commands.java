@@ -1154,6 +1154,7 @@ public class Commands {
 				return true;
 			} catch (Exception e) {
 				Dialogs.showErrorMessage("Load project", "Could not read project from " + fileProject.getName());
+				logger.error(e.getLocalizedMessage(), e);
 			}
 		}
 		return false;

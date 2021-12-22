@@ -271,7 +271,7 @@ public class ImageServerProvider {
 			logger.error("Unable to build whole slide server - check your classpath for a suitable library (e.g. OpenSlide, BioFormats)\n\t");
 			logger.error(System.getProperty("java.class.path"));
 		}
-		String message = firstException.getLocalizedMessage();
+		String message = firstException == null ? "No supports found" : firstException.getLocalizedMessage();
 		if (!message.isBlank())
 			message = " (" + message + ")";
 		throw new IOException("Unable to build a whole slide server for " + path + message, firstException);

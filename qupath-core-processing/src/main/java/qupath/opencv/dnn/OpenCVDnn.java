@@ -645,7 +645,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 
 	
 	
-	class OpenCVNetFunction implements PredictionFunction<Mat>, UriResource {
+	class OpenCVNetFunction implements PredictionFunction<Mat> { //, UriResource {
 				
 		private transient Net net;
 		private transient List<String> outputLayerNames;
@@ -770,16 +770,16 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		}
 
 
-		@Override
-		public Collection<URI> getUris() throws IOException {
-			return getUris();
-		}
-
-
-		@Override
-		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
-			return updateUris(replacements);
-		}
+//		@Override
+//		public Collection<URI> getUris() throws IOException {
+//			return OpenCVDnn.this.getUris();
+//		}
+//
+//
+//		@Override
+//		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+//			return OpenCVDnn.this.updateUris(replacements);
+//		}
 
 
 		@Override

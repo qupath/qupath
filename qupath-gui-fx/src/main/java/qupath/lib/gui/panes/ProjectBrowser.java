@@ -994,7 +994,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return false;
 		}
 
-		if (name.equals(null)) {
+		if (name == null) {
 			logger.warn("Project entry name cannot be null!");
 			return false;
 		}
