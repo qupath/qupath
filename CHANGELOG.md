@@ -7,6 +7,7 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 while fix
 * Reading images with ImageJ is too slow and memory-hungry (https://github.com/qupath/qupath/issues/860)
 * Generating multiple readers with Bio-Formats can be very slow (https://github.com/qupath/qupath/issues/865)
 * 'Keep settings' in Brightness/Contrast dialog does not always retain channel colors (https://github.com/qupath/qupath/issues/843)
+* 'Create composite classifier' does not store classifier in the workflow when 'Save & Apply' is selected (https://github.com/qupath/qupath/issues/874)
 * ImageServers can request the same tile in multiple threads simultaneously (https://github.com/qupath/qupath/issues/861)
 * Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
 * Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
