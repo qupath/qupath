@@ -46,7 +46,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import loci.formats.FormatException;
-import loci.formats.FormatTools;
 import loci.formats.FormatWriter;
 import loci.formats.IFormatWriter;
 import loci.formats.ImageWriter;
