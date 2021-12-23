@@ -1,4 +1,4 @@
-## Version 0.3.1-SNAPSHOT
+## Version 0.3.1
 
 This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs, updating dependencies and improving performance.
 
