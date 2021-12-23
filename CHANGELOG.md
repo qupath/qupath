@@ -18,6 +18,9 @@ List of bugs fixed:
 * 'Automate -> Show workflow command history' displays empty workflow (https://github.com/qupath/qupath/pull/851)
 * Extensions are sometimes loaded too late when running command line scripts (https://github.com/qupath/qupath/issues/852)
 * ICC Profiles could not be set in the viewer (unused preview feature, https://github.com/qupath/qupath/pull/850)
+* DnnModel implements AutoCloseable, so that calling DnnModel.close() can resolve
+  * GPU memory not freed when using OpenCV DNN (https://github.com/qupath/qupath/issues/841)
+  * QuPath with CUDA doesn’t release GPU memory after StarDist segmentation (https://github.com/qupath/qupath-extension-stardist/issues/11)
 * Image writing fixes, including
   * convert-ome command doesn't report when it is finished (https://github.com/qupath/qupath/issues/859)
   * OMEPyramidWriter ignores file extension to always write ome.tif (https://github.com/qupath/qupath/issues/857)
