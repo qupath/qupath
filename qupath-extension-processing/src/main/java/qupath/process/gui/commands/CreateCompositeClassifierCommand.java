@@ -23,8 +23,13 @@ package qupath.process.gui.commands;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.AbstractMap;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.controlsfx.control.ListSelectionView;
 import org.slf4j.Logger;
@@ -46,6 +51,8 @@ import qupath.lib.common.GeneralTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.PaneTools;
+import qupath.lib.plugins.workflow.DefaultScriptableWorkflowStep;
+import qupath.lib.plugins.workflow.WorkflowStep;
 import qupath.lib.projects.Project;
 import qupath.process.gui.commands.ml.ProjectClassifierBindings;
 
@@ -129,22 +136,37 @@ public class CreateCompositeClassifierCommand implements Runnable {
 		// Apply to the current image
 		if (option.orElse(ButtonType.CANCEL).equals(ButtonType.APPLY)) {
 			try {
-				var classifier = tryToSave(qupath.getProject(), view.getTargetItems(), tfName.getText());
+				var entry = tryToSave(qupath.getProject(), view.getTargetItems(), tfName.getText());
+				var classifier = entry == null ? null : entry.getValue();
+				var name = entry == null ? null : entry.getKey();
 //				var classifier = tryToBuild(view.getTargetItems());
 				if (classifier == null)
 					return;
-				logger.warn("Object classifier isn't currently written to the workflow history, sorry...");
 				var imageData = qupath.getImageData();
 				if (imageData != null) {
 					var pathObjects = classifier.getCompatibleObjects(imageData);
 					if (classifier.classifyObjects(imageData, pathObjects, true) > 0)
 						imageData.getHierarchy().fireObjectClassificationsChangedEvent(classifier, pathObjects);
+					if (name != null && !name.isBlank()) {
+						logger.debug("Adding object classifier '{}' to the workflow", name);
+						imageData.getHistoryWorkflow().addStep(
+								createObjectClassifierStep(Collections.singletonList(name)));
+					} else
+						logger.warn("Object classifier has no name, so cannot be written to the workflow - sorry...");
 				}
 			} catch (Exception e) {
 				Dialogs.showErrorMessage(title, e);
 			}
 		}
 	}
+	
+	static WorkflowStep createObjectClassifierStep(List<String> classifierNames) {
+		String names = classifierNames.stream().map(n -> "\"" + n + "\"").collect(Collectors.joining(", "));
+		return new DefaultScriptableWorkflowStep("Run object classifier",
+						"runObjectClassifier(" + names + ");"
+						);
+	}
+
 	
 	
 	private static ObjectClassifier<BufferedImage> tryToBuild(Collection<ClassifierWrapper<BufferedImage>> wrappers) throws IOException {
@@ -160,7 +182,15 @@ public class CreateCompositeClassifierCommand implements Runnable {
 	}
 	
 	
-	private static ObjectClassifier<BufferedImage> tryToSave(Project<BufferedImage> project, Collection<ClassifierWrapper<BufferedImage>> wrappers, String name) {
+	/**
+	 * Try to save a composite classifier to a project or file.
+	 * @param project
+	 * @param wrappers
+	 * @param name 
+	 * @return an entry containing the classifier and the name used to save it, or null if the classifier was not saved.
+	 *         If the name is a file path, it should be properly escaped so that it may be used in a script.
+	 */
+	private static Map.Entry<String, ObjectClassifier<BufferedImage>> tryToSave(Project<BufferedImage> project, Collection<ClassifierWrapper<BufferedImage>> wrappers, String name) {
 		try {
 			var composite = tryToBuild(wrappers);
 			if (composite == null)
@@ -179,11 +209,14 @@ public class CreateCompositeClassifierCommand implements Runnable {
 				var file = Dialogs.promptToSaveFile(title, null, name, "JSON", ".json");
 				if (file != null) {
 					logger.info("Writing classifier to {}", file.getAbsolutePath());
+					name = file.getAbsolutePath().replaceAll("\\\\", "/");
 					ObjectClassifiers.writeClassifier(composite, file.toPath());
 					Dialogs.showInfoNotification(title, "Classifier written to " + file.getAbsolutePath());
-				}
+				} else
+					return null;
 			}
-			return composite;
+			return new AbstractMap.SimpleImmutableEntry<>(name, composite);
+//			return composite;
 		} catch (Exception e) {
 			Dialogs.showErrorMessage(title, e);
 			return null;
@@ -191,6 +224,7 @@ public class CreateCompositeClassifierCommand implements Runnable {
 		
 	}
 	
+		
 	
 	/**
 	 * Ensure we have all classifiers for the current project represented.
