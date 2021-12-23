@@ -1,6 +1,5 @@
 package qupath.lib.gui.extensions;
 
-import java.net.URL;
 import java.util.Objects;
 
 /**
