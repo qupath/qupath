@@ -7,7 +7,7 @@ ext.moduleName = 'qupath.extension.bioformats'
 archivesBaseName = 'qupath-extension-bioformats'
 description = "QuPath extension to support image reading and writing using Bio-Formats."
 
-def bioformatsVersion = "6.7.0"
+def bioformatsVersion = "6.8.0"
 
 configurations {
   // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately
