@@ -1,9 +1,8 @@
 ## Version 0.3.1-SNAPSHOT
-*In progress*
 
-This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs.
+This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs, updating dependencies and improving performance.
 
-List of bugs fixed:
+### Bugs fixed
 * 'Add intensity features' does not reinitialize options (including channels) when new images are opened (https://github.com/qupath/qupath/issues/836)
 * Reading images with ImageJ is too slow and memory-hungry (https://github.com/qupath/qupath/issues/860)
 * Generating multiple readers with Bio-Formats can be very slow (https://github.com/qupath/qupath/issues/865)
@@ -27,10 +26,18 @@ List of bugs fixed:
   * OMEPyramidWriter logic for bigtiff can fail for image pyramids (https://github.com/qupath/qupath/issues/858)
 
 ### Dependency updates
+* Bio-Formats 6.8.0
+  * See https://www.openmicroscopy.org/2021/12/09/bio-formats-6-8-0.html for details
 * JavaFX 17.0.1
   * Introduced to fix UI bugs, e.g. https://github.com/qupath/qupath/issues/833
+* ImageJ 1.53i
+  * Downgrade to support headless, see https://github.com/imagej/imagej1/issues/140
+* ControlsFX 11.1.1
+* Groovy 3.0.9
+* Gson 2.8.9
 * Logback 1.2.9
-* ImageJ 1.53i - downgrade to support headless, see https://github.com/imagej/imagej1/issues/140
+* Picocli 4.6.2
+* RichTextFX 0.10.7
 
 ## Version 0.3.0
 
