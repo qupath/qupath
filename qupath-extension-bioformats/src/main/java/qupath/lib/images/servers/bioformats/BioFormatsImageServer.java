@@ -700,6 +700,26 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 
 			this.args = args;
 			
+			// Build resolutions
+			var resolutions = resolutionBuilder.build();
+			// Unused code to check if resolutions seem to be correct
+//			var iter = resolutions.iterator();
+//			int r = 0;
+//			while (iter.hasNext()) {
+//				var resolution = iter.next();
+//				double widthDifference = Math.abs(resolution.getWidth() - width/resolution.getDownsample());
+//				double heightDifference = Math.abs(resolution.getHeight() - height/resolution.getDownsample());
+//				if (widthDifference > Math.max(2.0, resolution.getWidth()*0.01) || heightDifference > Math.max(2.0, resolution.getHeight()*0.01)) {
+//					logger.warn("Aspect ratio of resolution level {} differs from", r);
+//					iter.remove();
+//					while (iter.hasNext()) {
+//						iter.next();
+//						iter.remove();
+//					}
+//				}
+//				r++;
+//			}
+			
 			// Set metadata
 			path = createID();
 			ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
@@ -711,7 +731,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					channels(channels).
 					sizeZ(nZSlices).
 					sizeT(nTimepoints).
-					levels(resolutionBuilder.build()).
+					levels(resolutions).
 					pixelType(pixelType).
 					rgb(isRGB);
 
@@ -1019,7 +1039,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				if (newReader != null) {
 					additionalReaders.add(newReader);
 					queue.add(newReader);
-					logger.info("Added new additional reader (total={})", additionalReaders.size());
+					logger.debug("Created new reader (total={})", additionalReaders.size());
 				} else
 					logger.warn("New Bio-Formats reader could not be created (returned null)");
 			} catch (Exception e) {
