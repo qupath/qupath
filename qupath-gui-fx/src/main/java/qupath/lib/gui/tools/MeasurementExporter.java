@@ -63,9 +63,9 @@ public class MeasurementExporter {
 	
 	private final static Logger logger = LoggerFactory.getLogger(MeasurementExporter.class);
 	
-	private List<String> includeOnlyColumns = new ArrayList<String>();
-	private List<String> excludeColumns = new ArrayList<String>();
-	private Predicate<PathObject> filter = obj -> true;
+	private List<String> includeOnlyColumns = new ArrayList<>();
+	private List<String> excludeColumns = new ArrayList<>();
+	private Predicate<PathObject> filter;
 	
 	// Default: Exporting annotations
 	private Class<? extends PathObject> type = PathRootObject.class;
@@ -211,9 +211,9 @@ public class MeasurementExporter {
 	public void exportMeasurements(OutputStream stream) {
 		long startTime = System.currentTimeMillis();
 		
-		Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<ProjectImageEntry<?>, String[]>();
-		Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<ProjectImageEntry<?>, Integer>();
-		List<String> allColumns = new ArrayList<String>();
+		Map<ProjectImageEntry<?>, String[]> imageCols = new HashMap<>();
+		Map<ProjectImageEntry<?>, Integer> nImageEntries = new HashMap<>();
+		List<String> allColumns = new ArrayList<>();
 		Multimap<String, String> valueMap = LinkedListMultimap.create();
 		String pattern = "(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
 		
@@ -221,7 +221,10 @@ public class MeasurementExporter {
 			try {
 				ImageData<?> imageData = entry.readImageData();
 				ObservableMeasurementTableData model = new ObservableMeasurementTableData();
-				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type).parallelStream().filter(filter).collect(Collectors.toList());
+				Collection<PathObject> pathObjects = imageData == null ? Collections.emptyList() : imageData.getHierarchy().getObjects(null, type);
+				if (filter != null)
+					pathObjects = pathObjects.stream().filter(filter).collect(Collectors.toList());
+				
 				model.setImageData(imageData, pathObjects);
 				List<String> data = SummaryMeasurementTableCommand.getTableModelStrings(model, separator, excludeColumns);
 				
