@@ -225,10 +225,37 @@ public class WatershedCellDetection extends AbstractTileableDetectionPlugin<Buff
 				
 
 				if (!params.getParameters().get("detectionImageBrightfield").isHidden()) {
-					if (params.getChoiceParameterValue("detectionImageBrightfield").equals(IMAGE_OPTICAL_DENSITY))
+					String stainChoice = (String)params.getChoiceParameterValue("detectionImageBrightfield");
+					if (stainChoice.equals(IMAGE_OPTICAL_DENSITY)) {
 						fpDetection = IJTools.convertToOpticalDensitySum((ColorProcessor)ip, stains.getMaxRed(), stains.getMaxGreen(), stains.getMaxBlue());
-					else
-						fpDetection = (FloatProcessor)fps[0].duplicate();
+					} else if (stainChoice.equals(IMAGE_HEMATOXYLIN)) {
+						for (int i = 0; i < 3; i++) {
+							// This gives some tolerance to different spellings
+							if (ColorDeconvolutionStains.isHematoxylin(stains.getStain(i+1))) {
+								fpDetection = (FloatProcessor)fps[i].duplicate();
+								if (i > 0)
+									logger.warn("Hematoxylin expected to be stain 1, but here it is stain {}", i+1);
+							}
+						}
+						if (fpDetection == null) {
+							logger.warn("Hematoxylin stain not found! The first stain will be used by default ({}).", stains.getStain(1).getName());
+							fpDetection = (FloatProcessor)fps[0].duplicate();
+						}
+					} else {
+						// Try to get the stain choice from the available stains
+						// (Note that currently the choices are restricted by the ParameterList, so this cannot easily be called)
+						for (int i = 0; i < 3; i++) {
+							String currentStainName = stains.getStain(i+1).getName();
+							if (stainChoice.equals(currentStainName) || stainChoice.equals(currentStainName + " OD")) {
+								fpDetection = (FloatProcessor)fps[i].duplicate();
+								logger.warn("Using stain {} for cell detection", currentStainName);
+							}
+						}
+						if (fpDetection == null) {
+							logger.warn("Unknown detection channel {}, I will use the first stain", stainChoice);
+							fpDetection = (FloatProcessor)fps[0].duplicate();
+						}
+					}
 				}
 				
 				// Temporary test of the usefulness of RGB measurements...
