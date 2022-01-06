@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -137,6 +137,7 @@ public class MeasurementExporter {
 	 * Filter the {@code PathObject}s before export (objects returning {@code true} for the predicate will be exported).
 	 * @param filter
 	 * @return this exporter
+	 * @since v0.3.2
 	 */
 	public MeasurementExporter filter(Predicate<PathObject> filter) {
 		this.filter = filter;
