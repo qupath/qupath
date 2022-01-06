@@ -1,3 +1,17 @@
+## Version 0.3.2
+
+This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.1 while fixing bugs.
+
+### Bugs fixed
+* Fix problems with some svs files introduced in v0.3.1
+  * Discussed at https://forum.image.sc/t/problem-about-opening-some-svs-slides-in-qupath-v0-3-1-bio-formats-6-8-0/61404
+
+
+### Dependency updates
+* Bio-Formats 6.7.0
+  * Downgrade to fix svs issues, see https://github.com/ome/bioformats/issues/3757 for details
+
+
 ## Version 0.3.1
 
 This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs, updating dependencies and improving performance.
