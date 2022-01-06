@@ -140,8 +140,8 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		private ComboBox<String> comboMeasurements = new ComboBox<>(measurementsFiltered);
 		
 		private Slider sliderThreshold = new Slider();
-		private ComboBox<PathClass> comboAbove = new ComboBox<>();
-		private ComboBox<PathClass> comboBelow = new ComboBox<>();
+		private ComboBox<PathClass> comboAbove;
+		private ComboBox<PathClass> comboBelow;
 		
 		private CheckBox cbLivePreview = new CheckBox("Live preview");
 		
@@ -180,6 +180,11 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 			pane = new GridPane();
 			pane.setHgap(5.0);
 			pane.setVgap(5.0);
+			
+			
+			comboAbove = new ComboBox<>(qupath.getAvailablePathClasses());
+			comboBelow = new ComboBox<>(qupath.getAvailablePathClasses());
+			
 			
 //			comboMeasurements.getEditor().textProperty().addListener((v, o, n) -> {
 //				String text = n == null ? "" : n.toLowerCase().strip();
@@ -432,7 +437,7 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 		void refreshOptions() {
 			refreshTitle();
 			refreshChannels();
-			updateAvailableClasses();
+//			updateAvailableClasses();
 			updateAvailableMeasurements();
 			updateThresholdSlider();
 		}
@@ -459,10 +464,10 @@ public class SingleMeasurementClassificationCommand implements Runnable {
 				comboChannels.getSelectionModel().selectFirst();
 		}
 		
-		void updateAvailableClasses() {
-			comboAbove.getItems().setAll(qupath.getAvailablePathClasses());
-			comboBelow.getItems().setAll(qupath.getAvailablePathClasses());
-		}
+//		void updateAvailableClasses() {
+//			comboAbove.getItems().setAll(qupath.getAvailablePathClasses());
+//			comboBelow.getItems().setAll(qupath.getAvailablePathClasses());
+//		}
 		
 		void resetClassifications(PathObjectHierarchy hierarchy, Map<PathObject, PathClass> mapPrevious) {
 			// Restore classifications if the user cancelled

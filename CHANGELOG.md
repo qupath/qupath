@@ -6,6 +6,7 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.
 * Some svs files opened with Bio-Formats are not read correctly in v0.3.1
   * Discussed at https://forum.image.sc/t/problem-about-opening-some-svs-slides-in-qupath-v0-3-1-bio-formats-6-8-0/61404
 * ImageServer pyramid levels are not checked for validity (https://github.com/qupath/qupath/issues/879)
+* 'Create single measurement classifier' does not automatically update combo boxes when the available classifications change
 * Cell detection using 'Hematoxylin' always assumes it is the first stain (https://github.com/qupath/qupath/issues/878)
 * Uninformative / by zero error when setting stain vectors on empty images (https://github.com/qupath/qupath/issues/880)
   * A warning is now logged, and the image type set to 'Brightfield (other)'
@@ -13,6 +14,7 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.
 ### Dependency updates
 * Bio-Formats 6.7.0
   * Downgrade to fix svs issues, see https://github.com/ome/bioformats/issues/3757 for details
+  * Build from source with -Pbioformats-version=6.8.0 option if required
 
 
 ## Version 0.3.1
