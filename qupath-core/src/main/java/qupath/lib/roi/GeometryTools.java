@@ -136,7 +136,7 @@ public class GeometryTools {
 		} else
 			text = text.replace(System.lineSeparator(), " ");
 
-		var nf = NumberFormat.getInstance(Locale.getDefault());
+		var nf = NumberFormat.getInstance();
 		var tokens = new StringTokenizer(text, delims);
 		if (tokens.countTokens() != 6)
 			throw new IllegalArgumentException("Affine transform should be tab-delimited and contain 6 numbers only");

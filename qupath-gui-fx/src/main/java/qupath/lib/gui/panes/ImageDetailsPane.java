@@ -889,7 +889,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		case PYRAMID:
 			if (server.nResolutions() == 1)
 				return "No";
-			return GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 1);
+			return GeneralTools.arrayToString(Locale.getDefault(Locale.Category.FORMAT), server.getPreferredDownsamples(), 1);
 		case STAIN_1:
 			return imageData.getColorDeconvolutionStains().getStain(1);
 		case STAIN_2:
