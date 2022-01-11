@@ -533,7 +533,9 @@ public final class GeneralTools {
 	 * @param maxDecimalPlaces
 	 * @return
 	 */
-	public synchronized static String formatNumber(final Locale locale, final double value, final int maxDecimalPlaces) {
+	public synchronized static String formatNumber(Locale locale, final double value, final int maxDecimalPlaces) {
+		if (locale == null)
+			locale = Locale.getDefault(Category.FORMAT);
 		NumberFormat nf = formatters.get(locale);
 		if (nf == null) {
 			nf = NumberFormat.getInstance(locale);
