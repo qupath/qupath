@@ -57,6 +57,7 @@ import org.slf4j.LoggerFactory;
 
 import qupath.lib.color.ColorDeconvolutionStains;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ColorTransforms.ColorTransform;
 import qupath.lib.images.servers.ImageChannel;
@@ -536,6 +537,28 @@ public class ImageOps {
 			return new NormalizeChannelsOp(maxValue, true);
 		}
 		
+		/**
+		 * Replace Mat values by {@code 1.0/(1.0 + Math.exp(-value))}
+		 * @return
+		 * @since v0.3.1
+		 */
+		public static ImageOp sigmoid() {
+			return new SigmoidOp();
+		}
+		
+		/**
+		 * Normalize a Mat by subtracting the mean value and dividing by the standard deviation.
+		 * 
+		 * @param perChannel if true, normalize each channel separately; if false, use the global mean and standard deviation
+		 * @return
+		 * @since v0.3.1
+		 * @implNote if the standard deviation is 0, the output is also 0. If the standard deviation is not finite, the output is NaN.
+		 *           This implementation may change if it proves problematic in the future.
+		 */
+		public static ImageOp zeroMeanUnitVariance(boolean perChannel) {
+			return new ZeroMeanUnitVarianceOp(perChannel);
+		}
+		
 		
 		/**
 		 * Apply local 2D normalization using Gaussian-weighted mean subtraction and (optionally) variance 
@@ -552,6 +575,50 @@ public class ImageOps {
 		}
 		
 		
+		/**
+		 * @since v0.3.1
+		 */
+		@OpType("sigmoid")
+		static class SigmoidOp implements ImageOp {
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.apply(input, ImageOps.Normalize::sigmoid);
+				return input;
+			}
+			
+		}
+		
+		private static double sigmoid(double input) {
+			return 1.0 / (1.0 + Math.exp(-input));
+		}
+		
+		
+		@OpType("zero-mean-unit-variance")
+		static class ZeroMeanUnitVarianceOp implements ImageOp {
+			
+			private boolean perChannel;
+			
+			ZeroMeanUnitVarianceOp(boolean perChannel) {
+				this.perChannel = perChannel;
+			}
+			
+			@Override
+			public Mat apply(Mat input) {
+				if (perChannel && input.channels() > 1) {
+					OpenCVTools.applyToChannels(input, m -> apply(m));
+					return input;
+				}
+				double mean = OpenCVTools.mean(input);
+				double stdDev = OpenCVTools.stdDev(input);
+				if (stdDev == 0)
+					OpenCVTools.apply(input, d -> 0.0);
+				else
+					OpenCVTools.apply(input, d -> (d - mean)/stdDev);
+				return input;
+			}
+			
+		}
 		
 		@OpType("channels")
 		static class NormalizeChannelsOp implements ImageOp {
@@ -1956,6 +2023,18 @@ public class ImageOps {
 		}
 		
 		
+		/**
+		 * Create an op that clips Mat values to the specified minimum and maximum.
+		 * @param min
+		 * @param max
+		 * @return
+		 * @since v0.3.1
+		 */
+		public static ImageOp clip(double min, double max) {
+			return new ClipOp(min, max);
+		}
+		
+		
 		@OpType("identity")
 		static class IdentityOp implements ImageOp {
 
@@ -1963,6 +2042,28 @@ public class ImageOps {
 			
 			@Override
 			public Mat apply(Mat input) {
+				return input;
+			}
+			
+		}
+		
+		
+		/**
+		 * @since v0.3.1
+		 */
+		@OpType("clip")
+		static class ClipOp implements ImageOp {
+			
+			private double min, max;
+			
+			private ClipOp(double min, double max) {
+				this.min = min;
+				this.max = max;
+			}
+
+			@Override
+			public Mat apply(Mat input) {
+				OpenCVTools.apply(input, v -> GeneralTools.clipValue(v, min, max));
 				return input;
 			}
 			
@@ -2729,7 +2830,7 @@ public class ImageOps {
 							var outputs = model.getPredictionFunction().getOutputs(DnnShape.of(1, channels.size(), inputHeight, inputWidth));
 							List<String> names = new ArrayList<>();
 							if (outputs.size() > 1) {
-								Collection<String> outputKeys = outputNames == null || outputNames.length == 0 ? Arrays.asList(outputNames) : outputs.keySet();
+								Collection<String> outputKeys = outputNames == null || outputNames.length == 0 ? outputs.keySet() : Arrays.asList(outputNames);
 								for (var key : outputKeys) {
 									var shape = outputs.get(key);
 									if (shape != null && !shape.isUnknown() && shape.numDimensions() > 2 && shape.get(1) != DnnShape.UNKNOWN_LENGTH) {

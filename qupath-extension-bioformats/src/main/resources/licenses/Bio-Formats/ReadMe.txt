@@ -1,4 +1,4 @@
-The full list of Bio-Formats dependencies and respective licenses is at https://docs.openmicroscopy.org/bio-formats/6.5.0/developers/java-library.html
+The full list of Bio-Formats dependencies and respective licenses is at https://docs.openmicroscopy.org/bio-formats/6.8.0/developers/java-library.html
 
 Source for this table from https://raw.githubusercontent.com/ome/bio-formats-documentation/master/sphinx/developers/java-library.rst is included below.
 
@@ -86,10 +86,10 @@ Source for this table from https://raw.githubusercontent.com/ome/bio-formats-doc
     * - `Native Library Loader v2.1.4 <https://github.com/scijava/native-lib-loader>`_
       - org.scijava:native-lib-loader:2.1.4
       - `BSD License`_
-    * - `SLF4J API v1.7.4 <https://www.slf4j.org>`_
+    * - `SLF4J API v1.7.4 <http://www.slf4j.org>`_
       - org.slf4j:slf4j-api:1.7.6
       - `MIT License`_
-    * - `SLF4J LOG4J-12 Binding v1.7.6 <https://www.slf4j.org>`_
+    * - `SLF4J LOG4J-12 Binding v1.7.6 <http://www.slf4j.org>`_
       - org.slf4j:slf4j-log4j12:1.7.6
       - `MIT License`_
     * - `TestNG v6.8 <https://testng.org/doc/>`_

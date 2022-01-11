@@ -1,12 +1,63 @@
-## Version 0.3.1-SNAPSHOT
-*In progress*
+## Version 0.3.2
 
-This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs.
+This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.1 while fixing bugs.
 
-List of bugs fixed:
+### Bugs fixed
+* Some svs files opened with Bio-Formats are not read correctly in v0.3.1
+  * Discussed at https://forum.image.sc/t/problem-about-opening-some-svs-slides-in-qupath-v0-3-1-bio-formats-6-8-0/61404
+* ImageServer pyramid levels are not checked for validity (https://github.com/qupath/qupath/issues/879)
+* 'Create single measurement classifier' does not automatically update combo boxes when the available classifications change
+* Cell detection using 'Hematoxylin' always assumes it is the first stain (https://github.com/qupath/qupath/issues/878)
+* Uninformative / by zero error when setting stain vectors on empty images (https://github.com/qupath/qupath/issues/880)
+  * A warning is now logged, and the image type set to 'Brightfield (other)'
+
+### Dependency updates
+* Bio-Formats 6.7.0
+  * Downgrade to fix svs issues, see https://github.com/ome/bioformats/issues/3757 for details
+  * Build from source with -Pbioformats-version=6.8.0 option if required
+
+
+## Version 0.3.1
+
+This is a *minor release* that aims to be fully compatible with v0.3.0 while fixing bugs, updating dependencies and improving performance.
+
+### Bugs fixed
+* 'Add intensity features' does not reinitialize options (including channels) when new images are opened (https://github.com/qupath/qupath/issues/836)
+* Reading images with ImageJ is too slow and memory-hungry (https://github.com/qupath/qupath/issues/860)
+* Generating multiple readers with Bio-Formats can be very slow (https://github.com/qupath/qupath/issues/865)
+* 'Keep settings' in Brightness/Contrast dialog does not always retain channel colors (https://github.com/qupath/qupath/issues/843)
+* 'Create composite classifier' does not store classifier in the workflow when 'Save & Apply' is selected (https://github.com/qupath/qupath/issues/874)
+* ImageServers can request the same tile in multiple threads simultaneously (https://github.com/qupath/qupath/issues/861)
 * Up arrow can cause viewer to move beyond nSlices for Z-stack (https://github.com/qupath/qupath/issues/821)
 * Location text does not update when navigating with keyboard (https://github.com/qupath/qupath/issues/819)
+* Multichannel .tif output is broken in TileExporter (https://github.com/qupath/qupath/issues/838)
+* Main class and classpath missing from app jar (https://github.com/qupath/qupath/issues/818)
+* MeasurementList is ignored for some objects when importing from GeoJSON (https://github.com/qupath/qupath/issues/845)
+* Backspace and delete don't do anything when the annotation list is in focus (https://github.com/qupath/qupath/issues/847)
+* 'Automate -> Show workflow command history' displays empty workflow (https://github.com/qupath/qupath/pull/851)
+* Extensions are sometimes loaded too late when running command line scripts (https://github.com/qupath/qupath/issues/852)
+* ICC Profiles could not be set in the viewer (unused preview feature, https://github.com/qupath/qupath/pull/850)
+* DnnModel implements AutoCloseable, so that calling DnnModel.close() can resolve
+  * GPU memory not freed when using OpenCV DNN (https://github.com/qupath/qupath/issues/841)
+  * QuPath with CUDA doesn’t release GPU memory after StarDist segmentation (https://github.com/qupath/qupath-extension-stardist/issues/11)
+* Image writing fixes, including
+  * convert-ome command doesn't report when it is finished (https://github.com/qupath/qupath/issues/859)
+  * OMEPyramidWriter ignores file extension to always write ome.tif (https://github.com/qupath/qupath/issues/857)
+  * OMEPyramidWriter logic for bigtiff can fail for image pyramids (https://github.com/qupath/qupath/issues/858)
 
+### Dependency updates
+* Bio-Formats 6.8.0
+  * See https://www.openmicroscopy.org/2021/12/09/bio-formats-6-8-0.html for details
+* JavaFX 17.0.1
+  * Introduced to fix UI bugs, e.g. https://github.com/qupath/qupath/issues/833
+* ImageJ 1.53i
+  * Downgrade to support headless, see https://github.com/imagej/imagej1/issues/140
+* ControlsFX 11.1.1
+* Groovy 3.0.9
+* Gson 2.8.9
+* Logback 1.2.9
+* Picocli 4.6.2
+* RichTextFX 0.10.7
 
 ## Version 0.3.0
 

@@ -223,7 +223,12 @@ public class FileFormatInfo {
 				// If we do have a TIFF, try to get more from the metadata
 				
 				try (ImageInputStream stream = ImageIO.createImageInputStream(file)) {
-					ImageReader reader = ImageIO.getImageReaders(stream).next();
+					var readers = ImageIO.getImageReaders(stream);
+					if (!readers.hasNext()) {
+						logger.debug("ImageIO could not construct reader for {}", file);
+						return;
+					}
+					ImageReader reader = readers.next();
 					reader.setInput(stream);
 
 					TIFFDirectory tiffDir = TIFFDirectory.createFromMetadata(reader.getImageMetadata(0));

@@ -1086,7 +1086,18 @@ public class ImageServerMetadata {
 			 * @return
 			 */
 			public List<ImageResolutionLevel> build() {
-				return levels;
+				var output = new ArrayList<ImageResolutionLevel>();
+				double lastDownsample = -1;
+				for (var level : levels) {
+					double downsample = level.getDownsample();
+					if (downsample <= lastDownsample) {
+						logger.warn("Resolution levels are out of order! Only {}/{} levels can be used.", output.size(), levels.size());
+						break;
+					}
+					output.add(level);
+					lastDownsample = downsample;
+				}
+				return output;
 			}
 			
 			

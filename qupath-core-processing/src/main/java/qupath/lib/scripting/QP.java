@@ -3053,8 +3053,9 @@ public class QP {
 	 * 
 	 * @param hierarchy
 	 * @return
-	 */	public static boolean mergeSelectedAnnotations(final PathObjectHierarchy hierarchy) {
-		return hierarchy == null ? null : mergeAnnotations(hierarchy, hierarchy.getSelectionModel().getSelectedObjects());
+	 */
+	public static boolean mergeSelectedAnnotations(final PathObjectHierarchy hierarchy) {
+		return hierarchy == null ? false : mergeAnnotations(hierarchy, hierarchy.getSelectionModel().getSelectedObjects());
 	}
 	
 	/**

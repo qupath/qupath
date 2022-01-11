@@ -64,6 +64,7 @@ import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.tma.QuPathTMAViewer;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.images.servers.ImageServers;
 import qupath.lib.projects.Project;
@@ -238,11 +239,7 @@ public class QuPath {
 				return strings.toArray(String[]::new);
 			}
 		}
-		
-		
-		
 	}
-	
 }
 
 
@@ -297,6 +294,12 @@ class ScriptCommand implements Runnable {
 			
 			// Ensure we have a tile cache set
 			createTileCache();
+			
+			// Set classloader to include any available extensions
+			var extensionClassLoader = new ExtensionClassLoader();
+			extensionClassLoader.refresh();
+			ImageServerProvider.setServiceLoader(ServiceLoader.load(ImageServerBuilder.class, extensionClassLoader));
+			Thread.currentThread().setContextClassLoader(extensionClassLoader);
 			
 			// Unfortunately necessary to force initialization (including GsonTools registration of some classes)
 			QP.getCoreClasses();
@@ -385,7 +388,7 @@ class ScriptCommand implements Runnable {
 			percentage = 10;
 		} else if (percentage > 90) {
 			logger.warn("No more than 90% of available memory can be used for tile caching (you requested {}%)", percentage);
-			percentage = 00;			
+			percentage = 90;			
 		}
 		long tileCacheSize = Math.round(maxAvailable * (percentage / 100.0));
 		logger.info(String.format("Setting tile cache size to %.2f MB (%.1f%% max memory)", tileCacheSize/(1024.*1024.), percentage));
@@ -397,13 +400,7 @@ class ScriptCommand implements Runnable {
 	
 	private Object runScript(Project<BufferedImage> project, ImageData<BufferedImage> imageData) throws IOException, ScriptException {
 		Object result = null;
-		
-		// Set classloader to include any available extensions
-		var classLoader = new ExtensionClassLoader();
-		classLoader.refresh();
-		Thread.currentThread().setContextClassLoader(classLoader);
-		ScriptEngineManager manager = new ScriptEngineManager(classLoader);
-		
+		var manager = new ScriptEngineManager();
 		String script = scriptCommand;
 		ScriptEngine engine;
 		if (script == null) {

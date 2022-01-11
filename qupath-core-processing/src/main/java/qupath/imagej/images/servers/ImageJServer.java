@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -33,7 +33,6 @@ import java.awt.image.DataBufferFloat;
 import java.awt.image.DataBufferUShort;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -52,6 +51,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.gui.Roi;
+import ij.io.Opener;
 import ij.measure.Calibration;
 import ij.plugin.Duplicator;
 import ij.plugin.ImageInfo;
@@ -89,7 +89,7 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 	
 	private URI uri;
 	private String[] args;
-	
+		
 	private ImagePlus imp;
 		
 	private ColorModel colorModel;
@@ -103,32 +103,41 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 	public ImageJServer(final URI uri, final String...args) throws IOException {
 		super(BufferedImage.class);
 		this.uri = uri;
-		File file = GeneralTools.toPath(uri).toFile();
-		String path = file.getAbsolutePath();
-		if (path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
-			imp = IJ.openVirtual(path);
-			// We only want a virtual stack if we have a large z-stack or time series
-			long bpp = imp.getBitDepth() / 8;
-			if (bpp == 3)
-				bpp = 4; // ImageJ uses 4 bytes for an RGB image, but reports 24-bit
-			long nBytes = (long)imp.getWidth() * imp.getHeight() * imp.getStackSize() * bpp;
-			long maxMemory = Runtime.getRuntime().maxMemory();
-			long allowedMemory;
-			if (maxMemory == Long.MAX_VALUE)
-				allowedMemory = 1024L * 1024L * 1024L;
-			else
-				allowedMemory = maxMemory / 8;
-			if ((imp.getNFrames() == 1 && imp.getNSlices() == 1) || nBytes < allowedMemory) {
-				logger.debug("Opening {} fully, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
-				imp = IJ.openImage(path);
-			} else {
-				logger.debug("Opening {} as virtual stack, estimated {} MB (max memory {} MB)", uri, nBytes / (1024L * 1024L), maxMemory / (1024L * 1024L));
+		var filePath = GeneralTools.toPath(uri);
+		var file = filePath != null ? filePath.toFile() : null;
+		String path = file == null ? uri.toString() : file.getAbsolutePath();
+		
+		// Open as a virtual stack if we have 1) a TIFF, with 2) multiple slices and 3) a large file size -
+		// otherwise try to open directly (which is much faster if memory permits)
+		long maxMemory = Runtime.getRuntime().maxMemory();
+		if (file != null && path.toLowerCase().endsWith(".tif") || path.toLowerCase().endsWith(".tiff")) {
+			// Because ImageJ only supports uncompressed TIFFs, we simply use the file size
+			long fileLength = file == null ? Long.MAX_VALUE : file.length();
+			long maxFileLength = Math.max(1024*1024*10, maxMemory / 8);
+			if (fileLength > maxFileLength) {
+				var info = Opener.getTiffFileInfo(path);
+				if (info != null && info.length > 1) {
+					logger.debug("Opening {} as virtual stack", uri);
+					imp = IJ.openVirtual(path);
+				}
 			}
 		}
-		if (imp == null)
+		if (imp == null) {
+			logger.debug("Opening {} as ImagePlus", uri);
 			imp = IJ.openImage(path);
+		}
 		if (imp == null)
 			throw new IOException("Could not open " + path + " with ImageJ");
+		
+		// Log a warning if the image is very large
+		double sizeBytes = imp.getSizeInBytes();
+		if (!imp.getStack().isVirtual() && sizeBytes > maxMemory / 16) {
+			logger.warn("The image is very large relative to the available memory ({} MB / {} MB, {} %)",
+					GeneralTools.formatNumber(sizeBytes / (1024.0 * 1024.0), 1),
+					GeneralTools.formatNumber(maxMemory / (1024.0 * 1024.0), 1),
+					GeneralTools.formatNumber(sizeBytes / maxMemory * 100.0, 1));
+			logger.warn("Consider saving the image in a pyramidal format, e.g. using 'QuPath convert-ome' from the command line to create a pyramidal OME-TIFF.");
+		}
 		
 		Calibration cal = imp.getCalibration();
 		double xMicrons = IJTools.tryToParseMicrons(cal.pixelWidth, cal.getXUnit());
@@ -295,63 +304,71 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 	}
 	
 	@Override
-	public synchronized BufferedImage readBufferedImage(RegionRequest request) {
-		// Deal with any cropping
-//		ImagePlus imp2 = this.imp;
+	public BufferedImage readBufferedImage(RegionRequest request) {
+		
+//		long startTime = System.nanoTime();
 		
 		int z = request.getZ()+1;
 		int t = request.getT()+1;
 		int nChannels = nChannels();
 		
-//		// There would be a possibility to intercept these calls and perform a z-projection...
-//		if (nZSlices() > 1) {
-//			imp.setT(t);
-//			ZProjector zProjector = new ZProjector(imp);
-//			zProjector.setMethod(ZProjector.MAX_METHOD);
-//			zProjector.setStartSlice(1);
-//			zProjector.setStopSlice(nZSlices());
-//			zProjector.doHyperStackProjection(false);
-//			imp = zProjector.getProjection();
-//			z = 1;
-//			t = 1;
-//		}
+		// In ImageJ's world, RGB effectively should be treated as 1 channel
+		if (imp.getType() == ImagePlus.COLOR_RGB)
+			nChannels = 1;
+				
+		double downsample = request.getDownsample();
+		int w = (int)Math.max(1, Math.round(imp.getWidth() / downsample));
+		int h = (int)Math.max(1, Math.round(imp.getHeight() / downsample));
 		
 		ImagePlus imp2;
+		Rectangle roi = null;
 		if (!(request.getX() == 0 && request.getY() == 0 && request.getWidth() == this.imp.getWidth() && request.getHeight() == this.imp.getHeight())) {
-			// Synchronization introduced because of concurrency issues around here!
-			this.imp.setRoi(request.getX(), request.getY(), request.getWidth(), request.getHeight());
-			// Crop for required z and time
-			Duplicator duplicator = new Duplicator();
-			imp2 = duplicator.run(this.imp, 1, nChannels, z, z, t, t);
-			this.imp.killRoi();
+			roi = new Rectangle(request.getX(), request.getY(), request.getWidth(), request.getHeight());
+			// Synchronization introduced because of concurrency issues when cropping!
+			synchronized (imp) {
+				if (nChannels == 1) {
+					int ind = imp.getStackIndex(1, z, t);
+					var ip = imp.getStack().getProcessor(ind);
+					ip.setRoi(roi);
+					ip = ip.crop();
+					imp2 = imp.createImagePlus();
+					imp2.setProcessor(ip);
+					ip.resetRoi();
+				} else {
+					this.imp.setRoi(roi);
+					// Crop for required z and time
+					Duplicator duplicator = new Duplicator();
+					imp2 = duplicator.run(this.imp, 1, nChannels, z, z, t, t);
+					this.imp.killRoi();
+				}
+			}
 			if (imp2.getHeight() != request.getHeight()||
 					imp2.getWidth() != request.getWidth())
 				logger.warn("Unexpected image size {}x{} for request {}", imp.getWidth(), imp.getHeight(), request);
 			z = 1;
 			t = 1;
-//			imp = imp.duplicate();
 			imp2.killRoi();
 		} else
 			imp2 = this.imp;
 		
 		// Deal with any downsampling
-		if (request.getDownsample() != 1) {
-			ImageStack stackNew = null;
-			Rectangle roi = imp2.getProcessor().getRoi();
-			int w = (int)Math.max(1, Math.round(imp.getWidth() / request.getDownsample()));
-			int h = (int)Math.max(1, Math.round(imp.getHeight() / request.getDownsample()));
+		if (downsample != 1) {
 			if (roi != null) {
-				w = (int)Math.max(1, Math.round(roi.getWidth() / request.getDownsample()));
-				h = (int)Math.max(1, Math.round(roi.getHeight() / request.getDownsample()));
+				w = (int)Math.max(1, Math.round(roi.getWidth() / downsample));
+				h = (int)Math.max(1, Math.round(roi.getHeight() / downsample));
 			}
-			for (int i = 1; i <= nChannels; i++) {
-				int ind = imp2.getStackIndex(i, z, t);
-				ImageProcessor ip = imp2.getStack().getProcessor(ind);
-				ip.setInterpolationMethod(ImageProcessor.BILINEAR);
-				ip = ip.resize(w, h, true);
-				if (stackNew == null)
-					stackNew = new ImageStack(ip.getWidth(), ip.getHeight());
-				stackNew.addSlice("Channel " + i, ip);
+			ImageStack stackNew = null;
+			// We synchronize on imp2 because it might be the same as imp - and 'resize' respects any crop ROI
+			synchronized (imp2) {
+				for (int i = 1; i <= nChannels; i++) {
+					int ind = imp2.getStackIndex(i, z, t);
+					ImageProcessor ip = imp2.getStack().getProcessor(ind);
+					ip.setInterpolationMethod(ImageProcessor.BILINEAR);
+					ip = ip.resize(w, h, true);
+					if (stackNew == null)
+						stackNew = new ImageStack(ip.getWidth(), ip.getHeight());
+					stackNew.addSlice("Channel " + i, ip);
+				}
 			}
 			imp2 = new ImagePlus(imp2.getTitle(), stackNew);
 			imp2.setDimensions(nChannels, 1, 1);
@@ -361,9 +378,21 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 		}
 
 		// If we don't have a color model yet, reuse this one
-		var img = convertToBufferedImage(imp2, z, t, colorModel);
+		BufferedImage img;
+		synchronized (imp2) {
+			img = convertToBufferedImage(imp2, z, t, colorModel);
+		}
+		if (imp != imp2) {
+			imp2.changes = false;
+			imp2.close();
+		}
+		
 		if (colorModel == null)
 			colorModel = img.getColorModel();
+		
+//		long endTime = System.nanoTime();
+//		System.err.println("Duration: " + GeneralTools.formatNumber((endTime - startTime)/1000000.0, 1));
+
 		return img;
 	}
 	
@@ -468,6 +497,16 @@ public class ImageJServer extends AbstractImageServer<BufferedImage> implements 
 				getMetadata(),
 				uri,
 				args);
+	}
+	
+	@Override
+	public void close() throws Exception {
+		super.close();
+		if (imp != null) {
+			imp.changes = false;
+			imp.close();
+			imp = null;
+		}
 	}
 	
 }

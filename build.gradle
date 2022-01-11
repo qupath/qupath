@@ -2,6 +2,7 @@ subprojects {
 	apply plugin: 'java'
 }
 
+
 // See https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657
 task mergedJavadocs(type: Javadoc, description: 'Generate merged javadocs for all projects', group: 'Documentation') {
 	destinationDir = file("$buildDir/docs/javadoc")
@@ -10,7 +11,7 @@ task mergedJavadocs(type: Javadoc, description: 'Generate merged javadocs for al
 	options.addStringOption 'Xdoclint:none', '-quiet'
 
 	options.links 'https://docs.oracle.com/en/java/javase/11/docs/api/'
-	options.links 'https://openjfx.io/javadoc/16/'
+	options.links 'https://openjfx.io/javadoc/17/'
 	options.links 'https://javadoc.io/doc/org.bytedeco/javacpp/1.5.6/'
 	options.links 'https://javadoc.io/doc/org.bytedeco/opencv/4.5.3-1.5.6/'
 	options.links 'https://javadoc.io/doc/com.google.code.gson/gson/2.8.8/'

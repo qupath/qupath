@@ -25,14 +25,7 @@ package qupath.imagej.images.writers;
 
 import ij.IJ;
 import ij.ImagePlus;
-import ij.process.ByteProcessor;
-import ij.process.ColorProcessor;
-import ij.process.FloatProcessor;
-import ij.process.ImageProcessor;
-import ij.process.ShortProcessor;
-
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -95,22 +88,9 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 
 	@Override
 	public void writeImage(BufferedImage img, String pathOutput) throws IOException {
-		writeImage(createImagePlus(img), pathOutput);
-	}
-	
-	ImagePlus createImagePlus(BufferedImage img) {
-		ImageProcessor ip;
-		if (img.getSampleModel().getNumBands() == 1) {
-			int type = img.getSampleModel().getDataType();
-			if (type == DataBuffer.TYPE_BYTE)
-				ip = new ByteProcessor(img);
-			else if (type == DataBuffer.TYPE_SHORT)
-				ip = new ShortProcessor(img);
-			else
-				ip = new FloatProcessor(img.getWidth(), img.getHeight(), img.getRaster().getPixel(0, 0, (float[])null));
-		} else
-			ip = new ColorProcessor(img);
-		return new ImagePlus("", ip);
+		var imp = IJTools.convertToUncalibratedImagePlus("Title", img);
+		writeImage(imp, pathOutput);
+		imp.close();
 	}
 	
 	@Override
@@ -124,7 +104,9 @@ abstract class AbstractWriterIJ implements ImageWriter<BufferedImage> {
 
 	@Override
 	public void writeImage(BufferedImage img, OutputStream stream) throws IOException {
-		writeImage(createImagePlus(img), stream);
+		var imp = IJTools.convertToUncalibratedImagePlus("Title", img);
+		writeImage(imp, stream);
+		imp.close();
 	}
 
 	@Override

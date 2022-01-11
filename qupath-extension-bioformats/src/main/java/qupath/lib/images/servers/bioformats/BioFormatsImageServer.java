@@ -40,6 +40,7 @@ import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.lang.ref.Cleaner;
+import java.lang.ref.Cleaner.Cleanable;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -55,15 +56,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import javax.imageio.ImageIO;
 
 import org.slf4j.Logger;
@@ -85,11 +89,11 @@ import loci.formats.IFormatReader;
 import loci.formats.ImageReader;
 import loci.formats.Memoizer;
 import loci.formats.MetadataTools;
+import loci.formats.ReaderWrapper;
 import loci.formats.gui.AWTImageTools;
 import loci.formats.in.DynamicMetadataOptions;
 import loci.formats.in.MetadataOptions;
 import loci.formats.meta.DummyMetadata;
-import loci.formats.meta.IMetadata;
 import loci.formats.meta.MetadataStore;
 import loci.formats.ome.OMEPyramidStore;
 import loci.formats.ome.OMEXMLMetadata;
@@ -104,7 +108,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.ImageServerMetadata.ImageResolutionLevel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
-import qupath.lib.images.servers.bioformats.BioFormatsImageServer.BioFormatsReaderManager.LocalReaderWrapper;
 
 /**
  * QuPath ImageServer that uses the Bio-Formats library to read image data.
@@ -119,7 +122,7 @@ import qupath.lib.images.servers.bioformats.BioFormatsImageServer.BioFormatsRead
 public class BioFormatsImageServer extends AbstractTileableImageServer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(BioFormatsImageServer.class);
-	
+		
 	/**
 	 * Define a maximum memoization file size above which parallelization is disabled. 
 	 * This is necessary to avoid creating multiple readers that are too large (e.g. sometimes 
@@ -193,15 +196,15 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 */
 	private String format;
 	
-	/**
-	 * QuPath-specific options for how the image server should behave, such as using parallelization or memoization.
-	 */
-	private BioFormatsServerOptions options;
+//	/**
+//	 * QuPath-specific options for how the image server should behave, such as using parallelization or memoization.
+//	 */
+//	private BioFormatsServerOptions options;
 		
-	/**
-	 * Manager to help keep multithreading under control.
-	 */
-	private static BioFormatsReaderManager manager = new BioFormatsReaderManager();
+//	/**
+//	 * Manager to help keep multithreading under control.
+//	 */
+//	private static BioFormatsReaderManager manager = new BioFormatsReaderManager();
 	
 	/**
 	 * ColorModel to use with all BufferedImage requests.
@@ -209,14 +212,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	private ColorModel colorModel;
 	
 	/**
-	 * Primary reader for the current server.
+	 * Pool of readers for use with this server.
 	 */
-	private LocalReaderWrapper readerWrapper;
+	private ReaderPool readerPool;
 	
 	/**
 	 * Primary metadata store.
 	 */
-	private OMEPyramidStore meta;
+//	private OMEPyramidStore meta;
 	
 	/**
 	 * Cached path
@@ -251,13 +254,28 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		this(uri, BioFormatsServerOptions.getInstance(), args);
 	}
 	
+	/**
+	 * Create a minimal BioFormatsImageServer without additional readers, which can be used to query server builders.
+	 * @param uri
+	 * @param options
+	 * @param args
+	 * @return
+	 * @throws FormatException
+	 * @throws IOException
+	 * @throws DependencyException
+	 * @throws ServiceException
+	 * @throws URISyntaxException
+	 */
+	static BioFormatsImageServer checkSupport(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
+		return new BioFormatsImageServer(uri, options, args);
+	}
 	
 	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
 		super();
 		
 		long startTime = System.currentTimeMillis();
 
-		this.options = options;
+//		this.options = options;
 		
 		// Create variables for metadata
 		int width = 0, height = 0, nChannels = 1, nZSlices = 1, nTimepoints = 1, tileWidth = 0, tileHeight = 0;
@@ -309,9 +327,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		}
 
 		// Create a reader & extract the metadata
-		readerWrapper = manager.getPrimaryReaderWrapper(options, filePath, bfArgs);
-		IFormatReader reader = readerWrapper.getReader();
-		meta = (OMEPyramidStore)reader.getMetadataStore();
+		readerPool = new ReaderPool(options, filePath, bfArgs);
+		IFormatReader reader = readerPool.getMainReader();
+		var meta = (OMEPyramidStore)reader.getMetadataStore();
 
 		// Populate the image server list if we have more than one image
 		int largestSeries = -1;
@@ -328,7 +346,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			// Loop through series to find out whether we have multiresolution images, or associated images (e.g. thumbnails)
 			for (int s = 0; s < nImages; s++) {
 				String name = "Series " + s;
-				String originalImageName = getImageName(s);
+				String originalImageName = getImageName(meta, s);
 				if (originalImageName == null)
 					originalImageName = "";
 				
@@ -392,7 +410,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 								largestSeries = s;
 								mostPixels = nPixels;
 							}
-						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(getImageName(s)) || requestedSeriesName.contentEquals(meta.getImageName(s))) {
+						} else if (requestedSeriesName.equals(name) || requestedSeriesName.equals(getImageName(meta, s)) || requestedSeriesName.contentEquals(meta.getImageName(s))) {
 							seriesIndex = s;
 						}
 					}
@@ -666,14 +684,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					}
 					resolutionBuilder.addLevel(w, h);
 				} catch (Exception e) {
-					logger.warn("Error attempting to extract resolution " + i + " for " + getImageName(series), e);					
+					logger.warn("Error attempting to extract resolution " + i + " for " + getImageName(meta, series), e);					
 					break;
 				}
 			}
 			
 			// Generate a suitable name for this image
 			String imageName = getFile().getName();
-			String shortName = getImageName(seriesIndex);
+			String shortName = getImageName(meta, seriesIndex);
 			if (shortName == null || shortName.isBlank()) {
 				if (imageMap.size() > 1)
 					imageName = imageName + " - Series " + seriesIndex;
@@ -681,6 +699,26 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				imageName = imageName + " - " + shortName;
 
 			this.args = args;
+			
+			// Build resolutions
+			var resolutions = resolutionBuilder.build();
+			// Unused code to check if resolutions seem to be correct
+//			var iter = resolutions.iterator();
+//			int r = 0;
+//			while (iter.hasNext()) {
+//				var resolution = iter.next();
+//				double widthDifference = Math.abs(resolution.getWidth() - width/resolution.getDownsample());
+//				double heightDifference = Math.abs(resolution.getHeight() - height/resolution.getDownsample());
+//				if (widthDifference > Math.max(2.0, resolution.getWidth()*0.01) || heightDifference > Math.max(2.0, resolution.getHeight()*0.01)) {
+//					logger.warn("Aspect ratio of resolution level {} differs from", r);
+//					iter.remove();
+//					while (iter.hasNext()) {
+//						iter.next();
+//						iter.remove();
+//					}
+//				}
+//				r++;
+//			}
 			
 			// Set metadata
 			path = createID();
@@ -693,7 +731,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					channels(channels).
 					sizeZ(nZSlices).
 					sizeT(nTimepoints).
-					levels(resolutionBuilder.build()).
+					levels(resolutions).
 					pixelType(pixelType).
 					rgb(isRGB);
 
@@ -751,7 +789,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * @param series
 	 * @return
 	 */
-	private String getImageName(int series) {
+	private String getImageName(OMEXMLMetadata meta, int series) {
 		 String name = meta.getImageName(series);
 		 if (name == null)
 			 return null;
@@ -790,19 +828,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		return DefaultImageServerBuilder.createInstance(BioFormatsServerBuilder.class, getMetadata(), uri, args);
 	}
 	
-	/**
-	 * Returns true if the reader accepts parallel tile requests, without synchronization.
-	 * <p>
-	 * This is true if parallelization is requested, and any memoization file is 'small enough'.
-	 * The idea is that larger memoization files indicate more heavyweight readers, and these need 
-	 * to be kept restricted to reduce the risk of memory errors.
-	 * 
-	 * @return
-	 */
-	public boolean willParallelize() {
-		return options.requestParallelization() && (getWidth() > getPreferredTileWidth() || getHeight() > getPreferredTileHeight()) && manager.getMemoizationFileSize(filePath) <= MAX_PARALLELIZATION_MEMO_SIZE;
-	}
-	
 	int getPreferredTileWidth() {
 		return getMetadata().getPreferredTileWidth();
 	}
@@ -811,25 +836,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		return getMetadata().getPreferredTileHeight();
 	}
 
-	
-	/**
-	 * Get a IFormatReader for use by the current thread.
-	 * <p>
-	 * If willParallelize() returns false, then the global reader will be provided.
-	 * 
-	 * @return
-	 */
-	private IFormatReader getReader() {
-		try {
-			if (willParallelize())
-				return manager.getReaderForThread(options, filePath, bfArgs);
-			else
-				return readerWrapper.getReader();
-		} catch (Exception e) {
-			logger.error("Error requesting image reader", e);
-			return null;
-		}
-	}
 	
 //	IFormatReader getPrimaryReader() throws DependencyException, ServiceException, FormatException, IOException {
 //		return manager.getPrimaryReader(this, this.filePath);
@@ -846,155 +852,11 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	
 	@Override
 	public BufferedImage readTile(TileRequest tileRequest) throws IOException {
-		int level = tileRequest.getLevel();
-
-		int tileX = tileRequest.getTileX();
-		int tileY = tileRequest.getTileY();
-		int tileWidth = tileRequest.getTileWidth();
-		int tileHeight = tileRequest.getTileHeight();
-		int z = tileRequest.getZ();
-		int t = tileRequest.getT();
-
-		IFormatReader ipReader = getReader();
-		if (ipReader == null) {
-			throw new IOException("Reader is null - was the image already closed? " + filePath);
+		try {
+			return readerPool.openImage(tileRequest, series, nChannels(), isRGB(), colorModel);
+		} catch (InterruptedException e) {
+			throw new IOException(e);
 		}
-
-		// Check if this is non-zero
-		if (tileWidth <= 0 || tileHeight <= 0) {
-			throw new IOException("Unable to request pixels for region with downsampled size " + tileWidth + " x " + tileHeight);
-		}
-
-		byte[][] bytes = null;
-		int effectiveC;
-		int sizeC = nChannels();
-		int length = 0;
-		ByteOrder order = ByteOrder.BIG_ENDIAN;
-		boolean interleaved;
-		int pixelType;
-		boolean normalizeFloats = false;
-
-		synchronized(ipReader) {
-			ipReader.setSeries(series);
-			ipReader.setResolution(level);
-			order = ipReader.isLittleEndian() ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
-			interleaved = ipReader.isInterleaved();
-			pixelType = ipReader.getPixelType();
-			normalizeFloats = ipReader.isNormalized();
-
-			// Single-channel & RGB images are straightforward... nothing more to do
-			if ((ipReader.isRGB() && isRGB()) || nChannels() == 1) {
-				// Read the image - or at least the first channel
-				int ind = ipReader.getIndex(z, 0, t);
-				try {
-					byte[] bytesSimple = ipReader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
-					return AWTImageTools.openImage(bytesSimple, ipReader, tileWidth, tileHeight);
-				} catch (Exception e) {
-					logger.error("Error opening image " + ind + " for " + tileRequest.getRegionRequest(), e);
-				}
-			}
-			// Read bytes for all the required channels
-			effectiveC = ipReader.getEffectiveSizeC();
-			bytes = new byte[effectiveC][];
-			try {
-				for (int c = 0; c < effectiveC; c++) {
-					int ind = ipReader.getIndex(z, c, t);
-					bytes[c] = ipReader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
-					length = bytes[c].length;
-				}
-			} catch (FormatException e) {
-				throw new IOException(e);
-			}
-		}
-
-		DataBuffer dataBuffer;
-		switch (pixelType) {
-		case (FormatTools.UINT8):
-			dataBuffer = new DataBufferByte(bytes, length);
-		break;
-		case (FormatTools.UINT16):
-			length /= 2;
-			short[][] array = new short[bytes.length][length];
-			for (int i = 0; i < bytes.length; i++) {
-				ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
-				array[i] = new short[buffer.limit()];
-				buffer.get(array[i]);
-			}
-			dataBuffer = new DataBufferUShort(array, length);
-			break;
-		case (FormatTools.INT16):
-			length /= 2;
-			short[][] shortArray = new short[bytes.length][length];
-			for (int i = 0; i < bytes.length; i++) {
-				ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
-				shortArray[i] = new short[buffer.limit()];
-				buffer.get(shortArray[i]);
-			}
-			dataBuffer = new DataBufferShort(shortArray, length);
-			break;
-		case (FormatTools.INT32):
-			length /= 4;
-			int[][] intArray = new int[bytes.length][length];
-				for (int i = 0; i < bytes.length; i++) {
-					IntBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asIntBuffer();
-					intArray[i] = new int[buffer.limit()];
-					buffer.get(intArray[i]);
-				}
-			dataBuffer = new DataBufferInt(intArray, length);
-			break;
-		case (FormatTools.FLOAT):
-			length /= 4;
-			float[][] floatArray = new float[bytes.length][length];
-			for (int i = 0; i < bytes.length; i++) {
-				FloatBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asFloatBuffer();
-				floatArray[i] = new float[buffer.limit()];
-				buffer.get(floatArray[i]);
-				if (normalizeFloats)
-					floatArray[i] = DataTools.normalizeFloats(floatArray[i]);
-			}
-			dataBuffer = new DataBufferFloat(floatArray, length);
-			break;
-		case (FormatTools.DOUBLE):
-			length /= 8;
-			double[][] doubleArray = new double[bytes.length][length];
-			for (int i = 0; i < bytes.length; i++) {
-				DoubleBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asDoubleBuffer();
-				doubleArray[i] = new double[buffer.limit()];
-				buffer.get(doubleArray[i]);
-				if (normalizeFloats)
-					doubleArray[i] = DataTools.normalizeDoubles(doubleArray[i]);
-			}
-			dataBuffer = new DataBufferDouble(doubleArray, length);
-			break;
-		// TODO: Consider conversion to closest supported pixel type
-		case FormatTools.BIT:
-		case FormatTools.INT8:
-		case FormatTools.UINT32:
-		default:
-			throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
-		}
-
-		SampleModel sampleModel;
-
-		if (effectiveC == 1 && sizeC > 1) {
-			// Handle channels stored in the same plane
-			int[] offsets = new int[sizeC];
-			if (interleaved) {
-				for (int b = 0; b < sizeC; b++)
-					offsets[b] = b;
-				sampleModel = new PixelInterleavedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC, sizeC*tileWidth, offsets);
-			} else {
-				for (int b = 0; b < sizeC; b++)
-					offsets[b] = b * tileWidth * tileHeight;
-				sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, 1, tileWidth, offsets);
-			}
-		} else {
-			// Merge channels on different planes
-			sampleModel = new BandedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC);
-		}
-
-		WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
-		return new BufferedImage(colorModel, raster, false, null);
 	}
 	
 	
@@ -1006,6 +868,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	@Override
 	public synchronized void close() throws Exception {
 		super.close();
+		readerPool.close();
 	}
 
 	boolean containsSubImages() {
@@ -1017,7 +880,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	 * @return
 	 */
 	public OMEPyramidStore getMetadataStore() {
-		return meta;
+		return readerPool.metadata;
 	}
 	
 	/**
@@ -1047,26 +910,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	public BufferedImage getAssociatedImage(String name) {
 		if (associatedImageMap == null || !associatedImageMap.containsKey(name))
 			throw new IllegalArgumentException("No associated image with name '" + name + "' for " + getPath());
-		IFormatReader reader = getReader();
-		synchronized (reader) {
-			int series = reader.getSeries();
-			try {
-				reader.setSeries(associatedImageMap.get(name));
-				int nResolutions = reader.getResolutionCount();
-				if (nResolutions > 0) {
-					reader.setResolution(0);
-				}
-				// TODO: Handle color transforms here, or in the display of labels/macro images - in case this isn't RGB
-				byte[] bytesSimple = reader.openBytes(reader.getIndex(0, 0, 0));
-				return AWTImageTools.openImage(bytesSimple, reader, reader.getSizeX(), reader.getSizeY());
-//				return AWTImageTools.autoscale(img);
-			} catch (Exception e) {
-				logger.error("Error reading associated image" + name, e);
-			} finally {
-				reader.setSeries(series);
-			}
+		
+		int series = associatedImageMap.get(name);
+		try {
+			return readerPool.openSeries(series);
+		} catch (Exception e) {
+			logger.error("Error reading associated image " + name + ": " + e.getLocalizedMessage(), e);
+			return null;
 		}
-		return null;
 	}
 	
 	
@@ -1121,178 +972,93 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	}
 	
 	
+	
 	/**
-	 * Helper class to manage multiple Bio-Formats image readers.
-	 * <p>
-	 * This has two purposes:
-	 * <ol>
-	 *   <li>To construct IFormatReaders in a standardized way (e.g. with/without memoization).</li>
-	 *   <li>To track the size of any memoization files for particular readers.</li>
-	 *   <li>To allow BioFormatsImageServers to request separate Bio-Formats image readers for different threads.</li>
-	 * </ol> 
-	 * The memoization file size can be relevant because some readers are very memory-hungry, and may need to be created rarely.
-	 * On the other side, some readers are very lightweight - and having multiple such readers active at a time can help rapidly 
-	 * respond to tile requests.
-	 * <p>
-	 * It's up to any consumers to ensure that heavyweight readers aren't called for each thread. Additionally, each thread 
-	 * will have only one reader active at any time. This should be explicitly closed by the calling thread if it knows 
-	 * the reader will not be used again, but in practice this is often not the case and therefore a Cleaner is registered to 
-	 * provide some additional support for when a thread is no longer reachable.
-	 * <p>
-	 * Note that this does mean one should be sparing when creating threads, and not keep them around too long.
+	 * Helper class that manages a pool of readers.
+	 * The purpose is to allow multiple threads to take the next available reader, without
 	 */
-	static class BioFormatsReaderManager {
+	static class ReaderPool implements AutoCloseable {
 		
-		private static Cleaner cleaner = Cleaner.create();
-		
-		/**
-		 * Map of reads for each calling thread.  Care should be taking by the calling code to ensure requests are only made for 'lightweight' readers to avoid memory problems.
-		 */
-		private static ThreadLocal<LocalReaderWrapper> localReader = new ThreadLocal<>();
+		private final static Logger logger = LoggerFactory.getLogger(ReaderPool.class);
 		
 		/**
-		 * Map of memoization file sizes.
+		 * Absolute maximum number of permitted readers (queue capacity)
 		 */
-		private static Map<String, Long> memoizationSizeMap = new HashMap<>();
+		private final static int MAX_QUEUE_CAPACITY = 128;
 		
-		/**
-		 * Temporary directory for storing memoization files
-		 */
-		private static File dirMemoTemp = null;
+		private String id;
+		private BioFormatsServerOptions options;
+		private BioFormatsArgs args;
+		private ClassList<IFormatReader> classList;
 		
-		/**
-		 * A set of primary readers, to avoid needing to regenerate these for all servers.
-		 */
-		private static Set<LocalReaderWrapper> primaryReaders = Collections.newSetFromMap(new WeakHashMap<>());
+		private volatile boolean isClosed = false;
 		
-		/**
-		 * Set of created temp memo files
-		 */
-		private static Set<File> tempMemoFiles = new HashSet<>();
+		private AtomicInteger totalReaders = new AtomicInteger(0);
+		private List<IFormatReader> additionalReaders = Collections.synchronizedList(new ArrayList<>());
+		private ArrayBlockingQueue<IFormatReader> queue;
 		
-		/**
-		 * Request a IFormatReader for a specified path that is unique for the calling thread.
-		 * <p>
-		 * Note that the state of the reader is not specified; setSeries should be called before use.
-		 * 
-		 * @param options
-		 * @param path
-		 * @param args 
-		 * @return
-		 * @throws DependencyException
-		 * @throws ServiceException
-		 * @throws FormatException
-		 * @throws IOException
-		 */
-		public synchronized IFormatReader getReaderForThread(final BioFormatsServerOptions options, final String path, BioFormatsArgs args) throws DependencyException, ServiceException, FormatException, IOException {
+		private OMEPyramidStore metadata;
+		private IFormatReader mainReader;
+		
+		private ForkJoinTask<?> task;
+		
+		
+		ReaderPool(BioFormatsServerOptions options, String id, BioFormatsArgs args) throws FormatException, IOException {
+			this.id = id;
+			this.options = options;
+			this.args = args;
 			
-			LocalReaderWrapper wrapper = localReader.get();
+			queue = new ArrayBlockingQueue<>(MAX_QUEUE_CAPACITY); // Set a reasonably large capacity (don't want to block when trying to add)
+			metadata = (OMEPyramidStore)MetadataTools.createOMEXMLMetadata();
 			
-			// Check if we already have the correct reader
-			IFormatReader reader = wrapper == null ? null : wrapper.getReader();
-			if (reader != null) {
-				if (path.equals(reader.getCurrentFile()) && wrapper.argsMatch(args))
-					return reader;		
-				else
-					reader.close(false);
+			// Create the main reader
+			long startTime = System.currentTimeMillis();
+			mainReader = createReader(options, null, id, metadata, args);
+			
+			long endTime = System.currentTimeMillis();
+			logger.debug("Reader {} created in {} ms", mainReader, endTime - startTime);
+			
+			// Make the main reader available
+			queue.add(mainReader);
+			
+			// Store the class so we don't need to go hunting later
+			classList = unwrapClasslist(mainReader);
+		}
+		
+		IFormatReader getMainReader() {
+			return mainReader;
+		}
+		
+		private void createAdditionalReader(BioFormatsServerOptions options, final ClassList<IFormatReader> classList, 
+				final String id, BioFormatsArgs args) {
+			try {
+				if (isClosed)
+					return;
+				logger.debug("Requesting new reader for thread {}", Thread.currentThread());
+				var newReader = createReader(options, classList, id, new DummyMetadata(), args);
+				if (newReader != null) {
+					additionalReaders.add(newReader);
+					queue.add(newReader);
+					logger.debug("Created new reader (total={})", additionalReaders.size());
+				} else
+					logger.warn("New Bio-Formats reader could not be created (returned null)");
+			} catch (Exception e) {
+				logger.error("Error creating additional readers: " + e.getLocalizedMessage(), e);
 			}
-			
-			// Create a new reader
-			reader = createReader(options, path, null, args);
-			
-			// Store wrapped reference with associated cleaner
-			wrapper = wrapReader(reader, args);
-			localReader.set(wrapper);
-			
-			return reader;
 		}
 		
 		
-		private static LocalReaderWrapper wrapReader(IFormatReader reader, BioFormatsArgs args) {
-			LocalReaderWrapper wrapper = new LocalReaderWrapper(reader, args);
-			logger.debug("Constructing reader for {}", Thread.currentThread());
-			cleaner.register(
-					wrapper,
-					new ReaderCleaner(Thread.currentThread().toString(), reader));
-			return wrapper;
+		private int getMaxReaders() {
+			int max = options == null ? Runtime.getRuntime().availableProcessors() : options.getMaxReaders();
+			return Math.min(MAX_QUEUE_CAPACITY, Math.max(1, max));
 		}
 		
-		
-		/**
-		 * Request a IFormatReader for the specified path.
-		 * <p>
-		 * This reader will have OME metadata populated in an accessible form, but will *not* be unique for the calling thread.
-		 * Therefore care needs to be taken with regard to synchronization.
-		 * <p>
-		 * Note that the state of the reader is not specified; setSeries should be called before use.
-		 * 
-		 * @param options
-		 * @param path
-		 * @param args
-		 * @return
-		 * @throws DependencyException
-		 * @throws ServiceException
-		 * @throws FormatException
-		 * @throws IOException
-		 */
-		synchronized IFormatReader createPrimaryReader(final BioFormatsServerOptions options, final String path, IMetadata metadata, BioFormatsArgs args) throws DependencyException, ServiceException, FormatException, IOException {
-			return createReader(options, path, metadata == null ? MetadataTools.createOMEXMLMetadata() : metadata, args);
-		}
-		
-		
-		/**
-		 * Get a wrapper for the primary reader for a particular path. This can be reused across ImageServers, but 
-		 * one must be careful to synchronize the actual use of the reader.
-		 * @param options
-		 * @param path
-		 * @param args
-		 * @return
-		 * @throws DependencyException
-		 * @throws ServiceException
-		 * @throws FormatException
-		 * @throws IOException
-		 */
-		synchronized LocalReaderWrapper getPrimaryReaderWrapper(final BioFormatsServerOptions options, final String path, BioFormatsArgs args) throws DependencyException, ServiceException, FormatException, IOException {
-//			for (LocalReaderWrapper wrapper : primaryReaders) {
-//				if (path.equals(wrapper.getReader().getCurrentFile()) && wrapper.argsMatch(args))
-//					return wrapper;
-//			}
-			LocalReaderWrapper wrapper = wrapReader(createPrimaryReader(options, path, null, args), args);
-			primaryReaders.add(wrapper);
-			return wrapper;
-		}
-		
-		
-		/**
-		 * Create a new IFormatReader, with memoization if necessary.
-		 * 
-		 * @param options 
-		 * @param id File path for the image
-		 * @param store optional MetadataStore; this will be set in the reader if needed
-		 * @param args
-		 * @return the IFormatReader
-		 * @throws FormatException
-		 * @throws IOException
-		 */
-		static IFormatReader createReader(final BioFormatsServerOptions options, final String id, final MetadataStore store, BioFormatsArgs args) throws FormatException, IOException {
-			return createReader(options, null, id, store, args);
-		}
-		
-		/**
-		 * Request the file size of any known memoization file for a specific ID.
-		 * 
-		 * @param id
-		 * @return
-		 */
-		public long getMemoizationFileSize(String id) {
-			return memoizationSizeMap.getOrDefault(id, Long.valueOf(0L));
-		}
-		
+
 		/**
 		 * Create a new {@code IFormatReader}, with memoization if necessary.
 		 * 
 		 * @param options 	options used to control the reader generation
-		 * @param cls 		optionally specify a IFormatReader class if it is already known, to avoid a search.
+		 * @param classList optionally specify a list of potential reader classes, if known (to avoid a more lengthy search)
 		 * @param id 		file path for the image.
 		 * @param store 	optional MetadataStore; this will be set in the reader if needed.
 		 * @param args      optional args to customize reading
@@ -1301,13 +1067,20 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @throws IOException
 		 */
 		@SuppressWarnings("resource")
-		private static synchronized IFormatReader createReader(final BioFormatsServerOptions options, final Class<? extends IFormatReader> cls, 
+		private IFormatReader createReader(final BioFormatsServerOptions options, final ClassList<IFormatReader> classList, 
 				final String id, final MetadataStore store, BioFormatsArgs args) throws FormatException, IOException {
+			
+			int maxReaders = getMaxReaders();
+			int nReaders = totalReaders.getAndIncrement();
+			if (mainReader != null && nReaders > maxReaders) {
+				logger.warn("No new reader will be created (already created {}, max readers {})", nReaders, maxReaders);
+				totalReaders.decrementAndGet();
+				return null;
+			}
+			
 			IFormatReader imageReader;
-			if (cls != null) {
-				ClassList<IFormatReader> list = new ClassList<>(IFormatReader.class);
-				list.addClass(cls);
-				imageReader = new ImageReader(list);
+			if (classList != null) {
+				imageReader = new ImageReader(classList);
 			} else
 				imageReader = new ImageReader();
 						
@@ -1340,20 +1113,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					}
 				}
 				if (dir == null) {
-					if (dirMemoTemp == null) {
-						Path path = Files.createTempDirectory("qupath-memo-");
-						dirMemoTemp = path.toFile();
-						Runtime.getRuntime().addShutdownHook(new Thread() {
-							@Override
-							public void run() {
-								deleteTempMemoFiles();
-							}
-						});
-//						path.toFile().deleteOnExit(); // Won't work recursively!
-						logger.warn("Temp memoization directory created at {}", dirMemoTemp);
-						logger.warn("If you want to avoid this warning, either disable Bio-Formats memoization in the preferences or specify a directory to use");
-					}
-					dir = dirMemoTemp;
+					dir = getTempMemoDir(true);
 				}
 				if (dir != null) {
 					memoizer = new Memoizer(imageReader, memoizationTimeMillis, dir);
@@ -1377,7 +1137,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				if (memoizer != null) {
 					File fileMemo = ((Memoizer)imageReader).getMemoFile(id);
 					// If we're using a temporary directory, delete the memo file
-					if (dir == dirMemoTemp)
+					if (dir == getTempMemoDir(false))
 						tempMemoFiles.add(fileMemo);
 					
 					long memoizationFileSize = fileMemo == null ? 0L : fileMemo.length();
@@ -1422,10 +1182,297 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					imageReader.setSeries(args.series);
 				((DimensionSwapper)imageReader).swapDimensions(swapDimensions);
 			}
-
+			
+			
+			cleanables.add(cleaner.register(this, new ReaderCleaner(Integer.toString(cleanables.size()+1), imageReader)));
+			
 			return imageReader;
 		}
+				
 		
+		private IFormatReader nextQueuedReader() throws InterruptedException {
+			var nextReader = queue.poll();
+			if (nextReader != null)
+				return nextReader;
+			synchronized (this) {
+				if (!isClosed && (task == null || task.isDone()) && totalReaders.get() < getMaxReaders()) {
+					logger.debug("Requesting reader for {}", id);
+					task = ForkJoinPool.commonPool().submit(() -> createAdditionalReader(options, classList, id, args));				
+				}
+			}
+			return queue.take();
+		}
+		
+		
+		BufferedImage openImage(TileRequest tileRequest, int series, int nChannels, boolean isRGB, ColorModel colorModel) throws IOException, InterruptedException {
+			
+			int level = tileRequest.getLevel();
+			int tileX = tileRequest.getTileX();
+			int tileY = tileRequest.getTileY();
+			int tileWidth = tileRequest.getTileWidth();
+			int tileHeight = tileRequest.getTileHeight();
+			int z = tileRequest.getZ();
+			int t = tileRequest.getT();
+	
+			byte[][] bytes = null;
+			int effectiveC;
+			int sizeC = nChannels;
+			int length = 0;
+			ByteOrder order = ByteOrder.BIG_ENDIAN;
+			boolean interleaved;
+			int pixelType;
+			boolean normalizeFloats = false;
+
+			
+			IFormatReader ipReader = null;
+			try {
+				ipReader = nextQueuedReader();
+				if (ipReader == null) {
+					throw new IOException("Reader is null - was the image already closed? " + id);
+				}
+	
+				// Check if this is non-zero
+				if (tileWidth <= 0 || tileHeight <= 0) {
+					throw new IOException("Unable to request pixels for region with downsampled size " + tileWidth + " x " + tileHeight);
+				}
+		
+				synchronized(ipReader) {
+					ipReader.setSeries(series);
+					ipReader.setResolution(level);
+					order = ipReader.isLittleEndian() ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN;
+					interleaved = ipReader.isInterleaved();
+					pixelType = ipReader.getPixelType();
+					normalizeFloats = ipReader.isNormalized();
+	
+					// Single-channel & RGB images are straightforward... nothing more to do
+					if ((ipReader.isRGB() && isRGB) || nChannels == 1) {
+						// Read the image - or at least the first channel
+						int ind = ipReader.getIndex(z, 0, t);
+						try {
+							byte[] bytesSimple = ipReader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
+							return AWTImageTools.openImage(bytesSimple, ipReader, tileWidth, tileHeight);
+						} catch (Exception e) {
+							logger.error("Error opening image " + ind + " for " + tileRequest.getRegionRequest(), e);
+						}
+					}
+					// Read bytes for all the required channels
+					effectiveC = ipReader.getEffectiveSizeC();
+					bytes = new byte[effectiveC][];
+					try {
+						for (int c = 0; c < effectiveC; c++) {
+							int ind = ipReader.getIndex(z, c, t);
+							bytes[c] = ipReader.openBytes(ind, tileX, tileY, tileWidth, tileHeight);
+							length = bytes[c].length;
+						}
+					} catch (FormatException e) {
+						throw new IOException(e);
+					}
+				}
+			} finally {
+				if (ipReader != null)
+					queue.put(ipReader);
+			}
+			
+			DataBuffer dataBuffer;
+			switch (pixelType) {
+			case (FormatTools.UINT8):
+				dataBuffer = new DataBufferByte(bytes, length);
+			break;
+			case (FormatTools.UINT16):
+				length /= 2;
+				short[][] array = new short[bytes.length][length];
+				for (int i = 0; i < bytes.length; i++) {
+					ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
+					array[i] = new short[buffer.limit()];
+					buffer.get(array[i]);
+				}
+				dataBuffer = new DataBufferUShort(array, length);
+				break;
+			case (FormatTools.INT16):
+				length /= 2;
+				short[][] shortArray = new short[bytes.length][length];
+				for (int i = 0; i < bytes.length; i++) {
+					ShortBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asShortBuffer();
+					shortArray[i] = new short[buffer.limit()];
+					buffer.get(shortArray[i]);
+				}
+				dataBuffer = new DataBufferShort(shortArray, length);
+				break;
+			case (FormatTools.INT32):
+				length /= 4;
+				int[][] intArray = new int[bytes.length][length];
+					for (int i = 0; i < bytes.length; i++) {
+						IntBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asIntBuffer();
+						intArray[i] = new int[buffer.limit()];
+						buffer.get(intArray[i]);
+					}
+				dataBuffer = new DataBufferInt(intArray, length);
+				break;
+			case (FormatTools.FLOAT):
+				length /= 4;
+				float[][] floatArray = new float[bytes.length][length];
+				for (int i = 0; i < bytes.length; i++) {
+					FloatBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asFloatBuffer();
+					floatArray[i] = new float[buffer.limit()];
+					buffer.get(floatArray[i]);
+					if (normalizeFloats)
+						floatArray[i] = DataTools.normalizeFloats(floatArray[i]);
+				}
+				dataBuffer = new DataBufferFloat(floatArray, length);
+				break;
+			case (FormatTools.DOUBLE):
+				length /= 8;
+				double[][] doubleArray = new double[bytes.length][length];
+				for (int i = 0; i < bytes.length; i++) {
+					DoubleBuffer buffer = ByteBuffer.wrap(bytes[i]).order(order).asDoubleBuffer();
+					doubleArray[i] = new double[buffer.limit()];
+					buffer.get(doubleArray[i]);
+					if (normalizeFloats)
+						doubleArray[i] = DataTools.normalizeDoubles(doubleArray[i]);
+				}
+				dataBuffer = new DataBufferDouble(doubleArray, length);
+				break;
+			// TODO: Consider conversion to closest supported pixel type
+			case FormatTools.BIT:
+			case FormatTools.INT8:
+			case FormatTools.UINT32:
+			default:
+				throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
+			}
+
+			SampleModel sampleModel;
+
+			if (effectiveC == 1 && sizeC > 1) {
+				// Handle channels stored in the same plane
+				int[] offsets = new int[sizeC];
+				if (interleaved) {
+					for (int b = 0; b < sizeC; b++)
+						offsets[b] = b;
+					sampleModel = new PixelInterleavedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC, sizeC*tileWidth, offsets);
+				} else {
+					for (int b = 0; b < sizeC; b++)
+						offsets[b] = b * tileWidth * tileHeight;
+					sampleModel = new ComponentSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, 1, tileWidth, offsets);
+				}
+			} else {
+				// Merge channels on different planes
+				sampleModel = new BandedSampleModel(dataBuffer.getDataType(), tileWidth, tileHeight, sizeC);
+			}
+
+			WritableRaster raster = WritableRaster.createWritableRaster(sampleModel, dataBuffer, null);
+			return new BufferedImage(colorModel, raster, false, null);
+			
+		}
+		
+		
+		public BufferedImage openSeries(int series) throws InterruptedException, FormatException, IOException {
+			IFormatReader reader = null;
+			try {
+				reader = nextQueuedReader();
+				synchronized (reader) {
+					int previousSeries = reader.getSeries();
+					try {
+						reader.setSeries(series);
+						int nResolutions = reader.getResolutionCount();
+						if (nResolutions > 0) {
+							reader.setResolution(0);
+						}
+						// TODO: Handle color transforms here, or in the display of labels/macro images - in case this isn't RGB
+						byte[] bytesSimple = reader.openBytes(reader.getIndex(0, 0, 0));
+						return AWTImageTools.openImage(bytesSimple, reader, reader.getSizeX(), reader.getSizeY());
+					} finally {
+						reader.setSeries(previousSeries);
+					}
+				}
+			} finally {
+				if (reader != null)
+					queue.put(reader);
+			}
+		}
+		
+		
+		
+		private static ClassList<IFormatReader> unwrapClasslist(IFormatReader reader) {
+			while (reader instanceof ReaderWrapper)
+				reader = ((ReaderWrapper)reader).getReader();
+			var classlist = new ClassList<>(IFormatReader.class);
+			classlist.addClass(reader.getClass());
+			return classlist;
+		}
+		
+		
+		
+		@Override
+		public void close() throws Exception {
+			isClosed = true;
+			if (task != null && !task.isDone())
+				task.cancel(true);
+			for (var c : cleanables) {
+				try {
+					c.clean();
+				} catch (Exception e) {
+					logger.error("Exception during cleanup: " + e.getLocalizedMessage());
+					logger.debug(e.getLocalizedMessage(), e);
+				}
+			}
+//			mainReader.close();
+//			for (var r : additionalReaders)
+//				r.close();
+			queue.clear();
+		}
+		
+		
+		
+		private static Cleaner cleaner = Cleaner.create();
+		private List<Cleanable> cleanables = new ArrayList<>();
+
+
+		/**
+		 * Map of memoization file sizes.
+		 */
+		private static Map<String, Long> memoizationSizeMap = new ConcurrentHashMap<>();
+
+		/**
+		 * Temporary directory for storing memoization files
+		 */
+		private static File dirMemoTemp = null;
+
+		/**
+		 * Set of created temp memo files
+		 */
+		private static Set<File> tempMemoFiles = new HashSet<>();
+
+
+		/**
+		 * Request the file size of any known memoization file for a specific ID.
+		 * 
+		 * @param id
+		 * @return
+		 */
+		public long getMemoizationFileSize(String id) {
+			return memoizationSizeMap.getOrDefault(id, Long.valueOf(0L));
+		}
+
+		private static File getTempMemoDir(boolean create) throws IOException {
+			if (create && dirMemoTemp == null) {
+				synchronized (ReaderPool.class) {
+					if (dirMemoTemp == null) {
+						Path path = Files.createTempDirectory("qupath-memo-");
+						dirMemoTemp = path.toFile();
+						Runtime.getRuntime().addShutdownHook(new Thread() {
+							@Override
+							public void run() {
+								deleteTempMemoFiles();
+							}
+						});
+						logger.warn("Temp memoization directory created at {}", dirMemoTemp);
+						logger.warn("If you want to avoid this warning, either specify a memoization directory in the preferences or turn off memoization by setting the time to < 0");
+					}
+				}
+			}
+			return dirMemoTemp;
+		}
+
 		/**
 		 * Delete any memoization files registered as being temporary, and also the 
 		 * temporary memoization directory (if it exists).
@@ -1450,18 +1497,23 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				return;
 			deleteEmptyDirectories(dirMemoTemp);
 		}
-		
+
 		/**
 		 * Delete a directory and all sub-directories, assuming each contains only empty directories.
 		 * This is applied recursively, stopping at the first failure (i.e. any directory containing files).
 		 * @param dir
-		 * @return
+		 * @return true if the directory could be deleted, false otherwise
 		 */
 		private static boolean deleteEmptyDirectories(File dir) {
 			if (!dir.isDirectory())
 				return false;
 			int nFiles = 0;
-			for (File f : dir.listFiles()) {
+			var files = dir.listFiles();
+			if (files == null) {
+				logger.debug("Unable to list files for {}", dir);
+				return false;
+			}
+			for (File f : files) {
 				if (f.isDirectory()) {
 					if (!deleteEmptyDirectories(f))
 						return false;
@@ -1481,36 +1533,13 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				return false;
 			}
 		}
-		
-		
-		/**
-		 * Simple wrapper for a reader to help with cleanup.
-		 */
-		static class LocalReaderWrapper {
-			
-			private IFormatReader reader;
-			private BioFormatsArgs args;
-			
-			LocalReaderWrapper(IFormatReader reader, BioFormatsArgs args) {
-				this.reader = reader;
-				this.args = args;
-			}
-			
-			public IFormatReader getReader() {
-				return reader;
-			}
 
-			public boolean argsMatch(BioFormatsArgs args) {
-				return Objects.equals(this.args, args);
-			}
 
-		}
-		
 		/**
-		 * Helper class that helps ensure readers are closed when a thread is no longer reachable.
+		 * Helper class that helps ensure readers are closed when a reader pool is no longer reachable.
 		 */
 		static class ReaderCleaner implements Runnable {
-			
+
 			private String name;
 			private IFormatReader reader;
 
@@ -1518,7 +1547,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				this.name = name;
 				this.reader = reader;
 			}
-			
+
 			@Override
 			public void run() {
 				logger.debug("Cleaner " + name + " called for " + reader + " (" + reader.getCurrentFile() + ")");
@@ -1528,10 +1557,16 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					logger.warn("Error when calling cleaner for " + name, e);
 				}
 			}
-			
+
 		}
 		
+		
 	}
+	
+	
+	
+	
+	
 	
 	static class BioFormatsArgs {
 		
@@ -1638,8 +1673,6 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				return false;
 			return true;
 		}
-		
-		
 		
 	}
 	

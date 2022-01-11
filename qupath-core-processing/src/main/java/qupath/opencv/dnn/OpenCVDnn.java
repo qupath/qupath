@@ -645,7 +645,7 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 
 	
 	
-	class OpenCVNetFunction implements PredictionFunction<Mat>, UriResource {
+	class OpenCVNetFunction implements PredictionFunction<Mat>, AutoCloseable { //, UriResource {
 				
 		private transient Net net;
 		private transient List<String> outputLayerNames;
@@ -770,16 +770,16 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 		}
 
 
-		@Override
-		public Collection<URI> getUris() throws IOException {
-			return getUris();
-		}
-
-
-		@Override
-		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
-			return updateUris(replacements);
-		}
+//		@Override
+//		public Collection<URI> getUris() throws IOException {
+//			return OpenCVDnn.this.getUris();
+//		}
+//
+//
+//		@Override
+//		public boolean updateUris(Map<URI, URI> replacements) throws IOException {
+//			return OpenCVDnn.this.updateUris(replacements);
+//		}
 
 
 		@Override
@@ -796,6 +796,19 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 			if (outputs != null)
 				return outputs;
 			return DnnTools.getOutputLayers(net, inputShapes);
+		}
+
+		@Override
+		public synchronized void close() throws Exception {
+			if (net != null) {
+				logger.debug("Closing {}", net);
+				net.close();
+				net.deallocate();
+			}
+			if (outputLayerNamesVector != null) {
+				outputLayerNamesVector.close();
+				outputLayerNamesVector.deallocate();
+			}
 		}
 		
 	}
@@ -891,6 +904,13 @@ public class OpenCVDnn implements UriResource, DnnModel<Mat> {
 			}
 		}
 		return predFun;
+	}
+	
+	@Override
+	public void close() throws Exception {
+		if (predFun instanceof AutoCloseable) {
+			((AutoCloseable)predFun).close();
+		}
 	}
 
 }

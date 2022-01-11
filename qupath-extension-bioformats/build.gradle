@@ -8,6 +8,11 @@ archivesBaseName = 'qupath-extension-bioformats'
 description = "QuPath extension to support image reading and writing using Bio-Formats."
 
 def bioformatsVersion = "6.7.0"
+def versionOverride = project.properties.getOrDefault('bioformats-version', null)
+if (versionOverride) {
+	println "Using specified Bio-Formats version ${versionOverride}"
+	bioformatsVersion = versionOverride
+}
 
 configurations {
   // Consider using compileOnly for Bio-Formats, and installing bioformats_package.jar separately

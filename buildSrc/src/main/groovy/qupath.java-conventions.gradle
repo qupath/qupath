@@ -9,7 +9,6 @@ plugins {
 }
 
 java {
-    // TODO: Support command line toolchain specification
     def version = project.findProperty('toolchain')
     if (!version)
         version = 16
@@ -94,5 +93,8 @@ if (!strictJavadoc) {
  * https://github.com/bytedeco/javacpp/issues/468
  */
 test {
-  maxHeapSize = '2G'
+  if ("32".equals(System.getProperty("sun.arch.data.model")))
+    maxHeapSize = '1G'
+  else
+    maxHeapSize = '2G'
 }

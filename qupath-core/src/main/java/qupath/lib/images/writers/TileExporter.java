@@ -778,7 +778,9 @@ public class TileExporter  {
 					logger.debug("Interrupted! Will not write image to {}", path);
 				
 				if (ensureSize) {
-					// Updated for v0.3.0
+					// Updated for v0.3.0 to ensure the image size is correct
+					// TODO: This has disadvantages, in that it loses channel names & region info
+					// (e.g. if saving as an ImageJ TIFF)
 					var img = readFixedSizeRegion(server, request, tileWidth, tileHeight);
 					ImageWriterTools.writeImage(img, path);
 				} else {
