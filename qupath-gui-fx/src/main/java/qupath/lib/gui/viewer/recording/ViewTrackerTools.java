@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -40,7 +40,7 @@ import qupath.lib.gui.viewer.tools.PathTool;
 import qupath.lib.gui.viewer.tools.PathTools;
 
 /**
- * Static methods to help working with {@link ViewTracker ViewTrackers}.
+ * Static methods to help with {@link ViewTracker ViewTrackers}.
  * 
  * @author Pete Bankhead
  * @author Melvin Gelbard
@@ -117,7 +117,7 @@ final class ViewTrackerTools {
 	
 	static ViewTracker parseSummaryString(final String str, String delimiter, ViewTracker tracker) throws Exception { // TODO: Find out what exceptions!
 		// If tracker is null, create one with no viewer (so cannot record)
-		ViewTracker trackerOrDefault = tracker == null ? new DefaultViewTracker(null) : tracker;
+		ViewTracker trackerOrDefault = tracker == null ? new ViewTracker(null) : tracker;
 		String delimiterOrDefault = delimiter == null ? estimateDelimiter(str) : delimiter;
 		boolean includesCursorTracking = false;
 		boolean includesActiveToolTracking = false;
@@ -184,9 +184,9 @@ final class ViewTrackerTools {
 			if (frame.hasCursorPosition()) {
 				Point2D cursorPosition = frame.getCursorPosition();
 				sb.append(delimiter);
-				sb.append(DefaultViewTracker.df.format(cursorPosition.getX()));
+				sb.append(ViewTracker.df.format(cursorPosition.getX()));
 				sb.append(delimiter);
-				sb.append(DefaultViewTracker.df.format(cursorPosition.getY()));
+				sb.append(ViewTracker.df.format(cursorPosition.getY()));
 			} else {
 				sb.append(delimiter);				
 				sb.append(delimiter);				
@@ -200,9 +200,9 @@ final class ViewTrackerTools {
 			if (frame.hasEyePosition()) {
 				Point2D eyePosition = frame.getEyePosition();
 				sb.append(delimiter);				
-				sb.append(DefaultViewTracker.df.format(eyePosition.getX()));
+				sb.append(ViewTracker.df.format(eyePosition.getX()));
 				sb.append(delimiter);				
-				sb.append(DefaultViewTracker.df.format(eyePosition.getY()));
+				sb.append(ViewTracker.df.format(eyePosition.getY()));
 				sb.append(delimiter);				
 				if (frame.isEyeFixated() == null)
 					sb.append(delimiter);				
@@ -217,11 +217,11 @@ final class ViewTrackerTools {
 		if (includeZAndT) {
 			if (frame.getZ() != -1) {
 				sb.append(delimiter);				
-				sb.append(DefaultViewTracker.df.format(frame.getZ()));
+				sb.append(ViewTracker.df.format(frame.getZ()));
 			}
 			if (frame.getT() != -1) {
 				sb.append(delimiter);				
-				sb.append(DefaultViewTracker.df.format(frame.getT()));
+				sb.append(ViewTracker.df.format(frame.getT()));
 			}
 		}
 		return sb.toString();
@@ -272,11 +272,25 @@ final class ViewTrackerTools {
 	}
 	
 	static String getPrettyTimestamp(long startTime, long endTime) {
-		long timestamp = endTime - startTime;
-		long hour = TimeUnit.MILLISECONDS.toHours(timestamp);
-		long min = TimeUnit.MILLISECONDS.toMinutes(timestamp) % 60;
-		long sec = TimeUnit.MILLISECONDS.toSeconds(timestamp) % 60;
+		return getPrettyTimestamp(endTime - startTime);
+	}	
+	
+	static String getPrettyTimestamp(long date) {
+		long hour = TimeUnit.MILLISECONDS.toHours(date);
+		long min = TimeUnit.MILLISECONDS.toMinutes(date) % 60;
+		long sec = TimeUnit.MILLISECONDS.toSeconds(date) % 60;
 		return String.format("%02d:%02d:%02d", hour, min, sec);
+	}
+	
+	/**
+	 * Return a long value representing the Date String (in hh:mm:ss format)
+	 * @param prettyString
+	 * @return timestamp
+	 */
+	static long getTimestampFromPrettyString(String prettyString) {
+		return TimeUnit.HOURS.toMillis(Integer.parseInt(prettyString.substring(0, 2))) +
+				TimeUnit.MINUTES.toMillis(Integer.parseInt(prettyString.substring(3, 5))) +
+				TimeUnit.SECONDS.toMillis(Integer.parseInt(prettyString.substring(6, 8)));
 	}
 	
 	static Dimension getSize(QuPathViewer viewer) {
@@ -290,14 +304,14 @@ final class ViewTrackerTools {
 
 	private static String estimateDelimiter(final String s) {
 		int nLines = countOccurrences(s, "\n");
-		String[] possibleDelimiters = new String[]{DefaultViewTracker.LOG_DELIMITER, "\t", ",", ":"};
+		String[] possibleDelimiters = new String[]{ViewTracker.LOG_DELIMITER, "\t", ",", ":"};
 		for (String delim : possibleDelimiters) {
 			int nOccurrences = countOccurrences(s, delim);
 			double occurrencesPerLine = (double)nOccurrences / nLines;
 			if (occurrencesPerLine > 0 && occurrencesPerLine == Math.floor(occurrencesPerLine))
 				return delim;
 		}
-		return DefaultViewTracker.LOG_DELIMITER; // Default
+		return ViewTracker.LOG_DELIMITER; // Default
 	}
 
 	private static ViewRecordingFrame parseLogString(String logString, String delimiter, boolean includesCursorTracking, boolean includesActiveToolTracking, boolean includesEyeTracking, boolean includeZAndT) {
@@ -349,7 +363,7 @@ final class ViewTrackerTools {
 				t = Integer.parseInt(columns[col++]);
 			}
 		}
-		return new DefaultViewRecordingFrame(timestamp, new Rectangle2D.Double(x, y, width, height), new Dimension(canvasWidth, canvasHeight), downFactor, rotation, pCursor, activeTool, pEye, isFixated, z, t);
+		return new ViewRecordingFrame(timestamp, new Rectangle2D.Double(x, y, width, height), new Dimension(canvasWidth, canvasHeight), downFactor, rotation, pCursor, activeTool, pEye, isFixated, z, t);
 	}
 	
 }

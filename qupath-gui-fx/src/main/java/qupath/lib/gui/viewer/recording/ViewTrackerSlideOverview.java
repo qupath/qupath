@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -51,6 +51,7 @@ final class ViewTrackerSlideOverview {
 	private Canvas canvas;
 	
 	private final int preferredWidth = 250; // Preferred component/image width - used for thumbnail scaling
+	private int preferredHeight = -1;
 	private final Color color = Color.rgb(200, 0, 0, .8);
 	
 	private Shape shapeVisible = null; // The visible shape (transformed already)
@@ -64,7 +65,7 @@ final class ViewTrackerSlideOverview {
 		if (img == null)
 			return;
 
-		int preferredHeight = (int)(img.getHeight() * (preferredWidth / (double)img.getWidth()));
+		preferredHeight = (int)(img.getHeight() * (preferredWidth / (double)img.getWidth()));
 		var imgPreview = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
 		canvas.setWidth(imgPreview.getWidth());
 		canvas.setHeight(imgPreview.getHeight());
@@ -117,16 +118,15 @@ final class ViewTrackerSlideOverview {
 		}
 		
 		// Draw border
-//		g.setLineWidth(2);
-//		g.setStroke(colorBorder);
-//		g.strokeRect(0, 0, w, h);
+		g.setLineWidth(2);
+		g.setStroke(Color.rgb(64, 64, 64));
+		g.strokeRect(0, 0, w, h);
 		
 	}
 	
 	private void drawImage(GraphicsContext g, BufferedImage imgToDraw) {
 		if (imgToDraw == null)
 			return;
-		int preferredHeight = (int)(img.getHeight() * (preferredWidth / (double)img.getWidth()));
 		var imgPreview = GuiTools.getScaledRGBInstance(imgToDraw, preferredWidth, preferredHeight);
 		g.drawImage(imgPreview, 0, 0);
 	}

@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2021 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -62,6 +62,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Region;
@@ -199,8 +200,8 @@ public class ViewTrackerControlPane implements Runnable {
 		prepareNewViewTracker(qupath);
 		playback = new ViewTrackerPlayback(viewer);
 
-		Action actionRecord = ActionTools.createSelectableAction(recordingMode, "Record", iconRecord, null);
-		Action actionPlayback = ActionTools.createSelectableAction(playback.playingProperty(), "Play", iconPlay, null);
+		Action actionRecord = ActionTools.createSelectableAction(recordingMode, "Start recording the viewer", iconRecord, null);
+		Action actionPlayback = ActionTools.createSelectableAction(playback.playingProperty(), "Play the selected recording", iconPlay, null);
 		
 		// Ensure icons are correct
 		recordingMode.addListener((v, o, n) -> {
@@ -224,7 +225,7 @@ public class ViewTrackerControlPane implements Runnable {
 			} else {
 				// Set text and icon to not recording
 				actionRecord.setGraphic(iconRecord);
-				actionRecord.setText("Start recording");
+				actionRecord.setText("Start recording the viewer");
 				
 				// Stop recording and timer
 				tracker.setRecording(false);
@@ -272,7 +273,9 @@ public class ViewTrackerControlPane implements Runnable {
 		// Create buttons
 		Button exportBtn = new Button("Export");
 		exportBtn.setOnAction(ev -> ViewTrackerTools.handleExport(table.getSelectionModel().getSelectedItem()));
+		exportBtn.setTooltip(new Tooltip("Export the selected recording as a tab-separated file (TSV)"));
 		Button deleteBtn = new Button("Delete");
+		deleteBtn.setTooltip(new Tooltip("Delete the selected recording from system"));
 		deleteBtn.setOnAction(e -> {
 			var trackersToDelete = table.getSelectionModel().getSelectedItems();
 			String deleteRecording = "Delete recording" + (trackersToDelete.size() > 1 ? "s" : "");
@@ -290,8 +293,10 @@ public class ViewTrackerControlPane implements Runnable {
 			// Remove all trackers to delete from ListView (even if exception when deleting file)
 			trackersList.removeAll(trackersToDelete);
 		});
-		Button moreBtn = new Button("More...");
+		Button moreBtn = new Button("Analyze");
 		moreBtn.setOnAction(e -> openViewTrackingAnalysisCommand());
+		moreBtn.setTooltip(new Tooltip("Open the recording analysis window for the selected recording"));
+		
 		
 		// Add all buttons to GridPane
 		GridPane btnPane = PaneTools.createColumnGrid(3);
@@ -525,6 +530,9 @@ public class ViewTrackerControlPane implements Runnable {
 			
 			dialog.show();
 		}
+		
+		// Remove the arrow in the TitledPane
+		titledPane.lookup(".arrow").setVisible(false);
 	}
 	
 	/**
@@ -541,7 +549,7 @@ public class ViewTrackerControlPane implements Runnable {
 		}
 		
 		// Create new tracker
-		tracker = new DefaultViewTracker(qupath);
+		tracker = new ViewTracker(qupath);
 		
 		// Bind properties
 		tracker.cursorTrackingProperty().bind(cursorTrackingProperty);
@@ -565,7 +573,7 @@ public class ViewTrackerControlPane implements Runnable {
 	}
 
 	private void openViewTrackingAnalysisCommand() {
-		ViewTrackerAnalysisCommand activeTracker = new ViewTrackerAnalysisCommand(this, viewer, table.getSelectionModel().getSelectedItem());
+		ViewTrackerAnalysisCommand activeTracker = new ViewTrackerAnalysisCommand(qupath, table.getSelectionModel().getSelectedItem());
 		isAnalysisOpened.bind(activeTracker.isOpenedProperty());
 		activeTracker.run();
 	}
