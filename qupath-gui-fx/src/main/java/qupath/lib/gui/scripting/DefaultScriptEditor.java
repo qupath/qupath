@@ -2548,7 +2548,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				text = text.toLowerCase();
 			} else
 				toFind = findText;
-			if (!text.contains(findText))
+			if (!text.contains(toFind))
 				return;
 			int pos = control.getSelection().getEnd();
 			int ind = text.substring(pos).indexOf(toFind);
