@@ -209,6 +209,9 @@ class ViewRecordingFrame {
 	 * @return true if same bounds, false otherwise
 	 */
 	boolean sameImageBounds(ViewRecordingFrame frame) {
+		if (frame == null)
+			return false;
+		
 		var b1 = getImageBounds();
 		var b2 = frame.getImageBounds();
 		

@@ -25,6 +25,7 @@ import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -44,31 +45,45 @@ import qupath.lib.gui.tools.ColorToolsFX;
  */
 // TODO: Change the canvas in MeasurementMapPane to use this?
 public class ColorMapCanvas extends Canvas {
-	
 	private double height;
 	private ObjectProperty<ColorMap> colorMapProperty;
 	private Image image;
-	private Map<Integer, Tooltip> tooltips;
+	private Map<Double, Rectangle> recs;
+	private Function<Double, String> fun;
+	private Tooltip tooltip;
 	
 	/**
 	 * Create a canvas that displays the range of the specified {@link ColorMap} with key tooltips.
 	 * @param height
 	 * @param colorMap
+	 * @param fun function to map the 256 values of the color map to a displayable string
 	 */
-	public ColorMapCanvas(double height, ColorMap colorMap) {
+	public ColorMapCanvas(double height, ColorMap colorMap, Function<Double, String> fun) {
 		this.height = height;
 		this.colorMapProperty = new SimpleObjectProperty<>(Objects.requireNonNull(colorMap));
-		this.tooltips = new HashMap<>();
-		this.image = createColorMapImage(colorMap, tooltips);
-		this.setOnMouseMoved(e -> {
-			// TODO: Sometimes this seems to be using the previously-set tooltip instead of a new one
-			tooltips.forEach((key, tooltip) -> {
-		        if (key == (int)(e.getX() / this.getWidth() * 255)) {
-		        	Tooltip.install(this, tooltip);
-		        	return;
-		        }
-		    });
+		this.recs = new HashMap<>();
+		this.image = createColorMapImage(colorMap, recs);
+		if (fun != null)
+			installTooltip(fun);
+	}
+	
+	private void installTooltip(Function<Double, String> fun) {
+		this.fun = fun;
+		this.tooltip = new Tooltip();
+		tooltip.setShowDelay(Duration.millis(1));
+		setOnMouseMoved(e -> {
+			tooltip.setText(this.fun.apply(Math.floor(e.getX()/getWidth()*255)));
+			tooltip.setGraphic(recs.get(Math.floor(e.getX()/getWidth()*255)));
 		});
+		Tooltip.install(this, tooltip);	
+	}
+	
+	/**
+	 * @param height
+	 * @param colorMap
+	 */
+	public ColorMapCanvas(double height, ColorMap colorMap) {
+		this(height, colorMap,  d ->"Value: " + d);
 	}
 	
 	@Override
@@ -113,9 +128,8 @@ public class ColorMapCanvas extends Canvas {
 	 * @param ColorMap
 	 */
 	public void setColorMap(ColorMap ColorMap) {
-		tooltips.clear();
 		colorMapProperty.set(ColorMap);
-		image = createColorMapImage(ColorMap, tooltips);
+		image = createColorMapImage(ColorMap, recs);
 		updateColorMapImage(image);
 	}
 	
@@ -136,24 +150,30 @@ public class ColorMapCanvas extends Canvas {
 	}
 	
 	/**
+	 * Set the function that will take a value between 0 and 255 (from the color map) and output a displayable string
+	 * @param fun
+	 */
+	public void setTooltipFunction(Function<Double, String> fun) {
+		this.fun = fun;
+		
+	}
+	
+	/**
 	 * Create an {@link Image} that shows the range of the {@code ColorMap} and creates appropriate tooltips.
 	 * @param colorMap
-	 * @param tooltips 
+	 * @param recs 
 	 * @return image
 	 */
-	private static Image createColorMapImage(final ColorMap colorMap, final Map<Integer, Tooltip> tooltips) {
+	private static Image createColorMapImage(final ColorMap colorMap, final Map<Double, Rectangle> recs) {
 		BufferedImage imgKey = new BufferedImage(255, 10, BufferedImage.TYPE_INT_ARGB);
 		if (colorMap != null) {
 			for (int i = 0; i < imgKey.getWidth(); i++) {
 				Integer rgb = colorMap.getColor(i, 0, 255);
+				Rectangle rec = new Rectangle(50, 50);
+				rec.setFill(ColorToolsFX.getCachedColor(rgb));
+				recs.put((double)i, rec);
 				for (int j = 0; j < imgKey.getHeight(); j++) {
 					imgKey.setRGB(i, j, rgb);
-					Rectangle rec = new Rectangle(50, 50);
-					rec.setFill(ColorToolsFX.getCachedColor(rgb));
-					var tooltip = new Tooltip("Value: " + i);
-					tooltip.setGraphic(rec);
-					tooltip.setShowDelay(Duration.millis(1));
-					tooltips.put(i, tooltip);
 				}
 			}
 		}

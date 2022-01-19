@@ -124,7 +124,7 @@ public abstract class AbstractOverlay implements PathOverlay {
 	 * Set a custom function to calculate a location string for the overlay.
 	 * @param fun
 	 */
-	protected void setLocationStringFunction(LocationStringFunction fun) {
+	public void setLocationStringFunction(LocationStringFunction fun) {
 		this.locationFun = fun;
 	}
 	

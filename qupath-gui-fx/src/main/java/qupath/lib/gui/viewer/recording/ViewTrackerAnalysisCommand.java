@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.controlsfx.control.RangeSlider;
@@ -140,14 +141,14 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	private static final Node iconStop = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_STOP);
 	
 	private ViewTrackerSlideOverview slideOverview;
-	private ViewTrackerDataMaps trackerDataMaps;
+	private ViewTrackerDataMaps dataMaps;
 	private Canvas canvas;
 	
 	private double initialWidth = -1;
 	private double initialHeight = -1;
 	
 	// Regenerating the data overlay will be done in the background to prevent freezing the GUI
-	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("data-overlay", true));
+	private final ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("data-overlay", true));
 	
 	/**
 	 * Create a view tracker analysis command.
@@ -233,9 +234,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			
 			tSlider = new Slider(0, t-1, 0);
 			tSlider.setBlockIncrement(1);
-//			tSlider.setMinorTickCount(0);
-//			tSlider.setMajorTickUnit(1);
-//			tSlider.setShowTickMarks(true);
+			tSlider.setValue(viewer.getTPosition());
 			tSlider.valueProperty().addListener((v, o, n) -> {
 		    	tSlider.setValue(n.intValue());
 		    	viewer.setTPosition(n.intValue());
@@ -246,6 +245,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			zSlider.setMinorTickCount(0);
 			zSlider.setMajorTickUnit(1);
 			zSlider.setShowTickMarks(true);
+			zSlider.setValue(viewer.getZPosition());
 			zSlider.valueProperty().addListener((v, o, n) -> {
 	    		zSlider.setValue(n.intValue());
 	    		viewer.setZPosition(n.intValue());
@@ -486,11 +486,11 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					);
 			
 			// TODO: if using keys to change sliders, nothing will trigger the overlay update
-			trackerDataMaps = new ViewTrackerDataMaps(server, tracker);
+			dataMaps = new ViewTrackerDataMaps(server, tracker);
 			timeDisplayedSlider.setOnMouseReleased(v -> updateOverlays());
 			downsampleSlider.setOnMouseReleased(v -> updateOverlays());
 			colorMapCanvas.colorMapProperty().addListener((v, o, n) -> updateOverlays());
-			progressIndicator.visibleProperty().bind(trackerDataMaps.generatingOverlayProperty());
+			progressIndicator.visibleProperty().bind(dataMaps.generatingOverlayProperty());
 
 			visualizationCheckBox.selectedProperty().addListener((v, o, n) -> {
 				if (n)
@@ -602,11 +602,12 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			
 			btnExpand.setOnAction(e -> {
 				if (btnExpand.getText().equals("Show frames")) {
-					dialog.setWidth(initialWidth + 250);
+					dialog.setWidth(initialWidth + 700);
 					dialog.setResizable(true);
 					dialog.setMinWidth(initialWidth + 50);
 					dialog.setMinHeight(initialHeight);
 					mainLeftPane.setMinWidth(initialWidth);
+					mainLeftPane.setMaxWidth(initialWidth);
 					mainPane.getItems().add(tablePane);
 					mainPane.setDividerPositions(0.0);
 					btnExpand.setText("Hide frames");
@@ -623,7 +624,6 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			
 			GridPane panelButtons = PaneTools.createColumnGridControls(buttons.toArray(new ButtonBase[0]));
 			PaneTools.addGridRow(mainLeftPane, row++, 0, null, panelButtons, panelButtons, panelButtons);
-			
 
 			mainPane.getItems().add(mainLeftPane);
 			dialog.setScene(new Scene(mainPane));
@@ -725,8 +725,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	
 	private void updateOverlays() {
 		executor.execute(() -> {
-			trackerDataMaps.generatingOverlayProperty().set(true);
-			trackerDataMaps.updateDataMaps(
+			dataMaps.generatingOverlayProperty().set(true);
+			dataMaps.updateDataMaps(
 					timeDisplayedSlider.lowValueProperty().longValue(),
 					timeDisplayedSlider.highValueProperty().longValue(),
 					downsampleSlider.lowValueProperty().doubleValue(),
@@ -736,11 +736,20 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					);
 			viewer.repaint();
 			
+			Number maxValue = dataMaps.getMaxValue(zSlider.getValue(), tSlider.getValue());
+			Function<Double, String> fun;
+			if (timeNormalizedRadio.isSelected())
+				fun = d -> "Time spent: " + ViewTracker.df.format(Double.valueOf(d/255 * maxValue.longValue()/1000)) + "s";
+			else
+				fun = d -> "Downsample: " + ViewTracker.df.format(d/255 * maxValue.doubleValue());
+				
+			colorMapCanvas.setTooltipFunction(fun);
+			
 			// Make sure the live visualisation is still requested when map generation is done
 			if (isOpenedProperty.get() && visualizationCheckBox.isSelected()) {
-				var overlay = new BufferedImageOverlay(viewer, trackerDataMaps.getRegionMaps());
+				var overlay = new BufferedImageOverlay(viewer, dataMaps.getRegionMaps());
 				
-				overlay.setLocationStringFunction(new DataMapsLocationString(trackerDataMaps));
+				overlay.setLocationStringFunction(new DataMapsLocationString(dataMaps));
 
 				// Update the viewer's custom overlay layer
 				viewer.getCustomOverlayLayers().setAll(overlay);
@@ -750,7 +759,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			}
 			
 			// Make sure the progress indicator doesn't show 'loading' anymore
-			trackerDataMaps.generatingOverlayProperty().set(false);
+			dataMaps.generatingOverlayProperty().set(false);
 		});
 	}
 	
@@ -773,8 +782,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 				return "";
 			
 			if (timeNormalizedRadio.isSelected())
-				return "Time spent: " + new DecimalFormat("0.00").format(Double.valueOf(value.longValue()/1000.0)) + "s";		// TODO: Fix wrong values in bottom right corner of OS-1
-			return "Downsample: " + (value.doubleValue() == 0 ? "" : value.doubleValue());
+				return "Time spent: " + ViewTracker.df.format(Double.valueOf(value.longValue()/1000.0)) + "s";
+			return (value.doubleValue() == 0 ? "" : "Downsample: " + new DecimalFormat("0.00").format(value.doubleValue()));
 		}
 	}
 }

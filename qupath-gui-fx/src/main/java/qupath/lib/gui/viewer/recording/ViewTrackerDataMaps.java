@@ -112,6 +112,7 @@ final class ViewTrackerDataMaps {
 
 		var startTime = System.currentTimeMillis();
 		regionMaps.clear();
+		regionMapsOriginal.clear();
 		for (int z = 0; z < nZSlices; z++) {
 			for (int t = 0; t < nTimepoints; t++) {
 				var relevantFrames = getRelevantFrames(timeStart, timeStop, downsampleMin, downsampleMax, z, t);
@@ -126,20 +127,39 @@ final class ViewTrackerDataMaps {
 		return regionMaps;
 	}
 	
+	Number getMaxValue(double z, double t) {
+		for (ImageRegion map: regionMapsOriginal.keySet()) {
+			if (map.getZ() == z && map.getT() == t)
+				return regionMapsOriginal.get(map).getMaxValue();
+		}
+		return null;
+	}
 	
+	
+	/**
+	 * Return an array of frames, in reverse chronological order (i.e. last frame recorded will be first in the array)
+	 * 
+	 * @param timeStart
+	 * @param timeStop
+	 * @param downsampleMin
+	 * @param downsampleMax
+	 * @param z
+	 * @param t
+	 * @return reverse-ordered relevant frames
+	 */
 	private ViewRecordingFrame[] getRelevantFrames(long timeStart, long timeStop, double downsampleMin, double downsampleMax, int z, int t) {
 		int frameStartIndex = tracker.getFrameIndexForTime(timeStart);
 		int frameStopIndex = tracker.getFrameIndexForTime(timeStop);
 		
 		List<ViewRecordingFrame> relevantFrames = new ArrayList<>();
-		ViewRecordingFrame previousFrame = tracker.getFrame(frameStopIndex);
-		for (int nFrame = frameStopIndex; nFrame > frameStartIndex; nFrame--) {
+		ViewRecordingFrame previousFrame = null;
+		for (int nFrame = frameStopIndex; nFrame >= frameStartIndex; nFrame--) {
 			var frame = tracker.getFrame(nFrame);
-			if (frame.getZ() != z && frame.getT() != t)
+			if (frame.getZ() != z || frame.getT() != t)
 				continue;
 			if (frame.getDownsampleFactor() < downsampleMin || frame.getDownsampleFactor() > downsampleMax)
 				continue;
-			if (frame.sameImageBounds(previousFrame))
+			if (frame.sameImageBounds(previousFrame) && nFrame != frameStartIndex)
 				continue;
 		
 			relevantFrames.add(frame);
@@ -153,7 +173,6 @@ final class ViewTrackerDataMaps {
 		Optional<ImageRegion> imageRegion = regionMaps.keySet().stream()
 				.filter(region -> region.contains(x, y, z, t))
 				.findFirst();
-		// TODO: Preceding line throws Concurrent Modification Exception when changing color map combo?
 		
 		if (imageRegion.isPresent())
 			return regionMapsOriginal.get(imageRegion.get()).getCalculatedValue(x, y);

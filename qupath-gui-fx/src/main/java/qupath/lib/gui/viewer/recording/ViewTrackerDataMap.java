@@ -6,13 +6,15 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.awt.image.BandedSampleModel;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferInt;
-import java.awt.image.IndexColorModel;
+import java.awt.image.DataBufferFloat;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 import java.util.Arrays;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
-import qupath.lib.color.ColorModelFactory;
+import qupath.lib.color.ColorModels;
+import qupath.lib.color.ColorModels.ColorModelBuilder;
 import qupath.lib.color.ColorMaps.ColorMap;
 import qupath.lib.gui.viewer.recording.ViewTrackerDataMaps.Feature;
 import qupath.lib.regions.ImageRegion;
@@ -65,14 +67,11 @@ public class ViewTrackerDataMap {
 		for (int nFrame = relevantFrames.length - 1; nFrame >= 0 ; nFrame--) {
 			var frame = relevantFrames[nFrame];
 			Rectangle downsampledBounds = getDownsampledBounds(frame.getImageBounds(), downsample);
-			if (nFrame == 0 && frame.getTimestamp() == 0)
-				break;
+			if (nFrame == 0 || frame.getTimestamp() == 0)
+				continue;
 	        
-	        long value;
-	        if (feature == Feature.TIMESTAMP)
-	        	value = nFrame == 0 ? frame.getTimestamp() : relevantFrames[nFrame-1].getTimestamp() - frame.getTimestamp();
-	        else
-	        	value = (long) frame.getDownsampleFactor();
+	        long timestampValue = relevantFrames[nFrame-1].getTimestamp() - frame.getTimestamp();
+	        double downsampleValue = frame.getDownsampleFactor();
 	        
 	        downsampledBounds = getCroppedBounds(downsampledBounds, targetWidth, targetHeight);
 	        Shape rotated = null;	 // if rotation != 0, this variable will be initialised
@@ -90,9 +89,9 @@ public class ViewTrackerDataMap {
         			int index =  y * targetWidth+ x;
         			if (rotated == null || (rotated.contains(new Point2D.Double(x, y)) && index > 0 && index < arrayLength)) {
         				if (feature == Feature.TIMESTAMP)
-        					longArray[index] = longArray[index] + value;
-        				else if (doubleArray[index] < value)
-        					doubleArray[index] = value;
+        					longArray[index] = longArray[index] + timestampValue;
+        				else if (doubleArray[index] > downsampleValue || doubleArray[index] == 0)
+        					doubleArray[index] = downsampleValue;
         			}
         		}
         	}
@@ -132,6 +131,12 @@ public class ViewTrackerDataMap {
 		return new Rectangle(x, y, newWidth, newHeight);
 	}
 	
+	Number getMaxValue() {
+		if (feature == Feature.TIMESTAMP) 
+			return LongStream.of(longArray).max().getAsLong();
+		return DoubleStream.of(doubleArray).max().getAsDouble();
+	}
+	
 	Number getCalculatedValue(int x, int y) {
 		if (feature == Feature.TIMESTAMP)
 			return longArray[(int)Math.floor(x/downsample) + targetWidth * (int)Math.floor(y/downsample)];
@@ -139,16 +144,24 @@ public class ViewTrackerDataMap {
 	}
 
 	BufferedImage getBufferedImage(ColorMap colorMap) {
-		DataBufferInt intBuffer = new DataBufferInt(longArray.length);
-		for (int i = 0; i < longArray.length; i++) {
-			intBuffer.setElem(i, (int)longArray[i]);
-    	}
-	    
-	    var sampleModel = new BandedSampleModel(intBuffer.getDataType(), targetWidth, targetHeight, 1);
-		WritableRaster raster = Raster.createWritableRaster(sampleModel , intBuffer, null);
-		IndexColorModel cm = ColorModelFactory.createIndexedColorModel8bit(colorMap, 0);
-		BufferedImage img = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_BYTE_INDEXED, cm);
-		img.setData(raster);
+        var dataBuffer = new DataBufferFloat(feature == Feature.TIMESTAMP ? longArray.length : doubleArray.length);
+		for (int i = 0; i < dataBuffer.getSize(); i++) {
+			dataBuffer.setElemDouble(i, feature == Feature.TIMESTAMP ? longArray[i] : doubleArray[i]);
+		}
+		
+		String colorMapName = colorMap.getName();
+		ColorModelBuilder colorModelBuilder;
+		Number maxValue = getMaxValue();		// TODO: Should each dataMap (with different z & t) have a different scales (because of a different maxValue)? Now yes.
+		colorModelBuilder = ColorModels.createColorModelBuilder(
+				ColorModels.createBand(colorMapName, 0, 0, feature == Feature.TIMESTAMP ? maxValue.longValue() : maxValue.doubleValue()),
+				ColorModels.createBand(colorMapName, 0, 0, feature == Feature.TIMESTAMP ? maxValue.longValue() : maxValue.doubleValue(), 0.8)
+				);
+		
+        var cm = colorModelBuilder.build();
+        var sampleModel = new BandedSampleModel(dataBuffer.getDataType(), targetWidth, targetHeight, 1);
+		WritableRaster raster = Raster.createWritableRaster(sampleModel , dataBuffer, null);
+		BufferedImage img = new BufferedImage(cm, raster, false, null);
+		
 		return img;
 	}
 }
