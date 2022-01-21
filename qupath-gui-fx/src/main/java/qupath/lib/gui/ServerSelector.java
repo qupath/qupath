@@ -180,6 +180,9 @@ class ServerSelector {
 		
 		
 		Dialog<ButtonType> dialog = new Dialog<>();
+		var qupath = QuPathGUI.getInstance();
+		if (qupath != null)
+			dialog.initOwner(qupath.getStage());
 		dialog.setTitle("Open image");
 		ButtonType typeImport = new ButtonType("Open", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(typeImport, ButtonType.CANCEL);
@@ -208,24 +211,28 @@ class ServerSelector {
 		
 		Optional<ButtonType> result = dialog.showAndWait();
 		
+		var selectedToReturn = listSeries.getSelectionModel().getSelectedItem();
+		
 		try {
 			executor.shutdownNow();
 		} catch (Exception e) {
 			logger.warn(e.getLocalizedMessage(), e);
 		} finally {
-			selectedSeries = null;
 			try {
-				for (ImageServer<BufferedImage> server: serverList)
-					server.close();
+				for (ImageServer<BufferedImage> server: serverList) {
+					if (server != selectedToReturn)
+						server.close();
+				}
 			} catch (Exception e) {
 				logger.debug(e.getLocalizedMessage(), e);
 			}
+			selectedSeries = null;
 		}		
 		
 		if (!result.isPresent() || result.get() != typeImport || result.get() == ButtonType.CANCEL)
 			return null;
 		
-		return listSeries.getSelectionModel().getSelectedItem();
+		return selectedToReturn;
 	}
 	
 	

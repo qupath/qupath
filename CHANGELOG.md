@@ -1,3 +1,11 @@
+## Version 0.4.0-SNAPSHOT
+
+This is a work-in-progress.
+
+### Bugs fixed
+* Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+
+
 ## Version 0.3.2
 
 This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.1 while fixing bugs.

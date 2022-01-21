@@ -272,7 +272,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 	
 	BioFormatsImageServer(URI uri, final BioFormatsServerOptions options, String...args) throws FormatException, IOException, DependencyException, ServiceException, URISyntaxException {
 		super();
-		
+
 		long startTime = System.currentTimeMillis();
 
 //		this.options = options;
@@ -1035,7 +1035,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				if (isClosed)
 					return;
 				logger.debug("Requesting new reader for thread {}", Thread.currentThread());
-				var newReader = createReader(options, classList, id, new DummyMetadata(), args);
+				var newReader = createReader(options, classList, id, null, args);
 				if (newReader != null) {
 					additionalReaders.add(newReader);
 					queue.add(newReader);
@@ -1060,7 +1060,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @param options 	options used to control the reader generation
 		 * @param classList optionally specify a list of potential reader classes, if known (to avoid a more lengthy search)
 		 * @param id 		file path for the image.
-		 * @param store 	optional MetadataStore; this will be set in the reader if needed.
+		 * @param store 	optional MetadataStore; this will be set in the reader if needed. If it is unspecified, a dummy store will be created a minimal metadata requested.
 		 * @param args      optional args to customize reading
 		 * @return the {@code IFormatReader}
 		 * @throws FormatException
@@ -1122,11 +1122,12 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			}
 			
 			
-			if (store != null) {
+			if (store != null)
 				imageReader.setMetadataStore(store);
-			}
-			else
+			else {
 				imageReader.setMetadataStore(new DummyMetadata());
+				imageReader.setOriginalMetadataPopulated(false);
+			}
 			
 			var swapDimensions = args.getSwapDimensions();
 			if (swapDimensions != null)
@@ -1200,7 +1201,14 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					task = ForkJoinPool.commonPool().submit(() -> createAdditionalReader(options, classList, id, args));				
 				}
 			}
-			return queue.take();
+			if (isClosed)
+				return null;
+			try {
+				return queue.poll(60, TimeUnit.SECONDS);
+			} catch (InterruptedException e) {
+				logger.warn("Interrupted exception when awaiting next queued reader: {}", e.getLocalizedMessage());
+				return isClosed ? null : mainReader;
+			}
 		}
 		
 		
@@ -1415,10 +1423,9 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 					logger.debug(e.getLocalizedMessage(), e);
 				}
 			}
-//			mainReader.close();
-//			for (var r : additionalReaders)
-//				r.close();
-			queue.clear();
+			// Allow the queue to be garbage collected - clearing could result in a queue.poll()
+			// lingering far too long
+//			queue.clear();
 		}
 		
 		
