@@ -1035,7 +1035,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 				if (isClosed)
 					return;
 				logger.debug("Requesting new reader for thread {}", Thread.currentThread());
-				var newReader = createReader(options, classList, id, new DummyMetadata(), args);
+				var newReader = createReader(options, classList, id, null, args);
 				if (newReader != null) {
 					additionalReaders.add(newReader);
 					queue.add(newReader);
@@ -1060,7 +1060,7 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 		 * @param options 	options used to control the reader generation
 		 * @param classList optionally specify a list of potential reader classes, if known (to avoid a more lengthy search)
 		 * @param id 		file path for the image.
-		 * @param store 	optional MetadataStore; this will be set in the reader if needed.
+		 * @param store 	optional MetadataStore; this will be set in the reader if needed. If it is unspecified, a dummy store will be created a minimal metadata requested.
 		 * @param args      optional args to customize reading
 		 * @return the {@code IFormatReader}
 		 * @throws FormatException
@@ -1124,10 +1124,10 @@ public class BioFormatsImageServer extends AbstractTileableImageServer {
 			
 			if (store != null)
 				imageReader.setMetadataStore(store);
-			else
+			else {
 				imageReader.setMetadataStore(new DummyMetadata());
-			if (imageReader.getMetadataStore() instanceof DummyMetadata)
 				imageReader.setOriginalMetadataPopulated(false);
+			}
 			
 			var swapDimensions = args.getSwapDimensions();
 			if (swapDimensions != null)
