@@ -32,12 +32,18 @@ import java.awt.image.BufferedImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.Tooltip;
 import javafx.scene.paint.Color;
+import javafx.util.Duration;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
+import qupath.lib.gui.viewer.recording.ViewTrackerAnalysisCommand.DataMapsLocationString;
 import qupath.lib.regions.ImageRegion;
 
 final class ViewTrackerSlideOverview {
@@ -55,11 +61,18 @@ final class ViewTrackerSlideOverview {
 	private final Color color = Color.rgb(200, 0, 0, .8);
 	
 	private Shape shapeVisible = null; // The visible shape (transformed already)
-	private AffineTransform transform = new AffineTransform();;
+	private AffineTransform transform = new AffineTransform();
 	
-	ViewTrackerSlideOverview(QuPathViewer viewer, Canvas canvas) {
+	private DoubleProperty mouseXLocation = new SimpleDoubleProperty();
+	private DoubleProperty mouseYLocation = new SimpleDoubleProperty();
+	private double mouseScreenXLocation = -1;
+	private double mouseScreenYLocation = -1;
+	
+	private DataMapsLocationString locationString;
+	
+	ViewTrackerSlideOverview(QuPathViewer viewer) {
 		this.viewer = viewer;
-		this.canvas = canvas;
+		this.canvas = new Canvas();
 		
 		img = viewer.getRGBThumbnail();
 		if (img == null)
@@ -70,6 +83,45 @@ final class ViewTrackerSlideOverview {
 		canvas.setWidth(imgPreview.getWidth());
 		canvas.setHeight(imgPreview.getHeight());
 		paintCanvas();
+		
+		Tooltip tooltip = new Tooltip();
+		tooltip.setShowDelay(Duration.ZERO);
+		tooltip.setHideDelay(Duration.ZERO);
+		tooltip.textProperty().bind(Bindings.createStringBinding(() -> {
+			var canvasDownsample = viewer.getServerWidth()/canvas.getWidth();
+			var x = mouseXLocation.get()*canvasDownsample;
+			var y = mouseYLocation.get()*canvasDownsample;
+			if (x < 0 || y < 0)
+				return "";
+			
+			tooltip.setX(mouseScreenXLocation);
+			tooltip.setY(mouseScreenYLocation);
+			String legend = "X: " + ViewTracker.df.format(x) + System.lineSeparator() + "Y: " + ViewTracker.df.format(y);
+			if (overlay != null)
+				legend += System.lineSeparator() + locationString.getLocationString(viewer.getImageData(), x, y, viewer.getZPosition(), viewer.getTPosition());
+			return legend;
+		}, mouseXLocation, mouseYLocation));
+		
+		
+		Tooltip.install(canvas, tooltip);
+		
+		canvas.setOnMouseMoved(e -> {
+			if (e.getX() < 0 || e.getY() < 0)
+				return;
+			mouseXLocation.set(e.getX());
+			mouseYLocation.set(e.getY());
+			mouseScreenXLocation = e.getScreenX();
+			mouseScreenYLocation = e.getScreenY();
+		});
+		
+		canvas.setOnMouseExited(e -> {
+			mouseXLocation.set(-1.0);
+			mouseYLocation.set(-1.0);
+		});
+	}
+	
+	Canvas getCanvas() {
+		return canvas;
 	}
 	
 	void paintCanvas() {
@@ -151,5 +203,9 @@ final class ViewTrackerSlideOverview {
 		}
 
 		shapeVisible = transform.createTransformedShape(shape);
+	}
+
+	void setLocationStringFunction(DataMapsLocationString locationString) {
+		this.locationString = locationString;
 	}
 }

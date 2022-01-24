@@ -70,7 +70,7 @@ public class ColorMapCanvas extends Canvas {
 	private void installTooltip(Function<Double, String> fun) {
 		this.fun = fun;
 		this.tooltip = new Tooltip();
-		tooltip.setShowDelay(Duration.millis(1));
+		tooltip.setShowDelay(Duration.ZERO);
 		setOnMouseMoved(e -> {
 			tooltip.setText(this.fun.apply(Math.floor(e.getX()/getWidth()*255)));
 			tooltip.setGraphic(recs.get(Math.floor(e.getX()/getWidth()*255)));

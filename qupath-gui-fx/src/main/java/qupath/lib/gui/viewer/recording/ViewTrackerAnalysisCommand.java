@@ -24,7 +24,6 @@
 package qupath.lib.gui.viewer.recording;
 
 import java.awt.image.BufferedImage;
-import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -53,14 +52,12 @@ import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
-import javafx.scene.control.RadioButton;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
@@ -70,7 +67,6 @@ import javafx.scene.control.TableColumn.CellDataFeatures;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
-import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
@@ -131,8 +127,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	private ColorMapCanvas colorMapCanvas;
 	
 	private CheckBox visualizationCheckBox;
-	private RadioButton timeNormalizedRadio;
-	private RadioButton downsampleNormalizedRadio;
+//	private RadioButton timeNormalizedRadio;
+//	private RadioButton downsampleNormalizedRadio;
 	private RangeSlider downsampleSlider;
 	private RangeSlider timeDisplayedSlider;
 	
@@ -142,7 +138,6 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 	
 	private ViewTrackerSlideOverview slideOverview;
 	private ViewTrackerDataMaps dataMaps;
-	private Canvas canvas;
 	
 	private double initialWidth = -1;
 	private double initialHeight = -1;
@@ -161,8 +156,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 		this.tracker = tracker;
 		this.viewer = qupath.getViewer();
 		this.server = viewer.getServer();
-		this.canvas = new Canvas();
-		this.slideOverview = new ViewTrackerSlideOverview(viewer, canvas);
+		this.slideOverview = new ViewTrackerSlideOverview(viewer);
 		this.playback = new ViewTrackerPlayback(viewer);
 		this.playback.setViewTracker(tracker);
 	}
@@ -355,18 +349,18 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			//--------------------------------------------------------------//
 			
 			visualizationCheckBox = new CheckBox("Enable data overlay");
-			Label normalizedByLabel = new Label("Normalized by");
+//			Label normalizedByLabel = new Label("Normalized by");
 			progressIndicator = new ProgressIndicator(); // Bound below in the Binding section
 			progressIndicator.setPrefSize(15, 15);
 			
-			ToggleGroup toggleGroup = new ToggleGroup();
-			timeNormalizedRadio = new RadioButton("Time");
-			timeNormalizedRadio.setSelected(true);
-			timeNormalizedRadio.setToggleGroup(toggleGroup);
-			
-			downsampleNormalizedRadio = new RadioButton("Downsample");
-			downsampleNormalizedRadio.setToggleGroup(toggleGroup);
-			
+//			ToggleGroup toggleGroup = new ToggleGroup();
+//			timeNormalizedRadio = new RadioButton("Time");
+//			timeNormalizedRadio.setSelected(true);
+//			timeNormalizedRadio.setToggleGroup(toggleGroup);
+//			
+//			downsampleNormalizedRadio = new RadioButton("Downsample");
+//			downsampleNormalizedRadio.setToggleGroup(toggleGroup);
+
 			// Create a color mapper ComboBox
 			colorMaps = FXCollections.observableArrayList(ColorMaps.getColorMaps().values());
 			ComboBox<ColorMap> colorMapCombo = new ComboBox<>(colorMaps);
@@ -500,9 +494,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					slideOverview.setOverlay(null);
 				}
 			});
-			
-			// Listener for timeNormalizedRadio, no need for downsampleNormalizedRadio one as it's either one or the other
-			timeNormalizedRadio.selectedProperty().addListener((v, o, n) -> updateOverlays());
+
+//			timeNormalizedRadio.selectedProperty().addListener((v, o, n) -> updateOverlays());
 			
 			//--------------------------------------------------------------//
 			//---------- PUTTING EVERYTHING TOGETHER ---------//
@@ -522,7 +515,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			GridPane canvasPane = new GridPane();
 			GridPane timelinePane = new GridPane();
 			GridPane playbackPane = new GridPane();
-			GridPane normalizedByPane = new GridPane();
+//			GridPane normalizedByPane = new GridPane();
 			GridPane rangeSlidersPane = new GridPane();
 			GridPane downsamplePane = new GridPane();
 			Separator sep = new Separator();
@@ -532,7 +525,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			dataVisualizationPane.setHgap(10);
 			dataVisualizationPane.setVgap(10);
 			playbackPane.setHgap(10.0);
-			normalizedByPane.setHgap(10.0);
+//			normalizedByPane.setHgap(10.0);
 			rangeSlidersPane.setHgap(10.0);
 			rangeSlidersPane.setVgap(10.0);
 			downsamplePane.setHgap(10.0);
@@ -540,17 +533,18 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			// Some 'invisible' elements might shift the canvas to the right, so make sure this doesn't happen
 			if (zSlider.isVisible()) {
 				canvasPane.addRow(0, new HBox(), timepointLabel, tSlider);
-				canvasPane.addRow(1, zSliceLabel, zSlider, canvas);
+				canvasPane.addRow(1, zSliceLabel, zSlider, slideOverview.getCanvas());
 				zSlider.setTooltip(new Tooltip("Slide to change the visible z-slice"));
 			} else {
-				canvasPane.addRow(0, timepointLabel, tSlider);
-				canvasPane.addRow(1, new HBox(), canvas);
+				canvasPane.addRow(0, timepointLabel, tSlider, new HBox());
+				canvasPane.addRow(1, new HBox(), slideOverview.getCanvas());
 			}
 			
 			if (tSlider.isVisible())
 				tSlider.setTooltip(new Tooltip("Slide to change the visible timepoint"));
 				
-			normalizedByPane.addRow(0, timeNormalizedRadio, downsampleNormalizedRadio, progressIndicator);
+//			normalizedByPane.addRow(0, timeNormalizedRadio, downsampleNormalizedRadio, progressIndicator);
+//			normalizedByPane.addRow(0, progressIndicator);
 			timelinePane.addRow(0, timeLabelLeft, timeSlider, timeLabelRight);
 			playbackPane.addRow(0, btnPlay, btnStop);
 			timelinePane.setAlignment(Pos.CENTER);
@@ -567,8 +561,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			PaneTools.addGridRow(slideOverviewPane, row++, 0, null, sep, sep, sep, sep);
 			
 			row = 0;
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "Enable data overlay", visualizationCheckBox, visualizationCheckBox);
-			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "Normalization type (range is 0 - 255)", normalizedByLabel, normalizedByPane, normalizedByPane, normalizedByPane);
+			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "Show the amount of time spent in each region of the image", visualizationCheckBox, progressIndicator);
 			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Time range"), timeDisplayedLeftLabel, timeDisplayedSlider, timeDisplayedRightLabel);
 			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "The data will only take into account the values recorded in-between this range", new Label("Downsample range"), downsampleLeftLabel, downsampleSlider, downsampleRightLabel);
 			PaneTools.addGridRow(dataVisualizationPane, row++, 0, "Color map", new Label("Color map"), colorMapCombo, colorMapCombo, colorMapCombo);
@@ -580,8 +573,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 				
 				if (child == downsampleSlider)
 					child.disableProperty().bind(visualizationCheckBox.selectedProperty().not().or(new SimpleBooleanProperty(minDownsample == maxDownsample)));
-				else if (child == downsampleNormalizedRadio)
-					child.disableProperty().bind(visualizationCheckBox.selectedProperty().not().or(new SimpleBooleanProperty(minDownsample == maxDownsample)));
+//				else if (child == downsampleNormalizedRadio)
+//					child.disableProperty().bind(visualizationCheckBox.selectedProperty().not().or(new SimpleBooleanProperty(minDownsample == maxDownsample)));
 				else
 					child.disableProperty().bind(visualizationCheckBox.selectedProperty().not());
 			}
@@ -589,8 +582,9 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 		    ColumnConstraints col1 = new ColumnConstraints();
 		    ColumnConstraints col2 = new ColumnConstraints();
 		    ColumnConstraints col3 = new ColumnConstraints();
+		    ColumnConstraints col4 = new ColumnConstraints();
 		    col2.setHgrow(Priority.ALWAYS);
-		    slideOverviewPane.getColumnConstraints().addAll(col1, col2, col3);
+		    slideOverviewPane.getColumnConstraints().addAll(col1, col2, col3, col4);
 			
 			//--------------------- BOTTOM BUTTON PANE---------------------//
 			Button btnExpand = new Button("Show frames");
@@ -628,6 +622,8 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			mainPane.getItems().add(mainLeftPane);
 			dialog.setScene(new Scene(mainPane));
 		}
+		
+		viewer.imageDataProperty().addListener((v, o, n) -> dialog.hide());
 		
 		dialog.setOnHiding(e -> {
 			viewer.getCustomOverlayLayers().clear();
@@ -731,17 +727,19 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					timeDisplayedSlider.highValueProperty().longValue(),
 					downsampleSlider.lowValueProperty().doubleValue(),
 					downsampleSlider.highValueProperty().doubleValue(),
-					timeNormalizedRadio.selectedProperty().get() ? Feature.TIMESTAMP : Feature.DOWNSAMPLE,
+					Feature.TIMESTAMP,
+//					timeNormalizedRadio.selectedProperty().get() ? Feature.TIMESTAMP : Feature.DOWNSAMPLE,
 					colorMapCanvas.getColorMap()
 					);
 			viewer.repaint();
 			
 			Number maxValue = dataMaps.getMaxValue(zSlider.getValue(), tSlider.getValue());
 			Function<Double, String> fun;
-			if (timeNormalizedRadio.isSelected())
-				fun = d -> "Time spent: " + ViewTracker.df.format(Double.valueOf(d/255 * maxValue.longValue()/1000)) + "s";
-			else
-				fun = d -> "Downsample: " + ViewTracker.df.format(d/255 * maxValue.doubleValue());
+			fun = d -> "View time: " + ViewTracker.df.format(Double.valueOf(d/255 * maxValue.longValue()/1000)) + "s";
+//			if (timeNormalizedRadio.isSelected())
+//				fun = d -> "View time: " + ViewTracker.df.format(Double.valueOf(d/255 * maxValue.longValue()/1000)) + "s";
+//			else
+//				fun = d -> "Downsample: " + ViewTracker.df.format(d/255 * maxValue.doubleValue());
 				
 			colorMapCanvas.setTooltipFunction(fun);
 			
@@ -749,13 +747,15 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			if (isOpenedProperty.get() && visualizationCheckBox.isSelected()) {
 				var overlay = new BufferedImageOverlay(viewer, dataMaps.getRegionMaps());
 				
-				overlay.setLocationStringFunction(new DataMapsLocationString(dataMaps));
+				var locationString = new DataMapsLocationString(dataMaps);
+				overlay.setLocationStringFunction(locationString);
 
 				// Update the viewer's custom overlay layer
 				viewer.getCustomOverlayLayers().setAll(overlay);
 				
 				// Update the slideOverview
 				slideOverview.setOverlay(overlay);
+				slideOverview.setLocationStringFunction(locationString);
 			}
 			
 			// Make sure the progress indicator doesn't show 'loading' anymore
@@ -780,10 +780,9 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 			Number value = data.getValueFromOriginalLocation((int)x, (int)y, z, t);
 			if (value == null)
 				return "";
-			
-			if (timeNormalizedRadio.isSelected())
-				return "Time spent: " + ViewTracker.df.format(Double.valueOf(value.longValue()/1000.0)) + "s";
-			return (value.doubleValue() == 0 ? "" : "Downsample: " + new DecimalFormat("0.00").format(value.doubleValue()));
+
+			return "View time: " + ViewTracker.df.format(Double.valueOf(value.longValue()/1000.0)) + " s";
+//			return (value.doubleValue() == 0 ? "" : "Downsample: " + ViewTracker.df.format(value.doubleValue()));
 		}
 	}
 }

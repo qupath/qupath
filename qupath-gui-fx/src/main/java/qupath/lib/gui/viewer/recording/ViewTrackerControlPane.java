@@ -94,7 +94,7 @@ public class ViewTrackerControlPane implements Runnable {
 	
 	private static final BooleanProperty cursorTrackingProperty = PathPrefs.createPersistentPreference("trackCursorPosition", true);
 	private static final BooleanProperty activeToolTrackingProperty = PathPrefs.createPersistentPreference("trackActiveTool", true);
-	private static final BooleanProperty eyeTrackingProperty = PathPrefs.createPersistentPreference("trackEyePosition", false);
+//	private static final BooleanProperty eyeTrackingProperty = PathPrefs.createPersistentPreference("trackEyePosition", false);
 	private static final String[] columnNames = new String[] {"Name", "Duration"};	
 	
 	private static final Node iconRecord = IconFactory.createNode(QuPathGUI.TOOLBAR_ICON_SIZE, QuPathGUI.TOOLBAR_ICON_SIZE, IconFactory.PathIcons.TRACKING_RECORD);
@@ -110,7 +110,7 @@ public class ViewTrackerControlPane implements Runnable {
 	private QuPathViewer viewer;	
 	
 	private final BooleanProperty recordingMode = new SimpleBooleanProperty(false);
-	private final BooleanProperty supportsEyeTracking = new SimpleBooleanProperty(false);
+//	private final BooleanProperty supportsEyeTracking = new SimpleBooleanProperty(false);
 	
 	
 	private ObservableList<ViewTracker> trackersList;
@@ -200,7 +200,7 @@ public class ViewTrackerControlPane implements Runnable {
 		prepareNewViewTracker(qupath);
 		playback = new ViewTrackerPlayback(viewer);
 
-		Action actionRecord = ActionTools.createSelectableAction(recordingMode, "Start recording the viewer", iconRecord, null);
+		Action actionRecord = ActionTools.createSelectableAction(recordingMode, "Start a new recording of the viewer", iconRecord, null);
 		Action actionPlayback = ActionTools.createSelectableAction(playback.playingProperty(), "Play the selected recording", iconPlay, null);
 		
 		// Ensure icons are correct
@@ -250,7 +250,7 @@ public class ViewTrackerControlPane implements Runnable {
 				playing
 				));
 		actionPlayback.textProperty().bind(Bindings.createStringBinding(() -> {
-			return playing.get() ? "Stop" : "Play";
+			return playing.get() ? "Stop the playback" : "Play the selected recording";
 		},
 		playing
 		));
@@ -275,7 +275,7 @@ public class ViewTrackerControlPane implements Runnable {
 		exportBtn.setOnAction(ev -> ViewTrackerTools.handleExport(table.getSelectionModel().getSelectedItem()));
 		exportBtn.setTooltip(new Tooltip("Export the selected recording as a tab-separated file (TSV)"));
 		Button deleteBtn = new Button("Delete");
-		deleteBtn.setTooltip(new Tooltip("Delete the selected recording from system"));
+		deleteBtn.setTooltip(new Tooltip("Delete the selected recording from the project directory"));
 		deleteBtn.setOnAction(e -> {
 			var trackersToDelete = table.getSelectionModel().getSelectedItems();
 			String deleteRecording = "Delete recording" + (trackersToDelete.size() > 1 ? "s" : "");
@@ -427,19 +427,20 @@ public class ViewTrackerControlPane implements Runnable {
 		// Option Context Menu
 		CheckMenuItem miTrackCursor = new CheckMenuItem("Track cursor");
 		CheckMenuItem miTrackActiveTool = new CheckMenuItem("Track active tool");
-		CheckMenuItem miTrackEye = new CheckMenuItem("Track eye position");
+//		CheckMenuItem miTrackEye = new CheckMenuItem("Track eye position");
 		
 		miTrackCursor.selectedProperty().addListener((v, o, n) -> cursorTrackingProperty.set(n));
 		miTrackActiveTool.selectedProperty().addListener((v, o, n) -> activeToolTrackingProperty.set(n));
-		miTrackEye.selectedProperty().addListener((v, o, n) -> eyeTrackingProperty.set(n));
+//		miTrackEye.selectedProperty().addListener((v, o, n) -> eyeTrackingProperty.set(n));
 		
 		miTrackCursor.setSelected(cursorTrackingProperty.get());
 		miTrackActiveTool.setSelected(activeToolTrackingProperty.get());
-		miTrackEye.setSelected(eyeTrackingProperty.get());
+//		miTrackEye.setSelected(eyeTrackingProperty.get());
 		
-		miTrackEye.disableProperty().bind(supportsEyeTracking.not());
+//		miTrackEye.disableProperty().bind(supportsEyeTracking.not());
 		
-		ContextMenu menu = new ContextMenu(miTrackCursor, miTrackActiveTool, miTrackEye);
+//		ContextMenu menu = new ContextMenu(miTrackCursor, miTrackActiveTool, miTrackEye);
+		ContextMenu menu = new ContextMenu(miTrackCursor, miTrackActiveTool);
 		Button optionBtn = GuiTools.createMoreButton(menu, Side.RIGHT);
 		
 		// Toggle buttons to play/record and stop
@@ -545,7 +546,7 @@ public class ViewTrackerControlPane implements Runnable {
 		if (tracker != null) {
 			tracker.cursorTrackingProperty().unbind();
 			tracker.activeToolProperty().unbind();
-			tracker.eyeTrackingProperty().unbind();			
+//			tracker.eyeTrackingProperty().unbind();			
 		}
 		
 		// Create new tracker
@@ -554,7 +555,7 @@ public class ViewTrackerControlPane implements Runnable {
 		// Bind properties
 		tracker.cursorTrackingProperty().bind(cursorTrackingProperty);
 		tracker.activeToolProperty().bind(activeToolTrackingProperty);
-		tracker.eyeTrackingProperty().bind(eyeTrackingProperty);
+//		tracker.eyeTrackingProperty().bind(eyeTrackingProperty);
 	}
 	
 	private void startRecordingTimer() {
