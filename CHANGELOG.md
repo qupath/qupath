@@ -4,6 +4,7 @@ This is a work-in-progress.
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+* 'Ignore case' in the Find window of the Script editor does not ignore case (https://github.com/qupath/qupath/issues/889)
 * Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
 
 ### Enhancements
