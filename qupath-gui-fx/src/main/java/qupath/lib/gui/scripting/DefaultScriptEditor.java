@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -72,6 +72,7 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -96,7 +97,6 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -104,6 +104,8 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.stage.Modality;
@@ -120,6 +122,7 @@ import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
@@ -2468,75 +2471,152 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	class ScriptFindCommand implements Runnable {
 		
-		private Dialog<Void> dialog;
+		private Stage stage;
 		private TextField tfFind = new TextField();
-		private ButtonType btNext = new ButtonType("Next");
+		private TextField tfReplace = new TextField();
+		private Button btNext = new Button("Next");
+		private double xPos = -1;
+		private double yPos = -1;
 		
 		@Override
 		public void run() {
-			if (dialog == null)
-				createFindDialog();
-			dialog.hide();		// Only way to request focus to dialog when it's not hidden
-			dialog.show();
+			if (stage != null)
+				stage.hide();		// Only way to request focus to stage when it's not hidden
+				
+			createFindStage();
+			stage.show();
 			tfFind.requestFocus();
 
 			// If some text is selected in the main text component, use it as search query
 			var selectedText = getCurrentTextComponent().getSelectedText();
 			if (!selectedText.isEmpty()) {
 				tfFind.setText(selectedText);
-				((Button)dialog.getDialogPane().lookupButton(btNext)).requestFocus();				
+				btNext.requestFocus();
 			} else
 				tfFind.selectAll();
 		}
 		
-		private void createFindDialog() {
-			dialog = new Dialog<>();
-			dialog.setTitle("Find text");
-			dialog.initOwner(DefaultScriptEditor.this.dialog);
-			dialog.initModality(Modality.NONE);
+		private void createFindStage() {
+			stage = new Stage();
+			stage.setTitle("Find text");
+			stage.initOwner(DefaultScriptEditor.this.dialog);
+			stage.initModality(Modality.NONE);
+			stage.setOnHiding(e -> {
+				xPos = stage.getX();
+				yPos = stage.getY();
+				stage = null;
+			});
 			
-			ButtonType btPrevious = new ButtonType("Previous");
-			ButtonType btClose = new ButtonType("Close", ButtonData.CANCEL_CLOSE);
-			dialog.getDialogPane().getButtonTypes().setAll(btPrevious, btNext, btClose);
-//			dialog.getDialogPane().lookupButton(btClose).setVisible(false);
+			Button btPrevious = new Button("Previous");
+			Button btClose = new Button("Close");
+			Button btReplace = new Button("Replace next");
+			Button btReplaceAll = new Button("Replace all");
 			
 			GridPane pane = new GridPane();
-			pane.add(new Label("Search text: "), 0, 0);
-			tfFind.setTooltip(new Tooltip("Enter the search text"));
-			tfFind.setPrefColumnCount(32);
-			pane.add(tfFind, 1, 0);
-			CheckBox cbIgnoreCase = new CheckBox("Ignore case");
-			pane.add(cbIgnoreCase, 0, 1, 2, 1);
 			pane.setVgap(10);
+			pane.setHgap(10);
+			CheckBox cbIgnoreCase = new CheckBox("Ignore case");
+			tfFind.setMinWidth(350.0);
+			tfReplace.setMinWidth(350.0);
 			
-			var actionNext = new Action("Next", e -> {
-				findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
-				e.consume();
-			});
+			// Spacer between 'Next' and 'Close' buttons
+			HBox spacer = new HBox();
+		    HBox.setHgrow(spacer, Priority.ALWAYS);
+		    spacer.setMinSize(150, 1);
+			
+			int row = 0;
+			PaneTools.addGridRow(pane, row++, 0, "Enter the search text", new Label("Search text: "), tfFind, tfFind, tfFind);
+			PaneTools.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
+			PaneTools.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
+			PaneTools.addGridRow(pane, row++, 0, null, btReplace, btReplaceAll, btReplaceAll, btReplaceAll);
+			PaneTools.addGridRow(pane, row++, 0, null, btPrevious, btNext, spacer, btClose);
+			
+			btPrevious.setMinWidth(100.0);
+			btNext.setMinWidth(100.0);
+			btReplace.setMinWidth(100.0);
+			btReplaceAll.setMinWidth(100.0);
+			btClose.setMinWidth(100.0);
+
 //			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
-			var actionPrevious = new Action("Previous", e -> {
-				findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
-				e.consume();
-			});
 //			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN));
 			tfFind.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 				if (e.getCode() == KeyCode.ENTER) {
-					actionNext.handle(new ActionEvent());
+					btNext.requestFocus();
+					btNext.fire();
 					e.consume();
 				}
 			});
-
-			((Button)dialog.getDialogPane().lookupButton(btNext)).addEventFilter(ActionEvent.ACTION, e -> actionNext.handle(e));
-			((Button)dialog.getDialogPane().lookupButton(btPrevious)).addEventFilter(ActionEvent.ACTION, e -> actionPrevious.handle(e));
-
-			dialog.getDialogPane().setHeader(null);
-			dialog.getDialogPane().setContent(pane);
+			tfReplace.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+				if (e.getCode() == KeyCode.ENTER) {
+					btNext.requestFocus();
+					btNext.fire();
+					e.consume();
+				}
+			});
+			
+			stage.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+				if (e.getCode() == KeyCode.ESCAPE) {
+					btClose.fire();
+					e.consume();
+				}
+			});
+			
+			btNext.setOnAction(e -> findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+			btPrevious.addEventFilter(ActionEvent.ACTION, e -> findPrevious(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+			btNext.disableProperty().bind(tfFind.textProperty().isEmpty());
+			btPrevious.disableProperty().bind(tfFind.textProperty().isEmpty());
+			btReplace.disableProperty().bind(tfFind.textProperty().isEmpty().or(tfReplace.textProperty().isEmpty()));
+			btReplaceAll.disableProperty().bind(tfFind.textProperty().isEmpty().or(tfReplace.textProperty().isEmpty()));
+			
+			btReplace.setOnAction(e -> replaceNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+			btReplaceAll.setOnAction(e -> replaceAll(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+			btClose.setOnAction(e -> stage.hide());
+			
+		
+			pane.setPadding(new Insets(10.0, 10.0, 10.0, 10.0));
+			stage.setScene(new Scene(pane));
+			
+			// The previous position of the stage is lost at each run() call, so store it
+			if (xPos != -1 && yPos != -1) {
+				stage.setX(xPos);
+				stage.setY(yPos);
+			}
 		}
 		
+		private void replaceNext(ScriptEditorControl currentTextComponent, String text, boolean selected) {
+			// If a word is selected, start the search from the start of the word
+			int index;
+			if (selected ? currentTextComponent.getSelectedText().toLowerCase().equals(text.toLowerCase()) : currentTextComponent.getSelectedText().equals(text))
+				index = currentTextComponent.getCaretPosition() - text.length();
+			else
+				index = findNext(currentTextComponent, text, selected);
+			
+			if (index != -1) {
+				currentTextComponent.deleteText(index, index + text.length());
+				currentTextComponent.insertText(index, tfReplace.getText());
+			}
+		}
 		
-		void findNext(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
+		// TODO: There is 1 action for each occurrence, instead of one action overall. Ctrl/CMD+Z will go back one action at a time
+		private void replaceAll(ScriptEditorControl currentTextComponent, String text, boolean selected) {
+			int index = findNext(currentTextComponent, text, selected);
+			while (index != -1) {
+				currentTextComponent.deleteText(index, index + text.length());
+				currentTextComponent.insertText(index, tfReplace.getText()); // TODO: Move caret?
+				index = findNext(currentTextComponent, text, selected);
+			}
+		}
+
+		/**
+		 * Return the index of the query''s first character if present in the text, -1 otherwise.
+		 * @param control
+		 * @param findText
+		 * @param ignoreCase
+		 * @return index of first char if found, -1 otherwise
+		 */
+		private int findNext(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
 			if (control == null || findText == null || findText.isEmpty())
-				return;
+				return -1;
 			
 			String text = control.getText();
 			String toFind = null;
@@ -2546,7 +2626,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			} else
 				toFind = findText;
 			if (!text.contains(toFind))
-				return;
+				return -1;
+			
 			int pos = control.getSelection().getEnd();
 			int ind = text.substring(pos).indexOf(toFind);
 			// If not found, loop around
@@ -2555,11 +2636,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 			else
 				ind = ind + pos;
 			control.selectRange(ind, ind + toFind.length());
+			return ind;
 		}
 		
-		void findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
+		/**
+		 * Return the index of the query's first character if present in the text, -1 otherwise.
+		 * @param control
+		 * @param findText
+		 * @param ignoreCase
+		 * @return index of first char if found, -1 otherwise
+		 */
+		private int findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
 			if (control == null || findText == null || findText.isEmpty())
-				return;
+				return -1;
 			
 			String text = control.getText();
 			String toFind = null;
@@ -2569,7 +2658,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			} else
 				toFind = findText;
 			if (!text.contains(toFind))
-				return;
+				return -1;
 			
 			int pos = control.getSelection().getStart();
 			int ind = pos == 0 ? text.lastIndexOf(toFind) : text.substring(0, pos).lastIndexOf(toFind);
@@ -2577,8 +2666,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (ind < 0)
 				ind = text.lastIndexOf(toFind);
 			control.selectRange(ind, ind + toFind.length());
+			return ind;
 		}
-
 	}
 	
 	static class CustomTextArea extends TextArea {

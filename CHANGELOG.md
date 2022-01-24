@@ -4,6 +4,10 @@ This is a work-in-progress.
 
 ### Bugs fixed
 * Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+* Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
+
+### Enhancements
+* Added 'Replace next' and 'Replace all' features to the Find window in the script editor
 
 
 ## Version 0.3.2
