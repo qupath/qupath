@@ -1718,6 +1718,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		textArea.insertText(caretPos, insertText);
 		int newPos = caretPos + insertText.length();
 		textArea.selectRange(newPos, newPos);
+		textArea.requestFollowCaret();
 	}
 	
 	
@@ -2334,6 +2335,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		 */
 		public ReadOnlyBooleanProperty focusedProperty();
 
+		/**
+		 * Request that the X and Y scrolls are adjusted to ensure the caret is visible
+		 */
+		public void requestFollowCaret();
+
 	}
 	
 	
@@ -2461,6 +2467,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 		public void setPopup(ContextMenu menu) {
 			textArea.setContextMenu(menu);
 		}
+
+		@Override
+		public void requestFollowCaret() {
+			// TODO: Implement if ever needed
+			return;
+		}
 		
 	}
 	
@@ -2555,6 +2567,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			else
 				ind = ind + pos;
 			control.selectRange(ind, ind + toFind.length());
+			control.requestFollowCaret();
 		}
 		
 		void findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
@@ -2577,6 +2590,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (ind < 0)
 				ind = text.lastIndexOf(toFind);
 			control.selectRange(ind, ind + toFind.length());
+			control.requestFollowCaret();
 		}
 
 	}
