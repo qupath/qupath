@@ -1733,7 +1733,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			finalPos = caretPos + 1 + indentation + tabString.length() + lineRemainder.strip().length();
 			
 			// If '{' is not preceded by a space, insert one (this is purely aesthetic)
-			if (trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
+			if (trimmedSubString.length() >= 2 && trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
 				textArea.insertText(++caretPos - 2, " ");
 
 			textArea.insertText(caretPos, insertText);
