@@ -60,6 +60,8 @@ import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.javafx.css.PseudoClassState;
+
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -72,6 +74,7 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
@@ -2236,10 +2239,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		/**
 		 * Set the range of the selected text.
-		 * @param anchor
-		 * @param caretPosition
+		 * @param startIdx
+		 * @param endIdx
 		 */
-		public void selectRange(int anchor, int caretPosition);
+		public void selectRange(int startIdx, int endIdx);
 
 		/**
 		 * Text currently selected in the editor control.
@@ -2456,8 +2459,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 
 		@Override
-		public void selectRange(int anchor, int caretPosition) {
-			textArea.selectRange(anchor, caretPosition);
+		public void selectRange(int startIdx, int endIdx) {
+			textArea.selectRange(startIdx, endIdx);
 		}
 
 		@Override
@@ -2475,17 +2478,21 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private TextField tfFind = new TextField();
 		private TextField tfReplace = new TextField();
 		private Button btNext = new Button("Next");
+		private Label lbOccurrences = new Label();
+		private CheckBox cbIgnoreCase;
 		private double xPos = -1;
 		private double yPos = -1;
+		
+		private EventHandler<KeyEvent> eventHandler = e -> {
+			if (e.getCode() == KeyCode.ENTER) {
+				findNextAction(true);
+				e.consume();
+			}};
 		
 		@Override
 		public void run() {
 			if (stage != null)
 				stage.hide();		// Only way to request focus to stage when it's not hidden
-				
-			createFindStage();
-			stage.show();
-			tfFind.requestFocus();
 
 			// If some text is selected in the main text component, use it as search query
 			var selectedText = getCurrentTextComponent().getSelectedText();
@@ -2494,11 +2501,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 				btNext.requestFocus();
 			} else
 				tfFind.selectAll();
+			
+			createFindStage();
+			stage.show();
+			tfFind.requestFocus();
+			
+			tfFind.addEventFilter(KeyEvent.KEY_PRESSED, eventHandler);
+			tfReplace.addEventFilter(KeyEvent.KEY_PRESSED, eventHandler);
 		}
 		
 		private void createFindStage() {
 			stage = new Stage();
-			stage.setTitle("Find text");
+			stage.setTitle("Find/Replace");
 			stage.initOwner(DefaultScriptEditor.this.dialog);
 			stage.initModality(Modality.NONE);
 			stage.setOnHiding(e -> {
@@ -2509,13 +2523,13 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 			Button btPrevious = new Button("Previous");
 			Button btClose = new Button("Close");
-			Button btReplace = new Button("Replace next");
+			Button btReplaceFind = new Button("Replace/Find");
 			Button btReplaceAll = new Button("Replace all");
 			
 			GridPane pane = new GridPane();
 			pane.setVgap(10);
 			pane.setHgap(10);
-			CheckBox cbIgnoreCase = new CheckBox("Ignore case");
+			cbIgnoreCase = new CheckBox("Ignore case");
 			tfFind.setMinWidth(350.0);
 			tfReplace.setMinWidth(350.0);
 			
@@ -2525,34 +2539,32 @@ public class DefaultScriptEditor implements ScriptEditor {
 		    spacer.setMinSize(150, 1);
 			
 			int row = 0;
-			PaneTools.addGridRow(pane, row++, 0, "Enter the search text", new Label("Search text: "), tfFind, tfFind, tfFind);
+			PaneTools.addGridRow(pane, row++, 0, "Enter the text to find", new Label("Find: "), tfFind, tfFind, tfFind);
 			PaneTools.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
 			PaneTools.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
-			PaneTools.addGridRow(pane, row++, 0, null, btReplace, btReplaceAll, btReplaceAll, btReplaceAll);
+			PaneTools.addGridRow(pane, row++, 0, null, btReplaceFind, btReplaceAll, lbOccurrences, lbOccurrences);
 			PaneTools.addGridRow(pane, row++, 0, null, btPrevious, btNext, spacer, btClose);
 			
 			btPrevious.setMinWidth(100.0);
 			btNext.setMinWidth(100.0);
-			btReplace.setMinWidth(100.0);
+			btReplaceFind.setMinWidth(100.0);
 			btReplaceAll.setMinWidth(100.0);
 			btClose.setMinWidth(100.0);
+			
+			// Make the 'Next' button appear as if it's in focus, except when other buttons are pressed
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
+			
+			tfFind.focusedProperty().addListener((v, o, n) -> {
+				if (n)
+					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
+			});
+			tfReplace.focusedProperty().addListener((v, o, n) -> {
+				if (n)
+					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
+			});
 
 //			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
 //			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN));
-			tfFind.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-				if (e.getCode() == KeyCode.ENTER) {
-					btNext.requestFocus();
-					btNext.fire();
-					e.consume();
-				}
-			});
-			tfReplace.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-				if (e.getCode() == KeyCode.ENTER) {
-					btNext.requestFocus();
-					btNext.fire();
-					e.consume();
-				}
-			});
 			
 			stage.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 				if (e.getCode() == KeyCode.ESCAPE) {
@@ -2561,18 +2573,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 				}
 			});
 			
-			btNext.setOnAction(e -> findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
-			btPrevious.addEventFilter(ActionEvent.ACTION, e -> findPrevious(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+			btNext.setOnAction(e -> findNextAction(true));
+			btPrevious.setOnAction(e -> findPrevious(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
 			btNext.disableProperty().bind(tfFind.textProperty().isEmpty());
 			btPrevious.disableProperty().bind(tfFind.textProperty().isEmpty());
-			btReplace.disableProperty().bind(tfFind.textProperty().isEmpty().or(tfReplace.textProperty().isEmpty()));
+			btReplaceFind.disableProperty().bind(tfFind.textProperty().isEmpty()
+					.or(tfReplace.textProperty().isEmpty())
+					.or(Bindings.createBooleanBinding(() -> {
+						if (cbIgnoreCase.isSelected())
+							return !tfFind.getText().toLowerCase().equals(getCurrentTextComponent().selectedTextProperty().getValue().toLowerCase());
+						return !tfFind.getText().equals(getCurrentTextComponent().selectedTextProperty().getValue());
+					}, getCurrentTextComponent().selectedTextProperty(), cbIgnoreCase.selectedProperty())));
 			btReplaceAll.disableProperty().bind(tfFind.textProperty().isEmpty().or(tfReplace.textProperty().isEmpty()));
 			
-			btReplace.setOnAction(e -> replaceNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+			btReplaceFind.setOnAction(e -> {
+				replaceFind(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+				if (!getCurrentTextComponent().getText().contains(tfFind.getText())) {
+					// Remove focus-looking effect on 'Next' button
+					tfFind.requestFocus();
+					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
+				}
+			});
 			btReplaceAll.setOnAction(e -> replaceAll(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
 			btClose.setOnAction(e -> stage.hide());
 			
-		
 			pane.setPadding(new Insets(10.0, 10.0, 10.0, 10.0));
 			stage.setScene(new Scene(pane));
 			
@@ -2583,28 +2607,59 @@ public class DefaultScriptEditor implements ScriptEditor {
 			}
 		}
 		
-		private void replaceNext(ScriptEditorControl currentTextComponent, String text, boolean selected) {
-			// If a word is selected, start the search from the start of the word
-			int index;
-			if (selected ? currentTextComponent.getSelectedText().toLowerCase().equals(text.toLowerCase()) : currentTextComponent.getSelectedText().equals(text))
-				index = currentTextComponent.getCaretPosition() - text.length();
-			else
-				index = findNext(currentTextComponent, text, selected);
+		private void findNextAction(boolean btNextFocus) {
+			lbOccurrences.setText("");
+			findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), btNextFocus);
+		}
+		
+		/**
+		 * Replace the current selection and selects the next matching query.
+		 * @param control
+		 * @param text
+		 * @param ignoreCase
+		 */
+		private void replaceFind(ScriptEditorControl control, String text, boolean ignoreCase) {
+			// Remove focus-looking effect on 'Next' button
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
 			
-			if (index != -1) {
-				currentTextComponent.deleteText(index, index + text.length());
-				currentTextComponent.insertText(index, tfReplace.getText());
-			}
+			lbOccurrences.setText("");
+			
+			var selected = control.getSelectedText();
+			var range = control.getSelection();
+			
+			// Replace selection
+			control.deleteText(range.getStart(), range.getEnd());
+			control.insertText(range.getStart(), tfReplace.getText());
+			
+			// Select next matching query
+			findNext(control, selected, ignoreCase);
 		}
 		
 		// TODO: There is 1 action for each occurrence, instead of one action overall. Ctrl/CMD+Z will go back one action at a time
-		private void replaceAll(ScriptEditorControl currentTextComponent, String text, boolean selected) {
-			int index = findNext(currentTextComponent, text, selected);
-			while (index != -1) {
-				currentTextComponent.deleteText(index, index + text.length());
-				currentTextComponent.insertText(index, tfReplace.getText()); // TODO: Move caret?
-				index = findNext(currentTextComponent, text, selected);
+		private void replaceAll(ScriptEditorControl control, String text, boolean ignoreCase) {
+			// Remove focus-looking effect on 'Next' button
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
+			
+			var indices = findAllOccurrences(control.getText(), text, ignoreCase);
+			for (int index = 0; index < indices.size(); index++) {
+				var shiftedIndex = indices.get(index) - index*(text.length() - tfReplace.getText().length());		// Because the indices are shifted every time we replace an occurrence
+				control.deleteText(shiftedIndex, shiftedIndex + tfFind.getText().length());
+				control.insertText(shiftedIndex, tfReplace.getText());
 			}
+			lbOccurrences.setText(indices.size() == 0 ? "String not found" : indices.size() + " match" + (indices.size() > 1 ? "es" : "") + " replaced");
+		}
+		
+		private List<Integer> findAllOccurrences(String text, String query, boolean ignoreCase) {
+			List<Integer> indices = new ArrayList<>();
+			var text2 = ignoreCase ? text.toLowerCase() : text;
+			var query2 = ignoreCase ? query.toLowerCase() : query;
+			int index = text2.indexOf(query2);
+			while (index >= 0) {
+			    indices.add(index);
+			    index = text2.indexOf(query2, ++index);
+			}
+			return indices;
 		}
 
 		/**
@@ -2649,6 +2704,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private int findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
 			if (control == null || findText == null || findText.isEmpty())
 				return -1;
+			
+			// Remove focus-looking effect on 'Next' button
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
+			
+			lbOccurrences.setText("");
 			
 			String text = control.getText();
 			String toFind = null;

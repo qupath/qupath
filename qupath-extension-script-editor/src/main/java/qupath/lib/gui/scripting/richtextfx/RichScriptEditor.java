@@ -638,8 +638,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 
 		@Override
-		public void selectRange(int anchor, int caretPosition) {
-			textArea.selectRange(anchor, caretPosition);
+		public void selectRange(int startIdx, int endIdx) {
+			textArea.selectRange(startIdx, endIdx);
 		}
 
 		@Override
