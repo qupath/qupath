@@ -1,3 +1,11 @@
+## Version 0.4.0-SNAPSHOT
+
+This is a work-in-progress.
+
+### Bugs fixed
+* Reading from Bio-Formats blocks forever when using multiple series outside a project (https://github.com/qupath/qupath/issues/894)
+
+
 ## Version 0.3.2
 
 This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.1 while fixing bugs.
@@ -6,10 +14,15 @@ This is a *minor release* that aims to be fully compatible with v0.3.0 and v0.3.
 * Some svs files opened with Bio-Formats are not read correctly in v0.3.1
   * Discussed at https://forum.image.sc/t/problem-about-opening-some-svs-slides-in-qupath-v0-3-1-bio-formats-6-8-0/61404
 * ImageServer pyramid levels are not checked for validity (https://github.com/qupath/qupath/issues/879)
-* 'Create single measurement classifier' does not automatically update combo boxes when the available classifications change
 * Cell detection using 'Hematoxylin' always assumes it is the first stain (https://github.com/qupath/qupath/issues/878)
 * Uninformative / by zero error when setting stain vectors on empty images (https://github.com/qupath/qupath/issues/880)
   * A warning is now logged, and the image type set to 'Brightfield (other)'
+* Use of Locale.getDefault() can result in inconsistent formatting or parsing (https://github.com/qupath/qupath/issues/886)
+
+### Enhancements
+* 'Create single measurement classifier' does not automatically update combo boxes when the available classifications change
+* Added predicate parameter to Measurement Exporter for scripting (https://github.com/qupath/qupath/pull/824)
+* Renamed 'Delete image(s)' to 'Remove image(s)' within a project, to reduce confusion
 
 ### Dependency updates
 * Bio-Formats 6.7.0

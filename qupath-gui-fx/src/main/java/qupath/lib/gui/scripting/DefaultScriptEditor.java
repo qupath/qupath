@@ -807,6 +807,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * 
 	 * @param tab
 	 * @param script
+	 * @param project 
 	 * @param imageData
 	 */
 	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData) {
@@ -1372,6 +1373,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	/**
 	 * Request project image entries to run script for.
+	 * @param doSave 
 	 */
 	void handleRunProject(final boolean doSave) {
 		Project<BufferedImage> project = qupath.getProject();
@@ -1670,18 +1672,20 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param shiftDown
 	 */
 	protected void handleTabPress(final ScriptEditorControl textArea, final boolean shiftDown) {
-		String selected = textArea.getSelectedText();
-		int pos = textArea.getCaretPosition();
-		if (selected == null || selected.length() == 0) {
-			textArea.insertText(pos, tabString);
-			return;
-		}
-
 		String text = textArea.getText();
-		IndexRange range = textArea.getSelection();
+		IndexRange range = textArea.getSelection() == null ? IndexRange.valueOf("0,0") : textArea.getSelection();
 		int startRowPos = getRowStartPosition(text, range.getStart());
 		int endRowPos = getRowEndPosition(text, range.getEnd());
 		String textBetween = text.substring(startRowPos, endRowPos);
+
+		if (range.getLength() == 0) {
+			if (shiftDown && textBetween.indexOf(tabString) == 0)
+				textArea.deleteText(startRowPos, startRowPos + tabString.length());
+			else if (!shiftDown)
+				textArea.insertText(textArea.getCaretPosition(), tabString);
+			return;
+		}
+
 		String replaceText;
 		if (shiftDown) {
 			// Remove tabs at start of selected rows
@@ -2055,6 +2059,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptFindCommand findCommand = new ScriptFindCommand();
 		Action action = new Action(name, e -> {
 			findCommand.run();
+			e.consume();
 		});
 		action.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
 		return action;
@@ -2473,17 +2478,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 		public void run() {
 			if (dialog == null)
 				createFindDialog();
+			dialog.hide();		// Only way to request focus to dialog when it's not hidden
 			dialog.show();
 			tfFind.requestFocus();
-			
+
 			// If some text is selected in the main text component, use it as search query
 			var selectedText = getCurrentTextComponent().getSelectedText();
-			if (!selectedText.isEmpty())
+			if (!selectedText.isEmpty()) {
 				tfFind.setText(selectedText);
-			
-			// If search is already set, focus on 'Next'
-			if (!tfFind.getText().isEmpty())
-				((Button)dialog.getDialogPane().lookupButton(btNext)).requestFocus();
+				((Button)dialog.getDialogPane().lookupButton(btNext)).requestFocus();				
+			} else
+				tfFind.selectAll();
 		}
 		
 		private void createFindDialog() {
@@ -2525,15 +2530,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 			((Button)dialog.getDialogPane().lookupButton(btNext)).addEventFilter(ActionEvent.ACTION, e -> actionNext.handle(e));
 			((Button)dialog.getDialogPane().lookupButton(btPrevious)).addEventFilter(ActionEvent.ACTION, e -> actionPrevious.handle(e));
-			
-//			((Button)dialog.getDialogPane().lookupButton(btClose)).addEventFilter(ActionEvent.ACTION, e -> {
-//				findPrevious(getCurrentTextComponent(), tfFind.getText());
-//				e.consume();
-//			});
 
 			dialog.getDialogPane().setHeader(null);
 			dialog.getDialogPane().setContent(pane);
-			
 		}
 		
 		
@@ -2548,7 +2547,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				text = text.toLowerCase();
 			} else
 				toFind = findText;
-			if (!text.contains(findText))
+			if (!text.contains(toFind))
 				return;
 			int pos = control.getSelection().getEnd();
 			int ind = text.substring(pos).indexOf(toFind);
