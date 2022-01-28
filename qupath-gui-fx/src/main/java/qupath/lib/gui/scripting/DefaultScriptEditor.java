@@ -2336,9 +2336,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		public ReadOnlyBooleanProperty focusedProperty();
 
 		/**
-		 * Request that the X and Y scrolls are adjusted to ensure the caret is visible
+		 * Request that the X and Y scrolls are adjusted to ensure the caret is visible.
+		 * <p>
+		 * This method does nothing by default. 
+		 * This means that a class extending this interface must specifically implement this method if a different behavior is expected.
 		 */
-		public void requestFollowCaret();
+		public default void requestFollowCaret() {
+			return;
+		}
 
 	}
 	
@@ -2467,13 +2472,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		public void setPopup(ContextMenu menu) {
 			textArea.setContextMenu(menu);
 		}
-
-		@Override
-		public void requestFollowCaret() {
-			// TODO: Implement if ever needed
-			return;
-		}
-		
 	}
 	
 	
