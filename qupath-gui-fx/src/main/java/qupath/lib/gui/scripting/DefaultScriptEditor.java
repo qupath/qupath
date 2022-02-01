@@ -1720,6 +1720,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		textArea.insertText(caretPos, insertText);
 		int newPos = caretPos + insertText.length();
 		textArea.selectRange(newPos, newPos);
+		textArea.requestFollowCaret();
 	}
 	
 	
@@ -2336,6 +2337,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 		 */
 		public ReadOnlyBooleanProperty focusedProperty();
 
+		/**
+		 * Request that the X and Y scrolls are adjusted to ensure the caret is visible.
+		 * <p>
+		 * This method does nothing by default. 
+		 * This means that a class extending this interface must specifically implement this method if a different behavior is expected.
+		 */
+		public default void requestFollowCaret() {
+			return;
+		}
+
 	}
 	
 	
@@ -2463,7 +2474,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		public void setPopup(ContextMenu menu) {
 			textArea.setContextMenu(menu);
 		}
-		
 	}
 	
 	
@@ -2557,6 +2567,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			else
 				ind = ind + pos;
 			control.selectRange(ind, ind + toFind.length());
+			control.requestFollowCaret();
 		}
 		
 		void findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
@@ -2579,6 +2590,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (ind < 0)
 				ind = text.lastIndexOf(toFind);
 			control.selectRange(ind, ind + toFind.length());
+			control.requestFollowCaret();
 		}
 
 	}
