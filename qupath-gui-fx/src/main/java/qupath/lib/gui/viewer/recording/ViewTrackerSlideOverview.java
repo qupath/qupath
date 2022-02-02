@@ -28,6 +28,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,15 +36,23 @@ import org.slf4j.LoggerFactory;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.WritableImage;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.Clipboard;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
+import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.tools.GuiTools;
 import qupath.lib.gui.viewer.QuPathViewer;
 import qupath.lib.gui.viewer.overlays.BufferedImageOverlay;
 import qupath.lib.gui.viewer.recording.ViewTrackerAnalysisCommand.DataMapsLocationString;
+import qupath.lib.images.writers.ImageWriterTools;
 import qupath.lib.regions.ImageRegion;
 
 final class ViewTrackerSlideOverview {
@@ -53,6 +62,8 @@ final class ViewTrackerSlideOverview {
 	private QuPathViewer viewer;
 	private BufferedImage img;
 	private BufferedImageOverlay overlay;
+	private WritableImage scaledImg;
+	private WritableImage scaledMap;
 	
 	private Canvas canvas;
 	
@@ -65,8 +76,6 @@ final class ViewTrackerSlideOverview {
 	
 	private DoubleProperty mouseXLocation = new SimpleDoubleProperty();
 	private DoubleProperty mouseYLocation = new SimpleDoubleProperty();
-	private double mouseScreenXLocation = -1;
-	private double mouseScreenYLocation = -1;
 	
 	private DataMapsLocationString locationString;
 	
@@ -94,10 +103,8 @@ final class ViewTrackerSlideOverview {
 			if (x < 0 || y < 0)
 				return "";
 			
-			tooltip.setX(mouseScreenXLocation);
-			tooltip.setY(mouseScreenYLocation);
 			String legend = "X: " + ViewTracker.df.format(x) + System.lineSeparator() + "Y: " + ViewTracker.df.format(y);
-			if (overlay != null)
+			if (overlay != null && locationString != null)
 				legend += System.lineSeparator() + locationString.getLocationString(viewer.getImageData(), x, y, viewer.getZPosition(), viewer.getTPosition());
 			return legend;
 		}, mouseXLocation, mouseYLocation));
@@ -110,13 +117,48 @@ final class ViewTrackerSlideOverview {
 				return;
 			mouseXLocation.set(e.getX());
 			mouseYLocation.set(e.getY());
-			mouseScreenXLocation = e.getScreenX();
-			mouseScreenYLocation = e.getScreenY();
+			tooltip.setX(e.getScreenX() + 10);
+			tooltip.setY(e.getScreenY());
 		});
 		
 		canvas.setOnMouseExited(e -> {
 			mouseXLocation.set(-1.0);
 			mouseYLocation.set(-1.0);
+		});
+
+		canvas.setOnContextMenuRequested(e -> {
+			final MenuItem pngExportItem = new MenuItem("Export as PNG");
+		    final MenuItem copyItem = new MenuItem("Copy to clipboard");
+		    final ContextMenu contextMenu = new ContextMenu(pngExportItem, copyItem);
+		    
+		    pngExportItem.setOnAction(event -> {
+		    	var path = Dialogs.promptToSaveFile("Save data map", null, "data map", "TIFF", ".tiff");
+		    	if (path == null)
+		    		return;
+		    	
+		    	try {
+		    		var imgToExport = overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()));
+					ImageWriterTools.writeImage(imgToExport, path.toString());
+				} catch (IOException ex) {
+					logger.error("Could not export data map", ex.getLocalizedMessage());
+				}
+		    });
+		    
+		    copyItem.setOnAction(event -> {
+		    	if (overlay == null)
+		    		return;
+
+		    	ClipboardContent content = new ClipboardContent();
+		    	var imgToExport = overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()));
+				content.putImage(SwingFXUtils.toFXImage(imgToExport, null));
+				Clipboard.getSystemClipboard().setContent(content);
+		    });
+		    
+		    pngExportItem.setDisable(overlay == null);
+		    copyItem.setDisable(overlay == null);
+		    
+			contextMenu.show(canvas.getParent().getScene().getWindow(), e.getScreenX(), e.getScreenY());
+			contextMenu.setAutoHide(true);
 		});
 	}
 	
@@ -125,6 +167,16 @@ final class ViewTrackerSlideOverview {
 	}
 	
 	void paintCanvas() {
+		paintCanvas(true, true);
+	}
+	
+	/**
+	 * Paint the viewer's thumbnail on the canvas, followed by the overlay (if there is one), 
+	 * then the viewed region (if there is one) and finally the thumbnail border.
+	 * @param resetMainImage whether to recalculate the scaled thumbnail image from server (should be true if Z or T changed)
+	 * @param resetScaledMap whether to recalculate the scaled data map (should be true if Z or T or the normalising range changed)
+	 */
+	void paintCanvas(boolean resetMainImage, boolean resetScaledMap) {
 		GraphicsContext g = canvas.getGraphicsContext2D();
 		double w = canvas.getWidth();
 		double h = canvas.getHeight();
@@ -133,16 +185,21 @@ final class ViewTrackerSlideOverview {
 		if (viewer == null || !viewer.hasServer())
 			return;
 		
-		// Set img
-		img = viewer.getRGBThumbnail();
 		
 		// Draw image
-		drawImage(g, img);
+		if (resetMainImage) {
+			img = viewer.getRGBThumbnail();
+			scaledImg = GuiTools.getScaledRGBInstance(img, preferredWidth, preferredHeight);
+		}
+		drawImage(g, scaledImg);
 		
 		// Draw overlay on top of image
-		if (overlay != null)
-			drawImage(g, overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition())));
-
+		if (overlay != null && resetScaledMap) {
+			var tempImg = overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()));
+			scaledMap = GuiTools.getScaledRGBInstance(tempImg, preferredWidth, preferredHeight);
+		}
+		drawImage(g, scaledMap);
+		
 		// Draw the currently-visible region, if we have a viewer and it isn't 'zoom to fit' (in which case everything is visible)
 		if (!viewer.getZoomToFit() && shapeVisible != null) {
 			g.setStroke(color);
@@ -165,26 +222,24 @@ final class ViewTrackerSlideOverview {
 					logger.debug("Unknown PathIterator type: {}", type);
 				iterator.next();
 			}
-			
-//			g2d.draw(shapeVisible);
 		}
 		
 		// Draw border
 		g.setLineWidth(2);
 		g.setStroke(Color.rgb(64, 64, 64));
 		g.strokeRect(0, 0, w, h);
-		
 	}
 	
-	private void drawImage(GraphicsContext g, BufferedImage imgToDraw) {
-		if (imgToDraw == null)
+	private static void drawImage(GraphicsContext g, WritableImage imgPreview) {
+		if (imgPreview == null)
 			return;
-		var imgPreview = GuiTools.getScaledRGBInstance(imgToDraw, preferredWidth, preferredHeight);
 		g.drawImage(imgPreview, 0, 0);
 	}
 
 	void setOverlay(BufferedImageOverlay overlay) {
 		this.overlay = overlay;
+		if (overlay == null)
+			scaledMap = null;
 		paintCanvas();
 	}
 	

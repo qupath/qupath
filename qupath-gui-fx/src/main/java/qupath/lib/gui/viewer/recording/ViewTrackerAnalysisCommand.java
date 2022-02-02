@@ -208,8 +208,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 				tSlider.setValue(frame.getT());
 				timeSlider.setValue(frame.getTimestamp());
 				
-				
-				slideOverview.paintCanvas();
+				slideOverview.paintCanvas(o.getZ() != frame.getZ() || o.getT() != frame.getT(), false);
 			});
 
 			mainPane = new SplitPane();
@@ -308,7 +307,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 					// If it's not playing already, start playing
 					playback.setFirstFrame(currentFrame.get());
 					
-					// Set the visible shape for current frame
+					// Set the right slide overview image plane and visible shape for current frame
 					slideOverview.paintCanvas();
 					
 					playback.doStartPlayback();
@@ -627,6 +626,7 @@ final class ViewTrackerAnalysisCommand implements Runnable {
 		
 		dialog.setOnHiding(e -> {
 			viewer.getCustomOverlayLayers().clear();
+			playback.doStopPlayback();
 			isOpenedProperty.set(false);
 		});
 
