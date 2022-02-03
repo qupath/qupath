@@ -277,6 +277,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	// Add default bindings, i.e. QuPathGUI, Viewer, ImageData... makes scripting much easier
 	private BooleanProperty useDefaultBindings = PathPrefs.createPersistentPreference("scriptingUseDefaultBindings", true);
+	private BooleanProperty smartEditing = PathPrefs.createPersistentPreference("scriptingSmartEditing", true);
 	private BooleanProperty autoRefreshFiles = PathPrefs.createPersistentPreference("scriptingAutoRefreshFiles", true);
 	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
@@ -675,6 +676,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createKillRunningScriptAction("Kill running script"),
 				null,
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(smartEditing, "Activate smart editing")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
@@ -1706,6 +1708,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * Handle adding a new line, by checking current line for appropriate indentation.
 	 * Note: this method should be called <em>instead</em> of simply accepting the newline character,
 	 * i.e. the method itself will add the newline as required.
+	 * <p>
+	 * Additionally, it handles new lines following a '{' character:
+	 * <li> It creates a block of '{' + new line + indentation + new line + '}'
+	 * <li> The caret position is set to inside the block
+	 * <li> If there originally was some text after '{', the text will be included inside the block
+	 * <li> If the amount of '{' and '}' in the text is equal, it will add the new line but won't create a block
 	 * 
 	 * @param textArea
 	 */
@@ -1713,14 +1721,33 @@ public class DefaultScriptEditor implements ScriptEditor {
 		int caretPos = textArea.getCaretPosition();
 		String text = textArea.getText();
 		int startRowPos = getRowStartPosition(text, caretPos);
+		int endRowPos = getRowEndPosition(text, caretPos);
 		String subString = text.substring(startRowPos, caretPos);
 		String trimmedSubString = subString.trim();
 		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
-		String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
-		textArea.insertText(caretPos, insertText);
-		int newPos = caretPos + insertText.length();
-		textArea.selectRange(newPos, newPos);
-		textArea.requestFollowCaret();
+		int finalPos = caretPos;
+		
+		if (!trimmedSubString.endsWith("{") || !smartEditing.get()) {
+			String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
+			textArea.insertText(caretPos, insertText);
+			finalPos = caretPos + insertText.length();
+		} else if (smartEditing.get()) {
+			int indentation = subString.length() - subString.stripLeading().length();
+			String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
+			String insertText =  "\n" + subString.substring(0, indentation) + tabString+ lineRemainder.strip();
+			if (text.replaceAll("[^{]", "").length() != text.replaceAll("[^}]", "").length())
+				insertText += "\n" + subString.substring(0, indentation) + "}";
+			
+			finalPos = caretPos + 1 + indentation + tabString.length() + lineRemainder.strip().length();
+			
+			// If '{' is not preceded by a space, insert one (this is purely aesthetic)
+			if (trimmedSubString.length() >= 2 && trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
+				textArea.insertText(++caretPos - 2, " ");
+			
+			textArea.insertText(caretPos, insertText);
+			textArea.deleteText(textArea.getCaretPosition(), textArea.getCaretPosition() + lineRemainder.length());
+		}
+		textArea.positionCaret(finalPos);
 	}
 	
 	
@@ -2336,6 +2363,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 		 * @return
 		 */
 		public ReadOnlyBooleanProperty focusedProperty();
+		
+		/**
+		 * Set the caret position to the specified index
+		 * @param index
+		 */
+		public void positionCaret(int index);
 
 		/**
 		 * Request that the X and Y scrolls are adjusted to ensure the caret is visible.
@@ -2473,6 +2506,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		@Override
 		public void setPopup(ContextMenu menu) {
 			textArea.setContextMenu(menu);
+		}
+
+		@Override
+		public void positionCaret(int index) {
+			textArea.positionCaret(index);
 		}
 	}
 	
