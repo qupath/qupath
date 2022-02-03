@@ -69,7 +69,7 @@ abstract class AbstractPathROITool extends AbstractPathTool {
 	
 	/**
 	 * Create a new annotation & set it in the current viewer.
-	 * 
+	 * @param e 
 	 * @param x
 	 * @param y
 	 * @return

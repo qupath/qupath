@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.animation.Animation;
 import javafx.animation.Animation.Status;
 import javafx.scene.Cursor;
 import javafx.scene.input.MouseEvent;
@@ -443,7 +444,7 @@ public class MoveTool extends AbstractPathTool {
 								Duration.millis(heartbeat)
 								)
 						);
-				timer.setCycleCount(Timeline.INDEFINITE);
+				timer.setCycleCount(Animation.INDEFINITE);
 			}
 //			timer.setCoalesce(true);
 			timestamp = System.currentTimeMillis();
