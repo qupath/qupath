@@ -277,6 +277,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	// Add default bindings, i.e. QuPathGUI, Viewer, ImageData... makes scripting much easier
 	private BooleanProperty useDefaultBindings = PathPrefs.createPersistentPreference("scriptingUseDefaultBindings", true);
+	private BooleanProperty smartEditing = PathPrefs.createPersistentPreference("scriptingSmartEditing", true);
 	private BooleanProperty autoRefreshFiles = PathPrefs.createPersistentPreference("scriptingAutoRefreshFiles", true);
 	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
@@ -675,6 +676,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createKillRunningScriptAction("Kill running script"),
 				null,
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
+				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(smartEditing, "Activate smart editing")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
@@ -1723,27 +1725,27 @@ public class DefaultScriptEditor implements ScriptEditor {
 		String subString = text.substring(startRowPos, caretPos);
 		String trimmedSubString = subString.trim();
 		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
-		int finalPos;
+		int finalPos = caretPos;
 		
-		if (trimmedSubString.endsWith("{")) {
+		if (!trimmedSubString.endsWith("{") || !smartEditing.get()) {
+			String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
+			textArea.insertText(caretPos, insertText);
+			finalPos = caretPos + insertText.length();
+		} else if (smartEditing.get()) {
 			int indentation = subString.length() - subString.stripLeading().length();
 			String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
 			String insertText =  "\n" + subString.substring(0, indentation) + tabString+ lineRemainder.strip();
 			if (text.replaceAll("[^{]", "").length() != text.replaceAll("[^}]", "").length())
 				insertText += "\n" + subString.substring(0, indentation) + "}";
-				
+			
 			finalPos = caretPos + 1 + indentation + tabString.length() + lineRemainder.strip().length();
 			
 			// If '{' is not preceded by a space, insert one (this is purely aesthetic)
 			if (trimmedSubString.length() >= 2 && trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
 				textArea.insertText(++caretPos - 2, " ");
-
+			
 			textArea.insertText(caretPos, insertText);
 			textArea.deleteText(textArea.getCaretPosition(), textArea.getCaretPosition() + lineRemainder.length());
-		} else {
-			String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
-			textArea.insertText(caretPos, insertText);
-			finalPos = caretPos + insertText.length();
 		}
 		textArea.positionCaret(finalPos);
 	}
