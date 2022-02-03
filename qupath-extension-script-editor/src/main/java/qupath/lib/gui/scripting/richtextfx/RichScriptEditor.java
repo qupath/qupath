@@ -646,10 +646,15 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		public void setPopup(ContextMenu menu) {
 			textArea.setContextMenu(menu);
 		}
-		
+    
 		@Override
 		public void positionCaret(int index) {
 			textArea.moveTo(index);
+    }
+    
+		@Override
+		public void requestFollowCaret() {
+			textArea.requestFollowCaret();
 		}
 	}
 	

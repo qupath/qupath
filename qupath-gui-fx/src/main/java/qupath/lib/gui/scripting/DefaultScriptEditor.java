@@ -1672,18 +1672,20 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * @param shiftDown
 	 */
 	protected void handleTabPress(final ScriptEditorControl textArea, final boolean shiftDown) {
-		String selected = textArea.getSelectedText();
-		int pos = textArea.getCaretPosition();
-		if (selected == null || selected.length() == 0) {
-			textArea.insertText(pos, tabString);
-			return;
-		}
-
 		String text = textArea.getText();
-		IndexRange range = textArea.getSelection();
+		IndexRange range = textArea.getSelection() == null ? IndexRange.valueOf("0,0") : textArea.getSelection();
 		int startRowPos = getRowStartPosition(text, range.getStart());
 		int endRowPos = getRowEndPosition(text, range.getEnd());
 		String textBetween = text.substring(startRowPos, endRowPos);
+
+		if (range.getLength() == 0) {
+			if (shiftDown && textBetween.indexOf(tabString) == 0)
+				textArea.deleteText(startRowPos, startRowPos + tabString.length());
+			else if (!shiftDown)
+				textArea.insertText(textArea.getCaretPosition(), tabString);
+			return;
+		}
+
 		String replaceText;
 		if (shiftDown) {
 			// Remove tabs at start of selected rows
@@ -2366,6 +2368,16 @@ public class DefaultScriptEditor implements ScriptEditor {
 		 */
 		public void positionCaret(int index);
 
+		/**
+		 * Request that the X and Y scrolls are adjusted to ensure the caret is visible.
+		 * <p>
+		 * This method does nothing by default. 
+		 * This means that a class extending this interface must specifically implement this method if a different behavior is expected.
+		 */
+		public default void requestFollowCaret() {
+			return;
+		}
+
 	}
 	
 	
@@ -2498,7 +2510,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		public void positionCaret(int index) {
 			textArea.positionCaret(index);
 		}
-		
 	}
 	
 	
@@ -2592,6 +2603,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			else
 				ind = ind + pos;
 			control.selectRange(ind, ind + toFind.length());
+			control.requestFollowCaret();
 		}
 		
 		void findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
@@ -2614,6 +2626,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (ind < 0)
 				ind = text.lastIndexOf(toFind);
 			control.selectRange(ind, ind + toFind.length());
+			control.requestFollowCaret();
 		}
 
 	}
