@@ -2491,7 +2491,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private TextField tfReplace = new TextField();
 		private Button btNext = new Button("Next");
 		private Label lbOccurrences = new Label();
-		private CheckBox cbIgnoreCase;
+		private CheckBox cbIgnoreCase = new CheckBox("Ignore case");
 		private double xPos = -1;
 		private double yPos = -1;
 		
@@ -2509,12 +2509,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 			// If some text is selected in the main text component, use it as search query
 			var selectedText = getCurrentTextComponent().getSelectedText();
 			if (!selectedText.isEmpty()) {
-				tfFind.setText(selectedText);
-				btNext.requestFocus();
+				// StringIndexOutOfBoundsException can occur if selectedText == a tab (\t)
+				if (selectedText.replace("\t", "").length() != 0) {
+					tfFind.setText(selectedText);
+					btNext.requestFocus();
+				} else
+					tfFind.setText("");
 			} else
 				tfFind.selectAll();
 			
 			createFindStage();
+			lbOccurrences.setText("");
 			stage.show();
 			tfFind.requestFocus();
 			
@@ -2535,13 +2540,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 			
 			Button btPrevious = new Button("Previous");
 			Button btClose = new Button("Close");
-			Button btReplaceFind = new Button("Replace/Find");
+			Button btReplaceNext = new Button("Replace/Next");
 			Button btReplaceAll = new Button("Replace all");
 			
 			GridPane pane = new GridPane();
 			pane.setVgap(10);
 			pane.setHgap(10);
-			cbIgnoreCase = new CheckBox("Ignore case");
 			tfFind.setMinWidth(350.0);
 			tfReplace.setMinWidth(350.0);
 			
@@ -2554,12 +2558,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 			PaneTools.addGridRow(pane, row++, 0, "Enter the text to find", new Label("Find: "), tfFind, tfFind, tfFind);
 			PaneTools.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
 			PaneTools.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
-			PaneTools.addGridRow(pane, row++, 0, null, btReplaceFind, btReplaceAll, lbOccurrences, lbOccurrences);
+			PaneTools.addGridRow(pane, row++, 0, null, btReplaceNext, btReplaceAll, lbOccurrences, lbOccurrences);
 			PaneTools.addGridRow(pane, row++, 0, null, btPrevious, btNext, spacer, btClose);
 			
 			btPrevious.setMinWidth(100.0);
 			btNext.setMinWidth(100.0);
-			btReplaceFind.setMinWidth(100.0);
+			btReplaceNext.setMinWidth(100.0);
 			btReplaceAll.setMinWidth(100.0);
 			btClose.setMinWidth(100.0);
 			
@@ -2589,16 +2593,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 			btPrevious.setOnAction(e -> findPrevious(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
 			btNext.disableProperty().bind(tfFind.textProperty().isEmpty());
 			btPrevious.disableProperty().bind(tfFind.textProperty().isEmpty());
-			btReplaceFind.disableProperty().bind(tfFind.textProperty().isEmpty()
-					.or(tfReplace.textProperty().isEmpty())
+			btReplaceNext.disableProperty().bind(tfFind.textProperty().isEmpty()
 					.or(Bindings.createBooleanBinding(() -> {
 						if (cbIgnoreCase.isSelected())
 							return !tfFind.getText().toLowerCase().equals(getCurrentTextComponent().selectedTextProperty().getValue().toLowerCase());
 						return !tfFind.getText().equals(getCurrentTextComponent().selectedTextProperty().getValue());
 					}, getCurrentTextComponent().selectedTextProperty(), cbIgnoreCase.selectedProperty())));
-			btReplaceAll.disableProperty().bind(tfFind.textProperty().isEmpty().or(tfReplace.textProperty().isEmpty()));
+			btReplaceAll.disableProperty().bind(tfFind.textProperty().isEmpty());
 			
-			btReplaceFind.setOnAction(e -> {
+			btReplaceNext.setOnAction(e -> {
 				replaceFind(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
 				if (!getCurrentTextComponent().getText().contains(tfFind.getText())) {
 					// Remove focus-looking effect on 'Next' button
@@ -2648,30 +2651,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 			findNext(control, selected, ignoreCase);
 		}
 		
-		// TODO: There is 1 action for each occurrence, instead of one action overall. Ctrl/CMD+Z will go back one action at a time
+		// TODO: Position caret to original position after setting text in the control
 		private void replaceAll(ScriptEditorControl control, String text, boolean ignoreCase) {
 			// Remove focus-looking effect on 'Next' button
 			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
+			String textTemp = control.getText().replaceAll(text, tfReplace.getText());
+			if (ignoreCase)
+				textTemp = textTemp.replaceAll(text.toLowerCase(), tfReplace.getText());
 			
-			var indices = findAllOccurrences(control.getText(), text, ignoreCase);
-			for (int index = 0; index < indices.size(); index++) {
-				var shiftedIndex = indices.get(index) - index*(text.length() - tfReplace.getText().length());		// Because the indices are shifted every time we replace an occurrence
-				control.deleteText(shiftedIndex, shiftedIndex + tfFind.getText().length());
-				control.insertText(shiftedIndex, tfReplace.getText());
-			}
-			lbOccurrences.setText(indices.size() == 0 ? "String not found" : indices.size() + " match" + (indices.size() > 1 ? "es" : "") + " replaced");
-		}
-		
-		private List<Integer> findAllOccurrences(String text, String query, boolean ignoreCase) {
-			List<Integer> indices = new ArrayList<>();
-			var text2 = ignoreCase ? text.toLowerCase() : text;
-			var query2 = ignoreCase ? query.toLowerCase() : query;
-			int index = text2.indexOf(query2);
-			while (index >= 0) {
-			    indices.add(index);
-			    index = text2.indexOf(query2, ++index);
-			}
-			return indices;
+			var count = Math.abs((control.getText().length() - textTemp.length())/Math.abs((text.length()-tfReplace.getText().length())));
+			control.setText(textTemp);
+			lbOccurrences.setText(count == 0 ? "String not found" : count + " match" + (count > 1 ? "es" : "") + " replaced");
 		}
 
 		/**
@@ -2703,7 +2693,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			else
 				ind = ind + pos;
 			control.selectRange(ind, ind + toFind.length());
-      control.requestFollowCaret();
+			control.requestFollowCaret();
 			return ind;
 			
 		}
@@ -2740,7 +2730,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (ind < 0)
 				ind = text.lastIndexOf(toFind);
 			control.selectRange(ind, ind + toFind.length());
-      control.requestFollowCaret();
+			control.requestFollowCaret();
 			return ind;
 		}
 	}
