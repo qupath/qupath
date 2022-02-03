@@ -527,7 +527,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 				handleNewLine(control);
 				e.consume();
-			} 
+			}
 	    });
 
 //		editor.getDocument().addUndoableEditListener(new UndoManager());
@@ -1746,6 +1746,30 @@ public class DefaultScriptEditor implements ScriptEditor {
 			finalPos = caretPos + insertText.length();
 		}
 		textArea.positionCaret(finalPos);
+	}
+	
+	protected static void handleLeftParenthesis(final ScriptEditorControl textArea) {
+		textArea.insertText(textArea.getCaretPosition(), ")");
+		textArea.positionCaret(textArea.getCaretPosition()-1);
+	}
+	
+	protected static void handleRightParenthesis(final ScriptEditorControl textArea) {
+		String text = textArea.getText();
+		var caretPos = textArea.getCaretPosition();
+		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == ')') {
+			textArea.deleteText(caretPos, caretPos + 1);
+		}
+	}
+	
+	protected static void handleDoubleQuotes(final ScriptEditorControl textArea) {
+		String text = textArea.getText();
+		var caretPos = textArea.getCaretPosition();
+		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == '"')
+			textArea.deleteText(caretPos, caretPos + 1);
+		else {
+			textArea.insertText(textArea.getCaretPosition(), "\"");
+			textArea.positionCaret(textArea.getCaretPosition()-1);
+		}
 	}
 	
 	

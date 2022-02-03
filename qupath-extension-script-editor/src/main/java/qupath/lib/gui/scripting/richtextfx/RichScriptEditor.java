@@ -302,6 +302,18 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				} else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 					handleNewLine(control);
 					e.consume();
+				} else if (new KeyCodeCombination(KeyCode.DIGIT9, KeyCombination.SHIFT_DOWN).match(e) || e.getCode() == KeyCode.LEFT_PARENTHESIS) {
+					// TODO: Check Locale because DIGIT9 + SHIFT_DOWN might not work on all keyboards
+					handleLeftParenthesis(control);
+					e.consume();
+				} else if (new KeyCodeCombination(KeyCode.DIGIT0, KeyCombination.SHIFT_DOWN).match(e) || e.getCode() == KeyCode.RIGHT_PARENTHESIS) {
+					// TODO: Check Locale because DIGIT0 + SHIFT_DOWN might not work on all keyboards
+					handleRightParenthesis(control);
+					e.consume();
+				} else if (new KeyCodeCombination(KeyCode.DIGIT2, KeyCombination.SHIFT_DOWN).match(e) || e.getCode() == KeyCode.QUOTEDBL) {
+					// TODO: Check Locale because DIGIT2 + SHIFT_DOWN might not work on all keyboards
+					handleDoubleQuotes(control);
+					e.consume();
 				}
 				if (!e.isConsumed())
 					matchMethodName(control, e);
