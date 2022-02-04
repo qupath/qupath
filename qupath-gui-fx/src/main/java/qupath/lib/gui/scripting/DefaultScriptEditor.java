@@ -1750,12 +1750,17 @@ public class DefaultScriptEditor implements ScriptEditor {
 		textArea.positionCaret(finalPos);
 	}
 	
-	protected static void handleLeftParenthesis(final ScriptEditorControl textArea) {
+	protected void handleLeftParenthesis(final ScriptEditorControl textArea) {
+		if (!smartEditing.get())
+			return;
 		textArea.insertText(textArea.getCaretPosition(), ")");
 		textArea.positionCaret(textArea.getCaretPosition()-1);
 	}
 	
-	protected static void handleRightParenthesis(final ScriptEditorControl textArea) {
+	protected void handleRightParenthesis(final ScriptEditorControl textArea) {
+		if (!smartEditing.get())
+			return;
+		
 		String text = textArea.getText();
 		var caretPos = textArea.getCaretPosition();
 		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == ')') {
@@ -1763,7 +1768,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 	}
 	
-	protected static void handleDoubleQuotes(final ScriptEditorControl textArea) {
+	protected void handleDoubleQuotes(final ScriptEditorControl textArea) {
+		if (!smartEditing.get())
+			return;
+		
 		String text = textArea.getText();
 		var caretPos = textArea.getCaretPosition();
 		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == '"')
