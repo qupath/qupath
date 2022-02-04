@@ -2528,7 +2528,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private TextField tfFind = new TextField();
 		private TextField tfReplace = new TextField();
 		private Button btNext = new Button("Next");
-		private Label lbOccurrences = new Label();
+		private Label lbReplacedOccurrences = new Label();
+		private Label lbFoundOccurrences = new Label();
 		private CheckBox cbIgnoreCase = new CheckBox("Ignore case");
 		private double xPos = -1;
 		private double yPos = -1;
@@ -2557,7 +2558,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				tfFind.selectAll();
 			
 			createFindStage();
-			lbOccurrences.setText("");
+			lbReplacedOccurrences.setText("");
+			lbFoundOccurrences.setText("");
 			stage.show();
 			tfFind.requestFocus();
 			
@@ -2586,18 +2588,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 			pane.setHgap(10);
 			tfFind.setMinWidth(350.0);
 			tfReplace.setMinWidth(350.0);
-			
-			// Spacer between 'Next' and 'Close' buttons
-			HBox spacer = new HBox();
-		    HBox.setHgrow(spacer, Priority.ALWAYS);
-		    spacer.setMinSize(150, 1);
+			lbFoundOccurrences.setMinWidth(150);
+		    HBox.setHgrow(lbFoundOccurrences, Priority.ALWAYS);
 			
 			int row = 0;
 			PaneTools.addGridRow(pane, row++, 0, "Enter the text to find", new Label("Find: "), tfFind, tfFind, tfFind);
 			PaneTools.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
 			PaneTools.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
-			PaneTools.addGridRow(pane, row++, 0, null, btReplaceNext, btReplaceAll, lbOccurrences, lbOccurrences);
-			PaneTools.addGridRow(pane, row++, 0, null, btPrevious, btNext, spacer, btClose);
+			PaneTools.addGridRow(pane, row++, 0, null, btReplaceNext, btReplaceAll, lbReplacedOccurrences, lbReplacedOccurrences);
+			PaneTools.addGridRow(pane, row++, 0, null, btPrevious, btNext, lbFoundOccurrences, btClose);
 			
 			btPrevious.setMinWidth(100.0);
 			btNext.setMinWidth(100.0);
@@ -2636,7 +2635,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 						if (cbIgnoreCase.isSelected())
 							return !tfFind.getText().toLowerCase().equals(getCurrentTextComponent().selectedTextProperty().getValue().toLowerCase());
 						return !tfFind.getText().equals(getCurrentTextComponent().selectedTextProperty().getValue());
-					}, getCurrentTextComponent().selectedTextProperty(), cbIgnoreCase.selectedProperty())));
+					}, getCurrentTextComponent().selectedTextProperty(), cbIgnoreCase.selectedProperty(), tfFind.textProperty())));
 			btReplaceAll.disableProperty().bind(tfFind.textProperty().isEmpty());
 			
 			btReplaceNext.setOnAction(e -> {
@@ -2661,8 +2660,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		private void findNextAction(boolean btNextFocus) {
-			lbOccurrences.setText("");
-			findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+			int found = findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+			lbFoundOccurrences.setText(found == -1 ? "String not found" : "");
+			lbReplacedOccurrences.setText("");
 			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), btNextFocus);
 		}
 		
@@ -2676,7 +2676,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			// Remove focus-looking effect on 'Next' button
 			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
 			
-			lbOccurrences.setText("");
+			lbReplacedOccurrences.setText("");
+			lbFoundOccurrences.setText("");
 			
 			var selected = control.getSelectedText();
 			var range = control.getSelection();
@@ -2689,17 +2690,29 @@ public class DefaultScriptEditor implements ScriptEditor {
 			findNext(control, selected, ignoreCase);
 		}
 		
-		// TODO: Position caret to original position after setting text in the control
 		private void replaceAll(ScriptEditorControl control, String text, boolean ignoreCase) {
 			// Remove focus-looking effect on 'Next' button
 			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
-			String textTemp = control.getText().replaceAll(text, tfReplace.getText());
-			if (ignoreCase)
-				textTemp = textTemp.replaceAll(text.toLowerCase(), tfReplace.getText());
 			
-			var count = Math.abs((control.getText().length() - textTemp.length())/Math.abs((text.length()-tfReplace.getText().length())));
-			control.setText(textTemp);
-			lbOccurrences.setText(count == 0 ? "String not found" : count + " match" + (count > 1 ? "es" : "") + " replaced");
+			var controlText = control.getText();
+			var initialCaretPos = control.getSelection().getStart();	// Prefer this to getCaretPosition() because it deals better with selections
+			
+			// Using pattern here because replaceAll() on its own MIGHT match regex as well (e.g. "." would replace all chars)
+			Pattern pattern = Pattern.compile(text, Pattern.LITERAL | (ignoreCase ? Pattern.CASE_INSENSITIVE : 0) | Pattern.UNICODE_CASE);
+			String subTextTemp = pattern.matcher(controlText.substring(0, initialCaretPos)).replaceAll(tfReplace.getText());
+			int finalCaretPos = initialCaretPos + subTextTemp.length() - controlText.substring(0, initialCaretPos).length();
+			
+			var matcher = pattern.matcher(controlText);
+			var count = matcher.results().count();
+			if (count != 0) {
+				control.setText(matcher.replaceAll(tfReplace.getText()));
+				control.positionCaret(finalCaretPos);
+				control.requestFollowCaret();
+			}
+			
+			// Update labels
+			lbFoundOccurrences.setText("");
+			lbReplacedOccurrences.setText(count == 0 ? "String not found" : count + " match" + (count > 1 ? "es" : "") + " replaced");
 		}
 
 		/**
@@ -2744,13 +2757,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 		 * @return index of first char if found, -1 otherwise
 		 */
 		private int findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
+			lbFoundOccurrences.setText("String not found");
 			if (control == null || findText == null || findText.isEmpty())
 				return -1;
 			
 			// Remove focus-looking effect on 'Next' button
 			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
 			
-			lbOccurrences.setText("");
+			lbReplacedOccurrences.setText("");
 			
 			String text = control.getText();
 			String toFind = null;
@@ -2769,6 +2783,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				ind = text.lastIndexOf(toFind);
 			control.selectRange(ind, ind + toFind.length());
 			control.requestFollowCaret();
+			
+			lbFoundOccurrences.setText(ind == -1 ? "String not found" : "");
 			return ind;
 		}
 	}
