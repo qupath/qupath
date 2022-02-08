@@ -273,16 +273,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	protected Action findAction;
 
+	protected Action smartEditingAction;
+
 	private String tabString = "    "; // String to insert when tab key pressed
 
 	// Add default bindings, i.e. QuPathGUI, Viewer, ImageData... makes scripting much easier
 	private BooleanProperty useDefaultBindings = PathPrefs.createPersistentPreference("scriptingUseDefaultBindings", true);
-	private BooleanProperty smartEditing = PathPrefs.createPersistentPreference("scriptingSmartEditing", true);
 	private BooleanProperty autoRefreshFiles = PathPrefs.createPersistentPreference("scriptingAutoRefreshFiles", true);
 	private BooleanProperty sendLogToConsole = PathPrefs.createPersistentPreference("scriptingSendLogToConsole", true);
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
 	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", true);
 	private BooleanProperty clearCache = PathPrefs.createPersistentPreference("scriptingClearCache", false);
+	private BooleanProperty smartEditing = PathPrefs.createPersistentPreference("scriptingSmartEditing", true);
 	
 
 	// Regex pattern used to identify whether a script should be run in the JavaFX Platform thread
@@ -354,6 +356,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		});
 		
 		findAction = createFindAction("Find");
+		
+		smartEditingAction = ActionTools.createSelectableAction(smartEditing, "Enable smart editing");
 	}
 	
 	/**
@@ -587,7 +591,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				pasteAction,
 				pasteAndEscapeAction,
 				null,
-				findAction
+				findAction,
+				null,
+				smartEditingAction
 				);
 //		menuEdit.setMnemonic(KeyEvent.VK_E);
 //
@@ -676,7 +682,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 				createKillRunningScriptAction("Kill running script"),
 				null,
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(useDefaultBindings, "Include default imports")),
-				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(smartEditing, "Activate smart editing")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(sendLogToConsole, "Show log in console")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(outputScriptStartTime, "Log script time")),
 				ActionTools.createCheckMenuItem(ActionTools.createSelectableAction(autoClearConsole, "Auto clear console")),
@@ -1750,7 +1755,31 @@ public class DefaultScriptEditor implements ScriptEditor {
 		textArea.positionCaret(finalPos);
 	}
 	
+	/**
+	 * Handle backspace if required, otherwise does nothing (and let the original control deal with the backspace).
+	 * <p>
+	 * This was implemented this way because there's no point in rewriting all the rules for backspace (e.g. SHORTCUT + BACKSPACE, BACKSPACE on a selection, etc..).
+	 * @param textArea
+	 * @return whether the source event should be consumed
+	 */
+	protected boolean handleBackspace(final ScriptEditorControl textArea) {
+		var caretPos = textArea.getCaretPosition();
+		var selection = textArea.getSelection();
+		if (caretPos -1 < 0 || selection.getLength() >= 1 || !smartEditing.get())
+			return false;
+		
+		if (caretPos >= textArea.getText().length() ||
+				(!(textArea.getText().charAt(caretPos-1) == '(' && textArea.getText().charAt(caretPos) == ')') &&
+				!(textArea.getText().charAt(caretPos-1) == '"' && textArea.getText().charAt(caretPos) == '"') &&
+				!(textArea.getText().charAt(caretPos-1) == '\'' && textArea.getText().charAt(caretPos) == '\'')))
+			return false;
+		
+		textArea.deleteText(caretPos-1, caretPos+1);
+		return true;
+	}
+	
 	protected void handleLeftParenthesis(final ScriptEditorControl textArea) {
+		textArea.insertText(textArea.getCaretPosition(), "(");
 		if (!smartEditing.get())
 			return;
 		textArea.insertText(textArea.getCaretPosition(), ")");
@@ -1758,6 +1787,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	protected void handleRightParenthesis(final ScriptEditorControl textArea) {
+		textArea.insertText(textArea.getCaretPosition(), ")");
 		if (!smartEditing.get())
 			return;
 		
@@ -1768,16 +1798,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 	}
 	
-	protected void handleDoubleQuotes(final ScriptEditorControl textArea) {
+	protected void handleQuotes(final ScriptEditorControl textArea, boolean isDoubleQuote) {
+		String quotes = isDoubleQuote ? "\"" : "\'";
+		textArea.insertText(textArea.getCaretPosition(), quotes);
 		if (!smartEditing.get())
 			return;
 		
 		String text = textArea.getText();
 		var caretPos = textArea.getCaretPosition();
-		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == '"')
+		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == quotes.charAt(0))
 			textArea.deleteText(caretPos, caretPos + 1);
 		else {
-			textArea.insertText(textArea.getCaretPosition(), "\"");
+			textArea.insertText(textArea.getCaretPosition(), quotes);
 			textArea.positionCaret(textArea.getCaretPosition()-1);
 		}
 	}
