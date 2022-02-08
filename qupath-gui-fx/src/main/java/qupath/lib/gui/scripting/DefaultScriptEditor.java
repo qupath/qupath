@@ -1709,7 +1709,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 		textArea.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	
-	
 	/**
 	 * Handle adding a new line, by checking current line for appropriate indentation.
 	 * Note: this method should be called <em>instead</em> of simply accepting the newline character,
@@ -1730,15 +1729,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 		int endRowPos = getRowEndPosition(text, caretPos);
 		String subString = text.substring(startRowPos, caretPos);
 		String trimmedSubString = subString.trim();
+		int indentation = subString.length() - subString.stripLeading().length();
 		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
 		int finalPos = caretPos;
 		
-		if (!trimmedSubString.endsWith("{") || !smartEditing.get()) {
+		if (trimmedSubString.startsWith("/*") && !trimmedSubString.contains("*/") && smartEditing.get()) {
+			String insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + "* \n*/" : "\n" + subString.substring(0, indentation) + "* \n" + subString.substring(0, indentation) + "*/ ";
+			textArea.insertText(caretPos, insertText);
+			finalPos = caretPos + insertText.length() - (indentation == 0 ? -1 : indentation) - 4;
+		} else if (trimmedSubString.startsWith("*") && !trimmedSubString.contains("*/") && smartEditing.get()) {
+			String insertText = ind == 0 ? "\n* " : "\n" + subString.substring(0, ind) + "* ";
+			textArea.insertText(caretPos, insertText);
+			finalPos = caretPos + insertText.length();
+		} else if (!trimmedSubString.endsWith("{") || !smartEditing.get()) {
 			String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
 			textArea.insertText(caretPos, insertText);
 			finalPos = caretPos + insertText.length();
 		} else if (smartEditing.get()) {
-			int indentation = subString.length() - subString.stripLeading().length();
 			String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
 			String insertText =  "\n" + subString.substring(0, indentation) + tabString+ lineRemainder.strip();
 			if (text.replaceAll("[^{]", "").length() != text.replaceAll("[^}]", "").length())
