@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -289,10 +289,35 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
-						
+			
+			// Catch key typed events for special character handling (which should be platform-agnostic)
+			codeArea.addEventFilter(KeyEvent.KEY_TYPED, e -> {
+				if (e.isConsumed())
+					return;
+				
+				if ("(".equals(e.getCharacter())) {
+					handleLeftParenthesis(control);
+					e.consume();
+				} else if (")".equals(e.getCharacter())) {
+					handleRightParenthesis(control);
+					e.consume();
+				} else if ("\"".equals(e.getCharacter())) {
+					handleQuotes(control, true);
+					e.consume();
+				} else if ("\'".equals(e.getCharacter())) {
+					handleQuotes(control, false);
+					e.consume();
+					
+				}
+				if (!e.isConsumed())
+					matchMethodName(control, e);
+			});
+			
+			
 			codeArea.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 				if (e.isConsumed())
 					return;
+				
 				if (e.getCode() == KeyCode.TAB) {
 					handleTabPress(control, e.isShiftDown());
 					e.consume();
@@ -302,6 +327,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				} else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 					handleNewLine(control);
 					e.consume();
+				} else if (e.getCode() == KeyCode.BACK_SPACE) {
+					if (handleBackspace(control) && !e.isShortcutDown() && !e.isShiftDown())
+						e.consume();
+					
 				}
 				if (!e.isConsumed())
 					matchMethodName(control, e);
@@ -638,15 +667,24 @@ public class RichScriptEditor extends DefaultScriptEditor {
 		}
 
 		@Override
-		public void selectRange(int anchor, int caretPosition) {
-			textArea.selectRange(anchor, caretPosition);
+		public void selectRange(int startIdx, int endIdx) {
+			textArea.selectRange(startIdx, endIdx);
 		}
 
 		@Override
 		public void setPopup(ContextMenu menu) {
 			textArea.setContextMenu(menu);
 		}
-		
+    
+		@Override
+		public void positionCaret(int index) {
+			textArea.moveTo(index);
+    }
+    
+		@Override
+		public void requestFollowCaret() {
+			textArea.requestFollowCaret();
+		}
 	}
 	
 	

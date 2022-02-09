@@ -231,6 +231,8 @@ public class BufferedImageOverlay extends AbstractImageOverlay implements Change
                 	cacheRGB.put(img, imgRGB);
             	}
             	img = imgRGB;
+            } else {
+            	img = cacheRGB.computeIfAbsent(img, img2 -> convertToDrawable(img2));
             }
         	g2d.drawImage(img, region.getX(), region.getY(), region.getWidth(), region.getHeight(), null);
         }

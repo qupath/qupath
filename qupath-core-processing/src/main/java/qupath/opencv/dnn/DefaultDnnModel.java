@@ -22,6 +22,7 @@
 
 package qupath.opencv.dnn;
 
+import java.io.Closeable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -70,6 +71,24 @@ class DefaultDnnModel<T> implements DnnModel<T> {
 	@Override
 	public PredictionFunction<T> getPredictionFunction() {
 		return predictFun;
+	}
+	
+	/**
+	 * Calls {@code close()} on the blob and prediction functions, if they are instances of 
+	 * {@link Closeable} or {@link AutoCloseable}.
+	 */
+	@Override
+	public void close() throws Exception {
+		logger.debug("Closing {}", this);
+		tryToClose(blobFun);
+		tryToClose(predictFun);
+	}
+	
+	private void tryToClose(Object o) throws Exception {
+		if (o instanceof AutoCloseable)
+			((AutoCloseable)o).close();
+		else if (o instanceof Closeable)
+			((Closeable)o).close();
 	}
 
 }

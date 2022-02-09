@@ -342,6 +342,11 @@ public class GuiTools {
 		if (nDark >= nLight)
 			return ImageData.ImageType.FLUORESCENCE;
 		
+		if (n == 0) {
+			logger.warn("Unable to estimate brightfield stains (no stained pixels found)");
+			return ImageData.ImageType.BRIGHTFIELD_OTHER;
+		}
+		
 //		Color color = new Color(
 //				(int)(rSum/n + .5),
 //				(int)(gSum/n + .5),

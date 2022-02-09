@@ -28,8 +28,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -42,7 +45,9 @@ import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageServer;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.PixelCalibration;
+import qupath.lib.images.servers.PixelType;
 import qupath.lib.projects.Project;
 import qupath.lib.projects.ProjectIO;
 import qupath.lib.projects.ProjectImageEntry;
@@ -66,13 +71,150 @@ public class TestBioFormatsImageServer {
 	
 	private static Logger logger = LoggerFactory.getLogger(TestBioFormatsImageServer.class);
 	
+	
+	/**
+	 * Test reading an image with a range of file tiles, dimensions and pixel types.
+	 * Compare results using Bio-Formats directly with results using the default reading.
+	 * @throws Exception
+	 */
+	@Test
+	public void test_BioFormatsReading() throws Exception {
+		
+		var path = Paths.get(TestBioFormatsImageServer.class.getResource("/images/cells").toURI());
+		
+		
+		var uris = Files.walk(path)
+				.filter(p -> Files.isRegularFile(p) && !Files.isDirectory(p) && !p.getFileName().startsWith("."))
+				.collect(Collectors.toMap(p -> p.getFileName().toString(), p -> p.toUri()));
+		
+		
+		var builder = new BioFormatsServerBuilder();
+		for (var entry : uris.entrySet()) {
+			var name = entry.getKey();
+			var uri = entry.getValue();
+			try (var server = builder.buildServer(uri)) {
+				
+				// Check channels
+				if (name.contains("-2c"))
+					assertEquals(2, server.nChannels());
+				else if (name.contains("gray") || name.contains("-2"))
+					assertEquals(1, server.nChannels());
+				else
+					assertEquals(3, server.nChannels());
+				
+				// Check z
+				if (name.contains("-2z"))
+					assertEquals(2, server.nZSlices());
+				else
+					assertEquals(1, server.nZSlices());
+					
+				// Check t
+				if (name.contains("-2t"))
+					assertEquals(2, server.nTimepoints());
+				else
+					assertEquals(1, server.nTimepoints());
+				
+				// Check pixel type
+				if (name.contains("gray16"))
+					assertEquals(server.getMetadata().getPixelType(), PixelType.UINT16);
+				else if (name.contains("gray32"))
+					assertEquals(server.getMetadata().getPixelType(), PixelType.FLOAT32);
+				else
+					assertEquals(server.getMetadata().getPixelType(), PixelType.UINT8);
+				
+				// Check calibration
+				var cal = server.getPixelCalibration();
+				if (name.endsWith(".tif")) {
+					assertEquals(0.25, cal.getPixelWidth().doubleValue(), 1e-6);
+					assertEquals(0.25, cal.getPixelWidthMicrons(), 1e-6);
+					assertEquals(0.25, cal.getPixelHeight().doubleValue(), 1e-6);
+					assertEquals(0.25, cal.getPixelHeightMicrons(), 1e-6);
+					assertEquals(1.0, cal.getZSpacing().doubleValue(), 1e-6);
+					if (name.contains("-2z")) {
+						assertEquals(1.0, cal.getZSpacing().doubleValue(), 1e-6);												
+						assertEquals(1.0, cal.getZSpacingMicrons(), 1e-6);						
+					} else {
+						assertEquals(1.0, cal.getZSpacing().doubleValue(), 1e-6);												
+						assertTrue(Double.isNaN(cal.getZSpacingMicrons()));
+					}
+				} else {
+					assertEquals(1.0, cal.getPixelWidth().doubleValue(), 1e-6);
+					assertTrue(Double.isNaN(cal.getPixelWidthMicrons()));
+					assertEquals(1.0, cal.getPixelHeight().doubleValue(), 1e-6);
+					assertTrue(Double.isNaN(cal.getPixelHeightMicrons()));
+					assertEquals(1.0, cal.getZSpacing().doubleValue(), 1e-6);
+					assertTrue(Double.isNaN(cal.getZSpacingMicrons()));
+				}
+				
+				// Check image dimensions
+				var img = server.readBufferedImage(RegionRequest.createInstance(server));
+				assertEquals(server.getWidth(), img.getWidth());
+				assertEquals(server.getHeight(), img.getHeight());
+				
+				// Check the default server - this may be different depending upon file time
+				try (var server2 = ImageServers.buildServer(uri)) {
+					// Comparing full calibration does not necessarily work because readers handle metadata (z-spacing) differently
+//					assertEquals(server.getPixelCalibration(), server2.getPixelCalibration());
+					assertEquals(server.getPixelCalibration().getPixelWidth(), server2.getPixelCalibration().getPixelWidth());
+					assertEquals(server.getPixelCalibration().getPixelWidthUnit(), server2.getPixelCalibration().getPixelWidthUnit());
+					assertEquals(server.getPixelCalibration().getPixelHeight(), server2.getPixelCalibration().getPixelHeight());
+					assertEquals(server.getPixelCalibration().getPixelHeightUnit(), server2.getPixelCalibration().getPixelHeightUnit());
+					
+					assertEquals(server.nChannels(), server2.nChannels());
+					assertEquals(server.nZSlices(), server2.nZSlices());
+					assertEquals(server.nTimepoints(), server2.nTimepoints());
+					assertEquals(server.isRGB(), server2.isRGB());
+					
+					var img2 = server2.readBufferedImage(RegionRequest.createInstance(server2));
+					
+					// Check we have the same pixels
+					if (server.isRGB()) {
+						int[] rgb = img.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+						int[] rgb2 = img2.getRGB(0, 0, img.getWidth(), img.getHeight(), null, 0, img.getWidth());
+						assertArrayEquals(rgb, rgb2);
+					} else {
+						float[] samples = null;
+						float[] samples2 = null;
+						for (int c = 0; c < server.nChannels(); c++) {
+							samples = img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), c, samples);
+							samples2 = img2.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), c, samples2);
+							assertArrayEquals(samples, samples2);
+						}
+					}
+				}
+				
+				// If we have an RGB image, try switching channel order
+				if (server.isRGB()) {
+					try (var serverSwapped = ImageServers.buildServer(uri, "--order", "BGR")) {
+						var imgSwapped = serverSwapped.readBufferedImage(RegionRequest.createInstance(serverSwapped));
+						int[] samples = null;
+						int[] samples2 = null;
+						for (int c = 0; c < server.nChannels(); c++) {
+							samples = img.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), c, samples);
+							samples2 = imgSwapped.getRaster().getSamples(0, 0, img.getWidth(), img.getHeight(), 2-c, samples2);
+							assertArrayEquals(samples, samples2);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	
+	
+	
 	/**
 	 * Test the creation of BioFormatsImageServers by trying to open all images in whatever projects are found within the current directory.
 	 */
 	@Test
 	public void test_BioFormatsImageServerProjects() {
 		// Search the current directory for any QuPath projects
-		for (File file : new File(".").listFiles()) {
+		var files = new File(".").listFiles();
+		if (files == null) {
+			logger.warn("Unable to test BioFormatsImageServerProjects - listFiles() returned null");
+			return;
+		}
+		for (File file : files) {
 			
 			if (!file.getAbsolutePath().endsWith(ProjectIO.getProjectExtension()))
 				continue;
@@ -237,7 +379,7 @@ public class TestBioFormatsImageServer {
 						"%s: %d x %d (c=%d, z=%d, t=%d), bpp=%d, mag=%.2f, downsamples=[%s], res=[%.4f,%.4f,%.4f]",
 						server.getPath(), server.getWidth(), server.getHeight(),
 						server.nChannels(), server.nZSlices(), server.nTimepoints(),
-						server.getPixelType(), server.getMetadata().getMagnification(), GeneralTools.arrayToString(Locale.getDefault(), server.getPreferredDownsamples(), 4),
+						server.getPixelType(), server.getMetadata().getMagnification(), GeneralTools.arrayToString(Locale.getDefault(Locale.Category.FORMAT), server.getPreferredDownsamples(), 4),
 						cal.getPixelWidthMicrons(), cal.getPixelHeightMicrons(), cal.getZSpacingMicrons())
 				);
 	}

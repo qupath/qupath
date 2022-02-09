@@ -4,7 +4,7 @@
  * %%
  * Copyright (C) 2014 - 2016 The Queen's University of Belfast, Northern Ireland
  * Contact: IP Management (ipmanagement@qub.ac.uk)
- * Copyright (C) 2018 - 2020 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2022 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -60,6 +60,8 @@ import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.javafx.css.PseudoClassState;
+
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -72,6 +74,8 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -96,7 +100,6 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -104,6 +107,8 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.stage.Modality;
@@ -120,6 +125,7 @@ import qupath.lib.gui.logging.LogManager;
 import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
@@ -273,6 +279,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	protected Action findAction;
 
+	protected Action smartEditingAction;
+
 	private String tabString = "    "; // String to insert when tab key pressed
 
 	// Add default bindings, i.e. QuPathGUI, Viewer, ImageData... makes scripting much easier
@@ -282,6 +290,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private BooleanProperty outputScriptStartTime = PathPrefs.createPersistentPreference("scriptingOutputScriptStartTime", false);
 	private BooleanProperty autoClearConsole = PathPrefs.createPersistentPreference("scriptingAutoClearConsole", true);
 	private BooleanProperty clearCache = PathPrefs.createPersistentPreference("scriptingClearCache", false);
+	private BooleanProperty smartEditing = PathPrefs.createPersistentPreference("scriptingSmartEditing", true);
 	
 
 	// Regex pattern used to identify whether a script should be run in the JavaFX Platform thread
@@ -353,6 +362,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 		});
 		
 		findAction = createFindAction("Find");
+		
+		smartEditingAction = ActionTools.createSelectableAction(smartEditing, "Enable smart editing");
 	}
 	
 	/**
@@ -527,7 +538,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	        } else if (e.getCode() == KeyCode.ENTER && control.getSelectedText().length() == 0) {
 				handleNewLine(control);
 				e.consume();
-			} 
+			}
 	    });
 
 //		editor.getDocument().addUndoableEditListener(new UndoManager());
@@ -586,7 +597,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 				pasteAction,
 				pasteAndEscapeAction,
 				null,
-				findAction
+				findAction,
+				null,
+				smartEditingAction
 				);
 //		menuEdit.setMnemonic(KeyEvent.VK_E);
 //
@@ -807,6 +820,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * 
 	 * @param tab
 	 * @param script
+	 * @param project 
 	 * @param imageData
 	 */
 	private void executeScript(final ScriptTab tab, final String script, final Project<BufferedImage> project, final ImageData<BufferedImage> imageData) {
@@ -1372,6 +1386,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	/**
 	 * Request project image entries to run script for.
+	 * @param doSave 
 	 */
 	void handleRunProject(final boolean doSave) {
 		Project<BufferedImage> project = qupath.getProject();
@@ -1663,45 +1678,73 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	/**
 	 * Handle the press of the tab key, with/without shift.
-	 * This either inserts getTabString() at the current caret position (if no text is selected, 
-	 * or either indents or removes the indentation from all selected rows if a selection is made.
+	 * <p>
+	 * If there is no selection :
+	 * <li> It inserts a {@code tabString} at the current caret position if shift is not down </li>
+	 * <li> It removes a {@code tabString} at the start of the line if there is one and if shift is down </li>
+	 * <p>
+	 * If there is a selection:
+	 * <li> It indents all the selected rows if shift is not down </li>
+	 * <li> It removes one indentation from all the selected rows if shift is down </li>
 	 * 
 	 * @param textArea
 	 * @param shiftDown
 	 */
 	protected void handleTabPress(final ScriptEditorControl textArea, final boolean shiftDown) {
-		String selected = textArea.getSelectedText();
-		int pos = textArea.getCaretPosition();
-		if (selected == null || selected.length() == 0) {
-			textArea.insertText(pos, tabString);
-			return;
-		}
-
 		String text = textArea.getText();
-		IndexRange range = textArea.getSelection();
+		IndexRange range = textArea.getSelection() == null ? IndexRange.valueOf("0,0") : textArea.getSelection();
 		int startRowPos = getRowStartPosition(text, range.getStart());
 		int endRowPos = getRowEndPosition(text, range.getEnd());
 		String textBetween = text.substring(startRowPos, endRowPos);
+
+		if (range.getLength() == 0) {
+			int caretPos = textArea.getCaretPosition();
+			if (shiftDown && textBetween.indexOf(tabString) == 0) {
+				textArea.deleteText(startRowPos, startRowPos + tabString.length());
+				textArea.positionCaret(caretPos - tabString.length());
+			} else if (!shiftDown)
+				textArea.insertText(caretPos, tabString);
+			return;
+		}
+
 		String replaceText;
 		if (shiftDown) {
 			// Remove tabs at start of selected rows
 			replaceText = textBetween.replace("\n"+tabString, "\n");
 			if (replaceText.startsWith(tabString))
 				replaceText = replaceText.substring(tabString.length());
-		} else {
+		} else
 			replaceText = tabString + textBetween.replace("\n", "\n"+tabString);
-		}
 		
 		textArea.selectRange(startRowPos, endRowPos);
 		textArea.paste(replaceText);
 		textArea.selectRange(startRowPos, startRowPos + replaceText.length());
 	}
 	
-	
 	/**
 	 * Handle adding a new line, by checking current line for appropriate indentation.
 	 * Note: this method should be called <em>instead</em> of simply accepting the newline character,
 	 * i.e. the method itself will add the newline as required.
+	 * <p>
+	 * Additionally, it handles new lines following a '{' character:
+	 * <li> It creates a block of '{' + new line + indentation + new line + '}' </li>
+	 * <li> The caret position is set to inside the block </li>
+	 * <li> If there originally was some text after '{', the text will be included inside the block </li>
+	 * <li> If the amount of '{' and '}' in the text is equal, it will add the new line but won't create a block </li>
+	 * <li> The original indentation is accounted for</li>
+	 * 
+	 * <p>
+	 * 
+	 * As well as new lines which start with  '/*':
+	 * <li> It creates a comment block of '/' + '*' + new line + space + * + space + new line + '/' + '*' </li>
+	 * <li> The caret position is set to inside the block </li>
+	 * <li> The original indentation is accounted for </li>
+	 * 
+	 * <p>
+	 * 
+	 * And new lines which start with  '*':
+	 * <li> The new line will automatically start with '*' + space, as to continue the comment block </li>
+	 * <li> The original indentation is accounted for </li>
 	 * 
 	 * @param textArea
 	 */
@@ -1709,13 +1752,100 @@ public class DefaultScriptEditor implements ScriptEditor {
 		int caretPos = textArea.getCaretPosition();
 		String text = textArea.getText();
 		int startRowPos = getRowStartPosition(text, caretPos);
+		int endRowPos = getRowEndPosition(text, caretPos);
 		String subString = text.substring(startRowPos, caretPos);
 		String trimmedSubString = subString.trim();
+		int indentation = subString.length() - subString.stripLeading().length();
 		int ind = trimmedSubString.length() == 0 ? subString.length() : subString.indexOf(trimmedSubString);
-		String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
-		textArea.insertText(caretPos, insertText);
-		int newPos = caretPos + insertText.length();
-		textArea.selectRange(newPos, newPos);
+		int finalPos = caretPos;
+		
+		if (trimmedSubString.startsWith("/*") && !trimmedSubString.contains("*/") && smartEditing.get()) {
+			String insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + " * \n */" : "\n" + subString.substring(0, indentation) + " * \n" + subString.substring(0, indentation) + " */ ";
+			textArea.insertText(caretPos, insertText);
+			finalPos = caretPos + insertText.length() - (indentation == 0 ? -1 : indentation) - 5;
+		} else if (trimmedSubString.startsWith("*") && !trimmedSubString.contains("*/") && smartEditing.get()) {
+			String insertText = ind == 0 ? "\n* " : "\n" + subString.substring(0, ind) + "* ";
+			textArea.insertText(caretPos, insertText);
+			finalPos = caretPos + insertText.length();
+		} else if (!trimmedSubString.endsWith("{") || !smartEditing.get()) {
+			String insertText = ind == 0 ? "\n" : "\n" + subString.substring(0, ind);
+			textArea.insertText(caretPos, insertText);
+			finalPos = caretPos + insertText.length();
+		} else if (smartEditing.get()) {
+			String lineRemainder = text.substring(startRowPos + subString.length(), endRowPos);
+			String insertText =  "\n" + subString.substring(0, indentation) + tabString+ lineRemainder.strip();
+			if (text.replaceAll("[^{]", "").length() != text.replaceAll("[^}]", "").length())
+				insertText += "\n" + subString.substring(0, indentation) + "}";
+			
+			finalPos = caretPos + 1 + indentation + tabString.length() + lineRemainder.strip().length();
+			
+			// If '{' is not preceded by a space, insert one (this is purely aesthetic)
+			if (trimmedSubString.length() >= 2 && trimmedSubString.charAt(trimmedSubString.length() - 2) != ' ')
+				textArea.insertText(++caretPos - 2, " ");
+			
+			textArea.insertText(caretPos, insertText);
+			textArea.deleteText(textArea.getCaretPosition(), textArea.getCaretPosition() + lineRemainder.length());
+		}
+		textArea.positionCaret(finalPos);
+	}
+	
+	/**
+	 * Handle backspace if required, otherwise does nothing (and let the original control deal with the backspace).
+	 * <p>
+	 * This was implemented this way because there's no point in rewriting all the rules for backspace (e.g. SHORTCUT + BACKSPACE, BACKSPACE on a selection, etc..).
+	 * @param textArea
+	 * @return whether the source event should be consumed
+	 */
+	protected boolean handleBackspace(final ScriptEditorControl textArea) {
+		var caretPos = textArea.getCaretPosition();
+		var selection = textArea.getSelection();
+		if (caretPos -1 < 0 || selection.getLength() >= 1 || !smartEditing.get())
+			return false;
+		
+		if (caretPos >= textArea.getText().length() ||
+				(!(textArea.getText().charAt(caretPos-1) == '(' && textArea.getText().charAt(caretPos) == ')') &&
+				!(textArea.getText().charAt(caretPos-1) == '"' && textArea.getText().charAt(caretPos) == '"') &&
+				!(textArea.getText().charAt(caretPos-1) == '\'' && textArea.getText().charAt(caretPos) == '\'')))
+			return false;
+		
+		textArea.deleteText(caretPos-1, caretPos+1);
+		return true;
+	}
+	
+	protected void handleLeftParenthesis(final ScriptEditorControl textArea) {
+		textArea.insertText(textArea.getCaretPosition(), "(");
+		if (!smartEditing.get())
+			return;
+		textArea.insertText(textArea.getCaretPosition(), ")");
+		textArea.positionCaret(textArea.getCaretPosition()-1);
+	}
+	
+	protected void handleRightParenthesis(final ScriptEditorControl textArea) {
+		textArea.insertText(textArea.getCaretPosition(), ")");
+		if (!smartEditing.get())
+			return;
+		
+		String text = textArea.getText();
+		var caretPos = textArea.getCaretPosition();
+		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == ')') {
+			textArea.deleteText(caretPos, caretPos + 1);
+		}
+	}
+	
+	protected void handleQuotes(final ScriptEditorControl textArea, boolean isDoubleQuote) {
+		String quotes = isDoubleQuote ? "\"" : "\'";
+		textArea.insertText(textArea.getCaretPosition(), quotes);
+		if (!smartEditing.get())
+			return;
+		
+		String text = textArea.getText();
+		var caretPos = textArea.getCaretPosition();
+		if (text.length() >= caretPos + 1 && text.charAt(caretPos) == quotes.charAt(0))
+			textArea.deleteText(caretPos, caretPos + 1);
+		else {
+			textArea.insertText(textArea.getCaretPosition(), quotes);
+			textArea.positionCaret(textArea.getCaretPosition()-1);
+		}
 	}
 	
 	
@@ -2055,6 +2185,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		ScriptFindCommand findCommand = new ScriptFindCommand();
 		Action action = new Action(name, e -> {
 			findCommand.run();
+			e.consume();
 		});
 		action.setAccelerator(new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN));
 		return action;
@@ -2230,10 +2361,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		/**
 		 * Set the range of the selected text.
-		 * @param anchor
-		 * @param caretPosition
+		 * @param startIdx
+		 * @param endIdx
 		 */
-		public void selectRange(int anchor, int caretPosition);
+		public void selectRange(int startIdx, int endIdx);
 
 		/**
 		 * Text currently selected in the editor control.
@@ -2330,6 +2461,22 @@ public class DefaultScriptEditor implements ScriptEditor {
 		 * @return
 		 */
 		public ReadOnlyBooleanProperty focusedProperty();
+		
+		/**
+		 * Set the caret position to the specified index
+		 * @param index
+		 */
+		public void positionCaret(int index);
+
+		/**
+		 * Request that the X and Y scrolls are adjusted to ensure the caret is visible.
+		 * <p>
+		 * This method does nothing by default. 
+		 * This means that a class extending this interface must specifically implement this method if a different behavior is expected.
+		 */
+		public default void requestFollowCaret() {
+			return;
+		}
 
 	}
 	
@@ -2450,119 +2597,226 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 
 		@Override
-		public void selectRange(int anchor, int caretPosition) {
-			textArea.selectRange(anchor, caretPosition);
+		public void selectRange(int startIdx, int endIdx) {
+			textArea.selectRange(startIdx, endIdx);
 		}
 
 		@Override
 		public void setPopup(ContextMenu menu) {
 			textArea.setContextMenu(menu);
 		}
-		
+
+		@Override
+		public void positionCaret(int index) {
+			textArea.positionCaret(index);
+		}
 	}
 	
 	
 	
 	class ScriptFindCommand implements Runnable {
 		
-		private Dialog<Void> dialog;
+		private Stage stage;
 		private TextField tfFind = new TextField();
-		private ButtonType btNext = new ButtonType("Next");
+		private TextField tfReplace = new TextField();
+		private Button btNext = new Button("Next");
+		private Label lbReplacedOccurrences = new Label();
+		private Label lbFoundOccurrences = new Label();
+		private CheckBox cbIgnoreCase = new CheckBox("Ignore case");
+		private double xPos = -1;
+		private double yPos = -1;
+		
+		private EventHandler<KeyEvent> eventHandler = e -> {
+			if (e.getCode() == KeyCode.ENTER) {
+				findNextAction(true);
+				e.consume();
+			}};
 		
 		@Override
 		public void run() {
-			if (dialog == null)
-				createFindDialog();
-			dialog.show();
-			tfFind.requestFocus();
-			
+			if (stage != null)
+				stage.hide();		// Only way to request focus to stage when it's not hidden
+
 			// If some text is selected in the main text component, use it as search query
 			var selectedText = getCurrentTextComponent().getSelectedText();
-			if (!selectedText.isEmpty())
-				tfFind.setText(selectedText);
+			if (!selectedText.isEmpty()) {
+				// StringIndexOutOfBoundsException can occur if selectedText == a tab (\t)
+				if (selectedText.replace("\t", "").length() != 0) {
+					tfFind.setText(selectedText);
+					btNext.requestFocus();
+				} else
+					tfFind.setText("");
+			} else
+				tfFind.selectAll();
 			
-			// If search is already set, focus on 'Next'
-			if (!tfFind.getText().isEmpty())
-				((Button)dialog.getDialogPane().lookupButton(btNext)).requestFocus();
+			createFindStage();
+			lbReplacedOccurrences.setText("");
+			lbFoundOccurrences.setText("");
+			stage.show();
+			tfFind.requestFocus();
+			
+			tfFind.addEventFilter(KeyEvent.KEY_PRESSED, eventHandler);
+			tfReplace.addEventFilter(KeyEvent.KEY_PRESSED, eventHandler);
 		}
 		
-		private void createFindDialog() {
-			dialog = new Dialog<>();
-			dialog.setTitle("Find text");
-			dialog.initOwner(DefaultScriptEditor.this.dialog);
-			dialog.initModality(Modality.NONE);
+		private void createFindStage() {
+			stage = new Stage();
+			stage.setTitle("Find/Replace");
+			stage.initOwner(DefaultScriptEditor.this.dialog);
+			stage.initModality(Modality.NONE);
+			stage.setOnHiding(e -> {
+				xPos = stage.getX();
+				yPos = stage.getY();
+				stage = null;
+			});
 			
-			ButtonType btPrevious = new ButtonType("Previous");
-			ButtonType btClose = new ButtonType("Close", ButtonData.CANCEL_CLOSE);
-			dialog.getDialogPane().getButtonTypes().setAll(btPrevious, btNext, btClose);
-//			dialog.getDialogPane().lookupButton(btClose).setVisible(false);
+			Button btPrevious = new Button("Previous");
+			Button btClose = new Button("Close");
+			Button btReplaceNext = new Button("Replace/Next");
+			Button btReplaceAll = new Button("Replace all");
 			
 			GridPane pane = new GridPane();
-			pane.add(new Label("Search text: "), 0, 0);
-			tfFind.setTooltip(new Tooltip("Enter the search text"));
-			tfFind.setPrefColumnCount(32);
-			pane.add(tfFind, 1, 0);
-			CheckBox cbIgnoreCase = new CheckBox("Ignore case");
-			pane.add(cbIgnoreCase, 0, 1, 2, 1);
 			pane.setVgap(10);
+			pane.setHgap(10);
+			tfFind.setMinWidth(350.0);
+			tfReplace.setMinWidth(350.0);
+			lbFoundOccurrences.setMinWidth(150);
+		    HBox.setHgrow(lbFoundOccurrences, Priority.ALWAYS);
 			
-			var actionNext = new Action("Next", e -> {
-				findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
-				e.consume();
+			int row = 0;
+			PaneTools.addGridRow(pane, row++, 0, "Enter the text to find", new Label("Find: "), tfFind, tfFind, tfFind);
+			PaneTools.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
+			PaneTools.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
+			PaneTools.addGridRow(pane, row++, 0, null, btReplaceNext, btReplaceAll, lbReplacedOccurrences, lbReplacedOccurrences);
+			PaneTools.addGridRow(pane, row++, 0, null, btPrevious, btNext, lbFoundOccurrences, btClose);
+			
+			btPrevious.setMinWidth(100.0);
+			btNext.setMinWidth(100.0);
+			btReplaceNext.setMinWidth(100.0);
+			btReplaceAll.setMinWidth(100.0);
+			btClose.setMinWidth(100.0);
+			
+			// Make the 'Next' button appear as if it's in focus, except when other buttons are pressed
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
+			
+			tfFind.focusedProperty().addListener((v, o, n) -> {
+				if (n)
+					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
 			});
+			tfReplace.focusedProperty().addListener((v, o, n) -> {
+				if (n)
+					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
+			});
+
 //			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
-			var actionPrevious = new Action("Previous", e -> {
-				findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
-				e.consume();
-			});
 //			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN));
-			tfFind.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-				if (e.getCode() == KeyCode.ENTER) {
-					actionNext.handle(new ActionEvent());
+			
+			stage.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+				if (e.getCode() == KeyCode.ESCAPE) {
+					btClose.fire();
 					e.consume();
 				}
 			});
-
-			((Button)dialog.getDialogPane().lookupButton(btNext)).addEventFilter(ActionEvent.ACTION, e -> actionNext.handle(e));
-			((Button)dialog.getDialogPane().lookupButton(btPrevious)).addEventFilter(ActionEvent.ACTION, e -> actionPrevious.handle(e));
 			
-//			((Button)dialog.getDialogPane().lookupButton(btClose)).addEventFilter(ActionEvent.ACTION, e -> {
-//				findPrevious(getCurrentTextComponent(), tfFind.getText());
-//				e.consume();
-//			});
-
-			dialog.getDialogPane().setHeader(null);
-			dialog.getDialogPane().setContent(pane);
+			btNext.setOnAction(e -> findNextAction(true));
+			btPrevious.setOnAction(e -> findPrevious(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+			btNext.disableProperty().bind(tfFind.textProperty().isEmpty());
+			btPrevious.disableProperty().bind(tfFind.textProperty().isEmpty());
+			btReplaceNext.disableProperty().bind(tfFind.textProperty().isEmpty()
+					.or(Bindings.createBooleanBinding(() -> {
+						if (cbIgnoreCase.isSelected())
+							return !tfFind.getText().toLowerCase().equals(getCurrentTextComponent().selectedTextProperty().getValue().toLowerCase());
+						return !tfFind.getText().equals(getCurrentTextComponent().selectedTextProperty().getValue());
+					}, getCurrentTextComponent().selectedTextProperty(), cbIgnoreCase.selectedProperty(), tfFind.textProperty())));
+			btReplaceAll.disableProperty().bind(tfFind.textProperty().isEmpty());
 			
+			btReplaceNext.setOnAction(e -> {
+				replaceFind(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+				if (!getCurrentTextComponent().getText().contains(tfFind.getText())) {
+					// Remove focus-looking effect on 'Next' button
+					tfFind.requestFocus();
+					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
+				}
+			});
+			btReplaceAll.setOnAction(e -> replaceAll(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
+			btClose.setOnAction(e -> stage.hide());
+			
+			pane.setPadding(new Insets(10.0, 10.0, 10.0, 10.0));
+			stage.setScene(new Scene(pane));
+			
+			// The previous position of the stage is lost at each run() call, so store it
+			if (xPos != -1 && yPos != -1) {
+				stage.setX(xPos);
+				stage.setY(yPos);
+			}
 		}
 		
-		
-		void findNext(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
-			if (control == null || findText == null || findText.isEmpty())
-				return;
-			
-			String text = control.getText();
-			String toFind = null;
-			if (ignoreCase) {
-				toFind = findText.toLowerCase();
-				text = text.toLowerCase();
-			} else
-				toFind = findText;
-			if (!text.contains(findText))
-				return;
-			int pos = control.getSelection().getEnd();
-			int ind = text.substring(pos).indexOf(toFind);
-			// If not found, loop around
-			if (ind < 0)
-				ind = text.indexOf(toFind);
-			else
-				ind = ind + pos;
-			control.selectRange(ind, ind + toFind.length());
+		private void findNextAction(boolean btNextFocus) {
+			int found = findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
+			lbFoundOccurrences.setText(found == -1 ? "String not found" : "");
+			lbReplacedOccurrences.setText("");
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), btNextFocus);
 		}
 		
-		void findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
+		/**
+		 * Replace the current selection and selects the next matching query.
+		 * @param control
+		 * @param text
+		 * @param ignoreCase
+		 */
+		private void replaceFind(ScriptEditorControl control, String text, boolean ignoreCase) {
+			// Remove focus-looking effect on 'Next' button
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
+			
+			lbReplacedOccurrences.setText("");
+			lbFoundOccurrences.setText("");
+			
+			var selected = control.getSelectedText();
+			var range = control.getSelection();
+			
+			// Replace selection
+			control.deleteText(range.getStart(), range.getEnd());
+			control.insertText(range.getStart(), tfReplace.getText());
+			
+			// Select next matching query
+			findNext(control, selected, ignoreCase);
+		}
+		
+		private void replaceAll(ScriptEditorControl control, String text, boolean ignoreCase) {
+			// Remove focus-looking effect on 'Next' button
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
+			
+			var controlText = control.getText();
+			var initialCaretPos = control.getSelection().getStart();	// Prefer this to getCaretPosition() because it deals better with selections
+			
+			// Using pattern here because replaceAll() on its own MIGHT match regex as well (e.g. "." would replace all chars)
+			Pattern pattern = Pattern.compile(text, Pattern.LITERAL | (ignoreCase ? Pattern.CASE_INSENSITIVE : 0) | Pattern.UNICODE_CASE);
+			String subTextTemp = pattern.matcher(controlText.substring(0, initialCaretPos)).replaceAll(tfReplace.getText());
+			int finalCaretPos = initialCaretPos + subTextTemp.length() - controlText.substring(0, initialCaretPos).length();
+			
+			var matcher = pattern.matcher(controlText);
+			var count = matcher.results().count();
+			if (count != 0) {
+				control.setText(matcher.replaceAll(tfReplace.getText()));
+				control.positionCaret(finalCaretPos);
+				control.requestFollowCaret();
+			}
+			
+			// Update labels
+			lbFoundOccurrences.setText("");
+			lbReplacedOccurrences.setText(count == 0 ? "String not found" : count + " match" + (count > 1 ? "es" : "") + " replaced");
+		}
+
+		/**
+		 * Return the index of the query''s first character if present in the text, -1 otherwise.
+		 * @param control
+		 * @param findText
+		 * @param ignoreCase
+		 * @return index of first char if found, -1 otherwise
+		 */
+		private int findNext(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
 			if (control == null || findText == null || findText.isEmpty())
-				return;
+				return -1;
 			
 			String text = control.getText();
 			String toFind = null;
@@ -2572,7 +2826,47 @@ public class DefaultScriptEditor implements ScriptEditor {
 			} else
 				toFind = findText;
 			if (!text.contains(toFind))
-				return;
+				return -1;
+			
+			int pos = control.getSelection().getEnd();
+			int ind = text.substring(pos).indexOf(toFind);
+			// If not found, loop around
+			if (ind < 0)
+				ind = text.indexOf(toFind);
+			else
+				ind = ind + pos;
+			control.selectRange(ind, ind + toFind.length());
+			control.requestFollowCaret();
+			return ind;
+			
+		}
+		
+		/**
+		 * Return the index of the query's first character if present in the text, -1 otherwise.
+		 * @param control
+		 * @param findText
+		 * @param ignoreCase
+		 * @return index of first char if found, -1 otherwise
+		 */
+		private int findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
+			lbFoundOccurrences.setText("String not found");
+			if (control == null || findText == null || findText.isEmpty())
+				return -1;
+			
+			// Remove focus-looking effect on 'Next' button
+			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
+			
+			lbReplacedOccurrences.setText("");
+			
+			String text = control.getText();
+			String toFind = null;
+			if (ignoreCase) {
+				toFind = findText.toLowerCase();
+				text = text.toLowerCase();
+			} else
+				toFind = findText;
+			if (!text.contains(toFind))
+				return -1;
 			
 			int pos = control.getSelection().getStart();
 			int ind = pos == 0 ? text.lastIndexOf(toFind) : text.substring(0, pos).lastIndexOf(toFind);
@@ -2580,8 +2874,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (ind < 0)
 				ind = text.lastIndexOf(toFind);
 			control.selectRange(ind, ind + toFind.length());
+			control.requestFollowCaret();
+			
+			lbFoundOccurrences.setText(ind == -1 ? "String not found" : "");
+			return ind;
 		}
-
 	}
 	
 	static class CustomTextArea extends TextArea {

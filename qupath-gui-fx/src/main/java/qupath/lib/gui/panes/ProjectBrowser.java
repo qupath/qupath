@@ -268,7 +268,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 	ContextMenu getPopup() {
 		
 		Action actionOpenImage = new Action("Open image", e -> qupath.openImageEntry(getSelectedEntry()));
-		Action actionRemoveImage = new Action("Delete image(s)", e -> {
+		Action actionRemoveImage = new Action("Remove image(s)", e -> {
 			Collection<ProjectImageEntry<BufferedImage>> entries = getAllSelectedEntries();
 			
 			if (entries.isEmpty())
@@ -994,7 +994,7 @@ public class ProjectBrowser implements ChangeListener<ImageData<BufferedImage>> 
 			return false;
 		}
 
-		if (name.equals(null)) {
+		if (name == null) {
 			logger.warn("Project entry name cannot be null!");
 			return false;
 		}

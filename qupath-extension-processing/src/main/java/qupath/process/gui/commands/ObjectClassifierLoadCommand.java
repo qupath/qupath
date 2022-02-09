@@ -368,7 +368,7 @@ public final class ObjectClassifierLoadCommand implements Runnable {
 			for (var entry : missingCounts.entrySet()) {
 				double percent = entry.getValue() * 100.0/n;
 				sb.append("\t").append(entry.getKey()).append(": ")
-					.append(n).append(" objects (")
+					.append(entry.getValue()).append(" objects (")
 					.append(GeneralTools.formatNumber(percent, 2)).append("%)")
 					.append("\n");
 			}

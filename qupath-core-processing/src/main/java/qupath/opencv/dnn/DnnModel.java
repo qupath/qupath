@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * @see PredictionFunction
  * @version 0.3.0
  */
-public interface DnnModel<T> {
+public interface DnnModel<T> extends AutoCloseable {
 		
 	/**
 	 * Default input layer name. This should be used when the input layer name is known or 
@@ -136,5 +136,17 @@ public interface DnnModel<T> {
 		var output = getBlobFunction().fromBlob(prediction);
 		return output;
 	}
+	
+	/**
+	 * Close this model if it will not be needed again.
+	 * Subclasses that require cleanup may override this.
+	 * A default, do-nothing implementation implementation is provided for backwards compatibility with v0.3.0.
+	 * 
+	 * @since v0.3.1
+	 * @implNote this was introduced to provide a mechanism to deal with a GPU memory leak when 
+	 *           using OpenCV and CUDA. New code using any DnnModel should call this method if it can 
+	 *           be known that the model will not be needed again in the future.
+	 */
+	public default void close() throws Exception {}
 	
 }
