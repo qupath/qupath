@@ -10,6 +10,13 @@ This is a work-in-progress.
 ### Enhancements
 * Added 'Replace next' and 'Replace all' features to the Find window in the script editor
 
+### Dependency updates
+* Adoptium OpenJDK 17
+* JavaFX 17.0.2
+* Groovy 4.0.0
+* Guava 31.0.1
+* JFreeSVG 5.0.2
+
 
 ## Version 0.3.2
 
