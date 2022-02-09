@@ -1678,8 +1678,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	/**
 	 * Handle the press of the tab key, with/without shift.
-	 * This either inserts getTabString() at the current caret position (if no text is selected, 
-	 * or either indents or removes the indentation from all selected rows if a selection is made.
+	 * <p>
+	 * If there is no selection :
+	 * <li> It inserts a {@code tabString} at the current caret position if shift is not down </li>
+	 * <li> It removes a {@code tabString} at the start of the line if there is one and if shift is down </li>
+	 * <p>
+	 * If there is a selection:
+	 * <li> It indents all the selected rows if shift is not down </li>
+	 * <li> It removes one indentation from all the selected rows if shift is down </li>
 	 * 
 	 * @param textArea
 	 * @param shiftDown
@@ -1692,10 +1698,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 		String textBetween = text.substring(startRowPos, endRowPos);
 
 		if (range.getLength() == 0) {
-			if (shiftDown && textBetween.indexOf(tabString) == 0)
+			int caretPos = textArea.getCaretPosition();
+			if (shiftDown && textBetween.indexOf(tabString) == 0) {
 				textArea.deleteText(startRowPos, startRowPos + tabString.length());
-			else if (!shiftDown)
-				textArea.insertText(textArea.getCaretPosition(), tabString);
+				textArea.positionCaret(caretPos - tabString.length());
+			} else if (!shiftDown)
+				textArea.insertText(caretPos, tabString);
 			return;
 		}
 
@@ -1705,9 +1713,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 			replaceText = textBetween.replace("\n"+tabString, "\n");
 			if (replaceText.startsWith(tabString))
 				replaceText = replaceText.substring(tabString.length());
-		} else {
+		} else
 			replaceText = tabString + textBetween.replace("\n", "\n"+tabString);
-		}
 		
 		textArea.selectRange(startRowPos, endRowPos);
 		textArea.paste(replaceText);
