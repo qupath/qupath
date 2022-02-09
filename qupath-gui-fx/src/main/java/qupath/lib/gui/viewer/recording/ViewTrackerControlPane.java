@@ -293,22 +293,22 @@ public class ViewTrackerControlPane implements Runnable {
 			// Remove all trackers to delete from ListView (even if exception when deleting file)
 			trackersList.removeAll(trackersToDelete);
 		});
-		Button moreBtn = new Button("Analyze");
-		moreBtn.setOnAction(e -> openViewTrackingAnalysisCommand());
-		moreBtn.setTooltip(new Tooltip("Open the recording analysis window for the selected recording"));
+		Button analyzeBtn = new Button("Analyze");
+		analyzeBtn.setOnAction(e -> openViewTrackingAnalysisCommand());
+		analyzeBtn.setTooltip(new Tooltip("Open the recording analysis window for the selected recording"));
 		
 		
 		// Add all buttons to GridPane
 		GridPane btnPane = PaneTools.createColumnGrid(3);
 		exportBtn.setMaxWidth(Double.MAX_VALUE);
 		deleteBtn.setMaxWidth(Double.MAX_VALUE);
-		moreBtn.setMaxWidth(Double.MAX_VALUE);
-		btnPane.addRow(0, exportBtn, deleteBtn, moreBtn);
+		analyzeBtn.setMaxWidth(Double.MAX_VALUE);
+		btnPane.addRow(0, exportBtn, deleteBtn, analyzeBtn);
 		
 		// Disable all buttons if no recording is selected, disable 'Export' and 'More' if multiple selection
 		exportBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
 		deleteBtn.disableProperty().bind(Bindings.or(table.getSelectionModel().selectedItemProperty().isNull(), isAnalysisOpened));
-		moreBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
+		analyzeBtn.disableProperty().bind(Bindings.or(Bindings.equal(Bindings.size(table.getSelectionModel().getSelectedItems()), 1).not(), isAnalysisOpened));
 		
 		// Disable playback button if no ViewTracker or multiple ViewTrackers are selected
 		actionPlayback.disabledProperty().bind(Bindings.size(table.getSelectionModel().getSelectedItems()).isNotEqualTo(1).or(recordingMode).or(isAnalysisOpened));
@@ -407,7 +407,7 @@ public class ViewTrackerControlPane implements Runnable {
 			TableColumn<ViewTracker, String> column = new TableColumn<>(columnName);
 			
 			// Set the width of the columns so they take all available space
-			column.prefWidthProperty().bind(table.widthProperty().subtract(2).divide(columnNames.length));
+			column.prefWidthProperty().bind(table.widthProperty().subtract(17).divide(columnNames.length));
 			
 			// Set whatever will be written in each column
 			column.setCellValueFactory(item -> {
@@ -450,6 +450,7 @@ public class ViewTrackerControlPane implements Runnable {
 		// Separator and duration indicator on top of window
 		duration = new Label("");
 		duration.setVisible(false);
+		duration.setMinWidth(50.0);
 		
 		Separator separator = new Separator();
 		duration.visibleProperty().bind(recordingMode);
@@ -474,9 +475,10 @@ public class ViewTrackerControlPane implements Runnable {
 		titledPane.setGraphic(topButtonGrid);
 		titledPane.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
 		titledPane.setOnMouseClicked(mouseEvent -> titledPane.setExpanded(!recordingMode.getValue()));
+		titledPane.setPrefWidth(250);
 		
 		mainPane.setTop(titledPane);
-		mainPane.setMaxSize(200, 300);
+		mainPane.setMaxSize(250, 300);
 	}
 	
 	@Override

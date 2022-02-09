@@ -127,12 +127,12 @@ final class ViewTrackerSlideOverview {
 		});
 
 		canvas.setOnContextMenuRequested(e -> {
-			final MenuItem pngExportItem = new MenuItem("Export as PNG");
-		    final MenuItem copyItem = new MenuItem("Copy to clipboard");
-		    final ContextMenu contextMenu = new ContextMenu(pngExportItem, copyItem);
+			final MenuItem tifExportItem = new MenuItem("Export data as TIF");
+		    final MenuItem copyItem = new MenuItem("Copy image to clipboard");
+		    final ContextMenu contextMenu = new ContextMenu(tifExportItem, copyItem);
 		    
-		    pngExportItem.setOnAction(event -> {
-		    	var path = Dialogs.promptToSaveFile("Save data map", null, "data map", "TIFF", ".tiff");
+		    tifExportItem.setOnAction(event -> {
+		    	var path = Dialogs.promptToSaveFile("Save data map", null, "data map", "TIF", ".tif");
 		    	if (path == null)
 		    		return;
 		    	
@@ -140,7 +140,7 @@ final class ViewTrackerSlideOverview {
 		    		var imgToExport = overlay.getRegionMap().get(ImageRegion.createInstance(0, 0, viewer.getServerWidth(), viewer.getServerHeight(), viewer.getZPosition(), viewer.getTPosition()));
 					ImageWriterTools.writeImage(imgToExport, path.toString());
 				} catch (IOException ex) {
-					logger.error("Could not export data map", ex.getLocalizedMessage());
+					logger.error("Could not export data", ex.getLocalizedMessage());
 				}
 		    });
 		    
@@ -154,7 +154,7 @@ final class ViewTrackerSlideOverview {
 				Clipboard.getSystemClipboard().setContent(content);
 		    });
 		    
-		    pngExportItem.setDisable(overlay == null);
+		    tifExportItem.setDisable(overlay == null);
 		    copyItem.setDisable(overlay == null);
 		    
 			contextMenu.show(canvas.getParent().getScene().getWindow(), e.getScreenX(), e.getScreenY());
