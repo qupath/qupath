@@ -1715,10 +1715,24 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * i.e. the method itself will add the newline as required.
 	 * <p>
 	 * Additionally, it handles new lines following a '{' character:
-	 * <li> It creates a block of '{' + new line + indentation + new line + '}'
-	 * <li> The caret position is set to inside the block
-	 * <li> If there originally was some text after '{', the text will be included inside the block
-	 * <li> If the amount of '{' and '}' in the text is equal, it will add the new line but won't create a block
+	 * <li> It creates a block of '{' + new line + indentation + new line + '}' </li>
+	 * <li> The caret position is set to inside the block </li>
+	 * <li> If there originally was some text after '{', the text will be included inside the block </li>
+	 * <li> If the amount of '{' and '}' in the text is equal, it will add the new line but won't create a block </li>
+	 * <li> The original indentation is accounted for</li>
+	 * 
+	 * <p>
+	 * 
+	 * As well as new lines which start with  '/*':
+	 * <li> It creates a comment block of '/' + '*' + new line + space + * + space + new line + '/' + '*' </li>
+	 * <li> The caret position is set to inside the block </li>
+	 * <li> The original indentation is accounted for </li>
+	 * 
+	 * <p>
+	 * 
+	 * And new lines which start with  '*':
+	 * <li> The new line will automatically start with '*' + space, as to continue the comment block </li>
+	 * <li> The original indentation is accounted for </li>
 	 * 
 	 * @param textArea
 	 */
@@ -1734,9 +1748,9 @@ public class DefaultScriptEditor implements ScriptEditor {
 		int finalPos = caretPos;
 		
 		if (trimmedSubString.startsWith("/*") && !trimmedSubString.contains("*/") && smartEditing.get()) {
-			String insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + "* \n*/" : "\n" + subString.substring(0, indentation) + "* \n" + subString.substring(0, indentation) + "*/ ";
+			String insertText = ind == 0 ? "\n" + subString.substring(0, indentation) + " * \n */" : "\n" + subString.substring(0, indentation) + " * \n" + subString.substring(0, indentation) + " */ ";
 			textArea.insertText(caretPos, insertText);
-			finalPos = caretPos + insertText.length() - (indentation == 0 ? -1 : indentation) - 4;
+			finalPos = caretPos + insertText.length() - (indentation == 0 ? -1 : indentation) - 5;
 		} else if (trimmedSubString.startsWith("*") && !trimmedSubString.contains("*/") && smartEditing.get()) {
 			String insertText = ind == 0 ? "\n* " : "\n" + subString.substring(0, ind) + "* ";
 			textArea.insertText(caretPos, insertText);
