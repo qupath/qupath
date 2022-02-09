@@ -8,7 +8,14 @@ This is a work-in-progress.
 * Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
 
 ### Enhancements
-* Added 'Replace next' and 'Replace all' features to the Find window in the script editor
+* Some general script editor improvements, including:
+  * Added 'Replace/Next' and 'Replace all' features to Find window (#898)
+  * New lines now trigger caret following (#900)
+  * Proper tab handling (#902)
+  * Introduction of 'Smart Editing' (enabled through the corresponding persistent preference under 'Edit'), which supports the following features:
+    * Brace block handling (#901)
+    * Smart parentheses and (double/single) quotes (#907)
+    * Comment block handling (#908)
 
 ### Dependency updates
 * Adoptium OpenJDK 17
