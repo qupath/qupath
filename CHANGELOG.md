@@ -22,7 +22,10 @@ This is a work-in-progress.
 * JavaFX 17.0.2
 * Groovy 4.0.0
 * Guava 31.0.1
+* JavaCPP 1.5.7
 * JFreeSVG 5.0.2
+* OpenCV 4.5.5
+* Picocli 4.6.3
 
 
 ## Version 0.3.2
