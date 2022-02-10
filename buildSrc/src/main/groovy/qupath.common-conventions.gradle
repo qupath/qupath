@@ -103,18 +103,14 @@ ext {
     imagejVersion      = '1.53i'
     jfxtrasVersion     = '11-r2'
     jtsVersion         = '1.18.2'
-    picocliVersion     = '4.6.2'
+    picocliVersion     = '4.6.3'
     
     // Note, if OpenCV is a SNAPSHOT version then it must already be installed locally (with Maven)
-    if (isAppleSilicon) {
-	    javacppVersion     = '1.5.7-SNAPSHOT'
-	    opencvVersion      = "4.5.5-${javacppVersion}"
-	} else {
-		javacppVersion     = '1.5.6'
-	    opencvVersion      = "4.5.3-${javacppVersion}"
-	}
+	javacppVersion     = '1.5.7'
+    opencvVersion      = "4.5.5-${javacppVersion}"
+
 	// Optional, not used by default
-	cudaVersion        = "11.4-8.2-${javacppVersion}"
+	cudaVersion        = "11.6-8.3-${javacppVersion}"
 
     // Additional versions
     logbackVersion     = '1.2.10'
