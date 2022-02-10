@@ -101,11 +101,7 @@ public class ThreadTools {
 		private int priority;
 	
 		SimpleThreadFactory(final String prefix, final boolean daemon, final int priority) {
-			SecurityManager s = System.getSecurityManager();
-			if (s == null)
-				group = Thread.currentThread().getThreadGroup();
-			else
-				group = s.getThreadGroup();
+			this.group = Thread.currentThread().getThreadGroup();
 			this.prefix = prefix;
 			this.daemon = daemon;
 			this.priority = Math.max(Thread.MIN_PRIORITY, Math.min(Thread.MAX_PRIORITY, priority));
