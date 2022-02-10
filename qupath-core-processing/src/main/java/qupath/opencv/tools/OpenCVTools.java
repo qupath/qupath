@@ -2188,7 +2188,13 @@ public class OpenCVTools {
 	 * @return number of connected components, equal to the value of the highest integer label
 	 */
 	public static int label(Mat matBinary, Mat matLabels, int connectivity) {
-		return opencv_imgproc.connectedComponents(matBinary, matLabels, connectivity, opencv_core.CV_32S) - 1;
+		// See https://github.com/opencv/opencv/pull/21275/files
+		// Error causing segfault introduced in OpenCV 4.5.5, see https://github.com/opencv/opencv/issues/21366
+		// Therefore here we try to revert to the previous default algorithms.
+		// TODO: For OpenCV > 4.5.5 can likely revert back to connectedComponents again, since the bug has been fixed
+		int alg = connectivity == 8 ? opencv_imgproc.CCL_GRANA : opencv_imgproc.CCL_SAUF;
+		return opencv_imgproc.connectedComponentsWithAlgorithm(matBinary, matLabels, connectivity, opencv_core.CV_32S, alg) - 1;
+//		return opencv_imgproc.connectedComponents(matBinary, matLabels, connectivity, opencv_core.CV_32S) - 1;
 	}
 	
 	/**
