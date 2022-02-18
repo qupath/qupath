@@ -224,7 +224,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected ObjectProperty<Language> currentLanguage = new SimpleObjectProperty<>();
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
-	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNull());
+	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNotEqualTo(Language.GROOVY));
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private StringBinding title = Bindings.createStringBinding(() -> {
@@ -322,12 +322,23 @@ public class DefaultScriptEditor implements ScriptEditor {
 			if (n == null || n.getLanguage() == null)
 				return;
 			currentLanguage.set(n.getLanguage());
+			setToggle(n.getLanguage());
 		});
 		bgLanguages.selectedToggleProperty().addListener((v, o, n) -> currentLanguage.set(Language.fromString((String) n.getUserData())));
 //		createDialog();
 	}
 	
 	
+	private void setToggle(Language language) {
+		for (Toggle button : bgLanguages.getToggles()) {
+			if (language.toString().equals(button.getUserData())) {
+				bgLanguages.selectToggle(button);
+				break;
+			}
+		}
+	}
+
+
 	private void initializeActions() {
 		copyAction = createCopyAction("Copy", null);
 		cutAction = createCutAction("Cut", null);
@@ -453,13 +464,8 @@ public class DefaultScriptEditor implements ScriptEditor {
 				tab.splitEditor.setDividerPosition(0, selectedScript.get().splitEditor.getDividers().get(0).getPosition());
 			
 			// Update the selected language
-			String languageName = tab.getLanguage().toString();
-			for (Toggle button : bgLanguages.getToggles()) {
-				if (languageName.equals(button.getUserData())) {
-					bgLanguages.selectToggle(button);
-					break;
-				}
-			}
+			Language language = tab.getLanguage();
+			setToggle(language);
 		}
 		
 		selectedScript.set(tab);
@@ -2265,7 +2271,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	@Override
 	public void showEditor() {
-		if (dialog == null || !dialog.isShowing())
+		if (dialog == null)
 			createDialog();
 		// Create a new script if we need one
 		if (listScripts.getItems().isEmpty())

@@ -2,8 +2,6 @@ package qupath.lib.gui.scripting.richtextfx;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -11,16 +9,11 @@ import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
-import javafx.concurrent.Task;
-import qupath.lib.common.ThreadTools;
-
 /**
  * Styling to apply to a {@link CodeArea}, based on Groovy syntax.
  * @author Melvin Gelbard
  */
-public class GroovyStyling implements ScriptStyling {
-	
-//	final private static Logger logger = LoggerFactory.getLogger(GroovyStyling.class);
+public class GroovyStyling implements ScriptHighlighting {
 	
 	private static final String[] KEYWORDS = new String[] {
             "abstract", "assert", "boolean", "break", "byte",
@@ -33,13 +26,11 @@ public class GroovyStyling implements ScriptStyling {
             "return", "short", "static", "strictfp", "super",
             "switch", "synchronized", "this", "throw", "throws",
             "transient", "try", "void", "volatile", "while",
-            "def", "in", "with", "trait", "true", "false", "var" // Groovy
+            "def", "in", "with", "trait", "true", "false", "var"
     };
 	
 	private static Pattern PATTERN;
-//	private static Pattern PATTERN_CONSOLE;
-
-	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-groovy-styling", true));
+	private static Pattern PATTERN_CONSOLE;
 	
 	static {
 		final String KEYWORD_PATTERN = "\\b(" + String.join("|", KEYWORDS) + ")\\b";
@@ -67,13 +58,13 @@ public class GroovyStyling implements ScriptStyling {
 	    );
 	    
 	    
-//	    final String WARNING_PATTERN = "WARN[^\n]*";
-//	    final String ERROR_PATTERN = "ERROR:[^\n]*";
+	    final String WARNING_PATTERN = "WARN[^\n]*";
+	    final String ERROR_PATTERN = "ERROR:[^\n]*";
 	    
-//	    PATTERN_CONSOLE = Pattern.compile(
-//	            "(?<ERROR>" + ERROR_PATTERN + ")"
-//	            + "|(?<WARN>" + WARNING_PATTERN + ")"
-//	    );
+	    PATTERN_CONSOLE = Pattern.compile(
+	            "(?<ERROR>" + ERROR_PATTERN + ")"
+	            + "|(?<WARN>" + WARNING_PATTERN + ")"
+	    );
 		
 	}
 	
@@ -82,18 +73,7 @@ public class GroovyStyling implements ScriptStyling {
 	}
 	
 	@Override
-	public Task<StyleSpans<Collection<String>>> computeHighlightingAsync(final String text) {
-		Task<StyleSpans<Collection<String>>> task = new Task<>() {
-			@Override
-			protected StyleSpans<Collection<String>> call() {
-				return computeHighlighting(text);
-			}
-		};
-		executor.execute(task);	// TODO: Check if this is redundant
-		return task;
-	}
-	
-	private static StyleSpans<Collection<String>> computeHighlighting(final String text) {
+	public StyleSpans<Collection<String>> computeEditorHighlighting(final String text) {
         Matcher matcher = PATTERN.matcher(text);
         int lastKwEnd = 0;
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
@@ -108,6 +88,24 @@ public class GroovyStyling implements ScriptStyling {
                     matcher.group("DOUBLEQUOTES") != null ? "string" :
                     matcher.group("SINGLEQUOTES") != null ? "string" :
                     matcher.group("COMMENT") != null ? "comment" :
+                    null; /* never happens */
+            assert styleClass != null;
+            spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
+            spansBuilder.add(Collections.singleton(styleClass), matcher.end() - matcher.start());
+            lastKwEnd = matcher.end();
+        }
+        spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
+        return spansBuilder.create();
+    }
+
+	@Override
+	public StyleSpans<Collection<String>> computeConsoleHighlighting(final String text) {
+        Matcher matcher = PATTERN_CONSOLE.matcher(text);
+        int lastKwEnd = 0;
+        StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
+        while (matcher.find()) {
+            String styleClass =
+                    matcher.group("ERROR") != null ? "error" :
                     null; /* never happens */
             assert styleClass != null;
             spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);

@@ -28,31 +28,30 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
 import org.fxmisc.richtext.model.StyleSpans;
-import org.fxmisc.richtext.model.StyleSpansBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
 import qupath.lib.gui.scripting.QPEx;
@@ -94,11 +93,11 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	// Store the method names for auto-completion
 	private static final Set<String> METHOD_NAMES = new HashSet<>();
 	
-	private static Pattern PATTERN_CONSOLE;
+	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
 	private static KeyCodeCombination completionCode = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
 	
-	final ObjectProperty<ScriptStyling> scriptStyling = new SimpleObjectProperty<>();
+	final ObjectProperty<ScriptHighlighting> scriptStyling = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
 	private static int delayMillis = 100;
@@ -157,14 +156,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 //		}
 		METHOD_NAMES.add("print");
 		METHOD_NAMES.add("println");
-		
-		final String WARNING_PATTERN = "WARN[^\n]*";
-	    final String ERROR_PATTERN = "ERROR:[^\n]*";
-	    
-		PATTERN_CONSOLE = Pattern.compile(
-	            "(?<ERROR>" + ERROR_PATTERN + ")"
-	            + "|(?<WARN>" + WARNING_PATTERN + ")"
-	    );
 	}
 	
 	/**
@@ -263,11 +254,22 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
 			
+			
+			
 			@SuppressWarnings("unused")
 			var cleanup = codeArea
 					.multiPlainChanges()
 					.successionEnds(Duration.ofMillis(delayMillis))
-					.supplyTask(() -> scriptStyling.get().computeHighlightingAsync(codeArea.getText()))
+					.supplyTask(() -> {
+						Task<StyleSpans<Collection<String>>> task = new Task<>() {
+							@Override
+							protected StyleSpans<Collection<String>> call() {
+								return scriptStyling.get().computeEditorHighlighting(codeArea.getText());
+							}
+						};
+						executor.execute(task);
+						return task;
+					})
 					.awaitLatest(codeArea.multiPlainChanges())
 					.filterMap(t -> {
 						if (t.isSuccess())
@@ -300,12 +302,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			scriptStyling.addListener((v, o, n) -> {
 				if (n == null)
 					return;
-				try {
-					StyleSpans<Collection<String>> changes = scriptStyling.get().computeHighlightingAsync(codeArea.getText()).get();
-					codeArea.setStyleSpans(0, changes);
-				} catch (InterruptedException | ExecutionException ex) {
-					logger.warn("Could not apply styling", ex.getLocalizedMessage());
-				}
+				StyleSpans<Collection<String>> changes = scriptStyling.get().computeEditorHighlighting(codeArea.getText());
+				codeArea.setStyleSpans(0, changes);
 			});
 
 			return control;
@@ -328,10 +326,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				// If anything was removed, do full reformatting
 				if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
 					if (!change.getRemoved().getText().equals(change.getInserted().getText()))
-						codeArea.setStyleSpans(0, computeConsoleHighlighting(codeArea.getText()));					
+						codeArea.setStyleSpans(0, scriptStyling.get().computeConsoleHighlighting(codeArea.getText()));
 				} else {
 					// Otherwise format only from changed position onwards
-					codeArea.setStyleSpans(change.getPosition(), computeConsoleHighlighting(change.getInserted().getText()));
+					codeArea.setStyleSpans(change.getPosition(), scriptStyling.get().computeConsoleHighlighting(change.getInserted().getText()));
 				}
 			});
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
@@ -360,25 +358,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			completor = new AutoCompletor(control);
 		completor.applyNextCompletion();
 	}
-	
-	
-	private static StyleSpans<Collection<String>> computeConsoleHighlighting(final String text) {
-        Matcher matcher = PATTERN_CONSOLE.matcher(text);
-        int lastKwEnd = 0;
-        StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
-        while (matcher.find()) {
-            String styleClass =
-                    matcher.group("ERROR") != null ? "error" :
-                    matcher.group("WARN") != null ? "warning" :
-                    null; /* never happens */
-            assert styleClass != null;
-            spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
-            spansBuilder.add(Collections.singleton(styleClass), matcher.end() - matcher.start());
-            lastKwEnd = matcher.end();
-        }
-        spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
-        return spansBuilder.create();
-    }
 	
 	/**
 	 * Helper class for toggling through completions.
