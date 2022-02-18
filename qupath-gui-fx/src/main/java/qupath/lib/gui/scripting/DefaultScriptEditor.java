@@ -60,33 +60,23 @@ import org.controlsfx.dialog.ProgressDialog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sun.javafx.css.PseudoClassState;
-
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Control;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.IndexRange;
-import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
@@ -95,7 +85,6 @@ import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleGroup;
@@ -106,10 +95,6 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.text.Font;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -122,10 +107,8 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.Dialogs.DialogButton;
 import qupath.lib.gui.dialogs.ProjectDialogs;
 import qupath.lib.gui.logging.LogManager;
-import qupath.lib.gui.logging.TextAppendable;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.projects.Project;
@@ -145,8 +128,8 @@ import qupath.lib.scripting.QP;
  * Warning: This is likely to be replaced by a monolingual editor, supporting Groovy only.
  * 
  * @author Pete Bankhead
- *
  */
+// TODO : Add language specific if blocks in all the 'handleXXX()' methods
 public class DefaultScriptEditor implements ScriptEditor {
 
 	final static private Logger logger = LoggerFactory.getLogger(DefaultScriptEditor.class);
@@ -157,6 +140,10 @@ public class DefaultScriptEditor implements ScriptEditor {
 	 * Warning: This is likely to be removed in the future, in favor of stronger support for Groovy only.
 	 */
 	public enum Language {
+		/**
+		 * Plain text
+		 */
+		PLAIN("None", ".txt", ""),
 		/**
 		 * Javascript support (will cease to be part of the JDK)
 		 */
@@ -197,12 +184,19 @@ public class DefaultScriptEditor implements ScriptEditor {
 		public String getLineCommentString() {
 			return lineComment;
 		}
+
+		static Language fromString(String languageName) {
+			for (Language l: values()) {
+				if (l.toString().equals(languageName))
+					return l;
+			}
+			return null;
+		}
 		
 		@Override
 		public String toString() {
 			return name;
 		}
-		
 	}
 	
 	
@@ -210,7 +204,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 //	private static final List<String> SUPPORTED_LANGUAGES = Collections.unmodifiableList(
 //			Arrays.asList("JavaScript", "Jython", "Groovy", "Ruby"));
 //	final private static Language DEFAULT_LANGUAGE = Language.JAVASCRIPT;
-	final private static String NO_LANGUAGE = "None";
+//	final private static String NO_LANGUAGE = "None";
 	
 	final private static String[] SCRIPT_EXTENSIONS = new String[]{"js", "py", "groovy", "rb", "txt"};
 	
@@ -219,22 +213,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private static int untitledCounter = 0; // For incrementing untitled scripts
 	
 	private ObjectProperty<Future<?>> runningTask = new SimpleObjectProperty<>();
-	
+
 	private QuPathGUI qupath;
 	private Stage dialog;
 	private SplitPane splitMain;
-	private ToggleGroup bgLanguages;
+	private ToggleGroup bgLanguages = new ToggleGroup();
 	private Font fontMain = Font.font("Courier");
 	
 	private ObjectProperty<ScriptTab> selectedScript = new SimpleObjectProperty<>();
-	
-	private StringBinding currentLanguage = javafx.beans.binding.Bindings.createStringBinding(
-			() -> {
-				if (selectedScript.get() == null || selectedScript.get().getLanguage() == null)
-					return null;
-				return selectedScript.get().getLanguage().toString();
-			},
-			selectedScript);
+	protected ObjectProperty<Language> currentLanguage = new SimpleObjectProperty<>();
 	
 	// Binding to indicate it shouldn't be possible to 'Run' any script right now
 	private BooleanBinding disableRun = runningTask.isNotNull().or(currentLanguage.isNull());
@@ -243,8 +230,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	private StringBinding title = Bindings.createStringBinding(() -> {
 		if (runningTask.get() == null)
 			return "Script Editor";
-		else
-			return "Script Editor (Running)";
+		return "Script Editor (Running)";
 	}, runningTask);
 	
 	// Accelerators that have been assigned to actions
@@ -332,6 +318,12 @@ public class DefaultScriptEditor implements ScriptEditor {
 	public DefaultScriptEditor(final QuPathGUI qupath) {
 		this.qupath = qupath;
 		initializeActions();
+		selectedScript.addListener((v, o, n) -> {
+			if (n == null || n.getLanguage() == null)
+				return;
+			currentLanguage.set(n.getLanguage());
+		});
+		bgLanguages.selectedToggleProperty().addListener((v, o, n) -> currentLanguage.set(Language.fromString((String) n.getUserData())));
 //		createDialog();
 	}
 	
@@ -461,8 +453,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 				tab.splitEditor.setDividerPosition(0, selectedScript.get().splitEditor.getDividers().get(0).getPosition());
 			
 			// Update the selected language
-			Language language = tab.getLanguage();
-			String languageName = language == null ? NO_LANGUAGE : language.toString();
+			String languageName = tab.getLanguage().toString();
 			for (Toggle button : bgLanguages.getToggles()) {
 				if (languageName.equals(button.getUserData())) {
 					bgLanguages.selectToggle(button);
@@ -519,7 +510,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	protected ScriptEditorControl getNewConsole() {
 		TextArea consoleArea = new TextArea();
 		consoleArea.setEditable(false);
-		return new ScriptEditorTextArea(consoleArea);
+		return new TextAreaControl(consoleArea);
 	}
 
 	protected ScriptEditorControl getNewEditor() {
@@ -527,7 +518,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		editor.setWrapText(false);
 		editor.setFont(fontMain);
 		
-		ScriptEditorTextArea control = new ScriptEditorTextArea(editor);
+		TextAreaControl control = new TextAreaControl(editor);
 		editor.addEventFilter(KeyEvent.KEY_PRESSED, (KeyEvent e) -> {
 	        if (e.getCode() == KeyCode.TAB) {
 	        	handleTabPress(control, e.isShiftDown());
@@ -626,7 +617,6 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 		// Languages menu - ensure each language only gets added once
 		Menu menuLanguages = new Menu("Language");
-		bgLanguages = new ToggleGroup();
 		RadioMenuItem radioMenuItem;
 		for (Language language : new LinkedHashSet<>(availableLanguages)) {
 			String languageName = language.toString();
@@ -634,14 +624,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 			radioMenuItem.setToggleGroup(bgLanguages);
 			radioMenuItem.setUserData(languageName);
 			menuLanguages.getItems().add(radioMenuItem);
-			radioMenuItem.setOnAction(e -> switchLanguage(languageName));
+			radioMenuItem.setOnAction(e -> setCurrentTabLanguage(language));
 		}
 		menuLanguages.getItems().add(new SeparatorMenuItem());
-		radioMenuItem = new RadioMenuItem(NO_LANGUAGE);
+		radioMenuItem = new RadioMenuItem(Language.PLAIN.toString());
 		radioMenuItem.setToggleGroup(bgLanguages);
-		radioMenuItem.setUserData(NO_LANGUAGE);
-		bgLanguages.selectToggle(radioMenuItem);
-		radioMenuItem.setOnAction(e -> switchLanguage(NO_LANGUAGE));
+		radioMenuItem.setUserData(Language.PLAIN.toString());
+		radioMenuItem.setOnAction(e -> setCurrentTabLanguage(Language.PLAIN));
+		
+		// Setting the default language (Groovy in this case), or if not present, the first one available
+		var defaultLanguage = bgLanguages.getToggles().stream().filter(t -> t.getUserData().equals(Language.GROOVY)).findFirst().orElseGet(() -> bgLanguages.getToggles().get(0));
+		bgLanguages.selectToggle(defaultLanguage);
+		
 		menuLanguages.getItems().add(radioMenuItem);
 		
 		menubar.getMenus().add(menuLanguages);
@@ -743,18 +737,14 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	
-	void switchLanguage(final String languageName) {
+	void setCurrentTabLanguage(final Language language) {
 		ScriptTab tab = getCurrentScriptTab();
 		if (tab == null)
 			return;
-		if (NO_LANGUAGE.equals(languageName))
-			tab.setLanguage(null);
-		else {
-			for (Language l : Language.values()) {
-				if (l.toString().equals(languageName)) {
-					tab.setLanguage(l);
-					break;
-				}
+		for (Language l : Language.values()) {
+			if (l == language) {
+				tab.setLanguage(l);
+				break;
 			}
 		}
 	}
@@ -762,8 +752,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	
 	
 	protected Language getCurrentLanguage() {
-		ScriptTab tab = getCurrentScriptTab();
-		return tab == null ? null : tab.getLanguage();
+		return currentLanguage.get();
 	}
 	
 	protected ScriptTab getCurrentScriptTab() {
@@ -1932,7 +1921,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 		private long lastModified = -1L;
 		private String lastSavedContents = null;
 		
-		private Language language = null;
+		private ObjectProperty<Language> language = new SimpleObjectProperty<>();
 		
 //		private BooleanProperty isModified = new SimpleBooleanProperty();
 		private boolean isModified = false;
@@ -1948,11 +1937,11 @@ public class DefaultScriptEditor implements ScriptEditor {
 		
 		public ScriptTab(final String script, final Language language) {
 			initialize();
+			this.language.set(language);
 			if (script != null)
 				editor.setText(script);
 			untitledCounter++;
 			name = "Untitled " + untitledCounter;
-			setLanguage(language);
 		}
 		
 		public ScriptTab(final File file) throws IOException {
@@ -2086,17 +2075,15 @@ public class DefaultScriptEditor implements ScriptEditor {
 		}
 		
 		public Language getLanguage() {
-			return language;
+			return language.get();
 		}
 		
 		public void setLanguage(final Language language) {
-			this.language = language;
+			this.language.set(language);
 		}
 		
 		public String getRequestedExtension() {
-			if (language == null)
-				return ".txt";
-			return language.getExtension();
+			return language.get().getExtension();
 		}
 		
 		public String getName() {
@@ -2182,7 +2169,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 	}
 	
 	Action createFindAction(final String name) {
-		ScriptFindCommand findCommand = new ScriptFindCommand();
+		ScriptFindCommand findCommand = new ScriptFindCommand(this);
 		Action action = new Action(name, e -> {
 			findCommand.run();
 			e.consume();
@@ -2290,7 +2277,7 @@ public class DefaultScriptEditor implements ScriptEditor {
 
 	@Override
 	public void showScript(String name, String script) {
-		if (dialog == null || !dialog.isShowing())
+		if (dialog == null)
 			createDialog();
 		addNewScript(script, getDefaultLanguage(), true);
 		if (!dialog.isShowing())
@@ -2308,579 +2295,18 @@ public class DefaultScriptEditor implements ScriptEditor {
 	@Override
 	public void showScript(File file) {
 		try {
-			if (dialog == null || !dialog.isShowing())
+			if (dialog == null)
 				createDialog();
 			addScript(file, true);
-			if (!dialog.isShowing()) {
+			if (!dialog.isShowing())
 				dialog.show();
-			}
+			
 		} catch (Exception e) {
 			logger.error("Could not load script from {}", file);
 			logger.error("", e);
 		}
 	}
-	
-	
-	/**
-	 * Basic script editor control.
-	 * The reason for its existence is to enable custom script editors to be implemented that provide additional functionality 
-	 * (e.g. syntax highlighting), but do not rely upon subclassing any specific JavaFX control.
-	 * <p>
-	 * Note: This is rather cumbersome, and may be removed in the future if the script editor design is revised.
-	 */
-	public static interface ScriptEditorControl extends TextAppendable {
-		
-		/**
-		 * Text currently in the editor control.
-		 * @return
-		 */
-		public StringProperty textProperty();
-		
-		/**
-		 * Set all the text in the editor.
-		 * @param text
-		 */
-		public void setText(final String text);
 
-		/**
-		 * Get all the text in the editor;
-		 * @return
-		 */
-		public String getText();
-		
-		/**
-		 * Deselect any currently-selected text.
-		 */
-		public void deselect();
-		
-		/**
-		 * Get the range of the currently-selected text.
-		 * @return
-		 */
-		public IndexRange getSelection();
-
-		/**
-		 * Set the range of the selected text.
-		 * @param startIdx
-		 * @param endIdx
-		 */
-		public void selectRange(int startIdx, int endIdx);
-
-		/**
-		 * Text currently selected in the editor control.
-		 * @return
-		 */
-		public ObservableValue<String> selectedTextProperty();
-		
-		/**
-		 * Get the value of {@link #selectedTextProperty()}.
-		 * @return
-		 */
-		public String getSelectedText();
-		
-		/**
-		 * Returns true if 'undo' can be applied to the control.
-		 * @return
-		 */
-		public boolean isUndoable();
-		
-		/**
-		 * Returns true if 'redo' can be applied to the control.
-		 * @return
-		 */
-		public boolean isRedoable();
-		
-		/**
-		 * Get the region representing this control, so it may be added to a scene.
-		 * @return
-		 */
-		public Region getControl();
-		
-		/**
-		 * Set the popup menu for this control.
-		 * @param menu
-		 */
-		public void setPopup(ContextMenu menu);
-		
-		/**
-		 * Request undo.
-		 */
-		public void undo();
-		
-		/**
-		 * Request redo.
-		 */
-		public void redo();
-		
-		/**
-		 * Request copy the current selection.
-		 */
-		public void copy();
-		
-		/**
-		 * Request cut the current selection.
-		 */
-		public void cut();
-		
-		/**
-		 * Request paste the specified text.
-		 * @param text 
-		 */
-		public void paste(String text);
-		
-		@Override
-		public void appendText(final String text);
-		
-		/**
-		 * Request clear the contents of the control.
-		 */
-		public void clear();
-		
-		/**
-		 * Get the current caret position.
-		 * @return
-		 */
-		public int getCaretPosition();
-		
-		/**
-		 * Request inserting the specified text.
-		 * @param pos position to insert the text
-		 * @param text the text to insert
-		 */
-		public void insertText(int pos, String text);
-
-		/**
-		 * Request deleting the text within the specified range.
-		 * @param startIdx
-		 * @param endIdx
-		 */
-		public void deleteText(int startIdx, int endIdx);
-
-		/**
-		 * Focused property of the control.
-		 * @return
-		 */
-		public ReadOnlyBooleanProperty focusedProperty();
-		
-		/**
-		 * Set the caret position to the specified index
-		 * @param index
-		 */
-		public void positionCaret(int index);
-
-		/**
-		 * Request that the X and Y scrolls are adjusted to ensure the caret is visible.
-		 * <p>
-		 * This method does nothing by default. 
-		 * This means that a class extending this interface must specifically implement this method if a different behavior is expected.
-		 */
-		public default void requestFollowCaret() {
-			return;
-		}
-
-	}
-	
-	
-	static class ScriptEditorTextArea implements ScriptEditorControl {
-		
-		private TextArea textArea;
-		
-		ScriptEditorTextArea(final TextArea textArea) {
-			this.textArea = textArea;
-		}
-
-		@Override
-		public StringProperty textProperty() {
-			return textArea.textProperty();
-		}
-
-		@Override
-		public void setText(String text) {
-			textArea.setText(text);
-		}
-
-		@Override
-		public String getText() {
-			return textArea.getText();
-		}
-
-		@Override
-		public ObservableValue<String> selectedTextProperty() {
-			return textArea.selectedTextProperty();
-		}
-
-		@Override
-		public String getSelectedText() {
-			return textArea.getSelectedText();
-		}
-
-		@Override
-		public Control getControl() {
-			return textArea;
-		}
-
-		@Override
-		public boolean isUndoable() {
-			return textArea.isUndoable();
-		}
-
-		@Override
-		public boolean isRedoable() {
-			return textArea.isRedoable();
-		}
-
-		@Override
-		public void undo() {
-			textArea.undo();
-		}
-
-		@Override
-		public void redo() {
-			textArea.redo();
-		}
-
-		@Override
-		public void copy() {
-			textArea.copy();
-		}
-
-		@Override
-		public void cut() {
-			textArea.cut();
-		}
-
-		@Override
-		public void paste(String text) {
-			if (text != null)
-				textArea.replaceSelection(text);
-//			textArea.paste();
-		}
-
-		@Override
-		public void clear() {
-			textArea.clear();
-		}
-
-		@Override
-		public void appendText(final String text) {
-			textArea.appendText(text);
-		}
-
-		@Override
-		public ReadOnlyBooleanProperty focusedProperty() {
-			return textArea.focusedProperty();
-		}
-		
-		@Override
-		public int getCaretPosition() {
-			return textArea.getCaretPosition();
-		}
-		
-		@Override
-		public void insertText(int pos, String text) {
-			textArea.insertText(pos, text);
-		}
-		
-		@Override
-		public void deleteText(int startIdx, int endIdx) {
-			textArea.deleteText(startIdx, endIdx);
-		}
-
-		@Override
-		public void deselect() {
-			textArea.deselect();
-		}
-
-		@Override
-		public IndexRange getSelection() {
-			return textArea.getSelection();
-		}
-
-		@Override
-		public void selectRange(int startIdx, int endIdx) {
-			textArea.selectRange(startIdx, endIdx);
-		}
-
-		@Override
-		public void setPopup(ContextMenu menu) {
-			textArea.setContextMenu(menu);
-		}
-
-		@Override
-		public void positionCaret(int index) {
-			textArea.positionCaret(index);
-		}
-	}
-	
-	
-	
-	class ScriptFindCommand implements Runnable {
-		
-		private Stage stage;
-		private TextField tfFind = new TextField();
-		private TextField tfReplace = new TextField();
-		private Button btNext = new Button("Next");
-		private Label lbReplacedOccurrences = new Label();
-		private Label lbFoundOccurrences = new Label();
-		private CheckBox cbIgnoreCase = new CheckBox("Ignore case");
-		private double xPos = -1;
-		private double yPos = -1;
-		
-		private EventHandler<KeyEvent> eventHandler = e -> {
-			if (e.getCode() == KeyCode.ENTER) {
-				findNextAction(true);
-				e.consume();
-			}};
-		
-		@Override
-		public void run() {
-			if (stage != null)
-				stage.hide();		// Only way to request focus to stage when it's not hidden
-
-			// If some text is selected in the main text component, use it as search query
-			var selectedText = getCurrentTextComponent().getSelectedText();
-			if (!selectedText.isEmpty()) {
-				// StringIndexOutOfBoundsException can occur if selectedText == a tab (\t)
-				if (selectedText.replace("\t", "").length() != 0) {
-					tfFind.setText(selectedText);
-					btNext.requestFocus();
-				} else
-					tfFind.setText("");
-			} else
-				tfFind.selectAll();
-			
-			createFindStage();
-			lbReplacedOccurrences.setText("");
-			lbFoundOccurrences.setText("");
-			stage.show();
-			tfFind.requestFocus();
-			
-			tfFind.addEventFilter(KeyEvent.KEY_PRESSED, eventHandler);
-			tfReplace.addEventFilter(KeyEvent.KEY_PRESSED, eventHandler);
-		}
-		
-		private void createFindStage() {
-			stage = new Stage();
-			stage.setTitle("Find/Replace");
-			stage.initOwner(DefaultScriptEditor.this.dialog);
-			stage.initModality(Modality.NONE);
-			stage.setOnHiding(e -> {
-				xPos = stage.getX();
-				yPos = stage.getY();
-				stage = null;
-			});
-			
-			Button btPrevious = new Button("Previous");
-			Button btClose = new Button("Close");
-			Button btReplaceNext = new Button("Replace/Next");
-			Button btReplaceAll = new Button("Replace all");
-			
-			GridPane pane = new GridPane();
-			pane.setVgap(10);
-			pane.setHgap(10);
-			tfFind.setMinWidth(350.0);
-			tfReplace.setMinWidth(350.0);
-			lbFoundOccurrences.setMinWidth(150);
-		    HBox.setHgrow(lbFoundOccurrences, Priority.ALWAYS);
-			
-			int row = 0;
-			PaneTools.addGridRow(pane, row++, 0, "Enter the text to find", new Label("Find: "), tfFind, tfFind, tfFind);
-			PaneTools.addGridRow(pane, row++, 0, "Replace instance of query with the specified word", new Label("Replace with: "), tfReplace, tfReplace, tfReplace);
-			PaneTools.addGridRow(pane, row++, 0, "Ignore case when searching query", cbIgnoreCase, cbIgnoreCase, cbIgnoreCase, cbIgnoreCase);
-			PaneTools.addGridRow(pane, row++, 0, null, btReplaceNext, btReplaceAll, lbReplacedOccurrences, lbReplacedOccurrences);
-			PaneTools.addGridRow(pane, row++, 0, null, btPrevious, btNext, lbFoundOccurrences, btClose);
-			
-			btPrevious.setMinWidth(100.0);
-			btNext.setMinWidth(100.0);
-			btReplaceNext.setMinWidth(100.0);
-			btReplaceAll.setMinWidth(100.0);
-			btClose.setMinWidth(100.0);
-			
-			// Make the 'Next' button appear as if it's in focus, except when other buttons are pressed
-			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
-			
-			tfFind.focusedProperty().addListener((v, o, n) -> {
-				if (n)
-					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
-			});
-			tfReplace.focusedProperty().addListener((v, o, n) -> {
-				if (n)
-					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
-			});
-
-//			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN));
-//			actionNext.setAccelerator(new KeyCodeCombination(KeyCode.P, KeyCombination.SHORTCUT_DOWN));
-			
-			stage.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
-				if (e.getCode() == KeyCode.ESCAPE) {
-					btClose.fire();
-					e.consume();
-				}
-			});
-			
-			btNext.setOnAction(e -> findNextAction(true));
-			btPrevious.setOnAction(e -> findPrevious(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
-			btNext.disableProperty().bind(tfFind.textProperty().isEmpty());
-			btPrevious.disableProperty().bind(tfFind.textProperty().isEmpty());
-			btReplaceNext.disableProperty().bind(tfFind.textProperty().isEmpty()
-					.or(Bindings.createBooleanBinding(() -> {
-						if (cbIgnoreCase.isSelected())
-							return !tfFind.getText().toLowerCase().equals(getCurrentTextComponent().selectedTextProperty().getValue().toLowerCase());
-						return !tfFind.getText().equals(getCurrentTextComponent().selectedTextProperty().getValue());
-					}, getCurrentTextComponent().selectedTextProperty(), cbIgnoreCase.selectedProperty(), tfFind.textProperty())));
-			btReplaceAll.disableProperty().bind(tfFind.textProperty().isEmpty());
-			
-			btReplaceNext.setOnAction(e -> {
-				replaceFind(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
-				if (!getCurrentTextComponent().getText().contains(tfFind.getText())) {
-					// Remove focus-looking effect on 'Next' button
-					tfFind.requestFocus();
-					btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), true);
-				}
-			});
-			btReplaceAll.setOnAction(e -> replaceAll(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected()));
-			btClose.setOnAction(e -> stage.hide());
-			
-			pane.setPadding(new Insets(10.0, 10.0, 10.0, 10.0));
-			stage.setScene(new Scene(pane));
-			
-			// The previous position of the stage is lost at each run() call, so store it
-			if (xPos != -1 && yPos != -1) {
-				stage.setX(xPos);
-				stage.setY(yPos);
-			}
-		}
-		
-		private void findNextAction(boolean btNextFocus) {
-			int found = findNext(getCurrentTextComponent(), tfFind.getText(), cbIgnoreCase.isSelected());
-			lbFoundOccurrences.setText(found == -1 ? "String not found" : "");
-			lbReplacedOccurrences.setText("");
-			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), btNextFocus);
-		}
-		
-		/**
-		 * Replace the current selection and selects the next matching query.
-		 * @param control
-		 * @param text
-		 * @param ignoreCase
-		 */
-		private void replaceFind(ScriptEditorControl control, String text, boolean ignoreCase) {
-			// Remove focus-looking effect on 'Next' button
-			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
-			
-			lbReplacedOccurrences.setText("");
-			lbFoundOccurrences.setText("");
-			
-			var selected = control.getSelectedText();
-			var range = control.getSelection();
-			
-			// Replace selection
-			control.deleteText(range.getStart(), range.getEnd());
-			control.insertText(range.getStart(), tfReplace.getText());
-			
-			// Select next matching query
-			findNext(control, selected, ignoreCase);
-		}
-		
-		private void replaceAll(ScriptEditorControl control, String text, boolean ignoreCase) {
-			// Remove focus-looking effect on 'Next' button
-			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
-			
-			var controlText = control.getText();
-			var initialCaretPos = control.getSelection().getStart();	// Prefer this to getCaretPosition() because it deals better with selections
-			
-			// Using pattern here because replaceAll() on its own MIGHT match regex as well (e.g. "." would replace all chars)
-			Pattern pattern = Pattern.compile(text, Pattern.LITERAL | (ignoreCase ? Pattern.CASE_INSENSITIVE : 0) | Pattern.UNICODE_CASE);
-			String subTextTemp = pattern.matcher(controlText.substring(0, initialCaretPos)).replaceAll(tfReplace.getText());
-			int finalCaretPos = initialCaretPos + subTextTemp.length() - controlText.substring(0, initialCaretPos).length();
-			
-			var matcher = pattern.matcher(controlText);
-			var count = matcher.results().count();
-			if (count != 0) {
-				control.setText(matcher.replaceAll(tfReplace.getText()));
-				control.positionCaret(finalCaretPos);
-				control.requestFollowCaret();
-			}
-			
-			// Update labels
-			lbFoundOccurrences.setText("");
-			lbReplacedOccurrences.setText(count == 0 ? "String not found" : count + " match" + (count > 1 ? "es" : "") + " replaced");
-		}
-
-		/**
-		 * Return the index of the query''s first character if present in the text, -1 otherwise.
-		 * @param control
-		 * @param findText
-		 * @param ignoreCase
-		 * @return index of first char if found, -1 otherwise
-		 */
-		private int findNext(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
-			if (control == null || findText == null || findText.isEmpty())
-				return -1;
-			
-			String text = control.getText();
-			String toFind = null;
-			if (ignoreCase) {
-				toFind = findText.toLowerCase();
-				text = text.toLowerCase();
-			} else
-				toFind = findText;
-			if (!text.contains(toFind))
-				return -1;
-			
-			int pos = control.getSelection().getEnd();
-			int ind = text.substring(pos).indexOf(toFind);
-			// If not found, loop around
-			if (ind < 0)
-				ind = text.indexOf(toFind);
-			else
-				ind = ind + pos;
-			control.selectRange(ind, ind + toFind.length());
-			control.requestFollowCaret();
-			return ind;
-			
-		}
-		
-		/**
-		 * Return the index of the query's first character if present in the text, -1 otherwise.
-		 * @param control
-		 * @param findText
-		 * @param ignoreCase
-		 * @return index of first char if found, -1 otherwise
-		 */
-		private int findPrevious(final ScriptEditorControl control, final String findText, final boolean ignoreCase) {
-			lbFoundOccurrences.setText("String not found");
-			if (control == null || findText == null || findText.isEmpty())
-				return -1;
-			
-			// Remove focus-looking effect on 'Next' button
-			btNext.pseudoClassStateChanged(PseudoClassState.getPseudoClass("focused"), false);
-			
-			lbReplacedOccurrences.setText("");
-			
-			String text = control.getText();
-			String toFind = null;
-			if (ignoreCase) {
-				toFind = findText.toLowerCase();
-				text = text.toLowerCase();
-			} else
-				toFind = findText;
-			if (!text.contains(toFind))
-				return -1;
-			
-			int pos = control.getSelection().getStart();
-			int ind = pos == 0 ? text.lastIndexOf(toFind) : text.substring(0, pos).lastIndexOf(toFind);
-			// If not found, loop around
-			if (ind < 0)
-				ind = text.lastIndexOf(toFind);
-			control.selectRange(ind, ind + toFind.length());
-			control.requestFollowCaret();
-			
-			lbFoundOccurrences.setText(ind == -1 ? "String not found" : "");
-			return ind;
-		}
-	}
-	
 	static class CustomTextArea extends TextArea {
 		
 		CustomTextArea() {
