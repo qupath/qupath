@@ -23,18 +23,11 @@
 
 package qupath.lib.gui.scripting.richtextfx;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.time.Duration;
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
@@ -48,16 +41,12 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyCodeCombination;
-import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.scripting.DefaultScriptEditor;
-import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.gui.tools.MenuTools;
-import qupath.lib.scripting.QP;
 
 /*
  * 
@@ -90,73 +79,15 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	final private static Logger logger = LoggerFactory.getLogger(RichScriptEditor.class);
 	
-	// Store the method names for auto-completion
-	private static final Set<String> METHOD_NAMES = new HashSet<>();
-	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
-	private static KeyCodeCombination completionCode = new KeyCodeCombination(KeyCode.SPACE, KeyCombination.CONTROL_DOWN);
-	
 	final ObjectProperty<ScriptHighlighting> scriptStyling = new SimpleObjectProperty<>();
+	final ObjectProperty<ScriptAutoCompletor> scriptAutoCompletor = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
 	private static int delayMillis = 100;
-		
-	private AutoCompletor completor;	
+
 	private ContextMenu menu;
-	
-	static {
-		for (Method method : QPEx.class.getMethods()) {
-			// Exclude deprecated methods (don't want to encourage them...)
-			if (method.getAnnotation(Deprecated.class) == null)
-				METHOD_NAMES.add(method.getName());
-		}
-		
-		// Remove the methods that come from the Object class...
-		// they tend to be quite confusing
-		for (Method method : Object.class.getMethods()) {
-			if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers()))
-				METHOD_NAMES.remove(method.getName());
-		}
-		
-		for (Field field : QPEx.class.getFields()) {
-			if (Modifier.isStatic(field.getModifiers()) && Modifier.isPublic(field.getModifiers()))
-				METHOD_NAMES.add(field.getName());
-		}
-		
-		for (Class<?> cls : QP.getCoreClasses()) {
-			int countStatic = 0;
-			for (Method method : cls.getMethods()) {
-				if (Modifier.isStatic(method.getModifiers()) && Modifier.isPublic(method.getModifiers())) {
-					METHOD_NAMES.add(cls.getSimpleName() + "." + method.getName());
-					countStatic++;
-				}
-			}
-			if (countStatic > 0)
-				METHOD_NAMES.add(cls.getSimpleName() + ".");
-		}
-		
-//		for (Method method : ImageData.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathObjectHierarchy.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : TMACoreObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathCellObject.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-//		for (Method method : PathClassFactory.class.getMethods()) {
-//			METHOD_NAMES.add(method.getName());
-//		}
-		METHOD_NAMES.add("print");
-		METHOD_NAMES.add("println");
-	}
 	
 	/**
 	 * Constructor.
@@ -225,8 +156,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					handleQuotes(control, false);
 					e.consume();
 				}
-				if (!e.isConsumed())
-					matchMethodName(control, e);
 			});
 			
 			
@@ -246,10 +175,11 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				} else if (e.getCode() == KeyCode.BACK_SPACE) {
 					if (handleBackspace(control) && !e.isShortcutDown() && !e.isShiftDown())
 						e.consume();
-					
-				}
-				if (!e.isConsumed())
-					matchMethodName(control, e);
+				} else if (scriptAutoCompletor.get().getCodeCombination().match(e)) {
+					scriptAutoCompletor.get().applyNextCompletion();	// TODO: Check again if e.controlDown() is necessary
+					e.isConsumed();
+				} else
+					scriptAutoCompletor.get().resetCompletion(e);
 			});
 
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
@@ -298,6 +228,19 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				}
 			}, currentLanguage));
 			
+			scriptAutoCompletor.bind(Bindings.createObjectBinding(() -> {
+				Language l = getCurrentLanguage();
+				if (l == null)
+					return null;
+				switch(l) {
+				case GROOVY:
+					return new GroovyAutoCompletor(control);
+				case PLAIN:
+				default:
+					return new PlainAutoCompletor();
+				}
+			}, currentLanguage));
+			
 			// Triggered whenever the script styling changes (e.g. change of language)
 			scriptStyling.addListener((v, o, n) -> {
 				if (n == null)
@@ -340,80 +283,6 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			return super.getNewEditor();
 		}
 	}
-	
-	/**
-	 * Try to match and auto-complete a method name.
-	 * 
-	 * @param control
-	 * @param e
-	 */
-	private void matchMethodName(final ScriptEditorControl control, final KeyEvent e) {
-		if (!completionCode.match(e)) {
-			if (!e.isControlDown())
-				completor = null;
-			return;
-		}
-		e.consume();
-		if (completor == null)
-			completor = new AutoCompletor(control);
-		completor.applyNextCompletion();
-	}
-	
-	/**
-	 * Helper class for toggling through completions.
-	 * 
-	 * @author Pete Bankhead
-	 */
-	static class AutoCompletor {
-		
-		private final ScriptEditorControl control;
-		private int pos;
-		private List<String> completions;
-		private int idx = 0;
-		private String start; // Starting text
-		private String lastInsertion = null;
-		
-		AutoCompletor(final ScriptEditorControl control) {
-			this.control = control;
-			String text = control.getText();
-			this.pos = control.getCaretPosition();
-			String[] split = text.substring(0, pos).split("(\\s+)|(\\()|(\\))|(\\{)|(\\})|(\\[)|(\\])");
-			if (split.length == 0)
-				start = "";
-			else
-				start = split[split.length-1].trim();
-//			if (start.length() == 0)
-//				return;
-			
-			// Use all available completions if we have a dot included
-			if (text.contains("."))
-				completions = METHOD_NAMES.stream()
-						.filter(s -> s.startsWith(start))
-						.sorted()
-						.collect(Collectors.toList());
-			else
-				// Use only partial completions (methods, classes) if no dot
-				completions = METHOD_NAMES.stream()
-				.filter(s -> s.startsWith(start) && (!s.contains(".") || s.lastIndexOf(".") == s.length()-1))
-				.sorted()
-				.collect(Collectors.toList());				
-		}
-		
-		public void applyNextCompletion() {
-			if (completions.isEmpty())
-				return;
-			if (completions.size() == 0 && lastInsertion != null)
-				return;
-			if (lastInsertion != null && lastInsertion.length() > 0)
-				control.deleteText(pos, pos + lastInsertion.length());
-			lastInsertion = completions.get(idx).substring(start.length());// + "(";
-			control.insertText(pos, lastInsertion);
-			idx++;
-			idx = idx % completions.size();
-		}
-		
-	}
-	
 	
 	static class CustomCodeArea extends CodeArea {
 		
