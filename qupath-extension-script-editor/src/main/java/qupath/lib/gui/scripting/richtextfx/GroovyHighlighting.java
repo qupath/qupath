@@ -10,10 +10,10 @@ import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 /**
- * Styling to apply to a {@link CodeArea}, based on Groovy syntax.
+ * Highlighting to apply to a {@link CodeArea}, based on Groovy syntax.
  * @author Melvin Gelbard
  */
-public class GroovyStyling implements ScriptHighlighting {
+public class GroovyHighlighting implements ScriptHighlighting {
 	
 	private static final String[] KEYWORDS = new String[] {
             "abstract", "assert", "boolean", "break", "byte",
@@ -68,7 +68,7 @@ public class GroovyStyling implements ScriptHighlighting {
 		
 	}
 	
-	GroovyStyling() {
+	GroovyHighlighting() {
 		// Empty constructor
 	}
 	

@@ -81,7 +81,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 	
 	private ExecutorService executor = Executors.newSingleThreadExecutor(ThreadTools.createThreadFactory("rich-text-styling", true));
 	
-	final ObjectProperty<ScriptHighlighting> scriptStyling = new SimpleObjectProperty<>();
+	final ObjectProperty<ScriptHighlighting> scriptHighlighting = new SimpleObjectProperty<>();
 	final ObjectProperty<ScriptAutoCompletor> scriptAutoCompletor = new SimpleObjectProperty<>();
 
 	// Delay for async formatting, in milliseconds
@@ -144,16 +144,16 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					return;
 				
 				if ("(".equals(e.getCharacter())) {
-					handleLeftParenthesis(control);
+					scriptSyntax.get().handleLeftParenthesis(control, smartEditing.get());
 					e.consume();
 				} else if (")".equals(e.getCharacter())) {
-					handleRightParenthesis(control);
+					scriptSyntax.get().handleRightParenthesis(control, smartEditing.get());
 					e.consume();
 				} else if ("\"".equals(e.getCharacter())) {
-					handleQuotes(control, true);
+					scriptSyntax.get().handleQuotes(control, true, smartEditing.get());
 					e.consume();
 				} else if ("\'".equals(e.getCharacter())) {
-					handleQuotes(control, false);
+					scriptSyntax.get().handleQuotes(control, false, smartEditing.get());
 					e.consume();
 				}
 			});
@@ -164,16 +164,16 @@ public class RichScriptEditor extends DefaultScriptEditor {
 					return;
 				
 				if (e.getCode() == KeyCode.TAB) {
-					handleTabPress(control, e.isShiftDown());
+					scriptSyntax.get().handleTabPress(control, e.isShiftDown());
 					e.consume();
 				} else if (e.isShortcutDown() && e.getCode() == KeyCode.SLASH) {
-					handleLineComment(control);
+					scriptSyntax.get().handleLineComment(control);
 					e.consume();
 				} else if (e.getCode() == KeyCode.ENTER && codeArea.getSelectedText().length() == 0) {
-					handleNewLine(control);
+					scriptSyntax.get().handleNewLine(control, smartEditing.get());
 					e.consume();
 				} else if (e.getCode() == KeyCode.BACK_SPACE) {
-					if (handleBackspace(control) && !e.isShortcutDown() && !e.isShiftDown())
+					if (scriptSyntax.get().handleBackspace(control, smartEditing.get()) && !e.isShortcutDown() && !e.isShiftDown())
 						e.consume();
 				} else if (scriptAutoCompletor.get().getCodeCombination().match(e)) {
 					scriptAutoCompletor.get().applyNextCompletion();	// TODO: Check again if e.controlDown() is necessary
@@ -194,7 +194,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 						Task<StyleSpans<Collection<String>>> task = new Task<>() {
 							@Override
 							protected StyleSpans<Collection<String>> call() {
-								return scriptStyling.get().computeEditorHighlighting(codeArea.getText());
+								return scriptHighlighting.get().computeEditorHighlighting(codeArea.getText());
 							}
 						};
 						executor.execute(task);
@@ -215,16 +215,16 @@ public class RichScriptEditor extends DefaultScriptEditor {
 
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());
 			
-			scriptStyling.bind(Bindings.createObjectBinding(() -> {
+			scriptHighlighting.bind(Bindings.createObjectBinding(() -> {
 				Language l = getCurrentLanguage();
 				if (l == null)
 					return null;
 				switch(l) {
 				case GROOVY:
-					return new GroovyStyling();
+					return new GroovyHighlighting();
 				case PLAIN:
 				default:
-					return new PlainStyling();
+					return new PlainHighlighting();
 				}
 			}, currentLanguage));
 			
@@ -242,10 +242,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			}, currentLanguage));
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
-			scriptStyling.addListener((v, o, n) -> {
+			scriptHighlighting.addListener((v, o, n) -> {
 				if (n == null)
 					return;
-				StyleSpans<Collection<String>> changes = scriptStyling.get().computeEditorHighlighting(codeArea.getText());
+				StyleSpans<Collection<String>> changes = scriptHighlighting.get().computeEditorHighlighting(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);
 			});
 
@@ -269,10 +269,10 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				// If anything was removed, do full reformatting
 				if (change.getRemoved().length() != 0 || change.getPosition() == 0) {
 					if (!change.getRemoved().getText().equals(change.getInserted().getText()))
-						codeArea.setStyleSpans(0, scriptStyling.get().computeConsoleHighlighting(codeArea.getText()));
+						codeArea.setStyleSpans(0, scriptHighlighting.get().computeConsoleHighlighting(codeArea.getText()));
 				} else {
 					// Otherwise format only from changed position onwards
-					codeArea.setStyleSpans(change.getPosition(), scriptStyling.get().computeConsoleHighlighting(change.getInserted().getText()));
+					codeArea.setStyleSpans(change.getPosition(), scriptHighlighting.get().computeConsoleHighlighting(change.getInserted().getText()));
 				}
 			});
 			codeArea.getStylesheets().add(getClass().getClassLoader().getResource("scripting_styles.css").toExternalForm());

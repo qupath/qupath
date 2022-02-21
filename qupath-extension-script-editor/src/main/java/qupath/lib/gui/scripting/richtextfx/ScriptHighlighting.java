@@ -13,16 +13,16 @@ public interface ScriptHighlighting {
 
 	/**
 	 * Compute highlighting for the specified {@code text}, considering it will be used in the main editor..
-	 * @param text
-	 * @return stylespans
+	 * @param text the text to process highlighting for
+	 * @return stylespans the {@link StyleSpans} to apply
 	 */
 	StyleSpans<Collection<String>> computeEditorHighlighting(final String text);
 	
 	
 	/**
 	 * Compute highlighting for the specified {@code text}, considering it will be used in the console.
-	 * @param text
-	 * @return stylespans
+	 * @param text the text to process highlighting for
+	 * @return stylespans the {@link StyleSpans} to apply
 	 */
 	StyleSpans<Collection<String>> computeConsoleHighlighting(final String text);
 	

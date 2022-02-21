@@ -7,10 +7,10 @@ import org.fxmisc.richtext.model.StyleSpans;
 import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 /**
- * Styling for plain text.
+ * Highlighting for plain text (which means no highlighting).
  * @author Melvin Gelbard
  */
-public class PlainStyling implements ScriptHighlighting {
+public class PlainHighlighting implements ScriptHighlighting {
 	
 	@Override
 	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
