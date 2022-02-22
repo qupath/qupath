@@ -2839,13 +2839,15 @@ public class QuPathGUI {
 //			setInitialLocationAndMagnification(viewer);
 			if (imageData != null && (imageData.getImageType() == null || imageData.getImageType() == ImageType.UNSET)) {
 				var setType = PathPrefs.imageTypeSettingProperty().get();
-				if (setType == ImageTypeSetting.AUTO_ESTIMATE) {
+				if (setType == ImageTypeSetting.AUTO_ESTIMATE || setType == ImageTypeSetting.PROMPT) {
 					var type = GuiTools.estimateImageType(imageData.getServer(), imageRegionStore.getThumbnail(imageData.getServer(), 0, 0, true));
 					logger.info("Image type estimated to be {}", type);
-					imageData.setImageType(type);
-					imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
-				} else if (setType == ImageTypeSetting.PROMPT) {
-					ImageDetailsPane.promptToSetImageType(imageData);
+					if (setType == ImageTypeSetting.PROMPT) {
+						ImageDetailsPane.promptToSetImageType(imageData, type);
+					} else {
+						imageData.setImageType(type);
+						imageData.setChanged(false); // Don't want to retain this as a change resulting in a prompt to save the data
+					}
 				}
 			}
 			return true;
@@ -3080,8 +3082,10 @@ public class QuPathGUI {
 				viewer.setImageData(imageData);
 //				setInitialLocationAndMagnification(viewer);
 
-				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT)
-					ImageDetailsPane.promptToSetImageType(imageData);
+				if (imageData.getImageType() == ImageType.UNSET && PathPrefs.imageTypeSettingProperty().get() == ImageTypeSetting.PROMPT) {
+					var type = GuiTools.estimateImageType(serverNew, imageRegionStore.getThumbnail(serverNew, 0, 0, true));
+					ImageDetailsPane.promptToSetImageType(imageData, type);
+				}
 
 //				// Reset the object hierarchy to clear any ROIs etc.
 //				hierarchy.clearAll();
