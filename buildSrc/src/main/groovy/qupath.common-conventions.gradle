@@ -98,7 +98,7 @@ ext {
     commonsTextVersion = '1.9'
     controlsfxVersion  = '11.1.1'
     groovyVersion      = '4.0.0'
-    gsonVersion        = '2.8.9'
+    gsonVersion        = '2.9.0'
     guavaVersion       = '31.0.1-jre'
     imagejVersion      = '1.53i'
     jfxtrasVersion     = '11-r2'
