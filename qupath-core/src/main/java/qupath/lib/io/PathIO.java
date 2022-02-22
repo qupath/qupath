@@ -911,7 +911,7 @@ public class PathIO {
 	 */
 	public static Set<String> unzippedExtensions(Path path) throws IOException {
 		var content = Files.probeContentType(path);
-		if ("application/zip".equals(content) || "application/java-archive".equals(content)) {
+		if ((content != null && zipContent.contains(content)) || path.toString().toLowerCase().endsWith(".zip")) {
 			// In case we have more than one compressed file, iterate through each entry
 			Set<String> extensions = new LinkedHashSet<>();
 			try (var zipfs = FileSystems.newFileSystem(path, (ClassLoader) null)) {
@@ -932,6 +932,12 @@ public class PathIO {
 		}
 	}
 	
+	private static Set<String> zipContent = Set.of(
+			"application/zip",
+			"application/x-zip-compressed",
+			"application/java-archive"
+			);
+			
 	
 //	private static boolean serializePathObject(File file, PathObject pathObject) {
 //		boolean success = false;
