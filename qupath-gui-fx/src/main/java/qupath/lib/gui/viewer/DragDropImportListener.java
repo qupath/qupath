@@ -226,6 +226,20 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		// Gather together the extensions - if this has length one, we know all the files have the same extension
 		Set<String> allExtensions = list.stream().map(f -> GeneralTools.getExtension(f).orElse("")).collect(Collectors.toSet());
 		
+		// If we have a zipped file, create a set that includes the files within the zip image
+		// This helps us determine whether or not a zip file contains an image or objects, for example
+		Set<String> allUnzippedExtensions = allExtensions;
+		if (allExtensions.contains(".zip")) {
+			allUnzippedExtensions = list.stream().flatMap(f -> {
+				try {
+					return PathIO.unzippedExtensions(f.toPath()).stream();
+				} catch (IOException e) {
+					logger.debug(e.getLocalizedMessage(), e);
+					return Arrays.stream(new String[0]);
+				}
+			}).collect(Collectors.toSet());
+		}
+		
 		// Extract the first (and possibly only) file
 		File file = list.get(0);
 		
@@ -312,7 +326,7 @@ public class DragDropImportListener implements EventHandler<DragEvent> {
 		}
 		
 		// Check if it is an object file in GeoJSON format (.geojson)
-		if (allExtensions.size() == 1 && PathIO.getObjectFileExtensions().contains(allExtensions.iterator().next())) {
+		if (PathIO.getObjectFileExtensions(false).containsAll(allUnzippedExtensions)) {
 			if (imageData == null || hierarchy == null) {
 				Dialogs.showErrorMessage("Open object file", "Please open an image first to import objects!");
 				return;

@@ -48,12 +48,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Locale.Category;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -702,7 +704,7 @@ public class PathIO {
 				return new ArrayList<>(readHierarchy(stream).getRootObject().getChildObjects());	
 			}
 		}
-		logger.warn("Unable to read objects from {}", path.toString());
+		logger.debug("Unable to read objects from {}", path.toString());
 		return Collections.emptyList();
 	}
 	
@@ -792,11 +794,28 @@ public class PathIO {
 	private static String EXT_DATA = ".qpdata";
 	
 	/**
+	 * Get a list of known file extensions that may contain objects, optionally including compressed files.
+	 * @param includeCompressed if true, include extensions for any compressed files that might contain objects (e.g. .zip)
 	 * @return file extensions for files from which objects can be read.
 	 * @see #readObjects(Path)
+	 * @since v0.4.0
 	 */
+	public static List<String> getObjectFileExtensions(boolean includeCompressed) {
+		if (includeCompressed)
+			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, ".zip");
+		else
+			return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA);
+	}
+	
+	/**
+	 * Get a list of known file extensions that may contain objects.
+	 * @return file extensions for files from which objects can be read.
+	 * @see #readObjects(Path)
+	 * @deprecated use {@link #getObjectFileExtensions(boolean)} instead
+	 */
+	@Deprecated
 	public static List<String> getObjectFileExtensions() {
-		return Arrays.asList(EXT_JSON, EXT_GEOJSON, EXT_DATA, ".zip");
+		return getObjectFileExtensions(true);
 	}
 	
 	/**
@@ -875,6 +894,42 @@ public class PathIO {
 			gson.toJson(pathObjects, new TypeToken<List<PathObject>>() {}.getType(), writer);				
 		}
 		writer.flush();
+	}
+	
+	
+	/**
+	 * Get the extension of a file, or of all entries within a zip file.
+	 * This is useful to check the contents of a zip file before attempting to read any of it,
+	 * for example to confirm if the file is likely to contain images or objects.
+	 * 
+	 * @param path path representing a file or zip file
+	 * @return the file extensions for entries within a zip file, or the file extension of path itself if it is not 
+	 *         identified as being a zip file.
+	 * @throws IOException
+	 * @implNote this returns the extension for a non-zip file so that it may be used more easily within a stream.
+	 * @since v0.4.0
+	 */
+	public static Set<String> unzippedExtensions(Path path) throws IOException {
+		var content = Files.probeContentType(path);
+		if ("application/zip".equals(content) || "application/java-archive".equals(content)) {
+			// In case we have more than one compressed file, iterate through each entry
+			Set<String> extensions = new LinkedHashSet<>();
+			try (var zipfs = FileSystems.newFileSystem(path, (ClassLoader) null)) {
+				for (var root : zipfs.getRootDirectories()) {
+					var currentExtensions = Files.walk(root).map(p -> {
+						if (Files.isRegularFile(p))
+							return GeneralTools.getExtension(p.getFileName().toString()).orElse(null);
+						else
+							return null;
+					}).filter(e -> e != null).collect(Collectors.toSet());
+					extensions.addAll(currentExtensions);
+				}
+			}
+			return extensions;
+		} else {
+			var ext = GeneralTools.getExtension(path.getFileName().toString()).orElse(null);
+			return ext == null ? Collections.emptySet() : Collections.singleton(ext);
+		}
 	}
 	
 	

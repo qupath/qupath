@@ -8,7 +8,7 @@ This is a work-in-progress.
 * Owner of Find window in the script editor is lost when the script editor window is closed (https://github.com/qupath/qupath/issues/893)
 
 ### Enhancements
-* Some general script editor improvements, including:
+* Many script editor improvements, including:
   * Added 'Replace/Next' and 'Replace all' features to Find window (https://github.com/qupath/qupath/pull/898)
   * New lines now trigger caret following (https://github.com/qupath/qupath/pull/900)
   * Proper tab handling (https://github.com/qupath/qupath/pull/902)
@@ -16,6 +16,11 @@ This is a work-in-progress.
     * Brace block handling (https://github.com/qupath/qupath/pull/901)
     * Smart parentheses and (double/single) quotes (https://github.com/qupath/qupath/pull/907)
     * Comment block handling (https://github.com/qupath/qupath/pull/908)
+* Improved support for switching between QuPath objects and ImageJ ROIs
+  * New 'Extensions -> ImageJ -> Import ImageJ ROIs' command
+  * Import .roi and RoiSet.zip files by drag & drop
+  * Built-in ImageJ plugin to send RoiManager ROIs to QuPath (not only overlays)
+  * Retain ROI position information when sending ROIs from ImageJ (hyper)stacks
 
 ### Dependency updates
 * Adoptium OpenJDK 17
