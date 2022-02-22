@@ -21,33 +21,19 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.richtextfx;
 
-import java.io.File;
+import javafx.scene.input.KeyEvent;
 
-/**
- * Minimal interface for a script editor that the GUI can call.
- * 
- * @author Pete Bankhead
- */
-public interface ScriptEditor {
-	
-	/**
-	 * Show the script editor.
-	 */
-	public void showEditor();
-	
-	/**
-	 * Show the script editor, including a new script with the specified name.
-	 * @param name name of the script to show
-	 * @param script content of the script
-	 */
-	public void showScript(String name, String script);
-	
-	/**
-	 * Show the script editor, opening an existing script file.
-	 * @param file the script file
-	 */
-	public void showScript(File file);
-	
+class PlainAutoCompletor implements ScriptAutoCompletor {
+
+	@Override
+	public void applyNextCompletion() {
+		// Do nothing
+	}
+
+	@Override
+	public void resetCompletion(KeyEvent e) {
+		// Do nothing
+	}
 }

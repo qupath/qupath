@@ -21,33 +21,33 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.richtextfx;
 
-import java.io.File;
+import java.util.Collection;
+
+import org.fxmisc.richtext.CodeArea;
+import org.fxmisc.richtext.model.StyleSpans;
 
 /**
- * Minimal interface for a script editor that the GUI can call.
- * 
- * @author Pete Bankhead
+ * Interface for classes that apply some highlighting to a RichTextFX's {@link CodeArea}.
+ * @author Melvin Gelbard
  */
-public interface ScriptEditor {
+public interface ScriptHighlighting {
+
+	/**
+	 * Compute highlighting for the specified {@code text}, considering it will be used in the main editor..
+	 * @param text the text to process highlighting for
+	 * @return stylespans the {@link StyleSpans} to apply
+	 */
+	StyleSpans<Collection<String>> computeEditorHighlighting(final String text);
+	
 	
 	/**
-	 * Show the script editor.
+	 * Compute highlighting for the specified {@code text}, considering it will be used in the console.
+	 * @param text the text to process highlighting for
+	 * @return stylespans the {@link StyleSpans} to apply
 	 */
-	public void showEditor();
+	StyleSpans<Collection<String>> computeConsoleHighlighting(final String text);
 	
-	/**
-	 * Show the script editor, including a new script with the specified name.
-	 * @param name name of the script to show
-	 * @param script content of the script
-	 */
-	public void showScript(String name, String script);
-	
-	/**
-	 * Show the script editor, opening an existing script file.
-	 * @param file the script file
-	 */
-	public void showScript(File file);
-	
+
 }

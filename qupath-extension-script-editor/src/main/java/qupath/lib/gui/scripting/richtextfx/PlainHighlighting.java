@@ -21,33 +21,33 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting;
+package qupath.lib.gui.scripting.richtextfx;
 
-import java.io.File;
+import java.util.Collection;
+import java.util.Collections;
+
+import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 /**
- * Minimal interface for a script editor that the GUI can call.
- * 
- * @author Pete Bankhead
+ * Highlighting for plain text (which means no highlighting).
+ * @author Melvin Gelbard
  */
-public interface ScriptEditor {
+public class PlainHighlighting implements ScriptHighlighting {
 	
-	/**
-	 * Show the script editor.
-	 */
-	public void showEditor();
+	@Override
+	public StyleSpans<Collection<String>> computeEditorHighlighting(String text) {
+		return getPlainStyling(text);
+	}
+
+	@Override
+	public StyleSpans<Collection<String>> computeConsoleHighlighting(String text) {
+		return getPlainStyling(text);
+	}
 	
-	/**
-	 * Show the script editor, including a new script with the specified name.
-	 * @param name name of the script to show
-	 * @param script content of the script
-	 */
-	public void showScript(String name, String script);
-	
-	/**
-	 * Show the script editor, opening an existing script file.
-	 * @param file the script file
-	 */
-	public void showScript(File file);
-	
+	private static StyleSpans<Collection<String>> getPlainStyling(String text) {
+		StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
+		spansBuilder.add(Collections.emptyList(), text.length());
+		return spansBuilder.create();
+	}
 }
