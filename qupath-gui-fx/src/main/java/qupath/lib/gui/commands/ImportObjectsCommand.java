@@ -62,7 +62,7 @@ public final class ImportObjectsCommand {
 		if (imageData == null)
 			return false;
 		
-		var file = Dialogs.promptForFile("Choose file to import", null, "QuPath objects", PathIO.getObjectFileExtensions().toArray(String[]::new));
+		var file = Dialogs.promptForFile("Choose file to import", null, "QuPath objects", PathIO.getObjectFileExtensions(true).toArray(String[]::new));
 		
 		// User cancel
 		if (file == null)
