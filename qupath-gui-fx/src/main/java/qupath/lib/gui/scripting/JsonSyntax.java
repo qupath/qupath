@@ -21,24 +21,20 @@
  * #L%
  */
 
-package qupath.lib.gui.scripting.richtextfx;
-
-import javafx.scene.input.KeyEvent;
+package qupath.lib.gui.scripting;
 
 /**
- * Auto-completor for plain text (which means no auto-complete).
+ * Class to take care of JSON syntax.
  * @author Melvin Gelbard
  * @since v0.4.0
  */
-class PlainAutoCompletor implements ScriptAutoCompletor {
-
+class JsonSyntax extends GeneralCodeSyntax {
+	
+	/**
+	 * JSON does not support comments. Therefore this method does nothing.
+	 */
 	@Override
-	public void applyNextCompletion() {
-		// Do nothing
-	}
-
-	@Override
-	public void resetCompletion(KeyEvent e) {
+	public void handleLineComment(final ScriptEditorControl control) {
 		// Do nothing
 	}
 }

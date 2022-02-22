@@ -24,30 +24,44 @@
 package qupath.lib.gui.scripting.richtextfx;
 
 import java.util.Collection;
+import java.util.Collections;
 
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.model.StyleSpans;
+import org.fxmisc.richtext.model.StyleSpansBuilder;
 
 /**
  * Interface for classes that apply some highlighting to a RichTextFX's {@link CodeArea}.
  * @author Melvin Gelbard
+ * @since v0.4.0
  */
 public interface ScriptHighlighting {
 
 	/**
 	 * Compute highlighting for the specified {@code text}, considering it will be used in the main editor..
-	 * @param text the text to process highlighting for
-	 * @return stylespans the {@link StyleSpans} to apply
+	 * @param text 			the text to process highlighting for
+	 * @return 				stylespans 	the {@link StyleSpans} to apply
 	 */
 	StyleSpans<Collection<String>> computeEditorHighlighting(final String text);
 	
 	
 	/**
 	 * Compute highlighting for the specified {@code text}, considering it will be used in the console.
-	 * @param text the text to process highlighting for
-	 * @return stylespans the {@link StyleSpans} to apply
+	 * @param 				text the text to process highlighting for
+	 * @return 				stylespans 	the {@link StyleSpans} to apply
 	 */
-	StyleSpans<Collection<String>> computeConsoleHighlighting(final String text);
+	default StyleSpans<Collection<String>> computeConsoleHighlighting(final String text) {
+		return getPlainStyling(text);
+	}
 	
-
+	/**
+	 * Get simple styling, which does not apply any highlighting.
+	 * @param text 			the text to process highlighting for
+	 * @return 				simple stylespan
+	 */
+	static StyleSpans<Collection<String>> getPlainStyling(String text) {
+		StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
+		spansBuilder.add(Collections.emptyList(), text.length());
+		return spansBuilder.create();
+	}
 }

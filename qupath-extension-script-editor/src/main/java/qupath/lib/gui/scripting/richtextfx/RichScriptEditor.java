@@ -183,9 +183,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			});
 
 			codeArea.setOnContextMenuRequested(e -> menu.show(codeArea.getScene().getWindow(), e.getScreenX(), e.getScreenY()));
-			
-			
-			
+
 			@SuppressWarnings("unused")
 			var cleanup = codeArea
 					.multiPlainChanges()
@@ -222,6 +220,8 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				switch(l) {
 				case GROOVY:
 					return new GroovyHighlighting();
+				case JSON:
+					return new JsonHighlighting();
 				case PLAIN:
 				default:
 					return new PlainHighlighting();
@@ -235,6 +235,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 				switch(l) {
 				case GROOVY:
 					return new GroovyAutoCompletor(control);
+				case JSON:
 				case PLAIN:
 				default:
 					return new PlainAutoCompletor();
@@ -243,7 +244,7 @@ public class RichScriptEditor extends DefaultScriptEditor {
 			
 			// Triggered whenever the script styling changes (e.g. change of language)
 			scriptHighlighting.addListener((v, o, n) -> {
-				if (n == null)
+				if (n == null || (o != null && o.getClass().equals(n.getClass())))
 					return;
 				StyleSpans<Collection<String>> changes = scriptHighlighting.get().computeEditorHighlighting(codeArea.getText());
 				codeArea.setStyleSpans(0, changes);

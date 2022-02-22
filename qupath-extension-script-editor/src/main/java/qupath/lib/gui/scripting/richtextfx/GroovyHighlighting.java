@@ -35,6 +35,7 @@ import org.fxmisc.richtext.model.StyleSpansBuilder;
 /**
  * Highlighting to apply to a {@link CodeArea}, based on Groovy syntax.
  * @author Melvin Gelbard
+ * @since v0.4.0
  */
 public class GroovyHighlighting implements ScriptHighlighting {
 	

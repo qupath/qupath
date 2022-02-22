@@ -31,7 +31,7 @@ import javafx.scene.input.KeyEvent;
 /**
  * Interface for classes that implement auto-completion (e.g. styling classes).
  * @author Melvin Gelbard
- *
+ * @since v0.4.0
  */
 interface ScriptAutoCompletor {
 	

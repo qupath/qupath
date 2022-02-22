@@ -37,6 +37,11 @@ import qupath.lib.gui.scripting.QPEx;
 import qupath.lib.gui.scripting.ScriptEditorControl;
 import qupath.lib.scripting.QP;
 
+/**
+ * Auto-completor for Groovy code.
+ * @author Melvin Gelbard
+ * @since v0.4.0
+ */
 class GroovyAutoCompletor implements ScriptAutoCompletor {
 	
 	private static final Set<String> METHOD_NAMES = new HashSet<>();
