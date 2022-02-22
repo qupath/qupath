@@ -26,6 +26,7 @@ This is a work-in-progress.
 * Adoptium OpenJDK 17
 * JavaFX 17.0.2
 * Groovy 4.0.0
+* Gson 2.9.0
 * Guava 31.0.1
 * JavaCPP 1.5.7
 * JFreeSVG 5.0.2

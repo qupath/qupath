@@ -35,6 +35,7 @@ import qupath.lib.objects.PathObject;
  * {@link FeatureExtractor} that takes features from the existing {@link MeasurementList} of each object.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 class DefaultFeatureExtractor<T> implements FeatureExtractor<T> {

@@ -501,6 +501,7 @@ public class PathClassPane {
 	
 	/**
 	 * Prompt to populate available class list from the current image.
+	 * @param baseClassesOnly 
 	 * @return true if the class list was changed, false otherwise.
 	 */
 	boolean promptToPopulateFromImage(boolean baseClassesOnly) {

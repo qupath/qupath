@@ -147,6 +147,7 @@ public interface DnnModel<T> extends AutoCloseable {
 	 *           using OpenCV and CUDA. New code using any DnnModel should call this method if it can 
 	 *           be known that the model will not be needed again in the future.
 	 */
+	@Override
 	public default void close() throws Exception {}
 	
 }

@@ -768,6 +768,7 @@ public class OMEPyramidWriter {
 		 * into a RegionRequest for the original ImageServer.
 		 * 
 		 * @param region
+		 * @param downsample 
 		 * @return
 		 */
 		RegionRequest downsampledRegionToRequest(ImageRegion region, double downsample) {
@@ -846,6 +847,7 @@ public class OMEPyramidWriter {
 		 * @param buf the buffer to which the pixels should be extracted
 		 * @param startInd the starting index in the buffer, where the first pixel should be written
 		 * @param inc the increment (in bytes) between each pixel that is written
+		 * @return 
 		 */
 		boolean channelToBuffer(WritableRaster raster, int c, ByteBuffer buf, int startInd, int inc) {
 			int ind = startInd;
