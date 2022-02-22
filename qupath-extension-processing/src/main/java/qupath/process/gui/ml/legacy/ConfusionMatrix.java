@@ -32,6 +32,7 @@ import java.util.function.Function;
  * Helper class for creating a confusion matrix.
  * 
  * @author Pete Bankhead
+ * @param <T> 
  *
  */
 class ConfusionMatrix<T> {

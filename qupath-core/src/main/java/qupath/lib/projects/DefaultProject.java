@@ -938,8 +938,10 @@ class DefaultProject implements Project<BufferedImage> {
 	
 	/**
 	 * Write project, setting the name of the project file.
+	 * @param <T> 
 	 * 
 	 * @param fileProject
+	 * @throws IOException 
 	 */
 	synchronized <T> void writeProject(final File fileProject) throws IOException {
 		if (fileProject == null) {

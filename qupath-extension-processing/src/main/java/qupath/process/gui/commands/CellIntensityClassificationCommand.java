@@ -264,6 +264,7 @@ public class CellIntensityClassificationCommand implements Runnable {
 	/**
 	 * Request a classification update, asynchronously.
 	 * @param hierarchy
+	 * @param allDetections 
 	 * @param measurement
 	 * @param thresholds
 	 */

@@ -43,7 +43,6 @@ interface ScriptAutoCompletor {
 	
 	/**
 	 * Try to match and auto-complete a method name.
-	 * @param control	the script editor control
 	 */
 	void applyNextCompletion();
 	
