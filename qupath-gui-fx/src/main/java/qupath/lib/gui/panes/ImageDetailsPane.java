@@ -35,12 +35,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Locale.Category;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.imageio.ImageIO;
 
@@ -48,18 +50,24 @@ import org.controlsfx.control.MasterDetailPane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.control.Label;
+import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.ChoiceDialog;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -67,7 +75,10 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
@@ -75,12 +86,19 @@ import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Ellipse;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -97,6 +115,8 @@ import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.gui.dialogs.ParameterPanelFX;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.prefs.PathPrefs.ImageTypeSetting;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.tools.PaneTools;
 import qupath.lib.images.ImageData;
 import qupath.lib.images.ImageData.ImageType;
 import qupath.lib.images.servers.ImageServer;
@@ -222,7 +242,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 					if (value instanceof StainVector || value instanceof double[])
 						editStainVector(value);
 					else if (value instanceof ImageType) {
-						promptToSetImageType(imageData);
+						promptToSetImageType(imageData, imageData.getImageType());
 					} else {
 						// TODO: Support z-spacing
 						var type = c.getTableRow().getItem();
@@ -505,61 +525,318 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 	}
 	
 	
+//	/**
+//	 * Prompt the user to set the {@link ImageType} for the image.
+//	 * @param imageData
+//	 * @return
+//	 */
+//	public static boolean promptToSetImageType(ImageData<BufferedImage> imageData) {
+//		List<ImageType> values = Arrays.asList(ImageType.values());
+//		if (!imageData.getServer().isRGB()) {
+//			values = new ArrayList<>(values);
+//			values.remove(ImageType.BRIGHTFIELD_H_DAB);
+//			values.remove(ImageType.BRIGHTFIELD_H_E);
+//			values.remove(ImageType.BRIGHTFIELD_OTHER);
+//		}
+//		
+//		var dialog = new ChoiceDialog<>(imageData.getImageType(), values);
+//		dialog.setTitle("Image type");
+//		if (QuPathGUI.getInstance() != null)
+//			dialog.initOwner(QuPathGUI.getInstance().getStage());
+//		dialog.getDialogPane().setHeaderText(null);
+//		dialog.getDialogPane().setContentText("Set image type");
+//		dialog.getDialogPane().setPrefWidth(400);
+//		
+//		var labelExplain = new Label("The image type influences some commands (e.g. cell detection) and should be set for every image. "
+//				+ "\n\nSelect an option below or in the preferences to customize how QuPath handles setting the image type when opening an image."
+//				+ "\n\n'Auto-estimate' is convenient to reduce annoying prompts, but the estimates are sometimes wrong. "
+//				+ "When this happens you can correct them by double-clicking "
+//				+ "the type under the 'Image' tab.");
+//		labelExplain.setWrapText(true);
+//		labelExplain.setPrefWidth(400);
+//		labelExplain.setMinHeight(Label.USE_PREF_SIZE);
+//		
+//		var comboSetType = new ComboBox<ImageTypeSetting>();
+//		comboSetType.getItems().setAll(ImageTypeSetting.values());
+//		comboSetType.getSelectionModel().select(PathPrefs.imageTypeSettingProperty().get());
+//		comboSetType.setMaxWidth(Double.MAX_VALUE);
+//		labelExplain.setPadding(new Insets(0, 0, 10, 0));
+//		var expandablePane = new BorderPane(labelExplain);
+//		expandablePane.setBottom(comboSetType);
+//		
+//		dialog.getDialogPane().setExpandableContent(expandablePane);
+//		
+//		var result = dialog.showAndWait();
+//		ImageType type = result.orElse(null);
+//		if (type == null)
+//			return false;
+//		
+//		if (comboSetType.getSelectionModel().getSelectedItem() != null)
+//			PathPrefs.imageTypeSettingProperty().set(comboSetType.getSelectionModel().getSelectedItem());
+//
+//		if (type != imageData.getImageType()) {
+//			imageData.setImageType(type);
+//			return true;
+//		}
+//		return false;
+//	}
+	
+	
 	/**
 	 * Prompt the user to set the {@link ImageType} for the image.
-	 * @param imageData
-	 * @return
+	 * @param imageData the image data for which the type should be set
+	 * @param defaultType the default type (selected when the dialog is shown)
+	 * @return true if the type was changed, false otherwise
 	 */
-	public static boolean promptToSetImageType(ImageData<BufferedImage> imageData) {
-		List<ImageType> values = Arrays.asList(ImageType.values());
-		if (!imageData.getServer().isRGB()) {
-			values =new ArrayList<>(values);
-			values.remove(ImageType.BRIGHTFIELD_H_DAB);
-			values.remove(ImageType.BRIGHTFIELD_H_E);
-			values.remove(ImageType.BRIGHTFIELD_OTHER);
+	public static boolean promptToSetImageType(ImageData<BufferedImage> imageData, ImageType defaultType) {
+		double size = 32;
+		var group = new ToggleGroup();
+		boolean isRGB = imageData.getServer().isRGB();
+		if (defaultType == null)
+			defaultType = ImageType.UNSET;
+		var buttonMap = new LinkedHashMap<ImageType, ToggleButton>();
+		
+		// TODO: Create a nicer icon for unspecified type
+		var iconUnspecified = (Group)createImageTypeCell(Color.GRAY, null, null, size);
+		
+		buttonMap.put(
+				ImageType.BRIGHTFIELD_H_E,
+				createImageTypeButton(ImageType.BRIGHTFIELD_H_E, "Brightfield\nH&E",
+						createImageTypeCell(Color.WHITE, Color.PINK, Color.DARKBLUE, size),
+						"Brightfield image with hematoylin & eosin stains\n(8-bit RGB only)", isRGB)
+				);
+		
+		buttonMap.put(
+				ImageType.BRIGHTFIELD_H_DAB,
+				createImageTypeButton(ImageType.BRIGHTFIELD_H_DAB, "Brightfield\nH-DAB",
+						createImageTypeCell(Color.WHITE, Color.rgb(200, 200, 220), Color.rgb(120, 50, 20), size),
+						"Brightfield image with hematoylin & DAB stains\n(8-bit RGB only)", isRGB)
+				);
+		
+		buttonMap.put(
+				ImageType.BRIGHTFIELD_OTHER,
+				createImageTypeButton(ImageType.BRIGHTFIELD_OTHER, "Brightfield\nOther",
+						createImageTypeCell(Color.WHITE, Color.ORANGE, Color.FIREBRICK, size),
+						"Brightfield image with other chromogenic stains\n(8-bit RGB only)", isRGB)
+				);
+		
+		buttonMap.put(
+				ImageType.FLUORESCENCE,
+				createImageTypeButton(ImageType.FLUORESCENCE, "Fluorescence",
+						createImageTypeCell(Color.BLACK, Color.LIGHTGREEN, Color.BLUE, size),
+						"Fluorescence or fluorescence-like image with a dark background\n" +
+						"Also suitable for imaging mass cytometry", true)
+				);
+		
+		buttonMap.put(
+				ImageType.OTHER,
+				createImageTypeButton(ImageType.OTHER, "Other",
+						createImageTypeCell(Color.BLACK, Color.WHITE, Color.GRAY, size),
+						"Any other image type", true)
+				);
+		
+		buttonMap.put(
+				ImageType.UNSET,
+				createImageTypeButton(ImageType.UNSET, "Unspecified",
+						iconUnspecified,
+						"Do not set the image type (not recommended for analysis)", true)
+		);
+		
+		var buttons = buttonMap.values().toArray(ToggleButton[]::new);
+		for (var btn: buttons) {
+			if (btn.isDisabled()) {
+				btn.getTooltip().setText("Image type is not supported because image is not RGB");
+			}
 		}
+		var buttonList = Arrays.asList(buttons);
 		
-		var dialog = new ChoiceDialog<>(imageData.getImageType(), values);
-		dialog.setTitle("Image type");
-		if (QuPathGUI.getInstance() != null)
-			dialog.initOwner(QuPathGUI.getInstance().getStage());
-		dialog.getDialogPane().setHeaderText(null);
-		dialog.getDialogPane().setContentText("Set image type");
-		dialog.getDialogPane().setPrefWidth(400);
-		
-		var labelExplain = new Label("The image type influences some commands (e.g. cell detection) and should be set for every image. "
-				+ "\n\nSelect an option below or in the preferences to customize how QuPath handles setting the image type when opening an image."
-				+ "\n\n'Auto-estimate' is convenient to reduce annoying prompts, but the estimates are sometimes wrong. "
-				+ "When this happens you can correct them by double-clicking "
-				+ "the type under the 'Image' tab.");
-		labelExplain.setWrapText(true);
-		labelExplain.setPrefWidth(400);
-		labelExplain.setMinHeight(Label.USE_PREF_SIZE);
-		
-		var comboSetType = new ComboBox<ImageTypeSetting>();
-		comboSetType.getItems().setAll(ImageTypeSetting.values());
-		comboSetType.getSelectionModel().select(PathPrefs.imageTypeSettingProperty().get());
-		comboSetType.setMaxWidth(Double.MAX_VALUE);
-		labelExplain.setPadding(new Insets(0, 0, 10, 0));
-		var expandablePane = new BorderPane(labelExplain);
-		expandablePane.setBottom(comboSetType);
-		
-		dialog.getDialogPane().setExpandableContent(expandablePane);
-		
-		var result = dialog.showAndWait();
-		ImageType type = result.orElse(null);
-		if (type == null)
-			return false;
-		
-		if (comboSetType.getSelectionModel().getSelectedItem() != null)
-			PathPrefs.imageTypeSettingProperty().set(comboSetType.getSelectionModel().getSelectedItem());
+		group.getToggles().setAll(buttons);
+		group.selectedToggleProperty().addListener((v, o, n) -> {
+		    // Ensure that we can't deselect all buttons
+			if (n == null)
+		        o.setSelected(true);
+		});
 
-		if (type != imageData.getImageType()) {
-			imageData.setImageType(type);
-			return true;
+		PaneTools.setMaxWidth(Double.MAX_VALUE, buttons);
+		PaneTools.setMaxHeight(Double.MAX_VALUE, buttons);
+		var selectedButton = buttonMap.get(defaultType);
+		group.selectToggle(selectedButton);
+
+		var grid = new GridPane();
+		int nHorizontal = 3;
+		int nVertical = (int)Math.ceil(buttons.length / (double)nHorizontal);
+		grid.getColumnConstraints().setAll(IntStream.range(0, nHorizontal).mapToObj(i -> {
+			var c = new ColumnConstraints();
+			c.setPercentWidth(100.0/nHorizontal);
+			return c;
+		}).collect(Collectors.toList()));
+		
+		grid.getRowConstraints().setAll(IntStream.range(0, nVertical).mapToObj(i -> {
+			var c = new RowConstraints();
+			c.setPercentHeight(100.0/nVertical);
+			return c;
+		}).collect(Collectors.toList()));
+		
+		grid.setVgap(5);
+//		grid.setHgap(5);
+		grid.setMaxWidth(Double.MAX_VALUE);
+		for (int i = 0; i < buttons.length; i++) {
+			grid.add(buttons[i], i % nHorizontal, i / nHorizontal);
+		}
+//		grid.getChildren().setAll(buttons);
+
+		var content = new BorderPane(grid);
+		var comboOptions = new ComboBox<ImageTypeSetting>();
+		comboOptions.getItems().setAll(ImageTypeSetting.values());
+		
+		var prompts = Map.of(
+				ImageTypeSetting.AUTO_ESTIMATE, "Always auto-estimate type (don't prompt)",
+				ImageTypeSetting.PROMPT, "Always prompt me to set type",
+				ImageTypeSetting.NONE, "Don't set the image type"
+				);
+		comboOptions.setButtonCell(GuiTools.createCustomListCell(p -> prompts.get(p)));
+		comboOptions.setCellFactory(c -> GuiTools.createCustomListCell(p -> prompts.get(p)));
+		comboOptions.setTooltip(
+		        new Tooltip("Choose whether you want to see these prompts " +
+		                "when opening an image for the first time"));
+		comboOptions.setMaxWidth(Double.MAX_VALUE);
+//		comboOptions.prefWidthProperty().bind(grid.widthProperty().subtract(100));
+		comboOptions.getSelectionModel().select(PathPrefs.imageTypeSettingProperty().get());
+
+		BorderPane.setMargin(comboOptions, new Insets(5, 0, 0, 0));
+		content.setBottom(comboOptions);
+
+		var labelDetails = new Label("The image type is used for stain separation "
+				+ "by some commands, e.g. 'Cell detection'.");
+//				+ "For 'Brightfield' images you can set the color stain vectors.");
+		labelDetails.setWrapText(true);
+		labelDetails.prefWidthProperty().bind(grid.widthProperty().subtract(10));
+		labelDetails.setMaxHeight(Double.MAX_VALUE);
+		labelDetails.setPrefHeight(Label.USE_COMPUTED_SIZE);
+		labelDetails.setPrefHeight(80);
+		labelDetails.setAlignment(Pos.CENTER);
+		labelDetails.setTextAlignment(TextAlignment.CENTER);
+
+		var dialog = Dialogs.builder()
+		    .title("Set image type")
+		    .headerText("What type of image is this?")
+		    .content(content)
+		    .buttons(ButtonType.APPLY, ButtonType.CANCEL)
+		    .expandableContent(labelDetails)
+		    .build();
+		
+		// Try to make it easier to dismiss the dialog in a variety of ways
+		var btnApply = dialog.getDialogPane().lookupButton(ButtonType.APPLY);
+		Platform.runLater(() -> selectedButton.requestFocus());
+		for (var btn : buttons) {
+			btn.setOnMouseClicked(e -> {
+				if (!btn.isDisabled() && e.getClickCount() == 2) {
+					btnApply.fireEvent(new ActionEvent());
+					e.consume();					
+				}
+			});
+		}
+		var enterPressed = new KeyCodeCombination(KeyCode.ENTER);
+		var spacePressed = new KeyCodeCombination(KeyCode.SPACE);
+		dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+			if (enterPressed.match(e) || spacePressed.match(e)) {
+				btnApply.fireEvent(new ActionEvent());
+				e.consume();
+			} else if (e.getCode() == KeyCode.UP || e.getCode() == KeyCode.DOWN || e.getCode() == KeyCode.LEFT || e.getCode() == KeyCode.RIGHT) {
+				var selected = (ToggleButton)group.getSelectedToggle();
+				var ind = buttonList.indexOf(selected);
+				var newSelected = selected;
+				if (e.getCode() == KeyCode.UP && ind >= nHorizontal) {
+					newSelected = buttonList.get(ind - nHorizontal);
+				}
+				if (e.getCode() == KeyCode.LEFT && ind > 0) {
+					newSelected = buttonList.get(ind - 1);
+				}
+				if (e.getCode() == KeyCode.RIGHT && ind < buttonList.size()-1) {
+					newSelected = buttonList.get(ind + 1);
+				}
+				if (e.getCode() == KeyCode.DOWN && ind < buttonList.size() - nHorizontal) {
+					newSelected = buttonList.get(ind + nHorizontal);
+				}
+				newSelected.requestFocus();
+				group.selectToggle(newSelected);
+				e.consume();
+			}
+		});
+		
+		var response = dialog.showAndWait();
+		if (response.orElse(ButtonType.CANCEL) == ButtonType.APPLY) {
+			PathPrefs.imageTypeSettingProperty().set(comboOptions.getSelectionModel().getSelectedItem());
+			var selectedType = (ImageType)group.getSelectedToggle().getUserData();
+			if (selectedType != imageData.getImageType()) {
+				imageData.setImageType(selectedType);
+				return true;
+			}
 		}
 		return false;
 	}
+
+	/**
+	 * Create a standardized toggle button for setting the image type
+	 * @param name
+	 * @param node
+	 * @param tooltip
+	 * @return
+	 */
+	private static ToggleButton createImageTypeButton(ImageType type, String name, Node node, String tooltip, boolean isEnabled) {
+		var btn = new ToggleButton(name, node);
+		if (tooltip != null) {
+			btn.setTooltip(new Tooltip(tooltip));
+		}
+		btn.setTextAlignment(TextAlignment.CENTER);
+		btn.setAlignment(Pos.TOP_CENTER);
+		btn.setContentDisplay(ContentDisplay.BOTTOM);
+		btn.setOpacity(0.65);
+		btn.selectedProperty().addListener((v, o, n) -> {
+			if (n)
+				btn.setOpacity(1.0);
+			else
+				btn.setOpacity(0.65);
+		});
+		btn.setUserData(type);
+		if (!isEnabled)
+			btn.setDisable(true);
+		btn.setFocusTraversable(false);
+		return btn;
+	}
+	
+	/**
+	 * Create a small icon of a cell, for use with image type buttons.
+	 * @param bgColor
+	 * @param cytoColor
+	 * @param nucleusColor
+	 * @param size
+	 * @return
+	 */
+	private static Node createImageTypeCell(Color bgColor, Color cytoColor, Color nucleusColor, double size) {
+		var group = new Group();
+		if (bgColor != null) {
+		    var rect = new Rectangle(0, 0, size, size);
+		    rect.setFill(bgColor);
+		    rect.setEffect(new DropShadow(5.0, Color.BLACK));
+		    group.getChildren().add(rect);
+		}
+		if (cytoColor != null) {
+		    var cyto = new Ellipse(size/2.0, size/2.0, size/3.0, size/3.0);
+		    cyto.setFill(cytoColor);
+		    cyto.setEffect(new DropShadow(2.5, Color.BLACK));
+		    group.getChildren().add(cyto);
+		}
+		if (nucleusColor != null) {
+		    var nucleus = new Ellipse(size/2.4, size/2.4, size/5.0, size/5.0);
+		    nucleus.setFill(nucleusColor);
+		    nucleus.setEffect(new DropShadow(2.5, Color.BLACK));
+		    group.getChildren().add(nucleus);
+		}
+	    group.setOpacity(0.7);
+	    return group;
+	}
+	
 	
 	
 	

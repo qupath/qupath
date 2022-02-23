@@ -337,7 +337,7 @@ public class GuiTools {
 			}
 		}
 		if (nDark == 0 && nLight == 0)
-			return ImageData.ImageType.UNSET;
+			return ImageData.ImageType.OTHER;
 		// If we have more dark than light pixels, assume fluorescence
 		if (nDark >= nLight)
 			return ImageData.ImageType.FLUORESCENCE;
