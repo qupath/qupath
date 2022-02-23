@@ -57,6 +57,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.control.Label;
@@ -592,25 +593,28 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 			defaultType = ImageType.UNSET;
 		var buttonMap = new LinkedHashMap<ImageType, ToggleButton>();
 		
+		// TODO: Create a nicer icon for unspecified type
+		var iconUnspecified = (Group)createImageTypeCell(Color.GRAY, null, null, size);
+		
 		buttonMap.put(
 				ImageType.BRIGHTFIELD_H_E,
 				createImageTypeButton(ImageType.BRIGHTFIELD_H_E, "Brightfield\nH&E",
 						createImageTypeCell(Color.WHITE, Color.PINK, Color.DARKBLUE, size),
-						"Brightfield image with hematoylin & eosin stains", isRGB)
+						"Brightfield image with hematoylin & eosin stains\n(8-bit RGB only)", isRGB)
 				);
 		
 		buttonMap.put(
 				ImageType.BRIGHTFIELD_H_DAB,
 				createImageTypeButton(ImageType.BRIGHTFIELD_H_DAB, "Brightfield\nH-DAB",
 						createImageTypeCell(Color.WHITE, Color.rgb(200, 200, 220), Color.rgb(120, 50, 20), size),
-						"Brightfield image with hematoylin & DAB stains", isRGB)
+						"Brightfield image with hematoylin & DAB stains\n(8-bit RGB only)", isRGB)
 				);
 		
 		buttonMap.put(
 				ImageType.BRIGHTFIELD_OTHER,
 				createImageTypeButton(ImageType.BRIGHTFIELD_OTHER, "Brightfield\nOther",
 						createImageTypeCell(Color.WHITE, Color.ORANGE, Color.FIREBRICK, size),
-						"Brightfield image with other chromogenic stains", isRGB)
+						"Brightfield image with other chromogenic stains\n(8-bit RGB only)", isRGB)
 				);
 		
 		buttonMap.put(
@@ -618,7 +622,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				createImageTypeButton(ImageType.FLUORESCENCE, "Fluorescence",
 						createImageTypeCell(Color.BLACK, Color.LIGHTGREEN, Color.BLUE, size),
 						"Fluorescence or fluorescence-like image with a dark background\n" +
-						"(Also suitable for imaging mass cytometry)", true)
+						"Also suitable for imaging mass cytometry", true)
 				);
 		
 		buttonMap.put(
@@ -630,8 +634,8 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		
 		buttonMap.put(
 				ImageType.UNSET,
-				createImageTypeButton(ImageType.UNSET, "Don't set",
-						null,
+				createImageTypeButton(ImageType.UNSET, "Unspecified",
+						iconUnspecified,
 						"Do not set the image type (not recommended for analysis)", true)
 		);
 		
@@ -641,6 +645,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 				btn.getTooltip().setText("Image type is not supported because image is not RGB");
 			}
 		}
+		var buttonList = Arrays.asList(buttons);
 		
 		group.getToggles().setAll(buttons);
 		group.selectedToggleProperty().addListener((v, o, n) -> {
@@ -651,10 +656,12 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 
 		PaneTools.setMaxWidth(Double.MAX_VALUE, buttons);
 		PaneTools.setMaxHeight(Double.MAX_VALUE, buttons);
-		group.selectToggle(buttonMap.get(defaultType));
+		var selectedButton = buttonMap.get(defaultType);
+		group.selectToggle(selectedButton);
 
 		var grid = new TilePane();
-		grid.setPrefColumns(3);
+		int nHorizontal = 3;
+		grid.setPrefColumns(nHorizontal);
 		//content.setHgap(5)
 		grid.setVgap(5);
 		grid.setMaxWidth(Double.MAX_VALUE);
@@ -679,22 +686,29 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		comboOptions.prefWidthProperty().bind(grid.widthProperty().subtract(100));
 		comboOptions.getSelectionModel().select(PathPrefs.imageTypeSettingProperty().get());
 
+		BorderPane.setMargin(comboOptions, new Insets(5, 0, 0, 0));
 		content.setBottom(comboOptions);
 
-		var labelDetails = new Label("The image type is needed for is needed for stain separation");
+		var labelDetails = new Label("The image type is needed for for stain separation.\n"
+				+ "It is used by some commands, e.g. 'Cell detection'.");
+//				+ "For 'Brightfield' images you can set the color stain vectors.");
 		labelDetails.setWrapText(true);
+		labelDetails.prefWidthProperty().bind(grid.widthProperty().subtract(10));
+		labelDetails.setMaxHeight(Double.MAX_VALUE);
+		labelDetails.setPrefHeight(Label.USE_COMPUTED_SIZE);
+		labelDetails.setPrefHeight(80);
 
 		var dialog = Dialogs.builder()
 		    .title("Set image type")
 		    .headerText("What type of image is this?")
 		    .content(content)
 		    .buttons(ButtonType.APPLY, ButtonType.CANCEL)
-//		    .expandableContent(labelDetails)
+		    .expandableContent(labelDetails)
 		    .build();
 		
 		// Try to make it easier to dismiss the dialog in a variety of ways
 		var btnApply = dialog.getDialogPane().lookupButton(ButtonType.APPLY);
-		Platform.runLater(() -> btnApply.requestFocus());
+		Platform.runLater(() -> selectedButton.requestFocus());
 		for (var btn : buttons) {
 			btn.setOnMouseClicked(e -> {
 				if (!btn.isDisabled() && e.getClickCount() == 2) {
@@ -705,9 +719,28 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		}
 		var enterPressed = new KeyCodeCombination(KeyCode.ENTER);
 		var spacePressed = new KeyCodeCombination(KeyCode.SPACE);
-		dialog.getDialogPane().addEventFilter(KeyEvent.KEY_RELEASED, e -> {
+		dialog.getDialogPane().addEventFilter(KeyEvent.KEY_PRESSED, e -> {
 			if (enterPressed.match(e) || spacePressed.match(e)) {
 				btnApply.fireEvent(new ActionEvent());
+				e.consume();
+			} else if (e.getCode() == KeyCode.UP || e.getCode() == KeyCode.DOWN || e.getCode() == KeyCode.LEFT || e.getCode() == KeyCode.RIGHT) {
+				var selected = (ToggleButton)group.getSelectedToggle();
+				var ind = buttonList.indexOf(selected);
+				var newSelected = selected;
+				if (e.getCode() == KeyCode.UP && ind >= nHorizontal) {
+					newSelected = buttonList.get(ind - nHorizontal);
+				}
+				if (e.getCode() == KeyCode.LEFT && ind > 0) {
+					newSelected = buttonList.get(ind - 1);
+				}
+				if (e.getCode() == KeyCode.RIGHT && ind < buttonList.size()-1) {
+					newSelected = buttonList.get(ind + 1);
+				}
+				if (e.getCode() == KeyCode.DOWN && ind < buttonList.size() - nHorizontal) {
+					newSelected = buttonList.get(ind + nHorizontal);
+				}
+				newSelected.requestFocus();
+				group.selectToggle(newSelected);
 				e.consume();
 			}
 		});
@@ -749,6 +782,7 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 		btn.setUserData(type);
 		if (!isEnabled)
 			btn.setDisable(true);
+		btn.setFocusTraversable(false);
 		return btn;
 	}
 	
@@ -761,16 +795,25 @@ public class ImageDetailsPane implements ChangeListener<ImageData<BufferedImage>
 	 * @return
 	 */
 	private static Node createImageTypeCell(Color bgColor, Color cytoColor, Color nucleusColor, double size) {
-	    var rect = new Rectangle(0, 0, size, size);
-	    rect.setFill(bgColor);
-	    rect.setEffect(new DropShadow(5.0, Color.BLACK));
-	    var cyto = new Ellipse(size/2.0, size/2.0, size/3.0, size/3.0);
-	    cyto.setFill(cytoColor);
-	    cyto.setEffect(new DropShadow(2.5, Color.BLACK));
-	    var nucleus = new Ellipse(size/2.4, size/2.4, size/5.0, size/5.0);
-	    nucleus.setFill(nucleusColor);
-	    nucleus.setEffect(new DropShadow(2.5, Color.BLACK));
-	    var group = new Group(rect, cyto, nucleus);
+		var group = new Group();
+		if (bgColor != null) {
+		    var rect = new Rectangle(0, 0, size, size);
+		    rect.setFill(bgColor);
+		    rect.setEffect(new DropShadow(5.0, Color.BLACK));
+		    group.getChildren().add(rect);
+		}
+		if (cytoColor != null) {
+		    var cyto = new Ellipse(size/2.0, size/2.0, size/3.0, size/3.0);
+		    cyto.setFill(cytoColor);
+		    cyto.setEffect(new DropShadow(2.5, Color.BLACK));
+		    group.getChildren().add(cyto);
+		}
+		if (nucleusColor != null) {
+		    var nucleus = new Ellipse(size/2.4, size/2.4, size/5.0, size/5.0);
+		    nucleus.setFill(nucleusColor);
+		    nucleus.setEffect(new DropShadow(2.5, Color.BLACK));
+		    group.getChildren().add(nucleus);
+		}
 	    group.setOpacity(0.7);
 	    return group;
 	}
